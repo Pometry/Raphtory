@@ -1,5 +1,4 @@
 use crate::{
-    arrow::Error,
     arrow2::{
         array::{Array, BooleanArray, PrimitiveArray, Utf8Array},
         datatypes::{ArrowDataType as DataType, ArrowSchema as Schema, Field},

@@ -1,52 +1,6 @@
-use std::{
-    borrow::Cow,
-    num::TryFromIntError,
-    ops::Range,
-    path::{Path, PathBuf},
-};
-
-use crate::arrow2::{
-    array::{Array, StructArray},
-    compute::concatenate::concatenate,
-    datatypes::{ArrowDataType as DataType, ArrowSchema as Schema, Field},
-};
-use itertools::Itertools;
-use num_traits::ToPrimitive;
-use polars_arrow::record_batch::RecordBatch;
-use raphtory_arrow::{
-    interop::AsVID,
-    properties::{node_ts, NodePropsBuilder, Properties, TemporalProps},
-};
-use serde::{Deserialize, Serialize};
-
-use crate::{
-    arrow::graph_impl::prop_conversion::arrow_array_from_props,
-    arrow2::legacy::error,
-    core::entities::{nodes::input_node::parse_u64_strict, VID},
-    db::api::{storage::tprop_storage_ops::TPropOps, view::internal::CoreGraphOps},
-    prelude::*,
-};
-
-// pub use raphtory_arrow as arrow;
-
-// pub mod algorithms;
-// pub mod arrow_hmap;
-// pub mod chunked_array;
-// pub mod edge;
-// pub(crate) mod edges;
-// pub mod global_order;
-// pub mod graph;
-// pub(crate) mod graph_builder;
-// pub mod graph_fragment;
 pub mod graph_impl;
-// pub mod load;
-// pub(crate) mod nodes;
-// pub mod properties;
 pub mod query;
 pub mod storage_interface;
-// pub(crate) mod timestamps;
-
-// mod compute;
 
 pub type Time = i64;
 
@@ -60,319 +14,444 @@ pub enum Error {
     RAError(#[from] raphtory_arrow::RAError),
 }
 
-// const TIME_COLUMN: &str = "rap_time";
-// const TIME_COLUMN_IDX: usize = 0;
-//
-// pub(crate) const V_COLUMN: &str = "v";
-// pub(crate) const E_COLUMN: &str = "e";
-//
-// #[inline]
-// pub fn adj_schema() -> DataType {
-//     DataType::Struct(vec![
-//         Field::new(V_COLUMN, DataType::UInt64, false),
-//         Field::new(E_COLUMN, DataType::UInt64, false),
-//     ])
-// }
-//
-// pub(crate) mod file_prefix {
-//     use std::{
-//         path::{Path, PathBuf},
-//         str::FromStr,
-//     };
-//
-//     use itertools::Itertools;
-//     use strum::{AsRefStr, EnumString};
-//
-//     use crate::arrow::Error;
-//
-//     #[derive(AsRefStr, EnumString, PartialEq, Debug, Ord, PartialOrd, Eq, Copy, Clone)]
-//     pub enum GraphPaths {
-//         NodeAdditions,
-//         NodeAdditionsOffsets,
-//         NodeTProps,
-//         NodeTPropsTimestamps,
-//         NodeTPropsSecondaryIndex,
-//         NodeTPropsOffsets,
-//         NodeConstProps,
-//         AdjOutSrcs,
-//         AdjOutDsts,
-//         AdjOutOffsets,
-//         EdgeTPropsOffsets,
-//         EdgeTProps,
-//         AdjInSrcs,
-//         AdjInEdges,
-//         AdjInOffsets,
-//         Metadata,
-//         HashMap,
-//     }
-//
-//     #[derive(Debug, PartialEq, Ord, PartialOrd, Eq, Copy, Clone)]
-//     pub struct GraphFile {
-//         pub prefix: GraphPaths,
-//         pub chunk: usize,
-//     }
-//
-//     impl GraphFile {
-//         pub fn try_from_path(path: impl AsRef<Path>) -> Option<Self> {
-//             let name = path.as_ref().file_stem()?.to_str()?;
-//             let mut name_parts = name.split('-');
-//             let prefix = GraphPaths::from_str(name_parts.next()?).ok()?;
-//             let chunk_str = name_parts.next();
-//             let chunk: usize = chunk_str?.parse().ok()?;
-//             Some(Self { prefix, chunk })
-//         }
-//     }
-//
-//     impl GraphPaths {
-//         pub fn try_from(path: impl AsRef<Path>) -> Option<Self> {
-//             let path = path.as_ref();
-//             let name = path.file_name().and_then(|name| name.to_str())?;
-//             let prefix = name.split('-').next()?;
-//             GraphPaths::from_str(prefix).ok()
-//         }
-//
-//         pub fn to_path(&self, location_path: impl AsRef<Path>, id: usize) -> PathBuf {
-//             let prefix: &str = self.as_ref();
-//             make_path(location_path, prefix, id)
-//         }
-//     }
-//
-//     pub fn make_path(location_path: impl AsRef<Path>, prefix: &str, id: usize) -> PathBuf {
-//         let file_path = location_path
-//             .as_ref()
-//             .join(format!("{}-{:08}.ipc", prefix, id));
-//         file_path
-//     }
-//
-//     pub fn sorted_file_list(
-//         dir: impl AsRef<Path>,
-//         prefix: GraphPaths,
-//     ) -> Result<impl Iterator<Item = PathBuf>, Error> {
-//         let mut files = dir
-//             .as_ref()
-//             .read_dir()?
-//             .filter_map_ok(|f| {
-//                 let path = f.path();
-//                 GraphFile::try_from_path(&path)
-//                     .filter(|f| f.prefix == prefix)
-//                     .map(|f| (f.chunk, path))
-//             })
-//             .collect::<Result<Vec<_>, _>>()?;
-//         files.sort();
-//         for (i, (chunk, _)) in files.iter().enumerate() {
-//             if &i != chunk {
-//                 return Err(Error::MissingChunk(i));
-//             }
-//         }
-//         Ok(files.into_iter().map(|(_, path)| path))
-//     }
-// }
-//
-// #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize, Deserialize)]
-// pub enum GID {
-//     U64(u64),
-//     I64(i64),
-//     Str(String),
-// }
-//
-// impl GID {
-//     pub fn into_str(self) -> Option<String> {
-//         match self {
-//             GID::Str(v) => Some(v),
-//             _ => None,
-//         }
-//     }
-//
-//     pub fn into_i64(self) -> Option<i64> {
-//         match self {
-//             GID::I64(v) => Some(v),
-//             _ => None,
-//         }
-//     }
-//
-//     pub fn into_u64(self) -> Option<u64> {
-//         match self {
-//             GID::U64(v) => Some(v),
-//             _ => None,
-//         }
-//     }
-//
-//     pub fn as_str(&self) -> Option<&str> {
-//         match self {
-//             GID::Str(v) => Some(v.as_str()),
-//             _ => None,
-//         }
-//     }
-//
-//     pub fn as_i64(&self) -> Option<i64> {
-//         match self {
-//             GID::I64(v) => Some(*v),
-//             _ => None,
-//         }
-//     }
-//
-//     pub fn as_u64(&self) -> Option<u64> {
-//         match self {
-//             GID::U64(v) => Some(*v),
-//             _ => None,
-//         }
-//     }
-//
-//     pub fn to_str(&self) -> Cow<String> {
-//         match self {
-//             GID::U64(v) => Cow::Owned(v.to_string()),
-//             GID::I64(v) => Cow::Owned(v.to_string()),
-//             GID::Str(v) => Cow::Borrowed(v),
-//         }
-//     }
-//
-//     pub fn to_i64(&self) -> Option<i64> {
-//         match self {
-//             GID::U64(v) => v.to_i64(),
-//             GID::I64(v) => Some(*v),
-//             GID::Str(v) => parse_u64_strict(&v)?.to_i64(),
-//         }
-//     }
-//
-//     pub fn to_u64(&self) -> Option<u64> {
-//         match self {
-//             GID::U64(v) => Some(*v),
-//             GID::I64(v) => v.to_u64(),
-//             GID::Str(v) => parse_u64_strict(v),
-//         }
-//     }
-// }
-//
-// impl From<u64> for GID {
-//     fn from(id: u64) -> Self {
-//         Self::U64(id)
-//     }
-// }
-//
-// impl From<i64> for GID {
-//     fn from(id: i64) -> Self {
-//         Self::I64(id)
-//     }
-// }
-//
-// impl From<String> for GID {
-//     fn from(id: String) -> Self {
-//         Self::Str(id)
-//     }
-// }
-//
-// impl From<&str> for GID {
-//     fn from(id: &str) -> Self {
-//         Self::Str(id.to_string())
-//     }
-// }
-//
-// #[derive(Debug, Clone)]
-// pub(crate) struct GraphChunk {
-//     srcs: Box<dyn Array>,
-//     dsts: Box<dyn Array>,
-// }
-//
-// impl GraphChunk {
-//     pub fn to_chunk(&self) -> RecordBatch<Box<dyn Array>> {
-//         RecordBatch::new(vec![self.srcs.clone(), self.dsts.clone()])
-//     }
-// }
-//
-// #[derive(Debug, Clone)]
-// pub(crate) struct PropsChunk(pub StructArray);
-//
-// impl NumRows for &PropsChunk {
-//     fn num_rows(&self) -> usize {
-//         self.0.len()
-//     }
-// }
-//
-// impl TrySlice for &PropsChunk {
-//     fn try_slice(&self, range: Range<usize>) -> Result<StructArray, Error> {
-//         self.0.try_slice(range)
-//     }
-// }
-//
-// pub fn concat<A: Array + Clone>(arrays: Vec<A>) -> Result<A, Error> {
-//     let mut refs: Vec<&dyn Array> = Vec::with_capacity(arrays.len());
-//     for array in arrays.iter() {
-//         refs.push(array);
-//     }
-//     Ok(concatenate(&refs)?
-//         .as_any()
-//         .downcast_ref::<A>()
-//         .unwrap()
-//         .clone())
-// }
-//
-// pub(crate) fn split_struct_chunk(
-//     chunk: StructArray,
-//     src_col_idx: usize,
-//     dst_col_idx: usize,
-//     time_col_idx: usize,
-// ) -> (GraphChunk, PropsChunk) {
-//     let (fields, cols, _) = chunk.into_data();
-//     split_chunk(
-//         cols.to_vec(),
-//         src_col_idx,
-//         dst_col_idx,
-//         time_col_idx,
-//         fields.into(),
-//     )
-// }
-//
-// pub(crate) fn split_chunk<I: IntoIterator<Item = Box<dyn Array>>>(
-//     columns_in_chunk: I,
-//     src_col_idx: usize,
-//     dst_col_idx: usize,
-//     time_col_idx: usize,
-//     chunk_schema: Schema,
-// ) -> (GraphChunk, PropsChunk) {
-//     let all_cols = columns_in_chunk.into_iter().collect_vec();
-//
-//     let time_d_type = all_cols[time_col_idx].data_type().clone();
-//     assert_eq!(time_d_type, DataType::Int64, "time column must be i64");
-//     let first_len = all_cols.first().unwrap().len();
-//     if all_cols.iter().any(|arr| arr.len() != first_len) {
-//         panic!("All arrays in a chunk must have the same length");
-//     }
-//
-//     let mut temporal_props = vec![all_cols[time_col_idx].clone()];
-//     for (i, column) in all_cols.iter().enumerate() {
-//         if !(i == src_col_idx || i == dst_col_idx || i == time_col_idx) {
-//             temporal_props.push(column.clone());
-//         }
-//     }
-//
-//     let mut props_only_schema =
-//         chunk_schema.filter(|i, _| !(i == src_col_idx || i == dst_col_idx || i == time_col_idx));
-//     // put time as the first column in the struct
-//     props_only_schema
-//         .fields
-//         .insert(0, Field::new(TIME_COLUMN, time_d_type, false));
-//     let data_type = DataType::Struct(props_only_schema.fields);
-//     let t_prop_cols = StructArray::new(data_type, temporal_props, None);
-//
-//     (
-//         GraphChunk {
-//             srcs: all_cols[src_col_idx].clone(),
-//             dsts: all_cols[dst_col_idx].clone(),
-//             // time: all_cols[time_col_idx].clone(),
-//         },
-//         PropsChunk(t_prop_cols),
-//     )
-// }
-//
-// fn prepare_graph_dir<P: AsRef<Path>>(graph_dir: P) -> Result<(), Error> {
-//     // create graph dir if it does not exist
-//     // if it exists make sure it's empty
-//     std::fs::create_dir_all(&graph_dir)?;
-//
-//     let mut dir_iter = std::fs::read_dir(&graph_dir)?;
-//     if dir_iter.next().is_some() {
-//         return Err(Error::GraphDirNotEmpty);
-//     }
-//
-//     return Ok(());
-// }
+#[cfg(test)]
+mod test {
+    use std::path::Path;
+
+    use crate::{
+        arrow2::datatypes::{ArrowDataType as DataType, ArrowSchema as Schema},
+        db::graph::graph::assert_graph_equal,
+        prelude::*,
+    };
+    use itertools::Itertools;
+    use polars_arrow::{
+        array::{PrimitiveArray, StructArray},
+        datatypes::Field,
+    };
+    use proptest::prelude::*;
+    use raphtory_arrow::{
+        global_order::GlobalMap,
+        graph_fragment::TempColGraphFragment,
+        interop::{Direction, EID, VID},
+        RAError,
+    };
+    use tempfile::TempDir;
+
+    fn edges_sanity_node_list(edges: &[(u64, u64, i64)]) -> Vec<u64> {
+        edges
+            .iter()
+            .map(|(s, _, _)| *s)
+            .chain(edges.iter().map(|(_, d, _)| *d))
+            .sorted()
+            .dedup()
+            .collect()
+    }
+
+    pub fn edges_sanity_check_build_graph<P: AsRef<Path>>(
+        test_dir: P,
+        edges: &[(u64, u64, i64)],
+        nodes: &[u64],
+        input_chunk_size: u64,
+        chunk_size: usize,
+        t_props_chunk_size: usize,
+    ) -> Result<TempColGraphFragment, RAError> {
+        let chunks = edges
+            .iter()
+            .map(|(src, _, _)| *src)
+            .chunks(input_chunk_size as usize);
+        let srcs = chunks
+            .into_iter()
+            .map(|chunk| PrimitiveArray::from_vec(chunk.collect()));
+        let chunks = edges
+            .iter()
+            .map(|(_, dst, _)| *dst)
+            .chunks(input_chunk_size as usize);
+        let dsts = chunks
+            .into_iter()
+            .map(|chunk| PrimitiveArray::from_vec(chunk.collect()));
+        let chunks = edges
+            .iter()
+            .map(|(_, _, times)| *times)
+            .chunks(input_chunk_size as usize);
+        let times = chunks
+            .into_iter()
+            .map(|chunk| PrimitiveArray::from_vec(chunk.collect()));
+
+        let schema = Schema::from(vec![
+            Field::new("srcs", DataType::UInt64, false),
+            Field::new("dsts", DataType::UInt64, false),
+            Field::new("time", DataType::Int64, false),
+        ]);
+
+        let triples = srcs.zip(dsts).zip(times).map(move |((a, b), c)| {
+            StructArray::new(
+                DataType::Struct(schema.fields.clone()),
+                vec![a.boxed(), b.boxed(), c.boxed()],
+                None,
+            )
+        });
+
+        let go: GlobalMap = nodes.iter().copied().collect();
+        let node_gids = PrimitiveArray::from_slice(nodes).boxed();
+
+        let mut graph = TempColGraphFragment::load_from_edge_list(
+            test_dir.as_ref(),
+            0,
+            chunk_size,
+            t_props_chunk_size,
+            go.into(),
+            node_gids,
+            0,
+            1,
+            2,
+            triples,
+        )?;
+        graph.build_node_additions(chunk_size)?;
+        Ok(graph)
+    }
+
+    fn check_graph_sanity(edges: &[(u64, u64, i64)], nodes: &[u64], graph: &TempColGraphFragment) {
+        let expected_graph = Graph::new();
+        for (src, dst, t) in edges {
+            expected_graph
+                .add_edge(*t, *src, *dst, NO_PROPS, None)
+                .unwrap();
+        }
+
+        let graph_dir = TempDir::new().unwrap();
+        // check persist_as_arrow works
+        let arrow_from_expected = expected_graph.persist_as_arrow(graph_dir.path()).unwrap();
+        assert_graph_equal(&arrow_from_expected, &expected_graph);
+
+        let actual_num_verts = nodes.len();
+        let g_num_verts = graph.num_nodes();
+        assert_eq!(actual_num_verts, g_num_verts);
+        assert!(graph
+            .all_edges_iter()
+            .all(|e| e.src().0 < g_num_verts && e.dst().0 < g_num_verts));
+
+        for v in 0..g_num_verts {
+            let v = VID(v);
+            assert!(graph
+                .edges(v, Direction::OUT)
+                .map(|(_, v)| v)
+                .tuple_windows()
+                .all(|(v1, v2)| v1 <= v2));
+            assert!(graph
+                .edges(v, Direction::IN)
+                .map(|(_, v)| v)
+                .tuple_windows()
+                .all(|(v1, v2)| v1 <= v2));
+        }
+
+        let exploded_edges: Vec<_> = graph
+            .exploded_edges()
+            .map(|e| (nodes[e.src().0], nodes[e.dst().0], e.timestamp()))
+            .collect();
+        assert_eq!(exploded_edges, edges);
+
+        // check incoming edges
+        for (v_id, g_id) in nodes.iter().enumerate() {
+            let node = expected_graph.node(*g_id).unwrap();
+            let mut expected_inbound = node.in_edges().id().map(|(v, _)| v).collect::<Vec<_>>();
+            expected_inbound.sort();
+
+            let actual_inbound = graph
+                .edges(VID(v_id), Direction::IN)
+                .map(|(_, v)| nodes[v.0])
+                .collect::<Vec<_>>();
+
+            assert_eq!(expected_inbound, actual_inbound);
+        }
+
+        let unique_edges = edges.iter().map(|(src, dst, _)| (*src, *dst)).dedup();
+
+        for (e_id, (src, dst)) in unique_edges.enumerate() {
+            let edge = graph.edge(EID(e_id));
+            let VID(src_id) = edge.src();
+            let VID(dst_id) = edge.dst();
+
+            assert_eq!(nodes[src_id], src);
+            assert_eq!(nodes[dst_id], dst);
+        }
+    }
+
+    fn edges_sanity_check_inner(
+        edges: Vec<(u64, u64, i64)>,
+        input_chunk_size: u64,
+        chunk_size: usize,
+        t_props_chunk_size: usize,
+    ) {
+        let test_dir = TempDir::new().unwrap();
+        let nodes = edges_sanity_node_list(&edges);
+        match edges_sanity_check_build_graph(
+            test_dir.path(),
+            &edges,
+            &nodes,
+            input_chunk_size,
+            chunk_size,
+            t_props_chunk_size,
+        ) {
+            Ok(graph) => {
+                // check graph is sane
+                check_graph_sanity(&edges, &nodes, &graph);
+                let node_gids = PrimitiveArray::from_slice(&nodes).boxed();
+
+                // check that reloading from graph dir works
+                let reloaded_graph =
+                    TempColGraphFragment::new(test_dir.path(), true, 0, node_gids).unwrap();
+                check_graph_sanity(&edges, &nodes, &reloaded_graph)
+            }
+            Err(RAError::NoEdgeLists | RAError::EmptyChunk) => assert!(edges.is_empty()),
+            Err(error) => panic!("{}", error.to_string()),
+        };
+    }
+
+    proptest! {
+        #[test]
+        fn edges_sanity_check(
+            edges in any::<Vec<(u8, u8, Vec<i64>)>>().prop_map(|v| {
+                let mut v: Vec<(u64, u64, i64)> = v.into_iter().flat_map(|(src, dst, times)| {
+                    let src = src as u64;
+                    let dst = dst as u64;
+                    times.into_iter().map(move |t| (src, dst, t))}).collect();
+                v.sort();
+                v}),
+            input_chunk_size in 1..1024u64,
+            chunk_size in 1..1024usize,
+            t_props_chunk_size in 1..128usize
+        ) {
+            edges_sanity_check_inner(edges, input_chunk_size, chunk_size, t_props_chunk_size);
+        }
+    }
+
+    #[test]
+    fn edge_sanity_bad() {
+        let edges = vec![
+            (0, 85, -8744527736816607775),
+            (0, 85, -8533859256444633783),
+            (0, 85, -7949123054744509169),
+            (0, 85, -7208573652910411733),
+            (0, 85, -7004677070223473589),
+            (0, 85, -6486844751834401685),
+            (0, 85, -6420653301843451067),
+            (0, 85, -6151481582745013767),
+            (0, 85, -5577061971106014565),
+            (0, 85, -5484794766797320810),
+        ];
+        edges_sanity_check_inner(edges, 3, 5, 6)
+    }
+
+    #[test]
+    fn edge_sanity_more_bad() {
+        let edges = vec![
+            (1, 3, -8622734205120758463),
+            (2, 0, -8064563587743129892),
+            (2, 0, 0),
+            (2, 0, 66718116),
+            (2, 0, 733950369757766878),
+            (2, 0, 2044789983495278802),
+            (2, 0, 2403967656666566197),
+            (2, 4, -9199293364914546702),
+            (2, 4, -9104424882442202562),
+            (2, 4, -8942117006530427874),
+            (2, 4, -8805351871358148900),
+            (2, 4, -8237347600058197888),
+        ];
+        edges_sanity_check_inner(edges, 3, 5, 6)
+    }
+
+    #[test]
+    fn edges_sanity_chunk_1() {
+        edges_sanity_check_inner(vec![(876787706323152993, 0, 0)], 1, 1, 1)
+    }
+
+    #[test]
+    fn edges_sanity_chunk_2() {
+        edges_sanity_check_inner(vec![(4, 3, 2), (4, 5, 0)], 2, 2, 2)
+    }
+
+    #[test]
+    fn large_failing_edge_sanity_repeated() {
+        let edges = vec![
+            (0, 0, 0),
+            (0, 1, 0),
+            (0, 2, 0),
+            (0, 3, 0),
+            (0, 4, 0),
+            (0, 5, 0),
+            (0, 6, -30),
+            (4, 7, -83),
+            (4, 7, -77),
+            (6, 8, -68),
+            (6, 8, -65),
+            (9, 10, 46),
+            (9, 10, 46),
+            (9, 10, 51),
+            (9, 10, 54),
+            (9, 10, 59),
+            (9, 10, 59),
+            (9, 10, 59),
+            (9, 10, 65),
+            (9, 11, -75),
+        ];
+        let input_chunk_size = 411;
+        let edge_chunk_size = 5;
+        let edge_max_list_size = 7;
+
+        edges_sanity_check_inner(edges, input_chunk_size, edge_chunk_size, edge_max_list_size);
+    }
+
+    #[test]
+    fn edge_sanity_chunk_broken_incoming() {
+        let edges = vec![
+            (0, 0, 0),
+            (0, 0, 0),
+            (0, 0, 66),
+            (0, 1, 0),
+            (2, 0, 0),
+            (3, 4, 0),
+            (4, 0, 0),
+            (4, 4, 0),
+            (4, 4, 0),
+            (4, 4, 0),
+            (4, 4, 0),
+            (5, 0, 0),
+            (6, 7, 7274856480798084567),
+            (8, 3, -7707029126214574305),
+        ];
+
+        edges_sanity_check_inner(edges, 853, 122, 98)
+    }
+
+    #[test]
+    fn edge_sanity_chunk_broken_something() {
+        let edges = vec![(0, 3, 0), (1, 2, 0), (3, 2, 0)];
+        edges_sanity_check_inner(edges, 1, 1, 1)
+    }
+
+    #[test]
+    fn test_reload() {
+        let graph_dir = TempDir::new().unwrap();
+        let graph = Graph::new();
+        graph.add_edge(0, 0, 1, [("weight", 0.)], None).unwrap();
+        graph.add_edge(1, 0, 1, [("weight", 1.)], None).unwrap();
+        graph.add_edge(2, 0, 1, [("weight", 2.)], None).unwrap();
+        graph.add_edge(3, 1, 2, [("weight", 3.)], None).unwrap();
+        let arrow_graph = graph.persist_as_arrow(graph_dir.path()).unwrap();
+        let graph = arrow_graph.inner.layer(0);
+
+        let all_exploded: Vec<_> = graph
+            .exploded_edges()
+            .map(|e| (e.src(), e.dst(), e.timestamp()))
+            .collect();
+        let expected: Vec<_> = vec![
+            (VID(0), VID(1), 0),
+            (VID(0), VID(1), 1),
+            (VID(0), VID(1), 2),
+            (VID(1), VID(2), 3),
+        ];
+        assert_eq!(all_exploded, expected);
+
+        let node_gids = PrimitiveArray::from_slice([0u64, 1, 2]).boxed();
+        let reloaded_graph =
+            TempColGraphFragment::new(graph.graph_dir(), true, 0, node_gids).unwrap();
+
+        check_graph_sanity(
+            &[(0, 1, 0), (0, 1, 1), (0, 1, 2), (1, 2, 3)],
+            &[0, 1, 2],
+            &reloaded_graph,
+        );
+    }
+
+    mod addition_bounds {
+        use itertools::Itertools;
+        use proptest::{prelude::*, sample::size_range};
+        use raphtory_arrow::interop::VID;
+        use tempfile::TempDir;
+
+        use super::{
+            edges_sanity_check_build_graph, AdditionOps, Graph, GraphViewOps, NodeViewOps,
+            TempColGraphFragment, NO_PROPS,
+        };
+
+        fn compare_raphtory_graph(edges: Vec<(u64, u64, i64)>, chunk_size: usize) {
+            let nodes = edges
+                .iter()
+                .flat_map(|(src, dst, _)| [*src, *dst])
+                .sorted()
+                .dedup()
+                .collect::<Vec<_>>();
+
+            let rg = Graph::new();
+
+            for (src, dst, time) in &edges {
+                rg.add_edge(*time, *src, *dst, NO_PROPS, None)
+                    .expect("failed to add edge");
+            }
+
+            let test_dir = TempDir::new().unwrap();
+            let graph: TempColGraphFragment = edges_sanity_check_build_graph(
+                test_dir.path(),
+                &edges,
+                &nodes,
+                edges.len() as u64,
+                chunk_size,
+                chunk_size,
+            )
+            .unwrap();
+
+            for (v_id, node) in nodes.into_iter().enumerate() {
+                let node = rg.node(node).expect("failed to get node id");
+                let expected = node.history();
+                let node = graph.node(VID(v_id));
+                let actual = node.timestamps().into_iter_t().collect::<Vec<_>>();
+                assert_eq!(actual, expected);
+            }
+        }
+
+        #[test]
+        fn node_additions_bounds_to_arrays() {
+            let edges = vec![(0, 0, -2), (0, 0, -1), (0, 0, 0), (0, 0, 1), (0, 0, 2)];
+
+            compare_raphtory_graph(edges, 2);
+        }
+
+        #[test]
+        fn test_load_from_graph_missing_edge() {
+            let g = Graph::new();
+            g.add_edge(0, 1, 2, [("test", "test1")], Some("1")).unwrap();
+            g.add_edge(1, 2, 3, [("test", "test2")], Some("2")).unwrap();
+            let test_dir = TempDir::new().unwrap();
+            let _ = g.persist_as_arrow(test_dir.path()).unwrap();
+        }
+
+        #[test]
+        fn one_edge_bounds_chunk_remainder() {
+            let edges = vec![(0u64, 1, 0)];
+            compare_raphtory_graph(edges, 3);
+        }
+
+        #[test]
+        fn same_edge_twice() {
+            let edges = vec![(0, 1, 0), (0, 1, 1)];
+            compare_raphtory_graph(edges, 3);
+        }
+
+        proptest! {
+            #[test]
+            fn node_addition_bounds_test(
+                edges in any_with::<Vec<(u8, u8, Vec<i64>)>>(size_range(1..=100).lift()).prop_map(|v| {
+                    let mut v: Vec<(u64, u64, i64)> = v.into_iter().flat_map(|(src, dst, times)| {
+                        let src = src as u64;
+                        let dst = dst as u64;
+                        times.into_iter().map(move |t| (src, dst, t))}).collect();
+                    v.sort();
+                    v}).prop_filter("edge list mut have one edge at least",|edges| edges.len() > 0),
+                chunk_size in 1..300usize,
+            ) {
+                compare_raphtory_graph(edges, chunk_size);
+            }
+        }
+    }
+}

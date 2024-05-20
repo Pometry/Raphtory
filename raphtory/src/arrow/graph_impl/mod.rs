@@ -205,7 +205,7 @@ impl ArrowGraph {
     }
 
     pub fn load_from_edge_lists(
-        edge_lists: &[StructArray],
+        edge_list: &[StructArray],
         chunk_size: usize,
         t_props_chunk_size: usize,
         graph_dir: impl AsRef<Path> + Sync,
@@ -220,7 +220,7 @@ impl ArrowGraph {
             time_col_idx,
             chunk_size,
             t_props_chunk_size,
-            || edge_lists.iter(),
+            edge_list,
         )?;
         Ok(Self::new(inner))
     }
@@ -321,6 +321,7 @@ mod test {
 
     use itertools::{chain, Itertools};
     use proptest::{prelude::*, sample::size_range};
+    use raphtory_arrow::graph::TemporalGraph;
     use rayon::prelude::*;
     use tempfile::TempDir;
 
@@ -610,5 +611,82 @@ mod test {
         let g = make_simple_graph(test_dir.path(), &edges);
 
         assert_eq!(g.nodes().par_iter().count(), g.count_nodes())
+    }
+
+    #[test]
+    fn test_mem_to_arrow_graph() {
+        let mem_graph = Graph::new();
+        mem_graph.add_edge(0, 0, 1, [("test", 0u64)], None).unwrap();
+        let test_dir = TempDir::new().unwrap();
+        let arrow_graph =
+            TemporalGraph::from_graph(&mem_graph, test_dir.path(), || Ok(None)).unwrap();
+        assert_eq!(arrow_graph.num_nodes(), 2);
+        assert_eq!(arrow_graph.num_edges(0), 1);
+    }
+
+    #[test]
+    fn test_node_properties() {
+        let mem_graph = Graph::new();
+        let node = mem_graph
+            .add_node(
+                0,
+                0,
+                [
+                    ("test_num", 0u64.into_prop()),
+                    ("test_str", "test".into_prop()),
+                ],
+                None,
+            )
+            .unwrap();
+        node.add_constant_properties([
+            ("const_str", "test_c".into_prop()),
+            ("const_float", 0.314f64.into_prop()),
+        ])
+        .unwrap();
+        let test_dir = TempDir::new().unwrap();
+        let arrow_graph = ArrowGraph::from_graph(&mem_graph, test_dir.path()).unwrap();
+        assert_eq!(arrow_graph.count_nodes(), 1);
+        let props = arrow_graph.node(0).unwrap().properties();
+        assert_eq!(props.get("test_num").unwrap_u64(), 0);
+        assert_eq!(props.get("test_str").unwrap_str(), "test");
+        assert_eq!(props.get("const_str").unwrap_str(), "test_c");
+        assert_eq!(props.get("const_float").unwrap_f64(), 0.314);
+
+        drop(arrow_graph);
+
+        let arrow_graph = ArrowGraph::load_from_dir(test_dir.path()).unwrap();
+        let props = arrow_graph.node(0).unwrap().properties();
+        assert_eq!(props.get("test_num").unwrap_u64(), 0);
+        assert_eq!(props.get("test_str").unwrap_str(), "test");
+        assert_eq!(props.get("const_str").unwrap_str(), "test_c");
+        assert_eq!(props.get("const_float").unwrap_f64(), 0.314);
+    }
+
+    #[test]
+    fn test_only_const_node_properties() {
+        let g = Graph::new();
+        let v = g.add_node(0, 1, NO_PROPS, None).unwrap();
+        v.add_constant_properties([("test", "test")]).unwrap();
+        let test_dir = TempDir::new().unwrap();
+        let arrow_graph = g.persist_as_arrow(test_dir.path()).unwrap();
+        assert_eq!(
+            arrow_graph
+                .node(1)
+                .unwrap()
+                .properties()
+                .get("test")
+                .unwrap_str(),
+            "test"
+        );
+        let arrow_graph = ArrowGraph::load_from_dir(test_dir.path()).unwrap();
+        assert_eq!(
+            arrow_graph
+                .node(1)
+                .unwrap()
+                .properties()
+                .get("test")
+                .unwrap_str(),
+            "test"
+        );
     }
 }
