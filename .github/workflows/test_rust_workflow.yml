@@ -49,7 +49,7 @@ jobs:
         with:
             ssh-private-key: ${{ secrets.RA_SSH_PRIVATE_KEY }}          
       - name: Windows set cargo to use CLI git
-        if: matrix.os == 'windows-latest'
+        if: contains(matrix.os, 'windows-latest')
         run: Set-Content -Path $env:USERPROFILE\.cargo\config.toml "[net]`ngit-fetch-with-cli = true"
       - name: Rust version
         run: rustc --version --verbose
@@ -57,7 +57,7 @@ jobs:
         if: matrix.os == 'macos-latest' || matrix.os == 'ubuntu-latest'
         run: df -h
       - name: Make cargo target dir (Windows)
-        if: matrix.os == 'windows-latest'
+        if: contains(matrix.os, 'windows-latest')
         run: mkdir C:\target
       - uses: Swatinem/rust-cache@v2
         name: Cargo cache
