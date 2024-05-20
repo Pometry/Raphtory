@@ -13,7 +13,7 @@ use crate::{
     prelude::*,
 };
 
-use crate::db::api::{storage::locked::LockedGraph, view::internal::NodeTypeFilter};
+use crate::db::api::storage::locked::LockedGraph;
 use rayon::iter::ParallelIterator;
 use std::{marker::PhantomData, sync::Arc};
 
@@ -115,27 +115,18 @@ where
         ))
     }
 
-    pub fn type_filter<I: IntoIterator<Item = V>, V: AsRef<str>>(
-        &self,
-        node_types: I,
-    ) -> BoxedLIter<'graph, NodeView<G, G>>
-    where
-        I::IntoIter: Send + Sync + 'graph,
-        V: Send + Sync + 'graph,
-    {
-        let base_graph = self.base_graph.clone();
-        node_types
-            .into_iter()
-            .flat_map(move |nt| {
-                base_graph.nodes().into_iter().filter_map(move |node| {
-                    if nt.as_ref() == node.node_type()?.as_ref() {
-                        Some(node)
-                    } else {
-                        None
-                    }
-                })
-            })
-            .into_dyn_boxed()
+    pub fn type_filter(&self, node_types: &[impl AsRef<str>]) -> Nodes<'graph, G, GH> {
+        let node_types = node_types
+            .iter()
+            .filter_map(|nt| self.graph.node_meta().get_node_type_id(nt.as_ref()))
+            .collect();
+
+        Nodes {
+            base_graph: self.base_graph.clone(),
+            graph: self.graph.clone(),
+            node_types,
+            _marker: PhantomData,
+        }
     }
 
     pub fn collect(&self) -> Vec<NodeView<G, GH>> {
@@ -201,24 +192,7 @@ where
     ) -> Self::PathType {
         let graph = self.graph.clone();
         let nodes = self.clone();
-        let nodes: Arc<dyn Fn() -> BoxedLIter<'graph, VID> + Send + Sync> =
-            if !nodes.node_types.is_empty() {
-                Arc::new(move || {
-                    let nodes = nodes.clone();
-                    let node_types = nodes.node_types.clone();
-                    nodes
-                        .iter_refs()
-                        .filter(move |v| {
-                            let node_types = node_types.clone();
-                            let node_type = nodes.base_graph().node_type_id(*v);
-                            node_types.contains(&node_type)
-                        })
-                        .into_dyn_boxed()
-                })
-            } else {
-                Arc::new(move || nodes.iter_refs().into_dyn_boxed())
-            };
-
+        let nodes = Arc::new(move || nodes.iter_refs().into_dyn_boxed());
         PathFromGraph::new(self.base_graph.clone(), nodes, move |v| {
             let cg = graph.core_graph();
             op(&cg, &graph, v).into_dyn_boxed()
@@ -252,26 +226,6 @@ where
             base_graph,
             graph: filtered_graph,
             node_types: self.node_types.clone(),
-            _marker: PhantomData,
-        }
-    }
-}
-
-impl<'graph, G, GH> NodeTypeFilter<'graph, G, GH> for Nodes<'graph, G, GH>
-where
-    G: GraphViewOps<'graph> + 'graph,
-    GH: GraphViewOps<'graph> + 'graph,
-{
-    fn node_type_filter(&self, node_types: &[impl AsRef<str>]) -> Nodes<'graph, G, GH> {
-        let node_types = node_types
-            .iter()
-            .filter_map(|nt| self.graph.node_meta().get_node_type_id(nt.as_ref()))
-            .collect();
-
-        Nodes {
-            base_graph: self.base_graph.clone(),
-            graph: self.graph.clone(),
-            node_types,
             _marker: PhantomData,
         }
     }
