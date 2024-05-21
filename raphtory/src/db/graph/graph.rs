@@ -2173,13 +2173,79 @@ mod db_tests {
         g.add_node(1, 4, NO_PROPS, Some("a")).unwrap();
         g.add_node(1, 5, NO_PROPS, Some("c")).unwrap();
         g.add_node(1, 6, NO_PROPS, Some("e")).unwrap();
-        g.add_edge(2, 1, 2, NO_PROPS, None).unwrap();
-        g.add_edge(2, 3, 2, NO_PROPS, None).unwrap();
-        g.add_edge(2, 2, 4, NO_PROPS, None).unwrap();
-        g.add_edge(2, 4, 5, NO_PROPS, None).unwrap();
-        g.add_edge(2, 4, 5, NO_PROPS, None).unwrap();
-        g.add_edge(2, 5, 6, NO_PROPS, None).unwrap();
-        g.add_edge(2, 3, 6, NO_PROPS, None).unwrap();
+        g.add_edge(2, 1, 2, NO_PROPS, Some("a")).unwrap();
+        g.add_edge(2, 3, 2, NO_PROPS, Some("a")).unwrap();
+        g.add_edge(2, 2, 4, NO_PROPS, Some("a")).unwrap();
+        g.add_edge(2, 4, 5, NO_PROPS, Some("a")).unwrap();
+        g.add_edge(2, 4, 5, NO_PROPS, Some("a")).unwrap();
+        g.add_edge(2, 5, 6, NO_PROPS, Some("a")).unwrap();
+        g.add_edge(2, 3, 6, NO_PROPS, Some("a")).unwrap();
+
+        let w = g.window(1, 4);
+        assert_eq!(
+            w.nodes()
+                .type_filter(&vec!["a"])
+                .iter()
+                .map(|v| v.degree())
+                .collect::<Vec<_>>(),
+            vec![1, 2]
+        );
+        assert_eq!(
+            w.nodes()
+                .type_filter(&vec!["a"])
+                .neighbours()
+                .type_filter(&vec!["c", "b"])
+                .name()
+                .map(|n| {
+                    n.collect::<Vec<_>>()
+                })
+                .collect_vec(),
+            vec![vec!["2"], vec!["2", "5"]]
+        );
+
+        let l = g.layers(["a"]).unwrap();
+        assert_eq!(
+            l.nodes()
+                .type_filter(&vec!["a"])
+                .iter()
+                .map(|v| v.degree())
+                .collect::<Vec<_>>(),
+            vec![1, 2]
+        );
+        assert_eq!(
+            l.nodes()
+                .type_filter(&vec!["a"])
+                .neighbours()
+                .type_filter(&vec!["c", "b"])
+                .name()
+                .map(|n| {
+                    n.collect::<Vec<_>>()
+                })
+                .collect_vec(),
+            vec![vec!["2"], vec!["2", "5"]]
+        );
+
+        let sg = g.subgraph([1, 2, 3, 4, 5, 6]);
+        assert_eq!(
+            sg.nodes()
+                .type_filter(&vec!["a"])
+                .iter()
+                .map(|v| v.degree())
+                .collect::<Vec<_>>(),
+            vec![1, 2]
+        );
+        assert_eq!(
+            sg.nodes()
+                .type_filter(&vec!["a"])
+                .neighbours()
+                .type_filter(&vec!["c", "b"])
+                .name()
+                .map(|n| {
+                    n.collect::<Vec<_>>()
+                })
+                .collect_vec(),
+            vec![vec!["2"], vec!["2", "5"]]
+        );
 
         assert_eq!(
             g.nodes()
@@ -2345,6 +2411,19 @@ mod db_tests {
                 })
                 .collect_vec(),
             vec![vec![], Vec::<&str>::new()]
+        );
+
+        assert_eq!(
+            g.nodes()
+                .type_filter(&vec!["a"])
+                .neighbours()
+                .neighbours()
+                .name()
+                .map(|n| {
+                    n.collect::<Vec<_>>()
+                })
+                .collect_vec(),
+            vec![vec!["1", "3", "4"], vec!["1", "3", "4", "4", "6"]]
         );
 
         // TODO: Fix this
