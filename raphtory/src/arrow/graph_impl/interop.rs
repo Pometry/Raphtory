@@ -99,7 +99,7 @@ impl GraphLike<TimeIndexEntry> for Graph {
         edge_t_offsets: &[usize],
         layer: usize,
         prop_id: usize,
-        key: S,
+        _key: S,
     ) -> Option<Box<dyn Array>> {
         let prop_type = self
             .edge_meta()

@@ -40,9 +40,5 @@ name = "edge_add"
 harness = false
 
 [[bench]]
-name = "arrow_hash"
-harness = false
-
-[[bench]]
 name = "arrow_algobench"
 harness = false

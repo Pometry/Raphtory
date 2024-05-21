@@ -1,10 +1,6 @@
+use crate::db::api::storage::edges::edge_ref::EdgeStorageRef;
 use crate::{core::entities::LayerIds, db::api::view::internal::Base};
 use enum_dispatch::enum_dispatch;
-use std::sync::Arc;
-
-use crate::db::api::storage::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps};
-
-pub type EdgeFilter = Arc<dyn Fn(&dyn EdgeStorageOps, &LayerIds) -> bool + Send + Sync>;
 
 #[enum_dispatch]
 pub trait EdgeFilterOps {

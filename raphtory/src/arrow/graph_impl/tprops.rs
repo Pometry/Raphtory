@@ -1,3 +1,12 @@
+use crate::arrow2::{
+    datatypes::{ArrowDataType as DataType, Field},
+    types::{NativeType, Offset},
+};
+use crate::{
+    core::storage::timeindex::TimeIndexIntoOps,
+    db::api::{storage::tprop_storage_ops::TPropOps, view::IntoDynBoxed},
+    prelude::{Prop, TimeIndexEntry},
+};
 use raphtory_arrow::{
     chunked_array::{col::ChunkedPrimitiveCol, utf8_col::StringCol},
     edge::Edge,
@@ -5,20 +14,8 @@ use raphtory_arrow::{
     timestamps::TimeStamps,
     tprops::{ArrowTProp, EmptyTProp, TPropColumn},
 };
-use std::{iter, ops::Range};
-
-use crate::arrow2::{
-    array::StructArray,
-    datatypes::{ArrowDataType as DataType, Field},
-    types::{NativeType, Offset},
-};
 use rayon::prelude::*;
-
-use crate::{
-    core::storage::timeindex::TimeIndexIntoOps,
-    db::api::{storage::tprop_storage_ops::TPropOps, view::IntoDynBoxed},
-    prelude::{Prop, TimeIndexEntry},
-};
+use std::{iter, ops::Range};
 
 impl<'a, T: NativeType + Into<Prop>> TPropOps<'a>
     for TPropColumn<'a, ChunkedPrimitiveCol<'a, T>, TimeIndexEntry>

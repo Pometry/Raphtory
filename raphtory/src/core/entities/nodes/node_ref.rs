@@ -1,4 +1,4 @@
-use crate::core::entities::{nodes::input_node::InputNode, VID};
+use crate::core::entities::VID;
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Debug)]
 pub enum NodeRef<'a> {

@@ -1,25 +1,13 @@
 use crate::{
     core::{
-        entities::properties::tcell::TCell,
-        storage::timeindex::{AsTime, TimeIndexEntry},
-        utils::errors::GraphError,
-        ArcStr, DocumentInput, Prop, PropType,
+        entities::properties::tcell::TCell, storage::timeindex::TimeIndexEntry,
+        utils::errors::GraphError, ArcStr, DocumentInput, Prop, PropType,
     },
-    db::{
-        api::{storage::tprop_storage_ops::TPropOps, view::IntoDynBoxed},
-        graph::graph::Graph,
-    },
+    db::{api::storage::tprop_storage_ops::TPropOps, graph::graph::Graph},
 };
 use chrono::{DateTime, NaiveDateTime, Utc};
-use itertools::Itertools;
-use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    iter,
-    ops::{Deref, Range},
-    sync::Arc,
-};
+use std::{collections::HashMap, iter, ops::Range, sync::Arc};
 
 // TODO TProp struct could be replaced with Option<TCell<Prop>>, with the only issue (or advantage) that then the type can change?
 
@@ -94,7 +82,7 @@ impl TProp {
             *self = TProp::from(t, prop);
         } else {
             match (self, prop) {
-                (TProp::Empty, prop) => {}
+                (TProp::Empty, _) => {}
 
                 (TProp::Str(cell), Prop::Str(a)) => {
                     cell.set(t, a);
@@ -298,79 +286,6 @@ impl TProp {
             TProp::Map(cell) => Box::new(
                 cell.iter_window(r)
                     .map(|(t, value)| (*t, Prop::Map(value.clone()))),
-            ),
-        }
-    }
-
-    pub(crate) fn iter_window_inner_t(
-        &self,
-        r: Range<i64>,
-    ) -> Box<dyn Iterator<Item = (i64, Prop)> + Send + '_> {
-        match self {
-            TProp::Empty => Box::new(iter::empty()),
-            TProp::Str(cell) => Box::new(
-                cell.iter_window_t(r)
-                    .map(|(t, value)| (t, Prop::Str(value.clone()))),
-            ),
-            TProp::I32(cell) => Box::new(
-                cell.iter_window_t(r)
-                    .map(|(t, value)| (t, Prop::I32(*value))),
-            ),
-            TProp::I64(cell) => Box::new(
-                cell.iter_window_t(r)
-                    .map(|(t, value)| (t, Prop::I64(*value))),
-            ),
-            TProp::U8(cell) => Box::new(
-                cell.iter_window_t(r)
-                    .map(|(t, value)| (t, Prop::U8(*value))),
-            ),
-            TProp::U16(cell) => Box::new(
-                cell.iter_window_t(r)
-                    .map(|(t, value)| (t, Prop::U16(*value))),
-            ),
-            TProp::U32(cell) => Box::new(
-                cell.iter_window_t(r)
-                    .map(|(t, value)| (t, Prop::U32(*value))),
-            ),
-            TProp::U64(cell) => Box::new(
-                cell.iter_window_t(r)
-                    .map(|(t, value)| (t, Prop::U64(*value))),
-            ),
-            TProp::F32(cell) => Box::new(
-                cell.iter_window_t(r)
-                    .map(|(t, value)| (t, Prop::F32(*value))),
-            ),
-            TProp::F64(cell) => Box::new(
-                cell.iter_window_t(r)
-                    .map(|(t, value)| (t, Prop::F64(*value))),
-            ),
-            TProp::Bool(cell) => Box::new(
-                cell.iter_window_t(r)
-                    .map(|(t, value)| (t, Prop::Bool(*value))),
-            ),
-            TProp::DTime(cell) => Box::new(
-                cell.iter_window_t(r)
-                    .map(|(t, value)| (t, Prop::DTime(*value))),
-            ),
-            TProp::NDTime(cell) => Box::new(
-                cell.iter_window_t(r)
-                    .map(|(t, value)| (t, Prop::NDTime(*value))),
-            ),
-            TProp::Graph(cell) => Box::new(
-                cell.iter_window_t(r)
-                    .map(|(t, value)| (t, Prop::Graph(value.clone()))),
-            ),
-            TProp::Document(cell) => Box::new(
-                cell.iter_window_t(r)
-                    .map(|(t, value)| (t, Prop::Document(value.clone()))),
-            ),
-            TProp::List(cell) => Box::new(
-                cell.iter_window_t(r)
-                    .map(|(t, value)| (t, Prop::List(value.clone()))),
-            ),
-            TProp::Map(cell) => Box::new(
-                cell.iter_window_t(r)
-                    .map(|(t, value)| (t, Prop::Map(value.clone()))),
             ),
         }
     }

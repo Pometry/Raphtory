@@ -3,27 +3,17 @@ use crate::{
         entities::{graph::tgraph::FxDashMap, properties::tprop::TProp},
         storage::{
             lazy_vec::{IllegalSet, LazyVec},
-            locked_view::LockedView,
             timeindex::TimeIndexEntry,
         },
-        utils::errors::{GraphError, IllegalMutate, MutateGraphError},
+        utils::errors::GraphError,
         ArcStr, Prop, PropType,
     },
     db::api::storage::tprop_storage_ops::TPropOps,
 };
 use lock_api;
-use parking_lot::{RwLock, RwLockReadGuard};
+use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
-use std::{
-    borrow::Borrow,
-    fmt::Debug,
-    hash::Hash,
-    ops::Deref,
-    sync::{
-        atomic::{AtomicUsize, Ordering},
-        Arc,
-    },
-};
+use std::{borrow::Borrow, fmt::Debug, hash::Hash, ops::Deref, sync::Arc};
 
 type ArcRwLockReadGuard<T> = lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, T>;
 
@@ -66,7 +56,7 @@ impl Props {
     }
 
     pub fn update_constant_prop(&mut self, prop_id: usize, prop: Prop) -> Result<(), GraphError> {
-        self.constant_props.update(prop_id, |mut n| {
+        self.constant_props.update(prop_id, |n| {
             *n = Some(prop);
             Ok(())
         })
@@ -436,11 +426,13 @@ impl PropMapper {
 
 #[cfg(test)]
 mod test {
-    use super::*;
+    use std::{collections::HashMap, sync::Arc, thread};
+
     use quickcheck_macros::quickcheck;
     use rand::seq::SliceRandom;
     use rayon::prelude::*;
-    use std::{collections::HashMap, sync::Arc, thread};
+
+    use super::*;
 
     #[test]
     fn test_dict_mapper() {

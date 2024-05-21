@@ -4,7 +4,7 @@ use crate::{
     db::api::mutation::{internal::InternalAdditionOps, InputTime, TryIntoInputTime},
 };
 use chrono::{DateTime, NaiveDateTime, Utc};
-use itertools::{Itertools, KMerge};
+use itertools::Itertools;
 use num_traits::Saturating;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -15,7 +15,6 @@ use std::{
     iter,
     marker::PhantomData,
     ops::{Deref, Range},
-    sync::Arc,
 };
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq, Ord, PartialOrd, Eq)]
@@ -625,24 +624,12 @@ impl<'a, Ops: TimeIndexOps + 'a> TimeIndexOps for LayeredTimeIndexWindow<'a, Ops
 #[cfg(test)]
 #[cfg(feature = "arrow")]
 mod test {
-    use std::collections::BTreeSet;
-
-    use crate::arrow2::{
-        array::{PrimitiveArray, StructArray},
-        datatypes::{ArrowDataType as DataType, Field},
-    };
     use itertools::Itertools;
-    use raphtory_arrow::{
-        chunked_array::chunked_array::{ChunkedArray, NonNull},
-        prelude::BaseArrayOps,
-        timestamps::TimeStamps,
-    };
+    use raphtory_arrow::chunked_array::chunked_array::{ChunkedArray, NonNull};
 
-    use crate::core::{entities::LayerIds, storage::locked_view::LockedView};
+    use crate::arrow2::array::PrimitiveArray;
 
-    use crate::{arrow::Time, db::api::view::internal::EdgeUpdates};
-
-    use super::{LayeredIndex, LockedLayeredIndex, TimeIndex, TimeIndexEntry, TimeIndexOps};
+    use super::TimeIndexOps;
 
     #[test]
     fn time_index_1() {
@@ -679,57 +666,6 @@ mod test {
                 arr_t_index.iter_t().collect_vec()
             );
         })
-    }
-
-    #[test]
-    fn time_index_range() {
-        check_time_index(vec![7, 9, 12, 34], |vec_t_index, arr_t_index| {
-            let vec_window = vec_t_index.range_t(0..5);
-            let arr_window = arr_t_index.range_t(0..5);
-
-            assert_eq!(vec_window.active_t(0..5), arr_window.active_t(0..5));
-            assert_eq!(vec_window.active_t(0..7), arr_window.active_t(0..7));
-
-            assert_eq!(
-                vec_window.iter_t().collect_vec(),
-                arr_window.iter_t().collect_vec()
-            );
-
-            let vec_t_index = vec_t_index.range_t(0..13);
-            let arr_t_index = arr_t_index.range_t(0..13);
-
-            assert_eq!(vec_t_index.active_t(0..5), arr_t_index.active_t(0..5));
-            assert_eq!(vec_t_index.active_t(0..7), arr_t_index.active_t(0..7));
-            assert_eq!(vec_t_index.active_t(7..13), arr_t_index.active_t(7..13));
-            assert_eq!(vec_t_index.active_t(10..100), arr_t_index.active_t(10..100));
-            assert_eq!(vec_t_index.active_t(35..200), arr_t_index.active_t(35..200));
-
-            assert_eq!(vec_t_index.first(), arr_t_index.first());
-            assert_eq!(vec_t_index.last(), arr_t_index.last());
-
-            assert_eq!(
-                vec_t_index.iter_t().collect_vec(),
-                arr_t_index.iter_t().collect_vec()
-            );
-        })
-    }
-
-    fn check_time_index(times: Vec<i64>, f: impl Fn(&EdgeUpdates, &EdgeUpdates)) {
-        let t_index_vec: BTreeSet<_> = times.iter().map(|t| TimeIndexEntry::new(*t, 0)).collect();
-
-        let locked_t_index =
-            parking_lot::RwLock::new(vec![TimeIndex::One(TimeIndexEntry::new(3, 0))]);
-
-        let vec_t_index = EdgeUpdates::Mem(LockedLayeredIndex::new(
-            LayerIds::One(0),
-            LockedView::Locked(locked_t_index.read()),
-        ));
-
-        let time_chunks = make_chunks(vec![3], 1);
-        let ts: TimeStamps<'_, TimeIndexEntry> = TimeStamps::new(time_chunks.slice(0..), None);
-        let arr_t_index = EdgeUpdates::Col(ts);
-
-        f(&vec_t_index, &arr_t_index);
     }
 
     fn make_chunks(

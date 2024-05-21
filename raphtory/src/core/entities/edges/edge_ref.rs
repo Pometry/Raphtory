@@ -1,5 +1,5 @@
 use crate::core::{
-    entities::{edges::edge_store::EdgeStore, nodes::node_ref::NodeRef, EID, VID},
+    entities::{EID, VID},
     storage::timeindex::{AsTime, TimeIndexEntry},
 };
 use std::cmp::Ordering;

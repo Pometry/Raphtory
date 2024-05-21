@@ -1,12 +1,9 @@
 use crate::{
     core::{
         entities::{
-            edges::{
-                edge_ref::EdgeRef,
-                edge_store::{EdgeLayer, EdgeStore},
-            },
+            edges::edge_store::EdgeStore,
             graph::{
-                tgraph_storage::{GraphStorage, LockedGraphStorage, LockedIter},
+                tgraph_storage::GraphStorage,
                 timer::{MaxCounter, MinCounter, TimeCounterTrait},
             },
             nodes::{input_node::InputNode, node_ref::NodeRef, node_store::NodeStore},
@@ -18,42 +15,31 @@ use crate::{
             LayerIds, EID, VID,
         },
         storage::{
-            lazy_vec::IllegalSet,
             locked_view::LockedView,
-            timeindex::{AsTime, LayeredIndex, TimeIndexEntry, TimeIndexOps},
-            ArcEntry, Entry, EntryMut,
+            timeindex::{AsTime, TimeIndexEntry},
+            Entry, EntryMut,
         },
-        utils::{
-            errors::{GraphError, IllegalMutate, MutateGraphError},
-            time::TryIntoTime,
-        },
-        ArcStr, Direction, Prop, PropUnwrap,
+        utils::errors::GraphError,
+        ArcStr, Direction, Prop,
     },
     db::api::{
         storage::locked::LockedGraph,
-        view::{internal::EdgeFilter, BoxedIter, Layer},
+        view::{BoxedIter, Layer},
     },
     prelude::DeletionOps,
 };
 use dashmap::{DashMap, DashSet};
-use itertools::Itertools;
-use parking_lot::RwLockReadGuard;
-use rayon::prelude::*;
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::Debug,
     hash::BuildHasherDefault,
     iter,
-    ops::{Deref, Range},
-    path::Path,
     sync::{atomic::AtomicUsize, Arc},
 };
 
 pub(crate) type FxDashMap<K, V> = DashMap<K, V, BuildHasherDefault<FxHasher>>;
 pub(crate) type FxDashSet<K> = DashSet<K, BuildHasherDefault<FxHasher>>;
-
-pub(crate) type TGraph = TemporalGraph;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InternalGraph(Arc<TemporalGraph>);
@@ -154,32 +140,6 @@ impl TemporalGraph {
                 }))
             }
         }
-    }
-
-    fn as_local_node(&self, v: NodeRef) -> Result<VID, GraphError> {
-        match v {
-            NodeRef::Internal(vid) => Ok(vid),
-            NodeRef::External(gid) => self
-                .logical_to_physical
-                .get(&gid)
-                .map(|entry| *entry)
-                .ok_or(GraphError::FailedToMutateGraph {
-                    source: MutateGraphError::NodeNotFoundError { node_id: gid },
-                }),
-            NodeRef::ExternalStr(string) => self.as_local_node(NodeRef::External(string.id())),
-        }
-    }
-
-    pub(crate) fn get_all_node_property_names(&self, is_static: bool) -> ArcReadLockedVec<ArcStr> {
-        self.node_meta.get_all_property_names(is_static)
-    }
-
-    pub(crate) fn get_all_edge_property_names(&self, is_static: bool) -> ArcReadLockedVec<ArcStr> {
-        self.edge_meta.get_all_property_names(is_static)
-    }
-
-    pub(crate) fn get_all_layers(&self) -> Vec<usize> {
-        self.edge_meta.get_all_layers()
     }
 
     pub(crate) fn layer_ids(&self, key: Layer) -> Result<LayerIds, GraphError> {
@@ -287,10 +247,6 @@ impl TemporalGraph {
         self.storage.get_node(v)
     }
 
-    pub(crate) fn edge_refs(&self) -> impl Iterator<Item = EdgeRef> + Send {
-        self.storage.edge_refs()
-    }
-
     #[inline]
     pub(crate) fn edge_entry(&self, e: EID) -> Entry<'_, EdgeStore> {
         self.storage.get_edge(e)
@@ -385,23 +341,6 @@ impl TemporalGraph {
         Ok(())
     }
 
-    pub(crate) fn add_edge_properties_internal(
-        &self,
-        edge_id: EID,
-        props: Vec<(usize, Prop)>,
-        layer: usize,
-    ) -> Result<(), IllegalMutate> {
-        let mut edge = self.storage.get_edge_mut(edge_id);
-
-        let mut layer = edge.layer_mut(layer);
-        for (prop_id, prop) in props {
-            layer.add_constant_prop(prop_id, prop).map_err(|err| {
-                IllegalMutate::from_source(err, &self.edge_meta.get_prop_name(prop_id, true))
-            })?;
-        }
-        Ok(())
-    }
-
     pub(crate) fn add_constant_properties(
         &self,
         props: Vec<(usize, Prop)>,
@@ -445,10 +384,6 @@ impl TemporalGraph {
         self.graph_meta.constant_names()
     }
 
-    pub(crate) fn temporal_property_names(&self) -> ArcReadLockedVec<ArcStr> {
-        self.graph_meta.temporal_names()
-    }
-
     pub(crate) fn delete_edge(
         &self,
         t: TimeIndexEntry,
@@ -461,12 +396,6 @@ impl TemporalGraph {
             Ok(())
         })?;
         Ok(())
-    }
-
-    fn get_or_allocate_layer(&self, layer: Option<&str>) -> usize {
-        layer
-            .map(|layer| self.edge_meta.get_or_create_layer_id(layer))
-            .unwrap_or(0)
     }
 
     fn link_nodes<F: FnOnce(&mut EdgeStore) -> Result<(), GraphError>>(
@@ -521,16 +450,6 @@ impl TemporalGraph {
         })
     }
 
-    #[inline]
-    pub(crate) fn node_ids(&self) -> impl Iterator<Item = VID> {
-        (0..self.storage.nodes.len()).map(|i| i.into())
-    }
-
-    pub(crate) fn find_edge(&self, src: VID, dst: VID, layer_id: &LayerIds) -> Option<EID> {
-        let node = self.storage.get_node(src);
-        node.find_edge_eid(dst, layer_id)
-    }
-
     pub(crate) fn resolve_node_ref(&self, v: NodeRef) -> Option<VID> {
         match v {
             NodeRef::Internal(vid) => Some(vid),
@@ -563,8 +482,10 @@ impl TemporalGraph {
 
 #[cfg(test)]
 mod test_additions {
-    use crate::prelude::*;
     use rayon::{join, prelude::*};
+
+    use crate::prelude::*;
+
     #[test]
     fn add_edge_and_read_props_concurrent() {
         let g = Graph::new();

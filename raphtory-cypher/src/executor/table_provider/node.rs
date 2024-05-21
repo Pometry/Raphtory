@@ -1,6 +1,5 @@
 use std::{any::Any, fmt::Formatter, sync::Arc};
 
-use crate::arrow2::{self, array::to_data, datatypes::ArrowDataType};
 use arrow::datatypes::UInt64Type;
 use arrow_array::{make_array, Array, PrimitiveArray};
 use arrow_buffer::ScalarBuffer;
@@ -15,23 +14,17 @@ use datafusion::{
     execution::{context::SessionState, SendableRecordBatchStream, TaskContext},
     logical_expr::Expr,
     physical_plan::{
-        metrics::MetricsSet,
-        stream::RecordBatchStreamAdapter,
-        DisplayAs,
-        DisplayFormatType,
-        ExecutionPlan, //PlanProperties,
+        metrics::MetricsSet, stream::RecordBatchStreamAdapter, DisplayAs, DisplayFormatType,
+        ExecutionPlan,
     },
 };
 use futures::Stream;
-use raphtory::{
-    arrow::{graph_impl::ArrowGraph, prelude::*},
-    core::entities::VID,
-};
 use raphtory_arrow::properties::Properties;
 
-use crate::executor::ExecError;
+use raphtory::arrow::{graph_impl::ArrowGraph, prelude::*};
 
-// use super::plan_properties;
+use crate::arrow2::{self, array::to_data, datatypes::ArrowDataType};
+use crate::executor::ExecError;
 
 pub struct NodeTableProvider {
     graph: ArrowGraph,

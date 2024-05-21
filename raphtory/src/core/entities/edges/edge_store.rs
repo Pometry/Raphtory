@@ -85,24 +85,6 @@ impl EdgeLayer {
     pub(crate) fn temporal_property(&self, prop_id: usize) -> Option<&TProp> {
         self.props.as_ref().and_then(|ps| ps.temporal_prop(prop_id))
     }
-
-    pub(crate) fn temporal_properties<'a>(
-        &'a self,
-        prop_id: usize,
-        window: Option<Range<i64>>,
-    ) -> Box<dyn Iterator<Item = (i64, Prop)> + 'a> {
-        if let Some(window) = window {
-            self.props
-                .as_ref()
-                .map(|props| props.temporal_props_window(prop_id, window.start, window.end))
-                .unwrap_or_else(|| Box::new(iter::empty()))
-        } else {
-            self.props
-                .as_ref()
-                .map(|props| props.temporal_props(prop_id))
-                .unwrap_or_else(|| Box::new(iter::empty()))
-        }
-    }
 }
 
 impl<E: Deref<Target = EdgeStore>> From<E> for EdgeRef {
@@ -322,18 +304,6 @@ impl EdgeStore {
             self.additions.resize_with(layer_id + 1, Default::default);
         }
         &mut self.additions[layer_id]
-    }
-    pub(crate) fn props(&self, layer_id: Option<usize>) -> Box<dyn Iterator<Item = &Props> + '_> {
-        if let Some(layer_id) = layer_id {
-            let iter = self
-                .layers
-                .get(layer_id)
-                .into_iter()
-                .flat_map(|layer| layer.props());
-            Box::new(iter)
-        } else {
-            Box::new(self.layers.iter().flat_map(|layer| layer.props()))
-        }
     }
 
     pub(crate) fn temp_prop_ids(

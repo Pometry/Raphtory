@@ -8,10 +8,7 @@ use crate::{
         },
         storage::{
             locked_view::LockedView,
-            timeindex::{
-                LayeredTimeIndexWindow, LockedLayeredIndex, TimeIndex, TimeIndexEntry,
-                TimeIndexOps, TimeIndexWindow,
-            },
+            timeindex::{TimeIndex, TimeIndexOps, TimeIndexWindow},
         },
         ArcStr, Prop,
     },
@@ -427,72 +424,6 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
             NodeAdditions::Range(range) => range.len(),
             #[cfg(feature = "arrow")]
             NodeAdditions::Col(col) => col.len(),
-        }
-    }
-}
-
-pub enum EdgeUpdates<'a> {
-    Mem(LockedLayeredIndex<'a, TimeIndexEntry>),
-    Range(LayeredTimeIndexWindow<'a, TimeIndexWindow<'a, TimeIndexEntry>>),
-    #[cfg(feature = "arrow")]
-    Col(TimeStamps<'a, TimeIndexEntry>),
-}
-
-impl<'a> TimeIndexOps for EdgeUpdates<'a> {
-    type IndexType = TimeIndexEntry;
-    type RangeType<'b> = EdgeUpdates<'b> where Self: 'b;
-
-    fn active(&self, w: Range<TimeIndexEntry>) -> bool {
-        match self {
-            EdgeUpdates::Mem(index) => index.active(w),
-            EdgeUpdates::Range(index) => index.active(w),
-            #[cfg(feature = "arrow")]
-            EdgeUpdates::Col(index) => index.active(w),
-        }
-    }
-
-    fn range(&self, w: Range<TimeIndexEntry>) -> Self::RangeType<'_> {
-        match self {
-            EdgeUpdates::Mem(index) => EdgeUpdates::Range(index.range(w)),
-            EdgeUpdates::Range(index) => EdgeUpdates::Range(index.range(w)),
-            #[cfg(feature = "arrow")]
-            EdgeUpdates::Col(index) => EdgeUpdates::Col(index.range(w)),
-        }
-    }
-
-    fn first(&self) -> Option<Self::IndexType> {
-        match self {
-            EdgeUpdates::Mem(index) => index.first(),
-            EdgeUpdates::Range(index) => index.first(),
-            #[cfg(feature = "arrow")]
-            EdgeUpdates::Col(index) => index.first(),
-        }
-    }
-
-    fn last(&self) -> Option<Self::IndexType> {
-        match self {
-            EdgeUpdates::Mem(index) => index.last(),
-            EdgeUpdates::Range(index) => index.last(),
-            #[cfg(feature = "arrow")]
-            EdgeUpdates::Col(index) => index.last(),
-        }
-    }
-
-    fn iter(&self) -> Box<dyn Iterator<Item = Self::IndexType> + Send + '_> {
-        match self {
-            EdgeUpdates::Mem(index) => index.iter(),
-            EdgeUpdates::Range(index) => index.iter(),
-            #[cfg(feature = "arrow")]
-            EdgeUpdates::Col(index) => index.iter(),
-        }
-    }
-
-    fn len(&self) -> usize {
-        match self {
-            EdgeUpdates::Mem(index) => index.len(),
-            EdgeUpdates::Range(index) => index.len(),
-            #[cfg(feature = "arrow")]
-            EdgeUpdates::Col(index) => index.len(),
         }
     }
 }

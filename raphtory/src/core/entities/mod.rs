@@ -1,13 +1,10 @@
+use std::sync::Arc;
+
 #[cfg(feature = "arrow")]
 use raphtory_arrow::interop::{AsEID, AsVID};
-use std::{ops::Deref, sync::Arc};
-
-use crate::core::entities::edges::edge_ref::EdgeRef;
-use graph::{tgraph::TGraph, tgraph_storage::GraphEntry};
-use nodes::{node_ref::NodeRef, node_store::NodeStore};
 use serde::{Deserialize, Serialize};
 
-use super::{storage::Entry, Direction};
+use crate::core::entities::edges::edge_ref::EdgeRef;
 
 pub mod edges;
 pub mod graph;
@@ -213,7 +210,7 @@ impl LayerIds {
         match (self, other) {
             (LayerIds::None, _) => LayerIds::None,
             (this, LayerIds::None) => this.clone(),
-            (this, LayerIds::All) => LayerIds::None,
+            (_, LayerIds::All) => LayerIds::None,
             (LayerIds::One(id), other) => {
                 if other.contains(id) {
                     LayerIds::None
