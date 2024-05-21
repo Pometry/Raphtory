@@ -23,7 +23,7 @@ use crate::{
         Document, Embedding, EmbeddingFunction,
     },
 };
-use chrono::DateTime;
+use chrono::NaiveDateTime;
 use futures_util::future::BoxFuture;
 use itertools::Itertools;
 use pyo3::{
@@ -71,8 +71,8 @@ fn format_time(millis: i64) -> String {
     if millis == 0 {
         "unknown time".to_owned()
     } else {
-        match DateTime::from_timestamp_millis(millis) {
-            Some(time) => time.naive_utc().format("%Y-%m-%d %H:%M:%S").to_string(),
+        match NaiveDateTime::from_timestamp_millis(millis) {
+            Some(time) => time.format("%Y-%m-%d %H:%M:%S").to_string(),
             None => "unknown time".to_owned(),
         }
     }

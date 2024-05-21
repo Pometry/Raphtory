@@ -1,14 +1,10 @@
-#![allow(unused)]
+use std::sync::Arc;
 
-use std::{ops::Deref, sync::Arc};
-
-use crate::core::entities::edges::edge_ref::EdgeRef;
-use edges::edge::ERef;
-use graph::{tgraph::TGraph, tgraph_storage::GraphEntry};
-use nodes::{node_ref::NodeRef, node_store::NodeStore};
+#[cfg(feature = "arrow")]
+use raphtory_arrow::interop::{AsEID, AsVID};
 use serde::{Deserialize, Serialize};
 
-use super::{storage::Entry, Direction};
+use crate::core::entities::edges::edge_ref::EdgeRef;
 
 pub mod edges;
 pub mod graph;
@@ -26,6 +22,10 @@ impl VID {
     pub fn index(&self) -> usize {
         self.0
     }
+
+    pub fn as_u64(&self) -> u64 {
+        self.0 as u64
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -40,9 +40,38 @@ impl From<usize> for VID {
     }
 }
 
+#[cfg(feature = "arrow")]
+impl From<raphtory_arrow::interop::VID> for VID {
+    fn from(vid: raphtory_arrow::interop::VID) -> Self {
+        VID(vid.0)
+    }
+}
+
 impl From<VID> for usize {
     fn from(id: VID) -> Self {
         id.0
+    }
+}
+
+#[cfg(feature = "arrow")]
+impl AsVID for VID {
+    fn as_vid(&self) -> raphtory_arrow::interop::VID {
+        raphtory_arrow::interop::VID::from(self.0)
+    }
+}
+
+#[cfg(feature = "arrow")]
+impl PartialEq<VID> for raphtory_arrow::interop::VID {
+    fn eq(&self, other: &VID) -> bool {
+        self.0 == other.0
+    }
+}
+
+#[cfg(feature = "arrow")]
+impl Into<raphtory_arrow::interop::VID> for VID {
+    #[inline]
+    fn into(self) -> raphtory_arrow::interop::VID {
+        raphtory_arrow::interop::VID(self.0)
     }
 }
 
@@ -51,6 +80,63 @@ impl From<VID> for usize {
     Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Default,
 )]
 pub struct EID(pub usize);
+
+#[cfg(feature = "arrow")]
+impl From<raphtory_arrow::interop::EID> for EID {
+    fn from(eid: raphtory_arrow::interop::EID) -> Self {
+        EID(eid.0)
+    }
+}
+
+#[cfg(feature = "arrow")]
+impl Into<raphtory_arrow::interop::EID> for EID {
+    #[inline]
+    fn into(self) -> raphtory_arrow::interop::EID {
+        raphtory_arrow::interop::EID(self.0)
+    }
+}
+
+#[cfg(feature = "arrow")]
+impl AsEID for EID {
+    fn as_eid(&self) -> raphtory_arrow::interop::EID {
+        raphtory_arrow::interop::EID(self.0)
+    }
+}
+
+#[derive(
+    Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Default,
+)]
+pub struct ELID {
+    edge: EID,
+    layer: Option<usize>,
+}
+
+impl ELID {
+    pub fn new(edge: EID, layer: Option<usize>) -> Self {
+        Self { edge, layer }
+    }
+    pub fn pid(&self) -> EID {
+        self.edge
+    }
+
+    pub fn layer(&self) -> Option<usize> {
+        self.layer
+    }
+}
+
+impl From<EdgeRef> for ELID {
+    fn from(value: EdgeRef) -> Self {
+        ELID {
+            edge: value.pid(),
+            layer: value.layer().copied(),
+        }
+    }
+}
+impl EID {
+    pub fn from_u64(id: u64) -> Self {
+        EID(id as usize)
+    }
+}
 
 impl From<EID> for usize {
     fn from(id: EID) -> Self {
@@ -62,46 +148,6 @@ impl From<usize> for EID {
     fn from(id: usize) -> Self {
         EID(id)
     }
-}
-
-pub(crate) enum VRef<'a> {
-    Entry(Entry<'a, NodeStore>),
-    // returned from graph.node
-    LockedEntry(GraphEntry<NodeStore>), // returned from locked_nodes
-}
-
-// return index -> usize for VRef
-impl<'a> VRef<'a> {
-    fn edge_ref<const N: usize>(&self, edge_id: EID, graph: &'a TGraph<N>) -> ERef<'a> {
-        match self {
-            VRef::Entry(_) => ERef::ERef(graph.edge_entry(edge_id)),
-            VRef::LockedEntry(ge) => ERef::ELock {
-                lock: ge.locked_gs().clone(),
-                eid: edge_id,
-            },
-        }
-    }
-}
-
-impl<'a> Deref for VRef<'a> {
-    type Target = NodeStore;
-
-    fn deref(&self) -> &Self::Target {
-        match self {
-            VRef::Entry(e) => e,
-            VRef::LockedEntry(e) => e,
-        }
-    }
-}
-
-pub(crate) trait GraphItem<'a, const N: usize> {
-    fn from_edge_ids(
-        src: VID,
-        dst: VID,
-        e_id: ERef<'a>,
-        dir: Direction,
-        graph: &'a TGraph<N>,
-    ) -> Self;
 }
 
 #[derive(Clone, Debug)]
@@ -164,7 +210,7 @@ impl LayerIds {
         match (self, other) {
             (LayerIds::None, _) => LayerIds::None,
             (this, LayerIds::None) => this.clone(),
-            (this, LayerIds::All) => LayerIds::None,
+            (_, LayerIds::All) => LayerIds::None,
             (LayerIds::One(id), other) => {
                 if other.contains(id) {
                     LayerIds::None

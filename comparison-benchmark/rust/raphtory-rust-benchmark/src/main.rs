@@ -1,4 +1,4 @@
-use chrono::{DateTime, NaiveDateTime};
+use chrono::NaiveDateTime;
 use clap::{ArgAction, Parser};
 use csv::StringRecord;
 use flate2::read::GzDecoder;
@@ -150,17 +150,16 @@ fn main() {
                     .map(|s| s.to_owned())
                     .unwrap();
                 let dst_id = generic_loader.get(to_column).map(|s| s.to_owned()).unwrap();
-                let mut edge_time = DateTime::from_timestamp(1, 0).unwrap().naive_utc();
+                let mut edge_time = NaiveDateTime::from_timestamp_opt(1, 0).unwrap();
                 if time_column != -1 {
-                    edge_time = DateTime::from_timestamp_millis(
+                    edge_time = NaiveDateTime::from_timestamp_millis(
                         generic_loader
                             .get(time_column as usize)
                             .unwrap()
                             .parse()
                             .unwrap(),
                     )
-                    .unwrap()
-                    .naive_utc();
+                    .unwrap();
                 }
                 if debug {
                     println!("Adding edge {} -> {} at time {}", src_id, dst_id, edge_time);

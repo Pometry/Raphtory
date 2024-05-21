@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+
 use crate::{
     data::Data,
     model::{
@@ -8,7 +9,6 @@ use crate::{
     observability::tracing::create_tracer_from_env,
     routes::{graphql_playground, health},
 };
-use async_graphql::extensions::ApolloTracing;
 use async_graphql_poem::GraphQL;
 use itertools::Itertools;
 use poem::{get, listener::TcpListener, middleware::Cors, EndpointExt, Route, Server};
@@ -138,17 +138,12 @@ impl RaphtoryServer {
     }
 
     /// Start the server on the default port and return a handle to it.
-    pub fn start(self, log_config_or_level: &str, enable_tracing: bool) -> RunningRaphtoryServer {
-        self.start_with_port(1736, log_config_or_level, enable_tracing)
+    pub fn start(self, log_config_or_level: &str) -> RunningRaphtoryServer {
+        self.start_with_port(1736, log_config_or_level)
     }
 
     /// Start the server on the port `port` and return a handle to it.
-    pub fn start_with_port(
-        self,
-        port: u16,
-        log_config_or_level: &str,
-        enable_tracing: bool,
-    ) -> RunningRaphtoryServer {
+    pub fn start_with_port(self, port: u16, log_config_or_level: &str) -> RunningRaphtoryServer {
         fn parse_log_level(input: &str) -> Option<String> {
             // Parse log level from string
             let level: Result<Level, ParseLevelError> = input.trim().parse();
@@ -214,12 +209,7 @@ impl RaphtoryServer {
         // it is important that this runs after algorithms have been pushed to PLUGIN_ALGOS static variable
         let schema_builder = App::create_schema();
         let schema_builder = schema_builder.data(self.data);
-        let schema = if enable_tracing {
-            let schema_builder = schema_builder.extension(ApolloTracing);
-            schema_builder.finish().unwrap()
-        } else {
-            schema_builder.finish().unwrap()
-        };
+        let schema = schema_builder.finish().unwrap();
         let app = Route::new()
             .at("/", get(graphql_playground).post(GraphQL::new(schema)))
             .at("/health", get(health))
@@ -239,20 +229,13 @@ impl RaphtoryServer {
     }
 
     /// Run the server on the default port until completion.
-    pub async fn run(self, log_config_or_level: &str, enable_tracing: bool) -> IoResult<()> {
-        self.start(log_config_or_level, enable_tracing).wait().await
+    pub async fn run(self, log_config_or_level: &str) -> IoResult<()> {
+        self.start(log_config_or_level).wait().await
     }
 
     /// Run the server on the port `port` until completion.
-    pub async fn run_with_port(
-        self,
-        port: u16,
-        log_config_or_level: &str,
-        enable_tracing: bool,
-    ) -> IoResult<()> {
-        self.start_with_port(port, log_config_or_level, enable_tracing)
-            .wait()
-            .await
+    pub async fn run_with_port(self, port: u16, log_config_or_level: &str) -> IoResult<()> {
+        self.start_with_port(port, log_config_or_level).wait().await
     }
 }
 
@@ -340,7 +323,7 @@ mod server_tests {
         let graphs = HashMap::from([("test".to_owned(), g)]);
         let server = RaphtoryServer::from_map(graphs);
         println!("calling start at time {}", Local::now());
-        let handler = server.start_with_port(1737, "info", false);
+        let handler = server.start_with_port(1737, "info");
         sleep(Duration::from_secs(1)).await;
         println!("Calling stop at time {}", Local::now());
         handler.stop().await;

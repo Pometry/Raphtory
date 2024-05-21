@@ -1,6 +1,6 @@
 use crate::{
     core::{ArcStr, DocumentInput, Prop, PropUnwrap},
-    db::{api::properties::internal::PropertiesOps, graph::views::deletion_graph::PersistentGraph},
+    db::api::properties::internal::PropertiesOps,
     prelude::Graph,
 };
 use chrono::{DateTime, NaiveDateTime, Utc};
@@ -115,6 +115,10 @@ impl<P: PropertiesOps + Clone> TemporalProperties<P> {
             .map(|k| TemporalPropertyView::new(self.props.clone(), k))
     }
 
+    pub fn get_by_id(&self, id: usize) -> Option<TemporalPropertyView<P>> {
+        Some(TemporalPropertyView::new(self.props.clone(), id))
+    }
+
     pub fn histories(&self) -> Vec<(ArcStr, (i64, Prop))> {
         self.iter()
             .flat_map(|(k, v)| v.histories().map(move |v| (k.clone(), v.clone())))
@@ -183,10 +187,6 @@ impl<P: PropertiesOps> PropUnwrap for TemporalPropertyView<P> {
 
     fn into_graph(self) -> Option<Graph> {
         self.latest().into_graph()
-    }
-
-    fn into_persistent_graph(self) -> Option<PersistentGraph> {
-        self.latest().into_persistent_graph()
     }
 
     fn into_document(self) -> Option<DocumentInput> {

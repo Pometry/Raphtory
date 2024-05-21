@@ -61,7 +61,6 @@ impl DocumentOps for Document {
 }
 
 impl Lifespan {
-    #![allow(dead_code)]
     pub(crate) fn event(time: i64) -> Self {
         Self::Event { time }
     }

@@ -1,4 +1,4 @@
-use crate::model::graph::node::Node;
+use crate::model::{filters::node_filter::NodeFilter, graph::node::Node};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     db::{api::view::DynamicGraph, graph::nodes::Nodes},
@@ -8,22 +8,32 @@ use raphtory::{
 #[derive(ResolvedObject)]
 pub(crate) struct GqlNodes {
     pub(crate) nn: Nodes<'static, DynamicGraph>,
+    pub(crate) filter: Option<NodeFilter>,
 }
 
 impl GqlNodes {
     fn update<N: Into<Nodes<'static, DynamicGraph>>>(&self, nodes: N) -> Self {
-        GqlNodes::new(nodes)
+        GqlNodes::new(nodes, self.filter.clone())
     }
 }
 
 impl GqlNodes {
-    pub(crate) fn new<N: Into<Nodes<'static, DynamicGraph>>>(nodes: N) -> Self {
-        Self { nn: nodes.into() }
+    pub(crate) fn new<N: Into<Nodes<'static, DynamicGraph>>>(
+        nodes: N,
+        filter: Option<NodeFilter>,
+    ) -> Self {
+        Self {
+            nn: nodes.into(),
+            filter,
+        }
     }
 
     fn iter(&self) -> Box<dyn Iterator<Item = Node> + '_> {
         let iter = self.nn.iter().map(Node::from);
-        Box::new(iter)
+        match self.filter.as_ref() {
+            Some(filter) => Box::new(iter.filter(|n| filter.matches(n))),
+            None => Box::new(iter),
+        }
     }
 }
 
@@ -77,10 +87,6 @@ impl GqlNodes {
         self.update(self.nn.shrink_end(end))
     }
 
-    async fn type_filter(&self, node_types: Vec<String>) -> Self {
-        self.update(self.nn.type_filter(node_types))
-    }
-
     ////////////////////////
     //// TIME QUERIES //////
     ////////////////////////
@@ -112,5 +118,9 @@ impl GqlNodes {
 
     async fn ids(&self) -> Vec<String> {
         self.nn.name().collect()
+    }
+
+    async fn type_filter(&self, node_types: Vec<String>) -> Self {
+        self.update(self.nn.type_filter(node_types))
     }
 }

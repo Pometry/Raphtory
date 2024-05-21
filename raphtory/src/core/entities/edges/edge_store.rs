@@ -7,16 +7,20 @@ use crate::{
         },
         storage::{
             lazy_vec::IllegalSet,
-            locked_view::LockedView,
-            timeindex::{TimeIndex, TimeIndexEntry, TimeIndexOps},
+            timeindex::{TimeIndex, TimeIndexEntry, TimeIndexIntoOps, TimeIndexOps},
+            ArcEntry,
         },
-        utils::errors::{GraphError, MutateGraphError},
+        utils::errors::GraphError,
         Prop,
     },
-    db::api::view::{internal::EdgeLike, BoxedLIter, IntoDynBoxed},
-    prelude::TimeOps,
+    db::api::{
+        storage::edges::edge_storage_ops::{EdgeStorageIntoOps, EdgeStorageOps},
+        view::{BoxedLIter, IntoDynBoxed},
+    },
 };
 use itertools::{EitherOrBoth, Itertools};
+use ouroboros::self_referencing;
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
     iter,
@@ -81,33 +85,21 @@ impl EdgeLayer {
     pub(crate) fn temporal_property(&self, prop_id: usize) -> Option<&TProp> {
         self.props.as_ref().and_then(|ps| ps.temporal_prop(prop_id))
     }
-
-    pub(crate) fn temporal_properties<'a>(
-        &'a self,
-        prop_id: usize,
-        window: Option<Range<i64>>,
-    ) -> Box<dyn Iterator<Item = (i64, Prop)> + 'a> {
-        if let Some(window) = window {
-            self.props
-                .as_ref()
-                .map(|props| props.temporal_props_window(prop_id, window.start, window.end))
-                .unwrap_or_else(|| Box::new(iter::empty()))
-        } else {
-            self.props
-                .as_ref()
-                .map(|props| props.temporal_props(prop_id))
-                .unwrap_or_else(|| Box::new(iter::empty()))
-        }
-    }
 }
 
 impl<E: Deref<Target = EdgeStore>> From<E> for EdgeRef {
     fn from(val: E) -> Self {
-        EdgeRef::new_outgoing(val.e_id(), val.src(), val.dst())
+        EdgeRef::new_outgoing(val.eid, val.src, val.dst)
     }
 }
 
 impl EdgeStore {
+    pub fn internal_num_layers(&self) -> usize {
+        self.layers
+            .len()
+            .max(self.additions.len())
+            .max(self.deletions.len())
+    }
     fn get_or_allocate_layer(&mut self, layer_id: usize) -> &mut EdgeLayer {
         if self.layers.len() <= layer_id {
             self.layers.resize_with(layer_id + 1, Default::default);
@@ -115,35 +107,16 @@ impl EdgeStore {
         &mut self.layers[layer_id]
     }
 
-    pub fn has_layer(&self, layers: &LayerIds) -> bool {
-        match layers {
-            LayerIds::All => true,
-            LayerIds::One(layer_ids) => {
-                self.additions
-                    .get(*layer_ids)
-                    .filter(|t_index| !t_index.is_empty())
-                    .is_some()
-                    || self
-                        .deletions
-                        .get(*layer_ids)
-                        .filter(|t_index| !t_index.is_empty())
-                        .is_some()
-            }
-            LayerIds::Multiple(layer_ids) => layer_ids
-                .iter()
-                .any(|layer_id| self.has_layer(&LayerIds::One(*layer_id))),
-            LayerIds::None => false,
-        }
-    }
-
-    // an edge is in a layer if it has either deletions or additions in that layer
-    pub fn layer_ids(&self) -> LayerIds {
-        let layer_ids = self.layer_ids_iter().collect::<Vec<_>>();
-        if layer_ids.len() == 1 {
-            LayerIds::One(layer_ids[0])
-        } else {
-            LayerIds::Multiple(layer_ids.into())
-        }
+    pub fn has_layer_inner(&self, layer_id: usize) -> bool {
+        self.additions
+            .get(layer_id)
+            .filter(|t_index| !t_index.is_empty())
+            .is_some()
+            || self
+                .deletions
+                .get(layer_id)
+                .filter(|t_index| !t_index.is_empty())
+                .is_some()
     }
 
     pub fn layer_iter(&self) -> impl Iterator<Item = &EdgeLayer> + '_ {
@@ -151,7 +124,7 @@ impl EdgeStore {
     }
 
     /// Iterate over (layer_id, additions, deletions) triplets for edge
-    pub fn updates_iter<'a>(
+    pub fn updates_iter_inner<'a>(
         &'a self,
         layers: &'a LayerIds,
     ) -> impl Iterator<
@@ -164,8 +137,8 @@ impl EdgeStore {
         match layers {
             LayerIds::None => Box::new(iter::empty()),
             LayerIds::All => self
-                .additions_iter(layers)
-                .zip_longest(self.deletions_iter(layers))
+                .additions_iter_inner(layers)
+                .zip_longest(self.deletions_iter_inner(layers))
                 .enumerate()
                 .map(|(l, zipped)| match zipped {
                     EitherOrBoth::Both(additions, deletions) => (l, additions, deletions),
@@ -188,7 +161,7 @@ impl EdgeStore {
         }
     }
 
-    pub fn additions_iter<'a>(
+    pub fn additions_iter_inner<'a>(
         &'a self,
         layers: &'a LayerIds,
     ) -> BoxedLIter<'a, &TimeIndex<TimeIndexEntry>> {
@@ -203,7 +176,7 @@ impl EdgeStore {
         }
     }
 
-    pub fn deletions_iter<'a>(
+    pub fn deletions_iter_inner<'a>(
         &'a self,
         layers: &'a LayerIds,
     ) -> BoxedLIter<'a, &TimeIndex<TimeIndexEntry>> {
@@ -216,22 +189,6 @@ impl EdgeStore {
                 .flat_map(|id| self.deletions.get(*id))
                 .into_dyn_boxed(),
         }
-    }
-
-    pub fn layer_ids_iter(&self) -> impl Iterator<Item = usize> + '_ {
-        let from_additions = self
-            .additions
-            .iter()
-            .enumerate()
-            .map(|(i, t)| (!t.is_empty()).then_some(i));
-        let from_deletions = self
-            .deletions
-            .iter()
-            .enumerate()
-            .map(|(i, t)| (!t.is_empty()).then_some(i));
-        from_additions
-            .zip_longest(from_deletions)
-            .flat_map(|v| v.reduce(|l, r| l.or(r)))
     }
 
     pub fn layer_ids_window_iter(&self, w: Range<i64>) -> impl Iterator<Item = usize> + '_ {
@@ -288,7 +245,7 @@ impl EdgeStore {
             LayerIds::None => false,
             LayerIds::All => self
                 .additions
-                .iter()
+                .par_iter()
                 .any(|t_index| t_index.contains(w.clone())),
             LayerIds::One(l_id) => self
                 .additions
@@ -296,7 +253,7 @@ impl EdgeStore {
                 .map(|t_index| t_index.contains(w))
                 .unwrap_or(false),
             LayerIds::Multiple(layers) => layers
-                .iter()
+                .par_iter()
                 .any(|l_id| self.active(&LayerIds::One(*l_id), w.clone())),
         }
     }
@@ -325,87 +282,7 @@ impl EdgeStore {
         }
     }
 
-    pub fn last_deletion_before(&self, layer_ids: &LayerIds, t: i64) -> Option<TimeIndexEntry> {
-        match layer_ids {
-            LayerIds::None => None,
-            LayerIds::All => self
-                .deletions
-                .iter()
-                .flat_map(|dels| dels.range(i64::MIN..t).last())
-                .max(),
-            LayerIds::One(id) => {
-                let layer = self.deletions.get(*id)?;
-                layer.range(i64::MIN..t).last()
-            }
-            LayerIds::Multiple(ids) => ids
-                .iter()
-                .flat_map(|id| {
-                    self.deletions
-                        .get(*id)
-                        .and_then(|t_index| t_index.range(i64::MIN..t).last())
-                })
-                .max(),
-        }
-    }
-
-    pub fn has_temporal_prop(&self, layer_ids: &LayerIds, prop_id: usize) -> bool {
-        match layer_ids {
-            LayerIds::None => false,
-            LayerIds::All => self.layer_ids_iter().any(|id| {
-                self.layer(id)
-                    .and_then(|layer| layer.temporal_property(prop_id))
-                    .is_some()
-            }),
-            LayerIds::One(id) => self
-                .layer(*id)
-                .and_then(|layer| layer.temporal_property(prop_id))
-                .is_some(),
-            LayerIds::Multiple(ids) => ids.iter().any(|id| {
-                self.layer(*id)
-                    .and_then(|layer| layer.temporal_property(prop_id))
-                    .is_some()
-            }),
-        }
-    }
-
-    pub fn has_temporal_prop_window(
-        &self,
-        layer_ids: LayerIds,
-        prop_id: usize,
-        w: Range<i64>,
-    ) -> bool {
-        match layer_ids {
-            LayerIds::None => false,
-            LayerIds::All => self.layer_ids_iter().any(|id| {
-                self.layer(id)
-                    .and_then(|layer| {
-                        layer
-                            .temporal_property(prop_id)
-                            .filter(|p| p.iter_window_t(w.clone()).next().is_some())
-                    })
-                    .is_some()
-            }),
-            LayerIds::One(id) => self
-                .layer(id)
-                .and_then(|layer| {
-                    layer
-                        .temporal_property(prop_id)
-                        .filter(|p| p.iter_window_t(w.clone()).next().is_some())
-                })
-                .is_some(),
-            LayerIds::Multiple(ids) => ids.iter().any(|id| {
-                self.layer(*id)
-                    .and_then(|layer| {
-                        layer
-                            .temporal_property(prop_id)
-                            .filter(|p| p.iter_window_t(w.clone()).next().is_some())
-                    })
-                    .is_some()
-            }),
-        }
-    }
-
-    pub fn temporal_prop_layer(&self, layer_id: usize, prop_id: usize) -> Option<&TProp> {
+    pub fn temporal_prop_layer_inner(&self, layer_id: usize, prop_id: usize) -> Option<&TProp> {
         self.layers
             .get(layer_id)
             .and_then(|layer| layer.temporal_property(prop_id))
@@ -429,31 +306,6 @@ impl EdgeStore {
         &mut self.additions[layer_id]
     }
 
-    pub fn src(&self) -> VID {
-        self.src
-    }
-
-    pub fn dst(&self) -> VID {
-        self.dst
-    }
-
-    pub fn e_id(&self) -> EID {
-        self.eid
-    }
-
-    pub(crate) fn props(&self, layer_id: Option<usize>) -> Box<dyn Iterator<Item = &Props> + '_> {
-        if let Some(layer_id) = layer_id {
-            let iter = self
-                .layers
-                .get(layer_id)
-                .into_iter()
-                .flat_map(|layer| layer.props());
-            Box::new(iter)
-        } else {
-            Box::new(self.layers.iter().flat_map(|layer| layer.props()))
-        }
-    }
-
     pub(crate) fn temp_prop_ids(
         &self,
         layer_id: Option<usize>,
@@ -474,5 +326,84 @@ impl EdgeStore {
                     .dedup(),
             )
         }
+    }
+}
+
+impl EdgeStorageIntoOps for ArcEntry<EdgeStore> {
+    fn into_layers(
+        self,
+        layer_ids: LayerIds,
+        eref: EdgeRef,
+    ) -> impl Iterator<Item = EdgeRef> + Send {
+        let layer_ids = layer_ids.constrain_from_edge(eref);
+        ExplodedIterBuilder {
+            entry: self,
+            layer_ids,
+            iter_builder: move |edge, layer_ids| {
+                edge.layer_ids_iter(layer_ids)
+                    .map(move |l| eref.at_layer(l))
+                    .into_dyn_boxed()
+            },
+        }
+        .build()
+    }
+
+    fn into_exploded(
+        self,
+        layer_ids: LayerIds,
+        eref: EdgeRef,
+    ) -> impl Iterator<Item = EdgeRef> + Send {
+        let layer_ids = layer_ids.constrain_from_edge(eref);
+        ExplodedIterBuilder {
+            entry: self,
+            layer_ids,
+            iter_builder: move |edge, layers| {
+                edge.additions_iter(layers)
+                    .map(move |(l, a)| a.into_iter().map(move |t| eref.at(t).at_layer(l)))
+                    .kmerge_by(|e1, e2| e1.time() <= e2.time())
+                    .into_dyn_boxed()
+            },
+        }
+        .build()
+    }
+
+    fn into_exploded_window(
+        self,
+        layer_ids: LayerIds,
+        w: Range<TimeIndexEntry>,
+        eref: EdgeRef,
+    ) -> impl Iterator<Item = EdgeRef> + Send {
+        let layer_ids = layer_ids.constrain_from_edge(eref);
+        ExplodedIterBuilder {
+            entry: self,
+            layer_ids,
+            iter_builder: move |edge, layers| {
+                edge.additions_iter(layers)
+                    .flat_map(move |(l, a)| {
+                        a.into_range(w.clone())
+                            .into_iter()
+                            .map(move |t| eref.at(t).at_layer(l))
+                    })
+                    .into_dyn_boxed()
+            },
+        }
+        .build()
+    }
+}
+
+#[self_referencing]
+pub struct ExplodedIter {
+    entry: ArcEntry<EdgeStore>,
+    layer_ids: LayerIds,
+    #[borrows(entry, layer_ids)]
+    #[covariant]
+    iter: Box<dyn Iterator<Item = EdgeRef> + Send + 'this>,
+}
+
+impl Iterator for ExplodedIter {
+    type Item = EdgeRef;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.with_iter_mut(|iter| iter.next())
     }
 }

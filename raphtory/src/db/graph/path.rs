@@ -3,18 +3,12 @@ use crate::{
     db::{
         api::{
             properties::Properties,
-            storage::locked::LockedGraph,
-            view::{
-                internal::OneHopFilter, BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed,
-            },
+            storage::storage_ops::GraphStorage,
+            view::{internal::OneHopFilter, BaseNodeViewOps, BoxedLIter, IntoDynBoxed},
         },
         graph::{
             edges::{Edges, NestedEdges},
             node::NodeView,
-            views::{
-                layer_graph::LayeredGraph, node_type_filtered_subgraph::TypeFilteredSubgraph,
-                window_graph::WindowedGraph,
-            },
         },
     },
     prelude::*,
@@ -90,7 +84,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
     type PathType = PathFromGraph<'graph, G, G>;
     type Edges = NestedEdges<'graph, G, GH>;
 
-    fn map<O: 'graph, F: Fn(&LockedGraph, &Self::Graph, VID) -> O + Send + Clone + 'graph>(
+    fn map<O: 'graph, F: Fn(&GraphStorage, &Self::Graph, VID) -> O + Send + Clone + 'graph>(
         &self,
         op: F,
     ) -> Self::ValueType<O> {
@@ -112,7 +106,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
 
     fn map_edges<
         I: Iterator<Item = EdgeRef> + Send + 'graph,
-        F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
@@ -141,7 +135,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
 
     fn hop<
         I: Iterator<Item = VID> + Send + 'graph,
-        F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
@@ -208,32 +202,6 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'gr
             nodes,
             op,
         }
-    }
-}
-
-impl From<PathFromNode<'static, DynamicGraph, LayeredGraph<DynamicGraph>>>
-    for PathFromNode<'static, DynamicGraph, DynamicGraph>
-{
-    fn from(value: PathFromNode<'static, DynamicGraph, LayeredGraph<DynamicGraph>>) -> Self {
-        PathFromNode::new(DynamicGraph::new(value.graph.clone()), move || (value.op)())
-    }
-}
-
-impl From<PathFromNode<'static, DynamicGraph, WindowedGraph<DynamicGraph>>>
-    for PathFromNode<'static, DynamicGraph, DynamicGraph>
-{
-    fn from(value: PathFromNode<'static, DynamicGraph, WindowedGraph<DynamicGraph>>) -> Self {
-        PathFromNode::new(DynamicGraph::new(value.graph.clone()), move || (value.op)())
-    }
-}
-
-impl From<PathFromNode<'static, DynamicGraph, TypeFilteredSubgraph<DynamicGraph>>>
-    for PathFromNode<'static, DynamicGraph, DynamicGraph>
-{
-    fn from(
-        value: PathFromNode<'static, DynamicGraph, TypeFilteredSubgraph<DynamicGraph>>,
-    ) -> Self {
-        PathFromNode::new(DynamicGraph::new(value.graph.clone()), move || (value.op)())
     }
 }
 
@@ -308,7 +276,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
     type PathType = PathFromNode<'graph, G, G>;
     type Edges = Edges<'graph, G, GH>;
 
-    fn map<O: 'graph, F: Fn(&LockedGraph, &Self::Graph, VID) -> O + Send + 'graph>(
+    fn map<O: 'graph, F: Fn(&GraphStorage, &Self::Graph, VID) -> O + Send + 'graph>(
         &self,
         op: F,
     ) -> Self::ValueType<O> {
@@ -323,7 +291,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
 
     fn map_edges<
         I: Iterator<Item = EdgeRef> + Send + 'graph,
-        F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
@@ -349,7 +317,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
 
     fn hop<
         I: Iterator<Item = VID> + Send + 'graph,
-        F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,

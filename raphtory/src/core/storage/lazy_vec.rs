@@ -51,6 +51,20 @@ where
         }
     }
 
+    pub(crate) fn filled_values(&self) -> Box<dyn Iterator<Item = &A> + '_> {
+        match self {
+            LazyVec::Empty => Box::new(iter::empty()),
+            LazyVec::LazyVec1(_, value) => Box::new(iter::once(value)),
+            LazyVec::LazyVecN(vector) => Box::new(
+                vector
+                    .iter()
+                    .enumerate()
+                    .filter(|&(_, value)| *value != Default::default())
+                    .map(|(_, value)| value),
+            ),
+        }
+    }
+
     pub(crate) fn get(&self, id: usize) -> Option<&A> {
         match self {
             LazyVec::LazyVec1(only_id, value) if *only_id == id => Some(value),

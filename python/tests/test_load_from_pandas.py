@@ -26,7 +26,7 @@ def test_load_from_pandas():
             "marbles": ["red", "blue", "green", "yellow", "purple"],
         }
     )
-
+    
     expected_nodes = [1, 2, 3, 4, 5, 6]
     expected_edges = [
         (1, 2, 1.0, "red"),
@@ -42,18 +42,15 @@ def test_load_from_pandas():
             weight = e["weight"]
             marbles = e["marbles"]
             edges.append((e.src.id, e.dst.id, weight, marbles))
-
+            
         assert g.nodes.id.collect() == expected_nodes
         assert edges == expected_edges
-
+        
     g = Graph.load_from_pandas(df, "src", "dst", "time", ["weight", "marbles"])
     assertions(g)
-
-    g = PersistentGraph.load_from_pandas(
-        df, "src", "dst", "time", ["weight", "marbles"]
-    )
+    
+    g = PersistentGraph.load_from_pandas(df, "src", "dst", "time", ["weight", "marbles"])
     assertions(g)
-
 
 def test_load_from_pandas_with_invalid_data():
     # Create a DataFrame with invalid data
@@ -74,16 +71,14 @@ def test_load_from_pandas_with_invalid_data():
             "Could not convert '3.0 KG' with type str: tried to convert to double"
             in str(exc_info.value)
         )
-
+        
     # Use pytest.raises to expect an exception
     with pytest.raises(Exception) as exc_info:
         g = Graph.load_from_pandas(df, "src", "dst", "time", ["weight", "marbles"])
     assertions(exc_info)
-
+    
     with pytest.raises(Exception) as exc_info:
-        g = PersistentGraph.load_from_pandas(
-            df, "src", "dst", "time", ["weight", "marbles"]
-        )
+        g = PersistentGraph.load_from_pandas(df, "src", "dst", "time", ["weight", "marbles"])
     assertions(exc_info)
 
     # Optionally, you can check the exception message or type
@@ -114,7 +109,7 @@ def test_load_from_pandas_into_existing_graph():
             "node_type": ["p", "p", "p", "p", "p", "p"],
         }
     )
-
+    
     expected_node_ids = [1, 2, 3, 4, 5, 6]
     expected_nodes = [
         (1, "Alice"),
@@ -131,7 +126,7 @@ def test_load_from_pandas_into_existing_graph():
         (4, 5, 4.0, "yellow"),
         (5, 6, 5.0, "purple"),
     ]
-
+    
     def assertions(g):
         edges = []
         for e in g.edges:
@@ -146,12 +141,12 @@ def test_load_from_pandas_into_existing_graph():
         assert g.nodes.id.collect() == expected_node_ids
         assert edges == expected_edges
         assert nodes == expected_nodes
-
+    
     g = Graph()
     g.load_nodes_from_pandas(nodes_df, "id", "time", "node_type", properties=["name"])
     g.load_edges_from_pandas(edges_df, "src", "dst", "time", ["weight", "marbles"])
     assertions(g)
-
+    
     g = PersistentGraph()
     g.load_nodes_from_pandas(nodes_df, "id", "time", "node_type", properties=["name"])
     g.load_edges_from_pandas(edges_df, "src", "dst", "time", ["weight", "marbles"])
@@ -193,22 +188,22 @@ def test_load_from_pandas_nodes():
         (4, 5, 4.0, "yellow"),
         (5, 6, 5.0, "purple"),
     ]
-
+    
     def assertions(g):
         edges = []
         for e in g.edges:
             weight = e["weight"]
             marbles = e["marbles"]
             edges.append((e.src.id, e.dst.id, weight, marbles))
-
+            
         nodes = []
         for v in g.nodes:
             name = v["name"]
-            nodes.append((v.id, name))
-
+            nodes.append((v.id, name))   
+             
         assert nodes == expected_nodes
         assert g.nodes.id.collect() == expected_node_ids
-        assert edges == expected_edges
+        assert edges == expected_edges    
 
     g = Graph.load_from_pandas(
         edges_df,
@@ -223,7 +218,7 @@ def test_load_from_pandas_nodes():
         node_type="node_type",
     )
     assertions(g)
-
+    
     g = PersistentGraph.load_from_pandas(
         edges_df,
         edge_src="src",
@@ -237,7 +232,6 @@ def test_load_from_pandas_nodes():
         node_type="node_type",
     )
     assertions(g)
-
 
 def test_load_from_pandas_with_types():
     edges_df = pd.DataFrame(
@@ -274,7 +268,7 @@ def test_load_from_pandas_with_types():
             ],
         }
     )
-
+    
     def assertions1(g):
         assert g.nodes.node_type == [
             "Person",
@@ -292,7 +286,7 @@ def test_load_from_pandas_with_types():
             "test_tag",
             "test_tag",
         ]
-
+    
     g = Graph()
     g.load_nodes_from_pandas(
         nodes_df,
@@ -303,7 +297,7 @@ def test_load_from_pandas_with_types():
         shared_const_properties={"tag": "test_tag"},
     )
     assertions1(g)
-
+    
     g = PersistentGraph()
     g.load_nodes_from_pandas(
         nodes_df,
@@ -327,23 +321,13 @@ def test_load_from_pandas_with_types():
 
     g = Graph()
     g.load_nodes_from_pandas(
-        nodes_df,
-        "id",
-        "time",
-        "node_type",
-        properties=["name"],
-        const_properties=["type"],
+        nodes_df, "id", "time", "node_type", properties=["name"], const_properties=["type"]
     )
     assertions2(g)
-
+    
     g = PersistentGraph()
     g.load_nodes_from_pandas(
-        nodes_df,
-        "id",
-        "time",
-        "node_type",
-        properties=["name"],
-        const_properties=["type"],
+        nodes_df, "id", "time", "node_type", properties=["name"], const_properties=["type"]
     )
     assertions2(g)
 
@@ -385,7 +369,7 @@ def test_load_from_pandas_with_types():
         layer_in_df=False,
     )
     assertions3(g)
-
+    
     g = PersistentGraph()
     g.load_edges_from_pandas(
         edges_df,
@@ -399,6 +383,7 @@ def test_load_from_pandas_with_types():
         layer_in_df=False,
     )
     assertions3(g)
+    
 
     def assertions4(g):
         assert g.layers(["layer 1"]).edges.src.id.collect() == [1]
@@ -413,13 +398,13 @@ def test_load_from_pandas_with_types():
             4,
             5,
         ]
-
+        
     g = Graph()
     g.load_edges_from_pandas(
         edges_df, "src", "dst", "time", ["weight", "marbles"], layer="layers"
     )
     assertions4(g)
-
+    
     g = PersistentGraph()
     g.load_edges_from_pandas(
         edges_df, "src", "dst", "time", ["weight", "marbles"], layer="layers"
@@ -451,7 +436,7 @@ def test_load_from_pandas_with_types():
         node_shared_const_properties={"type": "Person"},
     )
     assertions5(g)
-
+    
     g = PersistentGraph.load_from_pandas(
         edges_df,
         "src",
@@ -502,7 +487,7 @@ def test_load_from_pandas_with_types():
         node_const_properties=["type"],
     )
     assertions6(g)
-
+    
     g = PersistentGraph.load_from_pandas(
         edges_df,
         "src",
@@ -534,7 +519,7 @@ def test_load_from_pandas_with_types():
             "test_tag",
             "test_tag",
         ]
-
+    
     g = Graph.load_from_pandas(
         edges_df,
         edge_src="src",
@@ -548,21 +533,14 @@ def test_load_from_pandas_with_types():
         edge_layer="layers",
     )
     g.load_node_props_from_pandas(
-        nodes_df,
-        "id",
-        const_properties=["type"],
-        shared_const_properties={"tag": "test_tag"},
+        nodes_df, "id", const_properties=["type"], shared_const_properties={"tag": "test_tag"}
     )
     assertions7(g)
-
+    
     def assertions8(g):
-        assert g.layers(
-            ["layer 1", "layer 2", "layer 3"]
-        ).edges.properties.constant.get("marbles_const").collect() == [
-            {"layer 1": "red"},
-            {"layer 2": "blue"},
-            {"layer 3": "green"},
-        ]
+        assert g.layers(["layer 1", "layer 2", "layer 3"]).edges.properties.constant.get(
+            "marbles_const"
+        ).collect() == [{"layer 1": "red"}, {"layer 2": "blue"}, {"layer 3": "green"}]
         assert g.edges.properties.constant.get("tag").collect() == [
             {"layer 1": "test_tag"},
             {"layer 2": "test_tag"},
@@ -580,7 +558,7 @@ def test_load_from_pandas_with_types():
         layer="layers",
     )
     assertions8(g)
-
+    
     g = PersistentGraph.load_from_pandas(
         edges_df,
         edge_src="src",
@@ -594,13 +572,10 @@ def test_load_from_pandas_with_types():
         edge_layer="layers",
     )
     g.load_node_props_from_pandas(
-        nodes_df,
-        "id",
-        const_properties=["type"],
-        shared_const_properties={"tag": "test_tag"},
+        nodes_df, "id", const_properties=["type"], shared_const_properties={"tag": "test_tag"}
     )
     assertions7(g)
-
+    
     g.load_edge_props_from_pandas(
         edges_df,
         "src",
@@ -610,24 +585,19 @@ def test_load_from_pandas_with_types():
         layer="layers",
     )
     assertions8(g)
-
+    
     def assertions_layers_in_df(g):
-        assert g.unique_layers == [
-            "_default",
-            "layer 1",
-            "layer 2",
-            "layer 3",
-            "layer 4",
-            "layer 5",
-        ]
+        assert g.unique_layers == ["_default", "layer 1", "layer 2", "layer 3", "layer 4", "layer 5"]
         assert g.layers(["layer 1"]).edges.src.id.collect() == [1]
         assert g.layers(["layer 3"]).edges.src.id.collect() == [3]
         with pytest.raises(
             Exception,
-            match=re.escape("Invalid layer test_layer."),
+            match=re.escape(
+                "Invalid layer test_layer."
+            ),
         ):
             g.layers(["test_layer"])
-
+            
     g = Graph()
     g.load_edges_from_pandas(
         edges_df,
@@ -641,7 +611,7 @@ def test_load_from_pandas_with_types():
         layer_in_df=True,
     )
     assertions_layers_in_df(g)
-
+    
     g = PersistentGraph()
     g.load_edges_from_pandas(
         edges_df,
@@ -688,7 +658,7 @@ def test_missing_columns():
             edge_dst="not_dst",
             edge_time="not_time",
         )
-
+        
     with pytest.raises(
         Exception,
         match=re.escape(
@@ -720,7 +690,7 @@ def test_missing_columns():
             node_time="time",
             node_properties=["name"],
         )
-
+        
     with pytest.raises(
         Exception,
         match=re.escape(
@@ -757,7 +727,7 @@ def test_missing_columns():
             node_time="not_time",
             node_properties=["not_name"],
         )
-
+    
     with pytest.raises(
         Exception,
         match=re.escape(
@@ -789,7 +759,7 @@ def test_missing_columns():
             dst="dist",
             const_properties=["wait", "marples"],
         )
-
+    
     with pytest.raises(
         Exception,
         match=re.escape(
@@ -816,7 +786,7 @@ def test_missing_columns():
             id="sauce",
             const_properties=["wait", "marples"],
         )
-
+        
     with pytest.raises(
         Exception,
         match=re.escape(
@@ -839,7 +809,7 @@ def test_none_columns_edges():
         Exception, match=re.escape("Ensure these contain no NaN, Null or None values.")
     ):
         Graph.load_from_pandas(edges_df, "src", "dst", "time")
-
+        
     with pytest.raises(
         Exception, match=re.escape("Ensure these contain no NaN, Null or None values.")
     ):
@@ -869,7 +839,6 @@ def test_none_columns_edges():
     ):
         PersistentGraph.load_from_pandas(edges_df, "src", "dst", "time")
 
-
 def test_loading_list_as_properties():
     df = pd.DataFrame(
         {
@@ -880,7 +849,7 @@ def test_loading_list_as_properties():
             "marbles": [["red"], ["blue"], ["green"], ["yellow"], ["purple"]],
         }
     )
-
+            
     g = Graph.load_from_pandas(
         df,
         edge_src="src",
@@ -888,9 +857,9 @@ def test_loading_list_as_properties():
         edge_time="time",
         edge_properties=["marbles"],
     )
-
-    assert g.edge(1, 2).properties["marbles"] == ["red"]
-
+    
+    assert g.edge(1, 2).properties["marbles"] == ['red']
+    
     df = pd.DataFrame(
         {
             "id": [1, 2, 3, 4, 5],
@@ -898,16 +867,16 @@ def test_loading_list_as_properties():
             "marbles": [["red"], ["blue"], ["green"], ["yellow"], ["purple"]],
         }
     )
-
+    
     g = Graph()
     g.load_nodes_from_pandas(
-        df=df,
+        df = df,
         id="id",
         time="time",
         properties=["marbles"],
     )
-
-    assert g.node(2).properties["marbles"] == ["blue"]
+    
+    assert g.node(2).properties["marbles"] == ['blue']
 
 
 def test_unparsable_props():
@@ -948,7 +917,6 @@ def test_unparsable_props():
             edge_properties=["weight"],
         )
 
-
 def test_load_node_from_pandas_with_node_types():
     nodes_df = pd.DataFrame(
         {
@@ -970,70 +938,53 @@ def test_load_node_from_pandas_with_node_types():
             "time": [1, 2, 3, 4, 5],
         }
     )
-
+    
     def nodes_assertions(g):
         assert g.get_all_node_types() == []
         assert g.count_nodes() == 4
-
+        
     def nodes_assertions2(g):
-        assert g.get_all_node_types() == ["node_type"]
+        assert g.get_all_node_types() == ['node_type']
         assert g.count_nodes() == 4
-
+    
     def nodes_assertions3(g):
         all_node_types = g.get_all_node_types()
         all_node_types.sort()
-        assert all_node_types == [
-            "node_type1",
-            "node_type2",
-            "node_type3",
-            "node_type4",
-        ]
+        assert all_node_types == ["node_type1", "node_type2", "node_type3", "node_type4"]
         assert g.count_nodes() == 4
-
+    
     def edges_assertions(g):
         assert g.get_all_node_types() == []
         assert g.count_nodes() == 6
-
+    
     g = Graph()
     g.load_nodes_from_pandas(nodes_df, "id", "time")
     nodes_assertions(g)
     g = PersistentGraph()
     g.load_nodes_from_pandas(nodes_df, "id", "time")
     nodes_assertions(g)
-
+    
     g = Graph()
-    g.load_nodes_from_pandas(
-        nodes_df, "id", "time", node_type="node_type", node_type_in_df=False
-    )
+    g.load_nodes_from_pandas(nodes_df, "id", "time", node_type="node_type", node_type_in_df=False)
     nodes_assertions2(g)
     g = PersistentGraph()
-    g.load_nodes_from_pandas(
-        nodes_df, "id", "time", node_type="node_type", node_type_in_df=False
-    )
+    g.load_nodes_from_pandas(nodes_df, "id", "time", node_type="node_type", node_type_in_df=False)
     nodes_assertions2(g)
-
+    
     g = Graph()
-    g.load_nodes_from_pandas(
-        nodes_df2, "id", "time", node_type="node_type", node_type_in_df=False
-    )
+    g.load_nodes_from_pandas(nodes_df2, "id", "time", node_type="node_type", node_type_in_df=False)
     nodes_assertions2(g)
     g = PersistentGraph()
-    g.load_nodes_from_pandas(
-        nodes_df2, "id", "time", node_type="node_type", node_type_in_df=False
-    )
+    g.load_nodes_from_pandas(nodes_df2, "id", "time", node_type="node_type", node_type_in_df=False)
     nodes_assertions2(g)
-
+    
     g = Graph()
-    g.load_nodes_from_pandas(
-        nodes_df2, "id", "time", node_type="node_type", node_type_in_df=True
-    )
+    g.load_nodes_from_pandas(nodes_df2, "id", "time", node_type="node_type", node_type_in_df=True)
     nodes_assertions3(g)
     g = PersistentGraph()
-    g.load_nodes_from_pandas(
-        nodes_df2, "id", "time", node_type="node_type", node_type_in_df=True
-    )
+    g.load_nodes_from_pandas(nodes_df2, "id", "time", node_type="node_type", node_type_in_df=True)
     nodes_assertions3(g)
-
+    
     g = Graph.load_from_pandas(edges_df, "src", "dst", "time")
     edges_assertions(g)
     g = Graph.load_from_pandas(edges_df, "src", "dst", "time")
@@ -1042,11 +993,11 @@ def test_load_node_from_pandas_with_node_types():
 
 def test_load_edge_deletions_from_pandas():
     edges_df = pd.DataFrame(
-        {
-            "src": [1, 2, 3, 4, 5],
-            "dst": [2, 3, 4, 5, 6],
-            "time": [1, 2, 3, 4, 5],
-        }
+    {
+        "src": [1, 2, 3, 4, 5],
+        "dst": [2, 3, 4, 5, 6],
+        "time": [1, 2, 3, 4, 5],
+    }
     )
     edge_dels_df = pd.DataFrame(
         {
@@ -1055,9 +1006,10 @@ def test_load_edge_deletions_from_pandas():
             "time": [6, 7],
         }
     )
-
+    
     g = PersistentGraph()
     g.load_edges_from_pandas(edges_df, "src", "dst", "time")
     assert g.window(10, 12).edges.src.id.collect() == [1, 2, 3, 4, 5]
     g.load_edges_deletions_from_pandas(edge_dels_df, "src", "dst", "time")
     assert g.window(10, 12).edges.src.id.collect() == [1, 2, 5]
+

@@ -250,8 +250,8 @@ def test_getitem():
     g.add_node(1, 1, {"cost": 1})
 
     assert (
-        g.node(1).properties.temporal.get("cost")
-        == g.node(1).properties.temporal["cost"]
+            g.node(1).properties.temporal.get("cost")
+            == g.node(1).properties.temporal["cost"]
     )
 
 
@@ -335,13 +335,7 @@ def test_entity_history_date_time():
 def test_graph_properties():
     g = create_graph()
 
-    props = {
-        "prop 1": 1,
-        "prop 2": "hi",
-        "prop 3": True,
-        "prop 4": [1, 2],
-        "prop 5": {"x": 1, "y": "ok"},
-    }
+    props = {"prop 1": 1, "prop 2": "hi", "prop 3": True, "prop 4": [1, 2], "prop 5": {"x": 1, "y": "ok"}}
     g.add_constant_properties(props)
 
     sp = g.properties.constant.keys()
@@ -580,6 +574,17 @@ def test_node_properties():
         "prop 4": True,
         "static prop": 123,
     }
+    
+    # find all nodes that match properties
+    [n] = g.find_nodes({
+        "prop 3": "hello",
+        "prop 1": 2,
+    })
+    assert n == g.node(1)
+
+    empty_list = g.find_nodes({"prop 1": 2, "prop 3": "hi"})
+    assert len(empty_list) == 0
+    
     assert g.nodes.properties == {
         "prop 2": [0.9],
         "prop 3": ["hello"],
@@ -684,22 +689,22 @@ def test_node_properties():
     assert sorted(g.node(1).properties.temporal.keys()) == expected_names_no_static
     assert sorted(g.nodes.properties.temporal.keys()) == expected_names_no_static
     assert (
-        sorted(g.nodes.out_neighbours.properties.temporal.keys())
-        == expected_names_no_static
+            sorted(g.nodes.out_neighbours.properties.temporal.keys())
+            == expected_names_no_static
     )
 
     expected_names_no_static_at_1 = sorted(["prop 4", "prop 1", "prop 3"])
     assert (
-        sorted(g.at(1).node(1).properties.temporal.keys())
-        == expected_names_no_static_at_1
+            sorted(g.at(1).node(1).properties.temporal.keys())
+            == expected_names_no_static_at_1
     )
     assert (
-        sorted(g.at(1).nodes.properties.temporal.keys())
-        == expected_names_no_static_at_1
+            sorted(g.at(1).nodes.properties.temporal.keys())
+            == expected_names_no_static_at_1
     )
     assert (
-        sorted(g.at(1).nodes.out_neighbours.properties.temporal.keys())
-        == expected_names_no_static_at_1
+            sorted(g.at(1).nodes.out_neighbours.properties.temporal.keys())
+            == expected_names_no_static_at_1
     )
 
     # testing has_property
@@ -837,6 +842,13 @@ def test_edge_properties():
     assert sorted(g.at(1).edge(1, 2).properties.temporal.keys()) == sorted(
         ["prop 4", "prop 1", "prop 3"]
     )
+
+    # find all edges that match properties
+    [e] = g.at(1).find_edges({"prop 1": 1, "prop 3": "hi"})
+    assert e == g.edge(1, 2)
+
+    empty_list = g.at(1).find_edges({"prop 1": 1, "prop 3": "hx"})
+    assert len(empty_list) == 0
 
     # testing has_property
     assert "prop 4" in g.edge(1, 2).properties
@@ -1107,26 +1119,21 @@ def test_static_prop_change():
     with pytest.raises(Exception):
         v.add_constant_properties({"name": "value2"})
 
-
 def test_constant_property_update():
-    def updates(v):
-        v.update_constant_properties({"prop1": "value1", "prop2": 123})
-        assert (
-            v.properties.get("prop1") == "value1" and v.properties.get("prop2") == 123
-        )
-        v.update_constant_properties({"prop1": "value2", "prop2": 345})
-        assert (
-            v.properties.get("prop1") == "value2" and v.properties.get("prop2") == 345
-        )
+   def updates(v):
+       v.update_constant_properties({"prop1": "value1", "prop2": 123})
+       assert v.properties.get("prop1") == "value1" and v.properties.get('prop2') == 123
+       v.update_constant_properties({"prop1": "value2", "prop2": 345})
+       assert v.properties.get("prop1") == "value2" and v.properties.get('prop2') == 345
 
-        v.add_constant_properties({"name": "value1"})
-        v.update_constant_properties({"name": "value2"})
-        assert v.properties.get("name") == "value2"
+       v.add_constant_properties({"name": "value1"})
+       v.update_constant_properties({"name": "value2"})
+       assert v.properties.get("name") == "value2"
 
-    g = Graph()
-    updates(g)
-    updates(g.add_node(0, 1))
-    updates(g.add_edge(0, 1, 2))
+   g = Graph()
+   updates(g)
+   updates(g.add_node(0, 1))
+   updates(g.add_edge(0,1,2))
 
 
 def test_triplet_count():
@@ -1654,7 +1661,7 @@ def test_nbr():
     g = create_graph()
     r = [e.nbr.name for e in g.edges]
     r.sort()
-    assert r == ["1", "1", "2", "2", "3"]
+    assert r == ['1', '1', '2', '2', '3']
 
 
 def test_materialize_graph():
@@ -1922,8 +1929,8 @@ def test_weird_windows():
     g = Graph()
     g.add_edge(1, 1, 2)
     with pytest.raises(
-        Exception,
-        match="'ddd' is not a valid datetime, valid formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%, %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%",
+            Exception,
+            match="'ddd' is not a valid datetime, valid formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%, %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%",
     ):
         g.window("ddd", "aaa")
 
@@ -1986,8 +1993,8 @@ def test_node_types():
     g.add_node(1, 3, node_type="timer")
     g.add_node(1, 4, node_type="wallet")
 
-    assert g.nodes.type_filter(["wallet"]).node_type.collect() == ["1", "4"]
-    assert g.subgraph_node_types(["timer"]).nodes.name.collect() == ["2", "3"]
+    assert g.nodes.type_filter(["wallet"]).node_type.collect() == ['1', '4']
+    assert g.subgraph_node_types(["timer"]).nodes.name.collect() == ['2', '3']
 
 
 def test_time_exploded_edges():
@@ -2012,18 +2019,18 @@ def test_time_exploded_edges():
         for edge in edges:
             time_nested.append(edge.time)
     assert [
-        item for sublist in g.nodes.edges.explode().time.collect() for item in sublist
-    ] == time_nested
+               item for sublist in g.nodes.edges.explode().time.collect() for item in sublist
+           ] == time_nested
 
     date_time_nested = []
     for edges in g.nodes.edges.explode():
         for edge in edges:
             date_time_nested.append(edge.date_time)
     assert [
-        item
-        for sublist in g.nodes.edges.explode().date_time.collect()
-        for item in sublist
-    ] == date_time_nested
+               item
+               for sublist in g.nodes.edges.explode().date_time.collect()
+               for item in sublist
+           ] == date_time_nested
 
 
 def test_leading_zeroes_ids():
@@ -2084,24 +2091,17 @@ def test_is_self_loop():
 def test_NaN_NaT_as_properties():
     now = datetime.now()
     data = {
-        "floats": [np.NaN, None, 2.4, None, None, None],
-        "time": [10, 20, 30, 40, 50, 60],
-        "id": [101, 102, 103, 104, 105, 106],
-        "datetime": [
-            now,
-            now,
-            np.datetime64("NaT"),
-            now,
-            now,
-            now,
-        ],  # Hardcoded datetime
+        'floats': [np.NaN, None, 2.4, None, None, None],
+        'time': [10, 20, 30, 40, 50, 60],
+        'id': [101, 102, 103, 104, 105, 106],
+        'datetime': [now, now, np.datetime64('NaT'), now, now, now]  # Hardcoded datetime
     }
 
     df = pd.DataFrame(data)
     g = Graph()
-    g.load_nodes_from_pandas(time="time", id="id", df=df, properties=["floats"])
-    assert g.node(103).properties.temporal.get("floats").items() == [(30, 2.4)]
-    assert g.node(101).properties.temporal.get("floats") == None
+    g.load_nodes_from_pandas(time='time', id='id', df=df, properties=['floats'])
+    assert g.node(103).properties.temporal.get('floats').items() == [(30, 2.4)]
+    assert g.node(101).properties.temporal.get('floats') == None
 
 
 def test_fuzzy_search():
@@ -2147,34 +2147,34 @@ def test_fuzzy_search():
 
     assert len(index.fuzzy_search_nodes("name:habza", levenshtein_distance=1)) == 1
     assert (
-        len(index.fuzzy_search_nodes("name:haa", levenshtein_distance=1, prefix=True))
-        == 2
+            len(index.fuzzy_search_nodes("name:haa", levenshtein_distance=1, prefix=True))
+            == 2
     )
     assert (
-        len(
-            index.fuzzy_search_nodes(
-                "value_str:abc123", levenshtein_distance=2, prefix=True
+            len(
+                index.fuzzy_search_nodes(
+                    "value_str:abc123", levenshtein_distance=2, prefix=True
+                )
             )
-        )
-        == 2
+            == 2
     )
     assert (
-        len(
-            index.fuzzy_search_nodes(
-                "value_str:dsss312", levenshtein_distance=2, prefix=False
+            len(
+                index.fuzzy_search_nodes(
+                    "value_str:dsss312", levenshtein_distance=2, prefix=False
+                )
             )
-        )
-        == 1
+            == 1
     )
 
     assert len(index.fuzzy_search_edges("from:bon", levenshtein_distance=1)) == 2
     assert (
-        len(index.fuzzy_search_edges("from:bo", levenshtein_distance=1, prefix=True))
-        == 2
+            len(index.fuzzy_search_edges("from:bo", levenshtein_distance=1, prefix=True))
+            == 2
     )
     assert (
-        len(index.fuzzy_search_edges("from:eon", levenshtein_distance=2, prefix=True))
-        == 2
+            len(index.fuzzy_search_edges("from:eon", levenshtein_distance=2, prefix=True))
+            == 2
     )
 
 
@@ -2202,7 +2202,6 @@ def test_bincode_has_not_changed(datadir):
             "you increment the raphtory/src/lib.rs::BINCODE_VERSION in rust by 1. Then create an empty "
             "graph and overwrite this file python/resources/tests/test_graphdb/graph.bincode"
         )
-
 
 # def currently_broken_fuzzy_search(): #TODO: Fix fuzzy searching for properties
 # g = Graph()

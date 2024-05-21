@@ -10,9 +10,8 @@ pub struct Global<CS: ComputeState>(Arc<ShuffleComputeState<CS>>);
 pub struct Shard<CS: ComputeState>(Arc<ShuffleComputeState<CS>>);
 
 // this contains the local shard state global and node specific and it is not synchronized
-#[derive(Clone, Debug)]
-#[allow(unused)]
-pub(crate) struct Local<CS: ComputeState>(Arc<Option<ShuffleComputeState<CS>>>);
+// #[derive(Clone, Debug)]
+// pub(crate) struct Local<CS: ComputeState>(Arc<Option<ShuffleComputeState<CS>>>);
 
 #[derive(Debug)]
 pub(crate) struct Local2<'a, S> {

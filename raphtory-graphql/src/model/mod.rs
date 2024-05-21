@@ -30,6 +30,7 @@ use std::{
 use uuid::Uuid;
 
 pub mod algorithms;
+pub(crate) mod filters;
 pub(crate) mod graph;
 pub(crate) mod schema;
 

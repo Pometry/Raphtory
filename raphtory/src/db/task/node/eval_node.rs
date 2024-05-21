@@ -11,15 +11,14 @@ use crate::{
     db::{
         api::{
             properties::Properties,
+            storage::storage_ops::GraphStorage,
             view::{internal::OneHopFilter, BaseNodeViewOps},
         },
         graph::{node::NodeView, path::PathFromNode},
-        task::{node::eval_node_state::EVState, task_state::Local2},
+        task::{edge::eval_edges::EvalEdges, node::eval_node_state::EVState, task_state::Local2},
     },
     prelude::{GraphViewOps, NodeTypesFilter},
 };
-
-use crate::db::{api::storage::locked::LockedGraph, task::edge::eval_edges::EvalEdges};
 use std::{
     cell::{Ref, RefCell},
     rc::Rc,
@@ -344,7 +343,7 @@ impl<
 
     fn map<
         O: 'graph,
-        F: Fn(&LockedGraph, &Self::Graph, VID) -> O + Send + Sync + Clone + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> O + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
@@ -358,7 +357,7 @@ impl<
 
     fn map_edges<
         I: Iterator<Item = EdgeRef> + Send + 'graph,
-        F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
@@ -377,7 +376,7 @@ impl<
 
     fn hop<
         I: Iterator<Item = VID> + Send + 'graph,
-        F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
@@ -481,7 +480,7 @@ impl<
 
     fn map<
         O: 'graph,
-        F: Fn(&LockedGraph, &Self::Graph, VID) -> O + Send + Sync + Clone + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> O + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
@@ -495,7 +494,7 @@ impl<
 
     fn map_edges<
         I: Iterator<Item = EdgeRef> + Send + 'graph,
-        F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
@@ -514,7 +513,7 @@ impl<
 
     fn hop<
         I: Iterator<Item = VID> + Send + 'graph,
-        F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,

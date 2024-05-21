@@ -1,28 +1,35 @@
 use crate::{
     core::{
         entities::{
-            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-            nodes::{node_ref::NodeRef, node_store::NodeStore},
-            properties::{
-                graph_meta::GraphMeta,
-                props::Meta,
-                tprop::{LockedLayeredTProp, TProp},
-            },
-            LayerIds, EID, VID,
+            edges::edge_ref::EdgeRef,
+            nodes::node_ref::NodeRef,
+            properties::{graph_meta::GraphMeta, props::Meta, tprop::TProp},
+            LayerIds, ELID, VID,
         },
         storage::{
             locked_view::LockedView,
-            timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry},
-            ArcEntry, Entry, ReadLockedStorage,
+            timeindex::{TimeIndex, TimeIndexOps, TimeIndexWindow},
         },
         ArcStr, Prop,
     },
     db::api::{
-        storage::locked::LockedGraph,
+        storage::{
+            edges::{
+                edge_entry::EdgeStorageEntry, edge_owned_entry::EdgeOwnedEntry, edges::EdgesStorage,
+            },
+            nodes::{
+                node_entry::NodeStorageEntry, node_owned_entry::NodeOwnedEntry, nodes::NodesStorage,
+            },
+            storage_ops::GraphStorage,
+        },
         view::{internal::Base, BoxedIter},
     },
 };
 use enum_dispatch::enum_dispatch;
+#[cfg(feature = "arrow")]
+use raphtory_arrow::timestamps::TimeStamps;
+use rayon::prelude::*;
+use std::ops::Range;
 
 /// Core functions that should (almost-)always be implemented by pointing at the underlying graph.
 #[enum_dispatch]
@@ -32,18 +39,17 @@ pub trait CoreGraphOps {
 
     fn unfiltered_num_layers(&self) -> usize;
 
-    fn core_graph(&self) -> LockedGraph;
+    fn core_graph(&self) -> GraphStorage;
 
-    fn core_edges(&self) -> ReadLockedStorage<EdgeStore, EID>;
+    fn core_edges(&self) -> EdgesStorage;
+    fn core_edge(&self, eid: ELID) -> EdgeStorageEntry;
 
-    fn core_edge_arc(&self, eid: EID) -> ArcEntry<EdgeStore>;
+    fn core_edge_arc(&self, eid: ELID) -> EdgeOwnedEntry;
+    fn core_nodes(&self) -> NodesStorage;
 
-    fn core_edge_ref(&self, eid: EID) -> Entry<EdgeStore>;
-    fn core_nodes(&self) -> ReadLockedStorage<NodeStore, VID>;
+    fn core_node_entry(&self, vid: VID) -> NodeStorageEntry;
 
-    fn core_node_arc(&self, vid: VID) -> ArcEntry<NodeStore>;
-
-    fn core_node_ref(&self, vid: VID) -> Entry<NodeStore>;
+    fn core_node_arc(&self, vid: VID) -> NodeOwnedEntry;
 
     fn node_meta(&self) -> &Meta;
 
@@ -69,18 +75,6 @@ pub trait CoreGraphOps {
 
     /// Returns the type of node
     fn node_type(&self, v: VID) -> Option<ArcStr>;
-
-    /// Get all the addition timestamps for an edge
-    /// (this should always be global and not affected by windowing as deletion semantics may need information outside the current view!)
-    fn edge_additions(
-        &self,
-        eref: EdgeRef,
-        layer_ids: LayerIds,
-    ) -> LockedLayeredIndex<'_, TimeIndexEntry>;
-
-    /// Get all the addition timestamps for a node
-    /// (this should always be global and not affected by windowing as deletion semantics may need information outside the current view!)
-    fn node_additions(&self, v: VID) -> LockedView<TimeIndex<i64>>;
 
     /// Gets the internal reference for an external node reference and keeps internal references unchanged.
     fn internalise_node(&self, v: NodeRef) -> Option<VID>;
@@ -133,18 +127,6 @@ pub trait CoreGraphOps {
     /// The keys of the constant properties.
     fn constant_node_prop_ids(&self, v: VID) -> Box<dyn Iterator<Item = usize> + '_>;
 
-    /// Gets a temporal property of a given node given the name and node reference.
-    ///
-    /// # Arguments
-    ///
-    /// * `v` - A reference to the node for which the property is being queried.
-    /// * `name` - The name of the property.
-    ///
-    /// Returns:
-    ///
-    /// Option<LockedView<TProp>> - The history of property values if it exists.
-    fn temporal_node_prop(&self, v: VID, id: usize) -> Option<LockedView<TProp>>;
-
     /// Returns a vector of all ids of temporal properties within the given node
     ///
     /// # Arguments
@@ -184,24 +166,6 @@ pub trait CoreGraphOps {
         layer_ids: LayerIds,
     ) -> Box<dyn Iterator<Item = usize> + '_>;
 
-    /// Returns a vector of all temporal values of the edge property with the given name for the
-    /// given edge reference.
-    ///
-    /// # Arguments
-    ///
-    /// * `e` - An `EdgeRef` reference to the edge of interest.
-    /// * `name` - A `String` containing the name of the temporal property.
-    ///
-    /// Returns:
-    ///
-    /// A property if it exists
-    fn temporal_edge_prop(
-        &self,
-        e: EdgeRef,
-        id: usize,
-        layer_ids: LayerIds,
-    ) -> Option<LockedLayeredTProp>;
-
     /// Returns a vector of keys for the temporal properties of the given edge reference.
     ///
     /// # Arguments
@@ -214,7 +178,7 @@ pub trait CoreGraphOps {
     fn temporal_edge_prop_ids(
         &self,
         e: EdgeRef,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> Box<dyn Iterator<Item = usize> + '_>;
 }
 
@@ -250,7 +214,7 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     }
 
     #[inline]
-    fn core_graph(&self) -> LockedGraph {
+    fn core_graph(&self) -> GraphStorage {
         self.graph().core_graph()
     }
 
@@ -305,20 +269,6 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     }
 
     #[inline]
-    fn edge_additions(
-        &self,
-        eref: EdgeRef,
-        layer_ids: LayerIds,
-    ) -> LockedLayeredIndex<'_, TimeIndexEntry> {
-        self.graph().edge_additions(eref, layer_ids)
-    }
-
-    #[inline]
-    fn node_additions(&self, v: VID) -> LockedView<TimeIndex<i64>> {
-        self.graph().node_additions(v)
-    }
-
-    #[inline]
     fn internalise_node(&self, v: NodeRef) -> Option<VID> {
         self.graph().internalise_node(v)
     }
@@ -347,12 +297,6 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     fn constant_node_prop_ids(&self, v: VID) -> Box<dyn Iterator<Item = usize> + '_> {
         self.graph().constant_node_prop_ids(v)
     }
-
-    #[inline]
-    fn temporal_node_prop(&self, v: VID, id: usize) -> Option<LockedView<TProp>> {
-        self.graph().temporal_node_prop(v, id)
-    }
-
     #[inline]
     fn temporal_node_prop_ids(&self, v: VID) -> Box<dyn Iterator<Item = usize> + '_> {
         self.graph().temporal_node_prop_ids(v)
@@ -373,51 +317,113 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     }
 
     #[inline]
-    fn temporal_edge_prop(
-        &self,
-        e: EdgeRef,
-        id: usize,
-        layer_ids: LayerIds,
-    ) -> Option<LockedLayeredTProp> {
-        self.graph().temporal_edge_prop(e, id, layer_ids)
-    }
-
-    #[inline]
     fn temporal_edge_prop_ids(
         &self,
         e: EdgeRef,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> Box<dyn Iterator<Item = usize> + '_> {
         self.graph().temporal_edge_prop_ids(e, layer_ids)
     }
 
     #[inline]
-    fn core_edges(&self) -> ReadLockedStorage<EdgeStore, EID> {
+    fn core_edges(&self) -> EdgesStorage {
         self.graph().core_edges()
     }
 
     #[inline]
-    fn core_edge_arc(&self, eid: EID) -> ArcEntry<EdgeStore> {
-        self.graph().core_edge_arc(eid)
-    }
-
-    #[inline]
-    fn core_nodes(&self) -> ReadLockedStorage<NodeStore, VID> {
+    fn core_nodes(&self) -> NodesStorage {
         self.graph().core_nodes()
     }
 
     #[inline]
-    fn core_node_arc(&self, vid: VID) -> ArcEntry<NodeStore> {
+    fn core_edge(&self, eid: ELID) -> EdgeStorageEntry {
+        self.graph().core_edge(eid)
+    }
+
+    #[inline]
+    fn core_edge_arc(&self, eid: ELID) -> EdgeOwnedEntry {
+        self.graph().core_edge_arc(eid)
+    }
+
+    #[inline]
+    fn core_node_entry(&self, vid: VID) -> NodeStorageEntry {
+        self.graph().core_node_entry(vid)
+    }
+
+    fn core_node_arc(&self, vid: VID) -> NodeOwnedEntry {
         self.graph().core_node_arc(vid)
     }
+}
 
-    #[inline]
-    fn core_edge_ref(&self, eid: EID) -> Entry<EdgeStore> {
-        self.graph().core_edge_ref(eid)
+pub enum NodeAdditions<'a> {
+    Mem(&'a TimeIndex<i64>),
+    Range(TimeIndexWindow<'a, i64>),
+    #[cfg(feature = "arrow")]
+    Col(Vec<TimeStamps<'a, i64>>),
+}
+
+impl<'b> TimeIndexOps for NodeAdditions<'b> {
+    type IndexType = i64;
+    type RangeType<'a> = NodeAdditions<'a> where Self: 'a;
+
+    fn active(&self, w: Range<i64>) -> bool {
+        match self {
+            NodeAdditions::Mem(index) => index.active_t(w),
+            #[cfg(feature = "arrow")]
+            NodeAdditions::Col(index) => index.par_iter().any(|index| index.active_t(w.clone())),
+            NodeAdditions::Range(index) => index.active_t(w),
+        }
     }
 
-    #[inline]
-    fn core_node_ref(&self, vid: VID) -> Entry<NodeStore> {
-        self.graph().core_node_ref(vid)
+    fn range(&self, w: Range<i64>) -> Self::RangeType<'_> {
+        match self {
+            NodeAdditions::Mem(index) => NodeAdditions::Range(index.range(w)),
+            #[cfg(feature = "arrow")]
+            NodeAdditions::Col(index) => {
+                let mut ranges = Vec::with_capacity(index.len());
+                index
+                    .par_iter()
+                    .map(|index| index.range_t(w.clone()))
+                    .collect_into_vec(&mut ranges);
+                NodeAdditions::Col(ranges)
+            }
+            NodeAdditions::Range(index) => NodeAdditions::Range(index.range(w)),
+        }
+    }
+
+    fn first(&self) -> Option<Self::IndexType> {
+        match self {
+            NodeAdditions::Mem(index) => index.first(),
+            #[cfg(feature = "arrow")]
+            NodeAdditions::Col(index) => index.par_iter().flat_map(|index| index.first()).min(),
+            NodeAdditions::Range(index) => index.first(),
+        }
+    }
+
+    fn last(&self) -> Option<Self::IndexType> {
+        match self {
+            NodeAdditions::Mem(index) => index.last(),
+            #[cfg(feature = "arrow")]
+            NodeAdditions::Col(index) => index.par_iter().flat_map(|index| index.last()).max(),
+            NodeAdditions::Range(index) => index.last(),
+        }
+    }
+
+    fn iter(&self) -> Box<dyn Iterator<Item = i64> + Send + '_> {
+        match self {
+            NodeAdditions::Mem(index) => index.iter(),
+            #[cfg(feature = "arrow")]
+            NodeAdditions::Col(index) => Box::new(index.iter().flat_map(|index| index.iter())),
+            NodeAdditions::Range(index) => index.iter(),
+        }
+    }
+
+    fn len(&self) -> usize {
+        match self {
+            NodeAdditions::Mem(index) => index.len(),
+            NodeAdditions::Range(range) => range.len(),
+            #[cfg(feature = "arrow")]
+            NodeAdditions::Col(col) => col.len(),
+        }
     }
 }

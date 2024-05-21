@@ -17,6 +17,8 @@ jobs:
     if: ${{ !inputs.skip_tests }}
     name: Rust Benchmark
     runs-on: '${{ matrix.os }}'
+    env:
+      CARGO_NET_GIT_FETCH_WITH_CLI: true
     strategy:
       matrix:
         include:
@@ -24,6 +26,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         name: Checkout
+      - name: Update Rust
+        run: rustup update
       - name: Set up cargo cache
         uses: actions/cache@v3
         continue-on-error: false
@@ -37,6 +41,10 @@ jobs:
             target/release
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
+      - uses: webfactory/ssh-agent@v0.9.0
+        name: Load raphtory-arrow key
+        with:
+            ssh-private-key: ${{ secrets.RA_SSH_PRIVATE_KEY }}          
       - uses: actions-rs/toolchain@v1
         name: Setup Rust
         with:

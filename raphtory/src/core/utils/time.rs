@@ -48,7 +48,7 @@ impl<Tz: TimeZone> IntoTime for DateTime<Tz> {
 
 impl IntoTime for NaiveDateTime {
     fn into_time(self) -> i64 {
-        self.and_utc().timestamp_millis()
+        self.timestamp_millis()
     }
 }
 
@@ -78,31 +78,27 @@ impl TryIntoTime for &str {
 
         let result = NaiveDate::parse_from_str(self, "%Y-%m-%d");
         if let Ok(date) = result {
-            return Ok(date
-                .and_hms_opt(00, 00, 00)
-                .unwrap()
-                .and_utc()
-                .timestamp_millis());
+            return Ok(date.and_hms_opt(00, 00, 00).unwrap().timestamp_millis());
         }
 
         let result = NaiveDateTime::parse_from_str(self, "%Y-%m-%dT%H:%M:%S%.3f");
         if let Ok(datetime) = result {
-            return Ok(datetime.and_utc().timestamp_millis());
+            return Ok(datetime.timestamp_millis());
         }
 
         let result = NaiveDateTime::parse_from_str(self, "%Y-%m-%dT%H:%M:%S%");
         if let Ok(datetime) = result {
-            return Ok(datetime.and_utc().timestamp_millis());
+            return Ok(datetime.timestamp_millis());
         }
 
         let result = NaiveDateTime::parse_from_str(self, "%Y-%m-%d %H:%M:%S%.3f");
         if let Ok(datetime) = result {
-            return Ok(datetime.and_utc().timestamp_millis());
+            return Ok(datetime.timestamp_millis());
         }
 
         let result = NaiveDateTime::parse_from_str(self, "%Y-%m-%d %H:%M:%S%");
         if let Ok(datetime) = result {
-            return Ok(datetime.and_utc().timestamp_millis());
+            return Ok(datetime.timestamp_millis());
         }
 
         Err(InvalidDateTimeString(self.to_string()))
@@ -115,9 +111,7 @@ pub(crate) trait IntoTimeWithFormat {
 
 impl IntoTimeWithFormat for &str {
     fn parse_time(&self, fmt: &str) -> Result<i64, ParseTimeError> {
-        Ok(NaiveDateTime::parse_from_str(self, fmt)?
-            .and_utc()
-            .timestamp_millis())
+        Ok(NaiveDateTime::parse_from_str(self, fmt)?.timestamp_millis())
     }
 }
 
@@ -301,14 +295,11 @@ impl Sub<Interval> for i64 {
                 // first we subtract the number of milliseconds and then the number of months for
                 // consistency with the implementation of Add (we revert back the steps) so we
                 // guarantee that:  time + interval - interval = time
-                let datetime = DateTime::from_timestamp_millis(self - millis as i64)
+                let datetime = NaiveDateTime::from_timestamp_millis(self - millis as i64)
                     .unwrap_or_else(|| {
                         panic!("{self} cannot be interpreted as a milliseconds timestamp")
-                    })
-                    .naive_utc();
-                (datetime - Months::new(months))
-                    .and_utc()
-                    .timestamp_millis()
+                    });
+                (datetime - Months::new(months)).timestamp_millis()
             }
         }
     }
@@ -323,15 +314,10 @@ impl Add<Interval> for i64 {
                 // first we add the number of months and then the number of milliseconds for
                 // consistency with the implementation of Sub (we revert back the steps) so we
                 // guarantee that:  time + interval - interval = time
-                let datetime = DateTime::from_timestamp_millis(self)
-                    .unwrap_or_else(|| {
-                        panic!("{self} cannot be interpreted as a milliseconds timestamp")
-                    })
-                    .naive_utc();
-                (datetime + Months::new(months))
-                    .and_utc()
-                    .timestamp_millis()
-                    + millis as i64
+                let datetime = NaiveDateTime::from_timestamp_millis(self).unwrap_or_else(|| {
+                    panic!("{self} cannot be interpreted as a milliseconds timestamp")
+                });
+                (datetime + Months::new(months)).timestamp_millis() + millis as i64
             }
         }
     }

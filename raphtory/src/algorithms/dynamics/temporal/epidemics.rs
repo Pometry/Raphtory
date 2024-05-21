@@ -1,18 +1,20 @@
-use crate::{
-    algorithms::algorithm_result::AlgorithmResult,
-    core::{
-        entities::{nodes::node_ref::NodeRef, VID},
-        utils::time::{error::ParseTimeError, TryIntoTime},
-    },
-    db::api::view::StaticGraphViewOps,
-    prelude::*,
-};
-use rand::{distributions::Bernoulli, seq::IteratorRandom, Rng};
-use rand_distr::{Distribution, Exp};
 use std::{
     cmp::Reverse,
     collections::{hash_map::Entry, BinaryHeap, HashMap},
     fmt::Debug,
+};
+
+use rand::{distributions::Bernoulli, seq::IteratorRandom, Rng};
+use rand_distr::{Distribution, Exp};
+
+use crate::{
+    algorithms::algorithm_result::AlgorithmResult,
+    core::{
+        entities::{nodes::node_ref::AsNodeRef, VID},
+        utils::time::{error::ParseTimeError, TryIntoTime},
+    },
+    db::api::view::StaticGraphViewOps,
+    prelude::*,
 };
 
 #[repr(transparent)]
@@ -59,7 +61,7 @@ pub enum SeedError {
         source: ParseTimeError,
     },
 }
-#[allow(unused)]
+
 trait NotIterator {}
 
 impl NotIterator for f64 {}
@@ -72,7 +74,7 @@ pub trait IntoSeeds {
     ) -> Result<Vec<VID>, SeedError>;
 }
 
-impl<I: IntoIterator<Item = V>, V: Into<NodeRef> + Debug> IntoSeeds for I {
+impl<I: IntoIterator<Item = V>, V: AsNodeRef + Debug> IntoSeeds for I {
     fn into_initial_list<G: StaticGraphViewOps, R: Rng + ?Sized>(
         self,
         graph: &G,
@@ -250,6 +252,7 @@ mod test {
     use rand_distr::{Distribution, Exp};
     use rayon::prelude::*;
     use stats::{mean, stddev};
+    use tempfile::TempDir;
 
     fn correct_res(x: f64) -> f64 {
         (1176. * x.powi(10)
@@ -366,5 +369,38 @@ mod test {
         let p = 0.1;
 
         inner_test(event_rate, recovery_rate, p);
+    }
+
+    #[cfg(feature = "arrow")]
+    #[test]
+    fn compare_arrow_with_in_mem() {
+        let event_rate = 0.00000001;
+        let recovery_rate = 0.000000001;
+        let p = 0.3;
+
+        let mut rng = SmallRng::seed_from_u64(0);
+        let g = generate_graph(1000, event_rate, &mut rng);
+        let test_dir = TempDir::new().unwrap();
+        let arrow_graph = g.persist_as_arrow(test_dir.path()).unwrap();
+        let mut rng = SmallRng::seed_from_u64(0);
+        let res_arrow = temporal_SEIR(
+            &arrow_graph,
+            Some(recovery_rate),
+            None,
+            p,
+            0,
+            Number(1),
+            &mut rng,
+        )
+        .unwrap();
+
+        let mut rng = SmallRng::seed_from_u64(0);
+        let res_mem =
+            temporal_SEIR(&g, Some(recovery_rate), None, p, 0, Number(1), &mut rng).unwrap();
+
+        assert!(res_mem
+            .get_all()
+            .iter()
+            .all(|(key, val)| res_arrow.get(key.id()).unwrap() == val));
     }
 }

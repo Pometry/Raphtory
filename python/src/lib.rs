@@ -1,6 +1,7 @@
 mod graphql;
 
 extern crate core;
+
 use graphql::*;
 use pyo3::prelude::*;
 use raphtory_core::python::{
@@ -22,6 +23,9 @@ use raphtory_core::python::{
     },
     types::wrappers::document::PyDocument,
 };
+use raphtory_storage::python::packages::algorithms::*;
+
+use raphtory_core::python::graph::arrow::{PyArrowGraph, PyGraphQuery, PyState};
 
 macro_rules! add_functions {
     ($module:expr, $($func:ident),* $(,)?) => {
@@ -62,6 +66,8 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         GraphIndex
     );
 
+    add_classes!(m, PyArrowGraph, PyGraphQuery, PyState);
+
     //GRAPHQL
     let graphql_module = PyModule::new(py, "graphql")?;
     graphql_module.add_class::<PyGlobalPlugins>()?;
@@ -95,6 +101,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         temporally_reachable_nodes,
         local_clustering_coefficient,
         weakly_connected_components,
+        connected_components,
         strongly_connected_components,
         in_components,
         out_components,
@@ -143,6 +150,22 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     vectors_module.add_class::<PyDocument>()?;
     add_functions!(vectors_module, generate_property_list);
     m.add_submodule(vectors_module)?;
+
+    // LANL ALGORITHMS
+    let lanl_module = PyModule::new(py, "lanl")?;
+    add_functions!(
+        lanl_module,
+        lanl_query1,
+        lanl_query2,
+        lanl_query3,
+        lanl_query3b,
+        lanl_query3c,
+        lanl_query4,
+        exfilteration_query1,
+        exfilteration_count_query_total,
+        exfiltration_list_query_count
+    );
+    m.add_submodule(lanl_module)?;
 
     Ok(())
 }

@@ -1,4 +1,4 @@
-use crate::model::graph::edge::Edge;
+use crate::model::{filters::edge_filter::EdgeFilter, graph::edge::Edge};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     db::{api::view::DynamicGraph, graph::edges::Edges},
@@ -8,22 +8,32 @@ use raphtory::{
 #[derive(ResolvedObject)]
 pub(crate) struct GqlEdges {
     pub(crate) ee: Edges<'static, DynamicGraph>,
+    pub(crate) filter: Option<EdgeFilter>,
 }
 
 impl GqlEdges {
     fn update<E: Into<Edges<'static, DynamicGraph>>>(&self, edges: E) -> Self {
-        Self::new(edges)
+        Self::new(edges, self.filter.clone())
     }
 }
 
 impl GqlEdges {
-    pub(crate) fn new<E: Into<Edges<'static, DynamicGraph>>>(edges: E) -> Self {
-        Self { ee: edges.into() }
+    pub(crate) fn new<E: Into<Edges<'static, DynamicGraph>>>(
+        edges: E,
+        filter: Option<EdgeFilter>,
+    ) -> Self {
+        Self {
+            ee: edges.into(),
+            filter,
+        }
     }
 
     fn iter(&self) -> Box<dyn Iterator<Item = Edge> + '_> {
         let iter = self.ee.iter().map(Edge::from);
-        Box::new(iter)
+        match self.filter.as_ref() {
+            Some(filter) => Box::new(iter.filter(|e| filter.matches(e))),
+            None => Box::new(iter),
+        }
     }
 }
 

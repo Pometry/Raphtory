@@ -57,8 +57,6 @@ dataclasses-json==0.6.4
     # via langchain
 decorator==5.1.1
     # via ipython
-defusedxml==0.7.1
-    # via scrapy
 exceptiongroup==1.2.0
     # via anyio
 executing==1.2.0
@@ -323,7 +321,7 @@ scipy==1.10.1
     #   -r requirements.in
     #   scikit-learn
     #   sentence-transformers
-scrapy==2.11.2
+scrapy==2.11.1
     # via -r requirements.in
 seaborn==0.12.2
     # via -r requirements.in

@@ -4,20 +4,16 @@ pub(crate) mod timer;
 
 #[cfg(test)]
 mod test {
+    use super::{tgraph::InternalGraph, *};
     use crate::{
-        core::{
-            entities::{LayerIds, VID},
-            Direction, PropType,
-        },
-        db::api::{mutation::internal::InternalAdditionOps, view::internal::CoreGraphOps},
-        prelude::{IntoProp, Prop, NO_PROPS},
+        core::{entities::LayerIds, Direction, PropType},
+        db::api::mutation::internal::InternalAdditionOps,
+        prelude::Prop,
     };
-
-    use super::{tgraph::InnerTemporalGraph, *};
 
     #[test]
     fn test_neighbours_multiple_layers() {
-        let g: InnerTemporalGraph<2> = InnerTemporalGraph::default();
+        let g: InternalGraph = InternalGraph::default();
         let l_btc = g.resolve_layer(Some("btc"));
         let l_eth = g.resolve_layer(Some("eth"));
         let l_tether = g.resolve_layer(Some("tether"));
@@ -27,16 +23,20 @@ mod test {
             .resolve_edge_property("tx_sent", PropType::I32, false)
             .unwrap();
         g.inner()
-            .add_edge_internal(1.into(), v1, v2, vec![(tx_sent_id, Prop::I32(10))], l_btc);
+            .add_edge_internal(1.into(), v1, v2, vec![(tx_sent_id, Prop::I32(10))], l_btc)
+            .unwrap();
         g.inner()
-            .add_edge_internal(1.into(), v1, v2, vec![(tx_sent_id, Prop::I32(20))], l_eth);
-        g.inner().add_edge_internal(
-            1.into(),
-            v1,
-            v2,
-            vec![(tx_sent_id, Prop::I32(70))],
-            l_tether,
-        );
+            .add_edge_internal(1.into(), v1, v2, vec![(tx_sent_id, Prop::I32(20))], l_eth)
+            .unwrap();
+        g.inner()
+            .add_edge_internal(
+                1.into(),
+                v1,
+                v2,
+                vec![(tx_sent_id, Prop::I32(70))],
+                l_tether,
+            )
+            .unwrap();
 
         let first = g.inner().storage.nodes.get(v1);
 
@@ -46,9 +46,9 @@ mod test {
 
         assert_eq!(ns, vec![v2]);
 
-        let first = g.inner().node_arc(v1);
+        let first = g.inner().storage.nodes.entry_arc(v1);
         let edges = first
-            .edge_tuples([0, 1, 2, 3, 4].into(), Direction::OUT)
+            .edge_tuples(&[0, 1, 2, 3, 4].into(), Direction::OUT)
             .collect::<Vec<_>>();
 
         assert_eq!(edges.len(), 1, "should only have one edge {:?}", edges);
@@ -56,7 +56,7 @@ mod test {
 
     #[test]
     fn simple_triangle() {
-        let g: InnerTemporalGraph<2> = InnerTemporalGraph::default();
+        let g: InternalGraph = InternalGraph::new(2);
         let v1 = g.resolve_node(1, None);
         let v2 = g.resolve_node(2, None);
         let v3 = g.resolve_node(3, None);
