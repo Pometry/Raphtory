@@ -15,7 +15,9 @@ use crate::{
             view::{internal::OneHopFilter, BaseNodeViewOps},
         },
         graph::{node::NodeView, path::PathFromNode},
-        task::{edge::eval_edges::EvalEdges, node::eval_node_state::EVState, task_state::Local2},
+        task::{
+            edge::eval_edges::EvalEdges, node::eval_node_state::EVState, task_state::PrevLocalState,
+        },
     },
     prelude::{GraphViewOps, NodeTypesFilter},
 };
@@ -28,7 +30,7 @@ pub struct EvalNodeView<'graph, 'a: 'graph, G, S, GH = &'graph G, CS: Clone = Co
     pub(crate) ss: usize,
     pub(crate) node: NodeView<&'graph G, GH>,
     pub(crate) local_state: Option<&'graph mut S>,
-    pub(crate) local_state_prev: &'graph Local2<'a, S>,
+    pub(crate) local_state_prev: &'graph PrevLocalState<'a, S>,
     pub(crate) node_state: Rc<RefCell<EVState<'a, CS>>>,
 }
 
@@ -40,7 +42,7 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, CS: ComputeState + 'a, S>
         v_ref: VID,
         g: &'graph G,
         local_state: Option<&'graph mut S>,
-        local_state_prev: &'graph Local2<'a, S>,
+        local_state_prev: &'graph PrevLocalState<'a, S>,
         node_state: Rc<RefCell<EVState<'a, CS>>>,
     ) -> Self {
         let node = NodeView {
@@ -113,7 +115,7 @@ impl<
         ss: usize,
         node: NodeView<&'graph G, GH>,
         local_state: Option<&'graph mut S>,
-        local_state_prev: &'graph Local2<'a, S>,
+        local_state_prev: &'graph PrevLocalState<'a, S>,
         node_state: Rc<RefCell<EVState<'a, CS>>>,
     ) -> Self {
         Self {
@@ -267,7 +269,7 @@ pub struct EvalPathFromNode<
     pub(crate) path: PathFromNode<'graph, &'graph G, GH>,
     pub(crate) ss: usize,
     pub(crate) node_state: Rc<RefCell<EVState<'a, CS>>>,
-    pub(crate) local_state_prev: &'graph Local2<'a, S>,
+    pub(crate) local_state_prev: &'graph PrevLocalState<'a, S>,
 }
 
 impl<

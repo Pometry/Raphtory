@@ -2,7 +2,7 @@ use super::{
     context::{Context, GlobalState},
     custom_pool,
     task::{Job, Step, Task},
-    task_state::{Global, Local2, Shard},
+    task_state::{Global, PrevLocalState, Shard},
     POOL,
 };
 use crate::{
@@ -65,7 +65,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
 
         let node_state = EVState::rc_from(shard_state_view, global_state_view);
 
-        let local = Local2::new(prev_local_state);
+        let local = PrevLocalState::new(prev_local_state);
         let mut v_ref = morcel_id * morcel_size;
         for local_state in morcel {
             if g.has_node(VID(v_ref)) {

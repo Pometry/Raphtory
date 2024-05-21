@@ -11,7 +11,7 @@ use crate::{
         graph::edge::EdgeView,
         task::{
             node::{eval_node::EvalNodeView, eval_node_state::EVState},
-            task_state::Local2,
+            task_state::PrevLocalState,
         },
     },
 };
@@ -24,7 +24,7 @@ pub struct EvalEdgeView<'graph, 'a, G, GH, CS: Clone, S> {
     pub(crate) ss: usize,
     pub(crate) edge: EdgeView<&'graph G, GH>,
     pub(crate) node_state: Rc<RefCell<EVState<'a, CS>>>,
-    pub(crate) local_state_prev: &'graph Local2<'a, S>,
+    pub(crate) local_state_prev: &'graph PrevLocalState<'a, S>,
 }
 
 impl<
@@ -40,7 +40,7 @@ impl<
         ss: usize,
         edge: EdgeView<&'graph G, GH>,
         node_state: Rc<RefCell<EVState<'a, CS>>>,
-        local_state_prev: &'graph Local2<'a, S>,
+        local_state_prev: &'graph PrevLocalState<'a, S>,
     ) -> Self {
         Self {
             ss,
