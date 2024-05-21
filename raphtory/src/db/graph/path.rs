@@ -1,4 +1,3 @@
-use std::marker::PhantomData;
 use crate::{
     core::entities::{edges::edge_ref::EdgeRef, VID},
     db::{
@@ -26,7 +25,8 @@ use std::sync::Arc;
 pub struct PathFromGraph<'graph, G, GH> {
     pub(crate) base_graph: G,
     pub(crate) graph: GH,
-    node_types: Arc<[usize]>,
+    node_types: Arc<[String]>,
+    node_types_ids: Arc<[usize]>,
     pub(crate) nodes: Arc<dyn Fn() -> BoxedLIter<'graph, VID> + Send + Sync + 'graph>,
     pub(crate) op: Arc<dyn Fn(VID) -> BoxedLIter<'graph, VID> + Send + Sync + 'graph>,
 }
@@ -43,6 +43,7 @@ impl<'graph, G: GraphViewOps<'graph>> PathFromGraph<'graph, G, G> {
             graph,
             base_graph,
             node_types: [].into(),
+            node_types_ids: [].into(),
             nodes,
             op,
         }
@@ -57,10 +58,25 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromGraph<'g
     pub fn iter(&self) -> impl Iterator<Item=PathFromNode<'graph, G, GH>> + Send + 'graph {
         let graph = self.graph.clone();
         let base_graph = self.base_graph.clone();
+        let base_graph2 = self.base_graph.clone();
+        let node_types = self.node_types.clone();
+        let node_types_ids = self.node_types_ids.clone();
         let op = self.op.clone();
-        self.base_iter().map(move |node| {
+        self.base_iter().map(move |v| {
+            let base_graph2 = base_graph2.clone();
+            let node_types = node_types.clone();
+            let node_types_ids = node_types_ids.clone();
             let op = op.clone();
-            let node_op = Arc::new(move || op(node));
+            let node_op = Arc::new(move || {
+                let base_graph2 = base_graph2.clone();
+                let node_types = node_types.clone();
+                let node_types_ids = node_types_ids.clone();
+                op(v).filter(move |v| {
+                    let node_type_id = base_graph2.node_type_id(*v);
+                    node_types.is_empty() || node_types_ids.contains(&node_type_id)
+                })
+                    .into_dyn_boxed()
+            });
             PathFromNode::new_one_hop_filtered(base_graph.clone(), graph.clone(), node_op)
         })
     }
@@ -68,36 +84,46 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromGraph<'g
     pub fn iter_refs(&self) -> impl Iterator<Item=BoxedLIter<'graph, VID>> + Send + 'graph {
         let base_graph = self.base_graph.clone();
         let node_types = self.node_types.clone();
+        let node_types_ids = self.node_types_ids.clone();
         let op = self.op.clone();
         self.base_iter().map(move |vid| {
             let base_graph = base_graph.clone();
             let node_types = node_types.clone();
+            let node_types_ids = node_types_ids.clone();
             op(vid).filter(move |v| {
-                let node_type = base_graph.node_type_id(*v);
-                node_types.is_empty() || node_types.contains(&node_type)
+                let node_type_id = base_graph.node_type_id(*v);
+                node_types.is_empty() || node_types_ids.contains(&node_type_id)
             })
                 .into_dyn_boxed()
         })
     }
 
     pub fn len(&self) -> usize {
-        self.iter().count()
+        self.iter_refs().map(|iter| iter.count()).sum()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.iter().next().is_none()
+        self.iter_refs().all(|mut iter| iter.next().is_none())
     }
 
     pub fn type_filter(&self, node_types: &[impl AsRef<str>]) -> PathFromGraph<'graph, G, GH> {
-        let node_types = node_types
-            .iter()
-            .filter_map(|nt| self.graph.node_meta().get_node_type_id(nt.as_ref()))
-            .collect();
+        let node_types: Arc<[String]> =
+            node_types
+                .iter()
+                .map(|s| s.as_ref().to_string())
+                .collect();
+
+        let node_types_ids =
+            node_types
+                .iter()
+                .filter_map(|nt| self.graph.node_meta().get_node_type_id(nt.as_ref()))
+                .collect();
 
         PathFromGraph {
             base_graph: self.base_graph.clone(),
             graph: self.graph.clone(),
             node_types,
+            node_types_ids,
             nodes: self.nodes.clone(),
             op: self.op.clone(),
         }
@@ -234,6 +260,7 @@ for PathFromGraph<'graph, G, GH>
             graph: filtered_graph,
             base_graph,
             node_types: [].into(),
+            node_types_ids: [].into(),
             nodes,
             op,
         }
