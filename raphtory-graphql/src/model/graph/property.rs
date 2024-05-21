@@ -109,6 +109,35 @@ impl GqlProp {
 }
 
 #[derive(ResolvedObject)]
+pub(crate) struct GqlTmpProp {
+    time: i64,
+    prop: Prop
+}
+impl GqlTmpProp {
+    pub(crate) fn new(time: i64, prop: Prop) -> Self {
+        Self { time, prop }
+    }
+}
+impl From<(i64, Prop)> for GqlTmpProp {
+    fn from(value: (i64, Prop)) -> Self {
+        GqlTmpProp::new(value.0, value.1)
+    }
+}
+
+#[ResolvedObjectFields]
+impl GqlTmpProp {
+    async fn time(&self) -> i64 {
+        self.time
+    }
+    async fn as_string(&self) -> String {
+        self.prop.to_string()
+    }
+    async fn value(&self) -> GqlPropValue {
+        GqlPropValue(self.prop.clone())
+    }
+}
+
+#[derive(ResolvedObject)]
 pub(crate) struct GqlTemporalProp {
     key: String,
     prop: TemporalPropertyView<DynProps>,
@@ -148,11 +177,11 @@ impl GqlTemporalProp {
             .map(|x| x.to_string())
             .collect_vec()
     }
-    async fn ordered_dedupe(&self, latest_time: bool) -> Vec<GqlProp> {
+    async fn ordered_dedupe(&self, latest_time: bool) -> Vec<GqlTmpProp> {
         self.prop
             .ordered_dedupe(latest_time)
             .into_iter()
-            .map(|(k, p)| (k.to_string(), p).into())
+            .map(|(k, p)| (k, p).into())
             .collect()
     }
 }

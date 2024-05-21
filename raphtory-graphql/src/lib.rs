@@ -403,6 +403,8 @@ mod graphql_test {
         g.add_node(12, 3, [("name", "fax")], None).unwrap();
         g.add_node(13, 3, [("name", "fax")], None).unwrap();
 
+        g.save_to_file("/tmp/graphs");
+
         let graphs = HashMap::from([("graph".to_string(), g)]);
         let data = Data::from_map(graphs);
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -414,11 +416,11 @@ mod graphql_test {
               temporal {
                 values {
                   od1: orderedDedupe(latestTime: true) {
-                    key
+                    time
                     value
                   },
                   od2: orderedDedupe(latestTime: false) {
-                    key
+                    time
                     value
                   }
                 }
@@ -429,11 +431,11 @@ mod graphql_test {
                 temporal {
                   values {
                     od1: orderedDedupe(latestTime: true) {
-                      key
+                      time
                       value
                     },
                     od2: orderedDedupe(latestTime: false) {
-                      key
+                      time
                       value
                     }
                   }
@@ -448,11 +450,11 @@ mod graphql_test {
                 temporal{
                   values{
                     od1: orderedDedupe(latestTime: true) {
-                      key
+                      time
                       value
                     },
                     od2: orderedDedupe(latestTime: false) {
-                      key
+                      time
                       value
                     }
                   }
@@ -474,29 +476,29 @@ mod graphql_test {
                     {
                       "od1": [
                         {
-                          "key": "2",
+                          "time": 2,
                           "value": "abc"
                         },
                         {
-                          "key": "3",
+                          "time": 3,
                           "value": "xyz"
                         },
                         {
-                          "key": "4",
+                          "time": 4,
                           "value": "abc"
                         }
                       ],
                       "od2": [
                         {
-                          "key": "1",
+                          "time": 1,
                           "value": "abc"
                         },
                         {
-                          "key": "3",
+                          "time": 3,
                           "value": "xyz"
                         },
                         {
-                          "key": "4",
+                          "time": 4,
                           "value": "abc"
                         }
                       ]
@@ -511,21 +513,21 @@ mod graphql_test {
                       {
                         "od1": [
                           {
-                            "key": "11",
+                            "time": 11,
                             "value": "phone"
                           },
                           {
-                            "key": "13",
+                            "time": 13,
                             "value": "fax"
                           }
                         ],
                         "od2": [
                           {
-                            "key": "11",
+                            "time": 11,
                             "value": "phone"
                           },
                           {
-                            "key": "12",
+                            "time": 12,
                             "value": "fax"
                           }
                         ]
@@ -541,37 +543,37 @@ mod graphql_test {
                       {
                         "od1": [
                           {
-                            "key": "2",
+                            "time": 2,
                             "value": "open"
                           },
                           {
-                            "key": "3",
+                            "time": 3,
                             "value": "review"
                           },
                           {
-                            "key": "4",
+                            "time": 4,
                             "value": "open"
                           },
                           {
-                            "key": "10",
+                            "time": 10,
                             "value": "in-progress"
                           }
                         ],
                         "od2": [
                           {
-                            "key": "1",
+                            "time": 1,
                             "value": "open"
                           },
                           {
-                            "key": "3",
+                            "time": 3,
                             "value": "review"
                           },
                           {
-                            "key": "4",
+                            "time": 4,
                             "value": "open"
                           },
                           {
-                            "key": "5",
+                            "time": 5,
                             "value": "in-progress"
                           }
                         ]
@@ -579,21 +581,21 @@ mod graphql_test {
                       {
                         "od1": [
                           {
-                            "key": "9",
+                            "time": 9,
                             "value": true
                           },
                           {
-                            "key": "10",
+                            "time": 10,
                             "value": false
                           }
                         ],
                         "od2": [
                           {
-                            "key": "9",
+                            "time": 9,
                             "value": true
                           },
                           {
-                            "key": "10",
+                            "time": 10,
                             "value": false
                           }
                         ]
