@@ -68,6 +68,7 @@ def test_simple_hop():
 
     assert actual == expected
 
+
 def test_simple_hop_from_node():
     dir = tempfile.TemporaryDirectory()
     graph = create_graph(edges, dir.name)

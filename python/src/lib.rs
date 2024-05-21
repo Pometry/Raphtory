@@ -66,6 +66,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         GraphIndex
     );
 
+    #[cfg(feature = "arrow")]
     add_classes!(m, PyArrowGraph, PyGraphQuery, PyState);
 
     //GRAPHQL
@@ -152,7 +153,9 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_submodule(vectors_module)?;
 
     // LANL ALGORITHMS
+    #[cfg(feature = "arrow")]
     let lanl_module = PyModule::new(py, "lanl")?;
+    #[cfg(feature = "arrow")]
     add_functions!(
         lanl_module,
         lanl_query1,
@@ -165,6 +168,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         exfilteration_count_query_total,
         exfiltration_list_query_count
     );
+    #[cfg(feature = "arrow")]
     m.add_submodule(lanl_module)?;
 
     Ok(())
