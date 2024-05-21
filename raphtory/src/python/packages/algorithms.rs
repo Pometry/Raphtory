@@ -2,6 +2,7 @@
 use crate::{
     algorithms::{
         algorithm_result::AlgorithmResult,
+        bipartite::max_weight_matching::max_weight_matching as mwm,
         centrality::{
             betweenness::betweenness_centrality as betweenness_rs,
             degree_centrality::degree_centrality as degree_centrality_rs, hits::hits as hits_rs,
@@ -48,6 +49,7 @@ use crate::{
     },
     core::{entities::nodes::node_ref::NodeRef, Prop},
     db::{api::view::internal::DynamicGraph, graph::node::NodeView},
+    prelude::GraphViewOps,
     python::{
         graph::{edge::PyDirection, views::graph_view::PyGraphView},
         utils::{PyInputNode, PyTime},
@@ -765,5 +767,50 @@ pub fn cohesive_fruchterman_reingold(
     )
     .into_iter()
     .map(|(id, vector)| (id, [vector.x, vector.y]))
+    .collect()
+}
+
+/// Compute a maximum-weighted matching in the general undirected weighted
+/// graph given by "edges". If `max_cardinality` is true, only
+/// maximum-cardinality matchings are considered as solutions.
+///
+/// The algorithm is based on "Efficient Algorithms for Finding Maximum
+/// Matching in Graphs" by Zvi Galil, ACM Computing Surveys, 1986.
+///
+/// Based on networkx implementation
+/// <https://github.com/networkx/networkx/blob/3351206a3ce5b3a39bb2fc451e93ef545b96c95b/networkx/algorithms/matching.py>
+///
+/// With reference to the standalone protoype implementation from:
+/// <http://jorisvr.nl/article/maximum-matching>
+///
+/// <http://jorisvr.nl/files/graphmatching/20130407/mwmatching.py>
+///
+/// The function takes time O(n**3)
+///
+/// Arguments:
+///
+/// * `graph` - The graph to compute the maximum weight matching for
+/// * 'weight_prop' - The property on the edge to use for the weight
+/// * `max_cardinality` - If set to true compute the maximum-cardinality matching
+///     with maximum weight among all maximum-cardinality matchings
+/// * `verify_optimum_flag`: If true prior to returning an additional routine
+///     to verify the optimal solution was found will be run after computing
+///     the maximum weight matching. If it's true and the found matching is not
+///     an optimal solution this function will panic. This option should
+///     normally be only set true during testing.
+#[pyfunction]
+pub fn max_weight_matching(
+    graph: &PyGraphView,
+    weight_prop: Option<String>,
+    max_cardinality: Option<bool>,
+    verify_optimum_flag: Option<bool>,
+) -> Vec<(usize, usize)> {
+    mwm(
+        &graph.graph,
+        weight_prop,
+        max_cardinality.unwrap_or(true),
+        verify_optimum_flag.unwrap_or(false),
+    )
+    .into_iter()
     .collect()
 }

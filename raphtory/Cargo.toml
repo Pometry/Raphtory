@@ -64,6 +64,7 @@ num = { workspace = true, optional = true }
 display-error-chain = { workspace = true, optional = true }
 arrow2 = { workspace = true, optional = true, features = ["compute"]}
 kdam = { workspace = true, optional = true }
+hashbrown = "0.14.3"
 
 
 [dev-dependencies]
