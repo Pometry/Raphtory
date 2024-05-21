@@ -109,23 +109,23 @@ impl GqlProp {
 }
 
 #[derive(ResolvedObject)]
-pub(crate) struct GqlTmpProp {
+pub(crate) struct GqlPropTuple {
     time: i64,
     prop: Prop,
 }
-impl GqlTmpProp {
+impl GqlPropTuple {
     pub(crate) fn new(time: i64, prop: Prop) -> Self {
         Self { time, prop }
     }
 }
-impl From<(i64, Prop)> for GqlTmpProp {
+impl From<(i64, Prop)> for GqlPropTuple {
     fn from(value: (i64, Prop)) -> Self {
-        GqlTmpProp::new(value.0, value.1)
+        GqlPropTuple::new(value.0, value.1)
     }
 }
 
 #[ResolvedObjectFields]
-impl GqlTmpProp {
+impl GqlPropTuple {
     async fn time(&self) -> i64 {
         self.time
     }
@@ -177,7 +177,7 @@ impl GqlTemporalProp {
             .map(|x| x.to_string())
             .collect_vec()
     }
-    async fn ordered_dedupe(&self, latest_time: bool) -> Vec<GqlTmpProp> {
+    async fn ordered_dedupe(&self, latest_time: bool) -> Vec<GqlPropTuple> {
         self.prop
             .ordered_dedupe(latest_time)
             .into_iter()
