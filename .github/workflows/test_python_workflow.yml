@@ -49,7 +49,7 @@ jobs:
       - uses: webfactory/ssh-agent@v0.7.0
         name: Load raphtory-arrow key
         with:
-            ssh-private-key: ${{ secrets.RA_SSH_PRIVATE_KEY }}          
+          ssh-private-key: ${{ secrets.RA_SSH_PRIVATE_KEY }}
       - uses: Swatinem/rust-cache@v2
         name: Cargo cache
         with:
@@ -65,7 +65,7 @@ jobs:
           working-directory: ./python
           command: build
           target: ${{ matrix.target }}
-          args: --release
+          args: --release --features arrow
       - name: Install Python dependencies (Unix)
         if: "contains(matrix.os, 'Ubuntu') || contains(matrix.os, 'macOS')"
         run: |

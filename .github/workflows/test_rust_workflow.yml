@@ -78,6 +78,11 @@ jobs:
           RUSTFLAGS: -Awarnings
         run: |
           cargo check -p raphtory --no-default-features --features "vectors"
+      - name: Run Tests (features=arrow)
+        env:
+          RUSTFLAGS: -Awarnings
+        run: |
+          cargo check -p raphtory --no-default-features --features "arrow"
   doc-test:
     if: ${{ !inputs.skip_tests }}
     name: "Doc tests"
