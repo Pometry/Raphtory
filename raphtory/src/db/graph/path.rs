@@ -297,7 +297,8 @@ for PathFromNode<'static, DynamicGraph, DynamicGraph>
 pub struct PathFromNode<'graph, G, GH> {
     pub graph: GH,
     pub(crate) base_graph: G,
-    node_types: Arc<[usize]>,
+    node_types: Arc<[String]>,
+    node_types_ids: Arc<[usize]>,
     pub(crate) op: Arc<dyn Fn() -> BoxedLIter<'graph, VID> + Send + Sync + 'graph>,
 }
 
@@ -312,6 +313,7 @@ impl<'graph, G: GraphViewOps<'graph>> PathFromNode<'graph, G, G> {
             base_graph,
             graph,
             node_types: [].into(),
+            node_types_ids: [].into(),
             op,
         }
     }
@@ -321,9 +323,10 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromNode<'gr
     pub fn iter_refs(&self) -> BoxedLIter<'graph, VID> {
         let base_graph = self.base_graph.clone();
         let node_types = self.node_types.clone();
+        let node_types_ids = self.node_types_ids.clone();
         (self.op)().filter(move |v| {
-            let node_type = base_graph.node_type_id(*v);
-            node_types.is_empty() || node_types.contains(&node_type)
+            let node_type_id = base_graph.node_type_id(*v);
+            node_types.is_empty() || node_types_ids.contains(&node_type_id)
         }).into_dyn_boxed()
     }
 
@@ -345,15 +348,22 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromNode<'gr
     }
 
     pub fn type_filter(&self, node_types: &[impl AsRef<str>]) -> PathFromNode<'graph, G, GH> {
-        let node_types = node_types
-            .iter()
-            .filter_map(|nt| self.graph.node_meta().get_node_type_id(nt.as_ref()))
-            .collect();
+        let node_types: Arc<[String]> =
+            node_types
+                .iter()
+                .map(|s| s.as_ref().to_string())
+                .collect();
+        let node_types_ids =
+            node_types
+                .iter()
+                .filter_map(|nt| self.graph.node_meta().get_node_type_id(nt.as_ref()))
+                .collect();
 
         PathFromNode {
             base_graph: self.base_graph.clone(),
             graph: self.graph.clone(),
             node_types,
+            node_types_ids,
             op: self.op.clone(),
         }
     }
@@ -371,6 +381,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromNode<'gr
             base_graph,
             graph,
             node_types: [].into(),
+            node_types_ids: [].into(),
             op,
         }
     }
@@ -481,6 +492,7 @@ for PathFromNode<'graph, G, GH>
             base_graph,
             graph: filtered_graph,
             node_types: [].into(),
+            node_types_ids: [].into(),
             op: self.op.clone(),
         }
     }
