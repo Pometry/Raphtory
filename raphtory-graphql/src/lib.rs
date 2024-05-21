@@ -403,8 +403,6 @@ mod graphql_test {
         g.add_node(12, 3, [("name", "fax")], None).unwrap();
         g.add_node(13, 3, [("name", "fax")], None).unwrap();
 
-        g.save_to_file("/tmp/graphs");
-
         let graphs = HashMap::from([("graph".to_string(), g)]);
         let data = Data::from_map(graphs);
         let schema = App::create_schema().data(data).finish().unwrap();

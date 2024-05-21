@@ -111,7 +111,7 @@ impl GqlProp {
 #[derive(ResolvedObject)]
 pub(crate) struct GqlTmpProp {
     time: i64,
-    prop: Prop
+    prop: Prop,
 }
 impl GqlTmpProp {
     pub(crate) fn new(time: i64, prop: Prop) -> Self {
