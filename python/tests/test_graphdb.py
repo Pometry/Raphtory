@@ -1446,7 +1446,7 @@ def test_layer_name():
     assert g.edge(0, 1).layer_names == ["_default"]
     assert g.edge(0, 2).layer_names == ["awesome layer"]
 
-    error_msg = ("The layer_name function is only available once an edge has been exploded via .explode_layers(). " 
+    error_msg = ("The layer_name function is only available once an edge has been exploded via .explode_layers() and .explode(). " 
                  "If you want to retrieve the layers for this edge you can use .layer_names")
     with pytest.raises(Exception) as e:
         g.edges.layer_name()
@@ -1485,7 +1485,7 @@ def test_time():
     g.add_edge(0, 0, 2)
     g.add_edge(1, 0, 2)
 
-    error_msg = ("The time function is only available once an edge has been exploded via .explode_layers() and .explode(). " 
+    error_msg = ("The time function is only available once an edge has been exploded via .explode(). " 
                  "You may want to retrieve the history for this edge via .history(), or the earliest/latest time via earliest_time or latest_time")
     with pytest.raises(Exception) as e:
         g.edges.time()
