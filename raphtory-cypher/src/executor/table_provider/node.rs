@@ -23,8 +23,10 @@ use raphtory_arrow::properties::Properties;
 
 use raphtory::arrow::{graph_impl::ArrowGraph, prelude::*};
 
-use crate::arrow2::{self, array::to_data, datatypes::ArrowDataType};
-use crate::executor::ExecError;
+use crate::{
+    arrow2::{self, array::to_data, datatypes::ArrowDataType},
+    executor::ExecError,
+};
 
 pub struct NodeTableProvider {
     graph: ArrowGraph,

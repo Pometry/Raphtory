@@ -1,5 +1,7 @@
-use crate::db::api::storage::edges::edge_ref::EdgeStorageRef;
-use crate::{core::entities::LayerIds, db::api::view::internal::Base};
+use crate::{
+    core::entities::LayerIds,
+    db::api::{storage::edges::edge_ref::EdgeStorageRef, view::internal::Base},
+};
 use enum_dispatch::enum_dispatch;
 
 #[enum_dispatch]

@@ -1,8 +1,8 @@
-use crate::arrow2::{
-    datatypes::{ArrowDataType as DataType, Field},
-    types::{NativeType, Offset},
-};
 use crate::{
+    arrow2::{
+        datatypes::{ArrowDataType as DataType, Field},
+        types::{NativeType, Offset},
+    },
     core::storage::timeindex::TimeIndexIntoOps,
     db::api::{storage::tprop_storage_ops::TPropOps, view::IntoDynBoxed},
     prelude::{Prop, TimeIndexEntry},

@@ -216,7 +216,6 @@ mod db_tests {
     };
     use chrono::NaiveDateTime;
     use itertools::Itertools;
-    use quickcheck::Arbitrary;
     use quickcheck_macros::quickcheck;
     use rayon::prelude::*;
     use serde_json::Value;

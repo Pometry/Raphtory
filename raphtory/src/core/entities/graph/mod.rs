@@ -4,7 +4,7 @@ pub(crate) mod timer;
 
 #[cfg(test)]
 mod test {
-    use super::{tgraph::InternalGraph, *};
+    use super::tgraph::InternalGraph;
     use crate::{
         core::{entities::LayerIds, Direction, PropType},
         db::api::mutation::internal::InternalAdditionOps,
@@ -65,7 +65,8 @@ mod test {
         let empty: Vec<(usize, Prop)> = vec![];
         for (t, src, dst) in vs {
             g.inner()
-                .add_edge_internal(t.into(), src, dst, empty.clone(), 0);
+                .add_edge_internal(t.into(), src, dst, empty.clone(), 0)
+                .unwrap();
         }
 
         let v = g.inner().storage.get_node(v1);

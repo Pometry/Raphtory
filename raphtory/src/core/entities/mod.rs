@@ -28,12 +28,6 @@ impl VID {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct LocalID {
-    pub(crate) bucket: usize,
-    pub(crate) offset: usize,
-}
-
 impl From<usize> for VID {
     fn from(id: usize) -> Self {
         VID(id)

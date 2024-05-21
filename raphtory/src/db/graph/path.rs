@@ -4,7 +4,9 @@ use crate::{
         api::{
             properties::Properties,
             storage::storage_ops::GraphStorage,
-            view::{internal::OneHopFilter, BaseNodeViewOps, BoxedLIter, IntoDynBoxed},
+            view::{
+                internal::OneHopFilter, BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed,
+            },
         },
         graph::{
             edges::{Edges, NestedEdges},

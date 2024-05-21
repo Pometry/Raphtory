@@ -71,14 +71,7 @@ impl GqlGraph {
     }
 
     async fn subgraph_id(&self, nodes: Vec<u64>) -> GqlGraph {
-        let nodes: Vec<NodeRef> = nodes
-            .iter()
-            .map(|v| {
-                let v = *v;
-                let v: NodeRef = v.into();
-                v
-            })
-            .collect();
+        let nodes: Vec<NodeRef> = nodes.iter().map(|v| v.as_node_ref()).collect();
         GqlGraph::new(self.name.clone(), self.graph.subgraph(nodes))
     }
 
@@ -95,14 +88,7 @@ impl GqlGraph {
     }
 
     async fn exclude_nodes_id(&self, nodes: Vec<u64>) -> GqlGraph {
-        let nodes: Vec<NodeRef> = nodes
-            .iter()
-            .map(|v| {
-                let v = *v;
-                let v: NodeRef = v.into();
-                v
-            })
-            .collect();
+        let nodes: Vec<NodeRef> = nodes.iter().map(|v| v.as_node_ref()).collect();
         GqlGraph::new(self.name.clone(), self.graph.exclude_nodes(nodes))
     }
 

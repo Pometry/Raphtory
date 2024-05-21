@@ -96,7 +96,6 @@ pub fn make_node_properties_from_graph(
 }
 pub fn arrow_dtype_from_prop_type(prop_type: PropType) -> DataType {
     match prop_type {
-        PropType::Empty => panic!(),
         PropType::Str => DataType::LargeUtf8,
         PropType::U8 => DataType::UInt8,
         PropType::U16 => DataType::UInt16,
@@ -107,24 +106,14 @@ pub fn arrow_dtype_from_prop_type(prop_type: PropType) -> DataType {
         PropType::F32 => DataType::Float32,
         PropType::F64 => DataType::Float64,
         PropType::Bool => DataType::Boolean,
-        PropType::List => {
-            panic!("List not supported as property")
-        }
-        PropType::Map => {
-            panic!("Map not supported as property")
-        }
-        PropType::DTime => {
-            panic!("datetime not supported as property")
-        }
-        PropType::Graph => {
-            panic!("Graph not supported as property")
-        }
-        PropType::Document => {
-            panic!("Document not supported as property")
-        }
-        PropType::NDTime => {
-            panic!("datetime not supported as property")
-        }
+        PropType::Empty
+        | PropType::List
+        | PropType::Map
+        | PropType::NDTime
+        | PropType::Graph
+        | PropType::PersistentGraph
+        | PropType::Document
+        | PropType::DTime => panic!("{prop_type:?} not supported as arrow property"),
     }
 }
 
@@ -134,7 +123,6 @@ pub fn arrow_array_from_props(
     prop_type: PropType,
 ) -> Option<Box<dyn Array>> {
     match prop_type {
-        PropType::Empty => panic!(),
         PropType::Str => {
             let array: Utf8Array<i64> = props.map(|prop| prop.into_str()).collect();
             array.iter().any(|v| v.is_some()).then_some(array.boxed())
@@ -175,24 +163,14 @@ pub fn arrow_array_from_props(
             let array: BooleanArray = props.map(|prop| prop.into_bool()).collect();
             array.iter().any(|v| v.is_some()).then_some(array.boxed())
         }
-        PropType::List => {
-            panic!("List not supported as property")
-        }
-        PropType::Map => {
-            panic!("Map not supported as property")
-        }
-        PropType::DTime => {
-            panic!("datetime not supported as property")
-        }
-        PropType::Graph => {
-            panic!("Graph not supported as property")
-        }
-        PropType::Document => {
-            panic!("Document not supported as property")
-        }
-        PropType::NDTime => {
-            panic!("datetime not supported as property")
-        }
+        PropType::Empty
+        | PropType::List
+        | PropType::Map
+        | PropType::NDTime
+        | PropType::Graph
+        | PropType::PersistentGraph
+        | PropType::Document
+        | PropType::DTime => panic!("{prop_type:?} not supported as arrow property"),
     }
 }
 
@@ -202,7 +180,6 @@ pub fn schema_from_prop_meta(prop_map: &PropMapper) -> Schema {
 
     for (id, key) in prop_map.get_keys().iter().enumerate() {
         match prop_map.get_dtype(id).unwrap() {
-            PropType::Empty => panic!(),
             PropType::Str => {
                 schema.push(Field::new(key, DataType::LargeUtf8, true));
             }
@@ -233,24 +210,14 @@ pub fn schema_from_prop_meta(prop_map: &PropMapper) -> Schema {
             PropType::Bool => {
                 schema.push(Field::new(key, DataType::Boolean, true));
             }
-            PropType::List => {
-                panic!("List not supported as property")
-            }
-            PropType::Map => {
-                panic!("Map not supported as property")
-            }
-            PropType::DTime => {
-                panic!("datetime not supported as property")
-            }
-            PropType::Graph => {
-                panic!("Graph not supported as property")
-            }
-            PropType::Document => {
-                panic!("Document not supported as property")
-            }
-            PropType::NDTime => {
-                panic!("datetime not supported as property")
-            }
+            prop_type @ (PropType::Empty
+            | PropType::List
+            | PropType::Map
+            | PropType::NDTime
+            | PropType::Graph
+            | PropType::PersistentGraph
+            | PropType::Document
+            | PropType::DTime) => panic!("{:?} not supported as arrow property", prop_type),
         }
     }
 
