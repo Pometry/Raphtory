@@ -85,7 +85,6 @@ impl InputNode for String {
 #[cfg(test)]
 mod test {
     use crate::core::entities::nodes::input_node::InputNode;
-    use regex::Regex;
 
     #[test]
     fn test_weird_num_edge_cases() {

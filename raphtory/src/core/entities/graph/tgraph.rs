@@ -482,7 +482,7 @@ impl TemporalGraph {
 
 #[cfg(test)]
 mod test_additions {
-    use rayon::{join, prelude::*};
+    use rayon::join;
 
     use crate::prelude::*;
 
@@ -491,7 +491,7 @@ mod test_additions {
         let g = Graph::new();
         for t in 0..1000 {
             join(
-                || g.add_edge(t, 1, 2, [("test", true)], None),
+                || g.add_edge(t, 1, 2, [("test", true)], None).unwrap(),
                 || {
                     // if the edge exists already, it should have the property set
                     g.window(t, t + 1)

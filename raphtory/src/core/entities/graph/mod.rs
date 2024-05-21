@@ -4,16 +4,12 @@ pub(crate) mod timer;
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        core::{
-            entities::{LayerIds, VID},
-            Direction, PropType,
-        },
-        db::api::{mutation::internal::InternalAdditionOps, view::internal::CoreGraphOps},
-        prelude::{IntoProp, Prop, NO_PROPS},
-    };
-
     use super::{tgraph::InternalGraph, *};
+    use crate::{
+        core::{entities::LayerIds, Direction, PropType},
+        db::api::mutation::internal::InternalAdditionOps,
+        prelude::Prop,
+    };
 
     #[test]
     fn test_neighbours_multiple_layers() {
@@ -27,16 +23,20 @@ mod test {
             .resolve_edge_property("tx_sent", PropType::I32, false)
             .unwrap();
         g.inner()
-            .add_edge_internal(1.into(), v1, v2, vec![(tx_sent_id, Prop::I32(10))], l_btc);
+            .add_edge_internal(1.into(), v1, v2, vec![(tx_sent_id, Prop::I32(10))], l_btc)
+            .unwrap();
         g.inner()
-            .add_edge_internal(1.into(), v1, v2, vec![(tx_sent_id, Prop::I32(20))], l_eth);
-        g.inner().add_edge_internal(
-            1.into(),
-            v1,
-            v2,
-            vec![(tx_sent_id, Prop::I32(70))],
-            l_tether,
-        );
+            .add_edge_internal(1.into(), v1, v2, vec![(tx_sent_id, Prop::I32(20))], l_eth)
+            .unwrap();
+        g.inner()
+            .add_edge_internal(
+                1.into(),
+                v1,
+                v2,
+                vec![(tx_sent_id, Prop::I32(70))],
+                l_tether,
+            )
+            .unwrap();
 
         let first = g.inner().storage.nodes.get(v1);
 

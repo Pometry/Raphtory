@@ -381,7 +381,7 @@ mod tprop_tests {
     #[test]
     fn set_new_value_for_tprop_initialized_as_empty() {
         let mut tprop = TProp::Empty;
-        tprop.set(1.into(), Prop::I32(10));
+        tprop.set(1.into(), Prop::I32(10)).unwrap();
 
         assert_eq!(tprop.iter_t().collect::<Vec<_>>(), vec![(1, Prop::I32(10))]);
     }
@@ -389,7 +389,7 @@ mod tprop_tests {
     #[test]
     fn every_new_update_to_the_same_prop_is_recorded_as_history() {
         let mut tprop = TProp::from(1.into(), "Pometry".into());
-        tprop.set(2.into(), "Pometry Inc.".into());
+        tprop.set(2.into(), "Pometry Inc.".into()).unwrap();
 
         assert_eq!(
             tprop.iter_t().collect::<Vec<_>>(),
@@ -400,7 +400,7 @@ mod tprop_tests {
     #[test]
     fn new_update_with_the_same_time_to_a_prop_is_ignored() {
         let mut tprop = TProp::from(1.into(), "Pometry".into());
-        tprop.set(1.into(), "Pometry Inc.".into());
+        tprop.set(1.into(), "Pometry Inc.".into()).unwrap();
 
         assert_eq!(
             tprop.iter_t().collect::<Vec<_>>(),
@@ -415,7 +415,7 @@ mod tprop_tests {
         assert_eq!(tprop.iter_t().collect::<Vec<_>>(), vec![]);
 
         let mut tprop = TProp::from(1.into(), "Pometry".into());
-        tprop.set(2.into(), "Pometry Inc.".into());
+        tprop.set(2.into(), "Pometry Inc.".into()).unwrap();
 
         assert_eq!(
             tprop.iter_t().collect::<Vec<_>>(),
@@ -426,7 +426,7 @@ mod tprop_tests {
         );
 
         let mut tprop = TProp::from(1.into(), Prop::I32(2022));
-        tprop.set(2.into(), Prop::I32(2023));
+        tprop.set(2.into(), Prop::I32(2023)).unwrap();
 
         assert_eq!(
             tprop.iter_t().collect::<Vec<_>>(),
@@ -434,7 +434,7 @@ mod tprop_tests {
         );
 
         let mut tprop = TProp::from(1.into(), Prop::I64(2022));
-        tprop.set(2.into(), Prop::I64(2023));
+        tprop.set(2.into(), Prop::I64(2023)).unwrap();
 
         assert_eq!(
             tprop.iter_t().collect::<Vec<_>>(),
@@ -442,7 +442,7 @@ mod tprop_tests {
         );
 
         let mut tprop = TProp::from(1.into(), Prop::F32(10.0));
-        tprop.set(2.into(), Prop::F32(11.0));
+        tprop.set(2.into(), Prop::F32(11.0)).unwrap();
 
         assert_eq!(
             tprop.iter_t().collect::<Vec<_>>(),
@@ -450,7 +450,7 @@ mod tprop_tests {
         );
 
         let mut tprop = TProp::from(1.into(), Prop::F64(10.0));
-        tprop.set(2.into(), Prop::F64(11.0));
+        tprop.set(2.into(), Prop::F64(11.0)).unwrap();
 
         assert_eq!(
             tprop.iter_t().collect::<Vec<_>>(),
@@ -458,7 +458,7 @@ mod tprop_tests {
         );
 
         let mut tprop = TProp::from(1.into(), Prop::U32(1));
-        tprop.set(2.into(), Prop::U32(2));
+        tprop.set(2.into(), Prop::U32(2)).unwrap();
 
         assert_eq!(
             tprop.iter_t().collect::<Vec<_>>(),
@@ -466,7 +466,7 @@ mod tprop_tests {
         );
 
         let mut tprop = TProp::from(1.into(), Prop::U64(1));
-        tprop.set(2.into(), Prop::U64(2));
+        tprop.set(2.into(), Prop::U64(2)).unwrap();
 
         assert_eq!(
             tprop.iter_t().collect::<Vec<_>>(),
@@ -474,7 +474,7 @@ mod tprop_tests {
         );
 
         let mut tprop = TProp::from(1.into(), Prop::U8(1));
-        tprop.set(2.into(), Prop::U8(2));
+        tprop.set(2.into(), Prop::U8(2)).unwrap();
 
         assert_eq!(
             tprop.iter_t().collect::<Vec<_>>(),
@@ -482,7 +482,7 @@ mod tprop_tests {
         );
 
         let mut tprop = TProp::from(1.into(), Prop::U16(1));
-        tprop.set(2.into(), Prop::U16(2));
+        tprop.set(2.into(), Prop::U16(2)).unwrap();
 
         assert_eq!(
             tprop.iter_t().collect::<Vec<_>>(),
@@ -490,7 +490,7 @@ mod tprop_tests {
         );
 
         let mut tprop = TProp::from(1.into(), Prop::Bool(true));
-        tprop.set(2.into(), Prop::Bool(true));
+        tprop.set(2.into(), Prop::Bool(true)).unwrap();
 
         assert_eq!(
             tprop.iter_t().collect::<Vec<_>>(),
@@ -508,8 +508,10 @@ mod tprop_tests {
         );
 
         let mut tprop = TProp::from(3.into(), Prop::Str("Pometry".into()));
-        tprop.set(1.into(), Prop::Str("Pometry Inc.".into()));
-        tprop.set(2.into(), Prop::Str("Raphtory".into()));
+        tprop
+            .set(1.into(), Prop::Str("Pometry Inc.".into()))
+            .unwrap();
+        tprop.set(2.into(), Prop::Str("Raphtory".into())).unwrap();
 
         assert_eq!(
             tprop.iter_window_t(2..3).collect::<Vec<_>>(),
@@ -556,7 +558,7 @@ mod tprop_tests {
         assert_eq!(tprop.iter_window_t(i64::MIN..1).collect::<Vec<_>>(), vec![]);
 
         let mut tprop = TProp::from(1.into(), Prop::I32(2022));
-        tprop.set(2.into(), Prop::I32(2023));
+        tprop.set(2.into(), Prop::I32(2023)).unwrap();
 
         assert_eq!(
             tprop.iter_window_t(i64::MIN..i64::MAX).collect::<Vec<_>>(),
@@ -564,7 +566,7 @@ mod tprop_tests {
         );
 
         let mut tprop = TProp::from(1.into(), Prop::I64(2022));
-        tprop.set(2.into(), Prop::I64(2023));
+        tprop.set(2.into(), Prop::I64(2023)).unwrap();
 
         assert_eq!(
             tprop.iter_window_t(i64::MIN..i64::MAX).collect::<Vec<_>>(),
@@ -572,7 +574,7 @@ mod tprop_tests {
         );
 
         let mut tprop = TProp::from(1.into(), Prop::F32(10.0));
-        tprop.set(2.into(), Prop::F32(11.0));
+        tprop.set(2.into(), Prop::F32(11.0)).unwrap();
 
         assert_eq!(
             tprop.iter_window_t(i64::MIN..i64::MAX).collect::<Vec<_>>(),
@@ -580,7 +582,7 @@ mod tprop_tests {
         );
 
         let mut tprop = TProp::from(1.into(), Prop::F64(10.0));
-        tprop.set(2.into(), Prop::F64(11.0));
+        tprop.set(2.into(), Prop::F64(11.0)).unwrap();
 
         assert_eq!(
             tprop.iter_window_t(i64::MIN..i64::MAX).collect::<Vec<_>>(),
@@ -588,7 +590,7 @@ mod tprop_tests {
         );
 
         let mut tprop = TProp::from(1.into(), Prop::U32(1));
-        tprop.set(2.into(), Prop::U32(2));
+        tprop.set(2.into(), Prop::U32(2)).unwrap();
 
         assert_eq!(
             tprop.iter_window_t(i64::MIN..i64::MAX).collect::<Vec<_>>(),
@@ -596,7 +598,7 @@ mod tprop_tests {
         );
 
         let mut tprop = TProp::from(1.into(), Prop::U64(1));
-        tprop.set(2.into(), Prop::U64(2));
+        tprop.set(2.into(), Prop::U64(2)).unwrap();
 
         assert_eq!(
             tprop.iter_window_t(i64::MIN..i64::MAX).collect::<Vec<_>>(),
@@ -604,7 +606,7 @@ mod tprop_tests {
         );
 
         let mut tprop = TProp::from(1.into(), Prop::U8(1));
-        tprop.set(2.into(), Prop::U8(2));
+        tprop.set(2.into(), Prop::U8(2)).unwrap();
 
         assert_eq!(
             tprop.iter_window_t(i64::MIN..i64::MAX).collect::<Vec<_>>(),
@@ -612,7 +614,7 @@ mod tprop_tests {
         );
 
         let mut tprop = TProp::from(1.into(), Prop::U16(1));
-        tprop.set(2.into(), Prop::U16(2));
+        tprop.set(2.into(), Prop::U16(2)).unwrap();
 
         assert_eq!(
             tprop.iter_window_t(i64::MIN..i64::MAX).collect::<Vec<_>>(),
@@ -620,7 +622,7 @@ mod tprop_tests {
         );
 
         let mut tprop = TProp::from(1.into(), Prop::Bool(true));
-        tprop.set(2.into(), Prop::Bool(true));
+        tprop.set(2.into(), Prop::Bool(true)).unwrap();
 
         assert_eq!(
             tprop.iter_window_t(i64::MIN..i64::MAX).collect::<Vec<_>>(),

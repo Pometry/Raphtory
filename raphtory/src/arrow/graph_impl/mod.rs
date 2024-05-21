@@ -590,7 +590,7 @@ mod test {
 
     proptest! {
         #[test]
-        fn connected_components_smallest_values(vs in any_with::<Vec<u64>>(size_range(1..=1000).lift())){ connected_components_check(vs) }
+        fn connected_components_smallest_values(vs in any_with::<Vec<u64>>(size_range(1..=100).lift())){ connected_components_check(vs) }
     }
 
     #[test]

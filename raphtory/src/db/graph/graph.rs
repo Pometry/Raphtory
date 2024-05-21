@@ -205,13 +205,9 @@ mod db_tests {
             ArcStr, OptionAsStr, Prop,
         },
         db::{
-            api::{
-                properties::internal::ConstPropertiesOps,
-                view::{
-                    internal::{CoreGraphOps, EdgeFilterOps, TimeSemantics},
-                    time::internal::InternalTimeOps,
-                    EdgeViewOps, Layer, LayerOps, NodeViewOps, StaticGraphViewOps, TimeOps,
-                },
+            api::view::{
+                time::internal::InternalTimeOps, EdgeViewOps, Layer, LayerOps, NodeViewOps,
+                StaticGraphViewOps, TimeOps,
             },
             graph::{edge::EdgeView, edges::Edges, node::NodeView, path::PathFromNode},
         },
@@ -1171,7 +1167,7 @@ mod db_tests {
 
     #[test]
     fn test_props() {
-        let mut g = Graph::new();
+        let g = Graph::new();
         g.add_edge(0, 1, 2, [("weight", Prop::I64(1))], None)
             .unwrap();
         g.add_edge(1, 1, 2, [("weight", Prop::I64(2))], None)
@@ -2502,22 +2498,5 @@ mod db_tests {
         let pg = g.persistent_graph();
         pg.delete_edge(10, 0, 1, None).unwrap();
         assert_eq!(g.edges().id().collect::<Vec<_>>(), vec![(0, 1)]);
-    }
-
-    // non overlaping time intervals
-    #[derive(Clone, Debug)]
-    struct Intervals(Vec<(i64, i64)>);
-
-    impl Arbitrary for Intervals {
-        fn arbitrary(g: &mut quickcheck::Gen) -> Self {
-            let mut some_nums = Vec::<i64>::arbitrary(g);
-            some_nums.sort();
-            let intervals = some_nums
-                .into_iter()
-                .tuple_windows()
-                .filter(|(a, b)| a != b)
-                .collect_vec();
-            Intervals(intervals)
-        }
     }
 }

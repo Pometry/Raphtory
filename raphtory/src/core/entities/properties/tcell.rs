@@ -154,10 +154,7 @@ impl<A: Clone + Debug + PartialEq + Send + Sync> TCell<A> {
 #[cfg(test)]
 mod tcell_tests {
     use super::TCell;
-    use crate::{
-        core::storage::timeindex::{AsTime, TimeIndexEntry},
-        db::api::view::TimeIndex,
-    };
+    use crate::core::storage::timeindex::{AsTime, TimeIndexEntry};
 
     #[test]
     fn set_new_value_for_tcell_initialized_as_empty() {
