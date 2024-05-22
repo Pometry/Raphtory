@@ -21,8 +21,7 @@ use std::{marker::PhantomData, sync::Arc};
 pub struct Nodes<'graph, G, GH = G> {
     pub(crate) base_graph: G,
     pub(crate) graph: GH,
-    node_types: Arc<[String]>,
-    node_types_ids: Arc<[usize]>,
+    node_types_filter: Option<Arc<[bool]>>,
     _marker: PhantomData<&'graph ()>,
 }
 
@@ -37,8 +36,7 @@ impl<'graph, G, GH> From<Nodes<'graph, G, GH>> for Nodes<'graph, DynamicGraph, D
         Nodes {
             base_graph,
             graph,
-            node_types: value.node_types,
-            node_types_ids: value.node_types_ids,
+            node_types_filter: value.node_types_filter,
             _marker: PhantomData,
         }
     }
@@ -53,8 +51,7 @@ impl<'graph, G> Nodes<'graph, G, G>
         Self {
             base_graph,
             graph,
-            node_types: [].into(),
-            node_types_ids: [].into(),
+            node_types_filter: None,
             _marker: PhantomData,
         }
     }
@@ -69,8 +66,7 @@ impl<'graph, G, GH> Nodes<'graph, G, GH>
         Self {
             base_graph,
             graph,
-            node_types: [].into(),
-            node_types_ids: [].into(),
+            node_types_filter: None,
             _marker: PhantomData,
         }
     }
@@ -79,12 +75,11 @@ impl<'graph, G, GH> Nodes<'graph, G, GH>
     fn iter_refs(&self) -> impl Iterator<Item=VID> + 'graph {
         let g = self.graph.core_graph();
         let base_graph = self.base_graph.clone();
-        let node_types = self.node_types.clone();
-        let node_types_ids = self.node_types_ids.clone();
+        let node_types_filter = self.node_types_filter.clone();
         g.into_nodes_iter(self.graph.clone())
             .filter(move |v| {
-                let node_type = base_graph.node_type_id(*v);
-                node_types.is_empty() || node_types_ids.contains(&node_type)
+                let node_type_id = base_graph.node_type_id(*v);
+                node_types_filter.as_ref().map_or(true, |filter| filter[node_type_id])
             })
     }
 
@@ -98,13 +93,12 @@ impl<'graph, G, GH> Nodes<'graph, G, GH>
 
     pub fn par_iter(&self) -> impl ParallelIterator<Item=NodeView<&G, &GH>> + '_ {
         let cg = self.graph.core_graph();
-        let node_types = self.node_types.clone();
-        let node_types_ids = self.node_types_ids.clone();
+        let node_types_filter = self.node_types_filter.clone();
         let base_graph = self.base_graph.clone();
         cg.into_nodes_par(&self.graph)
             .filter(move |v| {
                 let node_type_id = base_graph.node_type_id(*v);
-                node_types.is_empty() || node_types_ids.contains(&node_type_id)
+                node_types_filter.as_ref().map_or(true, |filter| filter[node_type_id])
             })
             .map(|v| NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, v))
     }
@@ -128,25 +122,22 @@ impl<'graph, G, GH> Nodes<'graph, G, GH>
         ))
     }
 
-    // TODO: Consider duplicate node types; Lookups are faster for set
     pub fn type_filter(&self, node_types: &[impl AsRef<str>]) -> Nodes<'graph, G, GH> {
-        let node_types: Arc<[String]> =
-            node_types
-                .iter()
-                .map(|s| s.as_ref().to_string())
-                .collect();
+        let max_id = self.graph.node_meta().node_type_meta().len();
+        let mut bool_arr = vec![false; max_id + 1];
 
-        let node_types_ids =
-            node_types
-                .iter()
-                .filter_map(|nt| self.graph.node_meta().get_node_type_id(nt.as_ref()))
-                .collect();
+        for nt in node_types {
+            if let Some(id) = self.graph.node_meta().get_node_type_id(nt.as_ref()) {
+                if id <= max_id {
+                    bool_arr[id] = true;
+                }
+            }
+        }
 
         Nodes {
             base_graph: self.base_graph.clone(),
             graph: self.graph.clone(),
-            node_types,
-            node_types_ids,
+            node_types_filter: Some(bool_arr.into()),
             _marker: PhantomData,
         }
     }
@@ -247,8 +238,7 @@ impl<'graph, G, GH> OneHopFilter<'graph> for Nodes<'graph, G, GH>
         Nodes {
             base_graph,
             graph: filtered_graph,
-            node_types: self.node_types.clone(),
-            node_types_ids: self.node_types_ids.clone(),
+            node_types_filter: self.node_types_filter.clone(),
             _marker: PhantomData,
         }
     }

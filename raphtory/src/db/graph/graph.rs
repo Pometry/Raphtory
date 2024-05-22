@@ -2158,12 +2158,6 @@ mod db_tests {
         );
     }
 
-    // multiple node types test
-    // hops more than 3
-    // works with window, subgraphs and layers
-    // type filtered nodes 'a', get neighs, get neighs; check if neigh are type filtered to a
-    // type filtered with emtpy filter arr; consider sets for node types ids
-    // add exclude types filtering
     #[test]
     fn test_node_type() {
         let g = Graph::new();
@@ -2296,6 +2290,15 @@ mod db_tests {
                 .collect_vec(),
             vec!["1", "4"]
         );
+        assert_eq!(
+            g.nodes()
+                .type_filter(&Vec::<&str>::new())
+                .collect()
+                .into_iter()
+                .map(|n| n.name())
+                .collect_vec(),
+            Vec::<&str>::new()
+        );
 
         assert_eq!(
             g.nodes()
@@ -2392,6 +2395,18 @@ mod db_tests {
             g.nodes()
                 .type_filter(&vec!["a"])
                 .neighbours()
+                .type_filter(&Vec::<&str>::new())
+                .name()
+                .map(|n| {
+                    n.collect::<Vec<_>>()
+                })
+                .collect_vec(),
+            vec![vec![], Vec::<&str>::new()]
+        );
+        assert_eq!(
+            g.nodes()
+                .type_filter(&vec!["a"])
+                .neighbours()
                 .type_filter(&vec!["c", "b"])
                 .name()
                 .map(|n| {
@@ -2426,19 +2441,19 @@ mod db_tests {
             vec![vec!["1", "3", "4"], vec!["1", "3", "4", "4", "6"]]
         );
 
-        // TODO: Fix this
-        let mh = g.nodes()
-            .type_filter(&vec!["a"])
-            .neighbours()
-            .type_filter(&vec!["c"])
-            .neighbours()
-            .name()
-            .map(|n| {
-                n.collect::<Vec<_>>()
-            })
-            .collect_vec();
-
-        println!("mh = {:?}", mh);
+        assert_eq!(
+            g.nodes()
+                .type_filter(&vec!["a"])
+                .neighbours()
+                .type_filter(&vec!["c"])
+                .neighbours()
+                .name()
+                .map(|n| {
+                    n.collect::<Vec<_>>()
+                })
+                .collect_vec(),
+            vec![vec![], vec!["4", "6"]]
+        );
 
         assert_eq!(
             g.nodes()
@@ -2464,7 +2479,7 @@ mod db_tests {
                 .type_filter(&vec!["a"])
                 .neighbours()
                 .type_filter(&vec!["d"])
-                .len(),
+                .total_count(),
             0
         );
 
@@ -2473,7 +2488,7 @@ mod db_tests {
                 .type_filter(&vec!["a"])
                 .neighbours()
                 .type_filter(&vec!["d"])
-                .is_empty()
+                .is_all_empty()
         );
 
         assert_eq!(
@@ -2554,17 +2569,16 @@ mod db_tests {
             vec!["1", "4"]
         );
 
-
-        // TODO: Fix this
-        let mh = g.node("2")
-            .unwrap()
-            .neighbours()
-            .type_filter(&vec!["c"])
-            .neighbours()
-            .name()
-            .collect_vec();
-
-        println!("mh2 = {:?}", mh);
+        assert_eq!(
+            g.node("2")
+                .unwrap()
+                .neighbours()
+                .type_filter(&vec!["c"])
+                .neighbours()
+                .name()
+                .collect_vec(),
+            Vec::<&str>::new()
+        );
 
         assert_eq!(
             g.node("2")
