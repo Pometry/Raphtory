@@ -14,20 +14,10 @@ use chrono::{DateTime, Utc};
 use once_cell::sync::Lazy;
 use pyo3::prelude::*;
 
-macro_rules! impl_lazy_node_state {
-    ($name:ident<$value:ty>) => {
-        #[pyclass]
-        pub struct $name {
-            inner:
-                $crate::db::api::state::LazyNodeState<'static, $value, DynamicGraph, DynamicGraph>,
-        }
-
+macro_rules! impl_node_state_ops {
+    ($name:ident) => {
         #[pymethods]
         impl $name {
-            fn compute(&self) -> NodeState<'static, $value, DynamicGraph, DynamicGraph> {
-                self.inner.compute()
-            }
-
             fn __iter__(&self) -> PyGenericIterator {
                 self.inner.clone().into_values().into()
             }
@@ -43,7 +33,30 @@ macro_rules! impl_lazy_node_state {
             fn items(&self) -> PyGenericIterator {
                 self.inner.clone().into_iter().into()
             }
+
+            fn values(&self) -> PyGenericIterator {
+                self.__iter__()
+            }
         }
+    };
+}
+
+macro_rules! impl_lazy_node_state {
+    ($name:ident<$value:ty>) => {
+        #[pyclass]
+        pub struct $name {
+            inner:
+                $crate::db::api::state::LazyNodeState<'static, $value, DynamicGraph, DynamicGraph>,
+        }
+
+        #[pymethods]
+        impl $name {
+            fn compute(&self) -> NodeState<'static, $value, DynamicGraph, DynamicGraph> {
+                self.inner.compute()
+            }
+        }
+
+        impl_node_state_ops!($name);
 
         impl From<LazyNodeState<'static, $value, DynamicGraph, DynamicGraph>> for $name {
             fn from(inner: LazyNodeState<'static, $value, DynamicGraph, DynamicGraph>) -> Self {
@@ -65,6 +78,8 @@ macro_rules! impl_node_state {
         pub struct $name {
             inner: $crate::db::api::state::NodeState<'static, $value, DynamicGraph, DynamicGraph>,
         }
+
+        impl_node_state_ops!($name);
 
         impl From<NodeState<'static, $value, DynamicGraph, DynamicGraph>> for $name {
             fn from(inner: NodeState<'static, $value, DynamicGraph, DynamicGraph>) -> Self {
