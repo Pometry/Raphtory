@@ -10,6 +10,7 @@ on:
 permissions:
   contents: write
   deployments: write
+  pull-requests: write
 
 # DO NOT CHANGE NAME OF WORKFLOW, USED IN OTHER WORKFLOWS KEEP "Rust Tests"
 jobs:
@@ -87,7 +88,7 @@ jobs:
           auto-push: false
           # Show alert with commit comment on detecting possible performance regression
           alert-threshold: '200%'
-          github-token: ${{ secrets.CLASSIC_REPO_ACCESS_TOKEN_BENCHMARK }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           comment-on-alert: true
           summary-always: true
           fail-on-alert: false
