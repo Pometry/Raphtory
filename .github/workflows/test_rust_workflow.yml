@@ -52,8 +52,10 @@ jobs:
         name: Cargo cache
         with:
           cache-all-crates: true
+      - name: Install bininstall
+        uses: cargo-bins/cargo-binstall@main
       - name: Install nextest
-        run: cargo install cargo-nextest
+        run: cargo binstall cargo-nextest
       - name: Run Tests (No features)
         env:
           RUSTFLAGS: -Awarnings
