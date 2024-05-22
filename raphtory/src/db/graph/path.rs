@@ -9,6 +9,7 @@ use crate::{
             },
         },
         graph::{
+            create_node_type_filter,
             edges::{Edges, NestedEdges},
             node::NodeView,
             views::{
@@ -20,7 +21,6 @@ use crate::{
     prelude::*,
 };
 use std::sync::Arc;
-use crate::db::graph::create_node_type_filter;
 
 #[derive(Clone)]
 pub struct PathFromGraph<'graph, G, GH> {
@@ -100,7 +100,8 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromGraph<'g
     }
 
     pub fn type_filter(&self, node_types: &[impl AsRef<str>]) -> PathFromGraph<'graph, G, GH> {
-        let node_types_filter = create_node_type_filter(self.graph.node_meta().node_type_meta(), node_types);
+        let node_types_filter =
+            create_node_type_filter(self.graph.node_meta().node_type_meta(), node_types);
 
         let base_graph = self.base_graph.clone();
         let old_op = self.op.clone();
@@ -341,7 +342,8 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromNode<'gr
     }
 
     pub fn type_filter(&self, node_types: &[impl AsRef<str>]) -> PathFromNode<'graph, G, GH> {
-        let node_types_filter = create_node_type_filter(self.graph.node_meta().node_type_meta(), node_types);
+        let node_types_filter =
+            create_node_type_filter(self.graph.node_meta().node_type_meta(), node_types);
 
         let base_graph = self.base_graph.clone();
         let old_op = self.op.clone();

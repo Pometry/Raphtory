@@ -288,6 +288,18 @@ impl<
             .iter()
             .map(move |v| EvalNodeView::new_from_node(ss, v, None, local, node_state.clone()))
     }
+
+    pub fn type_filter(&self, node_types: &[impl AsRef<str>]) -> Self {
+        let local = self.local_state_prev;
+        let node_state = self.node_state.clone();
+        let ss = self.ss;
+        EvalPathFromNode {
+            path: self.path.type_filter(node_types),
+            ss,
+            node_state,
+            local_state_prev: local,
+        }
+    }
 }
 
 impl<

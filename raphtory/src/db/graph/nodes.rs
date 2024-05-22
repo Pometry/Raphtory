@@ -13,16 +13,15 @@ use crate::{
     prelude::*,
 };
 
-use crate::db::api::storage::locked::LockedGraph;
+use crate::db::{api::storage::locked::LockedGraph, graph::create_node_type_filter};
 use rayon::iter::ParallelIterator;
 use std::{marker::PhantomData, sync::Arc};
-use crate::db::graph::create_node_type_filter;
 
 #[derive(Clone)]
 pub struct Nodes<'graph, G, GH = G> {
     pub(crate) base_graph: G,
     pub(crate) graph: GH,
-    node_types_filter: Option<Arc<[bool]>>,
+    pub(crate) node_types_filter: Option<Arc<[bool]>>,
     _marker: PhantomData<&'graph ()>,
 }
 
@@ -63,11 +62,11 @@ where
     G: GraphViewOps<'graph> + 'graph,
     GH: GraphViewOps<'graph> + 'graph,
 {
-    pub fn new_filtered(base_graph: G, graph: GH) -> Self {
+    pub fn new_filtered(base_graph: G, graph: GH, node_types_filter: Option<Arc<[bool]>>) -> Self {
         Self {
             base_graph,
             graph,
-            node_types_filter: None,
+            node_types_filter,
             _marker: PhantomData,
         }
     }
@@ -127,7 +126,10 @@ where
     }
 
     pub fn type_filter(&self, node_types: &[impl AsRef<str>]) -> Nodes<'graph, G, GH> {
-        let node_types_filter = Some(create_node_type_filter(self.graph.node_meta().node_type_meta(), node_types));
+        let node_types_filter = Some(create_node_type_filter(
+            self.graph.node_meta().node_type_meta(),
+            node_types,
+        ));
         Nodes {
             base_graph: self.base_graph.clone(),
             graph: self.graph.clone(),

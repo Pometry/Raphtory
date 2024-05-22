@@ -121,8 +121,8 @@ impl From<InternalGraph> for Graph {
 }
 
 impl<'graph, G: GraphViewOps<'graph>> PartialEq<G> for Graph
-    where
-        Self: 'graph,
+where
+    Self: 'graph,
 {
     fn eq(&self, other: &G) -> bool {
         graph_equal(self, other)
@@ -387,7 +387,7 @@ mod db_tests {
             vec![("aprop".to_string(), Prop::Bool(false))],
             Some(&"LAYERA"),
         )
-            .unwrap();
+        .unwrap();
         let json_res = g
             .edge("A", "B")
             .unwrap()
@@ -407,7 +407,7 @@ mod db_tests {
             vec![("bprop".to_string(), Prop::List(Arc::new(v)))],
             Some(&"LAYERB"),
         )
-            .unwrap();
+        .unwrap();
         let json_res = g
             .edge("A", "B")
             .unwrap()
@@ -428,7 +428,7 @@ mod db_tests {
             vec![("mymap".to_string(), Prop::Map(Arc::new(v)))],
             Some(&"LAYERC"),
         )
-            .unwrap();
+        .unwrap();
         let json_res = g
             .edge("A", "B")
             .unwrap()
@@ -655,8 +655,8 @@ mod db_tests {
             vec![("duration".to_string(), Prop::U32(5))],
             Some("a"),
         )
-            .map_err(|err| println!("{:?}", err))
-            .ok();
+        .map_err(|err| println!("{:?}", err))
+        .ok();
         g.add_edge(
             2,
             1,
@@ -664,8 +664,8 @@ mod db_tests {
             vec![("duration".to_string(), Prop::U32(5))],
             Some("a"),
         )
-            .map_err(|err| println!("{:?}", err))
-            .ok();
+        .map_err(|err| println!("{:?}", err))
+        .ok();
         g.add_edge(
             3,
             1,
@@ -673,8 +673,8 @@ mod db_tests {
             vec![("duration".to_string(), Prop::U32(5))],
             Some("a"),
         )
-            .map_err(|err| println!("{:?}", err))
-            .ok();
+        .map_err(|err| println!("{:?}", err))
+        .ok();
         g.add_edge(
             4,
             1,
@@ -682,8 +682,8 @@ mod db_tests {
             vec![("duration".to_string(), Prop::U32(6))],
             Some("b"),
         )
-            .map_err(|err| println!("{:?}", err))
-            .ok();
+        .map_err(|err| println!("{:?}", err))
+        .ok();
         g.add_edge(5, 1, 2, NO_PROPS, Some("c"))
             .map_err(|err| println!("{:?}", err))
             .ok();
@@ -757,7 +757,7 @@ mod db_tests {
             vec![("temp".to_string(), Prop::Bool(true))],
             None,
         )
-            .unwrap();
+        .unwrap();
         g.add_edge(0, 22, 33, NO_PROPS, None).unwrap();
         g.add_edge(0, 33, 11, NO_PROPS, None).unwrap();
         g.add_node(0, 11, vec![("temp".to_string(), Prop::Bool(true))], None)
@@ -1537,25 +1537,25 @@ mod db_tests {
         }
         let check = check
             && g.at(t0)
-            .properties()
-            .temporal()
-            .iter_latest()
-            .map(|(k, v)| (k.clone(), v))
-            .collect::<HashMap<_, _, _>>()
-            == t0_props;
+                .properties()
+                .temporal()
+                .iter_latest()
+                .map(|(k, v)| (k.clone(), v))
+                .collect::<HashMap<_, _, _>>()
+                == t0_props;
         if !check {
             println!("failed latest value comparison for {:?} at t0", str_props);
             return false;
         }
         let check = check
             && t1_props.iter().all(|(k, ve)| {
-            g.at(t1)
-                .properties()
-                .temporal()
-                .get(k)
-                .and_then(|v| v.latest())
-                == Some(ve.clone())
-        });
+                g.at(t1)
+                    .properties()
+                    .temporal()
+                    .get(k)
+                    .and_then(|v| v.latest())
+                    == Some(ve.clone())
+            });
         if !check {
             println!("failed latest value comparison for {:?} at t1", str_props);
             return false;
@@ -2166,10 +2166,7 @@ mod db_tests {
         g.add_node(1, 4, NO_PROPS, Some("wallet")).unwrap();
 
         assert_eq!(
-            g.nodes()
-                .type_filter(&vec!["wallet"])
-                .name()
-                .collect_vec(),
+            g.nodes().type_filter(&vec!["wallet"]).name().collect_vec(),
             vec!["1", "4"]
         );
 
@@ -2640,7 +2637,7 @@ mod db_tests {
             [("pgraph", Prop::PersistentGraph(PersistentGraph::new()))],
             None,
         )
-            .unwrap();
+        .unwrap();
         g.add_node(0, 1, [("bool", Prop::Bool(true))], None)
             .unwrap();
         g.add_node(0, 1, [("u32", Prop::U32(2))], None).unwrap();

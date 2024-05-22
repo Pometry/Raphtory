@@ -441,7 +441,7 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
         let graph = value.graph.into_dynamic();
         let base_graph = value.base_graph.into_dynamic();
         Self {
-            nodes: Nodes::new_filtered(base_graph, graph),
+            nodes: Nodes::new_filtered(base_graph, graph, value.node_types_filter),
         }
     }
 }
@@ -773,7 +773,10 @@ impl PyPathFromGraph {
         (move || path.out_degree()).into()
     }
 
-    pub fn type_filter(&self, node_types: Vec<&str>) -> PathFromGraph<'static, DynamicGraph, DynamicGraph> {
+    pub fn type_filter(
+        &self,
+        node_types: Vec<&str>,
+    ) -> PathFromGraph<'static, DynamicGraph, DynamicGraph> {
         self.path.type_filter(&node_types)
     }
 }
@@ -903,7 +906,10 @@ impl PyPathFromNode {
         (move || path.degree()).into()
     }
 
-    pub fn type_filter(&self, node_types: Vec<&str>) -> PathFromNode<'static, DynamicGraph, DynamicGraph> {
+    pub fn type_filter(
+        &self,
+        node_types: Vec<&str>,
+    ) -> PathFromNode<'static, DynamicGraph, DynamicGraph> {
         self.path.type_filter(&node_types)
     }
 }
