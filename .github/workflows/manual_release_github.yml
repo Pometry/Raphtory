@@ -17,5 +17,5 @@ jobs:
     uses: ./.github/workflows/_release_rust.yml
     with:
       base: ${{ github.event.inputs.base }}
-      dry_run: ${{ github.event.inputs.dry_run }}
+      dry_run: ${{ github.event.inputs.dry_run == true }}
     secrets: inherit
