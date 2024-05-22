@@ -55,7 +55,7 @@ jobs:
       - name: Install bininstall
         uses: cargo-bins/cargo-binstall@main
       - name: Install nextest
-        run: cargo binstall cargo-nextest
+        run: cargo binstall -y cargo-nextest
       - name: Run Tests (No features)
         env:
           RUSTFLAGS: -Awarnings
