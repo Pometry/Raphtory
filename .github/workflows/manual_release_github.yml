@@ -15,4 +15,7 @@ jobs:
   call-release-rust-workflow:
     name: _Release 2 - Publish Rust package to crates.io
     uses: ./.github/workflows/_release_rust.yml
+    with:
+      base: ${{ github.event.inputs.base }}
+      dry_run: ${{ github.event.inputs.dry_run }}
     secrets: inherit
