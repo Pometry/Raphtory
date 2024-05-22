@@ -340,7 +340,7 @@ mod server_tests {
         let graphs = HashMap::from([("test".to_owned(), g)]);
         let server = RaphtoryServer::from_map(graphs);
         println!("calling start at time {}", Local::now());
-        let handler = server.start_with_port(1737, "info", false);
+        let handler = server.start_with_port(0, "info", false);
         sleep(Duration::from_secs(1)).await;
         println!("Calling stop at time {}", Local::now());
         handler.stop().await;

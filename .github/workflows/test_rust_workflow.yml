@@ -52,12 +52,14 @@ jobs:
         name: Cargo cache
         with:
           cache-all-crates: true
+      - name: Install nextest
+        run: cargo install cargo-nextest
       - name: Run Tests (No features)
         env:
           RUSTFLAGS: -Awarnings
           TEMPDIR: ${{ runner.temp }}
         run: |
-          cargo test --all --no-default-features
+          cargo nextest run --all --no-default-features
       - name: Run Tests (features=io)
         env:
           RUSTFLAGS: -Awarnings
