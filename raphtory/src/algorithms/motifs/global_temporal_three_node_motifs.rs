@@ -119,12 +119,16 @@ pub fn triangle_motifs<G>(graph: &G, deltas: Vec<i64>, threads: Option<usize>) -
 where
     G: StaticGraphViewOps,
 {
+    // Create kcore subgraph recursively removing nodes of degree < 2
     let node_set = k_core_set(graph, 2, usize::MAX, None);
-    let g: NodeSubgraph<G> = graph.subgraph(node_set);
-    let mut ctx_sub: Context<NodeSubgraph<G>, ComputeStateVec> = Context::from(&g);
+    let kcore_subgraph: NodeSubgraph<G> = graph.subgraph(node_set);
+    let mut ctx_subgraph: Context<NodeSubgraph<G>, ComputeStateVec> =
+        Context::from(&kcore_subgraph);
 
     let neighbours_set = accumulators::hash_set::<u64>(0);
+    ctx_subgraph.agg(neighbours_set);
 
+    // Initialise triangle motif counter accumulator, one per value of delta
     let tri_mc = deltas
         .iter()
         .map(|d| accumulators::arr::<usize, SumDef<usize>, 8>(2 * *d as u32))
@@ -132,14 +136,13 @@ where
     let tri_clone = tri_mc.clone();
 
     tri_mc.clone().iter().for_each(|mc| {
-        ctx_sub.global_agg::<[usize; 8], [usize; 8], [usize; 8], ArrConst<usize, SumDef<usize>, 8>>(
-            *mc,
-        )
+        ctx_subgraph
+            .global_agg::<[usize; 8], [usize; 8], [usize; 8], ArrConst<usize, SumDef<usize>, 8>>(
+                *mc,
+            )
     });
 
-    ctx_sub.agg(neighbours_set);
-
-    let step1 = ATask::new(move |u: &mut EvalNodeView<NodeSubgraph<G>, ()>| {
+    let neighbour_update_step = ATask::new(move |u: &mut EvalNodeView<NodeSubgraph<G>, ()>| {
         for v in u.neighbours() {
             if u.id() > v.id() {
                 v.update(&neighbours_set, u.id());
@@ -148,7 +151,7 @@ where
         Step::Continue
     });
 
-    let step2 = ATask::new(move |u: &mut EvalNodeView<NodeSubgraph<G>, ()>| {
+    let intersection_compute_step = ATask::new(move |u: &mut EvalNodeView<NodeSubgraph<G>, ()>| {
         for v in u.neighbours() {
             // Find triangles on the UV edge
             if u.id() > v.id() {
@@ -180,13 +183,14 @@ where
                         .into_iter()
                         .sorted()
                         .permutations(2)
-                        .flat_map(|e| {
-                            g.edge(*e.first().unwrap(), *e.get(1).unwrap())
+                        .map(|e| {
+                            kcore_subgraph
+                                .edge(*e.first().unwrap(), *e.get(1).unwrap())
                                 .iter()
                                 .flat_map(|edge| edge.explode())
                                 .collect::<Vec<_>>()
                         })
-                        .sorted_by_key(|e| e.time_and_index())
+                        .kmerge_by(|e1, e2| e1.time_and_index() < e2.time_and_index())
                         .map(|e| {
                             let (src_id, dst_id) = (e.src().id(), e.dst().id());
                             let uid = u.id();
@@ -226,11 +230,11 @@ where
         Step::Continue
     });
 
-    let mut runner: TaskRunner<NodeSubgraph<G>, _> = TaskRunner::new(ctx_sub);
+    let mut runner: TaskRunner<NodeSubgraph<G>, _> = TaskRunner::new(ctx_subgraph);
 
     runner.run(
-        vec![Job::new(step1)],
-        vec![Job::new(step2)],
+        vec![Job::new(neighbour_update_step)],
+        vec![Job::new(intersection_compute_step)],
         None,
         |egs, _, _, _| {
             tri_mc.iter().map(|mc| egs.finalize::<[usize; 8], [usize;8], [usize; 8], ArrConst<usize,SumDef<usize>,8>>(mc)).collect_vec()
