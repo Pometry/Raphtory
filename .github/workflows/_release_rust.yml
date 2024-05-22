@@ -55,6 +55,8 @@ jobs:
         with:
           command: install
           args: cargo-release --force
+      - name: "Hide arrow dependencies"
+        run: ./scripts/hide_arrow_dep.sh
       - name: "Publish raphtory to crates.io"
         if: ${{ !inputs.dry_run }}
         uses: actions-rs/cargo@v1
@@ -67,3 +69,15 @@ jobs:
         with:
           command: publish
           args: --token ${{ secrets.CRATES_TOKEN }} --package raphtory-graphql --allow-dirty
+      - name: "Publish raphtory to crates.io"
+        if: ${{ inputs.dry_run }}
+        uses: actions-rs/cargo@v1
+        with:
+          command: publish
+          args: --token ${{ secrets.CRATES_TOKEN }} --package raphtory --allow-dirty --dry-run
+      - name: "Publish raphtory-graphql to crates.io"
+        if: ${{ inputs.dry_run }}
+        uses: actions-rs/cargo@v1
+        with:
+          command: publish
+          args: --token ${{ secrets.CRATES_TOKEN }} --package raphtory-graphql --allow-dirty --dry-run
