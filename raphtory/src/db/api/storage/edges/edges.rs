@@ -118,6 +118,7 @@ impl<'a> EdgesStorageRef<'a> {
         }
     }
 
+    #[inline]
     pub fn count(self, layers: &LayerIds) -> usize {
         match self {
             EdgesStorageRef::Mem(storage) => match layers {

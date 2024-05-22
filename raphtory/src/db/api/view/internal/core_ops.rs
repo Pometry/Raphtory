@@ -37,6 +37,8 @@ pub trait CoreGraphOps {
     /// get the number of nodes in the main graph
     fn unfiltered_num_nodes(&self) -> usize;
 
+    fn unfiltered_num_edges(&self) -> usize;
+
     fn unfiltered_num_layers(&self) -> usize;
 
     fn core_graph(&self) -> GraphStorage;
@@ -352,6 +354,11 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
 
     fn core_node_arc(&self, vid: VID) -> NodeOwnedEntry {
         self.graph().core_node_arc(vid)
+    }
+
+    #[inline]
+    fn unfiltered_num_edges(&self) -> usize {
+        self.graph().unfiltered_num_edges()
     }
 }
 

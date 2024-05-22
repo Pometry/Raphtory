@@ -277,6 +277,11 @@ impl CoreGraphOps for InternalGraph {
     fn core_edge_arc(&self, eid: ELID) -> EdgeOwnedEntry {
         EdgeOwnedEntry::Mem(self.inner().storage.edges.entry_arc(eid.pid()))
     }
+
+    #[inline]
+    fn unfiltered_num_edges(&self) -> usize {
+        self.inner().storage.edges.len()
+    }
 }
 
 #[cfg(test)]

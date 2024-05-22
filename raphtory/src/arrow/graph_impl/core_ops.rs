@@ -34,7 +34,7 @@ use crate::{
 use itertools::Itertools;
 use polars_arrow::datatypes::ArrowDataType;
 use raphtory_arrow::{properties::Properties, GID};
-
+use rayon::prelude::*;
 impl CoreGraphOps for ArrowGraph {
     fn unfiltered_num_nodes(&self) -> usize {
         self.inner.num_nodes()
@@ -216,6 +216,14 @@ impl CoreGraphOps for ArrowGraph {
 
     fn core_edge_arc(&self, eid: ELID) -> EdgeOwnedEntry {
         EdgeOwnedEntry::Arrow(ArrowOwnedEdge::new(&self.inner, eid))
+    }
+
+    fn unfiltered_num_edges(&self) -> usize {
+        self.inner
+            .layers()
+            .par_iter()
+            .map(|layer| layer.num_edges())
+            .sum()
     }
 }
 
