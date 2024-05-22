@@ -664,8 +664,8 @@ impl PyNodes {
         })
     }
 
-    pub fn type_filter(&self, node_types: Vec<String>) -> Vec<NodeView<DynamicGraph>> {
-        self.nodes.type_filter(node_types).collect_vec()
+    pub fn type_filter(&self, node_types: Vec<&str>) -> Nodes<'static, DynamicGraph> {
+        self.nodes.type_filter(&node_types)
     }
 }
 
@@ -771,6 +771,10 @@ impl PyPathFromGraph {
     fn out_degree(&self) -> NestedUsizeIterable {
         let path = self.path.clone();
         (move || path.out_degree()).into()
+    }
+
+    pub fn type_filter(&self, node_types: Vec<&str>) -> PathFromGraph<'static, DynamicGraph, DynamicGraph> {
+        self.path.type_filter(&node_types)
     }
 }
 
@@ -897,6 +901,10 @@ impl PyPathFromNode {
     fn degree(&self) -> UsizeIterable {
         let path = self.path.clone();
         (move || path.degree()).into()
+    }
+
+    pub fn type_filter(&self, node_types: Vec<&str>) -> PathFromNode<'static, DynamicGraph, DynamicGraph> {
+        self.path.type_filter(&node_types)
     }
 }
 

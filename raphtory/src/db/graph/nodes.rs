@@ -16,6 +16,7 @@ use crate::{
 use crate::db::api::storage::locked::LockedGraph;
 use rayon::iter::ParallelIterator;
 use std::{marker::PhantomData, sync::Arc};
+use crate::db::graph::create_node_type_filter;
 
 #[derive(Clone)]
 pub struct Nodes<'graph, G, GH = G> {
@@ -126,21 +127,11 @@ where
     }
 
     pub fn type_filter(&self, node_types: &[impl AsRef<str>]) -> Nodes<'graph, G, GH> {
-        let max_id = self.graph.node_meta().node_type_meta().len();
-        let mut bool_arr = vec![false; max_id + 1];
-
-        for nt in node_types {
-            if let Some(id) = self.graph.node_meta().get_node_type_id(nt.as_ref()) {
-                if id <= max_id {
-                    bool_arr[id] = true;
-                }
-            }
-        }
-
+        let node_types_filter = Some(create_node_type_filter(self.graph.node_meta().node_type_meta(), node_types));
         Nodes {
             base_graph: self.base_graph.clone(),
             graph: self.graph.clone(),
-            node_types_filter: Some(bool_arr.into()),
+            node_types_filter,
             _marker: PhantomData,
         }
     }

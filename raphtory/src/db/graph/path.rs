@@ -20,6 +20,7 @@ use crate::{
     prelude::*,
 };
 use std::sync::Arc;
+use crate::db::graph::create_node_type_filter;
 
 #[derive(Clone)]
 pub struct PathFromGraph<'graph, G, GH> {
@@ -99,18 +100,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromGraph<'g
     }
 
     pub fn type_filter(&self, node_types: &[impl AsRef<str>]) -> PathFromGraph<'graph, G, GH> {
-        let max_id = self.graph.node_meta().node_type_meta().len();
-        let mut bool_arr = vec![false; max_id + 1];
-
-        for nt in node_types {
-            if let Some(id) = self.graph.node_meta().get_node_type_id(nt.as_ref()) {
-                if id <= max_id {
-                    bool_arr[id] = true;
-                }
-            }
-        }
-
-        let node_types_filter: Arc<[bool]> = bool_arr.into();
+        let node_types_filter = create_node_type_filter(self.graph.node_meta().node_type_meta(), node_types);
 
         let base_graph = self.base_graph.clone();
         let old_op = self.op.clone();
@@ -342,27 +332,16 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromNode<'gr
         Box::new(iter)
     }
 
-    pub fn total_count(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.iter().count()
     }
 
-    pub fn is_all_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.iter().next().is_none()
     }
 
     pub fn type_filter(&self, node_types: &[impl AsRef<str>]) -> PathFromNode<'graph, G, GH> {
-        let max_id = self.graph.node_meta().node_type_meta().len();
-        let mut bool_arr = vec![false; max_id + 1];
-
-        for nt in node_types {
-            if let Some(id) = self.graph.node_meta().get_node_type_id(nt.as_ref()) {
-                if id <= max_id {
-                    bool_arr[id] = true;
-                }
-            }
-        }
-
-        let node_types_filter: Arc<[bool]> = bool_arr.into();
+        let node_types_filter = create_node_type_filter(self.graph.node_meta().node_type_meta(), node_types);
 
         let base_graph = self.base_graph.clone();
         let old_op = self.op.clone();
