@@ -99,11 +99,24 @@ where
         .enumerate()
         .map(|(num, nb)| (nb.id(), num))
         .collect();
+    // let events = evv
+    //     .edges()
+    //     .explode()
+    //     .iter()
+    //     .sorted_by_key(|e| e.time_and_index())
+    //     .map(|edge| {
+    //         if edge.src().id() == evv.id() {
+    //             star_event(neigh_map[&edge.dst().id()], 1, edge.time().unwrap())
+    //         } else {
+    //             star_event(neigh_map[&edge.src().id()], 0, edge.time().unwrap())
+    //         }
+    //     })
+    //     .collect::<Vec<StarEvent>>();
     let events = evv
         .edges()
-        .explode()
         .iter()
-        .sorted_by_key(|e| e.time_and_index())
+        .map(|e| e.explode())
+        .kmerge_by(|e1, e2| e1.time_and_index() < e2.time_and_index())
         .map(|edge| {
             if edge.src().id() == evv.id() {
                 star_event(neigh_map[&edge.dst().id()], 1, edge.time().unwrap())
@@ -111,7 +124,7 @@ where
                 star_event(neigh_map[&edge.src().id()], 0, edge.time().unwrap())
             }
         })
-        .collect::<Vec<StarEvent>>();
+        .collect_vec();
 
     deltas
         .into_iter()
@@ -137,27 +150,21 @@ where
 {
     let mut results = deltas.iter().map(|_| [0; 8]).collect::<Vec<[usize; 8]>>();
 
-    // Define a closure for sorting by time_and_index()
-    let _sort_by_time_and_index = |e1: &EdgeView<G, GH>, e2: &EdgeView<G, GH>| -> Ordering {
-        Ord::cmp(&e1.time_and_index(), &e2.time_and_index())
-    };
-
     for nb in evv.neighbours().into_iter() {
         let nb_id = nb.id();
         let out = graph.edge(evv.id(), nb_id);
         let inc = graph.edge(nb_id, evv.id());
-        let events: Vec<TwoNodeEvent> = out
+        let events = vec![out, inc]
             .iter()
-            .flat_map(|e| e.explode())
-            .chain(inc.iter().flat_map(|e| e.explode()))
-            .sorted_by_key(|e| e.time_and_index())
+            .map(|edge| edge.iter().flat_map(|e| e.explode()))
+            .kmerge_by(|e1, e2| e1.time_and_index() < e2.time_and_index())
             .map(|e| {
                 two_node_event(
                     if e.src().id() == evv.id() { 1 } else { 0 },
                     e.time().unwrap(),
                 )
             })
-            .collect();
+            .collect_vec();
         for j in 0..deltas.len() {
             let mut two_node_counter = init_two_node_count();
             two_node_counter.execute(&events, deltas[j]);

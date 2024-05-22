@@ -40,9 +40,9 @@ where
         .collect();
     let events = evv
         .edges()
-        .explode()
         .iter()
-        .sorted_by_key(|e| e.time_and_index())
+        .map(|e| e.explode())
+        .kmerge_by(|e1, e2| e1.time_and_index() < e2.time_and_index())
         .map(|edge| {
             if edge.src().id() == evv.id() {
                 star_event(neigh_map[&edge.dst().id()], 1, edge.time().unwrap())
@@ -50,7 +50,7 @@ where
                 star_event(neigh_map[&edge.src().id()], 0, edge.time().unwrap())
             }
         })
-        .collect::<Vec<StarEvent>>();
+        .collect_vec();
 
     deltas
         .into_iter()
@@ -89,18 +89,17 @@ where
         let nb_id = nb.id();
         let out = graph.edge(evv.id(), nb_id);
         let inc = graph.edge(nb_id, evv.id());
-        let events: Vec<TwoNodeEvent> = out
+        let events = vec![out, inc]
             .iter()
-            .flat_map(|e| e.explode())
-            .chain(inc.iter().flat_map(|e| e.explode()))
-            .sorted_by_key(|e| e.time_and_index())
+            .map(|edge| edge.iter().flat_map(|e| e.explode()))
+            .kmerge_by(|e1, e2| e1.time_and_index() < e2.time_and_index())
             .map(|e| {
                 two_node_event(
                     if e.src().id() == evv.id() { 1 } else { 0 },
                     e.time().unwrap(),
                 )
             })
-            .collect();
+            .collect_vec();
         for j in 0..deltas.len() {
             let mut two_node_counter = init_two_node_count();
             two_node_counter.execute(&events, deltas[j]);
@@ -266,8 +265,10 @@ where
 
     star_mc.iter().for_each(|mc| ctx.global_agg(*mc));
 
+    println!("Counting triangles");
     let out1 = triangle_motifs(g, deltas.clone(), threads);
-
+    
+    println!("Counting stars");
     let step1 = ATask::new(move |evv: &mut EvalNodeView<G, _>| {
         let g = evv.graph();
         let star_nodes = star_motif_count(g, evv, deltas.clone());
