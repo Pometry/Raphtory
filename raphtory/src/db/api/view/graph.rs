@@ -273,7 +273,13 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
     #[inline]
     fn count_edges(&self) -> usize {
         match self.filter_state() {
-            FilterState::Neither => self.core_edges().as_ref().count(self.layer_ids()),
+            FilterState::Neither => {
+                if matches!(self.layer_ids(), LayerIds::All) {
+                    self.unfiltered_num_edges()
+                } else {
+                    self.core_edges().as_ref().count(self.layer_ids())
+                }
+            }
             FilterState::Both => {
                 let edges = self.core_edges();
                 let nodes = self.core_nodes();
