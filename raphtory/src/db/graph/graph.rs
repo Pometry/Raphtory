@@ -121,8 +121,8 @@ impl From<InternalGraph> for Graph {
 }
 
 impl<'graph, G: GraphViewOps<'graph>> PartialEq<G> for Graph
-    where
-        Self: 'graph,
+where
+    Self: 'graph,
 {
     fn eq(&self, other: &G) -> bool {
         graph_equal(self, other)
@@ -212,9 +212,7 @@ mod db_tests {
             api::{
                 properties::internal::ConstPropertiesOps,
                 view::{
-                    internal::{
-                        CoreGraphOps, EdgeFilterOps, TimeSemantics,
-                    },
+                    internal::{CoreGraphOps, EdgeFilterOps, TimeSemantics},
                     time::internal::InternalTimeOps,
                     EdgeViewOps, Layer, LayerOps, NodeViewOps, TimeOps,
                 },
@@ -389,7 +387,7 @@ mod db_tests {
             vec![("aprop".to_string(), Prop::Bool(false))],
             Some(&"LAYERA"),
         )
-            .unwrap();
+        .unwrap();
         let json_res = g
             .edge("A", "B")
             .unwrap()
@@ -409,7 +407,7 @@ mod db_tests {
             vec![("bprop".to_string(), Prop::List(Arc::new(v)))],
             Some(&"LAYERB"),
         )
-            .unwrap();
+        .unwrap();
         let json_res = g
             .edge("A", "B")
             .unwrap()
@@ -430,7 +428,7 @@ mod db_tests {
             vec![("mymap".to_string(), Prop::Map(Arc::new(v)))],
             Some(&"LAYERC"),
         )
-            .unwrap();
+        .unwrap();
         let json_res = g
             .edge("A", "B")
             .unwrap()
@@ -657,8 +655,8 @@ mod db_tests {
             vec![("duration".to_string(), Prop::U32(5))],
             Some("a"),
         )
-            .map_err(|err| println!("{:?}", err))
-            .ok();
+        .map_err(|err| println!("{:?}", err))
+        .ok();
         g.add_edge(
             2,
             1,
@@ -666,8 +664,8 @@ mod db_tests {
             vec![("duration".to_string(), Prop::U32(5))],
             Some("a"),
         )
-            .map_err(|err| println!("{:?}", err))
-            .ok();
+        .map_err(|err| println!("{:?}", err))
+        .ok();
         g.add_edge(
             3,
             1,
@@ -675,8 +673,8 @@ mod db_tests {
             vec![("duration".to_string(), Prop::U32(5))],
             Some("a"),
         )
-            .map_err(|err| println!("{:?}", err))
-            .ok();
+        .map_err(|err| println!("{:?}", err))
+        .ok();
         g.add_edge(
             4,
             1,
@@ -684,8 +682,8 @@ mod db_tests {
             vec![("duration".to_string(), Prop::U32(6))],
             Some("b"),
         )
-            .map_err(|err| println!("{:?}", err))
-            .ok();
+        .map_err(|err| println!("{:?}", err))
+        .ok();
         g.add_edge(5, 1, 2, NO_PROPS, Some("c"))
             .map_err(|err| println!("{:?}", err))
             .ok();
@@ -759,7 +757,7 @@ mod db_tests {
             vec![("temp".to_string(), Prop::Bool(true))],
             None,
         )
-            .unwrap();
+        .unwrap();
         g.add_edge(0, 22, 33, NO_PROPS, None).unwrap();
         g.add_edge(0, 33, 11, NO_PROPS, None).unwrap();
         g.add_node(0, 11, vec![("temp".to_string(), Prop::Bool(true))], None)
@@ -1539,25 +1537,25 @@ mod db_tests {
         }
         let check = check
             && g.at(t0)
-            .properties()
-            .temporal()
-            .iter_latest()
-            .map(|(k, v)| (k.clone(), v))
-            .collect::<HashMap<_, _, _>>()
-            == t0_props;
+                .properties()
+                .temporal()
+                .iter_latest()
+                .map(|(k, v)| (k.clone(), v))
+                .collect::<HashMap<_, _, _>>()
+                == t0_props;
         if !check {
             println!("failed latest value comparison for {:?} at t0", str_props);
             return false;
         }
         let check = check
             && t1_props.iter().all(|(k, ve)| {
-            g.at(t1)
-                .properties()
-                .temporal()
-                .get(k)
-                .and_then(|v| v.latest())
-                == Some(ve.clone())
-        });
+                g.at(t1)
+                    .properties()
+                    .temporal()
+                    .get(k)
+                    .and_then(|v| v.latest())
+                    == Some(ve.clone())
+            });
         if !check {
             println!("failed latest value comparison for {:?} at t1", str_props);
             return false;
@@ -2190,9 +2188,7 @@ mod db_tests {
                 .neighbours()
                 .type_filter(&vec!["c", "b"])
                 .name()
-                .map(|n| {
-                    n.collect::<Vec<_>>()
-                })
+                .map(|n| { n.collect::<Vec<_>>() })
                 .collect_vec(),
             vec![vec!["2"], vec!["2", "5"]]
         );
@@ -2212,9 +2208,7 @@ mod db_tests {
                 .neighbours()
                 .type_filter(&vec!["c", "b"])
                 .name()
-                .map(|n| {
-                    n.collect::<Vec<_>>()
-                })
+                .map(|n| { n.collect::<Vec<_>>() })
                 .collect_vec(),
             vec![vec!["2"], vec!["2", "5"]]
         );
@@ -2234,18 +2228,13 @@ mod db_tests {
                 .neighbours()
                 .type_filter(&vec!["c", "b"])
                 .name()
-                .map(|n| {
-                    n.collect::<Vec<_>>()
-                })
+                .map(|n| { n.collect::<Vec<_>>() })
                 .collect_vec(),
             vec![vec!["2"], vec!["2", "5"]]
         );
 
         assert_eq!(
-            g.nodes()
-                .iter()
-                .map(|v| v.degree())
-                .collect::<Vec<_>>(),
+            g.nodes().iter().map(|v| v.degree()).collect::<Vec<_>>(),
             vec![1, 3, 2, 2, 2, 2]
         );
         assert_eq!(
@@ -2300,48 +2289,19 @@ mod db_tests {
             Vec::<&str>::new()
         );
 
-        assert_eq!(
-            g.nodes()
-                .len(),
-            6
-        );
-        assert_eq!(
-            g.nodes()
-                .type_filter(&vec!["b"])
-                .len(),
-            2
-        );
-        assert_eq!(
-            g.nodes()
-                .type_filter(&vec!["d"])
-                .len(),
-            0
-        );
+        assert_eq!(g.nodes().len(), 6);
+        assert_eq!(g.nodes().type_filter(&vec!["b"]).len(), 2);
+        assert_eq!(g.nodes().type_filter(&vec!["d"]).len(), 0);
+
+        assert_eq!(g.nodes().is_empty(), false);
+        assert_eq!(g.nodes().type_filter(&vec!["d"]).is_empty(), true);
 
         assert_eq!(
-            g.nodes()
-                .is_empty(),
-            false
-        );
-        assert_eq!(
-            g.nodes()
-                .type_filter(&vec!["d"])
-                .is_empty(),
-            true
-        );
-
-        assert_eq!(
-            g.nodes()
-                .type_filter(&vec!["a"])
-                .name()
-                .collect_vec(),
+            g.nodes().type_filter(&vec!["a"]).name().collect_vec(),
             vec!["1", "4"]
         );
         assert_eq!(
-            g.nodes()
-                .type_filter(&vec!["a", "c"])
-                .name()
-                .collect_vec(),
+            g.nodes().type_filter(&vec!["a", "c"]).name().collect_vec(),
             vec!["1", "4", "5"]
         );
 
@@ -2350,9 +2310,7 @@ mod db_tests {
                 .type_filter(&vec!["a"])
                 .neighbours()
                 .name()
-                .map(|n| {
-                    n.collect::<Vec<_>>()
-                })
+                .map(|n| { n.collect::<Vec<_>>() })
                 .collect_vec(),
             vec![vec!["2"], vec!["2", "5"]]
         );
@@ -2361,9 +2319,7 @@ mod db_tests {
                 .type_filter(&vec!["a", "c"])
                 .neighbours()
                 .name()
-                .map(|n| {
-                    n.collect::<Vec<_>>()
-                })
+                .map(|n| { n.collect::<Vec<_>>() })
                 .collect_vec(),
             vec![vec!["2"], vec!["2", "5"], vec!["4", "6"]]
         );
@@ -2372,9 +2328,7 @@ mod db_tests {
                 .type_filter(&vec!["d"])
                 .neighbours()
                 .name()
-                .map(|n| {
-                    n.collect::<Vec<_>>()
-                })
+                .map(|n| { n.collect::<Vec<_>>() })
                 .collect_vec(),
             Vec::<Vec<&str>>::new()
         );
@@ -2385,9 +2339,7 @@ mod db_tests {
                 .neighbours()
                 .type_filter(&vec!["c"])
                 .name()
-                .map(|n| {
-                    n.collect::<Vec<_>>()
-                })
+                .map(|n| { n.collect::<Vec<_>>() })
                 .collect_vec(),
             vec![vec![], vec!["5"]]
         );
@@ -2397,9 +2349,7 @@ mod db_tests {
                 .neighbours()
                 .type_filter(&Vec::<&str>::new())
                 .name()
-                .map(|n| {
-                    n.collect::<Vec<_>>()
-                })
+                .map(|n| { n.collect::<Vec<_>>() })
                 .collect_vec(),
             vec![vec![], Vec::<&str>::new()]
         );
@@ -2409,9 +2359,7 @@ mod db_tests {
                 .neighbours()
                 .type_filter(&vec!["c", "b"])
                 .name()
-                .map(|n| {
-                    n.collect::<Vec<_>>()
-                })
+                .map(|n| { n.collect::<Vec<_>>() })
                 .collect_vec(),
             vec![vec!["2"], vec!["2", "5"]]
         );
@@ -2421,9 +2369,7 @@ mod db_tests {
                 .neighbours()
                 .type_filter(&vec!["d"])
                 .name()
-                .map(|n| {
-                    n.collect::<Vec<_>>()
-                })
+                .map(|n| { n.collect::<Vec<_>>() })
                 .collect_vec(),
             vec![vec![], Vec::<&str>::new()]
         );
@@ -2434,9 +2380,7 @@ mod db_tests {
                 .neighbours()
                 .neighbours()
                 .name()
-                .map(|n| {
-                    n.collect::<Vec<_>>()
-                })
+                .map(|n| { n.collect::<Vec<_>>() })
                 .collect_vec(),
             vec![vec!["1", "3", "4"], vec!["1", "3", "4", "4", "6"]]
         );
@@ -2448,9 +2392,7 @@ mod db_tests {
                 .type_filter(&vec!["c"])
                 .neighbours()
                 .name()
-                .map(|n| {
-                    n.collect::<Vec<_>>()
-                })
+                .map(|n| { n.collect::<Vec<_>>() })
                 .collect_vec(),
             vec![vec![], vec!["4", "6"]]
         );
@@ -2460,9 +2402,7 @@ mod db_tests {
                 .neighbours()
                 .neighbours()
                 .name()
-                .map(|n| {
-                    n.collect::<Vec<_>>()
-                })
+                .map(|n| { n.collect::<Vec<_>>() })
                 .collect_vec(),
             vec![
                 vec!["1", "3", "4"],
@@ -2483,13 +2423,12 @@ mod db_tests {
             0
         );
 
-        assert!(
-            g.nodes()
-                .type_filter(&vec!["a"])
-                .neighbours()
-                .type_filter(&vec!["d"])
-                .is_all_empty()
-        );
+        assert!(g
+            .nodes()
+            .type_filter(&vec!["a"])
+            .neighbours()
+            .type_filter(&vec!["d"])
+            .is_all_empty());
 
         assert_eq!(
             g.nodes()
@@ -2497,9 +2436,7 @@ mod db_tests {
                 .neighbours()
                 .type_filter(&vec!["d"])
                 .iter()
-                .map(|n| {
-                    n.name().collect::<Vec<_>>()
-                })
+                .map(|n| { n.name().collect::<Vec<_>>() })
                 .collect_vec(),
             vec![vec![], Vec::<&str>::new()]
         );
@@ -2531,11 +2468,7 @@ mod db_tests {
         );
 
         assert_eq!(
-            g.node("2")
-                .unwrap()
-                .neighbours()
-                .name()
-                .collect_vec(),
+            g.node("2").unwrap().neighbours().name().collect_vec(),
             vec!["1", "3", "4"]
         );
 
@@ -2587,25 +2520,52 @@ mod db_tests {
                 .neighbours()
                 .name()
                 .collect_vec(),
-                vec!["2", "2", "6", "2", "5"],
-            );
+            vec!["2", "2", "6", "2", "5"],
+        );
 
         assert_eq!(
             g.node("2")
                 .unwrap()
                 .neighbours()
                 .type_filter(&vec!["d"])
-                .len(),
+                .total_count(),
             0
         );
 
-        assert!(
+        assert_eq!(
             g.node("2")
                 .unwrap()
                 .neighbours()
-                .type_filter(&vec!["d"])
-                .is_empty()
+                .type_filter(&vec!["a"])
+                .neighbours()
+                .total_count(),
+            3
         );
+
+        assert!(g
+            .node("2")
+            .unwrap()
+            .neighbours()
+            .type_filter(&vec!["d"])
+            .is_all_empty());
+
+        assert_eq!(
+            g.node("2")
+                .unwrap()
+                .neighbours()
+                .type_filter(&vec!["a"])
+                .neighbours()
+                .is_all_empty(),
+            false
+        );
+
+        assert!(g
+            .node("2")
+            .unwrap()
+            .neighbours()
+            .type_filter(&vec!["d"])
+            .neighbours()
+            .is_all_empty());
 
         assert_eq!(
             g.node("2")
@@ -2665,7 +2625,7 @@ mod db_tests {
             [("pgraph", Prop::PersistentGraph(PersistentGraph::new()))],
             None,
         )
-            .unwrap();
+        .unwrap();
         g.add_node(0, 1, [("bool", Prop::Bool(true))], None)
             .unwrap();
         g.add_node(0, 1, [("u32", Prop::U32(2))], None).unwrap();

@@ -66,7 +66,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromGraph<'g
         (self.nodes)()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item=PathFromNode<'graph, G, GH>> + Send + 'graph {
+    pub fn iter(&self) -> impl Iterator<Item = PathFromNode<'graph, G, GH>> + Send + 'graph {
         let graph = self.graph.clone();
         let base_graph = self.base_graph.clone();
         let op = self.op.clone();
@@ -77,7 +77,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromGraph<'g
         })
     }
 
-    pub fn iter_refs(&self) -> impl Iterator<Item=BoxedLIter<'graph, VID>> + Send + 'graph {
+    pub fn iter_refs(&self) -> impl Iterator<Item = BoxedLIter<'graph, VID>> + Send + 'graph {
         let op = self.op.clone();
         self.base_iter().map(move |vid| op(vid))
     }
@@ -122,10 +122,11 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromGraph<'g
             move |vid| {
                 let base_graph = base_graph.clone();
                 let node_types_filter = node_types_filter.clone();
-                old_op(vid).filter(move |v| {
-                    let node_type_id = base_graph.node_type_id(*v);
-                    node_types_filter[node_type_id]
-                })
+                old_op(vid)
+                    .filter(move |v| {
+                        let node_type_id = base_graph.node_type_id(*v);
+                        node_types_filter[node_type_id]
+                    })
                     .into_dyn_boxed()
             },
         )
@@ -137,7 +138,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromGraph<'g
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<'graph>
-for PathFromGraph<'graph, G, GH>
+    for PathFromGraph<'graph, G, GH>
 {
     type BaseGraph = G;
     type Graph = GH;
@@ -167,7 +168,7 @@ for PathFromGraph<'graph, G, GH>
     }
 
     fn map_edges<
-        I: Iterator<Item=EdgeRef> + Send + 'graph,
+        I: Iterator<Item = EdgeRef> + Send + 'graph,
         F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
@@ -196,7 +197,7 @@ for PathFromGraph<'graph, G, GH>
     }
 
     fn hop<
-        I: Iterator<Item=VID> + Send + 'graph,
+        I: Iterator<Item = VID> + Send + 'graph,
         F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
@@ -215,7 +216,7 @@ for PathFromGraph<'graph, G, GH>
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> IntoIterator
-for PathFromGraph<'graph, G, GH>
+    for PathFromGraph<'graph, G, GH>
 {
     type Item = PathFromNode<'graph, G, GH>;
     type IntoIter = BoxedLIter<'graph, Self::Item>;
@@ -237,7 +238,7 @@ for PathFromGraph<'graph, G, GH>
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'graph>
-for PathFromGraph<'graph, G, GH>
+    for PathFromGraph<'graph, G, GH>
 {
     type BaseGraph = G;
     type FilteredGraph = GH;
@@ -268,7 +269,7 @@ for PathFromGraph<'graph, G, GH>
 }
 
 impl From<PathFromNode<'static, DynamicGraph, LayeredGraph<DynamicGraph>>>
-for PathFromNode<'static, DynamicGraph, DynamicGraph>
+    for PathFromNode<'static, DynamicGraph, DynamicGraph>
 {
     fn from(value: PathFromNode<'static, DynamicGraph, LayeredGraph<DynamicGraph>>) -> Self {
         PathFromNode::new(DynamicGraph::new(value.graph.clone()), move || (value.op)())
@@ -276,7 +277,7 @@ for PathFromNode<'static, DynamicGraph, DynamicGraph>
 }
 
 impl From<PathFromNode<'static, DynamicGraph, WindowedGraph<DynamicGraph>>>
-for PathFromNode<'static, DynamicGraph, DynamicGraph>
+    for PathFromNode<'static, DynamicGraph, DynamicGraph>
 {
     fn from(value: PathFromNode<'static, DynamicGraph, WindowedGraph<DynamicGraph>>) -> Self {
         PathFromNode::new(DynamicGraph::new(value.graph.clone()), move || (value.op)())
@@ -284,7 +285,7 @@ for PathFromNode<'static, DynamicGraph, DynamicGraph>
 }
 
 impl From<PathFromNode<'static, DynamicGraph, TypeFilteredSubgraph<DynamicGraph>>>
-for PathFromNode<'static, DynamicGraph, DynamicGraph>
+    for PathFromNode<'static, DynamicGraph, DynamicGraph>
 {
     fn from(
         value: PathFromNode<'static, DynamicGraph, TypeFilteredSubgraph<DynamicGraph>>,
@@ -341,11 +342,11 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromNode<'gr
         Box::new(iter)
     }
 
-    pub fn len(&self) -> usize {
+    pub fn total_count(&self) -> usize {
         self.iter().count()
     }
 
-    pub fn is_empty(&self) -> bool {
+    pub fn is_all_empty(&self) -> bool {
         self.iter().next().is_none()
     }
 
@@ -369,17 +370,16 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromNode<'gr
         PathFromNode {
             base_graph: self.base_graph.clone(),
             graph: self.graph.clone(),
-            op: Arc::new(
-                move || {
-                    let base_graph = base_graph.clone();
-                    let node_types_filter = node_types_filter.clone();
-                    old_op().filter(move |v| {
+            op: Arc::new(move || {
+                let base_graph = base_graph.clone();
+                let node_types_filter = node_types_filter.clone();
+                old_op()
+                    .filter(move |v| {
                         let node_type_id = base_graph.node_type_id(*v);
                         node_types_filter[node_type_id]
                     })
-                        .into_dyn_boxed()
-                }
-            ),
+                    .into_dyn_boxed()
+            }),
         }
     }
 
@@ -389,7 +389,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromNode<'gr
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<'graph>
-for PathFromNode<'graph, G, GH>
+    for PathFromNode<'graph, G, GH>
 {
     type BaseGraph = G;
     type Graph = GH;
@@ -412,7 +412,7 @@ for PathFromNode<'graph, G, GH>
     }
 
     fn map_edges<
-        I: Iterator<Item=EdgeRef> + Send + 'graph,
+        I: Iterator<Item = EdgeRef> + Send + 'graph,
         F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
@@ -438,7 +438,7 @@ for PathFromNode<'graph, G, GH>
     }
 
     fn hop<
-        I: Iterator<Item=VID> + Send + 'graph,
+        I: Iterator<Item = VID> + Send + 'graph,
         F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
@@ -447,23 +447,19 @@ for PathFromNode<'graph, G, GH>
         let old_op = self.op.clone();
         let graph = self.graph.clone();
 
-        PathFromNode::new(
-            self.base_graph.clone(),
-            move || {
-                let op = op.clone();
-                let graph = graph.clone();
-                let cg = graph.core_graph();
-                old_op()
-                    .flat_map(move |vv| {
-                        op(&cg, &graph, vv)
-                    })
-                    .into_dyn_boxed()
-            })
+        PathFromNode::new(self.base_graph.clone(), move || {
+            let op = op.clone();
+            let graph = graph.clone();
+            let cg = graph.core_graph();
+            old_op()
+                .flat_map(move |vv| op(&cg, &graph, vv))
+                .into_dyn_boxed()
+        })
     }
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> IntoIterator
-for PathFromNode<'graph, G, GH>
+    for PathFromNode<'graph, G, GH>
 {
     type Item = NodeView<G, GH>;
     type IntoIter = BoxedLIter<'graph, NodeView<G, GH>>;
@@ -474,7 +470,7 @@ for PathFromNode<'graph, G, GH>
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'graph>
-for PathFromNode<'graph, G, GH>
+    for PathFromNode<'graph, G, GH>
 {
     type BaseGraph = G;
     type FilteredGraph = GH;

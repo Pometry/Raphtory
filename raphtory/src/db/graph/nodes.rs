@@ -26,9 +26,9 @@ pub struct Nodes<'graph, G, GH = G> {
 }
 
 impl<'graph, G, GH> From<Nodes<'graph, G, GH>> for Nodes<'graph, DynamicGraph, DynamicGraph>
-    where
-        G: GraphViewOps<'graph> + IntoDynamic,
-        GH: GraphViewOps<'graph> + IntoDynamic + Static,
+where
+    G: GraphViewOps<'graph> + IntoDynamic,
+    GH: GraphViewOps<'graph> + IntoDynamic + Static,
 {
     fn from(value: Nodes<'graph, G, GH>) -> Self {
         let base_graph = value.base_graph.into_dynamic();
@@ -43,8 +43,8 @@ impl<'graph, G, GH> From<Nodes<'graph, G, GH>> for Nodes<'graph, DynamicGraph, D
 }
 
 impl<'graph, G> Nodes<'graph, G, G>
-    where
-        G: GraphViewOps<'graph> + Clone,
+where
+    G: GraphViewOps<'graph> + Clone,
 {
     pub fn new(graph: G) -> Self {
         let base_graph = graph.clone();
@@ -58,9 +58,9 @@ impl<'graph, G> Nodes<'graph, G, G>
 }
 
 impl<'graph, G, GH> Nodes<'graph, G, GH>
-    where
-        G: GraphViewOps<'graph> + 'graph,
-        GH: GraphViewOps<'graph> + 'graph,
+where
+    G: GraphViewOps<'graph> + 'graph,
+    GH: GraphViewOps<'graph> + 'graph,
 {
     pub fn new_filtered(base_graph: G, graph: GH) -> Self {
         Self {
@@ -72,15 +72,16 @@ impl<'graph, G, GH> Nodes<'graph, G, GH>
     }
 
     #[inline]
-    fn iter_refs(&self) -> impl Iterator<Item=VID> + 'graph {
+    fn iter_refs(&self) -> impl Iterator<Item = VID> + 'graph {
         let g = self.graph.core_graph();
         let base_graph = self.base_graph.clone();
         let node_types_filter = self.node_types_filter.clone();
-        g.into_nodes_iter(self.graph.clone())
-            .filter(move |v| {
-                let node_type_id = base_graph.node_type_id(*v);
-                node_types_filter.as_ref().map_or(true, |filter| filter[node_type_id])
-            })
+        g.into_nodes_iter(self.graph.clone()).filter(move |v| {
+            let node_type_id = base_graph.node_type_id(*v);
+            node_types_filter
+                .as_ref()
+                .map_or(true, |filter| filter[node_type_id])
+        })
     }
 
     pub fn iter(&self) -> BoxedLIter<'graph, NodeView<G, GH>> {
@@ -91,14 +92,16 @@ impl<'graph, G, GH> Nodes<'graph, G, GH>
             .into_dyn_boxed()
     }
 
-    pub fn par_iter(&self) -> impl ParallelIterator<Item=NodeView<&G, &GH>> + '_ {
+    pub fn par_iter(&self) -> impl ParallelIterator<Item = NodeView<&G, &GH>> + '_ {
         let cg = self.graph.core_graph();
         let node_types_filter = self.node_types_filter.clone();
         let base_graph = self.base_graph.clone();
         cg.into_nodes_par(&self.graph)
             .filter(move |v| {
                 let node_type_id = base_graph.node_type_id(*v);
-                node_types_filter.as_ref().map_or(true, |filter| filter[node_type_id])
+                node_types_filter
+                    .as_ref()
+                    .map_or(true, |filter| filter[node_type_id])
             })
             .map(|v| NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, v))
     }
@@ -148,9 +151,9 @@ impl<'graph, G, GH> Nodes<'graph, G, GH>
 }
 
 impl<'graph, G, GH> BaseNodeViewOps<'graph> for Nodes<'graph, G, GH>
-    where
-        G: GraphViewOps<'graph> + 'graph,
-        GH: GraphViewOps<'graph> + 'graph,
+where
+    G: GraphViewOps<'graph> + 'graph,
+    GH: GraphViewOps<'graph> + 'graph,
 {
     type BaseGraph = G;
     type Graph = GH;
@@ -173,7 +176,7 @@ impl<'graph, G, GH> BaseNodeViewOps<'graph> for Nodes<'graph, G, GH>
     }
 
     fn map_edges<
-        I: Iterator<Item=EdgeRef> + Send + 'graph,
+        I: Iterator<Item = EdgeRef> + Send + 'graph,
         F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + 'graph,
     >(
         &self,
@@ -197,7 +200,7 @@ impl<'graph, G, GH> BaseNodeViewOps<'graph> for Nodes<'graph, G, GH>
     }
 
     fn hop<
-        I: Iterator<Item=VID> + Send + 'graph,
+        I: Iterator<Item = VID> + Send + 'graph,
         F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + 'graph,
     >(
         &self,
@@ -214,9 +217,9 @@ impl<'graph, G, GH> BaseNodeViewOps<'graph> for Nodes<'graph, G, GH>
 }
 
 impl<'graph, G, GH> OneHopFilter<'graph> for Nodes<'graph, G, GH>
-    where
-        G: GraphViewOps<'graph> + 'graph,
-        GH: GraphViewOps<'graph> + 'graph,
+where
+    G: GraphViewOps<'graph> + 'graph,
+    GH: GraphViewOps<'graph> + 'graph,
 {
     type BaseGraph = G;
     type FilteredGraph = GH;
@@ -245,9 +248,9 @@ impl<'graph, G, GH> OneHopFilter<'graph> for Nodes<'graph, G, GH>
 }
 
 impl<'graph, G, GH> IntoIterator for Nodes<'graph, G, GH>
-    where
-        G: GraphViewOps<'graph> + 'graph,
-        GH: GraphViewOps<'graph> + 'graph,
+where
+    G: GraphViewOps<'graph> + 'graph,
+    GH: GraphViewOps<'graph> + 'graph,
 {
     type Item = NodeView<G, GH>;
     type IntoIter = BoxedLIter<'graph, Self::Item>;
