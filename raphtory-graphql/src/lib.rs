@@ -474,4 +474,120 @@ mod graphql_test {
         let graph_roundtrip = url_decode_graph(graph_encoded).unwrap().into_dynamic();
         assert_eq!(g, graph_roundtrip);
     }
+
+    #[tokio::test]
+    async fn test_type_filter() {
+        let graph = Graph::new();
+        graph.add_constant_properties([("name", "graph")]).unwrap();
+        graph.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
+        graph.add_node(1, 2, NO_PROPS, Some("b")).unwrap();
+        graph.add_node(1, 3, NO_PROPS, Some("b")).unwrap();
+        graph.add_node(1, 4, NO_PROPS, Some("a")).unwrap();
+        graph.add_node(1, 5, NO_PROPS, Some("c")).unwrap();
+        graph.add_node(1, 6, NO_PROPS, Some("e")).unwrap();
+        graph.add_edge(2, 1, 2, NO_PROPS, Some("a")).unwrap();
+        graph.add_edge(2, 3, 2, NO_PROPS, Some("a")).unwrap();
+        graph.add_edge(2, 2, 4, NO_PROPS, Some("a")).unwrap();
+        graph.add_edge(2, 4, 5, NO_PROPS, Some("a")).unwrap();
+        graph.add_edge(2, 4, 5, NO_PROPS, Some("a")).unwrap();
+        graph.add_edge(2, 5, 6, NO_PROPS, Some("a")).unwrap();
+        graph.add_edge(2, 3, 6, NO_PROPS, Some("a")).unwrap();
+
+        let graphs = HashMap::from([("graph".to_string(), graph)]);
+        let data = Data::from_map(graphs);
+        let schema = App::create_schema().data(data).finish().unwrap();
+
+        let req = r#"
+        {
+          graph(name: "graph") {
+            nodes {
+              typeFilter(nodeTypes: ["a"]) {
+                list {
+                  name
+                }
+              }
+            }
+          }
+        }
+        "#;
+
+        let req = Request::new(req);
+        let res = schema.execute(req).await;
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({
+                "graph": {
+                  "nodes": {
+                    "typeFilter": {
+                      "list": [
+                        {
+                          "name": "1"
+                        },
+                        {
+                          "name": "4"
+                        }
+                      ]
+                    }
+                  }
+                }
+            }),
+        );
+
+        let req = r#"
+        {
+          graph(name: "graph") {
+            nodes {
+              typeFilter(nodeTypes: ["a"]) {
+                list{
+                  neighbours {
+                    list {
+                      name
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        "#;
+
+        let req = Request::new(req);
+        let res = schema.execute(req).await;
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({
+                "graph": {
+                  "nodes": {
+                    "typeFilter": {
+                      "list": [
+                        {
+                          "neighbours": {
+                            "list": [
+                              {
+                                "name": "2"
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "neighbours": {
+                            "list": [
+                              {
+                                "name": "2"
+                              },
+                              {
+                                "name": "5"
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+            }),
+        );
+    }
 }

@@ -81,12 +81,8 @@ impl GqlNodes {
         self.update(self.nn.shrink_end(end))
     }
 
-    async fn type_filter(&self, node_types: Vec<String>) -> Vec<Node> {
-        self.nn
-            .type_filter(&node_types)
-            .into_iter()
-            .map(Node::from)
-            .collect_vec()
+    async fn type_filter(&self, node_types: Vec<String>) -> Self {
+        self.update(self.nn.type_filter(&node_types))
     }
 
     ////////////////////////
