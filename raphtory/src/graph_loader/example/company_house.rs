@@ -1,5 +1,5 @@
 use crate::{graph_loader::source::csv_loader::CsvLoader, prelude::*};
-use chrono::NaiveDateTime;
+use chrono::DateTime;
 use serde::Deserialize;
 use std::{fs, path::PathBuf, time::Instant};
 
@@ -74,7 +74,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                 // };
 
                 g.add_node(
-                    NaiveDateTime::from_timestamp_opt(ts, 0).unwrap(),
+                    DateTime::from_timestamp(ts, 0).unwrap(),
                     owner.clone(),
                     NO_PROPS,
                     None,
@@ -84,7 +84,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                 .expect("Failed to add node static property");
 
                 g.add_node(
-                    NaiveDateTime::from_timestamp_opt(ts, 0).unwrap(),
+                    DateTime::from_timestamp(ts, 0).unwrap(),
                     company.clone(),
                     NO_PROPS,
                     None,
@@ -104,7 +104,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                 .expect("Failed to add node static property");
 
                 g.add_node(
-                    NaiveDateTime::from_timestamp_opt(ts, 0).unwrap(),
+                    DateTime::from_timestamp(ts, 0).unwrap(),
                     address.clone(),
                     NO_PROPS,
                     None,
@@ -124,7 +124,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                 .expect("Failed to add node static property");
 
                 g.add_edge(
-                    NaiveDateTime::from_timestamp_opt(ts, 0).unwrap(),
+                    DateTime::from_timestamp(ts, 0).unwrap(),
                     owner.clone(),
                     company.clone(),
                     NO_PROPS,
@@ -135,7 +135,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                 .expect("Failed to add edge static property");
 
                 g.add_edge(
-                    NaiveDateTime::from_timestamp_opt(ts, 0).unwrap(),
+                    DateTime::from_timestamp(ts, 0).unwrap(),
                     company.clone(),
                     address.clone(),
                     NO_PROPS,
@@ -166,8 +166,9 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
 
 #[cfg(test)]
 mod company_house_graph_test {
-    use super::*;
     use crate::db::api::view::{NodeViewOps, TimeOps};
+
+    use super::*;
 
     #[test]
     #[ignore]

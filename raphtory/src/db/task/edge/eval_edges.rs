@@ -12,10 +12,10 @@ use crate::{
         task::{
             edge::eval_edge::EvalEdgeView,
             node::{eval_node::EvalPathFromNode, eval_node_state::EVState},
-            task_state::Local2,
+            task_state::PrevLocalState,
         },
     },
-    prelude::GraphViewOps,
+    prelude::{GraphViewOps, ResetFilter},
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -23,7 +23,7 @@ pub struct EvalEdges<'graph, 'a, G, GH, CS: Clone, S> {
     pub(crate) ss: usize,
     pub(crate) edges: Edges<'graph, &'graph G, GH>,
     pub(crate) node_state: Rc<RefCell<EVState<'a, CS>>>,
-    pub(crate) local_state_prev: &'graph Local2<'a, S>,
+    pub(crate) local_state_prev: &'graph PrevLocalState<'a, S>,
 }
 
 impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, CS: Clone, S> Clone
@@ -111,6 +111,17 @@ impl<
             local_state_prev,
         }))
     }
+}
+
+impl<
+        'graph,
+        'a,
+        G: GraphViewOps<'graph>,
+        GH: GraphViewOps<'graph>,
+        CS: Clone + ComputeState,
+        S,
+    > ResetFilter<'graph> for EvalEdges<'graph, 'a, G, GH, CS, S>
+{
 }
 
 impl<

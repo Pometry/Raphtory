@@ -9,16 +9,12 @@ pub struct Global<CS: ComputeState>(Arc<ShuffleComputeState<CS>>);
 #[derive(Clone, Debug)]
 pub struct Shard<CS: ComputeState>(Arc<ShuffleComputeState<CS>>);
 
-// this contains the local shard state global and node specific and it is not synchronized
-#[derive(Clone, Debug)]
-pub(crate) struct Local<CS: ComputeState>(Arc<Option<ShuffleComputeState<CS>>>);
-
 #[derive(Debug)]
-pub(crate) struct Local2<'a, S> {
+pub(crate) struct PrevLocalState<'a, S> {
     pub(crate) state: &'a Vec<S>,
 }
 
-impl<'a, S: 'static> Local2<'a, S> {
+impl<'a, S: 'static> PrevLocalState<'a, S> {
     pub(crate) fn new(prev_local_state: &'a Vec<S>) -> Self {
         Self {
             state: prev_local_state,

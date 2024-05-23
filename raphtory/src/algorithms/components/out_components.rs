@@ -90,6 +90,7 @@ mod components_test {
     use super::*;
     use crate::{db::api::mutation::AdditionOps, prelude::*};
     use std::collections::HashMap;
+    use tempfile::TempDir;
 
     #[test]
     fn out_components_test() {
@@ -108,23 +109,33 @@ mod components_test {
         for (ts, src, dst) in edges {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
-        let results = out_components(&graph, None).get_all_with_names();
-        let mut correct = HashMap::new();
-        correct.insert("1".to_string(), vec![2, 3, 4, 5, 6, 7, 8]);
-        correct.insert("2".to_string(), vec![4, 5, 6, 7, 8]);
-        correct.insert("3".to_string(), vec![]);
-        correct.insert("4".to_string(), vec![6, 7]);
-        correct.insert("5".to_string(), vec![4, 6, 7, 8]);
-        correct.insert("6".to_string(), vec![]);
-        correct.insert("7".to_string(), vec![]);
-        correct.insert("8".to_string(), vec![]);
-        let map: HashMap<String, Vec<u64>> = results
-            .into_iter()
-            .map(|(k, mut v)| {
-                v.sort();
-                (k, v)
-            })
-            .collect();
-        assert_eq!(map, correct);
+
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let results = out_components(graph, None).get_all_with_names();
+            let mut correct = HashMap::new();
+            correct.insert("1".to_string(), vec![2, 3, 4, 5, 6, 7, 8]);
+            correct.insert("2".to_string(), vec![4, 5, 6, 7, 8]);
+            correct.insert("3".to_string(), vec![]);
+            correct.insert("4".to_string(), vec![6, 7]);
+            correct.insert("5".to_string(), vec![4, 6, 7, 8]);
+            correct.insert("6".to_string(), vec![]);
+            correct.insert("7".to_string(), vec![]);
+            correct.insert("8".to_string(), vec![]);
+            let map: HashMap<String, Vec<u64>> = results
+                .into_iter()
+                .map(|(k, mut v)| {
+                    v.sort();
+                    (k, v)
+                })
+                .collect();
+            assert_eq!(map, correct);
+        }
+        test(&graph);
+        #[cfg(feature = "arrow")]
+        test(&arrow_graph);
     }
 }

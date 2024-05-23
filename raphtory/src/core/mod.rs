@@ -24,8 +24,13 @@
 //!    * `macOS`
 //!
 
-use crate::{db::graph::graph::Graph, prelude::GraphViewOps};
+use crate::{
+    db::graph::{graph::Graph, views::deletion_graph::PersistentGraph},
+    prelude::GraphViewOps,
+};
 use chrono::{DateTime, NaiveDateTime, Utc};
+#[cfg(feature = "arrow")]
+use raphtory_arrow::interop::AsDir;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
@@ -37,7 +42,9 @@ use std::{
     ops::Deref,
     sync::Arc,
 };
-use thiserror::Error;
+
+#[cfg(feature = "arrow")]
+use crate::arrow2::datatypes::ArrowDataType as DataType;
 
 #[cfg(test)]
 extern crate core;
@@ -68,6 +75,13 @@ impl From<ArcStr> for String {
         value.to_string()
     }
 }
+
+impl From<&ArcStr> for String {
+    fn from(value: &ArcStr) -> Self {
+        value.clone().into()
+    }
+}
+
 impl Deref for ArcStr {
     type Target = Arc<str>;
 
@@ -123,11 +137,34 @@ impl<'a, O: AsRef<str> + 'a> OptionAsStr<'a> for Option<&'a O> {
 }
 
 /// Denotes the direction of an edge. Can be incoming, outgoing or both.
-#[derive(Clone, Copy, PartialEq, PartialOrd, Debug)]
+#[derive(
+    Clone,
+    Copy,
+    Hash,
+    Eq,
+    PartialEq,
+    PartialOrd,
+    Debug,
+    Default,
+    serde::Serialize,
+    serde::Deserialize,
+)]
 pub enum Direction {
     OUT,
     IN,
+    #[default]
     BOTH,
+}
+
+#[cfg(feature = "arrow")]
+impl AsDir for Direction {
+    fn as_dir(&self) -> raphtory_arrow::interop::Direction {
+        match self {
+            Direction::OUT => raphtory_arrow::interop::Direction::OUT,
+            Direction::IN => raphtory_arrow::interop::Direction::IN,
+            Direction::BOTH => raphtory_arrow::interop::Direction::BOTH,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
@@ -169,6 +206,7 @@ pub enum PropType {
     Map,
     NDTime,
     Graph,
+    PersistentGraph,
     Document,
     DTime,
 }
@@ -213,6 +251,27 @@ impl PropType {
     }
 }
 
+#[cfg(feature = "arrow")]
+impl From<&DataType> for PropType {
+    fn from(value: &DataType) -> Self {
+        match value {
+            DataType::Utf8 => PropType::Str,
+            DataType::LargeUtf8 => PropType::Str,
+            DataType::UInt8 => PropType::U8,
+            DataType::UInt16 => PropType::U16,
+            DataType::Int32 => PropType::I32,
+            DataType::Int64 => PropType::I64,
+            DataType::UInt32 => PropType::U32,
+            DataType::UInt64 => PropType::U64,
+            DataType::Float32 => PropType::F32,
+            DataType::Float64 => PropType::F64,
+            DataType::Boolean => PropType::Bool,
+
+            _ => PropType::Empty,
+        }
+    }
+}
+
 /// Denotes the types of properties allowed to be stored in the graph.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum Prop {
@@ -231,6 +290,7 @@ pub enum Prop {
     NDTime(NaiveDateTime),
     DTime(DateTime<Utc>),
     Graph(Graph),
+    PersistentGraph(PersistentGraph),
     Document(DocumentInput),
 }
 
@@ -281,6 +341,9 @@ impl Prop {
             Prop::DTime(value) => Value::String(value.to_string()),
             Prop::NDTime(value) => Value::String(value.to_string()),
             Prop::Graph(_) => Value::String("Graph cannot be converted to JSON".to_string()),
+            Prop::PersistentGraph(_) => {
+                Value::String("Persistent Graph cannot be converted to JSON".to_string())
+            }
             Prop::Document(DocumentInput { content, .. }) => Value::String(content.to_owned()), // TODO: return Value::Object ??
         }
     }
@@ -301,6 +364,7 @@ impl Prop {
             Prop::Map(_) => PropType::Map,
             Prop::NDTime(_) => PropType::NDTime,
             Prop::Graph(_) => PropType::Graph,
+            Prop::PersistentGraph(_) => PropType::PersistentGraph,
             Prop::Document(_) => PropType::Document,
             Prop::DTime(_) => PropType::DTime,
         }
@@ -437,6 +501,9 @@ pub trait PropUnwrap: Sized {
     }
 
     fn into_graph(self) -> Option<Graph>;
+
+    fn into_persistent_graph(self) -> Option<PersistentGraph>;
+
     fn unwrap_graph(self) -> Graph {
         self.into_graph().unwrap()
     }
@@ -502,6 +569,10 @@ impl<P: PropUnwrap> PropUnwrap for Option<P> {
 
     fn into_graph(self) -> Option<Graph> {
         self.and_then(|p| p.into_graph())
+    }
+
+    fn into_persistent_graph(self) -> Option<PersistentGraph> {
+        self.and_then(|p| p.into_persistent_graph())
     }
 
     fn into_document(self) -> Option<DocumentInput> {
@@ -622,6 +693,14 @@ impl PropUnwrap for Prop {
         }
     }
 
+    fn into_persistent_graph(self) -> Option<PersistentGraph> {
+        if let Prop::PersistentGraph(g) = self {
+            Some(g)
+        } else {
+            None
+        }
+    }
+
     fn into_document(self) -> Option<DocumentInput> {
         if let Prop::Document(d) = self {
             Some(d)
@@ -647,6 +726,12 @@ impl Display for Prop {
             Prop::DTime(value) => write!(f, "{}", value),
             Prop::NDTime(value) => write!(f, "{}", value),
             Prop::Graph(value) => write!(
+                f,
+                "Graph(num_nodes={}, num_edges={})",
+                value.count_nodes(),
+                value.count_edges()
+            ),
+            Prop::PersistentGraph(value) => write!(
                 f,
                 "Graph(num_nodes={}, num_edges={})",
                 value.count_nodes(),

@@ -7,6 +7,16 @@ sys.modules["raphtory.graph_loader"] = graph_loader
 sys.modules["raphtory.vectors"] = vectors
 sys.modules["raphtory.graphql"] = graphql
 
+try:
+    sys.modules["raphtory.arrow"] = arrow
+except Exception as e:
+    print(e)
+
+try:
+    sys.modules["raphtory.lanl"] = lanl
+except Exception as e:
+    print(e)
+
 from .nullmodels import *
 from .plottingutils import *
 

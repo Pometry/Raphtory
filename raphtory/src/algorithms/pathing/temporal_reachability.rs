@@ -205,6 +205,7 @@ pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: InputNode>(
 mod generic_taint_tests {
     use super::*;
     use crate::db::{api::mutation::AdditionOps, graph::graph::Graph};
+    use tempfile::TempDir;
 
     fn sort_inner_by_string(
         data: HashMap<String, Vec<(i64, String)>>,
@@ -226,15 +227,15 @@ mod generic_taint_tests {
         graph
     }
 
-    fn test_generic_taint<T: InputNode>(
-        graph: Graph,
+    fn test_generic_taint<T: InputNode, G: StaticGraphViewOps>(
+        graph: &G,
         iter_count: usize,
         start_time: i64,
         infected_nodes: Vec<T>,
         stop_nodes: Option<Vec<T>>,
     ) -> HashMap<String, Vec<(i64, String)>> {
         temporally_reachable_nodes(
-            &graph,
+            graph,
             None,
             iter_count,
             start_time,
@@ -259,24 +260,33 @@ mod generic_taint_tests {
             (10, 5, 8),
         ]);
 
-        let results = sort_inner_by_string(test_generic_taint(graph, 20, 11, vec![2], None));
-        let expected: Vec<(String, Vec<(i64, String)>)> = Vec::from([
-            ("1".to_string(), vec![]),
-            ("2".to_string(), vec![(11i64, "start".to_string())]),
-            ("3".to_string(), vec![]),
-            (
-                "4".to_string(),
-                vec![(12i64, "2".to_string()), (14i64, "5".to_string())],
-            ),
-            (
-                "5".to_string(),
-                vec![(13i64, "2".to_string()), (14i64, "5".to_string())],
-            ),
-            ("6".to_string(), vec![]),
-            ("7".to_string(), vec![(15i64, "4".to_string())]),
-            ("8".to_string(), vec![]),
-        ]);
-        assert_eq!(results, expected);
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let results = sort_inner_by_string(test_generic_taint(graph, 20, 11, vec![2], None));
+            let expected: Vec<(String, Vec<(i64, String)>)> = Vec::from([
+                ("1".to_string(), vec![]),
+                ("2".to_string(), vec![(11i64, "start".to_string())]),
+                ("3".to_string(), vec![]),
+                (
+                    "4".to_string(),
+                    vec![(12i64, "2".to_string()), (14i64, "5".to_string())],
+                ),
+                (
+                    "5".to_string(),
+                    vec![(13i64, "2".to_string()), (14i64, "5".to_string())],
+                ),
+                ("6".to_string(), vec![]),
+                ("7".to_string(), vec![(15i64, "4".to_string())]),
+                ("8".to_string(), vec![]),
+            ]);
+            assert_eq!(results, expected);
+        }
+        test(&graph);
+        #[cfg(feature = "arrow")]
+        test(&arrow_graph);
     }
 
     #[test]
@@ -294,27 +304,36 @@ mod generic_taint_tests {
             (10, 5, 8),
         ]);
 
-        let results = sort_inner_by_string(test_generic_taint(graph, 20, 11, vec![1, 2], None));
-        let expected: Vec<(String, Vec<(i64, String)>)> = Vec::from([
-            ("1".to_string(), vec![(11i64, "start".to_string())]),
-            (
-                "2".to_string(),
-                vec![(11i64, "start".to_string()), (11i64, "1".to_string())],
-            ),
-            ("3".to_string(), vec![]),
-            (
-                "4".to_string(),
-                vec![(12i64, "2".to_string()), (14i64, "5".to_string())],
-            ),
-            (
-                "5".to_string(),
-                vec![(13i64, "2".to_string()), (14i64, "5".to_string())],
-            ),
-            ("6".to_string(), vec![]),
-            ("7".to_string(), vec![(15i64, "4".to_string())]),
-            ("8".to_string(), vec![]),
-        ]);
-        assert_eq!(results, expected);
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let results = sort_inner_by_string(test_generic_taint(graph, 20, 11, vec![1, 2], None));
+            let expected: Vec<(String, Vec<(i64, String)>)> = Vec::from([
+                ("1".to_string(), vec![(11i64, "start".to_string())]),
+                (
+                    "2".to_string(),
+                    vec![(11i64, "start".to_string()), (11i64, "1".to_string())],
+                ),
+                ("3".to_string(), vec![]),
+                (
+                    "4".to_string(),
+                    vec![(12i64, "2".to_string()), (14i64, "5".to_string())],
+                ),
+                (
+                    "5".to_string(),
+                    vec![(13i64, "2".to_string()), (14i64, "5".to_string())],
+                ),
+                ("6".to_string(), vec![]),
+                ("7".to_string(), vec![(15i64, "4".to_string())]),
+                ("8".to_string(), vec![]),
+            ]);
+            assert_eq!(results, expected);
+        }
+        test(&graph);
+        #[cfg(feature = "arrow")]
+        test(&arrow_graph);
     }
 
     #[test]
@@ -332,27 +351,36 @@ mod generic_taint_tests {
             (10, 5, 8),
         ]);
 
-        let results = sort_inner_by_string(test_generic_taint(
-            graph,
-            20,
-            11,
-            vec![1, 2],
-            Some(vec![4, 5]),
-        ));
-        let expected: Vec<(String, Vec<(i64, String)>)> = Vec::from([
-            ("1".to_string(), vec![(11i64, "start".to_string())]),
-            (
-                "2".to_string(),
-                vec![(11i64, "start".to_string()), (11i64, "1".to_string())],
-            ),
-            ("3".to_string(), vec![]),
-            ("4".to_string(), vec![(12i64, "2".to_string())]),
-            ("5".to_string(), vec![(13i64, "2".to_string())]),
-            ("6".to_string(), vec![]),
-            ("7".to_string(), vec![]),
-            ("8".to_string(), vec![]),
-        ]);
-        assert_eq!(results, expected);
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let results = sort_inner_by_string(test_generic_taint(
+                graph,
+                20,
+                11,
+                vec![1, 2],
+                Some(vec![4, 5]),
+            ));
+            let expected: Vec<(String, Vec<(i64, String)>)> = Vec::from([
+                ("1".to_string(), vec![(11i64, "start".to_string())]),
+                (
+                    "2".to_string(),
+                    vec![(11i64, "start".to_string()), (11i64, "1".to_string())],
+                ),
+                ("3".to_string(), vec![]),
+                ("4".to_string(), vec![(12i64, "2".to_string())]),
+                ("5".to_string(), vec![(13i64, "2".to_string())]),
+                ("6".to_string(), vec![]),
+                ("7".to_string(), vec![]),
+                ("8".to_string(), vec![]),
+            ]);
+            assert_eq!(results, expected);
+        }
+        test(&graph);
+        #[cfg(feature = "arrow")]
+        test(&arrow_graph);
     }
 
     #[test]
@@ -372,30 +400,39 @@ mod generic_taint_tests {
             (10, 5, 8),
         ]);
 
-        let results = sort_inner_by_string(test_generic_taint(
-            graph,
-            20,
-            11,
-            vec![1, 2],
-            Some(vec![4, 5]),
-        ));
-        let expected: Vec<(String, Vec<(i64, String)>)> = Vec::from([
-            ("1".to_string(), vec![(11i64, "start".to_string())]),
-            (
-                "2".to_string(),
-                vec![
-                    (11i64, "start".to_string()),
-                    (11i64, "1".to_string()),
-                    (12i64, "1".to_string()),
-                ],
-            ),
-            ("3".to_string(), vec![]),
-            ("4".to_string(), vec![(12i64, "2".to_string())]),
-            ("5".to_string(), vec![(13i64, "2".to_string())]),
-            ("6".to_string(), vec![]),
-            ("7".to_string(), vec![]),
-            ("8".to_string(), vec![]),
-        ]);
-        assert_eq!(results, expected);
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let results = sort_inner_by_string(test_generic_taint(
+                graph,
+                20,
+                11,
+                vec![1, 2],
+                Some(vec![4, 5]),
+            ));
+            let expected: Vec<(String, Vec<(i64, String)>)> = Vec::from([
+                ("1".to_string(), vec![(11i64, "start".to_string())]),
+                (
+                    "2".to_string(),
+                    vec![
+                        (11i64, "start".to_string()),
+                        (11i64, "1".to_string()),
+                        (12i64, "1".to_string()),
+                    ],
+                ),
+                ("3".to_string(), vec![]),
+                ("4".to_string(), vec![(12i64, "2".to_string())]),
+                ("5".to_string(), vec![(13i64, "2".to_string())]),
+                ("6".to_string(), vec![]),
+                ("7".to_string(), vec![]),
+                ("8".to_string(), vec![]),
+            ]);
+            assert_eq!(results, expected);
+        }
+        test(&graph);
+        #[cfg(feature = "arrow")]
+        test(&arrow_graph);
     }
 }

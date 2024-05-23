@@ -14,7 +14,7 @@ use crate::{
             path::{PathFromGraph, PathFromNode},
         },
     },
-    prelude::GraphViewOps,
+    prelude::{GraphViewOps, ResetFilter},
 };
 use std::sync::Arc;
 
@@ -72,6 +72,14 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Edges<'graph, G,
     pub fn collect(&self) -> Vec<EdgeView<G, GH>> {
         self.iter().collect()
     }
+
+    pub fn get_const_prop_id(&self, prop_name: &str) -> Option<usize> {
+        self.graph.edge_meta().get_prop_id(prop_name, true)
+    }
+
+    pub fn get_temporal_prop_id(&self, prop_name: &str) -> Option<usize> {
+        self.graph.edge_meta().get_prop_id(prop_name, false)
+    }
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> IntoIterator
@@ -88,6 +96,11 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> IntoIterator
                 .map(move |e| EdgeView::new_filtered(base_graph.clone(), graph.clone(), e)),
         )
     }
+}
+
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> ResetFilter<'graph>
+    for Edges<'graph, G, GH>
+{
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<'graph>
@@ -224,6 +237,11 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'gr
             edges,
         }
     }
+}
+
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> ResetFilter<'graph>
+    for NestedEdges<'graph, G, GH>
+{
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<'graph>
