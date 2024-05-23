@@ -2,7 +2,14 @@
 #![allow(dead_code)]
 use itertools::Itertools;
 use raphtory::{
-    algorithms::{components::weakly_connected_components, motifs::triangle_count::triangle_count},
+    algorithms::{
+        components::weakly_connected_components,
+        motifs::{
+            global_temporal_three_node_motifs::global_temporal_three_node_motif,
+            local_temporal_three_node_motifs::temporal_three_node_motif,
+            triangle_count::triangle_count,
+        },
+    },
     graph_loader::source::csv_loader::CsvLoader,
     prelude::*,
 };
@@ -184,6 +191,15 @@ fn try_main_bm() -> Result<(), Box<dyn Error>> {
         num_edges,
         now.elapsed().as_millis()
     );
+
+    let now = Instant::now();
+    let motifs = global_temporal_three_node_motif(&graph, 3600, None);
+    println!(
+        "Counting motifs returned {:?} in {} milliseconds",
+        motifs,
+        now.elapsed().as_millis()
+    );
+
     let earliest_time = graph.start().ok_or(GraphEmptyError)?;
     let latest_time = graph.end().ok_or(GraphEmptyError)?;
     println!("graph time range: {}-{}", earliest_time, latest_time);

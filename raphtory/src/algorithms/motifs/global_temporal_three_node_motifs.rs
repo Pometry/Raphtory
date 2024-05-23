@@ -267,7 +267,7 @@ where
 
     println!("Counting triangles");
     let out1 = triangle_motifs(g, deltas.clone(), threads);
-    
+
     println!("Counting stars");
     let step1 = ATask::new(move |evv: &mut EvalNodeView<G, _>| {
         let g = evv.graph();
