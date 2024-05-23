@@ -86,7 +86,7 @@ def to_pyg_temporal(G, re_index=False, nodelist=None, node_props_to_save=[], edg
     Converts a Raphthory Graph to a temporalData object in PyTorch Geometric format.
 
     Args:
-        G (object): The Raphthory Graph object.
+        G (object): The Raphtory Graph object.
         re_index (bool, optional): If True, re-indexes node indices. Defaults to False.
         nodelist (list, optional): A list of node indices to include. If None, includes all nodes. Defaults to None.
         node_props_to_save (list, optional): A list of node properties to save. Defaults to [].
@@ -131,7 +131,7 @@ def to_pyg_temporal(G, re_index=False, nodelist=None, node_props_to_save=[], edg
     if "e_idx" in G.edges.properties.keys():
         events = sorted(G.edges.explode(), key = lambda e : (e.properties["e_idx"]))
     else:
-        events = sorted(G.edges.explode(), key = lambda e : (e.earliest_time, int(e.src.name),int(e.dst.name)))
+        events = sorted(G.edges.explode(), key = lambda e : (e.earliest_time, e.src.id,e.dst.id))
 
     i = 0
     for e in events:

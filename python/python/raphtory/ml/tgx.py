@@ -56,16 +56,16 @@ def to_tgx_edgelist(G, shift_t_zero=False, to_seconds=False):
 
     # they may need to be turned into seconds
     if to_seconds:
-        df["update_histories"] =  df["update_histories"]/1000
+        df["update_history"] =  df["update_history"]/1000
 
     # you may need to make the start from zero
     if shift_t_zero:
-        df["update_histories"] = (df["update_histories"] - min(df["update_history_exploded"])).astype(int)
+        df["update_history"] = (df["update_history"] - min(df["update_history_exploded"])).astype(int)
 
-    df = df[["src","dst","update_histories",]]
+    df = df[["src","dst","update_history",]]
     #print(df.shape)
 
-    edgelist = df_to_tgx_edgelist(df, time_col = 'update_histories', src_col = 'src', dst_col = 'dst')
+    edgelist = df_to_tgx_edgelist(df, time_col = 'update_history', src_col = 'src', dst_col = 'dst')
 
     return edgelist
 
@@ -89,11 +89,11 @@ def to_tgx_ctdg(G, shift_t_zero=False, to_seconds=False):
         - If to_seconds is True, time is converted to seconds.
     """
 
-    import tgx
+    import tgx as tgx_og
 
     edgelist = to_tgx_edgelist(G, shift_t_zero = False, to_seconds = False)
 
-    ctdg = tgx.Graph(edgelist=edgelist)
+    ctdg = tgx_og.Graph(edgelist=edgelist)
 
     return ctdg
 

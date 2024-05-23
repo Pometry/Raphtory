@@ -107,7 +107,7 @@ def to_pyg(G, re_index=False, nodelist=None, node_props_to_save=['x'], edge_prop
         mapping_node = dict(zip(G.nodes.id,G.nodes.id)) # returns the same id
 
     d.num_nodes = len(mapping_node)
-    print(d.num_nodes)
+    #print(d.num_nodes)
     # Preparing the edges
     src = []
     dst = []
