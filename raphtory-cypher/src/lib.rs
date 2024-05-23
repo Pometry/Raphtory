@@ -29,10 +29,12 @@ mod cypher_arrow {
         physical_plan::SendableRecordBatchStream,
     };
 
-    use super::executor::{table_provider::edge::EdgeListTableProvider, ExecError};
-    use super::parser::ast::*;
+    use super::{
+        executor::{table_provider::edge::EdgeListTableProvider, ExecError},
+        parser::ast::*,
+        *,
+    };
     use raphtory::arrow::graph_impl::ArrowGraph;
-    use super::*;
 
     use crate::{
         executor::table_provider::node::NodeTableProvider,

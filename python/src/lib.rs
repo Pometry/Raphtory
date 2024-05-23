@@ -4,6 +4,8 @@ extern crate core;
 
 use graphql::*;
 use pyo3::prelude::*;
+#[cfg(feature = "arrow")]
+use raphtory_core::python::graph::arrow::{PyArrowGraph, PyGraphQuery, PyState};
 use raphtory_core::python::{
     graph::{
         algorithm_result::AlgorithmResult,
@@ -23,8 +25,6 @@ use raphtory_core::python::{
     },
     types::wrappers::document::PyDocument,
 };
-#[cfg(feature = "arrow")]
-use raphtory_core::python::graph::arrow::{PyArrowGraph, PyGraphQuery, PyState};
 
 macro_rules! add_functions {
     ($module:expr, $($func:ident),* $(,)?) => {
@@ -117,10 +117,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     );
 
     #[cfg(feature = "arrow")]
-    add_functions!(
-        algorithm_module,
-        connected_components,
-    );
+    add_functions!(algorithm_module, connected_components,);
 
     m.add_submodule(algorithm_module)?;
 
