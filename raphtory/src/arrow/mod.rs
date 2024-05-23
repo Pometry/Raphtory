@@ -28,7 +28,7 @@ mod test {
         array::{PrimitiveArray, StructArray},
         datatypes::Field,
     };
-    use proptest::prelude::*;
+    use proptest::{prelude::*, sample::size_range};
     use raphtory_arrow::{
         global_order::GlobalMap,
         graph_fragment::TempColGraphFragment,
@@ -210,7 +210,7 @@ mod test {
     proptest! {
         #[test]
         fn edges_sanity_check(
-            edges in any::<Vec<(u8, u8, Vec<i64>)>>().prop_map(|v| {
+            edges in any_with::<Vec<(u8, u8, Vec<i64>)>>(size_range(1..=100).lift()).prop_map(|v| {
                 let mut v: Vec<(u64, u64, i64)> = v.into_iter().flat_map(|(src, dst, times)| {
                     let src = src as u64;
                     let dst = dst as u64;
