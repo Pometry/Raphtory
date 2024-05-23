@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1715854004877,
+  "lastUpdate": 1716460420717,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -51583,6 +51583,60 @@ window.BENCHMARK_DATA = {
             "name": "lotr_graph_window_10/max_degree",
             "value": 112144,
             "range": "± 316",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "2404621+fabianmurariu@users.noreply.github.com",
+            "name": "Fabian Murariu",
+            "username": "fabianmurariu"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e2514f965d787a013b902a381419cfba1a8b6df3",
+          "message": "Os master squashed (#1608)\n\n* move all arrow to raphtory-arrow remove some warnings, add parallel iterators\r\n\r\n* recover code_coverage.yml\r\n\r\n* reformat python and recover some changes from master\r\n\r\n* fixes #1583 (#1596)\r\n\r\n* fixes #1583\r\n\r\n* js raphtory persistent graph unimpl\r\n\r\n* impl tests\r\n\r\n* fmt\r\n\r\n* Bump scrapy from 2.11.1 to 2.11.2 (#1601)\r\n\r\nBumps [scrapy](https://github.com/scrapy/scrapy) from 2.11.1 to 2.11.2.\r\n- [Release notes](https://github.com/scrapy/scrapy/releases)\r\n- [Changelog](https://github.com/scrapy/scrapy/blob/master/docs/news.rst)\r\n- [Commits](https://github.com/scrapy/scrapy/compare/2.11.1...2.11.2)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: scrapy\r\n  dependency-type: direct:production\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\r\n\r\n* Graphql improvements (#1585)\r\n\r\n* Half way through improving expansion function\r\n\r\n* Removed unneeded functions\r\n\r\n* Fix warnings and fmt\r\n\r\n* fmt\r\n\r\n* removed filters\r\n\r\n* Fmt\r\n\r\n* removed filter test\r\n\r\n* Removed old test\r\n\r\n* Added property filters\r\n\r\n* Added new test\r\n\r\n* Made trace optional\r\n\r\n* fmt\r\n\r\n* Changes nodes to retun GQLEdges and GQLPathFromNodes\r\n\r\n* fixed tests\r\n\r\n* Added extra functions to path\r\n\r\n* fmt\r\n\r\n* fixed raphtory server\r\n\r\n* fmt\r\n\r\n* Fixed tests\r\n\r\n* fix rebase\r\n\r\n* rename Local2 to PrevLocalState and remove some comments\r\n\r\n* remove sys modules lanl from raphtory __init__.py\r\n\r\n* getting python to build and run tests\r\n\r\n* add script to hide arrow dependencies before publish\r\n\r\n* change release script to use --dry-run\r\n\r\n* add benchmark summary and fix permissions for latests benchmark action release\r\n\r\n* pass down base branch and dry-run flag to release workflows\r\n\r\n* fix manual_release_girhub and pass down args\r\n\r\n* fix manual_release_girhub and pass down args again\r\n\r\n* fix manual_release_girhub and pass down args 3\r\n\r\n* rename github to rust workflows to reflect content pass down the inputs correctly\r\n\r\n* remove some unused parquets\r\n\r\n* try nextest to speed-up test running\r\n\r\n* install nextest better\r\n\r\n* install nextest again\r\n\r\n* add unfiltered_num_edges optimisation\r\n\r\n* actually call unfiltered_num_edges\r\n\r\n* add the algobench to the CI and clean it up a little\r\n\r\n* use the cargo cache action for caching in benchmark as well\r\n\r\n* force cargo-nextest in rust workflow\r\n\r\n* revive python 3.8 and 3.9\r\n\r\n* really adding python 3.8 and 3.9\r\n\r\n* removed more unused binaries\r\n\r\n---------\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: Shivam Kapoor <4599890+iamsmkr@users.noreply.github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\r\nCo-authored-by: Ben Steer <b.a.steer@qmul.ac.uk>\r\nCo-authored-by: Lucas Jeub <lucas.jeub@pometry.com>",
+          "timestamp": "2024-05-23T11:20:44+01:00",
+          "tree_id": "19b16c3a1f19332eba99ed6c9d5ee4a6431ee8ee",
+          "url": "https://github.com/Pometry/Raphtory/commit/e2514f965d787a013b902a381419cfba1a8b6df3"
+        },
+        "date": 1716460419456,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "local_triangle_count/local_triangle_count",
+            "value": 946535,
+            "range": "± 29292",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "local_clustering_coefficient/local_clustering_coefficient",
+            "value": 9,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_clustering_coeff/graphgen_large_clustering_coeff/Graph(num_nodes=500004, num_edges=20...",
+            "value": 4049073136,
+            "range": "± 61200350",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_pagerank/graphgen_large_pagerank/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 520848974,
+            "range": "± 11759103",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_concomp/graphgen_large_concomp/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 3619427761,
+            "range": "± 98941270",
             "unit": "ns/iter"
           }
         ]
