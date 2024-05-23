@@ -15,7 +15,7 @@ edition.workspace = true
 
 [dependencies]
 raphtory = { path = "../raphtory" }
-raphtory-arrow.workspace = true
+# raphtory-arrow.workspace = true
 arrow.workspace = true
 arrow-buffer.workspace = true
 arrow-schema.workspace = true

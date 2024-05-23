@@ -16,8 +16,8 @@ edition.workspace = true
 [dependencies]
 itertools.workspace = true
 parking_lot.workspace = true
-raphtory = { path = "../raphtory", features = ["io", "arrow", "python"] }
-raphtory-arrow.workspace = true
+raphtory = { path = "../raphtory", features = ["io", "python"] }
+# raphtory-arrow.workspace = true
 rayon.workspace = true
 polars-arrow.workspace = true
 ahash.workspace = true
@@ -29,3 +29,6 @@ pyo3.workspace = true
 [dev-dependencies]
 serde.workspace = true
 proptest.workspace = true
+
+[features]
+arrow = ["raphtory/arrow"]

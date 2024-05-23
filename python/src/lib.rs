@@ -23,6 +23,7 @@ use raphtory_core::python::{
     },
     types::wrappers::document::PyDocument,
 };
+#[cfg(feature = "arrow")]
 use raphtory_storage::python::packages::algorithms::*;
 
 #[cfg(feature = "arrow")]
@@ -103,7 +104,6 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         temporally_reachable_nodes,
         local_clustering_coefficient,
         weakly_connected_components,
-        connected_components,
         strongly_connected_components,
         in_components,
         out_components,
@@ -118,6 +118,13 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         fruchterman_reingold,
         cohesive_fruchterman_reingold,
     );
+
+    #[cfg(feature = "arrow")]
+    add_functions!(
+        algorithm_module,
+        connected_components,
+    );
+
     m.add_submodule(algorithm_module)?;
 
     // let usecase_algorithm_module = PyModule::new(py, "usecase_algorithms")?;

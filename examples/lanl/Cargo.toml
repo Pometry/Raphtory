@@ -15,6 +15,6 @@ edition.workspace = true
 
 [dependencies]
 raphtory = { path = "../../raphtory", features = ["python"], version = "0.8.0" }
-raphtory-arrow.workspace = true
+# raphtory-arrow.workspace = true
 raphtory-storage = { path = "../../raphtory-storage", version = "0.8.0" }
 pyo3 = "0.20.0"

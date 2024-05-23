@@ -1,4 +1,4 @@
-use crate::arrow2::{
+use polars_arrow::{
     array::{Array, BooleanArray, FixedSizeListArray, ListArray, PrimitiveArray, Utf8Array},
     datatypes::{ArrowDataType as DataType, TimeUnit},
 };

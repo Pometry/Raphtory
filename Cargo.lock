@@ -2127,7 +2127,6 @@ name = "graph500"
 version = "0.8.1"
 dependencies = [
  "raphtory",
- "raphtory-arrow",
  "raphtory-storage",
  "serde_json",
 ]
@@ -2531,7 +2530,6 @@ version = "0.8.1"
 dependencies = [
  "pyo3",
  "raphtory",
- "raphtory-arrow",
  "raphtory-storage",
 ]
 
@@ -4008,7 +4006,6 @@ dependencies = [
  "quickcheck_macros",
  "rand 0.8.5",
  "rand_distr",
- "raphtory-arrow",
  "rayon",
  "regex",
  "reqwest",
@@ -4029,33 +4026,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "raphtory-arrow"
-version = "0.8.1"
-source = "git+ssh://git@github.com/Pometry/raphtory-arrow.git?branch=master#a50946715f4ed7e7644f2eea851a64d938137142"
-dependencies = [
- "ahash",
- "bincode",
- "bytemuck",
- "itertools 0.12.1",
- "memmap2",
- "num-traits",
- "once_cell",
- "parking_lot",
- "polars-arrow",
- "polars-parquet",
- "polars-utils",
- "rayon",
- "serde",
- "serde_json",
- "strum 0.26.2",
- "tempfile",
- "thiserror",
- "tracing",
- "tracing-subscriber",
- "twox-hash",
-]
-
-[[package]]
 name = "raphtory-benchmark"
 version = "0.8.1"
 dependencies = [
@@ -4063,7 +4033,6 @@ dependencies = [
  "polars-arrow",
  "rand 0.8.5",
  "raphtory",
- "raphtory-arrow",
  "rayon",
  "sorted_vector_map",
  "tempfile",
@@ -4090,7 +4059,6 @@ dependencies = [
  "proptest",
  "rand 0.8.5",
  "raphtory",
- "raphtory-arrow",
  "rayon",
  "serde",
  "serde_json",
@@ -4178,7 +4146,6 @@ dependencies = [
  "proptest",
  "pyo3",
  "raphtory",
- "raphtory-arrow",
  "rayon",
  "serde",
  "serde_json",
