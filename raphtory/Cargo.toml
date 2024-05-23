@@ -102,7 +102,6 @@ io = [
 # Enables generating the pyo3 python bindings
 python = [
     "io",
-    "arrow",
     "dep:pyo3",
     "dep:num",
     "dep:display-error-chain",
