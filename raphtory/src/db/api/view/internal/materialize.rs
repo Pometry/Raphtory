@@ -1,20 +1,13 @@
 use crate::{
     core::{
         entities::{
-            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-            nodes::{node_ref::NodeRef, node_store::NodeStore},
-            properties::{
-                graph_meta::GraphMeta,
-                props::Meta,
-                tprop::{LockedLayeredTProp, TProp},
-            },
-            LayerIds, EID, VID,
+            edges::edge_ref::EdgeRef,
+            graph::tgraph::InternalGraph,
+            nodes::node_ref::NodeRef,
+            properties::{graph_meta::GraphMeta, props::Meta, tprop::TProp},
+            LayerIds, EID, ELID, VID,
         },
-        storage::{
-            locked_view::LockedView,
-            timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry},
-            ArcEntry, Entry, ReadLockedStorage,
-        },
+        storage::locked_view::LockedView,
         utils::errors::GraphError,
         ArcStr, PropType,
     },
@@ -24,13 +17,20 @@ use crate::{
             properties::internal::{
                 ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
-            storage::locked::LockedGraph,
+            storage::{
+                edges::{
+                    edge_entry::EdgeStorageEntry, edge_owned_entry::EdgeOwnedEntry,
+                    edge_ref::EdgeStorageRef, edges::EdgesStorage,
+                },
+                nodes::{
+                    node_entry::NodeStorageEntry, node_owned_entry::NodeOwnedEntry,
+                    nodes::NodesStorage,
+                },
+                storage_ops::GraphStorage,
+            },
             view::{internal::*, BoxedIter},
         },
-        graph::{
-            graph::{Graph, InternalGraph},
-            views::deletion_graph::PersistentGraph,
-        },
+        graph::{graph::Graph, views::deletion_graph::PersistentGraph},
     },
     prelude::*,
     BINCODE_VERSION,
@@ -39,6 +39,7 @@ use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
 use std::path::Path;
+
 #[enum_dispatch(CoreGraphOps)]
 #[enum_dispatch(InternalLayerOps)]
 #[enum_dispatch(ListOps)]

@@ -60,10 +60,14 @@ pub fn degree_centrality<G: StaticGraphViewOps>(
 mod degree_centrality_test {
     use crate::{
         algorithms::centrality::degree_centrality::degree_centrality,
-        db::{api::mutation::AdditionOps, graph::graph::Graph},
+        db::{
+            api::{mutation::AdditionOps, view::StaticGraphViewOps},
+            graph::graph::Graph,
+        },
         prelude::NO_PROPS,
     };
     use std::collections::HashMap;
+    use tempfile::TempDir;
 
     #[test]
     fn test_degree_centrality() {
@@ -72,14 +76,23 @@ mod degree_centrality_test {
         for (src, dst) in &vs {
             graph.add_edge(0, *src, *dst, NO_PROPS, None).unwrap();
         }
-        let mut hash_map_result: HashMap<String, f64> = HashMap::new();
-        hash_map_result.insert("1".to_string(), 1.0);
-        hash_map_result.insert("2".to_string(), 1.0);
-        hash_map_result.insert("3".to_string(), 2.0 / 3.0);
-        hash_map_result.insert("4".to_string(), 2.0 / 3.0);
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
-        let binding = degree_centrality(&graph, None);
-        let res = binding.get_all_with_names();
-        assert_eq!(res, hash_map_result);
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let mut hash_map_result: HashMap<String, f64> = HashMap::new();
+            hash_map_result.insert("1".to_string(), 1.0);
+            hash_map_result.insert("2".to_string(), 1.0);
+            hash_map_result.insert("3".to_string(), 2.0 / 3.0);
+            hash_map_result.insert("4".to_string(), 2.0 / 3.0);
+
+            let binding = degree_centrality(graph, None);
+            let res = binding.get_all_with_names();
+            assert_eq!(res, hash_map_result);
+        }
+        test(&graph);
+        #[cfg(feature = "arrow")]
+        test(&arrow_graph);
     }
 }

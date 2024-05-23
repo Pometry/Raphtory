@@ -424,50 +424,71 @@ mod test {
             ComID, ModularityFunction, ModularityUnDir, Partition,
         },
         core::entities::VID,
+        db::api::view::StaticGraphViewOps,
         prelude::*,
     };
+    use tempfile::TempDir;
 
     #[test]
     fn test_delta() {
-        let g = Graph::new();
-        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
-        g.add_edge(0, 2, 1, NO_PROPS, None).unwrap();
+        let graph = Graph::new();
+        graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 2, 1, NO_PROPS, None).unwrap();
 
-        let mut m = ModularityUnDir::new(
-            &g,
-            None,
-            1.0,
-            Partition::new_singletons(g.count_nodes()),
-            1e-8,
-        );
-        let old_value = m.value();
-        assert_eq!(old_value, -0.5);
-        let delta = m.move_delta(&VID(0), ComID(1));
-        println!("delta: {delta}");
-        m.move_node(&VID(0), ComID(1));
-        assert_eq!(m.value(), old_value + delta)
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let mut m = ModularityUnDir::new(
+                graph,
+                None,
+                1.0,
+                Partition::new_singletons(graph.count_nodes()),
+                1e-8,
+            );
+            let old_value = m.value();
+            assert_eq!(old_value, -0.5);
+            let delta = m.move_delta(&VID(0), ComID(1));
+            println!("delta: {delta}");
+            m.move_node(&VID(0), ComID(1));
+            assert_eq!(m.value(), old_value + delta)
+        }
+        test(&graph);
+        #[cfg(feature = "arrow")]
+        test(&arrow_graph);
     }
 
     #[test]
     fn test_aggregation() {
-        let partition = Partition::from_iter([0usize, 0, 1, 1]);
-        let g = Graph::new();
-        g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
-        g.add_edge(0, 1, 0, NO_PROPS, None).unwrap();
-        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
-        g.add_edge(0, 2, 1, NO_PROPS, None).unwrap();
-        g.add_edge(0, 0, 3, NO_PROPS, None).unwrap();
-        g.add_edge(0, 3, 0, NO_PROPS, None).unwrap();
-        let mut m = ModularityUnDir::new(&g, None, 1.0, partition, 1e-8);
-        let value_before = m.value();
-        let _ = m.aggregate();
-        let value_after = m.value();
-        println!("before: {value_before}, after: {value_after}");
-        assert_eq!(value_after, value_before);
-        let delta = m.move_delta(&VID(0), ComID(1));
-        m.move_node(&VID(0), ComID(1));
-        let value_merged = m.value();
-        assert_eq!(value_merged, 0.0);
-        assert!((value_merged - (value_after + delta)).abs() < 1e-8);
+        let graph = Graph::new();
+        graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 1, 0, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 2, 1, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 0, 3, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 3, 0, NO_PROPS, None).unwrap();
+
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let partition = Partition::from_iter([0usize, 0, 1, 1]);
+            let mut m = ModularityUnDir::new(graph, None, 1.0, partition, 1e-8);
+            let value_before = m.value();
+            let _ = m.aggregate();
+            let value_after = m.value();
+            println!("before: {value_before}, after: {value_after}");
+            assert_eq!(value_after, value_before);
+            let delta = m.move_delta(&VID(0), ComID(1));
+            m.move_node(&VID(0), ComID(1));
+            let value_merged = m.value();
+            assert_eq!(value_merged, 0.0);
+            assert!((value_merged - (value_after + delta)).abs() < 1e-8);
+        }
+        test(&graph);
+        #[cfg(feature = "arrow")]
+        test(&arrow_graph);
     }
 }

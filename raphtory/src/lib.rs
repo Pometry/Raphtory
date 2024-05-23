@@ -88,6 +88,9 @@ pub mod core;
 pub mod db;
 pub mod graphgen;
 
+#[cfg(feature = "arrow")]
+pub mod arrow;
+
 #[cfg(all(feature = "python", not(doctest)))]
 // no doctests in python as the docstrings are python not rust format
 pub mod python;
@@ -104,13 +107,13 @@ pub mod vectors;
 pub mod prelude {
     pub const NO_PROPS: [(&str, Prop); 0] = [];
     pub use crate::{
-        core::{IntoProp, Prop, PropUnwrap},
+        core::{storage::timeindex::TimeIndexEntry, IntoProp, Prop, PropUnwrap},
         db::{
             api::{
                 mutation::{AdditionOps, DeletionOps, ImportOps, PropertyAdditionOps},
                 view::{
                     EdgeViewOps, GraphViewOps, Layer, LayerOps, NodeTypesFilter, NodeViewOps,
-                    TimeOps,
+                    ResetFilter, TimeOps,
                 },
             },
             graph::graph::Graph,
@@ -119,3 +122,5 @@ pub mod prelude {
 }
 
 pub const BINCODE_VERSION: u32 = 1u32;
+#[cfg(feature = "arrow")]
+pub use polars_arrow as arrow2;

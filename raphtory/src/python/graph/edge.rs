@@ -447,6 +447,12 @@ impl Into<Direction> for PyDirection {
     }
 }
 
+impl From<Direction> for PyDirection {
+    fn from(d: Direction) -> Self {
+        PyDirection { inner: d }
+    }
+}
+
 impl From<String> for PyDirection {
     fn from(s: String) -> Self {
         match s.to_uppercase().as_str() {

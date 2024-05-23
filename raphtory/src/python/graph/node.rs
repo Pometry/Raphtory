@@ -2,7 +2,11 @@
 //! A node is a node in the graph, and can have properties and edges.
 //! It can also be used to navigate the graph.
 use crate::{
-    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError, ArcStr, Prop},
+    core::{
+        entities::nodes::node_ref::{AsNodeRef, NodeRef},
+        utils::errors::GraphError,
+        ArcStr, Prop,
+    },
     db::{
         api::{
             properties::Properties,
@@ -68,9 +72,9 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
 }
 
 /// Converts a python node into a rust node.
-impl From<PyNode> for NodeRef {
-    fn from(value: PyNode) -> Self {
-        value.node.into()
+impl AsNodeRef for PyNode {
+    fn as_node_ref(&self) -> NodeRef {
+        self.node.as_node_ref()
     }
 }
 

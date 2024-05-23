@@ -19,7 +19,7 @@ jobs:
     steps:
       - id: set-matrix
         run: |
-            echo "python-versions=[\"3.8\",\"3.12\"]" >> $GITHUB_OUTPUT
+          echo "python-versions=[\"3.8\",\"3.12\"]" >> $GITHUB_OUTPUT
   python-test:
     if: ${{ !inputs.skip_tests }}
     name: Python Tests
@@ -27,11 +27,18 @@ jobs:
     strategy:
       matrix:
         python: ${{ fromJson(needs.select-strategy.outputs.python-versions) }}
-        os: [macos-latest, ubuntu-latest, windows-latest]
+        os: [ macos-latest, ubuntu-latest, windows-latest ]
     runs-on: '${{ matrix.os }}'
+    env:
+      CARGO_NET_GIT_FETCH_WITH_CLI: true
     steps:
       - uses: actions/checkout@v3
         name: Checkout
+      - uses: maxim-lobanov/setup-xcode@v1
+        name: Xcode version
+        if: "contains(matrix.os, 'macOS')"
+        with:
+          xcode-version: latest-stable
       - uses: actions-rs/toolchain@v1
         name: Setup Rust
         with:
@@ -39,6 +46,10 @@ jobs:
           toolchain: 1.77.0
           override: true
           components: rustfmt, clippy
+      - uses: webfactory/ssh-agent@v0.7.0
+        name: Load raphtory-arrow key
+        with:
+          ssh-private-key: ${{ secrets.RA_SSH_PRIVATE_KEY }}
       - uses: Swatinem/rust-cache@v2
         name: Cargo cache
         with:
@@ -54,7 +65,7 @@ jobs:
           working-directory: ./python
           command: build
           target: ${{ matrix.target }}
-          args: --release
+          args: --release --features arrow
       - name: Install Python dependencies (Unix)
         if: "contains(matrix.os, 'Ubuntu') || contains(matrix.os, 'macOS')"
         run: |

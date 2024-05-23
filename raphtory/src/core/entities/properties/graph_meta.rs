@@ -6,16 +6,12 @@ use crate::core::{
             tprop::TProp,
         },
     },
-    storage::{lazy_vec::IllegalSet, locked_view::LockedView, timeindex::TimeIndexEntry},
-    utils::errors::{GraphError, IllegalMutate, MutateGraphError},
+    storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
+    utils::errors::{GraphError, MutateGraphError},
     ArcStr, Prop, PropType,
 };
-use parking_lot::RwLockReadGuard;
 use serde::{Deserialize, Serialize};
-use std::{
-    ops::{Deref, DerefMut},
-    sync::Arc,
-};
+use std::ops::DerefMut;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GraphMeta {
