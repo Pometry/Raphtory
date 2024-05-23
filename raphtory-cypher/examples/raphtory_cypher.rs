@@ -5,6 +5,12 @@ pub use cyper_arrow::*;
 fn main() {}
 
 #[cfg(feature = "arrow")]
+#[tokio::main]
+async fn main() {
+    cyper_arrow::main().await;
+}
+
+#[cfg(feature = "arrow")]
 mod cyper_arrow {
     use std::{error::Error, str::FromStr};
 
@@ -121,8 +127,8 @@ mod cyper_arrow {
         Load(LoadGraph),
     }
 
-    #[tokio::main]
-    async fn main() {
+    // #[tokio::main]
+    pub async fn main() {
         let args = Args::parse();
 
         match args {

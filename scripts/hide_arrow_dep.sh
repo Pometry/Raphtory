@@ -3,11 +3,7 @@ set -e
 set -x
 # Hide arrow dependency in all Cargo.toml files
 
-# Detect the operating system
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    # macOS
-    find . -name "Cargo.toml" -type f -exec sed -i '' '/raphtory-arrow/ s/^/# /' {} +
-else
-    # Linux and other UNIX-like systems
-    find . -name "Cargo.toml" -type f -exec sed -i '/raphtory-arrow/ s/^/# /' {} +
-fi
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
+$SCRIPT_DIR/flip_ra.py Cargo.toml > Cargo.toml.bk
+mv Cargo.toml.bk Cargo.toml

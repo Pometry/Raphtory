@@ -2,6 +2,15 @@
 pub use cypher_arrow::*;
 
 #[cfg(feature = "arrow")]
+pub mod executor;
+#[cfg(feature = "arrow")]
+pub mod hop;
+#[cfg(feature = "arrow")]
+pub mod parser;
+#[cfg(feature = "arrow")]
+pub mod transpiler;
+
+#[cfg(feature = "arrow")]
 mod cypher_arrow {
     use arrow::compute::take;
     use std::sync::Arc;
@@ -20,19 +29,15 @@ mod cypher_arrow {
         physical_plan::SendableRecordBatchStream,
     };
 
-    use executor::{table_provider::edge::EdgeListTableProvider, ExecError};
-    use parser::ast::*;
+    use super::executor::{table_provider::edge::EdgeListTableProvider, ExecError};
+    use super::parser::ast::*;
     use raphtory::arrow::graph_impl::ArrowGraph;
+    use super::*;
 
     use crate::{
         executor::table_provider::node::NodeTableProvider,
         hop::rule::{HopQueryPlanner, HopRule},
     };
-
-    pub mod executor;
-    pub mod hop;
-    pub mod parser;
-    pub mod transpiler;
 
     pub use polars_arrow as arrow2;
 
@@ -52,7 +57,7 @@ mod cypher_arrow {
         enable_hop_optim: bool,
     ) -> Result<(SessionContext, LogicalPlan), ExecError> {
         // println!("Running query: {:?}", query);
-        let query = parser::parse_cypher(query)?;
+        let query = super::parser::parse_cypher(query)?;
 
         let config = SessionConfig::from_env()?.with_information_schema(true);
 
@@ -292,7 +297,8 @@ mod cypher_arrow {
                 let srcs = PrimitiveArray::from_vec(vec![1u64, 2u64, 2u64, 2u64]).boxed();
                 let dsts = PrimitiveArray::from_vec(vec![3u64, 3u64, 4u64, 4u64]).boxed();
                 let time = PrimitiveArray::from_vec(vec![2i64, 3i64, 4i64, 5i64]).boxed();
-                let weight = PrimitiveArray::from_vec(vec![3.14f64, 4.14f64, 5.14f64, 6.14f64]).boxed();
+                let weight =
+                    PrimitiveArray::from_vec(vec![3.14f64, 4.14f64, 5.14f64, 6.14f64]).boxed();
 
                 let chunk = StructArray::new(
                     ArrowDataType::Struct(schema().fields),
@@ -305,7 +311,8 @@ mod cypher_arrow {
                 let edge_lists = vec![chunk];
 
                 let graph =
-                    ArrowGraph::load_from_edge_lists(&edge_lists, 20, 20, graph_dir, 0, 1, 2).unwrap();
+                    ArrowGraph::load_from_edge_lists(&edge_lists, 20, 20, graph_dir, 0, 1, 2)
+                        .unwrap();
 
                 let df = run_cypher("match ()-[e]->() RETURN *", &graph, true)
                     .await
@@ -357,7 +364,7 @@ mod cypher_arrow {
                     None,
                     1,
                 )
-                    .unwrap();
+                .unwrap();
 
                 let df = run_cypher("match ()-[e]->() RETURN *", &graph, true)
                     .await
@@ -410,8 +417,8 @@ mod cypher_arrow {
                 &graph,
                 true,
             )
-                .await
-                .unwrap();
+            .await
+            .unwrap();
 
             let data = df.collect().await.unwrap();
             print_batches(&data).expect("failed to print batches");
@@ -462,8 +469,8 @@ mod cypher_arrow {
                 &graph,
                 true,
             )
-                .await
-                .unwrap();
+            .await
+            .unwrap();
 
             let data = df.collect().await.unwrap();
             print_batches(&data).unwrap();
@@ -479,8 +486,8 @@ mod cypher_arrow {
                 &graph,
                 true,
             )
-                .await
-                .unwrap();
+            .await
+            .unwrap();
 
             let data = df.collect().await.unwrap();
             print_batches(&data).unwrap();
@@ -510,10 +517,10 @@ mod cypher_arrow {
                     ("name", Prop::str(name.as_ref())),
                     ("age", Prop::I64(*age)),
                 ])
-                  .unwrap();
+                .unwrap();
                 if let Some(city) = city {
                     nv.add_constant_properties(vec![("city", Prop::str(city.as_ref()))])
-                      .unwrap();
+                        .unwrap();
                 }
             }
         }
@@ -561,8 +568,8 @@ mod cypher_arrow {
                 &graph,
                 true,
             )
-                .await
-                .unwrap();
+            .await
+            .unwrap();
 
             let data = df.collect().await.unwrap();
             print_batches(&data).unwrap();
@@ -578,8 +585,8 @@ mod cypher_arrow {
                 &graph,
                 true,
             )
-                .await
-                .unwrap();
+            .await
+            .unwrap();
             let data = df.collect().await.unwrap();
             print_batches(&data).unwrap();
         }
@@ -618,8 +625,8 @@ mod cypher_arrow {
                 &graph,
                 true,
             )
-                .await
-                .unwrap();
+            .await
+            .unwrap();
             let data = df.collect().await.unwrap();
             print_batches(&data).unwrap();
         }
@@ -682,8 +689,8 @@ mod cypher_arrow {
                 &graph,
                 true,
             )
-                .await
-                .unwrap();
+            .await
+            .unwrap();
 
             let data = df.collect().await.unwrap();
             print_batches(&data).expect("failed to print batches");
@@ -747,11 +754,10 @@ mod cypher_arrow {
                 &graph,
                 true,
             )
-                .await
-                .unwrap();
+            .await
+            .unwrap();
             let data = df.collect().await.unwrap();
             print_batches(&data).unwrap();
         }
     }
-
 }
