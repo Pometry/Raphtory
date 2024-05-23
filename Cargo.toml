@@ -1,7 +1,6 @@
 [workspace]
 members = [
     "raphtory",
-    "raphtory-storage",
     "raphtory-cypher",
     "raphtory-benchmark",
     "examples/rust",
@@ -9,10 +8,6 @@ members = [
     "python",
     "js-raphtory",
     "raphtory-graphql",
-    "comparison-benchmark/rust/raphtory-rust-benchmark",
-    "comparison-benchmark/graphql-benchmark/run_server",
-    "examples/lanl",
-    "examples/graph500"
 ]
 default-members = ["raphtory"]
 resolver = "2"
@@ -134,7 +129,7 @@ arrow-schema = { version = "50" }
 arrow-data = { version = "50" }
 arrow-array = { version = "50" }
 
-# # raphtory-arrow = { path = "../raphtory-arrow" }
+raphtory-arrow = { version = "0.8.1", path = "./raphtory-arrow" }
 # raphtory-arrow = { git = "ssh://git@github.com/Pometry/raphtory-arrow.git", branch = "master" }
 
 # Make sure that transitive dependencies stick to arrow 50

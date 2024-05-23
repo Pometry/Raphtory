@@ -73,7 +73,7 @@ tempfile = { workspace = true, optional = true }
 bytemuck = { workspace = true, optional = true }
 rpds = { workspace = true, optional = true }
 thread_local = { workspace = true, optional = true }
-# raphtory-arrow = { workspace = true, optional = true }
+raphtory-arrow = { workspace = true, optional = true }
 
 [dev-dependencies]
 csv = { workspace = true }
@@ -117,7 +117,7 @@ search = ["dep:tantivy"]
 vectors = ["dep:futures-util", "dep:async-trait", "dep:async-openai"]
 # arrow
 arrow = [
-#     "dep:raphtory-arrow",
+    "dep:raphtory-arrow",
     "dep:polars-arrow",
     "dep:polars-utils",
     "dep:polars-parquet",
