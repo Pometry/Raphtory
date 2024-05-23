@@ -2018,18 +2018,18 @@ mod db_tests {
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let e = graph.edge(1, 2).expect("edge");
 
-        let layer_exploded = e
-            .explode_layers()
-            .iter()
-            .flat_map(|e| {
-                e.explode().iter().filter_map(|e| {
-                    e.edge
-                        .layer()
-                        .zip(e.time().ok())
-                        .map(|(layer, t)| (t, e.src().id(), e.dst().id(), *layer))
+            let layer_exploded = e
+                .explode_layers()
+                .iter()
+                .flat_map(|e| {
+                    e.explode().iter().filter_map(|e| {
+                        e.edge
+                            .layer()
+                            .zip(e.time().ok())
+                            .map(|(layer, t)| (t, e.src().id(), e.dst().id(), *layer))
+                    })
                 })
-            })
-            .collect::<Vec<_>>();
+                .collect::<Vec<_>>();
 
             assert_eq!(
                 layer_exploded,
@@ -2057,18 +2057,18 @@ mod db_tests {
             let g = graph.window(0, 3);
             let e = g.edge(1, 2).expect("edge");
 
-        let layer_exploded = e
-            .explode_layers()
-            .iter()
-            .flat_map(|e| {
-                e.explode().iter().filter_map(|e| {
-                    e.edge
-                        .layer()
-                        .zip(Some(e.time().unwrap()))
-                        .map(|(layer, t)| (t, e.src().id(), e.dst().id(), *layer))
+            let layer_exploded = e
+                .explode_layers()
+                .iter()
+                .flat_map(|e| {
+                    e.explode().iter().filter_map(|e| {
+                        e.edge
+                            .layer()
+                            .zip(Some(e.time().unwrap()))
+                            .map(|(layer, t)| (t, e.src().id(), e.dst().id(), *layer))
+                    })
                 })
-            })
-            .collect::<Vec<_>>();
+                .collect::<Vec<_>>();
 
             assert_eq!(
                 layer_exploded,

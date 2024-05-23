@@ -421,11 +421,20 @@ mod test_edge_view {
                 .layer_name()
                 .all(|l| l.is_ok()));
             assert!(graph.edges().explode().layer_name().all(|l| l.is_ok()));
-            assert!(graph.edges().explode_layers().layer_name().all(|l| l.is_ok()));
+            assert!(graph
+                .edges()
+                .explode_layers()
+                .layer_name()
+                .all(|l| l.is_ok()));
 
             assert!(graph.edge(1, 2).unwrap().time().is_err());
             assert!(graph.edges().time().all(|l| l.is_err()));
-            assert!(graph.edge(1, 2).unwrap().explode().time().all(|l| l.is_ok()));
+            assert!(graph
+                .edge(1, 2)
+                .unwrap()
+                .explode()
+                .time()
+                .all(|l| l.is_ok()));
             assert!(graph
                 .edge(1, 2)
                 .unwrap()
