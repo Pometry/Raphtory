@@ -29,19 +29,10 @@ jobs:
         name: Checkout
       - name: Update Rust
         run: rustup update
-      - name: Set up cargo cache
-        uses: actions/cache@v3
-        continue-on-error: false
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/debug
-            target/release
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
+          cache-all-crates: true
       - uses: webfactory/ssh-agent@v0.9.0
         name: Load raphtory-arrow key
         with:
