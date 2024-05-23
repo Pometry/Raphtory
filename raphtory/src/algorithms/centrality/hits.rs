@@ -182,6 +182,7 @@ mod hits_tests {
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
     };
+    use tempfile::TempDir;
 
     use super::*;
 
@@ -213,21 +214,29 @@ mod hits_tests {
             (7, 3),
             (8, 1),
         ]);
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
-        let results = hits(&graph, 20, None).get_all_with_names();
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let results = hits(graph, 20, None).get_all_with_names();
 
-        assert_eq!(
-            results,
-            HashMap::from([
-                ("1".to_string(), (0.0431365, 0.096625775)),
-                ("2".to_string(), (0.14359662, 0.18366566)),
-                ("3".to_string(), (0.030866561, 0.36886504)),
-                ("4".to_string(), (0.1865414, 0.12442485)),
-                ("5".to_string(), (0.26667944, 0.05943252)),
-                ("6".to_string(), (0.14359662, 0.10755368)),
-                ("7".to_string(), (0.15471625, 0.0)),
-                ("8".to_string(), (0.030866561, 0.05943252))
-            ])
-        );
+            assert_eq!(
+                results,
+                HashMap::from([
+                    ("1".to_string(), (0.0431365, 0.096625775)),
+                    ("2".to_string(), (0.14359662, 0.18366566)),
+                    ("3".to_string(), (0.030866561, 0.36886504)),
+                    ("4".to_string(), (0.1865414, 0.12442485)),
+                    ("5".to_string(), (0.26667944, 0.05943252)),
+                    ("6".to_string(), (0.14359662, 0.10755368)),
+                    ("7".to_string(), (0.15471625, 0.0)),
+                    ("8".to_string(), (0.030866561, 0.05943252))
+                ])
+            );
+        }
+        test(&graph);
+        #[cfg(feature = "arrow")]
+        test(&arrow_graph);
     }
 }

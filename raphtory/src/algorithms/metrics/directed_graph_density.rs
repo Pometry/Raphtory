@@ -45,11 +45,12 @@ mod directed_graph_density_tests {
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
     };
+    use tempfile::TempDir;
 
     #[test]
     fn low_graph_density() {
-        let g = Graph::new();
-        let windowed_graph = g.window(0, 7);
+        let graph = Graph::new();
+
         let vs = vec![
             (1, 1, 2),
             (2, 1, 3),
@@ -60,28 +61,48 @@ mod directed_graph_density_tests {
         ];
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
+            graph.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
 
-        let actual = directed_graph_density(&windowed_graph);
-        let expected = 0.3;
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
-        assert_eq!(actual, expected);
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let windowed_graph = graph.window(0, 7);
+            let actual = directed_graph_density(&windowed_graph);
+            let expected = 0.3;
+
+            assert_eq!(actual, expected);
+        }
+        test(&graph);
+        #[cfg(feature = "arrow")]
+        test(&arrow_graph);
     }
 
     #[test]
     fn complete_graph_has_graph_density_of_one() {
-        let g = Graph::new();
-        let windowed_graph = g.window(0, 3);
+        let graph = Graph::new();
+
         let vs = vec![(1, 1, 2), (2, 2, 1)];
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
+            graph.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
 
-        let actual = directed_graph_density(&windowed_graph);
-        let expected = 1.0;
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
-        assert_eq!(actual, expected);
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let windowed_graph = graph.window(0, 3);
+            let actual = directed_graph_density(&windowed_graph);
+            let expected = 1.0;
+
+            assert_eq!(actual, expected);
+        }
+        test(&graph);
+        #[cfg(feature = "arrow")]
+        test(&arrow_graph);
     }
 }

@@ -315,6 +315,7 @@ mod motifs_test {
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
     };
+    use tempfile::TempDir;
 
     fn load_graph(edges: Vec<(i64, u64, u64)>) -> Graph {
         let graph = Graph::new();
@@ -327,7 +328,7 @@ mod motifs_test {
 
     #[test]
     fn test_global() {
-        let g = load_graph(vec![
+        let graph = load_graph(vec![
             (1, 1, 2),
             (1, 1, 2),
             (2, 1, 3),
@@ -355,17 +356,26 @@ mod motifs_test {
             (23, 11, 9),
         ]);
 
-        let global_motifs = &temporal_three_node_motif_multi(&g, vec![10], None);
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
-        let expected: [usize; 40] = vec![
-            0, 2, 3, 8, 2, 4, 1, 5, 0, 0, 0, 0, 1, 0, 2, 0, 0, 1, 6, 0, 0, 1, 10, 2, 0, 1, 0, 0, 0,
-            0, 1, 0, 2, 3, 2, 4, 1, 2, 4, 1,
-        ]
-        .into_iter()
-        .map(|x| x as usize)
-        .collect::<Vec<usize>>()
-        .try_into()
-        .unwrap();
-        assert_eq!(global_motifs[0], expected);
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let global_motifs = &temporal_three_node_motif_multi(graph, vec![10], None);
+
+            let expected: [usize; 40] = vec![
+                0, 2, 3, 8, 2, 4, 1, 5, 0, 0, 0, 0, 1, 0, 2, 0, 0, 1, 6, 0, 0, 1, 10, 2, 0, 1, 0,
+                0, 0, 0, 1, 0, 2, 3, 2, 4, 1, 2, 4, 1,
+            ]
+            .into_iter()
+            .map(|x| x as usize)
+            .collect::<Vec<usize>>()
+            .try_into()
+            .unwrap();
+            assert_eq!(global_motifs[0], expected);
+        }
+        test(&graph);
+        #[cfg(feature = "arrow")]
+        test(&arrow_graph);
     }
 }

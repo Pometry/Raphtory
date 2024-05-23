@@ -1,4 +1,6 @@
 pub mod algorithm_result;
+#[cfg(feature = "arrow")]
+pub mod arrow;
 pub mod edge;
 pub mod graph;
 pub mod graph_with_deletions;

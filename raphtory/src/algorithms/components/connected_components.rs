@@ -86,6 +86,7 @@ where
         None,
         None,
     );
+
     AlgorithmResult::new(graph.clone(), "Connected Components", results_type, res)
 }
 
@@ -96,6 +97,7 @@ mod cc_test {
     use itertools::*;
     use quickcheck_macros::quickcheck;
     use std::{cmp::Reverse, collections::HashMap, iter::once};
+    use tempfile::TempDir;
 
     #[test]
     fn run_loop_simple_connected_components() {
@@ -114,22 +116,32 @@ mod cc_test {
         for (src, dst, ts) in edges {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
-        let results = weakly_connected_components(&graph, usize::MAX, None).get_all_with_names();
-        assert_eq!(
-            results,
-            vec![
-                ("1".to_string(), 1),
-                ("2".to_string(), 1),
-                ("3".to_string(), 1),
-                ("4".to_string(), 1),
-                ("5".to_string(), 1),
-                ("6".to_string(), 1),
-                ("7".to_string(), 7),
-                ("8".to_string(), 7),
-            ]
-            .into_iter()
-            .collect::<HashMap<String, u64>>()
-        );
+
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let results = weakly_connected_components(graph, usize::MAX, None).get_all_with_names();
+            assert_eq!(
+                results,
+                vec![
+                    ("1".to_string(), 1),
+                    ("2".to_string(), 1),
+                    ("3".to_string(), 1),
+                    ("4".to_string(), 1),
+                    ("5".to_string(), 1),
+                    ("6".to_string(), 1),
+                    ("7".to_string(), 7),
+                    ("8".to_string(), 7),
+                ]
+                .into_iter()
+                .collect::<HashMap<String, u64>>()
+            );
+        }
+        test(&graph);
+        #[cfg(feature = "arrow")]
+        test(&arrow_graph);
     }
 
     #[test]
@@ -166,26 +178,35 @@ mod cc_test {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let results = weakly_connected_components(&graph, usize::MAX, None).get_all_with_names();
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
-        assert_eq!(
-            results,
-            vec![
-                ("1".to_string(), 1),
-                ("2".to_string(), 1),
-                ("3".to_string(), 1),
-                ("4".to_string(), 1),
-                ("5".to_string(), 1),
-                ("6".to_string(), 1),
-                ("7".to_string(), 1),
-                ("8".to_string(), 1),
-                ("9".to_string(), 1),
-                ("10".to_string(), 1),
-                ("11".to_string(), 1),
-            ]
-            .into_iter()
-            .collect::<HashMap<String, u64>>()
-        );
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let results = weakly_connected_components(graph, usize::MAX, None).get_all_with_names();
+
+            assert_eq!(
+                results,
+                vec![
+                    ("1".to_string(), 1),
+                    ("2".to_string(), 1),
+                    ("3".to_string(), 1),
+                    ("4".to_string(), 1),
+                    ("5".to_string(), 1),
+                    ("6".to_string(), 1),
+                    ("7".to_string(), 1),
+                    ("8".to_string(), 1),
+                    ("9".to_string(), 1),
+                    ("10".to_string(), 1),
+                    ("11".to_string(), 1),
+                ]
+                .into_iter()
+                .collect::<HashMap<String, u64>>()
+            );
+        }
+        test(&graph);
+        #[cfg(feature = "arrow")]
+        test(&arrow_graph);
     }
 
     // connected community_detection on a graph with 1 node and a self loop
@@ -199,14 +220,23 @@ mod cc_test {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let results = weakly_connected_components(&graph, usize::MAX, None).get_all_with_names();
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
-        assert_eq!(
-            results,
-            vec![("1".to_string(), 1)]
-                .into_iter()
-                .collect::<HashMap<String, u64>>()
-        );
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let results = weakly_connected_components(graph, usize::MAX, None).get_all_with_names();
+
+            assert_eq!(
+                results,
+                vec![("1".to_string(), 1)]
+                    .into_iter()
+                    .collect::<HashMap<String, u64>>()
+            );
+        }
+        test(&graph);
+        #[cfg(feature = "arrow")]
+        test(&arrow_graph);
     }
 
     #[test]
@@ -217,27 +247,36 @@ mod cc_test {
         graph.add_edge(9, 3, 4, NO_PROPS, None).expect("add edge");
         graph.add_edge(9, 4, 3, NO_PROPS, None).expect("add edge");
 
-        let results = weakly_connected_components(&graph, usize::MAX, None).get_all_with_names();
-        let expected = vec![
-            ("1".to_string(), 1),
-            ("2".to_string(), 1),
-            ("3".to_string(), 3),
-            ("4".to_string(), 3),
-        ]
-        .into_iter()
-        .collect::<HashMap<String, u64>>();
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
-        assert_eq!(results, expected);
-
-        let wg = graph.window(0, 2);
-        let results = weakly_connected_components(&wg, usize::MAX, None).get_all_with_names();
-
-        let expected = vec![("1", 1), ("2", 1)]
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let results = weakly_connected_components(graph, usize::MAX, None).get_all_with_names();
+            let expected = vec![
+                ("1".to_string(), 1),
+                ("2".to_string(), 1),
+                ("3".to_string(), 3),
+                ("4".to_string(), 3),
+            ]
             .into_iter()
-            .map(|(k, v)| (k.to_string(), v))
             .collect::<HashMap<String, u64>>();
 
-        assert_eq!(results, expected);
+            assert_eq!(results, expected);
+
+            let wg = graph.window(0, 2);
+            let results = weakly_connected_components(&wg, usize::MAX, None).get_all_with_names();
+
+            let expected = vec![("1", 1), ("2", 1)]
+                .into_iter()
+                .map(|(k, v)| (k.to_string(), v))
+                .collect::<HashMap<String, u64>>();
+
+            assert_eq!(results, expected);
+        }
+        test(&graph);
+        #[cfg(feature = "arrow")]
+        test(&arrow_graph);
     }
 
     #[quickcheck]
@@ -282,19 +321,28 @@ mod cc_test {
                 graph.add_edge(0, *src, *dst, NO_PROPS, None).unwrap();
             }
 
-            // now we do connected community_detection over window 0..1
-            let res = weakly_connected_components(&graph, usize::MAX, None).group_by();
+            let test_dir = TempDir::new().unwrap();
+            #[cfg(feature = "arrow")]
+            let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
-            let actual = res
-                .into_iter()
-                .map(|(cc, group)| (cc, Reverse(group.len())))
-                .sorted_by(|l, r| l.1.cmp(&r.1))
-                .map(|(cc, count)| (cc, count.0))
-                .take(1)
-                .next()
-                .unwrap();
+            fn test<G: StaticGraphViewOps>(graph: &G, smallest: &u64, edges: &[(u64, u64)]) {
+                // now we do connected community_detection over window 0..1
+                let res = weakly_connected_components(graph, usize::MAX, None).group_by();
 
-            assert_eq!(actual, (*smallest, edges.len()));
+                let actual = res
+                    .into_iter()
+                    .map(|(cc, group)| (cc, Reverse(group.len())))
+                    .sorted_by(|l, r| l.1.cmp(&r.1))
+                    .map(|(cc, count)| (cc, count.0))
+                    .take(1)
+                    .next()
+                    .unwrap();
+
+                assert_eq!(actual, (*smallest, edges.len()));
+            }
+            test(&graph, smallest, &edges);
+            #[cfg(feature = "arrow")]
+            test(&arrow_graph, smallest, &edges);
         }
     }
 }

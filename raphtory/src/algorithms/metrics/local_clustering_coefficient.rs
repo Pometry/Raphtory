@@ -50,15 +50,15 @@
 
 use crate::{
     algorithms::motifs::local_triangle_count::local_triangle_count,
-    core::entities::nodes::node_ref::NodeRef, db::api::view::*,
+    core::entities::nodes::node_ref::AsNodeRef, db::api::view::*,
 };
 
 /// measures the degree to which nodes in a graph tend to cluster together
-pub fn local_clustering_coefficient<G: StaticGraphViewOps, V: Into<NodeRef>>(
+pub fn local_clustering_coefficient<G: StaticGraphViewOps, V: AsNodeRef>(
     graph: &G,
     v: V,
 ) -> Option<f32> {
-    let v = v.into();
+    let v = v.as_node_ref();
     if let Some(node) = graph.node(v) {
         if let Some(triangle_count) = local_triangle_count(graph, v) {
             let triangle_count = triangle_count as f32;
@@ -86,11 +86,11 @@ mod clustering_coefficient_tests {
         },
         prelude::NO_PROPS,
     };
+    use tempfile::TempDir;
 
     #[test]
     fn clusters_of_triangles() {
-        let g = Graph::new();
-        let windowed_graph = g.window(0, 7);
+        let graph = Graph::new();
         let vs = vec![
             (1, 1, 2),
             (2, 1, 3),
@@ -101,15 +101,24 @@ mod clustering_coefficient_tests {
         ];
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
+            graph.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
 
-        let expected = vec![0.33333334, 1.0, 1.0, 0.0, 0.0];
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
-        let actual = (1..=5)
-            .map(|v| local_clustering_coefficient(&windowed_graph, v).unwrap())
-            .collect::<Vec<_>>();
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let expected = vec![0.33333334, 1.0, 1.0, 0.0, 0.0];
+            let windowed_graph = graph.window(0, 7);
+            let actual = (1..=5)
+                .map(|v| local_clustering_coefficient(&windowed_graph, v).unwrap())
+                .collect::<Vec<_>>();
 
-        assert_eq!(actual, expected);
+            assert_eq!(actual, expected);
+        }
+        test(&graph);
+        #[cfg(feature = "arrow")]
+        test(&arrow_graph);
     }
 }

@@ -4,7 +4,7 @@
 //! It finds the shortest paths from a given source node to all other nodes in a graph.
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
-    core::entities::{nodes::input_node::InputNode, VID},
+    core::entities::{nodes::node_ref::AsNodeRef, VID},
     db::graph::node::NodeView,
     prelude::*,
 };
@@ -22,15 +22,14 @@ use std::collections::HashMap;
 ///
 /// Returns an `AlgorithmResult<String, Vec<String>>` containing the shortest paths from the source to all reachable nodes.
 ///
-pub fn single_source_shortest_path<'graph, G: GraphViewOps<'graph>, T: InputNode>(
+pub fn single_source_shortest_path<'graph, G: GraphViewOps<'graph>, T: AsNodeRef>(
     g: &G,
     source: T,
     cutoff: Option<usize>,
 ) -> AlgorithmResult<G, Vec<String>, Vec<String>> {
     let results_type = std::any::type_name::<Vec<String>>();
     let mut paths: HashMap<usize, Vec<String>> = HashMap::new();
-    if g.has_node(source.clone()) {
-        let source_node = g.node(source).unwrap();
+    if let Some(source_node) = g.node(source) {
         let node_internal_id = source_node.node.0;
         let mut level = 0;
         let mut nextlevel: HashMap<usize, String> = HashMap::new();
@@ -80,7 +79,11 @@ pub fn single_source_shortest_path<'graph, G: GraphViewOps<'graph>, T: InputNode
 #[cfg(test)]
 mod sssp_tests {
     use super::*;
-    use crate::db::{api::mutation::AdditionOps, graph::graph::Graph};
+    use crate::db::{
+        api::{mutation::AdditionOps, view::StaticGraphViewOps},
+        graph::graph::Graph,
+    };
+    use tempfile::TempDir;
 
     fn load_graph(edges: Vec<(i64, u64, u64)>) -> Graph {
         let graph = Graph::new();
@@ -104,29 +107,38 @@ mod sssp_tests {
             (8, 5, 6),
         ]);
 
-        let binding = single_source_shortest_path(&graph, 1, Some(4));
-        let results = binding.get_all_with_names();
-        let expected: HashMap<String, Vec<String>> = HashMap::from([
-            ("1".to_string(), vec!["1".to_string()]),
-            ("2".to_string(), vec!["1".to_string(), "2".to_string()]),
-            ("3".to_string(), vec!["1".to_string(), "3".to_string()]),
-            ("4".to_string(), vec!["1".to_string(), "4".to_string()]),
-            (
-                "5".to_string(),
-                vec!["1".to_string(), "4".to_string(), "5".to_string()],
-            ),
-            (
-                "6".to_string(),
-                vec![
-                    "1".to_string(),
-                    "4".to_string(),
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let binding = single_source_shortest_path(graph, 1, Some(4));
+            let results = binding.get_all_with_names();
+            let expected: HashMap<String, Vec<String>> = HashMap::from([
+                ("1".to_string(), vec!["1".to_string()]),
+                ("2".to_string(), vec!["1".to_string(), "2".to_string()]),
+                ("3".to_string(), vec!["1".to_string(), "3".to_string()]),
+                ("4".to_string(), vec!["1".to_string(), "4".to_string()]),
+                (
                     "5".to_string(),
+                    vec!["1".to_string(), "4".to_string(), "5".to_string()],
+                ),
+                (
                     "6".to_string(),
-                ],
-            ),
-        ]);
-        assert_eq!(results, expected);
-        let binding = single_source_shortest_path(&graph, 5, Some(4));
-        println!("{:?}", binding.get_all_with_names());
+                    vec![
+                        "1".to_string(),
+                        "4".to_string(),
+                        "5".to_string(),
+                        "6".to_string(),
+                    ],
+                ),
+            ]);
+            assert_eq!(results, expected);
+            let binding = single_source_shortest_path(graph, 5, Some(4));
+            println!("{:?}", binding.get_all_with_names());
+        }
+        test(&graph);
+        #[cfg(feature = "arrow")]
+        test(&arrow_graph);
     }
 }

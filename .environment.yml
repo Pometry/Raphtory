@@ -11,6 +11,7 @@ dependencies:
   - libffi>=3.3
   - ncurses>=6.4
   - make=4.3
+  - cmake=3.29.3
   - openssl>=1.1.1q
   - pip>=21.2.4
   - python=3.10.12

@@ -1,6 +1,4 @@
 //! A data structure for efficiently storing and querying the temporal adjacency set of a node in a temporal graph.
-
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, hash::Hash};
 
