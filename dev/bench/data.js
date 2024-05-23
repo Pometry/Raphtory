@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1716460420717,
+  "lastUpdate": 1716461267838,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -51637,6 +51637,60 @@ window.BENCHMARK_DATA = {
             "name": "graphgen_large_concomp/graphgen_large_concomp/Graph(num_nodes=500004, num_edges=2000000)",
             "value": 3619427761,
             "range": "± 98941270",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "2404621+fabianmurariu@users.noreply.github.com",
+            "name": "Fabian Murariu",
+            "username": "fabianmurariu"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9962486b6d9b15f614688512067d6a73241accba",
+          "message": "add hide_arrow_dep.sh (#1612)",
+          "timestamp": "2024-05-23T11:37:32+01:00",
+          "tree_id": "5f02ea59871a8314b23be1afe118298875e8fd79",
+          "url": "https://github.com/Pometry/Raphtory/commit/9962486b6d9b15f614688512067d6a73241accba"
+        },
+        "date": 1716461266443,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "local_triangle_count/local_triangle_count",
+            "value": 937791,
+            "range": "± 8505",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "local_clustering_coefficient/local_clustering_coefficient",
+            "value": 9,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_clustering_coeff/graphgen_large_clustering_coeff/Graph(num_nodes=500004, num_edges=20...",
+            "value": 4019751212,
+            "range": "± 91435605",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_pagerank/graphgen_large_pagerank/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 514602404,
+            "range": "± 13337635",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_concomp/graphgen_large_concomp/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 3649453411,
+            "range": "± 61959102",
             "unit": "ns/iter"
           }
         ]
