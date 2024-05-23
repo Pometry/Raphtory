@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1716464024315,
+  "lastUpdate": 1716477050225,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -51745,6 +51745,60 @@ window.BENCHMARK_DATA = {
             "name": "graphgen_large_concomp/graphgen_large_concomp/Graph(num_nodes=500004, num_edges=2000000)",
             "value": 3664134566,
             "range": "± 71127385",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "4599890+iamsmkr@users.noreply.github.com",
+            "name": "Shivam Kapoor",
+            "username": "iamsmkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ae5ccedff8efe04aecb9dbb53b90fed7190f0897",
+          "message": "Feature/layer name time (#1593)\n\n* impl layer_name only for exploded edges\r\n\r\n* impl time api only for exploded edges\r\n\r\n* dep impl\r\n\r\n* rmv import\r\n\r\n* fix notebook\r\n\r\n* impl review comments and add tests\r\n\r\n* fmt\r\n\r\n* fix tests\r\n\r\n* fix tests\r\n\r\n* rid save\r\n\r\n* fix error msgs\r\n\r\n* Fixed error messages\r\n\r\n* fmt\r\n\r\n---------\r\n\r\nCo-authored-by: miratepuffin <b.a.steer@qmul.ac.uk>",
+          "timestamp": "2024-05-23T16:00:36+01:00",
+          "tree_id": "3ba8e359efa235bd760556ff9151367970f82773",
+          "url": "https://github.com/Pometry/Raphtory/commit/ae5ccedff8efe04aecb9dbb53b90fed7190f0897"
+        },
+        "date": 1716477048192,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "local_triangle_count/local_triangle_count",
+            "value": 934852,
+            "range": "± 5461",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "local_clustering_coefficient/local_clustering_coefficient",
+            "value": 9,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_clustering_coeff/graphgen_large_clustering_coeff/Graph(num_nodes=500004, num_edges=20...",
+            "value": 3929099276,
+            "range": "± 38693342",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_pagerank/graphgen_large_pagerank/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 501799795,
+            "range": "± 13893940",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_concomp/graphgen_large_concomp/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 3562280393,
+            "range": "± 48540118",
             "unit": "ns/iter"
           }
         ]
