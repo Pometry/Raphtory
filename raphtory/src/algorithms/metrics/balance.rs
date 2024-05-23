@@ -132,11 +132,14 @@ mod sum_weight_test {
     use crate::{
         algorithms::metrics::balance::balance,
         core::{Direction, Prop},
-        db::{api::mutation::AdditionOps, graph::graph::Graph},
-        prelude::*,
+        db::{
+            api::{mutation::AdditionOps, view::StaticGraphViewOps},
+            graph::graph::Graph,
+        },
     };
     use pretty_assertions::assert_eq;
     use std::collections::HashMap;
+    use tempfile::TempDir;
 
     #[test]
     fn test_sum_float_weights() {
@@ -165,39 +168,48 @@ mod sum_weight_test {
                 .expect("Couldnt add edge");
         }
 
-        let res = balance(&graph, "value_dec".to_string(), Direction::BOTH, None);
-        let node_one = graph.node("1").unwrap();
-        let node_two = graph.node("2").unwrap();
-        let node_three = graph.node("3").unwrap();
-        let node_four = graph.node("4").unwrap();
-        let node_five = graph.node("5").unwrap();
-        let expected = HashMap::from([
-            (node_one.clone(), -26.0),
-            (node_two.clone(), 7.0),
-            (node_three.clone(), 12.0),
-            (node_four.clone(), 5.0),
-            (node_five.clone(), 2.0),
-        ]);
-        assert_eq!(res.get_all(), expected);
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
-        let res = balance(&graph, "value_dec".to_string(), Direction::IN, None);
-        let expected = HashMap::from([
-            (node_one.clone(), 6.0),
-            (node_two.clone(), 12.0),
-            (node_three.clone(), 15.0),
-            (node_four.clone(), 20.0),
-            (node_five.clone(), 2.0),
-        ]);
-        assert_eq!(res.get_all(), expected);
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let res = balance(graph, "value_dec".to_string(), Direction::BOTH, None);
+            let node_one = graph.node("1").unwrap();
+            let node_two = graph.node("2").unwrap();
+            let node_three = graph.node("3").unwrap();
+            let node_four = graph.node("4").unwrap();
+            let node_five = graph.node("5").unwrap();
+            let expected = HashMap::from([
+                (node_one.clone(), -26.0),
+                (node_two.clone(), 7.0),
+                (node_three.clone(), 12.0),
+                (node_four.clone(), 5.0),
+                (node_five.clone(), 2.0),
+            ]);
+            assert_eq!(res.get_all(), expected);
 
-        let res = balance(&graph, "value_dec".to_string(), Direction::OUT, None);
-        let expected = HashMap::from([
-            (node_one, -32.0),
-            (node_two, -5.0),
-            (node_three, -3.0),
-            (node_four, -15.0),
-            (node_five, 0.0),
-        ]);
-        assert_eq!(res.get_all(), expected);
+            let res = balance(graph, "value_dec".to_string(), Direction::IN, None);
+            let expected = HashMap::from([
+                (node_one.clone(), 6.0),
+                (node_two.clone(), 12.0),
+                (node_three.clone(), 15.0),
+                (node_four.clone(), 20.0),
+                (node_five.clone(), 2.0),
+            ]);
+            assert_eq!(res.get_all(), expected);
+
+            let res = balance(graph, "value_dec".to_string(), Direction::OUT, None);
+            let expected = HashMap::from([
+                (node_one, -32.0),
+                (node_two, -5.0),
+                (node_three, -3.0),
+                (node_four, -15.0),
+                (node_five, 0.0),
+            ]);
+            assert_eq!(res.get_all(), expected);
+        }
+        test(&graph);
+        #[cfg(feature = "arrow")]
+        test(&arrow_graph);
     }
 }

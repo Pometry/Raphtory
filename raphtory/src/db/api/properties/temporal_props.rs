@@ -156,6 +156,10 @@ impl<P: PropertiesOps + Clone> TemporalProperties<P> {
             .map(|k| TemporalPropertyView::new(self.props.clone(), k))
     }
 
+    pub fn get_by_id(&self, id: usize) -> Option<TemporalPropertyView<P>> {
+        Some(TemporalPropertyView::new(self.props.clone(), id))
+    }
+
     pub fn histories(&self) -> Vec<(ArcStr, (i64, Prop))> {
         self.iter()
             .flat_map(|(k, v)| v.histories().map(move |v| (k.clone(), v.clone())))

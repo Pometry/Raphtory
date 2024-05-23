@@ -37,19 +37,16 @@
 //! println!("local_triangle_count: {:?}", result);
 //! ```
 //!
-use crate::{core::entities::nodes::node_ref::NodeRef, db::api::view::*};
+use crate::{core::entities::nodes::node_ref::AsNodeRef, db::api::view::*};
 use itertools::Itertools;
 
 /// calculates the number of triangles (a cycle of length 3) for a node.
-pub fn local_triangle_count<G: StaticGraphViewOps, V: Into<NodeRef>>(
-    graph: &G,
-    v: V,
-) -> Option<usize> {
-    if let Some(node) = graph.node(v) {
+pub fn local_triangle_count<G: StaticGraphViewOps, V: AsNodeRef>(graph: &G, v: V) -> Option<usize> {
+    if let Some(node) = (&graph).node(v) {
         if node.degree() >= 2 {
             let len = node
                 .neighbours()
-                .id()
+                .iter()
                 .combinations(2)
                 .filter_map(|nb| match graph.has_edge(nb[0], nb[1]) {
                     true => Some(1),
@@ -70,7 +67,6 @@ pub fn local_triangle_count<G: StaticGraphViewOps, V: Into<NodeRef>>(
 
 #[cfg(test)]
 mod triangle_count_tests {
-
     use super::local_triangle_count;
     use crate::{
         db::{
@@ -79,23 +75,33 @@ mod triangle_count_tests {
         },
         prelude::NO_PROPS,
     };
+    use tempfile::TempDir;
 
     #[test]
     fn counts_triangles() {
-        let g = Graph::new();
+        let graph = Graph::new();
         let vs = vec![(1, 1, 2), (2, 1, 3), (3, 2, 1), (4, 3, 2)];
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
+            graph.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
 
-        let windowed_graph = g.window(0, 5);
-        let expected = vec![1, 1, 1];
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
-        let actual = (1..=3)
-            .map(|v| local_triangle_count(&windowed_graph, v).unwrap())
-            .collect::<Vec<_>>();
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let windowed_graph = graph.window(0, 5);
+            let expected = vec![1, 1, 1];
 
-        assert_eq!(actual, expected);
+            let actual = (1..=3)
+                .map(|v| local_triangle_count(&windowed_graph, v).unwrap())
+                .collect::<Vec<_>>();
+
+            assert_eq!(actual, expected);
+        }
+        test(&graph);
+        #[cfg(feature = "arrow")]
+        test(&arrow_graph);
     }
 }

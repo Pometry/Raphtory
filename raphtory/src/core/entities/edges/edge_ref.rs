@@ -1,10 +1,10 @@
 use crate::core::{
-    entities::{edges::edge_store::EdgeStore, nodes::node_ref::NodeRef, EID, VID},
+    entities::{EID, VID},
     storage::timeindex::{AsTime, TimeIndexEntry},
 };
 use std::cmp::Ordering;
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct EdgeRef {
     e_pid: EID,
     src_pid: VID,
@@ -22,7 +22,7 @@ impl PartialOrd for EdgeRef {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Dir {
     Into,
     Out,
@@ -122,7 +122,7 @@ impl EdgeRef {
     }
 
     #[inline(always)]
-    pub(crate) fn pid(&self) -> EID {
+    pub fn pid(&self) -> EID {
         self.e_pid
     }
 

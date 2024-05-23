@@ -29,6 +29,8 @@ use crate::{
     prelude::GraphViewOps,
 };
 use chrono::{DateTime, NaiveDateTime, Utc};
+#[cfg(feature = "arrow")]
+use raphtory_arrow::interop::AsDir;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
@@ -41,6 +43,9 @@ use std::{
     ops::Deref,
     sync::Arc,
 };
+
+#[cfg(feature = "arrow")]
+use crate::arrow2::datatypes::ArrowDataType as DataType;
 
 #[cfg(test)]
 extern crate core;
@@ -71,6 +76,13 @@ impl From<ArcStr> for String {
         value.to_string()
     }
 }
+
+impl From<&ArcStr> for String {
+    fn from(value: &ArcStr) -> Self {
+        value.clone().into()
+    }
+}
+
 impl Deref for ArcStr {
     type Target = Arc<str>;
 
@@ -126,11 +138,34 @@ impl<'a, O: AsRef<str> + 'a> OptionAsStr<'a> for Option<&'a O> {
 }
 
 /// Denotes the direction of an edge. Can be incoming, outgoing or both.
-#[derive(Clone, Copy, PartialEq, PartialOrd, Debug)]
+#[derive(
+    Clone,
+    Copy,
+    Hash,
+    Eq,
+    PartialEq,
+    PartialOrd,
+    Debug,
+    Default,
+    serde::Serialize,
+    serde::Deserialize,
+)]
 pub enum Direction {
     OUT,
     IN,
+    #[default]
     BOTH,
+}
+
+#[cfg(feature = "arrow")]
+impl AsDir for Direction {
+    fn as_dir(&self) -> raphtory_arrow::interop::Direction {
+        match self {
+            Direction::OUT => raphtory_arrow::interop::Direction::OUT,
+            Direction::IN => raphtory_arrow::interop::Direction::IN,
+            Direction::BOTH => raphtory_arrow::interop::Direction::BOTH,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Hash)]
@@ -214,6 +249,27 @@ impl PropType {
 
     pub fn has_cmp(&self) -> bool {
         self.is_bool() || self.is_numeric() || self.is_str() || self.is_date()
+    }
+}
+
+#[cfg(feature = "arrow")]
+impl From<&DataType> for PropType {
+    fn from(value: &DataType) -> Self {
+        match value {
+            DataType::Utf8 => PropType::Str,
+            DataType::LargeUtf8 => PropType::Str,
+            DataType::UInt8 => PropType::U8,
+            DataType::UInt16 => PropType::U16,
+            DataType::Int32 => PropType::I32,
+            DataType::Int64 => PropType::I64,
+            DataType::UInt32 => PropType::U32,
+            DataType::UInt64 => PropType::U64,
+            DataType::Float32 => PropType::F32,
+            DataType::Float64 => PropType::F64,
+            DataType::Boolean => PropType::Bool,
+
+            _ => PropType::Empty,
+        }
     }
 }
 

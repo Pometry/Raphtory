@@ -1,6 +1,6 @@
-use arrow2::{
+use crate::arrow2::{
     array::{Array, BooleanArray, FixedSizeListArray, ListArray, PrimitiveArray, Utf8Array},
-    datatypes::{DataType, TimeUnit},
+    datatypes::{ArrowDataType as DataType, TimeUnit},
 };
 use chrono::{DateTime, Utc};
 

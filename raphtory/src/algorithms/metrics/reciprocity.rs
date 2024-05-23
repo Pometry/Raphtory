@@ -164,11 +164,15 @@ pub fn all_local_reciprocity<G: StaticGraphViewOps>(
 mod reciprocity_test {
     use crate::{
         algorithms::metrics::reciprocity::{all_local_reciprocity, global_reciprocity},
-        db::{api::mutation::AdditionOps, graph::graph::Graph},
+        db::{
+            api::{mutation::AdditionOps, view::StaticGraphViewOps},
+            graph::graph::Graph,
+        },
         prelude::NO_PROPS,
     };
     use pretty_assertions::assert_eq;
     use std::collections::HashMap;
+    use tempfile::TempDir;
 
     #[test]
     fn test_global_recip() {
@@ -189,17 +193,26 @@ mod reciprocity_test {
             graph.add_edge(0, *src, *dst, NO_PROPS, None).unwrap();
         }
 
-        let actual = global_reciprocity(&graph, None);
-        assert_eq!(actual, 0.5);
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
-        let mut hash_map_result: HashMap<String, f64> = HashMap::new();
-        hash_map_result.insert("1".to_string(), 0.4);
-        hash_map_result.insert("2".to_string(), 2.0 / 3.0);
-        hash_map_result.insert("3".to_string(), 0.5);
-        hash_map_result.insert("4".to_string(), 2.0 / 3.0);
-        hash_map_result.insert("5".to_string(), 0.0);
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let actual = global_reciprocity(graph, None);
+            assert_eq!(actual, 0.5);
 
-        let res = all_local_reciprocity(&graph, None);
-        assert_eq!(res.get("1"), hash_map_result.get("1"));
+            let mut hash_map_result: HashMap<String, f64> = HashMap::new();
+            hash_map_result.insert("1".to_string(), 0.4);
+            hash_map_result.insert("2".to_string(), 2.0 / 3.0);
+            hash_map_result.insert("3".to_string(), 0.5);
+            hash_map_result.insert("4".to_string(), 2.0 / 3.0);
+            hash_map_result.insert("5".to_string(), 0.0);
+
+            let res = all_local_reciprocity(graph, None);
+            assert_eq!(res.get("1"), hash_map_result.get("1"));
+        }
+        test(&graph);
+        #[cfg(feature = "arrow")]
+        test(&arrow_graph);
     }
 }

@@ -13,6 +13,7 @@ use crate::{
             mutation::internal::{
                 InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
             },
+            storage::nodes::node_storage_ops::NodeStorageOps,
             view::{internal::InternalMaterialize, IntoDynamic, StaticGraphViewOps},
         },
         graph::{edge::EdgeView, node::NodeView},
@@ -126,7 +127,7 @@ impl<
         }
 
         let node_internal =
-            self.resolve_node(node.id(), node.graph.core_node_arc(node.node).name.as_str());
+            self.resolve_node(node.id(), node.graph.core_node_entry(node.node).name());
         let node_internal_type_id = self
             .resolve_node_type(node_internal, node.node_type().as_str())
             .unwrap_or(0usize);

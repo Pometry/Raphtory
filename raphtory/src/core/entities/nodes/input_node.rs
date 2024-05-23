@@ -5,14 +5,13 @@
 //! `u64`, `&str`, and `String`.
 
 use crate::core::utils::hashing;
-use regex::Regex;
 const MAX_U64_BYTES: [u8; 20] = [
     49, 56, 52, 52, 54, 55, 52, 52, 48, 55, 51, 55, 48, 57, 53, 53, 49, 54, 49, 53,
 ];
 
-fn parse_u64_strict(input: &str) -> Option<u64> {
+pub fn parse_u64_strict(input: &str) -> Option<u64> {
     if input.len() > 20 {
-        /// a u64 string has at most 20 bytes
+        // a u64 string has at most 20 bytes
         return None;
     }
     let byte_0 = b'0';
@@ -86,7 +85,6 @@ impl InputNode for String {
 #[cfg(test)]
 mod test {
     use crate::core::entities::nodes::input_node::InputNode;
-    use regex::Regex;
 
     #[test]
     fn test_weird_num_edge_cases() {
