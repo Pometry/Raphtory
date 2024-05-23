@@ -1466,7 +1466,7 @@ def test_layer_name():
     assert g.edge(0, 1).layer_names == ["_default"]
     assert g.edge(0, 2).layer_names == ["awesome layer"]
 
-    error_msg = ("The layer_name function is only available once an edge has been exploded via .explode_layers() and .explode(). " 
+    error_msg = ("The layer_name function is only available once an edge has been exploded via .explode_layers() or .explode(). " 
                  "If you want to retrieve the layers for this edge you can use .layer_names")
     with pytest.raises(Exception) as e:
         g.edges.layer_name()
