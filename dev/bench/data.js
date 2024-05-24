@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1716477050225,
+  "lastUpdate": 1716548582978,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -51799,6 +51799,60 @@ window.BENCHMARK_DATA = {
             "name": "graphgen_large_concomp/graphgen_large_concomp/Graph(num_nodes=500004, num_edges=2000000)",
             "value": 3562280393,
             "range": "± 48540118",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97447091+ljeub-pometry@users.noreply.github.com",
+            "name": "ljeub-pometry",
+            "username": "ljeub-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c7f39726b555496936f5befe001fff52e73b1ffd",
+          "message": "Performance fixes for the eval apis (#1617)\n\n* pass locked graph throughout the task run\r\n\r\n* add missing feature gate",
+          "timestamp": "2024-05-24T11:50:22+01:00",
+          "tree_id": "94cd43248d3771a86d4d1013ba47065d3a9dc989",
+          "url": "https://github.com/Pometry/Raphtory/commit/c7f39726b555496936f5befe001fff52e73b1ffd"
+        },
+        "date": 1716548581586,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "local_triangle_count/local_triangle_count",
+            "value": 952367,
+            "range": "± 90586",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "local_clustering_coefficient/local_clustering_coefficient",
+            "value": 9,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_clustering_coeff/graphgen_large_clustering_coeff/Graph(num_nodes=500004, num_edges=20...",
+            "value": 2302915089,
+            "range": "± 33741382",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_pagerank/graphgen_large_pagerank/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 224691371,
+            "range": "± 1844662",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_concomp/graphgen_large_concomp/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 2359454434,
+            "range": "± 38618994",
             "unit": "ns/iter"
           }
         ]
