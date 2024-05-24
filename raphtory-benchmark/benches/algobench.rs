@@ -57,7 +57,7 @@ pub fn local_clustering_coefficient_analysis(c: &mut Criterion) {
     bench(&mut group, "local_clustering_coefficient", None, |b| {
         let g: Graph = raphtory::graph_loader::example::lotr_graph::lotr_graph();
 
-        b.iter(|| local_clustering_coefficient(&g, 1))
+        b.iter(|| local_clustering_coefficient(&g, "Gandalf"))
     });
 
     group.finish();
