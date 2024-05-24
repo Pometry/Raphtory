@@ -29,12 +29,11 @@ mod test {
         datatypes::Field,
     };
     use proptest::{prelude::*, sample::size_range};
-    use raphtory_arrow::{
-        global_order::GlobalMap,
-        graph_fragment::TempColGraphFragment,
-        interop::{Direction, EID, VID},
-        RAError,
+    use raphtory_api::core::{
+        entities::{EID, VID},
+        Direction,
     };
+    use raphtory_arrow::{global_order::GlobalMap, graph_fragment::TempColGraphFragment, RAError};
     use tempfile::TempDir;
 
     fn edges_sanity_node_list(edges: &[(u64, u64, i64)]) -> Vec<u64> {
@@ -367,7 +366,7 @@ mod test {
     mod addition_bounds {
         use itertools::Itertools;
         use proptest::{prelude::*, sample::size_range};
-        use raphtory_arrow::interop::VID;
+        use raphtory_api::core::entities::VID;
         use tempfile::TempDir;
 
         use super::{

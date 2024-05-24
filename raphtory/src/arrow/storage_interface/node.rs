@@ -22,7 +22,7 @@ use std::{iter, sync::Arc};
 
 #[derive(Copy, Clone, Debug)]
 pub struct ArrowNode<'a> {
-    pub(super) properties: Option<&'a Properties<raphtory_arrow::interop::VID>>,
+    pub(super) properties: Option<&'a Properties<VID>>,
     pub(super) layers: &'a Arc<[TempColGraphFragment]>,
     pub(super) vid: VID,
 }
@@ -292,7 +292,7 @@ impl<'a> NodeStorageOps<'a> for ArrowNode<'a> {
 
 #[derive(Clone, Debug)]
 pub struct ArrowOwnedNode {
-    properties: Option<Properties<raphtory_arrow::interop::VID>>,
+    properties: Option<Properties<VID>>,
     layers: Arc<[TempColGraphFragment]>,
     vid: VID,
 }

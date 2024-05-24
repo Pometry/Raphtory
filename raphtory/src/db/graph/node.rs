@@ -11,7 +11,7 @@ use crate::{
         api::{
             mutation::{
                 internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-                CollectProperties, TryIntoInputTime,
+                time_from_input, CollectProperties, TryIntoInputTime,
             },
             properties::{
                 internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
@@ -358,7 +358,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
         time: T,
         props: C,
     ) -> Result<(), GraphError> {
-        let t = TimeIndexEntry::from_input(&self.graph, time)?;
+        let t = time_from_input(&self.graph, time)?;
         let properties: Vec<(usize, Prop)> = props.collect_properties(
             |name, dtype| self.graph.resolve_node_property(name, dtype, false),
             |prop| self.graph.process_prop_value(prop),

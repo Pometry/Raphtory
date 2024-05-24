@@ -11,7 +11,7 @@ use std::sync::Arc;
 #[derive(Clone, Debug)]
 pub struct ArrowNodesOwned {
     num_nodes: usize,
-    properties: Option<Properties<raphtory_arrow::interop::VID>>,
+    properties: Option<Properties<VID>>,
     layers: Arc<[TempColGraphFragment]>,
 }
 

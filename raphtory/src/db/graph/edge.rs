@@ -18,7 +18,7 @@ use crate::{
         api::{
             mutation::{
                 internal::{InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps},
-                CollectProperties, TryIntoInputTime,
+                time_from_input, CollectProperties, TryIntoInputTime,
             },
             properties::{
                 internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
@@ -85,7 +85,7 @@ impl<
     > EdgeView<G, G>
 {
     pub fn delete<T: IntoTime>(&self, t: T, layer: Option<&str>) -> Result<(), GraphError> {
-        let t = TimeIndexEntry::from_input(&self.graph, t)?;
+        let t = time_from_input(&self.graph, t)?;
         let layer = self.resolve_layer(layer, true)?;
         self.graph
             .internal_delete_edge(t, self.edge.src(), self.edge.dst(), layer)
@@ -249,7 +249,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
         props: C,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
-        let t = TimeIndexEntry::from_input(&self.graph, time)?;
+        let t = time_from_input(&self.graph, time)?;
         let layer_id = self.resolve_layer(layer, true)?;
         let properties: Vec<(usize, Prop)> = props.collect_properties(
             |name, dtype| self.graph.resolve_edge_property(name, dtype, false),

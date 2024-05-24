@@ -16,7 +16,8 @@ use crate::{
 };
 use itertools::Itertools;
 use polars_arrow::array::Array;
-use raphtory_arrow::interop::{AsEID, AsVID, GraphLike, EID, VID};
+use raphtory_api::core::entities::{EID, VID};
+use raphtory_arrow::interop::GraphLike;
 
 impl GraphLike<TimeIndexEntry> for Graph {
     fn external_ids(&self) -> Vec<u64> {
@@ -44,24 +45,24 @@ impl GraphLike<TimeIndexEntry> for Graph {
         self.count_edges()
     }
 
-    fn out_degree(&self, vid: impl AsVID, layer: usize) -> usize {
-        self.core_node_entry(vid.as_vid().0.into())
+    fn out_degree(&self, vid: VID, layer: usize) -> usize {
+        self.core_node_entry(vid.0.into())
             .degree(&LayerIds::One(layer), Direction::OUT)
     }
 
-    fn in_degree(&self, vid: impl AsVID, layer: usize) -> usize {
-        self.core_node_entry(vid.as_vid().0.into())
+    fn in_degree(&self, vid: VID, layer: usize) -> usize {
+        self.core_node_entry(vid.0.into())
             .degree(&LayerIds::One(layer), Direction::IN)
     }
 
-    fn in_edges<B>(&self, vid: impl AsVID, layer: usize, map: impl Fn(VID, EID) -> B) -> Vec<B> {
-        let node = self.core_node_entry(vid.as_vid().0.into());
+    fn in_edges<B>(&self, vid: VID, layer: usize, map: impl Fn(VID, EID) -> B) -> Vec<B> {
+        let node = self.core_node_entry(vid.0.into());
         node.edges_iter(&LayerIds::One(layer), Direction::IN)
             .map(|edge| map(edge.src().into(), edge.pid().into()))
             .collect()
     }
-    fn out_edges(&self, vid: impl AsVID, layer: usize) -> Vec<(VID, VID, EID)> {
-        let node = self.core_node_entry(vid.as_vid().0.into());
+    fn out_edges(&self, vid: VID, layer: usize) -> Vec<(VID, VID, EID)> {
+        let node = self.core_node_entry(vid.0.into());
         let edges = node
             .edges_iter(&LayerIds::One(layer), Direction::OUT)
             .map(|edge| {
@@ -74,8 +75,8 @@ impl GraphLike<TimeIndexEntry> for Graph {
         edges
     }
 
-    fn edge_additions(&self, eid: impl AsEID, layer: usize) -> Vec<TimeIndexEntry> {
-        let el_id = ELID::new(eid.as_eid().0.into(), Some(layer));
+    fn edge_additions(&self, eid: EID, layer: usize) -> Vec<TimeIndexEntry> {
+        let el_id = ELID::new(eid.0.into(), Some(layer));
         let edge = self.core_edge(el_id);
         let timestamps: Vec<_> = edge.additions(layer).iter().collect();
         timestamps
@@ -86,8 +87,8 @@ impl GraphLike<TimeIndexEntry> for Graph {
         props.into_iter().map(|s| s.to_string()).collect()
     }
 
-    fn find_name(&self, vid: impl AsVID) -> Option<String> {
-        self.core_node_entry(vid.as_vid().0.into())
+    fn find_name(&self, vid: VID) -> Option<String> {
+        self.core_node_entry(vid.0.into())
             .name()
             .map(|s| s.to_string())
     }

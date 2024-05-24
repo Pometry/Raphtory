@@ -29,8 +29,6 @@ use crate::{
     prelude::GraphViewOps,
 };
 use chrono::{DateTime, NaiveDateTime, Utc};
-#[cfg(feature = "arrow")]
-use raphtory_arrow::interop::AsDir;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
@@ -136,36 +134,7 @@ impl<'a, O: AsRef<str> + 'a> OptionAsStr<'a> for Option<&'a O> {
     }
 }
 
-/// Denotes the direction of an edge. Can be incoming, outgoing or both.
-#[derive(
-    Clone,
-    Copy,
-    Hash,
-    Eq,
-    PartialEq,
-    PartialOrd,
-    Debug,
-    Default,
-    serde::Serialize,
-    serde::Deserialize,
-)]
-pub enum Direction {
-    OUT,
-    IN,
-    #[default]
-    BOTH,
-}
-
-#[cfg(feature = "arrow")]
-impl AsDir for Direction {
-    fn as_dir(&self) -> raphtory_arrow::interop::Direction {
-        match self {
-            Direction::OUT => raphtory_arrow::interop::Direction::OUT,
-            Direction::IN => raphtory_arrow::interop::Direction::IN,
-            Direction::BOTH => raphtory_arrow::interop::Direction::BOTH,
-        }
-    }
-}
+pub use raphtory_api::core::*;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 pub enum Lifespan {

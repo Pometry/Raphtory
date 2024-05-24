@@ -8,7 +8,7 @@ use std::sync::Arc;
 #[derive(Copy, Clone, Debug)]
 pub struct ArrowNodesRef<'a> {
     pub(super) num_nodes: usize,
-    pub(super) properties: Option<&'a Properties<raphtory_arrow::interop::VID>>,
+    pub(super) properties: Option<&'a Properties<VID>>,
     pub(super) layers: &'a Arc<[TempColGraphFragment]>,
 }
 
