@@ -25,6 +25,7 @@ use raphtory_core::python::{
 };
 use raphtory_storage::python::packages::algorithms::*;
 
+#[cfg(feature = "arrow")]
 use raphtory_core::python::graph::arrow::{PyArrowGraph, PyGraphQuery, PyState};
 
 macro_rules! add_functions {
