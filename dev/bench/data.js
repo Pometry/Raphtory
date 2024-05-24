@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1716548582978,
+  "lastUpdate": 1716550832705,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -51853,6 +51853,60 @@ window.BENCHMARK_DATA = {
             "name": "graphgen_large_concomp/graphgen_large_concomp/Graph(num_nodes=500004, num_edges=2000000)",
             "value": 2359454434,
             "range": "± 38618994",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "2404621+fabianmurariu@users.noreply.github.com",
+            "name": "Fabian Murariu",
+            "username": "fabianmurariu"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b4daff867625a87400093a36789640ed444808c1",
+          "message": "Fix python non arrow (#1616)\n\n* comment out raphtory-arrow\r\n\r\n* removed lanl and rewired almost everything\r\n\r\n* make arrow dependencies flip on and off check cargo can build\r\n\r\n* cargo fmt and flip raphtory-arrow in Cargo.toml during workflows\r\n\r\n* actually close the named temp file in flip_ra.py\r\n\r\n* add arrow flipping in python workflow too\r\n\r\n* remove lanl from python tests\r\n\r\n* make raphtory-arrow part of the members in Cargo.toml\r\n\r\n* add arrow to running tests and change the way we flip to raphtory-arrow\r\n\r\n* remove hide arrow dependencies from _release_rust workflow\r\n\r\n* add publish for raphtory-arrow",
+          "timestamp": "2024-05-24T12:27:03+01:00",
+          "tree_id": "7412263568d4d3615046f806bc9bcfd8dab63d75",
+          "url": "https://github.com/Pometry/Raphtory/commit/b4daff867625a87400093a36789640ed444808c1"
+        },
+        "date": 1716550831050,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "local_triangle_count/local_triangle_count",
+            "value": 909548,
+            "range": "± 43477",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "local_clustering_coefficient/local_clustering_coefficient",
+            "value": 9,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_clustering_coeff/graphgen_large_clustering_coeff/Graph(num_nodes=500004, num_edges=20...",
+            "value": 2280690292,
+            "range": "± 41893317",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_pagerank/graphgen_large_pagerank/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 221992993,
+            "range": "± 1113440",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_concomp/graphgen_large_concomp/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 2306969490,
+            "range": "± 54773222",
             "unit": "ns/iter"
           }
         ]
