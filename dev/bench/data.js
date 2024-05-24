@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1716550832705,
+  "lastUpdate": 1716564510965,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -51907,6 +51907,60 @@ window.BENCHMARK_DATA = {
             "name": "graphgen_large_concomp/graphgen_large_concomp/Graph(num_nodes=500004, num_edges=2000000)",
             "value": 2306969490,
             "range": "± 54773222",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97447091+ljeub-pometry@users.noreply.github.com",
+            "name": "ljeub-pometry",
+            "username": "ljeub-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a18e5966a68c2a251ee7036dcf07063f454bf4aa",
+          "message": "make local_clustering_coefficient benchmark actually useful again (#1618)\n\nCo-authored-by: Ben Steer <b.a.steer@qmul.ac.uk>",
+          "timestamp": "2024-05-24T16:17:51+01:00",
+          "tree_id": "64fb429ac154a56e0b355c05e45c92416b67d0f6",
+          "url": "https://github.com/Pometry/Raphtory/commit/a18e5966a68c2a251ee7036dcf07063f454bf4aa"
+        },
+        "date": 1716564509551,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "local_triangle_count/local_triangle_count",
+            "value": 916291,
+            "range": "± 8839",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "local_clustering_coefficient/local_clustering_coefficient",
+            "value": 102442,
+            "range": "± 898",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_clustering_coeff/graphgen_large_clustering_coeff/Graph(num_nodes=500004, num_edges=20...",
+            "value": 2551357280,
+            "range": "± 37443637",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_pagerank/graphgen_large_pagerank/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 259653528,
+            "range": "± 3227833",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_concomp/graphgen_large_concomp/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 2448909140,
+            "range": "± 114583035",
             "unit": "ns/iter"
           }
         ]
