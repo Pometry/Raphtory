@@ -3,6 +3,7 @@ members = [
     "raphtory",
     "raphtory-cypher",
     "raphtory-benchmark",
+    "raphtory-arrow",
     "examples/rust",
     "examples/netflow",
     "python",
@@ -128,9 +129,6 @@ arrow-buffer = { version = "50" }
 arrow-schema = { version = "50" }
 arrow-data = { version = "50" }
 arrow-array = { version = "50" }
-
-raphtory-arrow = { version = "0.8.1", path = "./raphtory-arrow" }
-#flip raphtory-arrow = { git = "ssh://git@github.com/Pometry/raphtory-arrow.git", branch = "master" }
 
 # Make sure that transitive dependencies stick to arrow 50
 [patch.crates-io]

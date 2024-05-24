@@ -73,7 +73,7 @@ tempfile = { workspace = true, optional = true }
 bytemuck = { workspace = true, optional = true }
 rpds = { workspace = true, optional = true }
 thread_local = { workspace = true, optional = true }
-raphtory-arrow = { workspace = true, optional = true }
+raphtory-arrow = { path = "../raphtory-arrow", version="0.8.1", optional = true }
 
 [dev-dependencies]
 csv = { workspace = true }
