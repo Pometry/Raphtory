@@ -12,11 +12,6 @@ try:
 except Exception as e:
     print(e)
 
-try:
-    sys.modules["raphtory.lanl"] = lanl
-except Exception as e:
-    print(e)
-
 from .nullmodels import *
 from .plottingutils import *
 

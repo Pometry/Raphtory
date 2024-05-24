@@ -2123,16 +2123,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2fabcfbdc87f4758337ca535fb41a6d701b65693ce38287d856d1674551ec9b"
 
 [[package]]
-name = "graph500"
-version = "0.8.1"
-dependencies = [
- "raphtory",
- "raphtory-arrow",
- "raphtory-storage",
- "serde_json",
-]
-
-[[package]]
 name = "h2"
 version = "0.3.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2523,16 +2513,6 @@ dependencies = [
  "pyo3",
  "terminal_size",
  "windows-sys 0.52.0",
-]
-
-[[package]]
-name = "lanl"
-version = "0.8.1"
-dependencies = [
- "pyo3",
- "raphtory",
- "raphtory-arrow",
- "raphtory-storage",
 ]
 
 [[package]]
@@ -4031,42 +4011,25 @@ dependencies = [
 [[package]]
 name = "raphtory-arrow"
 version = "0.8.1"
-source = "git+ssh://git@github.com/Pometry/raphtory-arrow.git?branch=master#a50946715f4ed7e7644f2eea851a64d938137142"
-dependencies = [
- "ahash",
- "bincode",
- "bytemuck",
- "itertools 0.12.1",
- "memmap2",
- "num-traits",
- "once_cell",
- "parking_lot",
- "polars-arrow",
- "polars-parquet",
- "polars-utils",
- "rayon",
- "serde",
- "serde_json",
- "strum 0.26.2",
- "tempfile",
- "thiserror",
- "tracing",
- "tracing-subscriber",
- "twox-hash",
-]
 
 [[package]]
 name = "raphtory-benchmark"
 version = "0.8.1"
 dependencies = [
+ "chrono",
+ "clap",
  "criterion",
+ "csv",
+ "flate2",
  "polars-arrow",
  "rand 0.8.5",
  "raphtory",
  "raphtory-arrow",
+ "raphtory-graphql",
  "rayon",
  "sorted_vector_map",
  "tempfile",
+ "tokio",
 ]
 
 [[package]]
@@ -4148,41 +4111,10 @@ dependencies = [
  "pyo3-build-config",
  "raphtory",
  "raphtory-graphql",
- "raphtory-storage",
  "reqwest",
  "serde",
  "serde_json",
  "tokio",
-]
-
-[[package]]
-name = "raphtory-rust-benchmark"
-version = "0.8.1"
-dependencies = [
- "chrono",
- "clap",
- "csv",
- "flate2",
- "raphtory",
-]
-
-[[package]]
-name = "raphtory-storage"
-version = "0.8.1"
-dependencies = [
- "ahash",
- "dashmap",
- "itertools 0.12.1",
- "parking_lot",
- "polars-arrow",
- "proptest",
- "pyo3",
- "raphtory",
- "raphtory-arrow",
- "rayon",
- "serde",
- "serde_json",
- "tempfile",
 ]
 
 [[package]]
@@ -4411,14 +4343,6 @@ checksum = "a0e15515d3ce3313324d842629ea4905c25a13f81953eadb88f85516f59290a4"
 dependencies = [
  "archery",
  "serde",
-]
-
-[[package]]
-name = "run_server"
-version = "0.8.1"
-dependencies = [
- "raphtory-graphql",
- "tokio",
 ]
 
 [[package]]
