@@ -1,18 +1,14 @@
 [workspace]
 members = [
     "raphtory",
-    "raphtory-storage",
     "raphtory-cypher",
     "raphtory-benchmark",
+    "raphtory-arrow",
     "examples/rust",
     "examples/netflow",
     "python",
     "js-raphtory",
     "raphtory-graphql",
-    "comparison-benchmark/rust/raphtory-rust-benchmark",
-    "comparison-benchmark/graphql-benchmark/run_server",
-    "examples/lanl",
-    "examples/graph500"
 ]
 default-members = ["raphtory"]
 resolver = "2"
@@ -133,9 +129,6 @@ arrow-buffer = { version = "50" }
 arrow-schema = { version = "50" }
 arrow-data = { version = "50" }
 arrow-array = { version = "50" }
-
-# raphtory-arrow = { path = "../raphtory-arrow" }
-raphtory-arrow = { git = "ssh://git@github.com/Pometry/raphtory-arrow.git", branch = "master" }
 
 # Make sure that transitive dependencies stick to arrow 50
 [patch.crates-io]

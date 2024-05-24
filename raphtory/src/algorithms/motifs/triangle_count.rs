@@ -76,7 +76,7 @@ pub fn triangle_count<G: StaticGraphViewOps>(graph: &G, threads: Option<usize>) 
     let step1 = ATask::new(move |s: &mut EvalNodeView<NodeSubgraph<G>, ()>| {
         for t in s.neighbours() {
             if s.node > t.node {
-                t.update(&neighbours_set, s.node.node);
+                t.update(&neighbours_set, s.node);
             }
         }
         Step::Continue
