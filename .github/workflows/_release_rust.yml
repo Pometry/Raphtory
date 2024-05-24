@@ -54,8 +54,6 @@ jobs:
         with:
           command: install
           args: cargo-release --force
-      - name: "Hide arrow dependencies"
-        run: ./scripts/hide_arrow_dep.sh
       - name: "Publish raphtory to crates.io"
         if: ${{ !inputs.dry_run }}
         uses: actions-rs/cargo@v1
