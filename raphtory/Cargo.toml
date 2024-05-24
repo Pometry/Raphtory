@@ -117,7 +117,7 @@ search = ["dep:tantivy"]
 vectors = ["dep:futures-util", "dep:async-trait", "dep:async-openai"]
 # arrow
 arrow = [
-    "dep:raphtory-arrow",
+    "raphtory-arrow",
     "dep:polars-arrow",
     "dep:polars-utils",
     "dep:polars-parquet",
