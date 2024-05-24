@@ -40,15 +40,7 @@ fn tarjan<'graph, G>(
 
     for neighbor in node.out_neighbours() {
         if !indices.contains_key(&neighbor.node) {
-            tarjan(
-                neighbor,
-                index,
-                stack,
-                indices,
-                lowlink,
-                on_stack,
-                result,
-            );
+            tarjan(neighbor, index, stack, indices, lowlink, on_stack, result);
             lowlink.insert(node.node, lowlink[&node.node].min(lowlink[&neighbor.node]));
         } else if on_stack.contains(&neighbor.node) {
             lowlink.insert(node.node, lowlink[&node.node].min(indices[&neighbor.node]));

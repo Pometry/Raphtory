@@ -250,14 +250,8 @@ impl ArrowGraph {
                      dst_col,
                      time_col,
                  }| {
-                    ExternalEdgeList::new(
-                        layer,
-                        parquet_dir.as_ref(),
-                        src_col,
-                        dst_col,
-                        time_col,
-                    )
-                    .expect("Failed to load events")
+                    ExternalEdgeList::new(layer, parquet_dir.as_ref(), src_col, dst_col, time_col)
+                        .expect("Failed to load events")
                 },
             )
             .collect::<Vec<_>>();

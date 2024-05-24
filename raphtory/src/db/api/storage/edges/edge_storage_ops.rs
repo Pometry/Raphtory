@@ -212,11 +212,7 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
             .any(move |id| !self.temporal_prop_layer(id, prop_id).is_empty())
     }
 
-    fn temporal_prop_layer(
-        self,
-        layer_id: usize,
-        prop_id: usize,
-    ) -> impl TPropOps<'a> + Sync + 'a;
+    fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> impl TPropOps<'a> + Sync + 'a;
 
     fn temporal_prop_iter(
         self,

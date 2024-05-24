@@ -48,8 +48,7 @@ impl<'a> ArrowNode<'a> {
                             .nodes_storage()
                             .out_adj_list(self.vid)
                             .map(move |(eid, dst)| {
-                                EdgeRef::new_outgoing(eid, self.vid, dst)
-                                    .at_layer(layer_id)
+                                EdgeRef::new_outgoing(eid, self.vid, dst).at_layer(layer_id)
                             })
                     })
                     .kmerge_by(|e1, e2| e1.remote() <= e2.remote()),
@@ -59,8 +58,7 @@ impl<'a> ArrowNode<'a> {
                     .nodes_storage()
                     .out_adj_list(self.vid)
                     .map(move |(eid, dst)| {
-                        EdgeRef::new_outgoing(eid, self.vid, dst)
-                            .at_layer(*layer_id)
+                        EdgeRef::new_outgoing(eid, self.vid, dst).at_layer(*layer_id)
                     }),
             ),
             LayerIds::Multiple(ids) => LayerVariants::Multiple(
@@ -70,8 +68,7 @@ impl<'a> ArrowNode<'a> {
                             .nodes_storage()
                             .out_adj_list(self.vid)
                             .map(move |(eid, dst)| {
-                                EdgeRef::new_outgoing(eid, self.vid, dst)
-                                    .at_layer(layer_id)
+                                EdgeRef::new_outgoing(eid, self.vid, dst).at_layer(layer_id)
                             })
                     })
                     .kmerge_by(|e1, e2| e1.remote() <= e2.remote()),
@@ -91,8 +88,7 @@ impl<'a> ArrowNode<'a> {
                             .nodes_storage()
                             .in_adj_list(self.vid)
                             .map(move |(eid, src)| {
-                                EdgeRef::new_incoming(eid, src, self.vid)
-                                    .at_layer(layer_id)
+                                EdgeRef::new_incoming(eid, src, self.vid).at_layer(layer_id)
                             })
                     })
                     .kmerge_by(|e1, e2| e1.remote() <= e2.remote()),
@@ -102,8 +98,7 @@ impl<'a> ArrowNode<'a> {
                     .nodes_storage()
                     .in_adj_list(self.vid)
                     .map(move |(eid, src)| {
-                        EdgeRef::new_incoming(eid, src, self.vid)
-                            .at_layer(*layer_id)
+                        EdgeRef::new_incoming(eid, src, self.vid).at_layer(*layer_id)
                     }),
             ),
             LayerIds::Multiple(ids) => LayerVariants::Multiple(
@@ -113,8 +108,7 @@ impl<'a> ArrowNode<'a> {
                             .nodes_storage()
                             .in_adj_list(self.vid)
                             .map(move |(eid, src)| {
-                                EdgeRef::new_incoming(eid, src, self.vid)
-                                    .at_layer(layer_id)
+                                EdgeRef::new_incoming(eid, src, self.vid).at_layer(layer_id)
                             })
                     })
                     .kmerge_by(|e1, e2| e1.remote() <= e2.remote()),
@@ -279,10 +273,7 @@ impl<'a> NodeStorageOps<'a> for ArrowNode<'a> {
                     let eid = self.layers[layer]
                         .nodes_storage()
                         .find_edge(self.vid, dst)?;
-                    Some(
-                        EdgeRef::new_outgoing(eid, self.vid, dst)
-                            .at_layer(layer),
-                    )
+                    Some(EdgeRef::new_outgoing(eid, self.vid, dst).at_layer(layer))
                 }
                 _ => todo!("multtilayer edge views not implemented in arrow yet"),
             },

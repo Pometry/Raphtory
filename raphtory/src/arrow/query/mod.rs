@@ -172,8 +172,7 @@ mod test {
 
         let graph = ArrowGraph::from_graph(&g, graph_dir.path()).unwrap();
 
-        let result =
-            rayon2::execute::<VecState>(query, NodeSource::All, &graph, VecState::new);
+        let result = rayon2::execute::<VecState>(query, NodeSource::All, &graph, VecState::new);
         assert!(result.is_ok());
         let mut actual = receiver.into_iter().map(|(state, _)| state.0).collect_vec();
         actual.sort();
@@ -206,8 +205,7 @@ mod test {
 
         let graph = ArrowGraph::from_graph(&g, graph_dir.path()).unwrap();
 
-        let result =
-            rayon2::execute::<VecState>(query, NodeSource::All, &graph, VecState::new);
+        let result = rayon2::execute::<VecState>(query, NodeSource::All, &graph, VecState::new);
         assert!(result.is_ok());
         let (path, vid) = receiver.recv().unwrap();
         assert_eq!(vid, VID(2));
@@ -232,8 +230,7 @@ mod test {
 
         let graph = ArrowGraph::from_graph(&g, graph_dir.path()).unwrap();
 
-        let result =
-            rayon2::execute::<VecState>(query, NodeSource::All, &graph, VecState::new);
+        let result = rayon2::execute::<VecState>(query, NodeSource::All, &graph, VecState::new);
         assert!(result.is_ok());
 
         let mut results = receiver.into_iter().collect::<Vec<_>>();

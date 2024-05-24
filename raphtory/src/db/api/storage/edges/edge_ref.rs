@@ -152,11 +152,7 @@ impl<'a> EdgeStorageOps<'a> for EdgeStorageRef<'a> {
         for_all!(self, edge => EdgeStorageOps::has_temporal_prop(edge, layer_ids, prop_id))
     }
 
-    fn temporal_prop_layer(
-        self,
-        layer_id: usize,
-        prop_id: usize,
-    ) -> impl TPropOps<'a> + Sync + 'a {
+    fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> impl TPropOps<'a> + Sync + 'a {
         for_all_iter!(self, edge => edge.temporal_prop_layer(layer_id, prop_id))
     }
 }

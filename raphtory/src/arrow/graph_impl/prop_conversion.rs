@@ -221,6 +221,5 @@ pub fn schema_from_prop_meta(prop_map: &PropMapper) -> Schema {
         }
     }
 
-    
     Schema::from(schema)
 }

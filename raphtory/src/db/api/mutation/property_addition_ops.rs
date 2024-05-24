@@ -1,7 +1,5 @@
 use crate::{
-    core::{
-        utils::{errors::GraphError, time::TryIntoTime},
-    },
+    core::utils::{errors::GraphError, time::TryIntoTime},
     db::api::mutation::{
         internal::{InternalAdditionOps, InternalPropertyAdditionOps},
         TryIntoInputTime,

@@ -119,9 +119,7 @@ impl CoreGraphOps for ArrowGraph {
         match v {
             NodeRef::Internal(vid) => Some(vid),
             NodeRef::External(vid) => self.inner.find_node(&GID::U64(vid)),
-            NodeRef::ExternalStr(string) => self
-                .inner
-                .find_node(&GID::Str(string.into())),
+            NodeRef::ExternalStr(string) => self.inner.find_node(&GID::Str(string.into())),
         }
     }
 

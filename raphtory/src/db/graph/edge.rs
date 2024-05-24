@@ -10,7 +10,7 @@ use chrono::{DateTime, Utc};
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
-        storage::timeindex::{AsTime},
+        storage::timeindex::AsTime,
         utils::{errors::GraphError, time::IntoTime},
         ArcStr,
     },
