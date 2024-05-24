@@ -121,7 +121,7 @@ impl TimeSemantics for ArrowGraph {
                     .map(|props| {
                         props
                             .temporal_props
-                            .timestamps::<TimeIndexEntry>(v.vid().into())
+                            .timestamps::<TimeIndexEntry>(v.vid())
                             .active_t(w.clone())
                     })
                     .unwrap_or(false)
@@ -452,7 +452,7 @@ impl TimeSemantics for ArrowGraph {
     fn has_temporal_node_prop(&self, v: VID, prop_id: usize) -> bool {
         match &self.inner.node_properties() {
             None => false,
-            Some(props) => props.temporal_props.has_prop(v.into(), prop_id),
+            Some(props) => props.temporal_props.has_prop(v, prop_id),
         }
     }
 
@@ -462,14 +462,14 @@ impl TimeSemantics for ArrowGraph {
             None => {
                 vec![]
             }
-            Some(props) => props.temporal_props.prop(v.into(), id).iter_t().collect(),
+            Some(props) => props.temporal_props.prop(v, id).iter_t().collect(),
         }
     }
 
     fn has_temporal_node_prop_window(&self, v: VID, prop_id: usize, w: Range<i64>) -> bool {
         match &self.inner.node_properties() {
             None => false,
-            Some(props) => props.temporal_props.has_prop_window(v.into(), prop_id, w),
+            Some(props) => props.temporal_props.has_prop_window(v, prop_id, w),
         }
     }
 
@@ -484,7 +484,7 @@ impl TimeSemantics for ArrowGraph {
             None => vec![],
             Some(props) => props
                 .temporal_props
-                .prop(v.into(), id)
+                .prop(v, id)
                 .iter_window_t(start..end)
                 .collect(),
         }

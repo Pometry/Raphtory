@@ -10,7 +10,7 @@ use chrono::{DateTime, Utc};
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
-        storage::timeindex::{AsTime, TimeIndexEntry},
+        storage::timeindex::{AsTime},
         utils::{errors::GraphError, time::IntoTime},
         ArcStr,
     },
@@ -449,7 +449,7 @@ mod test_edge {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             assert_eq!(

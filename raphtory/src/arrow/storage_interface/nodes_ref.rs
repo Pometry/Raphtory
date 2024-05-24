@@ -17,7 +17,7 @@ impl<'a> ArrowNodesRef<'a> {
         Self {
             num_nodes: graph.num_nodes(),
             properties: graph.node_properties(),
-            layers: &graph.arc_layers(),
+            layers: graph.arc_layers(),
         }
     }
 

@@ -221,6 +221,6 @@ pub fn schema_from_prop_meta(prop_map: &PropMapper) -> Schema {
         }
     }
 
-    let schema = Schema::from(schema);
-    schema
+    
+    Schema::from(schema)
 }

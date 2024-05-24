@@ -44,7 +44,7 @@ impl<'a> TimeIndexOps for TimeIndexRef<'a> {
 
     fn active(&self, w: Range<TimeIndexEntry>) -> bool {
         match self {
-            TimeIndexRef::Ref(ref t) => t.active(w),
+            TimeIndexRef::Ref(t) => t.active(w),
             TimeIndexRef::Range(ref t) => t.active(w),
             #[cfg(feature = "arrow")]
             TimeIndexRef::External(ref t) => t.active(w),
@@ -216,7 +216,7 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
         self,
         layer_id: usize,
         prop_id: usize,
-    ) -> impl TPropOps<'a> + Send + Sync + 'a;
+    ) -> impl TPropOps<'a> + Sync + 'a;
 
     fn temporal_prop_iter(
         self,

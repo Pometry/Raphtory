@@ -397,7 +397,7 @@ impl Prop {
             Prop::U32(v) => Some(*v as f64),
             Prop::U64(v) => Some(*v as f64),
             Prop::F32(v) => Some(*v as f64),
-            Prop::F64(v) => Some(*v as f64),
+            Prop::F64(v) => Some(*v),
             _ => None,
         }
     }

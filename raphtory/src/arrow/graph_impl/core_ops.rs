@@ -67,7 +67,7 @@ impl CoreGraphOps for ArrowGraph {
             LayerIds::All => Box::new(
                 self.inner
                     .layer_names()
-                    .into_iter()
+                    .iter()
                     .map(|s| ArcStr::from(s.as_str()))
                     .collect::<Vec<_>>()
                     .into_iter(),
@@ -78,7 +78,7 @@ impl CoreGraphOps for ArrowGraph {
                     .get(*id)
                     .cloned()
                     .into_iter()
-                    .map(|s| ArcStr::from(s)),
+                    .map(ArcStr::from),
             ),
             LayerIds::Multiple(ids) => Box::new(
                 ids.iter()
@@ -86,7 +86,7 @@ impl CoreGraphOps for ArrowGraph {
                     .filter_map(|id| self.inner.layer_names().get(id).cloned())
                     .collect_vec()
                     .into_iter()
-                    .map(|s| ArcStr::from(s)),
+                    .map(ArcStr::from),
             ),
         }
     }
@@ -117,12 +117,11 @@ impl CoreGraphOps for ArrowGraph {
 
     fn internalise_node(&self, v: NodeRef) -> Option<VID> {
         match v {
-            NodeRef::Internal(vid) => Some(vid.into()),
-            NodeRef::External(vid) => self.inner.find_node(&GID::U64(vid)).map(|v| v.into()),
+            NodeRef::Internal(vid) => Some(vid),
+            NodeRef::External(vid) => self.inner.find_node(&GID::U64(vid)),
             NodeRef::ExternalStr(string) => self
                 .inner
-                .find_node(&GID::Str(string.into()))
-                .map(|v| v.into()),
+                .find_node(&GID::Str(string.into())),
         }
     }
 
@@ -141,7 +140,7 @@ impl CoreGraphOps for ArrowGraph {
     fn constant_node_prop(&self, v: VID, id: usize) -> Option<Prop> {
         match &self.inner.node_properties() {
             None => None,
-            Some(props) => const_props(props, v.into(), id),
+            Some(props) => const_props(props, v, id),
         }
     }
 
@@ -150,7 +149,7 @@ impl CoreGraphOps for ArrowGraph {
             None => Box::new(std::iter::empty()),
             Some(props) => Box::new(
                 (0..props.const_props.num_props())
-                    .filter(move |id| props.const_props.has_prop(v.into(), *id)),
+                    .filter(move |id| props.const_props.has_prop(v, *id)),
             ),
         }
     }

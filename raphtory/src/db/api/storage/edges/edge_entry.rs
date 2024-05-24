@@ -130,7 +130,7 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
         self,
         layer_id: usize,
         prop_id: usize,
-    ) -> impl TPropOps<'a> + Send + Sync + 'a {
+    ) -> impl TPropOps<'a> + Sync + 'a {
         self.as_ref().temporal_prop_layer(layer_id, prop_id)
     }
 

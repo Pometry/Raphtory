@@ -85,8 +85,8 @@ pub fn execute_static_graph<G: StaticGraphViewOps, S: StaticGraphHopState + 'sta
     Ok(())
 }
 
-fn node_view<'a, 'b, G: StaticGraphViewOps>(
-    _s: &'b Scope<'a>,
+fn node_view<'a, G: StaticGraphViewOps>(
+    _s: &Scope<'a>,
     graph: &'a G,
     node: VID,
 ) -> NodeView<&'a G> {
@@ -97,10 +97,10 @@ fn lookup_layer(layer: &str, graph: &ArrowGraph) -> usize {
     graph.inner.find_layer_id(layer).expect("No layer")
 }
 
-fn get_writer<'a>(
+fn get_writer(
     dir: impl AsRef<Path>,
-    tl: &'a thread_local::ThreadLocal<RefCell<BufWriter<File>>>,
-) -> &'a RefCell<BufWriter<File>> {
+    tl: &thread_local::ThreadLocal<RefCell<BufWriter<File>>>,
+) -> &RefCell<BufWriter<File>> {
     let out = tl.get_or(|| {
         let thread_index = current_thread_index().expect("No thread index");
         let path = dir.as_ref().join(format!("part_{}.bin", thread_index));
@@ -132,7 +132,7 @@ fn hop_arrow_graph<'a, S: HopState + 'a>(
     {
         let layer = lookup_layer(layer, graph);
         if *variable {
-            do_sink(sink, s, state.clone(), vid.into(), tl);
+            do_sink(sink, s, state.clone(), vid, tl);
         }
         let limit = limit.unwrap_or(usize::MAX);
         match dir {
@@ -173,7 +173,7 @@ fn hop_arrow_graph<'a, S: HopState + 'a>(
             }
         }
     } else {
-        do_sink(sink, s, state, vid.into(), tl);
+        do_sink(sink, s, state, vid, tl);
     }
 }
 

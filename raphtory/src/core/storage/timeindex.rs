@@ -348,7 +348,7 @@ impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
     fn active(&self, w: Range<T>) -> bool {
         match &self {
             TimeIndex::Empty => false,
-            TimeIndex::One(t) => w.contains(&t),
+            TimeIndex::One(t) => w.contains(t),
             TimeIndex::Set(ts) => ts.range(w).next().is_some(),
         }
     }
@@ -357,7 +357,7 @@ impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
         match &self {
             TimeIndex::Empty => TimeIndexWindow::Empty,
             TimeIndex::One(t) => {
-                if w.contains(&t) {
+                if w.contains(t) {
                     TimeIndexWindow::All(self)
                 } else {
                     TimeIndexWindow::Empty

@@ -93,7 +93,6 @@ impl LayerIds {
                 let all_layer_ids: Vec<usize> = graph
                     .unique_layers()
                     .map(|name| graph.get_layer_id(name.as_ref()).unwrap())
-                    .into_iter()
                     .filter(|id| !other.contains(id))
                     .collect();
                 match all_layer_ids.len() {

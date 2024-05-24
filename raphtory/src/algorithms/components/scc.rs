@@ -41,7 +41,7 @@ fn tarjan<'graph, G>(
     for neighbor in node.out_neighbours() {
         if !indices.contains_key(&neighbor.node) {
             tarjan(
-                neighbor.clone(),
+                neighbor,
                 index,
                 stack,
                 indices,

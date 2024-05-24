@@ -115,7 +115,7 @@ impl ArrowGraph {
     ) -> ArrowGraph {
         // unzip into 4 vectors
         let (src, (dst, (time, weight))): (Vec<_>, (Vec<_>, (Vec<_>, Vec<_>))) = edges
-            .into_iter()
+            .iter()
             .map(|(a, b, c, d)| (*a, (*b, (*c, *d))))
             .unzip();
 
@@ -251,11 +251,11 @@ impl ArrowGraph {
                      time_col,
                  }| {
                     ExternalEdgeList::new(
-                        *layer,
+                        layer,
                         parquet_dir.as_ref(),
-                        *src_col,
-                        *dst_col,
-                        *time_col,
+                        src_col,
+                        dst_col,
+                        time_col,
                     )
                     .expect("Failed to load events")
                 },

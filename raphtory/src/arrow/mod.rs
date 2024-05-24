@@ -446,7 +446,7 @@ mod test {
                         let dst = dst as u64;
                         times.into_iter().map(move |t| (src, dst, t))}).collect();
                     v.sort();
-                    v}).prop_filter("edge list mut have one edge at least",|edges| edges.len() > 0),
+                    v}).prop_filter("edge list mut have one edge at least",|edges| !edges.is_empty()),
                 chunk_size in 1..300usize,
             ) {
                 compare_raphtory_graph(edges, chunk_size);

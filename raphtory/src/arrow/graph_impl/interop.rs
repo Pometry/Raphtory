@@ -58,7 +58,7 @@ impl GraphLike<TimeIndexEntry> for Graph {
     fn in_edges<B>(&self, vid: VID, layer: usize, map: impl Fn(VID, EID) -> B) -> Vec<B> {
         let node = self.core_node_entry(vid.0.into());
         node.edges_iter(&LayerIds::One(layer), Direction::IN)
-            .map(|edge| map(edge.src().into(), edge.pid().into()))
+            .map(|edge| map(edge.src(), edge.pid()))
             .collect()
     }
     fn out_edges(&self, vid: VID, layer: usize) -> Vec<(VID, VID, EID)> {
@@ -66,9 +66,9 @@ impl GraphLike<TimeIndexEntry> for Graph {
         let edges = node
             .edges_iter(&LayerIds::One(layer), Direction::OUT)
             .map(|edge| {
-                let src = edge.src().into();
-                let dst = edge.dst().into();
-                let eid = edge.pid().into();
+                let src = edge.src();
+                let dst = edge.dst();
+                let eid = edge.pid();
                 (src, dst, eid)
             })
             .collect();

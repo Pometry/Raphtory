@@ -447,7 +447,6 @@ mod motifs_test {
             let actual = binding
                 .iter()
                 .map(|(k, v)| (k, v[0].clone()))
-                .into_iter()
                 .collect::<HashMap<&String, Vec<usize>>>();
 
             let expected: HashMap<String, Vec<usize>> = HashMap::from([
