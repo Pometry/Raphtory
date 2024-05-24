@@ -1,0 +1,4 @@
+[package]
+name = "raphtory-arrow"
+version = "0.8.1"
+[dependencies]

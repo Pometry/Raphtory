@@ -10,7 +10,6 @@ rust-build-docs:
 	cargo doc --no-deps -p raphtory -q
 
 rust-build-readthedocs:
-	./scripts/hide_arrow_dep.sh
 	cargo doc --no-deps -p raphtory -q --target-dir $(RUST_READTHEDOCS_DOCS_TARGET)
 	rm -rf $(RUST_READTHEDOCS_DOCS_TARGET)/debug
 	mv $(RUST_READTHEDOCS_DOCS_TARGET)/doc/* $(RUST_READTHEDOCS_DOCS_TARGET)
