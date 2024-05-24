@@ -1,23 +1,24 @@
 #!/usr/bin/env python3
-import sys
-import tempfile
 import shutil
+import os, stat
+import subprocess
 
+directory = "./raphtory-arrow"
 
-if len(sys.argv) != 2:
-    print("Usage: flip_ra.py <file>")
-    sys.exit(1)
+def remove_readonly(func, path, _):
+    "Clear the readonly bit and reattempt the removal"
+    os.chmod(path, stat.S_IWRITE)
+    func(path)
 
-file = sys.argv[1]
+shutil.rmtree(directory, onerror=remove_readonly)
 
-with tempfile.NamedTemporaryFile(delete=False, mode='w') as tmp:
-    tmp_file_name = tmp.name
-    with open(file, 'r') as f:
-        for line in f:
-            if line.startswith("#flip raphtory-arrow"):
-                line = line.replace("#flip raphtory-arrow", "raphtory-arrow", 1)
-            elif line.startswith("raphtory-arrow"):
-                line = line.replace("raphtory-arrow", "#flip raphtory-arrow", 1)
-            tmp.write(line)
-
-shutil.move(tmp_file_name, file)
+subprocess.run(
+    [
+        "git",
+        "clone",
+        "--depth",
+        "1",
+        "git@github.com:Pometry/raphtory-arrow.git",
+        "raphtory-arrow",
+    ]
+)
