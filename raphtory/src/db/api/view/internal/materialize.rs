@@ -40,6 +40,9 @@ use enum_dispatch::enum_dispatch;
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
 use std::path::Path;
 
+#[cfg(feature = "arrow")]
+use crate::arrow::graph_impl::ArrowGraph;
+
 #[enum_dispatch(CoreGraphOps)]
 #[enum_dispatch(InternalLayerOps)]
 #[enum_dispatch(ListOps)]
@@ -54,6 +57,8 @@ use std::path::Path;
 #[enum_dispatch(InternalPropertyAdditionOps)]
 #[derive(Serialize, Deserialize, Clone)]
 pub enum MaterializedGraph {
+    #[cfg(feature = "arrow")]
+    ArrowEventGraph(ArrowGraph),
     EventGraph(Graph),
     PersistentGraph(PersistentGraph),
 }
@@ -64,7 +69,7 @@ where
 {
     let version = u32::deserialize(deserializer)?;
     if version != BINCODE_VERSION {
-        return Err(D::Error::custom(GraphError::BincodeVersionError(
+        return Err(Error::custom(GraphError::BincodeVersionError(
             version,
             BINCODE_VERSION,
         )));
@@ -86,10 +91,14 @@ impl MaterializedGraph {
         match self {
             MaterializedGraph::EventGraph(g) => Some(g),
             MaterializedGraph::PersistentGraph(_) => None,
+            #[cfg(feature = "arrow")]
+            MaterializedGraph::ArrowEventGraph(_) => None,
         }
     }
     pub fn into_persistent(self) -> Option<PersistentGraph> {
         match self {
+            #[cfg(feature = "arrow")]
+            MaterializedGraph::ArrowEventGraph(_) => None,
             MaterializedGraph::EventGraph(_) => None,
             MaterializedGraph::PersistentGraph(g) => Some(g),
         }

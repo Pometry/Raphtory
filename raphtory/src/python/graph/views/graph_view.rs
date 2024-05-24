@@ -36,6 +36,7 @@ use pyo3::{prelude::*, types::PyBytes};
 impl IntoPy<PyObject> for MaterializedGraph {
     fn into_py(self, py: Python<'_>) -> PyObject {
         match self {
+            MaterializedGraph::ArrowEventGraph(g) => g.into_py(py),
             MaterializedGraph::EventGraph(g) => g.into_py(py),
             MaterializedGraph::PersistentGraph(g) => g.into_py(py),
         }

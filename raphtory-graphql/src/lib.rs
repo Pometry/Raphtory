@@ -40,12 +40,13 @@ mod graphql_test {
     use async_graphql::UploadValue;
     use dynamic_graphql::{Request, Variables};
     use raphtory::{
+        arrow::graph_impl::ArrowGraph,
         db::{api::view::IntoDynamic, graph::views::deletion_graph::PersistentGraph},
         prelude::*,
     };
     use serde_json::json;
-    use std::collections::HashMap;
-    use tempfile::tempdir;
+    use std::{collections::HashMap, path::Path};
+    use tempfile::{tempdir, TempDir};
 
     #[tokio::test]
     async fn search_for_gandalf_query() {
@@ -67,6 +68,7 @@ mod graphql_test {
             )
             .expect("Could not add node!");
 
+        let graph: MaterializedGraph = graph.into();
         let graphs = HashMap::from([("lotr".to_string(), graph)]);
         let data = Data::from_map(graphs);
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -105,6 +107,7 @@ mod graphql_test {
             .add_node(0, 11, NO_PROPS, None)
             .expect("Could not add node!");
 
+        let graph: MaterializedGraph = graph.into();
         let graphs = HashMap::from([("lotr".to_string(), graph)]);
         let data = Data::from_map(graphs);
 
@@ -152,7 +155,7 @@ mod graphql_test {
                 None,
             )
             .unwrap();
-
+        let graph: MaterializedGraph = graph.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let data = Data::from_map(graphs);
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -473,5 +476,78 @@ mod graphql_test {
         let graph_encoded = res_json.get("receiveGraph").unwrap().as_str().unwrap();
         let graph_roundtrip = url_decode_graph(graph_encoded).unwrap().into_dynamic();
         assert_eq!(g, graph_roundtrip);
+    }
+
+    #[cfg(feature = "arrow")]
+    #[tokio::test]
+    async fn test_arrow_graph() {
+        let graph = Graph::new();
+        graph.add_constant_properties([("name", "graph")]).unwrap();
+        graph.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
+        graph.add_node(1, 2, NO_PROPS, Some("b")).unwrap();
+        graph.add_node(1, 3, NO_PROPS, Some("b")).unwrap();
+        graph.add_node(1, 4, NO_PROPS, Some("a")).unwrap();
+        graph.add_node(1, 5, NO_PROPS, Some("c")).unwrap();
+        graph.add_node(1, 6, NO_PROPS, Some("e")).unwrap();
+        graph.add_edge(22, 1, 2, NO_PROPS, Some("a")).unwrap();
+        graph.add_edge(22, 3, 2, NO_PROPS, Some("a")).unwrap();
+        graph.add_edge(22, 2, 4, NO_PROPS, Some("a")).unwrap();
+        graph.add_edge(22, 4, 5, NO_PROPS, Some("a")).unwrap();
+        graph.add_edge(22, 4, 5, NO_PROPS, Some("a")).unwrap();
+        graph.add_edge(22, 5, 6, NO_PROPS, Some("a")).unwrap();
+        graph.add_edge(22, 3, 6, NO_PROPS, Some("a")).unwrap();
+
+        let test_dir = TempDir::new().unwrap();
+        let arrow_graph = ArrowGraph::from_graph(&graph, test_dir.path()).unwrap();
+        let graph: MaterializedGraph = arrow_graph.into();
+
+        let graphs = HashMap::from([("graph".to_string(), graph)]);
+        let data = Data::from_map(graphs);
+        let schema = App::create_schema().data(data).finish().unwrap();
+
+        let req = r#"
+        {
+          graph(name: "graph") {
+            nodes {
+              list {
+                name
+              }
+            }
+          }
+        }
+        "#;
+
+        let req = Request::new(req);
+        let res = schema.execute(req).await;
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({
+                "graph": {
+                  "nodes": {
+                      "list": [
+                        {
+                          "name": "1"
+                        },
+                        {
+                          "name": "2"
+                        },
+                        {
+                          "name": "3"
+                        },
+                        {
+                          "name": "4"
+                        },
+                        {
+                          "name": "5"
+                        },
+                        {
+                          "name": "6"
+                        }
+                      ]
+                  }
+                }
+            }),
+        );
     }
 }
