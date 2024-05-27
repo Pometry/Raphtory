@@ -173,7 +173,8 @@ where
                         .sorted()
                         .permutations(2)
                         .flat_map(|e| {
-                            g.edge(*e.first().unwrap(), *e.get(1).unwrap())
+                            u.graph()
+                                .edge(*e.first().unwrap(), *e.get(1).unwrap())
                                 .iter()
                                 .flat_map(|edge| edge.explode())
                                 .collect::<Vec<_>>()
