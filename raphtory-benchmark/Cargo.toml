@@ -9,7 +9,7 @@ edition = "2021"
 criterion = { workspace = true }
 raphtory = { path = "../raphtory", features = ["io"] }
 raphtory-graphql = { path = "../raphtory-graphql", version = "0.8.1" }
-raphtory-arrow = { path = "../raphtory-arrow", version = "0.8.1" }
+raphtory-arrow.workspace = true
 sorted_vector_map = { workspace = true }
 rand = { workspace = true }
 rayon = { workspace = true }

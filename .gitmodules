@@ -1,0 +1,3 @@
+[submodule "raphtory-arrow-private"]
+	path = raphtory-arrow-private
+	url = git@github.com:Pometry/raphtory-arrow.git

@@ -30,6 +30,10 @@ inherits = "release"
 debug = true
 
 [workspace.dependencies]
+#[public-arrow]
+raphtory-arrow = { version = "0.8.1", path = "raphtory-arrow" }
+#[private-arrow]
+# raphtory-arrow = { path = "raphtory-arrow-private", package = "raphtory-arrow-private" }
 async-graphql = { version = "6.0.11", features = ["dynamic-schema"] }
 async-graphql-poem = "6.0.11"
 dynamic-graphql = "0.8.1"
