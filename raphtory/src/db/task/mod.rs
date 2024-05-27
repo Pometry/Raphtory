@@ -75,7 +75,7 @@ mod task_tests {
 
         let count = state::accumulator_id::accumulators::sum::<usize>(0);
 
-        ctx.global_agg(count.clone());
+        ctx.global_agg(count);
 
         let step1 = ATask::new(move |vv: &mut EvalNodeView<_, ()>| {
             vv.global_update(&count, 1);

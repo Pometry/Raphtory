@@ -1,7 +1,6 @@
 use crate::{
     core::{
         entities::{
-            edges::edge_ref::EdgeRef,
             properties::{props::Props, tprop::TProp},
             LayerIds, EID, VID,
         },
@@ -18,13 +17,17 @@ use crate::{
         view::{BoxedLIter, IntoDynBoxed},
     },
 };
+
+use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
+pub use raphtory_api::core::entities::edges::*;
+
 use itertools::{EitherOrBoth, Itertools};
 use ouroboros::self_referencing;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
     iter,
-    ops::{Deref, DerefMut, Range},
+    ops::{DerefMut, Range},
 };
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
@@ -87,13 +90,11 @@ impl EdgeLayer {
     }
 }
 
-impl<E: Deref<Target = EdgeStore>> From<E> for EdgeRef {
-    fn from(val: E) -> Self {
-        EdgeRef::new_outgoing(val.eid, val.src, val.dst)
-    }
-}
-
 impl EdgeStore {
+    pub fn as_edge_ref(&self) -> EdgeRef {
+        EdgeRef::new_outgoing(self.eid, self.src, self.dst)
+    }
+
     pub fn internal_num_layers(&self) -> usize {
         self.layers
             .len()

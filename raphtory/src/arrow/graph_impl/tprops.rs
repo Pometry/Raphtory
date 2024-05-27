@@ -24,7 +24,7 @@ impl<'a, T: NativeType + Into<Prop>> TPropOps<'a>
         let (props, timestamps) = self.into_inner();
         let (t, t_index) = timestamps.last_before(t)?;
         let v = props.get(t_index)?;
-        Some((t.into(), v.into()))
+        Some((t, v.into()))
     }
 
     fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
@@ -40,18 +40,18 @@ impl<'a, T: NativeType + Into<Prop>> TPropOps<'a>
         r: Range<TimeIndexEntry>,
     ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
         let (props, timestamps) = self.into_inner();
-        let start = timestamps.position(&r.start.into());
-        let end = timestamps.position(&r.end.into());
+        let start = timestamps.position(&r.start);
+        let end = timestamps.position(&r.end);
         timestamps
             .sliced(start..end)
             .into_iter()
-            .zip(props.sliced(start..end).into_iter())
+            .zip(props.sliced(start..end))
             .filter_map(|(t, v)| v.map(|v| (t, v.into())))
     }
 
     fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
         let (props, timestamps) = self.into_inner();
-        let t_index = timestamps.position(ti.into());
+        let t_index = timestamps.position(ti);
         props.get(t_index).map(|v| v.into())
     }
 
@@ -71,7 +71,7 @@ impl<'a, I: Offset> TPropOps<'a> for TPropColumn<'a, StringCol<'a, I>, TimeIndex
         let (props, timestamps) = self.into_inner();
         let (t, t_index) = timestamps.last_before(t)?;
         let v = props.get(t_index)?;
-        Some((t.into(), v.into()))
+        Some((t, v.into()))
     }
 
     fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
@@ -87,18 +87,18 @@ impl<'a, I: Offset> TPropOps<'a> for TPropColumn<'a, StringCol<'a, I>, TimeIndex
         r: Range<TimeIndexEntry>,
     ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
         let (props, timestamps) = self.into_inner();
-        let start = timestamps.position(&r.start.into());
-        let end = timestamps.position(&r.end.into());
+        let start = timestamps.position(&r.start);
+        let end = timestamps.position(&r.end);
         timestamps
             .sliced(start..end)
             .into_iter()
-            .zip(props.sliced(start..end).into_iter())
+            .zip(props.sliced(start..end))
             .filter_map(|(t, v)| v.map(|v| (t, v.into())))
     }
 
     fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
         let (props, timestamps) = self.into_inner();
-        let t_index = timestamps.position(ti.into());
+        let t_index = timestamps.position(ti);
         props.get(t_index).map(|v| v.into())
     }
 

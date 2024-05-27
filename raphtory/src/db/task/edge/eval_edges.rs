@@ -170,7 +170,7 @@ impl<
         let base_graph = self.edges.base_graph;
         EvalPathFromNode {
             graph: base_graph,
-            base_graph: base_graph,
+            base_graph,
             op: path.op,
             ss,
             node_state,

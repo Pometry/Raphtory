@@ -22,6 +22,12 @@ pub trait StaticGraphHopState: Send + Sync + Clone + std::fmt::Debug {
 #[derive(Clone, PartialEq, Debug, PartialOrd)]
 pub struct NoState;
 
+impl Default for NoState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NoState {
     pub fn new() -> Self {
         NoState
@@ -38,14 +44,14 @@ pub struct VecState(pub Vec<VID>);
 
 impl VecState {
     pub fn new(node: Node) -> Self {
-        VecState(vec![node.vid().into()])
+        VecState(vec![node.vid()])
     }
 }
 
 impl HopState for VecState {
     fn hop_with_state(&self, node: Node, _edge: Edge) -> Option<VecState> {
         let VecState(mut vec) = self.clone();
-        vec.push(node.vid().into());
+        vec.push(node.vid());
         Some(VecState(vec))
     }
 }

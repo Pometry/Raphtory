@@ -29,12 +29,11 @@ mod test {
         datatypes::Field,
     };
     use proptest::{prelude::*, sample::size_range};
-    use raphtory_arrow::{
-        global_order::GlobalMap,
-        graph_fragment::TempColGraphFragment,
-        interop::{Direction, EID, VID},
-        RAError,
+    use raphtory_api::core::{
+        entities::{EID, VID},
+        Direction,
     };
+    use raphtory_arrow::{global_order::GlobalMap, graph_fragment::TempColGraphFragment, RAError};
     use tempfile::TempDir;
 
     fn edges_sanity_node_list(edges: &[(u64, u64, i64)]) -> Vec<u64> {
@@ -367,7 +366,7 @@ mod test {
     mod addition_bounds {
         use itertools::Itertools;
         use proptest::{prelude::*, sample::size_range};
-        use raphtory_arrow::interop::VID;
+        use raphtory_api::core::entities::VID;
         use tempfile::TempDir;
 
         use super::{
@@ -447,7 +446,7 @@ mod test {
                         let dst = dst as u64;
                         times.into_iter().map(move |t| (src, dst, t))}).collect();
                     v.sort();
-                    v}).prop_filter("edge list mut have one edge at least",|edges| edges.len() > 0),
+                    v}).prop_filter("edge list mut have one edge at least",|edges| !edges.is_empty()),
                 chunk_size in 1..300usize,
             ) {
                 compare_raphtory_graph(edges, chunk_size);

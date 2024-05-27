@@ -22,7 +22,7 @@ use std::{iter, sync::Arc};
 
 #[derive(Copy, Clone, Debug)]
 pub struct ArrowNode<'a> {
-    pub(super) properties: Option<&'a Properties<raphtory_arrow::interop::VID>>,
+    pub(super) properties: Option<&'a Properties<VID>>,
     pub(super) layers: &'a Arc<[TempColGraphFragment]>,
     pub(super) vid: VID,
 }
@@ -48,8 +48,7 @@ impl<'a> ArrowNode<'a> {
                             .nodes_storage()
                             .out_adj_list(self.vid)
                             .map(move |(eid, dst)| {
-                                EdgeRef::new_outgoing(eid.into(), self.vid.into(), dst.into())
-                                    .at_layer(layer_id)
+                                EdgeRef::new_outgoing(eid, self.vid, dst).at_layer(layer_id)
                             })
                     })
                     .kmerge_by(|e1, e2| e1.remote() <= e2.remote()),
@@ -59,8 +58,7 @@ impl<'a> ArrowNode<'a> {
                     .nodes_storage()
                     .out_adj_list(self.vid)
                     .map(move |(eid, dst)| {
-                        EdgeRef::new_outgoing(eid.into(), self.vid.into(), dst.into())
-                            .at_layer(*layer_id)
+                        EdgeRef::new_outgoing(eid, self.vid, dst).at_layer(*layer_id)
                     }),
             ),
             LayerIds::Multiple(ids) => LayerVariants::Multiple(
@@ -70,8 +68,7 @@ impl<'a> ArrowNode<'a> {
                             .nodes_storage()
                             .out_adj_list(self.vid)
                             .map(move |(eid, dst)| {
-                                EdgeRef::new_outgoing(eid.into(), self.vid.into(), dst.into())
-                                    .at_layer(layer_id)
+                                EdgeRef::new_outgoing(eid, self.vid, dst).at_layer(layer_id)
                             })
                     })
                     .kmerge_by(|e1, e2| e1.remote() <= e2.remote()),
@@ -91,8 +88,7 @@ impl<'a> ArrowNode<'a> {
                             .nodes_storage()
                             .in_adj_list(self.vid)
                             .map(move |(eid, src)| {
-                                EdgeRef::new_incoming(eid.into(), src.into(), self.vid.into())
-                                    .at_layer(layer_id)
+                                EdgeRef::new_incoming(eid, src, self.vid).at_layer(layer_id)
                             })
                     })
                     .kmerge_by(|e1, e2| e1.remote() <= e2.remote()),
@@ -102,8 +98,7 @@ impl<'a> ArrowNode<'a> {
                     .nodes_storage()
                     .in_adj_list(self.vid)
                     .map(move |(eid, src)| {
-                        EdgeRef::new_incoming(eid.into(), src.into(), self.vid.into())
-                            .at_layer(*layer_id)
+                        EdgeRef::new_incoming(eid, src, self.vid).at_layer(*layer_id)
                     }),
             ),
             LayerIds::Multiple(ids) => LayerVariants::Multiple(
@@ -113,8 +108,7 @@ impl<'a> ArrowNode<'a> {
                             .nodes_storage()
                             .in_adj_list(self.vid)
                             .map(move |(eid, src)| {
-                                EdgeRef::new_incoming(eid.into(), src.into(), self.vid.into())
-                                    .at_layer(layer_id)
+                                EdgeRef::new_incoming(eid, src, self.vid).at_layer(layer_id)
                             })
                     })
                     .kmerge_by(|e1, e2| e1.remote() <= e2.remote()),
@@ -166,7 +160,7 @@ impl<'a> ArrowNode<'a> {
             }
         };
         if let Some(props) = self.properties {
-            let timestamps = props.temporal_props.timestamps::<i64>(self.vid.into());
+            let timestamps = props.temporal_props.timestamps::<i64>(self.vid);
             if timestamps.len() > 0 {
                 let ts = timestamps.times();
                 additions.push(ts);
@@ -230,7 +224,7 @@ impl<'a> NodeStorageOps<'a> for ArrowNode<'a> {
         self.properties
             .unwrap()
             .temporal_props
-            .prop(self.vid.into(), prop_id)
+            .prop(self.vid, prop_id)
     }
 
     fn edges_iter(
@@ -264,13 +258,13 @@ impl<'a> NodeStorageOps<'a> for ArrowNode<'a> {
                 0 => None,
                 1 => {
                     let eid = self.layers[0].nodes_storage().find_edge(self.vid, dst)?;
-                    Some(EdgeRef::new_outgoing(eid.into(), self.vid.into(), dst.into()).at_layer(0))
+                    Some(EdgeRef::new_outgoing(eid, self.vid, dst).at_layer(0))
                 }
                 _ => todo!("multilayer edge views not implemented in arrow yet"),
             },
             LayerIds::One(id) => {
                 let eid = self.layers[*id].nodes_storage().find_edge(self.vid, dst)?;
-                Some(EdgeRef::new_outgoing(eid.into(), self.vid.into(), dst.into()).at_layer(*id))
+                Some(EdgeRef::new_outgoing(eid, self.vid, dst).at_layer(*id))
             }
             LayerIds::Multiple(ids) => match ids.len() {
                 0 => None,
@@ -279,10 +273,7 @@ impl<'a> NodeStorageOps<'a> for ArrowNode<'a> {
                     let eid = self.layers[layer]
                         .nodes_storage()
                         .find_edge(self.vid, dst)?;
-                    Some(
-                        EdgeRef::new_outgoing(eid.into(), self.vid.into(), dst.into())
-                            .at_layer(layer),
-                    )
+                    Some(EdgeRef::new_outgoing(eid, self.vid, dst).at_layer(layer))
                 }
                 _ => todo!("multtilayer edge views not implemented in arrow yet"),
             },
@@ -292,7 +283,7 @@ impl<'a> NodeStorageOps<'a> for ArrowNode<'a> {
 
 #[derive(Clone, Debug)]
 pub struct ArrowOwnedNode {
-    properties: Option<Properties<raphtory_arrow::interop::VID>>,
+    properties: Option<Properties<VID>>,
     layers: Arc<[TempColGraphFragment]>,
     vid: VID,
 }

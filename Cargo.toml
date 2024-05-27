@@ -8,7 +8,7 @@ members = [
     "examples/netflow",
     "python",
     "js-raphtory",
-    "raphtory-graphql",
+    "raphtory-graphql", "raphtory-api",
 ]
 default-members = ["raphtory"]
 resolver = "2"
