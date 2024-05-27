@@ -7,7 +7,7 @@ use crate::{
         compute_state::ComputeStateVec,
     },
     db::{
-        api::view::{GraphViewOps, NodeViewOps, *},
+        api::view::*,
         graph::views::node_subgraph::NodeSubgraph,
         task::{
             context::Context,

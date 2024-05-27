@@ -65,7 +65,9 @@ impl GraphStorage {
         match self {
             GraphStorage::Mem(storage) => NodesStorage::Mem(storage.nodes.clone()),
             #[cfg(feature = "arrow")]
-            GraphStorage::Arrow(storage) => NodesStorage::Arrow(ArrowNodesOwned::new(storage)),
+            GraphStorage::Arrow(storage) => {
+                NodesStorage::Arrow(ArrowNodesOwned::new(storage.clone()))
+            }
         }
     }
 
@@ -82,7 +84,7 @@ impl GraphStorage {
             GraphStorage::Mem(storage) => NodeOwnedEntry::Mem(storage.nodes.arc_entry(vid)),
             #[cfg(feature = "arrow")]
             GraphStorage::Arrow(storage) => {
-                NodeOwnedEntry::Arrow(ArrowOwnedNode::new(storage, vid))
+                NodeOwnedEntry::Arrow(ArrowOwnedNode::new(storage.clone(), vid))
             }
         }
     }
