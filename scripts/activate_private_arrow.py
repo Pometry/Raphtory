@@ -27,6 +27,8 @@ subprocess.run(
     [
         "git",
         "submodule",
-        "init",
+        "update",
+        "--init",
+        "--recursive",
     ]
 )
