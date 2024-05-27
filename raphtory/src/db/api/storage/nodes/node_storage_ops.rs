@@ -25,6 +25,8 @@ pub trait NodeStorageOps<'a>: Sized {
 
     fn vid(self) -> VID;
 
+    fn id(self) -> u64;
+
     fn name(self) -> Option<&'a str>;
 
     fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef>;
@@ -57,6 +59,10 @@ impl<'a> NodeStorageOps<'a> for &'a NodeStore {
 
     fn vid(self) -> VID {
         self.vid
+    }
+
+    fn id(self) -> u64 {
+        self.global_id
     }
 
     fn name(self) -> Option<&'a str> {

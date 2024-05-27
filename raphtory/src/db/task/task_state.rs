@@ -9,7 +9,7 @@ pub struct Global<CS: ComputeState>(Arc<ShuffleComputeState<CS>>);
 #[derive(Clone, Debug)]
 pub struct Shard<CS: ComputeState>(Arc<ShuffleComputeState<CS>>);
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub(crate) struct PrevLocalState<'a, S> {
     pub(crate) state: &'a Vec<S>,
 }

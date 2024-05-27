@@ -23,15 +23,11 @@ use std::collections::HashMap;
 
 ///////////////////////////////////////////////////////
 
-pub fn star_motif_count<G>(
-    graph: &G,
-    evv: &EvalNodeView<G, ()>,
-    deltas: Vec<i64>,
-) -> Vec<[usize; 32]>
+pub fn star_motif_count<G>(evv: &EvalNodeView<G, ()>, deltas: Vec<i64>) -> Vec<[usize; 32]>
 where
     G: StaticGraphViewOps,
 {
-    let two_n_c = twonode_motif_count(graph, evv, deltas.clone());
+    let two_n_c = twonode_motif_count(evv, deltas.clone());
     let neigh_map: HashMap<u64, usize> = evv
         .neighbours()
         .into_iter()
@@ -75,11 +71,7 @@ where
 
 ///////////////////////////////////////////////////////
 
-pub fn twonode_motif_count<G>(
-    graph: &G,
-    evv: &EvalNodeView<G, ()>,
-    deltas: Vec<i64>,
-) -> Vec<[usize; 8]>
+pub fn twonode_motif_count<G>(evv: &EvalNodeView<G, ()>, deltas: Vec<i64>) -> Vec<[usize; 8]>
 where
     G: StaticGraphViewOps,
 {
@@ -87,8 +79,8 @@ where
 
     for nb in evv.neighbours().into_iter() {
         let nb_id = nb.id();
-        let out = graph.edge(evv.id(), nb_id);
-        let inc = graph.edge(nb_id, evv.id());
+        let out = evv.graph().edge(evv.id(), nb_id);
+        let inc = evv.graph().edge(nb_id, evv.id());
         let events: Vec<TwoNodeEvent> = out
             .iter()
             .flat_map(|e| e.explode())
@@ -265,8 +257,7 @@ where
     let out1 = triangle_motifs(g, deltas.clone(), threads);
 
     let step1 = ATask::new(move |evv: &mut EvalNodeView<G, _>| {
-        let g = evv.graph();
-        let star_nodes = star_motif_count(g, evv, deltas.clone());
+        let star_nodes = star_motif_count(evv, deltas.clone());
         for (i, star) in star_nodes.iter().enumerate() {
             evv.global_update(&star_mc[i], *star);
         }
