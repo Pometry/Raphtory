@@ -17,16 +17,11 @@ use crate::{
         graph::{edges::Edges, node::NodeView, path::PathFromNode},
         task::{
             edge::eval_edges::EvalEdges, eval_graph::EvalGraph, node::eval_node_state::EVState,
-            task_state::PrevLocalState,
         },
     },
     prelude::{GraphViewOps, NodeTypesFilter},
 };
-use std::{
-    cell::{Ref, RefCell},
-    rc::Rc,
-    sync::Arc,
-};
+use std::{cell::Ref, sync::Arc};
 
 pub struct EvalNodeView<'graph, 'a: 'graph, G, S, GH = &'graph G, CS: Clone = ComputeStateVec> {
     pub node: VID,

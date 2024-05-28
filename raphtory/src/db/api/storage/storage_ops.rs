@@ -43,7 +43,7 @@ use crate::{
 };
 use itertools::Itertools;
 use rayon::prelude::*;
-use std::{iter, sync::Arc};
+use std::iter;
 
 #[derive(Debug, Clone)]
 pub enum GraphStorage {
