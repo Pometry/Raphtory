@@ -104,15 +104,6 @@ impl MaterializedGraph {
         }
     }
 
-    pub fn into_arrow(self) -> Option<ArrowGraph> {
-        match self {
-            MaterializedGraph::EventGraph(_) => None,
-            MaterializedGraph::PersistentGraph(g) => None,
-            #[cfg(feature = "arrow")]
-            MaterializedGraph::ArrowEventGraph(g) => Some(g),
-        }
-    }
-
     pub fn load_from_file<P: AsRef<Path>>(path: P, force: bool) -> Result<Self, GraphError> {
         let f = std::fs::File::open(path)?;
         let mut reader = std::io::BufReader::new(f);
