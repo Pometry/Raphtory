@@ -84,7 +84,9 @@ where
         let events: Vec<TwoNodeEvent> = out
             .iter()
             .flat_map(|e| e.explode())
-            .merge_by(inc.iter().flat_map(|e| e.explode()), |e1,e2| e1.time_and_index() < e2.time_and_index())
+            .merge_by(inc.iter().flat_map(|e| e.explode()), |e1, e2| {
+                e1.time_and_index() < e2.time_and_index()
+            })
             .map(|e| {
                 two_node_event(
                     if e.src().id() == evv.id() { 1 } else { 0 },
@@ -113,7 +115,8 @@ where
     // Create K-Core graph to recursively remove nodes of degree < 2
     let node_set = k_core_set(graph, 2, usize::MAX, None);
     let kcore_subgraph: NodeSubgraph<G> = graph.subgraph(node_set);
-    let mut ctx_subgraph: Context<NodeSubgraph<G>, ComputeStateVec> = Context::from(&kcore_subgraph);
+    let mut ctx_subgraph: Context<NodeSubgraph<G>, ComputeStateVec> =
+        Context::from(&kcore_subgraph);
 
     // Triangle Accumulator
     let neighbours_set = accumulators::hash_set::<u64>(0);
@@ -125,9 +128,10 @@ where
     let tri_clone = tri_mc.clone();
 
     tri_mc.clone().iter().for_each(|mc| {
-        ctx_subgraph.global_agg::<[usize; 8], [usize; 8], [usize; 8], ArrConst<usize, SumDef<usize>, 8>>(
-            *mc,
-        )
+        ctx_subgraph
+            .global_agg::<[usize; 8], [usize; 8], [usize; 8], ArrConst<usize, SumDef<usize>, 8>>(
+                *mc,
+            )
     });
 
     ctx_subgraph.agg(neighbours_set);

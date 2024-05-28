@@ -143,7 +143,9 @@ where
         let events: Vec<TwoNodeEvent> = out
             .iter()
             .flat_map(|e| e.explode())
-            .merge_by(inc.iter().flat_map(|e| e.explode()), |e1,e2| e1.time_and_index() < e2.time_and_index())
+            .merge_by(inc.iter().flat_map(|e| e.explode()), |e1, e2| {
+                e1.time_and_index() < e2.time_and_index()
+            })
             .map(|e| {
                 two_node_event(
                     if e.src().id() == evv.id() { 1 } else { 0 },
@@ -179,101 +181,105 @@ where
     // Create K-Core graph to recursively remove nodes of degree < 2
     let node_set = k_core_set(graph, 2, usize::MAX, None);
     let kcore_subgraph: NodeSubgraph<G> = graph.subgraph(node_set);
-    let mut ctx_subgraph: Context<NodeSubgraph<G>, ComputeStateVec> = Context::from(&kcore_subgraph);
+    let mut ctx_subgraph: Context<NodeSubgraph<G>, ComputeStateVec> =
+        Context::from(&kcore_subgraph);
 
     // Triangle Accumulator
     let neighbours_set = accumulators::hash_set::<u64>(1);
     ctx_subgraph.agg(neighbours_set);
 
-    let neighbourhood_update_step = ATask::new(move |u: &mut EvalNodeView<NodeSubgraph<G>, MotifCounter>| {
-        for v in u.neighbours() {
-            if u.id() > v.id() {
-                v.update(&neighbours_set, u.id());
-            }
-        }
-        Step::Continue
-    });
-
-    let intersection_compute_step = ATask::new(move |u: &mut EvalNodeView<NodeSubgraph<G>, MotifCounter>| {
-        let uu = u.get_mut();
-        if uu.triangle.is_empty() {
-            uu.triangle = vec![[0usize; 8]; delta_len];
-        }
-        for v in u.neighbours() {
-            // Find triangles on the UV edge
-            let intersection_nbs: Vec<u64> = match v.entry(&neighbours_set).read_ref() {
-                Some(v_set) => {
-                    let u_set = FxHashSet::from_iter(u.neighbours().id());
-                    let intersection = u_set.intersection(v_set).cloned().collect::<Vec<_>>();
-                    intersection
+    let neighbourhood_update_step =
+        ATask::new(move |u: &mut EvalNodeView<NodeSubgraph<G>, MotifCounter>| {
+            for v in u.neighbours() {
+                if u.id() > v.id() {
+                    v.update(&neighbours_set, u.id());
                 }
-                None => vec![],
-            };
-
-            if intersection_nbs.is_empty() {
-                continue;
             }
+            Step::Continue
+        });
 
-            intersection_nbs.iter().for_each(|w| {
-                // For each triangle, run the triangle count.
+    let intersection_compute_step =
+        ATask::new(move |u: &mut EvalNodeView<NodeSubgraph<G>, MotifCounter>| {
+            let uu = u.get_mut();
+            if uu.triangle.is_empty() {
+                uu.triangle = vec![[0usize; 8]; delta_len];
+            }
+            for v in u.neighbours() {
+                // Find triangles on the UV edge
+                let intersection_nbs: Vec<u64> = match v.entry(&neighbours_set).read_ref() {
+                    Some(v_set) => {
+                        let u_set = FxHashSet::from_iter(u.neighbours().id());
+                        let intersection = u_set.intersection(v_set).cloned().collect::<Vec<_>>();
+                        intersection
+                    }
+                    None => vec![],
+                };
 
-                let all_exploded = vec![u.id(), v.id(), *w]
-                    .into_iter()
-                    .sorted()
-                    .permutations(2)
-                    .map(|e| {
-                        u.graph().edge(*e.first().unwrap(), *e.get(1).unwrap())
+                if intersection_nbs.is_empty() {
+                    continue;
+                }
+
+                intersection_nbs.iter().for_each(|w| {
+                    // For each triangle, run the triangle count.
+
+                    let all_exploded = vec![u.id(), v.id(), *w]
+                        .into_iter()
+                        .sorted()
+                        .permutations(2)
+                        .map(|e| {
+                            u.graph()
+                                .edge(*e.first().unwrap(), *e.get(1).unwrap())
+                                .iter()
+                                .flat_map(|edge| edge.explode())
+                                .collect::<Vec<_>>()
+                        })
+                        .kmerge_by(|e1, e2| e1.time_and_index() < e2.time_and_index())
+                        .map(|e| {
+                            let (src_id, dst_id) = (e.src().id(), e.dst().id());
+                            let (uid, _vid) = (u.id(), v.id());
+                            if src_id == *w {
+                                new_triangle_edge(
+                                    false,
+                                    if dst_id == uid { 0 } else { 1 },
+                                    0,
+                                    0,
+                                    e.time().unwrap(),
+                                )
+                            } else if dst_id == *w {
+                                new_triangle_edge(
+                                    false,
+                                    if src_id == uid { 0 } else { 1 },
+                                    0,
+                                    1,
+                                    e.time().unwrap(),
+                                )
+                            } else if src_id == uid {
+                                new_triangle_edge(true, 1, 0, 1, e.time().unwrap())
+                            } else {
+                                new_triangle_edge(true, 0, 0, 0, e.time().unwrap())
+                            }
+                        })
+                        .collect::<Vec<TriangleEdge>>();
+
+                    for i in 0..deltas.len() {
+                        let delta = deltas[i];
+                        let mut tri_count = init_tri_count(2);
+                        tri_count.execute(&all_exploded, delta);
+                        let intermediate_counts: Iter<usize> = tri_count.return_counts().iter();
+                        let mc_u = u.get_mut();
+                        let triangle_u = mc_u.triangle[i]
                             .iter()
-                            .flat_map(|edge| edge.explode())
-                            .collect::<Vec<_>>()
-                    })
-                    .kmerge_by(|e1, e2| e1.time_and_index() < e2.time_and_index())
-                    .map(|e| {
-                        let (src_id, dst_id) = (e.src().id(), e.dst().id());
-                        let (uid, _vid) = (u.id(), v.id());
-                        if src_id == *w {
-                            new_triangle_edge(
-                                false,
-                                if dst_id == uid { 0 } else { 1 },
-                                0,
-                                0,
-                                e.time().unwrap(),
-                            )
-                        } else if dst_id == *w {
-                            new_triangle_edge(
-                                false,
-                                if src_id == uid { 0 } else { 1 },
-                                0,
-                                1,
-                                e.time().unwrap(),
-                            )
-                        } else if src_id == uid {
-                            new_triangle_edge(true, 1, 0, 1, e.time().unwrap())
-                        } else {
-                            new_triangle_edge(true, 0, 0, 0, e.time().unwrap())
-                        }
-                    })
-                    .collect::<Vec<TriangleEdge>>();
-
-                for i in 0..deltas.len() {
-                    let delta = deltas[i];
-                    let mut tri_count = init_tri_count(2);
-                    tri_count.execute(&all_exploded, delta);
-                    let intermediate_counts: Iter<usize> = tri_count.return_counts().iter();
-                    let mc_u = u.get_mut();
-                    let triangle_u = mc_u.triangle[i]
-                        .iter()
-                        .zip(intermediate_counts.clone())
-                        .map(|(&i1, &i2)| i1 + i2)
-                        .collect::<Vec<usize>>()
-                        .try_into()
-                        .unwrap();
-                    mc_u.triangle[i] = triangle_u;
-                }
-            })
-        }
-        Step::Continue
-    });
+                            .zip(intermediate_counts.clone())
+                            .map(|(&i1, &i2)| i1 + i2)
+                            .collect::<Vec<usize>>()
+                            .try_into()
+                            .unwrap();
+                        mc_u.triangle[i] = triangle_u;
+                    }
+                })
+            }
+            Step::Continue
+        });
 
     let mut runner: TaskRunner<NodeSubgraph<G>, _> = TaskRunner::new(ctx_subgraph);
 
