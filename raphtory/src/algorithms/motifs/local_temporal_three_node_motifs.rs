@@ -99,19 +99,7 @@ where
         .enumerate()
         .map(|(num, nb)| (nb.id(), num))
         .collect();
-    // let events = evv
-    //     .edges()
-    //     .explode()
-    //     .iter()
-    //     .sorted_by_key(|e| e.time_and_index())
-    //     .map(|edge| {
-    //         if edge.src().id() == evv.id() {
-    //             star_event(neigh_map[&edge.dst().id()], 1, edge.time().unwrap())
-    //         } else {
-    //             star_event(neigh_map[&edge.src().id()], 0, edge.time().unwrap())
-    //         }
-    //     })
-    //     .collect::<Vec<StarEvent>>();
+
     let events = evv
         .edges()
         .iter()
@@ -203,7 +191,7 @@ where
     let neighbour_update_step =
         ATask::new(move |u: &mut EvalNodeView<NodeSubgraph<G>, MotifCounter>| {
             for v in u.neighbours() {
-                if u.id() > v.id() {
+                if u.node > v.node {
                     v.update(&neighbours_set, u.id());
                 }
             }
@@ -230,9 +218,8 @@ where
                 if intersection_nbs.is_empty() {
                     continue;
                 }
-                // let mut nb_ct = 0;
+
                 intersection_nbs.iter().for_each(|w| {
-                    // For each triangle, run the triangle count.
 
                     let all_exploded = vec![u.id(), v.id(), *w]
                         .into_iter()

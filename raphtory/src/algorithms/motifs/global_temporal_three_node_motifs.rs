@@ -153,7 +153,7 @@ where
     let intersection_compute_step = ATask::new(move |u: &mut EvalNodeView<NodeSubgraph<G>, ()>| {
         for v in u.neighbours() {
             // Find triangles on the UV edge
-            if u.id() > v.id() {
+            if u.node > v.node {
                 let intersection_nbs = {
                     match (
                         u.entry(&neighbours_set)
@@ -246,7 +246,6 @@ where
 }
 
 ///////////////////////////////////////////////////////
-
 pub fn temporal_three_node_motif_multi<G>(
     g: &G,
     deltas: Vec<i64>,
