@@ -22,12 +22,3 @@ for i, line in enumerate(lines[:-1]):
 
 with open(toml_file, "w") as f:
     f.writelines(lines)
-
-subprocess.run(
-    [
-        "git",
-        "submodule",
-        "deinit",
-        "raphtory-arrow-private"
-    ]
-)

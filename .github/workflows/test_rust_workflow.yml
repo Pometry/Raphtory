@@ -53,7 +53,7 @@ jobs:
         with:
           cache-all-crates: true
       - name: Activate raphtory-arrow in Cargo.toml
-        run: python ./scripts/activate_private_arrow.py
+        run: make pull-arrow
       - name: Install bininstall
         uses: cargo-bins/cargo-binstall@main
       - name: Install nextest

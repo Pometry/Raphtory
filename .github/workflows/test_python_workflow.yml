@@ -60,7 +60,7 @@ jobs:
           python-version: ${{ matrix.python }}
           cache: 'pip'
       - name: Activate raphtory-arrow in Cargo.toml
-        run: python ./scripts/activate_private_arrow.py Cargo.toml
+        run: make pull-arrow
       - name: Run Maturin develop
         uses: PyO3/maturin-action@v1
         with:
