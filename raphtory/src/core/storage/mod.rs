@@ -27,9 +27,9 @@ use std::{
 type ArcRwLockReadGuard<T> = lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, T>;
 
 #[inline]
-fn resolve<const N: usize>(index: usize) -> (usize, usize) {
-    let bucket = index % N;
-    let offset = index / N;
+fn resolve(index: usize, num_buckets: usize) -> (usize, usize) {
+    let bucket = index % num_buckets;
+    let offset = index / num_buckets;
     (bucket, offset)
 }
 
@@ -60,13 +60,13 @@ impl<T: Default> LockVec<T> {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct RawStorage<T: Default, const N: usize, Index = usize> {
+pub struct RawStorage<T: Default, Index = usize> {
     pub(crate) data: Box<[LockVec<T>]>,
     len: AtomicUsize,
     _index: PhantomData<Index>,
 }
 
-impl<Index, T: PartialEq + Default, const N: usize> PartialEq for RawStorage<T, N, Index> {
+impl<Index, T: PartialEq + Default> PartialEq for RawStorage<T, Index> {
     fn eq(&self, other: &Self) -> bool {
         self.data.eq(&other.data)
     }
@@ -151,7 +151,7 @@ where
     }
 }
 
-impl<Index, T: Default + Send + Sync, const N: usize> RawStorage<T, N, Index>
+impl<Index, T: Default + Send + Sync> RawStorage<T, Index>
 where
     usize: From<Index>,
 {
@@ -160,10 +160,15 @@ where
     }
 }
 
-impl<Index, T: Default, const N: usize> RawStorage<T, N, Index>
+impl<Index, T: Default> RawStorage<T, Index>
 where
     usize: From<Index>,
 {
+    #[inline]
+    fn resolve(&self, index: usize) -> (usize, usize) {
+        resolve(index, self.data.len())
+    }
+
     #[inline]
     pub fn read_lock(&self) -> ReadLockedStorage<T, Index> {
         let guards = self
@@ -182,9 +187,11 @@ where
         0..self.len()
     }
 
-    pub fn new() -> Self {
-        let data: [LockVec<T>; N] = array::from_fn(|_| LockVec::new());
-        let data = Box::new(data);
+    pub fn new(n_locks: usize) -> Self {
+        let data: Box<[LockVec<T>]> = (0..n_locks)
+            .map(|_| LockVec::new())
+            .collect::<Vec<_>>()
+            .into();
         Self {
             data,
             len: AtomicUsize::new(0),
@@ -194,7 +201,7 @@ where
 
     pub fn push<F: Fn(usize, &mut T)>(&self, mut value: T, f: F) -> usize {
         let index = self.len.fetch_add(1, Ordering::SeqCst);
-        let (bucket, offset) = resolve::<N>(index);
+        let (bucket, offset) = self.resolve(index);
         let mut vec = self.data[bucket].data.write();
         if offset >= vec.len() {
             vec.resize_with(offset + 1, || Default::default());
@@ -207,7 +214,7 @@ where
     #[inline]
     pub fn entry(&self, index: Index) -> Entry<'_, T> {
         let index = index.into();
-        let (bucket, offset) = resolve::<N>(index);
+        let (bucket, offset) = self.resolve(index);
         let guard = self.data[bucket].data.read_recursive();
         Entry { offset, guard }
     }
@@ -215,14 +222,14 @@ where
     #[inline]
     pub fn get(&self, index: Index) -> impl Deref<Target = T> + '_ {
         let index = index.into();
-        let (bucket, offset) = resolve::<N>(index);
+        let (bucket, offset) = self.resolve(index);
         let guard = self.data[bucket].data.read_recursive();
         RwLockReadGuard::map(guard, |guard| &guard[offset])
     }
 
     pub fn entry_arc(&self, index: Index) -> ArcEntry<T> {
         let index = index.into();
-        let (bucket, offset) = resolve::<N>(index);
+        let (bucket, offset) = self.resolve(index);
         let guard = &self.data[bucket].data;
         let arc_guard = RwLock::read_arc_recursive(guard);
         ArcEntry {
@@ -233,7 +240,7 @@ where
 
     pub fn entry_mut(&self, index: Index) -> EntryMut<'_, T> {
         let index = index.into();
-        let (bucket, offset) = resolve::<N>(index);
+        let (bucket, offset) = self.resolve(index);
         let guard = self.data[bucket].data.write();
         EntryMut { i: offset, guard }
     }
@@ -242,8 +249,8 @@ where
     pub fn pair_entry_mut(&self, i: Index, j: Index) -> PairEntryMut<'_, T> {
         let i = i.into();
         let j = j.into();
-        let (bucket_i, offset_i) = resolve::<N>(i);
-        let (bucket_j, offset_j) = resolve::<N>(j);
+        let (bucket_i, offset_i) = self.resolve(i);
+        let (bucket_j, offset_j) = self.resolve(j);
         // always acquire lock for smaller bucket first to avoid deadlock between two updates for the same pair of buckets
         if bucket_i < bucket_j {
             let guard_i = self.data[bucket_i].data.write();
@@ -275,10 +282,6 @@ where
     #[inline]
     pub fn len(&self) -> usize {
         self.len.load(Ordering::SeqCst)
-    }
-
-    pub fn iter(&self) -> Iter<T, N, Index> {
-        Iter::new(self)
     }
 }
 
@@ -408,7 +411,7 @@ mod test {
 
     #[test]
     fn add_5_values_to_storage() {
-        let storage = RawStorage::<String, 2>::new();
+        let storage = RawStorage::<String>::new(2);
 
         for i in 0..5 {
             storage.push(i.to_string(), |_, _| {});
@@ -421,7 +424,7 @@ mod test {
             assert_eq!(*entry, i.to_string());
         }
 
-        let items_iter = storage.iter();
+        let items_iter = storage.read_lock().into_iter();
 
         let actual = items_iter.map(|s| (*s).to_owned()).collect::<Vec<_>>();
 
@@ -430,28 +433,22 @@ mod test {
 
     #[test]
     fn test_index_correctness() {
-        let storage = RawStorage::<String, 2>::new();
+        let storage = RawStorage::<String>::new(2);
 
         for i in 0..5 {
             storage.push(i.to_string(), |_, _| {});
         }
-
-        let items_iter = storage.iter();
-        let actual = items_iter
-            .map(|s| (s.index(), (*s).to_owned()))
-            .collect::<Vec<_>>();
+        let locked = storage.read_lock();
+        let actual: Vec<_> = (0..5).map(|i| (i, locked.get(i).as_str())).collect();
         assert_eq!(
             actual,
-            vec![(0, "0"), (2, "2"), (4, "4"), (1, "1"), (3, "3"),]
-                .into_iter()
-                .map(|(i, s)| (i, s.to_string()))
-                .collect::<Vec<_>>()
+            vec![(0usize, "0"), (1, "1"), (2, "2"), (3, "3"), (4, "4")]
         );
     }
 
     #[test]
     fn test_entry() {
-        let storage = RawStorage::<String, 2>::new();
+        let storage = RawStorage::<String>::new(2);
 
         for i in 0..5 {
             storage.push(i.to_string(), |_, _| {});
@@ -468,7 +465,7 @@ mod test {
 
     #[quickcheck]
     fn concurrent_push(v: Vec<usize>) -> bool {
-        let storage = RawStorage::<usize, 16>::new();
+        let storage = RawStorage::<usize>::new(16);
         let mut expected = v
             .into_par_iter()
             .map(|v| {
@@ -477,7 +474,8 @@ mod test {
             })
             .collect::<Vec<_>>();
 
-        let mut actual = storage.iter().map(|s| *s).collect::<Vec<_>>();
+        let locked = storage.read_lock();
+        let mut actual: Vec<_> = locked.iter().copied().collect();
 
         actual.sort();
         expected.sort();

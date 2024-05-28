@@ -1,5 +1,5 @@
 use crate::{
-    core::{utils::time::IntoTime, ArcStr, Prop, PropType},
+    core::{utils::time::IntoTime, ArcStr, Prop},
     db::api::{
         properties::{
             dyn_props::{DynTemporalProperties, DynTemporalProperty},
@@ -238,6 +238,16 @@ impl PyTemporalProp {
     /// List update timestamps and corresponding property values
     pub fn items(&self) -> Vec<(i64, Prop)> {
         self.prop.iter().collect()
+    }
+
+    // List of unique property values
+    pub fn unique(&self) -> Vec<Prop> {
+        self.prop.unique()
+    }
+
+    // List of ordered deduplicated property values
+    pub fn ordered_dedupe(&self, latest_time: bool) -> Vec<(i64, Prop)> {
+        self.prop.ordered_dedupe(latest_time)
     }
 
     /// List update timestamps and corresponding property values

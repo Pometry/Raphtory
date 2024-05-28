@@ -59,6 +59,12 @@ use pyo3::prelude::*;
 use rand::{prelude::StdRng, SeedableRng};
 use std::collections::{HashMap, HashSet};
 
+#[cfg(feature = "arrow")]
+use raphtory_arrow::algorithms::connected_components::connected_components as connected_components_rs;
+
+#[cfg(feature = "arrow")]
+use crate::python::graph::arrow::PyArrowGraph;
+
 /// Implementations of various graph algorithms that can be run on a graph.
 ///
 /// To run an algorithm simply import the module and call the function with the graph as the argument
@@ -115,6 +121,13 @@ pub fn strongly_connected_components(
     g: &PyGraphView,
 ) -> AlgorithmResult<DynamicGraph, usize, usize> {
     components::strongly_connected_components(&g.graph, None)
+}
+
+#[cfg(feature = "arrow")]
+#[pyfunction]
+#[pyo3(signature = (g))]
+pub fn connected_components(g: &PyArrowGraph) -> Vec<usize> {
+    connected_components_rs(g.graph.as_ref())
 }
 
 /// In components -- Finding the "in-component" of a node in a directed graph involves identifying all nodes that can be reached following only incoming edges.
@@ -579,7 +592,7 @@ pub fn min_degree(g: &PyGraphView) -> usize {
 #[pyo3[signature = (g, source, cutoff=None)]]
 pub fn single_source_shortest_path(
     g: &PyGraphView,
-    source: PyInputNode,
+    source: NodeRef,
     cutoff: Option<usize>,
 ) -> AlgorithmResult<DynamicGraph, Vec<String>, Vec<String>> {
     single_source_shortest_path_rs(&g.graph, source, cutoff)
@@ -601,8 +614,8 @@ pub fn single_source_shortest_path(
 #[pyo3[signature = (g, source, targets, direction=PyDirection::new("BOTH"), weight="weight".to_string())]]
 pub fn dijkstra_single_source_shortest_paths(
     g: &PyGraphView,
-    source: PyInputNode,
-    targets: Vec<PyInputNode>,
+    source: NodeRef,
+    targets: Vec<NodeRef>,
     direction: PyDirection,
     weight: Option<String>,
 ) -> PyResult<HashMap<String, (Prop, Vec<String>)>> {

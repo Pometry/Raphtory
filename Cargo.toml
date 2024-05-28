@@ -1,14 +1,15 @@
 [workspace]
 members = [
     "raphtory",
+    "raphtory-cypher",
     "raphtory-benchmark",
+    "raphtory-arrow",
     "examples/rust",
     "examples/netflow",
     "python",
     "js-raphtory",
-    "raphtory-graphql",
-    "comparison-benchmark/rust/raphtory-rust-benchmark"
-    , "comparison-benchmark/graphql-benchmark/run_server"]
+    "raphtory-graphql", "raphtory-api",
+]
 default-members = ["raphtory"]
 resolver = "2"
 
@@ -29,6 +30,10 @@ inherits = "release"
 debug = true
 
 [workspace.dependencies]
+#[public-arrow]
+raphtory-arrow = { version = "0.8.1", path = "raphtory-arrow" }
+#[private-arrow]
+# raphtory-arrow = { path = "raphtory-arrow-private", package = "raphtory-arrow-private" }
 async-graphql = { version = "6.0.11", features = ["dynamic-schema"] }
 async-graphql-poem = "6.0.11"
 dynamic-graphql = "0.8.1"
@@ -66,15 +71,17 @@ dashmap = { version = "5.5.3", features = ["serde"] }
 enum_dispatch = "0.3.12"
 glam = "0.25.0"
 quad-rand = "0.2.1"
-zip = "0.6.6"
+zip = "1.2.2"
 neo4rs = "0.6.2"
 bzip2 = "0.4.4"
-tantivy = "0.21.1"
+tantivy = "0.22"
 async-trait = "0.1.77"
 async-openai = "0.17.1"
 num = "0.4.1"
 display-error-chain = "0.2.0"
-arrow2 = "0.18.0"
+polars-arrow = "0.39.2"
+polars-parquet = "0.39.2"
+polars-utils = "0.39.2"
 kdam = { version = "0.5.1", features = ["notebook"] }
 pretty_assertions = "1.4.0"
 quickcheck = "1.0.3"
@@ -96,6 +103,7 @@ tracing-subscriber = { version = "0.3.16", features = ["std", "env-filter"] }
 walkdir = "2"
 uuid = "1.7.0"
 config = "0.14.0"
+either = "=1.11.0"
 toml = "0.8.10"
 clap = { version = "4.3.11", features = ["derive"] }
 tar = "0.4.38"
@@ -105,4 +113,32 @@ js-sys = "0.3.68"
 console_error_panic_hook = "0.1.7"
 wee_alloc = "0.4.5"
 wasm-bindgen-test = "0.3.41"
+memmap2 = { version = "0.9.4" }
+ahash = { version = "0.8.3", features = ["serde"] }
+xxhash-rust = "0.8.7"
+strum = { version = "0.26.1", features = ["derive"] }
+bytemuck = { version = "1.15.0" }
+rpds = { version = "1.1.0", features = ["serde"] }
+thread_local = "1.1.8"
 ouroboros = "0.18.3"
+
+lazy_static = "1.4.0"
+pest = "2.7.8"
+pest_derive = "2.7.8"
+sqlparser = "0.43.1"
+
+datafusion = { version = "36" }
+futures = "0.3"
+arrow = { version = "50" }
+arrow-buffer = { version = "50" }
+arrow-schema = { version = "50" }
+arrow-data = { version = "50" }
+arrow-array = { version = "50" }
+
+# Make sure that transitive dependencies stick to arrow 50
+[patch.crates-io]
+arrow = { git = "https://github.com/apache/arrow-rs.git", tag = "50.0.0" }
+arrow-buffer = { git = "https://github.com/apache/arrow-rs.git", tag = "50.0.0" }
+arrow-schema = { git = "https://github.com/apache/arrow-rs.git", tag = "50.0.0" }
+arrow-data = { git = "https://github.com/apache/arrow-rs.git", tag = "50.0.0" }
+arrow-array = { git = "https://github.com/apache/arrow-rs.git", tag = "50.0.0" }

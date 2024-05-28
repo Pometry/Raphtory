@@ -37,20 +37,9 @@
 //!  assert_eq!(wg.edge(1, 2).unwrap().src().id(), 1);
 //! ```
 
-use std::{
-    fmt::{Debug, Formatter},
-    ops::Range,
-};
-
-use chrono::{DateTime, Utc};
-
 use crate::{
     core::{
-        entities::{
-            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-            nodes::node_store::NodeStore,
-            LayerIds, VID,
-        },
+        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         storage::timeindex::AsTime,
         ArcStr, Prop,
     },
@@ -59,6 +48,7 @@ use crate::{
             properties::internal::{
                 InheritStaticPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
+            storage::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
             view::{
                 internal::{
                     Base, EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps,
@@ -70,6 +60,11 @@ use crate::{
         graph::graph::graph_equal,
     },
     prelude::GraphViewOps,
+};
+use chrono::{DateTime, Utc};
+use std::{
+    fmt::{Debug, Formatter},
+    ops::Range,
 };
 
 /// A struct that represents a windowed view of a `Graph`.
@@ -146,7 +141,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for WindowedGraph<G> {
     }
 
     #[inline]
-    fn filter_node(&self, node: &NodeStore, layer_ids: &LayerIds) -> bool {
+    fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
         self.graph.filter_node(node, layer_ids)
             && self
                 .graph
@@ -249,12 +244,22 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
     }
 
     #[inline]
-    fn include_node_window(&self, node: &NodeStore, w: Range<i64>, layer_ids: &LayerIds) -> bool {
+    fn include_node_window(
+        &self,
+        node: NodeStorageRef,
+        w: Range<i64>,
+        layer_ids: &LayerIds,
+    ) -> bool {
         self.graph.include_node_window(node, w, layer_ids)
     }
 
     #[inline]
-    fn include_edge_window(&self, edge: &EdgeStore, w: Range<i64>, layer_ids: &LayerIds) -> bool {
+    fn include_edge_window(
+        &self,
+        edge: EdgeStorageRef,
+        w: Range<i64>,
+        layer_ids: &LayerIds,
+    ) -> bool {
         self.graph.include_edge_window(edge, w, layer_ids)
     }
 
@@ -276,14 +281,14 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
         self.graph.edge_history_window(e, layer_ids, w)
     }
 
-    fn edge_exploded_count(&self, edge: &EdgeStore, layer_ids: &LayerIds) -> usize {
+    fn edge_exploded_count(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> usize {
         self.graph
             .edge_exploded_count_window(edge, layer_ids, self.start_bound()..self.end_bound())
     }
 
     fn edge_exploded_count_window(
         &self,
-        edge: &EdgeStore,
+        edge: EdgeStorageRef,
         layer_ids: &LayerIds,
         w: Range<i64>,
     ) -> usize {
@@ -423,7 +428,7 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
         e: EdgeRef,
         prop_id: usize,
         w: Range<i64>,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> bool {
         self.graph
             .has_temporal_edge_prop_window(e, prop_id, w.start..w.end, layer_ids)
@@ -435,13 +440,13 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
         prop_id: usize,
         start: i64,
         end: i64,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> Vec<(i64, Prop)> {
         self.graph
             .temporal_edge_prop_vec_window(e, prop_id, start, end, layer_ids)
     }
 
-    fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: LayerIds) -> bool {
+    fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: &LayerIds) -> bool {
         self.graph.has_temporal_edge_prop_window(
             e,
             prop_id,
@@ -454,7 +459,7 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
         &self,
         e: EdgeRef,
         prop_id: usize,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> Vec<(i64, Prop)> {
         self.graph.temporal_edge_prop_vec_window(
             e,
@@ -483,7 +488,7 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for WindowedGraph<G> {
     }
 
     #[inline]
-    fn filter_edge(&self, edge: &EdgeStore, layer_ids: &LayerIds) -> bool {
+    fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
         self.graph.filter_edge(edge, layer_ids)
             && self
                 .graph
@@ -531,10 +536,12 @@ mod views_test {
     use quickcheck_macros::quickcheck;
     use rand::prelude::*;
     use rayon::prelude::*;
+    use tempfile::TempDir;
 
     use crate::{
         algorithms::centrality::degree_centrality::degree_centrality,
-        db::graph::graph::assert_graph_equal, prelude::*,
+        db::{api::view::StaticGraphViewOps, graph::graph::assert_graph_equal},
+        prelude::*,
     };
 
     use super::*;
@@ -550,23 +557,32 @@ mod views_test {
             (1, 1, 1),
         ];
 
-        let g = Graph::new();
+        let graph = Graph::new();
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
+            graph.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
 
-        let wg = g.window(-1, 1);
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
-        let actual = wg
-            .nodes()
-            .iter()
-            .map(|v| (v.id(), v.degree()))
-            .collect::<Vec<_>>();
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let wg = graph.window(-1, 1);
 
-        let expected = vec![(1, 2), (2, 1)];
+            let actual = wg
+                .nodes()
+                .iter()
+                .map(|v| (v.id(), v.degree()))
+                .collect::<Vec<_>>();
 
-        assert_eq!(actual, expected);
+            let expected = vec![(1, 2), (2, 1)];
+
+            assert_eq!(actual, expected);
+        }
+        test(&graph);
+        #[cfg(feature = "arrow")]
+        test(&arrow_graph);
     }
 
     #[test]
@@ -580,15 +596,24 @@ mod views_test {
             (1, 1, 1),
         ];
 
-        let g = Graph::new();
+        let graph = Graph::new();
 
         for (t, src, dst) in vs {
-            g.add_edge(t, src, dst, NO_PROPS, None).unwrap();
+            graph.add_edge(t, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let wg = g.window(i64::MIN, i64::MAX);
-        assert_eq!(wg.edge(1, 3).unwrap().src().id(), 1);
-        assert_eq!(wg.edge(1, 3).unwrap().dst().id(), 3);
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let wg = graph.window(i64::MIN, i64::MAX);
+            assert_eq!(wg.edge(1, 3).unwrap().src().id(), 1);
+            assert_eq!(wg.edge(1, 3).unwrap().dst().id(), 3);
+        }
+        test(&graph);
+        #[cfg(feature = "arrow")]
+        test(&arrow_graph);
     }
 
     #[test]
@@ -602,15 +627,24 @@ mod views_test {
             (1, 1, 1),
         ];
 
-        let g = Graph::new();
+        let graph = Graph::new();
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
+            graph.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
 
-        let wg = g.window(-1, 1);
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
-        assert_eq!(wg.node(1).unwrap().id(), 1);
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let wg = graph.window(-1, 1);
+
+            assert_eq!(wg.node(1).unwrap().id(), 1);
+        }
+        test(&graph);
+        #[cfg(feature = "arrow")]
+        test(&arrow_graph);
     }
 
     #[test]
@@ -623,16 +657,26 @@ mod views_test {
             // (0, 1),
             // (2, 2),
         ];
-        let g = Graph::new();
+        let graph = Graph::new();
 
         for (t, v) in &vs {
-            g.add_node(*t, *v, NO_PROPS, None)
+            graph
+                .add_node(*t, *v, NO_PROPS, None)
                 .map_err(|err| println!("{:?}", err))
                 .ok();
         }
 
-        let wg = g.window(1, 2);
-        assert!(!wg.has_node(262))
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let wg = graph.window(1, 2);
+            assert!(!wg.has_node(262))
+        }
+        test(&graph);
+        // FIXME: Issue #46
+        // test(&arrow_graph);
     }
 
     #[quickcheck]
@@ -681,6 +725,54 @@ mod views_test {
         }
     }
 
+    // FIXME: Issue #46
+    // #[quickcheck]
+    // fn windowed_arrow_graph_has_node(mut vs: Vec<(i64, u64)>) -> TestResult {
+    //     if vs.is_empty() {
+    //         return TestResult::discard();
+    //     }
+    //
+    //     vs.sort_by_key(|v| v.1); // Sorted by node
+    //     vs.dedup_by_key(|v| v.1); // Have each node only once to avoid headaches
+    //     vs.sort_by_key(|v| v.0); // Sorted by time
+    //
+    //     let rand_start_index = thread_rng().gen_range(0..vs.len());
+    //     let rand_end_index = thread_rng().gen_range(rand_start_index..vs.len());
+    //
+    //     let g = Graph::new();
+    //     for (t, v) in &vs {
+    //         g.add_node(*t, *v, NO_PROPS, None)
+    //             .map_err(|err| println!("{:?}", err))
+    //             .ok();
+    //     }
+    //     let test_dir = TempDir::new().unwrap();
+    #[cfg(feature = "arrow")]
+    //     let g = g.persist_as_arrow(test_dir.path()).unwrap();
+    //
+    //     let start = vs.get(rand_start_index).expect("start index in range").0;
+    //     let end = vs.get(rand_end_index).expect("end index in range").0;
+    //
+    //     let wg = g.window(start, end);
+    //
+    //     let rand_test_index: usize = thread_rng().gen_range(0..vs.len());
+    //
+    //     let (i, v) = vs.get(rand_test_index).expect("test index in range");
+    //     if (start..end).contains(i) {
+    //         if wg.has_node(*v) {
+    //             TestResult::passed()
+    //         } else {
+    //             TestResult::error(format!(
+    //                 "Node {:?} was not in window {:?}",
+    //                 (i, v),
+    //                 start..end
+    //             ))
+    //         }
+    //     } else if !wg.has_node(*v) {
+    //         TestResult::passed()
+    //     } else {
+    //         TestResult::error(format!("Node {:?} was in window {:?}", (i, v), start..end))
+    //     }
+    // }
     #[quickcheck]
     fn windowed_graph_has_edge(mut edges: Vec<(i64, (u64, u64))>) -> TestResult {
         if edges.is_empty() {
@@ -699,6 +791,53 @@ mod views_test {
         for (t, e) in &edges {
             g.add_edge(*t, e.0, e.1, NO_PROPS, None).unwrap();
         }
+
+        let start = edges.get(rand_start_index).expect("start index in range").0;
+        let end = edges.get(rand_end_index).expect("end index in range").0;
+
+        let wg = g.window(start, end);
+
+        let rand_test_index: usize = thread_rng().gen_range(0..edges.len());
+
+        let (i, e) = edges.get(rand_test_index).expect("test index in range");
+        if (start..end).contains(i) {
+            if wg.has_edge(e.0, e.1) {
+                TestResult::passed()
+            } else {
+                TestResult::error(format!(
+                    "Edge {:?} was not in window {:?}",
+                    (i, e),
+                    start..end
+                ))
+            }
+        } else if !wg.has_edge(e.0, e.1) {
+            TestResult::passed()
+        } else {
+            TestResult::error(format!("Edge {:?} was in window {:?}", (i, e), start..end))
+        }
+    }
+
+    #[quickcheck]
+    fn windowed_arrow_graph_has_edge(mut edges: Vec<(i64, (u64, u64))>) -> TestResult {
+        if edges.is_empty() {
+            return TestResult::discard();
+        }
+
+        edges.sort_by_key(|e| e.1); // Sorted by edge
+        edges.dedup_by_key(|e| e.1); // Have each edge only once to avoid headaches
+        edges.sort_by_key(|e| e.0); // Sorted by time
+
+        let rand_start_index = thread_rng().gen_range(0..edges.len());
+        let rand_end_index = thread_rng().gen_range(rand_start_index..edges.len());
+
+        let g = Graph::new();
+
+        for (t, e) in &edges {
+            g.add_edge(*t, e.0, e.1, NO_PROPS, None).unwrap();
+        }
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let g = g.persist_as_arrow(test_dir.path()).unwrap();
 
         let start = edges.get(rand_start_index).expect("start index in range").0;
         let end = edges.get(rand_end_index).expect("end index in range").0;
@@ -800,36 +939,54 @@ mod views_test {
             vec![3, 4, 5, 6],
         ];
 
-        let g = Graph::new();
+        let graph = Graph::new();
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
+            graph.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
 
-        let res: Vec<_> = (0..=3)
-            .map(|i| {
-                let wg = g.window(args[i].0, args[i].1);
-                let mut e = wg.nodes().id().collect::<Vec<_>>();
-                e.sort();
-                e
-            })
-            .collect_vec();
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
-        assert_eq!(res, expected);
+        fn test1<G: StaticGraphViewOps>(graph: &G, args: &[(i64, i64)], expected: &[Vec<u64>]) {
+            let res: Vec<_> = (0..=3)
+                .map(|i| {
+                    let wg = graph.window(args[i].0, args[i].1);
+                    let mut e = wg.nodes().id().collect::<Vec<_>>();
+                    e.sort();
+                    e
+                })
+                .collect_vec();
 
-        let g = Graph::new();
+            assert_eq!(res, expected);
+        }
+        test1(&graph, &args, &expected);
+        #[cfg(feature = "arrow")]
+        test1(&arrow_graph, &args, &expected);
+
+        let graph = Graph::new();
         for (src, dst, t) in &vs {
-            g.add_edge(*src, *dst, *t, NO_PROPS, None).unwrap();
+            graph.add_edge(*src, *dst, *t, NO_PROPS, None).unwrap();
         }
-        let res: Vec<_> = (0..=3)
-            .map(|i| {
-                let wg = g.window(args[i].0, args[i].1);
-                let mut e = wg.nodes().id().collect::<Vec<_>>();
-                e.sort();
-                e
-            })
-            .collect_vec();
-        assert_eq!(res, expected);
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+
+        fn test2<G: StaticGraphViewOps>(graph: &G, args: &[(i64, i64)], expected: &[Vec<u64>]) {
+            let res: Vec<_> = (0..=3)
+                .map(|i| {
+                    let wg = graph.window(args[i].0, args[i].1);
+                    let mut e = wg.nodes().id().collect::<Vec<_>>();
+                    e.sort();
+                    e
+                })
+                .collect_vec();
+            assert_eq!(res, expected);
+        }
+        test2(&graph, &args, &expected);
+        #[cfg(feature = "arrow")]
+        test2(&arrow_graph, &args, &expected);
     }
 
     #[test]
@@ -843,200 +1000,215 @@ mod views_test {
             (1, 1, 1),
         ];
 
-        let g = Graph::new();
+        let graph = Graph::new();
 
-        g.add_node(
-            0,
-            1,
-            [("type", "wallet".into_prop()), ("cost", 99.5.into_prop())],
-            None,
-        )
-        .map_err(|err| println!("{:?}", err))
-        .ok();
+        graph
+            .add_node(
+                0,
+                1,
+                [("type", "wallet".into_prop()), ("cost", 99.5.into_prop())],
+                None,
+            )
+            .unwrap();
 
-        g.add_node(
-            -1,
-            2,
-            [("type", "wallet".into_prop()), ("cost", 10.0.into_prop())],
-            None,
-        )
-        .map_err(|err| println!("{:?}", err))
-        .ok();
+        graph
+            .add_node(
+                -1,
+                2,
+                [("type", "wallet".into_prop()), ("cost", 10.0.into_prop())],
+                None,
+            )
+            .unwrap();
 
-        g.add_node(
-            6,
-            3,
-            [("type", "wallet".into_prop()), ("cost", 76.2.into_prop())],
-            None,
-        )
-        .map_err(|err| println!("{:?}", err))
-        .ok();
+        graph
+            .add_node(
+                6,
+                3,
+                [("type", "wallet".into_prop()), ("cost", 76.2.into_prop())],
+                None,
+            )
+            .unwrap();
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, [("eprop", "commons")], None)
+            graph
+                .add_edge(*t, *src, *dst, [("eprop", "commons")], None)
                 .unwrap();
         }
 
-        let wg = g.window(-2, 0);
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
-        let actual = wg.nodes().id().collect::<Vec<_>>();
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let wg = graph.window(-2, 0);
 
-        let expected = vec![1, 2];
+            let actual = wg.nodes().id().collect::<Vec<_>>();
 
-        assert_eq!(actual, expected);
+            let expected = vec![1, 2];
 
-        // Check results from multiple graphs with different number of shards
-        let g = Graph::new();
-
-        g.add_node(
-            0,
-            1,
-            [("type", "wallet".into_prop()), ("cost", 99.5.into_prop())],
-            None,
-        )
-        .map_err(|err| println!("{:?}", err))
-        .ok();
-
-        g.add_node(
-            -1,
-            2,
-            [("type", "wallet".into_prop()), ("cost", 10.0.into_prop())],
-            None,
-        )
-        .map_err(|err| println!("{:?}", err))
-        .ok();
-
-        g.add_node(
-            6,
-            3,
-            [("type", "wallet".into_prop()), ("cost", 76.2.into_prop())],
-            None,
-        )
-        .map_err(|err| println!("{:?}", err))
-        .ok();
-
-        for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
+            assert_eq!(actual, expected);
         }
-
-        let expected = wg.nodes().id().collect::<Vec<_>>();
-
-        assert_eq!(actual, expected);
+        test(&graph);
+        #[cfg(feature = "arrow")]
+        test(&arrow_graph);
     }
 
     #[test]
     fn test_reference() {
-        let g = Graph::new();
-        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
-        let mut w = WindowedGraph::new(&g, Some(0), Some(1));
-        assert_eq!(w, g);
-        w = WindowedGraph::new(&g, Some(1), Some(2));
+        let graph = Graph::new();
+        graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
-        assert_eq!(w, Graph::new());
+        fn test<G: StaticGraphViewOps + Debug>(graph: &G) {
+            let mut w = WindowedGraph::new(&graph, Some(0), Some(1));
+            assert_eq!(w, graph);
+            w = WindowedGraph::new(&graph, Some(1), Some(2));
+            assert_eq!(w, Graph::new());
+        }
+        test(&graph);
+        #[cfg(feature = "arrow")]
+        test(&arrow_graph);
     }
 
     #[test]
     fn test_algorithm_on_windowed_graph() {
-        let g = Graph::new();
-        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
-        let w = WindowedGraph::new(g, Some(0), Some(1));
+        let graph = Graph::new();
+        graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
 
-        let res = degree_centrality(&w, None);
-        println!("{:?}", res)
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let w = graph.window(0, 1);
+
+            let res = degree_centrality(&w, None);
+            println!("{:?}", res)
+        }
+        test(&graph);
+        #[cfg(feature = "arrow")]
+        test(&arrow_graph);
     }
 
     #[test]
     fn test_view_resetting() {
-        let g = Graph::new();
+        let graph = Graph::new();
         for t in 0..10 {
             let t1 = t * 3;
             let t2 = t * 3 + 1;
             let t3 = t * 3 + 2;
-            g.add_edge(t1, 1, 2, NO_PROPS, None).unwrap();
-            g.add_edge(t2, 2, 3, NO_PROPS, None).unwrap();
-            g.add_edge(t3, 3, 1, NO_PROPS, None).unwrap();
+            graph.add_edge(t1, 1, 2, NO_PROPS, None).unwrap();
+            graph.add_edge(t2, 2, 3, NO_PROPS, None).unwrap();
+            graph.add_edge(t3, 3, 1, NO_PROPS, None).unwrap();
         }
-        assert_graph_equal(&g.before(9).after(2), &g.window(3, 9));
-        let res = g
-            .window(3, 9)
-            .nodes()
-            .before(6)
-            .edges()
-            .window(1, 9)
-            .earliest_time()
-            .map(|it| it.collect_vec())
-            .collect_vec();
-        assert_eq!(
-            res,
-            [[Some(3), Some(5)], [Some(3), Some(4)], [Some(5), Some(4)]]
-        );
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            assert_graph_equal(&graph.before(9).after(2), &graph.window(3, 9));
+            let res = graph
+                .window(3, 9)
+                .nodes()
+                .before(6)
+                .edges()
+                .window(1, 9)
+                .earliest_time()
+                .map(|it| it.collect_vec())
+                .collect_vec();
+            assert_eq!(
+                res,
+                [[Some(3), Some(5)], [Some(3), Some(4)], [Some(5), Some(4)]]
+            );
+        }
+        test(&graph);
+        #[cfg(feature = "arrow")]
+        test(&arrow_graph);
     }
 
     #[test]
     fn test_entity_history() {
-        let g = Graph::new();
-        g.add_node(0, 1, NO_PROPS, None).unwrap();
-        g.add_node(1, 1, NO_PROPS, None).unwrap();
-        g.add_node(2, 1, NO_PROPS, None).unwrap();
-        let v = g.add_node(3, 1, NO_PROPS, None).unwrap();
-        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
-        g.add_edge(1, 1, 2, NO_PROPS, None).unwrap();
-        g.add_edge(2, 1, 2, NO_PROPS, None).unwrap();
-        let e = g.add_edge(3, 1, 2, NO_PROPS, None).unwrap();
+        let graph = Graph::new();
+        graph.add_node(0, 0, NO_PROPS, None).unwrap();
+        graph.add_node(1, 0, NO_PROPS, None).unwrap();
+        graph.add_node(2, 0, NO_PROPS, None).unwrap();
+        graph.add_node(3, 0, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        graph.add_edge(1, 1, 2, NO_PROPS, None).unwrap();
+        graph.add_edge(2, 1, 2, NO_PROPS, None).unwrap();
+        graph.add_edge(3, 1, 2, NO_PROPS, None).unwrap();
+        graph.add_edge(4, 1, 3, NO_PROPS, None).unwrap();
+        graph.add_edge(5, 1, 3, NO_PROPS, None).unwrap();
+        graph.add_edge(6, 1, 3, NO_PROPS, None).unwrap();
+        graph.add_edge(7, 1, 3, NO_PROPS, None).unwrap();
 
-        let full_history_1 = vec![0i64, 1, 2, 3];
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
-        let full_history_2 = vec![4i64, 5, 6, 7];
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let e = graph.edge(1, 2).unwrap();
+            let v = graph.node(0).unwrap();
+            let full_history_1 = vec![0i64, 1, 2, 3];
 
-        let windowed_history = vec![0i64, 1];
+            let full_history_2 = vec![4i64, 5, 6, 7];
 
-        assert_eq!(v.history(), full_history_1);
+            let windowed_history = vec![0i64, 1];
 
-        assert_eq!(v.window(0, 2).history(), windowed_history);
-        assert_eq!(e.history(), full_history_1);
-        assert_eq!(e.window(0, 2).history(), windowed_history);
+            assert_eq!(v.history(), full_history_1);
 
-        g.add_edge(4, 1, 3, NO_PROPS, None).unwrap();
-        g.add_edge(5, 1, 3, NO_PROPS, None).unwrap();
-        g.add_edge(6, 1, 3, NO_PROPS, None).unwrap();
-        g.add_edge(7, 1, 3, NO_PROPS, None).unwrap();
+            assert_eq!(v.window(0, 2).history(), windowed_history);
+            assert_eq!(e.history(), full_history_1);
+            assert_eq!(e.window(0, 2).history(), windowed_history);
 
-        assert_eq!(
-            g.edges().history().collect_vec(),
-            [full_history_1.clone(), full_history_2.clone()]
-        );
-        assert_eq!(
-            g.nodes()
-                .in_edges()
-                .history()
-                .map(|it| it.collect_vec())
-                .collect_vec(),
-            [vec![], vec![full_history_1], vec![full_history_2],]
-        );
+            assert_eq!(
+                graph.edges().history().collect_vec(),
+                [full_history_1.clone(), full_history_2.clone()]
+            );
+            assert_eq!(
+                graph
+                    .nodes()
+                    .in_edges()
+                    .history()
+                    .map(|it| it.collect_vec())
+                    .collect_vec(),
+                [vec![], vec![], vec![full_history_1], vec![full_history_2],]
+            );
 
-        assert_eq!(
-            g.nodes().earliest_time().flatten().collect_vec(),
-            [0, 0, 4,]
-        );
+            assert_eq!(
+                graph.nodes().earliest_time().flatten().collect_vec(),
+                [0, 0, 0, 4,]
+            );
 
-        assert_eq!(g.nodes().latest_time().flatten().collect_vec(), [7, 3, 7]);
+            assert_eq!(
+                graph.nodes().latest_time().flatten().collect_vec(),
+                [3, 7, 3, 7]
+            );
 
-        assert_eq!(
-            g.nodes()
-                .neighbours()
-                .latest_time()
-                .map(|it| it.flatten().collect_vec())
-                .collect_vec(),
-            [vec![3, 7], vec![7], vec![7],]
-        );
+            assert_eq!(
+                graph
+                    .nodes()
+                    .neighbours()
+                    .latest_time()
+                    .map(|it| it.flatten().collect_vec())
+                    .collect_vec(),
+                [vec![], vec![3, 7], vec![7], vec![7],]
+            );
 
-        assert_eq!(
-            g.nodes()
-                .neighbours()
-                .earliest_time()
-                .map(|it| it.flatten().collect_vec())
-                .collect_vec(),
-            [vec![0, 4], vec![0], vec![0],]
-        );
+            assert_eq!(
+                graph
+                    .nodes()
+                    .neighbours()
+                    .earliest_time()
+                    .map(|it| it.flatten().collect_vec())
+                    .collect_vec(),
+                [vec![], vec![0, 4], vec![0], vec![0],]
+            );
+        }
+        test(&graph);
+        // FIXME: Issue #46
+        // test(&arrow_graph);
     }
 }

@@ -11,8 +11,6 @@ raphtory = { path = "../../raphtory", features = ["io"] }
 chrono = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true }
-rayon = { workspace = true }
-rand = { workspace = true }
 itertools = { workspace = true }
 
 [[bin]]

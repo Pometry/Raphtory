@@ -8,6 +8,7 @@ mod routes;
 pub mod server;
 
 mod data;
+
 #[derive(thiserror::Error, Debug)]
 pub enum UrlDecodeError {
     #[error("Bincode operation failed")]
@@ -44,7 +45,7 @@ mod graphql_test {
         prelude::*,
     };
     use serde_json::json;
-    use std::collections::HashMap;
+    use std::collections::{HashMap, HashSet};
     use tempfile::tempdir;
 
     #[tokio::test]
@@ -143,112 +144,28 @@ mod graphql_test {
 
     #[tokio::test]
     async fn query_nodefilter() {
-        let graph = PersistentGraph::new();
-        if let Err(err) = graph.add_node(0, "gandalf", NO_PROPS, None) {
-            panic!("Could not add node! {:?}", err);
-        }
-        if let Err(err) = graph.add_node(0, "bilbo", NO_PROPS, None) {
-            panic!("Could not add node! {:?}", err);
-        }
-        if let Err(err) = graph.add_node(0, "frodo", NO_PROPS, None) {
-            panic!("Could not add node! {:?}", err);
-        }
+        let graph = Graph::new();
+        graph
+            .add_node(
+                0,
+                1,
+                [("pgraph", Prop::PersistentGraph(PersistentGraph::new()))],
+                None,
+            )
+            .unwrap();
 
-        let graphs = HashMap::from([("lotr".to_string(), graph)]);
+        let graphs = HashMap::from([("graph".to_string(), graph)]);
         let data = Data::from_map(graphs);
-
         let schema = App::create_schema().data(data).finish().unwrap();
-
-        let gandalf_query = r#"
-        {
-          graph(name: "lotr") {
-            nodes(filter: { name: { eq: "gandalf" } }) {
-              list {
-                name
-              }
-            }
-          }
-        }
-        "#;
-
-        let req = Request::new(gandalf_query);
-        let res = schema.execute(req).await;
-        let data = res.data.into_json().unwrap();
-
-        assert_eq!(
-            data,
-            json!({
-                "graph": {
-                    "nodes": {
-                        "list": [
-                            {"name": "gandalf"}
-                        ]
-                    }
-                }
-            }),
-        );
-
-        let not_gandalf_query = r#"
-        {
-          graph(name: "lotr") {
-            nodes(filter: { name: { ne: "gandalf" } }) {
-              list {
-                name
-              }
-            }
-          }
-        }
-        "#;
-
-        let req = Request::new(not_gandalf_query);
-        let res = schema.execute(req).await;
-        let data = res.data.into_json().unwrap();
-
-        assert_eq!(
-            data,
-            json!({
-                "graph": {
-                    "nodes": {
-                        "list": [
-                            { "name": "bilbo" },
-                            { "name": "frodo" }
-                        ]
-                    }
-                }
-            }),
-        );
-    }
-
-    #[tokio::test]
-    async fn query_properties() {
-        let graph = PersistentGraph::new();
-        if let Err(err) = graph.add_node(0, "gandalf", NO_PROPS, None) {
-            panic!("Could not add node! {:?}", err);
-        }
-        if let Err(err) =
-            graph.add_node(0, "bilbo", [("food".to_string(), Prop::str("lots"))], None)
-        {
-            panic!("Could not add node! {:?}", err);
-        }
-        if let Err(err) =
-            graph.add_node(0, "frodo", [("food".to_string(), Prop::str("some"))], None)
-        {
-            panic!("Could not add node! {:?}", err);
-        }
-
-        let graphs = HashMap::from([("lotr".to_string(), graph)]);
-        let data = Data::from_map(graphs);
-
-        let schema = App::create_schema().data(data).finish().unwrap();
-
         let prop_has_key_filter = r#"
         {
-          graph(name: "lotr") {
-            nodes(filter: { propertyHas: {
-                            key: "food"
-                          }}) {
+          graph(name: "graph") {
+            nodes{
               list {
                 name
+                properties{
+                    contains(key:"pgraph")
+                }
               }
             }
           }
@@ -258,46 +175,510 @@ mod graphql_test {
         let req = Request::new(prop_has_key_filter);
         let res = schema.execute(req).await;
         let data = res.data.into_json().unwrap();
-
         assert_eq!(
             data,
             json!({
                 "graph": {
                     "nodes": {
                         "list": [
-                            { "name": "bilbo" },
-                            { "name": "frodo" },
+                            { "name": "1",
+                              "properties":{
+                                "contains":true
+                            }},
                         ]
                     }
                 }
             }),
         );
+    }
 
-        let prop_has_value_filter = r#"
+    #[tokio::test]
+    async fn test_unique_temporal_properties() {
+        let g = Graph::new();
+        g.add_constant_properties([("name", "graph")]).unwrap();
+        g.add_properties(1, [("state", "abc")]).unwrap();
+        g.add_properties(2, [("state", "abc")]).unwrap();
+        g.add_properties(3, [("state", "xyz")]).unwrap();
+        g.add_properties(4, [("state", "abc")]).unwrap();
+        g.add_edge(1, 1, 2, [("status", "open")], None).unwrap();
+        g.add_edge(2, 1, 2, [("status", "open")], None).unwrap();
+        g.add_edge(3, 1, 2, [("status", "review")], None).unwrap();
+        g.add_edge(4, 1, 2, [("status", "open")], None).unwrap();
+        g.add_edge(5, 1, 2, [("status", "in-progress")], None)
+            .unwrap();
+        g.add_edge(10, 1, 2, [("status", "in-progress")], None)
+            .unwrap();
+        g.add_edge(9, 1, 2, [("state", true)], None).unwrap();
+        g.add_edge(10, 1, 2, [("state", false)], None).unwrap();
+        g.add_edge(6, 1, 2, NO_PROPS, None).unwrap();
+        g.add_node(11, 3, [("name", "phone")], None).unwrap();
+        g.add_node(12, 3, [("name", "fax")], None).unwrap();
+        g.add_node(13, 3, [("name", "fax")], None).unwrap();
+
+        let graphs = HashMap::from([("graph".to_string(), g)]);
+        let data = Data::from_map(graphs);
+        let schema = App::create_schema().data(data).finish().unwrap();
+
+        let prop_has_key_filter = r#"
         {
-          graph(name: "lotr") {
-            nodes(filter: { propertyHas: {
-                            valueStr: "lots"
-                          }}) {
-              list {
-                name
+          graph(name: "graph") {
+            properties {
+              temporal {
+                values {
+                  unique
+                }
+              }
+            }
+            node(name: "3") {
+              properties {
+                temporal {
+                  values {
+                    unique
+                  }
+                }
+              }
+            }
+            edge(
+              src: "1",
+              dst: "2"
+            ) {
+              properties{
+                temporal{
+                  values{
+                    unique
+                  }
+                }
               }
             }
           }
         }
         "#;
 
-        let req = Request::new(prop_has_value_filter);
+        let req = Request::new(prop_has_key_filter);
         let res = schema.execute(req).await;
         let data = res.data.into_json().unwrap();
+        let expected = json!({
+            "graph": {
+              "properties": {
+                "temporal": {
+                  "values": [
+                    {
+                      "unique": [
+                        "xyz",
+                        "abc"
+                      ]
+                    }
+                  ]
+                }
+              },
+              "node": {
+                "properties": {
+                  "temporal": {
+                    "values": [
+                      {
+                        "unique": [
+                          "fax",
+                          "phone"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              "edge": {
+                "properties": {
+                  "temporal": {
+                    "values": [
+                      {
+                        "unique": [
+                          "open",
+                          "review",
+                          "in-progress"
+                        ]
+                      },
+                      {
+                        "unique": [
+                          "false",
+                          "true"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+        });
 
+        let mut actual_graph_props = HashSet::new();
+        let mut actual_node_props = HashSet::new();
+        let mut actual_edge_props = HashSet::new();
+
+        let graph_props = &expected["graph"]["properties"]["temporal"]["values"];
+        for value in graph_props.as_array().unwrap().iter() {
+            let unique_values: HashSet<_> = value["unique"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_str().unwrap())
+                .collect();
+            actual_graph_props.extend(unique_values);
+        }
+
+        let node_props = &expected["graph"]["node"]["properties"]["temporal"]["values"];
+        for value in node_props.as_array().unwrap().iter() {
+            let unique_values: HashSet<_> = value["unique"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_str().unwrap())
+                .collect();
+            actual_node_props.extend(unique_values);
+        }
+
+        let edge_props = &expected["graph"]["edge"]["properties"]["temporal"]["values"];
+        for value in edge_props.as_array().unwrap().iter() {
+            let unique_values: HashSet<_> = value["unique"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_str().unwrap())
+                .collect();
+            actual_edge_props.extend(unique_values);
+        }
+
+        assert_eq!(
+            actual_graph_props,
+            expected["graph"]["properties"]["temporal"]["values"][0]["unique"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_str().unwrap())
+                .collect::<HashSet<_>>()
+        );
+        assert_eq!(
+            actual_node_props,
+            expected["graph"]["node"]["properties"]["temporal"]["values"][0]["unique"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_str().unwrap())
+                .collect::<HashSet<_>>()
+        );
+        assert_eq!(
+            actual_edge_props,
+            expected["graph"]["edge"]["properties"]["temporal"]["values"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|value| value["unique"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|v| v.as_str().unwrap()))
+                .flatten()
+                .collect::<HashSet<_>>()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_ordered_dedupe_temporal_properties() {
+        let g = Graph::new();
+        g.add_constant_properties([("name", "graph")]).unwrap();
+        g.add_properties(1, [("state", "abc")]).unwrap();
+        g.add_properties(2, [("state", "abc")]).unwrap();
+        g.add_properties(3, [("state", "xyz")]).unwrap();
+        g.add_properties(4, [("state", "abc")]).unwrap();
+        g.add_edge(1, 1, 2, [("status", "open")], None).unwrap();
+        g.add_edge(2, 1, 2, [("status", "open")], None).unwrap();
+        g.add_edge(3, 1, 2, [("status", "review")], None).unwrap();
+        g.add_edge(4, 1, 2, [("status", "open")], None).unwrap();
+        g.add_edge(5, 1, 2, [("status", "in-progress")], None)
+            .unwrap();
+        g.add_edge(10, 1, 2, [("status", "in-progress")], None)
+            .unwrap();
+        g.add_edge(9, 1, 2, [("state", true)], None).unwrap();
+        g.add_edge(10, 1, 2, [("state", false)], None).unwrap();
+        g.add_edge(6, 1, 2, NO_PROPS, None).unwrap();
+        g.add_node(11, 3, [("name", "phone")], None).unwrap();
+        g.add_node(12, 3, [("name", "fax")], None).unwrap();
+        g.add_node(13, 3, [("name", "fax")], None).unwrap();
+
+        let graphs = HashMap::from([("graph".to_string(), g)]);
+        let data = Data::from_map(graphs);
+        let schema = App::create_schema().data(data).finish().unwrap();
+
+        let prop_has_key_filter = r#"
+        {
+          graph(name: "graph") {
+            properties {
+              temporal {
+                values {
+                  od1: orderedDedupe(latestTime: true) {
+                    time
+                    value
+                  },
+                  od2: orderedDedupe(latestTime: false) {
+                    time
+                    value
+                  }
+                }
+              }
+            }
+            node(name: "3") {
+              properties {
+                temporal {
+                  values {
+                    od1: orderedDedupe(latestTime: true) {
+                      time
+                      value
+                    },
+                    od2: orderedDedupe(latestTime: false) {
+                      time
+                      value
+                    }
+                  }
+                }
+              }
+            }
+            edge(
+              src: "1",
+              dst: "2"
+            ) {
+              properties{
+                temporal{
+                  values{
+                    od1: orderedDedupe(latestTime: true) {
+                      time
+                      value
+                    },
+                    od2: orderedDedupe(latestTime: false) {
+                      time
+                      value
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        "#;
+
+        let req = Request::new(prop_has_key_filter);
+        let res = schema.execute(req).await;
+        let actual_data = res.data.into_json().unwrap();
+        let expected = json!({
+            "graph": {
+              "properties": {
+                "temporal": {
+                  "values": [
+                    {
+                      "od1": [
+                        {
+                          "time": 2,
+                          "value": "abc"
+                        },
+                        {
+                          "time": 3,
+                          "value": "xyz"
+                        },
+                        {
+                          "time": 4,
+                          "value": "abc"
+                        }
+                      ],
+                      "od2": [
+                        {
+                          "time": 1,
+                          "value": "abc"
+                        },
+                        {
+                          "time": 3,
+                          "value": "xyz"
+                        },
+                        {
+                          "time": 4,
+                          "value": "abc"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "node": {
+                "properties": {
+                  "temporal": {
+                    "values": [
+                      {
+                        "od1": [
+                          {
+                            "time": 11,
+                            "value": "phone"
+                          },
+                          {
+                            "time": 13,
+                            "value": "fax"
+                          }
+                        ],
+                        "od2": [
+                          {
+                            "time": 11,
+                            "value": "phone"
+                          },
+                          {
+                            "time": 12,
+                            "value": "fax"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              "edge": {
+                "properties": {
+                  "temporal": {
+                    "values": [
+                      {
+                        "od1": [
+                          {
+                            "time": 2,
+                            "value": "open"
+                          },
+                          {
+                            "time": 3,
+                            "value": "review"
+                          },
+                          {
+                            "time": 4,
+                            "value": "open"
+                          },
+                          {
+                            "time": 10,
+                            "value": "in-progress"
+                          }
+                        ],
+                        "od2": [
+                          {
+                            "time": 1,
+                            "value": "open"
+                          },
+                          {
+                            "time": 3,
+                            "value": "review"
+                          },
+                          {
+                            "time": 4,
+                            "value": "open"
+                          },
+                          {
+                            "time": 5,
+                            "value": "in-progress"
+                          }
+                        ]
+                      },
+                      {
+                        "od1": [
+                          {
+                            "time": 9,
+                            "value": true
+                          },
+                          {
+                            "time": 10,
+                            "value": false
+                          }
+                        ],
+                        "od2": [
+                          {
+                            "time": 9,
+                            "value": true
+                          },
+                          {
+                            "time": 10,
+                            "value": false
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+        });
+
+        assert_eq!(
+            actual_data["graph"]["properties"]["temporal"]["values"][0]["od1"],
+            expected["graph"]["properties"]["temporal"]["values"][0]["od1"]
+        );
+
+        assert_eq!(
+            actual_data["graph"]["properties"]["temporal"]["values"][0]["od2"],
+            expected["graph"]["properties"]["temporal"]["values"][0]["od2"]
+        );
+
+        assert_eq!(
+            actual_data["graph"]["node"]["properties"]["temporal"]["values"][0]["od1"],
+            expected["graph"]["node"]["properties"]["temporal"]["values"][0]["od1"]
+        );
+
+        assert_eq!(
+            actual_data["graph"]["node"]["properties"]["temporal"]["values"][0]["od2"],
+            expected["graph"]["node"]["properties"]["temporal"]["values"][0]["od2"]
+        );
+
+        assert_eq!(
+            actual_data["graph"]["edge"]["properties"]["temporal"]["values"][0]["od1"],
+            expected["graph"]["edge"]["properties"]["temporal"]["values"][0]["od1"]
+        );
+
+        assert_eq!(
+            actual_data["graph"]["edge"]["properties"]["temporal"]["values"][0]["od2"],
+            expected["graph"]["edge"]["properties"]["temporal"]["values"][0]["od2"]
+        );
+    }
+
+    #[tokio::test]
+    async fn query_properties() {
+        let graph = Graph::new();
+        graph
+            .add_node(
+                0,
+                1,
+                [("pgraph", Prop::PersistentGraph(PersistentGraph::new()))],
+                None,
+            )
+            .unwrap();
+
+        let graphs = HashMap::from([("graph".to_string(), graph)]);
+        let data = Data::from_map(graphs);
+        let schema = App::create_schema().data(data).finish().unwrap();
+        let prop_has_key_filter = r#"
+        {
+          graph(name: "graph") {
+            nodes{
+              list {
+                name
+                properties{
+                    contains(key:"pgraph")
+                }
+              }
+            }
+          }
+        }
+        "#;
+
+        let req = Request::new(prop_has_key_filter);
+        let res = schema.execute(req).await;
+        let data = res.data.into_json().unwrap();
         assert_eq!(
             data,
             json!({
                 "graph": {
                     "nodes": {
                         "list": [
-                            { "name": "bilbo" },
+                            { "name": "1",
+                              "properties":{
+                                "contains":true
+                            }},
                         ]
                     }
                 }

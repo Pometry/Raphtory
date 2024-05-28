@@ -1,34 +1,27 @@
-use crate::core::{
-    entities::{graph::tgraph::FxDashMap, properties::tprop::TProp},
-    storage::{
-        lazy_vec::{IllegalSet, LazyVec},
-        locked_view::LockedView,
-        timeindex::TimeIndexEntry,
+use crate::{
+    core::{
+        entities::{graph::tgraph::FxDashMap, properties::tprop::TProp},
+        storage::{
+            lazy_vec::{IllegalSet, LazyVec},
+            timeindex::TimeIndexEntry,
+        },
+        utils::errors::GraphError,
+        ArcStr, Prop, PropType,
     },
-    utils::errors::{GraphError, IllegalMutate, MutateGraphError},
-    ArcStr, Prop, PropType,
+    db::api::storage::tprop_storage_ops::TPropOps,
 };
 use lock_api;
-use parking_lot::{RwLock, RwLockReadGuard};
+use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
-use std::{
-    borrow::Borrow,
-    fmt::Debug,
-    hash::Hash,
-    ops::Deref,
-    sync::{
-        atomic::{AtomicUsize, Ordering},
-        Arc,
-    },
-};
+use std::{borrow::Borrow, fmt::Debug, hash::Hash, ops::Deref, sync::Arc};
 
 type ArcRwLockReadGuard<T> = lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, T>;
 
 #[derive(Serialize, Deserialize, Default, Debug, PartialEq)]
 pub struct Props {
     // properties
-    constant_props: LazyVec<Option<Prop>>,
-    temporal_props: LazyVec<TProp>,
+    pub(crate) constant_props: LazyVec<Option<Prop>>,
+    pub(crate) temporal_props: LazyVec<TProp>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone)]
@@ -63,7 +56,7 @@ impl Props {
     }
 
     pub fn update_constant_prop(&mut self, prop_id: usize, prop: Prop) -> Result<(), GraphError> {
-        self.constant_props.update(prop_id, |mut n| {
+        self.constant_props.update(prop_id, |n| {
             *n = Some(prop);
             Ok(())
         })
@@ -72,7 +65,7 @@ impl Props {
     pub fn temporal_props(&self, prop_id: usize) -> Box<dyn Iterator<Item = (i64, Prop)> + '_> {
         let o = self.temporal_props.get(prop_id);
         if let Some(t_prop) = o {
-            Box::new(t_prop.iter())
+            Box::new(t_prop.iter_t())
         } else {
             Box::new(std::iter::empty())
         }
@@ -311,11 +304,10 @@ impl<T: Clone> Iterator for LockedIter<T> {
 impl DictMapper {
     pub fn get_or_create_id<Q, T>(&self, name: &Q) -> usize
     where
-        ArcStr: Borrow<Q>,
-        Q: Hash + Eq + ?Sized + ToOwned<Owned = T>,
+        Q: Hash + Eq + ?Sized + ToOwned<Owned = T> + Borrow<str>,
         T: Into<ArcStr>,
     {
-        if let Some(existing_id) = self.map.get(name) {
+        if let Some(existing_id) = self.map.get(name.borrow()) {
             return *existing_id;
         }
 
@@ -377,7 +369,11 @@ impl Deref for PropMapper {
 }
 
 impl PropMapper {
-    fn get_or_create_and_validate(&self, prop: &str, dtype: PropType) -> Result<usize, GraphError> {
+    pub(crate) fn get_or_create_and_validate(
+        &self,
+        prop: &str,
+        dtype: PropType,
+    ) -> Result<usize, GraphError> {
         let id = self.id_mapper.get_or_create_id(prop);
         let dtype_read = self.dtypes.read_recursive();
         if let Some(old_type) = dtype_read.get(id) {
@@ -430,11 +426,13 @@ impl PropMapper {
 
 #[cfg(test)]
 mod test {
-    use super::*;
+    use std::{collections::HashMap, sync::Arc, thread};
+
     use quickcheck_macros::quickcheck;
     use rand::seq::SliceRandom;
     use rayon::prelude::*;
-    use std::{collections::HashMap, sync::Arc, thread};
+
+    use super::*;
 
     #[test]
     fn test_dict_mapper() {

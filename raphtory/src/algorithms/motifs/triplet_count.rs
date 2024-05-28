@@ -120,6 +120,7 @@ mod triplet_test {
         prelude::NO_PROPS,
     };
     use pretty_assertions::assert_eq;
+    use tempfile::TempDir;
 
     /// Test the global clustering coefficient
     #[test]
@@ -153,9 +154,18 @@ mod triplet_test {
         for (src, dst) in edges {
             graph.add_edge(0, src, dst, NO_PROPS, None).unwrap();
         }
-        let exp_triplet_count = 20;
-        let results = triplet_count(&graph, None);
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
-        assert_eq!(results, exp_triplet_count);
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let exp_triplet_count = 20;
+            let results = triplet_count(graph, None);
+
+            assert_eq!(results, exp_triplet_count);
+        }
+        test(&graph);
+        #[cfg(feature = "arrow")]
+        test(&arrow_graph);
     }
 }

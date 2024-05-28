@@ -1,0 +1,121 @@
+use crate::{
+    arrow::graph_impl::prop_conversion::arrow_array_from_props,
+    core::{
+        entities::{LayerIds, ELID},
+        storage::timeindex::TimeIndexOps,
+        Direction,
+    },
+    db::api::{
+        storage::{
+            edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
+            tprop_storage_ops::TPropOps,
+        },
+        view::internal::CoreGraphOps,
+    },
+    prelude::*,
+};
+use itertools::Itertools;
+use polars_arrow::array::Array;
+use raphtory_api::core::entities::{EID, VID};
+use raphtory_arrow::interop::GraphLike;
+
+impl GraphLike<TimeIndexEntry> for Graph {
+    fn external_ids(&self) -> Vec<u64> {
+        self.nodes().id().collect()
+    }
+
+    fn node_names(&self) -> impl Iterator<Item = String> {
+        self.nodes().name()
+    }
+
+    fn layer_names(&self) -> Vec<String> {
+        self.edge_meta()
+            .layer_meta()
+            .get_keys()
+            .into_iter()
+            .map_into()
+            .collect()
+    }
+
+    fn num_nodes(&self) -> usize {
+        self.unfiltered_num_nodes()
+    }
+
+    fn num_edges(&self) -> usize {
+        self.count_edges()
+    }
+
+    fn out_degree(&self, vid: VID, layer: usize) -> usize {
+        self.core_node_entry(vid.0.into())
+            .degree(&LayerIds::One(layer), Direction::OUT)
+    }
+
+    fn in_degree(&self, vid: VID, layer: usize) -> usize {
+        self.core_node_entry(vid.0.into())
+            .degree(&LayerIds::One(layer), Direction::IN)
+    }
+
+    fn in_edges<B>(&self, vid: VID, layer: usize, map: impl Fn(VID, EID) -> B) -> Vec<B> {
+        let node = self.core_node_entry(vid.0.into());
+        node.edges_iter(&LayerIds::One(layer), Direction::IN)
+            .map(|edge| map(edge.src(), edge.pid()))
+            .collect()
+    }
+    fn out_edges(&self, vid: VID, layer: usize) -> Vec<(VID, VID, EID)> {
+        let node = self.core_node_entry(vid.0.into());
+        let edges = node
+            .edges_iter(&LayerIds::One(layer), Direction::OUT)
+            .map(|edge| {
+                let src = edge.src();
+                let dst = edge.dst();
+                let eid = edge.pid();
+                (src, dst, eid)
+            })
+            .collect();
+        edges
+    }
+
+    fn edge_additions(&self, eid: EID, layer: usize) -> Vec<TimeIndexEntry> {
+        let el_id = ELID::new(eid.0.into(), Some(layer));
+        let edge = self.core_edge(el_id);
+        let timestamps: Vec<_> = edge.additions(layer).iter().collect();
+        timestamps
+    }
+
+    fn edge_prop_keys(&self) -> Vec<String> {
+        let props = self.edge_meta().temporal_prop_meta().get_keys();
+        props.into_iter().map(|s| s.to_string()).collect()
+    }
+
+    fn find_name(&self, vid: VID) -> Option<String> {
+        self.core_node_entry(vid.0.into())
+            .name()
+            .map(|s| s.to_string())
+    }
+
+    fn prop_as_arrow<S: AsRef<str>>(
+        &self,
+        edges: &[u64],
+        edge_ts: &[TimeIndexEntry],
+        edge_t_offsets: &[usize],
+        layer: usize,
+        prop_id: usize,
+        _key: S,
+    ) -> Option<Box<dyn Array>> {
+        let prop_type = self
+            .edge_meta()
+            .temporal_prop_meta()
+            .get_dtype(prop_id)
+            .unwrap();
+        arrow_array_from_props(
+            edges.iter().enumerate().flat_map(|(index, &eid)| {
+                let ts = &edge_ts[edge_t_offsets[index]..edge_t_offsets[index + 1]];
+                let el_id = ELID::new((eid as usize).into(), Some(layer));
+                let edge = self.core_edge(el_id);
+                ts.iter()
+                    .map(move |t| edge.temporal_prop_layer(layer, prop_id).at(t))
+            }),
+            prop_type,
+        )
+    }
+}

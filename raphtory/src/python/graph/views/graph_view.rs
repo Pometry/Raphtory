@@ -1,5 +1,8 @@
 //! The API for querying a view of the graph in a read-only state
 
+use rayon::prelude::*;
+use std::collections::HashMap;
+
 use crate::{
     core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError, ArcStr},
     db::{
@@ -13,6 +16,7 @@ use crate::{
         graph::{
             edge::EdgeView,
             edges::Edges,
+            graph::graph_equal,
             node::NodeView,
             nodes::Nodes,
             views::{
@@ -23,12 +27,14 @@ use crate::{
     },
     prelude::*,
     python::{
+        graph::{edge::PyEdge, node::PyNode},
         types::repr::{Repr, StructReprBuilder},
         utils::PyTime,
     },
 };
 use chrono::prelude::*;
 use pyo3::{prelude::*, types::PyBytes};
+
 impl IntoPy<PyObject> for MaterializedGraph {
     fn into_py(self, py: Python<'_>) -> PyObject {
         match self {
@@ -210,6 +216,31 @@ impl PyGraphView {
         self.graph.node(id)
     }
 
+    /// Get the edges that match the properties name and value
+    /// Arguments:
+    ///     property_dict (dict): the properties name and value
+    /// Returns:
+    ///    the edges that match the properties name and value
+    #[pyo3(signature = (properties_dict))]
+    pub fn find_nodes(&self, properties_dict: HashMap<String, Prop>) -> Vec<PyNode> {
+        let iter = self.nodes().into_iter().par_bridge();
+        let out = iter
+            .filter(|n| {
+                let props = n.properties();
+                properties_dict.iter().all(|(k, v)| {
+                    if let Some(prop) = props.get(k) {
+                        &prop == v
+                    } else {
+                        false
+                    }
+                })
+            })
+            .map(|n| PyNode::from(n))
+            .collect::<Vec<_>>();
+
+        out
+    }
+
     /// Gets the nodes in the graph
     ///
     /// Returns:
@@ -231,6 +262,31 @@ impl PyGraphView {
     #[pyo3(signature = (src, dst))]
     pub fn edge(&self, src: NodeRef, dst: NodeRef) -> Option<EdgeView<DynamicGraph, DynamicGraph>> {
         self.graph.edge(src, dst)
+    }
+
+    /// Get the edges that match the properties name and value
+    /// Arguments:
+    ///     property_dict (dict): the properties name and value
+    /// Returns:
+    ///    the edges that match the properties name and value
+    #[pyo3(signature = (properties_dict))]
+    pub fn find_edges(&self, properties_dict: HashMap<String, Prop>) -> Vec<PyEdge> {
+        let iter = self.edges().into_iter().par_bridge();
+        let out = iter
+            .filter(|e| {
+                let props = e.properties();
+                properties_dict.iter().all(|(k, v)| {
+                    if let Some(prop) = props.get(k) {
+                        &prop == v
+                    } else {
+                        false
+                    }
+                })
+            })
+            .map(|e| PyEdge::from(e))
+            .collect::<Vec<_>>();
+
+        out
     }
 
     /// Gets all edges in the graph
@@ -302,6 +358,10 @@ impl PyGraphView {
     /// Displays the graph
     pub fn __repr__(&self) -> String {
         self.repr()
+    }
+
+    pub fn __eq__(&self, other: &Self) -> bool {
+        graph_equal(&self.graph.clone(), &other.graph.clone())
     }
 }
 

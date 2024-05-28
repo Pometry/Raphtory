@@ -72,6 +72,13 @@ impl IntoPy<PyObject> for PersistentGraph {
     }
 }
 
+impl<'source> FromPyObject<'source> for PersistentGraph {
+    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+        let g: PyRef<PyPersistentGraph> = ob.extract()?;
+        Ok(g.graph.clone())
+    }
+}
+
 impl PyPersistentGraph {
     pub fn py_from_db_graph(db_graph: PersistentGraph) -> PyResult<Py<PyPersistentGraph>> {
         Python::with_gil(|py| {
