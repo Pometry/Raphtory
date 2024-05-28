@@ -21,7 +21,6 @@ crate-type = ["cdylib"]
 pyo3 = { workspace = true }
 raphtory_core = { path = "../raphtory", version = "0.8.1", features = ["python", "search", "vectors"], package = "raphtory" }
 raphtory-graphql = { path = "../raphtory-graphql", version = "0.8.1" }
-raphtory-storage = { path = "../raphtory-storage", version = "0.8.1" }
 serde_json = { workspace = true }
 reqwest = { workspace = true }
 tokio = { workspace = true }
@@ -32,9 +31,10 @@ dynamic-graphql = { workspace = true }
 itertools = { workspace = true }
 
 [features]
+default = ["extension-module"]
 arrow = ["raphtory_core/arrow"]
 extension-module = ["pyo3/extension-module"]
-default = ["extension-module"]
+
 
 [build-dependencies]
 pyo3-build-config = { workspace = true }

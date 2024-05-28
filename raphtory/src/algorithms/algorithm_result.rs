@@ -522,7 +522,7 @@ mod algorithm_result_test {
         let algo_result = create_algo_result_tuple();
         assert_eq!(algo_result.get(node_c.clone()).unwrap().0, 30.0f32);
         let algo_result = create_algo_result_hashmap_vec();
-        let answer = algo_result.get(node_c.clone()).unwrap().get(0).unwrap().0;
+        let answer = algo_result.get(node_c.clone()).unwrap().first().unwrap().0;
         assert_eq!(answer, 22i32);
     }
 
@@ -617,7 +617,7 @@ mod algorithm_result_test {
         let algo_result = create_algo_result_hashmap_vec();
         let algo_results_hashmap = algo_result.get_all_with_names();
         let tuple_result = algo_results_hashmap.get("A").unwrap();
-        assert_eq!(tuple_result.clone().get(0).unwrap().0, 11);
+        assert_eq!(tuple_result.clone().first().unwrap().0, 11);
         assert_eq!(algo_result.get_all_values().len(), 3);
     }
 

@@ -29,8 +29,6 @@ use crate::{
     prelude::GraphViewOps,
 };
 use chrono::{DateTime, NaiveDateTime, Utc};
-#[cfg(feature = "arrow")]
-use raphtory_arrow::interop::AsDir;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
@@ -39,6 +37,7 @@ use std::{
     collections::HashMap,
     fmt,
     fmt::{Display, Formatter},
+    hash::{Hash, Hasher},
     ops::Deref,
     sync::Arc,
 };
@@ -136,38 +135,9 @@ impl<'a, O: AsRef<str> + 'a> OptionAsStr<'a> for Option<&'a O> {
     }
 }
 
-/// Denotes the direction of an edge. Can be incoming, outgoing or both.
-#[derive(
-    Clone,
-    Copy,
-    Hash,
-    Eq,
-    PartialEq,
-    PartialOrd,
-    Debug,
-    Default,
-    serde::Serialize,
-    serde::Deserialize,
-)]
-pub enum Direction {
-    OUT,
-    IN,
-    #[default]
-    BOTH,
-}
+pub use raphtory_api::core::*;
 
-#[cfg(feature = "arrow")]
-impl AsDir for Direction {
-    fn as_dir(&self) -> raphtory_arrow::interop::Direction {
-        match self {
-            Direction::OUT => raphtory_arrow::interop::Direction::OUT,
-            Direction::IN => raphtory_arrow::interop::Direction::IN,
-            Direction::BOTH => raphtory_arrow::interop::Direction::BOTH,
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Hash)]
 pub enum Lifespan {
     Interval { start: i64, end: i64 },
     Event { time: i64 },
@@ -176,7 +146,7 @@ pub enum Lifespan {
 
 /// struct containing all the necessary information to allow Raphtory creating a document and
 /// storing it
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Hash)]
 pub struct DocumentInput {
     pub content: String,
     pub life: Lifespan,
@@ -293,6 +263,61 @@ pub enum Prop {
     PersistentGraph(PersistentGraph),
     Document(DocumentInput),
 }
+
+impl Hash for Prop {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            Prop::Str(s) => s.hash(state),
+            Prop::U8(u) => u.hash(state),
+            Prop::U16(u) => u.hash(state),
+            Prop::I32(i) => i.hash(state),
+            Prop::I64(i) => i.hash(state),
+            Prop::U32(u) => u.hash(state),
+            Prop::U64(u) => u.hash(state),
+            Prop::F32(f) => {
+                let bits = f.to_bits();
+                bits.hash(state);
+            }
+            Prop::F64(f) => {
+                let bits = f.to_bits();
+                bits.hash(state);
+            }
+            Prop::Bool(b) => b.hash(state),
+            Prop::NDTime(dt) => dt.hash(state),
+            Prop::DTime(dt) => dt.hash(state),
+            Prop::List(v) => {
+                for prop in v.iter() {
+                    prop.hash(state);
+                }
+            }
+            Prop::Map(m) => {
+                for (key, prop) in m.iter() {
+                    key.hash(state);
+                    prop.hash(state);
+                }
+            }
+            Prop::Graph(g) => {
+                for node in g.nodes() {
+                    node.node.hash(state);
+                }
+                for edge in g.edges() {
+                    edge.edge.pid().hash(state);
+                }
+            }
+            Prop::PersistentGraph(pg) => {
+                for node in pg.nodes() {
+                    node.node.hash(state);
+                }
+                for edge in pg.edges() {
+                    edge.edge.pid().hash(state);
+                }
+            }
+            Prop::Document(d) => d.hash(state),
+        }
+    }
+}
+
+impl Eq for Prop {}
 
 impl PartialOrd for Prop {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
@@ -428,7 +453,7 @@ impl Prop {
             Prop::U32(v) => Some(*v as f64),
             Prop::U64(v) => Some(*v as f64),
             Prop::F32(v) => Some(*v as f64),
-            Prop::F64(v) => Some(*v as f64),
+            Prop::F64(v) => Some(*v),
             _ => None,
         }
     }

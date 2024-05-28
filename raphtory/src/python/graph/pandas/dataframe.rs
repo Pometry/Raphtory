@@ -1,14 +1,14 @@
-use crate::{
-    arrow2::{
-        array::{Array, PrimitiveArray, Utf8Array},
-        compute::cast::{self, CastOptions},
-        datatypes::{ArrowDataType as DataType, TimeUnit},
-        ffi,
-        offset::Offset,
-        types::NativeType,
-    },
-    core::utils::errors::GraphError,
+use crate::core::utils::errors::GraphError;
+
+use polars_arrow::{
+    array::{Array, PrimitiveArray, Utf8Array},
+    compute::cast::{self, CastOptions},
+    datatypes::{ArrowDataType as DataType, TimeUnit},
+    ffi,
+    offset::Offset,
+    types::NativeType,
 };
+
 use itertools::Itertools;
 use pyo3::{
     create_exception, exceptions::PyException, ffi::Py_uintptr_t, types::IntoPyDict, PyAny, PyErr,

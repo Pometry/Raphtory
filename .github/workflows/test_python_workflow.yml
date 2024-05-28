@@ -59,6 +59,8 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
           cache: 'pip'
+      - name: Activate raphtory-arrow in Cargo.toml
+        run: make pull-arrow
       - name: Run Maturin develop
         uses: PyO3/maturin-action@v1
         with:

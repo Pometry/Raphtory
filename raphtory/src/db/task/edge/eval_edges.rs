@@ -6,11 +6,13 @@ use crate::{
     db::{
         api::{
             properties::Properties,
+            storage::storage_ops::GraphStorage,
             view::{internal::OneHopFilter, BaseEdgeViewOps, BoxedLIter},
         },
         graph::edges::Edges,
         task::{
             edge::eval_edge::EvalEdgeView,
+            eval_graph::EvalGraph,
             node::{eval_node::EvalPathFromNode, eval_node_state::EVState},
             task_state::PrevLocalState,
         },
@@ -22,6 +24,7 @@ use std::{cell::RefCell, rc::Rc};
 pub struct EvalEdges<'graph, 'a, G, GH, CS: Clone, S> {
     pub(crate) ss: usize,
     pub(crate) edges: Edges<'graph, &'graph G, GH>,
+    pub(crate) storage: &'graph GraphStorage,
     pub(crate) node_state: Rc<RefCell<EVState<'a, CS>>>,
     pub(crate) local_state_prev: &'graph PrevLocalState<'a, S>,
 }
@@ -57,9 +60,11 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, CS: 
         let ss = self.ss;
         let node_state = self.node_state.clone();
         let local_state_prev = self.local_state_prev;
+        let storage = self.storage;
         EvalEdges {
             ss,
             edges,
+            storage,
             node_state,
             local_state_prev,
         }
@@ -79,9 +84,11 @@ impl<
         let node_state = self.node_state.clone();
         let ss = self.ss;
         let local_state_prev = self.local_state_prev;
+        let storage = self.storage;
         self.edges.iter().map(move |edge| EvalEdgeView {
             ss,
             edge,
+            storage,
             node_state: node_state.clone(),
             local_state_prev,
         })
@@ -104,9 +111,11 @@ impl<
         let node_state = self.node_state;
         let ss = self.ss;
         let local_state_prev = self.local_state_prev;
+        let storage = self.storage;
         Box::new(self.edges.iter().map(move |edge| EvalEdgeView {
             ss,
             edge,
+            storage,
             node_state: node_state.clone(),
             local_state_prev,
         }))
@@ -159,11 +168,19 @@ impl<
         let node_state = self.node_state.clone();
         let local_state_prev = self.local_state_prev;
         let path = self.edges.map_nodes(op);
-        EvalPathFromNode {
-            path,
+        let base_graph = self.edges.base_graph;
+        let storage = self.storage;
+        let eval_graph = EvalGraph {
             ss,
-            node_state,
+            base_graph,
+            storage,
             local_state_prev,
+            node_state,
+        };
+        EvalPathFromNode {
+            graph: base_graph,
+            base_graph: eval_graph,
+            op: path.op,
         }
     }
 
@@ -178,8 +195,10 @@ impl<
         let node_state = self.node_state.clone();
         let local_state_prev = self.local_state_prev;
         let edges = self.edges.map_exploded(op);
+        let storage = self.storage;
         Self {
             ss,
+            storage,
             node_state,
             local_state_prev,
             edges,

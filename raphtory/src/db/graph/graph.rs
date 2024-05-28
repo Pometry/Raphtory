@@ -390,10 +390,10 @@ mod db_tests {
         let e = g.add_edge(0, "A", "B", NO_PROPS, None).unwrap();
         e.add_constant_properties(vec![("aprop".to_string(), Prop::Bool(true))], None)
             .unwrap();
-        let ee = g.add_edge(0, "A", "B", NO_PROPS, Some(&"LAYERA")).unwrap();
+        let ee = g.add_edge(0, "A", "B", NO_PROPS, Some("LAYERA")).unwrap();
         ee.add_constant_properties(
             vec![("aprop".to_string(), Prop::Bool(false))],
-            Some(&"LAYERA"),
+            Some("LAYERA"),
         )
         .unwrap();
         let json_res = g
@@ -409,11 +409,11 @@ mod db_tests {
         assert_eq!(json_as_map.get("LAYERA"), Some(&Value::Bool(false)));
         assert_eq!(json_as_map.get("_default"), Some(&Value::Bool(true)));
 
-        let eee = g.add_edge(0, "A", "B", NO_PROPS, Some(&"LAYERB")).unwrap();
+        let eee = g.add_edge(0, "A", "B", NO_PROPS, Some("LAYERB")).unwrap();
         let v: Vec<Prop> = vec![Prop::Bool(true), Prop::Bool(false), Prop::U64(0)];
         eee.add_constant_properties(
             vec![("bprop".to_string(), Prop::List(Arc::new(v)))],
-            Some(&"LAYERB"),
+            Some("LAYERB"),
         )
         .unwrap();
         let json_res = g
@@ -427,14 +427,14 @@ mod db_tests {
         let list_res = json_res.as_object().unwrap().get("LAYERB").unwrap();
         assert_eq!(list_res.as_array().unwrap().len(), 3);
 
-        let eeee = g.add_edge(0, "A", "B", NO_PROPS, Some(&"LAYERC")).unwrap();
+        let eeee = g.add_edge(0, "A", "B", NO_PROPS, Some("LAYERC")).unwrap();
         let v: HashMap<ArcStr, Prop> = HashMap::from([
             (ArcStr::from("H".to_string()), Prop::Bool(false)),
             (ArcStr::from("Y".to_string()), Prop::U64(0)),
         ]);
         eeee.add_constant_properties(
             vec![("mymap".to_string(), Prop::Map(Arc::new(v)))],
-            Some(&"LAYERC"),
+            Some("LAYERC"),
         )
         .unwrap();
         let json_res = g
@@ -888,7 +888,7 @@ mod db_tests {
 
         let test_dir = tempfile::TempDir::new().unwrap();
         #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let wg = graph.window(3, 15);
@@ -1046,7 +1046,7 @@ mod db_tests {
 
         let test_dir = tempfile::TempDir::new().unwrap();
         #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             assert!(graph.has_edge(11, 22));
@@ -1176,7 +1176,7 @@ mod db_tests {
         let exploded = g.edge(1, 2).unwrap().explode();
         let res = exploded
             .properties()
-            .map(|p| p.as_vec().iter().count())
+            .map(|p| p.as_vec().len())
             .collect_vec();
         assert_eq!(res, vec![1, 1, 0]);
     }
@@ -1364,7 +1364,7 @@ mod db_tests {
 
         let test_dir = tempfile::TempDir::new().unwrap();
         #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let times_of_one = graph.node(1).unwrap().history();
@@ -1476,7 +1476,7 @@ mod db_tests {
 
         let test_dir = tempfile::TempDir::new().unwrap();
         #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let times_of_one = graph.node(1).unwrap().history();
@@ -1618,7 +1618,7 @@ mod db_tests {
             ("key2".into(), Prop::I64(20)),
             ("key3".into(), Prop::I64(30)),
         ];
-        let props_map = HashMap::from(data.into_iter().collect::<HashMap<_, _>>());
+        let props_map = data.into_iter().collect::<HashMap<_, _>>();
         let as_props: Vec<(&str, Prop)> = vec![("mylist2", Prop::Map(Arc::from(props_map)))];
 
         g.add_constant_properties(as_props.clone()).unwrap();
@@ -1776,7 +1776,7 @@ mod db_tests {
 
         let test_dir = tempfile::TempDir::new().unwrap();
         #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             assert_eq!(graph.node(1).unwrap().earliest_time(), Some(1));
@@ -1805,7 +1805,7 @@ mod db_tests {
 
         let test_dir = tempfile::TempDir::new().unwrap();
         #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             assert_eq!(graph.nodes().id().collect::<Vec<u64>>(), vec![1, 2, 3]);
@@ -1826,7 +1826,7 @@ mod db_tests {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let what = graph.edges().id().collect_vec();
@@ -1848,7 +1848,7 @@ mod db_tests {
 
         let test_dir = tempfile::TempDir::new().unwrap();
         #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             assert!(graph.edge(1, 2).is_some());
@@ -1873,7 +1873,7 @@ mod db_tests {
 
         let test_dir = tempfile::TempDir::new().unwrap();
         #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let g_layers = graph.layers(vec!["layer1", "layer3"]).expect("layer");
@@ -1946,7 +1946,7 @@ mod db_tests {
 
         let test_dir = tempfile::TempDir::new().unwrap();
         #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let e = graph.edge(1, 2).expect("edge");
@@ -1979,7 +1979,7 @@ mod db_tests {
 
         let test_dir = tempfile::TempDir::new().unwrap();
         #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let g = graph.window(0, 3);
@@ -2013,7 +2013,7 @@ mod db_tests {
 
         let test_dir = tempfile::TempDir::new().unwrap();
         #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let e = graph.edge(1, 2).expect("edge");
@@ -2025,7 +2025,7 @@ mod db_tests {
                     e.explode().iter().filter_map(|e| {
                         e.edge
                             .layer()
-                            .zip(e.time())
+                            .zip(e.time().ok())
                             .map(|(layer, t)| (t, e.src().id(), e.dst().id(), *layer))
                     })
                 })
@@ -2051,7 +2051,7 @@ mod db_tests {
 
         let test_dir = tempfile::TempDir::new().unwrap();
         #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let g = graph.window(0, 3);
@@ -2064,7 +2064,7 @@ mod db_tests {
                     e.explode().iter().filter_map(|e| {
                         e.edge
                             .layer()
-                            .zip(e.time())
+                            .zip(Some(e.time().unwrap()))
                             .map(|(layer, t)| (t, e.src().id(), e.dst().id(), *layer))
                     })
                 })
@@ -2096,7 +2096,7 @@ mod db_tests {
 
         let test_dir = tempfile::TempDir::new().unwrap();
         #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let e = graph.edge(1, 2).expect("failed to get edge");
@@ -2425,7 +2425,7 @@ mod db_tests {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let wl = graph.window(0, 3).layers(vec!["1", "2"]).unwrap();
@@ -2445,7 +2445,7 @@ mod db_tests {
         g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
         let dir = tempfile::tempdir().unwrap();
         let file_path = dir.path().join("abcd11");
-        g.save_to_file(&file_path).unwrap();
+        g.save_to_file(file_path).unwrap();
     }
 
     #[test]
@@ -2470,7 +2470,7 @@ mod db_tests {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             assert_eq!(
@@ -2525,7 +2525,81 @@ mod db_tests {
                 ArcStr("graph".into()),
                 ArcStr("pgraph".into()),
                 ArcStr("bool".into()),
-                ArcStr("u32".into())
+                ArcStr("u32".into()),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_unique_property() {
+        let g = Graph::new();
+        g.add_edge(1, 1, 2, [("status", "open")], None).unwrap();
+        g.add_edge(2, 1, 2, [("status", "open")], None).unwrap();
+        g.add_edge(3, 1, 2, [("status", "review")], None).unwrap();
+        g.add_edge(4, 1, 2, [("status", "open")], None).unwrap();
+        g.add_edge(5, 1, 2, [("status", "in-progress")], None)
+            .unwrap();
+        g.add_edge(10, 1, 2, [("status", "in-progress")], None)
+            .unwrap();
+        g.add_edge(9, 1, 2, [("state", true)], None).unwrap();
+        g.add_edge(10, 1, 2, [("state", false)], None).unwrap();
+        g.add_edge(6, 1, 2, NO_PROPS, None).unwrap();
+
+        let mut props = g
+            .edge(1, 2)
+            .unwrap()
+            .properties()
+            .temporal()
+            .get("status")
+            .unwrap()
+            .unique()
+            .into_iter()
+            .map(|x| x.unwrap_str().to_string())
+            .collect_vec();
+        props.sort();
+        assert_eq!(props, vec!["in-progress", "open", "review"]);
+
+        let ordered_dedupe_latest = g
+            .edge(1, 2)
+            .unwrap()
+            .properties()
+            .temporal()
+            .get("status")
+            .unwrap()
+            .ordered_dedupe(true)
+            .into_iter()
+            .map(|(x, y)| (x, y.unwrap_str().to_string()))
+            .collect_vec();
+
+        assert_eq!(
+            ordered_dedupe_latest,
+            vec![
+                (2, "open".to_string()),
+                (3, "review".to_string()),
+                (4, "open".to_string()),
+                (10, "in-progress".to_string())
+            ]
+        );
+
+        let ordered_dedupe_earliest = g
+            .edge(1, 2)
+            .unwrap()
+            .properties()
+            .temporal()
+            .get("status")
+            .unwrap()
+            .ordered_dedupe(false)
+            .into_iter()
+            .map(|(x, y)| (x, y.unwrap_str().to_string()))
+            .collect_vec();
+
+        assert_eq!(
+            ordered_dedupe_earliest,
+            vec![
+                (1, "open".to_string()),
+                (3, "review".to_string()),
+                (4, "open".to_string()),
+                (5, "in-progress".to_string())
             ]
         );
     }

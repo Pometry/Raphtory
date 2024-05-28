@@ -6,7 +6,7 @@ use crate::{
     },
     db::api::{
         properties::{internal::PropertiesOps, Properties},
-        storage::storage_ops::GraphStorage,
+        storage::{nodes::node_storage_ops::NodeStorageOps, storage_ops::GraphStorage},
         view::{
             internal::{CoreGraphOps, OneHopFilter, TimeSemantics},
             reset_filter::ResetFilter,
@@ -175,7 +175,7 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
 
     #[inline]
     fn id(&self) -> Self::ValueType<u64> {
-        self.map(|_cg, g, v| g.node_id(v))
+        self.map(|cg, _g, v| cg.node(v).id())
     }
     #[inline]
     fn name(&self) -> Self::ValueType<String> {

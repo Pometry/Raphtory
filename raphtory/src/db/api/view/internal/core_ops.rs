@@ -26,10 +26,12 @@ use crate::{
     },
 };
 use enum_dispatch::enum_dispatch;
+use std::ops::Range;
+
 #[cfg(feature = "arrow")]
 use raphtory_arrow::timestamps::TimeStamps;
+#[cfg(feature = "arrow")]
 use rayon::prelude::*;
-use std::ops::Range;
 
 /// Core functions that should (almost-)always be implemented by pointing at the underlying graph.
 #[enum_dispatch]

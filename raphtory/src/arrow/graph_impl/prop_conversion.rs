@@ -20,7 +20,7 @@ use std::path::Path;
 pub fn make_node_properties_from_graph(
     graph: &Graph,
     graph_dir: impl AsRef<Path>,
-) -> Result<Option<Properties<raphtory_arrow::interop::VID>>, RAError> {
+) -> Result<Option<Properties<VID>>, RAError> {
     let graph_dir = graph_dir.as_ref();
     let n = graph.unfiltered_num_nodes();
 
@@ -65,7 +65,7 @@ pub fn make_node_properties_from_graph(
             let prop_type = temporal_meta.get_dtype(prop_id).unwrap();
             let col = arrow_array_from_props(
                 (0..n).flat_map(|vid| {
-                    let ts = node_ts(raphtory_arrow::interop::VID(vid), offsets, ts);
+                    let ts = node_ts(VID(vid), offsets, ts);
                     let node = nodes.get(VID(vid));
                     ts.iter()
                         .map(move |t| node.temporal_property(prop_id).and_then(|prop| prop.at(t)))
@@ -222,6 +222,5 @@ pub fn schema_from_prop_meta(prop_map: &PropMapper) -> Schema {
         }
     }
 
-    let schema = Schema::from(schema);
-    schema
+    Schema::from(schema)
 }

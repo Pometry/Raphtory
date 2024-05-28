@@ -16,6 +16,7 @@ use crate::{
         graph::{
             edge::EdgeView,
             edges::Edges,
+            graph::graph_equal,
             node::NodeView,
             nodes::Nodes,
             views::{
@@ -33,6 +34,7 @@ use crate::{
 };
 use chrono::prelude::*;
 use pyo3::{prelude::*, types::PyBytes};
+
 impl IntoPy<PyObject> for MaterializedGraph {
     fn into_py(self, py: Python<'_>) -> PyObject {
         match self {
@@ -358,6 +360,10 @@ impl PyGraphView {
     /// Displays the graph
     pub fn __repr__(&self) -> String {
         self.repr()
+    }
+
+    pub fn __eq__(&self, other: &Self) -> bool {
+        graph_equal(&self.graph.clone(), &other.graph.clone())
     }
 }
 
