@@ -1,6 +1,4 @@
-use crate::core::{
-    storage::lazy_vec::IllegalSet, utils::time::error::ParseTimeError, ArcStr, Prop, PropType,
-};
+use crate::core::{utils::time::error::ParseTimeError, ArcStr, Prop, PropType};
 #[cfg(feature = "search")]
 use tantivy;
 #[cfg(feature = "search")]
@@ -114,6 +112,12 @@ pub enum GraphError {
         "Failed to load the graph as the bincode version {0} is different to installed version {1}"
     )]
     BincodeVersionError(u32, u32),
+
+    #[error("The layer_name function is only available once an edge has been exploded via .explode_layers() or .explode(). If you want to retrieve the layers for this edge you can use .layer_names")]
+    LayerNameAPIError,
+
+    #[error("The time function is only available once an edge has been exploded via .explode(). You may want to retrieve the history for this edge via .history(), or the earliest/latest time via earliest_time or latest_time")]
+    TimeAPIError,
 }
 
 #[derive(thiserror::Error, Debug, PartialEq)]
@@ -122,8 +126,6 @@ pub enum MutateGraphError {
     NodeNotFoundError { node_id: u64 },
     #[error("Unable to find layer '{layer_name}' to add property to")]
     LayerNotFoundError { layer_name: String },
-    #[error("cannot change property for node '{node_id}'")]
-    IllegalNodePropertyChange { node_id: u64, source: IllegalMutate },
     #[error("Tried to change constant graph property {name}, old value: {old_value}, new value: {new_value}")]
     IllegalGraphPropertyChange {
         name: String,
@@ -132,30 +134,8 @@ pub enum MutateGraphError {
     },
     #[error("Create edge '{0}' -> '{1}' first before adding static properties to it")]
     MissingEdge(u64, u64), // src, dst
-    #[error("cannot change property for edge '{src_id}' -> '{dst_id}'")]
-    IllegalEdgePropertyChange {
-        src_id: u64,
-        dst_id: u64,
-        source: IllegalMutate,
-    },
     #[error("Cannot add properties to edge view with no layers")]
     NoLayersError,
     #[error("Cannot add properties to edge view with more than one layer")]
     AmbiguousLayersError,
-}
-
-#[derive(thiserror::Error, Debug, PartialEq)]
-#[error("cannot mutate static property '{name}'")]
-pub struct IllegalMutate {
-    pub name: String,
-    pub source: IllegalSet<Option<Prop>>,
-}
-
-impl IllegalMutate {
-    pub(crate) fn from_source(source: IllegalSet<Option<Prop>>, prop: &str) -> IllegalMutate {
-        IllegalMutate {
-            name: prop.to_string(),
-            source,
-        }
-    }
 }

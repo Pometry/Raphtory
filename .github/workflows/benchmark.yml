@@ -10,6 +10,7 @@ on:
 permissions:
   contents: write
   deployments: write
+  pull-requests: write
 
 # DO NOT CHANGE NAME OF WORKFLOW, USED IN OTHER WORKFLOWS KEEP "Rust Tests"
 jobs:
@@ -17,6 +18,8 @@ jobs:
     if: ${{ !inputs.skip_tests }}
     name: Rust Benchmark
     runs-on: '${{ matrix.os }}'
+    env:
+      CARGO_NET_GIT_FETCH_WITH_CLI: true
     strategy:
       matrix:
         include:
@@ -24,19 +27,16 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         name: Checkout
-      - name: Set up cargo cache
-        uses: actions/cache@v3
-        continue-on-error: false
+      - name: Update Rust
+        run: rustup update
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/debug
-            target/release
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
+          cache-all-crates: true
+      - uses: webfactory/ssh-agent@v0.9.0
+        name: Load raphtory-arrow key
+        with:
+          ssh-private-key: ${{ secrets.RA_SSH_PRIVATE_KEY }}
       - uses: actions-rs/toolchain@v1
         name: Setup Rust
         with:
@@ -44,14 +44,11 @@ jobs:
           toolchain: 1.77.0
           override: true
           components: rustfmt, clippy
-      - name: Cargo update
-        uses: actions-rs/cargo@v1
-        with:
-          command: update
       - name: Run benchmark (Unix)
         run: |
           set -o pipefail
           cargo bench --bench base -p raphtory-benchmark -- --output-format=bencher | tee benchmark-result.txt
+          cargo bench --bench algobench -p raphtory-benchmark -- --output-format=bencher | tee benchmark-result.txt
       - name: Delete cargo.lock if it exists
         run: |
           rm -f Cargo.lock
@@ -67,6 +64,7 @@ jobs:
           # Show alert with commit comment on detecting possible performance regression
           alert-threshold: '200%'
           comment-on-alert: true
+          summary-always: true
           fail-on-alert: false
       - name: Compare benchmark results if repo is not master
         if: github.ref != 'refs/heads/master'
@@ -78,12 +76,11 @@ jobs:
           auto-push: false
           # Show alert with commit comment on detecting possible performance regression
           alert-threshold: '200%'
-          comment-on-alert: true
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          comment-on-alert: true
+          summary-always: true
           fail-on-alert: false
           save-data-file: false
-
-
 # TODO
 # ON PR DO NOT UPLOAD
 # IF MASTER THEN UPLOAD

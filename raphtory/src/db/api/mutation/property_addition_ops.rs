@@ -1,15 +1,12 @@
 use crate::{
-    core::{
-        storage::timeindex::TimeIndexEntry,
-        utils::{errors::GraphError, time::TryIntoTime},
-    },
+    core::utils::{errors::GraphError, time::TryIntoTime},
     db::api::mutation::{
         internal::{InternalAdditionOps, InternalPropertyAdditionOps},
         TryIntoInputTime,
     },
 };
 
-use super::CollectProperties;
+use super::{time_from_input, CollectProperties};
 
 pub trait PropertyAdditionOps {
     fn add_properties<T: TryIntoTime, PI: CollectProperties>(
@@ -31,7 +28,7 @@ impl<G: InternalPropertyAdditionOps + InternalAdditionOps> PropertyAdditionOps f
         t: T,
         props: PI,
     ) -> Result<(), GraphError> {
-        let ti = TimeIndexEntry::from_input(self, t)?;
+        let ti = time_from_input(self, t)?;
         let properties: Vec<_> = props.collect_properties(
             |name, _| Ok(self.resolve_graph_property(name, false)),
             |prop| self.process_prop_value(prop),

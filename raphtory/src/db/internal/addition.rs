@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{graph::tgraph::InnerTemporalGraph, EID, VID},
+        entities::{graph::tgraph::InternalGraph, EID, VID},
         storage::timeindex::TimeIndexEntry,
         utils::errors::GraphError,
         PropType,
@@ -10,7 +10,7 @@ use crate::{
 };
 use std::sync::atomic::Ordering;
 
-impl<const N: usize> InternalAdditionOps for InnerTemporalGraph<N> {
+impl InternalAdditionOps for InternalGraph {
     #[inline]
     fn next_event_id(&self) -> usize {
         self.inner().event_counter.fetch_add(1, Ordering::Relaxed)

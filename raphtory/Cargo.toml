@@ -15,9 +15,9 @@ homepage.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+raphtory-api = { path = "../raphtory-api", version = "0.8.1" }
 bincode = { workspace = true }
 chrono = { workspace = true }
-genawaiter = { workspace = true }
 itertools = { workspace = true }
 num-traits = { workspace = true }
 parking_lot = { workspace = true }
@@ -39,6 +39,7 @@ glam = { workspace = true }
 quad-rand = { workspace = true }
 serde_json = { workspace = true }
 ouroboros = { workspace = true }
+either = { workspace = true }
 
 # io optional dependencies
 csv = { workspace = true, optional = true }
@@ -59,12 +60,21 @@ async-openai = { workspace = true, optional = true }
 
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
-pyo3-asyncio = { workspace = true, optional = true }
 num = { workspace = true, optional = true }
 display-error-chain = { workspace = true, optional = true }
-arrow2 = { workspace = true, optional = true, features = ["compute"]}
+polars-arrow = { workspace = true, optional = true }
+polars-parquet = { workspace = true, optional = true }
+polars-utils = { workspace = true, optional = true }
 kdam = { workspace = true, optional = true }
 
+# arrow storage optional dependencies
+memmap2 = { workspace = true, optional = true }
+ahash = { workspace = true, optional = true }
+tempfile = { workspace = true, optional = true }
+bytemuck = { workspace = true, optional = true }
+rpds = { workspace = true, optional = true }
+thread_local = { workspace = true, optional = true }
+raphtory-arrow = { workspace = true, optional = true }
 
 [dev-dependencies]
 csv = { workspace = true }
@@ -73,18 +83,52 @@ quickcheck = { workspace = true }
 quickcheck_macros = { workspace = true }
 tempfile = { workspace = true }
 tempdir = { workspace = true }
-tokio = { workspace = true } # for vector testing
-dotenv = { workspace = true } # for vector testing
+tokio = { workspace = true }             # for vector testing
+dotenv = { workspace = true }            # for vector testing
 streaming-stats = { workspace = true }
 proptest = { workspace = true }
 
 [features]
 default = []
 # Enables the graph loader io module
-io = ["dep:zip", "dep:neo4rs", "dep:bzip2", "dep:flate2", "dep:csv", "dep:reqwest", "dep:tokio"]
+io = [
+    "dep:zip",
+    "dep:neo4rs",
+    "dep:bzip2",
+    "dep:flate2",
+    "dep:csv",
+    "dep:reqwest",
+    "dep:tokio",
+]
 # Enables generating the pyo3 python bindings
-python = ["io", "dep:pyo3", "dep:pyo3-asyncio", "dep:num", "dep:display-error-chain", "dep:arrow2", "dep:kdam"]
+python = [
+    "io",
+    # "arrow",
+    "dep:pyo3",
+    "dep:num",
+    "dep:display-error-chain",
+    "dep:polars-arrow",
+    "polars-arrow?/compute",
+    "dep:kdam",
+    "dep:rpds",
+]
 # search
 search = ["dep:tantivy"]
 # vectors
 vectors = ["dep:futures-util", "dep:async-trait", "dep:async-openai"]
+# arrow
+arrow = [
+    "raphtory-arrow",
+    "dep:polars-arrow",
+    "dep:polars-utils",
+    "dep:polars-parquet",
+    "dep:memmap2",
+    "dep:ahash",
+    "dep:tempfile",
+    "dep:bytemuck",
+    "dep:rpds",
+    "dep:thread_local",
+    "polars-arrow?/io_ipc",
+    "polars-arrow?/arrow_rs",
+    "polars-parquet?/compression",
+]

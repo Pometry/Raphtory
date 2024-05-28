@@ -1,8 +1,9 @@
 use crate::{
-    core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef, VID},
+    core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::AsNodeRef, VID},
     db::{
         api::{
             properties::Properties,
+            storage::storage_ops::GraphStorage,
             view::{
                 internal::{OneHopFilter, Static},
                 BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
@@ -72,7 +73,7 @@ where
     }
 
     #[inline]
-    fn iter_refs(&self) -> impl Iterator<Item = VID> + 'graph {
+    pub(crate) fn iter_refs(&self) -> impl Iterator<Item = VID> + 'graph {
         let g = self.graph.core_graph();
         let base_graph = self.base_graph.clone();
         let node_types_filter = self.node_types_filter.clone();
@@ -116,8 +117,8 @@ where
         self.iter().next().is_none()
     }
 
-    pub fn get<N: Into<NodeRef>>(&self, node: N) -> Option<NodeView<G, GH>> {
-        let vid = self.graph.internalise_node(node.into())?;
+    pub fn get<V: AsNodeRef>(&self, node: V) -> Option<NodeView<G, GH>> {
+        let vid = self.graph.internalise_node(node.as_node_ref())?;
         Some(NodeView::new_one_hop_filtered(
             self.base_graph.clone(),
             self.graph.clone(),
@@ -141,6 +142,14 @@ where
     pub fn collect(&self) -> Vec<NodeView<G, GH>> {
         self.iter().collect()
     }
+
+    pub fn get_const_prop_id(&self, prop_name: &str) -> Option<usize> {
+        self.graph.node_meta().get_prop_id(prop_name, true)
+    }
+
+    pub fn get_temporal_prop_id(&self, prop_name: &str) -> Option<usize> {
+        self.graph.node_meta().get_prop_id(prop_name, false)
+    }
 }
 
 impl<'graph, G, GH> BaseNodeViewOps<'graph> for Nodes<'graph, G, GH>
@@ -155,7 +164,7 @@ where
     type PathType = PathFromGraph<'graph, G, G>;
     type Edges = NestedEdges<'graph, G, GH>;
 
-    fn map<O: 'graph, F: Fn(&LockedGraph, &Self::Graph, VID) -> O + Send + Sync + 'graph>(
+    fn map<O: 'graph, F: Fn(&GraphStorage, &Self::Graph, VID) -> O + Send + Sync + 'graph>(
         &self,
         op: F,
     ) -> Self::ValueType<O> {
@@ -170,7 +179,7 @@ where
 
     fn map_edges<
         I: Iterator<Item = EdgeRef> + Send + 'graph,
-        F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + 'graph,
     >(
         &self,
         op: F,
@@ -194,7 +203,7 @@ where
 
     fn hop<
         I: Iterator<Item = VID> + Send + 'graph,
-        F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + 'graph,
     >(
         &self,
         op: F,

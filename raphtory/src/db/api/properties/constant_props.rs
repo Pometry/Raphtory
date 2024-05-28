@@ -29,6 +29,10 @@ impl<P: ConstPropertiesOps> ConstProperties<P> {
         self.props.get_const_prop(id)
     }
 
+    pub fn get_by_id(&self, id: usize) -> Option<Prop> {
+        self.props.get_const_prop(id)
+    }
+
     pub fn contains(&self, key: &str) -> bool {
         self.get(key).is_some()
     }

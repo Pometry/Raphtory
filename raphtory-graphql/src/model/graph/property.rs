@@ -1,5 +1,6 @@
 use async_graphql::{Error, Name, Value as GqlValue};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue};
+use itertools::Itertools;
 use raphtory::{
     core::{IntoPropMap, Prop},
     db::api::properties::{
@@ -8,7 +9,7 @@ use raphtory::{
     },
 };
 use serde_json::Number;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Clone, Debug, Scalar)]
 pub struct GqlPropValue(pub Prop);
@@ -108,6 +109,35 @@ impl GqlProp {
 }
 
 #[derive(ResolvedObject)]
+pub(crate) struct GqlPropTuple {
+    time: i64,
+    prop: Prop,
+}
+impl GqlPropTuple {
+    pub(crate) fn new(time: i64, prop: Prop) -> Self {
+        Self { time, prop }
+    }
+}
+impl From<(i64, Prop)> for GqlPropTuple {
+    fn from(value: (i64, Prop)) -> Self {
+        GqlPropTuple::new(value.0, value.1)
+    }
+}
+
+#[ResolvedObjectFields]
+impl GqlPropTuple {
+    async fn time(&self) -> i64 {
+        self.time
+    }
+    async fn as_string(&self) -> String {
+        self.prop.to_string()
+    }
+    async fn value(&self) -> GqlPropValue {
+        GqlPropValue(self.prop.clone())
+    }
+}
+
+#[derive(ResolvedObject)]
 pub(crate) struct GqlTemporalProp {
     key: String,
     prop: TemporalPropertyView<DynProps>,
@@ -139,6 +169,20 @@ impl GqlTemporalProp {
     }
     async fn latest(&self) -> Option<String> {
         self.prop.latest().map(|x| x.to_string())
+    }
+    async fn unique(&self) -> Vec<String> {
+        self.prop
+            .unique()
+            .into_iter()
+            .map(|x| x.to_string())
+            .collect_vec()
+    }
+    async fn ordered_dedupe(&self, latest_time: bool) -> Vec<GqlPropTuple> {
+        self.prop
+            .ordered_dedupe(latest_time)
+            .into_iter()
+            .map(|(k, p)| (k, p).into())
+            .collect()
     }
 }
 

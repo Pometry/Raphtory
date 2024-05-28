@@ -16,12 +16,9 @@ jobs:
       runs-on: ubuntu-latest
       steps:
         - uses: actions/checkout@v4
-        - name: Setup Rust
-          uses: actions-rs/toolchain@v1
-          with:
-            toolchain: nightly
-            override: true
-            components: rustfmt
+        - name: Setup rust
+          run: |
+            rustup toolchain install nightly --allow-downgrade -c rustfmt
         - name: Run rust format check
           run: |
             if [ ${{ inputs.fail_if_not_formatted }} == true ]; then

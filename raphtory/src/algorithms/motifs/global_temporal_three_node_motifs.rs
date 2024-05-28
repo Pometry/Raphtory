@@ -7,7 +7,7 @@ use crate::{
         compute_state::ComputeStateVec,
     },
     db::{
-        api::view::{GraphViewOps, NodeViewOps, *},
+        api::view::*,
         graph::views::node_subgraph::NodeSubgraph,
         task::{
             context::Context,
@@ -23,15 +23,11 @@ use std::collections::HashMap;
 
 ///////////////////////////////////////////////////////
 
-pub fn star_motif_count<G>(
-    graph: &G,
-    evv: &EvalNodeView<G, ()>,
-    deltas: Vec<i64>,
-) -> Vec<[usize; 32]>
+pub fn star_motif_count<G>(evv: &EvalNodeView<G, ()>, deltas: Vec<i64>) -> Vec<[usize; 32]>
 where
     G: StaticGraphViewOps,
 {
-    let two_n_c = twonode_motif_count(graph, evv, deltas.clone());
+    let two_n_c = twonode_motif_count(evv, deltas.clone());
     let neigh_map: HashMap<u64, usize> = evv
         .neighbours()
         .into_iter()
@@ -75,11 +71,7 @@ where
 
 ///////////////////////////////////////////////////////
 
-pub fn twonode_motif_count<G>(
-    graph: &G,
-    evv: &EvalNodeView<G, ()>,
-    deltas: Vec<i64>,
-) -> Vec<[usize; 8]>
+pub fn twonode_motif_count<G>(evv: &EvalNodeView<G, ()>, deltas: Vec<i64>) -> Vec<[usize; 8]>
 where
     G: StaticGraphViewOps,
 {
@@ -87,8 +79,8 @@ where
 
     for nb in evv.neighbours().into_iter() {
         let nb_id = nb.id();
-        let out = graph.edge(evv.id(), nb_id);
-        let inc = graph.edge(nb_id, evv.id());
+        let out = evv.graph().edge(evv.id(), nb_id);
+        let inc = evv.graph().edge(nb_id, evv.id());
         let events: Vec<TwoNodeEvent> = out
             .iter()
             .flat_map(|e| e.explode())
@@ -181,7 +173,8 @@ where
                         .sorted()
                         .permutations(2)
                         .flat_map(|e| {
-                            g.edge(*e.first().unwrap(), *e.get(1).unwrap())
+                            u.graph()
+                                .edge(*e.first().unwrap(), *e.get(1).unwrap())
                                 .iter()
                                 .flat_map(|edge| edge.explode())
                                 .collect::<Vec<_>>()
@@ -265,8 +258,7 @@ where
     let out1 = triangle_motifs(g, deltas.clone(), threads);
 
     let step1 = ATask::new(move |evv: &mut EvalNodeView<G, _>| {
-        let g = evv.graph();
-        let star_nodes = star_motif_count(g, evv, deltas.clone());
+        let star_nodes = star_motif_count(evv, deltas.clone());
         for (i, star) in star_nodes.iter().enumerate() {
             evv.global_update(&star_mc[i], *star);
         }
@@ -315,6 +307,7 @@ mod motifs_test {
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
     };
+    use tempfile::TempDir;
 
     fn load_graph(edges: Vec<(i64, u64, u64)>) -> Graph {
         let graph = Graph::new();
@@ -327,7 +320,7 @@ mod motifs_test {
 
     #[test]
     fn test_global() {
-        let g = load_graph(vec![
+        let graph = load_graph(vec![
             (1, 1, 2),
             (1, 1, 2),
             (2, 1, 3),
@@ -355,17 +348,26 @@ mod motifs_test {
             (23, 11, 9),
         ]);
 
-        let global_motifs = &temporal_three_node_motif_multi(&g, vec![10], None);
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
-        let expected: [usize; 40] = vec![
-            0, 2, 3, 8, 2, 4, 1, 5, 0, 0, 0, 0, 1, 0, 2, 0, 0, 1, 6, 0, 0, 1, 10, 2, 0, 1, 0, 0, 0,
-            0, 1, 0, 2, 3, 2, 4, 1, 2, 4, 1,
-        ]
-        .into_iter()
-        .map(|x| x as usize)
-        .collect::<Vec<usize>>()
-        .try_into()
-        .unwrap();
-        assert_eq!(global_motifs[0], expected);
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let global_motifs = &temporal_three_node_motif_multi(graph, vec![10], None);
+
+            let expected: [usize; 40] = vec![
+                0, 2, 3, 8, 2, 4, 1, 5, 0, 0, 0, 0, 1, 0, 2, 0, 0, 1, 6, 0, 0, 1, 10, 2, 0, 1, 0,
+                0, 0, 0, 1, 0, 2, 3, 2, 4, 1, 2, 4, 1,
+            ]
+            .into_iter()
+            .map(|x| x as usize)
+            .collect::<Vec<usize>>()
+            .try_into()
+            .unwrap();
+            assert_eq!(global_motifs[0], expected);
+        }
+        test(&graph);
+        #[cfg(feature = "arrow")]
+        test(&arrow_graph);
     }
 }
