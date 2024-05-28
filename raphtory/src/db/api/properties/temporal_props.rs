@@ -4,7 +4,11 @@ use crate::{
     prelude::Graph,
 };
 use chrono::{DateTime, NaiveDateTime, Utc};
-use std::{collections::HashMap, iter::Zip, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    iter::Zip,
+    sync::Arc,
+};
 
 pub struct TemporalPropertyView<P: PropertiesOps> {
     pub(crate) id: usize,
@@ -43,6 +47,43 @@ impl<P: PropertiesOps> TemporalPropertyView<P> {
     }
     pub fn latest(&self) -> Option<Prop> {
         self.props.temporal_value(self.id)
+    }
+
+    pub fn unique(&self) -> Vec<Prop> {
+        let unique_props: HashSet<_> = self.values().into_iter().collect();
+        unique_props.into_iter().collect()
+    }
+
+    pub fn ordered_dedupe(&self, latest_time: bool) -> Vec<(i64, Prop)> {
+        let mut last_seen_value: Option<Prop> = None;
+        let mut result: Vec<(i64, Prop)> = vec![];
+
+        let mut current_entry: Option<(i64, Prop)> = None;
+
+        for (t, prop) in self {
+            if latest_time {
+                if last_seen_value == Some(prop.clone()) {
+                    current_entry = Some((t, prop.clone()));
+                } else {
+                    if let Some(entry) = current_entry.take() {
+                        result.push(entry);
+                    }
+                    current_entry = Some((t, prop.clone()));
+                }
+                last_seen_value = Some(prop.clone());
+            } else {
+                if last_seen_value != Some(prop.clone()) {
+                    result.push((t, prop.clone()));
+                    last_seen_value = Some(prop.clone());
+                }
+            }
+        }
+
+        if let Some(entry) = current_entry {
+            result.push(entry);
+        }
+
+        result
     }
 }
 
@@ -113,6 +154,10 @@ impl<P: PropertiesOps + Clone> TemporalProperties<P> {
         self.props
             .get_temporal_prop_id(key)
             .map(|k| TemporalPropertyView::new(self.props.clone(), k))
+    }
+
+    pub fn get_by_id(&self, id: usize) -> Option<TemporalPropertyView<P>> {
+        Some(TemporalPropertyView::new(self.props.clone(), id))
     }
 
     pub fn histories(&self) -> Vec<(ArcStr, (i64, Prop))> {

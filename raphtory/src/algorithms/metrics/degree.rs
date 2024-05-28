@@ -93,15 +93,19 @@ mod degree_test {
         algorithms::metrics::degree::{
             average_degree, max_degree, max_in_degree, min_degree, min_in_degree, min_out_degree,
         },
-        db::{api::mutation::AdditionOps, graph::graph::Graph},
+        db::{
+            api::{mutation::AdditionOps, view::StaticGraphViewOps},
+            graph::graph::Graph,
+        },
         prelude::NO_PROPS,
     };
+    use tempfile::TempDir;
 
     use super::max_out_degree;
 
     #[test]
     fn degree_test() {
-        let g = Graph::new();
+        let graph = Graph::new();
         let vs = vec![
             (1, 1, 2),
             (2, 1, 3),
@@ -112,36 +116,45 @@ mod degree_test {
         ];
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
+            graph.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
 
-        let expected_max_out_degree = 3;
-        let actual_max_out_degree = max_out_degree(&g);
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
-        let expected_max_in_degree = 2;
-        let actual_max_in_degree = max_in_degree(&g);
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let expected_max_out_degree = 3;
+            let actual_max_out_degree = max_out_degree(graph);
 
-        let expected_min_out_degree = 0;
-        let actual_min_out_degree = min_out_degree(&g);
+            let expected_max_in_degree = 2;
+            let actual_max_in_degree = max_in_degree(graph);
 
-        let expected_min_in_degree = 1;
-        let actual_min_in_degree = min_in_degree(&g);
+            let expected_min_out_degree = 0;
+            let actual_min_out_degree = min_out_degree(graph);
 
-        let expected_average_degree = 2.0;
-        let actual_average_degree = average_degree(&g);
+            let expected_min_in_degree = 1;
+            let actual_min_in_degree = min_in_degree(graph);
 
-        let expected_max_degree = 3;
-        let actual_max_degree = max_degree(&g);
+            let expected_average_degree = 2.0;
+            let actual_average_degree = average_degree(graph);
 
-        let expected_min_degree = 1;
-        let actual_min_degree = min_degree(&g);
+            let expected_max_degree = 3;
+            let actual_max_degree = max_degree(graph);
 
-        assert_eq!(expected_max_out_degree, actual_max_out_degree);
-        assert_eq!(expected_max_in_degree, actual_max_in_degree);
-        assert_eq!(expected_min_out_degree, actual_min_out_degree);
-        assert_eq!(expected_min_in_degree, actual_min_in_degree);
-        assert_eq!(expected_average_degree, actual_average_degree);
-        assert_eq!(expected_max_degree, actual_max_degree);
-        assert_eq!(expected_min_degree, actual_min_degree);
+            let expected_min_degree = 1;
+            let actual_min_degree = min_degree(graph);
+
+            assert_eq!(expected_max_out_degree, actual_max_out_degree);
+            assert_eq!(expected_max_in_degree, actual_max_in_degree);
+            assert_eq!(expected_min_out_degree, actual_min_out_degree);
+            assert_eq!(expected_min_in_degree, actual_min_in_degree);
+            assert_eq!(expected_average_degree, actual_average_degree);
+            assert_eq!(expected_max_degree, actual_max_degree);
+            assert_eq!(expected_min_degree, actual_min_degree);
+        }
+        test(&graph);
+        #[cfg(feature = "arrow")]
+        test(&arrow_graph);
     }
 }

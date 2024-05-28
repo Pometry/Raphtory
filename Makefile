@@ -9,7 +9,7 @@ rust-build:
 rust-build-docs: 
 	cargo doc --no-deps -p raphtory -q
 
-rust-build-readthedocs: 
+rust-build-readthedocs:
 	cargo doc --no-deps -p raphtory -q --target-dir $(RUST_READTHEDOCS_DOCS_TARGET)
 	rm -rf $(RUST_READTHEDOCS_DOCS_TARGET)/debug
 	mv $(RUST_READTHEDOCS_DOCS_TARGET)/doc/* $(RUST_READTHEDOCS_DOCS_TARGET)
@@ -36,3 +36,12 @@ rust-test-all:
 	cargo check -p raphtory --no-default-features --features "python"
 	cargo check -p raphtory --no-default-features --features "search"
 	cargo check -p raphtory --no-default-features --features "vectors"
+
+activate-arrow:
+	./scripts/activate_private_arrow.py
+
+deactivate-arrow:
+	./scripts/deactivate_private_arrow.py
+
+pull-arrow: activate-arrow
+	git submodule update --init --recursive

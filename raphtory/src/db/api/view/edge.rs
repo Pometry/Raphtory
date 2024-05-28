@@ -6,6 +6,7 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
+        utils::errors::GraphError,
         ArcStr,
     },
     db::api::{
@@ -116,12 +117,12 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     fn latest_time(&self) -> Self::ValueType<Option<i64>>;
 
     /// Gets the time stamp of the edge if it is exploded
-    fn time(&self) -> Self::ValueType<Option<i64>>;
+    fn time(&self) -> Self::ValueType<Result<i64, GraphError>>;
 
     fn date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>>;
 
     /// Gets the layer name for the edge if it is restricted to a single layer
-    fn layer_name(&self) -> Self::ValueType<Option<ArcStr>>;
+    fn layer_name(&self) -> Self::ValueType<Result<ArcStr, GraphError>>;
 
     /// Gets the TimeIndexEntry if the edge is exploded
     fn time_and_index(&self) -> Self::ValueType<Option<TimeIndexEntry>>;
@@ -207,8 +208,8 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
                         .unwrap_or(tt.t())
             }
             None => {
-                let edge = g.core_edge_arc(e.pid());
-                g.include_edge_window(&edge, t..t.saturating_add(1), g.layer_ids())
+                let edge = g.core_edge(e.into());
+                g.include_edge_window(edge.as_ref(), t..t.saturating_add(1), g.layer_ids())
             }
         })
     }
@@ -257,8 +258,8 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     }
 
     /// Gets the time stamp of the edge if it is exploded
-    fn time(&self) -> Self::ValueType<Option<i64>> {
-        self.map(|_, e| e.time_t())
+    fn time(&self) -> Self::ValueType<Result<i64, GraphError>> {
+        self.map(|_, e| e.time_t().ok_or_else(|| GraphError::TimeAPIError))
     }
 
     fn date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>> {
@@ -266,8 +267,12 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     }
 
     /// Gets the layer name for the edge if it is restricted to a single layer
-    fn layer_name(&self) -> Self::ValueType<Option<ArcStr>> {
-        self.map(|g, e| e.layer().map(|l_id| g.get_layer_name(*l_id)))
+    fn layer_name(&self) -> Self::ValueType<Result<ArcStr, GraphError>> {
+        self.map(|g, e| {
+            e.layer()
+                .map(|l_id| g.get_layer_name(*l_id))
+                .ok_or_else(|| GraphError::LayerNameAPIError)
+        })
     }
 
     /// Gets the TimeIndexEntry if the edge is exploded
@@ -290,86 +295,198 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
 
 #[cfg(test)]
 mod test_edge_view {
-    use crate::prelude::*;
+    use crate::{db::api::view::StaticGraphViewOps, prelude::*};
+    use tempfile::TempDir;
 
     #[test]
     fn test_exploded_edge_properties() {
-        let g = Graph::new();
+        let graph = Graph::new();
         let actual_prop_values = vec![0, 1, 2, 3];
         for v in actual_prop_values.iter() {
-            g.add_edge(0, 1, 2, [("test", *v)], None).unwrap();
+            graph.add_edge(0, 1, 2, [("test", *v)], None).unwrap();
         }
 
-        let prop_values: Vec<_> = g
-            .edge(1, 2)
-            .unwrap()
-            .explode()
-            .properties()
-            .flat_map(|p| p.get("test").into_i32())
-            .collect();
-        assert_eq!(prop_values, actual_prop_values)
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+
+        fn test<G: StaticGraphViewOps>(graph: &G, actual_prop_values: &[i32]) {
+            let prop_values: Vec<_> = graph
+                .edge(1, 2)
+                .unwrap()
+                .explode()
+                .properties()
+                .flat_map(|p| p.get("test").into_i32())
+                .collect();
+            assert_eq!(prop_values, actual_prop_values)
+        }
+        test(&graph, &actual_prop_values);
+        #[cfg(feature = "arrow")]
+        test(&arrow_graph, &actual_prop_values);
+    }
+
+    #[test]
+    fn test_exploded_edge_properties_window() {
+        let graph = Graph::new();
+        let actual_prop_values_0 = vec![0, 1, 2, 3];
+        for v in actual_prop_values_0.iter() {
+            graph.add_edge(0, 1, 2, [("test", *v)], None).unwrap();
+        }
+        let actual_prop_values_1 = vec![4, 5, 6];
+        for v in actual_prop_values_1.iter() {
+            graph.add_edge(1, 1, 2, [("test", *v)], None).unwrap();
+        }
+
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+
+        fn test<G: StaticGraphViewOps>(
+            graph: &G,
+            actual_prop_values_0: &[i32],
+            actual_prop_values_1: &[i32],
+        ) {
+            let prop_values: Vec<_> = graph
+                .at(0)
+                .edge(1, 2)
+                .unwrap()
+                .explode()
+                .properties()
+                .flat_map(|p| p.get("test").into_i32())
+                .collect();
+            assert_eq!(prop_values, actual_prop_values_0);
+            let prop_values: Vec<_> = graph
+                .at(1)
+                .edge(1, 2)
+                .unwrap()
+                .explode()
+                .properties()
+                .flat_map(|p| p.get("test").into_i32())
+                .collect();
+            assert_eq!(prop_values, actual_prop_values_1)
+        }
+        test(&graph, &actual_prop_values_0, &actual_prop_values_1);
+        #[cfg(feature = "arrow")]
+        test(&arrow_graph, &actual_prop_values_0, &actual_prop_values_1);
     }
 
     #[test]
     fn test_exploded_edge_multilayer() {
-        let g = Graph::new();
+        let graph = Graph::new();
         let expected_prop_values = vec![0, 1, 2, 3];
         for v in expected_prop_values.iter() {
-            g.add_edge(0, 1, 2, [("test", *v)], Some((v % 2).to_string().as_str()))
+            graph
+                .add_edge(0, 1, 2, [("test", *v)], Some((v % 2).to_string().as_str()))
                 .unwrap();
         }
 
-        let prop_values: Vec<_> = g
-            .edge(1, 2)
-            .unwrap()
-            .explode()
-            .properties()
-            .flat_map(|p| p.get("test").into_i32())
-            .collect();
-        let actual_layers: Vec<_> = g
-            .edge(1, 2)
-            .unwrap()
-            .explode()
-            .layer_name()
-            .flatten()
-            .collect();
-        let expected_layers: Vec<_> = expected_prop_values
-            .iter()
-            .map(|v| (v % 2).to_string())
-            .collect();
-        assert_eq!(prop_values, expected_prop_values);
-        assert_eq!(actual_layers, expected_layers);
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+
+        fn test<G: StaticGraphViewOps>(graph: &G, expected_prop_values: &[i32]) {
+            let prop_values: Vec<_> = graph
+                .edge(1, 2)
+                .unwrap()
+                .explode()
+                .properties()
+                .flat_map(|p| p.get("test").into_i32())
+                .collect();
+            let actual_layers: Vec<_> = graph
+                .edge(1, 2)
+                .unwrap()
+                .explode()
+                .layer_name()
+                .flatten()
+                .collect();
+            let expected_layers: Vec<_> = expected_prop_values
+                .iter()
+                .map(|v| (v % 2).to_string())
+                .collect();
+            assert_eq!(prop_values, expected_prop_values);
+            assert_eq!(actual_layers, expected_layers);
+
+            assert!(graph.edge(1, 2).unwrap().layer_name().is_err());
+            assert!(graph.edges().layer_name().all(|l| l.is_err()));
+            assert!(graph
+                .edge(1, 2)
+                .unwrap()
+                .explode()
+                .layer_name()
+                .all(|l| l.is_ok()));
+            assert!(graph
+                .edge(1, 2)
+                .unwrap()
+                .explode_layers()
+                .layer_name()
+                .all(|l| l.is_ok()));
+            assert!(graph.edges().explode().layer_name().all(|l| l.is_ok()));
+            assert!(graph
+                .edges()
+                .explode_layers()
+                .layer_name()
+                .all(|l| l.is_ok()));
+
+            assert!(graph.edge(1, 2).unwrap().time().is_err());
+            assert!(graph.edges().time().all(|l| l.is_err()));
+            assert!(graph
+                .edge(1, 2)
+                .unwrap()
+                .explode()
+                .time()
+                .all(|l| l.is_ok()));
+            assert!(graph
+                .edge(1, 2)
+                .unwrap()
+                .explode_layers()
+                .time()
+                .all(|l| l.is_err()));
+            assert!(graph.edges().explode().time().all(|l| l.is_ok()));
+            assert!(graph.edges().explode_layers().time().all(|l| l.is_err()));
+        }
+        test(&graph, &expected_prop_values);
+        // FIXME: Needs multilayer support (Issue #47)
+        // test(&arrow_graph, &expected_prop_values);
     }
 
     #[test]
     fn test_sorting_by_secondary_index() {
-        let g = Graph::new();
-        g.add_edge(0, 2, 3, NO_PROPS, None).unwrap();
-        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
-        g.add_edge(0, 1, 2, [("second", true)], None).unwrap();
-        g.add_edge(0, 2, 3, [("second", true)], None).unwrap();
+        let graph = Graph::new();
+        graph.add_edge(0, 2, 3, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 1, 2, [("second", true)], None).unwrap();
+        graph.add_edge(0, 2, 3, [("second", true)], None).unwrap();
 
-        let mut exploded_edges: Vec<_> = g.edges().explode().iter().collect();
-        exploded_edges.sort_by_key(|a| a.time_and_index());
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
-        let res: Vec<_> = exploded_edges
-            .into_iter()
-            .map(|e| {
-                (
-                    e.src().id(),
-                    e.dst().id(),
-                    e.properties().get("second").into_bool(),
-                )
-            })
-            .collect();
-        assert_eq!(
-            res,
-            vec![
-                (2, 3, None),
-                (1, 2, None),
-                (1, 2, Some(true)),
-                (2, 3, Some(true))
-            ]
-        )
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let mut exploded_edges: Vec<_> = graph.edges().explode().iter().collect();
+            exploded_edges.sort_by_key(|a| a.time_and_index());
+
+            let res: Vec<_> = exploded_edges
+                .into_iter()
+                .map(|e| {
+                    (
+                        e.src().id(),
+                        e.dst().id(),
+                        e.properties().get("second").into_bool(),
+                    )
+                })
+                .collect();
+            assert_eq!(
+                res,
+                vec![
+                    (2, 3, None),
+                    (1, 2, None),
+                    (1, 2, Some(true)),
+                    (2, 3, Some(true))
+                ]
+            )
+        }
+        test(&graph);
+        // FIXME: boolean properties not supported yet (Issue #48)
+        // test(&arrow_graph);
     }
 }

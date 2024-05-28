@@ -108,12 +108,14 @@ py_iterable_comp!(NestedBoolIterable, BoolIterableCmp, NestedBoolIterableCmp);
 py_iterable!(StringIterable, String);
 py_iterable_comp!(StringIterable, String, StringIterableCmp);
 py_iterable!(OptionArcStringIterable, Option<ArcStr>);
+py_iterable!(ArcStringIterable, ArcStr);
 py_iterable_comp!(
     OptionArcStringIterable,
     Option<ArcStr>,
     OptionArcStringIterableCmp
 );
 py_nested_iterable!(NestedOptionArcStringIterable, Option<ArcStr>);
+py_nested_iterable!(NestedArcStringIterable, ArcStr);
 py_iterable_comp!(
     NestedOptionArcStringIterable,
     OptionArcStringIterableCmp,

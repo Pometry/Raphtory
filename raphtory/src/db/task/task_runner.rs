@@ -2,7 +2,7 @@ use super::{
     context::{Context, GlobalState},
     custom_pool,
     task::{Job, Step, Task},
-    task_state::{Global, Local2, Shard},
+    task_state::{Global, PrevLocalState, Shard},
     POOL,
 };
 use crate::{
@@ -14,8 +14,11 @@ use crate::{
         },
     },
     db::{
-        api::view::StaticGraphViewOps,
-        task::node::{eval_node::EvalNodeView, eval_node_state::EVState},
+        api::{storage::storage_ops::GraphStorage, view::StaticGraphViewOps},
+        task::{
+            eval_graph::EvalGraph,
+            node::{eval_node::EvalNodeView, eval_node_state::EVState},
+        },
     },
 };
 use rayon::{prelude::*, ThreadPool};
@@ -50,6 +53,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         global_state: &Global<CS>,
         morcel: &mut [S],
         prev_local_state: &Vec<S>,
+        storage: &GraphStorage,
         atomic_done: &AtomicBool,
         morcel_size: usize,
         morcel_id: usize,
@@ -60,23 +64,21 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         let global_state_view = global_state.as_cow();
 
         let g = self.ctx.graph();
-
         let mut done = true;
-
         let node_state = EVState::rc_from(shard_state_view, global_state_view);
-
-        let local = Local2::new(prev_local_state);
+        let local = PrevLocalState::new(prev_local_state);
         let mut v_ref = morcel_id * morcel_size;
+
         for local_state in morcel {
             if g.has_node(VID(v_ref)) {
-                let mut vv = EvalNodeView::new_local(
-                    self.ctx.ss(),
-                    v_ref.into(),
-                    &g,
-                    Some(local_state),
-                    &local,
-                    node_state.clone(),
-                );
+                let eval_graph = EvalGraph {
+                    ss: self.ctx.ss(),
+                    base_graph: &g,
+                    storage,
+                    local_state_prev: &local,
+                    node_state: node_state.clone(),
+                };
+                let mut vv = EvalNodeView::new_local(v_ref.into(), eval_graph, Some(local_state));
 
                 match task.run(&mut vv) {
                     Step::Continue => {
@@ -124,6 +126,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         global_state: Global<CS>,
         mut local_state: Vec<S>,
         prev_local_state: &Vec<S>,
+        storage: &GraphStorage,
     ) -> (bool, Shard<CS>, Global<CS>, Vec<S>) {
         pool.install(move || {
             let mut new_shard_state = shard_state;
@@ -144,6 +147,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                                 &new_global_state,
                                 morcel,
                                 prev_local_state,
+                                storage,
                                 &atomic_done,
                                 morcel_size,
                                 morcel_id,
@@ -161,6 +165,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                                     &new_global_state,
                                     morcel,
                                     prev_local_state,
+                                    storage,
                                     &atomic_done,
                                     morcel_size,
                                     morcel_id,
@@ -220,6 +225,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         let pool = num_threads.map(custom_pool).unwrap_or_else(|| POOL.clone());
 
         let num_nodes = self.ctx.graph().unfiltered_num_nodes();
+        let storage = self.ctx.graph().core_graph();
         let morcel_size = num_nodes.min(16_000);
         let num_chunks = if morcel_size == 0 {
             1
@@ -245,6 +251,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
             global_state,
             cur_local_state,
             &prev_local_state,
+            &storage,
         );
 
         // To allow the init step to cache stuff we will copy everything from cur_local_state to prev_local_state
@@ -259,6 +266,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                 global_state,
                 cur_local_state,
                 &prev_local_state,
+                &storage,
             );
 
             // copy and reset the state from the step that just ended

@@ -54,6 +54,7 @@ mod cc_test {
         prelude::NO_PROPS,
     };
     use pretty_assertions::assert_eq;
+    use tempfile::TempDir;
 
     /// Test the global clustering coefficient
     #[test]
@@ -88,7 +89,16 @@ mod cc_test {
             graph.add_edge(0, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let results = clustering_coefficient(&graph);
-        assert_eq!(results, 0.3);
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let results = clustering_coefficient(graph);
+            assert_eq!(results, 0.3);
+        }
+        test(&graph);
+        #[cfg(feature = "arrow")]
+        test(&arrow_graph);
     }
 }

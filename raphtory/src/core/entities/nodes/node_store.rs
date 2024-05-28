@@ -1,21 +1,17 @@
-use crate::{
-    core::{
-        entities::{
-            edges::edge_ref::{Dir, EdgeRef},
-            nodes::structure::{adj, adj::Adj},
-            properties::{props::Props, tprop::TProp},
-            LayerIds, EID, VID,
-        },
-        storage::{
-            iter::Iter,
-            lazy_vec::IllegalSet,
-            timeindex::{AsTime, TimeIndex, TimeIndexEntry, TimeIndexOps},
-            ArcEntry,
-        },
-        utils::errors::{GraphError, MutateGraphError},
-        Direction, Prop,
+use crate::core::{
+    entities::{
+        edges::edge_ref::{Dir, EdgeRef},
+        nodes::structure::adj::Adj,
+        properties::{props::Props, tprop::TProp},
+        LayerIds, EID, VID,
     },
-    prelude::Graph,
+    storage::{
+        lazy_vec::IllegalSet,
+        timeindex::{AsTime, TimeIndex, TimeIndexEntry},
+        ArcEntry,
+    },
+    utils::errors::GraphError,
+    Direction, Prop,
 };
 use itertools::Itertools;
 use ouroboros::self_referencing;
@@ -23,7 +19,6 @@ use serde::{Deserialize, Serialize};
 use std::{
     iter,
     ops::{Deref, Range},
-    sync::Arc,
 };
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
@@ -120,7 +115,7 @@ impl NodeStore {
     }
 
     #[inline(always)]
-    pub(crate) fn find_edge(&self, dst: VID, layer_id: &LayerIds) -> Option<EID> {
+    pub(crate) fn find_edge_eid(&self, dst: VID, layer_id: &LayerIds) -> Option<EID> {
         match layer_id {
             LayerIds::All => match self.layers.len() {
                 0 => None,
@@ -335,16 +330,6 @@ impl NodeStore {
         iter
     }
 
-    pub(crate) fn edges_from_last(
-        &self,
-        layer_id: usize,
-        dir: Direction,
-        last: Option<VID>,
-        page_size: usize,
-    ) -> Vec<(VID, EID)> {
-        self.layers[layer_id].get_page_vec(last, page_size, dir)
-    }
-
     pub(crate) fn const_prop_ids(&self) -> impl Iterator<Item = usize> + '_ {
         self.props
             .as_ref()
@@ -361,10 +346,6 @@ impl NodeStore {
             .as_ref()
             .into_iter()
             .flat_map(|ps| ps.temporal_prop_ids())
-    }
-
-    pub(crate) fn active(&self, w: Range<i64>) -> bool {
-        self.timestamps.active(w)
     }
 }
 

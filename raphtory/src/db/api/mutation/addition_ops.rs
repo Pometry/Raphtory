@@ -1,7 +1,6 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, nodes::input_node::InputNode},
-        storage::timeindex::TimeIndexEntry,
         utils::{errors::GraphError, time::IntoTimeWithFormat},
         Prop,
     },
@@ -13,6 +12,8 @@ use crate::{
         graph::{edge::EdgeView, node::NodeView},
     },
 };
+
+use super::time_from_input;
 
 pub trait AdditionOps: StaticGraphViewOps {
     // TODO: Probably add vector reference here like add
@@ -112,7 +113,7 @@ impl<G: InternalAdditionOps + StaticGraphViewOps> AdditionOps for G {
             |name, dtype| self.resolve_node_property(name, dtype, false),
             |prop| self.process_prop_value(prop),
         )?;
-        let ti = TimeIndexEntry::from_input(self, t)?;
+        let ti = time_from_input(self, t)?;
         let v_id = self.resolve_node(v.id(), v.id_str());
         let type_id = self.resolve_node_type(v_id, node_type)?;
         self.internal_add_node(ti, v_id, properties, type_id)?;
@@ -127,7 +128,7 @@ impl<G: InternalAdditionOps + StaticGraphViewOps> AdditionOps for G {
         props: PI,
         layer: Option<&str>,
     ) -> Result<EdgeView<G, G>, GraphError> {
-        let ti = TimeIndexEntry::from_input(self, t)?;
+        let ti = time_from_input(self, t)?;
         let src_id = self.resolve_node(src.id(), src.id_str());
         let dst_id = self.resolve_node(dst.id(), dst.id_str());
         let layer_id = self.resolve_layer(layer);

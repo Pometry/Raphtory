@@ -580,6 +580,19 @@ def test_node_properties():
         "prop 4": True,
         "static prop": 123,
     }
+
+    # find all nodes that match properties
+    [n] = g.find_nodes(
+        {
+            "prop 3": "hello",
+            "prop 1": 2,
+        }
+    )
+    assert n == g.node(1)
+
+    empty_list = g.find_nodes({"prop 1": 2, "prop 3": "hi"})
+    assert len(empty_list) == 0
+
     assert g.nodes.properties == {
         "prop 2": [0.9],
         "prop 3": ["hello"],
@@ -837,6 +850,13 @@ def test_edge_properties():
     assert sorted(g.at(1).edge(1, 2).properties.temporal.keys()) == sorted(
         ["prop 4", "prop 1", "prop 3"]
     )
+
+    # find all edges that match properties
+    [e] = g.at(1).find_edges({"prop 1": 1, "prop 3": "hi"})
+    assert e == g.edge(1, 2)
+
+    empty_list = g.at(1).find_edges({"prop 1": 1, "prop 3": "hx"})
+    assert len(empty_list) == 0
 
     # testing has_property
     assert "prop 4" in g.edge(1, 2).properties
@@ -1446,6 +1466,65 @@ def test_layer_name():
     assert g.edge(0, 1).layer_names == ["_default"]
     assert g.edge(0, 2).layer_names == ["awesome layer"]
 
+    error_msg = ("The layer_name function is only available once an edge has been exploded via .explode_layers() or .explode(). " 
+                 "If you want to retrieve the layers for this edge you can use .layer_names")
+    with pytest.raises(Exception) as e:
+        g.edges.layer_name()
+    assert str(e.value) == error_msg
+
+    assert list(g.edges.explode().layer_name) == ['_default', 'awesome layer']
+    assert list(g.edges.explode_layers().layer_name) == ['_default', 'awesome layer']
+
+    with pytest.raises(Exception) as e:
+        g.edge(0, 2).layer_name()
+    assert str(e.value) == error_msg
+
+    assert list(g.edge(0, 2).explode().layer_name) == ['awesome layer']
+    assert list(g.edge(0, 2).explode_layers().layer_name) == ['awesome layer']
+
+    with pytest.raises(Exception) as e:
+        g.nodes.neighbours.edges.layer_name()
+    assert str(e.value) == error_msg
+
+    assert [list(iterator) for iterator in g.nodes.neighbours.edges.explode().layer_name] == [
+        ["_default", "awesome layer"],
+        ["_default", "awesome layer"],
+        ["_default", "awesome layer"]
+    ]
+    assert [list(iterator) for iterator in g.nodes.neighbours.edges.explode_layers().layer_name] == [
+        ["_default", "awesome layer"],
+        ["_default", "awesome layer"],
+        ["_default", "awesome layer"]
+    ]
+
+def test_time():
+    g = Graph()
+    g.add_constant_properties({"name": "graph"})
+
+    g.add_edge(0, 0, 1)
+    g.add_edge(0, 0, 2)
+    g.add_edge(1, 0, 2)
+
+    error_msg = ("The time function is only available once an edge has been exploded via .explode(). " 
+                 "You may want to retrieve the history for this edge via .history(), or the earliest/latest time via earliest_time or latest_time")
+    with pytest.raises(Exception) as e:
+        g.edges.time()
+    assert str(e.value) == error_msg
+
+    assert list(g.edges.explode().time) == [0, 0, 1]
+
+    with pytest.raises(Exception) as e:
+        g.edge(0, 2).time()
+    assert str(e.value) == error_msg
+
+    assert list(g.edge(0, 2).explode().time) == [0, 1]
+
+    with pytest.raises(Exception) as e:
+        g.nodes.neighbours.edges.time()
+    assert str(e.value) == error_msg
+
+    assert [list(iterator) for iterator in g.nodes.neighbours.edges.explode().time] == [[0, 0, 1], [0, 0, 1], [0, 0, 1]]
+
 
 def test_window_size():
     g = Graph()
@@ -1821,11 +1900,6 @@ def test_starend_edges():
     g.add_edge(2, 1, 2)
     g.add_edge(3, 1, 2)
 
-    old_time_way = []
-    for e in g.edges:
-        old_time_way.append(e.time)
-    assert old_time_way == list(g.edges.time)
-
     old_latest_time_way = []
     for e in g.edges:
         old_latest_time_way.append(e.latest_time)
@@ -1837,20 +1911,13 @@ def test_starend_edges():
         old_earliest_time_way.append(e.earliest_time)
     assert old_earliest_time_way == list(g.edges.earliest_time)
 
-    old_start_nested_way = []
-    old_end_nested_way = []
-    old_time_nested_way = []
     old_latest_time_nested_way = []
     old_earliest_time_nested_way = []
     for edges in g.nodes.edges:
         for edge in edges:
-            old_time_nested_way.append(edge.time)
             old_latest_time_nested_way.append(edge.latest_time)
             old_earliest_time_nested_way.append(edge.earliest_time)
 
-    assert old_time_nested_way == [
-        item for sublist in g.nodes.edges.time.collect() for item in sublist
-    ]
     assert old_latest_time_nested_way == [
         item for sublist in g.nodes.edges.latest_time.collect() for item in sublist
     ]
@@ -2102,6 +2169,89 @@ def test_NaN_NaT_as_properties():
     g.load_nodes_from_pandas(time="time", id="id", df=df, properties=["floats"])
     assert g.node(103).properties.temporal.get("floats").items() == [(30, 2.4)]
     assert g.node(101).properties.temporal.get("floats") == None
+
+
+def test_unique_temporal_properties():
+    g = Graph()
+    g.add_property(1, {"name": "tarzan"})
+    g.add_property(2, {"name": "tarzan2"})
+    g.add_property(3, {"name": "tarzan2"})
+    g.add_property(2, {"salary": "1000"})
+    g.add_constant_properties({"type": "character"})
+    g.add_edge(1,1,2,properties={"status":"open"})
+    g.add_edge(2,1,2,properties={"status":"open"})
+    g.add_edge(3,1,2,properties={"status":"review"})
+    g.add_edge(4,1,2,properties={"status":"open"})
+    g.add_edge(5,1,2,properties={"status":"in-progress"})
+    g.add_edge(10,1,2,properties={"status":"in-progress"})
+    g.add_edge(6,1,2)
+    g.add_node(1, 3, {"name": "avatar1"})
+    g.add_node(2, 3, {"name": "avatar2"})
+    g.add_node(3, 3, {"name": "avatar2"})
+
+    assert g.edge(1,2).properties.temporal.get('status').ordered_dedupe(True) == [(2, "open"), (3, "review"), (4, "open"), (10, "in-progress")]
+    assert g.edge(1,2).properties.temporal.get('status').ordered_dedupe(False) == [(1, "open"), (3, "review"), (4, "open"), (5, "in-progress")]
+    assert g.properties.temporal.get('name').ordered_dedupe(True) == [(1, "tarzan"), (3, "tarzan2")]
+    assert g.properties.temporal.get('name').ordered_dedupe(False) == [(1, "tarzan"), (2, "tarzan2")]
+    assert g.node(3).properties.temporal.get('name').ordered_dedupe(True) == [(1, "avatar1"), (3, "avatar2")]
+    assert g.node(3).properties.temporal.get('name').ordered_dedupe(False) == [(1, "avatar1"), (2, "avatar2")]
+
+    g.add_node(4, 3, {"i64": 1})
+    g.add_node(5, 3, {"i64": 1})
+    g.add_node(6, 3, {"i64": 5})
+    g.add_node(7, 3, {"f64": 1.2})
+    g.add_node(8, 3, {"f64": 1.3})
+    g.add_node(9, 3, {"bool": True})
+    g.add_node(10, 3, {"bool": True})
+    g.add_node(11, 3, {"bool": False})
+    g.add_node(12, 3, {"list": [1, 2, 3]})
+    g.add_node(13, 3, {"list": [1, 2, 3]})
+    g.add_node(14, 3, {"list": [2, 3]})
+    datetime_obj = datetime.strptime("2021-01-01 12:32:00", "%Y-%m-%d %H:%M:%S")
+    datetime_obj2 = datetime.strptime("2021-01-02 12:32:00", "%Y-%m-%d %H:%M:%S")
+    g.add_node(15, 3, {"date": datetime_obj})
+    g.add_node(16, 3, {"date": datetime_obj})
+    g.add_node(17, 3, {"date": datetime_obj2})
+    g.add_node(18, 3, {"map": {"name": "bob", "value list": [1, 2, 3]}})
+    g.add_node(19, 3, {"map": {"name": "bob", "value list": [1, 2]}})
+
+    assert list(g.edge(1,2).properties.temporal.get('status')) == [(1, 'open'), (2, 'open'), (3, 'review'), (4, 'open'), (5, 'in-progress'), (10, 'in-progress')]
+    assert sorted(g.edge(1,2).properties.temporal.get('status').unique()) == ['in-progress', 'open', 'review']
+    assert list(g.properties.temporal.get('name')) == [(1, 'tarzan'), (2, 'tarzan2'), (3, 'tarzan2')]
+    assert sorted(g.properties.temporal.get('name').unique()) == ['tarzan', 'tarzan2']
+    assert list(g.node(3).properties.temporal.get('name')) == [(1, 'avatar1'), (2, 'avatar2'), (3, 'avatar2')]
+    assert sorted(g.node(3).properties.temporal.get('name').unique()) == ['avatar1', 'avatar2']
+    assert sorted(g.node(3).properties.temporal.get('i64').unique()) == [1, 5]
+    assert sorted(g.node(3).properties.temporal.get('f64').unique()) == [1.2, 1.3]
+    assert sorted(g.node(3).properties.temporal.get('bool').unique()) == [False, True]
+    assert sorted(g.node(3).properties.temporal.get('list').unique()) == [[1, 2, 3], [2, 3]]
+    assert sorted(g.node(3).properties.temporal.get('date').unique()) == [datetime_obj, datetime_obj2]
+    actual_list = g.node(3).properties.temporal.get('map').unique()
+    expected_list = [{"name": "bob", "value list": [1, 2]}, {"name": "bob", "value list": [1, 2, 3]}]
+    sorted_actual_list = sorted(actual_list, key=lambda d: (d["name"], tuple(d["value list"])))
+    sorted_expected_list = sorted(expected_list, key=lambda d: (d["name"], tuple(d["value list"])))
+    assert sorted_actual_list == sorted_expected_list
+    g1 = Graph()
+    g1.add_constant_properties({"type": "a"})
+    g1.add_node(1, "ben")
+    g.add_node(7, 3, {"graph": g1})
+    g2 = Graph()
+    g2.add_constant_properties({"type": "b"})
+    g2.add_node(1, "ben")
+    g.add_node(7, 3, {"graph": g2})
+    g3 = Graph()
+    g3.add_constant_properties({"type": "c"})
+    g3.add_node(1, "shivam")
+    g.add_node(7, 3, {"graph": g3})
+
+    actual_list = g.node(3).properties.temporal.get('graph').unique()
+    expected_list = [g1, g3]
+    sorted_actual_list = sorted(actual_list, key=lambda g: g.properties.constant.get('type'))
+    sorted_expected_list = sorted(expected_list, key=lambda g: g.properties.constant.get('type'))
+    assert sorted_actual_list == sorted_expected_list
+
+    assert g.node(3).properties.temporal.get('i64').ordered_dedupe(True) == [(5, 1), (6, 5)]
+    assert g.node(3).properties.temporal.get('i64').ordered_dedupe(False) == [(4, 1), (6, 5)]
 
 
 def test_fuzzy_search():

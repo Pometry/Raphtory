@@ -1,0 +1,50 @@
+[package]
+name = "raphtory-cypher"
+version.workspace = true
+documentation.workspace = true
+repository.workspace = true
+license.workspace = true
+readme.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+edition.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+raphtory = { path = "../raphtory" }
+raphtory-arrow = { workspace = true, optional = true }
+arrow.workspace = true
+arrow-buffer.workspace = true
+arrow-schema.workspace = true
+arrow-array.workspace = true
+
+pest.workspace = true
+pest_derive.workspace = true
+
+polars-arrow.workspace = true
+
+datafusion.workspace = true
+lazy_static.workspace = true
+sqlparser.workspace = true
+futures.workspace = true
+async-trait.workspace = true
+
+rayon.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+itertools.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+pretty_assertions.workspace = true
+tempfile.workspace = true
+rand.workspace = true
+tokio.workspace = true
+clap.workspace = true
+
+[features]
+arrow = ["raphtory/arrow", "raphtory-arrow"]

@@ -87,9 +87,7 @@ pub fn stable_coin_graph(path: Option<String>, subset: bool) -> Graph {
                 let s: &str = &stablecoin.contract_address;
                 let label = *contract_addr_labels.get(s).unwrap();
                 g.add_edge(
-                    DateTime::from_timestamp(stablecoin.time_stamp, 0)
-                        .unwrap()
-                        .naive_utc(),
+                    DateTime::from_timestamp(stablecoin.time_stamp, 0).unwrap(),
                     stablecoin.from_address,
                     stablecoin.to_address,
                     [("value", stablecoin.value)],

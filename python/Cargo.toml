@@ -31,8 +31,10 @@ dynamic-graphql = { workspace = true }
 itertools = { workspace = true }
 
 [features]
-extension-module = ["pyo3/extension-module"]
 default = ["extension-module"]
+arrow = ["raphtory_core/arrow"]
+extension-module = ["pyo3/extension-module"]
+
 
 [build-dependencies]
 pyo3-build-config = { workspace = true }

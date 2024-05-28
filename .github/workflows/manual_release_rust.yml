@@ -1,4 +1,4 @@
-name: (Manual) Release Github
+name: (Manual) Release Rust
 on:
   workflow_dispatch:
     inputs:
@@ -12,7 +12,10 @@ on:
         default: false
 
 jobs:
-  call-release-github-workflow:
-    name: _Release 4 - Publish to Github
-    uses: ./.github/workflows/_release_github.yml
+  call-release-rust-workflow:
+    name: _Release 2 - Publish Rust package to crates.io
+    uses: ./.github/workflows/_release_rust.yml
+    with:
+      base: ${{ inputs.base }}
+      dry_run: ${{ inputs.dry_run == true }}
     secrets: inherit

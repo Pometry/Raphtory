@@ -126,7 +126,6 @@ where
 ///////////////////////////////////////////////////////
 
 pub fn twonode_motif_count<'a, 'b, G, GH>(
-    graph: &'a G,
     evv: &'a EvalNodeView<'b, '_, G, MotifCounter, GH>,
     deltas: Vec<i64>,
 ) -> Vec<[usize; 8]>
@@ -144,8 +143,8 @@ where
 
     for nb in evv.neighbours().into_iter() {
         let nb_id = nb.id();
-        let out = graph.edge(evv.id(), nb_id);
-        let inc = graph.edge(nb_id, evv.id());
+        let out = evv.graph().edge(evv.id(), nb_id);
+        let inc = evv.graph().edge(nb_id, evv.id());
         let events: Vec<TwoNodeEvent> = out
             .iter()
             .flat_map(|e| e.explode())
@@ -337,8 +336,7 @@ where
     let out1 = triangle_motifs(g, deltas.clone(), motifs_counter, threads);
 
     let step1 = ATask::new(move |evv: &mut EvalNodeView<G, MotifCounter>| {
-        let g = evv.graph();
-        let two_nodes = twonode_motif_count(g, evv, deltas.clone());
+        let two_nodes = twonode_motif_count(evv, deltas.clone());
         let star_nodes = star_motif_count(evv, deltas.clone());
 
         *evv.get_mut() = MotifCounter::new(
@@ -399,6 +397,7 @@ mod motifs_test {
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
     };
+    use tempfile::TempDir;
 
     fn load_graph(edges: Vec<(i64, u64, u64)>) -> Graph {
         let graph = Graph::new();
@@ -411,7 +410,7 @@ mod motifs_test {
 
     #[test]
     fn test_local_motif() {
-        let g = load_graph(vec![
+        let graph = load_graph(vec![
             (1, 1, 2),
             (2, 1, 3),
             (3, 1, 4),
@@ -437,98 +436,106 @@ mod motifs_test {
             (23, 11, 9),
         ]);
 
-        let binding = temporal_three_node_motif(&g, Vec::from([10]), None);
-        let actual = binding
-            .iter()
-            .map(|(k, v)| (k, v[0].clone()))
-            .into_iter()
-            .collect::<HashMap<&String, Vec<usize>>>();
+        let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
-        let expected: HashMap<String, Vec<usize>> = HashMap::from([
-            (
-                "1".to_string(),
-                vec![
-                    0, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0,
-                    0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 0,
-                ],
-            ),
-            (
-                "10".to_string(),
-                vec![
-                    0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1,
-                ],
-            ),
-            (
-                "11".to_string(),
-                vec![
-                    0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0,
-                ],
-            ),
-            (
-                "2".to_string(),
-                vec![
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                ],
-            ),
-            (
-                "3".to_string(),
-                vec![
-                    0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 0, 0, 1, 0, 2, 0, 1, 2, 0,
-                ],
-            ),
-            (
-                "4".to_string(),
-                vec![
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 2, 0,
-                ],
-            ),
-            (
-                "5".to_string(),
-                vec![
-                    0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 4, 0, 0, 0, 3, 0, 0, 0,
-                    0, 0, 0, 0, 0, 0, 1, 2, 1, 3, 0, 1, 1, 1,
-                ],
-            ),
-            (
-                "6".to_string(),
-                vec![
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,
-                ],
-            ),
-            (
-                "7".to_string(),
-                vec![
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                ],
-            ),
-            (
-                "8".to_string(),
-                vec![
-                    0, 0, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 0, 1, 2, 1, 2, 0, 1, 0, 1,
-                ],
-            ),
-            (
-                "9".to_string(),
-                vec![
-                    0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,
-                    0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0,
-                ],
-            ),
-        ]);
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let binding = temporal_three_node_motif(graph, Vec::from([10]), None);
+            let actual = binding
+                .iter()
+                .map(|(k, v)| (k, v[0].clone()))
+                .collect::<HashMap<&String, Vec<usize>>>();
 
-        for ind in 3..12 {
-            assert_eq!(
-                actual.get(&ind.to_string()).unwrap(),
-                expected.get(&ind.to_string()).unwrap()
-            );
+            let expected: HashMap<String, Vec<usize>> = HashMap::from([
+                (
+                    "1".to_string(),
+                    vec![
+                        0, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0,
+                        0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 0,
+                    ],
+                ),
+                (
+                    "10".to_string(),
+                    vec![
+                        0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                        0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1,
+                    ],
+                ),
+                (
+                    "11".to_string(),
+                    vec![
+                        0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0,
+                        0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0,
+                    ],
+                ),
+                (
+                    "2".to_string(),
+                    vec![
+                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                    ],
+                ),
+                (
+                    "3".to_string(),
+                    vec![
+                        0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                        0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 2, 0, 1, 2, 0,
+                    ],
+                ),
+                (
+                    "4".to_string(),
+                    vec![
+                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                        0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 2, 0,
+                    ],
+                ),
+                (
+                    "5".to_string(),
+                    vec![
+                        0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 4, 0, 0, 0, 3, 0, 0,
+                        0, 0, 0, 0, 0, 0, 0, 1, 2, 1, 3, 0, 1, 1, 1,
+                    ],
+                ),
+                (
+                    "6".to_string(),
+                    vec![
+                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,
+                    ],
+                ),
+                (
+                    "7".to_string(),
+                    vec![
+                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                    ],
+                ),
+                (
+                    "8".to_string(),
+                    vec![
+                        0, 0, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                        0, 0, 0, 0, 0, 0, 0, 1, 2, 1, 2, 0, 1, 0, 1,
+                    ],
+                ),
+                (
+                    "9".to_string(),
+                    vec![
+                        0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0,
+                        0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0,
+                    ],
+                ),
+            ]);
+
+            for ind in 3..12 {
+                assert_eq!(
+                    actual.get(&ind.to_string()).unwrap(),
+                    expected.get(&ind.to_string()).unwrap()
+                );
+            }
         }
+        test(&graph);
+        #[cfg(feature = "arrow")]
+        test(&arrow_graph);
     }
 }
