@@ -13,10 +13,7 @@ use crate::{
     },
 };
 use itertools::Itertools;
-use raphtory_arrow::{
-    graph::TemporalGraph, graph_fragment::TempColGraphFragment, properties::Properties,
-    timestamps::TimeStamps, GidRef, GID,
-};
+use raphtory_arrow::{graph::TemporalGraph, timestamps::TimeStamps, GidRef};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use std::{iter, sync::Arc};
 

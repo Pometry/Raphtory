@@ -1,17 +1,3 @@
-#[cfg(feature = "arrow")]
-use crate::{
-    arrow::storage_interface::{
-        edges::ArrowEdges,
-        edges_ref::ArrowEdgesRef,
-        node::{ArrowNode, ArrowOwnedNode},
-        nodes::ArrowNodesOwned,
-        nodes_ref::ArrowNodesRef,
-    },
-    db::api::storage::variants::storage_variants::StorageVariants,
-};
-#[cfg(feature = "arrow")]
-use raphtory_arrow::graph::TemporalGraph;
-
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, EID, VID},
@@ -44,6 +30,22 @@ use crate::{
 use itertools::Itertools;
 use rayon::prelude::*;
 use std::iter;
+
+#[cfg(feature = "arrow")]
+use crate::{
+    arrow::storage_interface::{
+        edges::ArrowEdges,
+        edges_ref::ArrowEdgesRef,
+        node::{ArrowNode, ArrowOwnedNode},
+        nodes::ArrowNodesOwned,
+        nodes_ref::ArrowNodesRef,
+    },
+    db::api::storage::variants::storage_variants::StorageVariants,
+};
+#[cfg(feature = "arrow")]
+use raphtory_arrow::graph::TemporalGraph;
+#[cfg(feature = "arrow")]
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub enum GraphStorage {

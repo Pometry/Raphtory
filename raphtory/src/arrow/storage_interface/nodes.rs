@@ -3,9 +3,7 @@ use crate::{
     core::entities::VID,
 };
 
-use raphtory_arrow::{
-    graph::TemporalGraph, graph_fragment::TempColGraphFragment, properties::Properties,
-};
+use raphtory_arrow::graph::TemporalGraph;
 use std::sync::Arc;
 
 #[derive(Clone, Debug)]

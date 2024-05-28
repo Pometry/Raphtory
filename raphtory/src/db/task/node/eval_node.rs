@@ -12,7 +12,7 @@ use crate::{
         api::{
             properties::Properties,
             storage::storage_ops::GraphStorage,
-            view::{internal::OneHopFilter, Base, BaseNodeViewOps, BoxedLIter, IntoDynBoxed},
+            view::{internal::OneHopFilter, BaseNodeViewOps, BoxedLIter, IntoDynBoxed},
         },
         graph::{edges::Edges, node::NodeView, path::PathFromNode},
         task::{
