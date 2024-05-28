@@ -1,9 +1,44 @@
 use crate::{
-    db::api::view::BoxedIter,
+    db::api::view::{BoxedIter, BoxedLIter},
     python::types::repr::{iterator_repr, Repr},
 };
-use pyo3::{IntoPy, PyObject};
+use ouroboros::self_referencing;
+use pyo3::{pyclass, pymethods, IntoPy, PyObject, PyRef};
 use std::{marker::PhantomData, sync::Arc};
+
+pub trait PyIter: Send + Sync + 'static {
+    fn iter(&self) -> BoxedLIter<PyObject>;
+
+    fn into_py(self) -> PyGenericIterator
+    where
+        Self: Sized,
+    {
+        PyGenericIteratorBuilder {
+            inner: Box::new(self),
+            iter_builder: |inner| inner.iter(),
+        }
+        .build()
+    }
+}
+
+#[pyclass]
+#[self_referencing]
+pub struct PyGenericIterator {
+    inner: Box<dyn PyIter>,
+    #[borrows(inner)]
+    #[covariant]
+    iter: BoxedLIter<'this, PyObject>,
+}
+
+#[pymethods]
+impl PyGenericIterator {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+    fn __next__(&mut self) -> Option<PyObject> {
+        self.with_iter_mut(|iter| iter.next())
+    }
+}
 
 pub struct Iterable<I: Send, PyI: IntoPy<PyObject> + From<I> + Repr> {
     pub name: &'static str,
