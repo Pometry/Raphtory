@@ -14,7 +14,7 @@ use crate::{
     prelude::*,
 };
 
-use crate::db::{api::storage::locked::LockedGraph, graph::create_node_type_filter};
+use crate::db::graph::create_node_type_filter;
 use rayon::iter::ParallelIterator;
 use std::{marker::PhantomData, sync::Arc};
 

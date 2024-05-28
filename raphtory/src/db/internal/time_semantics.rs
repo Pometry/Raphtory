@@ -17,11 +17,12 @@ use crate::{
             BoxedIter, IntoDynBoxed,
         },
     },
-    prelude::{Prop, TimeIndexEntry},
+    prelude::{Prop},
 };
 use itertools::{kmerge, Itertools};
 use rayon::prelude::*;
 use std::ops::Range;
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 
 impl TimeSemantics for InternalGraph {
     fn node_earliest_time(&self, v: VID) -> Option<i64> {

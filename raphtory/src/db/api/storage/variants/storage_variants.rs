@@ -1,9 +1,10 @@
-use crate::{core::Prop, db::api::storage::tprop_storage_ops::TPropOps, prelude::TimeIndexEntry};
+use crate::{core::Prop, db::api::storage::tprop_storage_ops::TPropOps};
 use rayon::iter::{
     plumbing::{Consumer, ProducerCallback, UnindexedConsumer},
     IndexedParallelIterator, ParallelIterator,
 };
 use std::{cmp::Ordering, ops::Range};
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 
 #[derive(Copy, Clone, Debug)]
 pub enum StorageVariants<Mem, #[cfg(feature = "arrow")] Arrow> {

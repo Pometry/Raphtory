@@ -17,10 +17,10 @@ use crate::{
         },
         tprop_storage_ops::TPropOps,
     },
-    prelude::TimeIndexEntry,
 };
 use rayon::iter::ParallelIterator;
 use std::ops::Range;
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 
 #[derive(Debug, Clone)]
 pub enum EdgeOwnedEntry {

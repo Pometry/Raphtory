@@ -7,7 +7,6 @@ use crate::{
         storage::timeindex::{TimeIndex, TimeIndexIntoOps, TimeIndexOps, TimeIndexWindow},
     },
     db::api::view::IntoDynBoxed,
-    prelude::TimeIndexEntry,
 };
 
 #[cfg(feature = "arrow")]
@@ -19,6 +18,9 @@ use crate::{
 };
 use rayon::prelude::*;
 use std::ops::Range;
+use tantivy::HasLen;
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+use crate::prelude::EdgeViewOps;
 
 pub enum TimeIndexRef<'a> {
     Ref(&'a TimeIndex<TimeIndexEntry>),

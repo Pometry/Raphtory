@@ -31,7 +31,6 @@ use crate::{
     *,
 };
 use chrono::{DateTime, Utc};
-use itertools::Itertools;
 use pyo3::{
     exceptions::{PyIndexError, PyKeyError},
     prelude::*,

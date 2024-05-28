@@ -1,4 +1,4 @@
-use crate::core::entities::properties::props::{DictMapper, Meta};
+use crate::core::entities::properties::props::{DictMapper};
 use std::sync::Arc;
 
 pub mod edge;

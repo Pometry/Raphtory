@@ -364,6 +364,10 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     fn unfiltered_num_edges(&self) -> usize {
         self.graph().unfiltered_num_edges()
     }
+    fn node_type_id(&self, v: VID) -> usize {
+        self.graph().node_type_id(v)
+    }
+
 }
 
 pub enum NodeAdditions<'a> {
@@ -438,7 +442,4 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
         }
     }
 
-    fn node_type_id(&self, v: VID) -> usize {
-        self.graph().node_type_id(v)
-    }
 }
