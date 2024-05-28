@@ -4,10 +4,10 @@ use crate::{
         storage::timeindex::TimeIndexOps,
     },
     db::api::storage::edges::edge_storage_ops::EdgeStorageIntoOps,
-    prelude::TimeIndexEntry,
 };
 use raphtory_arrow::{edge::Edge, edges::Edges, graph::TemporalGraph, timestamps::TimeStamps};
 use std::ops::Range;
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 
 pub type ArrowEdge<'a> = Edge<'a>;
 
