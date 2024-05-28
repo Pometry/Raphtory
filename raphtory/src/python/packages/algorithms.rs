@@ -45,6 +45,7 @@ use crate::{
             single_source_shortest_path::single_source_shortest_path as single_source_shortest_path_rs,
             temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs,
         },
+        projections::temporal_bipartite_projection::temporal_bipartite_projection as temporal_bipartite_rs,
     },
     core::{entities::nodes::node_ref::NodeRef, Prop},
     db::{api::view::internal::DynamicGraph, graph::node::NodeView},
@@ -420,6 +421,26 @@ pub fn global_clustering_coefficient(g: &PyGraphView) -> f64 {
 #[pyfunction]
 pub fn global_temporal_three_node_motif(g: &PyGraphView, delta: i64) -> [usize; 40] {
     global_temporal_three_node_motif_rs(&g.graph, delta, None)
+}
+
+/// Projects a temporal bipartite graph into an undirected temporal graph over the pivot node type. Let G be a bipartite graph with node types A and B. Given delta > 0, the projection graph G' pivoting over type B nodes,
+/// will make a connection between nodes n1 and n2 (of type A) at time (t1 + t2)/2 if they respectively have an edge at time t1, t2 with the same node of type B in G, and |t2-t1| < delta.
+///
+/// Arguments:
+///     g (raphtory graph) : A directed raphtory graph
+///     delta (int): Time period
+///     pivot (string) : node type to pivot over. If a bipartite graph has types A and B, and B is the pivot type, the new graph will consist of type A nodes.
+///
+/// Returns:
+///     raphtory graph : Projected (unipartite) temporal graph.
+#[pyfunction]
+#[pyo3(signature = (g, delta, pivot_type))]
+pub fn temporal_bipartite_graph_projection(
+    g: &PyGraphView,
+    delta: i64,
+    pivot_type: String,
+) -> PyGraphView {
+    temporal_bipartite_rs(&g.graph, delta, pivot_type).into()
 }
 
 /// Computes the global counts of three-edge up-to-three node temporal motifs for a range of timescales. See `global_temporal_three_node_motif` for an interpretation of each row returned.
