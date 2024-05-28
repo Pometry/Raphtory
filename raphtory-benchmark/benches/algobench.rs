@@ -8,7 +8,10 @@ use raphtory::{
             clustering_coefficient::clustering_coefficient,
             local_clustering_coefficient::local_clustering_coefficient,
         },
-        motifs::local_triangle_count::local_triangle_count,
+        motifs::{
+            global_temporal_three_node_motifs::global_temporal_three_node_motif,
+            local_triangle_count::local_triangle_count,
+        },
     },
     graphgen::random_attachment::random_attachment,
     prelude::*,
@@ -16,22 +19,6 @@ use raphtory::{
 use rayon::prelude::*;
 
 mod common;
-
-//TODO swap to new trianglecount
-// pub fn global_triangle_count_analysis(c: &mut Criterion) {
-//     let mut group = c.benchmark_group("global_triangle_count");
-//     group.sample_size(10);
-//     bench(&mut group, "global_triangle_count", None, |b| {
-//         let g = raphtory_db::graph_loader::lotr_graph::lotr_graph(1);
-//         let windowed_graph = g.window(i64::MIN, i64::MAX);
-//         b.iter(|| {
-//             global_triangle_count(&windowed_graph).unwrap();
-//         });
-//     });
-//
-//     group.finish();
-// }
-
 pub fn local_triangle_count_analysis(c: &mut Criterion) {
     let mut group = c.benchmark_group("local_triangle_count");
     group.sample_size(10);
@@ -132,6 +119,18 @@ pub fn graphgen_large_concomp(c: &mut Criterion) {
     group.finish()
 }
 
+pub fn temporal_motifs(c: &mut Criterion) {
+    let mut group = c.benchmark_group("temporal_motifs");
+
+    bench(&mut group, "temporal_motifs", None, |b| {
+        let g: Graph = raphtory::graph_loader::example::lotr_graph::lotr_graph();
+
+        b.iter(|| global_temporal_three_node_motif(&g, 100, None))
+    });
+
+    group.finish();
+}
+
 criterion_group!(
     benches,
     local_triangle_count_analysis,
@@ -139,5 +138,6 @@ criterion_group!(
     graphgen_large_clustering_coeff,
     graphgen_large_pagerank,
     graphgen_large_concomp,
+    temporal_motifs,
 );
 criterion_main!(benches);
