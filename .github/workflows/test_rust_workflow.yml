@@ -52,8 +52,8 @@ jobs:
         name: Cargo cache
         with:
           cache-all-crates: true
-      - name: Flip raphtory-arrow in Cargo.toml
-        run: python ./scripts/flip_ra.py
+      - name: Activate raphtory-arrow in Cargo.toml
+        run: make pull-arrow
       - name: Install bininstall
         uses: cargo-bins/cargo-binstall@main
       - name: Install nextest

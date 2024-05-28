@@ -1,17 +1,3 @@
-#[cfg(feature = "arrow")]
-use crate::{
-    arrow::storage_interface::{
-        edges::ArrowEdges,
-        edges_ref::ArrowEdgesRef,
-        node::{ArrowNode, ArrowOwnedNode},
-        nodes::ArrowNodesOwned,
-        nodes_ref::ArrowNodesRef,
-    },
-    db::api::storage::variants::storage_variants::StorageVariants,
-};
-#[cfg(feature = "arrow")]
-use raphtory_arrow::graph::TemporalGraph;
-
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, EID, VID},
@@ -43,7 +29,23 @@ use crate::{
 };
 use itertools::Itertools;
 use rayon::prelude::*;
-use std::{iter, sync::Arc};
+use std::iter;
+
+#[cfg(feature = "arrow")]
+use crate::{
+    arrow::storage_interface::{
+        edges::ArrowEdges,
+        edges_ref::ArrowEdgesRef,
+        node::{ArrowNode, ArrowOwnedNode},
+        nodes::ArrowNodesOwned,
+        nodes_ref::ArrowNodesRef,
+    },
+    db::api::storage::variants::storage_variants::StorageVariants,
+};
+#[cfg(feature = "arrow")]
+use raphtory_arrow::graph::TemporalGraph;
+#[cfg(feature = "arrow")]
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub enum GraphStorage {
@@ -65,7 +67,9 @@ impl GraphStorage {
         match self {
             GraphStorage::Mem(storage) => NodesStorage::Mem(storage.nodes.clone()),
             #[cfg(feature = "arrow")]
-            GraphStorage::Arrow(storage) => NodesStorage::Arrow(ArrowNodesOwned::new(storage)),
+            GraphStorage::Arrow(storage) => {
+                NodesStorage::Arrow(ArrowNodesOwned::new(storage.clone()))
+            }
         }
     }
 
@@ -82,7 +86,7 @@ impl GraphStorage {
             GraphStorage::Mem(storage) => NodeOwnedEntry::Mem(storage.nodes.arc_entry(vid)),
             #[cfg(feature = "arrow")]
             GraphStorage::Arrow(storage) => {
-                NodeOwnedEntry::Arrow(ArrowOwnedNode::new(storage, vid))
+                NodeOwnedEntry::Arrow(ArrowOwnedNode::new(storage.clone(), vid))
             }
         }
     }

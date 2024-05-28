@@ -19,9 +19,8 @@ use crate::{
                 ArcStringIterable, ArcStringVecIterable, BoolIterable, I64Iterable, I64VecIterable,
                 NestedArcStringIterable, NestedArcStringVecIterable, NestedBoolIterable,
                 NestedI64VecIterable, NestedOptionI64Iterable, NestedU64U64Iterable,
-                NestedUtcDateTimeIterable, NestedVecUtcDateTimeIterable, OptionArcStringIterable,
-                OptionI64Iterable, OptionUtcDateTimeIterable, OptionVecUtcDateTimeIterable,
-                U64U64Iterable,
+                NestedUtcDateTimeIterable, NestedVecUtcDateTimeIterable, OptionI64Iterable,
+                OptionUtcDateTimeIterable, OptionVecUtcDateTimeIterable, U64U64Iterable,
             },
         },
         utils::{

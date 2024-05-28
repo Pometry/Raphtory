@@ -1,5 +1,4 @@
 use crate::model::graph::{node::Node, property::GqlProperties};
-use async_graphql::Error;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{

@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 pub mod context;
 pub mod edge;
+mod eval_graph;
 pub mod node;
 pub mod task;
 pub mod task_runner;

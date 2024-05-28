@@ -18,7 +18,7 @@ use crate::{
 
 use crate::db::task::edge::eval_edges::EvalEdges;
 
-use crate::db::api::storage::storage_ops::GraphStorage;
+use crate::db::{api::storage::storage_ops::GraphStorage, task::eval_graph::EvalGraph};
 use std::{cell::RefCell, rc::Rc};
 
 pub struct EvalEdgeView<'graph, 'a, G, GH, CS: Clone, S> {
@@ -102,15 +102,19 @@ impl<
         let node_state = self.node_state.clone();
         let local_state_prev = self.local_state_prev;
         let storage = self.storage;
-        EvalNodeView {
+        let base_graph = self.edge.base_graph;
+        let eval_graph = EvalGraph {
             ss,
-            node: node.node,
-            graph: node.base_graph,
-            base_graph: node.base_graph,
+            base_graph,
             storage,
-            local_state: None,
             local_state_prev,
             node_state,
+        };
+        EvalNodeView {
+            node: node.node,
+            graph: node.base_graph,
+            eval_graph,
+            local_state: None,
         }
     }
 

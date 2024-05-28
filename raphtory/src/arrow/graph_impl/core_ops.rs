@@ -33,7 +33,7 @@ use crate::{
 };
 use itertools::Itertools;
 use polars_arrow::datatypes::ArrowDataType;
-use raphtory_arrow::{properties::Properties, GID};
+use raphtory_arrow::{properties::Properties, GidRef, GID};
 use rayon::prelude::*;
 impl CoreGraphOps for ArrowGraph {
     fn unfiltered_num_nodes(&self) -> usize {
@@ -97,17 +97,17 @@ impl CoreGraphOps for ArrowGraph {
 
     fn node_id(&self, v: VID) -> u64 {
         match self.inner.node_gid(v).unwrap() {
-            GID::U64(n) => n,
-            GID::I64(n) => n as u64,
-            GID::Str(s) => s.id(),
+            GidRef::U64(n) => n,
+            GidRef::I64(n) => n as u64,
+            GidRef::Str(s) => s.id(),
         }
     }
 
     fn node_name(&self, v: VID) -> String {
         match self.inner.node_gid(v).unwrap() {
-            GID::U64(n) => n.to_string(),
-            GID::I64(n) => n.to_string(),
-            GID::Str(s) => s,
+            GidRef::U64(n) => n.to_string(),
+            GidRef::I64(n) => n.to_string(),
+            GidRef::Str(s) => s.to_owned(),
         }
     }
 
@@ -200,7 +200,7 @@ impl CoreGraphOps for ArrowGraph {
     }
 
     fn core_nodes(&self) -> NodesStorage {
-        NodesStorage::Arrow(ArrowNodesOwned::new(&self.inner))
+        NodesStorage::Arrow(ArrowNodesOwned::new(self.inner.clone()))
     }
 
     fn core_node_entry(&self, vid: VID) -> NodeStorageEntry {
@@ -208,7 +208,7 @@ impl CoreGraphOps for ArrowGraph {
     }
 
     fn core_node_arc(&self, vid: VID) -> NodeOwnedEntry {
-        NodeOwnedEntry::Arrow(ArrowOwnedNode::new(&self.inner, vid))
+        NodeOwnedEntry::Arrow(ArrowOwnedNode::new(self.inner.clone(), vid))
     }
 
     fn core_edge_arc(&self, eid: ELID) -> EdgeOwnedEntry {
