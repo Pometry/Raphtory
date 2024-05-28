@@ -2525,7 +2525,81 @@ mod db_tests {
                 ArcStr("graph".into()),
                 ArcStr("pgraph".into()),
                 ArcStr("bool".into()),
-                ArcStr("u32".into())
+                ArcStr("u32".into()),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_unique_property() {
+        let g = Graph::new();
+        g.add_edge(1, 1, 2, [("status", "open")], None).unwrap();
+        g.add_edge(2, 1, 2, [("status", "open")], None).unwrap();
+        g.add_edge(3, 1, 2, [("status", "review")], None).unwrap();
+        g.add_edge(4, 1, 2, [("status", "open")], None).unwrap();
+        g.add_edge(5, 1, 2, [("status", "in-progress")], None)
+            .unwrap();
+        g.add_edge(10, 1, 2, [("status", "in-progress")], None)
+            .unwrap();
+        g.add_edge(9, 1, 2, [("state", true)], None).unwrap();
+        g.add_edge(10, 1, 2, [("state", false)], None).unwrap();
+        g.add_edge(6, 1, 2, NO_PROPS, None).unwrap();
+
+        let mut props = g
+            .edge(1, 2)
+            .unwrap()
+            .properties()
+            .temporal()
+            .get("status")
+            .unwrap()
+            .unique()
+            .into_iter()
+            .map(|x| x.unwrap_str().to_string())
+            .collect_vec();
+        props.sort();
+        assert_eq!(props, vec!["in-progress", "open", "review"]);
+
+        let ordered_dedupe_latest = g
+            .edge(1, 2)
+            .unwrap()
+            .properties()
+            .temporal()
+            .get("status")
+            .unwrap()
+            .ordered_dedupe(true)
+            .into_iter()
+            .map(|(x, y)| (x, y.unwrap_str().to_string()))
+            .collect_vec();
+
+        assert_eq!(
+            ordered_dedupe_latest,
+            vec![
+                (2, "open".to_string()),
+                (3, "review".to_string()),
+                (4, "open".to_string()),
+                (10, "in-progress".to_string())
+            ]
+        );
+
+        let ordered_dedupe_earliest = g
+            .edge(1, 2)
+            .unwrap()
+            .properties()
+            .temporal()
+            .get("status")
+            .unwrap()
+            .ordered_dedupe(false)
+            .into_iter()
+            .map(|(x, y)| (x, y.unwrap_str().to_string()))
+            .collect_vec();
+
+        assert_eq!(
+            ordered_dedupe_earliest,
+            vec![
+                (1, "open".to_string()),
+                (3, "review".to_string()),
+                (4, "open".to_string()),
+                (5, "in-progress".to_string())
             ]
         );
     }

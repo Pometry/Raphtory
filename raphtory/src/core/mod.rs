@@ -37,6 +37,7 @@ use std::{
     collections::HashMap,
     fmt,
     fmt::{Display, Formatter},
+    hash::{Hash, Hasher},
     ops::Deref,
     sync::Arc,
 };
@@ -136,7 +137,7 @@ impl<'a, O: AsRef<str> + 'a> OptionAsStr<'a> for Option<&'a O> {
 
 pub use raphtory_api::core::*;
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Hash)]
 pub enum Lifespan {
     Interval { start: i64, end: i64 },
     Event { time: i64 },
@@ -145,7 +146,7 @@ pub enum Lifespan {
 
 /// struct containing all the necessary information to allow Raphtory creating a document and
 /// storing it
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Hash)]
 pub struct DocumentInput {
     pub content: String,
     pub life: Lifespan,
@@ -262,6 +263,61 @@ pub enum Prop {
     PersistentGraph(PersistentGraph),
     Document(DocumentInput),
 }
+
+impl Hash for Prop {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            Prop::Str(s) => s.hash(state),
+            Prop::U8(u) => u.hash(state),
+            Prop::U16(u) => u.hash(state),
+            Prop::I32(i) => i.hash(state),
+            Prop::I64(i) => i.hash(state),
+            Prop::U32(u) => u.hash(state),
+            Prop::U64(u) => u.hash(state),
+            Prop::F32(f) => {
+                let bits = f.to_bits();
+                bits.hash(state);
+            }
+            Prop::F64(f) => {
+                let bits = f.to_bits();
+                bits.hash(state);
+            }
+            Prop::Bool(b) => b.hash(state),
+            Prop::NDTime(dt) => dt.hash(state),
+            Prop::DTime(dt) => dt.hash(state),
+            Prop::List(v) => {
+                for prop in v.iter() {
+                    prop.hash(state);
+                }
+            }
+            Prop::Map(m) => {
+                for (key, prop) in m.iter() {
+                    key.hash(state);
+                    prop.hash(state);
+                }
+            }
+            Prop::Graph(g) => {
+                for node in g.nodes() {
+                    node.node.hash(state);
+                }
+                for edge in g.edges() {
+                    edge.edge.pid().hash(state);
+                }
+            }
+            Prop::PersistentGraph(pg) => {
+                for node in pg.nodes() {
+                    node.node.hash(state);
+                }
+                for edge in pg.edges() {
+                    edge.edge.pid().hash(state);
+                }
+            }
+            Prop::Document(d) => d.hash(state),
+        }
+    }
+}
+
+impl Eq for Prop {}
 
 impl PartialOrd for Prop {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
