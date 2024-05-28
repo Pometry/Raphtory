@@ -6,6 +6,7 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
+        utils::errors::GraphError,
         ArcStr,
     },
     db::api::{
@@ -116,12 +117,12 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     fn latest_time(&self) -> Self::ValueType<Option<i64>>;
 
     /// Gets the time stamp of the edge if it is exploded
-    fn time(&self) -> Self::ValueType<Option<i64>>;
+    fn time(&self) -> Self::ValueType<Result<i64, GraphError>>;
 
     fn date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>>;
 
     /// Gets the layer name for the edge if it is restricted to a single layer
-    fn layer_name(&self) -> Self::ValueType<Option<ArcStr>>;
+    fn layer_name(&self) -> Self::ValueType<Result<ArcStr, GraphError>>;
 
     /// Gets the TimeIndexEntry if the edge is exploded
     fn time_and_index(&self) -> Self::ValueType<Option<TimeIndexEntry>>;
@@ -257,8 +258,8 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     }
 
     /// Gets the time stamp of the edge if it is exploded
-    fn time(&self) -> Self::ValueType<Option<i64>> {
-        self.map(|_, e| e.time_t())
+    fn time(&self) -> Self::ValueType<Result<i64, GraphError>> {
+        self.map(|_, e| e.time_t().ok_or_else(|| GraphError::TimeAPIError))
     }
 
     fn date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>> {
@@ -266,8 +267,12 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     }
 
     /// Gets the layer name for the edge if it is restricted to a single layer
-    fn layer_name(&self) -> Self::ValueType<Option<ArcStr>> {
-        self.map(|g, e| e.layer().map(|l_id| g.get_layer_name(*l_id)))
+    fn layer_name(&self) -> Self::ValueType<Result<ArcStr, GraphError>> {
+        self.map(|g, e| {
+            e.layer()
+                .map(|l_id| g.get_layer_name(*l_id))
+                .ok_or_else(|| GraphError::LayerNameAPIError)
+        })
     }
 
     /// Gets the TimeIndexEntry if the edge is exploded
@@ -377,7 +382,7 @@ mod test_edge_view {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G, expected_prop_values: &[i32]) {
             let prop_values: Vec<_> = graph
@@ -400,6 +405,44 @@ mod test_edge_view {
                 .collect();
             assert_eq!(prop_values, expected_prop_values);
             assert_eq!(actual_layers, expected_layers);
+
+            assert!(graph.edge(1, 2).unwrap().layer_name().is_err());
+            assert!(graph.edges().layer_name().all(|l| l.is_err()));
+            assert!(graph
+                .edge(1, 2)
+                .unwrap()
+                .explode()
+                .layer_name()
+                .all(|l| l.is_ok()));
+            assert!(graph
+                .edge(1, 2)
+                .unwrap()
+                .explode_layers()
+                .layer_name()
+                .all(|l| l.is_ok()));
+            assert!(graph.edges().explode().layer_name().all(|l| l.is_ok()));
+            assert!(graph
+                .edges()
+                .explode_layers()
+                .layer_name()
+                .all(|l| l.is_ok()));
+
+            assert!(graph.edge(1, 2).unwrap().time().is_err());
+            assert!(graph.edges().time().all(|l| l.is_err()));
+            assert!(graph
+                .edge(1, 2)
+                .unwrap()
+                .explode()
+                .time()
+                .all(|l| l.is_ok()));
+            assert!(graph
+                .edge(1, 2)
+                .unwrap()
+                .explode_layers()
+                .time()
+                .all(|l| l.is_err()));
+            assert!(graph.edges().explode().time().all(|l| l.is_ok()));
+            assert!(graph.edges().explode_layers().time().all(|l| l.is_err()));
         }
         test(&graph, &expected_prop_values);
         // FIXME: Needs multilayer support (Issue #47)
@@ -416,7 +459,7 @@ mod test_edge_view {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let mut exploded_edges: Vec<_> = graph.edges().explode().iter().collect();

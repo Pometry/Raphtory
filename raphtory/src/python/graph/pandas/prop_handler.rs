@@ -1,8 +1,8 @@
-use crate::arrow2::{
+use chrono::{DateTime, Utc};
+use polars_arrow::{
     array::{Array, BooleanArray, FixedSizeListArray, ListArray, PrimitiveArray, Utf8Array},
     datatypes::{ArrowDataType as DataType, TimeUnit},
 };
-use chrono::{DateTime, Utc};
 
 use crate::{
     core::{utils::errors::GraphError, IntoPropList},

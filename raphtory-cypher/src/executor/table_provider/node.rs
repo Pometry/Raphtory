@@ -21,7 +21,10 @@ use datafusion::{
 use futures::Stream;
 use raphtory_arrow::properties::Properties;
 
-use raphtory::arrow::{graph_impl::ArrowGraph, prelude::*};
+use raphtory::{
+    arrow::{graph_impl::ArrowGraph, prelude::*},
+    core::entities::VID,
+};
 
 use crate::{
     arrow2::{self, array::to_data, datatypes::ArrowDataType},
@@ -64,7 +67,7 @@ impl NodeTableProvider {
 
 pub fn lift_arrow_schema(
     gid_dt: ArrowDataType,
-    properties: Option<&Properties<raphtory_arrow::interop::VID>>,
+    properties: Option<&Properties<VID>>,
 ) -> Result<SchemaRef, ExecError> {
     let mut fields = vec![];
 

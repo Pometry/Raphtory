@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, LayerIds, EID, VID},
+        entities::{edges::edge_ref::EdgeRef, nodes::input_node::InputNode, LayerIds, EID, VID},
         Direction,
     },
     db::api::{
@@ -13,34 +13,27 @@ use crate::{
     },
 };
 use itertools::Itertools;
-use raphtory_arrow::{
-    graph::TemporalGraph, graph_fragment::TempColGraphFragment, properties::Properties,
-    timestamps::TimeStamps,
-};
+use raphtory_arrow::{graph::TemporalGraph, timestamps::TimeStamps, GidRef};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use std::{iter, sync::Arc};
 
 #[derive(Copy, Clone, Debug)]
 pub struct ArrowNode<'a> {
-    pub(super) properties: Option<&'a Properties<raphtory_arrow::interop::VID>>,
-    pub(super) layers: &'a Arc<[TempColGraphFragment]>,
+    graph: &'a TemporalGraph,
     pub(super) vid: VID,
 }
 
 impl<'a> ArrowNode<'a> {
     pub(crate) fn new(graph: &'a TemporalGraph, vid: VID) -> Self {
-        Self {
-            properties: graph.node_properties(),
-            layers: graph.arc_layers(),
-            vid,
-        }
+        Self { graph, vid }
     }
 
     pub fn out_edges(self, layers: &'a LayerIds) -> impl Iterator<Item = EdgeRef> + 'a {
         match layers {
             LayerIds::None => LayerVariants::None(iter::empty()),
             LayerIds::All => LayerVariants::All(
-                self.layers
+                self.graph
+                    .layers()
                     .iter()
                     .enumerate()
                     .map(|(layer_id, layer)| {
@@ -48,30 +41,27 @@ impl<'a> ArrowNode<'a> {
                             .nodes_storage()
                             .out_adj_list(self.vid)
                             .map(move |(eid, dst)| {
-                                EdgeRef::new_outgoing(eid.into(), self.vid.into(), dst.into())
-                                    .at_layer(layer_id)
+                                EdgeRef::new_outgoing(eid, self.vid, dst).at_layer(layer_id)
                             })
                     })
                     .kmerge_by(|e1, e2| e1.remote() <= e2.remote()),
             ),
             LayerIds::One(layer_id) => LayerVariants::One(
-                self.layers[*layer_id]
+                self.graph.layers()[*layer_id]
                     .nodes_storage()
                     .out_adj_list(self.vid)
                     .map(move |(eid, dst)| {
-                        EdgeRef::new_outgoing(eid.into(), self.vid.into(), dst.into())
-                            .at_layer(*layer_id)
+                        EdgeRef::new_outgoing(eid, self.vid, dst).at_layer(*layer_id)
                     }),
             ),
             LayerIds::Multiple(ids) => LayerVariants::Multiple(
                 ids.iter()
                     .map(|&layer_id| {
-                        self.layers[layer_id]
+                        self.graph.layers()[layer_id]
                             .nodes_storage()
                             .out_adj_list(self.vid)
                             .map(move |(eid, dst)| {
-                                EdgeRef::new_outgoing(eid.into(), self.vid.into(), dst.into())
-                                    .at_layer(layer_id)
+                                EdgeRef::new_outgoing(eid, self.vid, dst).at_layer(layer_id)
                             })
                     })
                     .kmerge_by(|e1, e2| e1.remote() <= e2.remote()),
@@ -83,7 +73,8 @@ impl<'a> ArrowNode<'a> {
         match layers {
             LayerIds::None => LayerVariants::None(iter::empty()),
             LayerIds::All => LayerVariants::All(
-                self.layers
+                self.graph
+                    .layers()
                     .iter()
                     .enumerate()
                     .map(|(layer_id, layer)| {
@@ -91,30 +82,27 @@ impl<'a> ArrowNode<'a> {
                             .nodes_storage()
                             .in_adj_list(self.vid)
                             .map(move |(eid, src)| {
-                                EdgeRef::new_incoming(eid.into(), src.into(), self.vid.into())
-                                    .at_layer(layer_id)
+                                EdgeRef::new_incoming(eid, src, self.vid).at_layer(layer_id)
                             })
                     })
                     .kmerge_by(|e1, e2| e1.remote() <= e2.remote()),
             ),
             LayerIds::One(layer_id) => LayerVariants::One(
-                self.layers[*layer_id]
+                self.graph.layers()[*layer_id]
                     .nodes_storage()
                     .in_adj_list(self.vid)
                     .map(move |(eid, src)| {
-                        EdgeRef::new_incoming(eid.into(), src.into(), self.vid.into())
-                            .at_layer(*layer_id)
+                        EdgeRef::new_incoming(eid, src, self.vid).at_layer(*layer_id)
                     }),
             ),
             LayerIds::Multiple(ids) => LayerVariants::Multiple(
                 ids.iter()
                     .map(|&layer_id| {
-                        self.layers[layer_id]
+                        self.graph.layers()[layer_id]
                             .nodes_storage()
                             .in_adj_list(self.vid)
                             .map(move |(eid, src)| {
-                                EdgeRef::new_incoming(eid.into(), src.into(), self.vid.into())
-                                    .at_layer(layer_id)
+                                EdgeRef::new_incoming(eid, src, self.vid).at_layer(layer_id)
                             })
                     })
                     .kmerge_by(|e1, e2| e1.remote() <= e2.remote()),
@@ -131,8 +119,9 @@ impl<'a> ArrowNode<'a> {
         let mut additions = match layer_ids {
             LayerIds::None => Vec::with_capacity(1),
             LayerIds::All => {
-                let mut additions = Vec::with_capacity(self.layers.len() + 1);
-                self.layers
+                let mut additions = Vec::with_capacity(self.graph.layers().len() + 1);
+                self.graph
+                    .layers()
                     .par_iter()
                     .map(|l| {
                         TimeStamps::new(l.nodes_storage().additions().value(self.vid.index()), None)
@@ -142,7 +131,7 @@ impl<'a> ArrowNode<'a> {
             }
             LayerIds::One(id) => {
                 vec![TimeStamps::new(
-                    self.layers[*id]
+                    self.graph.layers()[*id]
                         .nodes_storage()
                         .additions()
                         .value(self.vid.index()),
@@ -154,7 +143,7 @@ impl<'a> ArrowNode<'a> {
                 ids.par_iter()
                     .map(|l| {
                         TimeStamps::new(
-                            self.layers[*l]
+                            self.graph.layers()[*l]
                                 .nodes_storage()
                                 .additions()
                                 .value(self.vid.index()),
@@ -165,8 +154,8 @@ impl<'a> ArrowNode<'a> {
                 additions
             }
         };
-        if let Some(props) = self.properties {
-            let timestamps = props.temporal_props.timestamps::<i64>(self.vid.into());
+        if let Some(props) = self.graph.node_properties() {
+            let timestamps = props.temporal_props.timestamps::<i64>(self.vid);
             if timestamps.len() > 0 {
                 let ts = timestamps.times();
                 additions.push(ts);
@@ -180,15 +169,15 @@ impl<'a> NodeStorageOps<'a> for ArrowNode<'a> {
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize {
         let single_layer = match layers {
             LayerIds::None => return 0,
-            LayerIds::All => match self.layers.len() {
+            LayerIds::All => match self.graph.layers().len() {
                 0 => return 0,
-                1 => Some(&self.layers[0]),
+                1 => Some(&self.graph.layers()[0]),
                 _ => None,
             },
-            LayerIds::One(id) => Some(&self.layers[*id]),
+            LayerIds::One(id) => Some(&self.graph.layers()[*id]),
             LayerIds::Multiple(ids) => match ids.len() {
                 0 => return 0,
-                1 => Some(&self.layers[ids[0]]),
+                1 => Some(&self.graph.layers()[ids[0]]),
                 _ => None,
             },
         };
@@ -227,10 +216,11 @@ impl<'a> NodeStorageOps<'a> for ArrowNode<'a> {
     }
 
     fn tprop(self, prop_id: usize) -> impl TPropOps<'a> {
-        self.properties
+        self.graph
+            .node_properties()
             .unwrap()
             .temporal_props
-            .prop(self.vid.into(), prop_id)
+            .prop(self.vid, prop_id)
     }
 
     fn edges_iter(
@@ -253,36 +243,49 @@ impl<'a> NodeStorageOps<'a> for ArrowNode<'a> {
         self.vid
     }
 
+    fn id(self) -> u64 {
+        match self.graph.node_gid(self.vid).unwrap() {
+            GidRef::U64(v) => v,
+            GidRef::I64(v) => v as u64,
+            GidRef::Str(v) => v.id(),
+        }
+    }
+
     fn name(self) -> Option<&'a str> {
-        todo!()
+        match self.graph.node_gid(self.vid).unwrap() {
+            GidRef::U64(_) => None,
+            GidRef::I64(_) => None,
+            GidRef::Str(v) => Some(v),
+        }
     }
 
     fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef> {
         match layer_ids {
             LayerIds::None => None,
-            LayerIds::All => match self.layers.len() {
+            LayerIds::All => match self.graph.layers().len() {
                 0 => None,
                 1 => {
-                    let eid = self.layers[0].nodes_storage().find_edge(self.vid, dst)?;
-                    Some(EdgeRef::new_outgoing(eid.into(), self.vid.into(), dst.into()).at_layer(0))
+                    let eid = self.graph.layers()[0]
+                        .nodes_storage()
+                        .find_edge(self.vid, dst)?;
+                    Some(EdgeRef::new_outgoing(eid, self.vid, dst).at_layer(0))
                 }
                 _ => todo!("multilayer edge views not implemented in arrow yet"),
             },
             LayerIds::One(id) => {
-                let eid = self.layers[*id].nodes_storage().find_edge(self.vid, dst)?;
-                Some(EdgeRef::new_outgoing(eid.into(), self.vid.into(), dst.into()).at_layer(*id))
+                let eid = self.graph.layers()[*id]
+                    .nodes_storage()
+                    .find_edge(self.vid, dst)?;
+                Some(EdgeRef::new_outgoing(eid, self.vid, dst).at_layer(*id))
             }
             LayerIds::Multiple(ids) => match ids.len() {
                 0 => None,
                 1 => {
                     let layer = ids[0];
-                    let eid = self.layers[layer]
+                    let eid = self.graph.layers()[layer]
                         .nodes_storage()
                         .find_edge(self.vid, dst)?;
-                    Some(
-                        EdgeRef::new_outgoing(eid.into(), self.vid.into(), dst.into())
-                            .at_layer(layer),
-                    )
+                    Some(EdgeRef::new_outgoing(eid, self.vid, dst).at_layer(layer))
                 }
                 _ => todo!("multtilayer edge views not implemented in arrow yet"),
             },
@@ -292,23 +295,17 @@ impl<'a> NodeStorageOps<'a> for ArrowNode<'a> {
 
 #[derive(Clone, Debug)]
 pub struct ArrowOwnedNode {
-    properties: Option<Properties<raphtory_arrow::interop::VID>>,
-    layers: Arc<[TempColGraphFragment]>,
+    graph: Arc<TemporalGraph>,
     vid: VID,
 }
 
 impl ArrowOwnedNode {
-    pub(crate) fn new(graph: &TemporalGraph, vid: VID) -> Self {
-        Self {
-            properties: graph.node_properties().cloned(),
-            layers: graph.arc_layers().clone(),
-            vid,
-        }
+    pub(crate) fn new(graph: Arc<TemporalGraph>, vid: VID) -> Self {
+        Self { graph, vid }
     }
     pub fn as_ref(&self) -> ArrowNode {
         ArrowNode {
-            properties: self.properties.as_ref(),
-            layers: &self.layers,
+            graph: &self.graph,
             vid: self.vid,
         }
     }
@@ -317,7 +314,7 @@ impl ArrowOwnedNode {
         match layers {
             LayerIds::None => LayerVariants::None(iter::empty()),
             LayerIds::All => {
-                let layers = self.layers;
+                let layers = self.graph.arc_layers().clone();
                 LayerVariants::All(
                     (0..layers.len())
                         .map(move |layer_id| {
@@ -337,7 +334,7 @@ impl ArrowOwnedNode {
                 )
             }
             LayerIds::One(layer_id) => {
-                let adj = self.layers[layer_id]
+                let adj = self.graph.layers()[layer_id]
                     .nodes_storage()
                     .adj_out()
                     .clone()
@@ -352,7 +349,7 @@ impl ArrowOwnedNode {
                 (0..ids.len())
                     .map(move |i| {
                         let layer_id = ids[i];
-                        let adj = self.layers[layer_id]
+                        let adj = self.graph.layers()[layer_id]
                             .nodes_storage()
                             .adj_out()
                             .clone()
@@ -373,7 +370,7 @@ impl ArrowOwnedNode {
         match layers {
             LayerIds::None => LayerVariants::None(iter::empty()),
             LayerIds::All => {
-                let layers = self.layers;
+                let layers = self.graph.arc_layers().clone();
                 LayerVariants::All(
                     (0..layers.len())
                         .map(move |layer_id| {
@@ -399,7 +396,7 @@ impl ArrowOwnedNode {
                 )
             }
             LayerIds::One(layer_id) => {
-                let layer = &self.layers[layer_id];
+                let layer = self.graph.layer(layer_id);
                 let eids = layer
                     .nodes_storage()
                     .adj_in_edges()
@@ -423,7 +420,7 @@ impl ArrowOwnedNode {
                 (0..ids.len())
                     .map(move |i| {
                         let layer_id = ids[i];
-                        let layer = &self.layers[layer_id];
+                        let layer = self.graph.layer(layer_id);
                         let eids = layer
                             .nodes_storage()
                             .adj_in_edges()
@@ -490,6 +487,11 @@ impl<'a> NodeStorageOps<'a> for &'a ArrowOwnedNode {
 
     fn vid(self) -> VID {
         self.vid
+    }
+
+    #[inline]
+    fn id(self) -> u64 {
+        self.as_ref().id()
     }
 
     fn name(self) -> Option<&'a str> {

@@ -97,6 +97,10 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
         for_all!(self, node => node.vid())
     }
 
+    fn id(self) -> u64 {
+        for_all!(self, node => node.id())
+    }
+
     fn name(self) -> Option<&'a str> {
         for_all!(self, node => node.name())
     }

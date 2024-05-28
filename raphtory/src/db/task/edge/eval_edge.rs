@@ -18,11 +18,13 @@ use crate::{
 
 use crate::db::task::edge::eval_edges::EvalEdges;
 
+use crate::db::{api::storage::storage_ops::GraphStorage, task::eval_graph::EvalGraph};
 use std::{cell::RefCell, rc::Rc};
 
 pub struct EvalEdgeView<'graph, 'a, G, GH, CS: Clone, S> {
     pub(crate) ss: usize,
     pub(crate) edge: EdgeView<&'graph G, GH>,
+    pub(crate) storage: &'graph GraphStorage,
     pub(crate) node_state: Rc<RefCell<EVState<'a, CS>>>,
     pub(crate) local_state_prev: &'graph PrevLocalState<'a, S>,
 }
@@ -39,12 +41,14 @@ impl<
     pub(crate) fn new(
         ss: usize,
         edge: EdgeView<&'graph G, GH>,
+        storage: &'graph GraphStorage,
         node_state: Rc<RefCell<EVState<'a, CS>>>,
         local_state_prev: &'graph PrevLocalState<'a, S>,
     ) -> Self {
         Self {
             ss,
             edge,
+            storage,
             node_state,
             local_state_prev,
         }
@@ -97,12 +101,20 @@ impl<
         let ss = self.ss;
         let node_state = self.node_state.clone();
         let local_state_prev = self.local_state_prev;
-        EvalNodeView {
+        let storage = self.storage;
+        let base_graph = self.edge.base_graph;
+        let eval_graph = EvalGraph {
             ss,
-            node,
-            local_state: None,
+            base_graph,
+            storage,
             local_state_prev,
             node_state,
+        };
+        EvalNodeView {
+            node: node.node,
+            graph: node.base_graph,
+            eval_graph,
+            local_state: None,
         }
     }
 
@@ -117,9 +129,11 @@ impl<
         let ss = self.ss;
         let node_state = self.node_state.clone();
         let local_state_prev = self.local_state_prev;
+        let storage = self.storage;
         EvalEdges {
             ss,
             edges,
+            storage,
             node_state,
             local_state_prev,
         }
@@ -139,6 +153,7 @@ impl<
         Self {
             ss: self.ss,
             edge: self.edge.clone(),
+            storage: self.storage,
             node_state: self.node_state.clone(),
             local_state_prev: self.local_state_prev,
         }
@@ -174,6 +189,7 @@ impl<
         EvalEdgeView::new(
             self.ss,
             edge,
+            self.storage,
             self.node_state.clone(),
             self.local_state_prev,
         )

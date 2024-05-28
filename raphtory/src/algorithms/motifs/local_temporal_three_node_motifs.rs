@@ -126,7 +126,6 @@ where
 ///////////////////////////////////////////////////////
 
 pub fn twonode_motif_count<'a, 'b, G, GH>(
-    graph: &'a G,
     evv: &'a EvalNodeView<'b, '_, G, MotifCounter, GH>,
     deltas: Vec<i64>,
 ) -> Vec<[usize; 8]>
@@ -144,8 +143,8 @@ where
 
     for nb in evv.neighbours().into_iter() {
         let nb_id = nb.id();
-        let out = graph.edge(evv.id(), nb_id);
-        let inc = graph.edge(nb_id, evv.id());
+        let out = evv.graph().edge(evv.id(), nb_id);
+        let inc = evv.graph().edge(nb_id, evv.id());
         let events: Vec<TwoNodeEvent> = out
             .iter()
             .flat_map(|e| e.explode())
@@ -337,8 +336,7 @@ where
     let out1 = triangle_motifs(g, deltas.clone(), motifs_counter, threads);
 
     let step1 = ATask::new(move |evv: &mut EvalNodeView<G, MotifCounter>| {
-        let g = evv.graph();
-        let two_nodes = twonode_motif_count(g, evv, deltas.clone());
+        let two_nodes = twonode_motif_count(evv, deltas.clone());
         let star_nodes = star_motif_count(evv, deltas.clone());
 
         *evv.get_mut() = MotifCounter::new(
@@ -447,7 +445,6 @@ mod motifs_test {
             let actual = binding
                 .iter()
                 .map(|(k, v)| (k, v[0].clone()))
-                .into_iter()
                 .collect::<HashMap<&String, Vec<usize>>>();
 
             let expected: HashMap<String, Vec<usize>> = HashMap::from([

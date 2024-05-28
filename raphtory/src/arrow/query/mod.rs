@@ -27,20 +27,18 @@ pub enum NodeSource {
 impl NodeSource {
     fn into_iter(self, graph: &ArrowGraph) -> Box<dyn Iterator<Item = VID> + '_> {
         match self {
-            NodeSource::All => Box::new((0..graph.inner.num_nodes()).into_iter().map(VID)),
+            NodeSource::All => Box::new((0..graph.inner.num_nodes()).map(VID)),
             NodeSource::NodeIds(ids) => Box::new(ids.into_iter()),
             NodeSource::Filter(filter) => Box::new(
                 graph
                     .inner
                     .all_nodes()
-                    .filter(move |node| filter(Into::<VID>::into(*node), graph))
-                    .map(|node| node.into()),
+                    .filter(move |node| filter(Into::<VID>::into(*node), graph)),
             ),
             NodeSource::ExternalIds(ext_ids) => Box::new(
                 ext_ids
                     .into_iter()
-                    .filter_map(move |gid| graph.inner.find_node(&gid))
-                    .map(|node| node.into()),
+                    .filter_map(move |gid| graph.inner.find_node(&gid)),
             ),
         }
     }
@@ -59,8 +57,7 @@ impl NodeSource {
                                     .and_then(|gid| graph.node(NodeRef::External(gid)))
                             })
                     })
-                    .map(|node| node.node)
-                    .into_iter(),
+                    .map(|node| node.node),
             ),
             NodeSource::Filter(_) => todo!(),
         }
@@ -78,7 +75,7 @@ impl ForwardState {
     pub fn at_time(node: Node, t: i64, hop_n_limit: usize) -> Self {
         ForwardState {
             time: t,
-            path: rpds::List::new_sync().push_front(node.vid().into()),
+            path: rpds::List::new_sync().push_front(node.vid()),
             hop_n_limit,
         }
     }
@@ -96,7 +93,7 @@ impl HopState for ForwardState {
 
         next_time.first_t().map(|t| ForwardState {
             time: t,
-            path: self.path.push_front(node.vid().into()),
+            path: self.path.push_front(node.vid()),
             hop_n_limit: self.hop_n_limit,
         })
     }
@@ -175,8 +172,7 @@ mod test {
 
         let graph = ArrowGraph::from_graph(&g, graph_dir.path()).unwrap();
 
-        let result =
-            rayon2::execute::<VecState>(query, NodeSource::All, &graph, |n| VecState::new(n));
+        let result = rayon2::execute::<VecState>(query, NodeSource::All, &graph, VecState::new);
         assert!(result.is_ok());
         let mut actual = receiver.into_iter().map(|(state, _)| state.0).collect_vec();
         actual.sort();
@@ -209,8 +205,7 @@ mod test {
 
         let graph = ArrowGraph::from_graph(&g, graph_dir.path()).unwrap();
 
-        let result =
-            rayon2::execute::<VecState>(query, NodeSource::All, &graph, |n| VecState::new(n));
+        let result = rayon2::execute::<VecState>(query, NodeSource::All, &graph, VecState::new);
         assert!(result.is_ok());
         let (path, vid) = receiver.recv().unwrap();
         assert_eq!(vid, VID(2));
@@ -235,8 +230,7 @@ mod test {
 
         let graph = ArrowGraph::from_graph(&g, graph_dir.path()).unwrap();
 
-        let result =
-            rayon2::execute::<VecState>(query, NodeSource::All, &graph, |n| VecState::new(n));
+        let result = rayon2::execute::<VecState>(query, NodeSource::All, &graph, VecState::new);
         assert!(result.is_ok());
 
         let mut results = receiver.into_iter().collect::<Vec<_>>();

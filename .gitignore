@@ -22,6 +22,7 @@ docs/logs/
 docs/nx.html
 docs/graph.html
 .env
+raphtory-arrow/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

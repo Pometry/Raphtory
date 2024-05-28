@@ -16,21 +16,11 @@ use std::{iter, ops::Range};
 
 impl<'a> EdgeStorageOps<'a> for Edge<'a> {
     fn in_ref(self) -> EdgeRef {
-        EdgeRef::new_incoming(
-            self.eid().into(),
-            self.src_id().into(),
-            self.dst_id().into(),
-        )
-        .at_layer(self.layer_id())
+        EdgeRef::new_incoming(self.eid(), self.src_id(), self.dst_id()).at_layer(self.layer_id())
     }
 
     fn out_ref(self) -> EdgeRef {
-        EdgeRef::new_outgoing(
-            self.eid().into(),
-            self.src_id().into(),
-            self.dst_id().into(),
-        )
-        .at_layer(self.layer_id())
+        EdgeRef::new_outgoing(self.eid(), self.src_id(), self.dst_id()).at_layer(self.layer_id())
     }
 
     fn active(self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
@@ -43,11 +33,11 @@ impl<'a> EdgeStorageOps<'a> for Edge<'a> {
     }
 
     fn src(self) -> VID {
-        self.src_id().into()
+        self.src_id()
     }
 
     fn dst(self) -> VID {
-        self.dst_id().into()
+        self.dst_id()
     }
 
     fn layer_ids_iter(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = usize> + 'a {
@@ -97,11 +87,7 @@ impl<'a> EdgeStorageOps<'a> for Edge<'a> {
         layer_ids.contains(&self.layer_id()) && self.has_temporal_prop_inner(prop_id)
     }
 
-    fn temporal_prop_layer(
-        self,
-        layer_id: usize,
-        prop_id: usize,
-    ) -> impl TPropOps<'a> + Send + Sync + 'a {
+    fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> impl TPropOps<'a> + Sync + 'a {
         if layer_id == self.layer_id() {
             self.temporal_property_field(prop_id)
                 .and_then(|field| read_tprop_column(prop_id, field, self))

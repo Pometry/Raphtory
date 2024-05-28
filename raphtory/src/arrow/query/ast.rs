@@ -28,6 +28,12 @@ pub struct Query<S> {
     pub hops: Vec<Hop>,
 }
 
+impl<S> Default for Query<S> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<S> Query<S> {
     pub fn new() -> Self {
         Self {
