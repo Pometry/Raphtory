@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1716893772304,
+  "lastUpdate": 1716895215624,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -52075,6 +52075,66 @@ window.BENCHMARK_DATA = {
             "name": "temporal_motifs/temporal_motifs",
             "value": 21904522,
             "range": "± 297933",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "4599890+iamsmkr@users.noreply.github.com",
+            "name": "Shivam Kapoor",
+            "username": "iamsmkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a3621e30ef2d5e9158da03555102cb1aa608b2e0",
+          "message": "impl unique temporal props (#1603)\n\n* impl unique temporal props\r\n\r\n* impl ordered dedupe\r\n\r\n* impl unique temporal property for graphql and add tests\r\n\r\n* impl ordered dedupe for temporal props for graphql\r\n\r\n* fmt\r\n\r\n* fix tests and add docs\r\n\r\n* more data type tests\r\n\r\n* more tests\r\n\r\n* add tests for maps and dates\r\n\r\n* more tests\r\n\r\n* fmt\r\n\r\n* impl gqltmpprop\r\n\r\n* rid save\r\n\r\n* rename gqltmpprop to gqlproptuple\r\n\r\n---------\r\n\r\nCo-authored-by: miratepuffin <b.a.steer@qmul.ac.uk>",
+          "timestamp": "2024-05-28T12:09:32+01:00",
+          "tree_id": "da64a8307f3d60d5ac55f990377f14b0cb9b9bc7",
+          "url": "https://github.com/Pometry/Raphtory/commit/a3621e30ef2d5e9158da03555102cb1aa608b2e0"
+        },
+        "date": 1716895214056,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "local_triangle_count/local_triangle_count",
+            "value": 906667,
+            "range": "± 59748",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "local_clustering_coefficient/local_clustering_coefficient",
+            "value": 102949,
+            "range": "± 2456",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_clustering_coeff/graphgen_large_clustering_coeff/Graph(num_nodes=500004, num_edges=20...",
+            "value": 3441794517,
+            "range": "± 157461096",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_pagerank/graphgen_large_pagerank/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 351591555,
+            "range": "± 8956080",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_concomp/graphgen_large_concomp/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 3269630559,
+            "range": "± 137082394",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "temporal_motifs/temporal_motifs",
+            "value": 22393076,
+            "range": "± 336421",
             "unit": "ns/iter"
           }
         ]
