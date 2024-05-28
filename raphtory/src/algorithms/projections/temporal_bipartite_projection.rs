@@ -6,7 +6,7 @@ use num_integer::average_floor;
 extern crate num_integer;
 
 use crate::{
-    core::entities::nodes::node_ref::NodeRef,
+    core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
         api::{
             mutation::AdditionOps,
@@ -39,7 +39,7 @@ pub fn temporal_bipartite_projection<G: StaticGraphViewOps>(
     new_graph
 }
 
-fn populate_edges<G: StaticGraphViewOps, V: Into<NodeRef>>(
+fn populate_edges<G: StaticGraphViewOps, V: AsNodeRef>(
     g: &G,
     new_graph: &Graph,
     v: V,
