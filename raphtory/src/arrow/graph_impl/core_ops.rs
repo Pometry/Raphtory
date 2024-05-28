@@ -28,13 +28,17 @@ use crate::{
             },
             storage_ops::GraphStorage,
         },
-        view::{internal::CoreGraphOps, BoxedIter},
+        view::{
+            internal::{CoreGraphOps, DelegateCoreOps},
+            BoxedIter,
+        },
     },
 };
 use itertools::Itertools;
 use polars_arrow::datatypes::ArrowDataType;
 use raphtory_arrow::{properties::Properties, GidRef, GID};
 use rayon::prelude::*;
+
 impl CoreGraphOps for ArrowGraph {
     fn unfiltered_num_nodes(&self) -> usize {
         self.inner.num_nodes()
@@ -221,6 +225,10 @@ impl CoreGraphOps for ArrowGraph {
             .par_iter()
             .map(|layer| layer.num_edges())
             .sum()
+    }
+
+    fn node_type_id(&self, v: VID) -> usize {
+        self.graph().node_type_id(v)
     }
 }
 

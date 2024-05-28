@@ -5,8 +5,9 @@ use crate::{
     },
     core::storage::timeindex::TimeIndexIntoOps,
     db::api::{storage::tprop_storage_ops::TPropOps, view::IntoDynBoxed},
-    prelude::{Prop, TimeIndexEntry},
+    prelude::Prop,
 };
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use raphtory_arrow::{
     chunked_array::{col::ChunkedPrimitiveCol, utf8_col::StringCol},
     edge::Edge,

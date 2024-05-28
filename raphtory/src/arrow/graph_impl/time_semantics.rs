@@ -16,6 +16,7 @@ use crate::{
     prelude::*,
 };
 use itertools::Itertools;
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use rayon::prelude::*;
 use std::{iter, ops::Range};
 

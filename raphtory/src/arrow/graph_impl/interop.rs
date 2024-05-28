@@ -16,7 +16,10 @@ use crate::{
 };
 use itertools::Itertools;
 use polars_arrow::array::Array;
-use raphtory_api::core::entities::{EID, VID};
+use raphtory_api::core::{
+    entities::{EID, VID},
+    storage::timeindex::TimeIndexEntry,
+};
 use raphtory_arrow::interop::GraphLike;
 
 impl GraphLike<TimeIndexEntry> for Graph {

@@ -8,8 +8,8 @@ use crate::{
         edges::edge_storage_ops::{EdgeStorageOps, TimeIndexRef},
         tprop_storage_ops::TPropOps,
     },
-    prelude::TimeIndexEntry,
 };
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use raphtory_arrow::{edge::Edge, tprops::ArrowTProp};
 use rayon::prelude::*;
 use std::{iter, ops::Range};

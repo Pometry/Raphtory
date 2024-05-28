@@ -28,8 +28,6 @@ pub mod const_properties_ops;
 pub mod core_ops;
 pub mod edge_filter_ops;
 mod edge_storage_ops;
-pub mod graph_ops;
-
 mod interop;
 pub mod layer_ops;
 mod list_ops;
