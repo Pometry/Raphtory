@@ -101,9 +101,9 @@ where
         .collect();
     let events = evv
         .edges()
-        .explode()
         .iter()
-        .sorted_by_key(|e| e.time_and_index())
+        .map(|e| e.explode())
+        .kmerge_by(|e1, e2| e1.time_and_index() < e2.time_and_index())
         .map(|edge| {
             if edge.src().id() == evv.id() {
                 star_event(neigh_map[&edge.dst().id()], 1, edge.time().unwrap())
@@ -136,11 +136,6 @@ where
 {
     let mut results = deltas.iter().map(|_| [0; 8]).collect::<Vec<[usize; 8]>>();
 
-    // Define a closure for sorting by time_and_index()
-    let _sort_by_time_and_index = |e1: &EdgeView<G, GH>, e2: &EdgeView<G, GH>| -> Ordering {
-        Ord::cmp(&e1.time_and_index(), &e2.time_and_index())
-    };
-
     for nb in evv.neighbours().into_iter() {
         let nb_id = nb.id();
         let out = evv.graph().edge(evv.id(), nb_id);
@@ -148,8 +143,7 @@ where
         let events: Vec<TwoNodeEvent> = out
             .iter()
             .flat_map(|e| e.explode())
-            .chain(inc.iter().flat_map(|e| e.explode()))
-            .sorted_by_key(|e| e.time_and_index())
+            .merge_by(inc.iter().flat_map(|e| e.explode()), |e1,e2| e1.time_and_index() < e2.time_and_index())
             .map(|e| {
                 two_node_event(
                     if e.src().id() == evv.id() { 1 } else { 0 },
@@ -182,22 +176,16 @@ where
 {
     let delta_len = deltas.len();
 
-    // Define a closure for sorting by time_and_index()
-    let _sort_by_time_and_index =
-        |e1: &EdgeView<NodeSubgraph<G>, NodeSubgraph<G>>,
-         e2: &EdgeView<NodeSubgraph<G>, NodeSubgraph<G>>|
-         -> Ordering { Ord::cmp(&e1.time_and_index(), &e2.time_and_index()) };
-
-    // Define a closure for sorting by time()
+    // Create K-Core graph to recursively remove nodes of degree < 2
     let node_set = k_core_set(graph, 2, usize::MAX, None);
-    let g: NodeSubgraph<G> = graph.subgraph(node_set);
-    let mut ctx: Context<NodeSubgraph<G>, ComputeStateVec> = Context::from(&g);
+    let kcore_subgraph: NodeSubgraph<G> = graph.subgraph(node_set);
+    let mut ctx_subgraph: Context<NodeSubgraph<G>, ComputeStateVec> = Context::from(&kcore_subgraph);
 
+    // Triangle Accumulator
     let neighbours_set = accumulators::hash_set::<u64>(1);
+    ctx_subgraph.agg(neighbours_set);
 
-    ctx.agg(neighbours_set);
-
-    let step1 = ATask::new(move |u: &mut EvalNodeView<NodeSubgraph<G>, MotifCounter>| {
+    let neighbourhood_update_step = ATask::new(move |u: &mut EvalNodeView<NodeSubgraph<G>, MotifCounter>| {
         for v in u.neighbours() {
             if u.id() > v.id() {
                 v.update(&neighbours_set, u.id());
@@ -206,7 +194,7 @@ where
         Step::Continue
     });
 
-    let step2 = ATask::new(move |u: &mut EvalNodeView<NodeSubgraph<G>, MotifCounter>| {
+    let intersection_compute_step = ATask::new(move |u: &mut EvalNodeView<NodeSubgraph<G>, MotifCounter>| {
         let uu = u.get_mut();
         if uu.triangle.is_empty() {
             uu.triangle = vec![[0usize; 8]; delta_len];
@@ -225,7 +213,7 @@ where
             if intersection_nbs.is_empty() {
                 continue;
             }
-            // let mut nb_ct = 0;
+
             intersection_nbs.iter().for_each(|w| {
                 // For each triangle, run the triangle count.
 
@@ -233,13 +221,13 @@ where
                     .into_iter()
                     .sorted()
                     .permutations(2)
-                    .flat_map(|e| {
-                        g.edge(*e.first().unwrap(), *e.get(1).unwrap())
+                    .map(|e| {
+                        u.graph().edge(*e.first().unwrap(), *e.get(1).unwrap())
                             .iter()
                             .flat_map(|edge| edge.explode())
                             .collect::<Vec<_>>()
                     })
-                    .sorted_by_key(|e| e.time_and_index())
+                    .kmerge_by(|e1, e2| e1.time_and_index() < e2.time_and_index())
                     .map(|e| {
                         let (src_id, dst_id) = (e.src().id(), e.dst().id());
                         let (uid, _vid) = (u.id(), v.id());
@@ -271,15 +259,11 @@ where
                     let delta = deltas[i];
                     let mut tri_count = init_tri_count(2);
                     tri_count.execute(&all_exploded, delta);
-                    let tmp_counts: Iter<usize> = tri_count.return_counts().iter();
-
-                    // Triangle counts are going to be WRONG without w
-                    // update_counter(&mut vec![u, &v], motifs_count_id, tmp_counts);
-
+                    let intermediate_counts: Iter<usize> = tri_count.return_counts().iter();
                     let mc_u = u.get_mut();
                     let triangle_u = mc_u.triangle[i]
                         .iter()
-                        .zip(tmp_counts.clone())
+                        .zip(intermediate_counts.clone())
                         .map(|(&i1, &i2)| i1 + i2)
                         .collect::<Vec<usize>>()
                         .try_into()
@@ -291,11 +275,11 @@ where
         Step::Continue
     });
 
-    let mut runner: TaskRunner<NodeSubgraph<G>, _> = TaskRunner::new(ctx);
+    let mut runner: TaskRunner<NodeSubgraph<G>, _> = TaskRunner::new(ctx_subgraph);
 
     runner.run(
-        vec![Job::new(step1)],
-        vec![Job::read_only(step2)],
+        vec![Job::new(neighbourhood_update_step)],
+        vec![Job::read_only(intersection_compute_step)],
         None,
         |_, _, _els, mut local| {
             let mut tri_motifs = HashMap::new();
@@ -333,9 +317,9 @@ where
 
     ctx.agg(motifs_counter);
 
-    let out1 = triangle_motifs(g, deltas.clone(), motifs_counter, threads);
+    let triadic_motifs = triangle_motifs(g, deltas.clone(), motifs_counter, threads);
 
-    let step1 = ATask::new(move |evv: &mut EvalNodeView<G, MotifCounter>| {
+    let star_motif_step = ATask::new(move |evv: &mut EvalNodeView<G, MotifCounter>| {
         let two_nodes = twonode_motif_count(evv, deltas.clone());
         let star_nodes = star_motif_count(evv, deltas.clone());
 
@@ -352,14 +336,17 @@ where
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
     runner.run(
-        vec![Job::new(step1)],
+        vec![Job::new(star_motif_step)],
         vec![],
         None,
         |_, _, _els, local| {
             let mut motifs = HashMap::new();
             for (vref, mc) in enumerate(local) {
+                if mc.two_nodes.is_empty() || mc.star_nodes.is_empty() {
+                    continue;
+                }
                 let v_gid = g.node_name(vref.into());
-                let triangles = out1
+                let triangles = triadic_motifs
                     .get(&v_gid)
                     .cloned()
                     .unwrap_or_else(|| vec![[0usize; 8]; delta_len]);
@@ -408,9 +395,8 @@ mod motifs_test {
         graph
     }
 
-    #[test]
-    fn test_local_motif() {
-        let graph = load_graph(vec![
+    fn load_sample_graph() -> Graph {
+        let edges = vec![
             (1, 1, 2),
             (2, 1, 3),
             (3, 1, 4),
@@ -434,7 +420,13 @@ mod motifs_test {
             (21, 11, 1),
             (22, 9, 11),
             (23, 11, 9),
-        ]);
+        ];
+        load_graph(edges)
+    }
+
+    #[test]
+    fn test_local_motif() {
+        let graph = load_sample_graph();
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "arrow")]
@@ -445,6 +437,7 @@ mod motifs_test {
             let actual = binding
                 .iter()
                 .map(|(k, v)| (k, v[0].clone()))
+                .into_iter()
                 .collect::<HashMap<&String, Vec<usize>>>();
 
             let expected: HashMap<String, Vec<usize>> = HashMap::from([
@@ -527,15 +520,95 @@ mod motifs_test {
                 ),
             ]);
 
-            for ind in 3..12 {
+            for ind in 1..12 {
                 assert_eq!(
                     actual.get(&ind.to_string()).unwrap(),
                     expected.get(&ind.to_string()).unwrap()
                 );
             }
         }
-        test(&graph);
         #[cfg(feature = "arrow")]
         test(&arrow_graph);
+        test(&graph);
+    }
+
+    #[test]
+    fn test_windowed_graph() {
+        let g = load_sample_graph();
+        let g_windowed = g.before(11).after(0);
+        println! {"windowed graph has {:?} vertices",g_windowed.count_nodes()}
+
+        let binding = temporal_three_node_motif(&g_windowed, Vec::from([10]), None);
+        let actual = binding
+            .iter()
+            .map(|(k, v)| (k, v[0].clone()))
+            .into_iter()
+            .collect::<HashMap<&String, Vec<usize>>>();
+
+        let expected: HashMap<String, Vec<usize>> = HashMap::from([
+            (
+                "1".to_string(),
+                vec![
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0,
+                ],
+            ),
+            (
+                "2".to_string(),
+                vec![
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                ],
+            ),
+            (
+                "3".to_string(),
+                vec![
+                    0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 0,
+                ],
+            ),
+            (
+                "4".to_string(),
+                vec![
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 0,
+                ],
+            ),
+            (
+                "5".to_string(),
+                vec![
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
+                ],
+            ),
+            (
+                "6".to_string(),
+                vec![
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                ],
+            ),
+            (
+                "7".to_string(),
+                vec![
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                ],
+            ),
+            (
+                "8".to_string(),
+                vec![
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                ],
+            ),
+        ]);
+
+        for ind in 1..8 {
+            assert_eq!(
+                actual.get(&ind.to_string()).unwrap(),
+                expected.get(&ind.to_string()).unwrap()
+            );
+        }
     }
 }
