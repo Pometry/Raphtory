@@ -39,12 +39,7 @@ pub fn temporal_bipartite_projection<G: StaticGraphViewOps>(
     new_graph
 }
 
-fn populate_edges<G: StaticGraphViewOps, V: AsNodeRef>(
-    g: &G,
-    new_graph: &Graph,
-    v: V,
-    delta: i64,
-) {
+fn populate_edges<G: StaticGraphViewOps, V: AsNodeRef>(g: &G, new_graph: &Graph, v: V, delta: i64) {
     if let Some(vertex) = g.node(v) {
         // get vector of vertices which need connecting up
         let mut visitors = vertex
