@@ -112,8 +112,7 @@ pub mod prelude {
             api::{
                 mutation::{AdditionOps, DeletionOps, ImportOps, PropertyAdditionOps},
                 view::{
-                    EdgeViewOps, GraphViewOps, Layer, LayerOps, NodeViewOps,
-                    ResetFilter, TimeOps,
+                    EdgeViewOps, GraphViewOps, Layer, LayerOps, NodeViewOps, ResetFilter, TimeOps,
                 },
             },
             graph::graph::Graph,

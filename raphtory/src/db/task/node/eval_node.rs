@@ -14,7 +14,7 @@ use crate::{
             storage::storage_ops::GraphStorage,
             view::{internal::OneHopFilter, BaseNodeViewOps, BoxedLIter, IntoDynBoxed},
         },
-        graph::{edges::Edges, node::NodeView, path::PathFromNode},
+        graph::{create_node_type_filter, edges::Edges, node::NodeView, path::PathFromNode},
         task::{
             edge::eval_edges::EvalEdges, eval_graph::EvalGraph, node::eval_node_state::EVState,
         },
@@ -278,14 +278,25 @@ impl<
     }
 
     pub fn type_filter(&self, node_types: &[impl AsRef<str>]) -> Self {
-        let local = self.local_state_prev;
-        let node_state = self.node_state.clone();
-        let ss = self.ss;
+        let node_types_filter =
+            create_node_type_filter(self.graph.node_meta().node_type_meta(), node_types);
+
+        let base_graph = self.base_graph.base_graph.clone();
+        let old_op = self.op.clone();
+
         EvalPathFromNode {
-            path: self.path.type_filter(node_types),
-            ss,
-            node_state,
-            local_state_prev: local,
+            base_graph: self.base_graph.clone(),
+            graph: self.graph.clone(),
+            op: Arc::new(move || {
+                let base_graph = base_graph.clone();
+                let node_types_filter = node_types_filter.clone();
+                old_op()
+                    .filter(move |v| {
+                        let node_type_id = base_graph.node_type_id(*v);
+                        node_types_filter[node_type_id]
+                    })
+                    .into_dyn_boxed()
+            }),
         }
     }
 }

@@ -94,7 +94,7 @@ impl CoreGraphOps for InternalGraph {
         self.inner().node_type(v)
     }
 
-     #[inline]
+    #[inline]
     fn node_type_id(&self, v: VID) -> usize {
         self.inner().node_type_id(v)
     }

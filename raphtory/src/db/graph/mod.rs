@@ -1,4 +1,4 @@
-use crate::core::entities::properties::props::{DictMapper};
+use crate::core::entities::properties::props::DictMapper;
 use std::sync::Arc;
 
 pub mod edge;
@@ -9,7 +9,7 @@ pub mod nodes;
 pub mod path;
 pub mod views;
 
-fn create_node_type_filter(
+pub(crate) fn create_node_type_filter(
     dict_mapper: &DictMapper,
     node_types: &[impl AsRef<str>],
 ) -> Arc<[bool]> {

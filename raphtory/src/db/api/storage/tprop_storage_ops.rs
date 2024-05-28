@@ -1,12 +1,10 @@
+use crate::core::{entities::properties::tprop::TProp, storage::timeindex::AsTime, Prop};
 #[cfg(feature = "arrow")]
 use crate::db::api::storage::variants::storage_variants::StorageVariants;
-use crate::{
-    core::{entities::properties::tprop::TProp, storage::timeindex::AsTime, Prop},
-};
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 #[cfg(feature = "arrow")]
 use raphtory_arrow::tprops::ArrowTProp;
 use std::ops::Range;
-use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 
 #[derive(Copy, Clone, Debug)]
 pub enum TPropRef<'a> {

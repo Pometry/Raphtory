@@ -1,4 +1,3 @@
-use crate::core::storage::timeindex::TimeIndexEntry;
 use crate::{
     core::{
         entities::{
@@ -8,7 +7,7 @@ use crate::{
             properties::{graph_meta::GraphMeta, props::Meta, tprop::TProp},
             LayerIds, EID, ELID, VID,
         },
-        storage::locked_view::LockedView,
+        storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
         utils::errors::GraphError,
         ArcStr, PropType,
     },

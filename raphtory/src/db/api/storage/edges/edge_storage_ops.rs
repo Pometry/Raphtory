@@ -16,11 +16,9 @@ use crate::{
     core::entities::properties::tprop::TProp,
     db::api::storage::{tprop_storage_ops::TPropOps, variants::layer_variants::LayerVariants},
 };
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use rayon::prelude::*;
 use std::ops::Range;
-use tantivy::HasLen;
-use raphtory_api::core::storage::timeindex::TimeIndexEntry;
-use crate::prelude::EdgeViewOps;
 
 pub enum TimeIndexRef<'a> {
     Ref(&'a TimeIndex<TimeIndexEntry>),

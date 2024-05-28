@@ -6,6 +6,7 @@ use crate::{
 use chrono::{DateTime, NaiveDateTime, Utc};
 use itertools::Itertools;
 use num_traits::Saturating;
+use raphtory_api::core::entities::VID;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -16,7 +17,6 @@ use std::{
     marker::PhantomData,
     ops::{Deref, Range},
 };
-use raphtory_api::core::entities::VID;
 
 pub use raphtory_api::core::storage::timeindex::*;
 
@@ -537,5 +537,4 @@ impl<'a, Ops: TimeIndexOps + 'a> TimeIndexOps for LayeredTimeIndexWindow<'a, Ops
     fn len(&self) -> usize {
         self.timeindex.par_iter().map(|ts| ts.len()).sum()
     }
-
 }

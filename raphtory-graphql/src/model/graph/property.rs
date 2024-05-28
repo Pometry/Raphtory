@@ -9,7 +9,7 @@ use raphtory::{
     },
 };
 use serde_json::Number;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 #[derive(Clone, Debug, Scalar)]
 pub struct GqlPropValue(pub Prop);

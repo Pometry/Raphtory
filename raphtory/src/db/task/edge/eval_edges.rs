@@ -36,6 +36,7 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, CS: 
         Self {
             ss: self.ss,
             edges: self.edges.clone(),
+            storage: self.storage,
             node_state: self.node_state.clone(),
             local_state_prev: self.local_state_prev,
         }

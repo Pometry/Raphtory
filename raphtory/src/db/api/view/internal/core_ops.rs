@@ -367,7 +367,6 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     fn node_type_id(&self, v: VID) -> usize {
         self.graph().node_type_id(v)
     }
-
 }
 
 pub enum NodeAdditions<'a> {
@@ -441,5 +440,4 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
             NodeAdditions::Col(col) => col.len(),
         }
     }
-
 }
