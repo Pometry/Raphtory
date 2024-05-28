@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1716566925127,
+  "lastUpdate": 1716893772304,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -52015,6 +52015,66 @@ window.BENCHMARK_DATA = {
             "name": "graphgen_large_concomp/graphgen_large_concomp/Graph(num_nodes=500004, num_edges=2000000)",
             "value": 2357296833,
             "range": "± 59109304",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97447091+ljeub-pometry@users.noreply.github.com",
+            "name": "ljeub-pometry",
+            "username": "ljeub-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "898737484ce0606582abc7c2a91e06fe4c104c84",
+          "message": "Fix/performance (#1622)\n\n* put the eval context into a struct and expose methods for getting arbitrary eval nodes and edges\r\n\r\n* use the eval graph\r\n\r\n* make private arrow crate a submodule and tweak all the scripts accordingly\r\n\r\n* arrow interface improvements\r\n\r\n* fix the activation script\r\n\r\n* don't run cargo update here (breaks caching)\r\n\r\n* move arrow activation/deactivation logic to makefile\r\n\r\n* clean up some warnings\r\n\r\n* add temporal motifs to benchmark\r\n\r\n* fix the over-eager cleanup",
+          "timestamp": "2024-05-28T11:41:45+01:00",
+          "tree_id": "c8604d2bb88f3b23a846d6d61b59f67c1175e955",
+          "url": "https://github.com/Pometry/Raphtory/commit/898737484ce0606582abc7c2a91e06fe4c104c84"
+        },
+        "date": 1716893771185,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "local_triangle_count/local_triangle_count",
+            "value": 909238,
+            "range": "± 5365",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "local_clustering_coefficient/local_clustering_coefficient",
+            "value": 102314,
+            "range": "± 4345",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_clustering_coeff/graphgen_large_clustering_coeff/Graph(num_nodes=500004, num_edges=20...",
+            "value": 2359528872,
+            "range": "± 65261138",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_pagerank/graphgen_large_pagerank/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 240461985,
+            "range": "± 3791536",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_concomp/graphgen_large_concomp/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 2307191996,
+            "range": "± 34264003",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "temporal_motifs/temporal_motifs",
+            "value": 21904522,
+            "range": "± 297933",
             "unit": "ns/iter"
           }
         ]
