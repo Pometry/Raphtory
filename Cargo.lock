@@ -3973,6 +3973,7 @@ dependencies = [
  "memmap2",
  "neo4rs",
  "num",
+ "num-integer",
  "num-traits",
  "once_cell",
  "ordered-float 4.2.0",
