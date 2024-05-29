@@ -7,7 +7,6 @@ use crate::{
         storage::timeindex::{TimeIndex, TimeIndexIntoOps, TimeIndexOps, TimeIndexWindow},
     },
     db::api::view::IntoDynBoxed,
-    prelude::TimeIndexEntry,
 };
 
 #[cfg(feature = "arrow")]
@@ -17,6 +16,7 @@ use crate::{
     core::entities::properties::tprop::TProp,
     db::api::storage::{tprop_storage_ops::TPropOps, variants::layer_variants::LayerVariants},
 };
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use rayon::prelude::*;
 use std::ops::Range;
 

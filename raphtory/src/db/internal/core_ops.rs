@@ -95,6 +95,10 @@ impl CoreGraphOps for InternalGraph {
     }
 
     #[inline]
+    fn node_type_id(&self, v: VID) -> usize {
+        self.inner().node_type_id(v)
+    }
+    #[inline]
     fn internalise_node(&self, v: NodeRef) -> Option<VID> {
         self.inner().resolve_node_ref(v)
     }

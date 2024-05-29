@@ -6,6 +6,7 @@ use crate::{
 use chrono::{DateTime, NaiveDateTime, Utc};
 use itertools::Itertools;
 use num_traits::Saturating;
+use raphtory_api::core::entities::VID;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{

@@ -17,8 +17,8 @@ use crate::{
         },
         tprop_storage_ops::TPropOps,
     },
-    prelude::TimeIndexEntry,
 };
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use rayon::iter::ParallelIterator;
 use std::ops::Range;
 

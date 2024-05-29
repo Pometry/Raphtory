@@ -2046,15 +2046,92 @@ def test_one_hop_filter_reset():
     assert len(out_out_2) == 0
 
 
-def test_node_types():
+def test_type_filter():
     g = Graph()
     g.add_node(1, 1, node_type="wallet")
     g.add_node(1, 2, node_type="timer")
     g.add_node(1, 3, node_type="timer")
     g.add_node(1, 4, node_type="wallet")
 
-    assert g.nodes.type_filter(["wallet"]).node_type.collect() == ["1", "4"]
-    assert g.subgraph_node_types(["timer"]).nodes.name.collect() == ["2", "3"]
+    assert [node.name for node in g.nodes.type_filter(["wallet"])] == ['1', '4']
+    assert g.subgraph_node_types(["timer"]).nodes.name.collect() == ['2', '3']
+
+    g = PersistentGraph()
+    g.add_node(1, 1, node_type="wallet")
+    g.add_node(2, 2, node_type="timer")
+    g.add_node(3, 3, node_type="timer")
+    g.add_node(4, 4, node_type="wallet")
+
+    assert [node.name for node in g.nodes.type_filter(["wallet"])] == ['1', '4']
+    assert g.subgraph_node_types(["timer"]).nodes.name.collect() == ['2', '3']
+
+    subgraph = g.subgraph([1, 2, 3])
+    assert [node.name for node in subgraph.nodes.type_filter(["wallet"])] == ['1']
+    assert subgraph.subgraph_node_types(["timer"]).nodes.name.collect() == ['2', '3']
+
+    w = g.window(1, 3)
+    assert [node.name for node in w.nodes.type_filter(["wallet"])] == ['1']
+    assert w.subgraph_node_types(["timer"]).nodes.name.collect() == ['2', '3']
+
+    g = Graph()
+    g.add_node(1, 1, node_type="wallet")
+    g.add_node(2, 2, node_type="timer")
+    g.add_node(3, 3, node_type="timer")
+    g.add_node(4, 4, node_type="counter")
+    g.add_edge(1, 1, 2, layer="layer1")
+    g.add_edge(2, 2, 3, layer="layer1")
+    g.add_edge(3, 2, 4, layer="layer2")
+    layer = g.layers(["layer1"])
+    assert [node.name for node in layer.nodes.type_filter(["wallet"])] == ['1']
+    assert layer.subgraph_node_types(["timer"]).nodes.name.collect() == ['2', '3']
+
+    g = Graph()
+    g.add_node(1, 1, node_type="a")
+    g.add_node(1, 2, node_type="b")
+    g.add_node(1, 3, node_type="b")
+    g.add_node(1, 4, node_type="a")
+    g.add_node(1, 5, node_type="c")
+    g.add_node(1, 6, node_type="e")
+    g.add_edge(2, 1, 2, layer="a")
+    g.add_edge(2, 3, 2, layer="a")
+    g.add_edge(2, 2, 4, layer="a")
+    g.add_edge(2, 4, 5, layer="a")
+    g.add_edge(2, 4, 5, layer="a")
+    g.add_edge(2, 5, 6, layer="a")
+    g.add_edge(2, 3, 6, layer="a")
+
+    assert g.nodes.type_filter(["a"]).name.collect() == ['1', '4']
+    assert g.nodes.type_filter(["a", "c"]).name.collect() == ['1', '4', '5']
+    assert g.nodes.type_filter(["a"]).neighbours.name.collect() == [['2'], ['2', '5']]
+
+    assert g.nodes.degree().collect() == [1, 3, 2, 2, 2, 2]
+    assert g.nodes.type_filter(['a']).degree().collect() == [1, 2]
+    assert g.nodes.type_filter(['d']).degree().collect() == []
+    assert g.nodes.type_filter([]).name.collect() == []
+
+    assert len(g.nodes) == 6
+    assert len(g.nodes.type_filter(['b'])) == 2
+    assert len(g.nodes.type_filter(['d'])) == 0
+
+    assert g.nodes.type_filter(['d']).neighbours.name.collect() == []
+    assert g.nodes.type_filter(['a']).neighbours.name.collect() == [['2'], ['2', '5']]
+    assert g.nodes.type_filter(['a', 'c']).neighbours.name.collect() == [['2'], ['2', '5'], ['4', '6']]
+
+    assert g.nodes.type_filter(['a']).neighbours.type_filter(['c']).name.collect() == [[], ['5']]
+    assert g.nodes.type_filter(['a']).neighbours.type_filter([]).name.collect() == [[], []]
+    assert g.nodes.type_filter(['a']).neighbours.type_filter(['b', 'c']).name.collect() == [['2'], ['2', '5']]
+    assert g.nodes.type_filter(['a']).neighbours.type_filter(['d']).name.collect() == [[], []]
+    assert g.nodes.type_filter(['a']).neighbours.neighbours.name.collect() == [['1', '3', '4'], ['1', '3', '4', '4', '6']]
+    assert g.nodes.type_filter(['a']).neighbours.type_filter(['c']).neighbours.name.collect() == [[], ['4', '6']]
+    assert g.nodes.type_filter(['a']).neighbours.type_filter(['d']).neighbours.name.collect() == [[], []]
+
+    assert g.node('2').neighbours.type_filter(['b']).name.collect() == ['3']
+    assert g.node('2').neighbours.type_filter(['d']).name.collect() == []
+    assert g.node('2').neighbours.type_filter([]).name.collect() == []
+    assert g.node('2').neighbours.type_filter(['c', 'a']).name.collect() == ['1', '4']
+    assert g.node('2').neighbours.type_filter(['c']).neighbours.name.collect() == []
+    assert g.node('2').neighbours.neighbours.name.collect() == ['2', '2', '6', '2', '5']
+
 
 
 def test_time_exploded_edges():

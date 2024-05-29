@@ -209,7 +209,9 @@ mod db_tests {
                 time::internal::InternalTimeOps, EdgeViewOps, Layer, LayerOps, NodeViewOps,
                 StaticGraphViewOps, TimeOps,
             },
-            graph::{edge::EdgeView, edges::Edges, node::NodeView, path::PathFromNode},
+            graph::{
+                edge::EdgeView, edges::Edges, node::NodeView, nodes::Nodes, path::PathFromNode,
+            },
         },
         graphgen::random_attachment::random_attachment,
         prelude::{AdditionOps, PropertyAdditionOps},
@@ -2485,6 +2487,464 @@ mod db_tests {
         test(&graph);
         // FIXME: Needs multilayer support (Issue #47)
         // test(&arrow_graph);
+    }
+
+    #[test]
+    fn test_type_filter() {
+        let g = PersistentGraph::new();
+
+        g.add_node(1, 1, NO_PROPS, Some("wallet")).unwrap();
+        g.add_node(1, 2, NO_PROPS, Some("timer")).unwrap();
+        g.add_node(1, 3, NO_PROPS, Some("timer")).unwrap();
+        g.add_node(1, 4, NO_PROPS, Some("wallet")).unwrap();
+
+        assert_eq!(
+            g.nodes().type_filter(&vec!["wallet"]).name().collect_vec(),
+            vec!["1", "4"]
+        );
+
+        let g = Graph::new();
+        g.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
+        g.add_node(1, 2, NO_PROPS, Some("b")).unwrap();
+        g.add_node(1, 3, NO_PROPS, Some("b")).unwrap();
+        g.add_node(1, 4, NO_PROPS, Some("a")).unwrap();
+        g.add_node(1, 5, NO_PROPS, Some("c")).unwrap();
+        g.add_node(1, 6, NO_PROPS, Some("e")).unwrap();
+        g.add_edge(2, 1, 2, NO_PROPS, Some("a")).unwrap();
+        g.add_edge(2, 3, 2, NO_PROPS, Some("a")).unwrap();
+        g.add_edge(2, 2, 4, NO_PROPS, Some("a")).unwrap();
+        g.add_edge(2, 4, 5, NO_PROPS, Some("a")).unwrap();
+        g.add_edge(2, 4, 5, NO_PROPS, Some("a")).unwrap();
+        g.add_edge(2, 5, 6, NO_PROPS, Some("a")).unwrap();
+        g.add_edge(2, 3, 6, NO_PROPS, Some("a")).unwrap();
+
+        let w = g.window(1, 4);
+        assert_eq!(
+            w.nodes()
+                .type_filter(&vec!["a"])
+                .iter()
+                .map(|v| v.degree())
+                .collect::<Vec<_>>(),
+            vec![1, 2]
+        );
+        assert_eq!(
+            w.nodes()
+                .type_filter(&vec!["a"])
+                .neighbours()
+                .type_filter(&vec!["c", "b"])
+                .name()
+                .map(|n| { n.collect::<Vec<_>>() })
+                .collect_vec(),
+            vec![vec!["2"], vec!["2", "5"]]
+        );
+
+        let l = g.layers(["a"]).unwrap();
+        assert_eq!(
+            l.nodes()
+                .type_filter(&vec!["a"])
+                .iter()
+                .map(|v| v.degree())
+                .collect::<Vec<_>>(),
+            vec![1, 2]
+        );
+        assert_eq!(
+            l.nodes()
+                .type_filter(&vec!["a"])
+                .neighbours()
+                .type_filter(&vec!["c", "b"])
+                .name()
+                .map(|n| { n.collect::<Vec<_>>() })
+                .collect_vec(),
+            vec![vec!["2"], vec!["2", "5"]]
+        );
+
+        let sg = g.subgraph([1, 2, 3, 4, 5, 6]);
+        assert_eq!(
+            sg.nodes()
+                .type_filter(&vec!["a"])
+                .iter()
+                .map(|v| v.degree())
+                .collect::<Vec<_>>(),
+            vec![1, 2]
+        );
+        assert_eq!(
+            sg.nodes()
+                .type_filter(&vec!["a"])
+                .neighbours()
+                .type_filter(&vec!["c", "b"])
+                .name()
+                .map(|n| { n.collect::<Vec<_>>() })
+                .collect_vec(),
+            vec![vec!["2"], vec!["2", "5"]]
+        );
+
+        assert_eq!(
+            g.nodes().iter().map(|v| v.degree()).collect::<Vec<_>>(),
+            vec![1, 3, 2, 2, 2, 2]
+        );
+        assert_eq!(
+            g.nodes()
+                .type_filter(&vec!["a"])
+                .iter()
+                .map(|v| v.degree())
+                .collect::<Vec<_>>(),
+            vec![1, 2]
+        );
+        assert_eq!(
+            g.nodes()
+                .type_filter(&vec!["d"])
+                .iter()
+                .map(|v| v.degree())
+                .collect::<Vec<_>>(),
+            Vec::<usize>::new()
+        );
+        assert_eq!(
+            g.nodes()
+                .type_filter(&vec!["a"])
+                .par_iter()
+                .map(|v| v.degree())
+                .collect::<Vec<_>>(),
+            vec![1, 2]
+        );
+        assert_eq!(
+            g.nodes()
+                .type_filter(&vec!["d"])
+                .par_iter()
+                .map(|v| v.degree())
+                .collect::<Vec<_>>(),
+            Vec::<usize>::new()
+        );
+
+        assert_eq!(
+            g.nodes()
+                .type_filter(&vec!["a"])
+                .collect()
+                .into_iter()
+                .map(|n| n.name())
+                .collect_vec(),
+            vec!["1", "4"]
+        );
+        assert_eq!(
+            g.nodes()
+                .type_filter(&Vec::<&str>::new())
+                .collect()
+                .into_iter()
+                .map(|n| n.name())
+                .collect_vec(),
+            Vec::<&str>::new()
+        );
+
+        assert_eq!(g.nodes().len(), 6);
+        assert_eq!(g.nodes().type_filter(&vec!["b"]).len(), 2);
+        assert_eq!(g.nodes().type_filter(&vec!["d"]).len(), 0);
+
+        assert_eq!(g.nodes().is_empty(), false);
+        assert_eq!(g.nodes().type_filter(&vec!["d"]).is_empty(), true);
+
+        assert_eq!(
+            g.nodes().type_filter(&vec!["a"]).name().collect_vec(),
+            vec!["1", "4"]
+        );
+        assert_eq!(
+            g.nodes().type_filter(&vec!["a", "c"]).name().collect_vec(),
+            vec!["1", "4", "5"]
+        );
+
+        assert_eq!(
+            g.nodes()
+                .type_filter(&vec!["a"])
+                .neighbours()
+                .name()
+                .map(|n| { n.collect::<Vec<_>>() })
+                .collect_vec(),
+            vec![vec!["2"], vec!["2", "5"]]
+        );
+        assert_eq!(
+            g.nodes()
+                .type_filter(&vec!["a", "c"])
+                .neighbours()
+                .name()
+                .map(|n| { n.collect::<Vec<_>>() })
+                .collect_vec(),
+            vec![vec!["2"], vec!["2", "5"], vec!["4", "6"]]
+        );
+        assert_eq!(
+            g.nodes()
+                .type_filter(&vec!["d"])
+                .neighbours()
+                .name()
+                .map(|n| { n.collect::<Vec<_>>() })
+                .collect_vec(),
+            Vec::<Vec<&str>>::new()
+        );
+
+        assert_eq!(
+            g.nodes()
+                .type_filter(&vec!["a"])
+                .neighbours()
+                .type_filter(&vec!["c"])
+                .name()
+                .map(|n| { n.collect::<Vec<_>>() })
+                .collect_vec(),
+            vec![vec![], vec!["5"]]
+        );
+        assert_eq!(
+            g.nodes()
+                .type_filter(&vec!["a"])
+                .neighbours()
+                .type_filter(&Vec::<&str>::new())
+                .name()
+                .map(|n| { n.collect::<Vec<_>>() })
+                .collect_vec(),
+            vec![vec![], Vec::<&str>::new()]
+        );
+        assert_eq!(
+            g.nodes()
+                .type_filter(&vec!["a"])
+                .neighbours()
+                .type_filter(&vec!["c", "b"])
+                .name()
+                .map(|n| { n.collect::<Vec<_>>() })
+                .collect_vec(),
+            vec![vec!["2"], vec!["2", "5"]]
+        );
+        assert_eq!(
+            g.nodes()
+                .type_filter(&vec!["a"])
+                .neighbours()
+                .type_filter(&vec!["d"])
+                .name()
+                .map(|n| { n.collect::<Vec<_>>() })
+                .collect_vec(),
+            vec![vec![], Vec::<&str>::new()]
+        );
+
+        assert_eq!(
+            g.nodes()
+                .type_filter(&vec!["a"])
+                .neighbours()
+                .neighbours()
+                .name()
+                .map(|n| { n.collect::<Vec<_>>() })
+                .collect_vec(),
+            vec![vec!["1", "3", "4"], vec!["1", "3", "4", "4", "6"]]
+        );
+
+        assert_eq!(
+            g.nodes()
+                .type_filter(&vec!["a"])
+                .neighbours()
+                .type_filter(&vec!["c"])
+                .neighbours()
+                .name()
+                .map(|n| { n.collect::<Vec<_>>() })
+                .collect_vec(),
+            vec![vec![], vec!["4", "6"]]
+        );
+
+        assert_eq!(
+            g.nodes()
+                .neighbours()
+                .neighbours()
+                .name()
+                .map(|n| { n.collect::<Vec<_>>() })
+                .collect_vec(),
+            vec![
+                vec!["1", "3", "4"],
+                vec!["2", "2", "6", "2", "5"],
+                vec!["1", "3", "4", "3", "5"],
+                vec!["1", "3", "4", "4", "6"],
+                vec!["2", "5", "3", "5"],
+                vec!["2", "6", "4", "6"],
+            ]
+        );
+
+        assert_eq!(
+            g.nodes()
+                .type_filter(&vec!["a"])
+                .neighbours()
+                .type_filter(&vec!["d"])
+                .total_count(),
+            0
+        );
+
+        assert!(g
+            .nodes()
+            .type_filter(&vec!["a"])
+            .neighbours()
+            .type_filter(&vec!["d"])
+            .is_all_empty());
+
+        assert_eq!(
+            g.nodes()
+                .type_filter(&vec!["a"])
+                .neighbours()
+                .type_filter(&vec!["d"])
+                .iter()
+                .map(|n| { n.name().collect::<Vec<_>>() })
+                .collect_vec(),
+            vec![vec![], Vec::<&str>::new()]
+        );
+
+        assert_eq!(
+            g.nodes()
+                .type_filter(&vec!["a"])
+                .neighbours()
+                .type_filter(&vec!["b"])
+                .collect()
+                .into_iter()
+                .flatten()
+                .map(|n| n.name())
+                .collect_vec(),
+            vec!["2", "2"]
+        );
+
+        assert_eq!(
+            g.nodes()
+                .type_filter(&vec!["a"])
+                .neighbours()
+                .type_filter(&vec!["d"])
+                .collect()
+                .into_iter()
+                .flatten()
+                .map(|n| n.name())
+                .collect_vec(),
+            Vec::<&str>::new()
+        );
+
+        assert_eq!(
+            g.node("2").unwrap().neighbours().name().collect_vec(),
+            vec!["1", "3", "4"]
+        );
+
+        assert_eq!(
+            g.node("2")
+                .unwrap()
+                .neighbours()
+                .type_filter(&vec!["b"])
+                .name()
+                .collect_vec(),
+            vec!["3"]
+        );
+
+        assert_eq!(
+            g.node("2")
+                .unwrap()
+                .neighbours()
+                .type_filter(&vec!["d"])
+                .name()
+                .collect_vec(),
+            Vec::<&str>::new()
+        );
+
+        assert_eq!(
+            g.node("2")
+                .unwrap()
+                .neighbours()
+                .type_filter(&vec!["c", "a"])
+                .name()
+                .collect_vec(),
+            vec!["1", "4"]
+        );
+
+        assert_eq!(
+            g.node("2")
+                .unwrap()
+                .neighbours()
+                .type_filter(&vec!["c"])
+                .neighbours()
+                .name()
+                .collect_vec(),
+            Vec::<&str>::new()
+        );
+
+        assert_eq!(
+            g.node("2")
+                .unwrap()
+                .neighbours()
+                .neighbours()
+                .name()
+                .collect_vec(),
+            vec!["2", "2", "6", "2", "5"],
+        );
+
+        assert_eq!(
+            g.node("2")
+                .unwrap()
+                .neighbours()
+                .type_filter(&vec!["d"])
+                .len(),
+            0
+        );
+
+        assert_eq!(
+            g.node("2")
+                .unwrap()
+                .neighbours()
+                .type_filter(&vec!["a"])
+                .neighbours()
+                .len(),
+            3
+        );
+
+        assert!(g
+            .node("2")
+            .unwrap()
+            .neighbours()
+            .type_filter(&vec!["d"])
+            .is_empty());
+
+        assert_eq!(
+            g.node("2")
+                .unwrap()
+                .neighbours()
+                .type_filter(&vec!["a"])
+                .neighbours()
+                .is_empty(),
+            false
+        );
+
+        assert!(g
+            .node("2")
+            .unwrap()
+            .neighbours()
+            .type_filter(&vec!["d"])
+            .neighbours()
+            .is_empty());
+
+        assert_eq!(
+            g.node("2")
+                .unwrap()
+                .neighbours()
+                .type_filter(&vec!["d"])
+                .iter()
+                .collect_vec(),
+            Vec::<NodeView<Graph, Graph>>::new()
+        );
+
+        assert_eq!(
+            g.node("2")
+                .unwrap()
+                .neighbours()
+                .type_filter(&vec!["b"])
+                .collect()
+                .into_iter()
+                .map(|n| n.name())
+                .collect_vec(),
+            vec!["3"]
+        );
+
+        assert_eq!(
+            g.node("2")
+                .unwrap()
+                .neighbours()
+                .type_filter(&vec!["d"])
+                .collect()
+                .into_iter()
+                .map(|n| n.name())
+                .collect_vec(),
+            Vec::<&str>::new()
+        );
     }
 
     #[test]

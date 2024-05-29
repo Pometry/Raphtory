@@ -50,7 +50,7 @@ extern crate core;
 
 pub mod entities;
 pub mod state;
-pub(crate) mod storage;
+pub mod storage;
 pub mod utils;
 
 // this is here because Arc<str> annoyingly doesn't implement all the expected comparisons

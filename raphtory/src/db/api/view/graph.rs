@@ -132,6 +132,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         let graph = self.clone();
         Nodes::new(graph)
     }
+
     fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
         let g = InternalGraph::default();
 

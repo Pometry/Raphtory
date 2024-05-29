@@ -1,4 +1,5 @@
-use crate::{core::Prop, db::api::storage::tprop_storage_ops::TPropOps, prelude::TimeIndexEntry};
+use crate::{core::Prop, db::api::storage::tprop_storage_ops::TPropOps};
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use rayon::iter::{
     plumbing::{Consumer, ProducerCallback, UnindexedConsumer},
     IndexedParallelIterator, ParallelIterator,

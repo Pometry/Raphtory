@@ -423,13 +423,6 @@ pub struct PyNodes {
     pub(crate) nodes: Nodes<'static, DynamicGraph, DynamicGraph>,
 }
 
-impl_nodetypesfilter!(
-    PyNodes,
-    nodes,
-    Nodes<'static, DynamicGraph, DynamicGraph>,
-    "Nodes"
-);
-
 impl_nodeviewops!(
     PyNodes,
     nodes,
@@ -451,7 +444,7 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
         let graph = value.graph.into_dynamic();
         let base_graph = value.base_graph.into_dynamic();
         Self {
-            nodes: Nodes::new_filtered(base_graph, graph),
+            nodes: Nodes::new_filtered(base_graph, graph, value.node_types_filter),
         }
     }
 }
@@ -673,6 +666,10 @@ impl PyNodes {
             Ok(df_data.to_object(py))
         })
     }
+
+    pub fn type_filter(&self, node_types: Vec<&str>) -> Nodes<'static, DynamicGraph> {
+        self.nodes.type_filter(&node_types)
+    }
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for Nodes<'static, G, GH> {
@@ -685,13 +682,6 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for Nodes<'
 pub struct PyPathFromGraph {
     path: PathFromGraph<'static, DynamicGraph, DynamicGraph>,
 }
-
-impl_nodetypesfilter!(
-    PyPathFromGraph,
-    path,
-    PathFromGraph<'static, DynamicGraph, DynamicGraph>,
-    "PathFromGraph"
-);
 
 impl_nodeviewops!(
     PyPathFromGraph,
@@ -785,6 +775,13 @@ impl PyPathFromGraph {
         let path = self.path.clone();
         (move || path.out_degree()).into()
     }
+
+    pub fn type_filter(
+        &self,
+        node_types: Vec<&str>,
+    ) -> PathFromGraph<'static, DynamicGraph, DynamicGraph> {
+        self.path.type_filter(&node_types)
+    }
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr
@@ -822,13 +819,6 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic> 
 pub struct PyPathFromNode {
     path: PathFromNode<'static, DynamicGraph, DynamicGraph>,
 }
-
-impl_nodetypesfilter!(
-    PyPathFromNode,
-    path,
-    PathFromNode<'static, DynamicGraph, DynamicGraph>,
-    "PathFromNode"
-);
 
 impl_nodeviewops!(
     PyPathFromNode,
@@ -917,6 +907,13 @@ impl PyPathFromNode {
     fn degree(&self) -> UsizeIterable {
         let path = self.path.clone();
         (move || path.degree()).into()
+    }
+
+    pub fn type_filter(
+        &self,
+        node_types: Vec<&str>,
+    ) -> PathFromNode<'static, DynamicGraph, DynamicGraph> {
+        self.path.type_filter(&node_types)
     }
 }
 
