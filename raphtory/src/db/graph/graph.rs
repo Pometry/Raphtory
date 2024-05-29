@@ -200,6 +200,7 @@ mod db_tests {
     use super::*;
     use crate::{
         algorithms::components::weakly_connected_components,
+        arrow::graph_impl::ArrowGraph,
         core::{
             utils::time::{error::ParseTimeError, TryIntoTime},
             ArcStr, OptionAsStr, Prop,
@@ -2510,6 +2511,9 @@ mod db_tests {
         g.add_node(1, 4, NO_PROPS, Some("a")).unwrap();
         g.add_node(1, 5, NO_PROPS, Some("c")).unwrap();
         g.add_node(1, 6, NO_PROPS, Some("e")).unwrap();
+        g.add_node(1, 7, NO_PROPS, None).unwrap();
+        g.add_node(1, 8, NO_PROPS, None).unwrap();
+        g.add_node(1, 9, NO_PROPS, None).unwrap();
         g.add_edge(2, 1, 2, NO_PROPS, Some("a")).unwrap();
         g.add_edge(2, 3, 2, NO_PROPS, Some("a")).unwrap();
         g.add_edge(2, 2, 4, NO_PROPS, Some("a")).unwrap();
@@ -2517,6 +2521,27 @@ mod db_tests {
         g.add_edge(2, 4, 5, NO_PROPS, Some("a")).unwrap();
         g.add_edge(2, 5, 6, NO_PROPS, Some("a")).unwrap();
         g.add_edge(2, 3, 6, NO_PROPS, Some("a")).unwrap();
+
+        assert_eq!(
+            g.nodes()
+                .type_filter(&vec!["a", "b", "c", "e"])
+                .name()
+                .collect_vec(),
+            vec!["1", "2", "3", "4", "5", "6"]
+        );
+
+        assert_eq!(
+            g.nodes()
+                .type_filter(&Vec::<String>::new())
+                .name()
+                .collect_vec(),
+            Vec::<String>::new()
+        );
+
+        assert_eq!(
+            g.nodes().type_filter(&vec![""]).name().collect_vec(),
+            vec!["7", "8", "9"]
+        );
 
         let w = g.window(1, 4);
         assert_eq!(
@@ -2580,7 +2605,7 @@ mod db_tests {
 
         assert_eq!(
             g.nodes().iter().map(|v| v.degree()).collect::<Vec<_>>(),
-            vec![1, 3, 2, 2, 2, 2]
+            vec![1, 3, 2, 2, 2, 2, 0, 0, 0]
         );
         assert_eq!(
             g.nodes()
@@ -2634,7 +2659,7 @@ mod db_tests {
             Vec::<&str>::new()
         );
 
-        assert_eq!(g.nodes().len(), 6);
+        assert_eq!(g.nodes().len(), 9);
         assert_eq!(g.nodes().type_filter(&vec!["b"]).len(), 2);
         assert_eq!(g.nodes().type_filter(&vec!["d"]).len(), 0);
 
@@ -2756,6 +2781,9 @@ mod db_tests {
                 vec!["1", "3", "4", "4", "6"],
                 vec!["2", "5", "3", "5"],
                 vec!["2", "6", "4", "6"],
+                vec![],
+                vec![],
+                vec![],
             ]
         );
 
@@ -3037,7 +3065,7 @@ mod db_tests {
                 (2, "open".to_string()),
                 (3, "review".to_string()),
                 (4, "open".to_string()),
-                (10, "in-progress".to_string())
+                (10, "in-progress".to_string()),
             ]
         );
 
@@ -3059,7 +3087,7 @@ mod db_tests {
                 (1, "open".to_string()),
                 (3, "review".to_string()),
                 (4, "open".to_string()),
-                (5, "in-progress".to_string())
+                (5, "in-progress".to_string()),
             ]
         );
     }
