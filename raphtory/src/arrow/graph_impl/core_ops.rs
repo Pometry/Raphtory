@@ -228,7 +228,8 @@ impl CoreGraphOps for ArrowGraph {
     }
 
     fn node_type_id(&self, v: VID) -> usize {
-        self.graph().node_type_id(v)
+        // self.graph().node_type_id(v) TODO: Impl node types for arrow graphs
+        0
     }
 }
 
