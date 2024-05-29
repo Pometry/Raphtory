@@ -14,9 +14,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 
-pub trait NodeStateOps<'graph>:
-    IntoIterator<Item = (NodeView<Self::BaseGraph, Self::Graph>, Self::OwnedValue)>
-{
+pub trait NodeStateOps<'graph>: IntoIterator<Item = Self::OwnedValue> {
     type Graph: GraphViewOps<'graph>;
     type BaseGraph: GraphViewOps<'graph>;
     type Value<'a>: Send + Sync + Borrow<Self::OwnedValue>
@@ -56,6 +54,15 @@ pub trait NodeStateOps<'graph>:
     > + 'a
     where
         'graph: 'a;
+
+    fn nodes<'a>(
+        &'a self,
+    ) -> impl Iterator<Item = NodeView<&'a Self::BaseGraph, &'a Self::Graph>> + 'a
+    where
+        'graph: 'a,
+    {
+        self.iter().map(|(n, _)| n)
+    }
 
     fn par_iter<'a>(
         &'a self,

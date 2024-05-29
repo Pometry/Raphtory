@@ -116,36 +116,11 @@ impl<'graph, V, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodeState<'gr
 impl<'graph, V: Send + Sync + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
     IntoIterator for NodeState<'graph, V, G, GH>
 {
-    type Item = (NodeView<G, GH>, V);
-    type IntoIter = Box<dyn Iterator<Item = Self::Item> + Send + 'graph>;
+    type Item = V;
+    type IntoIter = std::vec::IntoIter<V>;
 
     fn into_iter(self) -> Self::IntoIter {
-        let bg = self.base_graph;
-        let g = self.graph;
-        match self.keys {
-            Some(index) => index
-                .into_iter()
-                .zip(self.values.into_iter())
-                .map(move |(n, v)| (NodeView::new_one_hop_filtered(bg.clone(), g.clone(), n), v))
-                .into_dyn_boxed(),
-            None => {
-                assert!(
-                    !g.nodes_filtered(),
-                    "nodes should not be filtered if no keys exist"
-                );
-                self.values
-                    .into_iter()
-                    .enumerate()
-                    .map(move |(i, v)| {
-                        let vid = VID(i);
-                        (
-                            NodeView::new_one_hop_filtered(bg.clone(), g.clone(), vid),
-                            v,
-                        )
-                    })
-                    .into_dyn_boxed()
-            }
-        }
+        self.values.into_iter()
     }
 }
 

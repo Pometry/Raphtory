@@ -1,19 +1,19 @@
 use crate::{
-    db::api::view::{BoxedIter, BoxedLIter},
+    db::api::view::{BoxedIter, BoxedLIter, IntoDynBoxed},
     python::types::repr::{iterator_repr, Repr},
 };
 use ouroboros::self_referencing;
-use pyo3::{pyclass, pymethods, IntoPy, PyObject, PyRef};
+use pyo3::{pyclass, pymethods, IntoPy, PyObject, PyRef, Python};
 use std::{marker::PhantomData, sync::Arc};
 
-pub trait PyIter: Send + Sync + 'static {
+pub trait PyIter: Send + 'static {
     fn iter(&self) -> BoxedLIter<PyObject>;
 
-    fn into_py(self) -> PyGenericIterator
+    fn into_py_iter(self) -> PyBorrowingIterator
     where
         Self: Sized,
     {
-        PyGenericIteratorBuilder {
+        PyBorrowingIteratorBuilder {
             inner: Box::new(self),
             iter_builder: |inner| inner.iter(),
         }
@@ -23,7 +23,7 @@ pub trait PyIter: Send + Sync + 'static {
 
 #[pyclass]
 #[self_referencing]
-pub struct PyGenericIterator {
+pub struct PyBorrowingIterator {
     inner: Box<dyn PyIter>,
     #[borrows(inner)]
     #[covariant]
@@ -31,7 +31,7 @@ pub struct PyGenericIterator {
 }
 
 #[pymethods]
-impl PyGenericIterator {
+impl PyBorrowingIterator {
     fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
@@ -39,6 +39,42 @@ impl PyGenericIterator {
         self.with_iter_mut(|iter| iter.next())
     }
 }
+
+pub struct IteratorWrapper<S, F> {
+    pub inner: S,
+    pub map: F,
+}
+
+impl<
+        S: Send + Sync + 'static,
+        F: for<'a> Fn(&'a S) -> BoxedLIter<'a, PyObject> + Send + 'static,
+    > PyIter for IteratorWrapper<S, F>
+{
+    fn iter(&self) -> BoxedLIter<PyObject> {
+        (self.map)(&self.inner)
+    }
+}
+
+// pub fn py_iterator<
+//     S: Send + Sync + 'static,
+//     F: for<'a> Fn(&'a S) -> BoxedLIter<'a, V> + Send + Sync + 'static,
+//     V: IntoPy<PyObject> + Send + Sync + 'static,
+// >(
+//     inner: S,
+//     builder: F,
+// ) -> PyGenericIterator {
+//     let map = move |inner| {
+//         builder(inner)
+//             .map(|v| {
+//                 Python::with_gil(|py| {
+//                     let pyobj: PyObject = v.into_py(py);
+//                     pyobj
+//                 })
+//             })
+//             .into_dyn_boxed()
+//     };
+//     IteratorWrapper { inner, map }.into_py_iter()
+// }
 
 pub struct Iterable<I: Send, PyI: IntoPy<PyObject> + From<I> + Repr> {
     pub name: &'static str,

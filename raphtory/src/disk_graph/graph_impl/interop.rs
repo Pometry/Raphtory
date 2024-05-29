@@ -21,6 +21,7 @@ use raphtory_api::core::{
     entities::{EID, VID},
     storage::timeindex::TimeIndexEntry,
 };
+use std::iter;
 
 impl GraphLike<TimeIndexEntry> for Graph {
     fn external_ids(&self) -> Vec<u64> {
@@ -28,7 +29,8 @@ impl GraphLike<TimeIndexEntry> for Graph {
     }
 
     fn node_names(&self) -> impl Iterator<Item = String> {
-        self.nodes().name()
+        // self.nodes().name().values()
+        iter::empty()
     }
 
     fn layer_names(&self) -> Vec<String> {

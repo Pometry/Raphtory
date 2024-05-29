@@ -116,8 +116,8 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, V: Send + Sync +
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, V: 'graph> IntoIterator
     for LazyNodeState<'graph, V, G, GH>
 {
-    type Item = (NodeView<G, GH>, V);
-    type IntoIter = Box<dyn Iterator<Item = (NodeView<G, GH>, V)> + Send + 'graph>;
+    type Item = V;
+    type IntoIter = Box<dyn Iterator<Item = V> + Send + 'graph>;
 
     fn into_iter(self) -> Self::IntoIter {
         let cg = self.graph.core_graph();
@@ -125,17 +125,8 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, V: 'graph> IntoI
             .into_iter()
             .filter_map(move |v| {
                 self.graph
-                    .filter_node(cg.nodes().node(v), self.graph.layer_ids())
-                    .then(|| {
-                        (
-                            NodeView::new_one_hop_filtered(
-                                self.base_graph.clone(),
-                                self.graph.clone(),
-                                v,
-                            ),
-                            (self.op)(&cg, &self.graph, v),
-                        )
-                    })
+                    .filter_node(cg.node(v), self.graph.layer_ids())
+                    .then(|| (self.op)(&cg, &self.graph, v))
             })
             .into_dyn_boxed()
     }

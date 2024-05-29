@@ -3,38 +3,94 @@ use crate::{
     db::{
         api::{
             state::{LazyNodeState, NodeState, NodeStateOps},
-            view::{DynamicGraph, IntoDynamic, StaticGraphViewOps},
+            view::{BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic, StaticGraphViewOps},
         },
         graph::node::NodeView,
     },
     prelude::Prop,
-    python::utils::PyGenericIterator,
+    python::types::iterable::{PyBorrowingIterator, PyIter},
 };
 use chrono::{DateTime, Utc};
 use once_cell::sync::Lazy;
 use pyo3::prelude::*;
+use std::sync::Arc;
+
+trait IntoPyIter<'a> {
+    fn into_py_iter(self) -> BoxedLIter<'a, PyObject>;
+}
+
+impl<'a, I: Iterator + Send + 'a> IntoPyIter<'a> for I
+where
+    I::Item: IntoPy<PyObject>,
+{
+    fn into_py_iter(self) -> BoxedLIter<'a, PyObject> {
+        self.map(|v| Python::with_gil(|py| v.into_py(py)))
+            .into_dyn_boxed()
+    }
+}
+
+macro_rules! py_iter {
+    ($inner:expr, $inner_t:ty, $closure:expr) => {{
+        struct Iterator($inner_t);
+
+        impl PyIter for Iterator {
+            fn iter(&self) -> BoxedLIter<PyObject> {
+                // forces the type inference to return the correct lifetimes,
+                // calling the closure directly does not work
+                fn apply<'a, O: IntoPyIter<'a>>(
+                    arg: &'a $inner_t,
+                    f: impl FnOnce(&'a $inner_t) -> O,
+                ) -> BoxedLIter<'a, PyObject> {
+                    f(arg).into_py_iter()
+                }
+                apply(&self.0, $closure)
+            }
+        }
+
+        Iterator($inner).into_py_iter()
+    }};
+}
+
+macro_rules! py_iter2 {
+    ($inner:expr, |$inner_x:ident: $inner_t:ty| $body:expr) => {{
+        struct Iterator($inner_t);
+
+        impl PyIter for Iterator {
+            fn iter(&self) -> BoxedLIter<PyObject> {
+                // forces the type inference to return the correct lifetimes,
+                // calling the closure directly does not work
+                fn __cast_signature__<'a>($inner_x: &'a $inner_t) -> BoxedLIter<'a, PyObject> {
+                    $body.into_py_iter()
+                }
+                __cast_signature__(&self.0)
+            }
+        }
+
+        Iterator($inner).into_py_iter()
+    }};
+}
 
 macro_rules! impl_node_state_ops {
     ($name:ident) => {
         #[pymethods]
         impl $name {
-            fn __iter__(&self) -> PyGenericIterator {
-                self.inner.clone().into_values().into()
-            }
-
             fn __len__(&self) -> usize {
                 self.inner.len()
             }
 
-            fn nodes(&self) -> PyGenericIterator {
-                self.inner.clone().into_iter().map(|(node, _)| node).into()
+            fn nodes(&self) -> PyBorrowingIterator {
+                py_iter!(self.inner.clone(), |inner| {
+                    inner.nodes().map(move |n| n.cloned())
+                })
             }
 
-            fn items(&self) -> PyGenericIterator {
-                self.inner.clone().into_iter().into()
+            fn items(&self) -> PyBorrowingIterator {
+                py_iterator(self.inner.clone(), |inner| {
+                    inner.iter().map(move |(n, v)| (n.cloned(), v.clone()))
+                })
             }
 
-            fn values(&self) -> PyGenericIterator {
+            fn values(&self) -> PyBorrowingIterator {
                 self.__iter__()
             }
         }
@@ -56,7 +112,7 @@ macro_rules! impl_lazy_node_state {
             }
         }
 
-        impl_node_state_ops!($name);
+        // impl_node_state_ops!($name);
 
         impl From<LazyNodeState<'static, $value, DynamicGraph, DynamicGraph>> for $name {
             fn from(inner: LazyNodeState<'static, $value, DynamicGraph, DynamicGraph>) -> Self {
@@ -76,14 +132,17 @@ macro_rules! impl_node_state {
     ($name:ident<$value:ty>) => {
         #[pyclass]
         pub struct $name {
-            inner: $crate::db::api::state::NodeState<'static, $value, DynamicGraph, DynamicGraph>,
+            inner:
+                Arc<$crate::db::api::state::NodeState<'static, $value, DynamicGraph, DynamicGraph>>,
         }
 
-        impl_node_state_ops!($name);
+        // impl_node_state_ops!($name);
 
         impl From<NodeState<'static, $value, DynamicGraph, DynamicGraph>> for $name {
             fn from(inner: NodeState<'static, $value, DynamicGraph, DynamicGraph>) -> Self {
-                $name { inner }
+                $name {
+                    inner: inner.into(),
+                }
             }
         }
 
@@ -121,3 +180,31 @@ impl_node_state!(NodeStateOptionStr<Option<ArcStr>>);
 
 impl_lazy_node_state!(LazyNodeStateListDateTime<Vec<DateTime<Utc>>>);
 impl_node_state!(NodeStateListDateTime<Vec<DateTime<Utc>>>);
+
+#[pymethods]
+impl NodeStateUsize {
+    fn __iter__(&self) -> PyBorrowingIterator {
+        {
+            struct Iterator(Arc<NodeState<'static, usize, DynamicGraph>>);
+
+            impl PyIter for Iterator {
+                fn iter(&self) -> BoxedLIter<PyObject> {
+                    self.0
+                        .values()
+                        .map(|&v| Python::with_gil(|py| v.into_py(py)))
+                        .into_dyn_boxed()
+                }
+            }
+
+            Iterator(self.inner.clone()).into_py_iter()
+        }
+    }
+
+    fn iter2(&self) -> PyBorrowingIterator {
+        py_iter!(
+            self.inner.clone(),
+            Arc<NodeState<'static, usize, DynamicGraph>>,
+            |inner| inner.values().copied()
+        )
+    }
+}
