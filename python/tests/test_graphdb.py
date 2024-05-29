@@ -2103,6 +2103,8 @@ def test_type_filter():
     g.add_edge(2, 5, 6, layer="a")
     g.add_edge(2, 3, 6, layer="a")
 
+    assert g.nodes.type_filter([""]).name.collect() == ['7', '8', '9']
+
     assert g.nodes.type_filter(["a"]).name.collect() == ['1', '4']
     assert g.nodes.type_filter(["a", "c"]).name.collect() == ['1', '4', '5']
     assert g.nodes.type_filter(["a"]).neighbours.name.collect() == [['2'], ['2', '5']]
