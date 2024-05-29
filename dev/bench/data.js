@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1716912624730,
+  "lastUpdate": 1716987214398,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -52195,6 +52195,66 @@ window.BENCHMARK_DATA = {
             "name": "temporal_motifs/temporal_motifs",
             "value": 21983872,
             "range": "± 319663",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "4599890+iamsmkr@users.noreply.github.com",
+            "name": "Shivam Kapoor",
+            "username": "iamsmkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c3289dc49eb7c3863aa9fb197fbe7e950fcb146d",
+          "message": "impl node type filter for nodes, pathfromgraph and pathfromnode (#1606)\n\n* fix node type filter\r\n\r\n* rid type_filter\r\n\r\n* rid nodetypefilter python\r\n\r\n* impl python type filter\r\n\r\n* fmt\r\n\r\n* fix graphql type filter\r\n\r\n* fmt\r\n\r\n* more tests\r\n\r\n* impl node filter\r\n\r\n* add nodes type filter\r\n\r\n* fixed compilation errors and added node types filter after hops\r\n\r\n* filtering by types\r\n\r\n* impl type filter for pathfromnode and pathfromgraph\r\n\r\n* fix len and is empty for pathfromgraph, more tests\r\n\r\n* more pathfromnode tests\r\n\r\n* add sanity tests for window, layer and subgraph graphs\r\n\r\n* ref, tests, fix multi hops, map node_types from Arc<[str]> to Arc<[bool]> for faster lookups\r\n\r\n* fmt, more tests\r\n\r\n* ref\r\n\r\n* add pytest\r\n\r\n* impl pytests\r\n\r\n* fix graphql and add basic tests\r\n\r\n* Part way through merge\r\n\r\n* finished merge\r\n\r\n* fixed internal issues\r\n\r\n* one last fixt\r\n\r\n* fmt\r\n\r\n* make node_type_id return 0 for arrow graph for now to pass the test. this needs fixing\r\n\r\n---------\r\n\r\nCo-authored-by: Fabian Murariu <murariu.fabian@gmail.com>\r\nCo-authored-by: miratepuffin <b.a.steer@qmul.ac.uk>",
+          "timestamp": "2024-05-29T13:42:43+01:00",
+          "tree_id": "c8b15388d54a271f99170f11c323545660106d98",
+          "url": "https://github.com/Pometry/Raphtory/commit/c3289dc49eb7c3863aa9fb197fbe7e950fcb146d"
+        },
+        "date": 1716987212628,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "local_triangle_count/local_triangle_count",
+            "value": 948282,
+            "range": "± 10069",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "local_clustering_coefficient/local_clustering_coefficient",
+            "value": 108000,
+            "range": "± 3294",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_clustering_coeff/graphgen_large_clustering_coeff/Graph(num_nodes=500004, num_edges=20...",
+            "value": 2436214999,
+            "range": "± 62765153",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_pagerank/graphgen_large_pagerank/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 265989724,
+            "range": "± 3511968",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_concomp/graphgen_large_concomp/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 2447293911,
+            "range": "± 49604046",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "temporal_motifs/temporal_motifs",
+            "value": 22141476,
+            "range": "± 318586",
             "unit": "ns/iter"
           }
         ]
