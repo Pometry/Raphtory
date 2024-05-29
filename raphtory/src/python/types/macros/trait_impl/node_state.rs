@@ -8,67 +8,13 @@ use crate::{
         graph::node::NodeView,
     },
     prelude::Prop,
-    python::types::iterable::{PyBorrowingIterator, PyIter},
+    py_borrowing_iter,
+    python::types::wrappers::iterators::PyBorrowingIterator,
 };
 use chrono::{DateTime, Utc};
 use once_cell::sync::Lazy;
 use pyo3::prelude::*;
 use std::sync::Arc;
-
-trait IntoPyIter<'a> {
-    fn into_py_iter(self) -> BoxedLIter<'a, PyObject>;
-}
-
-impl<'a, I: Iterator + Send + 'a> IntoPyIter<'a> for I
-where
-    I::Item: IntoPy<PyObject>,
-{
-    fn into_py_iter(self) -> BoxedLIter<'a, PyObject> {
-        self.map(|v| Python::with_gil(|py| v.into_py(py)))
-            .into_dyn_boxed()
-    }
-}
-
-macro_rules! py_iter {
-    ($inner:expr, $inner_t:ty, $closure:expr) => {{
-        struct Iterator($inner_t);
-
-        impl PyIter for Iterator {
-            fn iter(&self) -> BoxedLIter<PyObject> {
-                // forces the type inference to return the correct lifetimes,
-                // calling the closure directly does not work
-                fn apply<'a, O: IntoPyIter<'a>>(
-                    arg: &'a $inner_t,
-                    f: impl FnOnce(&'a $inner_t) -> O,
-                ) -> BoxedLIter<'a, PyObject> {
-                    f(arg).into_py_iter()
-                }
-                apply(&self.0, $closure)
-            }
-        }
-
-        Iterator($inner).into_py_iter()
-    }};
-}
-
-macro_rules! py_iter2 {
-    ($inner:expr, |$inner_x:ident: $inner_t:ty| $body:expr) => {{
-        struct Iterator($inner_t);
-
-        impl PyIter for Iterator {
-            fn iter(&self) -> BoxedLIter<PyObject> {
-                // forces the type inference to return the correct lifetimes,
-                // calling the closure directly does not work
-                fn __cast_signature__<'a>($inner_x: &'a $inner_t) -> BoxedLIter<'a, PyObject> {
-                    $body.into_py_iter()
-                }
-                __cast_signature__(&self.0)
-            }
-        }
-
-        Iterator($inner).into_py_iter()
-    }};
-}
 
 macro_rules! impl_node_state_ops {
     ($name:ident) => {
@@ -184,24 +130,7 @@ impl_node_state!(NodeStateListDateTime<Vec<DateTime<Utc>>>);
 #[pymethods]
 impl NodeStateUsize {
     fn __iter__(&self) -> PyBorrowingIterator {
-        {
-            struct Iterator(Arc<NodeState<'static, usize, DynamicGraph>>);
-
-            impl PyIter for Iterator {
-                fn iter(&self) -> BoxedLIter<PyObject> {
-                    self.0
-                        .values()
-                        .map(|&v| Python::with_gil(|py| v.into_py(py)))
-                        .into_dyn_boxed()
-                }
-            }
-
-            Iterator(self.inner.clone()).into_py_iter()
-        }
-    }
-
-    fn iter2(&self) -> PyBorrowingIterator {
-        py_iter!(
+        py_borrowing_iter!(
             self.inner.clone(),
             Arc<NodeState<'static, usize, DynamicGraph>>,
             |inner| inner.values().copied()

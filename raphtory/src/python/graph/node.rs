@@ -26,7 +26,7 @@ use crate::{
     prelude::Graph,
     python::{
         graph::properties::{PyNestedPropsIterable, PyPropsList},
-        types::{repr::StructReprBuilder, wrappers::iterators::*},
+        types::{repr::StructReprBuilder, wrappers::iterables::*},
         utils::PyTime,
     },
     *,
