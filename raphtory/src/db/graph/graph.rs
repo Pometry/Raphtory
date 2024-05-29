@@ -200,7 +200,6 @@ mod db_tests {
     use super::*;
     use crate::{
         algorithms::components::weakly_connected_components,
-        arrow::graph_impl::ArrowGraph,
         core::{
             utils::time::{error::ParseTimeError, TryIntoTime},
             ArcStr, OptionAsStr, Prop,
