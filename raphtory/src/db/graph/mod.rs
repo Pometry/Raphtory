@@ -1,4 +1,5 @@
 use crate::core::entities::properties::props::DictMapper;
+use itertools::Itertools;
 use std::sync::Arc;
 
 pub mod edge;
@@ -17,10 +18,12 @@ pub(crate) fn create_node_type_filter(
     let mut bool_arr = vec![false; len];
 
     for nt in node_types {
-        if let Some(id) = dict_mapper.get_id(nt.as_ref()) {
+        let nt = nt.as_ref();
+        if nt.is_empty() {
+            bool_arr[0] = true;
+        } else if let Some(id) = dict_mapper.get_id(nt) {
             bool_arr[id] = true;
         }
     }
-
     bool_arr.into()
 }

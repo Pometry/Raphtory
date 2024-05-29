@@ -2092,6 +2092,9 @@ def test_type_filter():
     g.add_node(1, 4, node_type="a")
     g.add_node(1, 5, node_type="c")
     g.add_node(1, 6, node_type="e")
+    g.add_node(1, 7)
+    g.add_node(1, 8)
+    g.add_node(1, 9)
     g.add_edge(2, 1, 2, layer="a")
     g.add_edge(2, 3, 2, layer="a")
     g.add_edge(2, 2, 4, layer="a")
@@ -2100,16 +2103,18 @@ def test_type_filter():
     g.add_edge(2, 5, 6, layer="a")
     g.add_edge(2, 3, 6, layer="a")
 
+    assert g.nodes.type_filter([""]).name.collect() == ['7', '8', '9']
+
     assert g.nodes.type_filter(["a"]).name.collect() == ['1', '4']
     assert g.nodes.type_filter(["a", "c"]).name.collect() == ['1', '4', '5']
     assert g.nodes.type_filter(["a"]).neighbours.name.collect() == [['2'], ['2', '5']]
 
-    assert g.nodes.degree().collect() == [1, 3, 2, 2, 2, 2]
+    assert g.nodes.degree().collect() == [1, 3, 2, 2, 2, 2, 0, 0, 0]
     assert g.nodes.type_filter(['a']).degree().collect() == [1, 2]
     assert g.nodes.type_filter(['d']).degree().collect() == []
     assert g.nodes.type_filter([]).name.collect() == []
 
-    assert len(g.nodes) == 6
+    assert len(g.nodes) == 9
     assert len(g.nodes.type_filter(['b'])) == 2
     assert len(g.nodes.type_filter(['d'])) == 0
 
