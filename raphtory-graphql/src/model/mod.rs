@@ -142,6 +142,7 @@ impl Mut {
 
         let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
 
+        #[cfg(feature = "arrow")]
         if subgraph.clone().graph.into_arrow().is_some() {
             return Err(GqlGraphError::ImmutableArrowGraph.into());
         }
@@ -192,6 +193,7 @@ impl Mut {
 
         let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
 
+        #[cfg(feature = "arrow")]
         if subgraph.clone().graph.into_arrow().is_some() {
             return Err(GqlGraphError::ImmutableArrowGraph.into());
         }
@@ -227,6 +229,7 @@ impl Mut {
         let parent_graph = data.get(&parent_graph_name).ok_or("Graph not found")?;
         let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
 
+        #[cfg(feature = "arrow")]
         if subgraph.clone().graph.into_arrow().is_some() {
             return Err(GqlGraphError::ImmutableArrowGraph.into());
         }
@@ -379,6 +382,7 @@ impl Mut {
         let data = ctx.data_unchecked::<Data>().graphs.write();
         let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
 
+        #[cfg(feature = "arrow")]
         if subgraph.clone().graph.into_arrow().is_some() {
             return Err(GqlGraphError::ImmutableArrowGraph.into());
         }

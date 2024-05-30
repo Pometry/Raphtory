@@ -155,6 +155,7 @@ impl Data {
             let path = entry.path();
             if path.is_dir() {
                 println!("Arrow Graph loaded = {}", path.display());
+                #[cfg(feature = "arrow")]
                 if is_arrow_graph_dir(&path) {
                     if let (graph_name, graph) = load_arrow_graph(&path) {
                         add_to_graphs(&mut graphs, &graph_name, &graph);
