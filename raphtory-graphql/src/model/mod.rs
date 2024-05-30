@@ -45,9 +45,9 @@ impl Display for MissingGraph {
 impl Error for MissingGraph {}
 
 #[derive(thiserror::Error, Debug)]
-pub enum UpdateGraphError {
+pub enum GqlGraphError {
     #[error("Arrow Graph is immutable")]
-    ImmutableGraph,
+    ImmutableArrowGraph,
 }
 
 #[derive(ResolvedObject)]
@@ -143,7 +143,7 @@ impl Mut {
         let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
 
         if subgraph.clone().graph.into_arrow().is_some() {
-            return Err(UpdateGraphError::ImmutableGraph.into());
+            return Err(GqlGraphError::ImmutableArrowGraph.into());
         }
 
         if new_graph_name.ne(&graph_name) && parent_graph_name.ne(&graph_name) {
@@ -193,7 +193,7 @@ impl Mut {
         let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
 
         if subgraph.clone().graph.into_arrow().is_some() {
-            return Err(UpdateGraphError::ImmutableGraph.into());
+            return Err(GqlGraphError::ImmutableArrowGraph.into());
         }
 
         let dt = Utc::now();
@@ -228,7 +228,7 @@ impl Mut {
         let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
 
         if subgraph.clone().graph.into_arrow().is_some() {
-            return Err(UpdateGraphError::ImmutableGraph.into());
+            return Err(GqlGraphError::ImmutableArrowGraph.into());
         }
 
         let path = match data.get(&new_graph_name) {
@@ -380,7 +380,7 @@ impl Mut {
         let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
 
         if subgraph.clone().graph.into_arrow().is_some() {
-            return Err(UpdateGraphError::ImmutableGraph.into());
+            return Err(GqlGraphError::ImmutableArrowGraph.into());
         }
 
         subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
