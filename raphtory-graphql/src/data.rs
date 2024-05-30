@@ -1,6 +1,7 @@
 use parking_lot::RwLock;
+#[cfg(feature = "arrow")]
+use raphtory::arrow::graph_impl::ArrowGraph;
 use raphtory::{
-    arrow::graph_impl::ArrowGraph,
     core::Prop,
     db::api::view::MaterializedGraph,
     prelude::{GraphViewOps, PropUnwrap, PropertyAdditionOps},
