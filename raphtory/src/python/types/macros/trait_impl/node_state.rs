@@ -1,23 +1,24 @@
 use crate::{
-    core::ArcStr,
+    core::{entities::nodes::node_ref::NodeRef, ArcStr},
     db::{
         api::{
-            state::{LazyNodeState, NodeState, NodeStateOps},
-            view::{BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic, StaticGraphViewOps},
+            state::{LazyNodeState, NodeState, NodeStateOps, OrderedNodeStateOps},
+            view::{DynamicGraph, GraphViewOps},
         },
         graph::node::NodeView,
     },
-    prelude::Prop,
     py_borrowing_iter,
-    python::types::wrappers::iterators::PyBorrowingIterator,
+    python::types::{repr::Repr, wrappers::iterators::PyBorrowingIterator},
 };
 use chrono::{DateTime, Utc};
-use once_cell::sync::Lazy;
-use pyo3::prelude::*;
+use pyo3::{
+    exceptions::{PyKeyError, PyTypeError},
+    prelude::*,
+};
 use std::sync::Arc;
 
 macro_rules! impl_node_state_ops {
-    ($name:ident) => {
+    ($name:ident, $inner_t:ty) => {
         #[pymethods]
         impl $name {
             fn __len__(&self) -> usize {
@@ -25,14 +26,8 @@ macro_rules! impl_node_state_ops {
             }
 
             fn nodes(&self) -> PyBorrowingIterator {
-                py_iter!(self.inner.clone(), |inner| {
-                    inner.nodes().map(move |n| n.cloned())
-                })
-            }
-
-            fn items(&self) -> PyBorrowingIterator {
-                py_iterator(self.inner.clone(), |inner| {
-                    inner.iter().map(move |(n, v)| (n.cloned(), v.clone()))
+                py_borrowing_iter!(self.inner.clone(), $inner_t, |inner| {
+                    inner.nodes().map(|n| n.cloned())
                 })
             }
 
@@ -43,12 +38,51 @@ macro_rules! impl_node_state_ops {
     };
 }
 
+macro_rules! impl_node_state_ord_ops {
+    ($name:ident<$value:ty>, $to_owned:expr) => {
+        #[pymethods]
+        impl $name {
+            #[pyo3(signature = (reverse = false))]
+            fn sorted(&self, reverse: bool) -> NodeState<'static, $value, DynamicGraph> {
+                self.inner.sort_by_values(reverse)
+            }
+
+            fn top_k(&self, k: usize) -> NodeState<'static, $value, DynamicGraph> {
+                self.inner.top_k(k)
+            }
+
+            fn bottom_k(&self, k: usize) -> NodeState<'static, $value, DynamicGraph> {
+                self.inner.bottom_k(k)
+            }
+
+            fn min_item(&self) -> Option<(NodeView<DynamicGraph>, $value)> {
+                self.inner
+                    .min_item()
+                    .map(|(n, v)| (n.cloned(), ($to_owned)(v)))
+            }
+
+            fn min(&self) -> Option<$value> {
+                self.inner.min().map(|v| ($to_owned)(v))
+            }
+
+            fn max_item(&self) -> Option<(NodeView<DynamicGraph>, $value)> {
+                self.inner
+                    .max_item()
+                    .map(|(n, v)| (n.cloned(), ($to_owned)(v)))
+            }
+
+            fn max(&self) -> Option<$value> {
+                self.inner.max().map(|v| ($to_owned)(v))
+            }
+        }
+    };
+}
+
 macro_rules! impl_lazy_node_state {
     ($name:ident<$value:ty>) => {
         #[pyclass]
         pub struct $name {
-            inner:
-                $crate::db::api::state::LazyNodeState<'static, $value, DynamicGraph, DynamicGraph>,
+            inner: LazyNodeState<'static, $value, DynamicGraph, DynamicGraph>,
         }
 
         #[pymethods]
@@ -56,9 +90,48 @@ macro_rules! impl_lazy_node_state {
             fn compute(&self) -> NodeState<'static, $value, DynamicGraph, DynamicGraph> {
                 self.inner.compute()
             }
+
+            fn __iter__(&self) -> PyBorrowingIterator {
+                py_borrowing_iter!(
+                    self.inner.clone(),
+                    LazyNodeState<'static, $value, DynamicGraph, DynamicGraph>,
+                    |inner| inner.values()
+                )
+            }
+
+            fn __getitem__(&self, node: NodeRef) -> PyResult<$value> {
+                self.inner.get_by_node(node).ok_or_else(|| match node {
+                    NodeRef::External(id) => {
+                        PyKeyError::new_err(format!("Missing value for node with id {id}"))
+                    }
+                    NodeRef::Internal(vid) => {
+                        let node = self.inner.graph().node(vid);
+                        match node {
+                            Some(node) => {
+                                PyKeyError::new_err(format!("Missing value {}", node.repr()))
+                            }
+                            None => PyTypeError::new_err("Invalid node reference"),
+                        }
+                    }
+                    NodeRef::ExternalStr(name) => {
+                        PyKeyError::new_err(format!("Missing value for node with name {name}"))
+                    }
+                })
+            }
+
+            fn items(&self) -> PyBorrowingIterator {
+                py_borrowing_iter!(
+                    self.inner.clone(),
+                    LazyNodeState<'static, $value, DynamicGraph, DynamicGraph>,
+                    |inner| inner.iter().map(|(n, v)| (n.cloned(), v))
+                )
+            }
         }
 
-        // impl_node_state_ops!($name);
+        impl_node_state_ops!(
+            $name,
+            LazyNodeState<'static, $value, DynamicGraph, DynamicGraph>
+        );
 
         impl From<LazyNodeState<'static, $value, DynamicGraph, DynamicGraph>> for $name {
             fn from(inner: LazyNodeState<'static, $value, DynamicGraph, DynamicGraph>) -> Self {
@@ -78,11 +151,55 @@ macro_rules! impl_node_state {
     ($name:ident<$value:ty>) => {
         #[pyclass]
         pub struct $name {
-            inner:
-                Arc<$crate::db::api::state::NodeState<'static, $value, DynamicGraph, DynamicGraph>>,
+            inner: Arc<NodeState<'static, $value, DynamicGraph, DynamicGraph>>,
         }
 
-        // impl_node_state_ops!($name);
+        #[pymethods]
+        impl $name {
+            fn __iter__(&self) -> PyBorrowingIterator {
+                py_borrowing_iter!(
+                    self.inner.clone(),
+                    Arc<NodeState<'static, $value, DynamicGraph>>,
+                    |inner| inner.values().cloned()
+                )
+            }
+
+            fn __getitem__(&self, node: NodeRef) -> PyResult<$value> {
+                self.inner
+                    .get_by_node(node)
+                    .cloned()
+                    .ok_or_else(|| match node {
+                        NodeRef::External(id) => {
+                            PyKeyError::new_err(format!("Missing value for node with id {id}"))
+                        }
+                        NodeRef::Internal(vid) => {
+                            let node = self.inner.graph().node(vid);
+                            match node {
+                                Some(node) => {
+                                    PyKeyError::new_err(format!("Missing value {}", node.repr()))
+                                }
+                                None => PyTypeError::new_err("Invalid node reference"),
+                            }
+                        }
+                        NodeRef::ExternalStr(name) => {
+                            PyKeyError::new_err(format!("Missing value for node with name {name}"))
+                        }
+                    })
+            }
+
+            fn items(&self) -> PyBorrowingIterator {
+                py_borrowing_iter!(
+                    self.inner.clone(),
+                    Arc<NodeState<'static, $value, DynamicGraph>>,
+                    |inner| inner.iter().map(|(n, v)| (n.cloned(), v.clone()))
+                )
+            }
+        }
+
+        impl_node_state_ops!(
+            $name,
+            Arc<NodeState<'static, $value, DynamicGraph, DynamicGraph>>
+        );
 
         impl From<NodeState<'static, $value, DynamicGraph, DynamicGraph>> for $name {
             fn from(inner: NodeState<'static, $value, DynamicGraph, DynamicGraph>) -> Self {
@@ -100,40 +217,43 @@ macro_rules! impl_node_state {
     };
 }
 
-impl_lazy_node_state!(LazyNodeStateUsize<usize>);
-impl_node_state!(NodeStateUsize<usize>);
-
-impl_lazy_node_state!(LazyNodeStateU64<u64>);
-impl_node_state!(NodeStateU64<u64>);
-
-impl_lazy_node_state!(LazyNodeStateOptionI64<Option<i64>>);
-impl_node_state!(NodeStateOptionI64<Option<i64>>);
-
-impl_lazy_node_state!(LazyNodeStateString<String>);
-impl_node_state!(NodeStateString<String>);
-
-impl_lazy_node_state!(LazyNodeStateOptionDateTime<Option<DateTime<Utc>>>);
-impl_node_state!(NodeStateOptionDateTime<Option<DateTime<Utc>>>);
-
-impl_lazy_node_state!(LazyNodeStateListI64<Vec<i64>>);
-impl_node_state!(NodeStateListI64<Vec<i64>>);
-
-impl_lazy_node_state!(LazyNodeStateOptionListDateTime<Option<Vec<DateTime<Utc>>>>);
-impl_node_state!(NodeStateOptionListDateTime<Option<Vec<DateTime<Utc>>>>);
-
-impl_lazy_node_state!(LazyNodeStateOptionStr<Option<ArcStr>>);
-impl_node_state!(NodeStateOptionStr<Option<ArcStr>>);
-
-impl_lazy_node_state!(LazyNodeStateListDateTime<Vec<DateTime<Utc>>>);
-impl_node_state!(NodeStateListDateTime<Vec<DateTime<Utc>>>);
-
-#[pymethods]
-impl NodeStateUsize {
-    fn __iter__(&self) -> PyBorrowingIterator {
-        py_borrowing_iter!(
-            self.inner.clone(),
-            Arc<NodeState<'static, usize, DynamicGraph>>,
-            |inner| inner.values().copied()
-        )
-    }
+macro_rules! impl_lazy_node_state_ord {
+    ($name:ident<$value:ty>) => {
+        impl_lazy_node_state!($name<$value>);
+        impl_node_state_ord_ops!($name<$value>, |v: $value| v);
+    };
 }
+
+macro_rules! impl_node_state_ord {
+    ($name:ident<$value:ty>) => {
+        impl_node_state!($name<$value>);
+        impl_node_state_ord_ops!($name<$value>, |v: &$value| v.clone());
+    };
+}
+
+impl_lazy_node_state_ord!(LazyNodeStateUsize<usize>);
+impl_node_state_ord!(NodeStateUsize<usize>);
+
+impl_lazy_node_state_ord!(LazyNodeStateU64<u64>);
+impl_node_state_ord!(NodeStateU64<u64>);
+
+impl_lazy_node_state_ord!(LazyNodeStateOptionI64<Option<i64>>);
+impl_node_state_ord!(NodeStateOptionI64<Option<i64>>);
+
+impl_lazy_node_state_ord!(LazyNodeStateString<String>);
+impl_node_state_ord!(NodeStateString<String>);
+
+impl_lazy_node_state_ord!(LazyNodeStateOptionDateTime<Option<DateTime<Utc>>>);
+impl_node_state_ord!(NodeStateOptionDateTime<Option<DateTime<Utc>>>);
+
+impl_lazy_node_state_ord!(LazyNodeStateListI64<Vec<i64>>);
+impl_node_state_ord!(NodeStateListI64<Vec<i64>>);
+
+impl_lazy_node_state_ord!(LazyNodeStateOptionListDateTime<Option<Vec<DateTime<Utc>>>>);
+impl_node_state_ord!(NodeStateOptionListDateTime<Option<Vec<DateTime<Utc>>>>);
+
+impl_lazy_node_state_ord!(LazyNodeStateOptionStr<Option<ArcStr>>);
+impl_node_state_ord!(NodeStateOptionStr<Option<ArcStr>>);
+
+impl_lazy_node_state_ord!(LazyNodeStateListDateTime<Vec<DateTime<Utc>>>);
+impl_node_state_ord!(NodeStateListDateTime<Vec<DateTime<Utc>>>);

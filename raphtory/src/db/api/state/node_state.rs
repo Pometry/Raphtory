@@ -255,22 +255,11 @@ impl<
         }
     }
 
-    fn get_by_node<N: AsNodeRef>(
-        &self,
-        node: N,
-    ) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)> {
+    fn get_by_node<N: AsNodeRef>(&self, node: N) -> Option<Self::Value<'_>> {
         let id = self.graph.internalise_node(node.as_node_ref())?;
         match &self.keys {
-            Some(index) => index.map.get(&id).map(|i| {
-                (
-                    NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, id),
-                    &self.values[*i],
-                )
-            }),
-            None => Some((
-                NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, id),
-                &self.values[id.0],
-            )),
+            Some(index) => index.map.get(&id).map(|i| &self.values[*i]),
+            None => Some(&self.values[id.0]),
         }
     }
 

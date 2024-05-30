@@ -4,6 +4,7 @@ use rayon::{
     iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator},
     prelude::ParallelSliceMut,
 };
+use tantivy::schema::OwnedValue;
 
 use crate::{
     core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
@@ -80,10 +81,7 @@ pub trait NodeStateOps<'graph>: IntoIterator<Item = Self::OwnedValue> {
         index: usize,
     ) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)>;
 
-    fn get_by_node<N: AsNodeRef>(
-        &self,
-        node: N,
-    ) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)>;
+    fn get_by_node<N: AsNodeRef>(&self, node: N) -> Option<Self::Value<'_>>;
 
     fn len(&self) -> usize;
 

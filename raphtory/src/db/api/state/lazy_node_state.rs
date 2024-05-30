@@ -267,10 +267,7 @@ impl<
         }
     }
 
-    fn get_by_node<N: AsNodeRef>(
-        &self,
-        node: N,
-    ) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)> {
+    fn get_by_node<N: AsNodeRef>(&self, node: N) -> Option<Self::Value<'_>> {
         let vid = self.graph.internalise_node(node.as_node_ref())?;
         match &self.nodes {
             NodeList::All { .. } => {}
@@ -283,12 +280,7 @@ impl<
         let cg = self.graph.core_graph();
         self.graph
             .filter_node(cg.nodes().node(vid), self.graph.layer_ids())
-            .then(|| {
-                (
-                    NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, vid),
-                    (self.op)(&cg, &self.graph, vid),
-                )
-            })
+            .then(|| (self.op)(&cg, &self.graph, vid))
     }
 
     fn len(&self) -> usize {

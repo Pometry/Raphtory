@@ -2300,7 +2300,11 @@ mod db_tests {
         g.add_node(1, 4, NO_PROPS, Some("wallet")).unwrap();
 
         assert_eq!(
-            g.nodes().type_filter(&vec!["wallet"]).name().collect_vec(),
+            g.nodes()
+                .type_filter(&vec!["wallet"])
+                .name()
+                .into_iter()
+                .collect_vec(),
             vec!["1", "4"]
         );
 
@@ -2467,11 +2471,19 @@ mod db_tests {
         assert_eq!(g.nodes().type_filter(&vec!["d"]).is_empty(), true);
 
         assert_eq!(
-            g.nodes().type_filter(&vec!["a"]).name().collect_vec(),
+            g.nodes()
+                .type_filter(&vec!["a"])
+                .name()
+                .into_iter()
+                .collect_vec(),
             vec!["1", "4"]
         );
         assert_eq!(
-            g.nodes().type_filter(&vec!["a", "c"]).name().collect_vec(),
+            g.nodes()
+                .type_filter(&vec!["a", "c"])
+                .name()
+                .into_iter()
+                .collect_vec(),
             vec!["1", "4", "5"]
         );
 
