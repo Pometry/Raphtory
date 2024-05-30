@@ -1048,5 +1048,19 @@ mod graphql_test {
                 }
             }),
         );
+
+        let req = &format!(
+            r#"mutation {{
+              updateGraphLastOpened(graphName: "{}")
+            }}"#,
+            "graph"
+        );
+
+        let req = Request::new(req);
+        let res = schema.execute(req).await;
+        let data = res.errors;
+        let error_message = &data[0].message;
+        let expected_error_message = "Arrow Graph is immutable";
+        assert_eq!(error_message, expected_error_message);
     }
 }
