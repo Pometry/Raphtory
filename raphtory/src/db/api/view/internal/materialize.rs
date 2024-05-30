@@ -104,6 +104,7 @@ impl MaterializedGraph {
         }
     }
 
+    #[cfg(feature = "arrow")]
     pub fn into_arrow(self) -> Option<ArrowGraph> {
         match self {
             MaterializedGraph::EventGraph(_) => None,
