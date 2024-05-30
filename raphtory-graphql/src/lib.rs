@@ -40,8 +40,9 @@ mod graphql_test {
     use crate::{data::Data, model::App};
     use async_graphql::UploadValue;
     use dynamic_graphql::{Request, Variables};
+    #[cfg(feature = "arrow")]
+    use raphtory::arrow::graph_impl::ArrowGraph;
     use raphtory::{
-        arrow::graph_impl::ArrowGraph,
         db::{api::view::IntoDynamic, graph::views::deletion_graph::PersistentGraph},
         prelude::*,
     };

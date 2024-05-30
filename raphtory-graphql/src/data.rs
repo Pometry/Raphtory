@@ -122,6 +122,7 @@ impl Data {
             (graph_name, graph)
         }
 
+        #[cfg(feature = "arrow")]
         fn load_arrow_graph(path: &Path) -> (String, MaterializedGraph) {
             let arrow_graph =
                 ArrowGraph::load_from_dir(path).expect("Unable to load from arrow graph");
@@ -129,6 +130,11 @@ impl Data {
             let graph_name = get_graph_name(path, &graph);
 
             (graph_name, graph)
+        }
+
+        #[cfg(not(feature = "arrow"))]
+        fn load_arrow_graph(path: &Path) -> (String, MaterializedGraph) {
+            unimplemented!("Arrow feature not enabled, cannot load from arrow graph")
         }
 
         fn add_to_graphs(
@@ -156,7 +162,6 @@ impl Data {
             let path = entry.path();
             if path.is_dir() {
                 println!("Arrow Graph loaded = {}", path.display());
-                #[cfg(feature = "arrow")]
                 if is_arrow_graph_dir(&path) {
                     if let (graph_name, graph) = load_arrow_graph(&path) {
                         add_to_graphs(&mut graphs, &graph_name, &graph);
