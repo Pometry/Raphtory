@@ -52,13 +52,19 @@ jobs:
         name: Cargo cache
         with:
           cache-all-crates: true
-      - name: Activate raphtory-arrow in Cargo.toml
-        run: make pull-arrow
       - name: Install bininstall
         uses: cargo-bins/cargo-binstall@main
       - name: Install nextest
         run: cargo binstall -y --force cargo-nextest
-      - name: Run Tests (No features)
+      - name: Run all Tests (no arrow)
+        env:
+          RUSTFLAGS: -Awarnings
+          TEMPDIR: ${{ runner.temp }}
+        run: |
+          cargo nextest run --all --no-default-features
+      - name: Activate raphtory-arrow in Cargo.toml
+        run: make pull-arrow
+      - name: Run all Tests (arrow)
         env:
           RUSTFLAGS: -Awarnings
           TEMPDIR: ${{ runner.temp }}

@@ -107,13 +107,12 @@ pub mod vectors;
 pub mod prelude {
     pub const NO_PROPS: [(&str, Prop); 0] = [];
     pub use crate::{
-        core::{storage::timeindex::TimeIndexEntry, IntoProp, Prop, PropUnwrap},
+        core::{IntoProp, Prop, PropUnwrap},
         db::{
             api::{
                 mutation::{AdditionOps, DeletionOps, ImportOps, PropertyAdditionOps},
                 view::{
-                    EdgeViewOps, GraphViewOps, Layer, LayerOps, NodeTypesFilter, NodeViewOps,
-                    ResetFilter, TimeOps,
+                    EdgeViewOps, GraphViewOps, Layer, LayerOps, NodeViewOps, ResetFilter, TimeOps,
                 },
             },
             graph::graph::Graph,

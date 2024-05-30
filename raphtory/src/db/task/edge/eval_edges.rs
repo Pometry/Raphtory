@@ -33,7 +33,13 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, CS: 
     for EvalEdges<'graph, 'a, G, GH, CS, S>
 {
     fn clone(&self) -> Self {
-        todo!()
+        Self {
+            ss: self.ss,
+            edges: self.edges.clone(),
+            storage: self.storage,
+            node_state: self.node_state.clone(),
+            local_state_prev: self.local_state_prev,
+        }
     }
 }
 

@@ -4,6 +4,7 @@ use std::{
     sync::Arc,
 };
 
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use raphtory_arrow::{
     arrow_hmap::ArrowHashMap, graph::TemporalGraph, graph_fragment::TempColGraphFragment,
     load::ExternalEdgeList, RAError,
@@ -30,15 +31,13 @@ use crate::{
         mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
         view::{internal::Immutable, DynamicGraph, IntoDynamic},
     },
-    prelude::{Graph, GraphViewOps, TimeIndexEntry},
+    prelude::{Graph, GraphViewOps},
 };
 
 pub mod const_properties_ops;
 pub mod core_ops;
 pub mod edge_filter_ops;
 mod edge_storage_ops;
-pub mod graph_ops;
-
 mod interop;
 pub mod layer_ops;
 mod list_ops;

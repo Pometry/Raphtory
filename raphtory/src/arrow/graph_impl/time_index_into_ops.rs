@@ -1,8 +1,8 @@
 use crate::{
     core::storage::timeindex::{TimeIndexIntoOps, TimeIndexOps},
     db::api::view::IntoDynBoxed,
-    prelude::TimeIndexEntry,
 };
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use raphtory_arrow::{
     prelude::{ArrayOps, BaseArrayOps},
     timestamps::TimeStamps,

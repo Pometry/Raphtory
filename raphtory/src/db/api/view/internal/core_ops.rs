@@ -80,6 +80,8 @@ pub trait CoreGraphOps {
     /// Returns the type of node
     fn node_type(&self, v: VID) -> Option<ArcStr>;
 
+    fn node_type_id(&self, v: VID) -> usize;
+
     /// Gets the internal reference for an external node reference and keeps internal references unchanged.
     fn internalise_node(&self, v: NodeRef) -> Option<VID>;
 
@@ -361,6 +363,9 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     #[inline]
     fn unfiltered_num_edges(&self) -> usize {
         self.graph().unfiltered_num_edges()
+    }
+    fn node_type_id(&self, v: VID) -> usize {
+        self.graph().node_type_id(v)
     }
 }
 

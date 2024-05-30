@@ -77,7 +77,7 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
 
     /// Returns the type of node
     fn node_type(&self) -> Self::ValueType<Option<ArcStr>>;
-
+    fn node_type_id(&self) -> Self::ValueType<usize>;
     /// Get the timestamp for the earliest activity of the node
     fn earliest_time(&self) -> Self::ValueType<Option<i64>>;
 
@@ -184,6 +184,10 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     #[inline]
     fn node_type(&self) -> Self::ValueType<Option<ArcStr>> {
         self.map(|_cg, g, v| g.node_type(v))
+    }
+    #[inline]
+    fn node_type_id(&self) -> Self::ValueType<usize> {
+        self.map(|_cg, g, v| g.node_type_id(v))
     }
     #[inline]
     fn earliest_time(&self) -> Self::ValueType<Option<i64>> {
