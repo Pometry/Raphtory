@@ -74,6 +74,27 @@ macro_rules! impl_node_state_ord_ops {
             fn max(&self) -> Option<$value> {
                 self.inner.max().map(|v| ($to_owned)(v))
             }
+
+            fn median(&self) -> Option<$value> {
+                self.inner.median().map(|v| ($to_owned)(v))
+            }
+
+            fn median_item(&self) -> Option<(NodeView<DynamicGraph>, $value)> {
+                self.inner
+                    .median_item()
+                    .map(|(n, v)| (n.cloned(), ($to_owned)(v)))
+            }
+        }
+    };
+}
+
+macro_rules! impl_node_state_num_ops {
+    ($name:ident<$value:ty>) => {
+        #[pymethods]
+        impl $name {
+            fn sum(&self) -> $value {
+                self.inner.sum()
+            }
         }
     };
 }
@@ -231,11 +252,25 @@ macro_rules! impl_node_state_ord {
     };
 }
 
-impl_lazy_node_state_ord!(LazyNodeStateUsize<usize>);
-impl_node_state_ord!(NodeStateUsize<usize>);
+macro_rules! impl_lazy_node_state_num {
+    ($name:ident<$value:ty>) => {
+        impl_lazy_node_state_ord!($name<$value>);
+        impl_node_state_num_ops!($name<$value>);
+    };
+}
 
-impl_lazy_node_state_ord!(LazyNodeStateU64<u64>);
-impl_node_state_ord!(NodeStateU64<u64>);
+macro_rules! impl_node_state_num {
+    ($name:ident<$value:ty>) => {
+        impl_node_state_ord!($name<$value>);
+        impl_node_state_num_ops!($name<$value>);
+    };
+}
+
+impl_lazy_node_state_num!(LazyNodeStateUsize<usize>);
+impl_node_state_num!(NodeStateUsize<usize>);
+
+impl_lazy_node_state_num!(LazyNodeStateU64<u64>);
+impl_node_state_num!(NodeStateU64<u64>);
 
 impl_lazy_node_state_ord!(LazyNodeStateOptionI64<Option<i64>>);
 impl_node_state_ord!(NodeStateOptionI64<Option<i64>>);
