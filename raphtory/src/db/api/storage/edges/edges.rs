@@ -41,6 +41,7 @@ pub enum EdgesStorageRef<'a> {
 }
 
 impl<'a> EdgesStorageRef<'a> {
+    #[allow(unused_variables)]
     pub fn get_layer(self, eid: EID, layer_id: usize) -> EdgeStorageRef<'a> {
         match self {
             EdgesStorageRef::Mem(storage) => EdgeStorageRef::Mem(storage.get(eid)),

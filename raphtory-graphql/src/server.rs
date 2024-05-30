@@ -1,5 +1,9 @@
 #![allow(dead_code)]
 use crate::{
+    azure_auth::{
+        common::{auth_callback, get_jwks, login, logout, verify, AppState},
+        token_middleware::TokenMiddleware,
+    },
     data::Data,
     model::{
         algorithms::{algorithm::Algorithm, algorithm_entry_point::AlgorithmEntryPoint},
@@ -10,8 +14,15 @@ use crate::{
 };
 use async_graphql::extensions::ApolloTracing;
 use async_graphql_poem::GraphQL;
+use dotenv::dotenv;
 use itertools::Itertools;
-use poem::{get, listener::TcpListener, middleware::Cors, EndpointExt, Route, Server};
+use oauth2::{basic::BasicClient, AuthUrl, ClientId, ClientSecret, RedirectUrl, TokenUrl};
+use poem::{
+    get,
+    listener::TcpListener,
+    middleware::{CookieJarManager, CookieJarManagerEndpoint, Cors, CorsEndpoint},
+    EndpointExt, Route, Server,
+};
 use raphtory::{
     db::api::view::{DynamicGraph, IntoDynamic, MaterializedGraph},
     vectors::{
@@ -21,7 +32,12 @@ use raphtory::{
     },
 };
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fs, path::Path, sync::Arc};
+use std::{
+    collections::HashMap,
+    env, fs,
+    path::Path,
+    sync::{Arc, Mutex},
+};
 use tokio::{
     io::Result as IoResult,
     signal,
@@ -138,16 +154,23 @@ impl RaphtoryServer {
     }
 
     /// Start the server on the default port and return a handle to it.
-    pub fn start(self, log_config_or_level: &str, enable_tracing: bool) -> RunningRaphtoryServer {
-        self.start_with_port(1736, log_config_or_level, enable_tracing)
+    pub async fn start(
+        self,
+        log_config_or_level: &str,
+        enable_tracing: bool,
+        enable_auth: bool,
+    ) -> RunningRaphtoryServer {
+        self.start_with_port(1736, log_config_or_level, enable_tracing, enable_auth)
+            .await
     }
 
     /// Start the server on the port `port` and return a handle to it.
-    pub fn start_with_port(
+    pub async fn start_with_port(
         self,
         port: u16,
         log_config_or_level: &str,
         enable_tracing: bool,
+        enable_auth: bool,
     ) -> RunningRaphtoryServer {
         fn parse_log_level(input: &str) -> Option<String> {
             // Parse log level from string
@@ -212,23 +235,19 @@ impl RaphtoryServer {
         .unwrap_or(());
 
         // it is important that this runs after algorithms have been pushed to PLUGIN_ALGOS static variable
-        let schema_builder = App::create_schema();
-        let schema_builder = schema_builder.data(self.data);
-        let schema = if enable_tracing {
-            let schema_builder = schema_builder.extension(ApolloTracing);
-            schema_builder.finish().unwrap()
+
+        let app: CorsEndpoint<CookieJarManagerEndpoint<Route>> = if enable_auth {
+            println!("Generating endpoint with auth");
+            self.generate_microsoft_endpoint_with_auth(enable_tracing, port)
+                .await
         } else {
-            schema_builder.finish().unwrap()
+            self.generate_endpoint(enable_tracing).await
         };
-        let app = Route::new()
-            .at("/", get(graphql_playground).post(GraphQL::new(schema)))
-            .at("/health", get(health))
-            .with(Cors::new());
 
         let (signal_sender, signal_receiver) = mpsc::channel(1);
 
         println!("Playground: http://localhost:{port}");
-        let server_task = Server::new(TcpListener::bind(format!("0.0.0.0:{port}")))
+        let server_task = Server::new(TcpListener::bind(format!("127.0.0.1:{port}")))
             .run_with_graceful_shutdown(app, server_termination(signal_receiver), None);
         let server_result = tokio::spawn(server_task);
 
@@ -238,9 +257,133 @@ impl RaphtoryServer {
         }
     }
 
+    async fn generate_endpoint(
+        self,
+        enable_tracing: bool,
+    ) -> CorsEndpoint<CookieJarManagerEndpoint<Route>> {
+        let schema_builder = App::create_schema();
+        let schema_builder = schema_builder.data(self.data);
+        let schema = if enable_tracing {
+            let schema_builder = schema_builder.extension(ApolloTracing);
+            schema_builder.finish().unwrap()
+        } else {
+            schema_builder.finish().unwrap()
+        };
+
+        let app = Route::new()
+            .at("/", get(graphql_playground).post(GraphQL::new(schema)))
+            .at("/health", get(health))
+            .with(CookieJarManager::new())
+            .with(Cors::new());
+        app
+    }
+
+    async fn generate_microsoft_endpoint_with_auth(
+        self,
+        enable_tracing: bool,
+        port: u16,
+    ) -> CorsEndpoint<CookieJarManagerEndpoint<Route>> {
+        let schema_builder = App::create_schema();
+        let schema_builder = schema_builder.data(self.data);
+        let schema = if enable_tracing {
+            let schema_builder = schema_builder.extension(ApolloTracing);
+            schema_builder.finish().unwrap()
+        } else {
+            schema_builder.finish().unwrap()
+        };
+
+        dotenv().ok();
+        println!("Loading env");
+        let client_id_str = env::var("CLIENT_ID").expect("CLIENT_ID not set");
+        let client_secret_str = env::var("CLIENT_SECRET").expect("CLIENT_SECRET not set");
+        let tenant_id_str = env::var("TENANT_ID").expect("TENANT_ID not set");
+
+        let client_id = ClientId::new(client_id_str);
+        let client_secret = ClientSecret::new(client_secret_str);
+
+        let auth_url = AuthUrl::new(format!(
+            "https://login.microsoftonline.com/{}/oauth2/v2.0/authorize",
+            tenant_id_str.clone()
+        ))
+        .expect("Invalid authorization endpoint URL");
+        let token_url = TokenUrl::new(format!(
+            "https://login.microsoftonline.com/{}/oauth2/v2.0/token",
+            tenant_id_str.clone()
+        ))
+        .expect("Invalid token endpoint URL");
+
+        println!("Loading client");
+        let client = BasicClient::new(
+            client_id.clone(),
+            Some(client_secret.clone()),
+            auth_url,
+            Some(token_url),
+        )
+        .set_redirect_uri(
+            RedirectUrl::new(format!(
+                "http://localhost:{}/auth/callback",
+                port.to_string()
+            ))
+            .expect("Invalid redirect URL"),
+        );
+
+        println!("Fetching JWKS");
+        let jwks = get_jwks().await.expect("Failed to fetch JWKS");
+
+        let app_state = AppState {
+            oauth_client: Arc::new(client),
+            csrf_state: Arc::new(Mutex::new(HashMap::new())),
+            pkce_verifier: Arc::new(Mutex::new(HashMap::new())),
+            jwks: Arc::new(jwks),
+        };
+
+        let token_middleware = TokenMiddleware::new(Arc::new(app_state.clone()));
+
+        println!("Making app");
+        let app = Route::new()
+            .at(
+                "/",
+                get(graphql_playground)
+                    .post(GraphQL::new(schema))
+                    .with(token_middleware.clone()),
+            )
+            .at("/health", get(health))
+            .at("/login", login.data(app_state.clone()))
+            .at("/auth/callback", auth_callback.data(app_state.clone()))
+            .at(
+                "/verify",
+                verify
+                    .data(app_state.clone())
+                    .with(token_middleware.clone()),
+            )
+            // .at(
+            //     "/secure_endpoint",
+            //     secure_endpoint.with(token_middleware.clone()),
+            // )
+            .at("/logout", logout.with(token_middleware.clone()))
+            .with(CookieJarManager::new())
+            .with(Cors::new());
+        println!("App done");
+        app
+    }
+
     /// Run the server on the default port until completion.
     pub async fn run(self, log_config_or_level: &str, enable_tracing: bool) -> IoResult<()> {
-        self.start(log_config_or_level, enable_tracing).wait().await
+        self.start(log_config_or_level, enable_tracing, false)
+            .await
+            .wait()
+            .await
+    }
+
+    pub async fn run_with_auth(
+        self,
+        log_config_or_level: &str,
+        enable_tracing: bool,
+    ) -> IoResult<()> {
+        self.start(log_config_or_level, enable_tracing, true)
+            .await
+            .wait()
+            .await
     }
 
     /// Run the server on the port `port` until completion.
@@ -250,7 +393,8 @@ impl RaphtoryServer {
         log_config_or_level: &str,
         enable_tracing: bool,
     ) -> IoResult<()> {
-        self.start_with_port(port, log_config_or_level, enable_tracing)
+        self.start_with_port(port, log_config_or_level, enable_tracing, false)
+            .await
             .wait()
             .await
     }
@@ -340,10 +484,10 @@ mod server_tests {
         let graphs = HashMap::from([("test".to_owned(), g)]);
         let server = RaphtoryServer::from_map(graphs);
         println!("calling start at time {}", Local::now());
-        let handler = server.start_with_port(0, "info", false);
+        let handler = server.start_with_port(0, "info", false, false);
         sleep(Duration::from_secs(1)).await;
         println!("Calling stop at time {}", Local::now());
-        handler.stop().await;
-        handler.wait().await.unwrap()
+        handler.await.stop().await;
+        handler.await.wait().await.unwrap()
     }
 }
