@@ -15,10 +15,12 @@ homepage.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+raphtory-api = { path = "../raphtory-api", version = "0.8.1" }
 bincode = { workspace = true }
 chrono = { workspace = true }
 itertools = { workspace = true }
 num-traits = { workspace = true }
+num-integer = { workspace = true }
 parking_lot = { workspace = true }
 once_cell = { workspace = true }
 rand = { workspace = true }
@@ -73,7 +75,7 @@ tempfile = { workspace = true, optional = true }
 bytemuck = { workspace = true, optional = true }
 rpds = { workspace = true, optional = true }
 thread_local = { workspace = true, optional = true }
-raphtory-arrow = { path = "../raphtory-arrow", version="0.8.1", optional = true }
+raphtory-arrow = { workspace = true, optional = true }
 
 [dev-dependencies]
 csv = { workspace = true }

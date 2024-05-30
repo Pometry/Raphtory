@@ -6,6 +6,7 @@ use crate::{
 use chrono::{DateTime, NaiveDateTime, Utc};
 use itertools::Itertools;
 use num_traits::Saturating;
+use raphtory_api::core::entities::VID;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -17,91 +18,7 @@ use std::{
     ops::{Deref, Range},
 };
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq, Ord, PartialOrd, Eq)]
-pub struct TimeIndexEntry(pub i64, pub usize);
-
-pub trait AsTime: Debug + Copy + Ord + Eq + Send + Sync + 'static {
-    fn t(&self) -> i64;
-
-    fn dt(&self) -> Option<DateTime<Utc>> {
-        let t = self.t();
-        DateTime::from_timestamp_millis(t)
-    }
-
-    fn range(w: Range<i64>) -> Range<Self>;
-}
-
-#[cfg(feature = "arrow")]
-impl raphtory_arrow::interop::AsTime for TimeIndexEntry {
-    fn t(&self) -> i64 {
-        self.0
-    }
-
-    fn range(w: Range<i64>) -> Range<Self> {
-        Self::start(w.start)..Self::start(w.end)
-    }
-
-    fn new(t: i64, s: usize) -> Self {
-        Self(t, s)
-    }
-
-    fn i(&self) -> usize {
-        self.1
-    }
-}
-
-impl From<i64> for TimeIndexEntry {
-    fn from(value: i64) -> Self {
-        Self::start(value)
-    }
-}
-
-impl TimeIndexEntry {
-    pub const MIN: TimeIndexEntry = TimeIndexEntry(i64::MIN, 0);
-
-    pub const MAX: TimeIndexEntry = TimeIndexEntry(i64::MAX, usize::MAX);
-    pub fn new(t: i64, s: usize) -> Self {
-        Self(t, s)
-    }
-
-    pub fn from_input<G: InternalAdditionOps, T: TryIntoInputTime>(
-        g: &G,
-        t: T,
-    ) -> Result<Self, ParseTimeError> {
-        let t = t.try_into_input_time()?;
-        Ok(match t {
-            InputTime::Simple(t) => Self::new(t, g.next_event_id()),
-            InputTime::Indexed(t, s) => Self::new(t, s),
-        })
-    }
-
-    pub fn start(t: i64) -> Self {
-        Self(t, 0)
-    }
-
-    pub fn end(t: i64) -> Self {
-        Self(t.saturating_add(1), 0)
-    }
-}
-
-impl AsTime for i64 {
-    fn t(&self) -> i64 {
-        *self
-    }
-
-    fn range(w: Range<i64>) -> Range<Self> {
-        w
-    }
-}
-
-impl AsTime for TimeIndexEntry {
-    fn t(&self) -> i64 {
-        self.0
-    }
-    fn range(w: Range<i64>) -> Range<Self> {
-        Self::start(w.start)..Self::start(w.end)
-    }
-}
+pub use raphtory_api::core::storage::timeindex::*;
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum TimeIndex<T: Ord + Eq + Copy + Debug> {
@@ -375,6 +292,7 @@ pub trait TimeIndexOps: Send + Sync {
         Self: 'a;
 
     fn active(&self, w: Range<Self::IndexType>) -> bool;
+
     fn active_t(&self, w: Range<i64>) -> bool {
         self.active(Self::IndexType::range(w))
     }
@@ -431,7 +349,7 @@ impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
     fn active(&self, w: Range<T>) -> bool {
         match &self {
             TimeIndex::Empty => false,
-            TimeIndex::One(t) => w.contains(&t),
+            TimeIndex::One(t) => w.contains(t),
             TimeIndex::Set(ts) => ts.range(w).next().is_some(),
         }
     }
@@ -440,7 +358,7 @@ impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
         match &self {
             TimeIndex::Empty => TimeIndexWindow::Empty,
             TimeIndex::One(t) => {
-                if w.contains(&t) {
+                if w.contains(t) {
                     TimeIndexWindow::All(self)
                 } else {
                     TimeIndexWindow::Empty

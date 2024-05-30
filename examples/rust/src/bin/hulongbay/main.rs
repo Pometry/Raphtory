@@ -2,7 +2,13 @@
 #![allow(dead_code)]
 use itertools::Itertools;
 use raphtory::{
-    algorithms::{components::weakly_connected_components, motifs::triangle_count::triangle_count},
+    algorithms::{
+        components::weakly_connected_components,
+        motifs::{
+            global_temporal_three_node_motifs::global_temporal_three_node_motif,
+            triangle_count::triangle_count,
+        },
+    },
     graph_loader::source::csv_loader::CsvLoader,
     prelude::*,
 };
@@ -207,8 +213,16 @@ fn try_main_bm() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+fn try_motif() -> Result<(), Box<dyn Error>> {
+    let args: Vec<String> = env::args().collect();
+    let data_dir = Path::new(args.get(1).ok_or(MissingArgumentError)?);
+    let graph = loader(data_dir)?;
+    global_temporal_three_node_motif(&graph, 3600, None);
+    Ok(())
+}
+
 fn main() {
-    if let Err(e) = try_main_bm() {
+    if let Err(e) = try_motif() {
         eprintln!("Failed: {}", e);
         std::process::exit(1)
     }

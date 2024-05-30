@@ -15,7 +15,10 @@ use crate::{
     },
     db::{
         api::{storage::storage_ops::GraphStorage, view::StaticGraphViewOps},
-        task::node::{eval_node::EvalNodeView, eval_node_state::EVState},
+        task::{
+            eval_graph::EvalGraph,
+            node::{eval_node::EvalNodeView, eval_node_state::EVState},
+        },
     },
 };
 use rayon::{prelude::*, ThreadPool};
@@ -61,24 +64,21 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         let global_state_view = global_state.as_cow();
 
         let g = self.ctx.graph();
-
         let mut done = true;
-
         let node_state = EVState::rc_from(shard_state_view, global_state_view);
-
         let local = PrevLocalState::new(prev_local_state);
         let mut v_ref = morcel_id * morcel_size;
+
         for local_state in morcel {
             if g.has_node(VID(v_ref)) {
-                let mut vv = EvalNodeView::new_local(
-                    self.ctx.ss(),
-                    v_ref.into(),
-                    &g,
+                let eval_graph = EvalGraph {
+                    ss: self.ctx.ss(),
+                    base_graph: &g,
                     storage,
-                    Some(local_state),
-                    &local,
-                    node_state.clone(),
-                );
+                    local_state_prev: &local,
+                    node_state: node_state.clone(),
+                };
+                let mut vv = EvalNodeView::new_local(v_ref.into(), eval_graph, Some(local_state));
 
                 match task.run(&mut vv) {
                     Step::Continue => {

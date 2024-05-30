@@ -17,8 +17,8 @@ use crate::{
         },
         tprop_storage_ops::TPropOps,
     },
-    prelude::TimeIndexEntry,
 };
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use rayon::iter::ParallelIterator;
 use std::ops::Range;
 
@@ -148,11 +148,7 @@ impl<'a> EdgeStorageOps<'a> for &'a EdgeOwnedEntry {
         self.as_ref().has_temporal_prop(layer_ids, prop_id)
     }
 
-    fn temporal_prop_layer(
-        self,
-        layer_id: usize,
-        prop_id: usize,
-    ) -> impl TPropOps<'a> + Send + Sync + 'a {
+    fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> impl TPropOps<'a> + Sync + 'a {
         self.as_ref().temporal_prop_layer(layer_id, prop_id)
     }
 

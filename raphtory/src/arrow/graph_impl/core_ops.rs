@@ -28,13 +28,17 @@ use crate::{
             },
             storage_ops::GraphStorage,
         },
-        view::{internal::CoreGraphOps, BoxedIter},
+        view::{
+            internal::{CoreGraphOps, DelegateCoreOps},
+            BoxedIter,
+        },
     },
 };
 use itertools::Itertools;
 use polars_arrow::datatypes::ArrowDataType;
-use raphtory_arrow::{properties::Properties, GID};
+use raphtory_arrow::{properties::Properties, GidRef, GID};
 use rayon::prelude::*;
+
 impl CoreGraphOps for ArrowGraph {
     fn unfiltered_num_nodes(&self) -> usize {
         self.inner.num_nodes()
@@ -67,7 +71,7 @@ impl CoreGraphOps for ArrowGraph {
             LayerIds::All => Box::new(
                 self.inner
                     .layer_names()
-                    .into_iter()
+                    .iter()
                     .map(|s| ArcStr::from(s.as_str()))
                     .collect::<Vec<_>>()
                     .into_iter(),
@@ -78,7 +82,7 @@ impl CoreGraphOps for ArrowGraph {
                     .get(*id)
                     .cloned()
                     .into_iter()
-                    .map(|s| ArcStr::from(s)),
+                    .map(ArcStr::from),
             ),
             LayerIds::Multiple(ids) => Box::new(
                 ids.iter()
@@ -86,7 +90,7 @@ impl CoreGraphOps for ArrowGraph {
                     .filter_map(|id| self.inner.layer_names().get(id).cloned())
                     .collect_vec()
                     .into_iter()
-                    .map(|s| ArcStr::from(s)),
+                    .map(ArcStr::from),
             ),
         }
     }
@@ -97,17 +101,17 @@ impl CoreGraphOps for ArrowGraph {
 
     fn node_id(&self, v: VID) -> u64 {
         match self.inner.node_gid(v).unwrap() {
-            GID::U64(n) => n,
-            GID::I64(n) => n as u64,
-            GID::Str(s) => s.id(),
+            GidRef::U64(n) => n,
+            GidRef::I64(n) => n as u64,
+            GidRef::Str(s) => s.id(),
         }
     }
 
     fn node_name(&self, v: VID) -> String {
         match self.inner.node_gid(v).unwrap() {
-            GID::U64(n) => n.to_string(),
-            GID::I64(n) => n.to_string(),
-            GID::Str(s) => s,
+            GidRef::U64(n) => n.to_string(),
+            GidRef::I64(n) => n.to_string(),
+            GidRef::Str(s) => s.to_owned(),
         }
     }
 
@@ -117,12 +121,9 @@ impl CoreGraphOps for ArrowGraph {
 
     fn internalise_node(&self, v: NodeRef) -> Option<VID> {
         match v {
-            NodeRef::Internal(vid) => Some(vid.into()),
-            NodeRef::External(vid) => self.inner.find_node(&GID::U64(vid)).map(|v| v.into()),
-            NodeRef::ExternalStr(string) => self
-                .inner
-                .find_node(&GID::Str(string.into()))
-                .map(|v| v.into()),
+            NodeRef::Internal(vid) => Some(vid),
+            NodeRef::External(vid) => self.inner.find_node(&GID::U64(vid)),
+            NodeRef::ExternalStr(string) => self.inner.find_node(&GID::Str(string.into())),
         }
     }
 
@@ -141,7 +142,7 @@ impl CoreGraphOps for ArrowGraph {
     fn constant_node_prop(&self, v: VID, id: usize) -> Option<Prop> {
         match &self.inner.node_properties() {
             None => None,
-            Some(props) => const_props(props, v.into(), id),
+            Some(props) => const_props(props, v, id),
         }
     }
 
@@ -150,7 +151,7 @@ impl CoreGraphOps for ArrowGraph {
             None => Box::new(std::iter::empty()),
             Some(props) => Box::new(
                 (0..props.const_props.num_props())
-                    .filter(move |id| props.const_props.has_prop(v.into(), *id)),
+                    .filter(move |id| props.const_props.has_prop(v, *id)),
             ),
         }
     }
@@ -203,7 +204,7 @@ impl CoreGraphOps for ArrowGraph {
     }
 
     fn core_nodes(&self) -> NodesStorage {
-        NodesStorage::Arrow(ArrowNodesOwned::new(&self.inner))
+        NodesStorage::Arrow(ArrowNodesOwned::new(self.inner.clone()))
     }
 
     fn core_node_entry(&self, vid: VID) -> NodeStorageEntry {
@@ -211,7 +212,7 @@ impl CoreGraphOps for ArrowGraph {
     }
 
     fn core_node_arc(&self, vid: VID) -> NodeOwnedEntry {
-        NodeOwnedEntry::Arrow(ArrowOwnedNode::new(&self.inner, vid))
+        NodeOwnedEntry::Arrow(ArrowOwnedNode::new(self.inner.clone(), vid))
     }
 
     fn core_edge_arc(&self, eid: ELID) -> EdgeOwnedEntry {
@@ -224,6 +225,11 @@ impl CoreGraphOps for ArrowGraph {
             .par_iter()
             .map(|layer| layer.num_edges())
             .sum()
+    }
+
+    fn node_type_id(&self, v: VID) -> usize {
+        // self.graph().node_type_id(v) TODO: Impl node types for arrow graphs
+        0
     }
 }
 

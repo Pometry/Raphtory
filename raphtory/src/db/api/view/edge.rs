@@ -382,7 +382,7 @@ mod test_edge_view {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G, expected_prop_values: &[i32]) {
             let prop_values: Vec<_> = graph
@@ -459,7 +459,7 @@ mod test_edge_view {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let mut exploded_edges: Vec<_> = graph.edges().explode().iter().collect();

@@ -14,6 +14,3 @@ mod nodeviewops;
 mod repr;
 #[macro_use]
 mod iterable_mixin;
-
-#[macro_use]
-mod nodetypesfilter;

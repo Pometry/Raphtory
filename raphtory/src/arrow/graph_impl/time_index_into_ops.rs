@@ -1,8 +1,8 @@
 use crate::{
     core::storage::timeindex::{TimeIndexIntoOps, TimeIndexOps},
     db::api::view::IntoDynBoxed,
-    prelude::TimeIndexEntry,
 };
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use raphtory_arrow::{
     prelude::{ArrayOps, BaseArrayOps},
     timestamps::TimeStamps,
@@ -70,7 +70,6 @@ impl<'a> TimeIndexOps for TimeStamps<'a, TimeIndexEntry> {
         TimeStamps::new(
             self.timestamps().slice(start..end),
             self.sec_index()
-                .clone()
                 .map(|sec_index| sec_index.sliced(start..end)),
         )
     }
@@ -112,7 +111,6 @@ impl<'a> TimeIndexOps for TimeStamps<'a, TimeIndexEntry> {
     fn iter(&self) -> Box<dyn Iterator<Item = Self::IndexType> + Send + '_> {
         let sec_iter: Box<dyn Iterator<Item = usize> + Send + 'a> = self
             .sec_index()
-            .clone()
             .map(|v| v.map(|i| i as usize).into_dyn_boxed())
             .unwrap_or(self.timestamps().range().clone().into_dyn_boxed());
         Box::new(
@@ -141,7 +139,6 @@ impl<'a> TimeIndexOps for TimeStamps<'a, i64> {
         TimeStamps::new(
             self.timestamps().slice(start..end),
             self.sec_index()
-                .clone()
                 .map(|sec_index| sec_index.sliced(start..end)),
         )
     }

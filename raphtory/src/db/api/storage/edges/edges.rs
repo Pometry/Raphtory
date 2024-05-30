@@ -41,26 +41,6 @@ pub enum EdgesStorageRef<'a> {
 }
 
 impl<'a> EdgesStorageRef<'a> {
-    #[allow(unused_variables)]
-    pub fn get_layer(self, eid: EID, layer_id: usize) -> EdgeStorageRef<'a> {
-        match self {
-            EdgesStorageRef::Mem(storage) => EdgeStorageRef::Mem(storage.get(eid)),
-            #[cfg(feature = "arrow")]
-            EdgesStorageRef::Arrow(storage) => EdgeStorageRef::Arrow(storage.edge(eid, layer_id)),
-        }
-    }
-
-    #[inline]
-    pub fn get(self, eid: EID) -> EdgeStorageRef<'a> {
-        match self {
-            EdgesStorageRef::Mem(storage) => EdgeStorageRef::Mem(storage.get(eid)),
-            #[cfg(feature = "arrow")]
-            EdgesStorageRef::Arrow(_) => {
-                todo!("getting multilayer edge not implemented for arrow graph")
-            }
-        }
-    }
-
     #[cfg(feature = "arrow")]
     pub fn iter(self, layers: LayerIds) -> impl Iterator<Item = EdgeStorageRef<'a>> {
         match self {

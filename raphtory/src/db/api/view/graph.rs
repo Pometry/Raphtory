@@ -132,6 +132,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         let graph = self.clone();
         Nodes::new(graph)
     }
+
     fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
         let g = InternalGraph::default();
 
@@ -569,10 +570,10 @@ mod test_materialize {
     fn testing_node_types() {
         let graph = Graph::new();
         graph.add_node(0, "A", NO_PROPS, None).unwrap();
-        graph.add_node(1, "B", NO_PROPS, Some(&"H")).unwrap();
+        graph.add_node(1, "B", NO_PROPS, Some("H")).unwrap();
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let node_a = graph.node("A").unwrap();
             let node_b = graph.node("B").unwrap();

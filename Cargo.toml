@@ -8,8 +8,7 @@ members = [
     "examples/netflow",
     "python",
     "js-raphtory",
-    "raphtory-graphql",
-    "raphtory-auth",
+    "raphtory-graphql", "raphtory-api",
 ]
 default-members = ["raphtory"]
 resolver = "2"
@@ -31,6 +30,10 @@ inherits = "release"
 debug = true
 
 [workspace.dependencies]
+#[public-arrow]
+raphtory-arrow = { version = "0.8.1", path = "raphtory-arrow" }
+#[private-arrow]
+# raphtory-arrow = { path = "raphtory-arrow-private", package = "raphtory-arrow-private" }
 async-graphql = { version = "7.0.5", features = ["dynamic-schema"] }
 async-graphql-poem = "7.0.5"
 dynamic-graphql = { path = "/Users/haaroony/Documents/dev/dynamic-graphql" }
@@ -59,6 +62,7 @@ flate2 = "1.0.28"
 regex = "1.10.3"
 genawaiter = "0.99.1"
 num-traits = "0.2.18"
+num-integer = "0.1"
 rand_distr = "0.4.3"
 rustc-hash = "1.1.0"
 twox-hash = "1.6.3"

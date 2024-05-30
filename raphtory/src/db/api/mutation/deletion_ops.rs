@@ -1,7 +1,6 @@
 use crate::{
     core::{
         entities::nodes::input_node::InputNode,
-        storage::timeindex::TimeIndexEntry,
         utils::{errors::GraphError, time::IntoTimeWithFormat},
     },
     db::api::mutation::{
@@ -9,6 +8,8 @@ use crate::{
         TryIntoInputTime,
     },
 };
+
+use super::time_from_input;
 
 pub trait DeletionOps: InternalDeletionOps + InternalAdditionOps + Sized {
     fn delete_edge<V: InputNode, T: TryIntoInputTime>(
@@ -18,7 +19,7 @@ pub trait DeletionOps: InternalDeletionOps + InternalAdditionOps + Sized {
         dst: V,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
-        let ti = TimeIndexEntry::from_input(self, t)?;
+        let ti = time_from_input(self, t)?;
         let src_id = self.resolve_node(src.id(), src.id_str());
         let dst_id = self.resolve_node(dst.id(), src.id_str());
         let layer = self.resolve_layer(layer);

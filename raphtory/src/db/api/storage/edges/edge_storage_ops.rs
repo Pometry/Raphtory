@@ -7,7 +7,6 @@ use crate::{
         storage::timeindex::{TimeIndex, TimeIndexIntoOps, TimeIndexOps, TimeIndexWindow},
     },
     db::api::view::IntoDynBoxed,
-    prelude::TimeIndexEntry,
 };
 
 #[cfg(feature = "arrow")]
@@ -17,6 +16,7 @@ use crate::{
     core::entities::properties::tprop::TProp,
     db::api::storage::{tprop_storage_ops::TPropOps, variants::layer_variants::LayerVariants},
 };
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use rayon::prelude::*;
 use std::ops::Range;
 
@@ -44,7 +44,7 @@ impl<'a> TimeIndexOps for TimeIndexRef<'a> {
 
     fn active(&self, w: Range<TimeIndexEntry>) -> bool {
         match self {
-            TimeIndexRef::Ref(ref t) => t.active(w),
+            TimeIndexRef::Ref(t) => t.active(w),
             TimeIndexRef::Range(ref t) => t.active(w),
             #[cfg(feature = "arrow")]
             TimeIndexRef::External(ref t) => t.active(w),
@@ -212,11 +212,7 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
             .any(move |id| !self.temporal_prop_layer(id, prop_id).is_empty())
     }
 
-    fn temporal_prop_layer(
-        self,
-        layer_id: usize,
-        prop_id: usize,
-    ) -> impl TPropOps<'a> + Send + Sync + 'a;
+    fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> impl TPropOps<'a> + Sync + 'a;
 
     fn temporal_prop_iter(
         self,

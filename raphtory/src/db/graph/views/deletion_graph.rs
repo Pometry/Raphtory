@@ -552,7 +552,7 @@ impl TimeSemantics for PersistentGraph {
 
     fn edge_is_valid_at_end(&self, e: EdgeRef, layer_ids: &LayerIds, end: i64) -> bool {
         let edge = self.0.core_edge(e.into());
-        edge_alive_at_end(edge.as_ref(), end, &layer_ids)
+        edge_alive_at_end(edge.as_ref(), end, layer_ids)
     }
 
     #[inline]
@@ -646,7 +646,7 @@ impl TimeSemantics for PersistentGraph {
     ) -> Vec<(i64, Prop)> {
         let entry = self.core_edge(e.into());
         entry
-            .temporal_prop_iter(&layer_ids, prop_id)
+            .temporal_prop_iter(layer_ids, prop_id)
             .map(|(l, prop)| {
                 let first_prop = prop
                     .last_before(start.saturating_add(1))

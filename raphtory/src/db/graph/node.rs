@@ -3,7 +3,6 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef, VID},
-        storage::timeindex::TimeIndexEntry,
         utils::errors::GraphError,
         ArcStr,
     },
@@ -11,7 +10,7 @@ use crate::{
         api::{
             mutation::{
                 internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-                CollectProperties, TryIntoInputTime,
+                time_from_input, CollectProperties, TryIntoInputTime,
             },
             properties::{
                 internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
@@ -358,7 +357,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
         time: T,
         props: C,
     ) -> Result<(), GraphError> {
-        let t = TimeIndexEntry::from_input(&self.graph, time)?;
+        let t = time_from_input(&self.graph, time)?;
         let properties: Vec<(usize, Prop)> = props.collect_properties(
             |name, dtype| self.graph.resolve_node_property(name, dtype, false),
             |prop| self.graph.process_prop_value(prop),
@@ -388,7 +387,7 @@ mod node_test {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let view = graph.before(2);
@@ -425,7 +424,7 @@ mod node_test {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let v1 = graph.node(1).unwrap();

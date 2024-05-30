@@ -4377,6 +4377,7 @@ dependencies = [
  "memmap2",
  "neo4rs",
  "num",
+ "num-integer",
  "num-traits",
  "once_cell",
  "ordered-float 4.2.0",
@@ -4393,6 +4394,7 @@ dependencies = [
  "quickcheck_macros",
  "rand 0.8.5",
  "rand_distr",
+ "raphtory-api",
  "raphtory-arrow",
  "rayon",
  "regex",
@@ -4411,6 +4413,14 @@ dependencies = [
  "tokio",
  "twox-hash",
  "zip",
+]
+
+[[package]]
+name = "raphtory-api"
+version = "0.8.1"
+dependencies = [
+ "chrono",
+ "serde",
 ]
 
 [[package]]

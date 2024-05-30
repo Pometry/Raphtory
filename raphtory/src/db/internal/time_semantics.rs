@@ -17,9 +17,10 @@ use crate::{
             BoxedIter, IntoDynBoxed,
         },
     },
-    prelude::{Prop, TimeIndexEntry},
+    prelude::Prop,
 };
 use itertools::{kmerge, Itertools};
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use rayon::prelude::*;
 use std::ops::Range;
 
