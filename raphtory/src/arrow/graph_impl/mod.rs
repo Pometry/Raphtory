@@ -1,14 +1,16 @@
 use std::{
     fmt::{Display, Formatter},
-    path::Path,
+    path::{Path, PathBuf},
     sync::Arc,
 };
 
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use raphtory_arrow::{
     arrow_hmap::ArrowHashMap, graph::TemporalGraph, graph_fragment::TempColGraphFragment,
     load::ExternalEdgeList, RAError,
 };
 use rayon::prelude::*;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{
     arrow::{graph_impl::prop_conversion::make_node_properties_from_graph, Error},
@@ -16,11 +18,19 @@ use crate::{
         array::{PrimitiveArray, StructArray},
         datatypes::{ArrowDataType as DataType, Field},
     },
-    core::entities::{
-        properties::{graph_meta::GraphMeta, props::Meta},
-        LayerIds,
+    core::{
+        entities::{
+            graph::tgraph::InternalGraph,
+            properties::{graph_meta::GraphMeta, props::Meta},
+            LayerIds, EID, VID,
+        },
+        utils::errors::GraphError,
+        Prop, PropType,
     },
-    db::api::view::{internal::Immutable, DynamicGraph, IntoDynamic},
+    db::api::{
+        mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
+        view::{internal::Immutable, DynamicGraph, IntoDynamic},
+    },
     prelude::{Graph, GraphViewOps},
 };
 
@@ -54,6 +64,30 @@ pub struct ArrowGraph {
     node_meta: Arc<Meta>,
     edge_meta: Arc<Meta>,
     graph_props: Arc<GraphMeta>,
+    graph_dir: PathBuf,
+}
+
+impl Serialize for ArrowGraph {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let path = self.graph_dir.clone();
+        path.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for ArrowGraph {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let path = PathBuf::deserialize(deserializer)?;
+        let graph_result = ArrowGraph::load_from_dir(&path).map_err(|err| {
+            serde::de::Error::custom(format!("Failed to load ArrowGraph: {:?}", err))
+        })?;
+        Ok(graph_result)
+    }
 }
 
 impl Display for ArrowGraph {
@@ -144,7 +178,7 @@ impl ArrowGraph {
         .expect("failed to create graph")
     }
 
-    fn new(inner_graph: TemporalGraph) -> Self {
+    fn new(inner_graph: TemporalGraph, graph_dir: PathBuf) -> Self {
         let node_meta = Meta::new();
         let mut edge_meta = Meta::new();
         let graph_meta = GraphMeta::new();
@@ -192,6 +226,7 @@ impl ArrowGraph {
             node_meta: Arc::new(node_meta),
             edge_meta: Arc::new(edge_meta),
             graph_props: Arc::new(graph_meta),
+            graph_dir,
         }
     }
 
@@ -199,7 +234,7 @@ impl ArrowGraph {
         let inner_graph = TemporalGraph::from_graph(graph, graph_dir.as_ref(), || {
             make_node_properties_from_graph(graph, graph_dir.as_ref())
         })?;
-        Ok(Self::new(inner_graph))
+        Ok(Self::new(inner_graph, graph_dir.as_ref().to_path_buf()))
     }
 
     pub fn load_from_edge_lists(
@@ -211,6 +246,7 @@ impl ArrowGraph {
         dst_col_idx: usize,
         time_col_idx: usize,
     ) -> Result<Self, RAError> {
+        let path = graph_dir.as_ref().to_path_buf();
         let inner = TemporalGraph::from_sorted_edge_list(
             graph_dir,
             src_col_idx,
@@ -220,12 +256,13 @@ impl ArrowGraph {
             t_props_chunk_size,
             edge_list,
         )?;
-        Ok(Self::new(inner))
+        Ok(Self::new(inner, path))
     }
 
     pub fn load_from_dir(graph_dir: impl AsRef<Path>) -> Result<ArrowGraph, RAError> {
+        let path = graph_dir.as_ref().to_path_buf();
         let inner = TemporalGraph::new(graph_dir)?;
-        Ok(Self::new(inner))
+        Ok(Self::new(inner, path))
     }
 
     pub fn load_from_parquets<P: AsRef<Path>>(
@@ -264,7 +301,7 @@ impl ArrowGraph {
             layered_edge_list,
             node_properties.as_ref().map(|p| p.as_ref()),
         )?;
-        Ok(Self::new(t_graph))
+        Ok(Self::new(t_graph, graph_dir.as_ref().to_path_buf()))
     }
 
     pub fn filtered_layers_par<'a>(
@@ -292,6 +329,7 @@ impl ArrowGraph {
     }
 
     pub fn from_layer(layer: TempColGraphFragment) -> Self {
+        let path = layer.graph_dir().to_path_buf();
         let global_ordering = layer.nodes_storage().gids().clone();
 
         let global_order = ArrowHashMap::from_sorted_dedup(global_ordering.clone())
@@ -303,7 +341,128 @@ impl ArrowGraph {
             vec![layer],
             vec!["_default".to_string()],
         );
-        Self::new(inner)
+        Self::new(inner, path)
+    }
+}
+
+impl InternalAdditionOps for ArrowGraph {
+    fn next_event_id(&self) -> usize {
+        unimplemented!("ArrowGraph is immutable")
+    }
+
+    fn resolve_layer(&self, layer: Option<&str>) -> usize {
+        // Will check this
+        unimplemented!("ArrowGraph is immutable")
+    }
+
+    fn resolve_node_type(&self, v_id: VID, node_type: Option<&str>) -> Result<usize, GraphError> {
+        unimplemented!("ArrowGraph is immutable")
+    }
+
+    fn resolve_node(&self, id: u64, name: Option<&str>) -> VID {
+        unimplemented!("ArrowGraph is immutable")
+    }
+
+    fn resolve_graph_property(&self, prop: &str, is_static: bool) -> usize {
+        unimplemented!("ArrowGraph is immutable")
+    }
+
+    fn resolve_node_property(
+        &self,
+        prop: &str,
+        dtype: PropType,
+        is_static: bool,
+    ) -> Result<usize, GraphError> {
+        unimplemented!("ArrowGraph is immutable")
+    }
+
+    fn resolve_edge_property(
+        &self,
+        prop: &str,
+        dtype: PropType,
+        is_static: bool,
+    ) -> Result<usize, GraphError> {
+        unimplemented!("ArrowGraph is immutable")
+    }
+
+    fn process_prop_value(&self, prop: Prop) -> Prop {
+        unimplemented!("ArrowGraph is immutable")
+    }
+
+    fn internal_add_node(
+        &self,
+        t: TimeIndexEntry,
+        v: VID,
+        props: Vec<(usize, Prop)>,
+        node_type_id: usize,
+    ) -> Result<(), GraphError> {
+        unimplemented!("ArrowGraph is immutable")
+    }
+
+    fn internal_add_edge(
+        &self,
+        t: TimeIndexEntry,
+        src: VID,
+        dst: VID,
+        props: Vec<(usize, Prop)>,
+        layer: usize,
+    ) -> Result<EID, GraphError> {
+        unimplemented!("ArrowGraph is immutable")
+    }
+}
+
+impl InternalPropertyAdditionOps for ArrowGraph {
+    fn internal_add_properties(
+        &self,
+        t: TimeIndexEntry,
+        props: Vec<(usize, Prop)>,
+    ) -> Result<(), GraphError> {
+        unimplemented!("ArrowGraph is immutable")
+    }
+
+    fn internal_add_static_properties(&self, props: Vec<(usize, Prop)>) -> Result<(), GraphError> {
+        unimplemented!("ArrowGraph is immutable")
+    }
+
+    fn internal_update_static_properties(
+        &self,
+        props: Vec<(usize, Prop)>,
+    ) -> Result<(), GraphError> {
+        unimplemented!("ArrowGraph is immutable")
+    }
+
+    fn internal_add_constant_node_properties(
+        &self,
+        vid: VID,
+        props: Vec<(usize, Prop)>,
+    ) -> Result<(), GraphError> {
+        unimplemented!("ArrowGraph is immutable")
+    }
+
+    fn internal_update_constant_node_properties(
+        &self,
+        vid: VID,
+        props: Vec<(usize, Prop)>,
+    ) -> Result<(), GraphError> {
+        unimplemented!("ArrowGraph is immutable")
+    }
+
+    fn internal_add_constant_edge_properties(
+        &self,
+        eid: EID,
+        layer: usize,
+        props: Vec<(usize, Prop)>,
+    ) -> Result<(), GraphError> {
+        unimplemented!("ArrowGraph is immutable")
+    }
+
+    fn internal_update_constant_edge_properties(
+        &self,
+        eid: EID,
+        layer: usize,
+        props: Vec<(usize, Prop)>,
+    ) -> Result<(), GraphError> {
+        unimplemented!("ArrowGraph is immutable")
     }
 }
 

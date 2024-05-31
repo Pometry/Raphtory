@@ -40,6 +40,9 @@ use enum_dispatch::enum_dispatch;
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
 use std::path::Path;
 
+#[cfg(feature = "arrow")]
+use crate::arrow::graph_impl::ArrowGraph;
+
 #[enum_dispatch(CoreGraphOps)]
 #[enum_dispatch(InternalLayerOps)]
 #[enum_dispatch(ListOps)]
@@ -56,6 +59,8 @@ use std::path::Path;
 pub enum MaterializedGraph {
     EventGraph(Graph),
     PersistentGraph(PersistentGraph),
+    #[cfg(feature = "arrow")]
+    ArrowEventGraph(ArrowGraph),
 }
 
 fn version_deserialize<'de, D>(deserializer: D) -> Result<u32, D::Error>
@@ -64,7 +69,7 @@ where
 {
     let version = u32::deserialize(deserializer)?;
     if version != BINCODE_VERSION {
-        return Err(D::Error::custom(GraphError::BincodeVersionError(
+        return Err(Error::custom(GraphError::BincodeVersionError(
             version,
             BINCODE_VERSION,
         )));
@@ -86,12 +91,26 @@ impl MaterializedGraph {
         match self {
             MaterializedGraph::EventGraph(g) => Some(g),
             MaterializedGraph::PersistentGraph(_) => None,
+            #[cfg(feature = "arrow")]
+            MaterializedGraph::ArrowEventGraph(_) => None,
         }
     }
     pub fn into_persistent(self) -> Option<PersistentGraph> {
         match self {
             MaterializedGraph::EventGraph(_) => None,
             MaterializedGraph::PersistentGraph(g) => Some(g),
+            #[cfg(feature = "arrow")]
+            MaterializedGraph::ArrowEventGraph(_) => None,
+        }
+    }
+
+    #[cfg(feature = "arrow")]
+    pub fn into_arrow(self) -> Option<ArrowGraph> {
+        match self {
+            MaterializedGraph::EventGraph(_) => None,
+            MaterializedGraph::PersistentGraph(_) => None,
+            #[cfg(feature = "arrow")]
+            MaterializedGraph::ArrowEventGraph(g) => Some(g),
         }
     }
 
@@ -185,6 +204,7 @@ mod test_materialised_graph_dispatch {
         let mg = MaterializedGraph::from(Graph::new());
         assert_eq!(mg.count_nodes(), 0);
     }
+
     #[test]
     fn materialised_graph_has_edge_filter_ops() {
         let mg = MaterializedGraph::from(Graph::new());

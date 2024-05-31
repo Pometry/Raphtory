@@ -116,7 +116,7 @@ impl CoreGraphOps for ArrowGraph {
     }
 
     fn node_type(&self, _v: VID) -> Option<ArcStr> {
-        todo!("Node types are not supported on arrow yet")
+        None
     }
 
     fn internalise_node(&self, v: NodeRef) -> Option<VID> {

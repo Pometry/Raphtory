@@ -3539,6 +3539,7 @@ dependencies = [
  "polars-error",
  "polars-utils",
  "ryu",
+ "serde",
  "simdutf8",
  "streaming-iterator",
  "strength_reduce",
