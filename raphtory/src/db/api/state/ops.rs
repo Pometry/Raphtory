@@ -1,19 +1,16 @@
-use std::{borrow::Borrow, iter::Sum};
-
-use rayon::{
-    iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator},
-    prelude::ParallelSliceMut,
-};
-use tantivy::schema::OwnedValue;
-
 use crate::{
-    core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
+    core::entities::nodes::node_ref::AsNodeRef,
     db::{
         api::state::{node_state::NodeState, ord_ops, Index},
         graph::node::NodeView,
     },
     prelude::GraphViewOps,
 };
+use rayon::{
+    iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator},
+    prelude::ParallelSliceMut,
+};
+use std::{borrow::Borrow, iter::Sum};
 
 pub trait NodeStateOps<'graph>: IntoIterator<Item = Self::OwnedValue> {
     type Graph: GraphViewOps<'graph>;
