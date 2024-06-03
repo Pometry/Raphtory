@@ -362,11 +362,11 @@ impl InternalAdditionOps for DiskGraph {
         unimplemented!("Diskgraph is immutable")
     }
 
-    fn resolve_node(&self, _id: u64, _namee: Option<&str>) -> VID {
+    fn resolve_node(&self, _id: u64, _name: Option<&str>) -> VID {
         unimplemented!("Diskgraph is immutable")
     }
 
-    fn resolve_graph_property(&self, _prop: &str, _is_staticc: bool) -> usize {
+    fn resolve_graph_property(&self, _prop: &str, _is_static: bool) -> usize {
         unimplemented!("Diskgraph is immutable")
     }
 

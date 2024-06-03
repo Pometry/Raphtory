@@ -31,7 +31,6 @@ impl From<DocumentInput> for PyDocument {
     }
 }
 
-
 #[pymethods]
 impl PyDocument {
     #[new]
