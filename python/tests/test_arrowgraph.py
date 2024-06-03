@@ -1,11 +1,11 @@
-from raphtory import ArrowGraph
+from raphtory import DiskGraph
 from raphtory import algorithms
 from utils import measure
 import tempfile
 import os
 
 
-def test_arrow_graph():
+def test_disk_graph():
     curr_dir = os.path.dirname(os.path.abspath(__file__))
     rsc_dir = os.path.join(curr_dir, "..", "..", "resource")
     rsc_dir = os.path.normpath(rsc_dir)
@@ -44,7 +44,7 @@ def test_arrow_graph():
     try:
         g = measure(
             "Graph load from dir",
-            ArrowGraph.load_from_dir,
+            DiskGraph.load_from_dir,
             graph_dir,
             print_result=False,
         )
@@ -57,7 +57,7 @@ def test_arrow_graph():
 
         g = measure(
             "Graph load from parquets",
-            ArrowGraph.load_from_parquets,
+            DiskGraph.load_from_parquets,
             graph_dir.name,
             layer_parquet_cols,
             None,

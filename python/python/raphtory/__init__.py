@@ -8,7 +8,7 @@ sys.modules["raphtory.vectors"] = vectors
 sys.modules["raphtory.graphql"] = graphql
 
 try:
-    sys.modules["raphtory.disk_graph"] = arrow
+    sys.modules["raphtory.disk_graph"] = disk_graph
 except Exception as e:
     print(e)
 
