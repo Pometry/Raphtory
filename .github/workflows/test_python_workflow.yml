@@ -59,15 +59,15 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
           cache: 'pip'
-      - name: Activate raphtory-arrow in Cargo.toml
-        run: make pull-arrow
+      - name: Activate pometry-storage in Cargo.toml
+        run: make pull-storage
       - name: Run Maturin develop
         uses: PyO3/maturin-action@v1
         with:
           working-directory: ./python
           command: build
           target: ${{ matrix.target }}
-          args: --release --features arrow
+          args: --release --features storage
       - name: Install Python dependencies (Unix)
         if: "contains(matrix.os, 'Ubuntu') || contains(matrix.os, 'macOS')"
         run: |
