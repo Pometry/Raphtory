@@ -1,7 +1,7 @@
 #[cfg(feature = "storage")]
-use crate::disk_graph::storage_interface::edge::ArrowEdge;
-#[cfg(feature = "storage")]
 use crate::db::api::storage::variants::storage_variants::StorageVariants;
+#[cfg(feature = "storage")]
+use crate::disk_graph::storage_interface::edge::DiskEdge;
 use crate::{
     core::entities::{
         edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
@@ -48,7 +48,7 @@ macro_rules! for_all_iter {
 pub enum EdgeStorageRef<'a> {
     Mem(&'a EdgeStore),
     #[cfg(feature = "storage")]
-    Disk(ArrowEdge<'a>),
+    Disk(DiskEdge<'a>),
 }
 
 impl<'a> EdgeStorageRef<'a> {

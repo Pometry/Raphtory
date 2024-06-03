@@ -1,5 +1,4 @@
 use crate::{
-    disk_graph::graph_impl::tprops::read_tprop_column,
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         storage::timeindex::{TimeIndex, TimeIndexOps},
@@ -8,8 +7,9 @@ use crate::{
         edges::edge_storage_ops::{EdgeStorageOps, TimeIndexRef},
         tprop_storage_ops::TPropOps,
     },
+    disk_graph::graph_impl::tprops::read_tprop_column,
 };
-use pometry_storage::{edge::Edge, tprops::ArrowTProp};
+use pometry_storage::{edge::Edge, tprops::DiskTProp};
 use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use rayon::prelude::*;
 use std::{iter, ops::Range};
@@ -94,6 +94,6 @@ impl<'a> EdgeStorageOps<'a> for Edge<'a> {
         } else {
             None
         }
-        .unwrap_or(ArrowTProp::empty())
+        .unwrap_or(DiskTProp::empty())
     }
 }

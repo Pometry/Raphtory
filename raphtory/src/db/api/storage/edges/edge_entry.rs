@@ -13,7 +13,7 @@ use crate::{
 };
 
 #[cfg(feature = "storage")]
-use crate::disk_graph::storage_interface::edge::ArrowEdge;
+use crate::disk_graph::storage_interface::edge::DiskEdge;
 
 use crate::db::api::storage::tprop_storage_ops::TPropOps;
 use rayon::prelude::*;
@@ -23,7 +23,7 @@ use std::ops::Range;
 pub enum EdgeStorageEntry<'a> {
     Mem(Entry<'a, EdgeStore>),
     #[cfg(feature = "storage")]
-    Disk(ArrowEdge<'a>),
+    Disk(DiskEdge<'a>),
 }
 
 impl<'a> EdgeStorageEntry<'a> {

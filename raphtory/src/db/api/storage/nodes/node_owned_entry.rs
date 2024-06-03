@@ -1,7 +1,7 @@
 #[cfg(feature = "storage")]
-use crate::disk_graph::storage_interface::node::ArrowOwnedNode;
-#[cfg(feature = "storage")]
 use crate::db::api::storage::variants::storage_variants::StorageVariants;
+#[cfg(feature = "storage")]
+use crate::disk_graph::storage_interface::node::DiskOwnedNode;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, nodes::node_store::NodeStore, LayerIds, VID},
@@ -23,7 +23,7 @@ use crate::{
 pub enum NodeOwnedEntry {
     Mem(ArcEntry<NodeStore>),
     #[cfg(feature = "storage")]
-    Disk(ArrowOwnedNode),
+    Disk(DiskOwnedNode),
 }
 
 impl NodeOwnedEntry {

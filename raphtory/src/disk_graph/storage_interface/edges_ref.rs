@@ -1,29 +1,29 @@
 use crate::{
-    disk_graph::storage_interface::edge::ArrowEdge,
     core::entities::{LayerIds, EID},
     db::api::storage::variants::layer_variants::LayerVariants,
+    disk_graph::storage_interface::edge::DiskEdge,
 };
 use pometry_storage::{graph::TemporalGraph, graph_fragment::TempColGraphFragment};
 use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use std::iter;
 
 #[derive(Copy, Clone, Debug)]
-pub struct ArrowEdgesRef<'a> {
+pub struct DiskEdgesRef<'a> {
     pub(super) layers: &'a [TempColGraphFragment],
 }
 
-impl<'a> ArrowEdgesRef<'a> {
+impl<'a> DiskEdgesRef<'a> {
     pub(crate) fn new(storage: &'a TemporalGraph) -> Self {
         Self {
             layers: storage.layers(),
         }
     }
 
-    pub fn edge(self, eid: EID, layer_id: usize) -> ArrowEdge<'a> {
+    pub fn edge(self, eid: EID, layer_id: usize) -> DiskEdge<'a> {
         self.layers[layer_id].edge(eid)
     }
 
-    pub fn iter(self, layers: LayerIds) -> impl Iterator<Item = ArrowEdge<'a>> {
+    pub fn iter(self, layers: LayerIds) -> impl Iterator<Item = DiskEdge<'a>> {
         match layers {
             LayerIds::None => LayerVariants::None(iter::empty()),
             LayerIds::All => LayerVariants::All(
@@ -43,7 +43,7 @@ impl<'a> ArrowEdgesRef<'a> {
         }
     }
 
-    pub fn par_iter(self, layers: LayerIds) -> impl ParallelIterator<Item = ArrowEdge<'a>> {
+    pub fn par_iter(self, layers: LayerIds) -> impl ParallelIterator<Item = DiskEdge<'a>> {
         match layers {
             LayerIds::None => LayerVariants::None(rayon::iter::empty()),
             LayerIds::All => LayerVariants::All(

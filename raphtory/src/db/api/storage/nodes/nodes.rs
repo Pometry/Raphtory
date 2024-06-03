@@ -1,5 +1,5 @@
 #[cfg(feature = "storage")]
-use crate::disk_graph::storage_interface::nodes::ArrowNodesOwned;
+use crate::disk_graph::storage_interface::nodes::DiskNodesOwned;
 use crate::{
     core::{
         entities::{nodes::node_store::NodeStore, VID},
@@ -12,7 +12,7 @@ use std::sync::Arc;
 pub enum NodesStorage {
     Mem(Arc<ReadLockedStorage<NodeStore, VID>>),
     #[cfg(feature = "storage")]
-    Disk(ArrowNodesOwned),
+    Disk(DiskNodesOwned),
 }
 
 impl NodesStorage {

@@ -1,5 +1,4 @@
 use crate::{
-    disk_graph::graph_impl::prop_conversion::arrow_array_from_props,
     core::{
         entities::{LayerIds, ELID},
         storage::timeindex::TimeIndexOps,
@@ -12,6 +11,7 @@ use crate::{
         },
         view::internal::CoreGraphOps,
     },
+    disk_graph::graph_impl::prop_conversion::arrow_array_from_props,
     prelude::*,
 };
 use itertools::Itertools;

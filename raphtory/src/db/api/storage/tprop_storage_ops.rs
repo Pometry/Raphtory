@@ -2,7 +2,7 @@ use crate::core::{entities::properties::tprop::TProp, storage::timeindex::AsTime
 #[cfg(feature = "storage")]
 use crate::db::api::storage::variants::storage_variants::StorageVariants;
 #[cfg(feature = "storage")]
-use pometry_storage::tprops::ArrowTProp;
+use pometry_storage::tprops::DiskTProp;
 use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use std::ops::Range;
 
@@ -10,7 +10,7 @@ use std::ops::Range;
 pub enum TPropRef<'a> {
     Mem(&'a TProp),
     #[cfg(feature = "storage")]
-    Disk(ArrowTProp<'a, TimeIndexEntry>),
+    Disk(DiskTProp<'a, TimeIndexEntry>),
 }
 
 macro_rules! for_all {

@@ -9,12 +9,12 @@ use arrow_schema::{Fields, Schema};
 
 use itertools::Itertools;
 use raphtory::{
-    disk_graph::graph_impl::DiskGraph,
     core::{
         entities::{edges::edge_ref::Dir, VID},
         Direction,
     },
     db::{api::properties::internal::ConstPropertiesOps, graph::node::NodeView},
+    disk_graph::graph_impl::DiskGraph,
     prelude::*,
 };
 use sqlparser::ast::{

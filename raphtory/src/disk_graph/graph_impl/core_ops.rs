@@ -1,13 +1,4 @@
 use crate::{
-    disk_graph::{
-        graph_impl::DiskGraph,
-        storage_interface::{
-            edge::ArrowOwnedEdge,
-            edges::ArrowEdges,
-            node::{ArrowNode, ArrowOwnedNode},
-            nodes::ArrowNodesOwned,
-        },
-    },
     core::{
         entities::{
             edges::edge_ref::EdgeRef,
@@ -29,6 +20,15 @@ use crate::{
             storage_ops::GraphStorage,
         },
         view::{internal::CoreGraphOps, BoxedIter},
+    },
+    disk_graph::{
+        graph_impl::DiskGraph,
+        storage_interface::{
+            edge::DiskOwnedEdge,
+            edges::DiskEdges,
+            node::{DiskNode, DiskOwnedNode},
+            nodes::DiskNodesOwned,
+        },
     },
 };
 use itertools::Itertools;
@@ -182,7 +182,7 @@ impl CoreGraphOps for DiskGraph {
     }
 
     fn core_edges(&self) -> EdgesStorage {
-        EdgesStorage::Disk(ArrowEdges::new(&self.inner))
+        EdgesStorage::Disk(DiskEdges::new(&self.inner))
     }
 
     fn unfiltered_num_layers(&self) -> usize {
@@ -201,19 +201,19 @@ impl CoreGraphOps for DiskGraph {
     }
 
     fn core_nodes(&self) -> NodesStorage {
-        NodesStorage::Disk(ArrowNodesOwned::new(self.inner.clone()))
+        NodesStorage::Disk(DiskNodesOwned::new(self.inner.clone()))
     }
 
     fn core_node_entry(&self, vid: VID) -> NodeStorageEntry {
-        NodeStorageEntry::Disk(ArrowNode::new(&self.inner, vid))
+        NodeStorageEntry::Disk(DiskNode::new(&self.inner, vid))
     }
 
     fn core_node_arc(&self, vid: VID) -> NodeOwnedEntry {
-        NodeOwnedEntry::Disk(ArrowOwnedNode::new(self.inner.clone(), vid))
+        NodeOwnedEntry::Disk(DiskOwnedNode::new(self.inner.clone(), vid))
     }
 
     fn core_edge_arc(&self, eid: ELID) -> EdgeOwnedEntry {
-        EdgeOwnedEntry::Disk(ArrowOwnedEdge::new(&self.inner, eid))
+        EdgeOwnedEntry::Disk(DiskOwnedEdge::new(&self.inner, eid))
     }
 
     fn unfiltered_num_edges(&self) -> usize {

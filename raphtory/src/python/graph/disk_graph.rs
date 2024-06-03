@@ -1,11 +1,6 @@
 use std::{io::Write, sync::Arc};
 
 use crate::{
-    disk_graph::{
-        graph_impl::{DiskGraph, ParquetLayerCols},
-        query::{ast::Query, executors::rayon2, state::StaticGraphHopState, NodeSource},
-        Error,
-    },
     arrow2::{
         array::StructArray,
         datatypes::{ArrowDataType as DataType, Field},
@@ -17,6 +12,11 @@ use crate::{
     db::{
         api::view::{DynamicGraph, IntoDynamic},
         graph::{edge::EdgeView, node::NodeView},
+    },
+    disk_graph::{
+        graph_impl::{DiskGraph, ParquetLayerCols},
+        query::{ast::Query, executors::rayon2, state::StaticGraphHopState, NodeSource},
+        Error,
     },
     prelude::{EdgeViewOps, GraphViewOps, NodeViewOps, TimeOps},
     python::{

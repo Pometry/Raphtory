@@ -9,15 +9,15 @@ use pometry_storage::{edge::Edge, edges::Edges, graph::TemporalGraph, timestamps
 use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use std::ops::Range;
 
-pub type ArrowEdge<'a> = Edge<'a>;
+pub type DiskEdge<'a> = Edge<'a>;
 
 #[derive(Debug, Clone)]
-pub struct ArrowOwnedEdge {
+pub struct DiskOwnedEdge {
     edges: Edges,
     eid: EID,
 }
 
-impl ArrowOwnedEdge {
+impl DiskOwnedEdge {
     pub(crate) fn new(graph: &TemporalGraph, eid: ELID) -> Self {
         let layer = eid
             .layer()
@@ -27,12 +27,12 @@ impl ArrowOwnedEdge {
             eid: eid.pid(),
         }
     }
-    pub fn as_ref(&self) -> ArrowEdge {
+    pub fn as_ref(&self) -> DiskEdge {
         self.edges.edge(self.eid)
     }
 }
 
-impl EdgeStorageIntoOps for ArrowOwnedEdge {
+impl EdgeStorageIntoOps for DiskOwnedEdge {
     fn into_layers(
         self,
         layer_ids: LayerIds,

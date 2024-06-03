@@ -1,7 +1,7 @@
 #[cfg(feature = "storage")]
-use crate::disk_graph::storage_interface::edge::ArrowOwnedEdge;
-#[cfg(feature = "storage")]
 use crate::db::api::storage::variants::storage_variants::StorageVariants;
+#[cfg(feature = "storage")]
+use crate::disk_graph::storage_interface::edge::DiskOwnedEdge;
 use crate::{
     core::{
         entities::{
@@ -26,7 +26,7 @@ use std::ops::Range;
 pub enum EdgeOwnedEntry {
     Mem(ArcEntry<EdgeStore>),
     #[cfg(feature = "storage")]
-    Disk(ArrowOwnedEdge),
+    Disk(DiskOwnedEdge),
 }
 
 #[cfg(feature = "storage")]

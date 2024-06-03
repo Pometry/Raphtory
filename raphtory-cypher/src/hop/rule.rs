@@ -10,7 +10,7 @@ use datafusion::{
     physical_plan::ExecutionPlan,
     physical_planner::{DefaultPhysicalPlanner, ExtensionPlanner, PhysicalPlanner},
 };
-use raphtory::{disk_graph::graph_impl::DiskGraph, core::Direction};
+use raphtory::{core::Direction, disk_graph::graph_impl::DiskGraph};
 
 use crate::hop::operator::HopPlan;
 

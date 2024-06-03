@@ -22,8 +22,8 @@ use futures::Stream;
 use pometry_storage::properties::Properties;
 
 use raphtory::{
-    disk_graph::{graph_impl::DiskGraph, prelude::*},
     core::entities::VID,
+    disk_graph::{graph_impl::DiskGraph, prelude::*},
 };
 
 use crate::{

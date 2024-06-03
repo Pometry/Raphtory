@@ -1,25 +1,25 @@
 use crate::{
-    disk_graph::storage_interface::{edge::ArrowEdge, edges_ref::ArrowEdgesRef},
     core::entities::{LayerIds, EID},
     db::api::storage::variants::layer_variants::LayerVariants,
+    disk_graph::storage_interface::{edge::DiskEdge, edges_ref::DiskEdgesRef},
 };
 use pometry_storage::{graph::TemporalGraph, graph_fragment::TempColGraphFragment};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{iter, sync::Arc};
 
 #[derive(Clone, Debug)]
-pub struct ArrowEdges {
+pub struct DiskEdges {
     layers: Arc<[TempColGraphFragment]>,
 }
 
-impl ArrowEdges {
+impl DiskEdges {
     pub(crate) fn new(graph: &TemporalGraph) -> Self {
         Self {
             layers: graph.arc_layers().clone(),
         }
     }
-    pub fn as_ref(&self) -> ArrowEdgesRef {
-        ArrowEdgesRef {
+    pub fn as_ref(&self) -> DiskEdgesRef {
+        DiskEdgesRef {
             layers: &self.layers,
         }
     }
@@ -75,7 +75,7 @@ impl ArrowEdges {
         }
     }
 
-    pub fn get(&self, eid: EID, layer_id: usize) -> ArrowEdge {
+    pub fn get(&self, eid: EID, layer_id: usize) -> DiskEdge {
         self.layers[layer_id].edge(eid)
     }
 }

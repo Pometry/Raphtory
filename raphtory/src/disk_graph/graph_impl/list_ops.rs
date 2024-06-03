@@ -1,6 +1,6 @@
 use crate::{
-    disk_graph::graph_impl::DiskGraph,
     db::api::view::internal::{CoreGraphOps, EdgeList, ListOps, NodeList},
+    disk_graph::graph_impl::DiskGraph,
 };
 use rayon::prelude::*;
 

@@ -5,7 +5,7 @@ use std::{
 };
 
 use pometry_storage::{
-    arrow_hmap::ArrowHashMap, graph::TemporalGraph, graph_fragment::TempColGraphFragment,
+    disk_hmap::DiskHashMap, graph::TemporalGraph, graph_fragment::TempColGraphFragment,
     load::ExternalEdgeList, RAError,
 };
 use raphtory_api::core::storage::timeindex::TimeIndexEntry;
@@ -13,7 +13,6 @@ use rayon::prelude::*;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{
-    disk_graph::{graph_impl::prop_conversion::make_node_properties_from_graph, Error},
     arrow2::{
         array::{PrimitiveArray, StructArray},
         datatypes::{ArrowDataType as DataType, Field},
@@ -30,6 +29,7 @@ use crate::{
         mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
         view::{internal::Immutable, DynamicGraph, IntoDynamic},
     },
+    disk_graph::{graph_impl::prop_conversion::make_node_properties_from_graph, Error},
     prelude::{Graph, GraphViewOps},
 };
 
@@ -331,7 +331,7 @@ impl DiskGraph {
         let path = layer.graph_dir().to_path_buf();
         let global_ordering = layer.nodes_storage().gids().clone();
 
-        let global_order = ArrowHashMap::from_sorted_dedup(global_ordering.clone())
+        let global_order = DiskHashMap::from_sorted_dedup(global_ordering.clone())
             .expect("Failed to create global order");
 
         let inner = TemporalGraph::new_from_layers(
@@ -480,8 +480,8 @@ mod test {
     use tempfile::TempDir;
 
     use crate::{
-        algorithms::components::weakly_connected_components, disk_graph::Time,
-        db::api::view::StaticGraphViewOps, prelude::*,
+        algorithms::components::weakly_connected_components, db::api::view::StaticGraphViewOps,
+        disk_graph::Time, prelude::*,
     };
 
     use super::DiskGraph;

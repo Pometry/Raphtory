@@ -33,14 +33,14 @@ use std::iter;
 
 #[cfg(feature = "storage")]
 use crate::{
-    disk_graph::storage_interface::{
-        edges::ArrowEdges,
-        edges_ref::ArrowEdgesRef,
-        node::{ArrowNode, ArrowOwnedNode},
-        nodes::ArrowNodesOwned,
-        nodes_ref::ArrowNodesRef,
-    },
     db::api::storage::variants::storage_variants::StorageVariants,
+    disk_graph::storage_interface::{
+        edges::DiskEdges,
+        edges_ref::DiskEdgesRef,
+        node::{DiskNode, DiskOwnedNode},
+        nodes::DiskNodesOwned,
+        nodes_ref::DiskNodesRef,
+    },
 };
 #[cfg(feature = "storage")]
 use pometry_storage::graph::TemporalGraph;
@@ -59,7 +59,7 @@ impl GraphStorage {
         match self {
             GraphStorage::Mem(storage) => NodesStorageRef::Mem(&storage.nodes),
             #[cfg(feature = "storage")]
-            GraphStorage::Disk(storage) => NodesStorageRef::Disk(ArrowNodesRef::new(storage)),
+            GraphStorage::Disk(storage) => NodesStorageRef::Disk(DiskNodesRef::new(storage)),
         }
     }
 
@@ -67,9 +67,7 @@ impl GraphStorage {
         match self {
             GraphStorage::Mem(storage) => NodesStorage::Mem(storage.nodes.clone()),
             #[cfg(feature = "storage")]
-            GraphStorage::Disk(storage) => {
-                NodesStorage::Disk(ArrowNodesOwned::new(storage.clone()))
-            }
+            GraphStorage::Disk(storage) => NodesStorage::Disk(DiskNodesOwned::new(storage.clone())),
         }
     }
 
@@ -77,7 +75,7 @@ impl GraphStorage {
         match self {
             GraphStorage::Mem(storage) => NodeStorageRef::Mem(storage.nodes.get(vid)),
             #[cfg(feature = "storage")]
-            GraphStorage::Disk(storage) => NodeStorageRef::Disk(ArrowNode::new(storage, vid)),
+            GraphStorage::Disk(storage) => NodeStorageRef::Disk(DiskNode::new(storage, vid)),
         }
     }
 
@@ -86,7 +84,7 @@ impl GraphStorage {
             GraphStorage::Mem(storage) => NodeOwnedEntry::Mem(storage.nodes.arc_entry(vid)),
             #[cfg(feature = "storage")]
             GraphStorage::Disk(storage) => {
-                NodeOwnedEntry::Disk(ArrowOwnedNode::new(storage.clone(), vid))
+                NodeOwnedEntry::Disk(DiskOwnedNode::new(storage.clone(), vid))
             }
         }
     }
@@ -95,7 +93,7 @@ impl GraphStorage {
         match self {
             GraphStorage::Mem(storage) => EdgesStorageRef::Mem(&storage.edges),
             #[cfg(feature = "storage")]
-            GraphStorage::Disk(storage) => EdgesStorageRef::Disk(ArrowEdgesRef::new(storage)),
+            GraphStorage::Disk(storage) => EdgesStorageRef::Disk(DiskEdgesRef::new(storage)),
         }
     }
 
@@ -103,7 +101,7 @@ impl GraphStorage {
         match self {
             GraphStorage::Mem(storage) => EdgesStorage::Mem(storage.edges.clone()),
             #[cfg(feature = "storage")]
-            GraphStorage::Disk(storage) => EdgesStorage::Disk(ArrowEdges::new(storage)),
+            GraphStorage::Disk(storage) => EdgesStorage::Disk(DiskEdges::new(storage)),
         }
     }
 

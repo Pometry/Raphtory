@@ -40,11 +40,11 @@ use futures::{Stream, StreamExt};
 
 use pometry_storage::graph_fragment::TempColGraphFragment;
 use raphtory::{
+    core::{entities::VID, Direction},
     disk_graph::{
         graph_impl::DiskGraph,
         prelude::{ArrayOps, BaseArrayOps, PrimitiveCol},
     },
-    core::{entities::VID, Direction},
 };
 
 use crate::take_record_batch;

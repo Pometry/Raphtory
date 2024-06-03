@@ -1,7 +1,7 @@
 #[cfg(feature = "storage")]
-use crate::disk_graph::storage_interface::nodes_ref::ArrowNodesRef;
-#[cfg(feature = "storage")]
 use crate::db::api::storage::variants::storage_variants::StorageVariants;
+#[cfg(feature = "storage")]
+use crate::disk_graph::storage_interface::nodes_ref::DiskNodesRef;
 use crate::{
     core::{
         entities::{nodes::node_store::NodeStore, VID},
@@ -15,7 +15,7 @@ use rayon::iter::ParallelIterator;
 pub enum NodesStorageRef<'a> {
     Mem(&'a ReadLockedStorage<NodeStore, VID>),
     #[cfg(feature = "storage")]
-    Disk(ArrowNodesRef<'a>),
+    Disk(DiskNodesRef<'a>),
 }
 
 #[cfg(feature = "storage")]

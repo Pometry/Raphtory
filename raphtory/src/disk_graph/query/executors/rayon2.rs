@@ -1,4 +1,6 @@
 use crate::{
+    core::{entities::VID, Direction},
+    db::{api::view::StaticGraphViewOps, graph::node::NodeView},
     disk_graph::{
         graph_impl::DiskGraph,
         query::{
@@ -7,8 +9,6 @@ use crate::{
             NodeSource,
         },
     },
-    core::{entities::VID, Direction},
-    db::{api::view::StaticGraphViewOps, graph::node::NodeView},
     prelude::*,
 };
 use itertools::Itertools;

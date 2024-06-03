@@ -7,11 +7,11 @@ use crate::{
 };
 
 #[cfg(feature = "storage")]
-use crate::disk_graph::storage_interface::edges_ref::ArrowEdgesRef;
+use crate::disk_graph::storage_interface::edges_ref::DiskEdgesRef;
 
-#[cfg(feature = "storage")]
-use crate::disk_graph::storage_interface::edges::ArrowEdges;
 use crate::db::api::storage::edges::edge_storage_ops::EdgeStorageOps;
+#[cfg(feature = "storage")]
+use crate::disk_graph::storage_interface::edges::DiskEdges;
 use either::Either;
 use rayon::iter::ParallelIterator;
 use std::sync::Arc;
@@ -19,7 +19,7 @@ use std::sync::Arc;
 pub enum EdgesStorage {
     Mem(Arc<ReadLockedStorage<EdgeStore, EID>>),
     #[cfg(feature = "storage")]
-    Disk(ArrowEdges),
+    Disk(DiskEdges),
 }
 
 impl EdgesStorage {
@@ -37,7 +37,7 @@ impl EdgesStorage {
 pub enum EdgesStorageRef<'a> {
     Mem(&'a ReadLockedStorage<EdgeStore, EID>),
     #[cfg(feature = "storage")]
-    Disk(ArrowEdgesRef<'a>),
+    Disk(DiskEdgesRef<'a>),
 }
 
 impl<'a> EdgesStorageRef<'a> {

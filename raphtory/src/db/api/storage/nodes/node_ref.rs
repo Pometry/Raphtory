@@ -1,7 +1,7 @@
 #[cfg(feature = "storage")]
-use crate::disk_graph::storage_interface::node::ArrowNode;
-#[cfg(feature = "storage")]
 use crate::db::api::storage::variants::storage_variants::StorageVariants;
+#[cfg(feature = "storage")]
+use crate::disk_graph::storage_interface::node::DiskNode;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, nodes::node_store::NodeStore, LayerIds, VID},
@@ -17,7 +17,7 @@ use crate::{
 pub enum NodeStorageRef<'a> {
     Mem(&'a NodeStore),
     #[cfg(feature = "storage")]
-    Disk(ArrowNode<'a>),
+    Disk(DiskNode<'a>),
 }
 
 impl<'a> From<&'a NodeStore> for NodeStorageRef<'a> {
@@ -27,8 +27,8 @@ impl<'a> From<&'a NodeStore> for NodeStorageRef<'a> {
 }
 
 #[cfg(feature = "storage")]
-impl<'a> From<ArrowNode<'a>> for NodeStorageRef<'a> {
-    fn from(value: ArrowNode<'a>) -> Self {
+impl<'a> From<DiskNode<'a>> for NodeStorageRef<'a> {
+    fn from(value: DiskNode<'a>) -> Self {
         NodeStorageRef::Disk(value)
     }
 }

@@ -12,7 +12,7 @@ use pometry_storage::{
     edge::Edge,
     prelude::{ArrayOps, BaseArrayOps},
     timestamps::TimeStamps,
-    tprops::{ArrowTProp, EmptyTProp, TPropColumn},
+    tprops::{DiskTProp, EmptyTProp, TPropColumn},
 };
 use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use rayon::prelude::*;
@@ -126,27 +126,23 @@ where
     Some(TPropColumn::new(props, timestamps))
 }
 
-pub fn read_tprop_column(
-    id: usize,
-    field: Field,
-    edge: Edge,
-) -> Option<ArrowTProp<TimeIndexEntry>> {
+pub fn read_tprop_column(id: usize, field: Field, edge: Edge) -> Option<DiskTProp<TimeIndexEntry>> {
     match field.data_type() {
-        DataType::Int64 => new_tprop_column::<i64>(edge, id).map(ArrowTProp::I64),
-        DataType::Int32 => new_tprop_column::<i32>(edge, id).map(ArrowTProp::I32),
-        DataType::UInt32 => new_tprop_column::<u32>(edge, id).map(ArrowTProp::U32),
-        DataType::UInt64 => new_tprop_column::<u64>(edge, id).map(ArrowTProp::U64),
-        DataType::Float32 => new_tprop_column::<f32>(edge, id).map(ArrowTProp::F32),
-        DataType::Float64 => new_tprop_column::<f64>(edge, id).map(ArrowTProp::F64),
+        DataType::Int64 => new_tprop_column::<i64>(edge, id).map(DiskTProp::I64),
+        DataType::Int32 => new_tprop_column::<i32>(edge, id).map(DiskTProp::I32),
+        DataType::UInt32 => new_tprop_column::<u32>(edge, id).map(DiskTProp::U32),
+        DataType::UInt64 => new_tprop_column::<u64>(edge, id).map(DiskTProp::U64),
+        DataType::Float32 => new_tprop_column::<f32>(edge, id).map(DiskTProp::F32),
+        DataType::Float64 => new_tprop_column::<f64>(edge, id).map(DiskTProp::F64),
         DataType::Utf8 => {
             let props = edge.prop_str_values::<i32>(id)?;
             let timestamps = TimeStamps::new(edge.timestamp_slice(), None);
-            Some(ArrowTProp::Str32(TPropColumn::new(props, timestamps)))
+            Some(DiskTProp::Str32(TPropColumn::new(props, timestamps)))
         }
         DataType::LargeUtf8 => {
             let props = edge.prop_str_values::<i64>(id)?;
             let timestamps = TimeStamps::new(edge.timestamp_slice(), None);
-            Some(ArrowTProp::Str64(TPropColumn::new(props, timestamps)))
+            Some(DiskTProp::Str64(TPropColumn::new(props, timestamps)))
         }
         _ => todo!(),
     }
@@ -190,22 +186,22 @@ impl<'a> TPropOps<'a> for EmptyTProp {
 macro_rules! for_all {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
-            ArrowTProp::Empty($pattern) => $result,
-            ArrowTProp::Str64($pattern) => $result,
-            ArrowTProp::Str32($pattern) => $result,
-            ArrowTProp::I32($pattern) => $result,
-            ArrowTProp::I64($pattern) => $result,
-            ArrowTProp::U8($pattern) => $result,
-            ArrowTProp::U16($pattern) => $result,
-            ArrowTProp::U32($pattern) => $result,
-            ArrowTProp::U64($pattern) => $result,
-            ArrowTProp::F32($pattern) => $result,
-            ArrowTProp::F64($pattern) => $result,
+            DiskTProp::Empty($pattern) => $result,
+            DiskTProp::Str64($pattern) => $result,
+            DiskTProp::Str32($pattern) => $result,
+            DiskTProp::I32($pattern) => $result,
+            DiskTProp::I64($pattern) => $result,
+            DiskTProp::U8($pattern) => $result,
+            DiskTProp::U16($pattern) => $result,
+            DiskTProp::U32($pattern) => $result,
+            DiskTProp::U64($pattern) => $result,
+            DiskTProp::F32($pattern) => $result,
+            DiskTProp::F64($pattern) => $result,
         }
     };
 }
 
-impl<'a> TPropOps<'a> for ArrowTProp<'a, TimeIndexEntry> {
+impl<'a> TPropOps<'a> for DiskTProp<'a, TimeIndexEntry> {
     fn last_before(self, t: i64) -> Option<(TimeIndexEntry, Prop)> {
         for_all!(self, v => v.last_before(t))
     }

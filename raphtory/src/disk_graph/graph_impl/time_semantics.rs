@@ -1,6 +1,5 @@
 use super::DiskGraph;
 use crate::{
-    disk_graph::graph_impl::tprops::read_tprop_column,
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         storage::timeindex::{AsTime, TimeIndexIntoOps, TimeIndexOps},
@@ -13,6 +12,7 @@ use crate::{
         },
         view::{internal::TimeSemantics, BoxedIter},
     },
+    disk_graph::graph_impl::tprops::read_tprop_column,
     prelude::*,
 };
 use itertools::Itertools;
@@ -498,7 +498,9 @@ impl TimeSemantics for DiskGraph {
         w: Range<i64>,
         layer_ids: &LayerIds,
     ) -> bool {
-        let layer_id = e.layer().expect("disk_graph edges always have layer currently");
+        let layer_id = e
+            .layer()
+            .expect("disk_graph edges always have layer currently");
         if !layer_ids.contains(layer_id) {
             return false;
         }
@@ -538,7 +540,9 @@ impl TimeSemantics for DiskGraph {
     }
 
     fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: &LayerIds) -> bool {
-        let layer_id = e.layer().expect("disk_graph edges always have layer currently");
+        let layer_id = e
+            .layer()
+            .expect("disk_graph edges always have layer currently");
         if !layer_ids.contains(layer_id) {
             return false;
         }

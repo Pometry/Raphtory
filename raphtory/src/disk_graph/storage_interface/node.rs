@@ -18,12 +18,12 @@ use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIter
 use std::{iter, sync::Arc};
 
 #[derive(Copy, Clone, Debug)]
-pub struct ArrowNode<'a> {
+pub struct DiskNode<'a> {
     graph: &'a TemporalGraph,
     pub(super) vid: VID,
 }
 
-impl<'a> ArrowNode<'a> {
+impl<'a> DiskNode<'a> {
     pub(crate) fn new(graph: &'a TemporalGraph, vid: VID) -> Self {
         Self { graph, vid }
     }
@@ -165,7 +165,7 @@ impl<'a> ArrowNode<'a> {
     }
 }
 
-impl<'a> NodeStorageOps<'a> for ArrowNode<'a> {
+impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize {
         let single_layer = match layers {
             LayerIds::None => return 0,
@@ -294,17 +294,17 @@ impl<'a> NodeStorageOps<'a> for ArrowNode<'a> {
 }
 
 #[derive(Clone, Debug)]
-pub struct ArrowOwnedNode {
+pub struct DiskOwnedNode {
     graph: Arc<TemporalGraph>,
     vid: VID,
 }
 
-impl ArrowOwnedNode {
+impl DiskOwnedNode {
     pub(crate) fn new(graph: Arc<TemporalGraph>, vid: VID) -> Self {
         Self { graph, vid }
     }
-    pub fn as_ref(&self) -> ArrowNode {
-        ArrowNode {
+    pub fn as_ref(&self) -> DiskNode {
+        DiskNode {
             graph: &self.graph,
             vid: self.vid,
         }
@@ -451,7 +451,7 @@ impl ArrowOwnedNode {
     }
 }
 
-impl<'a> NodeStorageOps<'a> for &'a ArrowOwnedNode {
+impl<'a> NodeStorageOps<'a> for &'a DiskOwnedNode {
     #[inline]
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize {
         self.as_ref().degree(layers, dir)
@@ -503,7 +503,7 @@ impl<'a> NodeStorageOps<'a> for &'a ArrowOwnedNode {
     }
 }
 
-impl NodeStorageIntoOps for ArrowOwnedNode {
+impl NodeStorageIntoOps for DiskOwnedNode {
     fn into_edges_iter(self, layers: LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> {
         match dir {
             Direction::OUT => DirectionVariants::Out(self.out_edges(layers)),
