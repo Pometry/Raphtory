@@ -49,8 +49,8 @@ impl<'a> NodesStorageRef<'a> {
     pub fn len(&self) -> usize {
         match self {
             NodesStorageRef::Mem(store) => store.len(),
-            #[cfg(feature = "arrow")]
-            NodesStorageRef::Arrow(store) => store.len(),
+            #[cfg(feature = "storage")]
+            NodesStorageRef::Disk(store) => store.len(),
         }
     }
     pub fn par_iter(self) -> impl ParallelIterator<Item = NodeStorageRef<'a>> {
