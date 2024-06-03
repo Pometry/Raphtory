@@ -22,7 +22,7 @@ use futures::Stream;
 use pometry_storage::properties::Properties;
 
 use raphtory::{
-    arrow::{graph_impl::DiskGraph, prelude::*},
+    disk_graph::{graph_impl::DiskGraph, prelude::*},
     core::entities::VID,
 };
 

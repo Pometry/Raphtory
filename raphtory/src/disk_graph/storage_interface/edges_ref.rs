@@ -1,5 +1,5 @@
 use crate::{
-    arrow::storage_interface::edge::ArrowEdge,
+    disk_graph::storage_interface::edge::ArrowEdge,
     core::entities::{LayerIds, EID},
     db::api::storage::variants::layer_variants::LayerVariants,
 };

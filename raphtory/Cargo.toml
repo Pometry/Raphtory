@@ -68,7 +68,7 @@ polars-parquet = { workspace = true, optional = true }
 polars-utils = { workspace = true, optional = true }
 kdam = { workspace = true, optional = true }
 
-# arrow storage optional dependencies
+# disk storage optional dependencies
 memmap2 = { workspace = true, optional = true }
 ahash = { workspace = true, optional = true }
 tempfile = { workspace = true, optional = true }

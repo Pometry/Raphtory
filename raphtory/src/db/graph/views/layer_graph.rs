@@ -143,7 +143,7 @@ mod test_layers {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let neighbours = graph
@@ -198,7 +198,7 @@ mod test_layers {
         }
         test(&graph);
         // FIXME: Needs multilayer support (Issue #47)
-        // test(&arrow_graph);
+        // test(&disk_graph);
     }
 
     #[test]
@@ -213,7 +213,7 @@ mod test_layers {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let e = graph.edge(1, 2).unwrap();
@@ -232,6 +232,6 @@ mod test_layers {
         }
         test(&graph);
         // FIXME: Needs multilayer support (Issue #47)
-        // test(&arrow_graph);
+        // test(&disk_graph);
     }
 }

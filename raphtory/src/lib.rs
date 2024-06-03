@@ -89,7 +89,7 @@ pub mod db;
 pub mod graphgen;
 
 #[cfg(feature = "storage")]
-pub mod arrow;
+pub mod disk_graph;
 
 #[cfg(all(feature = "python", not(doctest)))]
 // no doctests in python as the docstrings are python not rust format

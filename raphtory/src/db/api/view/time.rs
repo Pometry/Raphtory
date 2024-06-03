@@ -336,7 +336,7 @@ mod time_tests {
         let graph = graph_with_timeline(1, 7);
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test1<G: StaticGraphViewOps>(graph: &G) {
             let windows = graph.rolling(2, None).unwrap();
@@ -345,12 +345,12 @@ mod time_tests {
         }
         test1(&graph);
         #[cfg(feature = "storage")]
-        test1(&arrow_graph);
+        test1(&disk_graph);
 
         let graph = graph_with_timeline(1, 6);
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test2<G: StaticGraphViewOps>(graph: &G) {
             let windows = graph.rolling(3, Some(2)).unwrap();
@@ -359,12 +359,12 @@ mod time_tests {
         }
         test2(&graph);
         #[cfg(feature = "storage")]
-        test2(&arrow_graph);
+        test2(&disk_graph);
 
         let graph = graph_with_timeline(0, 9);
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
         fn test3<G: StaticGraphViewOps>(graph: &G) {
             let windows = graph.window(1, 6).rolling(3, Some(2)).unwrap();
             assert_bounds(
@@ -374,7 +374,7 @@ mod time_tests {
         }
         test3(&graph);
         #[cfg(feature = "storage")]
-        test3(&arrow_graph);
+        test3(&disk_graph);
     }
 
     #[test]
@@ -382,7 +382,7 @@ mod time_tests {
         let graph = graph_with_timeline(1, 7);
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test1<G: StaticGraphViewOps>(graph: &G) {
             let windows = graph.expanding(2).unwrap();
@@ -391,12 +391,12 @@ mod time_tests {
         }
         test1(&graph);
         #[cfg(feature = "storage")]
-        test1(&arrow_graph);
+        test1(&disk_graph);
 
         let graph = graph_with_timeline(1, 6);
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test2<G: StaticGraphViewOps>(graph: &G) {
             let windows = graph.expanding(2).unwrap();
@@ -405,12 +405,12 @@ mod time_tests {
         }
         test2(&graph);
         #[cfg(feature = "storage")]
-        test2(&arrow_graph);
+        test2(&disk_graph);
 
         let graph = graph_with_timeline(0, 9);
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test3<G: StaticGraphViewOps>(graph: &G) {
             let windows = graph.window(1, 6).expanding(2).unwrap();
@@ -421,7 +421,7 @@ mod time_tests {
         }
         test3(&graph);
         #[cfg(feature = "storage")]
-        test3(&arrow_graph);
+        test3(&disk_graph);
     }
 
     #[test]
@@ -431,7 +431,7 @@ mod time_tests {
         let graph = graph_with_timeline(start, end);
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test1<G: StaticGraphViewOps>(graph: &G) {
             let windows = graph.rolling("1 day", None).unwrap();
@@ -449,14 +449,14 @@ mod time_tests {
         }
         test1(&graph);
         #[cfg(feature = "storage")]
-        test1(&arrow_graph);
+        test1(&disk_graph);
 
         let start = "2020-06-06 00:00:00".try_into_time().unwrap();
         let end = "2020-06-08 00:00:00".try_into_time().unwrap();
         let graph = graph_with_timeline(start, end);
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test2<G: StaticGraphViewOps>(graph: &G) {
             let windows = graph.rolling("1 day", None).unwrap();
@@ -474,7 +474,7 @@ mod time_tests {
         }
         test2(&graph);
         #[cfg(feature = "storage")]
-        test2(&arrow_graph);
+        test2(&disk_graph);
 
         // TODO: turn this back on if we bring bach epoch alignment for unwindowed graphs
         // let start = "2020-06-05 23:59:59.999".into_time().unwrap();
@@ -501,7 +501,7 @@ mod time_tests {
         let graph = graph_with_timeline(start, end);
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test1<G: StaticGraphViewOps>(graph: &G) {
             let windows = graph.expanding("1 day").unwrap();
@@ -513,14 +513,14 @@ mod time_tests {
         }
         test1(&graph);
         #[cfg(feature = "storage")]
-        test1(&arrow_graph);
+        test1(&disk_graph);
 
         let start = "2020-06-06 00:00:00".try_into_time().unwrap();
         let end = "2020-06-08 00:00:00".try_into_time().unwrap();
         let graph = graph_with_timeline(start, end);
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test2<G: StaticGraphViewOps>(graph: &G) {
             let windows = graph.expanding("1 day").unwrap();
@@ -532,6 +532,6 @@ mod time_tests {
         }
         test2(&graph);
         #[cfg(feature = "storage")]
-        test2(&arrow_graph);
+        test2(&disk_graph);
     }
 }

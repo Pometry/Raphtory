@@ -69,15 +69,13 @@ fn populate_edges<G: StaticGraphViewOps, V: AsNodeRef>(g: &G, new_graph: &Graph,
 
 #[cfg(test)]
 mod bipartite_graph_tests {
-    use itertools::Itertools;
-
     use super::temporal_bipartite_projection;
     use crate::{
         db::{
             api::{mutation::AdditionOps, view::*},
             graph::graph::Graph,
         },
-        prelude::{Prop, NO_PROPS},
+        prelude::NO_PROPS,
     };
 
     #[test]

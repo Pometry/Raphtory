@@ -119,7 +119,7 @@ mod cc_test {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let results = weakly_connected_components(graph, usize::MAX, None).get_all_with_names();
@@ -141,7 +141,7 @@ mod cc_test {
         }
         test(&graph);
         #[cfg(feature = "storage")]
-        test(&arrow_graph);
+        test(&disk_graph);
     }
 
     #[test]
@@ -180,7 +180,7 @@ mod cc_test {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let results = weakly_connected_components(graph, usize::MAX, None).get_all_with_names();
@@ -206,7 +206,7 @@ mod cc_test {
         }
         test(&graph);
         #[cfg(feature = "storage")]
-        test(&arrow_graph);
+        test(&disk_graph);
     }
 
     // connected community_detection on a graph with 1 node and a self loop
@@ -222,7 +222,7 @@ mod cc_test {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let results = weakly_connected_components(graph, usize::MAX, None).get_all_with_names();
@@ -236,7 +236,7 @@ mod cc_test {
         }
         test(&graph);
         #[cfg(feature = "storage")]
-        test(&arrow_graph);
+        test(&disk_graph);
     }
 
     #[test]
@@ -249,7 +249,7 @@ mod cc_test {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let results = weakly_connected_components(graph, usize::MAX, None).get_all_with_names();
@@ -276,7 +276,7 @@ mod cc_test {
         }
         test(&graph);
         #[cfg(feature = "storage")]
-        test(&arrow_graph);
+        test(&disk_graph);
     }
 
     #[quickcheck]
@@ -323,7 +323,7 @@ mod cc_test {
 
             let test_dir = TempDir::new().unwrap();
             #[cfg(feature = "storage")]
-            let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+            let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
             fn test<G: StaticGraphViewOps>(graph: &G, smallest: &u64, edges: &[(u64, u64)]) {
                 // now we do connected community_detection over window 0..1
@@ -342,7 +342,7 @@ mod cc_test {
             }
             test(&graph, smallest, &edges);
             #[cfg(feature = "storage")]
-            test(&arrow_graph, smallest, &edges);
+            test(&disk_graph, smallest, &edges);
         }
     }
 }

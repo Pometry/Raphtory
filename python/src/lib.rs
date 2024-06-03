@@ -5,7 +5,7 @@ extern crate core;
 use graphql::*;
 use pyo3::prelude::*;
 #[cfg(feature = "storage")]
-use raphtory_core::python::graph::arrow::{PyArrowGraph, PyGraphQuery, PyState};
+use raphtory_core::python::graph::disk_graph::{PyDiskGraph, PyGraphQuery, PyState};
 use raphtory_core::python::{
     graph::{
         algorithm_result::AlgorithmResult,
@@ -66,7 +66,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     );
 
     #[cfg(feature = "storage")]
-    add_classes!(m, PyArrowGraph, PyGraphQuery, PyState);
+    add_classes!(m, PyDiskGraph, PyGraphQuery, PyState);
 
     //GRAPHQL
     let graphql_module = PyModule::new(py, "graphql")?;

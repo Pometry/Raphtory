@@ -1,5 +1,5 @@
 #[cfg(feature = "storage")]
-use crate::arrow::storage_interface::nodes::ArrowNodesOwned;
+use crate::disk_graph::storage_interface::nodes::ArrowNodesOwned;
 use crate::{
     core::{
         entities::{nodes::node_store::NodeStore, VID},

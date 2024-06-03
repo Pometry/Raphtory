@@ -214,7 +214,7 @@ mod page_rank_tests {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let results = unweighted_page_rank(graph, Some(1000), Some(1), None, true, None);
@@ -227,7 +227,7 @@ mod page_rank_tests {
 
         test(&graph);
         #[cfg(feature = "storage")]
-        test(&arrow_graph);
+        test(&disk_graph);
     }
 
     #[test]
@@ -266,7 +266,7 @@ mod page_rank_tests {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let results = unweighted_page_rank(graph, Some(1000), Some(4), None, true, None);
@@ -285,7 +285,7 @@ mod page_rank_tests {
         }
         test(&graph);
         #[cfg(feature = "storage")]
-        test(&arrow_graph);
+        test(&disk_graph);
     }
 
     #[test]
@@ -300,7 +300,7 @@ mod page_rank_tests {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let results = unweighted_page_rank(graph, Some(1000), Some(4), None, false, None);
@@ -310,7 +310,7 @@ mod page_rank_tests {
         }
         test(&graph);
         #[cfg(feature = "storage")]
-        test(&arrow_graph);
+        test(&disk_graph);
     }
 
     #[test]
@@ -325,7 +325,7 @@ mod page_rank_tests {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let results = unweighted_page_rank(graph, Some(10), Some(4), None, false, None);
@@ -336,7 +336,7 @@ mod page_rank_tests {
         }
         test(&graph);
         #[cfg(feature = "storage")]
-        test(&arrow_graph);
+        test(&disk_graph);
     }
 
     #[test]
@@ -370,7 +370,7 @@ mod page_rank_tests {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let results = unweighted_page_rank(graph, Some(1000), Some(4), None, true, None);
@@ -389,7 +389,7 @@ mod page_rank_tests {
         }
         test(&graph);
         #[cfg(feature = "storage")]
-        test(&arrow_graph);
+        test(&disk_graph);
     }
 
     fn assert_eq_f64<T: Borrow<f64> + PartialEq + std::fmt::Debug>(

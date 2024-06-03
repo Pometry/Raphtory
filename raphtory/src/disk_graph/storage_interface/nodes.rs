@@ -1,5 +1,5 @@
 use crate::{
-    arrow::storage_interface::{node::ArrowNode, nodes_ref::ArrowNodesRef},
+    disk_graph::storage_interface::{node::ArrowNode, nodes_ref::ArrowNodesRef},
     core::entities::VID,
 };
 

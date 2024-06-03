@@ -1,7 +1,7 @@
 use std::{io::Write, sync::Arc};
 
 use crate::{
-    arrow::{
+    disk_graph::{
         graph_impl::{DiskGraph, ParquetLayerCols},
         query::{ast::Query, executors::rayon2, state::StaticGraphHopState, NodeSource},
         Error,
@@ -42,12 +42,12 @@ impl From<Error> for PyErr {
 }
 
 #[derive(Clone)]
-#[pyclass(name = "ArrowGraph", extends = PyGraphView)]
-pub struct PyArrowGraph {
+#[pyclass(name = "DiskGraph", extends = PyGraphView)]
+pub struct PyDiskGraph {
     pub graph: DiskGraph,
 }
 
-impl<G> AsRef<G> for PyArrowGraph
+impl<G> AsRef<G> for PyDiskGraph
 where
     DiskGraph: AsRef<G>,
 {
@@ -56,20 +56,20 @@ where
     }
 }
 
-impl From<DiskGraph> for PyArrowGraph {
+impl From<DiskGraph> for PyDiskGraph {
     fn from(value: DiskGraph) -> Self {
         Self { graph: value }
     }
 }
 
-impl From<PyArrowGraph> for DiskGraph {
-    fn from(value: PyArrowGraph) -> Self {
+impl From<PyDiskGraph> for DiskGraph {
+    fn from(value: PyDiskGraph) -> Self {
         value.graph
     }
 }
 
-impl From<PyArrowGraph> for DynamicGraph {
-    fn from(value: PyArrowGraph) -> Self {
+impl From<PyDiskGraph> for DynamicGraph {
+    fn from(value: PyDiskGraph) -> Self {
         value.graph.into_dynamic()
     }
 }
@@ -78,7 +78,7 @@ impl IntoPy<PyObject> for DiskGraph {
     fn into_py(self, py: Python<'_>) -> PyObject {
         Py::new(
             py,
-            (PyArrowGraph::from(self.clone()), PyGraphView::from(self)),
+            (PyDiskGraph::from(self.clone()), PyGraphView::from(self)),
         )
         .unwrap()
         .into_py(py)
@@ -87,7 +87,7 @@ impl IntoPy<PyObject> for DiskGraph {
 
 impl<'source> FromPyObject<'source> for DiskGraph {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
-        let py_graph: PyRef<PyArrowGraph> = ob.extract()?;
+        let py_graph: PyRef<PyDiskGraph> = ob.extract()?;
         Ok(py_graph.graph.clone())
     }
 }
@@ -141,14 +141,14 @@ impl<'a> FromPyObject<'a> for ParquetLayerColsList<'a> {
 
 #[pymethods]
 impl PyGraph {
-    /// save graph in arrow format and memory map the result
-    pub fn persist_as_arrow(&self, graph_dir: &str) -> Result<DiskGraph, Error> {
-        self.graph.persist_as_arrow(graph_dir)
+    /// save graph in disk_graph format and memory map the result
+    pub fn persist_as_disk_graph(&self, graph_dir: &str) -> Result<DiskGraph, Error> {
+        self.graph.persist_as_disk_graph(graph_dir)
     }
 }
 
 #[pymethods]
-impl PyArrowGraph {
+impl PyDiskGraph {
     #[staticmethod]
     #[pyo3(signature = (graph_dir, edge_df, src_col, dst_col, time_col))]
     pub fn load_from_pandas(
@@ -234,7 +234,7 @@ impl PyArrowGraph {
     }
 }
 
-impl PyArrowGraph {
+impl PyDiskGraph {
     fn from_pandas(
         graph_dir: &str,
         df: PretendDF,

@@ -262,7 +262,7 @@ mod generic_taint_tests {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let results = sort_inner_by_string(test_generic_taint(graph, 20, 11, vec![2], None));
@@ -286,7 +286,7 @@ mod generic_taint_tests {
         }
         test(&graph);
         #[cfg(feature = "storage")]
-        test(&arrow_graph);
+        test(&disk_graph);
     }
 
     #[test]
@@ -306,7 +306,7 @@ mod generic_taint_tests {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let results = sort_inner_by_string(test_generic_taint(graph, 20, 11, vec![1, 2], None));
@@ -333,7 +333,7 @@ mod generic_taint_tests {
         }
         test(&graph);
         #[cfg(feature = "storage")]
-        test(&arrow_graph);
+        test(&disk_graph);
     }
 
     #[test]
@@ -353,7 +353,7 @@ mod generic_taint_tests {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let results = sort_inner_by_string(test_generic_taint(
@@ -380,7 +380,7 @@ mod generic_taint_tests {
         }
         test(&graph);
         #[cfg(feature = "storage")]
-        test(&arrow_graph);
+        test(&disk_graph);
     }
 
     #[test]
@@ -402,7 +402,7 @@ mod generic_taint_tests {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let results = sort_inner_by_string(test_generic_taint(
@@ -433,6 +433,6 @@ mod generic_taint_tests {
         }
         test(&graph);
         #[cfg(feature = "storage")]
-        test(&arrow_graph);
+        test(&disk_graph);
     }
 }

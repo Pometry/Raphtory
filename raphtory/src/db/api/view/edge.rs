@@ -308,7 +308,7 @@ mod test_edge_view {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G, actual_prop_values: &[i32]) {
             let prop_values: Vec<_> = graph
@@ -322,7 +322,7 @@ mod test_edge_view {
         }
         test(&graph, &actual_prop_values);
         #[cfg(feature = "storage")]
-        test(&arrow_graph, &actual_prop_values);
+        test(&disk_graph, &actual_prop_values);
     }
 
     #[test]
@@ -339,7 +339,7 @@ mod test_edge_view {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(
             graph: &G,
@@ -367,7 +367,7 @@ mod test_edge_view {
         }
         test(&graph, &actual_prop_values_0, &actual_prop_values_1);
         #[cfg(feature = "storage")]
-        test(&arrow_graph, &actual_prop_values_0, &actual_prop_values_1);
+        test(&disk_graph, &actual_prop_values_0, &actual_prop_values_1);
     }
 
     #[test]
@@ -382,7 +382,7 @@ mod test_edge_view {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G, expected_prop_values: &[i32]) {
             let prop_values: Vec<_> = graph
@@ -446,7 +446,7 @@ mod test_edge_view {
         }
         test(&graph, &expected_prop_values);
         // FIXME: Needs multilayer support (Issue #47)
-        // test(&arrow_graph, &expected_prop_values);
+        // test(&disk_graph, &expected_prop_values);
     }
 
     #[test]
@@ -459,7 +459,7 @@ mod test_edge_view {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let mut exploded_edges: Vec<_> = graph.edges().explode().iter().collect();
@@ -487,6 +487,6 @@ mod test_edge_view {
         }
         test(&graph);
         // FIXME: boolean properties not supported yet (Issue #48)
-        // test(&arrow_graph);
+        // test(&disk_graph);
     }
 }

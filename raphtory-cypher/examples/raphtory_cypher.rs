@@ -1,5 +1,5 @@
 #[cfg(feature = "storage")]
-pub use cyper_arrow::*;
+pub use cypher::*;
 
 #[cfg(not(feature = "storage"))]
 fn main() {}
@@ -7,17 +7,17 @@ fn main() {}
 #[cfg(feature = "storage")]
 #[tokio::main]
 async fn main() {
-    cyper_arrow::main().await;
+    cypher::main().await;
 }
 
 #[cfg(feature = "storage")]
-mod cyper_arrow {
+mod cypher {
     use std::{error::Error, str::FromStr};
 
     use arrow::util::pretty::print_batches;
     use clap::Parser;
     use futures::{stream, StreamExt};
-    use raphtory::arrow::graph_impl::{DiskGraph, ParquetLayerCols};
+    use raphtory::disk_graph::graph_impl::{DiskGraph, ParquetLayerCols};
     use raphtory_cypher::{run_cypher, run_cypher_to_streams, run_sql};
     use serde::{de::DeserializeOwned, Deserialize};
 

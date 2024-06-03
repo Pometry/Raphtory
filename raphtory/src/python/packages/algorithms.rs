@@ -63,7 +63,7 @@ use std::collections::{HashMap, HashSet};
 use pometry_storage::algorithms::connected_components::connected_components as connected_components_rs;
 
 #[cfg(feature = "storage")]
-use crate::python::graph::arrow::PyArrowGraph;
+use crate::python::graph::disk_graph::PyDiskGraph;
 
 /// Implementations of various graph algorithms that can be run on a graph.
 ///
@@ -126,7 +126,7 @@ pub fn strongly_connected_components(
 #[cfg(feature = "storage")]
 #[pyfunction]
 #[pyo3(signature = (g))]
-pub fn connected_components(g: &PyArrowGraph) -> Vec<usize> {
+pub fn connected_components(g: &PyDiskGraph) -> Vec<usize> {
     connected_components_rs(g.graph.as_ref())
 }
 

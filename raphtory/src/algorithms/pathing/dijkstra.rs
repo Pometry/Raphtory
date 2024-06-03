@@ -248,7 +248,7 @@ mod dijkstra_tests {
         let graph = basic_graph();
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let targets: Vec<&str> = vec!["D", "F"];
@@ -286,7 +286,7 @@ mod dijkstra_tests {
         }
         test(&graph);
         #[cfg(feature = "storage")]
-        test(&arrow_graph);
+        test(&disk_graph);
     }
 
     #[test]
@@ -294,7 +294,7 @@ mod dijkstra_tests {
         let graph = basic_graph();
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let targets: Vec<&str> = vec!["C", "E", "F"];
@@ -307,7 +307,7 @@ mod dijkstra_tests {
         }
         test(&graph);
         #[cfg(feature = "storage")]
-        test(&arrow_graph);
+        test(&disk_graph);
     }
 
     #[test]
@@ -330,7 +330,7 @@ mod dijkstra_tests {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let targets = vec![4, 6];
@@ -366,7 +366,7 @@ mod dijkstra_tests {
         }
         test(&graph);
         #[cfg(feature = "storage")]
-        test(&arrow_graph);
+        test(&disk_graph);
     }
 
     #[test]
@@ -390,7 +390,7 @@ mod dijkstra_tests {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let targets: Vec<&str> = vec!["D", "F"];
@@ -426,7 +426,7 @@ mod dijkstra_tests {
         }
         test(&graph);
         #[cfg(feature = "storage")]
-        test(&arrow_graph);
+        test(&disk_graph);
     }
 
     #[test]
@@ -445,7 +445,7 @@ mod dijkstra_tests {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let targets: Vec<&str> = vec!["D"];
@@ -463,7 +463,7 @@ mod dijkstra_tests {
         }
         test(&graph);
         #[cfg(feature = "storage")]
-        test(&arrow_graph);
+        test(&disk_graph);
     }
 
     #[test]
@@ -482,7 +482,7 @@ mod dijkstra_tests {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let targets: Vec<&str> = vec!["D"];
@@ -493,6 +493,6 @@ mod dijkstra_tests {
         }
         test(&graph);
         #[cfg(feature = "storage")]
-        test(&arrow_graph);
+        test(&disk_graph);
     }
 }

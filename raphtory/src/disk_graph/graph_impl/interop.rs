@@ -1,5 +1,5 @@
 use crate::{
-    arrow::graph_impl::prop_conversion::arrow_array_from_props,
+    disk_graph::graph_impl::prop_conversion::arrow_array_from_props,
     core::{
         entities::{LayerIds, ELID},
         storage::timeindex::TimeIndexOps,

@@ -1,5 +1,5 @@
 use crate::{
-    arrow::{
+    disk_graph::{
         graph_impl::DiskGraph,
         query::{
             ast::{Hop, Query, Sink},
@@ -44,7 +44,7 @@ pub fn execute<S: HopState + 'static>(
                 for node in node_chunk {
                     let node = graph.inner.layer(layer).node(node);
                     let state = (make_state)(node);
-                    hop_arrow_graph(node, &query, 0, state, graph, s, tl);
+                    hop_disk_graph(node, &query, 0, state, graph, s, tl);
                 }
             })
         }
@@ -112,7 +112,7 @@ fn get_writer(
     out
 }
 
-fn hop_arrow_graph<'a, S: HopState + 'a>(
+fn hop_disk_graph<'a, S: HopState + 'a>(
     node: Node,
     query: &'a Query<S>,
     step: usize,
@@ -149,7 +149,7 @@ fn hop_arrow_graph<'a, S: HopState + 'a>(
                     })
                     .take(limit)
                     .for_each(|(_, node, state)| {
-                        hop_arrow_graph(node, query, step + 1, state, graph, s, tl);
+                        hop_disk_graph(node, query, step + 1, state, graph, s, tl);
                     });
             }),
             Direction::IN => s.spawn(move |s| {
@@ -165,7 +165,7 @@ fn hop_arrow_graph<'a, S: HopState + 'a>(
                     })
                     .take(limit)
                     .for_each(|(_, node, state)| {
-                        hop_arrow_graph(node, query, step + 1, state, graph, s, tl);
+                        hop_disk_graph(node, query, step + 1, state, graph, s, tl);
                     });
             }),
             Direction::BOTH => {

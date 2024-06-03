@@ -420,7 +420,7 @@ mod test_edge {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G, props: [(ArcStr, Prop); 1]) {
             let e1 = graph.edge(1, 2).unwrap();
@@ -430,7 +430,7 @@ mod test_edge {
         }
         test(&graph, props.clone());
         #[cfg(feature = "storage")]
-        test(&arrow_graph, props);
+        test(&disk_graph, props);
     }
 
     #[test]
@@ -449,7 +449,7 @@ mod test_edge {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             assert_eq!(
@@ -481,7 +481,7 @@ mod test_edge {
         }
         test(&graph);
         // FIXME: multilayer edge views are not supported yet (Issue #47)
-        // test(&arrow_graph);
+        // test(&disk_graph);
     }
 
     #[test]

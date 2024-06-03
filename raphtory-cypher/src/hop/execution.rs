@@ -9,7 +9,7 @@ use std::{
 };
 
 use crate::arrow2::{offset::Offset, types::NativeType};
-// use arrow::compute::take_record_batch;
+// use disk_graph::compute::take_record_batch;
 use arrow_array::{
     builder::{
         make_builder, ArrayBuilder, Float32Builder, Float64Builder, GenericStringBuilder,
@@ -40,7 +40,7 @@ use futures::{Stream, StreamExt};
 
 use pometry_storage::graph_fragment::TempColGraphFragment;
 use raphtory::{
-    arrow::{
+    disk_graph::{
         graph_impl::DiskGraph,
         prelude::{ArrayOps, BaseArrayOps, PrimitiveCol},
     },

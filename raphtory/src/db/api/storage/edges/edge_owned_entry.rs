@@ -1,5 +1,5 @@
 #[cfg(feature = "storage")]
-use crate::arrow::storage_interface::edge::ArrowOwnedEdge;
+use crate::disk_graph::storage_interface::edge::ArrowOwnedEdge;
 #[cfg(feature = "storage")]
 use crate::db::api::storage::variants::storage_variants::StorageVariants;
 use crate::{

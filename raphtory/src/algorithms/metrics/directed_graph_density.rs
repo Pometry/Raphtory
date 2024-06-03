@@ -66,7 +66,7 @@ mod directed_graph_density_tests {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let windowed_graph = graph.window(0, 7);
@@ -77,7 +77,7 @@ mod directed_graph_density_tests {
         }
         test(&graph);
         #[cfg(feature = "storage")]
-        test(&arrow_graph);
+        test(&disk_graph);
     }
 
     #[test]
@@ -92,7 +92,7 @@ mod directed_graph_density_tests {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let windowed_graph = graph.window(0, 3);
@@ -103,6 +103,6 @@ mod directed_graph_density_tests {
         }
         test(&graph);
         #[cfg(feature = "storage")]
-        test(&arrow_graph);
+        test(&disk_graph);
     }
 }

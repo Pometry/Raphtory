@@ -28,7 +28,7 @@ use datafusion::{
 };
 use futures::Stream;
 use pometry_storage::prelude::*;
-use raphtory::arrow::graph_impl::DiskGraph;
+use raphtory::disk_graph::graph_impl::DiskGraph;
 
 use crate::executor::{arrow2_to_arrow_buf, ExecError};
 
@@ -223,7 +223,7 @@ fn produce_record_batch(
     let mut layer_id_builder = Vec::with_capacity(time_values_chunks.len());
 
     // take every chunk here and surface the primitive arrays
-    // convert from arrow2 to arrow-rs then to polars
+    // convert from arrow2 to disk_graph-rs then to polars
     for (i, ((src, dst), layer_id)) in srcs
         .iter_chunks()
         .zip(dsts.iter_chunks())

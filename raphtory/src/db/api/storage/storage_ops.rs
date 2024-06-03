@@ -33,7 +33,7 @@ use std::iter;
 
 #[cfg(feature = "storage")]
 use crate::{
-    arrow::storage_interface::{
+    disk_graph::storage_interface::{
         edges::ArrowEdges,
         edges_ref::ArrowEdgesRef,
         node::{ArrowNode, ArrowOwnedNode},
@@ -114,7 +114,7 @@ impl GraphStorage {
             GraphStorage::Disk(storage) => {
                 let layer = eid
                     .layer()
-                    .expect("arrow EdgeRefs should always have layer set");
+                    .expect("disk_graph EdgeRefs should always have layer set");
                 EdgeStorageRef::Disk(storage.layers()[*layer].edge(eid.pid()))
             }
         }

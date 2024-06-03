@@ -1,4 +1,4 @@
-use crate::{arrow::storage_interface::node::ArrowNode, core::entities::VID};
+use crate::{disk_graph::storage_interface::node::ArrowNode, core::entities::VID};
 use pometry_storage::graph::TemporalGraph;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 

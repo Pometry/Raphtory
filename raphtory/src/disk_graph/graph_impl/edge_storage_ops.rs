@@ -1,5 +1,5 @@
 use crate::{
-    arrow::graph_impl::tprops::read_tprop_column,
+    disk_graph::graph_impl::tprops::read_tprop_column,
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         storage::timeindex::{TimeIndex, TimeIndexOps},

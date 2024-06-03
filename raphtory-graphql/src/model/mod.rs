@@ -46,8 +46,8 @@ impl Error for MissingGraph {}
 
 #[derive(thiserror::Error, Debug)]
 pub enum GqlGraphError {
-    #[error("Arrow Graph is immutable")]
-    ImmutableArrowGraph,
+    #[error("Disk Graph is immutable")]
+    ImmutableDiskGraph,
 }
 
 #[derive(ResolvedObject)]
@@ -144,7 +144,7 @@ impl Mut {
 
         #[cfg(feature = "storage")]
         if subgraph.clone().graph.into_arrow().is_some() {
-            return Err(GqlGraphError::ImmutableArrowGraph.into());
+            return Err(GqlGraphError::ImmutableDiskGraph.into());
         }
 
         if new_graph_name.ne(&graph_name) && parent_graph_name.ne(&graph_name) {
@@ -195,7 +195,7 @@ impl Mut {
 
         #[cfg(feature = "storage")]
         if subgraph.clone().graph.into_arrow().is_some() {
-            return Err(GqlGraphError::ImmutableArrowGraph.into());
+            return Err(GqlGraphError::ImmutableDiskGraph.into());
         }
 
         let dt = Utc::now();
@@ -231,7 +231,7 @@ impl Mut {
 
         #[cfg(feature = "storage")]
         if subgraph.clone().graph.into_arrow().is_some() {
-            return Err(GqlGraphError::ImmutableArrowGraph.into());
+            return Err(GqlGraphError::ImmutableDiskGraph.into());
         }
 
         let path = match data.get(&new_graph_name) {
@@ -384,7 +384,7 @@ impl Mut {
 
         #[cfg(feature = "storage")]
         if subgraph.clone().graph.into_arrow().is_some() {
-            return Err(GqlGraphError::ImmutableArrowGraph.into());
+            return Err(GqlGraphError::ImmutableDiskGraph.into());
         }
 
         subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;

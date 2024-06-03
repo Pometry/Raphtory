@@ -13,7 +13,7 @@ use crate::{
 };
 
 #[cfg(feature = "storage")]
-use crate::arrow::storage_interface::edge::ArrowEdge;
+use crate::disk_graph::storage_interface::edge::ArrowEdge;
 
 use crate::db::api::storage::tprop_storage_ops::TPropOps;
 use rayon::prelude::*;

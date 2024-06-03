@@ -106,7 +106,7 @@ mod clustering_coefficient_tests {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let expected = vec![0.33333334, 1.0, 1.0, 0.0, 0.0];
@@ -119,6 +119,6 @@ mod clustering_coefficient_tests {
         }
         test(&graph);
         #[cfg(feature = "storage")]
-        test(&arrow_graph);
+        test(&disk_graph);
     }
 }

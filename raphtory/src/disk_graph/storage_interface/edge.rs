@@ -21,7 +21,7 @@ impl ArrowOwnedEdge {
     pub(crate) fn new(graph: &TemporalGraph, eid: ELID) -> Self {
         let layer = eid
             .layer()
-            .expect("arrow EdgeRefs should have layer always defined");
+            .expect("disk_graph EdgeRefs should have layer always defined");
         Self {
             edges: graph.layer(layer).edges_storage().clone(),
             eid: eid.pid(),

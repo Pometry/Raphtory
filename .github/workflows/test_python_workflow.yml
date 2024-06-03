@@ -47,7 +47,7 @@ jobs:
           override: true
           components: rustfmt, clippy
       - uses: webfactory/ssh-agent@v0.7.0
-        name: Load raphtory-arrow key
+        name: Load raphtory-disk_graph key
         with:
           ssh-private-key: ${{ secrets.RA_SSH_PRIVATE_KEY }}
       - uses: Swatinem/rust-cache@v2

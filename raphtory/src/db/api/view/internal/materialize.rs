@@ -41,7 +41,7 @@ use serde::{de::Error, Deserialize, Deserializer, Serialize};
 use std::path::Path;
 
 #[cfg(feature = "storage")]
-use crate::arrow::graph_impl::DiskGraph;
+use crate::disk_graph::graph_impl::DiskGraph;
 
 #[enum_dispatch(CoreGraphOps)]
 #[enum_dispatch(InternalLayerOps)]
@@ -60,7 +60,7 @@ pub enum MaterializedGraph {
     EventGraph(Graph),
     PersistentGraph(PersistentGraph),
     #[cfg(feature = "storage")]
-    ArrowEventGraph(DiskGraph),
+    DiskEventGraph(DiskGraph),
 }
 
 fn version_deserialize<'de, D>(deserializer: D) -> Result<u32, D::Error>
@@ -92,7 +92,7 @@ impl MaterializedGraph {
             MaterializedGraph::EventGraph(g) => Some(g),
             MaterializedGraph::PersistentGraph(_) => None,
             #[cfg(feature = "storage")]
-            MaterializedGraph::ArrowEventGraph(_) => None,
+            MaterializedGraph::DiskEventGraph(_) => None,
         }
     }
     pub fn into_persistent(self) -> Option<PersistentGraph> {
@@ -100,17 +100,17 @@ impl MaterializedGraph {
             MaterializedGraph::EventGraph(_) => None,
             MaterializedGraph::PersistentGraph(g) => Some(g),
             #[cfg(feature = "storage")]
-            MaterializedGraph::ArrowEventGraph(_) => None,
+            MaterializedGraph::DiskEventGraph(_) => None,
         }
     }
 
     #[cfg(feature = "storage")]
-    pub fn into_arrow(self) -> Option<DiskGraph> {
+    pub fn into_disk_graph(self) -> Option<DiskGraph> {
         match self {
             MaterializedGraph::EventGraph(_) => None,
             MaterializedGraph::PersistentGraph(_) => None,
             #[cfg(feature = "storage")]
-            MaterializedGraph::ArrowEventGraph(g) => Some(g),
+            MaterializedGraph::DiskEventGraph(g) => Some(g),
         }
     }
 

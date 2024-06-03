@@ -10,7 +10,7 @@ use datafusion::{
     physical_plan::ExecutionPlan,
     physical_planner::{DefaultPhysicalPlanner, ExtensionPlanner, PhysicalPlanner},
 };
-use raphtory::{arrow::graph_impl::DiskGraph, core::Direction};
+use raphtory::{disk_graph::graph_impl::DiskGraph, core::Direction};
 
 use crate::hop::operator::HopPlan;
 
@@ -141,7 +141,7 @@ impl ExtensionPlanner for HopPlanner {
 #[cfg(test)]
 mod test {
     use arrow::util::pretty::print_batches;
-    use raphtory::arrow::graph_impl::DiskGraph;
+    use raphtory::disk_graph::graph_impl::DiskGraph;
     use tempfile::tempdir;
 
     use crate::prepare_plan;

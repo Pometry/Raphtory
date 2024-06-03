@@ -118,8 +118,8 @@ mod test {
         }
 
         let graph_dir = TempDir::new().unwrap();
-        // check persist_as_arrow works
-        let arrow_from_expected = expected_graph.persist_as_arrow(graph_dir.path()).unwrap();
+        // check persist_as_disk_graph works
+        let arrow_from_expected = expected_graph.persist_as_disk_graph(graph_dir.path()).unwrap();
         assert_graph_equal(&arrow_from_expected, &expected_graph);
 
         let actual_num_verts = nodes.len();
@@ -337,8 +337,8 @@ mod test {
         graph.add_edge(1, 0, 1, [("weight", 1.)], None).unwrap();
         graph.add_edge(2, 0, 1, [("weight", 2.)], None).unwrap();
         graph.add_edge(3, 1, 2, [("weight", 3.)], None).unwrap();
-        let arrow_graph = graph.persist_as_arrow(graph_dir.path()).unwrap();
-        let graph = arrow_graph.inner.layer(0);
+        let disk_graph = graph.persist_as_disk_graph(graph_dir.path()).unwrap();
+        let graph = disk_graph.inner.layer(0);
 
         let all_exploded: Vec<_> = graph
             .exploded_edges()
@@ -422,7 +422,7 @@ mod test {
             g.add_edge(0, 1, 2, [("test", "test1")], Some("1")).unwrap();
             g.add_edge(1, 2, 3, [("test", "test2")], Some("2")).unwrap();
             let test_dir = TempDir::new().unwrap();
-            let _ = g.persist_as_arrow(test_dir.path()).unwrap();
+            let _ = g.persist_as_disk_graph(test_dir.path()).unwrap();
         }
 
         #[test]

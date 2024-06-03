@@ -1,5 +1,5 @@
 use crate::{
-    arrow::{
+    disk_graph::{
         graph_impl::DiskGraph,
         storage_interface::{
             edge::ArrowOwnedEdge,
@@ -196,7 +196,7 @@ impl CoreGraphOps for DiskGraph {
     fn core_edge(&self, eid: ELID) -> EdgeStorageEntry {
         let layer_id = eid
             .layer()
-            .expect("EdgeRefs in arrow should always have layer");
+            .expect("EdgeRefs in disk_graph should always have layer");
         EdgeStorageEntry::Disk(self.inner.layer(layer_id).edge(eid.pid()))
     }
 
@@ -225,7 +225,7 @@ impl CoreGraphOps for DiskGraph {
     }
 
     fn node_type_id(&self, _v: VID) -> usize {
-        // self.graph().node_type_id(v) TODO: Impl node types for arrow graphs
+        // self.graph().node_type_id(v) TODO: Impl node types for disk_graph graphs
         0
     }
 }

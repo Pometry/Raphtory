@@ -1,6 +1,6 @@
 use super::DiskGraph;
 use crate::{
-    arrow::graph_impl::tprops::read_tprop_column,
+    disk_graph::graph_impl::tprops::read_tprop_column,
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         storage::timeindex::{AsTime, TimeIndexIntoOps, TimeIndexOps},
@@ -179,7 +179,7 @@ impl TimeSemantics for DiskGraph {
                     vec![]
                 }
             }
-            None => panic!("arrow edges should always have a layer currently"),
+            None => panic!("disk_graph edges should always have a layer currently"),
         }
     }
 
@@ -198,7 +198,7 @@ impl TimeSemantics for DiskGraph {
                     vec![]
                 }
             }
-            None => panic!("arrow edges should always have a layer currently"),
+            None => panic!("disk_graph edges should always have a layer currently"),
         }
     }
 
@@ -241,14 +241,14 @@ impl TimeSemantics for DiskGraph {
                     Box::new(iter::empty())
                 }
             }
-            None => panic!("arrow edges should always have a layer currently"),
+            None => panic!("disk_graph edges should always have a layer currently"),
         }
     }
 
     fn edge_layers(&self, e: EdgeRef, layer_ids: &LayerIds) -> BoxedIter<EdgeRef> {
         let layer = e
             .layer()
-            .expect("arrow edges should always have a layer currently");
+            .expect("disk_graph edges should always have a layer currently");
         if layer_ids.contains(layer) {
             Box::new(iter::once(e))
         } else {
@@ -284,7 +284,7 @@ impl TimeSemantics for DiskGraph {
                     Box::new(iter::empty())
                 }
             }
-            None => panic!("arrow edges should always have a layer currently"),
+            None => panic!("disk_graph edges should always have a layer currently"),
         }
     }
 
@@ -296,7 +296,7 @@ impl TimeSemantics for DiskGraph {
     ) -> BoxedIter<EdgeRef> {
         let layer = e
             .layer()
-            .expect("arrow edges should always have a layer currently");
+            .expect("disk_graph edges should always have a layer currently");
         if layer_ids.contains(layer) && e.time_t().map(|t| w.contains(&t)).unwrap_or(true) {
             Box::new(iter::once(e))
         } else {
@@ -307,7 +307,7 @@ impl TimeSemantics for DiskGraph {
     fn edge_earliest_time(&self, e: EdgeRef, layer_ids: &LayerIds) -> Option<i64> {
         let layer = e
             .layer()
-            .expect("arrow edges should always have a layer currently");
+            .expect("disk_graph edges should always have a layer currently");
         if layer_ids.contains(layer) {
             e.time_t().or_else(|| {
                 self.inner
@@ -330,7 +330,7 @@ impl TimeSemantics for DiskGraph {
     ) -> Option<i64> {
         let layer = e
             .layer()
-            .expect("arrow edges should always have a layer currently");
+            .expect("disk_graph edges should always have a layer currently");
         if layer_ids.contains(layer) {
             match e.time_t() {
                 Some(t) => w.contains(&t).then_some(t),
@@ -351,7 +351,7 @@ impl TimeSemantics for DiskGraph {
     fn edge_latest_time(&self, e: EdgeRef, layer_ids: &LayerIds) -> Option<i64> {
         let layer = e
             .layer()
-            .expect("arrow edges should always have a layer currently");
+            .expect("disk_graph edges should always have a layer currently");
         if layer_ids.contains(layer) {
             e.time_t().or_else(|| {
                 self.inner
@@ -374,7 +374,7 @@ impl TimeSemantics for DiskGraph {
     ) -> Option<i64> {
         let layer = e
             .layer()
-            .expect("arrow edges should always have a layer currently");
+            .expect("disk_graph edges should always have a layer currently");
         if layer_ids.contains(layer) {
             match e.time_t() {
                 Some(t) => w.contains(&t).then_some(t),
@@ -409,14 +409,14 @@ impl TimeSemantics for DiskGraph {
     fn edge_is_valid(&self, e: EdgeRef, layer_ids: &LayerIds) -> bool {
         let layer = e
             .layer()
-            .expect("arrow edges should always have layer currently");
+            .expect("disk_graph edges should always have layer currently");
         layer_ids.contains(layer)
     }
 
     fn edge_is_valid_at_end(&self, e: EdgeRef, layer_ids: &LayerIds, t: i64) -> bool {
         let layer = e
             .layer()
-            .expect("arrow edges should always have layer currently");
+            .expect("disk_graph edges should always have layer currently");
         layer_ids.contains(layer)
             && self
                 .inner
@@ -428,7 +428,7 @@ impl TimeSemantics for DiskGraph {
     }
 
     fn has_temporal_prop(&self, _prop_id: usize) -> bool {
-        //FIXME: arrow graph does not have properties yet
+        //FIXME: disk_graph graph does not have properties yet
         false
     }
 
@@ -437,7 +437,7 @@ impl TimeSemantics for DiskGraph {
     }
 
     fn has_temporal_prop_window(&self, _prop_id: usize, _w: Range<i64>) -> bool {
-        //FIXME: arrow graph does not have properties yet
+        //FIXME: disk_graph graph does not have properties yet
         false
     }
 
@@ -498,7 +498,7 @@ impl TimeSemantics for DiskGraph {
         w: Range<i64>,
         layer_ids: &LayerIds,
     ) -> bool {
-        let layer_id = e.layer().expect("arrow edges always have layer currently");
+        let layer_id = e.layer().expect("disk_graph edges always have layer currently");
         if !layer_ids.contains(layer_id) {
             return false;
         }
@@ -538,7 +538,7 @@ impl TimeSemantics for DiskGraph {
     }
 
     fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: &LayerIds) -> bool {
-        let layer_id = e.layer().expect("arrow edges always have layer currently");
+        let layer_id = e.layer().expect("disk_graph edges always have layer currently");
         if !layer_ids.contains(layer_id) {
             return false;
         }

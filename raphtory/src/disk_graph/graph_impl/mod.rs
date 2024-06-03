@@ -13,7 +13,7 @@ use rayon::prelude::*;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{
-    arrow::{graph_impl::prop_conversion::make_node_properties_from_graph, Error},
+    disk_graph::{graph_impl::prop_conversion::make_node_properties_from_graph, Error},
     arrow2::{
         array::{PrimitiveArray, StructArray},
         datatypes::{ArrowDataType as DataType, Field},
@@ -107,7 +107,7 @@ impl AsRef<TemporalGraph> for DiskGraph {
 }
 
 impl Graph {
-    pub fn persist_as_arrow(&self, graph_dir: impl AsRef<Path>) -> Result<DiskGraph, Error> {
+    pub fn persist_as_disk_graph(&self, graph_dir: impl AsRef<Path>) -> Result<DiskGraph, Error> {
         DiskGraph::from_graph(self, graph_dir)
     }
 }
@@ -193,7 +193,7 @@ impl DiskGraph {
                     .resolve_prop_id(prop_name, data_type.into(), false)
                     .expect("Arrow data types should without failing");
                 if id != resolved_id {
-                    println!("Warning: Layers with different edge properties are not supported by the high-level apis on top of the arrow graph yet, edge properties will not be available to high-level apis");
+                    println!("Warning: Layers with different edge properties are not supported by the high-level apis on top of the disk_graph graph yet, edge properties will not be available to high-level apis");
                     edge_meta = Meta::new();
                     break;
                 }
@@ -480,7 +480,7 @@ mod test {
     use tempfile::TempDir;
 
     use crate::{
-        algorithms::components::weakly_connected_components, arrow::Time,
+        algorithms::components::weakly_connected_components, disk_graph::Time,
         db::api::view::StaticGraphViewOps, prelude::*,
     };
 
@@ -765,14 +765,14 @@ mod test {
     }
 
     #[test]
-    fn test_mem_to_arrow_graph() {
+    fn test_mem_to_disk_graph() {
         let mem_graph = Graph::new();
         mem_graph.add_edge(0, 0, 1, [("test", 0u64)], None).unwrap();
         let test_dir = TempDir::new().unwrap();
-        let arrow_graph =
+        let disk_graph =
             TemporalGraph::from_graph(&mem_graph, test_dir.path(), || Ok(None)).unwrap();
-        assert_eq!(arrow_graph.num_nodes(), 2);
-        assert_eq!(arrow_graph.num_edges(0), 1);
+        assert_eq!(disk_graph.num_nodes(), 2);
+        assert_eq!(disk_graph.num_edges(0), 1);
     }
 
     #[test]
@@ -795,18 +795,18 @@ mod test {
         ])
         .unwrap();
         let test_dir = TempDir::new().unwrap();
-        let arrow_graph = DiskGraph::from_graph(&mem_graph, test_dir.path()).unwrap();
-        assert_eq!(arrow_graph.count_nodes(), 1);
-        let props = arrow_graph.node(0).unwrap().properties();
+        let disk_graph = DiskGraph::from_graph(&mem_graph, test_dir.path()).unwrap();
+        assert_eq!(disk_graph.count_nodes(), 1);
+        let props = disk_graph.node(0).unwrap().properties();
         assert_eq!(props.get("test_num").unwrap_u64(), 0);
         assert_eq!(props.get("test_str").unwrap_str(), "test");
         assert_eq!(props.get("const_str").unwrap_str(), "test_c");
         assert_eq!(props.get("const_float").unwrap_f64(), 0.314);
 
-        drop(arrow_graph);
+        drop(disk_graph);
 
-        let arrow_graph = DiskGraph::load_from_dir(test_dir.path()).unwrap();
-        let props = arrow_graph.node(0).unwrap().properties();
+        let disk_graph = DiskGraph::load_from_dir(test_dir.path()).unwrap();
+        let props = disk_graph.node(0).unwrap().properties();
         assert_eq!(props.get("test_num").unwrap_u64(), 0);
         assert_eq!(props.get("test_str").unwrap_str(), "test");
         assert_eq!(props.get("const_str").unwrap_str(), "test_c");
@@ -819,9 +819,9 @@ mod test {
         let v = g.add_node(0, 1, NO_PROPS, None).unwrap();
         v.add_constant_properties([("test", "test")]).unwrap();
         let test_dir = TempDir::new().unwrap();
-        let arrow_graph = g.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = g.persist_as_disk_graph(test_dir.path()).unwrap();
         assert_eq!(
-            arrow_graph
+            disk_graph
                 .node(1)
                 .unwrap()
                 .properties()
@@ -829,9 +829,9 @@ mod test {
                 .unwrap_str(),
             "test"
         );
-        let arrow_graph = DiskGraph::load_from_dir(test_dir.path()).unwrap();
+        let disk_graph = DiskGraph::load_from_dir(test_dir.path()).unwrap();
         assert_eq!(
-            arrow_graph
+            disk_graph
                 .node(1)
                 .unwrap()
                 .properties()

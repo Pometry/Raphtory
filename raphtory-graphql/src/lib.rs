@@ -41,7 +41,7 @@ mod graphql_test {
     use async_graphql::UploadValue;
     use dynamic_graphql::{Request, Variables};
     #[cfg(feature = "storage")]
-    use raphtory::arrow::graph_impl::DiskGraph;
+    use raphtory::disk_graph::graph_impl::DiskGraph;
     use raphtory::{
         db::{api::view::IntoDynamic, graph::views::deletion_graph::PersistentGraph},
         prelude::*,
@@ -1096,7 +1096,7 @@ mod graphql_test {
 
     #[cfg(feature = "storage")]
     #[tokio::test]
-    async fn test_arrow_graph() {
+    async fn test_disk_graph() {
         let graph = Graph::new();
         graph.add_constant_properties([("name", "graph")]).unwrap();
         graph.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
@@ -1114,8 +1114,8 @@ mod graphql_test {
         graph.add_edge(22, 3, 6, NO_PROPS, Some("a")).unwrap();
 
         let test_dir = TempDir::new().unwrap();
-        let arrow_graph = DiskGraph::from_graph(&graph, test_dir.path()).unwrap();
-        let graph: MaterializedGraph = arrow_graph.into();
+        let disk_graph = DiskGraph::from_graph(&graph, test_dir.path()).unwrap();
+        let graph: MaterializedGraph = disk_graph.into();
 
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let data = Data::from_map(graphs);
@@ -1177,7 +1177,7 @@ mod graphql_test {
         let res = schema.execute(req).await;
         let data = res.errors;
         let error_message = &data[0].message;
-        let expected_error_message = "Arrow Graph is immutable";
+        let expected_error_message = "Disk Graph is immutable";
         assert_eq!(error_message, expected_error_message);
     }
 }

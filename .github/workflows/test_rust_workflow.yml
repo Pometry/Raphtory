@@ -56,7 +56,7 @@ jobs:
         uses: cargo-bins/cargo-binstall@main
       - name: Install nextest
         run: cargo binstall -y --force cargo-nextest
-      - name: Run all Tests (no arrow)
+      - name: Run all Tests (no disk_graph)
         env:
           RUSTFLAGS: -Awarnings
           TEMPDIR: ${{ runner.temp }}
@@ -64,7 +64,7 @@ jobs:
           cargo nextest run --all --no-default-features
       - name: Activate pometry-storage in Cargo.toml
         run: make pull-storage
-      - name: Run all Tests (arrow)
+      - name: Run all Tests (disk_graph)
         env:
           RUSTFLAGS: -Awarnings
           TEMPDIR: ${{ runner.temp }}
@@ -118,7 +118,7 @@ jobs:
         with:
           cache-all-crates: true
       - uses: webfactory/ssh-agent@v0.9.0
-        name: Load raphtory-arrow key
+        name: Load raphtory-disk_graph key
         with:
           ssh-private-key: ${{ secrets.RA_SSH_PRIVATE_KEY }}
       - name: Set up Python

@@ -7,10 +7,10 @@ use crate::{
 };
 
 #[cfg(feature = "storage")]
-use crate::arrow::storage_interface::edges_ref::ArrowEdgesRef;
+use crate::disk_graph::storage_interface::edges_ref::ArrowEdgesRef;
 
 #[cfg(feature = "storage")]
-use crate::arrow::storage_interface::edges::ArrowEdges;
+use crate::disk_graph::storage_interface::edges::ArrowEdges;
 use crate::db::api::storage::edges::edge_storage_ops::EdgeStorageOps;
 use either::Either;
 use rayon::iter::ParallelIterator;

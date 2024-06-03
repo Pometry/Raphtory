@@ -9,7 +9,7 @@ use arrow_schema::{Fields, Schema};
 
 use itertools::Itertools;
 use raphtory::{
-    arrow::graph_impl::DiskGraph,
+    disk_graph::graph_impl::DiskGraph,
     core::{
         entities::{edges::edge_ref::Dir, VID},
         Direction,

@@ -1,5 +1,5 @@
 use crate::{
-    arrow::graph_impl::DiskGraph,
+    disk_graph::graph_impl::DiskGraph,
     db::api::view::internal::{CoreGraphOps, EdgeList, ListOps, NodeList},
 };
 use rayon::prelude::*;

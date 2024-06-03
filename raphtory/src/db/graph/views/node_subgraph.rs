@@ -118,7 +118,7 @@ mod subgraph_tests {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps + Debug>(graph: &G) {
             let sg = graph.subgraph([1, 2]);
@@ -128,7 +128,7 @@ mod subgraph_tests {
         }
         test(&graph);
         // FIXME: Needs multilayer support (Issue #47)
-        // test(&arrow_graph);
+        // test(&disk_graph);
     }
 
     #[test]
@@ -164,7 +164,7 @@ mod subgraph_tests {
         }
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let subgraph = graph.subgraph(graph.nodes().into_iter().filter(|v| v.degree() > 1));
@@ -174,7 +174,7 @@ mod subgraph_tests {
         }
         test(&graph);
         #[cfg(feature = "storage")]
-        test(&arrow_graph);
+        test(&disk_graph);
     }
 
     #[test]
@@ -185,7 +185,7 @@ mod subgraph_tests {
 
         let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
-        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let sg = graph.subgraph([1, 2]);
@@ -197,6 +197,6 @@ mod subgraph_tests {
         }
         test(&graph);
         // FIXME: Needs multilayer support (Issue #47)
-        // test(&arrow_graph);
+        // test(&disk_graph);
     }
 }
