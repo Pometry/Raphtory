@@ -1,10 +1,7 @@
 use crate::{
     core::entities::{nodes::node_ref::AsNodeRef, VID},
     db::{
-        api::{
-            state::ops::NodeStateOps,
-            view::{internal::NodeList, IntoDynBoxed},
-        },
+        api::{state::ops::NodeStateOps, view::IntoDynBoxed},
         graph::node::NodeView,
     },
     prelude::GraphViewOps,

@@ -3,7 +3,7 @@ use crate::{
     db::{
         api::{
             state::{NodeState, NodeStateOps},
-            storage::storage_ops::GraphStorage,
+            storage::{nodes::node_storage_ops::NodeStorageOps, storage_ops::GraphStorage},
             view::{internal::NodeList, IntoDynBoxed},
         },
         graph::node::NodeView,
@@ -11,14 +11,14 @@ use crate::{
     prelude::GraphViewOps,
 };
 use rayon::prelude::*;
-use std::{marker::PhantomData, sync::Arc};
+use std::{any::Any, marker::PhantomData, sync::Arc};
 
 #[derive(Clone)]
 pub struct LazyNodeState<'graph, V, G, GH = G> {
     op: Arc<dyn Fn(&GraphStorage, &GH, VID) -> V + Send + Sync + 'graph>,
     base_graph: G,
     graph: GH,
-    nodes: NodeList,
+    node_types_filter: Option<Arc<[bool]>>,
     _marker: PhantomData<&'graph ()>,
 }
 
@@ -28,7 +28,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, V: Send + Sync +
     pub(crate) fn new(
         base_graph: G,
         graph: GH,
-        nodes: NodeList,
+        node_types_filter: Option<Arc<[bool]>>,
         op: impl Fn(&GraphStorage, &GH, VID) -> V + Send + Sync + 'graph,
     ) -> Self {
         let op = Arc::new(op);
@@ -36,7 +36,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, V: Send + Sync +
             op,
             base_graph,
             graph,
-            nodes,
+            node_types_filter,
             _marker: Default::default(),
         }
     }
@@ -47,65 +47,28 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, V: Send + Sync +
 
     pub fn compute(&self) -> NodeState<'graph, V, G, GH> {
         let cg = self.graph.core_graph();
-        match &self.nodes {
-            NodeList::All { .. } => {
-                if self.graph.nodes_filtered() {
-                    let keys: Vec<_> = cg.nodes_par(&self.graph).collect();
-                    let mut values = Vec::with_capacity(keys.len());
-                    keys.par_iter()
-                        .map(|vid| self.apply(&cg, &self.graph, *vid))
-                        .collect_into_vec(&mut values);
-                    NodeState::new(
-                        self.base_graph.clone(),
-                        self.graph.clone(),
-                        values,
-                        Some(keys.into()),
-                    )
-                } else {
-                    let n = cg.nodes().len();
-                    let mut values = Vec::with_capacity(n);
-                    (0..n)
-                        .into_par_iter()
-                        .map(|i| self.apply(&cg, &self.graph, VID(i)))
-                        .collect_into_vec(&mut values);
-                    NodeState::new(self.base_graph.clone(), self.graph.clone(), values, None)
-                }
-            }
-            NodeList::List { nodes } => {
-                let cg = self.graph.core_graph();
-                if self.graph.nodes_filtered() {
-                    let keys: Vec<_> = nodes
-                        .par_iter()
-                        .filter(|&&v| {
-                            self.graph
-                                .filter_node(cg.nodes().node(v), self.graph.layer_ids())
-                        })
-                        .copied()
-                        .collect();
-                    let mut values = Vec::with_capacity(keys.len());
-                    keys.par_iter()
-                        .map(|vid| self.apply(&cg, &self.graph, *vid))
-                        .collect_into_vec(&mut values);
-                    NodeState::new(
-                        self.base_graph.clone(),
-                        self.graph.clone(),
-                        values,
-                        Some(keys.into()),
-                    )
-                } else {
-                    let mut values = Vec::with_capacity(nodes.len());
-                    nodes
-                        .par_iter()
-                        .map(|vid| self.apply(&cg, &self.graph, *vid))
-                        .collect_into_vec(&mut values);
-                    NodeState::new(
-                        self.base_graph.clone(),
-                        self.graph.clone(),
-                        values,
-                        Some(nodes.clone()),
-                    )
-                }
-            }
+        if self.graph.nodes_filtered() || self.node_types_filter.is_some() {
+            let keys: Vec<_> = cg
+                .nodes_par(&self.graph, self.node_types_filter.as_ref())
+                .collect();
+            let mut values = Vec::with_capacity(keys.len());
+            keys.par_iter()
+                .map(|vid| self.apply(&cg, &self.graph, *vid))
+                .collect_into_vec(&mut values);
+            NodeState::new(
+                self.base_graph.clone(),
+                self.graph.clone(),
+                values,
+                Some(keys.into()),
+            )
+        } else {
+            let n = cg.nodes().len();
+            let mut values = Vec::with_capacity(n);
+            (0..n)
+                .into_par_iter()
+                .map(|i| self.apply(&cg, &self.graph, VID(i)))
+                .collect_into_vec(&mut values);
+            NodeState::new(self.base_graph.clone(), self.graph.clone(), values, None)
         }
     }
 }
@@ -118,13 +81,11 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, V: 'graph> IntoI
 
     fn into_iter(self) -> Self::IntoIter {
         let cg = self.graph.core_graph();
-        self.nodes
-            .into_iter()
-            .filter_map(move |v| {
-                self.graph
-                    .filter_node(cg.node(v), self.graph.layer_ids())
-                    .then(|| (self.op)(&cg, &self.graph, v))
-            })
+        let graph = self.graph;
+        let op = self.op;
+        cg.clone()
+            .into_nodes_iter(graph.clone(), self.node_types_filter)
+            .map(move |v| op(&cg, &graph, v))
             .into_dyn_boxed()
     }
 }
@@ -154,11 +115,9 @@ impl<
         'graph: 'a,
     {
         let cg = self.graph.core_graph();
-        self.nodes.iter().filter_map(move |n| {
-            self.graph
-                .filter_node(cg.nodes().node(n), self.graph.layer_ids())
-                .then(|| (self.op)(&cg, &self.graph, n))
-        })
+        cg.clone()
+            .into_nodes_iter(&self.graph, self.node_types_filter.clone())
+            .map(move |vid| self.apply(&cg, &self.graph, vid))
     }
 
     fn par_values<'a>(&'a self) -> impl ParallelIterator<Item = Self::Value<'a>> + 'a
@@ -166,29 +125,27 @@ impl<
         'graph: 'a,
     {
         let cg = self.graph.core_graph();
-        self.nodes.par_iter().filter_map(move |n| {
-            self.graph
-                .filter_node(cg.nodes().node(n), self.graph.layer_ids())
-                .then(|| (self.op)(&cg, &self.graph, n))
-        })
+        cg.clone()
+            .into_nodes_par(&self.graph, self.node_types_filter.clone())
+            .map(move |vid| self.apply(&cg, &self.graph, vid))
     }
 
     fn into_values(self) -> impl Iterator<Item = Self::OwnedValue> + 'graph {
         let cg = self.graph.core_graph();
-        self.nodes.into_iter().filter_map(move |n| {
-            self.graph
-                .filter_node(cg.nodes().node(n), self.graph.layer_ids())
-                .then(|| (self.op)(&cg, &self.graph, n))
-        })
+        let graph = self.graph.clone();
+        let op = self.op;
+        cg.clone()
+            .into_nodes_iter(self.graph, self.node_types_filter)
+            .map(move |n| op(&cg, &graph, n))
     }
 
     fn into_par_values(self) -> impl ParallelIterator<Item = Self::OwnedValue> + 'graph {
         let cg = self.graph.core_graph();
-        self.nodes.into_par_iter().filter_map(move |n| {
-            self.graph
-                .filter_node(cg.nodes().node(n), self.graph.layer_ids())
-                .then(|| (self.op)(&cg, &self.graph, n))
-        })
+        let graph = self.graph.clone();
+        let op = self.op;
+        cg.clone()
+            .into_nodes_par(self.graph, self.node_types_filter)
+            .map(move |n| op(&cg, &graph, n))
     }
 
     fn iter<'a>(
@@ -203,16 +160,14 @@ impl<
         'graph: 'a,
     {
         let cg = self.graph.core_graph();
-        self.nodes.iter().filter_map(move |n| {
-            self.graph
-                .filter_node(cg.nodes().node(n), self.graph.layer_ids())
-                .then(|| {
-                    (
-                        NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, n),
-                        (self.op)(&cg, &self.graph, n),
-                    )
-                })
-        })
+        cg.clone()
+            .into_nodes_iter(self.graph.clone(), self.node_types_filter.clone())
+            .map(move |n| {
+                (
+                    NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, n),
+                    (self.op)(&cg, &self.graph, n),
+                )
+            })
     }
 
     fn par_iter<'a>(
@@ -227,16 +182,14 @@ impl<
         'graph: 'a,
     {
         let cg = self.graph.core_graph();
-        self.nodes.par_iter().filter_map(move |n| {
-            self.graph
-                .filter_node(cg.nodes().node(n), self.graph.layer_ids())
-                .then(|| {
-                    (
-                        NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, n),
-                        (self.op)(&cg, &self.graph, n),
-                    )
-                })
-        })
+        cg.clone()
+            .into_nodes_par(self.graph.clone(), self.node_types_filter.clone())
+            .map(move |n| {
+                (
+                    NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, n),
+                    (self.op)(&cg, &self.graph, n),
+                )
+            })
     }
 
     fn get_by_index(
@@ -246,9 +199,9 @@ impl<
         if self.graph.nodes_filtered() {
             self.iter().skip(index).next()
         } else {
-            let vid = match &self.nodes {
+            let vid = match self.graph.node_list() {
                 NodeList::All { num_nodes } => {
-                    if index < *num_nodes {
+                    if index < num_nodes {
                         VID(index)
                     } else {
                         return None;
@@ -266,18 +219,17 @@ impl<
 
     fn get_by_node<N: AsNodeRef>(&self, node: N) -> Option<Self::Value<'_>> {
         let vid = self.graph.internalise_node(node.as_node_ref())?;
-        match &self.nodes {
-            NodeList::All { .. } => {}
-            NodeList::List { nodes } => {
-                if !nodes.contains(&vid) {
-                    return None;
-                }
+        if !self.graph.has_node(vid) {
+            return None;
+        }
+        if let Some(type_filter) = self.node_types_filter.as_ref() {
+            if !type_filter[self.graph.core_node_entry(vid).node_type_id()] {
+                return None;
             }
         }
+
         let cg = self.graph.core_graph();
-        self.graph
-            .filter_node(cg.nodes().node(vid), self.graph.layer_ids())
-            .then(|| (self.op)(&cg, &self.graph, vid))
+        Some(self.apply(&cg, &self.graph, vid))
     }
 
     fn len(&self) -> usize {

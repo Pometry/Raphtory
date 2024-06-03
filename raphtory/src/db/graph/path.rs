@@ -216,9 +216,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> IntoIterator
         let graph = self.graph;
         let base_graph = self.base_graph;
         let op = self.op;
-        graph
-            .core_graph()
-            .into_nodes_iter(graph.clone())
+        (self.nodes)()
             .map(move |node| {
                 let op = op.clone();
                 let node_op = Arc::new(move || op(node));

@@ -76,14 +76,8 @@ where
     #[inline]
     pub(crate) fn iter_refs(&self) -> impl Iterator<Item = VID> + 'graph {
         let g = self.graph.core_graph();
-        let base_graph = self.base_graph.clone();
         let node_types_filter = self.node_types_filter.clone();
-        g.into_nodes_iter(self.graph.clone()).filter(move |v| {
-            let node_type_id = base_graph.node_type_id(*v);
-            node_types_filter
-                .as_ref()
-                .map_or(true, |filter| filter[node_type_id])
-        })
+        g.into_nodes_iter(self.graph.clone(), node_types_filter)
     }
 
     pub fn iter(&self) -> BoxedLIter<'graph, NodeView<G, GH>> {
@@ -97,22 +91,16 @@ where
     pub fn par_iter(&self) -> impl ParallelIterator<Item = NodeView<&G, &GH>> + '_ {
         let cg = self.graph.core_graph();
         let node_types_filter = self.node_types_filter.clone();
-        let base_graph = self.base_graph.clone();
-        cg.into_nodes_par(&self.graph)
-            .filter(move |v| {
-                let node_type_id = base_graph.node_type_id(*v);
-                node_types_filter
-                    .as_ref()
-                    .map_or(true, |filter| filter[node_type_id])
-            })
+        cg.into_nodes_par(&self.graph, node_types_filter)
             .map(|v| NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, v))
     }
 
     pub fn into_par_iter(self) -> impl ParallelIterator<Item = NodeView<G, GH>> + 'graph {
         let cg = self.graph.core_graph();
-        cg.into_nodes_par(self.graph.clone()).map(move |n| {
-            NodeView::new_one_hop_filtered(self.base_graph.clone(), self.graph.clone(), n)
-        })
+        cg.into_nodes_par(self.graph.clone(), self.node_types_filter)
+            .map(move |n| {
+                NodeView::new_one_hop_filtered(self.base_graph.clone(), self.graph.clone(), n)
+            })
     }
 
     /// Returns the number of nodes in the graph.
@@ -181,7 +169,7 @@ where
     ) -> Self::ValueType<O> {
         let g = self.graph.clone();
         let bg = self.base_graph.clone();
-        LazyNodeState::new(bg, g, self.graph.node_list(), op)
+        LazyNodeState::new(bg, g, self.node_types_filter.clone(), op)
     }
 
     fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>> {
