@@ -97,12 +97,3 @@ cargo run -- --server
 ```
 
 This command starts the Raphtory server using `run_with_auth`, which includes authentication mechanisms to secure access.
-
-
-
-
-## Conclusion
-
-Raphtory-GraphQL offers powerful graph data management capabilities with the added benefit of GraphQL integration and optional authentication. By following the steps above, you can set up and run your Raphtory server to manage and query your graph data efficiently.
-
-For more detailed information and examples, you can visit the [Raphtory GitHub repository](https://github.com/Pometry/Raphtory/tree/feature/gql-auth/raphtory-graphql).
