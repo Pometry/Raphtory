@@ -1,15 +1,10 @@
 // Imports ///////////////////////////////////////////
 use crate::{
     algorithms::{cores::k_core::k_core_set, motifs::three_node_motifs::*},
-    core::state::{
-        accumulator_id::{
-            accumulators::self,
-        },
-        compute_state::ComputeStateVec,
-    },
+    core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
     db::{
         api::view::{NodeViewOps, *},
-        graph::{views::node_subgraph::NodeSubgraph},
+        graph::views::node_subgraph::NodeSubgraph,
         task::{
             context::Context,
             node::eval_node::EvalNodeView,

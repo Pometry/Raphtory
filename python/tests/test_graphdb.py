@@ -984,7 +984,7 @@ def test_save_load_graph():
     assert v.properties.temporal == {"type": [(1, "wallet")], "balance": [(1, 99.5)]}
 
     os.remove(graph_rel_path)
-    
+
     tmpdirname = tempfile.TemporaryDirectory()
     graph_abs_path = tmpdirname.name + "/test_graph.bin"
     g.save_to_file(graph_abs_path)
@@ -996,7 +996,7 @@ def test_save_load_graph():
     view = g.window(0, 10)
     assert g.has_node(13)
     assert view.node(13).in_degree() == 1
-    
+
     tmpdirname.cleanup()
 
 
@@ -1479,36 +1479,44 @@ def test_layer_name():
     assert g.edge(0, 1).layer_names == ["_default"]
     assert g.edge(0, 2).layer_names == ["awesome layer"]
 
-    error_msg = ("The layer_name function is only available once an edge has been exploded via .explode_layers() or .explode(). " 
-                 "If you want to retrieve the layers for this edge you can use .layer_names")
+    error_msg = (
+        "The layer_name function is only available once an edge has been exploded via .explode_layers() or .explode(). "
+        "If you want to retrieve the layers for this edge you can use .layer_names"
+    )
     with pytest.raises(Exception) as e:
         g.edges.layer_name()
     assert str(e.value) == error_msg
 
-    assert list(g.edges.explode().layer_name) == ['_default', 'awesome layer']
-    assert list(g.edges.explode_layers().layer_name) == ['_default', 'awesome layer']
+    assert list(g.edges.explode().layer_name) == ["_default", "awesome layer"]
+    assert list(g.edges.explode_layers().layer_name) == ["_default", "awesome layer"]
 
     with pytest.raises(Exception) as e:
         g.edge(0, 2).layer_name()
     assert str(e.value) == error_msg
 
-    assert list(g.edge(0, 2).explode().layer_name) == ['awesome layer']
-    assert list(g.edge(0, 2).explode_layers().layer_name) == ['awesome layer']
+    assert list(g.edge(0, 2).explode().layer_name) == ["awesome layer"]
+    assert list(g.edge(0, 2).explode_layers().layer_name) == ["awesome layer"]
 
     with pytest.raises(Exception) as e:
         g.nodes.neighbours.edges.layer_name()
     assert str(e.value) == error_msg
 
-    assert [list(iterator) for iterator in g.nodes.neighbours.edges.explode().layer_name] == [
+    assert [
+        list(iterator) for iterator in g.nodes.neighbours.edges.explode().layer_name
+    ] == [
         ["_default", "awesome layer"],
         ["_default", "awesome layer"],
-        ["_default", "awesome layer"]
+        ["_default", "awesome layer"],
     ]
-    assert [list(iterator) for iterator in g.nodes.neighbours.edges.explode_layers().layer_name] == [
+    assert [
+        list(iterator)
+        for iterator in g.nodes.neighbours.edges.explode_layers().layer_name
+    ] == [
         ["_default", "awesome layer"],
         ["_default", "awesome layer"],
-        ["_default", "awesome layer"]
+        ["_default", "awesome layer"],
     ]
+
 
 def test_time():
     g = Graph()
@@ -1518,8 +1526,10 @@ def test_time():
     g.add_edge(0, 0, 2)
     g.add_edge(1, 0, 2)
 
-    error_msg = ("The time function is only available once an edge has been exploded via .explode(). " 
-                 "You may want to retrieve the history for this edge via .history(), or the earliest/latest time via earliest_time or latest_time")
+    error_msg = (
+        "The time function is only available once an edge has been exploded via .explode(). "
+        "You may want to retrieve the history for this edge via .history(), or the earliest/latest time via earliest_time or latest_time"
+    )
     with pytest.raises(Exception) as e:
         g.edges.time()
     assert str(e.value) == error_msg
@@ -1536,7 +1546,11 @@ def test_time():
         g.nodes.neighbours.edges.time()
     assert str(e.value) == error_msg
 
-    assert [list(iterator) for iterator in g.nodes.neighbours.edges.explode().time] == [[0, 0, 1], [0, 0, 1], [0, 0, 1]]
+    assert [list(iterator) for iterator in g.nodes.neighbours.edges.explode().time] == [
+        [0, 0, 1],
+        [0, 0, 1],
+        [0, 0, 1],
+    ]
 
 
 def test_window_size():
@@ -2066,8 +2080,8 @@ def test_type_filter():
     g.add_node(1, 3, node_type="timer")
     g.add_node(1, 4, node_type="wallet")
 
-    assert [node.name for node in g.nodes.type_filter(["wallet"])] == ['1', '4']
-    assert g.subgraph_node_types(["timer"]).nodes.name.collect() == ['2', '3']
+    assert [node.name for node in g.nodes.type_filter(["wallet"])] == ["1", "4"]
+    assert g.subgraph_node_types(["timer"]).nodes.name.collect() == ["2", "3"]
 
     g = PersistentGraph()
     g.add_node(1, 1, node_type="wallet")
@@ -2075,16 +2089,16 @@ def test_type_filter():
     g.add_node(3, 3, node_type="timer")
     g.add_node(4, 4, node_type="wallet")
 
-    assert [node.name for node in g.nodes.type_filter(["wallet"])] == ['1', '4']
-    assert g.subgraph_node_types(["timer"]).nodes.name.collect() == ['2', '3']
+    assert [node.name for node in g.nodes.type_filter(["wallet"])] == ["1", "4"]
+    assert g.subgraph_node_types(["timer"]).nodes.name.collect() == ["2", "3"]
 
     subgraph = g.subgraph([1, 2, 3])
-    assert [node.name for node in subgraph.nodes.type_filter(["wallet"])] == ['1']
-    assert subgraph.subgraph_node_types(["timer"]).nodes.name.collect() == ['2', '3']
+    assert [node.name for node in subgraph.nodes.type_filter(["wallet"])] == ["1"]
+    assert subgraph.subgraph_node_types(["timer"]).nodes.name.collect() == ["2", "3"]
 
     w = g.window(1, 3)
-    assert [node.name for node in w.nodes.type_filter(["wallet"])] == ['1']
-    assert w.subgraph_node_types(["timer"]).nodes.name.collect() == ['2', '3']
+    assert [node.name for node in w.nodes.type_filter(["wallet"])] == ["1"]
+    assert w.subgraph_node_types(["timer"]).nodes.name.collect() == ["2", "3"]
 
     g = Graph()
     g.add_node(1, 1, node_type="wallet")
@@ -2095,8 +2109,8 @@ def test_type_filter():
     g.add_edge(2, 2, 3, layer="layer1")
     g.add_edge(3, 2, 4, layer="layer2")
     layer = g.layers(["layer1"])
-    assert [node.name for node in layer.nodes.type_filter(["wallet"])] == ['1']
-    assert layer.subgraph_node_types(["timer"]).nodes.name.collect() == ['2', '3']
+    assert [node.name for node in layer.nodes.type_filter(["wallet"])] == ["1"]
+    assert layer.subgraph_node_types(["timer"]).nodes.name.collect() == ["2", "3"]
 
     g = Graph()
     g.add_node(1, 1, node_type="a")
@@ -2116,40 +2130,61 @@ def test_type_filter():
     g.add_edge(2, 5, 6, layer="a")
     g.add_edge(2, 3, 6, layer="a")
 
-    assert g.nodes.type_filter([""]).name.collect() == ['7', '8', '9']
+    assert g.nodes.type_filter([""]).name.collect() == ["7", "8", "9"]
 
-    assert g.nodes.type_filter(["a"]).name.collect() == ['1', '4']
-    assert g.nodes.type_filter(["a", "c"]).name.collect() == ['1', '4', '5']
-    assert g.nodes.type_filter(["a"]).neighbours.name.collect() == [['2'], ['2', '5']]
+    assert g.nodes.type_filter(["a"]).name.collect() == ["1", "4"]
+    assert g.nodes.type_filter(["a", "c"]).name.collect() == ["1", "4", "5"]
+    assert g.nodes.type_filter(["a"]).neighbours.name.collect() == [["2"], ["2", "5"]]
 
     assert g.nodes.degree().collect() == [1, 3, 2, 2, 2, 2, 0, 0, 0]
-    assert g.nodes.type_filter(['a']).degree().collect() == [1, 2]
-    assert g.nodes.type_filter(['d']).degree().collect() == []
+    assert g.nodes.type_filter(["a"]).degree().collect() == [1, 2]
+    assert g.nodes.type_filter(["d"]).degree().collect() == []
     assert g.nodes.type_filter([]).name.collect() == []
 
     assert len(g.nodes) == 9
-    assert len(g.nodes.type_filter(['b'])) == 2
-    assert len(g.nodes.type_filter(['d'])) == 0
+    assert len(g.nodes.type_filter(["b"])) == 2
+    assert len(g.nodes.type_filter(["d"])) == 0
 
-    assert g.nodes.type_filter(['d']).neighbours.name.collect() == []
-    assert g.nodes.type_filter(['a']).neighbours.name.collect() == [['2'], ['2', '5']]
-    assert g.nodes.type_filter(['a', 'c']).neighbours.name.collect() == [['2'], ['2', '5'], ['4', '6']]
+    assert g.nodes.type_filter(["d"]).neighbours.name.collect() == []
+    assert g.nodes.type_filter(["a"]).neighbours.name.collect() == [["2"], ["2", "5"]]
+    assert g.nodes.type_filter(["a", "c"]).neighbours.name.collect() == [
+        ["2"],
+        ["2", "5"],
+        ["4", "6"],
+    ]
 
-    assert g.nodes.type_filter(['a']).neighbours.type_filter(['c']).name.collect() == [[], ['5']]
-    assert g.nodes.type_filter(['a']).neighbours.type_filter([]).name.collect() == [[], []]
-    assert g.nodes.type_filter(['a']).neighbours.type_filter(['b', 'c']).name.collect() == [['2'], ['2', '5']]
-    assert g.nodes.type_filter(['a']).neighbours.type_filter(['d']).name.collect() == [[], []]
-    assert g.nodes.type_filter(['a']).neighbours.neighbours.name.collect() == [['1', '3', '4'], ['1', '3', '4', '4', '6']]
-    assert g.nodes.type_filter(['a']).neighbours.type_filter(['c']).neighbours.name.collect() == [[], ['4', '6']]
-    assert g.nodes.type_filter(['a']).neighbours.type_filter(['d']).neighbours.name.collect() == [[], []]
+    assert g.nodes.type_filter(["a"]).neighbours.type_filter(["c"]).name.collect() == [
+        [],
+        ["5"],
+    ]
+    assert g.nodes.type_filter(["a"]).neighbours.type_filter([]).name.collect() == [
+        [],
+        [],
+    ]
+    assert g.nodes.type_filter(["a"]).neighbours.type_filter(
+        ["b", "c"]
+    ).name.collect() == [["2"], ["2", "5"]]
+    assert g.nodes.type_filter(["a"]).neighbours.type_filter(["d"]).name.collect() == [
+        [],
+        [],
+    ]
+    assert g.nodes.type_filter(["a"]).neighbours.neighbours.name.collect() == [
+        ["1", "3", "4"],
+        ["1", "3", "4", "4", "6"],
+    ]
+    assert g.nodes.type_filter(["a"]).neighbours.type_filter(
+        ["c"]
+    ).neighbours.name.collect() == [[], ["4", "6"]]
+    assert g.nodes.type_filter(["a"]).neighbours.type_filter(
+        ["d"]
+    ).neighbours.name.collect() == [[], []]
 
-    assert g.node('2').neighbours.type_filter(['b']).name.collect() == ['3']
-    assert g.node('2').neighbours.type_filter(['d']).name.collect() == []
-    assert g.node('2').neighbours.type_filter([]).name.collect() == []
-    assert g.node('2').neighbours.type_filter(['c', 'a']).name.collect() == ['1', '4']
-    assert g.node('2').neighbours.type_filter(['c']).neighbours.name.collect() == []
-    assert g.node('2').neighbours.neighbours.name.collect() == ['2', '2', '6', '2', '5']
-
+    assert g.node("2").neighbours.type_filter(["b"]).name.collect() == ["3"]
+    assert g.node("2").neighbours.type_filter(["d"]).name.collect() == []
+    assert g.node("2").neighbours.type_filter([]).name.collect() == []
+    assert g.node("2").neighbours.type_filter(["c", "a"]).name.collect() == ["1", "4"]
+    assert g.node("2").neighbours.type_filter(["c"]).neighbours.name.collect() == []
+    assert g.node("2").neighbours.neighbours.name.collect() == ["2", "2", "6", "2", "5"]
 
 
 def test_time_exploded_edges():
@@ -2273,23 +2308,45 @@ def test_unique_temporal_properties():
     g.add_property(3, {"name": "tarzan2"})
     g.add_property(2, {"salary": "1000"})
     g.add_constant_properties({"type": "character"})
-    g.add_edge(1,1,2,properties={"status":"open"})
-    g.add_edge(2,1,2,properties={"status":"open"})
-    g.add_edge(3,1,2,properties={"status":"review"})
-    g.add_edge(4,1,2,properties={"status":"open"})
-    g.add_edge(5,1,2,properties={"status":"in-progress"})
-    g.add_edge(10,1,2,properties={"status":"in-progress"})
-    g.add_edge(6,1,2)
+    g.add_edge(1, 1, 2, properties={"status": "open"})
+    g.add_edge(2, 1, 2, properties={"status": "open"})
+    g.add_edge(3, 1, 2, properties={"status": "review"})
+    g.add_edge(4, 1, 2, properties={"status": "open"})
+    g.add_edge(5, 1, 2, properties={"status": "in-progress"})
+    g.add_edge(10, 1, 2, properties={"status": "in-progress"})
+    g.add_edge(6, 1, 2)
     g.add_node(1, 3, {"name": "avatar1"})
     g.add_node(2, 3, {"name": "avatar2"})
     g.add_node(3, 3, {"name": "avatar2"})
 
-    assert g.edge(1,2).properties.temporal.get('status').ordered_dedupe(True) == [(2, "open"), (3, "review"), (4, "open"), (10, "in-progress")]
-    assert g.edge(1,2).properties.temporal.get('status').ordered_dedupe(False) == [(1, "open"), (3, "review"), (4, "open"), (5, "in-progress")]
-    assert g.properties.temporal.get('name').ordered_dedupe(True) == [(1, "tarzan"), (3, "tarzan2")]
-    assert g.properties.temporal.get('name').ordered_dedupe(False) == [(1, "tarzan"), (2, "tarzan2")]
-    assert g.node(3).properties.temporal.get('name').ordered_dedupe(True) == [(1, "avatar1"), (3, "avatar2")]
-    assert g.node(3).properties.temporal.get('name').ordered_dedupe(False) == [(1, "avatar1"), (2, "avatar2")]
+    assert g.edge(1, 2).properties.temporal.get("status").ordered_dedupe(True) == [
+        (2, "open"),
+        (3, "review"),
+        (4, "open"),
+        (10, "in-progress"),
+    ]
+    assert g.edge(1, 2).properties.temporal.get("status").ordered_dedupe(False) == [
+        (1, "open"),
+        (3, "review"),
+        (4, "open"),
+        (5, "in-progress"),
+    ]
+    assert g.properties.temporal.get("name").ordered_dedupe(True) == [
+        (1, "tarzan"),
+        (3, "tarzan2"),
+    ]
+    assert g.properties.temporal.get("name").ordered_dedupe(False) == [
+        (1, "tarzan"),
+        (2, "tarzan2"),
+    ]
+    assert g.node(3).properties.temporal.get("name").ordered_dedupe(True) == [
+        (1, "avatar1"),
+        (3, "avatar2"),
+    ]
+    assert g.node(3).properties.temporal.get("name").ordered_dedupe(False) == [
+        (1, "avatar1"),
+        (2, "avatar2"),
+    ]
 
     g.add_node(4, 3, {"i64": 1})
     g.add_node(5, 3, {"i64": 1})
@@ -2310,21 +2367,56 @@ def test_unique_temporal_properties():
     g.add_node(18, 3, {"map": {"name": "bob", "value list": [1, 2, 3]}})
     g.add_node(19, 3, {"map": {"name": "bob", "value list": [1, 2]}})
 
-    assert list(g.edge(1,2).properties.temporal.get('status')) == [(1, 'open'), (2, 'open'), (3, 'review'), (4, 'open'), (5, 'in-progress'), (10, 'in-progress')]
-    assert sorted(g.edge(1,2).properties.temporal.get('status').unique()) == ['in-progress', 'open', 'review']
-    assert list(g.properties.temporal.get('name')) == [(1, 'tarzan'), (2, 'tarzan2'), (3, 'tarzan2')]
-    assert sorted(g.properties.temporal.get('name').unique()) == ['tarzan', 'tarzan2']
-    assert list(g.node(3).properties.temporal.get('name')) == [(1, 'avatar1'), (2, 'avatar2'), (3, 'avatar2')]
-    assert sorted(g.node(3).properties.temporal.get('name').unique()) == ['avatar1', 'avatar2']
-    assert sorted(g.node(3).properties.temporal.get('i64').unique()) == [1, 5]
-    assert sorted(g.node(3).properties.temporal.get('f64').unique()) == [1.2, 1.3]
-    assert sorted(g.node(3).properties.temporal.get('bool').unique()) == [False, True]
-    assert sorted(g.node(3).properties.temporal.get('list').unique()) == [[1, 2, 3], [2, 3]]
-    assert sorted(g.node(3).properties.temporal.get('date').unique()) == [datetime_obj, datetime_obj2]
-    actual_list = g.node(3).properties.temporal.get('map').unique()
-    expected_list = [{"name": "bob", "value list": [1, 2]}, {"name": "bob", "value list": [1, 2, 3]}]
-    sorted_actual_list = sorted(actual_list, key=lambda d: (d["name"], tuple(d["value list"])))
-    sorted_expected_list = sorted(expected_list, key=lambda d: (d["name"], tuple(d["value list"])))
+    assert list(g.edge(1, 2).properties.temporal.get("status")) == [
+        (1, "open"),
+        (2, "open"),
+        (3, "review"),
+        (4, "open"),
+        (5, "in-progress"),
+        (10, "in-progress"),
+    ]
+    assert sorted(g.edge(1, 2).properties.temporal.get("status").unique()) == [
+        "in-progress",
+        "open",
+        "review",
+    ]
+    assert list(g.properties.temporal.get("name")) == [
+        (1, "tarzan"),
+        (2, "tarzan2"),
+        (3, "tarzan2"),
+    ]
+    assert sorted(g.properties.temporal.get("name").unique()) == ["tarzan", "tarzan2"]
+    assert list(g.node(3).properties.temporal.get("name")) == [
+        (1, "avatar1"),
+        (2, "avatar2"),
+        (3, "avatar2"),
+    ]
+    assert sorted(g.node(3).properties.temporal.get("name").unique()) == [
+        "avatar1",
+        "avatar2",
+    ]
+    assert sorted(g.node(3).properties.temporal.get("i64").unique()) == [1, 5]
+    assert sorted(g.node(3).properties.temporal.get("f64").unique()) == [1.2, 1.3]
+    assert sorted(g.node(3).properties.temporal.get("bool").unique()) == [False, True]
+    assert sorted(g.node(3).properties.temporal.get("list").unique()) == [
+        [1, 2, 3],
+        [2, 3],
+    ]
+    assert sorted(g.node(3).properties.temporal.get("date").unique()) == [
+        datetime_obj,
+        datetime_obj2,
+    ]
+    actual_list = g.node(3).properties.temporal.get("map").unique()
+    expected_list = [
+        {"name": "bob", "value list": [1, 2]},
+        {"name": "bob", "value list": [1, 2, 3]},
+    ]
+    sorted_actual_list = sorted(
+        actual_list, key=lambda d: (d["name"], tuple(d["value list"]))
+    )
+    sorted_expected_list = sorted(
+        expected_list, key=lambda d: (d["name"], tuple(d["value list"]))
+    )
     assert sorted_actual_list == sorted_expected_list
     g1 = Graph()
     g1.add_constant_properties({"type": "a"})
@@ -2339,14 +2431,24 @@ def test_unique_temporal_properties():
     g3.add_node(1, "shivam")
     g.add_node(7, 3, {"graph": g3})
 
-    actual_list = g.node(3).properties.temporal.get('graph').unique()
+    actual_list = g.node(3).properties.temporal.get("graph").unique()
     expected_list = [g1, g3]
-    sorted_actual_list = sorted(actual_list, key=lambda g: g.properties.constant.get('type'))
-    sorted_expected_list = sorted(expected_list, key=lambda g: g.properties.constant.get('type'))
+    sorted_actual_list = sorted(
+        actual_list, key=lambda g: g.properties.constant.get("type")
+    )
+    sorted_expected_list = sorted(
+        expected_list, key=lambda g: g.properties.constant.get("type")
+    )
     assert sorted_actual_list == sorted_expected_list
 
-    assert g.node(3).properties.temporal.get('i64').ordered_dedupe(True) == [(5, 1), (6, 5)]
-    assert g.node(3).properties.temporal.get('i64').ordered_dedupe(False) == [(4, 1), (6, 5)]
+    assert g.node(3).properties.temporal.get("i64").ordered_dedupe(True) == [
+        (5, 1),
+        (6, 5),
+    ]
+    assert g.node(3).properties.temporal.get("i64").ordered_dedupe(False) == [
+        (4, 1),
+        (6, 5),
+    ]
 
 
 def test_fuzzy_search():

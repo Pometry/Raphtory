@@ -47,7 +47,9 @@ def get_out_neighbors(tx):
 
 
 def run_pagerank(tx):
-    result = tx.run("""CALL gds.pageRank.stream("social") YIELD nodeId, score RETURN nodeId, score""")
+    result = tx.run(
+        """CALL gds.pageRank.stream("social") YIELD nodeId, score RETURN nodeId, score"""
+    )
     return list(result)
 
 
@@ -68,7 +70,9 @@ def execute_bash_command(command, background=False, timeout=60):
         )
         return
     try:
-        child = pexpect.spawn("/bin/bash", ["-c", command + " 2>&1"], timeout=timeout)  # Redirect stderr to stdout
+        child = pexpect.spawn(
+            "/bin/bash", ["-c", command + " 2>&1"], timeout=timeout
+        )  # Redirect stderr to stdout
         child.expect(pexpect.EOF)
         output = child.before.decode("utf-8")
     except pexpect.TIMEOUT:
@@ -98,7 +102,7 @@ def modify_data():
         write_array_to_csv(
             [["node:START_ID", "node:END_ID", ":TYPE"]],
             file_dir + "simple-relationships-headers-neo4j.csv",
-            )
+        )
 
         print("Generating node data")
         df = pd.read_csv(file_dir + "simple-profiles.csv", sep="\t", header=None)
@@ -115,7 +119,7 @@ def modify_data():
             sep="\t",
             index=None,
             header=None,
-            )
+        )
         print("Done")
 
 
@@ -154,7 +158,7 @@ class Neo4jBench(BenchmarkBase):
             # '/bin/bash -c "neo4j start"',
             # '/bin/bash -c "sleep 15"',
             #'/bin/bash -c "cd /var/lib/neo4j/import/data2/; python3 benchmark_driver.py --no-docker --bench neo"',
-            'tail -f /dev/null',
+            "tail -f /dev/null",
         ]
         # image_path = 'DockerFiles/pyneo' image_path ports
         code, contents = super().start_docker(
