@@ -120,6 +120,7 @@ where
 
     // Triangle Accumulator
     let neighbours_set = accumulators::hash_set::<u64>(0);
+    ctx_subgraph.agg(neighbours_set);
 
     let tri_mc = deltas
         .iter()
@@ -133,8 +134,6 @@ where
                 *mc,
             )
     });
-
-    ctx_subgraph.agg(neighbours_set);
 
     let neighbourhood_update_step = ATask::new(move |u: &mut EvalNodeView<NodeSubgraph<G>, ()>| {
         for v in u.neighbours() {
