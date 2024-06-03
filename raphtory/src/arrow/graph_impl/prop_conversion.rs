@@ -94,6 +94,7 @@ pub fn make_node_properties_from_graph(
     let props = builder.build().map(Some)?;
     Ok(props)
 }
+
 pub fn arrow_dtype_from_prop_type(prop_type: PropType) -> DataType {
     match prop_type {
         PropType::Str => DataType::LargeUtf8,

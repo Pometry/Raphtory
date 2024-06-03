@@ -204,7 +204,13 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
             if prop_names_set.is_empty() {
                 break;
             }
-            let mut found_props: HashSet<ArcStr> = HashSet::default();
+            let mut found_props: HashSet<ArcStr> = HashSet::from([
+                fields::TIME.into(),
+                fields::VERTEX_ID.into(),
+                fields::VERTEX_ID_REV.into(),
+                fields::NAME.into(),
+                fields::NODE_TYPE.into(),
+            ]);
             found_props.insert("name".into());
 
             for prop in prop_names_set.iter() {
@@ -257,7 +263,12 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
             if prop_names_set.is_empty() {
                 break;
             }
-            let mut found_props: HashSet<ArcStr> = HashSet::new();
+            let mut found_props: HashSet<ArcStr> = HashSet::from([
+                fields::TIME.into(),
+                fields::SOURCE.into(),
+                fields::DESTINATION.into(),
+                fields::EDGE_ID.into(),
+            ]);
 
             for prop in prop_names_set.iter() {
                 // load temporal props

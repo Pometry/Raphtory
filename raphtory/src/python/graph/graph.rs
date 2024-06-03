@@ -338,8 +338,7 @@ impl PyGraph {
     #[staticmethod]
     #[pyo3(signature = (path, force = false))]
     pub fn load_from_file(path: &str, force: bool) -> Result<Graph, GraphError> {
-        let file_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), path].iter().collect();
-        Graph::load_from_file(file_path, force)
+        Graph::load_from_file(path, force)
     }
 
     /// Saves the graph to the given path.

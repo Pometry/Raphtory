@@ -250,7 +250,7 @@ def test_windows_and_layers():
             after(time: 500) {
               history
               neighbours {
-                list { 
+                list {
                     name
                     before(time: 300) {
                       history

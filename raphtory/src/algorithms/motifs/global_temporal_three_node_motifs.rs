@@ -18,6 +18,7 @@ use crate::{
     },
 };
 use itertools::Itertools;
+use raphtory_api::core::entities::VID;
 use rustc_hash::FxHashSet;
 use std::collections::HashMap;
 
@@ -28,22 +29,22 @@ where
     G: StaticGraphViewOps,
 {
     let two_n_c = twonode_motif_count(evv, deltas.clone());
-    let neigh_map: HashMap<u64, usize> = evv
+    let neigh_map: HashMap<VID, usize> = evv
         .neighbours()
         .into_iter()
         .enumerate()
-        .map(|(num, nb)| (nb.id(), num))
+        .map(|(num, nb)| (nb.node, num))
         .collect();
     let events = evv
         .edges()
-        .explode()
         .iter()
-        .sorted_by_key(|e| e.time_and_index())
+        .map(|e| e.explode())
+        .kmerge_by(|e1, e2| e1.time_and_index() < e2.time_and_index())
         .map(|edge| {
-            if edge.src().id() == evv.id() {
-                star_event(neigh_map[&edge.dst().id()], 1, edge.time().unwrap())
+            if edge.src().node == evv.node {
+                star_event(neigh_map[&edge.dst().node], 1, edge.time().unwrap())
             } else {
-                star_event(neigh_map[&edge.src().id()], 0, edge.time().unwrap())
+                star_event(neigh_map[&edge.src().node], 0, edge.time().unwrap())
             }
         })
         .collect::<Vec<StarEvent>>();
@@ -78,17 +79,18 @@ where
     let mut results = deltas.iter().map(|_| [0; 8]).collect::<Vec<[usize; 8]>>();
 
     for nb in evv.neighbours().into_iter() {
-        let nb_id = nb.id();
-        let out = evv.graph().edge(evv.id(), nb_id);
-        let inc = evv.graph().edge(nb_id, evv.id());
+        let nb_id = nb.node;
+        let out = evv.graph().edge(evv.node, nb_id);
+        let inc = evv.graph().edge(nb_id, evv.node);
         let events: Vec<TwoNodeEvent> = out
             .iter()
             .flat_map(|e| e.explode())
-            .chain(inc.iter().flat_map(|e| e.explode()))
-            .sorted_by_key(|e| e.time_and_index())
+            .merge_by(inc.iter().flat_map(|e| e.explode()), |e1, e2| {
+                e1.time_and_index() < e2.time_and_index()
+            })
             .map(|e| {
                 two_node_event(
-                    if e.src().id() == evv.id() { 1 } else { 0 },
+                    if e.src().node == evv.node { 1 } else { 0 },
                     e.time().unwrap(),
                 )
             })
@@ -111,11 +113,15 @@ pub fn triangle_motifs<G>(graph: &G, deltas: Vec<i64>, threads: Option<usize>) -
 where
     G: StaticGraphViewOps,
 {
+    // Create K-Core graph to recursively remove nodes of degree < 2
     let node_set = k_core_set(graph, 2, usize::MAX, None);
-    let g: NodeSubgraph<G> = graph.subgraph(node_set);
-    let mut ctx_sub: Context<NodeSubgraph<G>, ComputeStateVec> = Context::from(&g);
+    let kcore_subgraph: NodeSubgraph<G> = graph.subgraph(node_set);
+    let mut ctx_subgraph: Context<NodeSubgraph<G>, ComputeStateVec> =
+        Context::from(&kcore_subgraph);
 
-    let neighbours_set = accumulators::hash_set::<u64>(0);
+    // Triangle Accumulator
+    let neighbours_set = accumulators::hash_set::<VID>(0);
+    ctx_subgraph.agg(neighbours_set);
 
     let tri_mc = deltas
         .iter()
@@ -124,26 +130,25 @@ where
     let tri_clone = tri_mc.clone();
 
     tri_mc.clone().iter().for_each(|mc| {
-        ctx_sub.global_agg::<[usize; 8], [usize; 8], [usize; 8], ArrConst<usize, SumDef<usize>, 8>>(
-            *mc,
-        )
+        ctx_subgraph
+            .global_agg::<[usize; 8], [usize; 8], [usize; 8], ArrConst<usize, SumDef<usize>, 8>>(
+                *mc,
+            )
     });
 
-    ctx_sub.agg(neighbours_set);
-
-    let step1 = ATask::new(move |u: &mut EvalNodeView<NodeSubgraph<G>, ()>| {
+    let neighbourhood_update_step = ATask::new(move |u: &mut EvalNodeView<NodeSubgraph<G>, ()>| {
         for v in u.neighbours() {
-            if u.id() > v.id() {
-                v.update(&neighbours_set, u.id());
+            if u.node > v.node {
+                v.update(&neighbours_set, u.node);
             }
         }
         Step::Continue
     });
 
-    let step2 = ATask::new(move |u: &mut EvalNodeView<NodeSubgraph<G>, ()>| {
+    let intersection_compute_step = ATask::new(move |u: &mut EvalNodeView<NodeSubgraph<G>, ()>| {
         for v in u.neighbours() {
             // Find triangles on the UV edge
-            if u.id() > v.id() {
+            if u.node > v.node {
                 let intersection_nbs = {
                     match (
                         u.entry(&neighbours_set)
@@ -168,21 +173,21 @@ where
                 intersection_nbs.iter().for_each(|w| {
                     // For each triangle, run the triangle count.
 
-                    let all_exploded = vec![u.id(), v.id(), *w]
+                    let all_exploded = vec![u.node, v.node, *w]
                         .into_iter()
                         .sorted()
                         .permutations(2)
-                        .flat_map(|e| {
+                        .map(|e| {
                             u.graph()
                                 .edge(*e.first().unwrap(), *e.get(1).unwrap())
                                 .iter()
                                 .flat_map(|edge| edge.explode())
                                 .collect::<Vec<_>>()
                         })
-                        .sorted_by_key(|e| e.time_and_index())
+                        .kmerge_by(|e1, e2| e1.time_and_index() < e2.time_and_index())
                         .map(|e| {
-                            let (src_id, dst_id) = (e.src().id(), e.dst().id());
-                            let uid = u.id();
+                            let (src_id, dst_id) = (e.src().node, e.dst().node);
+                            let uid = u.node;
                             if src_id == *w {
                                 new_triangle_edge(
                                     false,
@@ -219,11 +224,11 @@ where
         Step::Continue
     });
 
-    let mut runner: TaskRunner<NodeSubgraph<G>, _> = TaskRunner::new(ctx_sub);
+    let mut runner: TaskRunner<NodeSubgraph<G>, _> = TaskRunner::new(ctx_subgraph);
 
     runner.run(
-        vec![Job::new(step1)],
-        vec![Job::new(step2)],
+        vec![Job::new(neighbourhood_update_step)],
+        vec![Job::new(intersection_compute_step)],
         None,
         |egs, _, _, _| {
             tri_mc.iter().map(|mc| egs.finalize::<[usize; 8], [usize;8], [usize; 8], ArrConst<usize,SumDef<usize>,8>>(mc)).collect_vec()
@@ -252,12 +257,11 @@ where
         .collect_vec();
 
     let star_clone = star_mc.clone();
-
     star_mc.iter().for_each(|mc| ctx.global_agg(*mc));
 
-    let out1 = triangle_motifs(g, deltas.clone(), threads);
+    let triadic_motifs = triangle_motifs(g, deltas.clone(), threads);
 
-    let step1 = ATask::new(move |evv: &mut EvalNodeView<G, _>| {
+    let star_count_step = ATask::new(move |evv: &mut EvalNodeView<G, _>| {
         let star_nodes = star_motif_count(evv, deltas.clone());
         for (i, star) in star_nodes.iter().enumerate() {
             evv.global_update(&star_mc[i], *star);
@@ -266,14 +270,12 @@ where
     });
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
-    // let star_ref = &star_mc;
-
     runner.run(
         vec![],
-        vec![Job::new(step1)],
+        vec![Job::new(star_count_step)],
         None,
         |egs, _ , _ , _ | {
-            out1.iter().enumerate().map(|(i,tri)| {
+            triadic_motifs.iter().enumerate().map(|(i,tri)| {
                 let mut tmp = egs.finalize::<[usize; 32], [usize;32], [usize; 32], ArrConst<usize,SumDef<usize>,32>>(&star_clone[i])
                 .iter().copied()
                 .collect_vec();

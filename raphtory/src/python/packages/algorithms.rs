@@ -400,12 +400,12 @@ pub fn global_clustering_coefficient(g: &PyGraphView) -> f64 {
 ///  There are 8 triangle motifs:
 ///
 ///   1. i --> j, k --> j, i --> k
-///   2. i --> j, k --> i, j --> k
+///   2. i --> j, k --> j, k --> i
 ///   3. i --> j, j --> k, i --> k
-///   4. i --> j, i --> k, j --> k
-///   5. i --> j, k --> j, k --> i
+///   4. i --> j, j --> k, k --> i
+///   5. i --> j, k --> i, j --> k
 ///   6. i --> j, k --> i, k --> j
-///   7. i --> j, j --> k, k --> i
+///   7. i --> j, i --> k, j --> k
 ///   8. i --> j, i --> k, k --> j
 ///
 /// Arguments:

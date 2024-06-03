@@ -464,7 +464,7 @@ mod server_tests {
     use chrono::prelude::*;
     use raphtory::{
         core::Prop,
-        prelude::{AdditionOps, Graph, GraphViewOps},
+        prelude::{AdditionOps, Graph},
     };
     use std::collections::HashMap;
     use tokio::time::{sleep, Duration};
@@ -480,7 +480,7 @@ mod server_tests {
                 None,
             )
             .unwrap();
-        let g = graph.materialize().unwrap();
+        let g = graph.into();
         let graphs = HashMap::from([("test".to_owned(), g)]);
         let server = RaphtoryServer::from_map(graphs);
         println!("calling start at time {}", Local::now());
