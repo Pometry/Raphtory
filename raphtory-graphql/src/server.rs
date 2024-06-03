@@ -356,10 +356,6 @@ impl RaphtoryServer {
                     .data(app_state.clone())
                     .with(token_middleware.clone()),
             )
-            // .at(
-            //     "/secure_endpoint",
-            //     secure_endpoint.with(token_middleware.clone()),
-            // )
             .at("/logout", logout.with(token_middleware.clone()))
             .with(CookieJarManager::new())
             .with(Cors::new());
@@ -487,7 +483,6 @@ mod server_tests {
         let handler = server.start_with_port(0, "info", false, false);
         sleep(Duration::from_secs(1)).await;
         println!("Calling stop at time {}", Local::now());
-        handler.await.stop().await;
-        handler.await.wait().await.unwrap()
+        handler.await.stop().await
     }
 }
