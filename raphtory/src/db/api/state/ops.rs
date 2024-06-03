@@ -187,7 +187,7 @@ pub trait NodeStateOps<'graph>: IntoIterator<Item = Self::OwnedValue> {
         }
         values.par_sort_by(|(_, v1), (_, v2)| cmp(v1.borrow(), v2.borrow()));
         let median_index = len / 2;
-        values.into_iter().skip(median_index).next()
+        values.into_iter().nth(median_index)
     }
 
     fn sum<'a, S>(&'a self) -> S

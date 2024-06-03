@@ -46,6 +46,12 @@ impl<T: PartialEq + Default> PartialEq for LockVec<T> {
     }
 }
 
+impl<T: Default> Default for LockVec<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T: Default> LockVec<T> {
     pub fn new() -> Self {
         Self {

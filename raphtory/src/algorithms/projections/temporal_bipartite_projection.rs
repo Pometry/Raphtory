@@ -61,8 +61,6 @@ fn populate_edges<G: StaticGraphViewOps, V: AsNodeRef>(g: &G, new_graph: &Graph,
             }
             to_process.push(nb.clone());
         }
-    } else {
-        return;
     }
 }
 

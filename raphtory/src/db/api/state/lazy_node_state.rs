@@ -209,7 +209,7 @@ impl<
         index: usize,
     ) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)> {
         if self.graph.nodes_filtered() {
-            self.iter().skip(index).next()
+            self.iter().nth(index)
         } else {
             let vid = match self.graph.node_list() {
                 NodeList::All { num_nodes } => {
