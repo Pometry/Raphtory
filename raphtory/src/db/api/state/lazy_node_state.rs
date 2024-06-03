@@ -1,8 +1,5 @@
 use crate::{
-    core::entities::{
-        nodes::node_ref::{AsNodeRef, NodeRef},
-        VID,
-    },
+    core::entities::{nodes::node_ref::AsNodeRef, VID},
     db::{
         api::{
             state::{NodeState, NodeStateOps},

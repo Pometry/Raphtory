@@ -285,7 +285,7 @@ pub fn run_analysis_benchmarks<F, G>(
         .map(|e| (e.src().id(), e.dst().id(), e.time().expect("need time")))
         .collect::<Vec<_>>();
 
-    let nodes: HashSet<u64> = graph.nodes().id().collect();
+    let nodes: HashSet<u64> = graph.nodes().id().into_iter().collect();
 
     bench(group, "num_edges", parameter, |b: &mut Bencher| {
         b.iter(|| graph.count_edges())

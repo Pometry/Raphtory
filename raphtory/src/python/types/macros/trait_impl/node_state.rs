@@ -18,7 +18,7 @@ use pyo3::{
 use std::sync::Arc;
 
 macro_rules! impl_node_state_ops {
-    ($name:ident, $inner_t:ty) => {
+    ($name:ident<$value:ty>, $inner_t:ty, $to_owned:expr) => {
         #[pymethods]
         impl $name {
             fn __len__(&self) -> usize {
@@ -31,8 +31,47 @@ macro_rules! impl_node_state_ops {
                 })
             }
 
+            fn __iter__(&self) -> PyBorrowingIterator {
+                py_borrowing_iter!(self.inner.clone(), $inner_t, |inner| inner
+                    .values()
+                    .map($to_owned))
+            }
+
+            fn __getitem__(&self, node: NodeRef) -> PyResult<$value> {
+                self.inner
+                    .get_by_node(node)
+                    .map($to_owned)
+                    .ok_or_else(|| match node {
+                        NodeRef::External(id) => {
+                            PyKeyError::new_err(format!("Missing value for node with id {id}"))
+                        }
+                        NodeRef::Internal(vid) => {
+                            let node = self.inner.graph().node(vid);
+                            match node {
+                                Some(node) => {
+                                    PyKeyError::new_err(format!("Missing value {}", node.repr()))
+                                }
+                                None => PyTypeError::new_err("Invalid node reference"),
+                            }
+                        }
+                        NodeRef::ExternalStr(name) => {
+                            PyKeyError::new_err(format!("Missing value for node with name {name}"))
+                        }
+                    })
+            }
+
+            fn items(&self) -> PyBorrowingIterator {
+                py_borrowing_iter!(self.inner.clone(), $inner_t, |inner| inner
+                    .iter()
+                    .map(|(n, v)| (n.cloned(), ($to_owned)(v))))
+            }
+
             fn values(&self) -> PyBorrowingIterator {
                 self.__iter__()
+            }
+
+            fn collect(&self) -> Vec<$value> {
+                self.inner.collect()
             }
         }
     };
@@ -62,7 +101,7 @@ macro_rules! impl_node_state_ord_ops {
             }
 
             fn min(&self) -> Option<$value> {
-                self.inner.min().map(|v| ($to_owned)(v))
+                self.inner.min().map($to_owned)
             }
 
             fn max_item(&self) -> Option<(NodeView<DynamicGraph>, $value)> {
@@ -72,11 +111,11 @@ macro_rules! impl_node_state_ord_ops {
             }
 
             fn max(&self) -> Option<$value> {
-                self.inner.max().map(|v| ($to_owned)(v))
+                self.inner.max().map($to_owned)
             }
 
             fn median(&self) -> Option<$value> {
-                self.inner.median().map(|v| ($to_owned)(v))
+                self.inner.median().map($to_owned)
             }
 
             fn median_item(&self) -> Option<(NodeView<DynamicGraph>, $value)> {
@@ -95,6 +134,10 @@ macro_rules! impl_node_state_num_ops {
             fn sum(&self) -> $value {
                 self.inner.sum()
             }
+
+            fn mean(&self) -> f64 {
+                self.inner.mean()
+            }
         }
     };
 }
@@ -111,47 +154,12 @@ macro_rules! impl_lazy_node_state {
             fn compute(&self) -> NodeState<'static, $value, DynamicGraph, DynamicGraph> {
                 self.inner.compute()
             }
-
-            fn __iter__(&self) -> PyBorrowingIterator {
-                py_borrowing_iter!(
-                    self.inner.clone(),
-                    LazyNodeState<'static, $value, DynamicGraph, DynamicGraph>,
-                    |inner| inner.values()
-                )
-            }
-
-            fn __getitem__(&self, node: NodeRef) -> PyResult<$value> {
-                self.inner.get_by_node(node).ok_or_else(|| match node {
-                    NodeRef::External(id) => {
-                        PyKeyError::new_err(format!("Missing value for node with id {id}"))
-                    }
-                    NodeRef::Internal(vid) => {
-                        let node = self.inner.graph().node(vid);
-                        match node {
-                            Some(node) => {
-                                PyKeyError::new_err(format!("Missing value {}", node.repr()))
-                            }
-                            None => PyTypeError::new_err("Invalid node reference"),
-                        }
-                    }
-                    NodeRef::ExternalStr(name) => {
-                        PyKeyError::new_err(format!("Missing value for node with name {name}"))
-                    }
-                })
-            }
-
-            fn items(&self) -> PyBorrowingIterator {
-                py_borrowing_iter!(
-                    self.inner.clone(),
-                    LazyNodeState<'static, $value, DynamicGraph, DynamicGraph>,
-                    |inner| inner.iter().map(|(n, v)| (n.cloned(), v))
-                )
-            }
         }
 
         impl_node_state_ops!(
-            $name,
-            LazyNodeState<'static, $value, DynamicGraph, DynamicGraph>
+            $name<$value>,
+            LazyNodeState<'static, $value, DynamicGraph, DynamicGraph>,
+            |v: $value| v
         );
 
         impl From<LazyNodeState<'static, $value, DynamicGraph, DynamicGraph>> for $name {
@@ -175,51 +183,10 @@ macro_rules! impl_node_state {
             inner: Arc<NodeState<'static, $value, DynamicGraph, DynamicGraph>>,
         }
 
-        #[pymethods]
-        impl $name {
-            fn __iter__(&self) -> PyBorrowingIterator {
-                py_borrowing_iter!(
-                    self.inner.clone(),
-                    Arc<NodeState<'static, $value, DynamicGraph>>,
-                    |inner| inner.values().cloned()
-                )
-            }
-
-            fn __getitem__(&self, node: NodeRef) -> PyResult<$value> {
-                self.inner
-                    .get_by_node(node)
-                    .cloned()
-                    .ok_or_else(|| match node {
-                        NodeRef::External(id) => {
-                            PyKeyError::new_err(format!("Missing value for node with id {id}"))
-                        }
-                        NodeRef::Internal(vid) => {
-                            let node = self.inner.graph().node(vid);
-                            match node {
-                                Some(node) => {
-                                    PyKeyError::new_err(format!("Missing value {}", node.repr()))
-                                }
-                                None => PyTypeError::new_err("Invalid node reference"),
-                            }
-                        }
-                        NodeRef::ExternalStr(name) => {
-                            PyKeyError::new_err(format!("Missing value for node with name {name}"))
-                        }
-                    })
-            }
-
-            fn items(&self) -> PyBorrowingIterator {
-                py_borrowing_iter!(
-                    self.inner.clone(),
-                    Arc<NodeState<'static, $value, DynamicGraph>>,
-                    |inner| inner.iter().map(|(n, v)| (n.cloned(), v.clone()))
-                )
-            }
-        }
-
         impl_node_state_ops!(
-            $name,
-            Arc<NodeState<'static, $value, DynamicGraph, DynamicGraph>>
+            $name<$value>,
+            Arc<NodeState<'static, $value, DynamicGraph, DynamicGraph>>,
+            |v: &$value| v.clone()
         );
 
         impl From<NodeState<'static, $value, DynamicGraph, DynamicGraph>> for $name {

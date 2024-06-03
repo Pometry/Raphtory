@@ -1,8 +1,5 @@
 use crate::{
-    core::entities::{
-        nodes::node_ref::{AsNodeRef, NodeRef},
-        VID,
-    },
+    core::entities::{nodes::node_ref::AsNodeRef, VID},
     db::{
         api::{
             state::ops::NodeStateOps,
@@ -93,15 +90,6 @@ pub struct NodeState<'graph, V, G, GH = G> {
 }
 
 impl<'graph, V, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodeState<'graph, V, G, GH> {
-    pub(crate) fn node_list(&self) -> NodeList {
-        match self.keys.as_ref() {
-            None => self.graph.node_list(),
-            Some(index) => NodeList::List {
-                nodes: index.clone(),
-            },
-        }
-    }
-
     pub(crate) fn new(base_graph: G, graph: GH, values: Vec<V>, keys: Option<Index<VID>>) -> Self {
         Self {
             base_graph,

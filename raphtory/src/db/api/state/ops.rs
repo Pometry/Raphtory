@@ -6,6 +6,7 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
+use num_traits::AsPrimitive;
 use rayon::{
     iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator},
     prelude::ParallelSliceMut,
@@ -200,5 +201,14 @@ pub trait NodeStateOps<'graph>: IntoIterator<Item = Self::OwnedValue> {
         S: Send + Sum<Self::Value<'a>> + Sum<S>,
     {
         self.par_values().sum()
+    }
+
+    fn mean<'a>(&'a self) -> f64
+    where
+        'graph: 'a,
+        Self::OwnedValue: Sum<Self::Value<'a>> + Sum + AsPrimitive<f64>,
+    {
+        let sum: f64 = self.sum::<Self::OwnedValue>().as_();
+        sum / (self.len() as f64)
     }
 }

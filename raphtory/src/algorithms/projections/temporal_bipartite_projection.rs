@@ -1,7 +1,6 @@
 use itertools::Itertools;
 use num_integer::average_floor;
 extern crate num_integer;
-
 use crate::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
