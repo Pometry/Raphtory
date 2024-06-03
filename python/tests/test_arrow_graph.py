@@ -1,4 +1,4 @@
-from raphtory import ArrowGraph, Query, State, PyDirection
+from raphtory import DiskGraph, Query, State, PyDirection
 import pandas as pd
 import tempfile
 
@@ -33,7 +33,7 @@ edges = pd.DataFrame(
 
 
 def create_graph(edges, dir):
-    return ArrowGraph.load_from_pandas(dir, edges, "src", "dst", "time")
+    return DiskGraph.load_from_pandas(dir, edges, "src", "dst", "time")
 
 
 # in every test use with to create a temporary directory that will be deleted automatically

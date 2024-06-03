@@ -1,4 +1,4 @@
-from raphtory import ArrowGraph
+from raphtory import DiskGraph
 from raphtory import algorithms
 from utils import measure
 import tempfile
@@ -44,7 +44,7 @@ def test_arrow_graph():
     try:
         g = measure(
             "Graph load from dir",
-            ArrowGraph.load_from_dir,
+            DiskGraph.load_from_dir,
             graph_dir,
             print_result=False,
         )
@@ -57,7 +57,7 @@ def test_arrow_graph():
 
         g = measure(
             "Graph load from parquets",
-            ArrowGraph.load_from_parquets,
+            DiskGraph.load_from_parquets,
             graph_dir.name,
             layer_parquet_cols,
             None,
