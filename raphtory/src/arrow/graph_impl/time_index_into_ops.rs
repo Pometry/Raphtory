@@ -23,7 +23,9 @@ impl<'a> TimeIndexIntoOps for TimeStamps<'a, TimeIndexEntry> {
             sec_index.map(|sec_index| sec_index.sliced(start..end)),
         )
     }
-    fn into_iter(self) -> impl Iterator<Item = TimeIndexEntry> + 'static {
+
+    #[allow(refining_impl_trait)]
+    fn into_iter(self) -> impl Iterator<Item = TimeIndexEntry> + Send + 'static {
         let (timestamps, sec_index) = self.into_inner();
         let sec_iter: Box<dyn Iterator<Item = usize> + Send> = sec_index
             .map(|v| v.into_owned().map(|i| i as usize).into_dyn_boxed())
