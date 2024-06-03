@@ -31,9 +31,9 @@ debug = true
 
 [workspace.dependencies]
 #[public-storage]
-# pometry-storage = { version = "0.8.1", path = "pometry-storage" }
+pometry-storage = { version = "0.8.1", path = "pometry-storage" }
 #[private-storage]
-pometry-storage = { path = "pometry-storage-private", package = "pometry-storage-private" }
+# pometry-storage = { path = "pometry-storage-private", package = "pometry-storage-private" }
 async-graphql = { version = "6.0.11", features = ["dynamic-schema"] }
 async-graphql-poem = "6.0.11"
 dynamic-graphql = "0.8.1"
