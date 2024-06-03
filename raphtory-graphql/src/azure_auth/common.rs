@@ -214,16 +214,12 @@ pub async fn verify(data: Data<&AppState>, jar: &CookieJar) -> Json<serde_json::
                 decode::<HashMap<String, serde_json::Value>>(token, &decoding_key, &validation);
 
             match token_data {
-                Ok(_dc) => {
-                    Json(serde_json::json!({
-                        "message": "Valid access token",
-                    }))
-                }
-                Err(_err) => {
-                    Json(serde_json::json!({
-                        "message": "No valid auth token found",
-                    }))
-                }
+                Ok(_dc) => Json(serde_json::json!({
+                    "message": "Valid access token",
+                })),
+                Err(_err) => Json(serde_json::json!({
+                    "message": "No valid auth token found",
+                })),
             }
         } else {
             Json(serde_json::json!({
