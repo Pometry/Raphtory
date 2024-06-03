@@ -270,7 +270,7 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
                         .find_edge(self.vid, dst)?;
                     Some(EdgeRef::new_outgoing(eid, self.vid, dst).at_layer(0))
                 }
-                _ => todo!("multilayer edge views not implemented in arrow yet"),
+                _ => todo!("multilayer edge views not implemented in diskgraph yet"),
             },
             LayerIds::One(id) => {
                 let eid = self.graph.layers()[*id]
@@ -287,7 +287,7 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
                         .find_edge(self.vid, dst)?;
                     Some(EdgeRef::new_outgoing(eid, self.vid, dst).at_layer(layer))
                 }
-                _ => todo!("multtilayer edge views not implemented in arrow yet"),
+                _ => todo!("multtilayer edge views not implemented in diskgraph yet"),
             },
         }
     }

@@ -119,10 +119,10 @@ mod test {
 
         let graph_dir = TempDir::new().unwrap();
         // check persist_as_disk_graph works
-        let arrow_from_expected = expected_graph
+        let disk_graph_from_expected = expected_graph
             .persist_as_disk_graph(graph_dir.path())
             .unwrap();
-        assert_graph_equal(&arrow_from_expected, &expected_graph);
+        assert_graph_equal(&disk_graph_from_expected, &expected_graph);
 
         let actual_num_verts = nodes.len();
         let g_num_verts = graph.num_nodes();

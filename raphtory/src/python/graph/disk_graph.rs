@@ -222,7 +222,7 @@ impl PyDiskGraph {
     }
 
     fn __repr__(&self) -> String {
-        StructReprBuilder::new("ArrowGraph")
+        StructReprBuilder::new("DiskGraph")
             .add_field("number_of_nodes", self.graph.count_nodes())
             .add_field(
                 "number_of_temporal_edges",

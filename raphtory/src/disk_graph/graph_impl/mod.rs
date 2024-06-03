@@ -83,7 +83,7 @@ impl<'de> Deserialize<'de> for DiskGraph {
     {
         let path = PathBuf::deserialize(deserializer)?;
         let graph_result = DiskGraph::load_from_dir(&path).map_err(|err| {
-            serde::de::Error::custom(format!("Failed to load ArrowGraph: {:?}", err))
+            serde::de::Error::custom(format!("Failed to load Diskgraph: {:?}", err))
         })?;
         Ok(graph_result)
     }
@@ -93,7 +93,7 @@ impl Display for DiskGraph {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "ArrowGraph(num_nodes={}, num_temporal_edges={}",
+            "Diskgraph(num_nodes={}, num_temporal_edges={}",
             self.count_nodes(),
             self.count_temporal_edges()
         )
@@ -128,12 +128,12 @@ impl DiskGraph {
             LayerIds::All => match self.inner.layers().len() {
                 0 => None,
                 1 => Some(0),
-                _ => todo!("multilayer edge views not yet supported in arrow"),
+                _ => todo!("multilayer edge views not yet supported in Diskgraph"),
             },
             LayerIds::Multiple(ids) => match ids.len() {
                 0 => None,
                 1 => Some(ids[0]),
-                _ => todo!("multilayer edge views not yet supported in arrow"),
+                _ => todo!("multilayer edge views not yet supported in Diskgraph"),
             },
         }
     }
@@ -346,12 +346,12 @@ impl DiskGraph {
 
 impl InternalAdditionOps for DiskGraph {
     fn next_event_id(&self) -> usize {
-        unimplemented!("ArrowGraph is immutable")
+        unimplemented!("Diskgraph is immutable")
     }
 
     fn resolve_layer(&self, _layer: Option<&str>) -> usize {
         // Will check this
-        unimplemented!("ArrowGraph is immutable")
+        unimplemented!("Diskgraph is immutable")
     }
 
     fn resolve_node_type(
@@ -359,15 +359,15 @@ impl InternalAdditionOps for DiskGraph {
         _v_id: VID,
         _node_typee: Option<&str>,
     ) -> Result<usize, GraphError> {
-        unimplemented!("ArrowGraph is immutable")
+        unimplemented!("Diskgraph is immutable")
     }
 
     fn resolve_node(&self, _id: u64, _namee: Option<&str>) -> VID {
-        unimplemented!("ArrowGraph is immutable")
+        unimplemented!("Diskgraph is immutable")
     }
 
     fn resolve_graph_property(&self, _prop: &str, _is_staticc: bool) -> usize {
-        unimplemented!("ArrowGraph is immutable")
+        unimplemented!("Diskgraph is immutable")
     }
 
     fn resolve_node_property(
@@ -376,7 +376,7 @@ impl InternalAdditionOps for DiskGraph {
         _dtype: PropType,
         _is_static: bool,
     ) -> Result<usize, GraphError> {
-        unimplemented!("ArrowGraph is immutable")
+        unimplemented!("Diskgraph is immutable")
     }
 
     fn resolve_edge_property(
@@ -385,11 +385,11 @@ impl InternalAdditionOps for DiskGraph {
         _dtype: PropType,
         _is_static: bool,
     ) -> Result<usize, GraphError> {
-        unimplemented!("ArrowGraph is immutable")
+        unimplemented!("Diskgraph is immutable")
     }
 
     fn process_prop_value(&self, _prop: Prop) -> Prop {
-        unimplemented!("ArrowGraph is immutable")
+        unimplemented!("Diskgraph is immutable")
     }
 
     fn internal_add_node(
@@ -399,7 +399,7 @@ impl InternalAdditionOps for DiskGraph {
         _props: Vec<(usize, Prop)>,
         _node_type_id: usize,
     ) -> Result<(), GraphError> {
-        unimplemented!("ArrowGraph is immutable")
+        unimplemented!("Diskgraph is immutable")
     }
 
     fn internal_add_edge(
@@ -410,7 +410,7 @@ impl InternalAdditionOps for DiskGraph {
         _props: Vec<(usize, Prop)>,
         _layer: usize,
     ) -> Result<EID, GraphError> {
-        unimplemented!("ArrowGraph is immutable")
+        unimplemented!("Diskgraph is immutable")
     }
 }
 
@@ -420,18 +420,18 @@ impl InternalPropertyAdditionOps for DiskGraph {
         _t: TimeIndexEntry,
         _props: Vec<(usize, Prop)>,
     ) -> Result<(), GraphError> {
-        unimplemented!("ArrowGraph is immutable")
+        unimplemented!("Diskgraph is immutable")
     }
 
     fn internal_add_static_properties(&self, _props: Vec<(usize, Prop)>) -> Result<(), GraphError> {
-        unimplemented!("ArrowGraph is immutable")
+        unimplemented!("Diskgraph is immutable")
     }
 
     fn internal_update_static_properties(
         &self,
         _props: Vec<(usize, Prop)>,
     ) -> Result<(), GraphError> {
-        unimplemented!("ArrowGraph is immutable")
+        unimplemented!("Diskgraph is immutable")
     }
 
     fn internal_add_constant_node_properties(
@@ -439,7 +439,7 @@ impl InternalPropertyAdditionOps for DiskGraph {
         _vid: VID,
         _props: Vec<(usize, Prop)>,
     ) -> Result<(), GraphError> {
-        unimplemented!("ArrowGraph is immutable")
+        unimplemented!("Diskgraph is immutable")
     }
 
     fn internal_update_constant_node_properties(
@@ -447,7 +447,7 @@ impl InternalPropertyAdditionOps for DiskGraph {
         _vid: VID,
         _props: Vec<(usize, Prop)>,
     ) -> Result<(), GraphError> {
-        unimplemented!("ArrowGraph is immutable")
+        unimplemented!("Diskgraph is immutable")
     }
 
     fn internal_add_constant_edge_properties(
@@ -456,7 +456,7 @@ impl InternalPropertyAdditionOps for DiskGraph {
         _layer: usize,
         _props: Vec<(usize, Prop)>,
     ) -> Result<(), GraphError> {
-        unimplemented!("ArrowGraph is immutable")
+        unimplemented!("Diskgraph is immutable")
     }
 
     fn internal_update_constant_edge_properties(
@@ -465,7 +465,7 @@ impl InternalPropertyAdditionOps for DiskGraph {
         _layer: usize,
         _props: Vec<(usize, Prop)>,
     ) -> Result<(), GraphError> {
-        unimplemented!("ArrowGraph is immutable")
+        unimplemented!("Diskgraph is immutable")
     }
 }
 

@@ -54,7 +54,7 @@ impl InternalLayerOps for DiskGraph {
                     .map(|(i, _)| LayerIds::One(i))
                     .unwrap_or(LayerIds::None)
             }
-            _ => todo!("Layer ids for multiple names not implemented for ArrowGraph"),
+            _ => todo!("Layer ids for multiple names not implemented for Diskgraph"),
         }
     }
 }

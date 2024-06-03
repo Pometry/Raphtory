@@ -93,7 +93,7 @@ impl CoreGraphOps for DiskGraph {
     }
 
     fn get_all_node_types(&self) -> Vec<ArcStr> {
-        todo!("Node types are not supported on arrow yet")
+        todo!("Node types are not supported on diskgraph yet")
     }
 
     fn node_id(&self, v: VID) -> u64 {

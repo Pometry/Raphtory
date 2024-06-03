@@ -433,7 +433,7 @@ impl TimeSemantics for DiskGraph {
     }
 
     fn temporal_prop_vec(&self, _prop_id: usize) -> Vec<(i64, Prop)> {
-        todo!("arrow graph does not have properties yet")
+        todo!("Diskgraph does not have properties yet")
     }
 
     fn has_temporal_prop_window(&self, _prop_id: usize, _w: Range<i64>) -> bool {
@@ -447,7 +447,7 @@ impl TimeSemantics for DiskGraph {
         _start: i64,
         _end: i64,
     ) -> Vec<(i64, Prop)> {
-        todo!("arrow graph does not have properties yet")
+        todo!("Diskgraph does not have properties yet")
     }
 
     fn has_temporal_node_prop(&self, v: VID, prop_id: usize) -> bool {
@@ -563,7 +563,7 @@ impl TimeSemantics for DiskGraph {
                 vec![]
             }
             LayerIds::All => {
-                todo!("multilayer edge view not supported in arrow yet")
+                todo!("multilayer edge view not supported in Diskgraph yet")
             }
             LayerIds::One(layer_id) => {
                 let edge = self.inner.layer(layer_id).edge(e.pid());
@@ -580,7 +580,7 @@ impl TimeSemantics for DiskGraph {
                 }
             }
             LayerIds::Multiple(_) => {
-                todo!("multilayer edge view not supported in arrow yet")
+                todo!("multilayer edge view not supported in Diskgraph yet")
             }
         }
     }

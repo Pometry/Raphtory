@@ -373,7 +373,7 @@ mod test {
 
     #[cfg(feature = "storage")]
     #[test]
-    fn compare_arrow_with_in_mem() {
+    fn compare_disk_with_in_mem() {
         let event_rate = 0.00000001;
         let recovery_rate = 0.000000001;
         let p = 0.3;
