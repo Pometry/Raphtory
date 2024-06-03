@@ -29,7 +29,7 @@ use crate::{
 };
 use itertools::Itertools;
 use rayon::prelude::*;
-use std::iter;
+use std::{iter, sync::Arc};
 
 #[cfg(feature = "storage")]
 use crate::{
@@ -44,8 +44,6 @@ use crate::{
 };
 #[cfg(feature = "storage")]
 use pometry_storage::graph::TemporalGraph;
-#[cfg(feature = "storage")]
-use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub enum GraphStorage {
