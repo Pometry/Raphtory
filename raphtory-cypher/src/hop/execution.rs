@@ -40,12 +40,12 @@ use futures::{Stream, StreamExt};
 
 use raphtory::{
     arrow::{
-        graph_impl::ArrowGraph,
+        graph_impl::DiskGraph,
         prelude::{ArrayOps, BaseArrayOps, PrimitiveCol},
     },
     core::{entities::VID, Direction},
 };
-use raphtory_arrow::graph_fragment::TempColGraphFragment;
+use pometry_storage::graph_fragment::TempColGraphFragment;
 
 use crate::take_record_batch;
 
@@ -53,7 +53,7 @@ use super::operator::HopPlan;
 
 #[derive(Debug)]
 pub struct HopExec {
-    graph: ArrowGraph,
+    graph: DiskGraph,
     dir: Direction,
     input_col: usize,
     input: Arc<dyn ExecutionPlan>,
@@ -176,7 +176,7 @@ impl ExecutionPlan for HopExec {
 }
 pub(crate) struct HopStream {
     input: SendableRecordBatchStream,
-    graph: ArrowGraph,
+    graph: DiskGraph,
     dir: Direction,
     input_col: usize,
     batch_size: usize,
@@ -190,7 +190,7 @@ pub(crate) struct HopStream {
 impl HopStream {
     fn new(
         input: SendableRecordBatchStream,
-        graph: ArrowGraph,
+        graph: DiskGraph,
         dir: Direction,
         input_col: usize,
         batch_size: usize,
@@ -342,7 +342,7 @@ fn produce_next_record(
     prev_node: &mut Option<VID>,
 
     input_col: usize,
-    graph: &ArrowGraph,
+    graph: &DiskGraph,
     layers: Vec<String>,
     output_schema: SchemaRef,
     right_schema: DFSchemaRef,
@@ -663,7 +663,7 @@ mod test {
         edges: &[(u64, u64, i64, f64)],
     ) {
         let graph_dir = tempdir().unwrap();
-        let graph = ArrowGraph::make_simple_graph(graph_dir, edges, chunk_size, t_props_chunk_size);
+        let graph = DiskGraph::make_simple_graph(graph_dir, edges, chunk_size, t_props_chunk_size);
 
         let query = "MATCH (a)-[e1]->(b)-[e2]->(c) RETURN count(*)";
         let df = run_cypher(query, &graph, false).await.unwrap();
@@ -690,7 +690,7 @@ mod test {
     ) {
         let graph_dir = tempdir().unwrap();
         let graph =
-            ArrowGraph::make_simple_graph(graph_dir, &EDGES, chunk_size, t_props_chunk_size);
+            DiskGraph::make_simple_graph(graph_dir, &EDGES, chunk_size, t_props_chunk_size);
 
         let schema = make_input_schema();
         let table_schema: DFSchema = schema.clone().to_dfschema().unwrap();
@@ -792,7 +792,7 @@ mod test {
 
     fn make_hop_stream(
         batch_size: usize,
-        graph: ArrowGraph,
+        graph: DiskGraph,
         table_schema: DFSchema,
         output_schema: Arc<Schema>,
         input: RecordBatchStreamAdapter<

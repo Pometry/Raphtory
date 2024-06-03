@@ -12,7 +12,7 @@ use crate::{
     },
 };
 
-#[cfg(feature = "arrow")]
+#[cfg(feature = "storage")]
 use crate::arrow::storage_interface::edge::ArrowEdge;
 
 use crate::db::api::storage::tprop_storage_ops::TPropOps;
@@ -22,16 +22,16 @@ use std::ops::Range;
 #[derive(Debug)]
 pub enum EdgeStorageEntry<'a> {
     Mem(Entry<'a, EdgeStore>),
-    #[cfg(feature = "arrow")]
-    Arrow(ArrowEdge<'a>),
+    #[cfg(feature = "storage")]
+    Disk(ArrowEdge<'a>),
 }
 
 impl<'a> EdgeStorageEntry<'a> {
     pub fn as_ref(&self) -> EdgeStorageRef {
         match self {
             EdgeStorageEntry::Mem(edge) => EdgeStorageRef::Mem(edge),
-            #[cfg(feature = "arrow")]
-            EdgeStorageEntry::Arrow(edge) => EdgeStorageRef::Arrow(*edge),
+            #[cfg(feature = "storage")]
+            EdgeStorageEntry::Disk(edge) => EdgeStorageRef::Disk(*edge),
         }
     }
 }

@@ -1,16 +1,13 @@
-use std::any::Any;
-
 use itertools::Itertools;
 use num_integer::average_floor;
-// use num::integer::average_floor;
 extern crate num_integer;
 
 use crate::{
-    core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
+    core::entities::nodes::node_ref::AsNodeRef,
     db::{
         api::{
             mutation::AdditionOps,
-            view::{internal, *},
+            view::*,
         },
         graph::graph::Graph,
     },

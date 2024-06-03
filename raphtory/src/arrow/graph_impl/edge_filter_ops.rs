@@ -1,10 +1,10 @@
-use super::ArrowGraph;
+use super::DiskGraph;
 use crate::{
     core::entities::LayerIds,
     db::api::{storage::edges::edge_ref::EdgeStorageRef, view::internal::EdgeFilterOps},
 };
 
-impl EdgeFilterOps for ArrowGraph {
+impl EdgeFilterOps for DiskGraph {
     fn edges_filtered(&self) -> bool {
         false
     }

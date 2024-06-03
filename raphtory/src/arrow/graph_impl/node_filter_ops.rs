@@ -1,10 +1,10 @@
 use crate::{
-    arrow::graph_impl::ArrowGraph,
+    arrow::graph_impl::DiskGraph,
     core::entities::LayerIds,
     db::api::{storage::nodes::node_ref::NodeStorageRef, view::internal::NodeFilterOps},
 };
 
-impl NodeFilterOps for ArrowGraph {
+impl NodeFilterOps for DiskGraph {
     fn nodes_filtered(&self) -> bool {
         false
     }

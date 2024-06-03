@@ -1,5 +1,5 @@
 pub mod algorithm_result;
-#[cfg(feature = "arrow")]
+#[cfg(feature = "storage")]
 pub mod arrow;
 pub mod edge;
 pub mod graph;

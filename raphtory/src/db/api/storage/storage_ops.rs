@@ -31,7 +31,7 @@ use itertools::Itertools;
 use rayon::prelude::*;
 use std::iter;
 
-#[cfg(feature = "arrow")]
+#[cfg(feature = "storage")]
 use crate::{
     arrow::storage_interface::{
         edges::ArrowEdges,
@@ -42,33 +42,33 @@ use crate::{
     },
     db::api::storage::variants::storage_variants::StorageVariants,
 };
-#[cfg(feature = "arrow")]
-use raphtory_arrow::graph::TemporalGraph;
-#[cfg(feature = "arrow")]
+#[cfg(feature = "storage")]
+use pometry_storage::graph::TemporalGraph;
+#[cfg(feature = "storage")]
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub enum GraphStorage {
     Mem(LockedGraph),
-    #[cfg(feature = "arrow")]
-    Arrow(Arc<TemporalGraph>),
+    #[cfg(feature = "storage")]
+    Disk(Arc<TemporalGraph>),
 }
 
 impl GraphStorage {
     pub fn nodes(&self) -> NodesStorageRef {
         match self {
             GraphStorage::Mem(storage) => NodesStorageRef::Mem(&storage.nodes),
-            #[cfg(feature = "arrow")]
-            GraphStorage::Arrow(storage) => NodesStorageRef::Arrow(ArrowNodesRef::new(storage)),
+            #[cfg(feature = "storage")]
+            GraphStorage::Disk(storage) => NodesStorageRef::Disk(ArrowNodesRef::new(storage)),
         }
     }
 
     pub fn owned_nodes(&self) -> NodesStorage {
         match self {
             GraphStorage::Mem(storage) => NodesStorage::Mem(storage.nodes.clone()),
-            #[cfg(feature = "arrow")]
-            GraphStorage::Arrow(storage) => {
-                NodesStorage::Arrow(ArrowNodesOwned::new(storage.clone()))
+            #[cfg(feature = "storage")]
+            GraphStorage::Disk(storage) => {
+                NodesStorage::Disk(ArrowNodesOwned::new(storage.clone()))
             }
         }
     }
@@ -76,17 +76,17 @@ impl GraphStorage {
     pub fn node(&self, vid: VID) -> NodeStorageRef {
         match self {
             GraphStorage::Mem(storage) => NodeStorageRef::Mem(storage.nodes.get(vid)),
-            #[cfg(feature = "arrow")]
-            GraphStorage::Arrow(storage) => NodeStorageRef::Arrow(ArrowNode::new(storage, vid)),
+            #[cfg(feature = "storage")]
+            GraphStorage::Disk(storage) => NodeStorageRef::Disk(ArrowNode::new(storage, vid)),
         }
     }
 
     pub fn owned_node(&self, vid: VID) -> NodeOwnedEntry {
         match self {
             GraphStorage::Mem(storage) => NodeOwnedEntry::Mem(storage.nodes.arc_entry(vid)),
-            #[cfg(feature = "arrow")]
-            GraphStorage::Arrow(storage) => {
-                NodeOwnedEntry::Arrow(ArrowOwnedNode::new(storage.clone(), vid))
+            #[cfg(feature = "storage")]
+            GraphStorage::Disk(storage) => {
+                NodeOwnedEntry::Disk(ArrowOwnedNode::new(storage.clone(), vid))
             }
         }
     }
@@ -94,28 +94,28 @@ impl GraphStorage {
     pub fn edges(&self) -> EdgesStorageRef {
         match self {
             GraphStorage::Mem(storage) => EdgesStorageRef::Mem(&storage.edges),
-            #[cfg(feature = "arrow")]
-            GraphStorage::Arrow(storage) => EdgesStorageRef::Arrow(ArrowEdgesRef::new(storage)),
+            #[cfg(feature = "storage")]
+            GraphStorage::Disk(storage) => EdgesStorageRef::Disk(ArrowEdgesRef::new(storage)),
         }
     }
 
     pub fn owned_edges(&self) -> EdgesStorage {
         match self {
             GraphStorage::Mem(storage) => EdgesStorage::Mem(storage.edges.clone()),
-            #[cfg(feature = "arrow")]
-            GraphStorage::Arrow(storage) => EdgesStorage::Arrow(ArrowEdges::new(storage)),
+            #[cfg(feature = "storage")]
+            GraphStorage::Disk(storage) => EdgesStorage::Disk(ArrowEdges::new(storage)),
         }
     }
 
     pub fn edge(&self, eid: EdgeRef) -> EdgeStorageRef {
         match self {
             GraphStorage::Mem(storage) => EdgeStorageRef::Mem(storage.edges.get(eid.pid())),
-            #[cfg(feature = "arrow")]
-            GraphStorage::Arrow(storage) => {
+            #[cfg(feature = "storage")]
+            GraphStorage::Disk(storage) => {
                 let layer = eid
                     .layer()
                     .expect("arrow EdgeRefs should always have layer set");
-                EdgeStorageRef::Arrow(storage.layers()[*layer].edge(eid.pid()))
+                EdgeStorageRef::Disk(storage.layers()[*layer].edge(eid.pid()))
             }
         }
     }
@@ -278,17 +278,17 @@ impl GraphStorage {
                         }))
                     }
                 };
-                #[cfg(feature = "arrow")]
+                #[cfg(feature = "storage")]
                 {
                     StorageVariants::Mem(filtered)
                 }
-                #[cfg(not(feature = "arrow"))]
+                #[cfg(not(feature = "storage"))]
                 {
                     filtered
                 }
             }
-            #[cfg(feature = "arrow")]
-            EdgesStorage::Arrow(edges) => {
+            #[cfg(feature = "storage")]
+            EdgesStorage::Disk(edges) => {
                 let edges_clone = edges.clone();
                 let iter = edges_clone.into_iter_refs(view.layer_ids().clone());
                 let filtered = match view.filter_state() {
@@ -297,7 +297,7 @@ impl GraphStorage {
                     ),
                     FilterState::Both => {
                         FilterVariants::Both(iter.filter_map(move |(eid, layer_id)| {
-                            let e = EdgeStorageRef::Arrow(edges.get(eid, layer_id));
+                            let e = EdgeStorageRef::Disk(edges.get(eid, layer_id));
                             if !view.filter_edge(e, view.layer_ids()) {
                                 return None;
                             }
@@ -314,7 +314,7 @@ impl GraphStorage {
                     }
                     FilterState::Nodes => {
                         FilterVariants::Nodes(iter.filter_map(move |(eid, layer_id)| {
-                            let e = EdgeStorageRef::Arrow(edges.get(eid, layer_id));
+                            let e = EdgeStorageRef::Disk(edges.get(eid, layer_id));
                             let src = nodes.node_ref(e.src());
                             if !view.filter_node(src, view.layer_ids()) {
                                 return None;
@@ -328,7 +328,7 @@ impl GraphStorage {
                     }
                     FilterState::Edges | FilterState::BothIndependent => {
                         FilterVariants::Edges(iter.filter_map(move |(eid, layer_id)| {
-                            let e = EdgeStorageRef::Arrow(edges.get(eid, layer_id));
+                            let e = EdgeStorageRef::Disk(edges.get(eid, layer_id));
                             if !view.filter_edge(e, view.layer_ids()) {
                                 return None;
                             }
@@ -336,7 +336,7 @@ impl GraphStorage {
                         }))
                     }
                 };
-                StorageVariants::Arrow(filtered)
+                StorageVariants::Disk(filtered)
             }
         }
     }
@@ -404,28 +404,28 @@ impl GraphStorage {
                         }))
                     }
                 };
-                #[cfg(feature = "arrow")]
+                #[cfg(feature = "storage")]
                 {
                     StorageVariants::Mem(filtered)
                 }
-                #[cfg(not(feature = "arrow"))]
+                #[cfg(not(feature = "storage"))]
                 {
                     filtered
                 }
             }
-            #[cfg(feature = "arrow")]
-            EdgesStorage::Arrow(edges) => {
+            #[cfg(feature = "storage")]
+            EdgesStorage::Disk(edges) => {
                 let edges_clone = edges.clone();
                 let iter = edges_clone.into_par_iter_refs(view.layer_ids().clone());
                 let filtered = match view.filter_state() {
                     FilterState::Neither => {
                         FilterVariants::Neither(iter.map(move |(eid, layer_id)| {
-                            EdgeStorageRef::Arrow(edges.get(eid, layer_id)).out_ref()
+                            EdgeStorageRef::Disk(edges.get(eid, layer_id)).out_ref()
                         }))
                     }
                     FilterState::Both => {
                         FilterVariants::Both(iter.filter_map(move |(eid, layer_id)| {
-                            let e = EdgeStorageRef::Arrow(edges.get(eid, layer_id));
+                            let e = EdgeStorageRef::Disk(edges.get(eid, layer_id));
                             if !view.filter_edge(e, view.layer_ids()) {
                                 return None;
                             }
@@ -442,7 +442,7 @@ impl GraphStorage {
                     }
                     FilterState::Nodes => {
                         FilterVariants::Nodes(iter.filter_map(move |(eid, layer_id)| {
-                            let e = EdgeStorageRef::Arrow(edges.get(eid, layer_id));
+                            let e = EdgeStorageRef::Disk(edges.get(eid, layer_id));
                             let src = nodes.node_ref(e.src());
                             if !view.filter_node(src, view.layer_ids()) {
                                 return None;
@@ -456,7 +456,7 @@ impl GraphStorage {
                     }
                     FilterState::Edges | FilterState::BothIndependent => {
                         FilterVariants::Edges(iter.filter_map(move |(eid, layer_id)| {
-                            let e = EdgeStorageRef::Arrow(edges.get(eid, layer_id));
+                            let e = EdgeStorageRef::Disk(edges.get(eid, layer_id));
                             if !view.filter_edge(e, view.layer_ids()) {
                                 return None;
                             }
@@ -464,7 +464,7 @@ impl GraphStorage {
                         }))
                     }
                 };
-                StorageVariants::Arrow(filtered)
+                StorageVariants::Disk(filtered)
             }
         }
     }

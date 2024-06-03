@@ -140,7 +140,7 @@ mod betweenness_centrality_test {
         }
 
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
@@ -166,7 +166,7 @@ mod betweenness_centrality_test {
             assert_eq!(res.get_all_with_names(), expected);
         }
         test(&graph);
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         test(&arrow_graph);
     }
 }

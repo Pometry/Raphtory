@@ -7,20 +7,20 @@ use rayon::iter::{
 use std::{cmp::Ordering, ops::Range};
 
 #[derive(Copy, Clone, Debug)]
-pub enum StorageVariants<Mem, #[cfg(feature = "arrow")] Arrow> {
+pub enum StorageVariants<Mem, #[cfg(feature = "storage")] Arrow> {
     Mem(Mem),
-    #[cfg(feature = "arrow")]
-    Arrow(Arrow),
+    #[cfg(feature = "storage")]
+    Disk(Arrow),
 }
 
-#[cfg(feature = "arrow")]
+#[cfg(feature = "storage")]
 macro_rules! SelfType {
     ($Mem:ident, $Arrow:ident) => {
         StorageVariants<$Mem, $Arrow>
     };
 }
 
-#[cfg(not(feature = "arrow"))]
+#[cfg(not(feature = "storage"))]
 macro_rules! SelfType {
     ($Mem:ident, $Arrow:ident) => {
         StorageVariants<$Mem>
@@ -31,23 +31,23 @@ macro_rules! for_all {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
             StorageVariants::Mem($pattern) => $result,
-            #[cfg(feature = "arrow")]
-            StorageVariants::Arrow($pattern) => $result,
+            #[cfg(feature = "storage")]
+            StorageVariants::Disk($pattern) => $result,
         }
     };
 }
 
-#[cfg(feature = "arrow")]
+#[cfg(feature = "storage")]
 macro_rules! for_all_iter {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
             StorageVariants::Mem($pattern) => StorageVariants::Mem($result),
-            StorageVariants::Arrow($pattern) => StorageVariants::Arrow($result),
+            StorageVariants::Disk($pattern) => StorageVariants::Disk($result),
         }
     };
 }
 
-#[cfg(not(feature = "arrow"))]
+#[cfg(not(feature = "storage"))]
 macro_rules! for_all_iter {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
@@ -56,7 +56,7 @@ macro_rules! for_all_iter {
     };
 }
 
-impl<V, Mem: Iterator<Item = V>, #[cfg(feature = "arrow")] Arrow: Iterator<Item = V>> Iterator
+impl<V, Mem: Iterator<Item = V>, #[cfg(feature = "storage")] Arrow: Iterator<Item = V>> Iterator
     for SelfType!(Mem, Arrow)
 {
     type Item = V;
@@ -178,7 +178,7 @@ impl<V, Mem: Iterator<Item = V>, #[cfg(feature = "arrow")] Arrow: Iterator<Item 
 impl<
         V,
         Mem: DoubleEndedIterator<Item = V>,
-        #[cfg(feature = "arrow")] Arrow: DoubleEndedIterator<Item = V>,
+        #[cfg(feature = "storage")] Arrow: DoubleEndedIterator<Item = V>,
     > DoubleEndedIterator for SelfType!(Mem, Arrow)
 {
     fn next_back(&mut self) -> Option<Self::Item> {
@@ -209,7 +209,7 @@ impl<
 impl<
         V,
         Mem: ExactSizeIterator<Item = V>,
-        #[cfg(feature = "arrow")] Arrow: ExactSizeIterator<Item = V>,
+        #[cfg(feature = "storage")] Arrow: ExactSizeIterator<Item = V>,
     > ExactSizeIterator for SelfType!(Mem, Arrow)
 {
     fn len(&self) -> usize {
@@ -220,7 +220,7 @@ impl<
 impl<
         V: Send,
         Mem: ParallelIterator<Item = V>,
-        #[cfg(feature = "arrow")] Arrow: ParallelIterator<Item = V>,
+        #[cfg(feature = "storage")] Arrow: ParallelIterator<Item = V>,
     > ParallelIterator for SelfType!(Mem, Arrow)
 {
     type Item = V;
@@ -240,7 +240,7 @@ impl<
 impl<
         V: Send,
         Mem: IndexedParallelIterator<Item = V>,
-        #[cfg(feature = "arrow")] Arrow: IndexedParallelIterator<Item = V>,
+        #[cfg(feature = "storage")] Arrow: IndexedParallelIterator<Item = V>,
     > IndexedParallelIterator for SelfType!(Mem, Arrow)
 {
     fn len(&self) -> usize {
@@ -256,7 +256,7 @@ impl<
     }
 }
 
-impl<'a, Mem: TPropOps<'a> + 'a, #[cfg(feature = "arrow")] Arrow: TPropOps<'a> + 'a> TPropOps<'a>
+impl<'a, Mem: TPropOps<'a> + 'a, #[cfg(feature = "storage")] Arrow: TPropOps<'a> + 'a> TPropOps<'a>
     for SelfType!(Mem, Arrow)
 {
     fn last_before(self, t: i64) -> Option<(TimeIndexEntry, Prop)> {

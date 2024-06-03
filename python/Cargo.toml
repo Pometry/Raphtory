@@ -32,7 +32,7 @@ itertools = { workspace = true }
 
 [features]
 default = ["extension-module"]
-arrow = ["raphtory_core/arrow"]
+storage = ["raphtory_core/storage"]
 extension-module = ["pyo3/extension-module"]
 
 

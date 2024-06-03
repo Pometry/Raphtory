@@ -1,6 +1,6 @@
-#[cfg(feature = "arrow")]
+#[cfg(feature = "storage")]
 use crate::arrow::storage_interface::edge::ArrowEdge;
-#[cfg(feature = "arrow")]
+#[cfg(feature = "storage")]
 use crate::db::api::storage::variants::storage_variants::StorageVariants;
 use crate::{
     core::entities::{
@@ -19,23 +19,23 @@ macro_rules! for_all {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
             EdgeStorageRef::Mem($pattern) => $result,
-            #[cfg(feature = "arrow")]
-            EdgeStorageRef::Arrow($pattern) => $result,
+            #[cfg(feature = "storage")]
+            EdgeStorageRef::Disk($pattern) => $result,
         }
     };
 }
 
-#[cfg(feature = "arrow")]
+#[cfg(feature = "storage")]
 macro_rules! for_all_iter {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
             EdgeStorageRef::Mem($pattern) => StorageVariants::Mem($result),
-            EdgeStorageRef::Arrow($pattern) => StorageVariants::Arrow($result),
+            EdgeStorageRef::Disk($pattern) => StorageVariants::Disk($result),
         }
     };
 }
 
-#[cfg(not(feature = "arrow"))]
+#[cfg(not(feature = "storage"))]
 macro_rules! for_all_iter {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
@@ -47,8 +47,8 @@ macro_rules! for_all_iter {
 #[derive(Copy, Clone, Debug)]
 pub enum EdgeStorageRef<'a> {
     Mem(&'a EdgeStore),
-    #[cfg(feature = "arrow")]
-    Arrow(ArrowEdge<'a>),
+    #[cfg(feature = "storage")]
+    Disk(ArrowEdge<'a>),
 }
 
 impl<'a> EdgeStorageRef<'a> {
@@ -56,8 +56,8 @@ impl<'a> EdgeStorageRef<'a> {
     pub fn eid(&self) -> EID {
         match self {
             EdgeStorageRef::Mem(e) => e.eid,
-            #[cfg(feature = "arrow")]
-            EdgeStorageRef::Arrow(e) => e.eid(),
+            #[cfg(feature = "storage")]
+            EdgeStorageRef::Disk(e) => e.eid(),
         }
     }
 }

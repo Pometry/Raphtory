@@ -1,5 +1,5 @@
 use crate::{arrow::storage_interface::node::ArrowNode, core::entities::VID};
-use raphtory_arrow::graph::TemporalGraph;
+use pometry_storage::graph::TemporalGraph;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
 #[derive(Copy, Clone, Debug)]

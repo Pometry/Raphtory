@@ -1,4 +1,4 @@
-use raphtory_arrow::{edge::Edge, GID};
+use pometry_storage::{edge::Edge, GID};
 use std::sync::Arc;
 
 use crate::{
@@ -9,8 +9,8 @@ use crate::{
 use self::state::HopState;
 use crate::core::storage::timeindex::TimeIndexOps;
 
-use super::graph_impl::ArrowGraph;
-use raphtory_arrow::nodes::Node;
+use super::graph_impl::DiskGraph;
+use pometry_storage::nodes::Node;
 
 pub mod ast;
 pub mod executors;
@@ -21,11 +21,11 @@ pub enum NodeSource {
     All,
     NodeIds(Vec<VID>),
     ExternalIds(Vec<GID>),
-    Filter(Arc<dyn Fn(VID, &ArrowGraph) -> bool + Send + Sync>),
+    Filter(Arc<dyn Fn(VID, &DiskGraph) -> bool + Send + Sync>),
 }
 
 impl NodeSource {
-    fn into_iter(self, graph: &ArrowGraph) -> Box<dyn Iterator<Item = VID> + '_> {
+    fn into_iter(self, graph: &DiskGraph) -> Box<dyn Iterator<Item = VID> + '_> {
         match self {
             NodeSource::All => Box::new((0..graph.inner.num_nodes()).map(VID)),
             NodeSource::NodeIds(ids) => Box::new(ids.into_iter()),
@@ -120,7 +120,7 @@ mod test {
         g.add_edge(0, 0u64, 1, NO_PROPS, None).unwrap();
         g.add_edge(1, 1u64, 2, NO_PROPS, None).unwrap();
 
-        let graph = ArrowGraph::from_graph(&g, graph_dir.path()).unwrap();
+        let graph = DiskGraph::from_graph(&g, graph_dir.path()).unwrap();
 
         let result = rayon2::execute::<NoState>(query, NodeSource::All, &graph, |_| NoState::new());
         assert!(result.is_ok());
@@ -146,7 +146,7 @@ mod test {
         g.add_edge(0, 0u64, 1, NO_PROPS, None).unwrap();
         g.add_edge(1, 1u64, 2, NO_PROPS, None).unwrap();
 
-        let graph = ArrowGraph::from_graph(&g, graph_dir.path()).unwrap();
+        let graph = DiskGraph::from_graph(&g, graph_dir.path()).unwrap();
 
         let result = rayon2::execute::<NoState>(query, NodeSource::All, &graph, |_| NoState::new());
         assert!(result.is_ok());
@@ -170,7 +170,7 @@ mod test {
         g.add_edge(0, 0u64, 1, NO_PROPS, None).unwrap();
         g.add_edge(1, 1u64, 2, NO_PROPS, None).unwrap();
 
-        let graph = ArrowGraph::from_graph(&g, graph_dir.path()).unwrap();
+        let graph = DiskGraph::from_graph(&g, graph_dir.path()).unwrap();
 
         let result = rayon2::execute::<VecState>(query, NodeSource::All, &graph, VecState::new);
         assert!(result.is_ok());
@@ -203,7 +203,7 @@ mod test {
         g.add_edge(0, 0u64, 1, NO_PROPS, None).unwrap();
         g.add_edge(1, 1u64, 2, NO_PROPS, None).unwrap();
 
-        let graph = ArrowGraph::from_graph(&g, graph_dir.path()).unwrap();
+        let graph = DiskGraph::from_graph(&g, graph_dir.path()).unwrap();
 
         let result = rayon2::execute::<VecState>(query, NodeSource::All, &graph, VecState::new);
         assert!(result.is_ok());
@@ -228,7 +228,7 @@ mod test {
         g.add_edge(1, 1u64, 2, NO_PROPS, None).unwrap();
         g.add_edge(2, 1u64, 3, NO_PROPS, None).unwrap();
 
-        let graph = ArrowGraph::from_graph(&g, graph_dir.path()).unwrap();
+        let graph = DiskGraph::from_graph(&g, graph_dir.path()).unwrap();
 
         let result = rayon2::execute::<VecState>(query, NodeSource::All, &graph, VecState::new);
         assert!(result.is_ok());
@@ -279,7 +279,7 @@ mod test {
             g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
 
-        let graph = ArrowGraph::from_graph(&g, graph_dir.path()).unwrap();
+        let graph = DiskGraph::from_graph(&g, graph_dir.path()).unwrap();
 
         let t = 10;
         let result = rayon2::execute::<ForwardState>(

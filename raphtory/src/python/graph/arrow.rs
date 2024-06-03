@@ -2,7 +2,7 @@ use std::{io::Write, sync::Arc};
 
 use crate::{
     arrow::{
-        graph_impl::{ArrowGraph, ParquetLayerCols},
+        graph_impl::{DiskGraph, ParquetLayerCols},
         query::{ast::Query, executors::rayon2, state::StaticGraphHopState, NodeSource},
         Error,
     },
@@ -31,7 +31,7 @@ use pyo3::{
     prelude::*,
     types::{IntoPyDict, PyDict, PyList, PyString},
 };
-use raphtory_arrow::GID;
+use pometry_storage::GID;
 
 use super::pandas::dataframe::{process_pandas_py_df, PretendDF};
 
@@ -44,25 +44,25 @@ impl From<Error> for PyErr {
 #[derive(Clone)]
 #[pyclass(name = "ArrowGraph", extends = PyGraphView)]
 pub struct PyArrowGraph {
-    pub graph: ArrowGraph,
+    pub graph: DiskGraph,
 }
 
 impl<G> AsRef<G> for PyArrowGraph
 where
-    ArrowGraph: AsRef<G>,
+    DiskGraph: AsRef<G>,
 {
     fn as_ref(&self) -> &G {
         self.graph.as_ref()
     }
 }
 
-impl From<ArrowGraph> for PyArrowGraph {
-    fn from(value: ArrowGraph) -> Self {
+impl From<DiskGraph> for PyArrowGraph {
+    fn from(value: DiskGraph) -> Self {
         Self { graph: value }
     }
 }
 
-impl From<PyArrowGraph> for ArrowGraph {
+impl From<PyArrowGraph> for DiskGraph {
     fn from(value: PyArrowGraph) -> Self {
         value.graph
     }
@@ -74,7 +74,7 @@ impl From<PyArrowGraph> for DynamicGraph {
     }
 }
 
-impl IntoPy<PyObject> for ArrowGraph {
+impl IntoPy<PyObject> for DiskGraph {
     fn into_py(self, py: Python<'_>) -> PyObject {
         Py::new(
             py,
@@ -85,7 +85,7 @@ impl IntoPy<PyObject> for ArrowGraph {
     }
 }
 
-impl<'source> FromPyObject<'source> for ArrowGraph {
+impl<'source> FromPyObject<'source> for DiskGraph {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
         let py_graph: PyRef<PyArrowGraph> = ob.extract()?;
         Ok(py_graph.graph.clone())
@@ -142,7 +142,7 @@ impl<'a> FromPyObject<'a> for ParquetLayerColsList<'a> {
 #[pymethods]
 impl PyGraph {
     /// save graph in arrow format and memory map the result
-    pub fn persist_as_arrow(&self, graph_dir: &str) -> Result<ArrowGraph, Error> {
+    pub fn persist_as_arrow(&self, graph_dir: &str) -> Result<DiskGraph, Error> {
         self.graph.persist_as_arrow(graph_dir)
     }
 }
@@ -157,8 +157,8 @@ impl PyArrowGraph {
         src_col: &str,
         dst_col: &str,
         time_col: &str,
-    ) -> Result<ArrowGraph, GraphError> {
-        let graph: Result<ArrowGraph, PyErr> = Python::with_gil(|py| {
+    ) -> Result<DiskGraph, GraphError> {
+        let graph: Result<DiskGraph, PyErr> = Python::with_gil(|py| {
             let size: usize = py
                 .eval(
                     "index.__len__()",
@@ -188,8 +188,8 @@ impl PyArrowGraph {
     }
 
     #[staticmethod]
-    fn load_from_dir(graph_dir: &str) -> Result<ArrowGraph, GraphError> {
-        ArrowGraph::load_from_dir(graph_dir).map_err(|err| {
+    fn load_from_dir(graph_dir: &str) -> Result<DiskGraph, GraphError> {
+        DiskGraph::load_from_dir(graph_dir).map_err(|err| {
             GraphError::LoadFailure(format!("Failed to load graph {err:?} from dir {graph_dir}"))
         })
     }
@@ -205,7 +205,7 @@ impl PyArrowGraph {
         read_chunk_size: Option<usize>,
         concurrent_files: Option<usize>,
         num_threads: usize,
-    ) -> Result<ArrowGraph, GraphError> {
+    ) -> Result<DiskGraph, GraphError> {
         let graph = Self::from_parquets(
             graph_dir,
             layer_parquet_cols.0,
@@ -241,7 +241,7 @@ impl PyArrowGraph {
         src: &str,
         dst: &str,
         time: &str,
-    ) -> Result<ArrowGraph, GraphError> {
+    ) -> Result<DiskGraph, GraphError> {
         let src_col_idx = df.names.iter().position(|x| x == src).unwrap();
         let dst_col_idx = df.names.iter().position(|x| x == dst).unwrap();
         let time_col_idx = df.names.iter().position(|x| x == time).unwrap();
@@ -272,7 +272,7 @@ impl PyArrowGraph {
             })
             .collect::<Vec<_>>();
 
-        ArrowGraph::load_from_edge_lists(
+        DiskGraph::load_from_edge_lists(
             &edge_lists,
             chunk_size,
             t_props_chunk_size,
@@ -293,8 +293,8 @@ impl PyArrowGraph {
         read_chunk_size: Option<usize>,
         concurrent_files: Option<usize>,
         num_threads: usize,
-    ) -> Result<ArrowGraph, GraphError> {
-        ArrowGraph::load_from_parquets(
+    ) -> Result<DiskGraph, GraphError> {
+        DiskGraph::load_from_parquets(
             graph_dir,
             layer_parquet_cols,
             node_properties,
@@ -527,7 +527,7 @@ impl PyGraphQuery {
         }
     }
 
-    pub fn run(&self, graph: ArrowGraph, state: PyState) -> PyResult<()> {
+    pub fn run(&self, graph: DiskGraph, state: PyState) -> PyResult<()> {
         rayon2::execute_static_graph(
             self.query.clone(),
             self.source.as_ref().clone(),
@@ -541,9 +541,9 @@ impl PyGraphQuery {
 
     pub fn run_to_vec(
         &self,
-        graph: ArrowGraph,
+        graph: DiskGraph,
         state: PyState,
-    ) -> PyResult<Vec<(Vec<NodeView<ArrowGraph>>, NodeView<ArrowGraph>)>> {
+    ) -> PyResult<Vec<(Vec<NodeView<DiskGraph>>, NodeView<DiskGraph>)>> {
         let (sender, receiver) = std::sync::mpsc::channel();
 
         let query = self.query.clone().channel([sender]);

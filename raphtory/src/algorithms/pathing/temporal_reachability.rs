@@ -261,7 +261,7 @@ mod generic_taint_tests {
         ]);
 
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
@@ -285,7 +285,7 @@ mod generic_taint_tests {
             assert_eq!(results, expected);
         }
         test(&graph);
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         test(&arrow_graph);
     }
 
@@ -305,7 +305,7 @@ mod generic_taint_tests {
         ]);
 
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
@@ -332,7 +332,7 @@ mod generic_taint_tests {
             assert_eq!(results, expected);
         }
         test(&graph);
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         test(&arrow_graph);
     }
 
@@ -352,7 +352,7 @@ mod generic_taint_tests {
         ]);
 
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
@@ -379,7 +379,7 @@ mod generic_taint_tests {
             assert_eq!(results, expected);
         }
         test(&graph);
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         test(&arrow_graph);
     }
 
@@ -401,7 +401,7 @@ mod generic_taint_tests {
         ]);
 
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
@@ -432,7 +432,7 @@ mod generic_taint_tests {
             assert_eq!(results, expected);
         }
         test(&graph);
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         test(&arrow_graph);
     }
 }

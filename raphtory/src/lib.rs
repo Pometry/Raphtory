@@ -88,7 +88,7 @@ pub mod core;
 pub mod db;
 pub mod graphgen;
 
-#[cfg(feature = "arrow")]
+#[cfg(feature = "storage")]
 pub mod arrow;
 
 #[cfg(all(feature = "python", not(doctest)))]
@@ -121,5 +121,5 @@ pub mod prelude {
 }
 
 pub const BINCODE_VERSION: u32 = 1u32;
-#[cfg(feature = "arrow")]
+#[cfg(feature = "storage")]
 pub use polars_arrow as arrow2;

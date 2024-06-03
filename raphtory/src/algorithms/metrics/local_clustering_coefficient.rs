@@ -105,7 +105,7 @@ mod clustering_coefficient_tests {
         }
 
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
@@ -118,7 +118,7 @@ mod clustering_coefficient_tests {
             assert_eq!(actual, expected);
         }
         test(&graph);
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         test(&arrow_graph);
     }
 }

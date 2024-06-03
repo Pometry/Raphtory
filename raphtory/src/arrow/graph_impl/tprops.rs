@@ -8,7 +8,7 @@ use crate::{
     prelude::Prop,
 };
 use raphtory_api::core::storage::timeindex::TimeIndexEntry;
-use raphtory_arrow::{
+use pometry_storage::{
     chunked_array::{col::ChunkedPrimitiveCol, utf8_col::StringCol},
     edge::Edge,
     prelude::{ArrayOps, BaseArrayOps},

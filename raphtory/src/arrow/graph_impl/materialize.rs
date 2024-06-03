@@ -3,9 +3,9 @@ use crate::{
     db::api::view::{internal::InternalMaterialize, MaterializedGraph},
 };
 
-use super::ArrowGraph;
+use super::DiskGraph;
 
-impl InternalMaterialize for ArrowGraph {
+impl InternalMaterialize for DiskGraph {
     fn new_base_graph(&self, _graph: InternalGraph) -> MaterializedGraph {
         todo!()
     }

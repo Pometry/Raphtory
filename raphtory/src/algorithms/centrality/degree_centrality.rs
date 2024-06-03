@@ -77,7 +77,7 @@ mod degree_centrality_test {
             graph.add_edge(0, *src, *dst, NO_PROPS, None).unwrap();
         }
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
@@ -92,7 +92,7 @@ mod degree_centrality_test {
             assert_eq!(res, hash_map_result);
         }
         test(&graph);
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         test(&arrow_graph);
     }
 }

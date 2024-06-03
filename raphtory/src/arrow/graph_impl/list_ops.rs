@@ -1,10 +1,10 @@
 use crate::{
-    arrow::graph_impl::ArrowGraph,
+    arrow::graph_impl::DiskGraph,
     db::api::view::internal::{CoreGraphOps, EdgeList, ListOps, NodeList},
 };
 use rayon::prelude::*;
 
-impl ListOps for ArrowGraph {
+impl ListOps for DiskGraph {
     fn node_list(&self) -> NodeList {
         NodeList::All {
             num_nodes: self.unfiltered_num_nodes(),

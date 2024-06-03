@@ -20,7 +20,7 @@ use raphtory_api::core::{
     entities::{EID, VID},
     storage::timeindex::TimeIndexEntry,
 };
-use raphtory_arrow::interop::GraphLike;
+use pometry_storage::interop::GraphLike;
 
 impl GraphLike<TimeIndexEntry> for Graph {
     fn external_ids(&self) -> Vec<u64> {

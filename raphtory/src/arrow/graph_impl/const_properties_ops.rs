@@ -1,8 +1,8 @@
 use crate::{core::ArcStr, db::api::properties::internal::ConstPropertiesOps, prelude::Prop};
 
-use super::ArrowGraph;
+use super::DiskGraph;
 
-impl ConstPropertiesOps for ArrowGraph {
+impl ConstPropertiesOps for DiskGraph {
     #[doc = " Find id for property name (note this only checks the meta-data, not if the property actually exists for the entity)"]
     fn get_const_prop_id(&self, name: &str) -> Option<usize> {
         self.graph_props.get_const_prop_id(name)

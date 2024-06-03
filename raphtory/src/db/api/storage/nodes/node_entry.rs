@@ -1,6 +1,6 @@
-#[cfg(feature = "arrow")]
+#[cfg(feature = "storage")]
 use crate::arrow::storage_interface::node::ArrowNode;
-#[cfg(feature = "arrow")]
+#[cfg(feature = "storage")]
 use crate::db::api::storage::variants::storage_variants::StorageVariants;
 use crate::{
     core::{
@@ -19,31 +19,31 @@ use crate::{
 
 pub enum NodeStorageEntry<'a> {
     Mem(Entry<'a, NodeStore>),
-    #[cfg(feature = "arrow")]
-    Arrow(ArrowNode<'a>),
+    #[cfg(feature = "storage")]
+    Disk(ArrowNode<'a>),
 }
 
 macro_rules! for_all {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
             NodeStorageEntry::Mem($pattern) => $result,
-            #[cfg(feature = "arrow")]
-            NodeStorageEntry::Arrow($pattern) => $result,
+            #[cfg(feature = "storage")]
+            NodeStorageEntry::Disk($pattern) => $result,
         }
     };
 }
 
-#[cfg(feature = "arrow")]
+#[cfg(feature = "storage")]
 macro_rules! for_all_iter {
     ($value:expr, $pattern:pat => $result:expr) => {{
         match $value {
             NodeStorageEntry::Mem($pattern) => StorageVariants::Mem($result),
-            NodeStorageEntry::Arrow($pattern) => StorageVariants::Arrow($result),
+            NodeStorageEntry::Disk($pattern) => StorageVariants::Disk($result),
         }
     }};
 }
 
-#[cfg(not(feature = "arrow"))]
+#[cfg(not(feature = "storage"))]
 macro_rules! for_all_iter {
     ($value:expr, $pattern:pat => $result:expr) => {{
         match $value {
@@ -56,8 +56,8 @@ impl<'a> NodeStorageEntry<'a> {
     pub fn as_ref(&self) -> NodeStorageRef {
         match self {
             NodeStorageEntry::Mem(entry) => NodeStorageRef::Mem(entry),
-            #[cfg(feature = "arrow")]
-            NodeStorageEntry::Arrow(node) => NodeStorageRef::Arrow(*node),
+            #[cfg(feature = "storage")]
+            NodeStorageEntry::Disk(node) => NodeStorageRef::Disk(*node),
         }
     }
 }

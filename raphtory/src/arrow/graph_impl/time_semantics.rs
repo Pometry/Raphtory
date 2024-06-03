@@ -1,4 +1,4 @@
-use super::ArrowGraph;
+use super::DiskGraph;
 use crate::{
     arrow::graph_impl::tprops::read_tprop_column,
     core::{
@@ -20,7 +20,7 @@ use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use rayon::prelude::*;
 use std::{iter, ops::Range};
 
-impl TimeSemantics for ArrowGraph {
+impl TimeSemantics for DiskGraph {
     fn node_earliest_time(&self, v: VID) -> Option<i64> {
         self.inner
             .layers()

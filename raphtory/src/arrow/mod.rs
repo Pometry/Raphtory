@@ -5,13 +5,13 @@ pub mod storage_interface;
 pub type Time = i64;
 
 pub mod prelude {
-    pub use raphtory_arrow::chunked_array::array_ops::*;
+    pub use pometry_storage::chunked_array::array_ops::*;
 }
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("Raphtory Arrow Error: {0}")]
-    RAError(#[from] raphtory_arrow::RAError),
+    RAError(#[from] pometry_storage::RAError),
 }
 
 #[cfg(test)]
@@ -33,7 +33,7 @@ mod test {
         entities::{EID, VID},
         Direction,
     };
-    use raphtory_arrow::{global_order::GlobalMap, graph_fragment::TempColGraphFragment, RAError};
+    use pometry_storage::{global_order::GlobalMap, graph_fragment::TempColGraphFragment, RAError};
     use tempfile::TempDir;
 
     fn edges_sanity_node_list(edges: &[(u64, u64, i64)]) -> Vec<u64> {

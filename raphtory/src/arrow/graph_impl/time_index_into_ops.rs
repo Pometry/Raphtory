@@ -3,7 +3,7 @@ use crate::{
     db::api::view::IntoDynBoxed,
 };
 use raphtory_api::core::storage::timeindex::TimeIndexEntry;
-use raphtory_arrow::{
+use pometry_storage::{
     prelude::{ArrayOps, BaseArrayOps},
     timestamps::TimeStamps,
 };
@@ -45,7 +45,7 @@ impl<'a> TimeIndexIntoOps for TimeStamps<'a, i64> {
         let (timestamps, _) = self.into_inner();
         TimeStamps::new(timestamps.sliced(start..end), None)
     }
-    fn into_iter(self) -> impl Iterator<Item = i64> + 'a {
+    fn into_iter(self) -> impl Iterator<Item = i64> {
         let (timestamps, _) = self.into_inner();
         timestamps
     }

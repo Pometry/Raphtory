@@ -19,10 +19,10 @@ use datafusion::{
     },
 };
 use futures::Stream;
-use raphtory_arrow::properties::Properties;
+use pometry_storage::properties::Properties;
 
 use raphtory::{
-    arrow::{graph_impl::ArrowGraph, prelude::*},
+    arrow::{graph_impl::DiskGraph, prelude::*},
     core::entities::VID,
 };
 
@@ -32,14 +32,14 @@ use crate::{
 };
 
 pub struct NodeTableProvider {
-    graph: ArrowGraph,
+    graph: DiskGraph,
     schema: SchemaRef,
     num_partitions: usize,
     chunk_size: usize,
 }
 
 impl NodeTableProvider {
-    pub fn new(g: ArrowGraph) -> Result<Self, ExecError> {
+    pub fn new(g: DiskGraph) -> Result<Self, ExecError> {
         let graph = g.as_ref();
         let (num_partitions, chunk_size) = graph
             .node_properties()
@@ -132,7 +132,7 @@ impl TableProvider for NodeTableProvider {
 }
 
 async fn produce_record_batch(
-    g: ArrowGraph,
+    g: DiskGraph,
     schema: SchemaRef,
     chunk_id: usize,
     chunk_size: usize,
@@ -182,7 +182,7 @@ async fn produce_record_batch(
 }
 
 struct NodeScanExecPlan {
-    graph: ArrowGraph,
+    graph: DiskGraph,
     schema: SchemaRef,
     num_partitions: usize,
     chunk_size: usize,

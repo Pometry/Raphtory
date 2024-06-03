@@ -11,7 +11,7 @@ use crate::{
     prelude::{Graph, Prop, PropUnwrap},
 };
 use itertools::Itertools;
-use raphtory_arrow::{
+use pometry_storage::{
     properties::{node_ts, NodePropsBuilder, Properties},
     RAError,
 };

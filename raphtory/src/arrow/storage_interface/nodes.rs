@@ -3,7 +3,7 @@ use crate::{
     core::entities::VID,
 };
 
-use raphtory_arrow::graph::TemporalGraph;
+use pometry_storage::graph::TemporalGraph;
 use std::sync::Arc;
 
 #[derive(Clone, Debug)]

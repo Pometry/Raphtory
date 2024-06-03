@@ -4,9 +4,9 @@ use crate::{
     prelude::Layer,
 };
 
-use super::ArrowGraph;
+use super::DiskGraph;
 
-impl InternalLayerOps for ArrowGraph {
+impl InternalLayerOps for DiskGraph {
     fn layer_ids(&self) -> &LayerIds {
         match self.inner.layers().len() {
             0 => &LayerIds::None,

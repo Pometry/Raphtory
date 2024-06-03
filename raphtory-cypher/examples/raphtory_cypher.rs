@@ -1,23 +1,23 @@
-#[cfg(feature = "arrow")]
+#[cfg(feature = "storage")]
 pub use cyper_arrow::*;
 
-#[cfg(not(feature = "arrow"))]
+#[cfg(not(feature = "storage"))]
 fn main() {}
 
-#[cfg(feature = "arrow")]
+#[cfg(feature = "storage")]
 #[tokio::main]
 async fn main() {
     cyper_arrow::main().await;
 }
 
-#[cfg(feature = "arrow")]
+#[cfg(feature = "storage")]
 mod cyper_arrow {
     use std::{error::Error, str::FromStr};
 
     use arrow::util::pretty::print_batches;
     use clap::Parser;
     use futures::{stream, StreamExt};
-    use raphtory::arrow::graph_impl::{ArrowGraph, ParquetLayerCols};
+    use raphtory::arrow::graph_impl::{DiskGraph, ParquetLayerCols};
     use raphtory_cypher::{run_cypher, run_cypher_to_streams, run_sql};
     use serde::{de::DeserializeOwned, Deserialize};
 
@@ -134,7 +134,7 @@ mod cyper_arrow {
         match args {
             Args::Query(args) => {
                 let graph =
-                    ArrowGraph::load_from_dir(&args.graph_dir).expect("Failed to load graph");
+                    DiskGraph::load_from_dir(&args.graph_dir).expect("Failed to load graph");
 
                 let now = std::time::Instant::now();
 
@@ -183,7 +183,7 @@ mod cyper_arrow {
                         }
                     })
                     .collect();
-                ArrowGraph::load_from_parquets(
+                DiskGraph::load_from_parquets(
                     args.graph_dir.as_str(),
                     layer_parquet_cols,
                     args.node_props.as_deref(),

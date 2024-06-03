@@ -1,6 +1,6 @@
 use crate::{
     arrow::{
-        graph_impl::ArrowGraph,
+        graph_impl::DiskGraph,
         storage_interface::{
             edge::ArrowOwnedEdge,
             edges::ArrowEdges,
@@ -29,17 +29,17 @@ use crate::{
             storage_ops::GraphStorage,
         },
         view::{
-            internal::{CoreGraphOps, DelegateCoreOps},
+            internal::CoreGraphOps,
             BoxedIter,
         },
     },
 };
 use itertools::Itertools;
 use polars_arrow::datatypes::ArrowDataType;
-use raphtory_arrow::{properties::Properties, GidRef, GID};
+use pometry_storage::{properties::Properties, GidRef, GID};
 use rayon::prelude::*;
 
-impl CoreGraphOps for ArrowGraph {
+impl CoreGraphOps for DiskGraph {
     fn unfiltered_num_nodes(&self) -> usize {
         self.inner.num_nodes()
     }
@@ -185,7 +185,7 @@ impl CoreGraphOps for ArrowGraph {
     }
 
     fn core_edges(&self) -> EdgesStorage {
-        EdgesStorage::Arrow(ArrowEdges::new(&self.inner))
+        EdgesStorage::Disk(ArrowEdges::new(&self.inner))
     }
 
     fn unfiltered_num_layers(&self) -> usize {
@@ -193,30 +193,30 @@ impl CoreGraphOps for ArrowGraph {
     }
 
     fn core_graph(&self) -> GraphStorage {
-        GraphStorage::Arrow(self.inner.clone())
+        GraphStorage::Disk(self.inner.clone())
     }
 
     fn core_edge(&self, eid: ELID) -> EdgeStorageEntry {
         let layer_id = eid
             .layer()
             .expect("EdgeRefs in arrow should always have layer");
-        EdgeStorageEntry::Arrow(self.inner.layer(layer_id).edge(eid.pid()))
+        EdgeStorageEntry::Disk(self.inner.layer(layer_id).edge(eid.pid()))
     }
 
     fn core_nodes(&self) -> NodesStorage {
-        NodesStorage::Arrow(ArrowNodesOwned::new(self.inner.clone()))
+        NodesStorage::Disk(ArrowNodesOwned::new(self.inner.clone()))
     }
 
     fn core_node_entry(&self, vid: VID) -> NodeStorageEntry {
-        NodeStorageEntry::Arrow(ArrowNode::new(&self.inner, vid))
+        NodeStorageEntry::Disk(ArrowNode::new(&self.inner, vid))
     }
 
     fn core_node_arc(&self, vid: VID) -> NodeOwnedEntry {
-        NodeOwnedEntry::Arrow(ArrowOwnedNode::new(self.inner.clone(), vid))
+        NodeOwnedEntry::Disk(ArrowOwnedNode::new(self.inner.clone(), vid))
     }
 
     fn core_edge_arc(&self, eid: ELID) -> EdgeOwnedEntry {
-        EdgeOwnedEntry::Arrow(ArrowOwnedEdge::new(&self.inner, eid))
+        EdgeOwnedEntry::Disk(ArrowOwnedEdge::new(&self.inner, eid))
     }
 
     fn unfiltered_num_edges(&self) -> usize {
@@ -227,7 +227,7 @@ impl CoreGraphOps for ArrowGraph {
             .sum()
     }
 
-    fn node_type_id(&self, v: VID) -> usize {
+    fn node_type_id(&self, _v: VID) -> usize {
         // self.graph().node_type_id(v) TODO: Impl node types for arrow graphs
         0
     }

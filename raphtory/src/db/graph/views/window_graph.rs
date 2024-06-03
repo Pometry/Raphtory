@@ -564,7 +564,7 @@ mod views_test {
         }
 
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
@@ -581,7 +581,7 @@ mod views_test {
             assert_eq!(actual, expected);
         }
         test(&graph);
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         test(&arrow_graph);
     }
 
@@ -603,7 +603,7 @@ mod views_test {
         }
 
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
@@ -612,7 +612,7 @@ mod views_test {
             assert_eq!(wg.edge(1, 3).unwrap().dst().id(), 3);
         }
         test(&graph);
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         test(&arrow_graph);
     }
 
@@ -634,7 +634,7 @@ mod views_test {
         }
 
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
@@ -643,7 +643,7 @@ mod views_test {
             assert_eq!(wg.node(1).unwrap().id(), 1);
         }
         test(&graph);
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         test(&arrow_graph);
     }
 
@@ -667,7 +667,7 @@ mod views_test {
         }
 
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
@@ -746,7 +746,7 @@ mod views_test {
     //             .ok();
     //     }
     //     let test_dir = TempDir::new().unwrap();
-    #[cfg(feature = "arrow")]
+    #[cfg(feature = "storage")]
     //     let g = g.persist_as_arrow(test_dir.path()).unwrap();
     //
     //     let start = vs.get(rand_start_index).expect("start index in range").0;
@@ -836,7 +836,7 @@ mod views_test {
             g.add_edge(*t, e.0, e.1, NO_PROPS, None).unwrap();
         }
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         let g = g.persist_as_arrow(test_dir.path()).unwrap();
 
         let start = edges.get(rand_start_index).expect("start index in range").0;
@@ -946,7 +946,7 @@ mod views_test {
         }
 
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test1<G: StaticGraphViewOps>(graph: &G, args: &[(i64, i64)], expected: &[Vec<u64>]) {
@@ -962,7 +962,7 @@ mod views_test {
             assert_eq!(res, expected);
         }
         test1(&graph, &args, &expected);
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         test1(&arrow_graph, &args, &expected);
 
         let graph = Graph::new();
@@ -970,7 +970,7 @@ mod views_test {
             graph.add_edge(*src, *dst, *t, NO_PROPS, None).unwrap();
         }
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test2<G: StaticGraphViewOps>(graph: &G, args: &[(i64, i64)], expected: &[Vec<u64>]) {
@@ -985,7 +985,7 @@ mod views_test {
             assert_eq!(res, expected);
         }
         test2(&graph, &args, &expected);
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         test2(&arrow_graph, &args, &expected);
     }
 
@@ -1036,7 +1036,7 @@ mod views_test {
         }
 
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
@@ -1049,7 +1049,7 @@ mod views_test {
             assert_eq!(actual, expected);
         }
         test(&graph);
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         test(&arrow_graph);
     }
 
@@ -1058,7 +1058,7 @@ mod views_test {
         let graph = Graph::new();
         graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps + Debug>(graph: &G) {
@@ -1068,7 +1068,7 @@ mod views_test {
             assert_eq!(w, Graph::new());
         }
         test(&graph);
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         test(&arrow_graph);
     }
 
@@ -1078,7 +1078,7 @@ mod views_test {
         graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
 
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
@@ -1088,7 +1088,7 @@ mod views_test {
             println!("{:?}", res)
         }
         test(&graph);
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         test(&arrow_graph);
     }
 
@@ -1104,7 +1104,7 @@ mod views_test {
             graph.add_edge(t3, 3, 1, NO_PROPS, None).unwrap();
         }
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
@@ -1124,7 +1124,7 @@ mod views_test {
             );
         }
         test(&graph);
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         test(&arrow_graph);
     }
 
@@ -1145,7 +1145,7 @@ mod views_test {
         graph.add_edge(7, 1, 3, NO_PROPS, None).unwrap();
 
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {

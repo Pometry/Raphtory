@@ -10,7 +10,7 @@ use crate::{
     },
 };
 use raphtory_api::core::storage::timeindex::TimeIndexEntry;
-use raphtory_arrow::{edge::Edge, tprops::ArrowTProp};
+use pometry_storage::{edge::Edge, tprops::ArrowTProp};
 use rayon::prelude::*;
 use std::{iter, ops::Range};
 

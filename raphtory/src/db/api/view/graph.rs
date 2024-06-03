@@ -477,14 +477,14 @@ mod test_exploded_edges {
         graph.add_edge(3, 0, 1, NO_PROPS, None).unwrap();
 
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             assert_eq!(graph.count_temporal_edges(), 4)
         }
         test(&graph);
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         test(&arrow_graph);
     }
 }
@@ -572,7 +572,7 @@ mod test_materialize {
         graph.add_node(0, "A", NO_PROPS, None).unwrap();
         graph.add_node(1, "B", NO_PROPS, Some("H")).unwrap();
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let node_a = graph.node("A").unwrap();

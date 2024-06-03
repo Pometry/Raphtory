@@ -5,7 +5,7 @@ use std::{
 };
 
 use raphtory_api::core::storage::timeindex::TimeIndexEntry;
-use raphtory_arrow::{
+use pometry_storage::{
     arrow_hmap::ArrowHashMap, graph::TemporalGraph, graph_fragment::TempColGraphFragment,
     load::ExternalEdgeList, RAError,
 };
@@ -20,7 +20,6 @@ use crate::{
     },
     core::{
         entities::{
-            graph::tgraph::InternalGraph,
             properties::{graph_meta::GraphMeta, props::Meta},
             LayerIds, EID, VID,
         },
@@ -59,7 +58,7 @@ pub struct ParquetLayerCols<'a> {
 }
 
 #[derive(Clone, Debug)]
-pub struct ArrowGraph {
+pub struct DiskGraph {
     pub(crate) inner: Arc<TemporalGraph>,
     node_meta: Arc<Meta>,
     edge_meta: Arc<Meta>,
@@ -67,7 +66,7 @@ pub struct ArrowGraph {
     graph_dir: PathBuf,
 }
 
-impl Serialize for ArrowGraph {
+impl Serialize for DiskGraph {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -77,20 +76,20 @@ impl Serialize for ArrowGraph {
     }
 }
 
-impl<'de> Deserialize<'de> for ArrowGraph {
+impl<'de> Deserialize<'de> for DiskGraph {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
         let path = PathBuf::deserialize(deserializer)?;
-        let graph_result = ArrowGraph::load_from_dir(&path).map_err(|err| {
+        let graph_result = DiskGraph::load_from_dir(&path).map_err(|err| {
             serde::de::Error::custom(format!("Failed to load ArrowGraph: {:?}", err))
         })?;
         Ok(graph_result)
     }
 }
 
-impl Display for ArrowGraph {
+impl Display for DiskGraph {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -101,27 +100,27 @@ impl Display for ArrowGraph {
     }
 }
 
-impl AsRef<TemporalGraph> for ArrowGraph {
+impl AsRef<TemporalGraph> for DiskGraph {
     fn as_ref(&self) -> &TemporalGraph {
         &self.inner
     }
 }
 
 impl Graph {
-    pub fn persist_as_arrow(&self, graph_dir: impl AsRef<Path>) -> Result<ArrowGraph, Error> {
-        ArrowGraph::from_graph(self, graph_dir)
+    pub fn persist_as_arrow(&self, graph_dir: impl AsRef<Path>) -> Result<DiskGraph, Error> {
+        DiskGraph::from_graph(self, graph_dir)
     }
 }
 
-impl Immutable for ArrowGraph {}
+impl Immutable for DiskGraph {}
 
-impl IntoDynamic for ArrowGraph {
+impl IntoDynamic for DiskGraph {
     fn into_dynamic(self) -> DynamicGraph {
         DynamicGraph::new(self)
     }
 }
 
-impl ArrowGraph {
+impl DiskGraph {
     pub fn layer_from_ids(&self, layer_ids: &LayerIds) -> Option<usize> {
         match layer_ids {
             LayerIds::One(layer_id) => Some(*layer_id),
@@ -144,7 +143,7 @@ impl ArrowGraph {
         edges: &[(u64, u64, i64, f64)],
         chunk_size: usize,
         t_props_chunk_size: usize,
-    ) -> ArrowGraph {
+    ) -> DiskGraph {
         // unzip into 4 vectors
         let (src, (dst, (time, weight))): (Vec<_>, (Vec<_>, (Vec<_>, Vec<_>))) = edges
             .iter()
@@ -166,7 +165,7 @@ impl ArrowGraph {
             ],
             None,
         )];
-        ArrowGraph::load_from_edge_lists(
+        DiskGraph::load_from_edge_lists(
             &edge_lists,
             chunk_size,
             t_props_chunk_size,
@@ -259,7 +258,7 @@ impl ArrowGraph {
         Ok(Self::new(inner, path))
     }
 
-    pub fn load_from_dir(graph_dir: impl AsRef<Path>) -> Result<ArrowGraph, RAError> {
+    pub fn load_from_dir(graph_dir: impl AsRef<Path>) -> Result<DiskGraph, RAError> {
         let path = graph_dir.as_ref().to_path_buf();
         let inner = TemporalGraph::new(graph_dir)?;
         Ok(Self::new(inner, path))
@@ -274,7 +273,7 @@ impl ArrowGraph {
         read_chunk_size: Option<usize>,
         concurrent_files: Option<usize>,
         num_threads: usize,
-    ) -> Result<ArrowGraph, RAError> {
+    ) -> Result<DiskGraph, RAError> {
         let layered_edge_list: Vec<ExternalEdgeList<&Path>> = layer_parquet_cols
             .iter()
             .map(
@@ -345,122 +344,122 @@ impl ArrowGraph {
     }
 }
 
-impl InternalAdditionOps for ArrowGraph {
+impl InternalAdditionOps for DiskGraph {
     fn next_event_id(&self) -> usize {
         unimplemented!("ArrowGraph is immutable")
     }
 
-    fn resolve_layer(&self, layer: Option<&str>) -> usize {
+    fn resolve_layer(&self, _layer: Option<&str>) -> usize {
         // Will check this
         unimplemented!("ArrowGraph is immutable")
     }
 
-    fn resolve_node_type(&self, v_id: VID, node_type: Option<&str>) -> Result<usize, GraphError> {
+    fn resolve_node_type(&self, _v_id: VID,_node_typee: Option<&str>) -> Result<usize, GraphError> {
         unimplemented!("ArrowGraph is immutable")
     }
 
-    fn resolve_node(&self, id: u64, name: Option<&str>) -> VID {
+    fn resolve_node(&self, _id: u64,_namee: Option<&str>) -> VID {
         unimplemented!("ArrowGraph is immutable")
     }
 
-    fn resolve_graph_property(&self, prop: &str, is_static: bool) -> usize {
+    fn resolve_graph_property(&self, _prop: &str,_is_staticc: bool) -> usize {
         unimplemented!("ArrowGraph is immutable")
     }
 
     fn resolve_node_property(
         &self,
-        prop: &str,
-        dtype: PropType,
-        is_static: bool,
+        _prop: &str,
+        _dtype: PropType,
+        _is_static: bool,
     ) -> Result<usize, GraphError> {
         unimplemented!("ArrowGraph is immutable")
     }
 
     fn resolve_edge_property(
         &self,
-        prop: &str,
-        dtype: PropType,
-        is_static: bool,
+        _prop: &str,
+        _dtype: PropType,
+        _is_static: bool,
     ) -> Result<usize, GraphError> {
         unimplemented!("ArrowGraph is immutable")
     }
 
-    fn process_prop_value(&self, prop: Prop) -> Prop {
+    fn process_prop_value(&self, _prop: Prop) -> Prop {
         unimplemented!("ArrowGraph is immutable")
     }
 
     fn internal_add_node(
         &self,
-        t: TimeIndexEntry,
-        v: VID,
-        props: Vec<(usize, Prop)>,
-        node_type_id: usize,
+        _t: TimeIndexEntry,
+        _v: VID,
+        _props: Vec<(usize, Prop)>,
+        _node_type_id: usize,
     ) -> Result<(), GraphError> {
         unimplemented!("ArrowGraph is immutable")
     }
 
     fn internal_add_edge(
         &self,
-        t: TimeIndexEntry,
-        src: VID,
-        dst: VID,
-        props: Vec<(usize, Prop)>,
-        layer: usize,
+        _t: TimeIndexEntry,
+        _src: VID,
+        _dst: VID,
+        _props: Vec<(usize, Prop)>,
+        _layer: usize,
     ) -> Result<EID, GraphError> {
         unimplemented!("ArrowGraph is immutable")
     }
 }
 
-impl InternalPropertyAdditionOps for ArrowGraph {
+impl InternalPropertyAdditionOps for DiskGraph {
     fn internal_add_properties(
         &self,
-        t: TimeIndexEntry,
-        props: Vec<(usize, Prop)>,
+        _t: TimeIndexEntry,
+        _props: Vec<(usize, Prop)>,
     ) -> Result<(), GraphError> {
         unimplemented!("ArrowGraph is immutable")
     }
 
-    fn internal_add_static_properties(&self, props: Vec<(usize, Prop)>) -> Result<(), GraphError> {
+    fn internal_add_static_properties(&self, _props: Vec<(usize, Prop)>) -> Result<(), GraphError> {
         unimplemented!("ArrowGraph is immutable")
     }
 
     fn internal_update_static_properties(
         &self,
-        props: Vec<(usize, Prop)>,
+        _props: Vec<(usize, Prop)>,
     ) -> Result<(), GraphError> {
         unimplemented!("ArrowGraph is immutable")
     }
 
     fn internal_add_constant_node_properties(
         &self,
-        vid: VID,
-        props: Vec<(usize, Prop)>,
+        _vid: VID,
+        _props: Vec<(usize, Prop)>,
     ) -> Result<(), GraphError> {
         unimplemented!("ArrowGraph is immutable")
     }
 
     fn internal_update_constant_node_properties(
         &self,
-        vid: VID,
-        props: Vec<(usize, Prop)>,
+        _vid: VID,
+        _props: Vec<(usize, Prop)>,
     ) -> Result<(), GraphError> {
         unimplemented!("ArrowGraph is immutable")
     }
 
     fn internal_add_constant_edge_properties(
         &self,
-        eid: EID,
-        layer: usize,
-        props: Vec<(usize, Prop)>,
+        _eid: EID,
+        _layer: usize,
+        _props: Vec<(usize, Prop)>,
     ) -> Result<(), GraphError> {
         unimplemented!("ArrowGraph is immutable")
     }
 
     fn internal_update_constant_edge_properties(
         &self,
-        eid: EID,
-        layer: usize,
-        props: Vec<(usize, Prop)>,
+        _eid: EID,
+        _layer: usize,
+        _props: Vec<(usize, Prop)>,
     ) -> Result<(), GraphError> {
         unimplemented!("ArrowGraph is immutable")
     }
@@ -472,7 +471,7 @@ mod test {
 
     use itertools::{chain, Itertools};
     use proptest::{prelude::*, sample::size_range};
-    use raphtory_arrow::graph::TemporalGraph;
+    use pometry_storage::graph::TemporalGraph;
     use rayon::prelude::*;
     use tempfile::TempDir;
 
@@ -481,13 +480,13 @@ mod test {
         db::api::view::StaticGraphViewOps, prelude::*,
     };
 
-    use super::ArrowGraph;
+    use super::DiskGraph;
 
     fn make_simple_graph(
         graph_dir: impl AsRef<Path>,
         edges: &[(u64, u64, i64, f64)],
-    ) -> ArrowGraph {
-        ArrowGraph::make_simple_graph(graph_dir, edges, 1000, 1000)
+    ) -> DiskGraph {
+        DiskGraph::make_simple_graph(graph_dir, edges, 1000, 1000)
     }
 
     fn check_graph_counts(edges: &[(u64, u64, Time, f64)], g: &impl StaticGraphViewOps) {
@@ -795,7 +794,7 @@ mod test {
         ])
         .unwrap();
         let test_dir = TempDir::new().unwrap();
-        let arrow_graph = ArrowGraph::from_graph(&mem_graph, test_dir.path()).unwrap();
+        let arrow_graph = DiskGraph::from_graph(&mem_graph, test_dir.path()).unwrap();
         assert_eq!(arrow_graph.count_nodes(), 1);
         let props = arrow_graph.node(0).unwrap().properties();
         assert_eq!(props.get("test_num").unwrap_u64(), 0);
@@ -805,7 +804,7 @@ mod test {
 
         drop(arrow_graph);
 
-        let arrow_graph = ArrowGraph::load_from_dir(test_dir.path()).unwrap();
+        let arrow_graph = DiskGraph::load_from_dir(test_dir.path()).unwrap();
         let props = arrow_graph.node(0).unwrap().properties();
         assert_eq!(props.get("test_num").unwrap_u64(), 0);
         assert_eq!(props.get("test_str").unwrap_str(), "test");
@@ -829,7 +828,7 @@ mod test {
                 .unwrap_str(),
             "test"
         );
-        let arrow_graph = ArrowGraph::load_from_dir(test_dir.path()).unwrap();
+        let arrow_graph = DiskGraph::load_from_dir(test_dir.path()).unwrap();
         assert_eq!(
             arrow_graph
                 .node(1)

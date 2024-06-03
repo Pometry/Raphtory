@@ -1,6 +1,6 @@
 use parking_lot::RwLock;
-#[cfg(feature = "arrow")]
-use raphtory::arrow::graph_impl::ArrowGraph;
+#[cfg(feature = "storage")]
+use raphtory::arrow::graph_impl::DiskGraph;
 use raphtory::{
     core::Prop,
     db::api::view::MaterializedGraph,
@@ -122,17 +122,17 @@ impl Data {
             (graph_name, graph)
         }
 
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         fn load_arrow_graph(path: &Path) -> (String, MaterializedGraph) {
             let arrow_graph =
-                ArrowGraph::load_from_dir(path).expect("Unable to load from arrow graph");
+                DiskGraph::load_from_dir(path).expect("Unable to load from arrow graph");
             let graph: MaterializedGraph = arrow_graph.into();
             let graph_name = get_graph_name(path, &graph);
 
             (graph_name, graph)
         }
 
-        #[cfg(not(feature = "arrow"))]
+        #[cfg(not(feature = "storage"))]
         fn load_arrow_graph(path: &Path) -> (String, MaterializedGraph) {
             unimplemented!("Arrow feature not enabled, cannot load from arrow graph")
         }

@@ -335,7 +335,7 @@ mod time_tests {
     fn rolling() {
         let graph = graph_with_timeline(1, 7);
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test1<G: StaticGraphViewOps>(graph: &G) {
@@ -344,12 +344,12 @@ mod time_tests {
             assert_bounds(windows, expected);
         }
         test1(&graph);
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         test1(&arrow_graph);
 
         let graph = graph_with_timeline(1, 6);
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test2<G: StaticGraphViewOps>(graph: &G) {
@@ -358,12 +358,12 @@ mod time_tests {
             assert_bounds(windows, expected.clone());
         }
         test2(&graph);
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         test2(&arrow_graph);
 
         let graph = graph_with_timeline(0, 9);
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
         fn test3<G: StaticGraphViewOps>(graph: &G) {
             let windows = graph.window(1, 6).rolling(3, Some(2)).unwrap();
@@ -373,7 +373,7 @@ mod time_tests {
             );
         }
         test3(&graph);
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         test3(&arrow_graph);
     }
 
@@ -381,7 +381,7 @@ mod time_tests {
     fn expanding() {
         let graph = graph_with_timeline(1, 7);
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test1<G: StaticGraphViewOps>(graph: &G) {
@@ -390,12 +390,12 @@ mod time_tests {
             assert_bounds(windows, expected);
         }
         test1(&graph);
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         test1(&arrow_graph);
 
         let graph = graph_with_timeline(1, 6);
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test2<G: StaticGraphViewOps>(graph: &G) {
@@ -404,12 +404,12 @@ mod time_tests {
             assert_bounds(windows, expected.clone());
         }
         test2(&graph);
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         test2(&arrow_graph);
 
         let graph = graph_with_timeline(0, 9);
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test3<G: StaticGraphViewOps>(graph: &G) {
@@ -420,7 +420,7 @@ mod time_tests {
             );
         }
         test3(&graph);
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         test3(&arrow_graph);
     }
 
@@ -430,7 +430,7 @@ mod time_tests {
         let end = "2020-06-07 23:59:59.999".try_into_time().unwrap();
         let graph = graph_with_timeline(start, end);
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test1<G: StaticGraphViewOps>(graph: &G) {
@@ -448,14 +448,14 @@ mod time_tests {
             assert_bounds(windows, expected);
         }
         test1(&graph);
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         test1(&arrow_graph);
 
         let start = "2020-06-06 00:00:00".try_into_time().unwrap();
         let end = "2020-06-08 00:00:00".try_into_time().unwrap();
         let graph = graph_with_timeline(start, end);
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test2<G: StaticGraphViewOps>(graph: &G) {
@@ -473,7 +473,7 @@ mod time_tests {
             assert_bounds(windows, expected);
         }
         test2(&graph);
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         test2(&arrow_graph);
 
         // TODO: turn this back on if we bring bach epoch alignment for unwindowed graphs
@@ -500,7 +500,7 @@ mod time_tests {
         let end = "2020-06-07 23:59:59.999".try_into_time().unwrap();
         let graph = graph_with_timeline(start, end);
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test1<G: StaticGraphViewOps>(graph: &G) {
@@ -512,14 +512,14 @@ mod time_tests {
             assert_bounds(windows, expected);
         }
         test1(&graph);
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         test1(&arrow_graph);
 
         let start = "2020-06-06 00:00:00".try_into_time().unwrap();
         let end = "2020-06-08 00:00:00".try_into_time().unwrap();
         let graph = graph_with_timeline(start, end);
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test2<G: StaticGraphViewOps>(graph: &G) {
@@ -531,7 +531,7 @@ mod time_tests {
             assert_bounds(windows, expected);
         }
         test2(&graph);
-        #[cfg(feature = "arrow")]
+        #[cfg(feature = "storage")]
         test2(&arrow_graph);
     }
 }

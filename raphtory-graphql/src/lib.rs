@@ -40,8 +40,8 @@ mod graphql_test {
     use crate::{data::Data, model::App};
     use async_graphql::UploadValue;
     use dynamic_graphql::{Request, Variables};
-    #[cfg(feature = "arrow")]
-    use raphtory::arrow::graph_impl::ArrowGraph;
+    #[cfg(feature = "storage")]
+    use raphtory::arrow::graph_impl::DiskGraph;
     use raphtory::{
         db::{api::view::IntoDynamic, graph::views::deletion_graph::PersistentGraph},
         prelude::*,
@@ -1094,7 +1094,7 @@ mod graphql_test {
         );
     }
 
-    #[cfg(feature = "arrow")]
+    #[cfg(feature = "storage")]
     #[tokio::test]
     async fn test_arrow_graph() {
         let graph = Graph::new();
@@ -1114,7 +1114,7 @@ mod graphql_test {
         graph.add_edge(22, 3, 6, NO_PROPS, Some("a")).unwrap();
 
         let test_dir = TempDir::new().unwrap();
-        let arrow_graph = ArrowGraph::from_graph(&graph, test_dir.path()).unwrap();
+        let arrow_graph = DiskGraph::from_graph(&graph, test_dir.path()).unwrap();
         let graph: MaterializedGraph = arrow_graph.into();
 
         let graphs = HashMap::from([("graph".to_string(), graph)]);

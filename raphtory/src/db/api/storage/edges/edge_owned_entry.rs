@@ -1,6 +1,6 @@
-#[cfg(feature = "arrow")]
+#[cfg(feature = "storage")]
 use crate::arrow::storage_interface::edge::ArrowOwnedEdge;
-#[cfg(feature = "arrow")]
+#[cfg(feature = "storage")]
 use crate::db::api::storage::variants::storage_variants::StorageVariants;
 use crate::{
     core::{
@@ -25,21 +25,21 @@ use std::ops::Range;
 #[derive(Debug, Clone)]
 pub enum EdgeOwnedEntry {
     Mem(ArcEntry<EdgeStore>),
-    #[cfg(feature = "arrow")]
-    Arrow(ArrowOwnedEdge),
+    #[cfg(feature = "storage")]
+    Disk(ArrowOwnedEdge),
 }
 
-#[cfg(feature = "arrow")]
+#[cfg(feature = "storage")]
 macro_rules! for_all_variants {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
             EdgeOwnedEntry::Mem($pattern) => StorageVariants::Mem($result),
-            EdgeOwnedEntry::Arrow($pattern) => StorageVariants::Arrow($result),
+            EdgeOwnedEntry::Disk($pattern) => StorageVariants::Disk($result),
         }
     };
 }
 
-#[cfg(not(feature = "arrow"))]
+#[cfg(not(feature = "storage"))]
 macro_rules! for_all_variants {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
@@ -52,8 +52,8 @@ impl EdgeOwnedEntry {
     pub fn as_ref(&self) -> EdgeStorageRef {
         match self {
             EdgeOwnedEntry::Mem(entry) => EdgeStorageRef::Mem(entry),
-            #[cfg(feature = "arrow")]
-            EdgeOwnedEntry::Arrow(entry) => EdgeStorageRef::Arrow(entry.as_ref()),
+            #[cfg(feature = "storage")]
+            EdgeOwnedEntry::Disk(entry) => EdgeStorageRef::Disk(entry.as_ref()),
         }
     }
 }

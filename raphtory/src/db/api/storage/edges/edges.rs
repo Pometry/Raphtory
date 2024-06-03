@@ -6,10 +6,10 @@ use crate::{
     db::api::storage::edges::edge_ref::EdgeStorageRef,
 };
 
-#[cfg(feature = "arrow")]
+#[cfg(feature = "storage")]
 use crate::arrow::storage_interface::edges_ref::ArrowEdgesRef;
 
-#[cfg(feature = "arrow")]
+#[cfg(feature = "storage")]
 use crate::arrow::storage_interface::edges::ArrowEdges;
 use crate::db::api::storage::edges::edge_storage_ops::EdgeStorageOps;
 use either::Either;
@@ -18,8 +18,8 @@ use std::sync::Arc;
 
 pub enum EdgesStorage {
     Mem(Arc<ReadLockedStorage<EdgeStore, EID>>),
-    #[cfg(feature = "arrow")]
-    Arrow(ArrowEdges),
+    #[cfg(feature = "storage")]
+    Disk(ArrowEdges),
 }
 
 impl EdgesStorage {
@@ -27,8 +27,8 @@ impl EdgesStorage {
     pub fn as_ref(&self) -> EdgesStorageRef {
         match self {
             EdgesStorage::Mem(storage) => EdgesStorageRef::Mem(storage),
-            #[cfg(feature = "arrow")]
-            EdgesStorage::Arrow(storage) => EdgesStorageRef::Arrow(storage.as_ref()),
+            #[cfg(feature = "storage")]
+            EdgesStorage::Disk(storage) => EdgesStorageRef::Disk(storage.as_ref()),
         }
     }
 }
@@ -36,12 +36,12 @@ impl EdgesStorage {
 #[derive(Copy, Clone, Debug)]
 pub enum EdgesStorageRef<'a> {
     Mem(&'a ReadLockedStorage<EdgeStore, EID>),
-    #[cfg(feature = "arrow")]
-    Arrow(ArrowEdgesRef<'a>),
+    #[cfg(feature = "storage")]
+    Disk(ArrowEdgesRef<'a>),
 }
 
 impl<'a> EdgesStorageRef<'a> {
-    #[cfg(feature = "arrow")]
+    #[cfg(feature = "storage")]
     pub fn iter(self, layers: LayerIds) -> impl Iterator<Item = EdgeStorageRef<'a>> {
         match self {
             EdgesStorageRef::Mem(storage) => Either::Left(
@@ -50,13 +50,13 @@ impl<'a> EdgesStorageRef<'a> {
                     .filter(move |e| e.has_layer(&layers))
                     .map(EdgeStorageRef::Mem),
             ),
-            EdgesStorageRef::Arrow(storage) => {
-                Either::Right(storage.iter(layers).map(EdgeStorageRef::Arrow))
+            EdgesStorageRef::Disk(storage) => {
+                Either::Right(storage.iter(layers).map(EdgeStorageRef::Disk))
             }
         }
     }
 
-    #[cfg(not(feature = "arrow"))]
+    #[cfg(not(feature = "storage"))]
     pub fn iter(self, layers: LayerIds) -> impl Iterator<Item = EdgeStorageRef<'a>> {
         match self {
             EdgesStorageRef::Mem(storage) => {
@@ -70,7 +70,7 @@ impl<'a> EdgesStorageRef<'a> {
         }
     }
 
-    #[cfg(feature = "arrow")]
+    #[cfg(feature = "storage")]
     pub fn par_iter(self, layers: LayerIds) -> impl ParallelIterator<Item = EdgeStorageRef<'a>> {
         match self {
             EdgesStorageRef::Mem(storage) => Either::Left(
@@ -79,13 +79,13 @@ impl<'a> EdgesStorageRef<'a> {
                     .filter(move |e| e.has_layer(&layers))
                     .map(EdgeStorageRef::Mem),
             ),
-            EdgesStorageRef::Arrow(storage) => {
-                Either::Right(storage.par_iter(layers).map(EdgeStorageRef::Arrow))
+            EdgesStorageRef::Disk(storage) => {
+                Either::Right(storage.par_iter(layers).map(EdgeStorageRef::Disk))
             }
         }
     }
 
-    #[cfg(not(feature = "arrow"))]
+    #[cfg(not(feature = "storage"))]
     pub fn par_iter(self, layers: LayerIds) -> impl ParallelIterator<Item = EdgeStorageRef<'a>> {
         match self {
             EdgesStorageRef::Mem(storage) => {
@@ -107,8 +107,8 @@ impl<'a> EdgesStorageRef<'a> {
                 LayerIds::All => storage.len(),
                 _ => storage.par_iter().filter(|e| e.has_layer(layers)).count(),
             },
-            #[cfg(feature = "arrow")]
-            EdgesStorageRef::Arrow(storage) => storage.count(layers),
+            #[cfg(feature = "storage")]
+            EdgesStorageRef::Disk(storage) => storage.count(layers),
         }
     }
 }
