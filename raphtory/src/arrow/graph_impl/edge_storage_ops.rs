@@ -9,8 +9,8 @@ use crate::{
         tprop_storage_ops::TPropOps,
     },
 };
-use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use pometry_storage::{edge::Edge, tprops::ArrowTProp};
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use rayon::prelude::*;
 use std::{iter, ops::Range};
 

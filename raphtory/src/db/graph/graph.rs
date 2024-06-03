@@ -209,9 +209,7 @@ mod db_tests {
                 time::internal::InternalTimeOps, EdgeViewOps, Layer, LayerOps, NodeViewOps,
                 StaticGraphViewOps, TimeOps,
             },
-            graph::{
-                edge::EdgeView, edges::Edges, node::NodeView, path::PathFromNode,
-            },
+            graph::{edge::EdgeView, edges::Edges, node::NodeView, path::PathFromNode},
         },
         graphgen::random_attachment::random_attachment,
         prelude::{AdditionOps, PropertyAdditionOps},

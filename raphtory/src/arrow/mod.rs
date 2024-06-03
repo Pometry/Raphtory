@@ -28,12 +28,12 @@ mod test {
         array::{PrimitiveArray, StructArray},
         datatypes::Field,
     };
+    use pometry_storage::{global_order::GlobalMap, graph_fragment::TempColGraphFragment, RAError};
     use proptest::{prelude::*, sample::size_range};
     use raphtory_api::core::{
         entities::{EID, VID},
         Direction,
     };
-    use pometry_storage::{global_order::GlobalMap, graph_fragment::TempColGraphFragment, RAError};
     use tempfile::TempDir;
 
     fn edges_sanity_node_list(edges: &[(u64, u64, i64)]) -> Vec<u64> {

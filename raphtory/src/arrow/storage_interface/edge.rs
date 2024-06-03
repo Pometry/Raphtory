@@ -5,8 +5,8 @@ use crate::{
     },
     db::api::storage::edges::edge_storage_ops::EdgeStorageIntoOps,
 };
-use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use pometry_storage::{edge::Edge, edges::Edges, graph::TemporalGraph, timestamps::TimeStamps};
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use std::ops::Range;
 
 pub type ArrowEdge<'a> = Edge<'a>;

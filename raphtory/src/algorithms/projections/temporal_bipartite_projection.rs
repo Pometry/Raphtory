@@ -5,10 +5,7 @@ extern crate num_integer;
 use crate::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
-        api::{
-            mutation::AdditionOps,
-            view::*,
-        },
+        api::{mutation::AdditionOps, view::*},
         graph::graph::Graph,
     },
     prelude::*,

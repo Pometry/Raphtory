@@ -38,6 +38,7 @@ use datafusion::{
 use datafusion::physical_expr::Partitioning;
 use futures::{Stream, StreamExt};
 
+use pometry_storage::graph_fragment::TempColGraphFragment;
 use raphtory::{
     arrow::{
         graph_impl::DiskGraph,
@@ -45,7 +46,6 @@ use raphtory::{
     },
     core::{entities::VID, Direction},
 };
-use pometry_storage::graph_fragment::TempColGraphFragment;
 
 use crate::take_record_batch;
 
@@ -689,8 +689,7 @@ mod test {
         output_range: Range<usize>,
     ) {
         let graph_dir = tempdir().unwrap();
-        let graph =
-            DiskGraph::make_simple_graph(graph_dir, &EDGES, chunk_size, t_props_chunk_size);
+        let graph = DiskGraph::make_simple_graph(graph_dir, &EDGES, chunk_size, t_props_chunk_size);
 
         let schema = make_input_schema();
         let table_schema: DFSchema = schema.clone().to_dfschema().unwrap();

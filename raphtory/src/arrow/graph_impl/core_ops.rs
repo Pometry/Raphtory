@@ -28,10 +28,7 @@ use crate::{
             },
             storage_ops::GraphStorage,
         },
-        view::{
-            internal::CoreGraphOps,
-            BoxedIter,
-        },
+        view::{internal::CoreGraphOps, BoxedIter},
     },
 };
 use itertools::Itertools;

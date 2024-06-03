@@ -26,12 +26,12 @@ use crate::{
     },
 };
 use itertools::Itertools;
+use pometry_storage::GID;
 /// A columnar temporal graph.
 use pyo3::{
     prelude::*,
     types::{IntoPyDict, PyDict, PyList, PyString},
 };
-use pometry_storage::GID;
 
 use super::pandas::dataframe::{process_pandas_py_df, PretendDF};
 

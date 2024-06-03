@@ -2,11 +2,11 @@ use crate::{
     core::storage::timeindex::{TimeIndexIntoOps, TimeIndexOps},
     db::api::view::IntoDynBoxed,
 };
-use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use pometry_storage::{
     prelude::{ArrayOps, BaseArrayOps},
     timestamps::TimeStamps,
 };
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use std::ops::Range;
 
 impl<'a> TimeIndexIntoOps for TimeStamps<'a, TimeIndexEntry> {

@@ -7,7 +7,6 @@ use crate::{
     db::api::{storage::tprop_storage_ops::TPropOps, view::IntoDynBoxed},
     prelude::Prop,
 };
-use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use pometry_storage::{
     chunked_array::{col::ChunkedPrimitiveCol, utf8_col::StringCol},
     edge::Edge,
@@ -15,6 +14,7 @@ use pometry_storage::{
     timestamps::TimeStamps,
     tprops::{ArrowTProp, EmptyTProp, TPropColumn},
 };
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use rayon::prelude::*;
 use std::{iter, ops::Range};
 

@@ -27,8 +27,8 @@ use datafusion::{
     physical_planner::create_physical_sort_expr,
 };
 use futures::Stream;
-use raphtory::arrow::graph_impl::DiskGraph;
 use pometry_storage::prelude::*;
+use raphtory::arrow::graph_impl::DiskGraph;
 
 use crate::executor::{arrow2_to_arrow_buf, ExecError};
 

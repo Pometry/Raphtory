@@ -1,9 +1,9 @@
 use crate::core::{entities::properties::tprop::TProp, storage::timeindex::AsTime, Prop};
 #[cfg(feature = "storage")]
 use crate::db::api::storage::variants::storage_variants::StorageVariants;
-use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 #[cfg(feature = "storage")]
 use pometry_storage::tprops::ArrowTProp;
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use std::ops::Range;
 
 #[derive(Copy, Clone, Debug)]

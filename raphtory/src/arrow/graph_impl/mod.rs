@@ -4,11 +4,11 @@ use std::{
     sync::Arc,
 };
 
-use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use pometry_storage::{
     arrow_hmap::ArrowHashMap, graph::TemporalGraph, graph_fragment::TempColGraphFragment,
     load::ExternalEdgeList, RAError,
 };
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use rayon::prelude::*;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -354,15 +354,19 @@ impl InternalAdditionOps for DiskGraph {
         unimplemented!("ArrowGraph is immutable")
     }
 
-    fn resolve_node_type(&self, _v_id: VID,_node_typee: Option<&str>) -> Result<usize, GraphError> {
+    fn resolve_node_type(
+        &self,
+        _v_id: VID,
+        _node_typee: Option<&str>,
+    ) -> Result<usize, GraphError> {
         unimplemented!("ArrowGraph is immutable")
     }
 
-    fn resolve_node(&self, _id: u64,_namee: Option<&str>) -> VID {
+    fn resolve_node(&self, _id: u64, _namee: Option<&str>) -> VID {
         unimplemented!("ArrowGraph is immutable")
     }
 
-    fn resolve_graph_property(&self, _prop: &str,_is_staticc: bool) -> usize {
+    fn resolve_graph_property(&self, _prop: &str, _is_staticc: bool) -> usize {
         unimplemented!("ArrowGraph is immutable")
     }
 
@@ -470,8 +474,8 @@ mod test {
     use std::{cmp::Reverse, iter::once, path::Path};
 
     use itertools::{chain, Itertools};
-    use proptest::{prelude::*, sample::size_range};
     use pometry_storage::graph::TemporalGraph;
+    use proptest::{prelude::*, sample::size_range};
     use rayon::prelude::*;
     use tempfile::TempDir;
 
@@ -482,10 +486,7 @@ mod test {
 
     use super::DiskGraph;
 
-    fn make_simple_graph(
-        graph_dir: impl AsRef<Path>,
-        edges: &[(u64, u64, i64, f64)],
-    ) -> DiskGraph {
+    fn make_simple_graph(graph_dir: impl AsRef<Path>, edges: &[(u64, u64, i64, f64)]) -> DiskGraph {
         DiskGraph::make_simple_graph(graph_dir, edges, 1000, 1000)
     }
 

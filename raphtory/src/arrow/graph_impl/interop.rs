@@ -16,11 +16,11 @@ use crate::{
 };
 use itertools::Itertools;
 use polars_arrow::array::Array;
+use pometry_storage::interop::GraphLike;
 use raphtory_api::core::{
     entities::{EID, VID},
     storage::timeindex::TimeIndexEntry,
 };
-use pometry_storage::interop::GraphLike;
 
 impl GraphLike<TimeIndexEntry> for Graph {
     fn external_ids(&self) -> Vec<u64> {
