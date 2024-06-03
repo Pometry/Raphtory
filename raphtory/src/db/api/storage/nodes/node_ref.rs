@@ -1,7 +1,7 @@
-#[cfg(feature = "arrow")]
-use crate::arrow::storage_interface::node::ArrowNode;
-#[cfg(feature = "arrow")]
+#[cfg(feature = "storage")]
 use crate::db::api::storage::variants::storage_variants::StorageVariants;
+#[cfg(feature = "storage")]
+use crate::disk_graph::storage_interface::node::DiskNode;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, nodes::node_store::NodeStore, LayerIds, VID},
@@ -16,8 +16,8 @@ use crate::{
 #[derive(Copy, Clone, Debug)]
 pub enum NodeStorageRef<'a> {
     Mem(&'a NodeStore),
-    #[cfg(feature = "arrow")]
-    Arrow(ArrowNode<'a>),
+    #[cfg(feature = "storage")]
+    Disk(DiskNode<'a>),
 }
 
 impl<'a> From<&'a NodeStore> for NodeStorageRef<'a> {
@@ -26,10 +26,10 @@ impl<'a> From<&'a NodeStore> for NodeStorageRef<'a> {
     }
 }
 
-#[cfg(feature = "arrow")]
-impl<'a> From<ArrowNode<'a>> for NodeStorageRef<'a> {
-    fn from(value: ArrowNode<'a>) -> Self {
-        NodeStorageRef::Arrow(value)
+#[cfg(feature = "storage")]
+impl<'a> From<DiskNode<'a>> for NodeStorageRef<'a> {
+    fn from(value: DiskNode<'a>) -> Self {
+        NodeStorageRef::Disk(value)
     }
 }
 
@@ -37,23 +37,23 @@ macro_rules! for_all {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
             NodeStorageRef::Mem($pattern) => $result,
-            #[cfg(feature = "arrow")]
-            NodeStorageRef::Arrow($pattern) => $result,
+            #[cfg(feature = "storage")]
+            NodeStorageRef::Disk($pattern) => $result,
         }
     };
 }
 
-#[cfg(feature = "arrow")]
+#[cfg(feature = "storage")]
 macro_rules! for_all_iter {
     ($value:expr, $pattern:pat => $result:expr) => {{
         match $value {
             NodeStorageRef::Mem($pattern) => StorageVariants::Mem($result),
-            NodeStorageRef::Arrow($pattern) => StorageVariants::Arrow($result),
+            NodeStorageRef::Disk($pattern) => StorageVariants::Disk($result),
         }
     }};
 }
 
-#[cfg(not(feature = "arrow"))]
+#[cfg(not(feature = "storage"))]
 macro_rules! for_all_iter {
     ($value:expr, $pattern:pat => $result:expr) => {{
         match $value {

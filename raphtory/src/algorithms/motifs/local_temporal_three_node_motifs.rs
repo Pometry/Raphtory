@@ -1,17 +1,10 @@
 // Imports ///////////////////////////////////////////
 use crate::{
     algorithms::{cores::k_core::k_core_set, motifs::three_node_motifs::*},
-    core::state::{
-        accumulator_id::{
-            accumulators::{self, val},
-            AccId,
-        },
-        agg::ValDef,
-        compute_state::ComputeStateVec,
-    },
+    core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
     db::{
         api::view::{NodeViewOps, *},
-        graph::{edge::EdgeView, views::node_subgraph::NodeSubgraph},
+        graph::views::node_subgraph::NodeSubgraph,
         task::{
             context::Context,
             node::eval_node::EvalNodeView,
@@ -25,7 +18,7 @@ use itertools::{enumerate, Itertools};
 use num_traits::Zero;
 use raphtory_api::core::entities::VID;
 use rustc_hash::FxHashSet;
-use std::{cmp::Ordering, collections::HashMap, mem, ops::Add, slice::Iter};
+use std::{collections::HashMap, mem, ops::Add, slice::Iter};
 ///////////////////////////////////////////////////////
 
 // State objects for three node motifs
@@ -325,7 +318,7 @@ where
     G: StaticGraphViewOps,
 {
     let delta_len = deltas.len();
-    let mut ctx: Context<G, ComputeStateVec> = g.into();
+    let ctx: Context<G, ComputeStateVec> = g.into();
 
     println!("Running triangle step");
     let triadic_motifs = triangle_motifs(g, deltas.clone(), threads);

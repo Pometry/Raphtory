@@ -1,6 +1,6 @@
 use parking_lot::RwLock;
-#[cfg(feature = "arrow")]
-use raphtory::arrow::graph_impl::ArrowGraph;
+#[cfg(feature = "storage")]
+use raphtory::disk_graph::graph_impl::DiskGraph;
 use raphtory::{
     core::Prop,
     db::api::view::MaterializedGraph,
@@ -96,18 +96,18 @@ impl Data {
                 .unwrap_or_else(|| path.file_name().unwrap().to_str().unwrap().to_owned())
         }
 
-        fn is_arrow_graph_dir(path: &Path) -> bool {
-            // Check if the directory contains files specific to arrow graphs
+        fn is_disk_graph_dir(path: &Path) -> bool {
+            // Check if the directory contains files specific to disk_graph graphs
             let files = fs::read_dir(path).unwrap();
-            let mut has_arrow_files = false;
+            let mut has_disk_graph_files = false;
             for file in files {
                 let file_name = file.unwrap().file_name().into_string().unwrap();
                 if file_name.ends_with(".ipc") {
-                    has_arrow_files = true;
+                    has_disk_graph_files = true;
                     break;
                 }
             }
-            has_arrow_files
+            has_disk_graph_files
         }
 
         fn load_bincode_graph(path: &Path) -> (String, MaterializedGraph) {
@@ -122,19 +122,19 @@ impl Data {
             (graph_name, graph)
         }
 
-        #[cfg(feature = "arrow")]
-        fn load_arrow_graph(path: &Path) -> (String, MaterializedGraph) {
-            let arrow_graph =
-                ArrowGraph::load_from_dir(path).expect("Unable to load from arrow graph");
-            let graph: MaterializedGraph = arrow_graph.into();
+        #[cfg(feature = "storage")]
+        fn load_disk_graph(path: &Path) -> (String, MaterializedGraph) {
+            let disk_graph =
+                DiskGraph::load_from_dir(path).expect("Unable to load from disk_graph graph");
+            let graph: MaterializedGraph = disk_graph.into();
             let graph_name = get_graph_name(path, &graph);
 
             (graph_name, graph)
         }
-
-        #[cfg(not(feature = "arrow"))]
-        fn load_arrow_graph(path: &Path) -> (String, MaterializedGraph) {
-            unimplemented!("Arrow feature not enabled, cannot load from arrow graph")
+        #[allow(unused_variables)]
+        #[cfg(not(feature = "storage"))]
+        fn load_disk_graph(path: &Path) -> (String, MaterializedGraph) {
+            unimplemented!("Storage feature not enabled, cannot load from disk graph")
         }
 
         fn add_to_graphs(
@@ -161,17 +161,15 @@ impl Data {
             let entry = entry.unwrap();
             let path = entry.path();
             if path.is_dir() {
-                println!("Arrow Graph loaded = {}", path.display());
-                if is_arrow_graph_dir(&path) {
-                    if let (graph_name, graph) = load_arrow_graph(&path) {
-                        add_to_graphs(&mut graphs, &graph_name, &graph);
-                    }
+                println!("Disk Graph loaded = {}", path.display());
+                if is_disk_graph_dir(&path) {
+                    let (graph_name, graph) = load_disk_graph(&path);
+                    add_to_graphs(&mut graphs, &graph_name, &graph);
                 }
             } else {
                 println!("Graph loaded = {}", path.display());
-                if let (graph_name, graph) = load_bincode_graph(&path) {
-                    add_to_graphs(&mut graphs, &graph_name, &graph);
-                }
+                let (graph_name, graph) = load_bincode_graph(&path);
+                add_to_graphs(&mut graphs, &graph_name, &graph);
             }
         }
 

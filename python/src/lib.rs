@@ -1,11 +1,12 @@
+#![allow(non_local_definitions)]
 mod graphql;
 
 extern crate core;
 
 use graphql::*;
 use pyo3::prelude::*;
-#[cfg(feature = "arrow")]
-use raphtory_core::python::graph::arrow::{PyArrowGraph, PyGraphQuery, PyState};
+#[cfg(feature = "storage")]
+use raphtory_core::python::graph::disk_graph::{PyDiskGraph, PyGraphQuery, PyState};
 use raphtory_core::python::{
     graph::{
         algorithm_result::AlgorithmResult,
@@ -65,8 +66,8 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         GraphIndex
     );
 
-    #[cfg(feature = "arrow")]
-    add_classes!(m, PyArrowGraph, PyGraphQuery, PyState);
+    #[cfg(feature = "storage")]
+    add_classes!(m, PyDiskGraph, PyGraphQuery, PyState);
 
     //GRAPHQL
     let graphql_module = PyModule::new(py, "graphql")?;
@@ -117,7 +118,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         cohesive_fruchterman_reingold,
     );
 
-    #[cfg(feature = "arrow")]
+    #[cfg(feature = "storage")]
     add_functions!(algorithm_module, connected_components,);
 
     m.add_submodule(algorithm_module)?;

@@ -59,11 +59,11 @@ use pyo3::prelude::*;
 use rand::{prelude::StdRng, SeedableRng};
 use std::collections::{HashMap, HashSet};
 
-#[cfg(feature = "arrow")]
-use raphtory_arrow::algorithms::connected_components::connected_components as connected_components_rs;
+#[cfg(feature = "storage")]
+use pometry_storage::algorithms::connected_components::connected_components as connected_components_rs;
 
-#[cfg(feature = "arrow")]
-use crate::python::graph::arrow::PyArrowGraph;
+#[cfg(feature = "storage")]
+use crate::python::graph::disk_graph::PyDiskGraph;
 
 /// Implementations of various graph algorithms that can be run on a graph.
 ///
@@ -123,10 +123,10 @@ pub fn strongly_connected_components(
     components::strongly_connected_components(&g.graph, None)
 }
 
-#[cfg(feature = "arrow")]
+#[cfg(feature = "storage")]
 #[pyfunction]
 #[pyo3(signature = (g))]
-pub fn connected_components(g: &PyArrowGraph) -> Vec<usize> {
+pub fn connected_components(g: &PyDiskGraph) -> Vec<usize> {
     connected_components_rs(g.graph.as_ref())
 }
 

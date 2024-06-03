@@ -100,16 +100,16 @@ mod test {
                 .unwrap();
         }
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        #[cfg(feature = "storage")]
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let result = louvain::<ModularityUnDir, _>(graph, 1.0, Some("weight"), None);
             assert!(graph.nodes().iter().all(|n| result.get(n).is_some()));
         }
         test(&graph);
-        #[cfg(feature = "arrow")]
-        test(&arrow_graph);
+        #[cfg(feature = "storage")]
+        test(&disk_graph);
     }
 
     fn test_all_nodes_assigned_inner_unweighted(edges: Vec<(u64, u64)>) {
@@ -120,16 +120,16 @@ mod test {
         }
 
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        #[cfg(feature = "storage")]
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let result = louvain::<ModularityUnDir, _>(graph, 1.0, None, None);
             assert!(graph.nodes().iter().all(|n| result.get(n).is_some()));
         }
         test(&graph);
-        #[cfg(feature = "arrow")]
-        test(&arrow_graph);
+        #[cfg(feature = "storage")]
+        test(&disk_graph);
     }
 
     proptest! {
@@ -169,15 +169,15 @@ mod test {
             .unwrap();
 
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        #[cfg(feature = "storage")]
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let result = louvain::<ModularityUnDir, _>(graph, 1.0, None, None);
             println!("{result:?}")
         }
         test(&graph);
-        #[cfg(feature = "arrow")]
-        test(&arrow_graph);
+        #[cfg(feature = "storage")]
+        test(&disk_graph);
     }
 }

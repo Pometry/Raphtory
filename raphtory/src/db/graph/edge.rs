@@ -419,8 +419,8 @@ mod test_edge {
         graph.add_edge(2, 1, 2, props.clone(), None).unwrap();
 
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        #[cfg(feature = "storage")]
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G, props: [(ArcStr, Prop); 1]) {
             let e1 = graph.edge(1, 2).unwrap();
@@ -429,8 +429,8 @@ mod test_edge {
             assert!(e1_w.properties().as_vec().is_empty())
         }
         test(&graph, props.clone());
-        #[cfg(feature = "arrow")]
-        test(&arrow_graph, props);
+        #[cfg(feature = "storage")]
+        test(&disk_graph, props);
     }
 
     #[test]
@@ -448,8 +448,8 @@ mod test_edge {
             .unwrap();
 
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
-        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        #[cfg(feature = "storage")]
+        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             assert_eq!(
@@ -481,7 +481,7 @@ mod test_edge {
         }
         test(&graph);
         // FIXME: multilayer edge views are not supported yet (Issue #47)
-        // test(&arrow_graph);
+        // test(&disk_graph);
     }
 
     #[test]

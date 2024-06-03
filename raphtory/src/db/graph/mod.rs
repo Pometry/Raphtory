@@ -1,5 +1,4 @@
 use crate::core::entities::properties::props::DictMapper;
-use itertools::Itertools;
 use std::sync::Arc;
 
 pub mod edge;

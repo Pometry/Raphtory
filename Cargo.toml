@@ -3,7 +3,7 @@ members = [
     "raphtory",
     "raphtory-cypher",
     "raphtory-benchmark",
-    "raphtory-arrow",
+    "pometry-storage",
     "examples/rust",
     "examples/netflow",
     "python",
@@ -30,10 +30,10 @@ inherits = "release"
 debug = true
 
 [workspace.dependencies]
-#[public-arrow]
-raphtory-arrow = { version = "0.8.1", path = "raphtory-arrow" }
-#[private-arrow]
-# raphtory-arrow = { path = "raphtory-arrow-private", package = "raphtory-arrow-private" }
+#[public-storage]
+pometry-storage = { version = "0.8.1", path = "pometry-storage" }
+#[private-storage]
+# pometry-storage = { path = "pometry-storage-private", package = "pometry-storage-private" }
 async-graphql = { version = "6.0.11", features = ["dynamic-schema"] }
 async-graphql-poem = "6.0.11"
 dynamic-graphql = "0.8.1"
@@ -135,7 +135,7 @@ arrow-schema = { version = "50" }
 arrow-data = { version = "50" }
 arrow-array = { version = "50" }
 
-# Make sure that transitive dependencies stick to arrow 50
+# Make sure that transitive dependencies stick to disk_graph 50
 [patch.crates-io]
 arrow = { git = "https://github.com/apache/arrow-rs.git", tag = "50.0.0" }
 arrow-buffer = { git = "https://github.com/apache/arrow-rs.git", tag = "50.0.0" }

@@ -1,7 +1,7 @@
-#[cfg(feature = "arrow")]
-use crate::arrow::storage_interface::nodes_ref::ArrowNodesRef;
-#[cfg(feature = "arrow")]
+#[cfg(feature = "storage")]
 use crate::db::api::storage::variants::storage_variants::StorageVariants;
+#[cfg(feature = "storage")]
+use crate::disk_graph::storage_interface::nodes_ref::DiskNodesRef;
 use crate::{
     core::{
         entities::{nodes::node_store::NodeStore, VID},
@@ -14,21 +14,21 @@ use rayon::iter::ParallelIterator;
 #[derive(Copy, Clone, Debug)]
 pub enum NodesStorageRef<'a> {
     Mem(&'a ReadLockedStorage<NodeStore, VID>),
-    #[cfg(feature = "arrow")]
-    Arrow(ArrowNodesRef<'a>),
+    #[cfg(feature = "storage")]
+    Disk(DiskNodesRef<'a>),
 }
 
-#[cfg(feature = "arrow")]
+#[cfg(feature = "storage")]
 macro_rules! for_all_variants {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
             NodesStorageRef::Mem($pattern) => StorageVariants::Mem($result),
-            NodesStorageRef::Arrow($pattern) => StorageVariants::Arrow($result),
+            NodesStorageRef::Disk($pattern) => StorageVariants::Disk($result),
         }
     };
 }
 
-#[cfg(not(feature = "arrow"))]
+#[cfg(not(feature = "storage"))]
 macro_rules! for_all_variants {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
@@ -41,8 +41,8 @@ impl<'a> NodesStorageRef<'a> {
     pub fn node(self, vid: VID) -> NodeStorageRef<'a> {
         match self {
             NodesStorageRef::Mem(store) => NodeStorageRef::Mem(store.get(vid)),
-            #[cfg(feature = "arrow")]
-            NodesStorageRef::Arrow(store) => NodeStorageRef::Arrow(store.node(vid)),
+            #[cfg(feature = "storage")]
+            NodesStorageRef::Disk(store) => NodeStorageRef::Disk(store.node(vid)),
         }
     }
 

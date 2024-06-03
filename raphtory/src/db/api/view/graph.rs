@@ -477,15 +477,15 @@ mod test_exploded_edges {
         graph.add_edge(3, 0, 1, NO_PROPS, None).unwrap();
 
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        #[cfg(feature = "storage")]
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             assert_eq!(graph.count_temporal_edges(), 4)
         }
         test(&graph);
-        #[cfg(feature = "arrow")]
-        test(&arrow_graph);
+        #[cfg(feature = "storage")]
+        test(&disk_graph);
     }
 }
 
@@ -572,8 +572,8 @@ mod test_materialize {
         graph.add_node(0, "A", NO_PROPS, None).unwrap();
         graph.add_node(1, "B", NO_PROPS, Some("H")).unwrap();
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
-        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        #[cfg(feature = "storage")]
+        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let node_a = graph.node("A").unwrap();
             let node_b = graph.node("B").unwrap();
@@ -585,7 +585,7 @@ mod test_materialize {
         }
         test(&graph);
         // FIXME: Node types not yet supported (Issue #51)
-        // test(&arrow_graph);
+        // test(&disk_graph);
 
         // Nodes with No type can be overwritten
         let node_a = graph.add_node(1, "A", NO_PROPS, Some("TYPEA")).unwrap();

@@ -22,7 +22,7 @@ docs/logs/
 docs/nx.html
 docs/graph.html
 .env
-raphtory-arrow/
+pometry-arrow/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -564,8 +564,8 @@ mod views_test {
         }
 
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        #[cfg(feature = "storage")]
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let wg = graph.window(-1, 1);
@@ -581,8 +581,8 @@ mod views_test {
             assert_eq!(actual, expected);
         }
         test(&graph);
-        #[cfg(feature = "arrow")]
-        test(&arrow_graph);
+        #[cfg(feature = "storage")]
+        test(&disk_graph);
     }
 
     #[test]
@@ -603,8 +603,8 @@ mod views_test {
         }
 
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        #[cfg(feature = "storage")]
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let wg = graph.window(i64::MIN, i64::MAX);
@@ -612,8 +612,8 @@ mod views_test {
             assert_eq!(wg.edge(1, 3).unwrap().dst().id(), 3);
         }
         test(&graph);
-        #[cfg(feature = "arrow")]
-        test(&arrow_graph);
+        #[cfg(feature = "storage")]
+        test(&disk_graph);
     }
 
     #[test]
@@ -634,8 +634,8 @@ mod views_test {
         }
 
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        #[cfg(feature = "storage")]
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let wg = graph.window(-1, 1);
@@ -643,8 +643,8 @@ mod views_test {
             assert_eq!(wg.node(1).unwrap().id(), 1);
         }
         test(&graph);
-        #[cfg(feature = "arrow")]
-        test(&arrow_graph);
+        #[cfg(feature = "storage")]
+        test(&disk_graph);
     }
 
     #[test]
@@ -667,8 +667,8 @@ mod views_test {
         }
 
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
-        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        #[cfg(feature = "storage")]
+        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let wg = graph.window(1, 2);
@@ -676,7 +676,7 @@ mod views_test {
         }
         test(&graph);
         // FIXME: Issue #46
-        // test(&arrow_graph);
+        // test(&disk_graph);
     }
 
     #[quickcheck]
@@ -727,7 +727,7 @@ mod views_test {
 
     // FIXME: Issue #46
     // #[quickcheck]
-    // fn windowed_arrow_graph_has_node(mut vs: Vec<(i64, u64)>) -> TestResult {
+    // fn windowed_disk_graph_has_node(mut vs: Vec<(i64, u64)>) -> TestResult {
     //     if vs.is_empty() {
     //         return TestResult::discard();
     //     }
@@ -746,8 +746,8 @@ mod views_test {
     //             .ok();
     //     }
     //     let test_dir = TempDir::new().unwrap();
-    #[cfg(feature = "arrow")]
-    //     let g = g.persist_as_arrow(test_dir.path()).unwrap();
+    #[cfg(feature = "storage")]
+    //     let g = g.persist_as_disk_graph(test_dir.path()).unwrap();
     //
     //     let start = vs.get(rand_start_index).expect("start index in range").0;
     //     let end = vs.get(rand_end_index).expect("end index in range").0;
@@ -818,7 +818,7 @@ mod views_test {
     }
 
     #[quickcheck]
-    fn windowed_arrow_graph_has_edge(mut edges: Vec<(i64, (u64, u64))>) -> TestResult {
+    fn windowed_disk_graph_has_edge(mut edges: Vec<(i64, (u64, u64))>) -> TestResult {
         if edges.is_empty() {
             return TestResult::discard();
         }
@@ -836,8 +836,8 @@ mod views_test {
             g.add_edge(*t, e.0, e.1, NO_PROPS, None).unwrap();
         }
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
-        let g = g.persist_as_arrow(test_dir.path()).unwrap();
+        #[cfg(feature = "storage")]
+        let g = g.persist_as_disk_graph(test_dir.path()).unwrap();
 
         let start = edges.get(rand_start_index).expect("start index in range").0;
         let end = edges.get(rand_end_index).expect("end index in range").0;
@@ -946,8 +946,8 @@ mod views_test {
         }
 
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        #[cfg(feature = "storage")]
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test1<G: StaticGraphViewOps>(graph: &G, args: &[(i64, i64)], expected: &[Vec<u64>]) {
             let res: Vec<_> = (0..=3)
@@ -962,16 +962,16 @@ mod views_test {
             assert_eq!(res, expected);
         }
         test1(&graph, &args, &expected);
-        #[cfg(feature = "arrow")]
-        test1(&arrow_graph, &args, &expected);
+        #[cfg(feature = "storage")]
+        test1(&disk_graph, &args, &expected);
 
         let graph = Graph::new();
         for (src, dst, t) in &vs {
             graph.add_edge(*src, *dst, *t, NO_PROPS, None).unwrap();
         }
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        #[cfg(feature = "storage")]
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test2<G: StaticGraphViewOps>(graph: &G, args: &[(i64, i64)], expected: &[Vec<u64>]) {
             let res: Vec<_> = (0..=3)
@@ -985,8 +985,8 @@ mod views_test {
             assert_eq!(res, expected);
         }
         test2(&graph, &args, &expected);
-        #[cfg(feature = "arrow")]
-        test2(&arrow_graph, &args, &expected);
+        #[cfg(feature = "storage")]
+        test2(&disk_graph, &args, &expected);
     }
 
     #[test]
@@ -1036,8 +1036,8 @@ mod views_test {
         }
 
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        #[cfg(feature = "storage")]
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let wg = graph.window(-2, 0);
@@ -1049,8 +1049,8 @@ mod views_test {
             assert_eq!(actual, expected);
         }
         test(&graph);
-        #[cfg(feature = "arrow")]
-        test(&arrow_graph);
+        #[cfg(feature = "storage")]
+        test(&disk_graph);
     }
 
     #[test]
@@ -1058,8 +1058,8 @@ mod views_test {
         let graph = Graph::new();
         graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        #[cfg(feature = "storage")]
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps + Debug>(graph: &G) {
             let mut w = WindowedGraph::new(&graph, Some(0), Some(1));
@@ -1068,8 +1068,8 @@ mod views_test {
             assert_eq!(w, Graph::new());
         }
         test(&graph);
-        #[cfg(feature = "arrow")]
-        test(&arrow_graph);
+        #[cfg(feature = "storage")]
+        test(&disk_graph);
     }
 
     #[test]
@@ -1078,8 +1078,8 @@ mod views_test {
         graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
 
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        #[cfg(feature = "storage")]
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let w = graph.window(0, 1);
@@ -1088,8 +1088,8 @@ mod views_test {
             println!("{:?}", res)
         }
         test(&graph);
-        #[cfg(feature = "arrow")]
-        test(&arrow_graph);
+        #[cfg(feature = "storage")]
+        test(&disk_graph);
     }
 
     #[test]
@@ -1104,8 +1104,8 @@ mod views_test {
             graph.add_edge(t3, 3, 1, NO_PROPS, None).unwrap();
         }
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        #[cfg(feature = "storage")]
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             assert_graph_equal(&graph.before(9).after(2), &graph.window(3, 9));
@@ -1124,8 +1124,8 @@ mod views_test {
             );
         }
         test(&graph);
-        #[cfg(feature = "arrow")]
-        test(&arrow_graph);
+        #[cfg(feature = "storage")]
+        test(&disk_graph);
     }
 
     #[test]
@@ -1145,8 +1145,8 @@ mod views_test {
         graph.add_edge(7, 1, 3, NO_PROPS, None).unwrap();
 
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
-        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        #[cfg(feature = "storage")]
+        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let e = graph.edge(1, 2).unwrap();
@@ -1209,6 +1209,6 @@ mod views_test {
         }
         test(&graph);
         // FIXME: Issue #46
-        // test(&arrow_graph);
+        // test(&disk_graph);
     }
 }

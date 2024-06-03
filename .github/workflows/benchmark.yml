@@ -34,7 +34,7 @@ jobs:
         with:
           cache-all-crates: true
       - uses: webfactory/ssh-agent@v0.9.0
-        name: Load raphtory-arrow key
+        name: Load raphtory-disk_graph key
         with:
           ssh-private-key: ${{ secrets.RA_SSH_PRIVATE_KEY }}
       - uses: actions-rs/toolchain@v1

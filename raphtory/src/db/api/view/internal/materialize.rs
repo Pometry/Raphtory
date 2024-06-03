@@ -40,8 +40,8 @@ use enum_dispatch::enum_dispatch;
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
 use std::path::Path;
 
-#[cfg(feature = "arrow")]
-use crate::arrow::graph_impl::ArrowGraph;
+#[cfg(feature = "storage")]
+use crate::disk_graph::graph_impl::DiskGraph;
 
 #[enum_dispatch(CoreGraphOps)]
 #[enum_dispatch(InternalLayerOps)]
@@ -59,8 +59,8 @@ use crate::arrow::graph_impl::ArrowGraph;
 pub enum MaterializedGraph {
     EventGraph(Graph),
     PersistentGraph(PersistentGraph),
-    #[cfg(feature = "arrow")]
-    ArrowEventGraph(ArrowGraph),
+    #[cfg(feature = "storage")]
+    DiskEventGraph(DiskGraph),
 }
 
 fn version_deserialize<'de, D>(deserializer: D) -> Result<u32, D::Error>
@@ -91,26 +91,26 @@ impl MaterializedGraph {
         match self {
             MaterializedGraph::EventGraph(g) => Some(g),
             MaterializedGraph::PersistentGraph(_) => None,
-            #[cfg(feature = "arrow")]
-            MaterializedGraph::ArrowEventGraph(_) => None,
+            #[cfg(feature = "storage")]
+            MaterializedGraph::DiskEventGraph(_) => None,
         }
     }
     pub fn into_persistent(self) -> Option<PersistentGraph> {
         match self {
             MaterializedGraph::EventGraph(_) => None,
             MaterializedGraph::PersistentGraph(g) => Some(g),
-            #[cfg(feature = "arrow")]
-            MaterializedGraph::ArrowEventGraph(_) => None,
+            #[cfg(feature = "storage")]
+            MaterializedGraph::DiskEventGraph(_) => None,
         }
     }
 
-    #[cfg(feature = "arrow")]
-    pub fn into_arrow(self) -> Option<ArrowGraph> {
+    #[cfg(feature = "storage")]
+    pub fn into_disk_graph(self) -> Option<DiskGraph> {
         match self {
             MaterializedGraph::EventGraph(_) => None,
             MaterializedGraph::PersistentGraph(_) => None,
-            #[cfg(feature = "arrow")]
-            MaterializedGraph::ArrowEventGraph(g) => Some(g),
+            #[cfg(feature = "storage")]
+            MaterializedGraph::DiskEventGraph(g) => Some(g),
         }
     }
 

@@ -88,8 +88,8 @@ pub mod core;
 pub mod db;
 pub mod graphgen;
 
-#[cfg(feature = "arrow")]
-pub mod arrow;
+#[cfg(feature = "storage")]
+pub mod disk_graph;
 
 #[cfg(all(feature = "python", not(doctest)))]
 // no doctests in python as the docstrings are python not rust format
@@ -121,5 +121,5 @@ pub mod prelude {
 }
 
 pub const BINCODE_VERSION: u32 = 1u32;
-#[cfg(feature = "arrow")]
+#[cfg(feature = "storage")]
 pub use polars_arrow as arrow2;

@@ -371,9 +371,9 @@ mod test {
         inner_test(event_rate, recovery_rate, p);
     }
 
-    #[cfg(feature = "arrow")]
+    #[cfg(feature = "storage")]
     #[test]
-    fn compare_arrow_with_in_mem() {
+    fn compare_disk_with_in_mem() {
         let event_rate = 0.00000001;
         let recovery_rate = 0.000000001;
         let p = 0.3;
@@ -381,10 +381,10 @@ mod test {
         let mut rng = SmallRng::seed_from_u64(0);
         let g = generate_graph(1000, event_rate, &mut rng);
         let test_dir = TempDir::new().unwrap();
-        let arrow_graph = g.persist_as_arrow(test_dir.path()).unwrap();
+        let disk_graph = g.persist_as_disk_graph(test_dir.path()).unwrap();
         let mut rng = SmallRng::seed_from_u64(0);
         let res_arrow = temporal_SEIR(
-            &arrow_graph,
+            &disk_graph,
             Some(recovery_rate),
             None,
             p,

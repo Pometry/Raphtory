@@ -161,8 +161,8 @@ mod triangle_count_tests {
         }
 
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        #[cfg(feature = "storage")]
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let actual_tri_count = triangle_count(graph, Some(2));
@@ -170,8 +170,8 @@ mod triangle_count_tests {
             assert_eq!(actual_tri_count, 4)
         }
         test(&graph);
-        #[cfg(feature = "arrow")]
-        test(&arrow_graph);
+        #[cfg(feature = "storage")]
+        test(&disk_graph);
     }
 
     #[test]

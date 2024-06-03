@@ -1,7 +1,7 @@
-#[cfg(feature = "arrow")]
-use crate::arrow::storage_interface::node::ArrowOwnedNode;
-#[cfg(feature = "arrow")]
+#[cfg(feature = "storage")]
 use crate::db::api::storage::variants::storage_variants::StorageVariants;
+#[cfg(feature = "storage")]
+use crate::disk_graph::storage_interface::node::DiskOwnedNode;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, nodes::node_store::NodeStore, LayerIds, VID},
@@ -22,16 +22,16 @@ use crate::{
 
 pub enum NodeOwnedEntry {
     Mem(ArcEntry<NodeStore>),
-    #[cfg(feature = "arrow")]
-    Arrow(ArrowOwnedNode),
+    #[cfg(feature = "storage")]
+    Disk(DiskOwnedNode),
 }
 
 impl NodeOwnedEntry {
     pub fn as_ref(&self) -> NodeStorageRef {
         match self {
             NodeOwnedEntry::Mem(entry) => NodeStorageRef::Mem(entry),
-            #[cfg(feature = "arrow")]
-            NodeOwnedEntry::Arrow(entry) => NodeStorageRef::Arrow(entry.as_ref()),
+            #[cfg(feature = "storage")]
+            NodeOwnedEntry::Disk(entry) => NodeStorageRef::Disk(entry.as_ref()),
         }
     }
 }
@@ -40,23 +40,23 @@ macro_rules! for_all {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
             NodeOwnedEntry::Mem($pattern) => $result,
-            #[cfg(feature = "arrow")]
-            NodeOwnedEntry::Arrow($pattern) => $result,
+            #[cfg(feature = "storage")]
+            NodeOwnedEntry::Disk($pattern) => $result,
         }
     };
 }
 
-#[cfg(feature = "arrow")]
+#[cfg(feature = "storage")]
 macro_rules! for_all_iter {
     ($value:expr, $pattern:pat => $result:expr) => {{
         match $value {
             NodeOwnedEntry::Mem($pattern) => StorageVariants::Mem($result),
-            NodeOwnedEntry::Arrow($pattern) => StorageVariants::Arrow($result),
+            NodeOwnedEntry::Disk($pattern) => StorageVariants::Disk($result),
         }
     }};
 }
 
-#[cfg(not(feature = "arrow"))]
+#[cfg(not(feature = "storage"))]
 macro_rules! for_all_iter {
     ($value:expr, $pattern:pat => $result:expr) => {{
         match $value {

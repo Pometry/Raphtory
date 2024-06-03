@@ -15,9 +15,9 @@ from raphtory import __version__
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'Raphtory'
-copyright = '2023, Pometry'
-author = 'Pometry'
+project = "Raphtory"
+copyright = "2023, Pometry"
+author = "Pometry"
 release = __version__
 git_ref = "master"
 
@@ -62,8 +62,8 @@ copybutton_prompt_is_regexp = True
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = 'pydata_sphinx_theme'
-html_static_path = ['_static']
+html_theme = "pydata_sphinx_theme"
+html_static_path = ["_static"]
 html_css_files = [
     "css/custom.css",
 ]
@@ -74,12 +74,10 @@ github_root = "https://github.com/Pometry/Raphtory"
 static_assets_root = "https://raw.githubusercontent.com/Pometry/Raphtory/master"
 html_logo = "_static/logos/raphtory-logo-bright-medium.png"
 
-html_context = {
-    "default_mode": "auto"
-}
+html_context = {"default_mode": "auto"}
 
 html_theme_options = {
-    'nosidebar': True,
+    "nosidebar": True,
     "search_bar_text": "Search here...",
     "external_links": [
         {
@@ -118,7 +116,7 @@ html_theme_options = {
     "show_version_warning_banner": True,
     "navbar_end": ["theme-switcher", "navbar-icon-links"],
     "check_switcher": False,
-    "show_toc_level": 3
+    "show_toc_level": 3,
 }
 
 # sphinx-favicon - Add support for custom favicons
@@ -139,4 +137,4 @@ favicons = [
 # sphinx view code
 viewcode_line_numbers = True
 
-autodoc_typehints = 'both'
+autodoc_typehints = "both"

@@ -7,22 +7,22 @@ use rayon::iter::{
 use std::{cmp::Ordering, ops::Range};
 
 #[derive(Copy, Clone, Debug)]
-pub enum StorageVariants<Mem, #[cfg(feature = "arrow")] Arrow> {
+pub enum StorageVariants<Mem, #[cfg(feature = "storage")] Disk> {
     Mem(Mem),
-    #[cfg(feature = "arrow")]
-    Arrow(Arrow),
+    #[cfg(feature = "storage")]
+    Disk(Disk),
 }
 
-#[cfg(feature = "arrow")]
+#[cfg(feature = "storage")]
 macro_rules! SelfType {
-    ($Mem:ident, $Arrow:ident) => {
-        StorageVariants<$Mem, $Arrow>
+    ($Mem:ident, $Disk:ident) => {
+        StorageVariants<$Mem, $Disk>
     };
 }
 
-#[cfg(not(feature = "arrow"))]
+#[cfg(not(feature = "storage"))]
 macro_rules! SelfType {
-    ($Mem:ident, $Arrow:ident) => {
+    ($Mem:ident, $Disk:ident) => {
         StorageVariants<$Mem>
     };
 }
@@ -31,23 +31,23 @@ macro_rules! for_all {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
             StorageVariants::Mem($pattern) => $result,
-            #[cfg(feature = "arrow")]
-            StorageVariants::Arrow($pattern) => $result,
+            #[cfg(feature = "storage")]
+            StorageVariants::Disk($pattern) => $result,
         }
     };
 }
 
-#[cfg(feature = "arrow")]
+#[cfg(feature = "storage")]
 macro_rules! for_all_iter {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
             StorageVariants::Mem($pattern) => StorageVariants::Mem($result),
-            StorageVariants::Arrow($pattern) => StorageVariants::Arrow($result),
+            StorageVariants::Disk($pattern) => StorageVariants::Disk($result),
         }
     };
 }
 
-#[cfg(not(feature = "arrow"))]
+#[cfg(not(feature = "storage"))]
 macro_rules! for_all_iter {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
@@ -56,8 +56,8 @@ macro_rules! for_all_iter {
     };
 }
 
-impl<V, Mem: Iterator<Item = V>, #[cfg(feature = "arrow")] Arrow: Iterator<Item = V>> Iterator
-    for SelfType!(Mem, Arrow)
+impl<V, Mem: Iterator<Item = V>, #[cfg(feature = "storage")] Disk: Iterator<Item = V>> Iterator
+    for SelfType!(Mem, Disk)
 {
     type Item = V;
 
@@ -178,8 +178,8 @@ impl<V, Mem: Iterator<Item = V>, #[cfg(feature = "arrow")] Arrow: Iterator<Item 
 impl<
         V,
         Mem: DoubleEndedIterator<Item = V>,
-        #[cfg(feature = "arrow")] Arrow: DoubleEndedIterator<Item = V>,
-    > DoubleEndedIterator for SelfType!(Mem, Arrow)
+        #[cfg(feature = "storage")] Disk: DoubleEndedIterator<Item = V>,
+    > DoubleEndedIterator for SelfType!(Mem, Disk)
 {
     fn next_back(&mut self) -> Option<Self::Item> {
         for_all!(self, iter => iter.next_back())
@@ -209,8 +209,8 @@ impl<
 impl<
         V,
         Mem: ExactSizeIterator<Item = V>,
-        #[cfg(feature = "arrow")] Arrow: ExactSizeIterator<Item = V>,
-    > ExactSizeIterator for SelfType!(Mem, Arrow)
+        #[cfg(feature = "storage")] Disk: ExactSizeIterator<Item = V>,
+    > ExactSizeIterator for SelfType!(Mem, Disk)
 {
     fn len(&self) -> usize {
         for_all!(self, iter => iter.len())
@@ -220,8 +220,8 @@ impl<
 impl<
         V: Send,
         Mem: ParallelIterator<Item = V>,
-        #[cfg(feature = "arrow")] Arrow: ParallelIterator<Item = V>,
-    > ParallelIterator for SelfType!(Mem, Arrow)
+        #[cfg(feature = "storage")] Disk: ParallelIterator<Item = V>,
+    > ParallelIterator for SelfType!(Mem, Disk)
 {
     type Item = V;
 
@@ -240,8 +240,8 @@ impl<
 impl<
         V: Send,
         Mem: IndexedParallelIterator<Item = V>,
-        #[cfg(feature = "arrow")] Arrow: IndexedParallelIterator<Item = V>,
-    > IndexedParallelIterator for SelfType!(Mem, Arrow)
+        #[cfg(feature = "storage")] Disk: IndexedParallelIterator<Item = V>,
+    > IndexedParallelIterator for SelfType!(Mem, Disk)
 {
     fn len(&self) -> usize {
         for_all!(self, iter => iter.len())
@@ -256,8 +256,8 @@ impl<
     }
 }
 
-impl<'a, Mem: TPropOps<'a> + 'a, #[cfg(feature = "arrow")] Arrow: TPropOps<'a> + 'a> TPropOps<'a>
-    for SelfType!(Mem, Arrow)
+impl<'a, Mem: TPropOps<'a> + 'a, #[cfg(feature = "storage")] Disk: TPropOps<'a> + 'a> TPropOps<'a>
+    for SelfType!(Mem, Disk)
 {
     fn last_before(self, t: i64) -> Option<(TimeIndexEntry, Prop)> {
         for_all!(self, props => props.last_before(t))
