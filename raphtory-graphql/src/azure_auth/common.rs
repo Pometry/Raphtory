@@ -92,9 +92,7 @@ pub async fn auth_callback(
     query: Query<AuthRequest>,
     jar: &CookieJar,
 ) -> impl IntoResponse {
-    println!("Running callback");
     if let Some(session_cookie) = jar.get("session_id") {
-        println!("Got session ID");
         let session_id = session_cookie.value::<String>().unwrap();
 
         let code = AuthorizationCode::new(query.0.code.clone());
@@ -104,7 +102,7 @@ pub async fn auth_callback(
             .unwrap()
             .remove(&session_id)
             .unwrap();
-        println!("Getting token result");
+
         let token_result = data
             .oauth_client
             .exchange_code(code)
@@ -114,29 +112,25 @@ pub async fn auth_callback(
 
         match token_result {
             Ok(token) => {
-                println!("Getting access token");
                 let access_token = token.access_token();
                 let expires_in = token
                     .expires_in()
                     .unwrap_or(core::time::Duration::from_secs(60 * 60 * 24));
                 let expiration = Utc::now() + Duration::from_std(expires_in).unwrap();
-                println!("Set token data");
+
                 let token_data = json!({
                     "access_token_secret": access_token.secret(),
                     "expires_at": expiration.to_rfc3339()
                 });
 
-                println!("Makign auth cookie");
                 let mut auth_cookie = Cookie::new("auth_token", token_data.to_string());
                 auth_cookie.set_expires(expiration);
                 auth_cookie.set_path("/");
                 auth_cookie.set_http_only(true);
-                println!("Storing in jar");
                 jar.add(auth_cookie);
                 return Redirect::temporary("/").into_response();
             }
             Err(_err) => {
-                println!("Token error");
                 return Response::builder()
                     .status(StatusCode::UNAUTHORIZED)
                     .content_type("application/json")
@@ -144,7 +138,6 @@ pub async fn auth_callback(
             }
         }
     } else {
-        println!("Session not found. Please login again.");
         return Response::builder()
             .status(StatusCode::UNAUTHORIZED)
             .content_type("application/json")
@@ -159,7 +152,6 @@ pub fn decode_base64_urlsafe(base64_str: &str) -> Result<Vec<u8>, Box<dyn Error>
 
 #[handler]
 pub async fn secure_endpoint() -> Json<serde_json::Value> {
-    println!("Entering secure endpoint"); // Debugging line
     Json(serde_json::json!({
         "message": "Secured"
     }))
@@ -180,16 +172,11 @@ pub async fn logout(jar: &CookieJar) -> String {
 
 #[handler]
 pub async fn verify(data: Data<&AppState>, jar: &CookieJar) -> Json<serde_json::Value> {
-    println!("Checking for session_id");
     if let Some(_session_cookie) = jar.get("session_id") {
-        println!("Checking for auth_token");
         if let Some(cookie) = jar.get("auth_token") {
-            println!("Getting cookie value");
             let cookie_value = cookie.value::<String>().expect("Unable to find cookie");
-            println!("Getting token data");
             let token_data: serde_json::Value =
                 serde_json::from_str(&cookie_value).expect("Invalid cookie format");
-            println!("Getting secrets");
             let token = token_data["access_token_secret"]
                 .as_str()
                 .expect("No access token found");
@@ -199,13 +186,13 @@ pub async fn verify(data: Data<&AppState>, jar: &CookieJar) -> Json<serde_json::
 
             let expires_at = chrono::DateTime::parse_from_rfc3339(expires_at_str)
                 .expect("Invalid expiration format");
-            println!("Checking expiry");
+
             if Utc::now() > expires_at {
                 return Json(serde_json::json!({
                     "message": "Access token expired, please login again"
                 }));
             }
-            println!("Getting headers, kid and jwk");
+
             let header = decode_header(token).expect("Unable to decode header");
             let kid = header.kid.expect("Token header does not have a kid field");
 
@@ -215,42 +202,35 @@ pub async fn verify(data: Data<&AppState>, jar: &CookieJar) -> Json<serde_json::
                 .iter()
                 .find(|&jwk| jwk.kid == kid)
                 .expect("Key ID not found in JWKS");
-            println!("Decoding RSA");
+
             let n = decode_base64_urlsafe(&jwk.n).unwrap();
             let e = decode_base64_urlsafe(&jwk.e).unwrap();
 
             let decoding_key = DecodingKey::from_rsa_raw_components(&n, &e);
 
             let validation = Validation::new(Algorithm::RS256);
-            println!("Decoding token");
+
             let token_data =
                 decode::<HashMap<String, serde_json::Value>>(token, &decoding_key, &validation);
 
             match token_data {
-                Ok(dc) => {
-                    println!("valid token");
-                    println!("{:?}", dc);
+                Ok(_dc) => {
                     Json(serde_json::json!({
                         "message": "Valid access token",
                     }))
                 }
-                Err(err) => {
-                    println!("{:?} Cant authorise token.", err); // Debugging line
-                    println!("cookie_value : {:?}", cookie_value);
-                    println!("token : {:?}", token);
+                Err(_err) => {
                     Json(serde_json::json!({
                         "message": "No valid auth token found",
                     }))
                 }
             }
         } else {
-            println!("No valid auth token found in cookies, please login."); // Debugging line
             Json(serde_json::json!({
                 "message": "No cookie auth_token found, please login"
             }))
         }
     } else {
-        println!("No session_id found, please login."); // Debugging line
         Json(serde_json::json!({
             "message": "No session_id found, please login"
         }))
