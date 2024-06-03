@@ -161,7 +161,7 @@ where
     type Edges = NestedEdges<'graph, G, GH>;
 
     fn map<
-        O: Send + Sync + 'graph,
+        O: Clone + Send + Sync + 'graph,
         F: Fn(&GraphStorage, &Self::Graph, VID) -> O + Send + Sync + 'graph,
     >(
         &self,

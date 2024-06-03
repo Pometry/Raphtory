@@ -11,7 +11,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use rayon::prelude::*;
-use std::{any::Any, marker::PhantomData, sync::Arc};
+use std::{marker::PhantomData, sync::Arc};
 
 #[derive(Clone)]
 pub struct LazyNodeState<'graph, V, G, GH = G> {
@@ -22,8 +22,12 @@ pub struct LazyNodeState<'graph, V, G, GH = G> {
     _marker: PhantomData<&'graph ()>,
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, V: Send + Sync + 'graph>
-    LazyNodeState<'graph, V, G, GH>
+impl<
+        'graph,
+        G: GraphViewOps<'graph>,
+        GH: GraphViewOps<'graph>,
+        V: Clone + Send + Sync + 'graph,
+    > LazyNodeState<'graph, V, G, GH>
 {
     pub(crate) fn new(
         base_graph: G,
@@ -70,6 +74,14 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, V: Send + Sync +
                 .collect_into_vec(&mut values);
             NodeState::new(self.base_graph.clone(), self.graph.clone(), values, None)
         }
+    }
+
+    pub fn collect<C: FromParallelIterator<V>>(&self) -> C {
+        self.par_values().collect()
+    }
+
+    pub fn collect_vec(&self) -> Vec<V> {
+        self.collect()
     }
 }
 

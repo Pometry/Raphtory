@@ -30,11 +30,6 @@ pub trait NodeStateOps<'graph>: IntoIterator<Item = Self::OwnedValue> {
     fn values<'a>(&'a self) -> impl Iterator<Item = Self::Value<'a>> + 'a
     where
         'graph: 'a;
-
-    fn collect(&self) -> Vec<Self::OwnedValue> {
-        self.par_values().map(|v| v.borrow().clone()).collect()
-    }
-
     fn par_values<'a>(&'a self) -> impl ParallelIterator<Item = Self::Value<'a>> + 'a
     where
         'graph: 'a;

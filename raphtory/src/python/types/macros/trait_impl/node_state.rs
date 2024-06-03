@@ -69,10 +69,6 @@ macro_rules! impl_node_state_ops {
             fn values(&self) -> PyBorrowingIterator {
                 self.__iter__()
             }
-
-            fn collect(&self) -> Vec<$value> {
-                self.inner.collect()
-            }
         }
     };
 }
@@ -153,6 +149,10 @@ macro_rules! impl_lazy_node_state {
         impl $name {
             fn compute(&self) -> NodeState<'static, $value, DynamicGraph, DynamicGraph> {
                 self.inner.compute()
+            }
+
+            fn collect(&self) -> Vec<$value> {
+                self.inner.collect()
             }
         }
 
