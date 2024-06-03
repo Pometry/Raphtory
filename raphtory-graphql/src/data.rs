@@ -131,7 +131,7 @@ impl Data {
 
             (graph_name, graph)
         }
-
+        #[allow(unused_variables)]
         #[cfg(not(feature = "storage"))]
         fn load_disk_graph(path: &Path) -> (String, MaterializedGraph) {
             unimplemented!("Storage feature not enabled, cannot load from disk graph")
@@ -163,15 +163,13 @@ impl Data {
             if path.is_dir() {
                 println!("Disk Graph loaded = {}", path.display());
                 if is_disk_graph_dir(&path) {
-                    if let (graph_name, graph) = load_disk_graph(&path) {
-                        add_to_graphs(&mut graphs, &graph_name, &graph);
-                    }
+                    let (graph_name, graph) = load_disk_graph(&path);
+                    add_to_graphs(&mut graphs, &graph_name, &graph);
                 }
             } else {
                 println!("Graph loaded = {}", path.display());
-                if let (graph_name, graph) = load_bincode_graph(&path) {
-                    add_to_graphs(&mut graphs, &graph_name, &graph);
-                }
+                let (graph_name, graph) = load_bincode_graph(&path);
+                add_to_graphs(&mut graphs, &graph_name, &graph);
             }
         }
 

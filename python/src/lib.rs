@@ -1,3 +1,4 @@
+#![allow(non_local_definitions)]
 mod graphql;
 
 extern crate core;

@@ -1,3 +1,4 @@
+#![allow(non_local_definitions)]
 use crate::core::{DocumentInput, Lifespan};
 use itertools::Itertools;
 use pyo3::{exceptions::PyAttributeError, prelude::*, types::PyTuple};
@@ -29,6 +30,7 @@ impl From<DocumentInput> for PyDocument {
         }
     }
 }
+
 
 #[pymethods]
 impl PyDocument {
