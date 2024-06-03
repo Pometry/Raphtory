@@ -1,5 +1,5 @@
 #[cfg(feature = "storage")]
-pub use cypher_arrow::*;
+pub use cypher::*;
 
 #[cfg(feature = "storage")]
 pub mod executor;
@@ -11,7 +11,7 @@ pub mod parser;
 pub mod transpiler;
 
 #[cfg(feature = "storage")]
-mod cypher_arrow {
+mod cypher {
     use arrow::compute::take;
     use std::sync::Arc;
 
