@@ -7,7 +7,7 @@ import os
 
 def test_disk_graph():
     curr_dir = os.path.dirname(os.path.abspath(__file__))
-    rsc_dir = os.path.join(curr_dir, "..", "..", "resource")
+    rsc_dir = os.path.join(curr_dir, "..","..", "pometry-storage-private", "resources")
     rsc_dir = os.path.normpath(rsc_dir)
     print("rsc_dir:", rsc_dir + "/netflowsorted/nft_sorted")
 
