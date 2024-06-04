@@ -2024,6 +2024,19 @@ mod db_tests {
             .all(|v| v.is_some())
     }
 
+    #[test]
+    fn large_id_is_consistent() {
+        let g = Graph::new();
+        g.add_node(0, 10000000000000000006, NO_PROPS, None).unwrap();
+        println!("names: {:?}", g.nodes().name().collect_vec());
+        assert!(g
+            .nodes()
+            .name()
+            .into_iter()
+            .map(|name| g.node(name))
+            .all(|v| v.is_some()))
+    }
+
     #[quickcheck]
     fn exploded_edge_times_is_consistent(edges: Vec<(u64, u64, Vec<i64>)>, offset: i64) -> bool {
         check_exploded_edge_times_is_consistent(edges, offset)
