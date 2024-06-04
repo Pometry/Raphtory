@@ -44,8 +44,8 @@ mod directed_graph_density_tests {
     use crate::{
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
+        test_storage,
     };
-    use tempfile::TempDir;
 
     #[test]
     fn low_graph_density() {
@@ -64,20 +64,13 @@ mod directed_graph_density_tests {
             graph.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let windowed_graph = graph.window(0, 7);
             let actual = directed_graph_density(&windowed_graph);
             let expected = 0.3;
 
             assert_eq!(actual, expected);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     #[test]
@@ -90,19 +83,12 @@ mod directed_graph_density_tests {
             graph.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let windowed_graph = graph.window(0, 3);
             let actual = directed_graph_density(&windowed_graph);
             let expected = 1.0;
 
             assert_eq!(actual, expected);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 }

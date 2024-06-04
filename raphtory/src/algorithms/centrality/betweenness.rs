@@ -115,8 +115,7 @@ pub fn betweenness_centrality<'graph, G: GraphViewOps<'graph>>(
 #[cfg(test)]
 mod betweenness_centrality_test {
     use super::*;
-    use crate::{db::api::view::StaticGraphViewOps, prelude::*};
-    use tempfile::TempDir;
+    use crate::{prelude::*, test_storage};
 
     #[test]
     fn test_betweenness_centrality() {
@@ -139,11 +138,7 @@ mod betweenness_centrality_test {
             graph.add_edge(0, *src, *dst, NO_PROPS, None).unwrap();
         }
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let mut expected: HashMap<String, f64> = HashMap::new();
             expected.insert("1".to_string(), 0.0);
             expected.insert("2".to_string(), 1.0);
@@ -164,9 +159,6 @@ mod betweenness_centrality_test {
             expected.insert("6".to_string(), 0.0);
             let res = betweenness_centrality(graph, None, Some(true));
             assert_eq!(res.get_all_with_names(), expected);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 }

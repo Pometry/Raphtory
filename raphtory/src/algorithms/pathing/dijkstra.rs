@@ -212,14 +212,12 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
 
 #[cfg(test)]
 mod dijkstra_tests {
-    use tempfile::TempDir;
-
+    use super::*;
     use crate::{
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::Prop,
+        test_storage,
     };
-
-    use super::*;
 
     fn load_graph(edges: Vec<(i64, &str, &str, Vec<(&str, f32)>)>) -> Graph {
         let graph = Graph::new();
@@ -246,11 +244,8 @@ mod dijkstra_tests {
     #[test]
     fn test_dijkstra_multiple_targets() {
         let graph = basic_graph();
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let targets: Vec<&str> = vec!["D", "F"];
             let results = dijkstra_single_source_shortest_paths(
                 graph,
@@ -283,20 +278,14 @@ mod dijkstra_tests {
             assert_eq!(results.get("D").unwrap().1, vec!["B", "C", "D"]);
             assert_eq!(results.get("E").unwrap().1, vec!["B", "C", "E"]);
             assert_eq!(results.get("F").unwrap().1, vec!["B", "C", "E", "F"]);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     #[test]
     fn test_dijkstra_no_weight() {
         let graph = basic_graph();
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let targets: Vec<&str> = vec!["C", "E", "F"];
             let results =
                 dijkstra_single_source_shortest_paths(graph, "A", targets, None, Direction::OUT)
@@ -304,10 +293,7 @@ mod dijkstra_tests {
             assert_eq!(results.get("C").unwrap().1, vec!["A", "C"]);
             assert_eq!(results.get("E").unwrap().1, vec!["A", "C", "E"]);
             assert_eq!(results.get("F").unwrap().1, vec!["A", "C", "F"]);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     #[test]
@@ -328,11 +314,7 @@ mod dijkstra_tests {
             graph.add_edge(t, src, dst, props, None).unwrap();
         }
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let targets = vec![4, 6];
             let results = dijkstra_single_source_shortest_paths(
                 graph,
@@ -363,10 +345,7 @@ mod dijkstra_tests {
             assert_eq!(results.get("4").unwrap().1, vec!["2", "3", "4"]);
             assert_eq!(results.get("5").unwrap().1, vec!["2", "3", "5"]);
             assert_eq!(results.get("6").unwrap().1, vec!["2", "3", "5", "6"]);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     #[test]
@@ -388,11 +367,7 @@ mod dijkstra_tests {
             graph.add_edge(t, src, dst, props, None).unwrap();
         }
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let targets: Vec<&str> = vec!["D", "F"];
             let results = dijkstra_single_source_shortest_paths(
                 graph,
@@ -423,10 +398,7 @@ mod dijkstra_tests {
             assert_eq!(results.get("D").unwrap().1, vec!["B", "C", "D"]);
             assert_eq!(results.get("E").unwrap().1, vec!["B", "C", "E"]);
             assert_eq!(results.get("F").unwrap().1, vec!["B", "C", "E", "F"]);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     #[test]
@@ -443,11 +415,7 @@ mod dijkstra_tests {
             graph.add_edge(t, src, dst, props, None).unwrap();
         }
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let targets: Vec<&str> = vec!["D"];
             let results = dijkstra_single_source_shortest_paths(
                 graph,
@@ -460,10 +428,7 @@ mod dijkstra_tests {
             let results = results.unwrap();
             assert_eq!(results.get("D").unwrap().0, Prop::U64(7u64));
             assert_eq!(results.get("D").unwrap().1, vec!["A", "C", "D"]);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     #[test]
@@ -480,19 +445,12 @@ mod dijkstra_tests {
             graph.add_edge(t, src, dst, props, None).unwrap();
         }
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let targets: Vec<&str> = vec!["D"];
             let results =
                 dijkstra_single_source_shortest_paths(graph, "A", targets, None, Direction::BOTH)
                     .unwrap();
             assert_eq!(results.get("D").unwrap().1, vec!["A", "C", "D"]);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 }

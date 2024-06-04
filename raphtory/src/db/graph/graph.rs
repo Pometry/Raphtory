@@ -205,14 +205,20 @@ mod db_tests {
             ArcStr, OptionAsStr, Prop,
         },
         db::{
-            api::view::{
-                time::internal::InternalTimeOps, EdgeViewOps, Layer, LayerOps, NodeViewOps,
-                StaticGraphViewOps, TimeOps,
+            api::{
+                properties::internal::ConstPropertiesOps,
+                view::{
+                    internal::{CoreGraphOps, EdgeFilterOps, TimeSemantics},
+                    time::internal::InternalTimeOps,
+                    EdgeViewOps, Layer, LayerOps, NodeViewOps, TimeOps,
+                },
             },
             graph::{edge::EdgeView, edges::Edges, node::NodeView, path::PathFromNode},
         },
         graphgen::random_attachment::random_attachment,
         prelude::{AdditionOps, PropertyAdditionOps},
+        test_storage,
+        test_utils::test_graph,
     };
     use chrono::NaiveDateTime;
     use itertools::Itertools;
@@ -225,12 +231,7 @@ mod db_tests {
     #[test]
     fn test_empty_graph() {
         let graph = Graph::new();
-
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             assert!(!graph.has_edge(1, 2));
 
             let test_time = 42;
@@ -287,10 +288,7 @@ mod db_tests {
             assert!(graph.latest_date_time().is_none());
             assert!(graph.latest_time_global().is_none());
             assert!(graph.earliest_time_global().is_none());
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     #[quickcheck]
@@ -578,11 +576,7 @@ mod db_tests {
             graph.add_edge(t, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let e = graph
                 .window(i64::MIN, i64::MAX)
                 .layers(Layer::Default)
@@ -591,10 +585,7 @@ mod db_tests {
                 .unwrap();
             assert_eq!(e.src().id(), 1u64);
             assert_eq!(e.dst().id(), 3u64);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     #[test]
@@ -613,11 +604,7 @@ mod db_tests {
         for (t, src, dst) in &vs {
             graph.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
-        let test_dir = tempfile::TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let expected = vec![(2, 3, 1), (1, 0, 0), (1, 0, 0)];
             let actual = (1..=3)
                 .map(|i| {
@@ -631,10 +618,7 @@ mod db_tests {
                 .collect::<Vec<_>>();
 
             assert_eq!(actual, expected);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     #[test]
@@ -653,12 +637,7 @@ mod db_tests {
         for (t, src, dst) in &vs {
             graph.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
-
-        let test_dir = tempfile::TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let expected = vec![(2, 3, 1), (1, 0, 0), (1, 0, 0)];
             let actual = (1..=3)
                 .map(|i| {
@@ -672,10 +651,7 @@ mod db_tests {
                 .collect::<Vec<_>>();
 
             assert_eq!(actual, expected);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     #[test]
@@ -886,11 +862,8 @@ mod db_tests {
             .add_node(3, 1, [("cool".to_string(), Prop::Bool(false))], None)
             .unwrap();
 
-        let test_dir = tempfile::TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        // FIXME: boolean properties not yet supported (Issue #48)
+        test_graph(&graph, |graph| {
             let wg = graph.window(3, 15);
             let v = wg.node(1).unwrap();
 
@@ -916,10 +889,7 @@ mod db_tests {
                 .iter()
                 .collect();
             assert_eq!(hist, vec![(0, Prop::Bool(true)), (3, Prop::Bool(false))]);
-        }
-        test(&graph);
-        // FIXME: boolean properties not yet supported (Issue #48)
-        // test(&disk_graph);
+        });
     }
 
     #[test]
@@ -930,19 +900,12 @@ mod db_tests {
             .add_edge(1, 0, 1, vec![("distance".to_string(), Prop::U32(5))], None)
             .expect("add edge");
 
-        let test_dir = tempfile::TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let e = graph.edge(0, 1).unwrap();
 
             let prop = e.properties().get("distance").unwrap();
             assert_eq!(prop, Prop::U32(5));
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     #[test]
@@ -961,12 +924,7 @@ mod db_tests {
         for (t, src, dst) in &vs {
             graph.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
-
-        let test_dir = tempfile::TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let expected = vec![
                 (vec![1, 2], vec![1, 2, 3], vec![1]),
                 (vec![1], vec![], vec![]),
@@ -984,30 +942,20 @@ mod db_tests {
                 .collect::<Vec<_>>();
 
             assert_eq!(actual, expected);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     #[test]
     fn test_time_range_on_empty_graph() {
         let graph = Graph::new();
 
-        let test_dir = tempfile::TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let rolling = graph.rolling(1, None).unwrap().collect_vec();
             assert!(rolling.is_empty());
 
             let expanding = graph.expanding(1).unwrap().collect_vec();
             assert!(expanding.is_empty());
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     #[test]
@@ -1017,21 +965,13 @@ mod db_tests {
         graph.add_node(0, "haaroon", NO_PROPS, None).unwrap();
         graph.add_node(1, "hamza", NO_PROPS, None).unwrap();
         graph.add_node(1, 831, NO_PROPS, None).unwrap();
-
-        let test_dir = tempfile::TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             assert!(graph.has_node(831));
             assert!(graph.has_node("haaroon"));
             assert!(graph.has_node("hamza"));
 
             assert_eq!(graph.count_nodes(), 3);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     #[test]
@@ -1044,11 +984,8 @@ mod db_tests {
         graph.add_edge(0, 11, 33, NO_PROPS, Some("layer2"))?;
         graph.add_edge(0, 11, 44, NO_PROPS, Some("layer2"))?;
 
-        let test_dir = tempfile::TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        // FIXME: needs multilayer support (Issue #47)
+        test_graph(&graph, |graph| {
             assert!(graph.has_edge(11, 22));
             assert!(graph.default_layer().has_edge(11, 22));
             assert!(!graph.default_layer().has_edge(11, 44));
@@ -1157,10 +1094,7 @@ mod db_tests {
             assert_eq!(to_ids(node_dft.in_neighbours()), vec![33]);
             assert!(to_ids(node1.in_neighbours()).is_empty());
             assert!(to_ids(node2.in_neighbours()).is_empty());
-        }
-        test(&graph);
-        // FIXME: needs multilayer support (Issue #47)
-        // test(&disk_graph);
+        });
         Ok(())
     }
 
@@ -1193,12 +1127,7 @@ mod db_tests {
         graph
             .add_edge(2, 1, 2, [("weight", Prop::I64(3))], None)
             .unwrap();
-
-        let test_dir = tempfile::TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let exploded = graph.edge(1, 2).unwrap().explode();
 
             let res = exploded.properties().map(|p| p.as_vec()).collect_vec();
@@ -1219,10 +1148,7 @@ mod db_tests {
                 .map(|p| p.as_vec())
                 .collect_vec();
             assert_eq!(e, expected);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     #[test]
@@ -1235,11 +1161,7 @@ mod db_tests {
         graph.add_edge(1, 1, 3, NO_PROPS, None).unwrap();
         graph.add_edge(2, 1, 3, NO_PROPS, None).unwrap();
 
-        let test_dir = tempfile::TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let mut res = graph.edge(1, 2).unwrap().earliest_time().unwrap();
             assert_eq!(res, 0);
 
@@ -1341,10 +1263,7 @@ mod db_tests {
                 .flatten()
                 .collect();
             assert_eq!(res_list, vec![2, 2]);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     #[test]
@@ -1362,11 +1281,8 @@ mod db_tests {
         graph.add_node(7, "Lord Farquaad", NO_PROPS, None).unwrap();
         graph.add_node(8, "Lord Farquaad", NO_PROPS, None).unwrap();
 
-        let test_dir = tempfile::TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        // FIXME: Node updates without properties or edges are currently not supported in disk_graph (see issue #46)
+        test_graph(&graph, |graph| {
             let times_of_one = graph.node(1).unwrap().history();
             let times_of_farquaad = graph.node("Lord Farquaad").unwrap().history();
 
@@ -1379,10 +1295,7 @@ mod db_tests {
             let windowed_times_of_farquaad = view.node("Lord Farquaad").unwrap().history();
             assert_eq!(windowed_times_of_one, [1, 2, 3, 4]);
             assert_eq!(windowed_times_of_farquaad, [4, 6, 7]);
-        }
-        test(&graph);
-        // FIXME: Node updates without properties or edges are currently not supported in disk_graph (see issue #46)
-        // test(&disk_graph);
+        });
     }
 
     #[test]
@@ -1393,12 +1306,7 @@ mod db_tests {
         graph.add_edge(2, 1, 3, NO_PROPS, None).unwrap();
         graph.add_edge(3, 1, 2, NO_PROPS, None).unwrap();
         graph.add_edge(4, 1, 4, NO_PROPS, None).unwrap();
-
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let times_of_onetwo = graph.edge(1, 2).unwrap().history();
             let times_of_four = graph.edge(1, 4).unwrap().window(1, 5).history();
             let view = graph.window(2, 5);
@@ -1407,10 +1315,7 @@ mod db_tests {
             assert_eq!(times_of_onetwo, [1, 3]);
             assert_eq!(times_of_four, [4]);
             assert!(windowed_times_of_four.is_empty());
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     #[test]
@@ -1428,11 +1333,7 @@ mod db_tests {
         graph.add_edge(9, 1, 4, NO_PROPS, None).unwrap();
         graph.add_edge(10, 1, 4, NO_PROPS, None).unwrap();
 
-        let test_dir = tempfile::TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let times_of_onetwo = graph.edge(1, 2).unwrap().history();
             let times_of_four = graph.edge(1, 4).unwrap().window(1, 5).history();
             let times_of_outside_window = graph.edge(1, 4).unwrap().window(1, 4).history();
@@ -1448,10 +1349,7 @@ mod db_tests {
             assert!(times_of_outside_window.is_empty());
             assert_eq!(windowed_times_of_four, [4]);
             assert_eq!(windowed_times_of_four_higher, [8, 9, 10]);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     #[test]
@@ -1474,11 +1372,8 @@ mod db_tests {
         graph.add_node(7, "Lord Farquaad", NO_PROPS, None).unwrap();
         graph.add_node(8, "Lord Farquaad", NO_PROPS, None).unwrap();
 
-        let test_dir = tempfile::TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        // FIXME: Issue #46
+        test_graph(&graph, |graph| {
             let times_of_one = graph.node(1).unwrap().history();
             let times_of_farquaad = graph.node("Lord Farquaad").unwrap().history();
             let times_of_upper = graph.node(2).unwrap().history();
@@ -1495,10 +1390,7 @@ mod db_tests {
             assert_eq!(windowed_times_of_one, [1, 2, 3, 4]);
             assert_eq!(windowed_times_of_farquaad, [4, 6, 7]);
             assert_eq!(windowed_times_of_two, [5, 6, 7]);
-        }
-        test(&graph);
-        // FIXME: Issue #46
-        // test(&disk_graph);
+        });
     }
 
     #[derive(Debug)]
@@ -1740,12 +1632,7 @@ mod db_tests {
         graph
             .add_edge(3, 1, 2, vec![("weight".to_string(), Prop::I64(3))], None)
             .unwrap();
-
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let e = graph.node(1).unwrap().out_edges().iter().next().unwrap();
             let res: HashMap<ArcStr, Vec<(i64, Prop)>> = e
                 .window(1, 3)
@@ -1761,10 +1648,7 @@ mod db_tests {
                 vec![(1, Prop::I64(1)), (2, Prop::I64(2))],
             );
             assert_eq!(res, exp);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     #[test]
@@ -1774,11 +1658,8 @@ mod db_tests {
         graph.add_node(2, 1, NO_PROPS, None).unwrap();
         graph.add_node(3, 1, NO_PROPS, None).unwrap();
 
-        let test_dir = tempfile::TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        // FIXME: Node add without properties not showing up (Issue #46)
+        test_graph(&graph, |graph| {
             assert_eq!(graph.node(1).unwrap().earliest_time(), Some(1));
             assert_eq!(graph.node(1).unwrap().latest_time(), Some(3));
 
@@ -1790,10 +1671,7 @@ mod db_tests {
 
             assert_eq!(graph.after(2).node(1).unwrap().earliest_time(), Some(3));
             assert_eq!(graph.after(2).node(1).unwrap().latest_time(), Some(3));
-        }
-        test(&graph);
-        // FIXME: Node add without properties not showing up (Issue #46)
-        // test(&disk_graph);
+        })
     }
 
     #[test]
@@ -1803,19 +1681,13 @@ mod db_tests {
         graph.add_node(1, 2, NO_PROPS, None).unwrap();
         graph.add_node(2, 3, NO_PROPS, None).unwrap();
 
-        let test_dir = tempfile::TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        // FIXME: Node add without properties not showing up (Issue #46)
+        test_graph(&graph, |graph| {
             assert_eq!(graph.nodes().id().collect::<Vec<u64>>(), vec![1, 2, 3]);
 
             let g_at = graph.at(1);
             assert_eq!(g_at.nodes().id().collect::<Vec<u64>>(), vec![1, 2]);
-        }
-        test(&graph);
-        // FIXME: Node add without properties not showing up (Issue #46)
-        // test(&disk_graph);
+        });
     }
 
     #[test]
@@ -1824,20 +1696,14 @@ mod db_tests {
         graph.add_edge(0, 0, 1, NO_PROPS, None)?;
         graph.add_edge(0, 0, 1, NO_PROPS, Some("awesome name"))?;
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        // FIXME: Needs multilayer support (Issue #47)
+        test_graph(&graph, |graph| {
             let what = graph.edges().id().collect_vec();
             assert_eq!(what, vec![(0, 1)]);
 
             let layer_names = graph.edges().layer_names().flatten().sorted().collect_vec();
             assert_eq!(layer_names, vec!["_default", "awesome name"]);
-        }
-        test(&graph);
-        // FIXME: Needs multilayer support (Issue #47)
-        // test(&disk_graph);
+        });
         Ok(())
     }
 
@@ -1846,17 +1712,11 @@ mod db_tests {
         let graph = Graph::new();
         graph.add_edge(0, 1, 2, NO_PROPS, Some("layer")).unwrap();
 
-        let test_dir = tempfile::TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        // FIXME: Needs multilayer support (Issue #47)
+        test_graph(&graph, |graph| {
             assert!(graph.edge(1, 2).is_some());
             assert!(graph.layers("layer").unwrap().edge(1, 2).is_some())
-        }
-        test(&graph);
-        // FIXME: Needs multilayer support (Issue #47)
-        // test(&disk_graph);
+        });
     }
 
     #[test]
@@ -1871,11 +1731,8 @@ mod db_tests {
             .expect("add edge");
         graph.add_edge(1, 1, 4, NO_PROPS, None).expect("add edge");
 
-        let test_dir = tempfile::TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        // FIXME: Needs multilayer support (Issue #47)
+        test_graph(&graph, |graph| {
             let g_layers = graph.layers(vec!["layer1", "layer3"]).expect("layer");
 
             assert!(g_layers.layers("layer1").unwrap().edge(1, 2).is_some());
@@ -1901,10 +1758,7 @@ mod db_tests {
             let one = g_layers2.node(1).expect("node");
             let ns = one.neighbours().iter().map(|v| v.id()).collect::<Vec<_>>();
             assert_eq!(ns, vec![2]);
-        }
-        test(&graph);
-        // FIXME: Needs multilayer support (Issue #47)
-        // test(&disk_graph);
+        });
     }
 
     #[test]
@@ -1917,11 +1771,7 @@ mod db_tests {
             graph.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
 
-        let test_dir = tempfile::TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let windowed_graph = graph.window(0, 5);
             let one = windowed_graph.node(1).expect("node");
             let ns_win = one.neighbours().id().collect::<Vec<_>>();
@@ -1930,10 +1780,7 @@ mod db_tests {
             let ns = one.neighbours().id().collect::<Vec<_>>();
             assert_eq!(ns, vec![2, 3]);
             assert_eq!(ns_win, ns);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     #[test]
@@ -1944,11 +1791,8 @@ mod db_tests {
         graph.add_edge(2, 1, 2, NO_PROPS, Some("layer1")).unwrap();
         graph.add_edge(3, 1, 2, NO_PROPS, None).unwrap();
 
-        let test_dir = tempfile::TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        // FIXME: Needs multilayer support (Issue #47)
+        test_graph(&graph, |graph| {
             let e = graph.edge(1, 2).expect("edge");
 
             let layer_exploded = e
@@ -1963,10 +1807,7 @@ mod db_tests {
                 .collect::<Vec<_>>();
 
             assert_eq!(layer_exploded, vec![(1, 2, 0), (1, 2, 1), (1, 2, 2)]);
-        }
-        test(&graph);
-        // FIXME: Needs multilayer support (Issue #47)
-        // test(&disk_graph);
+        });
     }
 
     #[test]
@@ -1977,11 +1818,8 @@ mod db_tests {
         graph.add_edge(2, 1, 2, NO_PROPS, Some("layer1")).unwrap();
         graph.add_edge(3, 1, 2, NO_PROPS, None).unwrap();
 
-        let test_dir = tempfile::TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        // FIXME: Needs multilayer support (Issue #47)
+        test_graph(&graph, |graph| {
             let g = graph.window(0, 3);
             let e = g.edge(1, 2).expect("edge");
 
@@ -1997,10 +1835,7 @@ mod db_tests {
                 .collect::<Vec<_>>();
 
             assert_eq!(layer_exploded, vec![(1, 2, 1), (1, 2, 2)]);
-        }
-        test(&graph);
-        // FIXME: Needs multilayer support (Issue #47)
-        // test(&disk_graph);
+        });
     }
 
     #[test]
@@ -2011,11 +1846,8 @@ mod db_tests {
         graph.add_edge(2, 1, 2, NO_PROPS, Some("layer1")).unwrap();
         graph.add_edge(3, 1, 2, NO_PROPS, None).unwrap();
 
-        let test_dir = tempfile::TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        // FIXME: Needs multilayer support (Issue #47)
+        test_graph(&graph, |graph| {
             let e = graph.edge(1, 2).expect("edge");
 
             let layer_exploded = e
@@ -2035,10 +1867,7 @@ mod db_tests {
                 layer_exploded,
                 vec![(3, 1, 2, 0), (0, 1, 2, 1), (2, 1, 2, 1), (1, 1, 2, 2)]
             );
-        }
-        test(&graph);
-        // FIXME: Needs multilayer support (Issue #47)
-        // test(&disk_graph);
+        });
     }
 
     #[test]
@@ -2049,11 +1878,8 @@ mod db_tests {
         graph.add_edge(2, 1, 2, NO_PROPS, Some("layer1")).unwrap();
         graph.add_edge(3, 1, 2, NO_PROPS, None).unwrap();
 
-        let test_dir = tempfile::TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        // FIXME: Needs multilayer support (Issue #47)
+        test_graph(&graph, |graph| {
             let g = graph.window(0, 3);
             let e = g.edge(1, 2).expect("edge");
 
@@ -2074,10 +1900,7 @@ mod db_tests {
                 layer_exploded,
                 vec![(0, 1, 2, 1), (2, 1, 2, 1), (1, 1, 2, 2)]
             );
-        }
-        test(&graph);
-        // FIXME: Needs multilayer support (Issue #47)
-        // test(&disk_graph);
+        });
     }
 
     #[test]
@@ -2094,11 +1917,8 @@ mod db_tests {
             .add_edge(1, 1, 2, [("tx_sent", 70u64)], "tether".into())
             .expect("failed");
 
-        let test_dir = tempfile::TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        // FIXME: Needs multilayer support (Issue #47)
+        test_graph(&graph, |graph| {
             let e = graph.edge(1, 2).expect("failed to get edge");
             let sum: u64 = e
                 .properties()
@@ -2170,10 +1990,7 @@ mod db_tests {
 
             // layer does not have a way to reset yet!
             assert_eq!(eth_sum, 20);
-        }
-        test(&graph);
-        // FIXME: Needs multilayer support (Issue #47)
-        // test(&disk_graph);
+        });
     }
 
     #[test]
@@ -2181,11 +1998,8 @@ mod db_tests {
         let graph = Graph::new();
         graph.add_edge(0, 1, 2, NO_PROPS, Some("layer1")).unwrap();
         graph.add_edge(0, 1, 2, NO_PROPS, Some("layer2")).unwrap();
-        let test_dir = tempfile::TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             assert_eq!(
                 graph
                     .layers("layer2")
@@ -2194,23 +2008,21 @@ mod db_tests {
                     .collect_vec(),
                 vec!["layer2"]
             )
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
-    //TODO this needs to be fixed as part of the algorithm result switch to returning noderefs
-    // #[quickcheck]
-    // fn node_from_id_is_consistent(nodes: Vec<u64>) -> bool {
-    //     let g = Graph::new();
-    //     for v in nodes.iter() {
-    //         g.add_node(0, *v, NO_PROPS, None).unwrap();
-    //     }
-    //     g.nodes()
-    //         .name()
-    //         .map(|name| g.node(name))
-    //         .all(|v| v.is_some())
-    // }
+
+    #[quickcheck]
+    fn node_from_id_is_consistent(nodes: Vec<u64>) -> bool {
+        let g = Graph::new();
+        for v in nodes.iter() {
+            g.add_node(0, *v, NO_PROPS, None).unwrap();
+        }
+        g.nodes()
+            .name()
+            .into_iter()
+            .map(|name| g.node(name))
+            .all(|v| v.is_some())
+    }
 
     #[quickcheck]
     fn exploded_edge_times_is_consistent(edges: Vec<(u64, u64, Vec<i64>)>, offset: i64) -> bool {
@@ -2313,11 +2125,7 @@ mod db_tests {
         graph.add_edge(2, 3, 4, [("layer", 2)], Some("2")).unwrap();
         graph.add_edge(0, 1, 3, [("layer", 2)], Some("2")).unwrap();
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let v = graph.node(1).unwrap();
 
             // filtering resets on neighbours
@@ -2371,12 +2179,10 @@ mod db_tests {
                 .id()
                 .collect();
             assert!(out_out_2.is_empty());
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
 
-        fn test2<G: StaticGraphViewOps>(graph: &G) {
+        // FIXME: requires multilayer edge view (Issue #47)
+        test_graph(&graph, |graph| {
             let v = graph.node(1).unwrap();
             let out_out: Vec<_> = v
                 .at(0)
@@ -2407,11 +2213,7 @@ mod db_tests {
                 .out_degree()
                 .collect();
             assert_eq!(degrees, [1]);
-        }
-
-        test2(&graph);
-        // FIXME: requires multilayer edge view (Issue #47)
-        // test2(&disk_graph);
+        });
     }
 
     #[test]
@@ -2423,20 +2225,14 @@ mod db_tests {
         graph.add_edge(2, 3, 4, [("layer", 2)], Some("2")).unwrap();
         graph.add_edge(0, 1, 3, [("layer", 2)], Some("2")).unwrap();
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        // FIXME: Requires mutlilayer edge views
+        test_graph(&graph, |graph| {
             let wl = graph.window(0, 3).layers(vec!["1", "2"]).unwrap();
             assert_eq!(
                 weakly_connected_components(&wl, 10, None).get_all_values(),
                 [1, 1, 1, 1]
             );
-        }
-        test(&graph);
-        // FIXME: Requires mutlilayer edge views
-        // test(&disk_graph);
+        });
     }
 
     #[test]
@@ -2468,11 +2264,8 @@ mod db_tests {
             .add_edge(0, 0, 2, NO_PROPS, Some("awesome layer"))
             .unwrap();
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        // FIXME: Needs multilayer support (Issue #47)
+        test_graph(&graph, |graph| {
             assert_eq!(
                 graph.edge(0, 1).unwrap().layer_names().collect_vec(),
                 ["_default"]
@@ -2481,10 +2274,7 @@ mod db_tests {
                 graph.edge(0, 2).unwrap().layer_names().collect_vec(),
                 ["awesome layer"]
             );
-        }
-        test(&graph);
-        // FIXME: Needs multilayer support (Issue #47)
-        // test(&disk_graph);
+        });
     }
 
     #[test]

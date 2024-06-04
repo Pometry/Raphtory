@@ -93,11 +93,10 @@ where
 #[cfg(test)]
 mod cc_test {
     use super::*;
-    use crate::{db::api::mutation::AdditionOps, prelude::*};
+    use crate::{db::api::mutation::AdditionOps, prelude::*, test_storage};
     use itertools::*;
     use quickcheck_macros::quickcheck;
     use std::{cmp::Reverse, collections::HashMap, iter::once};
-    use tempfile::TempDir;
 
     #[test]
     fn run_loop_simple_connected_components() {
@@ -117,11 +116,7 @@ mod cc_test {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let results = weakly_connected_components(graph, usize::MAX, None).get_all_with_names();
             assert_eq!(
                 results,
@@ -138,10 +133,7 @@ mod cc_test {
                 .into_iter()
                 .collect::<HashMap<String, u64>>()
             );
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     #[test]
@@ -178,11 +170,7 @@ mod cc_test {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let results = weakly_connected_components(graph, usize::MAX, None).get_all_with_names();
 
             assert_eq!(
@@ -203,10 +191,7 @@ mod cc_test {
                 .into_iter()
                 .collect::<HashMap<String, u64>>()
             );
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     // connected community_detection on a graph with 1 node and a self loop
@@ -220,11 +205,7 @@ mod cc_test {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let results = weakly_connected_components(graph, usize::MAX, None).get_all_with_names();
 
             assert_eq!(
@@ -233,10 +214,7 @@ mod cc_test {
                     .into_iter()
                     .collect::<HashMap<String, u64>>()
             );
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     #[test]
@@ -247,11 +225,7 @@ mod cc_test {
         graph.add_edge(9, 3, 4, NO_PROPS, None).expect("add edge");
         graph.add_edge(9, 4, 3, NO_PROPS, None).expect("add edge");
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let results = weakly_connected_components(graph, usize::MAX, None).get_all_with_names();
             let expected = vec![
                 ("1".to_string(), 1),
@@ -273,10 +247,7 @@ mod cc_test {
                 .collect::<HashMap<String, u64>>();
 
             assert_eq!(results, expected);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     #[quickcheck]
@@ -321,11 +292,7 @@ mod cc_test {
                 graph.add_edge(0, *src, *dst, NO_PROPS, None).unwrap();
             }
 
-            let test_dir = TempDir::new().unwrap();
-            #[cfg(feature = "storage")]
-            let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-            fn test<G: StaticGraphViewOps>(graph: &G, smallest: &u64, edges: &[(u64, u64)]) {
+            test_storage!(&graph, |graph| {
                 // now we do connected community_detection over window 0..1
                 let res = weakly_connected_components(graph, usize::MAX, None).group_by();
 
@@ -339,10 +306,7 @@ mod cc_test {
                     .unwrap();
 
                 assert_eq!(actual, (*smallest, edges.len()));
-            }
-            test(&graph, smallest, &edges);
-            #[cfg(feature = "storage")]
-            test(&disk_graph, smallest, &edges);
+            });
         }
     }
 }

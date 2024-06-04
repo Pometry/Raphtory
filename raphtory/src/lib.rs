@@ -123,3 +123,31 @@ pub mod prelude {
 pub const BINCODE_VERSION: u32 = 1u32;
 #[cfg(feature = "storage")]
 pub use polars_arrow as arrow2;
+
+#[cfg(test)]
+mod test_utils {
+    #[cfg(feature = "storage")]
+    use crate::disk_graph::graph_impl::DiskGraph;
+    use crate::prelude::Graph;
+    #[cfg(feature = "storage")]
+    use tempfile::TempDir;
+
+    pub(crate) fn test_graph(graph: &Graph, test: impl FnOnce(&Graph)) {
+        test(graph)
+    }
+
+    #[macro_export]
+    macro_rules! test_storage {
+        ($graph:expr, $test:expr) => {
+            $crate::test_utils::test_graph($graph, $test);
+            #[cfg(feature = "storage")]
+            $crate::test_utils::test_disk_graph($graph, $test);
+        };
+    }
+    #[cfg(feature = "storage")]
+    pub(crate) fn test_disk_graph(graph: &Graph, test: impl FnOnce(&DiskGraph)) {
+        let test_dir = TempDir::new().unwrap();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
+        test(&disk_graph)
+    }
+}

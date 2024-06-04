@@ -132,8 +132,8 @@ mod triangle_count_tests {
     use crate::{
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
+        test_storage,
     };
-    use tempfile::TempDir;
 
     #[test]
     fn triangle_count_1() {
@@ -160,18 +160,11 @@ mod triangle_count_tests {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let actual_tri_count = triangle_count(graph, Some(2));
 
             assert_eq!(actual_tri_count, 4)
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     #[test]
@@ -208,8 +201,9 @@ mod triangle_count_tests {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let actual_tri_count = triangle_count(&graph, None);
-
-        assert_eq!(actual_tri_count, 8)
+        test_storage!(&graph, |graph| {
+            let actual_tri_count = triangle_count(graph, None);
+            assert_eq!(actual_tri_count, 8)
+        });
     }
 }

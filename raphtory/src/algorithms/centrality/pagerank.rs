@@ -184,18 +184,15 @@ pub fn unweighted_page_rank<G: StaticGraphViewOps>(
 
 #[cfg(test)]
 mod page_rank_tests {
-    use std::borrow::Borrow;
-
-    use itertools::Itertools;
-    use pretty_assertions::assert_eq;
-    use tempfile::TempDir;
-
+    use super::*;
     use crate::{
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
+        test_storage,
     };
-
-    use super::*;
+    use itertools::Itertools;
+    use pretty_assertions::assert_eq;
+    use std::borrow::Borrow;
 
     fn load_graph() -> Graph {
         let graph = Graph::new();
@@ -212,22 +209,14 @@ mod page_rank_tests {
     fn test_page_rank() {
         let graph = load_graph();
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let results = unweighted_page_rank(graph, Some(1000), Some(1), None, true, None);
 
             assert_eq_f64(results.get("1"), Some(&0.38694), 5);
             assert_eq_f64(results.get("2"), Some(&0.20195), 5);
             assert_eq_f64(results.get("4"), Some(&0.20195), 5);
             assert_eq_f64(results.get("3"), Some(&0.20916), 5);
-        }
-
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     #[test]
@@ -264,11 +253,7 @@ mod page_rank_tests {
             graph.add_edge(t, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let results = unweighted_page_rank(graph, Some(1000), Some(4), None, true, None);
 
             assert_eq_f64(results.get("10"), Some(&0.072082), 5);
@@ -282,10 +267,7 @@ mod page_rank_tests {
             assert_eq_f64(results.get("7"), Some(&0.01638), 5);
             assert_eq_f64(results.get("9"), Some(&0.06186), 5);
             assert_eq_f64(results.get("5"), Some(&0.19658), 5);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     #[test]
@@ -298,19 +280,12 @@ mod page_rank_tests {
             graph.add_edge(t as i64, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let results = unweighted_page_rank(graph, Some(1000), Some(4), None, false, None);
 
             assert_eq_f64(results.get("1"), Some(&0.5), 3);
             assert_eq_f64(results.get("2"), Some(&0.5), 3);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     #[test]
@@ -323,20 +298,13 @@ mod page_rank_tests {
             graph.add_edge(t as i64, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let results = unweighted_page_rank(graph, Some(10), Some(4), None, false, None);
 
             assert_eq_f64(results.get("1"), Some(&0.303), 3);
             assert_eq_f64(results.get("2"), Some(&0.393), 3);
             assert_eq_f64(results.get("3"), Some(&0.303), 3);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     #[test]
@@ -367,12 +335,7 @@ mod page_rank_tests {
         for (src, dst, t) in edges {
             graph.add_edge(t, src, dst, NO_PROPS, None).unwrap();
         }
-
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let results = unweighted_page_rank(graph, Some(1000), Some(4), None, true, None);
 
             assert_eq_f64(results.get("1"), Some(&0.055), 3);
@@ -386,10 +349,7 @@ mod page_rank_tests {
             assert_eq_f64(results.get("9"), Some(&0.110), 3);
             assert_eq_f64(results.get("10"), Some(&0.117), 3);
             assert_eq_f64(results.get("11"), Some(&0.122), 3);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     fn assert_eq_f64<T: Borrow<f64> + PartialEq + std::fmt::Debug>(

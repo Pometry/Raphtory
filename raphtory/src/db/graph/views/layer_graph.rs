@@ -129,9 +129,8 @@ impl<'graph, G: GraphViewOps<'graph>> InternalLayerOps for LayeredGraph<G> {
 
 #[cfg(test)]
 mod test_layers {
-    use crate::{db::api::view::StaticGraphViewOps, prelude::*};
+    use crate::{prelude::*, test_utils::test_graph};
     use itertools::Itertools;
-    use tempfile::TempDir;
 
     #[test]
     fn test_layer_node() {
@@ -141,11 +140,8 @@ mod test_layers {
         graph.add_edge(0, 2, 3, NO_PROPS, Some("layer2")).unwrap();
         graph.add_edge(3, 2, 4, NO_PROPS, Some("layer1")).unwrap();
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        // FIXME: Needs multilayer support (Issue #47)
+        test_graph(&graph, |graph| {
             let neighbours = graph
                 .layers(vec!["layer1", "layer2"])
                 .unwrap()
@@ -195,10 +191,7 @@ mod test_layers {
                 .collect_vec();
             edges.sort();
             assert_eq!(edges, vec![(1, 2), (2, 3), (2, 4)]);
-        }
-        test(&graph);
-        // FIXME: Needs multilayer support (Issue #47)
-        // test(&disk_graph);
+        });
     }
 
     #[test]
@@ -211,11 +204,8 @@ mod test_layers {
         assert!(e1.has_layer("2"));
         assert!(e1.layers("2").unwrap().history().is_empty());
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        // FIXME: Needs multilayer support (Issue #47)
+        test_graph(&graph, |graph| {
             let e = graph.edge(1, 2).unwrap();
             // layers with non-existing layers errors
             assert!(e.layers(["1", "3"]).is_err());
@@ -229,9 +219,6 @@ mod test_layers {
             assert!(!e.has_layer("3"));
             assert!(e.valid_layers("1").has_layer("1"));
             assert!(!e.valid_layers("1").has_layer("2"));
-        }
-        test(&graph);
-        // FIXME: Needs multilayer support (Issue #47)
-        // test(&disk_graph);
+        });
     }
 }

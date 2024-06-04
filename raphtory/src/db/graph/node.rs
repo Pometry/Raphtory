@@ -374,9 +374,8 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
 
 #[cfg(test)]
 mod node_test {
-    use crate::{core::ArcStr, db::api::view::StaticGraphViewOps, prelude::*};
+    use crate::{core::ArcStr, prelude::*, test_utils::test_graph};
     use std::collections::HashMap;
-    use tempfile::TempDir;
 
     #[test]
     fn test_earliest_time() {
@@ -385,11 +384,8 @@ mod node_test {
         graph.add_node(1, 1, NO_PROPS, None).unwrap();
         graph.add_node(2, 1, NO_PROPS, None).unwrap();
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        // FIXME: Node add without properties not showing up (Issue #46)
+        test_graph(&graph, |graph| {
             let view = graph.before(2);
             assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 0);
             assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 1);
@@ -409,10 +405,7 @@ mod node_test {
             let view = graph.at(1);
             assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 1);
             assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 1);
-        }
-        test(&graph);
-        // FIXME: Node add without properties not showing up (Issue #46)
-        // test(&disk_graph);
+        });
     }
 
     #[test]
@@ -422,11 +415,8 @@ mod node_test {
         graph.add_node(0, 1, NO_PROPS, None).unwrap();
         graph.add_node(2, 1, props, None).unwrap();
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        // FIXME: Node add without properties not showing up (Issue #46)
+        test_graph(&graph, |graph| {
             let v1 = graph.node(1).unwrap();
             let v1_w = graph.window(0, 1).node(1).unwrap();
             assert_eq!(
@@ -434,10 +424,7 @@ mod node_test {
                 [(ArcStr::from("test"), Prop::str("test"))].into()
             );
             assert_eq!(v1_w.properties().as_map(), HashMap::default())
-        }
-        test(&graph);
-        // FIXME: Node add without properties not showing up (Issue #46)
-        // test(&disk_graph);
+        });
     }
 
     #[test]

@@ -204,8 +204,10 @@ pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: InputNode>(
 #[cfg(test)]
 mod generic_taint_tests {
     use super::*;
-    use crate::db::{api::mutation::AdditionOps, graph::graph::Graph};
-    use tempfile::TempDir;
+    use crate::{
+        db::{api::mutation::AdditionOps, graph::graph::Graph},
+        test_storage,
+    };
 
     fn sort_inner_by_string(
         data: HashMap<String, Vec<(i64, String)>>,
@@ -260,11 +262,7 @@ mod generic_taint_tests {
             (10, 5, 8),
         ]);
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let results = sort_inner_by_string(test_generic_taint(graph, 20, 11, vec![2], None));
             let expected: Vec<(String, Vec<(i64, String)>)> = Vec::from([
                 ("1".to_string(), vec![]),
@@ -283,10 +281,7 @@ mod generic_taint_tests {
                 ("8".to_string(), vec![]),
             ]);
             assert_eq!(results, expected);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     #[test]
@@ -304,11 +299,7 @@ mod generic_taint_tests {
             (10, 5, 8),
         ]);
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let results = sort_inner_by_string(test_generic_taint(graph, 20, 11, vec![1, 2], None));
             let expected: Vec<(String, Vec<(i64, String)>)> = Vec::from([
                 ("1".to_string(), vec![(11i64, "start".to_string())]),
@@ -330,10 +321,7 @@ mod generic_taint_tests {
                 ("8".to_string(), vec![]),
             ]);
             assert_eq!(results, expected);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     #[test]
@@ -351,11 +339,7 @@ mod generic_taint_tests {
             (10, 5, 8),
         ]);
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let results = sort_inner_by_string(test_generic_taint(
                 graph,
                 20,
@@ -377,10 +361,7 @@ mod generic_taint_tests {
                 ("8".to_string(), vec![]),
             ]);
             assert_eq!(results, expected);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     #[test]
@@ -400,11 +381,7 @@ mod generic_taint_tests {
             (10, 5, 8),
         ]);
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let results = sort_inner_by_string(test_generic_taint(
                 graph,
                 20,
@@ -430,9 +407,6 @@ mod generic_taint_tests {
                 ("8".to_string(), vec![]),
             ]);
             assert_eq!(results, expected);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 }

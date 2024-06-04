@@ -301,15 +301,15 @@ mod time_tests {
                 mutation::AdditionOps,
                 view::{
                     time::{internal::InternalTimeOps, WindowSet},
-                    StaticGraphViewOps, TimeOps,
+                    TimeOps,
                 },
             },
             graph::graph::Graph,
         },
         prelude::{GraphViewOps, NO_PROPS},
+        test_storage,
     };
     use itertools::Itertools;
-    use tempfile::TempDir;
 
     // start inclusive, end exclusive
     fn graph_with_timeline(start: i64, end: i64) -> Graph {
@@ -334,94 +334,53 @@ mod time_tests {
     #[test]
     fn rolling() {
         let graph = graph_with_timeline(1, 7);
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test1<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let windows = graph.rolling(2, None).unwrap();
             let expected = vec![(Some(1), Some(3)), (Some(3), Some(5)), (Some(5), Some(7))];
             assert_bounds(windows, expected);
-        }
-        test1(&graph);
-        #[cfg(feature = "storage")]
-        test1(&disk_graph);
+        });
 
         let graph = graph_with_timeline(1, 6);
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test2<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let windows = graph.rolling(3, Some(2)).unwrap();
             let expected = vec![(Some(0), Some(3)), (Some(2), Some(5)), (Some(4), Some(7))];
             assert_bounds(windows, expected.clone());
-        }
-        test2(&graph);
-        #[cfg(feature = "storage")]
-        test2(&disk_graph);
+        });
 
         let graph = graph_with_timeline(0, 9);
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-        fn test3<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let windows = graph.window(1, 6).rolling(3, Some(2)).unwrap();
             assert_bounds(
                 windows,
                 vec![(Some(1), Some(3)), (Some(2), Some(5)), (Some(4), Some(6))],
             );
-        }
-        test3(&graph);
-        #[cfg(feature = "storage")]
-        test3(&disk_graph);
+        });
     }
 
     #[test]
     fn expanding() {
         let graph = graph_with_timeline(1, 7);
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test1<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let windows = graph.expanding(2).unwrap();
             let expected = vec![(None, Some(3)), (None, Some(5)), (None, Some(7))];
             assert_bounds(windows, expected);
-        }
-        test1(&graph);
-        #[cfg(feature = "storage")]
-        test1(&disk_graph);
+        });
 
         let graph = graph_with_timeline(1, 6);
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test2<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let windows = graph.expanding(2).unwrap();
             let expected = vec![(None, Some(3)), (None, Some(5)), (None, Some(7))];
             assert_bounds(windows, expected.clone());
-        }
-        test2(&graph);
-        #[cfg(feature = "storage")]
-        test2(&disk_graph);
+        });
 
         let graph = graph_with_timeline(0, 9);
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test3<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let windows = graph.window(1, 6).expanding(2).unwrap();
             assert_bounds(
                 windows,
                 vec![(Some(1), Some(3)), (Some(1), Some(5)), (Some(1), Some(6))],
             );
-        }
-        test3(&graph);
-        #[cfg(feature = "storage")]
-        test3(&disk_graph);
+        });
     }
 
     #[test]
@@ -429,11 +388,7 @@ mod time_tests {
         let start = "2020-06-06 00:00:00".try_into_time().unwrap();
         let end = "2020-06-07 23:59:59.999".try_into_time().unwrap();
         let graph = graph_with_timeline(start, end);
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test1<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let windows = graph.rolling("1 day", None).unwrap();
             let expected = vec![
                 (
@@ -446,19 +401,12 @@ mod time_tests {
                 ),
             ];
             assert_bounds(windows, expected);
-        }
-        test1(&graph);
-        #[cfg(feature = "storage")]
-        test1(&disk_graph);
+        });
 
         let start = "2020-06-06 00:00:00".try_into_time().unwrap();
         let end = "2020-06-08 00:00:00".try_into_time().unwrap();
         let graph = graph_with_timeline(start, end);
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test2<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let windows = graph.rolling("1 day", None).unwrap();
             let expected = vec![
                 (
@@ -471,10 +419,7 @@ mod time_tests {
                 ),
             ];
             assert_bounds(windows, expected);
-        }
-        test2(&graph);
-        #[cfg(feature = "storage")]
-        test2(&disk_graph);
+        });
 
         // TODO: turn this back on if we bring bach epoch alignment for unwindowed graphs
         // let start = "2020-06-05 23:59:59.999".into_time().unwrap();
@@ -499,39 +444,25 @@ mod time_tests {
         let start = "2020-06-06 00:00:00".try_into_time().unwrap();
         let end = "2020-06-07 23:59:59.999".try_into_time().unwrap();
         let graph = graph_with_timeline(start, end);
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test1<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let windows = graph.expanding("1 day").unwrap();
             let expected = vec![
                 (None, "2020-06-07 00:00:00".try_into_time().ok()),
                 (None, "2020-06-08 00:00:00".try_into_time().ok()),
             ];
             assert_bounds(windows, expected);
-        }
-        test1(&graph);
-        #[cfg(feature = "storage")]
-        test1(&disk_graph);
+        });
 
         let start = "2020-06-06 00:00:00".try_into_time().unwrap();
         let end = "2020-06-08 00:00:00".try_into_time().unwrap();
         let graph = graph_with_timeline(start, end);
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test2<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let windows = graph.expanding("1 day").unwrap();
             let expected = vec![
                 (None, "2020-06-07 00:00:00".try_into_time().ok()),
                 (None, "2020-06-08 00:00:00".try_into_time().ok()),
             ];
             assert_bounds(windows, expected);
-        }
-        test2(&graph);
-        #[cfg(feature = "storage")]
-        test2(&disk_graph);
+        });
     }
 }
