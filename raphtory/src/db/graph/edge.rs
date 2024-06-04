@@ -420,7 +420,10 @@ mod test_edge {
         test_storage!(&graph, |graph| {
             let e1 = graph.edge(1, 2).unwrap();
             let e1_w = graph.window(0, 1).edge(1, 2).unwrap();
-            assert_eq!(HashMap::from_iter(e1.properties().as_vec()), props.into());
+            assert_eq!(
+                HashMap::from_iter(e1.properties().as_vec()),
+                props.clone().into()
+            );
             assert!(e1_w.properties().as_vec().is_empty())
         });
     }
