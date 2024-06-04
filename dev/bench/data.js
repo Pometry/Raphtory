@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1717509964921,
+  "lastUpdate": 1717533812754,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -52555,6 +52555,66 @@ window.BENCHMARK_DATA = {
             "name": "temporal_motifs/temporal_motifs",
             "value": 21042823,
             "range": "± 405624",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "Haaroon@users.noreply.github.com",
+            "name": "Haaroon Y",
+            "username": "Haaroon"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e42c74ace171c26aa32ad4cf19ef3860cb42c9d9",
+          "message": "Update readme.md (#1636)\n\n* Update readme.md\r\n\r\n* Update readme.md\r\n\r\n* allow tenant to use public-scope\r\n\r\n* allow tenant to use public-scope",
+          "timestamp": "2024-06-04T21:32:33+01:00",
+          "tree_id": "a7f1ab4641736748e13fb8f42cc61edddf26c900",
+          "url": "https://github.com/Pometry/Raphtory/commit/e42c74ace171c26aa32ad4cf19ef3860cb42c9d9"
+        },
+        "date": 1717533810675,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "local_triangle_count/local_triangle_count",
+            "value": 937719,
+            "range": "± 36194",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "local_clustering_coefficient/local_clustering_coefficient",
+            "value": 108540,
+            "range": "± 775",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_clustering_coeff/graphgen_large_clustering_coeff/Graph(num_nodes=500004, num_edges=20...",
+            "value": 2449948248,
+            "range": "± 72300913",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_pagerank/graphgen_large_pagerank/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 280992607,
+            "range": "± 6893108",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_concomp/graphgen_large_concomp/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 2537120508,
+            "range": "± 78663948",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "temporal_motifs/temporal_motifs",
+            "value": 21289045,
+            "range": "± 351413",
             "unit": "ns/iter"
           }
         ]
