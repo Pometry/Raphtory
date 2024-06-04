@@ -23,6 +23,8 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 once_cell = { workspace = true }
 poem = { workspace = true }
+poem-openapi = { workspace = true }
+oauth2 = { workspace = true }
 tokio = { workspace = true }
 async-graphql = { workspace = true, features=["apollo_tracing"] }
 dynamic-graphql = { workspace = true }
@@ -30,6 +32,7 @@ async-graphql-poem = { workspace = true }
 parking_lot = { workspace = true }
 futures-util = { workspace = true }
 async-stream = { workspace = true }
+jsonwebtoken = { workspace = true }
 opentelemetry = { workspace = true }
 opentelemetry_sdk = { workspace = true }
 opentelemetry-jaeger = { workspace = true }
@@ -42,6 +45,10 @@ uuid = { workspace = true }
 chrono = { workspace = true }
 config = { workspace = true }
 toml = { workspace = true }
+url = { workspace = true }
+base64-compat = { workspace = true }
+time = { workspace = true }
+reqwest = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

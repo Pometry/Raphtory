@@ -7,6 +7,8 @@ mod observability;
 mod routes;
 pub mod server;
 
+pub mod azure_auth;
+
 mod data;
 
 #[derive(thiserror::Error, Debug)]
