@@ -3924,6 +3924,8 @@ dependencies = [
  "opaque-debug",
  "universal-hash",
 ]
+
+[[package]]
 name = "pometry-storage"
 version = "0.8.1"
 
