@@ -77,7 +77,17 @@ To enable authentication for the Raphtory-GraphQL server, you need to set up a `
 6. **Set the redirection URLS**
     - Next you need to set the redirection URLs, Go to the Manage > Authentication and add the following, note you can change `http://localhost:1736` to a custom url if it is different
     - "http://localhost:1736/"
-    - "http://localhost:1736/auth/callback" 
+    - "http://localhost:1736/auth/callback"
+  
+7. **Set some permissions**
+    - Next we need to set some permissions onto the application so we able to use it.
+    - Go to Manage > Expose an API > Add a scope
+          - Set Scope NAme, Admin Consent Display name and Admin consent description to "public-scope" without quotes
+          - Set Who can consent? To Admin and Users,
+          - Click Add Scope
+   - Go to Manage > API Permissions. Then remove any existing permissions include the Microsoft Graph default permissions.
+   - Now the next step, if you just made the scope it may not show up and can take a while, wait 10-20 mins, refresh the page and return if you do not see the app
+   - Click Add a permission > Under APIs my organization uses > type in the name of your app, and click on the name, you will see it comes up with a "Select permissions" page, select the "public-scope" permission we just made and finally click "Add permissions" on the bottom of the page 
 
 #### Example .env File
 
