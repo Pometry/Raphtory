@@ -424,10 +424,9 @@ mod test {
             ComID, ModularityFunction, ModularityUnDir, Partition,
         },
         core::entities::VID,
-        db::api::view::StaticGraphViewOps,
         prelude::*,
+        test_storage,
     };
-    use tempfile::TempDir;
 
     #[test]
     fn test_delta() {
@@ -435,11 +434,7 @@ mod test {
         graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         graph.add_edge(0, 2, 1, NO_PROPS, None).unwrap();
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let mut m = ModularityUnDir::new(
                 graph,
                 None,
@@ -453,10 +448,7 @@ mod test {
             println!("delta: {delta}");
             m.move_node(&VID(0), ComID(1));
             assert_eq!(m.value(), old_value + delta)
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     #[test]
@@ -469,11 +461,7 @@ mod test {
         graph.add_edge(0, 0, 3, NO_PROPS, None).unwrap();
         graph.add_edge(0, 3, 0, NO_PROPS, None).unwrap();
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let partition = Partition::from_iter([0usize, 0, 1, 1]);
             let mut m = ModularityUnDir::new(graph, None, 1.0, partition, 1e-8);
             let value_before = m.value();
@@ -486,9 +474,6 @@ mod test {
             let value_merged = m.value();
             assert_eq!(value_merged, 0.0);
             assert!((value_merged - (value_after + delta)).abs() < 1e-8);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 }

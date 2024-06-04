@@ -465,8 +465,7 @@ impl<'graph, G: GraphViewOps<'graph> + 'graph> OneHopFilter<'graph> for G {
 
 #[cfg(test)]
 mod test_exploded_edges {
-    use crate::{db::api::view::StaticGraphViewOps, prelude::*};
-    use tempfile::TempDir;
+    use crate::{prelude::*, test_storage};
 
     #[test]
     fn test_exploded_edges() {
@@ -475,28 +474,18 @@ mod test_exploded_edges {
         graph.add_edge(1, 0, 1, NO_PROPS, None).unwrap();
         graph.add_edge(2, 0, 1, NO_PROPS, None).unwrap();
         graph.add_edge(3, 0, 1, NO_PROPS, None).unwrap();
-
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             assert_eq!(graph.count_temporal_edges(), 4)
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 }
 
 #[cfg(test)]
 mod test_materialize {
     use crate::{
-        core::OptionAsStr,
-        db::api::view::{internal::CoreGraphOps, StaticGraphViewOps},
-        prelude::*,
+        core::OptionAsStr, db::api::view::internal::CoreGraphOps, prelude::*,
+        test_utils::test_graph,
     };
-    use tempfile::TempDir;
 
     #[test]
     fn test_materialize() {
@@ -571,10 +560,9 @@ mod test_materialize {
         let graph = Graph::new();
         graph.add_node(0, "A", NO_PROPS, None).unwrap();
         graph.add_node(1, "B", NO_PROPS, Some("H")).unwrap();
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+
+        // FIXME: Node types not yet supported (Issue #51)
+        test_graph(&graph, |graph| {
             let node_a = graph.node("A").unwrap();
             let node_b = graph.node("B").unwrap();
             let node_a_type = node_a.node_type();
@@ -582,10 +570,7 @@ mod test_materialize {
 
             assert_eq!(node_a_type_str, None);
             assert_eq!(node_b.node_type().as_str(), Some("H"));
-        }
-        test(&graph);
-        // FIXME: Node types not yet supported (Issue #51)
-        // test(&disk_graph);
+        });
 
         // Nodes with No type can be overwritten
         let node_a = graph.add_node(1, "A", NO_PROPS, Some("TYPEA")).unwrap();

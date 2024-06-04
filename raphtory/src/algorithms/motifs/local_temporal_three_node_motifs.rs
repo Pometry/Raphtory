@@ -388,8 +388,8 @@ mod motifs_test {
     use crate::{
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
+        test_storage,
     };
-    use tempfile::TempDir;
 
     fn load_graph(edges: Vec<(i64, u64, u64)>) -> Graph {
         let graph = Graph::new();
@@ -509,11 +509,7 @@ mod motifs_test {
     fn test_local_motif() {
         let graph = load_sample_graph();
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let binding = temporal_three_node_motif(graph, Vec::from([10]), None);
             let actual = binding
                 .iter()
@@ -607,10 +603,7 @@ mod motifs_test {
                     expected.get(&ind.to_string()).unwrap()
                 );
             }
-        }
-        #[cfg(feature = "arrow")]
-        test(&arrow_graph);
-        test(&graph);
+        });
     }
 
     #[test]

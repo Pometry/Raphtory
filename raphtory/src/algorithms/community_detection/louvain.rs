@@ -66,11 +66,10 @@ pub fn louvain<'graph, M: ModularityFunction, G: GraphViewOps<'graph>>(
 mod test {
     use crate::{
         algorithms::community_detection::{louvain::louvain, modularity::ModularityUnDir},
-        db::api::view::StaticGraphViewOps,
         prelude::*,
+        test_storage,
     };
     use proptest::prelude::*;
-    use tempfile::TempDir;
 
     #[test]
     fn test_louvain() {
@@ -99,17 +98,11 @@ mod test {
                 .add_edge(1, dst, src, [("weight", weight)], None)
                 .unwrap();
         }
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let result = louvain::<ModularityUnDir, _>(graph, 1.0, Some("weight"), None);
             assert!(graph.nodes().iter().all(|n| result.get(n).is_some()));
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     fn test_all_nodes_assigned_inner_unweighted(edges: Vec<(u64, u64)>) {
@@ -119,17 +112,10 @@ mod test {
             graph.add_edge(1, dst, src, NO_PROPS, None).unwrap();
         }
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let result = louvain::<ModularityUnDir, _>(graph, 1.0, None, None);
             assert!(graph.nodes().iter().all(|n| result.get(n).is_some()));
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     proptest! {
@@ -168,16 +154,9 @@ mod test {
             })
             .unwrap();
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let result = louvain::<ModularityUnDir, _>(graph, 1.0, None, None);
             println!("{result:?}")
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 }

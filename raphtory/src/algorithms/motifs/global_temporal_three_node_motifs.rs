@@ -308,8 +308,8 @@ mod motifs_test {
     use crate::{
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
+        test_storage,
     };
-    use tempfile::TempDir;
 
     fn load_graph(edges: Vec<(i64, u64, u64)>) -> Graph {
         let graph = Graph::new();
@@ -350,11 +350,7 @@ mod motifs_test {
             (23, 11, 9),
         ]);
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let global_motifs = &temporal_three_node_motif_multi(graph, vec![10], None);
 
             let expected: [usize; 40] = vec![
@@ -367,9 +363,6 @@ mod motifs_test {
             .try_into()
             .unwrap();
             assert_eq!(global_motifs[0], expected);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 }

@@ -77,7 +77,7 @@ fn find_max_label(label_count: &BTreeMap<u64, f64>) -> Option<u64> {
 #[cfg(test)]
 mod lpa_tests {
     use super::*;
-    use tempfile::TempDir;
+    use crate::test_storage;
 
     #[test]
     fn lpa_test() {
@@ -98,11 +98,8 @@ mod lpa_tests {
         for (ts, src, dst) in edges {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let seed = Some([5; 32]);
             let result = label_propagation(graph, seed).unwrap();
             let expected = vec![
@@ -123,9 +120,6 @@ mod lpa_tests {
             for hashset in expected {
                 assert!(result.contains(&hashset));
             }
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 }
