@@ -73,6 +73,11 @@ To enable authentication for the Raphtory-GraphQL server, you need to set up a `
 
 5. **Set the Authority:**
     - The `AUTHORITY` is typically in the format `https://login.microsoftonline.com/{TENANT_ID}`.
+  
+6. **Set the redirection URLS**
+    - Next you need to set the redirection URLs, Go to the Manage > Authentication and add the following, note you can change `http://localhost:1736` to a custom url if it is different
+    - "http://localhost:1736/"
+    - "http://localhost:1736/auth/callback" 
 
 #### Example .env File
 
