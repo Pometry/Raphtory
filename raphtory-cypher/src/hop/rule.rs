@@ -10,18 +10,18 @@ use datafusion::{
     physical_plan::ExecutionPlan,
     physical_planner::{DefaultPhysicalPlanner, ExtensionPlanner, PhysicalPlanner},
 };
-use raphtory::{arrow::graph_impl::ArrowGraph, core::Direction};
+use raphtory::{core::Direction, disk_graph::graph_impl::DiskGraph};
 
 use crate::hop::operator::HopPlan;
 
 use super::execution::HopExec;
 
 pub struct HopRule {
-    pub graph: ArrowGraph,
+    pub graph: DiskGraph,
 }
 
 impl HopRule {
-    pub fn new(graph: ArrowGraph) -> Self {
+    pub fn new(graph: DiskGraph) -> Self {
         Self { graph }
     }
 }
@@ -141,7 +141,7 @@ impl ExtensionPlanner for HopPlanner {
 #[cfg(test)]
 mod test {
     use arrow::util::pretty::print_batches;
-    use raphtory::arrow::graph_impl::ArrowGraph;
+    use raphtory::disk_graph::graph_impl::DiskGraph;
     use tempfile::tempdir;
 
     use crate::prepare_plan;
@@ -150,7 +150,7 @@ mod test {
     async fn double_hop_edge_to_edge() {
         let graph_dir = tempdir().unwrap();
         let edges = vec![(0u64, 1u64, 0i64, 2.)];
-        let g = ArrowGraph::make_simple_graph(graph_dir, &edges, 10, 10);
+        let g = DiskGraph::make_simple_graph(graph_dir, &edges, 10, 10);
         let (_, plan) = prepare_plan("MATCH ()-[e1]->()-[e2]->() RETURN *", &g, true)
             .await
             .unwrap();
@@ -162,7 +162,7 @@ mod test {
     async fn double_hop_edge_to_edge_with_pushdown_filter_e2() {
         let graph_dir = tempdir().unwrap();
         let edges = vec![(0u64, 1u64, 0i64, 2.)];
-        let g = ArrowGraph::make_simple_graph(graph_dir, &edges, 10, 10);
+        let g = DiskGraph::make_simple_graph(graph_dir, &edges, 10, 10);
         let (_, plan) = prepare_plan(
             "MATCH ()-[e1]->()-[e2]->() WHERE e2.weight > 5 RETURN *",
             &g,
@@ -178,7 +178,7 @@ mod test {
     async fn double_hop_edge_to_edge_with_pushdown_filter_e1() {
         let graph_dir = tempdir().unwrap();
         let edges = vec![(0u64, 1u64, 0i64, 2.)];
-        let g = ArrowGraph::make_simple_graph(graph_dir, &edges, 10, 10);
+        let g = DiskGraph::make_simple_graph(graph_dir, &edges, 10, 10);
         let (_, plan) = prepare_plan(
             "MATCH ()-[e1]->()-[e2]->() WHERE e1.weight > 5 RETURN *",
             &g,
@@ -200,7 +200,7 @@ mod test {
         // +----+----------+-----+-----+----------+--------+----+----------+-----+-----+----------+--------+
         let graph_dir = tempdir().unwrap();
         let edges = vec![(0u64, 1u64, 0i64, 2.), (1, 2, 1, 3.), (2, 3, 2, 4.)];
-        let g = ArrowGraph::make_simple_graph(graph_dir, &edges, 10, 10);
+        let g = DiskGraph::make_simple_graph(graph_dir, &edges, 10, 10);
 
         // let (ctx, plan) = prepare_plan("MATCH ()-[e1]->() RETURN *", &g)
         let (ctx, plan) = prepare_plan("MATCH ()-[e1]->()-[e2]->() RETURN *", &g, true)

@@ -386,8 +386,8 @@ mod node_test {
         graph.add_node(2, 1, NO_PROPS, None).unwrap();
 
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
-        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        #[cfg(feature = "storage")]
+        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let view = graph.before(2);
@@ -412,7 +412,7 @@ mod node_test {
         }
         test(&graph);
         // FIXME: Node add without properties not showing up (Issue #46)
-        // test(&arrow_graph);
+        // test(&disk_graph);
     }
 
     #[test]
@@ -423,8 +423,8 @@ mod node_test {
         graph.add_node(2, 1, props, None).unwrap();
 
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
-        let _arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        #[cfg(feature = "storage")]
+        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let v1 = graph.node(1).unwrap();
@@ -437,7 +437,7 @@ mod node_test {
         }
         test(&graph);
         // FIXME: Node add without properties not showing up (Issue #46)
-        // test(&arrow_graph);
+        // test(&disk_graph);
     }
 
     #[test]

@@ -1,17 +1,11 @@
-use std::any::Any;
-
 use itertools::Itertools;
 use num_integer::average_floor;
-// use num::integer::average_floor;
 extern crate num_integer;
 
 use crate::{
-    core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
+    core::entities::nodes::node_ref::AsNodeRef,
     db::{
-        api::{
-            mutation::AdditionOps,
-            view::{internal, *},
-        },
+        api::{mutation::AdditionOps, view::*},
         graph::graph::Graph,
     },
     prelude::*,
@@ -75,15 +69,13 @@ fn populate_edges<G: StaticGraphViewOps, V: AsNodeRef>(g: &G, new_graph: &Graph,
 
 #[cfg(test)]
 mod bipartite_graph_tests {
-    use itertools::Itertools;
-
     use super::temporal_bipartite_projection;
     use crate::{
         db::{
             api::{mutation::AdditionOps, view::*},
             graph::graph::Graph,
         },
-        prelude::{Prop, NO_PROPS},
+        prelude::NO_PROPS,
     };
 
     #[test]

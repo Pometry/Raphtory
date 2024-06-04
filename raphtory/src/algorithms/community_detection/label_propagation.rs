@@ -99,8 +99,8 @@ mod lpa_tests {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
         let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "arrow")]
-        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        #[cfg(feature = "storage")]
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let seed = Some([5; 32]);
@@ -125,7 +125,7 @@ mod lpa_tests {
             }
         }
         test(&graph);
-        #[cfg(feature = "arrow")]
-        test(&arrow_graph);
+        #[cfg(feature = "storage")]
+        test(&disk_graph);
     }
 }

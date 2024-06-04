@@ -42,8 +42,10 @@ class RaphtoryBench(BenchmarkBase):
 
     def setup(self):
         # Load edges
-        df = pd.read_csv(simple_relationship_file, delimiter="\t", header=None, names=["src", "dst"])
-        df['time'] = 1
+        df = pd.read_csv(
+            simple_relationship_file, delimiter="\t", header=None, names=["src", "dst"]
+        )
+        df["time"] = 1
         self.graph = raphtory.Graph.load_from_pandas(df, "src", "dst", "time")
 
     def degree(self):

@@ -37,11 +37,11 @@ rust-test-all:
 	cargo check -p raphtory --no-default-features --features "search"
 	cargo check -p raphtory --no-default-features --features "vectors"
 
-activate-arrow:
-	./scripts/activate_private_arrow.py
+activate-storage:
+	./scripts/activate_private_storage.py
 
-deactivate-arrow:
-	./scripts/deactivate_private_arrow.py
+deactivate-storage:
+	./scripts/deactivate_private_storage.py
 
-pull-arrow: activate-arrow
+pull-storage: activate-storage
 	git submodule update --init --recursive

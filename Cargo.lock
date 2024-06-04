@@ -3924,6 +3924,8 @@ dependencies = [
  "opaque-debug",
  "universal-hash",
 ]
+name = "pometry-storage"
+version = "0.8.1"
 
 [[package]]
 name = "portable-atomic"
@@ -4306,6 +4308,7 @@ dependencies = [
  "polars-arrow",
  "polars-parquet",
  "polars-utils",
+ "pometry-storage",
  "pretty_assertions",
  "proptest",
  "pyo3",
@@ -4315,7 +4318,6 @@ dependencies = [
  "rand 0.8.5",
  "rand_distr",
  "raphtory-api",
- "raphtory-arrow",
  "rayon",
  "regex",
  "reqwest",
@@ -4344,10 +4346,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "raphtory-arrow"
-version = "0.8.1"
-
-[[package]]
 name = "raphtory-benchmark"
 version = "0.8.1"
 dependencies = [
@@ -4357,9 +4355,9 @@ dependencies = [
  "csv",
  "flate2",
  "polars-arrow",
+ "pometry-storage",
  "rand 0.8.5",
  "raphtory",
- "raphtory-arrow",
  "raphtory-graphql",
  "rayon",
  "sorted_vector_map",
@@ -4384,11 +4382,11 @@ dependencies = [
  "pest",
  "pest_derive",
  "polars-arrow",
+ "pometry-storage",
  "pretty_assertions",
  "proptest",
  "rand 0.8.5",
  "raphtory",
- "raphtory-arrow",
  "rayon",
  "serde",
  "serde_json",

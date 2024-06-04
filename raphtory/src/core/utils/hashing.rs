@@ -5,8 +5,8 @@
 use std::hash::{Hash, Hasher};
 use twox_hash::XxHash64;
 
-#[cfg(feature = "arrow")]
-use raphtory_arrow::GID;
+#[cfg(feature = "storage")]
+use pometry_storage::GID;
 
 pub fn calculate_hash<T: Hash + ?Sized>(t: &T) -> u64 {
     let mut s = XxHash64::default();
@@ -14,7 +14,7 @@ pub fn calculate_hash<T: Hash + ?Sized>(t: &T) -> u64 {
     s.finish()
 }
 
-#[cfg(feature = "arrow")]
+#[cfg(feature = "storage")]
 pub fn calculate_hash_spark(gid: &GID) -> i64 {
     let mut s = XxHash64::with_seed(42);
     match gid {

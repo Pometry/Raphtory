@@ -42,7 +42,7 @@ use std::{
     sync::Arc,
 };
 
-#[cfg(feature = "arrow")]
+#[cfg(feature = "storage")]
 use crate::arrow2::datatypes::ArrowDataType as DataType;
 
 #[cfg(test)]
@@ -221,7 +221,7 @@ impl PropType {
     }
 }
 
-#[cfg(feature = "arrow")]
+#[cfg(feature = "storage")]
 impl From<&DataType> for PropType {
     fn from(value: &DataType) -> Self {
         match value {

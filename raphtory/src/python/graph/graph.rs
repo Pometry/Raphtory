@@ -24,7 +24,7 @@ use pyo3::{prelude::*, types::PyBytes};
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
-    path::{Path, PathBuf},
+    path::Path,
 };
 
 /// A temporal graph.

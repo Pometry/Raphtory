@@ -27,8 +27,8 @@ use datafusion::{
     physical_planner::create_physical_sort_expr,
 };
 use futures::Stream;
-use raphtory::arrow::graph_impl::ArrowGraph;
-use raphtory_arrow::prelude::*;
+use pometry_storage::prelude::*;
+use raphtory::disk_graph::graph_impl::DiskGraph;
 
 use crate::executor::{arrow2_to_arrow_buf, ExecError};
 
@@ -37,7 +37,7 @@ use crate::executor::{arrow2_to_arrow_buf, ExecError};
 pub struct EdgeListTableProvider {
     layer_id: usize,
     layer_name: String,
-    graph: ArrowGraph,
+    graph: DiskGraph,
     nested_schema: SchemaRef,
     num_partitions: usize,
     row_count: usize,
@@ -45,7 +45,7 @@ pub struct EdgeListTableProvider {
 }
 
 impl EdgeListTableProvider {
-    pub fn new(layer_name: &str, g: ArrowGraph) -> Result<Self, ExecError> {
+    pub fn new(layer_name: &str, g: DiskGraph) -> Result<Self, ExecError> {
         let graph = g.as_ref();
         let layer_id = graph
             .find_layer_id(layer_name)
@@ -97,7 +97,7 @@ impl EdgeListTableProvider {
     }
 }
 
-fn lift_nested_arrow_schema(graph: &ArrowGraph, layer_id: usize) -> Result<Arc<Schema>, ExecError> {
+fn lift_nested_arrow_schema(graph: &DiskGraph, layer_id: usize) -> Result<Arc<Schema>, ExecError> {
     let arrow2_fields = graph.as_ref().layer(layer_id).edges_data_type();
     let a2_dt = crate::arrow2::datatypes::ArrowDataType::Struct(arrow2_fields.clone());
     let a_dt: DataType = a2_dt.into();
@@ -165,7 +165,7 @@ impl TableProvider for EdgeListTableProvider {
 struct EdgeListExecPlan {
     layer_id: usize,
     layer_name: String,
-    graph: ArrowGraph,
+    graph: DiskGraph,
     schema: SchemaRef,
     num_partitions: usize,
     row_count: usize,
@@ -175,7 +175,7 @@ struct EdgeListExecPlan {
 }
 
 fn produce_record_batch(
-    graph: ArrowGraph,
+    graph: DiskGraph,
     schema: SchemaRef,
     layer_id: usize,
     start_offset: usize,
@@ -223,7 +223,7 @@ fn produce_record_batch(
     let mut layer_id_builder = Vec::with_capacity(time_values_chunks.len());
 
     // take every chunk here and surface the primitive arrays
-    // convert from arrow2 to arrow-rs then to polars
+    // convert from arrow2 to disk_graph-rs then to polars
     for (i, ((src, dst), layer_id)) in srcs
         .iter_chunks()
         .zip(dsts.iter_chunks())
@@ -444,7 +444,7 @@ mod test {
             (3, 4, 7, 6.),
             (4, 5, 9, 7.),
         ];
-        let graph = ArrowGraph::make_simple_graph(graph_dir, &edges, 10, 10);
+        let graph = DiskGraph::make_simple_graph(graph_dir, &edges, 10, 10);
         ctx.register_table(
             "graph",
             Arc::new(EdgeListTableProvider::new("_default", graph).unwrap()),

@@ -60,12 +60,12 @@ jobs:
         with:
           command: publish
           args: --token ${{ secrets.CRATES_TOKEN }} --package raphtory-api --allow-dirty
-      - name: "Publish raphtory-arrow to crates.io"
+      - name: "Publish pometry-storage to crates.io"
         if: ${{ !inputs.dry_run }}
         uses: actions-rs/cargo@v1
         with:
           command: publish
-          args: --token ${{ secrets.CRATES_TOKEN }} --package raphtory-arrow --allow-dirty
+          args: --token ${{ secrets.CRATES_TOKEN }} --package pometry-storage --allow-dirty
       - name: "Publish raphtory to crates.io"
         if: ${{ !inputs.dry_run }}
         uses: actions-rs/cargo@v1

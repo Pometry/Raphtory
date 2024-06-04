@@ -54,4 +54,4 @@ reqwest = { workspace = true }
 tempfile = { workspace = true }
 
 [features]
-arrow = ["raphtory/arrow"]
+storage = ["raphtory/storage"]
