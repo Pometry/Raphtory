@@ -57,6 +57,7 @@ pub struct AppState {
 pub async fn login(data: Data<&AppState>, jar: &CookieJar) -> Redirect {
     let session_id = uuid::Uuid::new_v4().to_string();
     let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
+    let client_id_str = env::var("CLIENT_ID").expect("CLIENT_ID not set");
     let (authorize_url, csrf_state) = data
         .oauth_client
         .authorize_url(CsrfToken::new_random)
@@ -65,7 +66,7 @@ pub async fn login(data: Data<&AppState>, jar: &CookieJar) -> Redirect {
         .add_scope(Scope::new("email".to_string()))
         .add_scope(Scope::new("offline_access".to_string()))
         .add_scope(Scope::new(
-            "a10e734e-cb36-46ca-bbfd-c298e15b6327/public-scope".to_string(),
+            format!("{}/public-scope",client_id_str).to_string(),
         ))
         .url();
 
