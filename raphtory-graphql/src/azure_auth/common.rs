@@ -66,7 +66,7 @@ pub async fn login(data: Data<&AppState>, jar: &CookieJar) -> Redirect {
         .add_scope(Scope::new("email".to_string()))
         .add_scope(Scope::new("offline_access".to_string()))
         .add_scope(Scope::new(
-            format!("{}/public-scope",client_id_str).to_string(),
+            format!("{}/public-scope", client_id_str).to_string(),
         ))
         .url();
 
