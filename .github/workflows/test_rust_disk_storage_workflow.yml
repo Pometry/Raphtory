@@ -8,7 +8,7 @@ on:
         required: false
 # DO NOT CHANGE NAME OF WORKFLOW, USED IN OTHER WORKFLOWS KEEP "Rust Tests"
 jobs:
-  rust-test-no-storage:
+  rust-test:
     if: ${{ !inputs.skip_tests }}
     name: Rust Tests
     runs-on: '${{ matrix.os }}'
@@ -56,53 +56,36 @@ jobs:
         uses: cargo-bins/cargo-binstall@main
       - name: Install nextest
         run: cargo binstall -y --force cargo-nextest
-      - name: Run all Tests (no disk_graph)
+      - name: Activate pometry-storage in Cargo.toml
+        run: make pull-storage
+      - name: Run all Tests (disk_graph)
         env:
           RUSTFLAGS: -Awarnings
           TEMPDIR: ${{ runner.temp }}
         run: |
-          cargo nextest run --all --no-default-features
-  doc-test:
-    if: ${{ !inputs.skip_tests }}
-    name: "Doc tests"
-    runs-on: '${{ matrix.os }}'
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1
-        name: Setup Rust
-        with:
-          profile: minimal
-          toolchain: 1.77.0
-          override: true
-          components: rustfmt, clippy
-      - uses: Swatinem/rust-cache@v2
-        name: Cargo cache
-        with:
-          cache-all-crates: true
-      - uses: webfactory/ssh-agent@v0.9.0
-        name: Load raphtory-disk_graph key
-        with:
-          ssh-private-key: ${{ secrets.RA_SSH_PRIVATE_KEY }}
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.10"
-          cache: 'pip'
-      - name: Build Rust Docs
-        uses: actions-rs/cargo@v1
+          cargo nextest run --all --no-default-features --features "storage"
+      - name: Run Tests (features=io)
         env:
           RUSTFLAGS: -Awarnings
-        with:
-          command: doc
-          args: --no-deps -p raphtory -q
-      - name: Build sphinx (readthedocs) docs
         run: |
-          export PATH=$(pwd)/sbt/bin:$PATH
-          sudo apt update && sudo apt install -y pandoc make python3-sphinx
-          pip install -e python
-          cd docs && python -m pip install -q -r requirements.txt && make html
+          cargo check -p raphtory --no-default-features --features "io"
+      - name: Run Tests (features=python)
+        env:
+          RUSTFLAGS: -Awarnings
+        run: |
+          cargo check -p raphtory --no-default-features --features "python"
+      - name: Run Tests (features=search)
+        env:
+          RUSTFLAGS: -Awarnings
+        run: |
+          cargo check -p raphtory --no-default-features --features "search"
+      - name: Run Tests (features=vectors)
+        env:
+          RUSTFLAGS: -Awarnings
+        run: |
+          cargo check -p raphtory --no-default-features --features "vectors"
+      - name: Run Tests (features=storage)
+        env:
+          RUSTFLAGS: -Awarnings
+        run: |
+          cargo check -p raphtory --no-default-features --features "storage"
