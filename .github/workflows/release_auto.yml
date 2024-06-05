@@ -15,10 +15,16 @@ jobs:
   call-release-rust-workflow:
     name: _Release 2 - Publish Rust package to crates.io
     uses: ./.github/workflows/_release_rust.yml
+    with:
+      base: ${{ github.event.inputs.base }}
+      dry_run: ${{ github.event.inputs.dry_run }}
     secrets: inherit
   call-release-python-workflow:
     name: _Release 3 - Publish python to pypi
     uses: ./.github/workflows/_release_python.yml
+    with:
+      base: ${{ github.event.inputs.base }}
+      dry_run: ${{ github.event.inputs.dry_run }}
     secrets: inherit
   call-release-github-workflow:
     name: _Release 4 - Publish to Github
