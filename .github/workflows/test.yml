@@ -19,7 +19,7 @@ jobs:
     secrets: inherit
   call-test-rust-storage-workflow-in-local-repo:
     name: Run Rust storage tests
-    uses: ./.github/workflows/test_rust_storage_workflow.yml
+    uses: ./.github/workflows/test_rust_disk_storage_workflow.yml
     secrets: inherit
   call-test-python-workflow-in-local-repo:
     name: Run Python tests
