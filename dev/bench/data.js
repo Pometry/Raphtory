@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1717579786780,
+  "lastUpdate": 1717587663107,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -52675,6 +52675,66 @@ window.BENCHMARK_DATA = {
             "name": "temporal_motifs/temporal_motifs",
             "value": 20989272,
             "range": "± 276398",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "2404621+fabianmurariu@users.noreply.github.com",
+            "name": "Fabian Murariu",
+            "username": "fabianmurariu"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a7733d075f123c7d6b6c0532bc17401fb82856c7",
+          "message": "update pometry-storage to the right version of raphtory-api (#1638)\n\n* update pometry-storage to the right version of raphtory-api\r\n\r\n* add the netflowsorted files in the right place",
+          "timestamp": "2024-06-05T12:30:13+01:00",
+          "tree_id": "65f507b8b58ffe8c8fffcfb9717fe6fe85ee0d23",
+          "url": "https://github.com/Pometry/Raphtory/commit/a7733d075f123c7d6b6c0532bc17401fb82856c7"
+        },
+        "date": 1717587661634,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "local_triangle_count/local_triangle_count",
+            "value": 949887,
+            "range": "± 53110",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "local_clustering_coefficient/local_clustering_coefficient",
+            "value": 107775,
+            "range": "± 1245",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_clustering_coeff/graphgen_large_clustering_coeff/Graph(num_nodes=500004, num_edges=20...",
+            "value": 2591823984,
+            "range": "± 205382528",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_pagerank/graphgen_large_pagerank/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 282813437,
+            "range": "± 3528569",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_concomp/graphgen_large_concomp/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 2433645358,
+            "range": "± 45202595",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "temporal_motifs/temporal_motifs",
+            "value": 20989685,
+            "range": "± 299098",
             "unit": "ns/iter"
           }
         ]
