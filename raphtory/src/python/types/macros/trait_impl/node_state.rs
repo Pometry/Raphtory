@@ -19,6 +19,12 @@ use std::sync::Arc;
 
 macro_rules! impl_node_state_ops {
     ($name:ident<$value:ty>, $inner_t:ty, $to_owned:expr) => {
+        impl $name {
+            pub fn iter(&self) -> impl Iterator<Item = $value> + '_ {
+                self.inner.values().map($to_owned)
+            }
+        }
+
         #[pymethods]
         impl $name {
             fn __len__(&self) -> usize {
@@ -68,6 +74,10 @@ macro_rules! impl_node_state_ops {
 
             fn values(&self) -> PyBorrowingIterator {
                 self.__iter__()
+            }
+
+            fn __repr__(&self) -> String {
+                self.inner.repr()
             }
         }
     };
