@@ -14,6 +14,7 @@ use chrono::{DateTime, Utc};
 use pyo3::{
     exceptions::{PyKeyError, PyTypeError},
     prelude::*,
+    types::PyNotImplemented,
 };
 use std::sync::Arc;
 
@@ -128,6 +129,20 @@ macro_rules! impl_node_state_ord_ops {
                 self.inner
                     .median_item()
                     .map(|(n, v)| (n.cloned(), ($to_owned)(v)))
+            }
+
+            fn __eq__<'py>(&'py self, other: &'py PyAny, py: Python<'py>) -> PyObject {
+                if let Ok(other) = other.extract::<PyRef<Self>>() {
+                    return self.inner.values().eq(other.inner.values()).into_py(py);
+                } else if let Ok(other) = other.extract::<Vec<$value>>() {
+                    return self
+                        .inner
+                        .values()
+                        .map($to_owned)
+                        .eq(other.iter().cloned())
+                        .into_py(py);
+                }
+                PyNotImplemented::get(py).into_py(py)
             }
         }
     };
