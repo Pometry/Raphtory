@@ -27,7 +27,7 @@ pub fn local_triangle_count_analysis(c: &mut Criterion) {
         let windowed_graph = g.window(i64::MIN, i64::MAX);
 
         b.iter(|| {
-            let node_ids = windowed_graph.nodes().id().collect();
+            let node_ids = windowed_graph.nodes().id().collect::<Vec<_>>();
 
             node_ids.into_par_iter().for_each(|v| {
                 local_triangle_count(&windowed_graph, v).unwrap();
