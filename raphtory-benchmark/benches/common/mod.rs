@@ -4,7 +4,7 @@ use criterion::{
     black_box, measurement::WallTime, BatchSize, Bencher, BenchmarkGroup, BenchmarkId,
 };
 use rand::{distributions::Uniform, seq::*, Rng};
-use raphtory::{core::entities::LayerIds, db::api::view::StaticGraphViewOps, prelude::*};
+use raphtory::{core::entities::{LayerIds, VID}, db::api::view::StaticGraphViewOps, prelude::*};
 use std::collections::HashSet;
 
 fn make_index_gen() -> Box<dyn Iterator<Item = u64>> {
@@ -379,11 +379,11 @@ pub fn run_analysis_benchmarks<F, G>(
     );
 
     bench(group, "max_id", parameter, |b: &mut Bencher| {
-        b.iter(|| graph.nodes().id().max_item())
+        b.iter(|| graph.nodes().id().max())
     });
 
     bench(group, "max_degree", parameter, |b: &mut Bencher| {
-        b.iter(|| graph.nodes().degree().max_item())
+        b.iter(|| graph.nodes().degree().max())
     });
 
     bench(group, "iterate nodes", parameter, |b: &mut Bencher| {
@@ -422,19 +422,15 @@ pub fn run_analysis_benchmarks<F, G>(
             let mg = graph.materialize();
             black_box(mg)
         })
-    })
+    });
 
-    // Too noisy due to degree variability and confuses criterion
-    // bench(
-    //     group,
-    //     "max_neighbour_degree",
-    //     parameter,
-    //     |b: &mut Bencher| {
-    //         let mut rng = rand::thread_rng();
-    //         let v = graph
-    //             .node(*nodes.iter().choose(&mut rng).expect("non-empty graph"))
-    //             .expect("existing node");
-    //         b.iter(|| v.neighbours().degree().max())
-    //     },
-    // );
+    bench(
+        group,
+        "max_neighbour_degree",
+        parameter,
+        |b: &mut Bencher| {
+            let v = graph.node(VID(0)).expect("graph should not be empty");
+            b.iter(|| v.neighbours().degree().max())
+        },
+    );
 }
