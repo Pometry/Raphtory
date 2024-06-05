@@ -29,4 +29,6 @@ jobs:
   call-release-github-workflow:
     name: _Release 4 - Publish to Github
     uses: ./.github/workflows/_release_github.yml
+    with:
+      base: ${{ github.event.inputs.base }}
     secrets: inherit
