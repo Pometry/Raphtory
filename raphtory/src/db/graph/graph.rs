@@ -202,7 +202,7 @@ mod db_tests {
         algorithms::components::weakly_connected_components,
         core::{
             utils::time::{error::ParseTimeError, TryIntoTime},
-            ArcStr, OptionAsStr, Prop,
+            Prop,
         },
         db::{
             api::view::{
@@ -211,12 +211,14 @@ mod db_tests {
             },
             graph::{edge::EdgeView, edges::Edges, node::NodeView, path::PathFromNode},
         },
+        disk_graph::graph_impl::DiskGraph,
         graphgen::random_attachment::random_attachment,
         prelude::{AdditionOps, PropertyAdditionOps},
     };
     use chrono::NaiveDateTime;
     use itertools::Itertools;
     use quickcheck_macros::quickcheck;
+    use raphtory_api::core::storage::arc_str::{ArcStr, OptionAsStr};
     use rayon::prelude::*;
     use serde_json::Value;
     use std::collections::{HashMap, HashSet};
@@ -1044,7 +1046,7 @@ mod db_tests {
         graph.add_edge(0, 11, 33, NO_PROPS, Some("layer2"))?;
         graph.add_edge(0, 11, 44, NO_PROPS, Some("layer2"))?;
 
-        let test_dir = tempfile::TempDir::new().unwrap();
+        let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
         let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
@@ -1194,7 +1196,7 @@ mod db_tests {
             .add_edge(2, 1, 2, [("weight", Prop::I64(3))], None)
             .unwrap();
 
-        let test_dir = tempfile::TempDir::new().unwrap();
+        let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
         let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
@@ -1235,7 +1237,7 @@ mod db_tests {
         graph.add_edge(1, 1, 3, NO_PROPS, None).unwrap();
         graph.add_edge(2, 1, 3, NO_PROPS, None).unwrap();
 
-        let test_dir = tempfile::TempDir::new().unwrap();
+        let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
         let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
@@ -1362,7 +1364,7 @@ mod db_tests {
         graph.add_node(7, "Lord Farquaad", NO_PROPS, None).unwrap();
         graph.add_node(8, "Lord Farquaad", NO_PROPS, None).unwrap();
 
-        let test_dir = tempfile::TempDir::new().unwrap();
+        let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
         let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
@@ -1428,7 +1430,7 @@ mod db_tests {
         graph.add_edge(9, 1, 4, NO_PROPS, None).unwrap();
         graph.add_edge(10, 1, 4, NO_PROPS, None).unwrap();
 
-        let test_dir = tempfile::TempDir::new().unwrap();
+        let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
         let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
@@ -1474,7 +1476,7 @@ mod db_tests {
         graph.add_node(7, "Lord Farquaad", NO_PROPS, None).unwrap();
         graph.add_node(8, "Lord Farquaad", NO_PROPS, None).unwrap();
 
-        let test_dir = tempfile::TempDir::new().unwrap();
+        let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
         let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
@@ -1774,7 +1776,7 @@ mod db_tests {
         graph.add_node(2, 1, NO_PROPS, None).unwrap();
         graph.add_node(3, 1, NO_PROPS, None).unwrap();
 
-        let test_dir = tempfile::TempDir::new().unwrap();
+        let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
         let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
@@ -1871,7 +1873,7 @@ mod db_tests {
             .expect("add edge");
         graph.add_edge(1, 1, 4, NO_PROPS, None).expect("add edge");
 
-        let test_dir = tempfile::TempDir::new().unwrap();
+        let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
         let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
@@ -1944,7 +1946,7 @@ mod db_tests {
         graph.add_edge(2, 1, 2, NO_PROPS, Some("layer1")).unwrap();
         graph.add_edge(3, 1, 2, NO_PROPS, None).unwrap();
 
-        let test_dir = tempfile::TempDir::new().unwrap();
+        let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
         let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
@@ -2011,7 +2013,7 @@ mod db_tests {
         graph.add_edge(2, 1, 2, NO_PROPS, Some("layer1")).unwrap();
         graph.add_edge(3, 1, 2, NO_PROPS, None).unwrap();
 
-        let test_dir = tempfile::TempDir::new().unwrap();
+        let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
         let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
@@ -2049,7 +2051,7 @@ mod db_tests {
         graph.add_edge(2, 1, 2, NO_PROPS, Some("layer1")).unwrap();
         graph.add_edge(3, 1, 2, NO_PROPS, None).unwrap();
 
-        let test_dir = tempfile::TempDir::new().unwrap();
+        let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
         let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
@@ -2094,7 +2096,7 @@ mod db_tests {
             .add_edge(1, 1, 2, [("tx_sent", 70u64)], "tether".into())
             .expect("failed");
 
-        let test_dir = tempfile::TempDir::new().unwrap();
+        let test_dir = TempDir::new().unwrap();
         #[cfg(feature = "storage")]
         let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
@@ -2485,6 +2487,74 @@ mod db_tests {
         test(&graph);
         // FIXME: Needs multilayer support (Issue #47)
         // test(&disk_graph);
+    }
+
+    #[test]
+    fn test_type_filter_arrow() {
+        let g = Graph::new();
+        g.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
+        g.add_node(1, 2, NO_PROPS, Some("b")).unwrap();
+        g.add_node(1, 3, NO_PROPS, Some("b")).unwrap();
+        g.add_node(1, 4, NO_PROPS, Some("a")).unwrap();
+        g.add_node(1, 5, NO_PROPS, Some("c")).unwrap();
+        g.add_node(1, 6, NO_PROPS, Some("e")).unwrap();
+        g.add_node(1, 7, NO_PROPS, None).unwrap();
+        g.add_node(1, 8, NO_PROPS, None).unwrap();
+        g.add_node(1, 9, NO_PROPS, None).unwrap();
+        g.add_edge(2, 1, 2, NO_PROPS, Some("a")).unwrap();
+        g.add_edge(2, 3, 2, NO_PROPS, Some("a")).unwrap();
+        g.add_edge(2, 2, 4, NO_PROPS, Some("a")).unwrap();
+        g.add_edge(2, 4, 5, NO_PROPS, Some("a")).unwrap();
+        g.add_edge(2, 4, 5, NO_PROPS, Some("a")).unwrap();
+        g.add_edge(2, 5, 6, NO_PROPS, Some("a")).unwrap();
+        g.add_edge(2, 3, 6, NO_PROPS, Some("a")).unwrap();
+
+        let tmp_dir = tempfile::tempdir().unwrap();
+        let g = DiskGraph::from_graph(&g, tmp_dir.path()).unwrap();
+
+        assert_eq!(
+            g.nodes()
+                .type_filter(&vec!["a", "b", "c", "e"])
+                .name()
+                .collect_vec(),
+            vec!["1", "2", "3", "4", "5", "6"]
+        );
+
+        assert_eq!(
+            g.nodes()
+                .type_filter(&Vec::<String>::new())
+                .name()
+                .collect_vec(),
+            Vec::<String>::new()
+        );
+
+        assert_eq!(
+            g.nodes().type_filter(&vec![""]).name().collect_vec(),
+            vec!["7", "8", "9"]
+        );
+
+        let g = DiskGraph::load_from_dir(tmp_dir.path()).unwrap();
+
+        assert_eq!(
+            g.nodes()
+                .type_filter(&vec!["a", "b", "c", "e"])
+                .name()
+                .collect_vec(),
+            vec!["1", "2", "3", "4", "5", "6"]
+        );
+
+        assert_eq!(
+            g.nodes()
+                .type_filter(&Vec::<String>::new())
+                .name()
+                .collect_vec(),
+            Vec::<String>::new()
+        );
+
+        assert_eq!(
+            g.nodes().type_filter(&vec![""]).name().collect_vec(),
+            vec!["7", "8", "9"]
+        );
     }
 
     #[test]

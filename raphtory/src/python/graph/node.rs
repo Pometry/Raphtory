@@ -5,7 +5,7 @@ use crate::{
     core::{
         entities::nodes::node_ref::{AsNodeRef, NodeRef},
         utils::errors::GraphError,
-        ArcStr, Prop,
+        Prop,
     },
     db::{
         api::{
@@ -44,6 +44,7 @@ use python::{
     types::repr::{iterator_repr, Repr},
     utils::export::{create_row, extract_properties, get_column_names_from_props},
 };
+use raphtory_api::core::storage::arc_str::ArcStr;
 use rayon::{iter::IntoParallelIterator, prelude::*};
 use std::collections::HashMap;
 

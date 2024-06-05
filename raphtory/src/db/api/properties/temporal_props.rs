@@ -1,9 +1,10 @@
 use crate::{
-    core::{ArcStr, DocumentInput, Prop, PropUnwrap},
+    core::{DocumentInput, Prop, PropUnwrap},
     db::{api::properties::internal::PropertiesOps, graph::views::deletion_graph::PersistentGraph},
     prelude::Graph,
 };
 use chrono::{DateTime, NaiveDateTime, Utc};
+use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{
     collections::{HashMap, HashSet},
     iter::Zip,

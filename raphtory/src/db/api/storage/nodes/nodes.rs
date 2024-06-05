@@ -31,4 +31,8 @@ impl NodesStorage {
             NodesStorage::Disk(storage) => NodeStorageRef::Disk(storage.node(vid)),
         }
     }
+
+    pub fn len(&self) -> usize {
+        self.as_ref().len()
+    }
 }

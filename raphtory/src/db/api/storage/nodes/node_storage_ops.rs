@@ -5,11 +5,12 @@ use crate::{
             LayerIds, VID,
         },
         storage::ArcEntry,
-        Direction, OptionAsStr,
+        Direction,
     },
     db::api::{storage::tprop_storage_ops::TPropOps, view::internal::NodeAdditions},
 };
 use itertools::Itertools;
+use raphtory_api::core::storage::arc_str::OptionAsStr;
 
 pub trait NodeStorageOps<'a>: Sized {
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize;

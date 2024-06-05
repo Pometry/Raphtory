@@ -1,9 +1,10 @@
 use crate::{
-    core::{ArcStr, Prop},
+    core::Prop,
     db::api::properties::{
         constant_props::ConstProperties, internal::*, temporal_props::TemporalProperties,
     },
 };
+use raphtory_api::core::storage::arc_str::ArcStr;
 use std::collections::HashMap;
 
 /// View of the properties of an entity (graph|node|edge)

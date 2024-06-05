@@ -5,7 +5,6 @@ mod prop_handler;
 #[cfg(test)]
 mod test {
     use crate::{
-        core::ArcStr,
         prelude::*,
         python::graph::pandas::{
             dataframe::PretendDF,
@@ -13,6 +12,7 @@ mod test {
         },
     };
     use polars_arrow::array::{PrimitiveArray, Utf8Array};
+    use raphtory_api::core::storage::arc_str::ArcStr;
 
     #[test]
     fn load_edges_from_pretend_df() {

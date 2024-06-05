@@ -9,7 +9,7 @@ use crate::{
         },
         storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
         utils::errors::GraphError,
-        ArcStr, PropType,
+        PropType,
     },
     db::{
         api::{
@@ -37,6 +37,7 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
+use raphtory_api::core::storage::arc_str::ArcStr;
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
 use std::path::Path;
 

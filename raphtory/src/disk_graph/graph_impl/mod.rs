@@ -1,12 +1,18 @@
 use std::{
     fmt::{Display, Formatter},
+    num::NonZeroUsize,
     path::{Path, PathBuf},
     sync::Arc,
 };
 
 use pometry_storage::{
-    disk_hmap::DiskHashMap, graph::TemporalGraph, graph_fragment::TempColGraphFragment,
-    load::ExternalEdgeList, RAError,
+    chunked_array::chunked_array::ChunkedArray,
+    disk_hmap::DiskHashMap,
+    graph::TemporalGraph,
+    graph_fragment::TempColGraphFragment,
+    load::{list_parquet_files, ExternalEdgeList},
+    properties::{ConstProps, Properties, TemporalProps},
+    RAError,
 };
 use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use rayon::prelude::*;
@@ -182,6 +188,14 @@ impl DiskGraph {
         let mut edge_meta = Meta::new();
         let graph_meta = GraphMeta::new();
 
+        for node_type in inner_graph.node_types().into_iter().flatten() {
+            if let Some(node_type) = node_type {
+                node_meta.get_or_create_node_type_id(node_type);
+            } else {
+                panic!("Node types cannot be null");
+            }
+        }
+
         for layer in inner_graph.layers() {
             let edge_props_fields = layer.edges_data_type();
 
@@ -290,7 +304,7 @@ impl DiskGraph {
             )
             .collect::<Vec<_>>();
 
-        let t_graph = TemporalGraph::from_edge_lists(
+        let t_graph = TemporalGraph::from_parquets(
             num_threads,
             chunk_size,
             t_props_chunk_size,

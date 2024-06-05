@@ -16,3 +16,8 @@ edition.workspace = true
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
 chrono.workspace = true
+dashmap = { workspace = true }
+rustc-hash = { workspace = true }
+lock_api = { workspace = true }
+parking_lot = { workspace = true }
+pyo3 = { workspace = true }

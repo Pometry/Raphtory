@@ -25,4 +25,8 @@ impl<'a> DiskNodesRef<'a> {
     pub fn iter(self) -> impl Iterator<Item = DiskNode<'a>> {
         (0..self.graph.num_nodes()).map(move |vid| self.node(VID(vid)))
     }
+
+    pub fn len(self) -> usize {
+        self.graph.num_nodes()
+    }
 }

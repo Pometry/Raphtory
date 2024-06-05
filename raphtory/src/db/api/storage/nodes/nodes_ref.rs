@@ -53,4 +53,12 @@ impl<'a> NodesStorageRef<'a> {
     pub fn iter(self) -> impl Iterator<Item = NodeStorageRef<'a>> {
         for_all_variants!(self, nodes => nodes.iter().map(|n| n.into()))
     }
+
+    pub fn len(self) -> usize {
+        match self {
+            NodesStorageRef::Mem(store) => store.len(),
+            #[cfg(feature = "storage")]
+            NodesStorageRef::Disk(store) => store.len(),
+        }
+    }
 }

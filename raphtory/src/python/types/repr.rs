@@ -1,6 +1,7 @@
-use crate::core::{storage::locked_view::LockedView, ArcStr};
+use crate::core::storage::locked_view::LockedView;
 use chrono::{DateTime, NaiveDateTime, TimeZone};
 use itertools::Itertools;
+use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{collections::HashMap, ops::Deref};
 
 pub fn iterator_repr<I: Iterator<Item = V>, V: Repr>(iter: I) -> String {

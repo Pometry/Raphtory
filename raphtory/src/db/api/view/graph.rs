@@ -3,7 +3,6 @@ use crate::{
         entities::{graph::tgraph::InternalGraph, nodes::node_ref::AsNodeRef, LayerIds, VID},
         storage::timeindex::AsTime,
         utils::errors::GraphError,
-        ArcStr, OptionAsStr,
     },
     db::{
         api::{
@@ -28,6 +27,7 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
+use raphtory_api::core::storage::arc_str::{ArcStr, OptionAsStr};
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::{borrow::Borrow, sync::Arc};
@@ -492,10 +492,10 @@ mod test_exploded_edges {
 #[cfg(test)]
 mod test_materialize {
     use crate::{
-        core::OptionAsStr,
         db::api::view::{internal::CoreGraphOps, StaticGraphViewOps},
         prelude::*,
     };
+    use raphtory_api::core::storage::arc_str::OptionAsStr;
     use tempfile::TempDir;
 
     #[test]

@@ -8,7 +8,6 @@ use crate::{
             LayerIds, ELID, VID,
         },
         storage::locked_view::LockedView,
-        ArcStr,
     },
     db::api::{
         storage::{
@@ -25,6 +24,7 @@ use crate::{
     prelude::Prop,
 };
 use itertools::Itertools;
+use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{collections::HashMap, iter, sync::Arc};
 
 impl CoreGraphOps for InternalGraph {
@@ -290,12 +290,10 @@ impl CoreGraphOps for InternalGraph {
 
 #[cfg(test)]
 mod test_edges {
+    use raphtory_api::core::storage::arc_str::ArcStr;
     use std::collections::HashMap;
 
-    use crate::{
-        core::{ArcStr, IntoPropMap},
-        prelude::*,
-    };
+    use crate::{core::IntoPropMap, prelude::*};
 
     #[test]
     fn test_edge_properties_for_layers() {

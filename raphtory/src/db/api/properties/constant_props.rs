@@ -1,7 +1,5 @@
-use crate::{
-    core::{ArcStr, Prop},
-    db::api::properties::internal::ConstPropertiesOps,
-};
+use crate::{core::Prop, db::api::properties::internal::ConstPropertiesOps};
+use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{collections::HashMap, iter::Zip};
 
 pub struct ConstProperties<P: ConstPropertiesOps> {

@@ -1,13 +1,13 @@
 use std::iter;
 
 use chrono::{DateTime, Utc};
+use raphtory_api::core::storage::arc_str::ArcStr;
 
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
         utils::errors::GraphError,
-        ArcStr,
     },
     db::api::{
         properties::{internal::PropertiesOps, Properties},

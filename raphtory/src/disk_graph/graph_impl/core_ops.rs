@@ -7,7 +7,7 @@ use crate::{
             LayerIds, ELID, VID,
         },
         storage::locked_view::LockedView,
-        ArcStr, Prop,
+        Prop,
     },
     db::api::{
         storage::{
@@ -34,6 +34,7 @@ use crate::{
 use itertools::Itertools;
 use polars_arrow::datatypes::ArrowDataType;
 use pometry_storage::{properties::Properties, GidRef, GID};
+use raphtory_api::core::storage::arc_str::ArcStr;
 use rayon::prelude::*;
 
 impl CoreGraphOps for DiskGraph {
@@ -224,9 +225,8 @@ impl CoreGraphOps for DiskGraph {
             .sum()
     }
 
-    fn node_type_id(&self, _v: VID) -> usize {
-        // self.graph().node_type_id(v) TODO: Impl node types for disk_graph graphs
-        0
+    fn node_type_id(&self, v: VID) -> usize {
+        self.inner.node_type_id(v)
     }
 }
 

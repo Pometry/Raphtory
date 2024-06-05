@@ -1,21 +1,22 @@
 use crate::{
     core::{
-        entities::{graph::tgraph::FxDashMap, properties::tprop::TProp},
+        entities::properties::tprop::TProp,
         storage::{
             lazy_vec::{IllegalSet, LazyVec},
             timeindex::TimeIndexEntry,
         },
         utils::errors::GraphError,
-        ArcStr, Prop, PropType,
+        Prop, PropType,
     },
     db::api::storage::tprop_storage_ops::TPropOps,
 };
 use lock_api;
 use parking_lot::RwLock;
+use raphtory_api::core::storage::{
+    arc_str::ArcStr, dict_mapper::DictMapper, locked_vec::ArcReadLockedVec,
+};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Borrow, fmt::Debug, hash::Hash, ops::Deref, sync::Arc};
-
-type ArcRwLockReadGuard<T> = lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, T>;
 
 #[derive(Serialize, Deserialize, Default, Debug, PartialEq)]
 pub struct Props {
@@ -189,12 +190,12 @@ impl Meta {
 
     #[inline]
     pub fn get_layer_id(&self, name: &str) -> Option<usize> {
-        self.meta_layer.map.get(name).as_deref().copied()
+        self.meta_layer.get_id(name)
     }
 
     #[inline]
     pub fn get_node_type_id(&self, node_type: &str) -> Option<usize> {
-        self.meta_node_type.map.get(node_type).as_deref().copied()
+        self.meta_node_type.get_id(node_type)
     }
 
     pub fn get_layer_name_by_id(&self, id: usize) -> ArcStr {
@@ -210,19 +211,14 @@ impl Meta {
     }
 
     pub fn get_all_layers(&self) -> Vec<usize> {
-        self.meta_layer
-            .map
-            .iter()
-            .map(|entry| *entry.value())
-            .collect()
+        self.meta_layer.get_values()
     }
 
     pub fn get_all_node_types(&self) -> Vec<ArcStr> {
         self.meta_node_type
-            .map
+            .get_keys()
             .iter()
-            .filter_map(|entry| {
-                let key = entry.key();
+            .filter_map(|key| {
                 if key != "_default" {
                     Some(key.clone())
                 } else {
@@ -246,110 +242,6 @@ impl Meta {
         } else {
             self.meta_prop_temporal.get_name(prop_id)
         }
-    }
-}
-
-#[derive(Serialize, Deserialize, Default, Debug)]
-pub struct DictMapper {
-    map: FxDashMap<ArcStr, usize>,
-    reverse_map: Arc<RwLock<Vec<ArcStr>>>, //FIXME: a boxcar vector would be a great fit if it was serializable...
-}
-
-#[derive(Debug)]
-pub struct ArcReadLockedVec<T> {
-    guard: ArcRwLockReadGuard<Vec<T>>,
-}
-
-impl<T> Deref for ArcReadLockedVec<T> {
-    type Target = Vec<T>;
-
-    #[inline]
-    fn deref(&self) -> &Self::Target {
-        self.guard.deref()
-    }
-}
-
-impl<T: Clone> IntoIterator for ArcReadLockedVec<T> {
-    type Item = T;
-    type IntoIter = LockedIter<T>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        let guard = self.guard;
-        let len = guard.len();
-        let pos = 0;
-        LockedIter { guard, pos, len }
-    }
-}
-
-pub struct LockedIter<T> {
-    guard: ArcRwLockReadGuard<Vec<T>>,
-    pos: usize,
-    len: usize,
-}
-
-impl<T: Clone> Iterator for LockedIter<T> {
-    type Item = T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.pos < self.len {
-            let next_val = Some(self.guard[self.pos].clone());
-            self.pos += 1;
-            next_val
-        } else {
-            None
-        }
-    }
-}
-
-impl DictMapper {
-    pub fn get_or_create_id<Q, T>(&self, name: &Q) -> usize
-    where
-        Q: Hash + Eq + ?Sized + ToOwned<Owned = T> + Borrow<str>,
-        T: Into<ArcStr>,
-    {
-        if let Some(existing_id) = self.map.get(name.borrow()) {
-            return *existing_id;
-        }
-
-        let name = name.to_owned().into();
-        let new_id = self.map.entry(name.clone()).or_insert_with(|| {
-            let mut reverse = self.reverse_map.write();
-            let id = reverse.len();
-            reverse.push(name);
-            id
-        });
-        *new_id
-    }
-
-    pub fn get_id(&self, name: &str) -> Option<usize> {
-        self.map.get(name).map(|id| *id)
-    }
-
-    pub fn has_name(&self, id: usize) -> bool {
-        let guard = self.reverse_map.read();
-        guard.get(id).is_some()
-    }
-
-    pub fn get_name(&self, id: usize) -> ArcStr {
-        let guard = self.reverse_map.read();
-        guard
-            .get(id)
-            .cloned()
-            .expect("internal ids should always be mapped to a name")
-    }
-
-    pub fn get_keys(&self) -> ArcReadLockedVec<ArcStr> {
-        ArcReadLockedVec {
-            guard: self.reverse_map.read_arc(),
-        }
-    }
-
-    pub fn len(&self) -> usize {
-        self.reverse_map.read().len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.reverse_map.read().is_empty()
     }
 }
 
@@ -430,6 +322,7 @@ mod test {
 
     use quickcheck_macros::quickcheck;
     use rand::seq::SliceRandom;
+    use raphtory_api::core::storage::dict_mapper::DictMapper;
     use rayon::prelude::*;
 
     use super::*;

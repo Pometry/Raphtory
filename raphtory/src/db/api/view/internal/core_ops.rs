@@ -10,7 +10,7 @@ use crate::{
             locked_view::LockedView,
             timeindex::{TimeIndex, TimeIndexOps, TimeIndexWindow},
         },
-        ArcStr, Prop,
+        Prop,
     },
     db::api::{
         storage::{
@@ -30,6 +30,7 @@ use std::ops::Range;
 
 #[cfg(feature = "storage")]
 use pometry_storage::timestamps::TimeStamps;
+use raphtory_api::core::storage::arc_str::ArcStr;
 #[cfg(feature = "storage")]
 use rayon::prelude::*;
 

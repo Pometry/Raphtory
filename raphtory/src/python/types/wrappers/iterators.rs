@@ -1,8 +1,9 @@
-use crate::{core::ArcStr, db::api::view::BoxedIter, prelude::Prop, python::types::repr::Repr};
+use crate::{db::api::view::BoxedIter, prelude::Prop, python::types::repr::Repr};
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use num::cast::AsPrimitive;
 use pyo3::prelude::*;
+use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{i64, iter::Sum};
 
 pub(crate) trait MeanExt<V>: Iterator<Item = V>

@@ -5,7 +5,6 @@ use crate::{
             GraphError,
             GraphError::{EdgeExistsError, NodeExistsError},
         },
-        OptionAsStr,
     },
     db::{
         api::{
@@ -19,6 +18,7 @@ use crate::{
     },
     prelude::{AdditionOps, EdgeViewOps, NodeViewOps},
 };
+use raphtory_api::core::storage::arc_str::OptionAsStr;
 
 use super::time_from_input;
 

@@ -31,6 +31,24 @@ impl GraphLike<TimeIndexEntry> for Graph {
         self.nodes().name()
     }
 
+    fn node_type_ids(&self) -> Option<impl Iterator<Item = usize>> {
+        if self.0.inner().node_meta.node_type_meta().len() <= 1 {
+            None
+        } else {
+            let core_nodes = self.core_nodes();
+            Some((0..core_nodes.len()).map(move |i| core_nodes.node_ref(VID(i)).node_type_id()))
+        }
+    }
+
+    fn node_types(&self) -> Option<impl Iterator<Item = String>> {
+        let meta = self.0.inner().node_meta.node_type_meta();
+        if meta.len() <= 1 {
+            None
+        } else {
+            Some(meta.get_keys().into_iter().map(|s| s.to_string()))
+        }
+    }
+
     fn layer_names(&self) -> Vec<String> {
         self.edge_meta()
             .layer_meta()
