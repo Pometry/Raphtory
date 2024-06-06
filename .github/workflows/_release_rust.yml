@@ -78,6 +78,18 @@ jobs:
         with:
           command: publish
           args: --token ${{ secrets.CRATES_TOKEN }} --package raphtory-graphql --allow-dirty
+      - name: "Publish raphtory-api to crates.io (DRY RUN)"
+        if: ${{ inputs.dry_run }}
+        uses: actions-rs/cargo@v1
+        with:
+          command: publish
+          args: --token ${{ secrets.CRATES_TOKEN }} --package raphtory-api --allow-dirty --dry-run
+      - name: "Publish pometry-storage to crates.io (DRY RUN)"
+        if: ${{ inputs.dry_run }}
+        uses: actions-rs/cargo@v1
+        with:
+          command: publish
+          args: --token ${{ secrets.CRATES_TOKEN }} --package pometry-storage --allow-dirty --dry-run
       - name: "Publish raphtory to crates.io (DRY RUN)"
         if: ${{ inputs.dry_run }}
         uses: actions-rs/cargo@v1

@@ -31,7 +31,7 @@ debug = true
 
 [workspace.dependencies]
 #[public-storage]
-pometry-storage = { version = "0.8.1", path = "pometry-storage" }
+pometry-storage = { version = ">=0.8.1", path = "pometry-storage" }
 #[private-storage]
 # pometry-storage = { path = "pometry-storage-private", package = "pometry-storage-private" }
 async-graphql = { version = "7.0.5", features = ["dynamic-schema"] }

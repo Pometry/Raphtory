@@ -1,5 +1,6 @@
 [package]
 name = "raphtory-api"
+description = "Raphtory common interface and APIs"
 version.workspace = true
 documentation.workspace = true
 repository.workspace = true
