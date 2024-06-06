@@ -4344,6 +4344,11 @@ name = "raphtory-api"
 version = "0.8.1"
 dependencies = [
  "chrono",
+ "dashmap",
+ "lock_api",
+ "parking_lot",
+ "pyo3",
+ "rustc-hash",
  "serde",
 ]
 
@@ -4425,6 +4430,7 @@ dependencies = [
  "poem",
  "poem-openapi",
  "raphtory",
+ "raphtory-api",
  "reqwest",
  "serde",
  "serde_json",
