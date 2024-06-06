@@ -66,6 +66,7 @@ def test_disk_graph():
             read_chunk_size,
             concurrent_files,
             num_threads,
+            None,
             print_result=False,
         )
 

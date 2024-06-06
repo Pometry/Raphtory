@@ -195,7 +195,7 @@ impl PyDiskGraph {
     }
 
     #[staticmethod]
-    #[pyo3(signature = (graph_dir, layer_parquet_cols, node_properties, chunk_size, t_props_chunk_size, read_chunk_size, concurrent_files, num_threads))]
+    #[pyo3(signature = (graph_dir, layer_parquet_cols, node_properties, chunk_size, t_props_chunk_size, read_chunk_size, concurrent_files, num_threads, node_type_col))]
     fn load_from_parquets(
         graph_dir: &str,
         layer_parquet_cols: ParquetLayerColsList,
@@ -205,6 +205,7 @@ impl PyDiskGraph {
         read_chunk_size: Option<usize>,
         concurrent_files: Option<usize>,
         num_threads: usize,
+        node_type_col: Option<&str>,
     ) -> Result<DiskGraph, GraphError> {
         let graph = Self::from_parquets(
             graph_dir,
@@ -215,6 +216,7 @@ impl PyDiskGraph {
             read_chunk_size,
             concurrent_files,
             num_threads,
+            node_type_col,
         );
         graph.map_err(|e| {
             GraphError::LoadFailure(format!("Failed to load graph {e:?} from parquet files"))
@@ -293,6 +295,7 @@ impl PyDiskGraph {
         read_chunk_size: Option<usize>,
         concurrent_files: Option<usize>,
         num_threads: usize,
+        node_type_col: Option<&str>,
     ) -> Result<DiskGraph, GraphError> {
         DiskGraph::load_from_parquets(
             graph_dir,
@@ -303,6 +306,7 @@ impl PyDiskGraph {
             read_chunk_size,
             concurrent_files,
             num_threads,
+            node_type_col,
         )
         .map_err(|err| GraphError::LoadFailure(format!("Failed to load graph {err:?}")))
     }

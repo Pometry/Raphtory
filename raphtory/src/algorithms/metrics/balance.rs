@@ -132,14 +132,12 @@ mod sum_weight_test {
     use crate::{
         algorithms::metrics::balance::balance,
         core::{Direction, Prop},
-        db::{
-            api::{mutation::AdditionOps, view::StaticGraphViewOps},
-            graph::graph::Graph,
-        },
+        db::{api::mutation::AdditionOps, graph::graph::Graph},
+        prelude::GraphViewOps,
+        test_storage,
     };
     use pretty_assertions::assert_eq;
     use std::collections::HashMap;
-    use tempfile::TempDir;
 
     #[test]
     fn test_sum_float_weights() {
@@ -168,11 +166,7 @@ mod sum_weight_test {
                 .expect("Couldnt add edge");
         }
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let res = balance(graph, "value_dec".to_string(), Direction::BOTH, None);
             let node_one = graph.node("1").unwrap();
             let node_two = graph.node("2").unwrap();
@@ -207,9 +201,6 @@ mod sum_weight_test {
                 (node_five, 0.0),
             ]);
             assert_eq!(res.get_all(), expected);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 }

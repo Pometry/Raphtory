@@ -402,11 +402,10 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'gr
 
 #[cfg(test)]
 mod test_edge {
-    use crate::{core::IntoPropMap, db::api::view::StaticGraphViewOps, prelude::*};
+    use crate::{core::IntoPropMap, prelude::*, test_storage, test_utils::test_graph};
     use itertools::Itertools;
     use raphtory_api::core::storage::arc_str::ArcStr;
     use std::collections::HashMap;
-    use tempfile::TempDir;
 
     #[test]
     fn test_properties() {
@@ -414,20 +413,15 @@ mod test_edge {
         let props = [(ArcStr::from("test"), "test".into_prop())];
         graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         graph.add_edge(2, 1, 2, props.clone(), None).unwrap();
-
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G, props: [(ArcStr, Prop); 1]) {
+        test_storage!(&graph, |graph| {
             let e1 = graph.edge(1, 2).unwrap();
             let e1_w = graph.window(0, 1).edge(1, 2).unwrap();
-            assert_eq!(HashMap::from_iter(e1.properties().as_vec()), props.into());
+            assert_eq!(
+                HashMap::from_iter(e1.properties().as_vec()),
+                props.clone().into()
+            );
             assert!(e1_w.properties().as_vec().is_empty())
-        }
-        test(&graph, props.clone());
-        #[cfg(feature = "storage")]
-        test(&disk_graph, props);
+        });
     }
 
     #[test]
@@ -444,11 +438,8 @@ mod test_edge {
             .add_constant_properties([("test_prop", "test_val")], Some("layer 2"))
             .unwrap();
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        // FIXME: multilayer edge views are not supported yet (Issue #47)
+        test_graph(&graph, |graph| {
             assert_eq!(
                 graph
                     .edge(1, 2)
@@ -475,10 +466,7 @@ mod test_edge {
                     )
                 }
             }
-        }
-        test(&graph);
-        // FIXME: multilayer edge views are not supported yet (Issue #47)
-        // test(&disk_graph);
+        });
     }
 
     #[test]

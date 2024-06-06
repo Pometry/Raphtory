@@ -174,11 +174,10 @@ where
 mod strongly_connected_components_tests {
     use crate::{
         algorithms::components::scc::strongly_connected_components,
-        db::api::view::StaticGraphViewOps,
         prelude::{AdditionOps, Graph, NO_PROPS},
+        test_storage,
     };
     use std::collections::HashSet;
-    use tempfile::TempDir;
 
     #[test]
     fn scc_test() {
@@ -199,11 +198,8 @@ mod strongly_connected_components_tests {
         for (ts, src, dst) in edges {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let scc_nodes: HashSet<_> = strongly_connected_components(graph, None)
                 .group_by()
                 .into_values()
@@ -223,10 +219,7 @@ mod strongly_connected_components_tests {
             .map(|v| v.into_iter().map(|s| s.to_owned()).collect())
             .collect();
             assert_eq!(scc_nodes, expected);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     #[test]
@@ -250,11 +243,7 @@ mod strongly_connected_components_tests {
             graph.add_edge(0, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let scc_nodes: HashSet<_> = strongly_connected_components(graph, None)
                 .group_by()
                 .into_values()
@@ -270,10 +259,7 @@ mod strongly_connected_components_tests {
                     .map(|v| v.into_iter().map(|s| s.to_owned()).collect())
                     .collect();
             assert_eq!(scc_nodes, expected);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     #[test]
@@ -284,11 +270,7 @@ mod strongly_connected_components_tests {
             graph.add_edge(0, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let scc_nodes: HashSet<_> = strongly_connected_components(graph, None)
                 .group_by()
                 .into_values()
@@ -303,10 +285,7 @@ mod strongly_connected_components_tests {
                 .map(|v| v.into_iter().map(|s| s.to_owned()).collect())
                 .collect();
             assert_eq!(scc_nodes, expected);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     #[test]
@@ -326,11 +305,7 @@ mod strongly_connected_components_tests {
             graph.add_edge(0, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let scc_nodes: HashSet<_> = strongly_connected_components(graph, None)
                 .group_by()
                 .into_values()
@@ -353,9 +328,6 @@ mod strongly_connected_components_tests {
             .map(|v| v.into_iter().map(|s| s.to_owned()).collect())
             .collect();
             assert_eq!(scc_nodes, expected);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 }

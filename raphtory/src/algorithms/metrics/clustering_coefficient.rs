@@ -52,9 +52,9 @@ mod cc_test {
     use crate::{
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
+        test_storage,
     };
     use pretty_assertions::assert_eq;
-    use tempfile::TempDir;
 
     /// Test the global clustering coefficient
     #[test]
@@ -89,16 +89,9 @@ mod cc_test {
             graph.add_edge(0, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let results = clustering_coefficient(graph);
             assert_eq!(results, 0.3);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 }

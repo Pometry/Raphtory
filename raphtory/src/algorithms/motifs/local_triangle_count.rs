@@ -74,8 +74,8 @@ mod triangle_count_tests {
             graph::graph::Graph,
         },
         prelude::NO_PROPS,
+        test_storage,
     };
-    use tempfile::TempDir;
 
     #[test]
     fn counts_triangles() {
@@ -86,11 +86,7 @@ mod triangle_count_tests {
             graph.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let windowed_graph = graph.window(0, 5);
             let expected = vec![1, 1, 1];
 
@@ -99,9 +95,6 @@ mod triangle_count_tests {
                 .collect::<Vec<_>>();
 
             assert_eq!(actual, expected);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 }

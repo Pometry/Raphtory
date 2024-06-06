@@ -295,8 +295,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
 
 #[cfg(test)]
 mod test_edge_view {
-    use crate::{db::api::view::StaticGraphViewOps, prelude::*};
-    use tempfile::TempDir;
+    use crate::{prelude::*, test_storage, test_utils::test_graph};
 
     #[test]
     fn test_exploded_edge_properties() {
@@ -306,11 +305,7 @@ mod test_edge_view {
             graph.add_edge(0, 1, 2, [("test", *v)], None).unwrap();
         }
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G, actual_prop_values: &[i32]) {
+        test_storage!(&graph, |graph| {
             let prop_values: Vec<_> = graph
                 .edge(1, 2)
                 .unwrap()
@@ -319,10 +314,7 @@ mod test_edge_view {
                 .flat_map(|p| p.get("test").into_i32())
                 .collect();
             assert_eq!(prop_values, actual_prop_values)
-        }
-        test(&graph, &actual_prop_values);
-        #[cfg(feature = "storage")]
-        test(&disk_graph, &actual_prop_values);
+        });
     }
 
     #[test]
@@ -336,16 +328,7 @@ mod test_edge_view {
         for v in actual_prop_values_1.iter() {
             graph.add_edge(1, 1, 2, [("test", *v)], None).unwrap();
         }
-
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(
-            graph: &G,
-            actual_prop_values_0: &[i32],
-            actual_prop_values_1: &[i32],
-        ) {
+        test_storage!(&graph, |graph| {
             let prop_values: Vec<_> = graph
                 .at(0)
                 .edge(1, 2)
@@ -364,10 +347,7 @@ mod test_edge_view {
                 .flat_map(|p| p.get("test").into_i32())
                 .collect();
             assert_eq!(prop_values, actual_prop_values_1)
-        }
-        test(&graph, &actual_prop_values_0, &actual_prop_values_1);
-        #[cfg(feature = "storage")]
-        test(&disk_graph, &actual_prop_values_0, &actual_prop_values_1);
+        });
     }
 
     #[test]
@@ -379,12 +359,8 @@ mod test_edge_view {
                 .add_edge(0, 1, 2, [("test", *v)], Some((v % 2).to_string().as_str()))
                 .unwrap();
         }
-
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G, expected_prop_values: &[i32]) {
+        // FIXME: Needs multilayer support (Issue #47)
+        test_graph(&graph, |graph| {
             let prop_values: Vec<_> = graph
                 .edge(1, 2)
                 .unwrap()
@@ -443,10 +419,7 @@ mod test_edge_view {
                 .all(|l| l.is_err()));
             assert!(graph.edges().explode().time().all(|l| l.is_ok()));
             assert!(graph.edges().explode_layers().time().all(|l| l.is_err()));
-        }
-        test(&graph, &expected_prop_values);
-        // FIXME: Needs multilayer support (Issue #47)
-        // test(&disk_graph, &expected_prop_values);
+        });
     }
 
     #[test]
@@ -457,11 +430,8 @@ mod test_edge_view {
         graph.add_edge(0, 1, 2, [("second", true)], None).unwrap();
         graph.add_edge(0, 2, 3, [("second", true)], None).unwrap();
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        // FIXME: boolean properties not supported yet (Issue #48)
+        test_graph(&graph, |graph| {
             let mut exploded_edges: Vec<_> = graph.edges().explode().iter().collect();
             exploded_edges.sort_by_key(|a| a.time_and_index());
 
@@ -484,9 +454,6 @@ mod test_edge_view {
                     (2, 3, Some(true))
                 ]
             )
-        }
-        test(&graph);
-        // FIXME: boolean properties not supported yet (Issue #48)
-        // test(&disk_graph);
+        });
     }
 }

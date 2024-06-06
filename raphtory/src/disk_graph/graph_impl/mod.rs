@@ -287,6 +287,7 @@ impl DiskGraph {
         read_chunk_size: Option<usize>,
         concurrent_files: Option<usize>,
         num_threads: usize,
+        node_type_col: Option<&str>,
     ) -> Result<DiskGraph, RAError> {
         let layered_edge_list: Vec<ExternalEdgeList<&Path>> = layer_parquet_cols
             .iter()
@@ -313,6 +314,7 @@ impl DiskGraph {
             graph_dir.as_ref(),
             layered_edge_list,
             node_properties.as_ref().map(|p| p.as_ref()),
+            node_type_col,
         )?;
         Ok(Self::new(t_graph, graph_dir.as_ref().to_path_buf()))
     }

@@ -89,19 +89,15 @@ pub fn average_degree<'graph, G: GraphViewOps<'graph>>(graph: &'graph G) -> f64 
 
 #[cfg(test)]
 mod degree_test {
+    use super::max_out_degree;
     use crate::{
         algorithms::metrics::degree::{
             average_degree, max_degree, max_in_degree, min_degree, min_in_degree, min_out_degree,
         },
-        db::{
-            api::{mutation::AdditionOps, view::StaticGraphViewOps},
-            graph::graph::Graph,
-        },
+        db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
+        test_storage,
     };
-    use tempfile::TempDir;
-
-    use super::max_out_degree;
 
     #[test]
     fn degree_test() {
@@ -119,11 +115,7 @@ mod degree_test {
             graph.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let expected_max_out_degree = 3;
             let actual_max_out_degree = max_out_degree(graph);
 
@@ -152,9 +144,6 @@ mod degree_test {
             assert_eq!(expected_average_degree, actual_average_degree);
             assert_eq!(expected_max_degree, actual_max_degree);
             assert_eq!(expected_min_degree, actual_min_degree);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 }

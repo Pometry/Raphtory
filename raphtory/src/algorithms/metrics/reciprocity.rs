@@ -164,15 +164,12 @@ pub fn all_local_reciprocity<G: StaticGraphViewOps>(
 mod reciprocity_test {
     use crate::{
         algorithms::metrics::reciprocity::{all_local_reciprocity, global_reciprocity},
-        db::{
-            api::{mutation::AdditionOps, view::StaticGraphViewOps},
-            graph::graph::Graph,
-        },
+        db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
+        test_storage,
     };
     use pretty_assertions::assert_eq;
     use std::collections::HashMap;
-    use tempfile::TempDir;
 
     #[test]
     fn test_global_recip() {
@@ -193,11 +190,7 @@ mod reciprocity_test {
             graph.add_edge(0, *src, *dst, NO_PROPS, None).unwrap();
         }
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let actual = global_reciprocity(graph, None);
             assert_eq!(actual, 0.5);
 
@@ -210,9 +203,6 @@ mod reciprocity_test {
 
             let res = all_local_reciprocity(graph, None);
             assert_eq!(res.get("1"), hash_map_result.get("1"));
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 }

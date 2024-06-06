@@ -60,14 +60,11 @@ pub fn degree_centrality<G: StaticGraphViewOps>(
 mod degree_centrality_test {
     use crate::{
         algorithms::centrality::degree_centrality::degree_centrality,
-        db::{
-            api::{mutation::AdditionOps, view::StaticGraphViewOps},
-            graph::graph::Graph,
-        },
+        db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
+        test_storage,
     };
     use std::collections::HashMap;
-    use tempfile::TempDir;
 
     #[test]
     fn test_degree_centrality() {
@@ -76,11 +73,7 @@ mod degree_centrality_test {
         for (src, dst) in &vs {
             graph.add_edge(0, *src, *dst, NO_PROPS, None).unwrap();
         }
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let mut hash_map_result: HashMap<String, f64> = HashMap::new();
             hash_map_result.insert("1".to_string(), 1.0);
             hash_map_result.insert("2".to_string(), 1.0);
@@ -90,9 +83,6 @@ mod degree_centrality_test {
             let binding = degree_centrality(graph, None);
             let res = binding.get_all_with_names();
             assert_eq!(res, hash_map_result);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 }

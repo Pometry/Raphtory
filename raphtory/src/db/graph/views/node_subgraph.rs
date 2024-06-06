@@ -102,12 +102,10 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for NodeSubgraph<G> {
 #[cfg(test)]
 mod subgraph_tests {
     use crate::{
-        algorithms::motifs::triangle_count::triangle_count, db::api::view::StaticGraphViewOps,
-        prelude::*,
+        algorithms::motifs::triangle_count::triangle_count, prelude::*, test_storage,
+        test_utils::test_graph,
     };
     use itertools::Itertools;
-    use std::fmt::Debug;
-    use tempfile::TempDir;
 
     #[test]
     fn test_materialize_no_edges() {
@@ -116,19 +114,13 @@ mod subgraph_tests {
         graph.add_node(1, 1, NO_PROPS, None).unwrap();
         graph.add_node(2, 2, NO_PROPS, None).unwrap();
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps + Debug>(graph: &G) {
+        // FIXME: Needs multilayer support (Issue #47)
+        test_graph(&graph, |graph| {
             let sg = graph.subgraph([1, 2]);
 
             let actual = sg.materialize().unwrap().into_events().unwrap();
             assert_eq!(actual, sg);
-        }
-        test(&graph);
-        // FIXME: Needs multilayer support (Issue #47)
-        // test(&disk_graph);
+        });
     }
 
     #[test]
@@ -162,19 +154,12 @@ mod subgraph_tests {
         for (src, dst, ts) in edges {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let subgraph = graph.subgraph(graph.nodes().into_iter().filter(|v| v.degree() > 1));
             let ts = triangle_count(&subgraph, None);
             let tg = triangle_count(graph, None);
             assert_eq!(ts, tg)
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 
     #[test]
@@ -183,20 +168,14 @@ mod subgraph_tests {
         graph.add_edge(0, 1, 2, NO_PROPS, Some("1")).unwrap();
         graph.add_edge(0, 3, 4, NO_PROPS, Some("2")).unwrap();
 
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let _disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        // FIXME: Needs multilayer support (Issue #47)
+        test_graph(&graph, |graph| {
             let sg = graph.subgraph([1, 2]);
             let sgm = sg.materialize().unwrap();
             assert_eq!(
                 sg.unique_layers().collect_vec(),
                 sgm.unique_layers().collect_vec()
             );
-        }
-        test(&graph);
-        // FIXME: Needs multilayer support (Issue #47)
-        // test(&disk_graph);
+        });
     }
 }

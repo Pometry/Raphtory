@@ -181,8 +181,8 @@ mod hits_tests {
     use crate::{
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
+        test_storage,
     };
-    use tempfile::TempDir;
 
     use super::*;
 
@@ -214,11 +214,7 @@ mod hits_tests {
             (7, 3),
             (8, 1),
         ]);
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let results = hits(graph, 20, None).get_all_with_names();
 
             assert_eq!(
@@ -234,9 +230,6 @@ mod hits_tests {
                     ("8".to_string(), (0.030866561, 0.05943252))
                 ])
             );
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 }

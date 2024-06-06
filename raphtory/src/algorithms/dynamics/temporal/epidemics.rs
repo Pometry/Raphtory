@@ -252,6 +252,7 @@ mod test {
     use rand_distr::{Distribution, Exp};
     use rayon::prelude::*;
     use stats::{mean, stddev};
+    #[cfg(feature = "storage")]
     use tempfile::TempDir;
 
     fn correct_res(x: f64) -> f64 {

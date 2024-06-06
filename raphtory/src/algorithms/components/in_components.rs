@@ -85,9 +85,8 @@ where
 #[cfg(test)]
 mod components_test {
     use super::*;
-    use crate::{db::api::mutation::AdditionOps, prelude::*};
+    use crate::{db::api::mutation::AdditionOps, prelude::*, test_storage};
     use std::collections::HashMap;
-    use tempfile::TempDir;
 
     #[test]
     fn in_components_test() {
@@ -106,11 +105,8 @@ mod components_test {
         for (ts, src, dst) in edges {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
-        let test_dir = TempDir::new().unwrap();
-        #[cfg(feature = "storage")]
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
-        fn test<G: StaticGraphViewOps>(graph: &G) {
+        test_storage!(&graph, |graph| {
             let results = in_components(graph, None).get_all_with_names();
             let mut correct = HashMap::new();
             correct.insert("1".to_string(), vec![]);
@@ -129,9 +125,6 @@ mod components_test {
                 })
                 .collect();
             assert_eq!(map, correct);
-        }
-        test(&graph);
-        #[cfg(feature = "storage")]
-        test(&disk_graph);
+        });
     }
 }

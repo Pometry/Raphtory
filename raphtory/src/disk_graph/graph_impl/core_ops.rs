@@ -94,7 +94,7 @@ impl CoreGraphOps for DiskGraph {
     }
 
     fn get_all_node_types(&self) -> Vec<ArcStr> {
-        todo!("Node types are not supported on diskgraph yet")
+        self.node_meta.get_all_node_types()
     }
 
     fn node_id(&self, v: VID) -> u64 {
@@ -113,8 +113,9 @@ impl CoreGraphOps for DiskGraph {
         }
     }
 
-    fn node_type(&self, _v: VID) -> Option<ArcStr> {
-        None
+    fn node_type(&self, v: VID) -> Option<ArcStr> {
+        let node_type_id = self.inner.node_type_id(v);
+        self.node_meta.get_node_type_name_by_id(node_type_id)
     }
 
     fn internalise_node(&self, v: NodeRef) -> Option<VID> {
