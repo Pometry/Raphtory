@@ -97,13 +97,13 @@ fn alive_at<
 }
 
 fn edge_alive_at_end(e: EdgeStorageRef, t: i64, layer_ids: &LayerIds) -> bool {
-    e.updates_par_iter(layer_ids)
+    e.updates_iter(layer_ids)
         .any(|(_, additions, deletions)| alive_before(&additions, &deletions, t))
 }
 
 fn edge_alive_at_start(e: EdgeStorageRef, t: i64, layer_ids: &LayerIds) -> bool {
     // The semantics are tricky here, an edge is not alive at the start of the window if the first event at time t is a deletion
-    e.updates_par_iter(layer_ids)
+    e.updates_iter(layer_ids)
         .any(|(_, additions, deletions)| alive_at(&additions, &deletions, t))
 }
 
