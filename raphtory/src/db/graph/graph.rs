@@ -215,7 +215,7 @@ mod db_tests {
             },
             graph::{edge::EdgeView, edges::Edges, node::NodeView, path::PathFromNode},
         },
-        disk_graph::graph_impl::DiskGraph,
+        disk_graph::graph_impl::{DiskGraph, ParquetLayerCols},
         graphgen::random_attachment::random_attachment,
         prelude::{AdditionOps, PropertyAdditionOps},
         test_storage,
@@ -227,7 +227,10 @@ mod db_tests {
     use raphtory_api::core::storage::arc_str::{ArcStr, OptionAsStr};
     use rayon::prelude::*;
     use serde_json::Value;
-    use std::collections::{HashMap, HashSet};
+    use std::{
+        collections::{HashMap, HashSet},
+        path::PathBuf,
+    };
     use tempfile::TempDir;
 
     #[test]
@@ -2293,7 +2296,100 @@ mod db_tests {
     }
 
     #[test]
-    fn test_type_filter_arrow() {
+    fn test_type_filter_storage() {
+        let tmp_dir = tempfile::tempdir().unwrap();
+        let graph_dir = tmp_dir.path();
+        let chunk_size = 268_435_456;
+        let num_threads = 4;
+        let t_props_chunk_size = chunk_size / 8;
+        let read_chunk_size = 4_000_000;
+        let concurrent_files = 1;
+
+        let netflow_layer_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .map(|p| p.join("pometry-storage-private/resources/test/netflow.parquet"))
+            .unwrap();
+
+        let v1_layer_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .map(|p| p.join("pometry-storage-private/resources/test/wls.parquet"))
+            .unwrap();
+
+        let node_properties = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .map(|p| p.join("pometry-storage-private/resources/test/node_types.parquet"))
+            .unwrap();
+
+        let layer_parquet_cols = vec![
+            ParquetLayerCols {
+                parquet_dir: netflow_layer_path.to_str().unwrap(),
+                layer: "netflow",
+                src_col: "source",
+                dst_col: "destination",
+                time_col: "time",
+            },
+            ParquetLayerCols {
+                parquet_dir: v1_layer_path.to_str().unwrap(),
+                layer: "wls",
+                src_col: "src",
+                dst_col: "dst",
+                time_col: "Time",
+            },
+        ];
+
+        let node_type_col = Some("node_type");
+
+        let g = DiskGraph::load_from_parquets(
+            graph_dir,
+            layer_parquet_cols,
+            Some(&node_properties),
+            chunk_size,
+            t_props_chunk_size,
+            Some(read_chunk_size as usize),
+            Some(concurrent_files),
+            num_threads,
+            node_type_col,
+        )
+        .unwrap();
+
+        assert_eq!(
+            g.nodes().type_filter(&vec!["A"]).name().collect_vec(),
+            vec!["Comp710070", "Comp844043"]
+        );
+
+        assert_eq!(
+            g.nodes()
+                .type_filter(&Vec::<String>::new())
+                .name()
+                .collect_vec(),
+            Vec::<String>::new()
+        );
+
+        assert_eq!(
+            g.nodes().type_filter(&vec![""]).name().collect_vec(),
+            Vec::<String>::new()
+        );
+
+        // let w = g.window(1, 4);
+        //
+        // assert_eq!(
+        //     w.nodes().type_filter(&vec!["A"]).name().collect_vec(),
+        //     vec!["Comp710070", "Comp844043"]
+        // );
+        //
+        // assert_eq!(
+        //     w.nodes()
+        //         .type_filter(&Vec::<String>::new())
+        //         .name()
+        //         .collect_vec(),
+        //     Vec::<String>::new()
+        // );
+        //
+        // assert_eq!(
+        //     w.nodes().type_filter(&vec![""]).name().collect_vec(),
+        //     Vec::<String>::new()
+        // );
+
         let g = Graph::new();
         g.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
         g.add_node(1, 2, NO_PROPS, Some("b")).unwrap();
