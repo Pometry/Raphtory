@@ -218,15 +218,17 @@ impl DiskGraph {
             edge_meta.layer_meta().get_or_create_id(l_name);
         }
 
-        if let Some(props) = inner_graph.node_properties().as_ref() {
-            let node_const_props_fields = props.const_props.prop_dtypes();
+        if let Some(props) = &inner_graph.node_properties().const_props {
+            let node_const_props_fields = props.prop_dtypes();
             for field in node_const_props_fields {
                 node_meta
                     .resolve_prop_id(&field.name, field.data_type().into(), true)
                     .expect("Initial resolve should not fail");
             }
+        }
 
-            let node_temporal_props_fields = props.temporal_props.prop_dtypes();
+        if let Some(props) = &inner_graph.node_properties().temporal_props {
+            let node_temporal_props_fields = props.prop_dtypes();
             for field in node_temporal_props_fields {
                 node_meta
                     .resolve_prop_id(&field.name, field.data_type().into(), false)
@@ -494,14 +496,16 @@ mod test {
     };
 
     use itertools::{chain, Itertools};
-    use pometry_storage::graph::TemporalGraph;
+    use pometry_storage::{graph::TemporalGraph, properties::Properties};
     use proptest::{prelude::*, sample::size_range};
     use rayon::prelude::*;
     use tempfile::TempDir;
 
     use crate::{
-        algorithms::components::weakly_connected_components, db::api::view::StaticGraphViewOps,
-        disk_graph::Time, prelude::*,
+        algorithms::components::weakly_connected_components,
+        db::api::view::{internal::TimeSemantics, StaticGraphViewOps},
+        disk_graph::Time,
+        prelude::*,
     };
 
     use super::{DiskGraph, ParquetLayerCols};
@@ -790,7 +794,8 @@ mod test {
         mem_graph.add_edge(0, 0, 1, [("test", 0u64)], None).unwrap();
         let test_dir = TempDir::new().unwrap();
         let disk_graph =
-            TemporalGraph::from_graph(&mem_graph, test_dir.path(), || Ok(None)).unwrap();
+            TemporalGraph::from_graph(&mem_graph, test_dir.path(), || Ok(Properties::default()))
+                .unwrap();
         assert_eq!(disk_graph.num_nodes(), 2);
         assert_eq!(disk_graph.num_edges(0), 1);
     }
@@ -936,25 +941,97 @@ mod test {
             Vec::<String>::new()
         );
 
-        // let w = g.window(1, 4);
-        //
-        // assert_eq!(
-        //     w.nodes().type_filter(&vec!["A"]).name().collect_vec(),
-        //     vec!["Comp710070", "Comp844043"]
-        // );
-        //
-        // assert_eq!(
-        //     w.nodes()
-        //         .type_filter(&Vec::<String>::new())
-        //         .name()
-        //         .collect_vec(),
-        //     Vec::<String>::new()
-        // );
-        //
-        // assert_eq!(
-        //     w.nodes().type_filter(&vec![""]).name().collect_vec(),
-        //     Vec::<String>::new()
-        // );
+        assert_eq!(
+            g.nodes()
+                .type_filter(&vec!["A"])
+                .neighbours()
+                .name()
+                .map(|n| { n.collect::<Vec<_>>() })
+                .collect_vec(),
+            vec![vec!["Comp844043"], vec!["Comp710070"]]
+        );
+
+        assert_eq!(
+            g.nodes()
+                .type_filter(&vec!["A", "B"])
+                .neighbours()
+                .name()
+                .map(|n| { n.collect::<Vec<_>>() })
+                .collect_vec(),
+            vec![vec!["Comp244393"], vec!["Comp844043"], vec!["Comp710070"]]
+        );
+
+        assert_eq!(
+            g.nodes()
+                .type_filter(&vec!["C"])
+                .neighbours()
+                .name()
+                .map(|n| { n.collect::<Vec<_>>() })
+                .collect_vec(),
+            Vec::<Vec<&str>>::new()
+        );
+
+        assert_eq!(
+            g.nodes()
+                .type_filter(&vec!["A"])
+                .neighbours()
+                .type_filter(&vec!["A"])
+                .name()
+                .map(|n| { n.collect::<Vec<_>>() })
+                .collect_vec(),
+            vec![vec!["Comp844043"], vec!["Comp710070"]]
+        );
+
+        assert_eq!(
+            g.nodes()
+                .type_filter(&vec!["A"])
+                .neighbours()
+                .type_filter(&Vec::<&str>::new())
+                .name()
+                .map(|n| { n.collect::<Vec<_>>() })
+                .collect_vec(),
+            vec![vec![], Vec::<&str>::new()]
+        );
+
+        let w = g.window(6415659, 7387801);
+
+        assert_eq!(
+            w.nodes().type_filter(&vec!["A"]).name().collect_vec(),
+            vec!["Comp710070", "Comp844043"]
+        );
+
+        assert_eq!(
+            w.nodes()
+                .type_filter(&Vec::<String>::new())
+                .name()
+                .collect_vec(),
+            Vec::<String>::new()
+        );
+
+        assert_eq!(
+            w.nodes().type_filter(&vec![""]).name().collect_vec(),
+            Vec::<String>::new()
+        );
+
+        let l = g.layers(["netflow"]).unwrap();
+
+        assert_eq!(
+            l.nodes().type_filter(&vec!["A"]).name().collect_vec(),
+            vec!["Comp710070", "Comp844043"]
+        );
+
+        assert_eq!(
+            l.nodes()
+                .type_filter(&Vec::<String>::new())
+                .name()
+                .collect_vec(),
+            Vec::<String>::new()
+        );
+
+        assert_eq!(
+            l.nodes().type_filter(&vec![""]).name().collect_vec(),
+            Vec::<String>::new()
+        );
 
         let g = Graph::new();
         g.add_node(1, 1, NO_PROPS, Some("a")).unwrap();

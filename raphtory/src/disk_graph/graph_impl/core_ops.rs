@@ -33,7 +33,10 @@ use crate::{
 };
 use itertools::Itertools;
 use polars_arrow::datatypes::ArrowDataType;
-use pometry_storage::{properties::Properties, GidRef, GID};
+use pometry_storage::{
+    properties::{ConstProps, Properties},
+    GidRef, GID,
+};
 use raphtory_api::core::storage::arc_str::ArcStr;
 use rayon::prelude::*;
 
@@ -139,19 +142,18 @@ impl CoreGraphOps for DiskGraph {
     }
 
     fn constant_node_prop(&self, v: VID, id: usize) -> Option<Prop> {
-        match &self.inner.node_properties() {
+        match &self.inner.node_properties().const_props {
             None => None,
             Some(props) => const_props(props, v, id),
         }
     }
 
     fn constant_node_prop_ids(&self, v: VID) -> Box<dyn Iterator<Item = usize> + '_> {
-        match self.inner.node_properties() {
+        match &self.inner.node_properties().const_props {
             None => Box::new(std::iter::empty()),
-            Some(props) => Box::new(
-                (0..props.const_props.num_props())
-                    .filter(move |id| props.const_props.has_prop(v, *id)),
-            ),
+            Some(props) => {
+                Box::new((0..props.num_props()).filter(move |id| props.has_prop(v, *id)))
+            }
         }
     }
 
@@ -231,35 +233,23 @@ impl CoreGraphOps for DiskGraph {
     }
 }
 
-pub fn const_props<Index>(props: &Properties<Index>, index: Index, id: usize) -> Option<Prop>
+pub fn const_props<Index>(props: &ConstProps<Index>, index: Index, id: usize) -> Option<Prop>
 where
     usize: From<Index>,
 {
-    let dtype = props.const_props.prop_dtype(id);
+    let dtype = props.prop_dtype(id);
     match dtype.data_type() {
-        ArrowDataType::Int64 => props.const_props.prop_native(index, id).map(Prop::I64),
-        ArrowDataType::Int32 => props.const_props.prop_native(index, id).map(Prop::I32),
-        ArrowDataType::UInt64 => props.const_props.prop_native(index, id).map(Prop::U64),
-        ArrowDataType::UInt32 => props.const_props.prop_native(index, id).map(Prop::U32),
-        ArrowDataType::UInt16 => props.const_props.prop_native(index, id).map(Prop::U16),
-        ArrowDataType::UInt8 => props.const_props.prop_native(index, id).map(Prop::U8),
-        ArrowDataType::Float64 => props.const_props.prop_native(index, id).map(Prop::F64),
-        ArrowDataType::Float32 => props.const_props.prop_native(index, id).map(Prop::F32),
-        ArrowDataType::Utf8 => props
-            .const_props
-            .prop_str(index, id)
-            .map(Into::into)
-            .map(Prop::Str),
-        ArrowDataType::LargeUtf8 => props
-            .const_props
-            .prop_str(index, id)
-            .map(Into::into)
-            .map(Prop::Str),
-        ArrowDataType::Utf8View => props
-            .const_props
-            .prop_str(index, id)
-            .map(Into::into)
-            .map(Prop::Str),
+        ArrowDataType::Int64 => props.prop_native(index, id).map(Prop::I64),
+        ArrowDataType::Int32 => props.prop_native(index, id).map(Prop::I32),
+        ArrowDataType::UInt64 => props.prop_native(index, id).map(Prop::U64),
+        ArrowDataType::UInt32 => props.prop_native(index, id).map(Prop::U32),
+        ArrowDataType::UInt16 => props.prop_native(index, id).map(Prop::U16),
+        ArrowDataType::UInt8 => props.prop_native(index, id).map(Prop::U8),
+        ArrowDataType::Float64 => props.prop_native(index, id).map(Prop::F64),
+        ArrowDataType::Float32 => props.prop_native(index, id).map(Prop::F32),
+        ArrowDataType::Utf8 => props.prop_str(index, id).map(Into::into).map(Prop::Str),
+        ArrowDataType::LargeUtf8 => props.prop_str(index, id).map(Into::into).map(Prop::Str),
+        ArrowDataType::Utf8View => props.prop_str(index, id).map(Into::into).map(Prop::Str),
         _ => unimplemented!(),
     }
 }

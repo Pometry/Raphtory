@@ -118,10 +118,10 @@ impl TimeSemantics for DiskGraph {
                 || self
                     .inner
                     .node_properties()
+                    .temporal_props
                     .as_ref()
                     .map(|props| {
                         props
-                            .temporal_props
                             .timestamps::<TimeIndexEntry>(v.vid())
                             .active_t(w.clone())
                     })
@@ -451,26 +451,26 @@ impl TimeSemantics for DiskGraph {
     }
 
     fn has_temporal_node_prop(&self, v: VID, prop_id: usize) -> bool {
-        match &self.inner.node_properties() {
+        match &self.inner.node_properties().temporal_props {
             None => false,
-            Some(props) => props.temporal_props.has_prop(v, prop_id),
+            Some(props) => props.has_prop(v, prop_id),
         }
     }
 
     #[doc = " and the second element is the property value."]
     fn temporal_node_prop_vec(&self, v: VID, id: usize) -> Vec<(i64, Prop)> {
-        match &self.inner.node_properties() {
+        match &self.inner.node_properties().temporal_props {
             None => {
                 vec![]
             }
-            Some(props) => props.temporal_props.prop(v, id).iter_t().collect(),
+            Some(props) => props.prop(v, id).iter_t().collect(),
         }
     }
 
     fn has_temporal_node_prop_window(&self, v: VID, prop_id: usize, w: Range<i64>) -> bool {
-        match &self.inner.node_properties() {
+        match &self.inner.node_properties().temporal_props {
             None => false,
-            Some(props) => props.temporal_props.has_prop_window(v, prop_id, w),
+            Some(props) => props.has_prop_window(v, prop_id, w),
         }
     }
 
@@ -481,13 +481,9 @@ impl TimeSemantics for DiskGraph {
         start: i64,
         end: i64,
     ) -> Vec<(i64, Prop)> {
-        match &self.inner.node_properties() {
+        match &self.inner.node_properties().temporal_props {
             None => vec![],
-            Some(props) => props
-                .temporal_props
-                .prop(v, id)
-                .iter_window_t(start..end)
-                .collect(),
+            Some(props) => props.prop(v, id).iter_window_t(start..end).collect(),
         }
     }
 
