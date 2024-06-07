@@ -46,6 +46,7 @@
 //! ```
 
 use crate::{
+    core::utils::hashing::calculate_hash,
     graph_loader::{fetch_file, source::csv_loader::CsvLoader},
     prelude::*,
 };
@@ -75,10 +76,6 @@ pub fn sx_superuser_file() -> Result<PathBuf, Box<dyn std::error::Error>> {
 
 /// Load the SX SuperUser dataset into a graph and return it
 ///
-/// # Arguments
-///
-/// * `shards` - The number of shards to use for the graph
-///
 /// Returns:
 ///
 /// - A Result containing the graph or an error
@@ -89,6 +86,32 @@ pub fn sx_superuser_graph() -> Result<Graph, Box<dyn std::error::Error>> {
         .load_into_graph(&graph, |edge: TEdge, g: &Graph| {
             g.add_edge(edge.time, edge.src_id, edge.dst_id, NO_PROPS, None)
                 .expect("Error: Unable to add edge");
+        })?;
+
+    Ok(graph)
+}
+
+/// Load the SX SuperUser dataset into a graph and return it
+///
+/// Returns:
+///
+/// - A Result containing the graph or an error with edges spread randomly across layers
+pub fn sx_superuser_graph_layered(num_layers: usize) -> Result<Graph, Box<dyn std::error::Error>> {
+    let graph = Graph::new();
+    CsvLoader::new(sx_superuser_file()?)
+        .set_delimiter(" ")
+        .load_into_graph(&graph, |edge: TEdge, g: &Graph| {
+            // hash correctly as you would in rust the edge and mod with num_layers to spread edges across layers
+
+            let layer_id = calculate_hash(&(edge.src_id, edge.dst_id)) % num_layers as u64;
+            g.add_edge(
+                edge.time,
+                edge.src_id,
+                edge.dst_id,
+                NO_PROPS,
+                Some(&layer_id.to_string()),
+            )
+            .expect("Error: Unable to add edge");
         })?;
 
     Ok(graph)

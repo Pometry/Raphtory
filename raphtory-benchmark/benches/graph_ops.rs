@@ -1,6 +1,6 @@
 use common::run_analysis_benchmarks;
 use criterion::{criterion_group, criterion_main, Criterion};
-use raphtory::{db::api::view::*, graph_loader::example::sx_superuser_graph::sx_superuser_graph};
+use raphtory::{db::api::view::*, graph_loader::example::sx_superuser_graph::{sx_superuser_graph, sx_superuser_graph_layered}};
 
 mod common;
 
@@ -28,6 +28,24 @@ pub fn graph(c: &mut Criterion) {
         None,
     );
     graph_window_group_10.finish();
+
+    let graph = sx_superuser_graph_layered(10).unwrap();
+    let mut graph_window_layered_group_50 = c.benchmark_group("analysis_graph_window_50, 5 layers");
+    let latest = graph.latest_time().expect("non-empty graph");
+    let earliest = graph.earliest_time().expect("non-empty graph");
+    let start = latest - (latest - earliest) / 2;
+    graph_window_layered_group_50.sample_size(10);
+    run_analysis_benchmarks(
+        &mut graph_window_layered_group_50,
+        || {
+            graph
+                .window(start, latest + 1)
+                .layers(["0", "1", "2", "3", "4"])
+                .unwrap()
+        },
+        None,
+    );
+    graph_window_layered_group_50.finish();
 }
 
 criterion_group!(benches, graph);
