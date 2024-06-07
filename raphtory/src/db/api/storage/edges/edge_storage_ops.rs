@@ -251,7 +251,7 @@ impl<'a> EdgeStorageOps<'a> for &'a EdgeStore {
             LayerIds::None => false,
             LayerIds::All => true,
             LayerIds::One(id) => self.has_layer_inner(*id),
-            LayerIds::Multiple(ids) => ids.par_iter().any(|id| self.has_layer_inner(*id)),
+            LayerIds::Multiple(ids) => ids.iter().any(|id| self.has_layer_inner(*id)),
         }
     }
 

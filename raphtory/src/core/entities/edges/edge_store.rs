@@ -246,7 +246,7 @@ impl EdgeStore {
             LayerIds::None => false,
             LayerIds::All => self
                 .additions
-                .par_iter()
+                .iter()
                 .any(|t_index| t_index.contains(w.clone())),
             LayerIds::One(l_id) => self
                 .additions
@@ -254,7 +254,7 @@ impl EdgeStore {
                 .map(|t_index| t_index.contains(w))
                 .unwrap_or(false),
             LayerIds::Multiple(layers) => layers
-                .par_iter()
+                .iter()
                 .any(|l_id| self.active(&LayerIds::One(*l_id), w.clone())),
         }
     }
