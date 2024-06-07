@@ -4,10 +4,9 @@ from utils import measure
 import tempfile
 import os
 
-
 def test_disk_graph():
     curr_dir = os.path.dirname(os.path.abspath(__file__))
-    rsc_dir = os.path.join(curr_dir, "..","..", "pometry-storage-private", "resources")
+    rsc_dir = os.path.join(curr_dir, "..", "..", "pometry-storage-private", "resources")
     rsc_dir = os.path.normpath(rsc_dir)
     print("rsc_dir:", rsc_dir + "/netflowsorted/nft_sorted")
 
@@ -92,3 +91,65 @@ def test_disk_graph():
         "Page Rank", algorithms.pagerank, g.layer("netflow"), 100, print_result=False
     )
     assert len(list(actual.get_all_with_names())) == 1624
+
+def test_disk_graph_type_filter():
+    curr_dir = os.path.dirname(os.path.abspath(__file__))
+    rsc_dir = os.path.join(curr_dir, "..", "..", "pometry-storage-private", "resources")
+    rsc_dir = os.path.normpath(rsc_dir)
+    print("rsc_dir:", rsc_dir + "/netflowsorted/nft_sorted")
+
+    graph_dir = tempfile.TemporaryDirectory()
+    layer_parquet_cols = [
+        {
+            "parquet_dir": rsc_dir + "/netflowsorted/nft_sorted",
+            "layer": "netflow",
+            "src_col": "src",
+            "dst_col": "dst",
+            "time_col": "epoch_time",
+        }
+    ]
+
+    chunk_size = 268_435_456
+    num_threads = 4
+    t_props_chunk_size = int(chunk_size / 8)
+    read_chunk_size = 4_000_000
+    concurrent_files = 1
+
+    g = DiskGraph.load_from_parquets(
+        graph_dir.name,
+        layer_parquet_cols,
+        rsc_dir + "/netflowsorted/props/props.parquet",
+        chunk_size,
+        t_props_chunk_size,
+        read_chunk_size,
+        concurrent_files,
+        num_threads,
+        "node_type"
+    )
+
+    assert g.count_nodes() == 1619
+    assert g.layer("netflow").count_edges() == 2018
+    assert g.earliest_time == 7257619
+    assert g.latest_time == 7343970
+
+    assert len(g.nodes.type_filter(["A"]).name.collect()) == 785
+    assert len(g.nodes.type_filter([""]).name.collect()) == 0
+    assert len(g.nodes.type_filter(["A", "B"]).name.collect()) == 1619
+
+    neighbor_names = g.nodes.type_filter(["A"]).neighbours.name.collect()
+    total_length = sum(len(names) for names in neighbor_names)
+    assert total_length == 2056
+
+    assert g.nodes.type_filter([]).name.collect() == []
+
+    neighbor_names = g.nodes.type_filter(["A"]).neighbours.type_filter(["B"]).name.collect()
+    total_length = sum(len(names) for names in neighbor_names)
+    assert total_length == 1023
+
+    assert g.node("Comp175846").neighbours.type_filter(["A"]).name.collect() == ["Comp844043"]
+    assert g.node("Comp175846").neighbours.type_filter(["B"]).name.collect() == []
+    assert g.node("Comp175846").neighbours.type_filter([]).name.collect() == []
+    assert g.node("Comp175846").neighbours.type_filter(["A", "B"]).name.collect() == ["Comp844043"]
+
+    neighbor_names = g.node("Comp175846").neighbours.neighbours.name.collect()
+    assert len(neighbor_names) == 193
