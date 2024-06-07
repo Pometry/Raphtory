@@ -487,8 +487,11 @@ impl InternalPropertyAdditionOps for DiskGraph {
 
 #[cfg(test)]
 mod test {
-    use std::{cmp::Reverse, iter::once, path::Path};
-    use std::path::PathBuf;
+    use std::{
+        cmp::Reverse,
+        iter::once,
+        path::{Path, PathBuf},
+    };
 
     use itertools::{chain, Itertools};
     use pometry_storage::graph::TemporalGraph;
@@ -913,7 +916,7 @@ mod test {
             num_threads,
             node_type_col,
         )
-            .unwrap();
+        .unwrap();
 
         assert_eq!(
             g.nodes().type_filter(&vec!["A"]).name().collect_vec(),
@@ -1018,5 +1021,4 @@ mod test {
             vec!["7", "8", "9"]
         );
     }
-
 }
