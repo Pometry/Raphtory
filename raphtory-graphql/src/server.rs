@@ -156,11 +156,11 @@ impl RaphtoryServer {
     /// Start the server on the default port and return a handle to it.
     pub async fn start(
         self,
-        log_config_or_level: &str,
+        config_file_or_log_level: &str,
         enable_tracing: bool,
         enable_auth: bool,
     ) -> RunningRaphtoryServer {
-        self.start_with_port(1736, log_config_or_level, enable_tracing, enable_auth)
+        self.start_with_port(1736, config_file_or_log_level, enable_tracing, enable_auth)
             .await
     }
 
@@ -168,7 +168,7 @@ impl RaphtoryServer {
     pub async fn start_with_port(
         self,
         port: u16,
-        log_config_or_level: &str,
+        config_file_or_log_level: &str,
         enable_tracing: bool,
         enable_auth: bool,
     ) -> RunningRaphtoryServer {
@@ -212,15 +212,15 @@ impl RaphtoryServer {
             }
         }
 
-        fn configure_logger(log_config_or_level: &str) {
-            if let Some(log_level) = parse_log_level(log_config_or_level) {
+        fn configure_logger(config_file_or_log_level: &str) {
+            if let Some(log_level) = parse_log_level(config_file_or_log_level) {
                 setup_logger_with_level(log_level);
             } else {
-                setup_logger_from_config(log_config_or_level);
+                setup_logger_from_config(config_file_or_log_level);
             }
         }
 
-        configure_logger(log_config_or_level);
+        configure_logger(config_file_or_log_level);
 
         let registry = Registry::default().with(tracing_subscriber::fmt::layer().pretty());
         let env_filter = EnvFilter::try_from_default_env().unwrap_or(EnvFilter::new("INFO"));
@@ -364,8 +364,8 @@ impl RaphtoryServer {
     }
 
     /// Run the server on the default port until completion.
-    pub async fn run(self, log_config_or_level: &str, enable_tracing: bool) -> IoResult<()> {
-        self.start(log_config_or_level, enable_tracing, false)
+    pub async fn run(self, config_file_or_log_level: &str, enable_tracing: bool) -> IoResult<()> {
+        self.start(config_file_or_log_level, enable_tracing, false)
             .await
             .wait()
             .await
@@ -373,10 +373,10 @@ impl RaphtoryServer {
 
     pub async fn run_with_auth(
         self,
-        log_config_or_level: &str,
+        config_file_or_log_level: &str,
         enable_tracing: bool,
     ) -> IoResult<()> {
-        self.start(log_config_or_level, enable_tracing, true)
+        self.start(config_file_or_log_level, enable_tracing, true)
             .await
             .wait()
             .await
@@ -386,10 +386,10 @@ impl RaphtoryServer {
     pub async fn run_with_port(
         self,
         port: u16,
-        log_config_or_level: &str,
+        config_file_or_log_level: &str,
         enable_tracing: bool,
     ) -> IoResult<()> {
-        self.start_with_port(port, log_config_or_level, enable_tracing, false)
+        self.start_with_port(port, config_file_or_log_level, enable_tracing, false)
             .await
             .wait()
             .await
