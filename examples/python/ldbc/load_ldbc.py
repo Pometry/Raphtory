@@ -1,13 +1,59 @@
 from functools import reduce
-from typing import List
+from typing import List, Tuple
 from pyspark.sql import *
 from pyspark.sql.functions import lit, concat, col
 import os.path
 import argparse
 
 
-def make_edge_dataframes(directories: List[str], workdir: str) -> List[DataFrame]:
-    edge_dataframes: List[DataFrame] = []
+def make_edge_dataframes_org_and_place(directories: List[str], workdir: str) -> List[Tuple[str, DataFrame]]:
+    edge_dataframes: List[Tuple[str, DataFrame]] = []
+
+    # For each directory in the filtered list
+    for directory in directories:
+        # Get a list of all subdirectories in the directory
+        subdirectories = [
+            sd
+            for sd in os.listdir(os.path.join(workdir, directory))
+            if os.path.isdir(os.path.join(workdir, directory, sd))
+        ]
+
+        # Filter out subdirectories that don't contain an underscore or contain 'Organisation' or 'Place'
+        subdirectories = [
+            sd
+            for sd in subdirectories
+            if "_" in sd and ("Organisation" in sd or "Place" in sd)
+        ]
+
+        # For each subdirectory in the filtered list
+        for subdirectory in subdirectories:
+            print("Loading data from {}/{}".format(directory, subdirectory))
+            # Extract the first and last parts of the subdirectory name
+            src_type, layer, dst_type = subdirectory.split("_")
+
+            # Construct a glob pattern for '.csv.gz' files in the subdirectory
+            file_pattern = os.path.join(workdir, directory, subdirectory, "*.csv.gz")
+
+            src_path = os.join(workdir, directory, src_type, "*.csv.gz")
+
+            print(file_pattern)
+
+            # # Load the files into a DataFrame using Spark
+            # df = (
+            #     spark.read.format("csv")
+            #     .option("header", "true")
+            #     .option("inferSchema", "true")
+            #     .option("delimiter", "|")
+            #     .option("timestampFormat", "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
+            #     .load(file_pattern)
+            # )
+    return edge_dataframes
+
+
+def make_edge_dataframes(
+    directories: List[str], workdir: str
+) -> List[Tuple[str, DataFrame]]:
+    edge_dataframes: List[Tuple[str, DataFrame]] = []
 
     # For each directory in the filtered list
     for directory in directories:
@@ -29,7 +75,7 @@ def make_edge_dataframes(directories: List[str], workdir: str) -> List[DataFrame
         for subdirectory in subdirectories:
             print("Loading data from {}/{}".format(directory, subdirectory))
             # Extract the first and last parts of the subdirectory name
-            src_type, _, dst_type = subdirectory.split("_")
+            src_type, layer, dst_type = subdirectory.split("_")
 
             # Construct a glob pattern for '.csv.gz' files in the subdirectory
             file_pattern = os.path.join(workdir, directory, subdirectory, "*.csv.gz")
@@ -40,7 +86,7 @@ def make_edge_dataframes(directories: List[str], workdir: str) -> List[DataFrame
                 .option("header", "true")
                 .option("inferSchema", "true")
                 .option("delimiter", "|")
-                .option("timestampFormat", "yyyy-MM-dd HH:mm:ss.SSS")
+                .option("timestampFormat", "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
                 .load(file_pattern)
             )
 
@@ -51,12 +97,16 @@ def make_edge_dataframes(directories: List[str], workdir: str) -> List[DataFrame
             dst = next(col for col in df.columns if col.endswith("Id") and col != src)
 
             # Make a 'src' column that contains concatenated 'src_type/src' and a 'dst' column that contains 'dst_type/dst'
-            df = df.withColumn("src", concat(lit(src_type), lit("/"), col(src))).drop(src)
-            df = df.withColumn("dst", concat(lit(dst_type), lit("/"), col(dst))).drop(dst)
+            df = df.withColumn("src", concat(lit(src_type), lit("/"), col(src))).drop(
+                src
+            )
+            df = df.withColumn("dst", concat(lit(dst_type), lit("/"), col(dst))).drop(
+                dst
+            )
 
             for col_name in df.columns:
-                if 'time' in col_name.lower():
-                    df = df.withColumnRenamed(col_name, 'time')
+                if "date" in col_name.lower():
+                    df = df.withColumnRenamed(col_name, "time")
 
             # Add a time column if it doesn't exist and fill it with 0
             if "time" not in df.columns:
@@ -69,9 +119,9 @@ def make_edge_dataframes(directories: List[str], workdir: str) -> List[DataFrame
 
             # check the schema for the column type, it should be i64 or long
             df.printSchema()
-            
+
             # Add the DataFrame to the list
-            edge_dataframes.append(df)
+            edge_dataframes.append((layer, df))
 
     return edge_dataframes
 
@@ -138,7 +188,15 @@ if __name__ == "__main__":
         d for d in os.listdir(workdir) if os.path.isdir(os.path.join(workdir, d))
     ]
 
-    edge_dataframes: List[DataFrame] = make_edge_dataframes(directories, workdir)
+    make_edge_dataframes_org_and_place(directories, workdir)
+
+    exit(0)
+    edge_dataframes: List[(str, DataFrame)] = make_edge_dataframes(directories, workdir)
+
+    # write each dataframe in ldbc_edges directory
+    for layer, df in edge_dataframes:
+        df.write.mode("overwrite").parquet(os.path.join(workdir, "ldbc_edges", layer))
+
     node_dataframes: List[DataFrame] = make_node_dataframes(directories, workdir)
 
     print("Loaded {} DataFrames".format(len(node_dataframes)))
@@ -149,5 +207,3 @@ if __name__ == "__main__":
     df.orderBy(["gid"]).write.mode("overwrite").parquet(
         os.path.join(workdir, "ldbc_nodes")
     )
-
-    edge_dataframes: List[DataFrame] = make_edge_dataframes(directories, workdir)
