@@ -1,6 +1,8 @@
 #![allow(dead_code)]
 
-use criterion::{measurement::WallTime, BatchSize, Bencher, BenchmarkGroup, BenchmarkId};
+use criterion::{
+    black_box, measurement::WallTime, BatchSize, Bencher, BenchmarkGroup, BenchmarkId,
+};
 use rand::{distributions::Uniform, seq::*, Rng};
 use raphtory::{core::entities::LayerIds, db::api::view::StaticGraphViewOps, prelude::*};
 use std::collections::HashSet;
@@ -289,6 +291,10 @@ pub fn run_analysis_benchmarks<F, G>(
         b.iter(|| graph.count_edges())
     });
 
+    bench(group, "num_edges_temporal", parameter, |b: &mut Bencher| {
+        b.iter(|| graph.count_temporal_edges())
+    });
+
     bench(group, "has_edge_existing", parameter, |b: &mut Bencher| {
         let mut rng = rand::thread_rng();
         let edge = edges.iter().choose(&mut rng).expect("non-empty graph");
@@ -331,15 +337,16 @@ pub fn run_analysis_benchmarks<F, G>(
 
     bench(group, "edge has layer", parameter, |b: &mut Bencher| {
         let mut rng = rand::thread_rng();
-        let (edge, active_t) = edges_t
+        let edge = edges
+            .iter()
             .choose(&mut rng)
-            .and_then(|(src, dst, t)| graph.edge(src, dst).map(|e| (e, *t)))
+            .and_then(|(src, dst)| graph.edge(src, dst))
             .expect("active edge");
 
         let layers = graph.unique_layers().collect::<Vec<_>>();
         b.iter(|| {
             for name in layers.iter() {
-                edge.has_layer(name);
+                black_box(edge.has_layer(name));
             }
         });
     });
@@ -377,6 +384,44 @@ pub fn run_analysis_benchmarks<F, G>(
     bench(group, "max_degree", parameter, |b: &mut Bencher| {
         b.iter(|| graph.nodes().degree().max())
     });
+
+    bench(group, "iterate nodes", parameter, |b: &mut Bencher| {
+        b.iter(|| {
+            for n in graph.nodes() {
+                black_box(n);
+            }
+        })
+    });
+
+    bench(group, "iterate edges", parameter, |b: &mut Bencher| {
+        b.iter(|| {
+            for e in graph.edges() {
+                black_box(e);
+            }
+        })
+    });
+
+    bench(
+        group,
+        "iterate_exploded_edges",
+        parameter,
+        |b: &mut Bencher| {
+            b.iter(|| {
+                for e in graph.edges() {
+                    for ee in e.explode() {
+                        black_box(ee);
+                    }
+                }
+            })
+        },
+    );
+
+    bench(group, "materialize", parameter, |b: &mut Bencher| {
+        b.iter(|| {
+            let mg = graph.materialize();
+            black_box(mg)
+        })
+    })
 
     // Too noisy due to degree variability and confuses criterion
     // bench(
