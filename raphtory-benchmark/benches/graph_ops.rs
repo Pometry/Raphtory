@@ -1,16 +1,13 @@
 use common::run_analysis_benchmarks;
 use criterion::{criterion_group, criterion_main, Criterion};
 use rand::seq::*;
-use raphtory::{
-    db::api::view::*,
-    graph_loader::example::sx_superuser_graph::{sx_superuser_graph, sx_superuser_graph_layered},
-};
+use raphtory::{db::api::view::*, graph_loader::example::sx_superuser_graph::sx_superuser_graph};
 
 mod common;
 
 pub fn graph(c: &mut Criterion) {
     let mut graph_group = c.benchmark_group("analysis_graph");
-    let graph = sx_superuser_graph().unwrap();
+    let graph = sx_superuser_graph(None).unwrap();
     run_analysis_benchmarks(&mut graph_group, || graph.clone(), None);
     graph_group.finish();
     let mut graph_window_group_100 = c.benchmark_group("analysis_graph_window_100");
@@ -63,7 +60,7 @@ pub fn graph(c: &mut Criterion) {
     subgraph_10_windowed.finish();
 
     // layered graph windowed
-    let graph = sx_superuser_graph_layered(10).unwrap();
+    let graph = sx_superuser_graph(Some(10)).unwrap();
     let mut graph_window_layered_group_50 = c.benchmark_group("analysis_graph_window_50_layered");
     let latest = graph.latest_time().expect("non-empty graph");
     let earliest = graph.earliest_time().expect("non-empty graph");
