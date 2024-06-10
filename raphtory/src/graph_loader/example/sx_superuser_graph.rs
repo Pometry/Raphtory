@@ -55,9 +55,9 @@ use std::path::PathBuf;
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct TEdge {
-    src_id: u64,
-    dst_id: u64,
-    time: i64,
+    pub src_id: u64,
+    pub dst_id: u64,
+    pub time: i64,
 }
 
 /// Download the SX SuperUser dataset
@@ -73,35 +73,19 @@ pub fn sx_superuser_file() -> Result<PathBuf, Box<dyn std::error::Error>> {
         600,
     )
 }
-
 /// Load the SX SuperUser dataset into a graph and return it
 ///
 /// Returns:
 ///
 /// - A Result containing the graph or an error
-pub fn sx_superuser_graph(num_layers: Option<usize>) -> Result<Graph, Box<dyn std::error::Error>> {
+pub fn sx_superuser_graph() -> Result<Graph, Box<dyn std::error::Error>> {
     let graph = Graph::new();
     CsvLoader::new(sx_superuser_file()?)
         .set_delimiter(" ")
         .load_into_graph(&graph, |edge: TEdge, g: &Graph| {
-            if let Some(layer) = num_layers
-                .map(|num_layers| calculate_hash(&(edge.src_id, edge.dst_id)) % num_layers as u64)
-                .map(|id| id.to_string())
-            {
-                g.add_edge(
-                    edge.time,
-                    edge.src_id,
-                    edge.dst_id,
-                    NO_PROPS,
-                    Some(layer.as_str()),
-                )
+            g.add_edge(edge.time, edge.src_id, edge.dst_id, NO_PROPS, None)
                 .expect("Error: Unable to add edge");
-            } else {
-                g.add_edge(edge.time, edge.src_id, edge.dst_id, NO_PROPS, None)
-                    .expect("Error: Unable to add edge");
-            }
         })?;
-
     Ok(graph)
 }
 
@@ -119,6 +103,6 @@ mod sx_superuser_test {
     #[test]
     #[ignore] // don't hit SNAP by default  FIXME: add a truncated test file for this one?
     fn test_graph_loading_works() {
-        sx_superuser_graph(None).unwrap();
+        sx_superuser_graph().unwrap();
     }
 }

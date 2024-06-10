@@ -327,11 +327,11 @@ pub fn run_analysis_benchmarks<F, G>(
             .and_then(|(src, dst, t)| graph.edge(src, dst).map(|e| (e, *t)))
             .expect("active edge");
         b.iter(|| {
-            graph.edge_window_layers(
-                edge.edge,
-                active_t.saturating_sub(5)..active_t + 5,
-                &LayerIds::All,
-            )
+            edge
+                .window(active_t.saturating_sub(5), active_t + 5)
+                .explode_layers()
+                .iter()
+                .for_each(|e| { black_box(e); });
         });
     });
 
