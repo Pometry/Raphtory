@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1717772543901,
+  "lastUpdate": 1718022529625,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -53035,6 +53035,66 @@ window.BENCHMARK_DATA = {
             "name": "temporal_motifs/temporal_motifs",
             "value": 20934914,
             "range": "± 426639",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "brandon.haugen@hey.com",
+            "name": "Brandon Haugen",
+            "username": "brandon-haugen"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "566a7c78df42f6491feb6dff97b8c38ca47dafcf",
+          "message": "Fixed documentation to state nodes instead of edges for find_nodes (#1648)\n\nMerging as this works - just having some minor issue with ssh keys not working for forks",
+          "timestamp": "2024-06-10T13:13:49+01:00",
+          "tree_id": "9be9132a6050acd870cc1f5a1f12e66467940c51",
+          "url": "https://github.com/Pometry/Raphtory/commit/566a7c78df42f6491feb6dff97b8c38ca47dafcf"
+        },
+        "date": 1718022527681,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "local_triangle_count/local_triangle_count",
+            "value": 915734,
+            "range": "± 13630",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "local_clustering_coefficient/local_clustering_coefficient",
+            "value": 107666,
+            "range": "± 1395",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_clustering_coeff/graphgen_large_clustering_coeff/Graph(num_nodes=500004, num_edges=20...",
+            "value": 2351864685,
+            "range": "± 50005607",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_pagerank/graphgen_large_pagerank/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 260270652,
+            "range": "± 2064294",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_concomp/graphgen_large_concomp/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 2320548205,
+            "range": "± 48369397",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "temporal_motifs/temporal_motifs",
+            "value": 20769944,
+            "range": "± 354044",
             "unit": "ns/iter"
           }
         ]
