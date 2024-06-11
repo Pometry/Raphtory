@@ -15,7 +15,7 @@ use crate::{
         graph::properties::{PyNestedPropsIterable, PyPropsList},
         types::{
             repr::{iterator_repr, Repr},
-            wrappers::iterators::{
+            wrappers::iterables::{
                 ArcStringIterable, ArcStringVecIterable, BoolIterable, I64Iterable, I64VecIterable,
                 NestedArcStringIterable, NestedArcStringVecIterable, NestedBoolIterable,
                 NestedI64VecIterable, NestedOptionI64Iterable, NestedU64U64Iterable,

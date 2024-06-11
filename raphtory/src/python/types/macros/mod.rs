@@ -7,3 +7,6 @@ pub mod cmp;
 
 #[macro_use]
 pub mod trait_impl;
+
+#[macro_use]
+mod borrowing_iterator;

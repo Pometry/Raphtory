@@ -28,7 +28,7 @@ impl GraphLike<TimeIndexEntry> for Graph {
     }
 
     fn node_names(&self) -> impl Iterator<Item = String> {
-        self.nodes().name()
+        self.nodes().name().into_iter()
     }
 
     fn layer_names(&self) -> Vec<String> {

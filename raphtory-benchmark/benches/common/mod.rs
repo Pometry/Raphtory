@@ -4,7 +4,11 @@ use criterion::{
     black_box, measurement::WallTime, BatchSize, Bencher, BenchmarkGroup, BenchmarkId,
 };
 use rand::{distributions::Uniform, seq::*, Rng};
-use raphtory::{core::entities::LayerIds, db::api::view::StaticGraphViewOps, prelude::*};
+use raphtory::{
+    core::entities::{LayerIds, VID},
+    db::api::view::StaticGraphViewOps,
+    prelude::*,
+};
 use std::collections::HashSet;
 
 fn make_index_gen() -> Box<dyn Iterator<Item = u64>> {
@@ -285,7 +289,7 @@ pub fn run_analysis_benchmarks<F, G>(
         .map(|e| (e.src().id(), e.dst().id(), e.time().expect("need time")))
         .collect::<Vec<_>>();
 
-    let nodes: HashSet<u64> = graph.nodes().id().collect();
+    let nodes: HashSet<u64> = graph.nodes().id().into_iter().collect();
 
     bench(group, "num_edges", parameter, |b: &mut Bencher| {
         b.iter(|| graph.count_edges())
@@ -422,19 +426,15 @@ pub fn run_analysis_benchmarks<F, G>(
             let mg = graph.materialize();
             black_box(mg)
         })
-    })
+    });
 
-    // Too noisy due to degree variability and confuses criterion
-    // bench(
-    //     group,
-    //     "max_neighbour_degree",
-    //     parameter,
-    //     |b: &mut Bencher| {
-    //         let mut rng = rand::thread_rng();
-    //         let v = graph
-    //             .node(*nodes.iter().choose(&mut rng).expect("non-empty graph"))
-    //             .expect("existing node");
-    //         b.iter(|| v.neighbours().degree().max())
-    //     },
-    // );
+    bench(
+        group,
+        "max_neighbour_degree",
+        parameter,
+        |b: &mut Bencher| {
+            let v = graph.node(VID(0)).expect("graph should not be empty");
+            b.iter(|| v.neighbours().degree().max())
+        },
+    );
 }

@@ -917,7 +917,7 @@ mod views_test {
             let res: Vec<_> = (0..=3)
                 .map(|i| {
                     let wg = graph.window(args[i].0, args[i].1);
-                    let mut e = wg.nodes().id().collect::<Vec<_>>();
+                    let mut e = wg.nodes().id().values().collect::<Vec<_>>();
                     e.sort();
                     e
                 })
@@ -934,7 +934,7 @@ mod views_test {
             let res: Vec<_> = (0..=3)
                 .map(|i| {
                     let wg = graph.window(args[i].0, args[i].1);
-                    let mut e = wg.nodes().id().collect::<Vec<_>>();
+                    let mut e = wg.nodes().id().values().collect::<Vec<_>>();
                     e.sort();
                     e
                 })
@@ -991,7 +991,7 @@ mod views_test {
         test_storage!(&graph, |graph| {
             let wg = graph.window(-2, 0);
 
-            let actual = wg.nodes().id().collect::<Vec<_>>();
+            let actual = wg.nodes().id().values().collect::<Vec<_>>();
 
             let expected = vec![1, 2];
 
@@ -1101,12 +1101,17 @@ mod views_test {
             );
 
             assert_eq!(
-                graph.nodes().earliest_time().flatten().collect_vec(),
+                graph
+                    .nodes()
+                    .earliest_time()
+                    .values()
+                    .flatten()
+                    .collect_vec(),
                 [0, 0, 0, 4,]
             );
 
             assert_eq!(
-                graph.nodes().latest_time().flatten().collect_vec(),
+                graph.nodes().latest_time().values().flatten().collect_vec(),
                 [3, 7, 3, 7]
             );
 

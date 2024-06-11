@@ -43,6 +43,7 @@ pub trait CoreGraphOps {
 
     fn unfiltered_num_layers(&self) -> usize;
 
+    // FIXME: we should make this return a reference but that requires some changes internally
     fn core_graph(&self) -> GraphStorage;
 
     fn core_edges(&self) -> EdgesStorage;

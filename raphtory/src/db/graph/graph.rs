@@ -24,6 +24,7 @@ use crate::{
     },
     prelude::*,
 };
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Display, Formatter},
@@ -44,7 +45,7 @@ pub fn graph_equal<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps
     g2: &G2,
 ) -> bool {
     if g1.count_nodes() == g2.count_nodes() && g1.count_edges() == g2.count_edges() {
-        g1.nodes().id().all(|v| g2.has_node(v)) && // all nodes exist in other
+        g1.nodes().id().par_values().all(|v| g2.has_node(v)) && // all nodes exist in other
             g1.count_temporal_edges() == g2.count_temporal_edges() && // same number of exploded edges
             g1.edges().explode().iter().all(|e| { // all exploded edges exist in other
                 g2
@@ -87,7 +88,7 @@ pub fn assert_graph_equal<
         g1.count_temporal_edges(),
         g2.count_temporal_edges()
     );
-    for n_id in g1.nodes().id() {
+    for n_id in g1.nodes().id().values() {
         assert!(g2.has_node(n_id), "missing node {n_id}");
     }
     for e in g1.edges().explode() {
@@ -223,7 +224,6 @@ mod db_tests {
     use chrono::NaiveDateTime;
     use itertools::Itertools;
     use quickcheck_macros::quickcheck;
-    use rayon::prelude::*;
     use serde_json::Value;
     use std::collections::{HashMap, HashSet};
     use tempfile::TempDir;
@@ -2300,7 +2300,11 @@ mod db_tests {
         g.add_node(1, 4, NO_PROPS, Some("wallet")).unwrap();
 
         assert_eq!(
-            g.nodes().type_filter(&vec!["wallet"]).name().collect_vec(),
+            g.nodes()
+                .type_filter(&vec!["wallet"])
+                .name()
+                .into_iter()
+                .collect_vec(),
             vec!["1", "4"]
         );
 
@@ -2467,11 +2471,19 @@ mod db_tests {
         assert_eq!(g.nodes().type_filter(&vec!["d"]).is_empty(), true);
 
         assert_eq!(
-            g.nodes().type_filter(&vec!["a"]).name().collect_vec(),
+            g.nodes()
+                .type_filter(&vec!["a"])
+                .name()
+                .into_iter()
+                .collect_vec(),
             vec!["1", "4"]
         );
         assert_eq!(
-            g.nodes().type_filter(&vec!["a", "c"]).name().collect_vec(),
+            g.nodes()
+                .type_filter(&vec!["a", "c"])
+                .name()
+                .into_iter()
+                .collect_vec(),
             vec!["1", "4", "5"]
         );
 

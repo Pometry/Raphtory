@@ -1,7 +1,6 @@
 use itertools::Itertools;
 use num_integer::average_floor;
 extern crate num_integer;
-
 use crate::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
@@ -62,8 +61,6 @@ fn populate_edges<G: StaticGraphViewOps, V: AsNodeRef>(g: &G, new_graph: &Graph,
             }
             to_process.push(nb.clone());
         }
-    } else {
-        return;
     }
 }
 
