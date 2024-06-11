@@ -4,7 +4,11 @@ use criterion::{
     black_box, measurement::WallTime, BatchSize, Bencher, BenchmarkGroup, BenchmarkId,
 };
 use rand::{distributions::Uniform, seq::*, Rng};
-use raphtory::{core::entities::{LayerIds, VID}, db::api::view::StaticGraphViewOps, prelude::*};
+use raphtory::{
+    core::entities::{LayerIds, VID},
+    db::api::view::StaticGraphViewOps,
+    prelude::*,
+};
 use std::collections::HashSet;
 
 fn make_index_gen() -> Box<dyn Iterator<Item = u64>> {
