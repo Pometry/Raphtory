@@ -23,7 +23,6 @@ pub use raphtory_api::core::entities::edges::*;
 
 use itertools::{EitherOrBoth, Itertools};
 use ouroboros::self_referencing;
-use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
     iter,
