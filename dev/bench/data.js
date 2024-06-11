@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1718039377051,
+  "lastUpdate": 1718099880453,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -53155,6 +53155,66 @@ window.BENCHMARK_DATA = {
             "name": "temporal_motifs/temporal_motifs",
             "value": 20997529,
             "range": "± 233736",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "2404621+fabianmurariu@users.noreply.github.com",
+            "name": "Fabian Murariu",
+            "username": "fabianmurariu"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "771d45ceb52bf3cc51429a5b51545e903bb40d8b",
+          "message": "Extra benches (#1651)\n\n* added extra benchmarks\r\n\r\n* extend benchmark suite with persistend and layered graphs as well as exploded edges and materialize\r\n\r\n* change sx_superuser_graph to take optional number of layers\r\n\r\n* fixes as per PR review\r\n\r\n* fmt",
+          "timestamp": "2024-06-11T10:39:41+01:00",
+          "tree_id": "fb002e5696ab628d43a6d159ac2953b2d523b5f0",
+          "url": "https://github.com/Pometry/Raphtory/commit/771d45ceb52bf3cc51429a5b51545e903bb40d8b"
+        },
+        "date": 1718099879355,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "local_triangle_count/local_triangle_count",
+            "value": 906845,
+            "range": "± 37865",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "local_clustering_coefficient/local_clustering_coefficient",
+            "value": 109139,
+            "range": "± 1946",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_clustering_coeff/graphgen_large_clustering_coeff/Graph(num_nodes=500004, num_edges=20...",
+            "value": 2227630092,
+            "range": "± 54700315",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_pagerank/graphgen_large_pagerank/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 254398378,
+            "range": "± 3089266",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_concomp/graphgen_large_concomp/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 2299276220,
+            "range": "± 46310843",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "temporal_motifs/temporal_motifs",
+            "value": 20674117,
+            "range": "± 145794",
             "unit": "ns/iter"
           }
         ]
