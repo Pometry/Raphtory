@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1718099880453,
+  "lastUpdate": 1718112877301,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -53215,6 +53215,66 @@ window.BENCHMARK_DATA = {
             "name": "temporal_motifs/temporal_motifs",
             "value": 20674117,
             "range": "± 145794",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97447091+ljeub-pometry@users.noreply.github.com",
+            "name": "ljeub-pometry",
+            "username": "ljeub-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fdb75dae7b303d6e026c9b2d3d5ea1172b8f948c",
+          "message": "Feature/par execution continued (#1630)\n\n* wip node_state interface\r\n\r\n* Implement NodeState apis\r\n\r\n* implement NodeStateOps for LazyNodeState\r\n\r\n* return LazyNodeState for Nodes operations\r\n\r\n* improvements to node state\r\n\r\n* fixes after rebase\r\n\r\n* fix rebase\r\n\r\n* compiles but python interface not useful yet\r\n\r\n* add some methods to node state\r\n\r\n* python macro work\r\n\r\n* start thinking about better python iterators\r\n\r\n* this compiles\r\n\r\n* cleanup\r\n\r\n* add more methods to the python implementation\r\n\r\n* add sum and median in python\r\n\r\n* clean up imports\r\n\r\n* clean up\r\n\r\n* fix the node types filter\r\n\r\n* fix import\r\n\r\n* generalise collect and only implement it for the lazy state\r\n\r\n* more cleanup\r\n\r\n* simplify the testing\r\n\r\n* try splitting up the workflows for the rust tests\r\n\r\n* fix the workflows\r\n\r\n* fix the bechmark\r\n\r\n* more benchmark fixes\r\n\r\n* add repr for node state\r\n\r\n* add equality check support for python node state\r\n\r\n* fmt\r\n\r\n---------\r\n\r\nCo-authored-by: Fabian Murariu <murariu.fabian@gmail.com>",
+          "timestamp": "2024-06-11T14:19:39+01:00",
+          "tree_id": "b1d432cdd63de373aa43a90e804a077446437b0e",
+          "url": "https://github.com/Pometry/Raphtory/commit/fdb75dae7b303d6e026c9b2d3d5ea1172b8f948c"
+        },
+        "date": 1718112875740,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "local_triangle_count/local_triangle_count",
+            "value": 934285,
+            "range": "± 8474",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "local_clustering_coefficient/local_clustering_coefficient",
+            "value": 109116,
+            "range": "± 645",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_clustering_coeff/graphgen_large_clustering_coeff/Graph(num_nodes=500004, num_edges=20...",
+            "value": 2372284777,
+            "range": "± 84551088",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_pagerank/graphgen_large_pagerank/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 221536128,
+            "range": "± 2985345",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_concomp/graphgen_large_concomp/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 2330136900,
+            "range": "± 42451107",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "temporal_motifs/temporal_motifs",
+            "value": 21082656,
+            "range": "± 262130",
             "unit": "ns/iter"
           }
         ]
