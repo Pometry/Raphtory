@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+
 use crate::{
     azure_auth::{
         common::{auth_callback, get_jwks, login, logout, verify, AppState},
@@ -31,10 +32,11 @@ use raphtory::{
         EmbeddingFunction,
     },
 };
-use serde::{Deserialize, Serialize};
+
+use crate::server_config::load_config;
 use std::{
     collections::HashMap,
-    env, fs,
+    env,
     path::Path,
     sync::{Arc, Mutex},
 };
@@ -56,12 +58,6 @@ use tracing_subscriber::{
 /// A struct for defining and running a Raphtory GraphQL server
 pub struct RaphtoryServer {
     data: Data,
-}
-
-// Define a struct for log configuration
-#[derive(Debug, Serialize, Deserialize)]
-pub struct LogConfig {
-    log_level: String,
 }
 
 impl RaphtoryServer {
@@ -196,13 +192,9 @@ impl RaphtoryServer {
             }
         }
 
-        fn setup_logger_from_config(log_config_path: &str) {
-            let config_content =
-                fs::read_to_string(log_config_path).expect("Failed to read log config file");
-            let config: LogConfig =
-                toml::from_str(&config_content).expect("Failed to deserialize log config");
-
-            let filter = EnvFilter::new(&config.log_level);
+        fn setup_logger_from_config(_config_file: &str) {
+            let app_config = load_config().expect("Failed to load config file");
+            let filter = EnvFilter::new(&app_config.logging.log_level);
             let subscriber = FmtSubscriber::builder().with_env_filter(filter).finish();
             if let Err(err) = tracing::subscriber::set_global_default(subscriber) {
                 eprintln!(

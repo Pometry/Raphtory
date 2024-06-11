@@ -6,9 +6,8 @@ pub mod model;
 mod observability;
 mod routes;
 pub mod server;
-
+pub mod server_config;
 pub mod azure_auth;
-
 mod data;
 
 #[derive(thiserror::Error, Debug)]

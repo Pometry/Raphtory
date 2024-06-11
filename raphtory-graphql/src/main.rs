@@ -7,6 +7,7 @@ mod model;
 mod observability;
 mod routes;
 mod server;
+mod server_config;
 
 extern crate base64_compat as base64_compat;
 
