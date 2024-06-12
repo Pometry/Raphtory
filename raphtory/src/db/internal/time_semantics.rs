@@ -293,14 +293,15 @@ impl TimeSemantics for InternalGraph {
         self.inner()
             .graph_meta
             .get_temporal_prop(prop_id)
-            .filter(|p| p.iter_window_t(w).next().is_some())
+            .map(|p| p.iter_window_t(w).next().is_some())
+            .filter(|p| *p)
             .is_some()
     }
 
     fn temporal_prop_vec_window(&self, prop_id: usize, start: i64, end: i64) -> Vec<(i64, Prop)> {
         self.inner()
             .get_temporal_prop(prop_id)
-            .map(|prop| (&prop).iter_window_t(start..end).collect())
+            .map(|prop| prop.iter_window_t(start..end).collect())
             .unwrap_or_default()
     }
 

@@ -364,7 +364,8 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         if let Some(node_id) = self.internalise_node(v.as_node_ref()) {
             if self.nodes_filtered() {
                 let node = self.core_node_entry(node_id);
-                self.filter_node(&node.as_ref(), self.layer_ids())
+                let node = node.as_ref();
+                self.filter_node(&node, self.layer_ids())
             } else {
                 true
             }

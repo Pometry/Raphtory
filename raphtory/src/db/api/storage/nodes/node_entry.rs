@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-#[cfg(feature = "storage")]
+// #[cfg(feature = "storage")]
 use crate::db::api::storage::variants::storage_variants::StorageVariants;
 #[cfg(feature = "storage")]
 use crate::disk_graph::storage_interface::node::DiskNode;
@@ -70,17 +70,27 @@ impl<'a, 'b: 'a> From<&'a NodeStorageEntry<'b>> for NodeStorageRef<'a> {
     }
 }
 
-impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
+impl<'a> NodeStorageOps<'a> for NodeStorageEntry<'a> {
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize {
-        for_all!(self, node => node.degree(layers, dir))
+        match self {
+            NodeStorageEntry::Mem(node) => node.deref().degree(layers, dir),
+            #[cfg(feature = "storage")]
+            NodeStorageEntry::Disk(node) => node.degree(layers, dir),
+        }
     }
 
     fn additions(&self) -> NodeAdditions<'a> {
-        for_all!(self, node => node.deref().additions())
+        for_all!(self, node => node.additions())
     }
 
     fn tprop(self, prop_id: usize) -> impl TPropOps<'a> {
-        for_all_iter!(self, node => node.tprop(prop_id))
+        {
+            match self {
+                NodeStorageEntry::Mem(node) => StorageVariants::Mem(node.tprop(prop_id)),
+                #[cfg(feature = "storage")]
+                NodeStorageEntry::Disk(node) => StorageVariants::Disk(node.tprop(prop_id)),
+            }
+        }
     }
 
     fn edges_iter(
