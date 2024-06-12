@@ -13,9 +13,12 @@ use crate::{
     },
 };
 
+use super::unlocked::UnlockedNodeRef;
+
 #[derive(Copy, Clone, Debug)]
 pub enum NodeStorageRef<'a> {
     Mem(&'a NodeStore),
+    Unlocked(UnlockedNodeRef<'a>),
     #[cfg(feature = "storage")]
     Disk(DiskNode<'a>),
 }
@@ -37,6 +40,7 @@ macro_rules! for_all {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
             NodeStorageRef::Mem($pattern) => $result,
+            NodeStorageRef::Unlocked($pattern) => $result,
             #[cfg(feature = "storage")]
             NodeStorageRef::Disk($pattern) => $result,
         }
@@ -48,6 +52,7 @@ macro_rules! for_all_iter {
     ($value:expr, $pattern:pat => $result:expr) => {{
         match $value {
             NodeStorageRef::Mem($pattern) => StorageVariants::Mem($result),
+            NodeStorageRef::Unlocked($pattern) => StorageVariants::Unlocked($result),
             NodeStorageRef::Disk($pattern) => StorageVariants::Disk($result),
         }
     }};

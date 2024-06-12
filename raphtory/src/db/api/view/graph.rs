@@ -155,9 +155,10 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                 };
 
                 for ee in ee.explode() {
+                    let src = ee.src();
                     g.add_edge(
                         ee.time().expect("exploded edge"),
-                        ee.src().name(),
+                        src.name(),
                         ee.dst().name(),
                         ee.properties().temporal().collect_properties(),
                         layer_name,

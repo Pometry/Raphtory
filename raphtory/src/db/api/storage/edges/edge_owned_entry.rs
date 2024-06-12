@@ -25,6 +25,7 @@ use std::ops::Range;
 #[derive(Debug, Clone)]
 pub enum EdgeOwnedEntry {
     Mem(ArcEntry<EdgeStore>),
+    Unlocked(ArcEntry<EdgeStore>),
     #[cfg(feature = "storage")]
     Disk(DiskOwnedEdge),
 }
@@ -34,6 +35,7 @@ macro_rules! for_all_variants {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
             EdgeOwnedEntry::Mem($pattern) => StorageVariants::Mem($result),
+            EdgeOwnedEntry::Unlocked($pattern) => StorageVariants::Unlocked($result),
             EdgeOwnedEntry::Disk($pattern) => StorageVariants::Disk($result),
         }
     };
@@ -52,6 +54,7 @@ impl EdgeOwnedEntry {
     pub fn as_ref(&self) -> EdgeStorageRef {
         match self {
             EdgeOwnedEntry::Mem(entry) => EdgeStorageRef::Mem(entry),
+            EdgeOwnedEntry::Unlocked(entry) => EdgeStorageRef::Unlocked(entry),
             #[cfg(feature = "storage")]
             EdgeOwnedEntry::Disk(entry) => EdgeStorageRef::Disk(entry.as_ref()),
         }

@@ -1,6 +1,6 @@
 use crate::core::{
     entities::{edges::edge_store::EdgeStore, nodes::node_store::NodeStore, EID, VID},
-    storage::{self, Entry, EntryMut, PairEntryMut},
+    storage::{self, ArcEntry, Entry, EntryMut, PairEntryMut},
 };
 use serde::{Deserialize, Serialize};
 
@@ -46,6 +46,11 @@ impl GraphStorage {
     #[inline]
     pub(crate) fn get_node(&self, id: VID) -> Entry<'_, NodeStore> {
         self.nodes.entry(id)
+    }
+
+    #[inline]
+    pub(crate) fn get_arc_node(&self, id: VID) -> ArcEntry<NodeStore> {
+        self.nodes.entry_arc(id)
     }
 
     #[inline]

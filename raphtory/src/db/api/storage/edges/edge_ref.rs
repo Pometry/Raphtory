@@ -19,6 +19,7 @@ macro_rules! for_all {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
             EdgeStorageRef::Mem($pattern) => $result,
+            EdgeStorageRef::Unlocked($pattern) => $result,
             #[cfg(feature = "storage")]
             EdgeStorageRef::Disk($pattern) => $result,
         }
@@ -30,6 +31,7 @@ macro_rules! for_all_iter {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
             EdgeStorageRef::Mem($pattern) => StorageVariants::Mem($result),
+            EdgeStorageRef::Unlocked($pattern) => StorageVariants::Unlocked($result),
             EdgeStorageRef::Disk($pattern) => StorageVariants::Disk($result),
         }
     };
@@ -40,6 +42,7 @@ macro_rules! for_all_iter {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
             EdgeStorageRef::Mem($pattern) => $result,
+            EdgeStorageRef::Unlocked($pattern) => $result,
         }
     };
 }
@@ -47,6 +50,7 @@ macro_rules! for_all_iter {
 #[derive(Copy, Clone, Debug)]
 pub enum EdgeStorageRef<'a> {
     Mem(&'a EdgeStore),
+    Unlocked(&'a EdgeStore),
     #[cfg(feature = "storage")]
     Disk(DiskEdge<'a>),
 }
@@ -56,6 +60,7 @@ impl<'a> EdgeStorageRef<'a> {
     pub fn eid(&self) -> EID {
         match self {
             EdgeStorageRef::Mem(e) => e.eid,
+            EdgeStorageRef::Unlocked(e) => e.eid,
             #[cfg(feature = "storage")]
             EdgeStorageRef::Disk(e) => e.eid(),
         }

@@ -10,7 +10,7 @@ use crate::{
 };
 use chrono::{DateTime, NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, iter, ops::Range, sync::Arc};
+use std::{collections::HashMap, iter, ops::{Deref, Range}, sync::Arc};
 
 // TODO TProp struct could be replaced with Option<TCell<Prop>>, with the only issue (or advantage) that then the type can change?
 
