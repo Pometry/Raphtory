@@ -145,23 +145,17 @@ fn main() {
             .set_header(header)
             .set_delimiter(&delimiter)
             .load_rec_into_graph(&g, |generic_loader: StringRecord, g: &Graph| {
-                let src_id = generic_loader
-                    .get(from_column)
-                    .map(|s| s.to_owned())
-                    .unwrap();
-                let dst_id = generic_loader.get(to_column).map(|s| s.to_owned()).unwrap();
-                let mut edge_time = DateTime::from_timestamp(1, 0).unwrap().naive_utc();
-                if time_column != -1 {
-                    edge_time = DateTime::from_timestamp_millis(
-                        generic_loader
-                            .get(time_column as usize)
-                            .unwrap()
-                            .parse()
-                            .unwrap(),
-                    )
-                    .unwrap()
-                    .naive_utc();
-                }
+                let src_id = generic_loader.get(from_column).unwrap();
+                let dst_id = generic_loader.get(to_column).unwrap();
+                let edge_time = if time_column != -1 {
+                    generic_loader
+                        .get(time_column as usize)
+                        .unwrap()
+                        .parse()
+                        .unwrap()
+                } else {
+                    1i64
+                };
                 if debug {
                     println!("Adding edge {} -> {} at time {}", src_id, dst_id, edge_time);
                 }
