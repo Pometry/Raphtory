@@ -42,7 +42,7 @@ pub trait TimeSemantics {
     /// Return the latest time for a node in a window
     fn node_latest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64>;
     /// check if node `v` should be included in window `w`
-    fn include_node_window(&self, v: NodeStorageRef, w: Range<i64>, layer_ids: &LayerIds) -> bool;
+    fn include_node_window(&self, v: &NodeStorageRef, w: Range<i64>, layer_ids: &LayerIds) -> bool;
 
     /// check if edge `e` should be included in window `w`
     fn include_edge_window(
@@ -364,7 +364,7 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
     #[inline]
     fn include_node_window(
         &self,
-        node: NodeStorageRef,
+        node: &NodeStorageRef,
         w: Range<i64>,
         layer_ids: &LayerIds,
     ) -> bool {

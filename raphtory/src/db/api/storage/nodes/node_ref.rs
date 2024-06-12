@@ -13,7 +13,7 @@ use crate::{
     },
 };
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub enum NodeStorageRef<'a> {
     Mem(&'a NodeStore),
     #[cfg(feature = "storage")]
@@ -67,7 +67,7 @@ impl<'a> NodeStorageOps<'a> for NodeStorageRef<'a> {
         for_all!(self, node => node.degree(layers, dir))
     }
 
-    fn additions(self) -> NodeAdditions<'a> {
+    fn additions(&self) -> NodeAdditions<'a> {
         for_all!(self, node => node.additions())
     }
 
@@ -83,11 +83,11 @@ impl<'a> NodeStorageOps<'a> for NodeStorageRef<'a> {
         for_all_iter!(self, node => node.edges_iter(layers, dir))
     }
 
-    fn node_type_id(self) -> usize {
+    fn node_type_id(&self) -> usize {
         for_all!(self, node => node.node_type_id())
     }
 
-    fn vid(self) -> VID {
+    fn vid(&self) -> VID {
         for_all!(self, node => node.vid())
     }
 

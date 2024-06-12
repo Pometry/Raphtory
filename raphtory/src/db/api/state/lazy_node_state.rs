@@ -235,7 +235,8 @@ impl<
             return None;
         }
         if let Some(type_filter) = self.node_types_filter.as_ref() {
-            if !type_filter[self.graph.core_node_entry(vid).node_type_id()] {
+            let core_node_entry = &self.graph.core_node_entry(vid);
+            if !type_filter[core_node_entry.node_type_id()] {
                 return None;
             }
         }

@@ -115,7 +115,7 @@ impl<'a> DiskNode<'a> {
             .merge_by(self.out_edges(layers), |e1, e2| e1.remote() <= e2.remote())
     }
 
-    pub fn additions_for_layers(self, layer_ids: &LayerIds) -> NodeAdditions<'a> {
+    pub fn additions_for_layers(&self, layer_ids: &LayerIds) -> NodeAdditions<'a> {
         let mut additions = match layer_ids {
             LayerIds::None => Vec::with_capacity(1),
             LayerIds::All => {
@@ -211,7 +211,7 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
         }
     }
 
-    fn additions(self) -> NodeAdditions<'a> {
+    fn additions(&self) -> NodeAdditions<'a> {
         self.additions_for_layers(&LayerIds::All)
     }
 
@@ -235,11 +235,11 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
         }
     }
 
-    fn node_type_id(self) -> usize {
+    fn node_type_id(&self) -> usize {
         0
     }
 
-    fn vid(self) -> VID {
+    fn vid(&self) -> VID {
         self.vid
     }
 
@@ -458,7 +458,7 @@ impl<'a> NodeStorageOps<'a> for &'a DiskOwnedNode {
     }
 
     #[inline]
-    fn additions(self) -> NodeAdditions<'a> {
+    fn additions(&self) -> NodeAdditions<'a> {
         self.as_ref().additions()
     }
 
@@ -481,11 +481,11 @@ impl<'a> NodeStorageOps<'a> for &'a DiskOwnedNode {
     }
 
     #[inline]
-    fn node_type_id(self) -> usize {
+    fn node_type_id(&self) -> usize {
         self.as_ref().node_type_id()
     }
 
-    fn vid(self) -> VID {
+    fn vid(&self) -> VID {
         self.vid
     }
 

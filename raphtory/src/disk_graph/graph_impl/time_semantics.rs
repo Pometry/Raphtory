@@ -112,7 +112,7 @@ impl TimeSemantics for DiskGraph {
     }
 
     /// check if node `v` should be included in window `w`
-    fn include_node_window(&self, v: NodeStorageRef, w: Range<i64>, layer_ids: &LayerIds) -> bool {
+    fn include_node_window(&self, v: &NodeStorageRef, w: Range<i64>, layer_ids: &LayerIds) -> bool {
         self.filtered_layers_par(layer_ids).any(|layer| {
             layer.node(v.vid()).timestamps().active_t(w.clone())
                 || self

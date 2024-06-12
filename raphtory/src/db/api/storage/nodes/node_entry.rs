@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 #[cfg(feature = "storage")]
 use crate::db::api::storage::variants::storage_variants::StorageVariants;
 #[cfg(feature = "storage")]
@@ -73,8 +75,8 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
         for_all!(self, node => node.degree(layers, dir))
     }
 
-    fn additions(self) -> NodeAdditions<'a> {
-        for_all!(self, node => node.additions())
+    fn additions(&self) -> NodeAdditions<'a> {
+        for_all!(self, node => node.deref().additions())
     }
 
     fn tprop(self, prop_id: usize) -> impl TPropOps<'a> {
@@ -89,12 +91,12 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
         for_all_iter!(self, node => node.edges_iter(layers, dir))
     }
 
-    fn node_type_id(self) -> usize {
-        for_all!(self, node => node.node_type_id())
+    fn node_type_id(&self) -> usize {
+        for_all!(self, node => node.deref().node_type_id())
     }
 
-    fn vid(self) -> VID {
-        for_all!(self, node => node.vid())
+    fn vid(&self) -> VID {
+        for_all!(self, node => node.deref().vid())
     }
 
     fn id(self) -> u64 {

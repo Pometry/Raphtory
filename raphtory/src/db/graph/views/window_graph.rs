@@ -141,7 +141,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for WindowedGraph<G> {
     }
 
     #[inline]
-    fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
+    fn filter_node(&self, node: &NodeStorageRef, layer_ids: &LayerIds) -> bool {
         self.graph.filter_node(node, layer_ids)
             && self
                 .graph
@@ -246,7 +246,7 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
     #[inline]
     fn include_node_window(
         &self,
-        node: NodeStorageRef,
+        node: &NodeStorageRef,
         w: Range<i64>,
         layer_ids: &LayerIds,
     ) -> bool {
