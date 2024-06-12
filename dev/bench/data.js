@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1718189742944,
+  "lastUpdate": 1718211006200,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -53335,6 +53335,66 @@ window.BENCHMARK_DATA = {
             "name": "temporal_motifs/temporal_motifs",
             "value": 20909571,
             "range": "± 324865",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "b.a.steer@qmul.ac.uk",
+            "name": "Ben Steer",
+            "username": "miratepuffin"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "221b4b684907f8524aff2064915d697a89cad29b",
+          "message": "Create SECURITY.md (#1655)",
+          "timestamp": "2024-06-12T17:34:55+01:00",
+          "tree_id": "b79a6cd051130c26b4d501c3650507340b5a97d0",
+          "url": "https://github.com/Pometry/Raphtory/commit/221b4b684907f8524aff2064915d697a89cad29b"
+        },
+        "date": 1718211004341,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "local_triangle_count/local_triangle_count",
+            "value": 940413,
+            "range": "± 44087",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "local_clustering_coefficient/local_clustering_coefficient",
+            "value": 111148,
+            "range": "± 3799",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_clustering_coeff/graphgen_large_clustering_coeff/Graph(num_nodes=500004, num_edges=20...",
+            "value": 2319107596,
+            "range": "± 28270480",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_pagerank/graphgen_large_pagerank/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 231282652,
+            "range": "± 3919274",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_concomp/graphgen_large_concomp/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 2344991785,
+            "range": "± 48580986",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "temporal_motifs/temporal_motifs",
+            "value": 21374741,
+            "range": "± 355972",
             "unit": "ns/iter"
           }
         ]
