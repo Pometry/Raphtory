@@ -259,7 +259,7 @@ impl<
 impl<'a, Mem: TPropOps<'a> + 'a, #[cfg(feature = "storage")] Disk: TPropOps<'a> + 'a> TPropOps<'a>
     for SelfType!(Mem, Disk)
 {
-    fn last_before(self, t: i64) -> Option<(TimeIndexEntry, Prop)> {
+    fn last_before(&self, t: i64) -> Option<(TimeIndexEntry, Prop)> {
         for_all!(self, props => props.last_before(t))
     }
 
