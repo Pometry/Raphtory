@@ -391,6 +391,14 @@ impl <'a> Entry<'a, NodeStore> {
         }
         .build()
     }
+
+    pub fn into_edges(self, layers: &LayerIds, dir: Direction) -> LockedRefEdgesIter<'a> {
+        LockedRefEdgesIterBuilder {
+            entry: self,
+            iter_builder: |node| node.edge_tuples(layers, dir),
+        }
+        .build()
+    }
 }
 
 #[self_referencing]
@@ -436,6 +444,22 @@ pub struct LockedRefNeighboursIter<'a> {
 
 impl <'a> Iterator for LockedRefNeighboursIter<'a> {
     type Item = VID;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.with_iter_mut(|iter| iter.next())
+    }
+}
+
+#[self_referencing]
+pub struct LockedRefEdgesIter<'a> {
+    entry: Entry<'a, NodeStore>,
+    #[borrows(entry)]
+    #[covariant]
+    iter: Box<dyn Iterator<Item = EdgeRef> + Send + 'this>,
+}
+
+impl <'a> Iterator for LockedRefEdgesIter<'a> {
+    type Item = EdgeRef;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.with_iter_mut(|iter| iter.next())

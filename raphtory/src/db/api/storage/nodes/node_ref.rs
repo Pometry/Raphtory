@@ -61,8 +61,8 @@ macro_rules! for_all_iter {
 macro_rules! for_all_iter {
     ($value:expr, $pattern:pat => $result:expr) => {{
         match $value {
-            NodeStorageRef::Mem($pattern) => $result,
-            NodeStorageRef::Unlocked($pattern) => $result,
+            NodeStorageRef::Mem($pattern) => StorageVariants3::Mem($result),
+            NodeStorageRef::Unlocked($pattern) => StorageVariants3::Unlocked($result),
         }
     }};
 }
@@ -77,14 +77,7 @@ impl<'a> NodeStorageOps<'a> for NodeStorageRef<'a> {
     }
 
     fn tprop(self, prop_id: usize) -> impl TPropOps<'a> {
-        {
-            match self {
-                NodeStorageRef::Mem(node) => StorageVariants3::Mem((node.tprop(prop_id))),
-                NodeStorageRef::Unlocked(node) => StorageVariants3::Unlocked((node.tprop(prop_id))),
-                #[cfg(feature = "storage")]
-                NodeStorageRef::Disk(node) => StorageVariants3::Disk((node.tprop(prop_id))),
-            }
-        }
+        for_all_iter!(self, node => node.tprop(prop_id))
     }
 
     fn edges_iter(
@@ -92,18 +85,7 @@ impl<'a> NodeStorageOps<'a> for NodeStorageRef<'a> {
         layers: &'a LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + 'a {
-        {
-            match self {
-                NodeStorageRef::Mem(node) => StorageVariants3::Mem((node.edges_iter(layers, dir))),
-                NodeStorageRef::Unlocked(node) => {
-                    StorageVariants3::Unlocked((node.edges_iter(layers, dir)))
-                }
-                #[cfg(feature = "storage")]
-                NodeStorageRef::Disk(node) => {
-                    StorageVariants3::Disk((node.edges_iter(layers, dir)))
-                }
-            }
-        }
+        for_all_iter!(self, node => node.edges_iter(layers, dir))
     }
 
     fn node_type_id(&self) -> usize {
