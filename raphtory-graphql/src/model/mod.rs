@@ -1,5 +1,5 @@
 use crate::{
-    data::Data,
+    data::{load_graphs_from_path, Data},
     model::{
         algorithms::global_plugins::GlobalPlugins,
         graph::{graph::GqlGraph, vectorised_graph::GqlVectorisedGraph},
@@ -61,44 +61,43 @@ impl QueryRoot {
     }
 
     /// Returns a graph
-    async fn graph<'a>(ctx: &Context<'a>, name: &str) -> Option<GqlGraph> {
+    async fn graph<'a>(ctx: &Context<'a>, name: &str) -> Result<Option<GqlGraph>> {
         let data = ctx.data_unchecked::<Data>();
-        let g = data.graphs.read().get(name).cloned()?;
-        Some(GqlGraph::new(name.to_string(), g))
+        let graph = data.get_graph(name)?;
+        match graph {
+            Some(g) => Ok(Some(GqlGraph::new(name.to_string(), g))),
+            None => Ok(None),
+        }
     }
 
+    // TODO: Need to fix this
     async fn vectorised_graph<'a>(ctx: &Context<'a>, name: &str) -> Option<GqlVectorisedGraph> {
+        // find graph by this name in the work dir and if found load it into the cache ;: for the data, for global_plugins
         let data = ctx.data_unchecked::<Data>();
-        let g = data.vector_stores.read().get(name).cloned()?;
+        let g = data.vector_stores.get(name)?;
         Some(g.into())
     }
 
     async fn graphs<'a>(ctx: &Context<'a>) -> Vec<GqlGraph> {
         let data = ctx.data_unchecked::<Data>();
         data.graphs
-            .read()
             .iter()
-            .map(|(name, g)| GqlGraph::new(name.clone(), g.clone()))
+            .map(|(name, g)| GqlGraph::new(name.to_string(), g))
             .collect_vec()
     }
 
-    async fn plugins<'a>(ctx: &Context<'a>) -> GlobalPlugins {
-        let data = ctx.data_unchecked::<Data>();
-        GlobalPlugins {
-            graphs: data.graphs.clone(),
-            vectorised_graphs: data.vector_stores.clone(),
-        }
-    }
+    // async fn plugins<'a>(ctx: &Context<'a>) -> GlobalPlugins {
+    //     let data = ctx.data_unchecked::<Data>();
+    //     // Load all the graphs
+    //     GlobalPlugins {
+    //         graphs: data.graphs.clone(),
+    //         vectorised_graphs: data.vector_stores.clone(),
+    //     }
+    // }
 
     async fn receive_graph<'a>(ctx: &Context<'a>, name: &str) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
-        let g = data
-            .graphs
-            .read()
-            .get(name)
-            .cloned()
-            .ok_or(MissingGraph)?
-            .materialize()?;
+        let g = data.graphs.get(name).ok_or(MissingGraph)?.materialize()?;
         let bincode = bincode::serialize(&g)?;
         Ok(URL_SAFE_NO_PAD.encode(bincode))
     }
@@ -116,12 +115,9 @@ impl Mut {
     ///
     /// Returns::
     ///   list of names for newly added graphs
-    async fn load_graphs_from_path<'a>(ctx: &Context<'a>, path: String) -> Vec<String> {
-        let new_graphs = Data::load_from_file(&path);
-        let keys: Vec<_> = new_graphs.keys().cloned().collect();
-        let mut data = ctx.data_unchecked::<Data>().graphs.write();
-        data.extend(new_graphs);
-        keys
+    async fn load_graphs_from_path<'a>(ctx: &Context<'a>, path: String) -> Result<Vec<String>> {
+        let data = ctx.data_unchecked::<Data>();
+        load_graphs_from_path(data.work_dir.as_ref(), (&path).as_ref())
     }
 
     async fn rename_graph<'a>(
@@ -131,14 +127,14 @@ impl Mut {
         new_graph_name: String,
     ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
-        if data.graphs.read().contains_key(&new_graph_name) {
+        if data.graphs.contains_key(&new_graph_name) {
             return Err((GraphError::GraphNameAlreadyExists {
                 name: new_graph_name,
             })
             .into());
         }
 
-        let mut data = ctx.data_unchecked::<Data>().graphs.write();
+        let data = ctx.data_unchecked::<Data>().graphs.clone();
 
         let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
 
@@ -189,7 +185,7 @@ impl Mut {
     }
 
     async fn update_graph_last_opened<'a>(ctx: &Context<'a>, graph_name: String) -> Result<bool> {
-        let data = ctx.data_unchecked::<Data>().graphs.write();
+        let data = ctx.data_unchecked::<Data>().graphs.clone();
 
         let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
 
@@ -224,7 +220,7 @@ impl Mut {
         is_archive: u8,
         graph_nodes: String,
     ) -> Result<bool> {
-        let mut data = ctx.data_unchecked::<Data>().graphs.write();
+        let mut data = ctx.data_unchecked::<Data>().graphs.clone();
 
         let parent_graph = data.get(&parent_graph_name).ok_or("Graph not found")?;
         let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
@@ -332,21 +328,6 @@ impl Mut {
         Ok(true)
     }
 
-    /// Load new graphs from a directory of bincode files (existing graphs will not been overwritten)
-    ///
-    /// Returns::
-    ///   list of names for newly added graphs
-    async fn load_new_graphs_from_path<'a>(ctx: &Context<'a>, path: String) -> Vec<String> {
-        let mut data = ctx.data_unchecked::<Data>().graphs.write();
-        let new_graphs: HashMap<_, _> = Data::load_from_file(&path)
-            .into_iter()
-            .filter(|(key, _)| !data.contains_key(key))
-            .collect();
-        let keys: Vec<_> = new_graphs.keys().cloned().collect();
-        data.extend(new_graphs);
-        keys
-    }
-
     /// Use GQL multipart upload to send new graphs to server
     ///
     /// Returns::
@@ -357,7 +338,7 @@ impl Mut {
         buff_read.read_to_end(&mut buffer)?;
         let g: MaterializedGraph = MaterializedGraph::from_bincode(&buffer)?;
         let gi: IndexedGraph<MaterializedGraph> = g.into();
-        let mut data = ctx.data_unchecked::<Data>().graphs.write();
+        let mut data = ctx.data_unchecked::<Data>().graphs.clone();
         data.insert(name.clone(), gi);
         Ok(name)
     }
@@ -368,7 +349,7 @@ impl Mut {
     ///    name of the new graph
     async fn send_graph<'a>(ctx: &Context<'a>, name: String, graph: String) -> Result<String> {
         let g: MaterializedGraph = bincode::deserialize(&URL_SAFE_NO_PAD.decode(graph)?)?;
-        let mut data = ctx.data_unchecked::<Data>().graphs.write();
+        let mut data = ctx.data_unchecked::<Data>().graphs.clone();
         data.insert(name.clone(), g.into());
         Ok(name)
     }
@@ -379,7 +360,7 @@ impl Mut {
         _parent_graph_name: String,
         is_archive: u8,
     ) -> Result<bool> {
-        let data = ctx.data_unchecked::<Data>().graphs.write();
+        let data = ctx.data_unchecked::<Data>().graphs.clone();
         let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
 
         #[cfg(feature = "storage")]

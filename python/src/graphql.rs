@@ -31,13 +31,14 @@ use raphtory_graphql::{
         algorithm_entry_point::AlgorithmEntryPoint, document::GqlDocument,
         global_plugins::GlobalPlugins, vector_algorithms::VectorAlgorithms,
     },
+    server_config::CacheConfig,
     url_encode_graph, RaphtoryServer,
 };
 use reqwest::Client;
 use serde_json::{json, Map, Number, Value as JsonValue};
 use std::{
     collections::HashMap,
-    path::PathBuf,
+    path::{Path, PathBuf},
     thread,
     thread::{sleep, JoinHandle},
     time::Duration,
@@ -94,7 +95,7 @@ impl PyGlobalPlugins {
             let graph = match &doc {
                 Document::Graph { name, .. } => {
                     vectorised_graphs.get(name).unwrap()
-                },
+                }
                 _ => panic!("search_graph_documents_with_scores returned a document that is not from a graph"),
             };
             (into_py_document(doc, graph, py), score)
@@ -220,20 +221,28 @@ impl PyRaphtoryServer {
 #[pymethods]
 impl PyRaphtoryServer {
     #[new]
-    #[pyo3(signature = (graphs=None, graph_dir=None))]
+    #[pyo3(
+        signature = (work_dir, graphs = None, graph_paths = None, cache_capacity = 30, cache_ttl_seconds = 1800, cache_tti_seconds = 900)
+    )]
     fn py_new(
+        work_dir: String,
         graphs: Option<HashMap<String, MaterializedGraph>>,
-        graph_dir: Option<&str>,
+        graph_paths: Option<Vec<String>>,
+        cache_capacity: u64,
+        cache_ttl_seconds: u64,
+        cache_tti_seconds: u64,
     ) -> PyResult<Self> {
-        let server = match (graphs, graph_dir) {
-            (Some(graphs), Some(dir)) => Ok(RaphtoryServer::from_map_and_directory(graphs, dir)),
-            (Some(graphs), None) => Ok(RaphtoryServer::from_map(graphs)),
-            (None, Some(dir)) => Ok(RaphtoryServer::from_directory(dir)),
-            (None, None) => Err(PyValueError::new_err(
-                "You need to specify at least `graphs` or `graph_dir`",
-            )),
-        }?;
-
+        let graph_paths = graph_paths.map(|paths| paths.into_iter().map(PathBuf::from).collect());
+        let server = RaphtoryServer::new(
+            Path::new(&work_dir),
+            graphs,
+            graph_paths,
+            Some(CacheConfig {
+                capacity: cache_capacity,
+                ttl_seconds: cache_ttl_seconds,
+                tti_seconds: cache_tti_seconds,
+            }),
+        );
         Ok(PyRaphtoryServer::new(server))
     }
 
@@ -343,7 +352,9 @@ impl PyRaphtoryServer {
     ///
     /// Arguments:
     ///   * `port`: the port to use (defaults to 1736).
-    #[pyo3(signature = (port = 1736, log_level="INFO".to_string(),enable_tracing=false,enable_auth=false))]
+    #[pyo3(
+        signature = (port = 1736, log_level = "INFO".to_string(), enable_tracing = false, enable_auth = false)
+    )]
     pub fn start(
         slf: PyRefMut<Self>,
         port: u16,
@@ -363,7 +374,7 @@ impl PyRaphtoryServer {
                 .unwrap()
                 .block_on(async move {
                     let handler =
-                        server.start_with_port(port, &log_level, enable_tracing, enable_auth);
+                        server.start_with_port(port, Some(&log_level), enable_tracing, enable_auth);
                     let running_server = handler.await;
                     let tokio_sender = running_server._get_sender().clone();
                     tokio::task::spawn_blocking(move || {
@@ -387,7 +398,9 @@ impl PyRaphtoryServer {
     ///
     /// Arguments:
     ///   * `port`: the port to use (defaults to 1736).
-    #[pyo3(signature = (port = 1736, log_level="INFO".to_string(),enable_tracing=false,enable_auth=false))]
+    #[pyo3(
+        signature = (port = 1736, log_level = "INFO".to_string(), enable_tracing = false, enable_auth = false)
+    )]
     pub fn run(
         slf: PyRefMut<Self>,
         py: Python,
@@ -555,7 +568,7 @@ impl PyRunningRaphtoryServer {
     ///
     /// Returns:
     ///    The `data` field from the graphQL response after executing the mutation.
-    #[pyo3(signature=(path, overwrite = false))]
+    #[pyo3(signature = (path, overwrite = false))]
     fn load_graphs_from_path(
         &self,
         py: Python,
@@ -768,7 +781,7 @@ impl PyRaphtoryClient {
     ///
     /// Returns:
     ///    The `data` field from the graphQL response after executing the mutation.
-    #[pyo3(signature=(path, overwrite = false))]
+    #[pyo3(signature = (path, overwrite = false))]
     fn load_graphs_from_path(
         &self,
         py: Python,

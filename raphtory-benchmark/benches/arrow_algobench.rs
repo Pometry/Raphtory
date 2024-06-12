@@ -39,6 +39,7 @@ pub fn local_triangle_count_analysis(c: &mut Criterion) {
     bench(&mut group, "local_triangle_count", None, |b| {
         let g = raphtory::graph_loader::example::lotr_graph::lotr_graph();
         let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "storage")]
         let g = g.persist_as_disk_graph(test_dir.path()).unwrap();
         let windowed_graph = g.window(i64::MIN, i64::MAX);
 
@@ -91,6 +92,7 @@ pub fn local_clustering_coefficient_analysis(c: &mut Criterion) {
         }
 
         let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "storage")]
         let g = g.persist_as_disk_graph(test_dir.path()).unwrap();
 
         let windowed_graph = g.window(0, 5);
@@ -108,6 +110,7 @@ pub fn graphgen_large_clustering_coeff(c: &mut Criterion) {
     random_attachment(&graph, 500000, 4, Some(seed));
 
     let test_dir = TempDir::new().unwrap();
+    #[cfg(feature = "storage")]
     let graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
     group.sampling_mode(SamplingMode::Flat);
@@ -134,6 +137,7 @@ pub fn graphgen_large_pagerank(c: &mut Criterion) {
     random_attachment(&graph, 500000, 4, Some(seed));
 
     let test_dir = TempDir::new().unwrap();
+    #[cfg(feature = "storage")]
     let graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
     group.sampling_mode(SamplingMode::Flat);
     group.measurement_time(std::time::Duration::from_secs(20));
@@ -158,6 +162,7 @@ pub fn graphgen_large_concomp(c: &mut Criterion) {
     let seed: [u8; 32] = [1; 32];
     random_attachment(&graph, 500000, 4, Some(seed));
     let test_dir = TempDir::new().unwrap();
+    #[cfg(feature = "storage")]
     let graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
 
     group.sampling_mode(SamplingMode::Flat);

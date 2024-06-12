@@ -141,6 +141,8 @@ arrow-schema = { version = "50" }
 arrow-data = { version = "50" }
 arrow-array = { version = "50" }
 
+moka = { version = "0.12.7", features = ["sync"] }
+
 # Make sure that transitive dependencies stick to disk_graph 50
 [patch.crates-io]
 arrow = { git = "https://github.com/apache/arrow-rs.git", tag = "50.0.0" }

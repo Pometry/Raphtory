@@ -2,13 +2,13 @@ pub use crate::server::RaphtoryServer;
 use base64::{prelude::BASE64_URL_SAFE_NO_PAD, DecodeError, Engine};
 use raphtory::{core::utils::errors::GraphError, db::api::view::MaterializedGraph};
 
+pub mod azure_auth;
+mod data;
 pub mod model;
 mod observability;
 mod routes;
 pub mod server;
 pub mod server_config;
-pub mod azure_auth;
-mod data;
 
 #[derive(thiserror::Error, Debug)]
 pub enum UrlDecodeError {
@@ -73,10 +73,13 @@ mod graphql_test {
                 None,
             )
             .expect("Could not add node!");
+        graph.add_constant_properties([("name", "lotr")]).unwrap();
 
         let graph: MaterializedGraph = graph.into();
+
         let graphs = HashMap::from([("lotr".to_string(), graph)]);
-        let data = Data::from_map(graphs);
+        let tmp_dir = tempdir().unwrap();
+        let data = Data::new(tmp_dir.path(), Some(graphs), None);
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let query = r#"
@@ -112,10 +115,12 @@ mod graphql_test {
         graph
             .add_node(0, 11, NO_PROPS, None)
             .expect("Could not add node!");
+        graph.add_constant_properties([("name", "lotr")]).unwrap();
 
         let graph: MaterializedGraph = graph.into();
         let graphs = HashMap::from([("lotr".to_string(), graph)]);
-        let data = Data::from_map(graphs);
+        let tmp_dir = tempdir().unwrap();
+        let data = Data::new(tmp_dir.path(), Some(graphs), None);
 
         let schema = App::create_schema().data(data).finish().unwrap();
 
@@ -164,7 +169,8 @@ mod graphql_test {
         let graph: MaterializedGraph = graph.into();
 
         let graphs = HashMap::from([("graph".to_string(), graph)]);
-        let data = Data::from_map(graphs);
+        let tmp_dir = tempdir().unwrap();
+        let data = Data::new(tmp_dir.path(), Some(graphs), None);
         let schema = App::create_schema().data(data).finish().unwrap();
         let prop_has_key_filter = r#"
         {
@@ -224,8 +230,10 @@ mod graphql_test {
         g.add_node(12, 3, [("name", "fax")], None).unwrap();
         g.add_node(13, 3, [("name", "fax")], None).unwrap();
 
-        let graphs = HashMap::from([("graph".to_string(), g)]);
-        let data = Data::from_map(graphs);
+        let graph: MaterializedGraph = g.into();
+        let graphs = HashMap::from([("graph".to_string(), graph)]);
+        let tmp_dir = tempdir().unwrap();
+        let data = Data::new(tmp_dir.path(), Some(graphs), None);
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let prop_has_key_filter = r#"
@@ -412,8 +420,10 @@ mod graphql_test {
         g.add_node(12, 3, [("name", "fax")], None).unwrap();
         g.add_node(13, 3, [("name", "fax")], None).unwrap();
 
+        let g = g.into();
         let graphs = HashMap::from([("graph".to_string(), g)]);
-        let data = Data::from_map(graphs);
+        let tmp_dir = tempdir().unwrap();
+        let data = Data::new(tmp_dir.path(), Some(graphs), None);
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let prop_has_key_filter = r#"
@@ -657,8 +667,10 @@ mod graphql_test {
             )
             .unwrap();
 
+        let graph = graph.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
-        let data = Data::from_map(graphs);
+        let tmp_dir = tempdir().unwrap();
+        let data = Data::new(tmp_dir.path(), Some(graphs), None);
         let schema = App::create_schema().data(data).finish().unwrap();
         let prop_has_key_filter = r#"
         {
@@ -710,7 +722,8 @@ mod graphql_test {
         let g2 = PersistentGraph::new();
         g2.add_node(0, 2, [("name", "2")], None).unwrap();
 
-        let data = Data::default();
+        let tmp_dir = tempdir().unwrap();
+        let data = Data::new(tmp_dir.path(), None, None);
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let list_graphs = r#"
@@ -880,7 +893,8 @@ mod graphql_test {
             content: file,
         };
 
-        let data = Data::default();
+        let tmp_dir = tempdir().unwrap();
+        let data = Data::new(tmp_dir.path(), None, None);
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let query = r##"
@@ -927,7 +941,8 @@ mod graphql_test {
 
         let graph_str = url_encode_graph(g.clone()).unwrap();
 
-        let data = Data::default();
+        let tmp_dir = tempdir().unwrap();
+        let data = Data::new(tmp_dir.path(), None, None);
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let query = r#"
@@ -997,8 +1012,10 @@ mod graphql_test {
         graph.add_edge(2, 5, 6, NO_PROPS, Some("a")).unwrap();
         graph.add_edge(2, 3, 6, NO_PROPS, Some("a")).unwrap();
 
+        let graph = graph.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
-        let data = Data::from_map(graphs);
+        let tmp_dir = tempdir().unwrap();
+        let data = Data::new(tmp_dir.path(), Some(graphs), None);
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let req = r#"
@@ -1118,8 +1135,10 @@ mod graphql_test {
         let disk_graph = DiskGraph::from_graph(&graph, test_dir.path()).unwrap();
         let graph: MaterializedGraph = disk_graph.into();
 
+        let graph = graph.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
-        let data = Data::from_map(graphs);
+        let tmp_dir = tempdir().unwrap();
+        let data = Data::new(tmp_dir.path(), Some(graphs), None);
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let req = r#"

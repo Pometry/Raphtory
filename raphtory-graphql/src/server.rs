@@ -33,11 +33,11 @@ use raphtory::{
     },
 };
 
-use crate::server_config::load_config;
+use crate::server_config::{load_config, CacheConfig};
 use std::{
     collections::HashMap,
     env,
-    path::Path,
+    path::{Path, PathBuf},
     sync::{Arc, Mutex},
 };
 use tokio::{
@@ -61,24 +61,18 @@ pub struct RaphtoryServer {
 }
 
 impl RaphtoryServer {
-    /// Return a server object with graphs loaded from a map `graphs`
-    pub fn from_map(graphs: HashMap<String, MaterializedGraph>) -> Self {
-        let data = Data::from_map(graphs);
-        Self { data }
-    }
-
-    /// Return a server object with graphs loaded from a directory `graph_directory`
-    pub fn from_directory(graph_directory: &str) -> Self {
-        let data = Data::from_directory(graph_directory);
-        Self { data }
-    }
-
-    /// Return a server object with graphs loaded from a map `graphs` and a directory `graph_directory`
-    pub fn from_map_and_directory(
-        graphs: HashMap<String, MaterializedGraph>,
-        graph_directory: &str,
+    pub fn new(
+        work_dir: &Path,
+        maybe_graphs: Option<HashMap<String, MaterializedGraph>>,
+        maybe_graph_paths: Option<Vec<PathBuf>>,
+        maybe_cache_config: Option<CacheConfig>,
     ) -> Self {
-        let data = Data::from_map_and_directory(graphs, graph_directory);
+        let data = Data::new(
+            work_dir,
+            maybe_graphs,
+            maybe_graph_paths,
+            maybe_cache_config,
+        );
         Self { data }
     }
 
@@ -111,14 +105,13 @@ impl RaphtoryServer {
             .unwrap_or(Arc::new(DefaultTemplate));
 
         let graph_names = graph_names.unwrap_or_else(|| {
-            let graphs = graphs.read();
-            let all_graph_names = graphs.iter().map(|(graph_name, _)| graph_name).cloned();
+            let all_graph_names = graphs.iter().map(|(graph_name, _)| graph_name.to_string());
             all_graph_names.collect_vec()
         });
 
         for graph_name in graph_names {
             let graph_cache = cache.join(&graph_name);
-            let graph = graphs.read().get(&graph_name).unwrap().clone();
+            let graph = graphs.get(&graph_name).unwrap().clone();
             println!("Loading embeddings for {graph_name} using cache from {graph_cache:?}");
             let vectorised = graph
                 .into_dynamic()
@@ -130,7 +123,7 @@ impl RaphtoryServer {
                     true,
                 )
                 .await;
-            stores.write().insert(graph_name, vectorised);
+            stores.insert(graph_name, vectorised);
         }
         println!("Embeddings were loaded successfully");
 
@@ -152,11 +145,11 @@ impl RaphtoryServer {
     /// Start the server on the default port and return a handle to it.
     pub async fn start(
         self,
-        config_file_or_log_level: &str,
+        maybe_log_level: Option<&str>,
         enable_tracing: bool,
         enable_auth: bool,
     ) -> RunningRaphtoryServer {
-        self.start_with_port(1736, config_file_or_log_level, enable_tracing, enable_auth)
+        self.start_with_port(1736, maybe_log_level, enable_tracing, enable_auth)
             .await
     }
 
@@ -164,7 +157,7 @@ impl RaphtoryServer {
     pub async fn start_with_port(
         self,
         port: u16,
-        config_file_or_log_level: &str,
+        maybe_log_level: Option<&str>,
         enable_tracing: bool,
         enable_auth: bool,
     ) -> RunningRaphtoryServer {
@@ -177,7 +170,7 @@ impl RaphtoryServer {
             }
         }
 
-        fn setup_logger_with_level(log_level: String) {
+        fn setup_logger_from_loglevel(log_level: String) {
             let filter = EnvFilter::try_new(log_level)
                 .unwrap_or_else(|_| EnvFilter::try_new("info").unwrap()); // Default to info if the provided level is invalid
             let subscriber = FmtSubscriber::builder()
@@ -192,7 +185,7 @@ impl RaphtoryServer {
             }
         }
 
-        fn setup_logger_from_config(_config_file: &str) {
+        fn setup_logger_from_config() {
             let app_config = load_config().expect("Failed to load config file");
             let filter = EnvFilter::new(&app_config.logging.log_level);
             let subscriber = FmtSubscriber::builder().with_env_filter(filter).finish();
@@ -204,15 +197,19 @@ impl RaphtoryServer {
             }
         }
 
-        fn configure_logger(config_file_or_log_level: &str) {
-            if let Some(log_level) = parse_log_level(config_file_or_log_level) {
-                setup_logger_with_level(log_level);
+        fn configure_logger(maybe_log_level: Option<&str>) {
+            if let Some(log_level) = maybe_log_level {
+                if let Some(log_level) = parse_log_level(log_level) {
+                    setup_logger_from_loglevel(log_level);
+                } else {
+                    setup_logger_from_config();
+                }
             } else {
-                setup_logger_from_config(config_file_or_log_level);
+                setup_logger_from_config();
             }
         }
 
-        configure_logger(config_file_or_log_level);
+        configure_logger(maybe_log_level);
 
         let registry = Registry::default().with(tracing_subscriber::fmt::layer().pretty());
         let env_filter = EnvFilter::try_from_default_env().unwrap_or(EnvFilter::new("INFO"));
@@ -356,8 +353,8 @@ impl RaphtoryServer {
     }
 
     /// Run the server on the default port until completion.
-    pub async fn run(self, config_file_or_log_level: &str, enable_tracing: bool) -> IoResult<()> {
-        self.start(config_file_or_log_level, enable_tracing, false)
+    pub async fn run(self, maybe_log_level: Option<&str>, enable_tracing: bool) -> IoResult<()> {
+        self.start(maybe_log_level, enable_tracing, false)
             .await
             .wait()
             .await
@@ -365,10 +362,10 @@ impl RaphtoryServer {
 
     pub async fn run_with_auth(
         self,
-        config_file_or_log_level: &str,
+        maybe_log_level: Option<&str>,
         enable_tracing: bool,
     ) -> IoResult<()> {
-        self.start(config_file_or_log_level, enable_tracing, true)
+        self.start(maybe_log_level, enable_tracing, true)
             .await
             .wait()
             .await
@@ -378,10 +375,10 @@ impl RaphtoryServer {
     pub async fn run_with_port(
         self,
         port: u16,
-        config_file_or_log_level: &str,
+        maybe_log_level: Option<&str>,
         enable_tracing: bool,
     ) -> IoResult<()> {
-        self.start_with_port(port, config_file_or_log_level, enable_tracing, false)
+        self.start_with_port(port, maybe_log_level, enable_tracing, false)
             .await
             .wait()
             .await
@@ -459,20 +456,15 @@ mod server_tests {
 
     #[tokio::test]
     async fn test_server_stop() {
-        let graph = Graph::new();
-        graph
-            .add_node(
-                1,
-                1,
-                [("name", Prop::str("Character")), ("bool", Prop::Bool(true))],
-                None,
-            )
-            .unwrap();
-        let g = graph.into();
-        let graphs = HashMap::from([("test".to_owned(), g)]);
-        let server = RaphtoryServer::from_map(graphs);
+        let tmp_dir = tempfile::tempdir().unwrap();
+        let server = RaphtoryServer::new(
+            tmp_dir.path(),
+            None,
+            Some(vec!["/tmp/graphs2".parse().unwrap()]),
+            None,
+        );
         println!("calling start at time {}", Local::now());
-        let handler = server.start_with_port(0, "info", false, false);
+        let handler = server.start_with_port(0, None, false, false);
         sleep(Duration::from_secs(1)).await;
         println!("Calling stop at time {}", Local::now());
         handler.await.stop().await

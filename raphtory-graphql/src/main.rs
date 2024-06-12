@@ -1,5 +1,5 @@
 use crate::server::RaphtoryServer;
-use std::env;
+use std::{env, path::Path};
 
 mod azure_auth;
 mod data;
@@ -13,20 +13,20 @@ extern crate base64_compat as base64_compat;
 
 #[tokio::main]
 async fn main() {
-    let graph_directory = env::var("GRAPH_DIRECTORY").unwrap_or("/tmp/graphs".to_string());
-    let config_file = "config.toml";
+    let work_dir = env::var("GRAPH_DIRECTORY").unwrap_or("/tmp/graphs".to_string());
+    let work_dir = Path::new(&work_dir);
 
     let args: Vec<String> = env::args().collect();
     let use_auth = args.contains(&"--server".to_string());
 
     if use_auth {
-        RaphtoryServer::from_directory(&graph_directory)
-            .run_with_auth(config_file, false)
+        RaphtoryServer::new(&work_dir, None, None, None)
+            .run_with_auth(None, false)
             .await
             .unwrap();
     } else {
-        RaphtoryServer::from_directory(&graph_directory)
-            .run(config_file, false)
+        RaphtoryServer::new(&work_dir, None, None, None)
+            .run(None, false)
             .await
             .unwrap();
     }

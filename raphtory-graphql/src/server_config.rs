@@ -7,8 +7,16 @@ pub(crate) struct LoggingConfig {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct CacheConfig {
+    pub capacity: u64,
+    pub ttl_seconds: u64,
+    pub tti_seconds: u64,
+}
+
+#[derive(Debug, Deserialize)]
 pub(crate) struct AppConfig {
     pub(crate) logging: LoggingConfig,
+    pub(crate) cache: CacheConfig,
 }
 
 pub fn load_config() -> Result<AppConfig, ConfigError> {
