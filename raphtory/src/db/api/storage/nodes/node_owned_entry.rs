@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::{borrow::Cow, ops::Deref};
 
 #[cfg(feature = "storage")]
 use crate::db::api::storage::variants::storage_variants::StorageVariants;
@@ -104,7 +104,7 @@ impl<'a> NodeStorageOps<'a> for &'a NodeOwnedEntry {
         for_all!(self, node => node.id())
     }
 
-    fn name(self) -> Option<&'a str> {
+    fn name(self) -> Option<Cow<'a, str>> {
         for_all!(self, node => node.name())
     }
 

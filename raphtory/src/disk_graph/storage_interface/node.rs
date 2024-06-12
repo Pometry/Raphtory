@@ -15,7 +15,7 @@ use crate::{
 use itertools::Itertools;
 use pometry_storage::{graph::TemporalGraph, timestamps::TimeStamps, GidRef};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
-use std::{iter, sync::Arc};
+use std::{borrow::Cow, iter, sync::Arc};
 
 #[derive(Copy, Clone, Debug)]
 pub struct DiskNode<'a> {
@@ -251,11 +251,11 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
         }
     }
 
-    fn name(self) -> Option<&'a str> {
+    fn name(self) -> Option<Cow<'a, str>> {
         match self.graph.node_gid(self.vid).unwrap() {
             GidRef::U64(_) => None,
             GidRef::I64(_) => None,
-            GidRef::Str(v) => Some(v),
+            GidRef::Str(v) => Some(Cow::from(v)),
         }
     }
 
@@ -494,7 +494,7 @@ impl<'a> NodeStorageOps<'a> for &'a DiskOwnedNode {
         self.as_ref().id()
     }
 
-    fn name(self) -> Option<&'a str> {
+    fn name(self) -> Option<Cow<'a, str>> {
         self.as_ref().name()
     }
 
