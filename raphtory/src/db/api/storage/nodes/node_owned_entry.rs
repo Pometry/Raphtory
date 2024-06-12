@@ -74,11 +74,10 @@ impl<'a> NodeStorageOps<'a> for &'a NodeOwnedEntry {
 
     fn additions(&self) -> NodeAdditions<'a> {
         match self {
-            NodeOwnedEntry::Mem(entry) => entry.additions(),
+            NodeOwnedEntry::Mem(entry) => entry.deref().additions(),
             #[cfg(feature = "storage")]
             NodeOwnedEntry::Disk(entry) => entry.additions(),
         }
-        // for_all!(self, node => node.additions())
     }
 
     fn tprop(self, prop_id: usize) -> impl TPropOps<'a> {
