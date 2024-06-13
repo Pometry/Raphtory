@@ -27,8 +27,9 @@ impl<'a> NodeStorageOps<'a> for Entry<'a, NodeStore> {
         self.deref().degree(layers, dir)
     }
 
-    fn additions(&self) -> NodeAdditions<'a> {
-        todo!()
+    fn additions(self) -> NodeAdditions<'a> {
+        let locked_additions = self.map(|e| e.timestamps());
+        NodeAdditions::Locked(locked_additions)
     }
 
     fn tprop(self, prop_id: usize) -> impl TPropOps<'a> {
@@ -167,6 +168,9 @@ pub struct UnlockedOwnedNode {
 }
 
 impl UnlockedOwnedNode {
+    pub fn new(g: InternalGraph, vid: VID) -> Self {
+        Self { g, vid }
+    }
     pub fn node(&self) -> Entry<'_, NodeStore> {
         self.g.inner().storage.nodes.entry(self.vid)
     }

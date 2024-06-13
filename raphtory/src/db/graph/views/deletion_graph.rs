@@ -248,16 +248,17 @@ impl TimeSemantics for PersistentGraph {
     }
 
     fn node_earliest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
-        let v = &self.core_node_entry(v);
-        if v.additions().first_t()? <= start {
-            Some(v.additions().range_t(start..end).first_t().unwrap_or(start))
+        let v = self.core_node_entry(v);
+        let additions = v.additions();
+        if additions.first_t()? <= start {
+            Some(additions.range_t(start..end).first_t().unwrap_or(start))
         } else {
             None
         }
     }
 
     fn node_latest_time_window(&self, v: VID, _start: i64, end: i64) -> Option<i64> {
-        let v = &self.core_node_entry(v);
+        let v = self.core_node_entry(v);
         if v.additions().first_t()? < end {
             Some(end - 1)
         } else {
@@ -271,7 +272,9 @@ impl TimeSemantics for PersistentGraph {
         w: Range<i64>,
         _layer_ids: &LayerIds,
     ) -> bool {
-        node.additions().first_t().filter(|&t| t <= w.end).is_some()
+        node.with_additions(|additions| {
+            additions.first_t().filter(|&t| t <= w.end).is_some()
+        })
     }
 
     fn include_edge_window(

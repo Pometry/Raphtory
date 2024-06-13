@@ -16,7 +16,7 @@ use itertools::Itertools;
 pub trait NodeStorageOps<'a>: Sized {
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize;
 
-    fn additions(&self) -> NodeAdditions<'a>;
+    fn additions(self) -> NodeAdditions<'a>;
 
     fn tprop(self, prop_id: usize) -> impl TPropOps<'a>;
 
@@ -39,7 +39,7 @@ impl<'a> NodeStorageOps<'a> for &'a NodeStore {
         self.degree(layers, dir)
     }
 
-    fn additions(&self) -> NodeAdditions<'a> {
+    fn additions(self) -> NodeAdditions<'a> {
         NodeAdditions::Mem(self.timestamps())
     }
 

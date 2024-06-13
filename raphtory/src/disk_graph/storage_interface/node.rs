@@ -211,7 +211,7 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
         }
     }
 
-    fn additions(&self) -> NodeAdditions<'a> {
+    fn additions(self) -> NodeAdditions<'a> {
         self.additions_for_layers(&LayerIds::All)
     }
 
@@ -458,7 +458,7 @@ impl<'a> NodeStorageOps<'a> for &'a DiskOwnedNode {
     }
 
     #[inline]
-    fn additions(&self) -> NodeAdditions<'a> {
+    fn additions(self) -> NodeAdditions<'a> {
         self.as_ref().additions()
     }
 

@@ -24,6 +24,21 @@ pub enum NodeStorageRef<'a> {
     Disk(DiskNode<'a>),
 }
 
+impl <'a> NodeStorageRef<'a> {
+    pub fn with_additions<'b :'a, B>(&'b self, op: impl FnOnce(NodeAdditions<'a>) ->B) -> B {
+        match self {
+            NodeStorageRef::Mem(node) => op(NodeAdditions::Mem(node.timestamps())),
+            NodeStorageRef::Unlocked(node) => {
+                let ts = node.timestamps();
+                op(NodeAdditions::Mem(ts))
+            },
+            #[cfg(feature = "storage")]
+            NodeStorageRef::Disk(node) => op(node.additions_for_layers(&LayerIds::All)),
+        }        
+
+    }
+}
+
 impl<'a> From<&'a NodeStore> for NodeStorageRef<'a> {
     fn from(value: &'a NodeStore) -> Self {
         NodeStorageRef::Mem(value)
@@ -80,7 +95,7 @@ impl<'a> NodeStorageOps<'a> for NodeStorageRef<'a> {
         for_all!(self, node => node.degree(layers, dir))
     }
 
-    fn additions(&self) -> NodeAdditions<'a> {
+    fn additions(self) -> NodeAdditions<'a> {
         for_all!(self, node => node.additions())
     }
 
