@@ -33,8 +33,12 @@
     "@webpack-cli/serve": "^2.0.4",
     "copy-webpack-plugin": "^11.0.0",
     "hello-wasm-pack": "^0.1.0",
+    "braces": "^3.0.3",
     "webpack": "^5.82.1",
     "webpack-cli": "^5.1.1",
-    "webpack-dev-server": "^4.15.0"
+    "webpack-dev-server": "^4.15.0",
+    "webpack-dev-middleware": "5.3.4",
+    "express": "^4.19.2",
+    "follow-redirects": "^1.15.6"
   }
 }
