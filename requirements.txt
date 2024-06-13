@@ -10,8 +10,6 @@ aiosignal==1.3.1
     # via aiohttp
 altair==5.2.0
     # via -r requirements.in
-anyio==3.7.1
-    # via langchain
 asttokens==2.2.1
     # via stack-data
 async-timeout==4.0.3
@@ -53,14 +51,10 @@ cssselect==1.2.0
     #   scrapy
 cycler==0.11.0
     # via matplotlib
-dataclasses-json==0.6.4
-    # via langchain
 decorator==5.1.1
     # via ipython
 defusedxml==0.7.1
     # via scrapy
-exceptiongroup==1.2.0
-    # via anyio
 executing==1.2.0
     # via stack-data
 filelock==3.12.0
@@ -91,7 +85,6 @@ hyperlink==21.0.0
     # via twisted
 idna==3.7
     # via
-    #   anyio
     #   hyperlink
     #   requests
     #   tldextract
@@ -122,9 +115,7 @@ joblib==1.3.2
     #   nltk
     #   scikit-learn
 jsonpatch==1.33
-    # via
-    #   langchain
-    #   langchain-core
+    # via langchain-core
 jsonpickle==3.0.1
     # via pyvis
 jsonpointer==2.4
@@ -135,11 +126,15 @@ jsonschema-specifications==2023.12.1
     # via jsonschema
 kiwisolver==1.4.4
     # via matplotlib
-langchain==0.0.347
+langchain==0.2.3
     # via -r requirements.in
-langchain-core==0.0.11
+langchain-core==0.2.5
+    # via
+    #   langchain
+    #   langchain-text-splitters
+langchain-text-splitters==0.2.1
     # via langchain
-langsmith==0.0.92
+langsmith==0.1.77
     # via
     #   langchain
     #   langchain-core
@@ -149,8 +144,6 @@ lxml==4.9.2
     #   scrapy
 markupsafe==2.1.2
     # via jinja2
-marshmallow==3.20.2
-    # via dataclasses-json
 matplotlib==3.7.1
     # via
     #   -r requirements.in
@@ -163,8 +156,6 @@ multidict==6.0.5
     # via
     #   aiohttp
     #   yarl
-mypy-extensions==1.0.0
-    # via typing-inspect
 networkx==3.1
     # via
     #   -r requirements.in
@@ -216,11 +207,13 @@ nvidia-nvjitlink-cu12==12.3.101
     #   nvidia-cusparse-cu12
 nvidia-nvtx-cu12==12.1.105
     # via torch
-packaging==23.1
+orjson==3.10.4
+    # via langsmith
+packaging==23.2
     # via
     #   altair
     #   huggingface-hub
-    #   marshmallow
+    #   langchain-core
     #   matplotlib
     #   parsel
     #   scrapy
@@ -286,6 +279,7 @@ pyyaml==6.0.1
     # via
     #   huggingface-hub
     #   langchain
+    #   langchain-core
     #   transformers
 queuelib==1.6.2
     # via scrapy
@@ -341,8 +335,6 @@ six==1.16.0
     #   python-dateutil
     #   requests-file
     #   service-identity
-sniffio==1.3.0
-    # via anyio
 sqlalchemy==2.0.24
     # via langchain
 stack-data==0.6.2
@@ -388,9 +380,6 @@ typing-extensions==4.5.0
     #   sqlalchemy
     #   torch
     #   twisted
-    #   typing-inspect
-typing-inspect==0.9.0
-    # via dataclasses-json
 tzdata==2023.3
     # via pandas
 urllib3==1.26.15
