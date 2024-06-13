@@ -222,14 +222,13 @@ impl PyRaphtoryServer {
 impl PyRaphtoryServer {
     #[new]
     #[pyo3(
-        signature = (work_dir, graphs = None, graph_paths = None, cache_capacity = 30, cache_ttl_seconds = 1800, cache_tti_seconds = 900)
+        signature = (work_dir, graphs = None, graph_paths = None, cache_capacity = 30, cache_tti_seconds = 900)
     )]
     fn py_new(
         work_dir: String,
         graphs: Option<HashMap<String, MaterializedGraph>>,
         graph_paths: Option<Vec<String>>,
         cache_capacity: u64,
-        cache_ttl_seconds: u64,
         cache_tti_seconds: u64,
     ) -> PyResult<Self> {
         let graph_paths = graph_paths.map(|paths| paths.into_iter().map(PathBuf::from).collect());
@@ -239,7 +238,6 @@ impl PyRaphtoryServer {
             graph_paths,
             Some(CacheConfig {
                 capacity: cache_capacity,
-                ttl_seconds: cache_ttl_seconds,
                 tti_seconds: cache_tti_seconds,
             }),
         );
@@ -788,11 +786,7 @@ impl PyRaphtoryClient {
         path: String,
         overwrite: bool,
     ) -> PyResult<HashMap<String, PyObject>> {
-        if overwrite {
-            self.generic_load_graphs(py, "loadGraphsFromPath", path)
-        } else {
-            self.generic_load_graphs(py, "loadNewGraphsFromPath", path)
-        }
+        self.generic_load_graphs(py, "loadGraphsFromPath", path)
     }
 }
 

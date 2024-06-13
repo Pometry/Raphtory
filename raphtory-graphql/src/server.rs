@@ -33,7 +33,10 @@ use raphtory::{
     },
 };
 
-use crate::server_config::{load_config, CacheConfig};
+use crate::{
+    data::get_graphs_from_work_dir,
+    server_config::{load_config, CacheConfig},
+};
 use std::{
     collections::HashMap,
     env,
@@ -97,21 +100,32 @@ impl RaphtoryServer {
         F: EmbeddingFunction + Clone + 'static,
         T: DocumentTemplate<DynamicGraph> + 'static,
     {
-        let graphs = &self.data.graphs;
-        let stores = &self.data.vector_stores;
+        let work_dir = Path::new(&self.data.work_dir);
+        let graphs = &self.data.global_plugins.graphs;
+        let stores = &self.data.global_plugins.vectorised_graphs;
+
+        graphs
+            .write()
+            .extend(get_graphs_from_work_dir(work_dir).expect("Failed to load graphs"));
 
         let template = template
             .map(|template| Arc::new(template) as Arc<dyn DocumentTemplate<DynamicGraph>>)
             .unwrap_or(Arc::new(DefaultTemplate));
 
         let graph_names = graph_names.unwrap_or_else(|| {
-            let all_graph_names = graphs.iter().map(|(graph_name, _)| graph_name.to_string());
-            all_graph_names.collect_vec()
+            let all_graph_names = {
+                let read_guard = graphs.read();
+                read_guard
+                    .iter()
+                    .map(|(graph_name, _)| graph_name.to_string())
+                    .collect_vec()
+            };
+            all_graph_names
         });
 
         for graph_name in graph_names {
             let graph_cache = cache.join(&graph_name);
-            let graph = graphs.get(&graph_name).unwrap().clone();
+            let graph = graphs.read().get(&graph_name).unwrap().clone();
             println!("Loading embeddings for {graph_name} using cache from {graph_cache:?}");
             let vectorised = graph
                 .into_dynamic()
@@ -123,7 +137,7 @@ impl RaphtoryServer {
                     true,
                 )
                 .await;
-            stores.insert(graph_name, vectorised);
+            stores.write().insert(graph_name, vectorised);
         }
         println!("Embeddings were loaded successfully");
 

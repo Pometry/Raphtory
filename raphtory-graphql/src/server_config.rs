@@ -9,7 +9,6 @@ pub(crate) struct LoggingConfig {
 #[derive(Debug, Deserialize)]
 pub struct CacheConfig {
     pub capacity: u64,
-    pub ttl_seconds: u64,
     pub tti_seconds: u64,
 }
 
