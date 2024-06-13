@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1718279334610,
+  "lastUpdate": 1718318039247,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -53455,6 +53455,66 @@ window.BENCHMARK_DATA = {
             "name": "temporal_motifs/temporal_motifs",
             "value": 21194403,
             "range": "± 293539",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "06daac594b57a4274c08b21b4b1eec6f2b6349e2",
+          "message": "Bump the pip group across 2 directories with 8 updates (#1657)\n\n* Bump the pip group across 2 directories with 8 updates\r\n\r\nBumps the pip group with 7 updates in the / directory:\r\n\r\n| Package | From | To |\r\n| --- | --- | --- |\r\n| [aiohttp](https://github.com/aio-libs/aiohttp) | `3.9.4` | `3.9.5` |\r\n| [certifi](https://github.com/certifi/python-certifi) | `2023.7.22` | `2024.6.2` |\r\n| [fonttools](https://github.com/fonttools/fonttools) | `4.43.0` | `4.53.0` |\r\n| [langchain](https://github.com/langchain-ai/langchain) | `0.0.347` | `0.2.3` |\r\n| [urllib3](https://github.com/urllib3/urllib3) | `1.26.18` | `2.2.1` |\r\n| [pyarrow](https://github.com/apache/arrow) | `13.0.0` | `14.0.1` |\r\n| [tornado](https://github.com/tornadoweb/tornado) | `6.3.3` | `6.4.1` |\r\n\r\nBumps the pip group with 6 updates in the /docs directory:\r\n\r\n| Package | From | To |\r\n| --- | --- | --- |\r\n| [aiohttp](https://github.com/aio-libs/aiohttp) | `3.9.4` | `3.9.5` |\r\n| [certifi](https://github.com/certifi/python-certifi) | `2023.7.22` | `2024.6.2` |\r\n| [fonttools](https://github.com/fonttools/fonttools) | `4.43.0` | `4.53.0` |\r\n| [urllib3](https://github.com/urllib3/urllib3) | `1.26.18` | `2.2.1` |\r\n| [pyarrow](https://github.com/apache/arrow) | `13.0.0` | `14.0.1` |\r\n| [tornado](https://github.com/tornadoweb/tornado) | `6.3.3` | `6.4.1` |\r\n\r\n\r\n\r\nUpdates `aiohttp` from 3.9.4 to 3.9.5\r\n- [Release notes](https://github.com/aio-libs/aiohttp/releases)\r\n- [Changelog](https://github.com/aio-libs/aiohttp/blob/master/CHANGES.rst)\r\n- [Commits](https://github.com/aio-libs/aiohttp/compare/v3.9.4...v3.9.5)\r\n\r\nUpdates `certifi` from 2023.7.22 to 2024.6.2\r\n- [Commits](https://github.com/certifi/python-certifi/compare/2023.07.22...2024.06.02)\r\n\r\nUpdates `fonttools` from 4.43.0 to 4.53.0\r\n- [Release notes](https://github.com/fonttools/fonttools/releases)\r\n- [Changelog](https://github.com/fonttools/fonttools/blob/main/NEWS.rst)\r\n- [Commits](https://github.com/fonttools/fonttools/compare/4.43.0...4.53.0)\r\n\r\nUpdates `langchain` from 0.0.347 to 0.2.3\r\n- [Release notes](https://github.com/langchain-ai/langchain/releases)\r\n- [Commits](https://github.com/langchain-ai/langchain/compare/v0.0.347...langchain==0.2.3)\r\n\r\nUpdates `langchain-core` from 0.0.11 to 0.2.5\r\n- [Release notes](https://github.com/langchain-ai/langchain/releases)\r\n- [Commits](https://github.com/langchain-ai/langchain/commits/langchain-core==0.2.5)\r\n\r\nUpdates `urllib3` from 1.26.18 to 2.2.1\r\n- [Release notes](https://github.com/urllib3/urllib3/releases)\r\n- [Changelog](https://github.com/urllib3/urllib3/blob/main/CHANGES.rst)\r\n- [Commits](https://github.com/urllib3/urllib3/compare/1.26.18...2.2.1)\r\n\r\nUpdates `pyarrow` from 13.0.0 to 14.0.1\r\n- [Commits](https://github.com/apache/arrow/compare/r-13.0.0...go/v14.0.1)\r\n\r\nUpdates `tornado` from 6.3.3 to 6.4.1\r\n- [Changelog](https://github.com/tornadoweb/tornado/blob/master/docs/releases.rst)\r\n- [Commits](https://github.com/tornadoweb/tornado/compare/v6.3.3...v6.4.1)\r\n\r\nUpdates `aiohttp` from 3.9.4 to 3.9.5\r\n- [Release notes](https://github.com/aio-libs/aiohttp/releases)\r\n- [Changelog](https://github.com/aio-libs/aiohttp/blob/master/CHANGES.rst)\r\n- [Commits](https://github.com/aio-libs/aiohttp/compare/v3.9.4...v3.9.5)\r\n\r\nUpdates `certifi` from 2023.7.22 to 2024.6.2\r\n- [Commits](https://github.com/certifi/python-certifi/compare/2023.07.22...2024.06.02)\r\n\r\nUpdates `fonttools` from 4.43.0 to 4.53.0\r\n- [Release notes](https://github.com/fonttools/fonttools/releases)\r\n- [Changelog](https://github.com/fonttools/fonttools/blob/main/NEWS.rst)\r\n- [Commits](https://github.com/fonttools/fonttools/compare/4.43.0...4.53.0)\r\n\r\nUpdates `urllib3` from 1.26.18 to 2.2.1\r\n- [Release notes](https://github.com/urllib3/urllib3/releases)\r\n- [Changelog](https://github.com/urllib3/urllib3/blob/main/CHANGES.rst)\r\n- [Commits](https://github.com/urllib3/urllib3/compare/1.26.18...2.2.1)\r\n\r\nUpdates `pyarrow` from 13.0.0 to 14.0.1\r\n- [Commits](https://github.com/apache/arrow/compare/r-13.0.0...go/v14.0.1)\r\n\r\nUpdates `tornado` from 6.3.3 to 6.4.1\r\n- [Changelog](https://github.com/tornadoweb/tornado/blob/master/docs/releases.rst)\r\n- [Commits](https://github.com/tornadoweb/tornado/compare/v6.3.3...v6.4.1)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: aiohttp\r\n  dependency-type: direct:production\r\n  dependency-group: pip\r\n- dependency-name: certifi\r\n  dependency-type: direct:production\r\n  dependency-group: pip\r\n- dependency-name: fonttools\r\n  dependency-type: direct:production\r\n  dependency-group: pip\r\n- dependency-name: langchain\r\n  dependency-type: direct:production\r\n  dependency-group: pip\r\n- dependency-name: langchain-core\r\n  dependency-type: indirect\r\n  dependency-group: pip\r\n- dependency-name: urllib3\r\n  dependency-type: direct:production\r\n  dependency-group: pip\r\n- dependency-name: pyarrow\r\n  dependency-type: direct:production\r\n  dependency-group: pip\r\n- dependency-name: tornado\r\n  dependency-type: direct:production\r\n  dependency-group: pip\r\n- dependency-name: aiohttp\r\n  dependency-type: direct:production\r\n  dependency-group: pip\r\n- dependency-name: certifi\r\n  dependency-type: direct:production\r\n  dependency-group: pip\r\n- dependency-name: fonttools\r\n  dependency-type: direct:production\r\n  dependency-group: pip\r\n- dependency-name: urllib3\r\n  dependency-type: direct:production\r\n  dependency-group: pip\r\n- dependency-name: pyarrow\r\n  dependency-type: direct:production\r\n  dependency-group: pip\r\n- dependency-name: tornado\r\n  dependency-type: direct:production\r\n  dependency-group: pip\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\n* Version fixing\r\n\r\n* Pandas version\r\n\r\n* swapping docs to reqs.in\r\n\r\n* Adding back cargo.lock\r\n\r\n* dep\r\n\r\n* fix docs\r\n\r\n* fit issues js\r\n\r\n* removed issues js\r\n\r\n* trying some larger boxes\r\n\r\n* Bigger boxes for storage tests\r\n\r\n* Version fixing\r\n\r\n---------\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\r\nCo-authored-by: Ben Steer <b.a.steer@qmul.ac.uk>",
+          "timestamp": "2024-06-13T23:14:43+01:00",
+          "tree_id": "2d1ad7cb50abc040af78669b115933e518ac75f2",
+          "url": "https://github.com/Pometry/Raphtory/commit/06daac594b57a4274c08b21b4b1eec6f2b6349e2"
+        },
+        "date": 1718318038013,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "local_triangle_count/local_triangle_count",
+            "value": 936724,
+            "range": "± 43716",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "local_clustering_coefficient/local_clustering_coefficient",
+            "value": 107696,
+            "range": "± 1053",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_clustering_coeff/graphgen_large_clustering_coeff/Graph(num_nodes=500004, num_edges=20...",
+            "value": 2350991756,
+            "range": "± 43744341",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_pagerank/graphgen_large_pagerank/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 232178853,
+            "range": "± 2983989",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_concomp/graphgen_large_concomp/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 2463410018,
+            "range": "± 67605013",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "temporal_motifs/temporal_motifs",
+            "value": 21211050,
+            "range": "± 288102",
             "unit": "ns/iter"
           }
         ]
