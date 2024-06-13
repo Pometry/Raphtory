@@ -1,1 +1,6 @@
+[logging]
 log_level = "INFO"
+
+[cache]
+capacity = 30
+tti_seconds = 900

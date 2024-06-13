@@ -19,7 +19,7 @@ use std::{
 pub static GLOBAL_PLUGINS: Lazy<Mutex<HashMap<String, RegisterFunction>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct GlobalPlugins {
     pub graphs: Arc<RwLock<HashMap<String, IndexedGraph<MaterializedGraph>>>>,
     pub vectorised_graphs: Arc<RwLock<HashMap<String, DynamicVectorisedGraph>>>,

@@ -4,7 +4,7 @@ from raphtory import Graph
 from raphtory.graphql import RaphtoryServer, RaphtoryClient
 
 
-def test_graphql():
+def test_graphql2():
     g1 = Graph()
     g1.add_edge(1, "ben", "hamza")
     g1.add_edge(2, "haaroon", "hamza")
@@ -31,29 +31,23 @@ def test_graphql():
     g3.save_to_file(temp_dir + "/g3")
     g4.save_to_file(temp_dir + "/g4")
 
-    map_server = RaphtoryServer(graphs=graphs).start(port=1751)
-    dir_server = RaphtoryServer(graph_dir=temp_dir).start(port=1750)
-    map_dir_server = RaphtoryServer(graphs=graphs, graph_dir=temp_dir).start(port=1739)
-
-    map_server.wait_for_online()
-    dir_server.wait_for_online()
-    map_dir_server.wait_for_online()
+    tmp_work_dir = tempfile.mkdtemp()
+    server = RaphtoryServer(tmp_work_dir, graphs=graphs).start(port=1751)
+    server.wait_for_online()
 
     query_g1 = """{graph(name: "g1") {nodes {list {name}}}}"""
     query_g1_window = """{graph(name: "g1") {nodes {before(time: 2) {list {name}}}}}"""
     query_g2 = """{graph(name: "g2") {nodes {list {name}}}}"""
-    query_g3 = """{graph(name: "g3") {nodes {list {name}}}}"""
-    query_g4 = """{graph(name: "g4") {nodes {list {name}}}}"""
 
-    assert map_server.query(query_g1) == {
+    assert server.query(query_g1) == {
         "graph": {
             "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
         }
     }
-    assert map_server.query(query_g1_window) == {
+    assert server.query(query_g1_window) == {
         "graph": {"nodes": {"before": {"list": [{"name": "ben"}, {"name": "hamza"}]}}}
     }
-    assert map_server.query(query_g2) == {
+    assert server.query(query_g2) == {
         "graph": {
             "nodes": {
                 "list": [
@@ -65,78 +59,9 @@ def test_graphql():
             }
         }
     }
-    assert dir_server.query(query_g3) == {
-        "graph": {
-            "nodes": {
-                "list": [
-                    {"name": "ben_saved"},
-                    {"name": "hamza_saved"},
-                    {"name": "haaroon_saved"},
-                ]
-            }
-        }
-    }
-    assert dir_server.query(query_g4) == {
-        "graph": {
-            "nodes": {
-                "list": [
-                    {"name": "Naomi_saved"},
-                    {"name": "Shivam_saved"},
-                    {"name": "Pedro_saved"},
-                    {"name": "Rachel_saved"},
-                ]
-            }
-        }
-    }
 
-    assert map_dir_server.query(query_g1) == {
-        "graph": {
-            "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
-        }
-    }
-    assert map_dir_server.query(query_g2) == {
-        "graph": {
-            "nodes": {
-                "list": [
-                    {"name": "Naomi"},
-                    {"name": "Shivam"},
-                    {"name": "Pedro"},
-                    {"name": "Rachel"},
-                ]
-            }
-        }
-    }
-    assert map_dir_server.query(query_g4) == {
-        "graph": {
-            "nodes": {
-                "list": [
-                    {"name": "Naomi_saved"},
-                    {"name": "Shivam_saved"},
-                    {"name": "Pedro_saved"},
-                    {"name": "Rachel_saved"},
-                ]
-            }
-        }
-    }
-    assert map_dir_server.query(query_g3) == {
-        "graph": {
-            "nodes": {
-                "list": [
-                    {"name": "ben_saved"},
-                    {"name": "hamza_saved"},
-                    {"name": "haaroon_saved"},
-                ]
-            }
-        }
-    }
-
-    map_server.stop()
-    dir_server.stop()
-    map_dir_server.stop()
-
-    map_server.wait()
-    dir_server.wait()
-    map_dir_server.wait()
+    server.stop()
+    server.wait()
 
 
 def test_graphqlclient():
@@ -146,32 +71,34 @@ def test_graphqlclient():
     g1.add_edge(1, "ben", "hamza")
     g1.add_edge(2, "haaroon", "hamza")
     g1.add_edge(3, "ben", "haaroon")
-    g1.save_to_file(temp_dir + "/g1.bincode")
+    graph_path = temp_dir + "/g1.bincode"
+    g1.save_to_file(graph_path)
 
-    dir_server = RaphtoryServer(graph_dir=temp_dir).start(port=1740)
-    raphtory_client = RaphtoryClient("http://localhost:1740")
-    generic_client_test(raphtory_client, temp_dir)
-    dir_server.stop()
-    dir_server.wait()
+    tmp_work_dir = tempfile.mkdtemp()
+    server = RaphtoryServer(tmp_work_dir, graph_paths=[graph_path]).start(port=1740)
+    client = RaphtoryClient("http://localhost:1740")
+    generic_client_test(client, temp_dir)
+    server.stop()
+    server.wait()
 
-    dir_server2 = RaphtoryServer(graph_dir=temp_dir).start(port=1741)
-    raphtory_client2 = RaphtoryClient("http://localhost:1741")
-    generic_client_test(raphtory_client2, temp_dir)
-    dir_server2.stop()
-    dir_server2.wait()
+    server2 = RaphtoryServer(tmp_work_dir, graph_paths=[graph_path]).start(port=1741)
+    client2 = RaphtoryClient("http://localhost:1741")
+    generic_client_test(client2, temp_dir)
+    server2.stop()
+    server2.wait()
 
-    dir_server3 = RaphtoryServer(graph_dir=temp_dir).start(port=1742)
-    raphtory_client3 = RaphtoryClient("http://localhost:1742")
-    generic_client_test(raphtory_client3, temp_dir)
-    dir_server3.stop()
-    dir_server3.wait()
+    server3 = RaphtoryServer(tmp_work_dir, graph_paths=[graph_path]).start(port=1742)
+    client3 = RaphtoryClient("http://localhost:1742")
+    generic_client_test(client3, temp_dir)
+    server3.stop()
+    server3.wait()
 
 
-def generic_client_test(raphtory_client, temp_dir):
-    raphtory_client.wait_for_online()
+def generic_client_test(client, temp_dir):
+    client.wait_for_online()
 
     # load a graph into the client from a path
-    res = raphtory_client.load_graphs_from_path(temp_dir, overwrite=True)
+    res = client.load_graphs_from_path(temp_dir)
     assert res == {"loadGraphsFromPath": ["g1.bincode"]}
 
     # run a get nodes query and check the results
@@ -185,7 +112,7 @@ def generic_client_test(raphtory_client, temp_dir):
         }
     }"""
     variables = {"graphname": "g1.bincode"}
-    res = raphtory_client.query(query, variables)
+    res = client.query(query, variables)
     assert res == {
         "graph": {
             "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
@@ -202,14 +129,14 @@ def generic_client_test(raphtory_client, temp_dir):
     g3.add_edge(1, "shivam", "rachel")
     g3.add_edge(2, "lucas", "shivam")
     g3.save_to_file(multi_graph_temp_dir + "/g3.bincode")
-    res = raphtory_client.load_graphs_from_path(multi_graph_temp_dir, overwrite=False)
-    result_sorted = {"loadNewGraphsFromPath": sorted(res["loadNewGraphsFromPath"])}
-    assert result_sorted == {"loadNewGraphsFromPath": ["g2.bincode", "g3.bincode"]}
+    res = client.load_graphs_from_path(multi_graph_temp_dir)
+    result_sorted = {"loadGraphsFromPath": sorted(res["loadGraphsFromPath"])}
+    assert result_sorted == {"loadGraphsFromPath": ["g2.bincode", "g3.bincode"]}
 
     # upload a graph
     g4 = Graph()
     g4.add_node(0, 1)
-    res = raphtory_client.send_graph("hello", g4)
+    res = client.send_graph("hello", g4)
     assert res == {"sendGraph": "hello"}
     # Ensure the sent graph can be queried
     query = """query GetNodes($graphname: String!) {
@@ -222,7 +149,7 @@ def generic_client_test(raphtory_client, temp_dir):
         }
     }"""
     variables = {"graphname": "hello"}
-    res = raphtory_client.query(query, variables)
+    res = client.query(query, variables)
     assert res == {"graph": {"nodes": {"list": [{"name": "1"}]}}}
 
 
@@ -240,8 +167,10 @@ def test_windows_and_layers():
     g_layers.add_edge(1, 1, 2, layer="layer1")
     g_layers.add_edge(1, 2, 3, layer="layer2")
     hm = {"lotr": g_lotr, "layers": g_layers}
-    server = RaphtoryServer(hm).start()
-    server.wait_for_online()
+    tmp_work_dir = tempfile.mkdtemp()
+    server = RaphtoryServer(tmp_work_dir, graphs=hm).start()
+    client = RaphtoryClient("http://localhost:1736")
+    client.wait_for_online()
     q = """
     query GetEdges {
       graph(name: "lotr") {
@@ -301,7 +230,7 @@ def test_windows_and_layers():
         }
     }
     """
-    a = json.dumps(server.query(q))
+    a = json.dumps(client.query(q))
     json_a = json.loads(a)
     json_ra = json.loads(ra)
     assert json_a == json_ra
@@ -405,10 +334,12 @@ def test_properties():
     n.add_constant_properties(
         {"prop5": "val4", "prop6": "val4", "prop7": "val4", "prop8": "val4"}
     )
+    # g.save_to_file('/tmp/graphs/graph')
 
-    hm = {"graph": g}
-    server = RaphtoryServer(hm).start()
-    server.wait_for_online()
+    tmp_work_dir = tempfile.mkdtemp()
+    server = RaphtoryServer(tmp_work_dir, graphs={"graph": g}).start()
+    client = RaphtoryClient("http://localhost:1736")
+    client.wait_for_online()
     q = """
     query GetEdges {
       graph(name: "graph") {
@@ -436,7 +367,6 @@ def test_properties():
         }
       }
     }
-    
     """
     r = """
     {
@@ -494,9 +424,10 @@ def test_properties():
         }
     }
     """
-    s = server.query(q)
+    s = client.query(q)
     json_a = json.loads(json.dumps(s))
     json_ra = json.loads(r)
+    print(json_a)
     assert sorted(
         json_a["graph"]["nodes"]["list"][0]["properties"]["constant"]["values"],
         key=lambda x: x["key"],

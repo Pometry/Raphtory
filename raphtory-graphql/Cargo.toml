@@ -49,6 +49,7 @@ url = { workspace = true }
 base64-compat = { workspace = true }
 time = { workspace = true }
 reqwest = { workspace = true }
+moka = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
