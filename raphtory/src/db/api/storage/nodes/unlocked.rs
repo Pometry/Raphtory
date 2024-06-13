@@ -14,7 +14,7 @@ use crate::{
             graph::tgraph::InternalGraph, nodes::node_store::NodeStore, properties::tprop::TProp,
             LayerIds,
         },
-        storage::{locked_view::LockedView, Entry},
+        storage::{locked_view::LockedView, ArcEntry, Entry},
     },
     db::api::{storage::tprop_storage_ops::TPropOps, view::internal::NodeAdditions},
     prelude::Prop,
@@ -157,5 +157,29 @@ impl<'a> UnlockedNodes<'a> {
             .into_par_iter()
             .map(VID)
             .map(|vid| storage.entry(vid))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct UnlockedOwnedNode {
+    g: InternalGraph,
+    vid: VID,
+}
+
+impl UnlockedOwnedNode {
+    pub fn node(&self) -> Entry<'_, NodeStore> {
+        self.g.inner().storage.nodes.entry(self.vid)
+    }
+
+    pub fn arc_node(&self) -> ArcEntry<NodeStore> {
+        self.g.inner().storage.nodes.entry_arc(self.vid)
+    }
+
+    pub fn into_edges_iter(
+        self,
+        layers: LayerIds,
+        dir: Direction,
+    ) -> impl Iterator<Item = EdgeRef> {
+        self.arc_node().into_edges(&layers, dir)
     }
 }

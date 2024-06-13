@@ -340,6 +340,7 @@ where
 }
 
 impl<'a, T> Entry<'a, T> {
+
     pub fn value(&self) -> &T {
         &self.guard[self.offset]
     }
