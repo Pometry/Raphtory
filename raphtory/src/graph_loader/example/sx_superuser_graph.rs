@@ -46,7 +46,6 @@
 //! ```
 
 use crate::{
-    core::utils::hashing::calculate_hash,
     graph_loader::{fetch_file, source::csv_loader::CsvLoader},
     prelude::*,
 };
