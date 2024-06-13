@@ -95,7 +95,7 @@ impl<'a> NodeStorageOps<'a> for NodeStorageRef<'a> {
         for_all!(self, node => node.degree(layers, dir))
     }
 
-    fn additions(self) -> NodeAdditions<'a> {
+    fn additions(&self) -> NodeAdditions<'a> {
         for_all!(self, node => node.additions())
     }
 

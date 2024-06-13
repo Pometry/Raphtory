@@ -27,8 +27,8 @@ impl<'a> NodeStorageOps<'a> for Entry<'a, NodeStore> {
         self.deref().degree(layers, dir)
     }
 
-    fn additions(self) -> NodeAdditions<'a> {
-        let locked_additions = self.map(|e| e.timestamps());
+    fn additions(&self) -> NodeAdditions<'a> {
+        let locked_additions = self.re_entry().map(|e| e.timestamps());
         NodeAdditions::Locked(locked_additions)
     }
 
