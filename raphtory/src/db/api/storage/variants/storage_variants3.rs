@@ -54,8 +54,8 @@ macro_rules! for_all_iter {
 macro_rules! for_all_iter {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
-            StorageVariants::Mem($pattern) => $result,
-            StorageVariants::Unlocked($pattern) => $result,
+            StorageVariants::Mem($pattern) => StorageVariants::Mem($result),
+            StorageVariants::Unlocked($pattern) => StorageVariants::Unlocked($result),
         }
     };
 }

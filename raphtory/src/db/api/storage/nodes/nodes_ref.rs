@@ -2,6 +2,10 @@
 use crate::db::api::storage::variants::storage_variants3::StorageVariants;
 #[cfg(feature = "storage")]
 use crate::disk_graph::storage_interface::nodes_ref::DiskNodesRef;
+
+#[cfg(not(feature = "storage"))]
+use either::Either;
+
 use crate::{
     core::{
         entities::{nodes::node_store::NodeStore, VID},
@@ -36,7 +40,8 @@ macro_rules! for_all_variants {
 macro_rules! for_all_variants {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
-            NodesStorageRef::Mem($pattern) => $result,
+            NodesStorageRef::Mem($pattern) => Either::Left($result),
+            NodesStorageRef::Unlocked($pattern) => Either::Right($result),
         }
     };
 }

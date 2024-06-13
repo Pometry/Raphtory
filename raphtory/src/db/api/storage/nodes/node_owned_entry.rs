@@ -1,5 +1,8 @@
 use std::{borrow::Cow, ops::Deref};
 
+#[cfg(not(feature = "storage"))]
+use either::Either;
+
 #[cfg(feature = "storage")]
 use crate::db::api::storage::variants::storage_variants3::StorageVariants;
 #[cfg(feature = "storage")]
@@ -68,7 +71,8 @@ macro_rules! for_all_iter {
 macro_rules! for_all_iter {
     ($value:expr, $pattern:pat => $result:expr) => {{
         match $value {
-            NodeOwnedEntry::Mem($pattern) => $result,
+            NodeOwnedEntry::Mem($pattern) => Either::Left($result),
+            NodeOwnedEntry::Unlocked($pattern) => Either::Right($result),
         }
     }};
 }
