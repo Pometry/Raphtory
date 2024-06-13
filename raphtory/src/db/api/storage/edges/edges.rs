@@ -1,21 +1,16 @@
+use super::edge_entry::EdgeStorageEntry;
 use crate::{
     core::{
         entities::{edges::edge_store::EdgeStore, LayerIds, EID},
         storage::ReadLockedStorage,
     },
-    db::api::storage::nodes::unlocked::UnlockedEdges,
+    db::api::storage::{edges::edge_storage_ops::EdgeStorageOps, nodes::unlocked::UnlockedEdges},
 };
-
-#[cfg(feature = "storage")]
-use crate::disk_graph::storage_interface::edges_ref::DiskEdgesRef;
-
-use super::edge_entry::EdgeStorageEntry;
-use crate::db::api::storage::edges::edge_storage_ops::EdgeStorageOps;
-#[cfg(feature = "storage")]
-use crate::disk_graph::storage_interface::edges::DiskEdges;
-use either::Either;
 use rayon::iter::ParallelIterator;
 use std::sync::Arc;
+
+#[cfg(feature = "storage")]
+use crate::disk_graph::storage_interface::{edges::DiskEdges, edges_ref::DiskEdgesRef};
 
 pub enum EdgesStorage {
     Mem(Arc<ReadLockedStorage<EdgeStore, EID>>),

@@ -4441,6 +4441,7 @@ dependencies = [
  "dashmap",
  "lock_api",
  "parking_lot",
+ "proptest",
  "pyo3",
  "quickcheck 1.0.3",
  "quickcheck_macros",
@@ -4448,6 +4449,7 @@ dependencies = [
  "rayon",
  "rustc-hash",
  "serde",
+ "twox-hash",
 ]
 
 [[package]]

@@ -5,6 +5,7 @@
 //! `u64`, `&str`, and `String`.
 
 use crate::core::utils::hashing;
+
 const MAX_U64_BYTES: [u8; 20] = [
     49, 56, 52, 52, 54, 55, 52, 52, 48, 55, 51, 55, 48, 57, 53, 53, 49, 54, 49, 53,
 ];
@@ -85,7 +86,7 @@ impl InputNode for String {
 
 #[cfg(test)]
 mod test {
-    use crate::core::entities::nodes::input_node::{parse_u64_strict, InputNode};
+    use crate::core::input::input_node::{parse_u64_strict, InputNode};
     use proptest::prelude::*;
 
     #[test]
@@ -109,6 +110,8 @@ mod test {
             let res = parse_u64_strict(&s);
             if let Some(n) = res {
                 assert_eq!(n.to_string(), s)
+            } else {
+                assert_ne!(s.id().to_string(), s)
             }
         });
     }
