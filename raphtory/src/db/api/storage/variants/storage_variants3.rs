@@ -7,7 +7,7 @@ use rayon::iter::{
 use std::{cmp::Ordering, ops::Range};
 
 #[derive(Copy, Clone, Debug)]
-pub enum StorageVariants3<Mem, Unlocked, #[cfg(feature = "storage")] Disk> {
+pub enum StorageVariants<Mem, Unlocked, #[cfg(feature = "storage")] Disk> {
     Mem(Mem),
     Unlocked(Unlocked),
     #[cfg(feature = "storage")]
@@ -17,24 +17,24 @@ pub enum StorageVariants3<Mem, Unlocked, #[cfg(feature = "storage")] Disk> {
 #[cfg(feature = "storage")]
 macro_rules! SelfType {
     ($Mem:ident, $Unlocked:ident, $Disk:ident) => {
-        StorageVariants3<$Mem, $Unlocked, $Disk>
+        StorageVariants<$Mem, $Unlocked, $Disk>
     };
 }
 
 #[cfg(not(feature = "storage"))]
 macro_rules! SelfType {
     ($Mem:ident, $Unlocked:ident, $Disk:ident) => {
-        StorageVariants3<$Mem, $Unlocked>
+        StorageVariants<$Mem, $Unlocked>
     };
 }
 
 macro_rules! for_all {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
-            StorageVariants3::Mem($pattern) => $result,
-            StorageVariants3::Unlocked($pattern) => $result,
+            StorageVariants::Mem($pattern) => $result,
+            StorageVariants::Unlocked($pattern) => $result,
             #[cfg(feature = "storage")]
-            StorageVariants3::Disk($pattern) => $result,
+            StorageVariants::Disk($pattern) => $result,
         }
     };
 }
@@ -43,9 +43,9 @@ macro_rules! for_all {
 macro_rules! for_all_iter {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
-            StorageVariants3::Mem($pattern) => StorageVariants3::Mem($result),
-            StorageVariants3::Unlocked($pattern) => StorageVariants3::Unlocked($result),
-            StorageVariants3::Disk($pattern) => StorageVariants3::Disk($result),
+            StorageVariants::Mem($pattern) => StorageVariants::Mem($result),
+            StorageVariants::Unlocked($pattern) => StorageVariants::Unlocked($result),
+            StorageVariants::Disk($pattern) => StorageVariants::Disk($result),
         }
     };
 }
@@ -54,8 +54,8 @@ macro_rules! for_all_iter {
 macro_rules! for_all_iter {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
-            StorageVariants3::Mem($pattern) => $result,
-            StorageVariants3::Unlocked($pattern) => $result,
+            StorageVariants::Mem($pattern) => $result,
+            StorageVariants::Unlocked($pattern) => $result,
         }
     };
 }

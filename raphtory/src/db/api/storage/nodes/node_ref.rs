@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 // #[cfg(feature = "storage")]
-use crate::db::api::storage::variants::storage_variants3::StorageVariants3;
+use crate::db::api::storage::variants::storage_variants3::StorageVariants;
 #[cfg(feature = "storage")]
 use crate::disk_graph::storage_interface::node::DiskNode;
 use crate::{
@@ -30,6 +30,12 @@ impl<'a> From<&'a NodeStore> for NodeStorageRef<'a> {
     }
 }
 
+impl <'a> From<Entry<'a, NodeStore>> for NodeStorageRef<'a> {
+    fn from(value: Entry<'a, NodeStore>) -> Self {
+        NodeStorageRef::Unlocked(value)
+    }
+}
+
 #[cfg(feature = "storage")]
 impl<'a> From<DiskNode<'a>> for NodeStorageRef<'a> {
     fn from(value: DiskNode<'a>) -> Self {
@@ -52,9 +58,9 @@ macro_rules! for_all {
 macro_rules! for_all_iter {
     ($value:expr, $pattern:pat => $result:expr) => {{
         match $value {
-            NodeStorageRef::Mem($pattern) => StorageVariants3::Mem($result),
-            NodeStorageRef::Unlocked($pattern) => StorageVariants3::Unlocked($result),
-            NodeStorageRef::Disk($pattern) => StorageVariants3::Disk($result),
+            NodeStorageRef::Mem($pattern) => StorageVariants::Mem($result),
+            NodeStorageRef::Unlocked($pattern) => StorageVariants::Unlocked($result),
+            NodeStorageRef::Disk($pattern) => StorageVariants::Disk($result),
         }
     }};
 }
@@ -63,8 +69,8 @@ macro_rules! for_all_iter {
 macro_rules! for_all_iter {
     ($value:expr, $pattern:pat => $result:expr) => {{
         match $value {
-            NodeStorageRef::Mem($pattern) => StorageVariants3::Mem($result),
-            NodeStorageRef::Unlocked($pattern) => StorageVariants3::Unlocked($result),
+            NodeStorageRef::Mem($pattern) => StorageVariants::Mem($result),
+            NodeStorageRef::Unlocked($pattern) => StorageVariants::Unlocked($result),
         }
     }};
 }
