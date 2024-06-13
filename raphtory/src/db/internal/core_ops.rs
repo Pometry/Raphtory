@@ -267,7 +267,7 @@ impl CoreGraphOps for InternalGraph {
 
     #[inline]
     fn core_edge(&self, eid: ELID) -> EdgeStorageEntry {
-        EdgeStorageEntry::Mem(self.inner().storage.edges.entry(eid.pid()))
+        EdgeStorageEntry::Unlocked(self.inner().storage.edges.entry(eid.pid()))
     }
 
     #[inline]

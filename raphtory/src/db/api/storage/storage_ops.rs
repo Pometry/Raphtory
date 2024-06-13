@@ -122,8 +122,8 @@ impl GraphStorage {
 
     pub fn edge(&self, eid: EdgeRef) -> EdgeStorageEntry {
         match self {
-            // GraphStorage::Mem(storage) => EdgeStorageEntry::Mem(storage.edges.get(eid.pid())),
-            GraphStorage::Unlocked(storage) => EdgeStorageEntry::Mem(storage.inner().edge_entry(eid.pid())),
+            GraphStorage::Mem(storage) => EdgeStorageEntry::Mem(storage.edges.get(eid.pid())),
+            GraphStorage::Unlocked(storage) => EdgeStorageEntry::Unlocked(storage.inner().edge_entry(eid.pid())),
             #[cfg(feature = "storage")]
             GraphStorage::Disk(storage) => {
                 let layer = eid
@@ -131,7 +131,6 @@ impl GraphStorage {
                     .expect("disk_graph EdgeRefs should always have layer set");
                 EdgeStorageEntry::Disk(storage.layers()[*layer].edge(eid.pid()))
             }
-            _ => todo!()
         }
     }
 

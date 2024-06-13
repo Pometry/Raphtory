@@ -21,8 +21,8 @@ use std::ops::Range;
 
 #[derive(Debug)]
 pub enum EdgeStorageEntry<'a> {
-    // Mem(&'a EdgeStore),
-    Mem(Entry<'a, EdgeStore>),
+    Mem(&'a EdgeStore),
+    Unlocked(Entry<'a, EdgeStore>),
     #[cfg(feature = "storage")]
     Disk(DiskEdge<'a>),
 }
@@ -31,6 +31,7 @@ impl<'a> EdgeStorageEntry<'a> {
     pub fn as_ref(&self) -> EdgeStorageRef {
         match self {
             EdgeStorageEntry::Mem(edge) => EdgeStorageRef::Mem(edge),
+            EdgeStorageEntry::Unlocked(edge) => EdgeStorageRef::Mem(&edge),
             #[cfg(feature = "storage")]
             EdgeStorageEntry::Disk(edge) => EdgeStorageRef::Disk(*edge),
         }
