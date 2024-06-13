@@ -32,11 +32,6 @@ raphtory = { path = "../raphtory" }
 # code size when deploying.
 console_error_panic_hook = { workspace = true, optional = true }
 
-# `wee_alloc` is a tiny allocator for wasm that is only ~1K in code size
-# compared to the default allocator's ~10K. It is slower than the default
-# allocator, however.
-wee_alloc = { workspace = true, optional = true }
-
 [dev-dependencies]
 wasm-bindgen-test = { workspace = true }
 

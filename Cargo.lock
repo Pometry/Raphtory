@@ -2670,8 +2670,7 @@ dependencies = [
  "serde",
  "serde-wasm-bindgen",
  "wasm-bindgen",
- "wasm-bindgen-test",
- "wee_alloc",
+ "wasm-bindgen-test"
 ]
 
 [[package]]
