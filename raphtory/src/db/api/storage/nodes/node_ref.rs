@@ -25,17 +25,13 @@ pub enum NodeStorageRef<'a> {
 }
 
 impl <'a> NodeStorageRef<'a> {
-    pub fn with_additions<'b :'a, B>(&'b self, op: impl FnOnce(NodeAdditions<'a>) ->B) -> B {
+    pub fn additions_ref(&self) -> NodeAdditions {
         match self {
-            NodeStorageRef::Mem(node) => op(NodeAdditions::Mem(node.timestamps())),
-            NodeStorageRef::Unlocked(node) => {
-                let ts = node.timestamps();
-                op(NodeAdditions::Mem(ts))
-            },
+            NodeStorageRef::Mem(node) => NodeAdditions::Mem(node.timestamps()),
+            NodeStorageRef::Unlocked(node) => NodeAdditions::Mem(node.timestamps()),
             #[cfg(feature = "storage")]
-            NodeStorageRef::Disk(node) => op(node.additions_for_layers(&LayerIds::All)),
-        }        
-
+            NodeStorageRef::Disk(node) => node.additions_for_layers(&LayerIds::All),
+        }
     }
 }
 

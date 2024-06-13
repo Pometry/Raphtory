@@ -94,7 +94,7 @@ impl TimeSemantics for InternalGraph {
         w: Range<i64>,
         _layer_ids: &LayerIds,
     ) -> bool {
-        node.with_additions(move|additions| additions.active_t(w))
+        node.additions_ref().active_t(w)
     }
 
     #[inline]
