@@ -21,6 +21,7 @@ use std::ops::Range;
 
 #[derive(Debug)]
 pub enum EdgeStorageEntry<'a> {
+    // Mem(&'a EdgeStore),
     Mem(Entry<'a, EdgeStore>),
     #[cfg(feature = "storage")]
     Disk(DiskEdge<'a>),
