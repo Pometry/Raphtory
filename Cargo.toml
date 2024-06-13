@@ -114,7 +114,6 @@ wasm-bindgen = "0.2.91"
 serde-wasm-bindgen = "0.6.4"
 js-sys = "0.3.68"
 console_error_panic_hook = "0.1.7"
-wee_alloc = "0.4.5"
 wasm-bindgen-test = "0.3.41"
 memmap2 = { version = "0.9.4" }
 ahash = { version = "0.8.3", features = ["serde"] }
