@@ -1,15 +1,23 @@
 use std::{borrow::Cow, ops::Deref};
 
 use ouroboros::self_referencing;
-use raphtory_api::core::{entities::{edges::edge_ref::EdgeRef, VID}, storage::timeindex::TimeIndexEntry, Direction};
+use raphtory_api::core::{
+    entities::{edges::edge_ref::EdgeRef, VID},
+    storage::timeindex::TimeIndexEntry,
+    Direction,
+};
 use rayon::prelude::*;
 
 use crate::{
     core::{
-        entities::{graph::tgraph::InternalGraph, nodes::node_store::NodeStore, properties::tprop::TProp, LayerIds},
+        entities::{
+            graph::tgraph::InternalGraph, nodes::node_store::NodeStore, properties::tprop::TProp,
+            LayerIds,
+        },
         storage::{locked_view::LockedView, Entry},
     },
-    db::api::{storage::tprop_storage_ops::TPropOps, view::internal::NodeAdditions}, prelude::Prop,
+    db::api::{storage::tprop_storage_ops::TPropOps, view::internal::NodeAdditions},
+    prelude::Prop,
 };
 
 use super::node_storage_ops::NodeStorageOps;
@@ -32,12 +40,11 @@ impl<'a> NodeStorageOps<'a> for Entry<'a, NodeStore> {
         layers: &'a LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + 'a {
-        LockedEdgesRefIterBuilder{
+        LockedEdgesRefIterBuilder {
             entry: self,
-            iter_builder: |node| { 
-                Box::new(node.edge_tuples(layers, dir))
-            },
-        }.build()
+            iter_builder: |node| Box::new(node.edge_tuples(layers, dir)),
+        }
+        .build()
     }
 
     fn node_type_id(&self) -> usize {
@@ -56,24 +63,20 @@ impl<'a> NodeStorageOps<'a> for Entry<'a, NodeStore> {
         self.name.clone().map(Cow::Owned)
     }
 
-    fn find_edge(
-        self,
-        dst: VID,
-        layer_ids: &LayerIds,
-    ) -> Option<EdgeRef> {
+    fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef> {
         self.deref().find_edge(dst, layer_ids)
     }
 }
 
 #[self_referencing]
 pub struct LockedEdgesRefIter<'a> {
-    entry: Entry<'a,NodeStore>,
+    entry: Entry<'a, NodeStore>,
     #[borrows(entry)]
     #[covariant]
     iter: Box<dyn Iterator<Item = EdgeRef> + Send + 'this>,
 }
 
-impl <'a> Iterator for LockedEdgesRefIter<'a> {
+impl<'a> Iterator for LockedEdgesRefIter<'a> {
     type Item = EdgeRef;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -81,7 +84,7 @@ impl <'a> Iterator for LockedEdgesRefIter<'a> {
     }
 }
 
-impl <'a> TPropOps<'a> for LockedView<'a, TProp> {
+impl<'a> TPropOps<'a> for LockedView<'a, TProp> {
     fn last_before(&self, t: i64) -> Option<(TimeIndexEntry, Prop)> {
         self.deref().last_before(t)
     }
@@ -89,10 +92,9 @@ impl <'a> TPropOps<'a> for LockedView<'a, TProp> {
     fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
         LockedTIEPropIterBuilder {
             tprop: self,
-            iter_builder: |tprop| {
-                Box::new(tprop.iter_inner())
-            },
-        }.build()
+            iter_builder: |tprop| Box::new(tprop.iter_inner()),
+        }
+        .build()
     }
 
     fn iter_window(
@@ -101,10 +103,9 @@ impl <'a> TPropOps<'a> for LockedView<'a, TProp> {
     ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
         LockedTIEPropIterBuilder {
             tprop: self,
-            iter_builder: |tprop| {
-                Box::new(tprop.iter_window_inner(r))
-            },
-        }.build()
+            iter_builder: |tprop| Box::new(tprop.iter_window_inner(r)),
+        }
+        .build()
     }
 
     fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
@@ -125,7 +126,7 @@ pub struct LockedTIEPropIter<'a> {
     iter: Box<dyn Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'this>,
 }
 
-impl <'a> Iterator for LockedTIEPropIter<'a> {
+impl<'a> Iterator for LockedTIEPropIter<'a> {
     type Item = (TimeIndexEntry, Prop);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -134,14 +135,9 @@ impl <'a> Iterator for LockedTIEPropIter<'a> {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct UnlockedNodes<'a>(&'a InternalGraph);
+pub struct UnlockedNodes<'a>(pub &'a InternalGraph);
 
 impl<'a> UnlockedNodes<'a> {
-    // pub fn par_iter(self) {
-    //     let storage = &self.0.inner().storage.nodes;
-    //     storage.data.par_iter().flat_map(|vec| vec)
-    // }
-
     pub fn len(self) -> usize {
         self.0.inner().storage.nodes.len()
     }
@@ -157,6 +153,9 @@ impl<'a> UnlockedNodes<'a> {
 
     pub fn par_iter(self) -> impl ParallelIterator<Item = Entry<'a, NodeStore>> + 'a {
         let storage = &self.0.inner().storage.nodes;
-        (0..storage.len()).into_par_iter().map(VID).map(|vid| storage.entry(vid))
+        (0..storage.len())
+            .into_par_iter()
+            .map(VID)
+            .map(|vid| storage.entry(vid))
     }
 }
