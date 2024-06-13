@@ -13,8 +13,8 @@ comparison-benchmark/python/data/*
 .ipynb_checkpoints
 _autosummary
 examples/docker/lotr/lotr
-examples/py/enron/emails.csv
-examples/py/enron/lib/
+examples/python/enron/emails.csv
+examples/python/enron/lib/
 docs/source/_rustdoc/
 docs/logs/
 /docs/lib/
