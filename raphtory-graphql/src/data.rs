@@ -303,7 +303,7 @@ fn save_graphs_to_work_dir(
 ) -> Result<()> {
     for (name, graph) in graphs {
         let path = work_dir.join(&name);
-        graph.save_to_file(&path)?;
+        graph.save_to_path(&path)?;
     }
     Ok(())
 }
@@ -339,16 +339,18 @@ mod data_tests {
     use crate::{
         data::{
             get_graph_from_path, get_graphs_from_work_dir, load_graph_from_path,
-            load_graphs_from_path, load_graphs_from_paths, Data,
+            load_graphs_from_path, load_graphs_from_paths, save_graphs_to_work_dir, Data,
         },
         server_config::CacheConfig,
     };
     use itertools::Itertools;
-    use moka::sync::Cache;
     #[cfg(feature = "storage")]
     use raphtory::disk_graph::graph_impl::DiskGraph;
-    use raphtory::prelude::{AdditionOps, Graph, GraphViewOps, PropertyAdditionOps};
-    use std::{fs, io, path::Path, thread, time::Duration};
+    use raphtory::{
+        db::api::view::MaterializedGraph,
+        prelude::{AdditionOps, Graph, GraphViewOps, PropertyAdditionOps},
+    };
+    use std::{collections::HashMap, fs, io, path::Path, thread, time::Duration};
 
     fn list_top_level_files_and_dirs(path: &Path) -> io::Result<Vec<String>> {
         let mut entries_vec = Vec::new();
@@ -844,6 +846,36 @@ mod data_tests {
         let mut names = res.keys().collect_vec();
         names.sort();
         assert_eq!(names, vec!["test_dg1", "test_dg2"]);
+    }
+
+    #[test]
+    #[cfg(feature = "storage")]
+    fn test_save_graphs_to_work_dir() {
+        let tmp_graph_dir = tempfile::tempdir().unwrap();
+        let tmp_work_dir = tempfile::tempdir().unwrap();
+
+        let graph = Graph::new();
+        graph.add_constant_properties([("name", "test_g")]).unwrap();
+        graph
+            .add_edge(0, 1, 2, [("name", "test_e1")], None)
+            .unwrap();
+        graph
+            .add_edge(0, 1, 3, [("name", "test_e2")], None)
+            .unwrap();
+
+        let graph_path2 = tmp_graph_dir.path().join("test_dg");
+        let graph2 = DiskGraph::from_graph(&graph, &graph_path2).unwrap().into();
+
+        let graph: MaterializedGraph = graph.into();
+        let graphs = HashMap::from([
+            ("test_g".to_string(), graph),
+            ("test_dg".to_string(), graph2),
+        ]);
+
+        save_graphs_to_work_dir(tmp_graph_dir.path(), &graphs).unwrap();
+
+        let graphs = list_top_level_files_and_dirs(tmp_graph_dir.path()).unwrap();
+        assert_eq!(graphs, vec!["test_g", "test_dg"]);
     }
 
     #[test]
