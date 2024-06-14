@@ -636,19 +636,19 @@ impl PyRaphtoryClient {
             .map(|json| (request_body, json))
     }
 
-    fn generic_load_graphs(
+    fn load_graphs(
         &self,
         py: Python,
-        load_function: &str,
         path: String,
+        overwrite: bool,
     ) -> PyResult<HashMap<String, PyObject>> {
         let query =
-            format!("mutation LoadGraphs($path: String!) {{ {load_function}(path: $path) }}");
-        let variables = [("path".to_owned(), json!(path))];
+            format!("mutation {{ loadGraphsFromPath(path: \"{path}\", overwrite: {overwrite}) }}");
+        let variables = [];
 
         let data = self.query_with_json_variables(query.clone(), variables.into())?;
 
-        match data.get(load_function) {
+        match data.get("loadGraphsFromPath") {
             Some(JsonValue::Array(loads)) => {
                 let num_graphs = loads.len();
                 println!("Loaded {num_graphs} graph(s)");
@@ -786,7 +786,7 @@ impl PyRaphtoryClient {
         path: String,
         overwrite: bool,
     ) -> PyResult<HashMap<String, PyObject>> {
-        self.generic_load_graphs(py, "loadGraphsFromPath", path)
+        self.load_graphs(py, path, overwrite)
     }
 }
 

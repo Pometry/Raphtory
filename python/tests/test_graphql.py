@@ -98,7 +98,7 @@ def generic_client_test(client, temp_dir):
     client.wait_for_online()
 
     # load a graph into the client from a path
-    res = client.load_graphs_from_path(temp_dir)
+    res = client.load_graphs_from_path(temp_dir, True)
     assert res == {"loadGraphsFromPath": ["g1.bincode"]}
 
     # run a get nodes query and check the results
@@ -129,7 +129,7 @@ def generic_client_test(client, temp_dir):
     g3.add_edge(1, "shivam", "rachel")
     g3.add_edge(2, "lucas", "shivam")
     g3.save_to_file(multi_graph_temp_dir + "/g3.bincode")
-    res = client.load_graphs_from_path(multi_graph_temp_dir)
+    res = client.load_graphs_from_path(multi_graph_temp_dir, True)
     result_sorted = {"loadGraphsFromPath": sorted(res["loadGraphsFromPath"])}
     assert result_sorted == {"loadGraphsFromPath": ["g2.bincode", "g3.bincode"]}
 

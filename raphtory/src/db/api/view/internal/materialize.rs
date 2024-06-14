@@ -38,7 +38,7 @@ use crate::{
 use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
-use std::path::Path;
+use std::{fs, io, path::Path};
 
 #[cfg(feature = "storage")]
 use crate::disk_graph::graph_impl::DiskGraph;
@@ -141,6 +141,21 @@ impl MaterializedGraph {
         Ok(bincode::serialize_into(&mut writer, &versioned_data)?)
     }
 
+    pub fn save_to_path(&self, path: &Path) -> Result<(), GraphError> {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.save_to_file(&path)?,
+            MaterializedGraph::PersistentGraph(g) => g.save_to_file(&path)?,
+            #[cfg(feature = "storage")]
+            MaterializedGraph::DiskEventGraph(g) => {
+                let graph_dir = &g.graph_dir;
+                println!("Disk Graph saved to directory= {}", graph_dir.display());
+                copy_dir_recursive(graph_dir, path)?;
+            }
+        };
+
+        Ok(())
+    }
+
     pub fn bincode(&self) -> Result<Vec<u8>, GraphError> {
         let versioned_data = VersionedGraph {
             version: BINCODE_VERSION,
@@ -180,6 +195,26 @@ where
     fn include_deletions(&self) -> bool {
         self.base().include_deletions()
     }
+}
+
+pub fn copy_dir_recursive(source_dir: &Path, target_dir: &Path) -> io::Result<()> {
+    if !target_dir.exists() {
+        fs::create_dir_all(target_dir)?;
+    }
+
+    for entry in fs::read_dir(source_dir)? {
+        let entry = entry?;
+        let entry_path = entry.path();
+        let target_path = target_dir.join(entry.file_name());
+
+        if entry_path.is_dir() {
+            copy_dir_recursive(&entry_path, &target_path)?;
+        } else {
+            fs::copy(&entry_path, &target_path)?;
+        }
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]

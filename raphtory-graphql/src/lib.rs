@@ -710,7 +710,6 @@ mod graphql_test {
     #[tokio::test]
     async fn test_mutation() {
         let test_dir = tempdir().unwrap();
-        let test_dir_path = test_dir.path().to_str().unwrap().replace(r#"\"#, r#"\\"#);
         let f0 = &test_dir.path().join("g0");
         let f1 = &test_dir.path().join("g1");
 
@@ -751,9 +750,10 @@ mod graphql_test {
 
         let load_all = &format!(
             r#"mutation {{
-              loadGraphsFromPath(path: "{}")
+              loadGraphsFromPath(path: "{}", overwrite: {})
             }}"#,
-            test_dir_path
+            test_dir.path().display().to_string(),
+            true
         );
 
         let save_graph = |parent_name: &str, new_graph_name: &str, nodes: &str| {

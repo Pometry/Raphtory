@@ -114,10 +114,13 @@ impl Mut {
     ///
     /// Returns::
     ///   list of names for newly added graphs
-    // TODO: Probably impl the override feature for this api?
-    async fn load_graphs_from_path<'a>(ctx: &Context<'a>, path: String) -> Result<Vec<String>> {
+    async fn load_graphs_from_path<'a>(
+        ctx: &Context<'a>,
+        path: String,
+        overwrite: bool,
+    ) -> Result<Vec<String>> {
         let data = ctx.data_unchecked::<Data>();
-        let names = load_graphs_from_path(data.work_dir.as_ref(), (&path).as_ref())?;
+        let names = load_graphs_from_path(data.work_dir.as_ref(), (&path).as_ref(), overwrite)?;
         names.iter().for_each(|name| data.graphs.invalidate(name));
         Ok(names)
     }
