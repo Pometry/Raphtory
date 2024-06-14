@@ -1090,14 +1090,12 @@ mod graphql_test {
         graph.add_edge(22, 5, 6, NO_PROPS, Some("a")).unwrap();
         graph.add_edge(22, 3, 6, NO_PROPS, Some("a")).unwrap();
 
-        let test_dir = TempDir::new().unwrap();
-        let disk_graph = DiskGraph::from_graph(&graph, test_dir.path()).unwrap();
-        let graph: MaterializedGraph = disk_graph.into();
-
-        let graph = graph.into();
+        let tmp_graph_dir = TempDir::new().unwrap();
+        let disk_graph = DiskGraph::from_graph(&graph, tmp_graph_dir.path()).unwrap();
+        let graph = disk_graph.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
-        let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), Some(graphs), None, None);
+        let tmp_work_dir = tempdir().unwrap();
+        let data = Data::new(tmp_work_dir.path(), Some(graphs), None, None);
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let req = r#"

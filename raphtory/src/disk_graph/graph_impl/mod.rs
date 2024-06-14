@@ -63,7 +63,7 @@ pub struct DiskGraph {
     node_meta: Arc<Meta>,
     edge_meta: Arc<Meta>,
     graph_props: Arc<GraphMeta>,
-    graph_dir: PathBuf,
+    pub graph_dir: PathBuf,
 }
 
 impl Serialize for DiskGraph {

@@ -86,9 +86,9 @@ impl Data {
     #[allow(dead_code)]
     // TODO: use this for loading both regular and vectorised graphs
     #[allow(dead_code)]
-    pub fn generic_load_from_file<T, F>(path: &str, loader: F) -> impl Iterator<Item = T>
-    where
-        F: Fn(&Path) -> T + 'static,
+    pub fn generic_load_from_file<T, F>(path: &str, loader: F) -> impl Iterator<Item=T>
+        where
+            F: Fn(&Path) -> T + 'static,
     {
         WalkDir::new(path)
             .into_iter()
@@ -107,26 +107,46 @@ impl Data {
     }
 }
 
+fn copy_dir_recursive(source_dir: &Path, target_dir: &Path) -> Result<()> {
+    if !target_dir.exists() {
+        fs::create_dir_all(target_dir)?;
+    }
+
+    for entry in fs::read_dir(source_dir)? {
+        let entry = entry?;
+        let entry_path = entry.path();
+        let target_path = target_dir.join(entry.file_name());
+
+        if entry_path.is_dir() {
+            copy_dir_recursive(&entry_path, &target_path)?;
+        } else {
+            fs::copy(&entry_path, &target_path)?;
+        }
+    }
+
+    Ok(())
+}
+
 fn load_graph_from_path(work_dir: &Path, path: &Path) -> Result<String> {
-    println!("loading graph from {}", path.display());
-    let result: Result<(String, MaterializedGraph), Error> = if path.is_dir() {
-        println!("Disk Graph loaded = {}", path.display());
+    println!("Loading graph from {}", path.display());
+    if path.is_dir() {
         if is_disk_graph_dir(path) {
-            load_disk_graph(path)
+            let (name, graph) = load_disk_graph(path)?;
+            let graph_dir = &graph.into_disk_graph().unwrap().graph_dir;
+            let target_dir = &Path::new(work_dir).join(name.as_str());
+            copy_dir_recursive(graph_dir, target_dir)?;
+            println!("Disk Graph loaded = {}", path.display());
+            Ok(name)
         } else {
             Err(Error::from("Not a disk graph directory"))
         }
     } else {
+        let (name, graph) = load_bincode_graph(work_dir, path)?;
+        let path = Path::new(work_dir).join(name.as_str());
+        graph.save_to_file(&path)?;
         println!("Graph loaded = {}", path.display());
-        load_bincode_graph(work_dir, path)
-    };
-
-    let (name, graph) = result?;
-    let path = Path::new(work_dir).join(name.as_str());
-
-    graph.save_to_file(path)?;
-
-    Ok(name)
+        Ok(name)
+    }
 }
 
 // The default behaviour is to just override the existing graphs.
@@ -157,16 +177,16 @@ fn get_graph_from_path(
         return Ok(None);
     }
     if path.is_dir() {
-        println!("Disk Graph loaded = {}", path.display());
         if is_disk_graph_dir(path) {
             let (name, graph) = load_disk_graph(path)?;
+            println!("Disk Graph loaded = {}", path.display());
             Ok(Some((name, IndexedGraph::from_graph(&graph.into())?)))
         } else {
             Ok(None)
         }
     } else {
-        println!("Graph loaded = {}", path.display());
         let (name, graph) = load_bincode_graph(work_dir, path)?;
+        println!("Graph loaded = {}", path.display());
         Ok(Some((name, IndexedGraph::from_graph(&graph.into())?)))
     }
 }
@@ -225,7 +245,16 @@ fn save_graphs_to_work_dir(
 ) -> Result<()> {
     for (name, graph) in graphs {
         let path = work_dir.join(&name);
-        graph.save_to_file(&path)?;
+        match graph {
+            MaterializedGraph::EventGraph(g) => g.save_to_file(&path)?,
+            MaterializedGraph::PersistentGraph(g) => g.save_to_file(&path)?,
+            #[cfg(feature = "storage")]
+            MaterializedGraph::DiskEventGraph(g) => {
+                let graph_dir = &g.graph_dir;
+                println!("Disk Graph saved to directory= {}", graph_dir.display());
+                copy_dir_recursive(graph_dir, &path)?;
+            }
+        };
     }
     Ok(())
 }
@@ -285,6 +314,8 @@ mod data_tests {
 
         let graph = Graph::load_from_file(tmp_work_dir.path().join("test_g"), false).unwrap();
         assert_eq!(graph.count_edges(), 2);
+
+        // TODO: Add tests for disk graph
     }
 
     #[test]
@@ -346,6 +377,8 @@ mod data_tests {
 
         let graph = Graph::load_from_file(tmp_work_dir.path().join("test_g2"), false).unwrap();
         assert_eq!(graph.count_edges(), 4);
+
+        // TODO: Add tests for disk graph
     }
 
     #[test]
@@ -385,6 +418,8 @@ mod data_tests {
 
         let graph = Graph::load_from_file(tmp_work_dir.path().join("test_g2"), false).unwrap();
         assert_eq!(graph.count_edges(), 3);
+
+        // TODO: Add tests for disk graph
     }
 
     #[test]

@@ -474,7 +474,7 @@ mod server_tests {
         let server = RaphtoryServer::new(
             tmp_dir.path(),
             None,
-            Some(vec!["/tmp/graphs2".parse().unwrap()]),
+            None,
             None,
         );
         println!("calling start at time {}", Local::now());
