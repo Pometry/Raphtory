@@ -135,6 +135,11 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 
     fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
         let g = InternalGraph::default();
+        let earliest = if let Some(earliest) = self.earliest_time() {
+            earliest
+        } else {
+            return Ok(self.new_base_graph(g));
+        };
 
         // make sure we preserve all layers even if they are empty
         // skip default layer
@@ -187,9 +192,13 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                     g.add_node(t, v.name(), [(name.clone(), prop)], v_type_str)?;
                 }
             }
-            g.node(v.id())
-                .expect("node added")
-                .add_constant_properties(v.properties().constant())?;
+
+            let node = match g.node(v.id()) {
+                Some(node) => node,
+                None => g.add_node(earliest, v.name(), NO_PROPS, v_type_str)?,
+            };
+
+            node.add_constant_properties(v.properties().constant())?;
         }
 
         g.add_constant_properties(self.properties().constant())?;

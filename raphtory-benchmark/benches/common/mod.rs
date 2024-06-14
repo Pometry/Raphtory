@@ -426,7 +426,11 @@ pub fn run_analysis_benchmarks<F, G>(
         "max_neighbour_degree",
         parameter,
         |b: &mut Bencher| {
-            let v = graph.nodes().into_iter().next().expect("graph should not be empty");
+            let v = graph
+                .nodes()
+                .into_iter()
+                .next()
+                .expect("graph should not be empty");
             b.iter(|| v.neighbours().degree().max())
         },
     );

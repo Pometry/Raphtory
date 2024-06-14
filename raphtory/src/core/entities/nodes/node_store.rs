@@ -383,7 +383,7 @@ impl ArcEntry<NodeStore> {
     }
 }
 
-impl <'a> Entry<'a, NodeStore> {
+impl<'a> Entry<'a, NodeStore> {
     pub fn into_neighbours(self, layers: &LayerIds, dir: Direction) -> LockedRefNeighboursIter<'a> {
         LockedRefNeighboursIterBuilder {
             entry: self,
@@ -442,7 +442,7 @@ pub struct LockedRefNeighboursIter<'a> {
     iter: Box<dyn Iterator<Item = VID> + Send + 'this>,
 }
 
-impl <'a> Iterator for LockedRefNeighboursIter<'a> {
+impl<'a> Iterator for LockedRefNeighboursIter<'a> {
     type Item = VID;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -458,7 +458,7 @@ pub struct LockedRefEdgesIter<'a> {
     iter: Box<dyn Iterator<Item = EdgeRef> + Send + 'this>,
 }
 
-impl <'a> Iterator for LockedRefEdgesIter<'a> {
+impl<'a> Iterator for LockedRefEdgesIter<'a> {
     type Item = EdgeRef;
 
     fn next(&mut self) -> Option<Self::Item> {

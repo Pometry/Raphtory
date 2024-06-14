@@ -31,7 +31,9 @@ impl NodesStorage {
     pub fn node_ref(&self, vid: VID) -> NodeStorageRef {
         match self {
             NodesStorage::Mem(storage) => NodeStorageRef::Mem(storage.get(vid)),
-            NodesStorage::Unlocked(storage) => NodeStorageRef::Unlocked(UnlockedNodes(storage).node(vid)),
+            NodesStorage::Unlocked(storage) => {
+                NodeStorageRef::Unlocked(UnlockedNodes(storage).node(vid))
+            }
             #[cfg(feature = "storage")]
             NodesStorage::Disk(storage) => NodeStorageRef::Disk(storage.node(vid)),
         }

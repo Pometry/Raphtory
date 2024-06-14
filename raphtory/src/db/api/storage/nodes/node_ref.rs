@@ -1,7 +1,6 @@
 use std::borrow::Cow;
 
 // #[cfg(feature = "storage")]
-use crate::db::api::storage::variants::storage_variants3::StorageVariants;
 #[cfg(feature = "storage")]
 use crate::disk_graph::storage_interface::node::DiskNode;
 use crate::{
@@ -11,7 +10,10 @@ use crate::{
         Direction,
     },
     db::api::{
-        storage::{nodes::node_storage_ops::NodeStorageOps, tprop_storage_ops::TPropOps},
+        storage::{
+            nodes::node_storage_ops::NodeStorageOps, tprop_storage_ops::TPropOps,
+            variants::storage_variants3::StorageVariants,
+        },
         view::internal::NodeAdditions,
     },
 };
@@ -24,7 +26,7 @@ pub enum NodeStorageRef<'a> {
     Disk(DiskNode<'a>),
 }
 
-impl <'a> NodeStorageRef<'a> {
+impl<'a> NodeStorageRef<'a> {
     pub fn additions_ref(&self) -> NodeAdditions {
         match self {
             NodeStorageRef::Mem(node) => NodeAdditions::Mem(node.timestamps()),
@@ -41,7 +43,7 @@ impl<'a> From<&'a NodeStore> for NodeStorageRef<'a> {
     }
 }
 
-impl <'a> From<Entry<'a, NodeStore>> for NodeStorageRef<'a> {
+impl<'a> From<Entry<'a, NodeStore>> for NodeStorageRef<'a> {
     fn from(value: Entry<'a, NodeStore>) -> Self {
         NodeStorageRef::Unlocked(value)
     }

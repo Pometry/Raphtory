@@ -50,7 +50,7 @@ impl<
     }
 
     pub fn compute(&self) -> NodeState<'graph, V, G, GH> {
-        let cg = self.graph.core_graph();
+        let cg = self.graph.core_graph().lock();
         if self.graph.nodes_filtered() || self.node_types_filter.is_some() {
             let keys: Vec<_> = cg
                 .nodes_par(&self.graph, self.node_types_filter.as_ref())
@@ -92,7 +92,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, V: 'graph> IntoI
     type IntoIter = Box<dyn Iterator<Item = V> + Send + 'graph>;
 
     fn into_iter(self) -> Self::IntoIter {
-        let cg = self.graph.core_graph();
+        let cg = self.graph.core_graph().lock();
         let graph = self.graph;
         let op = self.op;
         cg.clone()
@@ -126,7 +126,7 @@ impl<
     where
         'graph: 'a,
     {
-        let cg = self.graph.core_graph();
+        let cg = self.graph.core_graph().lock();
         cg.clone()
             .into_nodes_iter(&self.graph, self.node_types_filter.clone())
             .map(move |vid| self.apply(&cg, &self.graph, vid))
@@ -136,14 +136,14 @@ impl<
     where
         'graph: 'a,
     {
-        let cg = self.graph.core_graph();
+        let cg = self.graph.core_graph().lock();
         cg.clone()
             .into_nodes_par(&self.graph, self.node_types_filter.clone())
             .map(move |vid| self.apply(&cg, &self.graph, vid))
     }
 
     fn into_values(self) -> impl Iterator<Item = Self::OwnedValue> + 'graph {
-        let cg = self.graph.core_graph();
+        let cg = self.graph.core_graph().lock();
         let graph = self.graph.clone();
         let op = self.op;
         cg.clone()
@@ -152,7 +152,7 @@ impl<
     }
 
     fn into_par_values(self) -> impl ParallelIterator<Item = Self::OwnedValue> + 'graph {
-        let cg = self.graph.core_graph();
+        let cg = self.graph.core_graph().lock();
         let graph = self.graph.clone();
         let op = self.op;
         cg.clone()
@@ -171,7 +171,7 @@ impl<
     where
         'graph: 'a,
     {
-        let cg = self.graph.core_graph();
+        let cg = self.graph.core_graph().lock();
         cg.clone()
             .into_nodes_iter(self.graph.clone(), self.node_types_filter.clone())
             .map(move |n| {
@@ -193,7 +193,7 @@ impl<
     where
         'graph: 'a,
     {
-        let cg = self.graph.core_graph();
+        let cg = self.graph.core_graph().lock();
         cg.clone()
             .into_nodes_par(self.graph.clone(), self.node_types_filter.clone())
             .map(move |n| {

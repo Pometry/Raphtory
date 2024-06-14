@@ -1,7 +1,6 @@
 use std::{borrow::Cow, ops::Deref};
 
 // #[cfg(feature = "storage")]
-use crate::db::api::storage::variants::storage_variants::StorageVariants;
 #[cfg(feature = "storage")]
 use crate::disk_graph::storage_interface::node::DiskNode;
 use crate::{
@@ -14,6 +13,7 @@ use crate::{
         storage::{
             nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
             tprop_storage_ops::TPropOps,
+            variants::storage_variants::StorageVariants,
         },
         view::internal::NodeAdditions,
     },

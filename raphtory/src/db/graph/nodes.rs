@@ -75,7 +75,7 @@ where
 
     #[inline]
     pub(crate) fn iter_refs(&self) -> impl Iterator<Item = VID> + 'graph {
-        let g = self.graph.core_graph();
+        let g = self.graph.core_graph().lock();
         let node_types_filter = self.node_types_filter.clone();
         g.into_nodes_iter(self.graph.clone(), node_types_filter)
     }
@@ -89,14 +89,14 @@ where
     }
 
     pub fn par_iter(&self) -> impl ParallelIterator<Item = NodeView<&G, &GH>> + '_ {
-        let cg = self.graph.core_graph();
+        let cg = self.graph.core_graph().lock();
         let node_types_filter = self.node_types_filter.clone();
         cg.into_nodes_par(&self.graph, node_types_filter)
             .map(|v| NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, v))
     }
 
     pub fn into_par_iter(self) -> impl ParallelIterator<Item = NodeView<G, GH>> + 'graph {
-        let cg = self.graph.core_graph();
+        let cg = self.graph.core_graph().lock();
         cg.into_nodes_par(self.graph.clone(), self.node_types_filter)
             .map(move |n| {
                 NodeView::new_one_hop_filtered(self.base_graph.clone(), self.graph.clone(), n)

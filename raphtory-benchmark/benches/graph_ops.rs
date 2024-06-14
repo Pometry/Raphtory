@@ -21,7 +21,7 @@ pub fn graph(c: &mut Criterion) {
     run_analysis_benchmarks(&mut graph_group, make_graph, None);
     graph_group.finish();
 
-    bench_materialise(&format!("{group_name}_materialise"), c,make_graph);
+    bench_materialise(&format!("{group_name}_materialise"), c, make_graph);
 
     let group_name = "analysis_graph_window_100";
     let make_graph = || graph.window(i64::MIN, i64::MAX);
@@ -40,11 +40,7 @@ pub fn graph(c: &mut Criterion) {
     let start = latest - (latest - earliest) / 10;
     graph_window_group_10.sample_size(10);
     let make_graph = || graph.window(start, latest + 1);
-    run_analysis_benchmarks(
-        &mut graph_window_group_10,
-        make_graph,
-        None,
-    );
+    run_analysis_benchmarks(&mut graph_window_group_10, make_graph, None);
     graph_window_group_10.finish();
     bench_materialise(&format!("{group_name}_materialise"), c, make_graph);
 
@@ -73,11 +69,7 @@ pub fn graph(c: &mut Criterion) {
     subgraph_10_windowed.sample_size(10);
 
     let make_graph = || subgraph.window(start, latest + 1);
-    run_analysis_benchmarks(
-        &mut subgraph_10_windowed,
-        make_graph,
-        None,
-    );
+    run_analysis_benchmarks(&mut subgraph_10_windowed, make_graph, None);
     subgraph_10_windowed.finish();
     bench_materialise(&format!("{group_name}_materialise"), c, make_graph);
 
@@ -90,42 +82,32 @@ pub fn graph(c: &mut Criterion) {
     let start = latest - (latest - earliest) / 2;
     graph_window_layered_group_50.sample_size(10);
     let make_graph = || {
-            graph
-                .window(start, latest + 1)
-                .layers(["0", "1", "2", "3", "4"])
-                .unwrap()
-        };
-    run_analysis_benchmarks(
-        &mut graph_window_layered_group_50,
-        make_graph,
-        None,
-    );
+        graph
+            .window(start, latest + 1)
+            .layers(["0", "1", "2", "3", "4"])
+            .unwrap()
+    };
+    run_analysis_benchmarks(&mut graph_window_layered_group_50, make_graph, None);
     graph_window_layered_group_50.finish();
     bench_materialise(&format!("{group_name}_materialise"), c, make_graph);
-    
+
     let graph = graph.persistent_graph();
-    
+
     let group_name = "persistent_analysis_graph_window_50_layered";
-    let mut graph_window_layered_group_50 =
-        c.benchmark_group(group_name);
+    let mut graph_window_layered_group_50 = c.benchmark_group(group_name);
     let latest = graph.latest_time().expect("non-empty graph");
     let earliest = graph.earliest_time().expect("non-empty graph");
     let start = latest - (latest - earliest) / 2;
     graph_window_layered_group_50.sample_size(10);
     let make_graph = || {
-            graph
-                .window(start, latest + 1)
-                .layers(["0", "1", "2", "3", "4"])
-                .unwrap()
-        };
-    run_analysis_benchmarks(
-        &mut graph_window_layered_group_50,
-        make_graph,
-        None,
-    );
+        graph
+            .window(start, latest + 1)
+            .layers(["0", "1", "2", "3", "4"])
+            .unwrap()
+    };
+    run_analysis_benchmarks(&mut graph_window_layered_group_50, make_graph, None);
     graph_window_layered_group_50.finish();
     bench_materialise(&format!("{group_name}_materialise"), c, make_graph);
-
 }
 
 fn bench_materialise<F, G>(name: &str, c: &mut Criterion, make_graph: F)
