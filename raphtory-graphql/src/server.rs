@@ -471,12 +471,7 @@ mod server_tests {
     #[tokio::test]
     async fn test_server_stop() {
         let tmp_dir = tempfile::tempdir().unwrap();
-        let server = RaphtoryServer::new(
-            tmp_dir.path(),
-            None,
-            None,
-            None,
-        );
+        let server = RaphtoryServer::new(tmp_dir.path(), None, None, None);
         println!("calling start at time {}", Local::now());
         let handler = server.start_with_port(0, None, false, false);
         sleep(Duration::from_secs(1)).await;
