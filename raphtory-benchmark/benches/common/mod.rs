@@ -421,20 +421,30 @@ pub fn run_analysis_benchmarks<F, G>(
         },
     );
 
+    bench(
+        group,
+        "max_neighbour_degree",
+        parameter,
+        |b: &mut Bencher| {
+            let v = graph.nodes().into_iter().next().expect("graph should not be empty");
+            b.iter(|| v.neighbours().degree().max())
+        },
+    );
+}
+
+pub fn run_materialize<F, G>(
+    group: &mut BenchmarkGroup<WallTime>,
+    make_graph: F,
+    parameter: Option<usize>,
+) where
+    F: Fn() -> G,
+    G: StaticGraphViewOps,
+{
+    let graph = make_graph();
     bench(group, "materialize", parameter, |b: &mut Bencher| {
         b.iter(|| {
             let mg = graph.materialize();
             black_box(mg)
         })
     });
-
-    bench(
-        group,
-        "max_neighbour_degree",
-        parameter,
-        |b: &mut Bencher| {
-            let v = graph.node(VID(0)).expect("graph should not be empty");
-            b.iter(|| v.neighbours().degree().max())
-        },
-    );
 }

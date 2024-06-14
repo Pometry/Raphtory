@@ -1,4 +1,4 @@
-use common::run_analysis_benchmarks;
+use common::{run_analysis_benchmarks, run_materialize};
 use criterion::{criterion_group, criterion_main, Criterion};
 use rand::{seq::*, SeedableRng};
 use raphtory::{
@@ -14,31 +14,39 @@ use raphtory::{
 mod common;
 
 pub fn graph(c: &mut Criterion) {
-    let mut graph_group = c.benchmark_group("analysis_graph");
+    let group_name = "analysis_graph";
+    let mut graph_group = c.benchmark_group(group_name);
     let graph = sx_superuser_graph().unwrap();
-    run_analysis_benchmarks(&mut graph_group, || graph.clone(), None);
+    let make_graph = || graph.clone();
+    run_analysis_benchmarks(&mut graph_group, make_graph, None);
     graph_group.finish();
-    let mut graph_window_group_100 = c.benchmark_group("analysis_graph_window_100");
+
+    bench_materialise(&format!("{group_name}_materialise"), c,make_graph);
+
+    let group_name = "analysis_graph_window_100";
+    let make_graph = || graph.window(i64::MIN, i64::MAX);
+    let mut graph_window_group_100 = c.benchmark_group(group_name);
     graph_window_group_100.sample_size(10);
-    run_analysis_benchmarks(
-        &mut graph_window_group_100,
-        || graph.window(i64::MIN, i64::MAX),
-        None,
-    );
+    run_analysis_benchmarks(&mut graph_window_group_100, make_graph, None);
     graph_window_group_100.finish();
 
+    bench_materialise(&format!("{group_name}_materialise"), c, make_graph);
+
     // graph windowed
-    let mut graph_window_group_10 = c.benchmark_group("analysis_graph_window_10");
+    let group_name = "analysis_graph_window_10";
+    let mut graph_window_group_10 = c.benchmark_group(group_name);
     let latest = graph.latest_time().expect("non-empty graph");
     let earliest = graph.earliest_time().expect("non-empty graph");
     let start = latest - (latest - earliest) / 10;
     graph_window_group_10.sample_size(10);
+    let make_graph = || graph.window(start, latest + 1);
     run_analysis_benchmarks(
         &mut graph_window_group_10,
-        || graph.window(start, latest + 1),
+        make_graph,
         None,
     );
     graph_window_group_10.finish();
+    bench_materialise(&format!("{group_name}_materialise"), c, make_graph);
 
     // subgraph
     let mut rng = rand::rngs::StdRng::seed_from_u64(73);
@@ -50,61 +58,85 @@ pub fn graph(c: &mut Criterion) {
         .map(|n| n.id())
         .collect::<Vec<_>>();
     let subgraph = graph.subgraph(nodes);
-    let mut subgraph_10 = c.benchmark_group("analysis_subgraph_10pc");
+    let group_name = "analysis_subgraph_10pc";
+    let mut subgraph_10 = c.benchmark_group(group_name);
     subgraph_10.sample_size(10);
 
-    run_analysis_benchmarks(&mut subgraph_10, || subgraph.clone(), None);
+    let make_graph = || subgraph.clone();
+    run_analysis_benchmarks(&mut subgraph_10, make_graph, None);
     subgraph_10.finish();
+    bench_materialise(&format!("{group_name}_materialise"), c, make_graph);
 
     // subgraph windowed
-    let mut subgraph_10_windowed = c.benchmark_group("analysis_subgraph_10pc_windowed");
+    let group_name = "analysis_subgraph_10pc_windowed";
+    let mut subgraph_10_windowed = c.benchmark_group(group_name);
     subgraph_10_windowed.sample_size(10);
 
+    let make_graph = || subgraph.window(start, latest + 1);
     run_analysis_benchmarks(
         &mut subgraph_10_windowed,
-        || subgraph.window(start, latest + 1),
+        make_graph,
         None,
     );
     subgraph_10_windowed.finish();
+    bench_materialise(&format!("{group_name}_materialise"), c, make_graph);
 
     // layered graph windowed
     let graph = layered_sx_super_user_graph(Some(10)).unwrap();
-    let mut graph_window_layered_group_50 = c.benchmark_group("analysis_graph_window_50_layered");
+    let group_name = "analysis_graph_window_50_layered";
+    let mut graph_window_layered_group_50 = c.benchmark_group(group_name);
     let latest = graph.latest_time().expect("non-empty graph");
     let earliest = graph.earliest_time().expect("non-empty graph");
     let start = latest - (latest - earliest) / 2;
     graph_window_layered_group_50.sample_size(10);
-    run_analysis_benchmarks(
-        &mut graph_window_layered_group_50,
-        || {
+    let make_graph = || {
             graph
                 .window(start, latest + 1)
                 .layers(["0", "1", "2", "3", "4"])
                 .unwrap()
-        },
+        };
+    run_analysis_benchmarks(
+        &mut graph_window_layered_group_50,
+        make_graph,
         None,
     );
     graph_window_layered_group_50.finish();
-
+    bench_materialise(&format!("{group_name}_materialise"), c, make_graph);
+    
     let graph = graph.persistent_graph();
-
+    
+    let group_name = "persistent_analysis_graph_window_50_layered";
     let mut graph_window_layered_group_50 =
-        c.benchmark_group("persistent_analysis_graph_window_50_layered");
+        c.benchmark_group(group_name);
     let latest = graph.latest_time().expect("non-empty graph");
     let earliest = graph.earliest_time().expect("non-empty graph");
     let start = latest - (latest - earliest) / 2;
     graph_window_layered_group_50.sample_size(10);
-    run_analysis_benchmarks(
-        &mut graph_window_layered_group_50,
-        || {
+    let make_graph = || {
             graph
                 .window(start, latest + 1)
                 .layers(["0", "1", "2", "3", "4"])
                 .unwrap()
-        },
+        };
+    run_analysis_benchmarks(
+        &mut graph_window_layered_group_50,
+        make_graph,
         None,
     );
     graph_window_layered_group_50.finish();
+    bench_materialise(&format!("{group_name}_materialise"), c, make_graph);
+
+}
+
+fn bench_materialise<F, G>(name: &str, c: &mut Criterion, make_graph: F)
+where
+    F: Fn() -> G,
+    G: StaticGraphViewOps,
+{
+    let mut mat_graph_group = c.benchmark_group(name);
+    mat_graph_group.sample_size(10);
+    run_materialize(&mut mat_graph_group, make_graph, None);
+    mat_graph_group.finish();
 }
 
 /// Load the SX SuperUser dataset into a graph and return it
