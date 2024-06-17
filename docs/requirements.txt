@@ -167,7 +167,7 @@ traitlets==5.14.3
     #   nbsphinx
 typing-extensions==4.12.2
     # via pydata-sphinx-theme
-urllib3==2.2.1
+urllib3==2.2.2
     # via requests
 webencodings==0.5.1
     # via
