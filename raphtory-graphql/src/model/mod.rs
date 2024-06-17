@@ -23,6 +23,7 @@ use serde_json::Value;
 use std::{
     error::Error,
     fmt::{Display, Formatter},
+    fs,
     io::Read,
     path::Path,
 };
@@ -46,6 +47,8 @@ impl Error for MissingGraph {}
 pub enum GqlGraphError {
     #[error("Disk Graph is immutable")]
     ImmutableDiskGraph,
+    #[error("Graph does exists at path {0}")]
+    GraphDoesNotExists(String),
 }
 
 #[derive(ResolvedObject)]
@@ -148,12 +151,18 @@ impl Mut {
         }
 
         if new_graph_name.ne(&graph_name) && parent_graph_name.ne(&graph_name) {
-            let path = subgraph
+            let old_path = subgraph
                 .properties()
                 .constant()
                 .get("path")
                 .ok_or("Path is missing")?
                 .to_string();
+            let old_path = Path::new(&old_path);
+            let path = old_path
+                .parent()
+                .map(|p| p.to_path_buf())
+                .ok_or("Path is missing")?;
+            let path = path.join(&new_graph_name);
 
             let parent_graph = data
                 .get_graph(&parent_graph_name)?
@@ -172,6 +181,10 @@ impl Mut {
 
             new_subgraph
                 .update_constant_properties([("name", Prop::Str(new_graph_name.clone().into()))])?;
+            new_subgraph.update_constant_properties([(
+                "path",
+                Prop::Str(path.display().to_string().into()),
+            )])?;
 
             let dt = Utc::now();
             let timestamp: i64 = dt.timestamp();
@@ -179,11 +192,13 @@ impl Mut {
                 .update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
             new_subgraph
                 .update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
-            new_subgraph.save_to_file(path)?;
+            new_subgraph.save_to_file(&path)?;
 
             let gi: IndexedGraph<MaterializedGraph> = new_subgraph.into();
+
             data.graphs.insert(new_graph_name, gi);
             data.graphs.remove(&graph_name);
+            delete_graph(&old_path)?;
         }
 
         Ok(true)
@@ -211,6 +226,7 @@ impl Mut {
             .to_string();
 
         subgraph.save_to_file(path)?;
+        data.graphs.insert(graph_name, subgraph);
 
         Ok(true)
     }
@@ -405,3 +421,14 @@ impl Mut {
 
 #[derive(App)]
 pub struct App(QueryRoot, MutRoot, Mut);
+
+fn delete_graph(path: &Path) -> Result<()> {
+    if path.is_file() {
+        fs::remove_file(path)?;
+    } else if path.is_dir() {
+        fs::remove_dir_all(path)?;
+    } else {
+        return Err(GqlGraphError::GraphDoesNotExists(path.display().to_string()).into());
+    }
+    Ok(())
+}
