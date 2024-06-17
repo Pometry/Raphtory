@@ -1,4 +1,4 @@
-use std::{borrow::Cow, ops::Deref};
+use std::borrow::Cow;
 
 #[cfg(feature = "storage")]
 use crate::disk_graph::storage_interface::node::DiskNode;
@@ -102,7 +102,7 @@ impl<'b> NodeStorageEntry<'b> {
         match self {
             NodeStorageEntry::Mem(entry) => StorageVariants::Mem(entry.edges_iter(layers, dir)),
             NodeStorageEntry::Unlocked(entry) => {
-                StorageVariants::Unlocked(entry.edges_iter(layers, dir))
+                StorageVariants::Unlocked(entry.into_edges_iter(layers, dir))
             }
             #[cfg(feature = "storage")]
             NodeStorageEntry::Disk(node) => StorageVariants::Disk(node.edges_iter(layers, dir)),

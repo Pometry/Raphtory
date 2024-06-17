@@ -20,23 +20,8 @@ use crate::{
     prelude::Prop,
 };
 
-use super::node_storage_ops::NodeStorageOps;
-
-impl<'a> NodeStorageOps<'a> for Entry<'a, NodeStore> {
-    fn degree(self, layers: &LayerIds, dir: Direction) -> usize {
-        self.deref().degree(layers, dir)
-    }
-
-    fn additions(self) -> NodeAdditions<'a> {
-        let locked_additions = self.re_entry().map(|e| e.timestamps());
-        NodeAdditions::Locked(locked_additions)
-    }
-
-    fn tprop(self, prop_id: usize) -> impl TPropOps<'a> {
-        self.map(|e| e.temporal_property(prop_id).unwrap_or(&TProp::Empty))
-    }
-
-    fn edges_iter(
+impl<'a> Entry<'a, NodeStore> {
+    pub fn into_edges_iter(
         self,
         layers: &'a LayerIds,
         dir: Direction,
@@ -46,26 +31,6 @@ impl<'a> NodeStorageOps<'a> for Entry<'a, NodeStore> {
             iter_builder: |node| Box::new(node.edge_tuples(layers, dir)),
         }
         .build()
-    }
-
-    fn node_type_id(self) -> usize {
-        self.deref().node_type
-    }
-
-    fn vid(self) -> VID {
-        self.deref().vid()
-    }
-
-    fn id(self) -> u64 {
-        self.deref().id()
-    }
-
-    fn name(self) -> Option<Cow<'a, str>> {
-        self.name.clone().map(Cow::Owned)
-    }
-
-    fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef> {
-        self.deref().find_edge(dst, layer_ids)
     }
 }
 
@@ -79,56 +44,6 @@ pub struct LockedEdgesRefIter<'a> {
 
 impl<'a> Iterator for LockedEdgesRefIter<'a> {
     type Item = EdgeRef;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.with_iter_mut(|iter| iter.next())
-    }
-}
-
-impl<'a> TPropOps<'a> for LockedView<'a, TProp> {
-    fn last_before(&self, t: i64) -> Option<(TimeIndexEntry, Prop)> {
-        self.deref().last_before(t)
-    }
-
-    fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
-        LockedTIEPropIterBuilder {
-            tprop: self,
-            iter_builder: |tprop| Box::new(tprop.iter_inner()),
-        }
-        .build()
-    }
-
-    fn iter_window(
-        self,
-        r: std::ops::Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
-        LockedTIEPropIterBuilder {
-            tprop: self,
-            iter_builder: |tprop| Box::new(tprop.iter_window_inner(r)),
-        }
-        .build()
-    }
-
-    fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
-        let deref = self.deref();
-        deref.at(ti)
-    }
-
-    fn len(self) -> usize {
-        self.deref().len()
-    }
-}
-
-#[self_referencing]
-pub struct LockedTIEPropIter<'a> {
-    tprop: LockedView<'a, TProp>,
-    #[borrows(tprop)]
-    #[covariant]
-    iter: Box<dyn Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'this>,
-}
-
-impl<'a> Iterator for LockedTIEPropIter<'a> {
-    type Item = (TimeIndexEntry, Prop);
 
     fn next(&mut self) -> Option<Self::Item> {
         self.with_iter_mut(|iter| iter.next())
@@ -170,9 +85,6 @@ pub struct UnlockedOwnedNode {
 impl UnlockedOwnedNode {
     pub fn new(g: InternalGraph, vid: VID) -> Self {
         Self { g, vid }
-    }
-    pub fn node(&self) -> Entry<'_, NodeStore> {
-        self.g.inner().storage.nodes.entry(self.vid)
     }
 
     pub fn arc_node(&self) -> ArcEntry<NodeStore> {

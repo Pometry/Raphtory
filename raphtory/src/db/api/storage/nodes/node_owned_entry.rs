@@ -34,28 +34,6 @@ pub enum NodeOwnedEntry {
     Disk(DiskOwnedNode),
 }
 
-impl NodeOwnedEntry {
-    // pub fn as_ref(&self) -> NodeStorageRef {
-    //     match self {
-    //         NodeOwnedEntry::Mem(entry) => NodeStorageRef::Mem(entry),
-    //         NodeOwnedEntry::Unlocked(entry) => NodeStorageRef::Mem(entry.node()),
-    //         #[cfg(feature = "storage")]
-    //         NodeOwnedEntry::Disk(entry) => NodeStorageRef::Disk(entry.as_ref()),
-    //     }
-    // }
-}
-
-macro_rules! for_all {
-    ($value:expr, $pattern:pat => $result:expr) => {
-        match $value {
-            NodeOwnedEntry::Mem($pattern) => $result,
-            NodeOwnedEntry::Unlocked($pattern) => $result,
-            #[cfg(feature = "storage")]
-            NodeOwnedEntry::Disk($pattern) => $result,
-        }
-    };
-}
-
 #[cfg(feature = "storage")]
 macro_rules! for_all_iter {
     ($value:expr, $pattern:pat => $result:expr) => {{

@@ -38,7 +38,6 @@ impl CoreGraphOps for InternalGraph {
     }
 
     fn core_graph(&self) -> GraphStorage {
-        // GraphStorage::Mem(self.lock())
         GraphStorage::Unlocked(self.clone())
     }
     #[inline]

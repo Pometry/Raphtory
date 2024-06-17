@@ -340,12 +340,6 @@ where
 }
 
 impl<'a, T> Entry<'a, T> {
-    pub fn re_entry(&self) -> Entry<'a, T> {
-        let guard = RwLockReadGuard::rwlock(&self.guard).read_recursive();
-        let i = self.offset;
-        Entry { offset: i, guard }
-    }
-
     pub fn value(&self) -> &T {
         &self.guard[self.offset]
     }
