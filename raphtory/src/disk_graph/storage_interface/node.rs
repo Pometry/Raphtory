@@ -211,7 +211,7 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
         }
     }
 
-    fn additions(&self) -> NodeAdditions<'a> {
+    fn additions(self) -> NodeAdditions<'a> {
         self.additions_for_layers(&LayerIds::All)
     }
 
@@ -235,11 +235,11 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
         }
     }
 
-    fn node_type_id(&self) -> usize {
+    fn node_type_id(self) -> usize {
         0
     }
 
-    fn vid(&self) -> VID {
+    fn vid(self) -> VID {
         self.vid
     }
 
@@ -458,7 +458,7 @@ impl<'a> NodeStorageOps<'a> for &'a DiskOwnedNode {
     }
 
     #[inline]
-    fn additions(&self) -> NodeAdditions<'a> {
+    fn additions(self) -> NodeAdditions<'a> {
         self.as_ref().additions()
     }
 
@@ -481,11 +481,11 @@ impl<'a> NodeStorageOps<'a> for &'a DiskOwnedNode {
     }
 
     #[inline]
-    fn node_type_id(&self) -> usize {
+    fn node_type_id(self) -> usize {
         self.as_ref().node_type_id()
     }
 
-    fn vid(&self) -> VID {
+    fn vid(self) -> VID {
         self.vid
     }
 

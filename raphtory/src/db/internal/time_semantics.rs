@@ -90,11 +90,11 @@ impl TimeSemantics for InternalGraph {
     #[inline]
     fn include_node_window(
         &self,
-        node: &NodeStorageRef,
+        node: NodeStorageRef,
         w: Range<i64>,
         _layer_ids: &LayerIds,
     ) -> bool {
-        node.additions_ref().active_t(w)
+        node.additions().active_t(w)
     }
 
     #[inline]
@@ -109,12 +109,14 @@ impl TimeSemantics for InternalGraph {
 
     fn node_history(&self, v: VID) -> Vec<i64> {
         let node = self.core_node_entry(v);
-        node.additions().iter_t().collect()
+        let collect = node.additions().iter_t().collect();
+        collect
     }
 
     fn node_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
         let node = self.core_node_entry(v);
-        node.additions().range_t(w).iter_t().collect()
+        let collect = node.additions().range_t(w).iter_t().collect();
+        collect
     }
 
     fn edge_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64> {

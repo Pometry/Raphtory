@@ -15,7 +15,7 @@ use crate::{
 };
 use rayon::iter::ParallelIterator;
 
-use super::unlocked::UnlockedNodes;
+use super::{node_entry::NodeStorageEntry, unlocked::UnlockedNodes};
 
 #[derive(Debug)]
 pub enum NodesStorageRef<'a> {
@@ -47,12 +47,12 @@ macro_rules! for_all_variants {
 }
 
 impl<'a> NodesStorageRef<'a> {
-    pub fn node(&self, vid: VID) -> NodeStorageRef<'a> {
+    pub fn node(&self, vid: VID) -> NodeStorageEntry<'a> {
         match self {
-            NodesStorageRef::Mem(store) => NodeStorageRef::Mem(store.get(vid)),
-            NodesStorageRef::Unlocked(store) => NodeStorageRef::Unlocked(store.node(vid)),
+            NodesStorageRef::Mem(store) => NodeStorageEntry::Mem(store.get(vid)),
+            NodesStorageRef::Unlocked(store) => NodeStorageEntry::Unlocked(store.node(vid)),
             #[cfg(feature = "storage")]
-            NodesStorageRef::Disk(store) => NodeStorageRef::Disk(store.node(vid)),
+            NodesStorageRef::Disk(store) => NodeStorageEntry::Disk(store.node(vid)),
         }
     }
 
@@ -64,11 +64,11 @@ impl<'a> NodesStorageRef<'a> {
             NodesStorageRef::Disk(store) => store.len(),
         }
     }
-    pub fn par_iter(self) -> impl ParallelIterator<Item = NodeStorageRef<'a>> {
+    pub fn par_iter(self) -> impl ParallelIterator<Item = NodeStorageEntry<'a>> {
         for_all_variants!(self, nodes => nodes.par_iter().map(|n| n.into()))
     }
 
-    pub fn iter(self) -> impl Iterator<Item = NodeStorageRef<'a>> {
+    pub fn iter(self) -> impl Iterator<Item = NodeStorageEntry<'a>> {
         for_all_variants!(self, nodes => nodes.iter().map(|n| n.into()))
     }
 }

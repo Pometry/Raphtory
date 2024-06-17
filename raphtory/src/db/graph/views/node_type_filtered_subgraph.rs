@@ -60,7 +60,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for TypeFilteredSubgraph<G> 
         false
     }
 
-    fn filter_node(&self, node: &NodeStorageRef, layer_ids: &LayerIds) -> bool {
+    fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
         self.node_types.contains(&node.node_type_id()) && self.graph.filter_node(node, layer_ids)
     }
 }

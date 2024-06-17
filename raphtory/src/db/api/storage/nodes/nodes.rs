@@ -9,7 +9,7 @@ use crate::{
 };
 use std::sync::Arc;
 
-use super::unlocked::UnlockedNodes;
+use super::{node_entry::NodeStorageEntry, unlocked::UnlockedNodes};
 
 pub enum NodesStorage {
     Mem(Arc<ReadLockedStorage<NodeStore, VID>>),
@@ -28,14 +28,14 @@ impl NodesStorage {
         }
     }
 
-    pub fn node_ref(&self, vid: VID) -> NodeStorageRef {
+    pub fn node_entry(&self, vid: VID) -> NodeStorageEntry {
         match self {
-            NodesStorage::Mem(storage) => NodeStorageRef::Mem(storage.get(vid)),
+            NodesStorage::Mem(storage) => NodeStorageEntry::Mem(storage.get(vid)),
             NodesStorage::Unlocked(storage) => {
-                NodeStorageRef::Unlocked(UnlockedNodes(storage).node(vid))
+                NodeStorageEntry::Unlocked(UnlockedNodes(storage).node(vid))
             }
             #[cfg(feature = "storage")]
-            NodesStorage::Disk(storage) => NodeStorageRef::Disk(storage.node(vid)),
+            NodesStorage::Disk(storage) => NodeStorageEntry::Disk(storage.node(vid)),
         }
     }
 }

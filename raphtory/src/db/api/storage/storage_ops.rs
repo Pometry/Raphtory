@@ -47,7 +47,10 @@ use pometry_storage::graph::TemporalGraph;
 
 use super::{
     edges::edge_entry::EdgeStorageEntry,
-    nodes::unlocked::{UnlockedNodes, UnlockedOwnedNode},
+    nodes::{
+        node_entry::NodeStorageEntry,
+        unlocked::{UnlockedNodes, UnlockedOwnedNode},
+    },
 };
 
 #[derive(Debug, Clone)]
@@ -84,14 +87,14 @@ impl GraphStorage {
         }
     }
 
-    pub fn node(&self, vid: VID) -> NodeStorageRef {
+    pub fn node(&self, vid: VID) -> NodeStorageEntry {
         match self {
-            GraphStorage::Mem(storage) => NodeStorageRef::Mem(storage.nodes.get(vid)),
+            GraphStorage::Mem(storage) => NodeStorageEntry::Mem(storage.nodes.get(vid)),
             GraphStorage::Unlocked(storage) => {
-                NodeStorageRef::Unlocked(storage.inner().node_entry(vid))
+                NodeStorageEntry::Unlocked(storage.inner().node_entry(vid))
             }
             #[cfg(feature = "storage")]
-            GraphStorage::Disk(storage) => NodeStorageRef::Disk(DiskNode::new(storage, vid)),
+            GraphStorage::Disk(storage) => NodeStorageEntry::Disk(DiskNode::new(storage, vid)),
         }
     }
 
@@ -165,13 +168,15 @@ impl GraphStorage {
                 NodeList::All { .. } => self
                     .nodes()
                     .par_iter()
-                    .filter(|node| view.filter_node(node, layer_ids))
+                    .filter(|node| view.filter_node(node.as_ref(), layer_ids))
                     .count(),
                 NodeList::List { nodes } => {
                     let nodes_storage = self.nodes();
                     nodes
                         .par_iter()
-                        .filter(|vid| view.filter_node(&nodes_storage.node(**vid), layer_ids))
+                        .filter(|vid| {
+                            view.filter_node(nodes_storage.node(**vid).as_ref(), layer_ids)
+                        })
                         .count()
                 }
             }
@@ -200,7 +205,7 @@ impl GraphStorage {
                     .enumerate()
                     .filter(move |(_, node)| {
                         type_filter.map_or(true, |type_filter| type_filter[node.node_type_id()])
-                            && view.filter_node(node, view.layer_ids())
+                            && view.filter_node(node.as_ref(), view.layer_ids())
                     })
                     .map(|(vid, _)| VID(vid))
                     .into_dyn_boxed(),
@@ -211,7 +216,8 @@ impl GraphStorage {
                         .filter(move |&vid| {
                             type_filter.map_or(true, |type_filter| {
                                 type_filter[node_storage.node(vid).node_type_id()]
-                            }) && view.filter_node(&node_storage.node(vid), view.layer_ids())
+                            }) && view
+                                .filter_node(node_storage.node(vid).as_ref(), view.layer_ids())
                         })
                         .into_dyn_boxed()
                 }
@@ -230,11 +236,9 @@ impl GraphStorage {
                 if view.node_list_trusted() {
                     iter
                 } else {
-                    Box::new(
-                        iter.filter(move |&vid| {
-                            view.filter_node(&self.node(vid), view.layer_ids())
-                        }),
-                    )
+                    Box::new(iter.filter(move |&vid| {
+                        view.filter_node(self.node(vid).as_ref(), view.layer_ids())
+                    }))
                 }
             }
             Some(type_filter) => {
@@ -244,7 +248,7 @@ impl GraphStorage {
                     Box::new(iter.filter(move |&vid| {
                         let node = self.node(vid);
                         type_filter[node.node_type_id()]
-                            && view.filter_node(&node, view.layer_ids())
+                            && view.filter_node(node.as_ref(), view.layer_ids())
                     }))
                 }
             }
@@ -259,7 +263,7 @@ impl GraphStorage {
         view.node_list().into_par_iter().filter(move |&vid| {
             let node = self.node(vid);
             type_filter.map_or(true, |type_filter| type_filter[node.node_type_id()])
-                && view.filter_node(&node, view.layer_ids())
+                && view.filter_node(node.as_ref(), view.layer_ids())
         })
     }
 
@@ -273,7 +277,7 @@ impl GraphStorage {
             type_filter
                 .as_ref()
                 .map_or(true, |type_filter| type_filter[node.node_type_id()])
-                && view.filter_node(&self.node(vid), view.layer_ids())
+                && view.filter_node(self.node(vid).as_ref(), view.layer_ids())
         })
     }
 
@@ -289,15 +293,15 @@ impl GraphStorage {
                 let nodes = self.nodes();
                 FilterVariants::Both(iter.filter(move |&e| {
                     view.filter_edge(e, view.layer_ids())
-                        && view.filter_node(&nodes.node(e.src()), view.layer_ids())
-                        && view.filter_node(&nodes.node(e.dst()), view.layer_ids())
+                        && view.filter_node(nodes.node(e.src()).as_ref(), view.layer_ids())
+                        && view.filter_node(nodes.node(e.dst()).as_ref(), view.layer_ids())
                 }))
             }
             FilterState::Nodes => {
                 let nodes = self.nodes();
                 FilterVariants::Nodes(iter.filter(move |&e| {
-                    view.filter_node(&nodes.node(e.src()), view.layer_ids())
-                        && view.filter_node(&nodes.node(e.dst()), view.layer_ids())
+                    view.filter_node(nodes.node(e.src()).as_ref(), view.layer_ids())
+                        && view.filter_node(nodes.node(e.dst()).as_ref(), view.layer_ids())
                 }))
             }
             FilterState::Edges | FilterState::BothIndependent => {
@@ -324,14 +328,17 @@ impl GraphStorage {
                     FilterState::Both => FilterVariants::Both(iter.filter_map(move |e| {
                         let e = EdgeStorageRef::Mem(edges.get(e));
                         (view.filter_edge(e, view.layer_ids())
-                            && view.filter_node(&nodes.node_ref(e.src()), view.layer_ids())
-                            && view.filter_node(&nodes.node_ref(e.dst()), view.layer_ids()))
+                            && view
+                                .filter_node(nodes.node_entry(e.src()).as_ref(), view.layer_ids())
+                            && view
+                                .filter_node(nodes.node_entry(e.dst()).as_ref(), view.layer_ids()))
                         .then(|| e.out_ref())
                     })),
                     FilterState::Nodes => FilterVariants::Nodes(iter.filter_map(move |e| {
                         let e = EdgeStorageRef::Mem(edges.get(e));
-                        (view.filter_node(&nodes.node_ref(e.src()), view.layer_ids())
-                            && view.filter_node(&nodes.node_ref(e.dst()), view.layer_ids()))
+                        (view.filter_node(nodes.node_entry(e.src()).as_ref(), view.layer_ids())
+                            && view
+                                .filter_node(nodes.node_entry(e.dst()).as_ref(), view.layer_ids()))
                         .then(|| e.out_ref())
                     })),
                     FilterState::Edges | FilterState::BothIndependent => {
@@ -364,12 +371,12 @@ impl GraphStorage {
                             if !view.filter_edge(e, view.layer_ids()) {
                                 return None;
                             }
-                            let src = nodes.node_ref(e.src());
-                            if !view.filter_node(&src, view.layer_ids()) {
+                            let src = nodes.node_entry(e.src());
+                            if !view.filter_node(src.as_ref(), view.layer_ids()) {
                                 return None;
                             }
-                            let dst = nodes.node_ref(e.dst());
-                            if !view.filter_node(&dst, view.layer_ids()) {
+                            let dst = nodes.node_entry(e.dst());
+                            if !view.filter_node(dst.as_ref(), view.layer_ids()) {
                                 return None;
                             }
                             Some(e.out_ref())
@@ -378,12 +385,12 @@ impl GraphStorage {
                     FilterState::Nodes => {
                         FilterVariants::Nodes(iter.filter_map(move |(eid, layer_id)| {
                             let e = EdgeStorageRef::Disk(edges.get(eid, layer_id));
-                            let src = nodes.node_ref(e.src());
-                            if !view.filter_node(&src, view.layer_ids()) {
+                            let src = nodes.node_entry(e.src());
+                            if !view.filter_node(src.as_ref(), view.layer_ids()) {
                                 return None;
                             }
-                            let dst = nodes.node_ref(e.dst());
-                            if !view.filter_node(&dst, view.layer_ids()) {
+                            let dst = nodes.node_entry(e.dst());
+                            if !view.filter_node(dst.as_ref(), view.layer_ids()) {
                                 return None;
                             }
                             Some(e.out_ref())
@@ -417,14 +424,15 @@ impl GraphStorage {
                     let src = self.node(edge.src());
                     let dst = self.node(edge.dst());
                     view.filter_edge(edge, view.layer_ids())
-                        && view.filter_node(&src, layer_ids)
-                        && view.filter_node(&dst, layer_ids)
+                        && view.filter_node(src.as_ref(), layer_ids)
+                        && view.filter_node(dst.as_ref(), layer_ids)
                 }
                 FilterState::Nodes => {
                     let layer_ids = view.layer_ids();
                     let src = self.node(edge.src());
                     let dst = self.node(edge.dst());
-                    view.filter_node(&src, layer_ids) && view.filter_node(&dst, layer_ids)
+                    view.filter_node(src.as_ref(), layer_ids)
+                        && view.filter_node(dst.as_ref(), layer_ids)
                 }
                 FilterState::Edges | FilterState::BothIndependent => {
                     view.filter_edge(edge, view.layer_ids())
@@ -450,14 +458,17 @@ impl GraphStorage {
                     FilterState::Both => FilterVariants::Both(iter.filter_map(move |e| {
                         let e = EdgeStorageRef::Mem(edges.get(e));
                         (view.filter_edge(e, view.layer_ids())
-                            && view.filter_node(&nodes.node_ref(e.src()), view.layer_ids())
-                            && view.filter_node(&nodes.node_ref(e.dst()), view.layer_ids()))
+                            && view
+                                .filter_node(nodes.node_entry(e.src()).as_ref(), view.layer_ids())
+                            && view
+                                .filter_node(nodes.node_entry(e.dst()).as_ref(), view.layer_ids()))
                         .then(|| e.out_ref())
                     })),
                     FilterState::Nodes => FilterVariants::Nodes(iter.filter_map(move |e| {
                         let e = EdgeStorageRef::Mem(edges.get(e));
-                        (view.filter_node(&nodes.node_ref(e.src()), view.layer_ids())
-                            && view.filter_node(&nodes.node_ref(e.dst()), view.layer_ids()))
+                        (view.filter_node(nodes.node_entry(e.src()).as_ref(), view.layer_ids())
+                            && view
+                                .filter_node(nodes.node_entry(e.dst()).as_ref(), view.layer_ids()))
                         .then(|| e.out_ref())
                     })),
                     FilterState::Edges | FilterState::BothIndependent => {
@@ -492,12 +503,12 @@ impl GraphStorage {
                             if !view.filter_edge(e, view.layer_ids()) {
                                 return None;
                             }
-                            let src = nodes.node_ref(e.src());
-                            if !view.filter_node(&src, view.layer_ids()) {
+                            let src = nodes.node_entry(e.src());
+                            if !view.filter_node(src.as_ref(), view.layer_ids()) {
                                 return None;
                             }
-                            let dst = nodes.node_ref(e.dst());
-                            if !view.filter_node(&dst, view.layer_ids()) {
+                            let dst = nodes.node_entry(e.dst());
+                            if !view.filter_node(dst.as_ref(), view.layer_ids()) {
                                 return None;
                             }
                             Some(e.out_ref())
@@ -506,12 +517,12 @@ impl GraphStorage {
                     FilterState::Nodes => {
                         FilterVariants::Nodes(iter.filter_map(move |(eid, layer_id)| {
                             let e = EdgeStorageRef::Disk(edges.get(eid, layer_id));
-                            let src = nodes.node_ref(e.src());
-                            if !view.filter_node(&src, view.layer_ids()) {
+                            let src = nodes.node_entry(e.src());
+                            if !view.filter_node(src.as_ref(), view.layer_ids()) {
                                 return None;
                             }
-                            let dst = nodes.node_ref(e.dst());
-                            if !view.filter_node(&dst, view.layer_ids()) {
+                            let dst = nodes.node_entry(e.dst());
+                            if !view.filter_node(dst.as_ref(), view.layer_ids()) {
                                 return None;
                             }
                             Some(e.out_ref())
@@ -576,15 +587,15 @@ impl GraphStorage {
     ) -> impl Iterator<Item = EdgeRef> + 'a {
         let source = self.node(node);
         let layers = view.layer_ids();
-        let iter = source.edges_iter(layers, dir);
+        let iter = source.into_edges_iter(layers, dir);
         match view.filter_state() {
             FilterState::Neither => FilterVariants::Neither(iter),
             FilterState::Both => FilterVariants::Both(iter.filter(|&e| {
                 view.filter_edge(self.edge(e).as_ref(), view.layer_ids())
-                    && view.filter_node(&self.node(e.remote()), view.layer_ids())
+                    && view.filter_node(self.node(e.remote()).as_ref(), view.layer_ids())
             })),
             FilterState::Nodes => FilterVariants::Nodes(
-                iter.filter(|e| view.filter_node(&self.node(e.remote()), view.layer_ids())),
+                iter.filter(|e| view.filter_node(self.node(e.remote()).as_ref(), view.layer_ids())),
             ),
             FilterState::Edges | FilterState::BothIndependent => FilterVariants::Edges(
                 iter.filter(|&e| view.filter_edge(self.edge(e).as_ref(), view.layer_ids())),
@@ -606,11 +617,11 @@ impl GraphStorage {
             FilterState::Neither => FilterVariants::Neither(iter),
             FilterState::Both => FilterVariants::Both(iter.filter(move |&e| {
                 view.filter_edge(self.edge(e).as_ref(), view.layer_ids())
-                    && view.filter_node(&self.node(e.remote()), view.layer_ids())
+                    && view.filter_node(self.node(e.remote()).as_ref(), view.layer_ids())
             })),
-            FilterState::Nodes => FilterVariants::Nodes(
-                iter.filter(move |e| view.filter_node(&self.node(e.remote()), view.layer_ids())),
-            ),
+            FilterState::Nodes => FilterVariants::Nodes(iter.filter(move |e| {
+                view.filter_node(self.node(e.remote()).as_ref(), view.layer_ids())
+            })),
             FilterState::Edges | FilterState::BothIndependent => FilterVariants::Edges(
                 iter.filter(move |&e| view.filter_edge(self.edge(e).as_ref(), view.layer_ids())),
             ),

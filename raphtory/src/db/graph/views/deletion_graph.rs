@@ -268,14 +268,11 @@ impl TimeSemantics for PersistentGraph {
 
     fn include_node_window(
         &self,
-        node: &NodeStorageRef,
+        node: NodeStorageRef,
         w: Range<i64>,
         _layer_ids: &LayerIds,
     ) -> bool {
-        node.additions_ref()
-            .first_t()
-            .filter(|&t| t <= w.end)
-            .is_some()
+        node.additions().first_t().filter(|&t| t <= w.end).is_some()
     }
 
     fn include_edge_window(

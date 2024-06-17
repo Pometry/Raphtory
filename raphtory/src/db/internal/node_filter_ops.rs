@@ -14,7 +14,7 @@ impl NodeFilterOps for InternalGraph {
     }
 
     #[inline]
-    fn filter_node(&self, _node: &NodeStorageRef, _layer_ids: &LayerIds) -> bool {
+    fn filter_node(&self, _node: NodeStorageRef, _layer_ids: &LayerIds) -> bool {
         true
     }
 }

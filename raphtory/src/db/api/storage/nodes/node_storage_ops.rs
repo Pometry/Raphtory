@@ -16,16 +16,16 @@ use itertools::Itertools;
 pub trait NodeStorageOps<'a>: Sized {
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize;
 
-    fn additions(&self) -> NodeAdditions<'a>;
+    fn additions(self) -> NodeAdditions<'a>;
 
     fn tprop(self, prop_id: usize) -> impl TPropOps<'a>;
 
     fn edges_iter(self, layers: &'a LayerIds, dir: Direction)
         -> impl Iterator<Item = EdgeRef> + 'a;
 
-    fn node_type_id(&self) -> usize;
+    fn node_type_id(self) -> usize;
 
-    fn vid(&self) -> VID;
+    fn vid(self) -> VID;
 
     fn id(self) -> u64;
 
@@ -39,7 +39,7 @@ impl<'a> NodeStorageOps<'a> for &'a NodeStore {
         self.degree(layers, dir)
     }
 
-    fn additions(&self) -> NodeAdditions<'a> {
+    fn additions(self) -> NodeAdditions<'a> {
         NodeAdditions::Mem(self.timestamps())
     }
 
@@ -55,11 +55,11 @@ impl<'a> NodeStorageOps<'a> for &'a NodeStore {
         self.edge_tuples(layers, dir)
     }
 
-    fn node_type_id(&self) -> usize {
+    fn node_type_id(self) -> usize {
         self.node_type
     }
 
-    fn vid(&self) -> VID {
+    fn vid(self) -> VID {
         self.vid
     }
 

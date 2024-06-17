@@ -35,14 +35,14 @@ pub enum NodeOwnedEntry {
 }
 
 impl NodeOwnedEntry {
-    pub fn as_ref(&self) -> NodeStorageRef {
-        match self {
-            NodeOwnedEntry::Mem(entry) => NodeStorageRef::Mem(entry),
-            NodeOwnedEntry::Unlocked(entry) => NodeStorageRef::Unlocked(entry.node()),
-            #[cfg(feature = "storage")]
-            NodeOwnedEntry::Disk(entry) => NodeStorageRef::Disk(entry.as_ref()),
-        }
-    }
+    // pub fn as_ref(&self) -> NodeStorageRef {
+    //     match self {
+    //         NodeOwnedEntry::Mem(entry) => NodeStorageRef::Mem(entry),
+    //         NodeOwnedEntry::Unlocked(entry) => NodeStorageRef::Mem(entry.node()),
+    //         #[cfg(feature = "storage")]
+    //         NodeOwnedEntry::Disk(entry) => NodeStorageRef::Disk(entry.as_ref()),
+    //     }
+    // }
 }
 
 macro_rules! for_all {

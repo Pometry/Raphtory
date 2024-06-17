@@ -600,10 +600,10 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         }
         if self.graph.nodes_filtered() {
             if !self.graph.filter_node(
-                &self.graph.core_node_entry(core_edge.src()).as_ref(),
+                self.graph.core_node_entry(core_edge.src()).as_ref(),
                 layer_ids,
             ) || !self.graph.filter_node(
-                &self.graph.core_node_entry(core_edge.dst()).as_ref(),
+                self.graph.core_node_entry(core_edge.dst()).as_ref(),
                 layer_ids,
             ) {
                 return None;

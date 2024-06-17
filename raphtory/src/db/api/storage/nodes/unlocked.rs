@@ -27,7 +27,7 @@ impl<'a> NodeStorageOps<'a> for Entry<'a, NodeStore> {
         self.deref().degree(layers, dir)
     }
 
-    fn additions(&self) -> NodeAdditions<'a> {
+    fn additions(self) -> NodeAdditions<'a> {
         let locked_additions = self.re_entry().map(|e| e.timestamps());
         NodeAdditions::Locked(locked_additions)
     }
@@ -48,11 +48,11 @@ impl<'a> NodeStorageOps<'a> for Entry<'a, NodeStore> {
         .build()
     }
 
-    fn node_type_id(&self) -> usize {
+    fn node_type_id(self) -> usize {
         self.deref().node_type
     }
 
-    fn vid(&self) -> VID {
+    fn vid(self) -> VID {
         self.deref().vid()
     }
 
