@@ -228,7 +228,7 @@ where
                             .permutations(2)
                             .map(|e| {
                                 u.graph()
-                                    .edge(*e.get(0).unwrap(), *e.get(1).unwrap())
+                                    .edge(*e.first().unwrap(), *e.get(1).unwrap())
                                     .iter()
                                     .flat_map(|edge| edge.explode())
                                     .collect::<Vec<_>>()

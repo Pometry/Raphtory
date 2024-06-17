@@ -10,7 +10,6 @@ use crate::{
     db::api::{
         storage::{
             nodes::node_storage_ops::NodeStorageOps, tprop_storage_ops::TPropOps,
-            variants::storage_variants::StorageVariants,
         },
         view::internal::NodeAdditions,
     },

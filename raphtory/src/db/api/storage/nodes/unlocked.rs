@@ -1,9 +1,8 @@
-use std::{borrow::Cow, ops::Deref};
+
 
 use ouroboros::self_referencing;
 use raphtory_api::core::{
     entities::{edges::edge_ref::EdgeRef, VID},
-    storage::timeindex::TimeIndexEntry,
     Direction,
 };
 use rayon::prelude::*;
@@ -11,13 +10,12 @@ use rayon::prelude::*;
 use crate::{
     core::{
         entities::{
-            graph::tgraph::InternalGraph, nodes::node_store::NodeStore, properties::tprop::TProp,
+            graph::tgraph::InternalGraph, nodes::node_store::NodeStore,
             LayerIds,
         },
-        storage::{locked_view::LockedView, ArcEntry, Entry},
+        storage::{ArcEntry, Entry},
     },
-    db::api::{storage::tprop_storage_ops::TPropOps, view::internal::NodeAdditions},
-    prelude::Prop,
+    db::api::{storage::tprop_storage_ops::TPropOps},
 };
 
 impl<'a> Entry<'a, NodeStore> {

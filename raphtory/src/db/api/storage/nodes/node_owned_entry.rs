@@ -1,4 +1,4 @@
-use std::{borrow::Cow, ops::Deref};
+
 
 #[cfg(not(feature = "storage"))]
 use either::Either;
@@ -9,19 +9,16 @@ use crate::db::api::storage::variants::storage_variants3::StorageVariants;
 use crate::disk_graph::storage_interface::node::DiskOwnedNode;
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, nodes::node_store::NodeStore, LayerIds, VID},
+        entities::{edges::edge_ref::EdgeRef, nodes::node_store::NodeStore, LayerIds},
         storage::ArcEntry,
         Direction,
     },
     db::api::{
         storage::{
             nodes::{
-                node_ref::NodeStorageRef,
-                node_storage_ops::{NodeStorageIntoOps, NodeStorageOps},
+                node_storage_ops::{NodeStorageIntoOps},
             },
-            tprop_storage_ops::TPropOps,
         },
-        view::internal::NodeAdditions,
     },
 };
 

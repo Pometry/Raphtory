@@ -11,7 +11,6 @@ use crate::{
         entities::{nodes::node_store::NodeStore, VID},
         storage::ReadLockedStorage,
     },
-    db::api::storage::nodes::node_ref::NodeStorageRef,
 };
 use rayon::iter::ParallelIterator;
 
