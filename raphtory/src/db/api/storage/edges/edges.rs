@@ -1,9 +1,9 @@
 use crate::{
     core::{
-        entities::{edges::edge_store::EdgeStore, graph::tgraph::InternalGraph, LayerIds, EID},
+        entities::{edges::edge_store::EdgeStore, LayerIds, EID},
         storage::ReadLockedStorage,
     },
-    db::api::storage::{edges::edge_ref::EdgeStorageRef, nodes::unlocked::UnlockedEdges},
+    db::api::storage::nodes::unlocked::UnlockedEdges,
 };
 
 #[cfg(feature = "storage")]
@@ -70,14 +70,18 @@ impl<'a> EdgesStorageRef<'a> {
     #[cfg(not(feature = "storage"))]
     pub fn iter(self, layers: LayerIds) -> impl Iterator<Item = EdgeStorageEntry<'a>> {
         match self {
-            EdgesStorageRef::Mem(storage) => {
-                Either::<_, std::iter::Empty<EdgeStorageEntry<'a>>>::Left(
-                    storage
-                        .iter()
-                        .filter(move |e| e.has_layer(&layers))
-                        .map(EdgeStorageEntry::Mem),
-                )
-            }
+            EdgesStorageRef::Mem(storage) => Either::Left(
+                storage
+                    .iter()
+                    .filter(move |e| e.has_layer(&layers))
+                    .map(EdgeStorageEntry::Mem),
+            ),
+            EdgesStorageRef::Unlocked(edges) => Either::Right(
+                edges
+                    .iter()
+                    .filter(move |e| e.has_layer(&layers))
+                    .map(EdgeStorageEntry::Unlocked),
+            ),
         }
     }
 
@@ -105,14 +109,18 @@ impl<'a> EdgesStorageRef<'a> {
     #[cfg(not(feature = "storage"))]
     pub fn par_iter(self, layers: LayerIds) -> impl ParallelIterator<Item = EdgeStorageEntry<'a>> {
         match self {
-            EdgesStorageRef::Mem(storage) => {
-                Either::<_, rayon::iter::Empty<EdgeStorageEntry<'a>>>::Left(
-                    storage
-                        .par_iter()
-                        .filter(move |e| e.has_layer(&layers))
-                        .map(EdgeStorageEntry::Mem),
-                )
-            }
+            EdgesStorageRef::Mem(storage) => Either::Left(
+                storage
+                    .par_iter()
+                    .filter(move |e| e.has_layer(&layers))
+                    .map(EdgeStorageEntry::Mem),
+            ),
+            EdgesStorageRef::Unlocked(edges) => Either::Right(
+                edges
+                    .par_iter()
+                    .filter(move |e| e.has_layer(&layers))
+                    .map(EdgeStorageEntry::Unlocked),
+            ),
         }
     }
 
