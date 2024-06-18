@@ -2,6 +2,7 @@ pub mod dataframe;
 pub mod df_loaders;
 mod prop_handler;
 pub mod panda_loaders;
+mod parquet_loaders;
 
 #[cfg(test)]
 mod test {

@@ -33,7 +33,8 @@ use pyo3::{
     types::{IntoPyDict, PyDict, PyList, PyString},
 };
 
-use super::io::dataframe::{process_pandas_py_df, PretendDF};
+use super::io::dataframe::PretendDF;
+use super::io::panda_loaders::*;
 
 impl From<Error> for PyErr {
     fn from(value: Error) -> Self {

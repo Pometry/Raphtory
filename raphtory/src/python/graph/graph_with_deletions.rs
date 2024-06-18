@@ -33,7 +33,7 @@ use std::{
 use super::{
     graph::PyGraph,
     io::{
-        dataframe::{process_pandas_py_df, GraphLoadException},
+        dataframe::GraphLoadException,
         panda_loaders::*,
         df_loaders::load_edges_deletions_from_df
     },
