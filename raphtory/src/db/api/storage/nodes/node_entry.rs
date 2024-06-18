@@ -77,6 +77,7 @@ macro_rules! for_all_iter {
 }
 
 impl<'a> NodeStorageEntry<'a> {
+    #[inline]
     pub fn as_ref(&self) -> NodeStorageRef {
         match self {
             NodeStorageEntry::Mem(entry) => NodeStorageRef::Mem(entry),
