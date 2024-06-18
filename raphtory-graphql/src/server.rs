@@ -39,7 +39,7 @@ use crate::{
 };
 use std::{
     collections::HashMap,
-    env,
+    env, fs,
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
 };
@@ -70,6 +70,9 @@ impl RaphtoryServer {
         maybe_graph_paths: Option<Vec<PathBuf>>,
         maybe_cache_config: Option<CacheConfig>,
     ) -> Self {
+        if !work_dir.exists() {
+            fs::create_dir_all(work_dir).unwrap();
+        }
         let data = Data::new(
             work_dir,
             maybe_graphs,
