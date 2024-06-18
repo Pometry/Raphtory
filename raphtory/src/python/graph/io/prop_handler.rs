@@ -7,7 +7,7 @@ use polars_arrow::{
 use crate::{
     core::{utils::errors::GraphError, IntoPropList},
     prelude::Prop,
-    python::graph::pandas::dataframe::PretendDF,
+    python::graph::io::dataframe::PretendDF,
 };
 
 pub struct PropIter<'a> {

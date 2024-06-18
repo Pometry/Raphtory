@@ -7,7 +7,7 @@ mod test {
     use crate::{
         core::ArcStr,
         prelude::*,
-        python::graph::pandas::{
+        python::graph::io::{
             dataframe::PretendDF,
             loaders::{load_edges_from_df, load_nodes_from_df},
         },

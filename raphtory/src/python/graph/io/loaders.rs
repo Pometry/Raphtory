@@ -2,7 +2,7 @@ use crate::{
     core::{entities::graph::tgraph::InternalGraph, utils::errors::GraphError},
     db::api::mutation::AdditionOps,
     prelude::*,
-    python::graph::pandas::{
+    python::graph::io::{
         dataframe::PretendDF,
         prop_handler::{get_prop_rows, lift_layer},
     },

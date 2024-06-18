@@ -11,7 +11,7 @@ pub mod edges;
 #[cfg(feature = "search")]
 pub mod index;
 pub mod node;
-pub mod pandas;
+pub mod io;
 pub mod properties;
 pub mod utils;
 pub mod views;
