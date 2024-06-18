@@ -44,12 +44,13 @@ mod directed_graph_density_tests {
     use crate::{
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
+        test_storage,
     };
 
     #[test]
     fn low_graph_density() {
-        let g = Graph::new();
-        let windowed_graph = g.window(0, 7);
+        let graph = Graph::new();
+
         let vs = vec![
             (1, 1, 2),
             (2, 1, 3),
@@ -60,28 +61,34 @@ mod directed_graph_density_tests {
         ];
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
+            graph.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
 
-        let actual = directed_graph_density(&windowed_graph);
-        let expected = 0.3;
+        test_storage!(&graph, |graph| {
+            let windowed_graph = graph.window(0, 7);
+            let actual = directed_graph_density(&windowed_graph);
+            let expected = 0.3;
 
-        assert_eq!(actual, expected);
+            assert_eq!(actual, expected);
+        });
     }
 
     #[test]
     fn complete_graph_has_graph_density_of_one() {
-        let g = Graph::new();
-        let windowed_graph = g.window(0, 3);
+        let graph = Graph::new();
+
         let vs = vec![(1, 1, 2), (2, 2, 1)];
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
+            graph.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
 
-        let actual = directed_graph_density(&windowed_graph);
-        let expected = 1.0;
+        test_storage!(&graph, |graph| {
+            let windowed_graph = graph.window(0, 3);
+            let actual = directed_graph_density(&windowed_graph);
+            let expected = 1.0;
 
-        assert_eq!(actual, expected);
+            assert_eq!(actual, expected);
+        });
     }
 }

@@ -1,7 +1,8 @@
 use crate::{
-    core::entities::{nodes::node_store::NodeStore, LayerIds},
+    core::entities::LayerIds,
     db::api::{
         properties::internal::InheritPropertiesOps,
+        storage::nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
         view::internal::{
             Base, Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritLayerOps, InheritListOps,
             InheritMaterialize, InheritTimeSemantics, NodeFilterOps, Static,
@@ -59,7 +60,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for TypeFilteredSubgraph<G> 
         false
     }
 
-    fn filter_node(&self, node: &NodeStore, layer_ids: &LayerIds) -> bool {
-        self.node_types.contains(&node.node_type) && self.graph.filter_node(node, layer_ids)
+    fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
+        self.node_types.contains(&node.node_type_id()) && self.graph.filter_node(node, layer_ids)
     }
 }

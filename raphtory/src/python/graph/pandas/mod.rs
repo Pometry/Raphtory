@@ -12,7 +12,7 @@ mod test {
             loaders::{load_edges_from_df, load_nodes_from_df},
         },
     };
-    use arrow2::array::{PrimitiveArray, Utf8Array};
+    use polars_arrow::array::{PrimitiveArray, Utf8Array};
 
     #[test]
     fn load_edges_from_pretend_df() {

@@ -86,9 +86,8 @@ mod largest_connected_component_test {
 
         let expected_nodes = vec![1, 2, 3];
         for node in expected_nodes {
-            assert_eq!(
+            assert!(
                 subgraph.has_node(node),
-                true,
                 "Node {} should be in the largest connected component.",
                 node
             );
@@ -113,9 +112,8 @@ mod largest_connected_component_test {
         let subgraph = graph.largest_connected_component();
         let expected_nodes = vec![1, 2, 3];
         for node in expected_nodes {
-            assert_eq!(
+            assert!(
                 subgraph.has_node(node),
-                true,
                 "Node {} should be in the largest connected component.",
                 node
             );

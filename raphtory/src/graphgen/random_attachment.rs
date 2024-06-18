@@ -18,7 +18,7 @@ use crate::{
         api::{mutation::AdditionOps, view::*},
         graph::graph::Graph,
     },
-    prelude::NO_PROPS,
+    prelude::{NodeStateOps, NO_PROPS},
 };
 use rand::{rngs::StdRng, seq::SliceRandom, SeedableRng};
 
@@ -58,7 +58,7 @@ pub fn random_attachment(
         rng = StdRng::from_entropy();
     }
     let mut latest_time = graph.latest_time().unwrap_or(0);
-    let mut ids: Vec<u64> = graph.nodes().id().collect();
+    let mut ids: Vec<u64> = graph.nodes().id().values().collect();
     let mut max_id = ids.iter().max().copied().unwrap_or(0);
 
     while ids.len() < edges_per_step {

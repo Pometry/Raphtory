@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 pub mod context;
 pub mod edge;
+mod eval_graph;
 pub mod node;
 pub mod task;
 pub mod task_runner;
@@ -75,7 +76,7 @@ mod task_tests {
 
         let count = state::accumulator_id::accumulators::sum::<usize>(0);
 
-        ctx.global_agg(count.clone());
+        ctx.global_agg(count);
 
         let step1 = ATask::new(move |vv: &mut EvalNodeView<_, ()>| {
             vv.global_update(&count, 1);

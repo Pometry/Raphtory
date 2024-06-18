@@ -73,7 +73,7 @@ impl<G: InheritViewOps> InheritNodeFilterOps for G {}
 
 impl<G: InheritViewOps> InheritListOps for G {}
 
-impl<G: InheritViewOps> InheritCoreDeletionOps for G {}
+impl<G: InheritViewOps + HasDeletionOps> HasDeletionOps for G {}
 impl<G: InheritViewOps> InheritEdgeFilterOps for G {}
 impl<G: InheritViewOps> InheritLayerOps for G {}
 impl<G: InheritViewOps + CoreGraphOps> InheritTimeSemantics for G {}
@@ -149,7 +149,7 @@ mod test {
             },
             graph::graph::Graph,
         },
-        prelude::NO_PROPS,
+        prelude::{NodeStateOps, NO_PROPS},
     };
     use itertools::Itertools;
     use std::sync::Arc;
@@ -160,6 +160,6 @@ mod test {
         let g = Graph::new();
         g.add_node(0, 1, NO_PROPS, None).unwrap();
         let boxed: Arc<dyn BoxableGraphView> = Arc::new(g);
-        assert_eq!(boxed.nodes().id().collect_vec(), vec![1])
+        assert_eq!(boxed.nodes().id().values().collect_vec(), vec![1])
     }
 }

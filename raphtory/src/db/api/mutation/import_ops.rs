@@ -1,7 +1,6 @@
 use crate::{
     core::{
         entities::LayerIds,
-        storage::timeindex::TimeIndexEntry,
         utils::errors::{
             GraphError,
             GraphError::{EdgeExistsError, NodeExistsError},
@@ -13,12 +12,15 @@ use crate::{
             mutation::internal::{
                 InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
             },
+            storage::nodes::node_storage_ops::NodeStorageOps,
             view::{internal::InternalMaterialize, IntoDynamic, StaticGraphViewOps},
         },
         graph::{edge::EdgeView, node::NodeView},
     },
     prelude::{AdditionOps, EdgeViewOps, NodeViewOps},
 };
+
+use super::time_from_input;
 
 pub trait ImportOps:
     StaticGraphViewOps
@@ -126,13 +128,13 @@ impl<
         }
 
         let node_internal =
-            self.resolve_node(node.id(), node.graph.core_node_arc(node.node).name.as_str());
+            self.resolve_node(node.id(), node.graph.core_node_entry(node.node).name());
         let node_internal_type_id = self
             .resolve_node_type(node_internal, node.node_type().as_str())
             .unwrap_or(0usize);
 
         for h in node.history() {
-            let t = TimeIndexEntry::from_input(self, h)?;
+            let t = time_from_input(self, h)?;
             self.internal_add_node(t, node_internal, vec![], node_internal_type_id)?;
         }
         for (name, prop_view) in node.properties().temporal().iter() {
@@ -151,7 +153,7 @@ impl<
             let new_prop_id = self.resolve_node_property(&name, dtype, false)?;
             for (h, prop) in prop_view.iter() {
                 let new_prop = self.process_prop_value(prop);
-                let t = TimeIndexEntry::from_input(self, h)?;
+                let t = time_from_input(self, h)?;
                 self.internal_add_node(
                     t,
                     node_internal,
@@ -216,7 +218,7 @@ impl<
 
             if self.include_deletions() {
                 for t in edge.graph.edge_deletion_history(edge.edge, &layer_ids) {
-                    let ti = TimeIndexEntry::from_input(self, t)?;
+                    let ti = time_from_input(self, t)?;
                     let src_id = self.resolve_node(edge.src().id(), Some(&edge.src().name()));
                     let dst_id = self.resolve_node(edge.dst().id(), Some(&edge.dst().name()));
                     let layer = self.resolve_layer(layer_name);

@@ -1,5 +1,5 @@
 use crate::{
-    core::{entities::graph::tgraph::InnerTemporalGraph, utils::errors::GraphError},
+    core::{entities::graph::tgraph::InternalGraph, utils::errors::GraphError},
     db::api::mutation::AdditionOps,
     prelude::*,
     python::graph::pandas::{
@@ -10,7 +10,7 @@ use crate::{
 use kdam::tqdm;
 use std::{collections::HashMap, iter};
 
-pub(crate) fn load_nodes_from_df<'a, const N: usize>(
+pub(crate) fn load_nodes_from_df<'a>(
     df: &'a PretendDF,
     size: usize,
     node_id: &str,
@@ -20,7 +20,7 @@ pub(crate) fn load_nodes_from_df<'a, const N: usize>(
     shared_const_properties: Option<HashMap<String, Prop>>,
     node_type: Option<&str>,
     node_type_in_df: bool,
-    graph: &InnerTemporalGraph<N>,
+    graph: &InternalGraph,
 ) -> Result<(), GraphError> {
     let (prop_iter, const_prop_iter) = get_prop_rows(df, properties, const_properties)?;
 
@@ -136,7 +136,7 @@ fn extract_out_default_type(n_t: Option<&str>) -> Option<&str> {
     }
 }
 
-pub(crate) fn load_edges_from_df<'a, const N: usize, S: AsRef<str>>(
+pub(crate) fn load_edges_from_df<'a, S: AsRef<str>>(
     df: &'a PretendDF,
     size: usize,
     src: &str,
@@ -147,7 +147,7 @@ pub(crate) fn load_edges_from_df<'a, const N: usize, S: AsRef<str>>(
     shared_const_properties: Option<HashMap<String, Prop>>,
     layer: Option<S>,
     layer_in_df: bool,
-    graph: &InnerTemporalGraph<N>,
+    graph: &InternalGraph,
 ) -> Result<(), GraphError> {
     let (prop_iter, const_prop_iter) = get_prop_rows(df, properties, const_properties)?;
     let layer = lift_layer(layer, layer_in_df, df);
@@ -240,7 +240,7 @@ pub(crate) fn load_edges_from_df<'a, const N: usize, S: AsRef<str>>(
     Ok(())
 }
 
-pub(crate) fn load_edges_deletions_from_df<'a, const N: usize, S: AsRef<str>>(
+pub(crate) fn load_edges_deletions_from_df<'a, S: AsRef<str>>(
     df: &'a PretendDF,
     size: usize,
     src: &str,
@@ -248,7 +248,7 @@ pub(crate) fn load_edges_deletions_from_df<'a, const N: usize, S: AsRef<str>>(
     time: &str,
     layer: Option<S>,
     layer_in_df: bool,
-    graph: &InnerTemporalGraph<N>,
+    graph: &InternalGraph,
 ) -> Result<(), GraphError> {
     let layer = lift_layer(layer, layer_in_df, df);
 
@@ -335,13 +335,13 @@ pub(crate) fn load_edges_deletions_from_df<'a, const N: usize, S: AsRef<str>>(
     Ok(())
 }
 
-pub(crate) fn load_node_props_from_df<'a, const N: usize>(
+pub(crate) fn load_node_props_from_df<'a>(
     df: &'a PretendDF,
     size: usize,
     node_id: &str,
     const_properties: Option<Vec<&str>>,
     shared_const_properties: Option<HashMap<String, Prop>>,
-    graph: &InnerTemporalGraph<N>,
+    graph: &InternalGraph,
 ) -> Result<(), GraphError> {
     let (_, const_prop_iter) = get_prop_rows(df, None, const_properties)?;
 
@@ -429,7 +429,7 @@ pub(crate) fn load_node_props_from_df<'a, const N: usize>(
     Ok(())
 }
 
-pub(crate) fn load_edges_props_from_df<'a, const N: usize, S: AsRef<str>>(
+pub(crate) fn load_edges_props_from_df<'a, S: AsRef<str>>(
     df: &'a PretendDF,
     size: usize,
     src: &str,
@@ -438,7 +438,7 @@ pub(crate) fn load_edges_props_from_df<'a, const N: usize, S: AsRef<str>>(
     shared_const_properties: Option<HashMap<String, Prop>>,
     layer: Option<S>,
     layer_in_df: bool,
-    graph: &InnerTemporalGraph<N>,
+    graph: &InternalGraph,
 ) -> Result<(), GraphError> {
     let (_, const_prop_iter) = get_prop_rows(df, None, const_properties)?;
     let layer = lift_layer(layer, layer_in_df, df);
@@ -543,13 +543,12 @@ fn i64_opt_into_u64_opt(x: Option<&i64>) -> Option<u64> {
 
 fn load_edges_from_num_iter<
     'a,
-    const N: usize,
     S: AsRef<str>,
     I: Iterator<Item = ((Option<u64>, Option<u64>), Option<i64>)>,
     PI: Iterator<Item = Vec<(S, Prop)>>,
     IL: Iterator<Item = Option<String>>,
 >(
-    graph: &InnerTemporalGraph<N>,
+    graph: &InternalGraph,
     size: usize,
     edges: I,
     properties: PI,
@@ -577,12 +576,11 @@ fn load_edges_from_num_iter<
 
 fn load_nodes_from_num_iter<
     'a,
-    const N: usize,
     S: AsRef<str>,
     I: Iterator<Item = (Option<u64>, Option<i64>, Option<&'a str>)>,
     PI: Iterator<Item = Vec<(S, Prop)>>,
 >(
-    graph: &InnerTemporalGraph<N>,
+    graph: &InternalGraph,
     size: usize,
     nodes: I,
     properties: PI,

@@ -1,20 +1,13 @@
 use crate::{
     core::{
         entities::{
-            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-            nodes::{node_ref::NodeRef, node_store::NodeStore},
-            properties::{
-                graph_meta::GraphMeta,
-                props::Meta,
-                tprop::{LockedLayeredTProp, TProp},
-            },
-            LayerIds, EID, VID,
+            edges::edge_ref::EdgeRef,
+            graph::tgraph::InternalGraph,
+            nodes::node_ref::NodeRef,
+            properties::{graph_meta::GraphMeta, props::Meta, tprop::TProp},
+            LayerIds, EID, ELID, VID,
         },
-        storage::{
-            locked_view::LockedView,
-            timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry},
-            ArcEntry, Entry, ReadLockedStorage,
-        },
+        storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
         utils::errors::GraphError,
         ArcStr, PropType,
     },
@@ -24,13 +17,20 @@ use crate::{
             properties::internal::{
                 ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
-            storage::locked::LockedGraph,
+            storage::{
+                edges::{
+                    edge_entry::EdgeStorageEntry, edge_owned_entry::EdgeOwnedEntry,
+                    edge_ref::EdgeStorageRef, edges::EdgesStorage,
+                },
+                nodes::{
+                    node_entry::NodeStorageEntry, node_owned_entry::NodeOwnedEntry,
+                    nodes::NodesStorage,
+                },
+                storage_ops::GraphStorage,
+            },
             view::{internal::*, BoxedIter},
         },
-        graph::{
-            graph::{Graph, InternalGraph},
-            views::deletion_graph::PersistentGraph,
-        },
+        graph::{graph::Graph, views::deletion_graph::PersistentGraph},
     },
     prelude::*,
     BINCODE_VERSION,
@@ -39,6 +39,10 @@ use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
 use std::path::Path;
+
+#[cfg(feature = "storage")]
+use crate::disk_graph::graph_impl::DiskGraph;
+
 #[enum_dispatch(CoreGraphOps)]
 #[enum_dispatch(InternalLayerOps)]
 #[enum_dispatch(ListOps)]
@@ -55,6 +59,8 @@ use std::path::Path;
 pub enum MaterializedGraph {
     EventGraph(Graph),
     PersistentGraph(PersistentGraph),
+    #[cfg(feature = "storage")]
+    DiskEventGraph(DiskGraph),
 }
 
 fn version_deserialize<'de, D>(deserializer: D) -> Result<u32, D::Error>
@@ -63,7 +69,7 @@ where
 {
     let version = u32::deserialize(deserializer)?;
     if version != BINCODE_VERSION {
-        return Err(D::Error::custom(GraphError::BincodeVersionError(
+        return Err(Error::custom(GraphError::BincodeVersionError(
             version,
             BINCODE_VERSION,
         )));
@@ -85,12 +91,26 @@ impl MaterializedGraph {
         match self {
             MaterializedGraph::EventGraph(g) => Some(g),
             MaterializedGraph::PersistentGraph(_) => None,
+            #[cfg(feature = "storage")]
+            MaterializedGraph::DiskEventGraph(_) => None,
         }
     }
     pub fn into_persistent(self) -> Option<PersistentGraph> {
         match self {
             MaterializedGraph::EventGraph(_) => None,
             MaterializedGraph::PersistentGraph(g) => Some(g),
+            #[cfg(feature = "storage")]
+            MaterializedGraph::DiskEventGraph(_) => None,
+        }
+    }
+
+    #[cfg(feature = "storage")]
+    pub fn into_disk_graph(self) -> Option<DiskGraph> {
+        match self {
+            MaterializedGraph::EventGraph(_) => None,
+            MaterializedGraph::PersistentGraph(_) => None,
+            #[cfg(feature = "storage")]
+            MaterializedGraph::DiskEventGraph(g) => Some(g),
         }
     }
 
@@ -184,6 +204,7 @@ mod test_materialised_graph_dispatch {
         let mg = MaterializedGraph::from(Graph::new());
         assert_eq!(mg.count_nodes(), 0);
     }
+
     #[test]
     fn materialised_graph_has_edge_filter_ops() {
         let mg = MaterializedGraph::from(Graph::new());

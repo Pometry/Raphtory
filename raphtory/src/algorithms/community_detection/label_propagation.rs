@@ -50,7 +50,7 @@ where
             }
 
             if let Some(max_label) = find_max_label(&label_count) {
-                if max_label != labels[&node] {
+                if max_label != labels[node] {
                     labels.insert(node.clone(), max_label);
                     changed = true;
                 }
@@ -77,6 +77,7 @@ fn find_max_label(label_count: &BTreeMap<u64, f64>) -> Option<u64> {
 #[cfg(test)]
 mod lpa_tests {
     use super::*;
+    use crate::test_storage;
 
     #[test]
     fn lpa_test() {
@@ -97,25 +98,28 @@ mod lpa_tests {
         for (ts, src, dst) in edges {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
-        let seed = Some([5; 32]);
-        let result = label_propagation(&graph, seed).unwrap();
-        let expected = vec![
-            HashSet::from([
-                graph.node("R1").unwrap(),
-                graph.node("R2").unwrap(),
-                graph.node("R3").unwrap(),
-            ]),
-            HashSet::from([
-                graph.node("G").unwrap(),
-                graph.node("B1").unwrap(),
-                graph.node("B2").unwrap(),
-                graph.node("B3").unwrap(),
-                graph.node("B4").unwrap(),
-                graph.node("B5").unwrap(),
-            ]),
-        ];
-        for hashset in expected {
-            assert!(result.contains(&hashset));
-        }
+
+        test_storage!(&graph, |graph| {
+            let seed = Some([5; 32]);
+            let result = label_propagation(graph, seed).unwrap();
+            let expected = vec![
+                HashSet::from([
+                    graph.node("R1").unwrap(),
+                    graph.node("R2").unwrap(),
+                    graph.node("R3").unwrap(),
+                ]),
+                HashSet::from([
+                    graph.node("G").unwrap(),
+                    graph.node("B1").unwrap(),
+                    graph.node("B2").unwrap(),
+                    graph.node("B3").unwrap(),
+                    graph.node("B4").unwrap(),
+                    graph.node("B5").unwrap(),
+                ]),
+            ];
+            for hashset in expected {
+                assert!(result.contains(&hashset));
+            }
+        });
     }
 }

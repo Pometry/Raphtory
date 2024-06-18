@@ -1,6 +1,6 @@
 use crate::{
     core::entities::{EID, VID},
-    db::api::view::Base,
+    db::api::{state::Index, view::Base},
 };
 use enum_dispatch::enum_dispatch;
 use rayon::{iter::Either, prelude::*};
@@ -28,10 +28,10 @@ where
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum NodeList {
     All { num_nodes: usize },
-    List { nodes: Arc<[VID]> },
+    List { nodes: Index<VID> },
 }
 
 impl NodeList {
@@ -45,9 +45,11 @@ impl NodeList {
     pub fn into_par_iter(self) -> impl IndexedParallelIterator<Item = VID> {
         match self {
             NodeList::All { num_nodes } => Either::Left((0..num_nodes).into_par_iter().map(VID)),
-            NodeList::List { nodes } => {
-                Either::Right((0..nodes.len()).into_par_iter().map(move |i| nodes[i]))
-            }
+            NodeList::List { nodes } => Either::Right(
+                (0..nodes.len())
+                    .into_par_iter()
+                    .map(move |i| nodes.key(i).unwrap()),
+            ),
         }
     }
 
@@ -73,7 +75,7 @@ impl IntoIterator for NodeList {
     fn into_iter(self) -> Self::IntoIter {
         match self {
             NodeList::All { num_nodes } => Box::new((0..num_nodes).map(VID)),
-            NodeList::List { nodes } => Box::new((0..nodes.len()).map(move |i| nodes[i])),
+            NodeList::List { nodes } => Box::new(nodes.into_iter()),
         }
     }
 }

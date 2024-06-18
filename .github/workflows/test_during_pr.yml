@@ -8,7 +8,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-
 jobs:
   rust-format-check:
     name: Rust format check
@@ -16,6 +15,11 @@ jobs:
   call-test-rust-workflow-in-local-repo:
     name: Run Rust tests
     uses: ./.github/workflows/test_rust_workflow.yml
+    secrets: inherit
+    needs: rust-format-check
+  call-test-rust-storage-workflow-in-local-repo:
+    name: Run Rust storage tests
+    uses: ./.github/workflows/test_rust_disk_storage_workflow.yml
     secrets: inherit
     needs: rust-format-check
   call-test-python-workflow-in-local-repo:

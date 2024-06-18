@@ -382,7 +382,7 @@ mod three_node_motifs_test {
 
     #[test]
     fn triad_test() {
-        let events = vec![(true, 0, 1, 1, 1), (false, 1, 0, 1, 2), (false, 0, 0, 0, 3)]
+        let events = [(true, 0, 1, 1, 1), (false, 1, 0, 1, 2), (false, 0, 0, 0, 3)]
             .iter()
             .map(|x| TriangleEdge {
                 uv_edge: x.0,

@@ -5,19 +5,18 @@ on:
       base:
         description: 'Name of branch to open PR against'
         type: 'string'
-        default: 'master'
+        required: true
       dry_run:
         description: 'DRY RUN: If true will not publish the release and will not push anything to PyPi/crates.io. However it will still make a PR and a branch to show you what it changed'
         type: boolean
-        default: false
-        required: false
+        required: true
 
 jobs:
   python-linux:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: [x86_64, aarch64]
+        target: [ x86_64, aarch64 ]
     steps:
       - name: "Check if user has write access"
         uses: "lannonbr/repo-permission-check-action@2.0.0"
@@ -114,7 +113,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        target: [x64]
+        target: [ x64 ]
     steps:
       - name: "Check if user has write access"
         uses: "lannonbr/repo-permission-check-action@2.0.0"
@@ -150,7 +149,7 @@ jobs:
     runs-on: macos-latest
     strategy:
       matrix:
-        target: [x86_64, aarch64]
+        target: [ x86_64, aarch64 ]
     steps:
       - name: "Check if user has write access"
         uses: "lannonbr/repo-permission-check-action@2.0.0"
@@ -193,7 +192,7 @@ jobs:
           name: pyartifacts
           path: ./python/dist
   publish-python:
-    needs: [python-linux, python-windows, python-macos]
+    needs: [ python-linux, python-windows, python-macos ]
     name: Publish to PyPi
     runs-on: ubuntu-latest
     steps:

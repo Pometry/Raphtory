@@ -45,6 +45,7 @@ use crate::{
             single_source_shortest_path::single_source_shortest_path as single_source_shortest_path_rs,
             temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs,
         },
+        projections::temporal_bipartite_projection::temporal_bipartite_projection as temporal_bipartite_rs,
     },
     core::{entities::nodes::node_ref::NodeRef, Prop},
     db::{api::view::internal::DynamicGraph, graph::node::NodeView},
@@ -57,6 +58,12 @@ use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
 use rand::{prelude::StdRng, SeedableRng};
 use std::collections::{HashMap, HashSet};
+
+#[cfg(feature = "storage")]
+use pometry_storage::algorithms::connected_components::connected_components as connected_components_rs;
+
+#[cfg(feature = "storage")]
+use crate::python::graph::disk_graph::PyDiskGraph;
 
 /// Implementations of various graph algorithms that can be run on a graph.
 ///
@@ -114,6 +121,13 @@ pub fn strongly_connected_components(
     g: &PyGraphView,
 ) -> AlgorithmResult<DynamicGraph, usize, usize> {
     components::strongly_connected_components(&g.graph, None)
+}
+
+#[cfg(feature = "storage")]
+#[pyfunction]
+#[pyo3(signature = (g))]
+pub fn connected_components(g: &PyDiskGraph) -> Vec<usize> {
+    connected_components_rs(g.graph.as_ref())
 }
 
 /// In components -- Finding the "in-component" of a node in a directed graph involves identifying all nodes that can be reached following only incoming edges.
@@ -386,12 +400,12 @@ pub fn global_clustering_coefficient(g: &PyGraphView) -> f64 {
 ///  There are 8 triangle motifs:
 ///
 ///   1. i --> j, k --> j, i --> k
-///   2. i --> j, k --> i, j --> k
+///   2. i --> j, k --> j, k --> i
 ///   3. i --> j, j --> k, i --> k
-///   4. i --> j, i --> k, j --> k
-///   5. i --> j, k --> j, k --> i
+///   4. i --> j, j --> k, k --> i
+///   5. i --> j, k --> i, j --> k
 ///   6. i --> j, k --> i, k --> j
-///   7. i --> j, j --> k, k --> i
+///   7. i --> j, i --> k, j --> k
 ///   8. i --> j, i --> k, k --> j
 ///
 /// Arguments:
@@ -407,6 +421,26 @@ pub fn global_clustering_coefficient(g: &PyGraphView) -> f64 {
 #[pyfunction]
 pub fn global_temporal_three_node_motif(g: &PyGraphView, delta: i64) -> [usize; 40] {
     global_temporal_three_node_motif_rs(&g.graph, delta, None)
+}
+
+/// Projects a temporal bipartite graph into an undirected temporal graph over the pivot node type. Let G be a bipartite graph with node types A and B. Given delta > 0, the projection graph G' pivoting over type B nodes,
+/// will make a connection between nodes n1 and n2 (of type A) at time (t1 + t2)/2 if they respectively have an edge at time t1, t2 with the same node of type B in G, and |t2-t1| < delta.
+///
+/// Arguments:
+///     g (raphtory graph) : A directed raphtory graph
+///     delta (int): Time period
+///     pivot (string) : node type to pivot over. If a bipartite graph has types A and B, and B is the pivot type, the new graph will consist of type A nodes.
+///
+/// Returns:
+///     raphtory graph : Projected (unipartite) temporal graph.
+#[pyfunction]
+#[pyo3(signature = (g, delta, pivot_type))]
+pub fn temporal_bipartite_graph_projection(
+    g: &PyGraphView,
+    delta: i64,
+    pivot_type: String,
+) -> PyGraphView {
+    temporal_bipartite_rs(&g.graph, delta, pivot_type).into()
 }
 
 /// Computes the global counts of three-edge up-to-three node temporal motifs for a range of timescales. See `global_temporal_three_node_motif` for an interpretation of each row returned.
@@ -558,7 +592,7 @@ pub fn min_degree(g: &PyGraphView) -> usize {
 #[pyo3[signature = (g, source, cutoff=None)]]
 pub fn single_source_shortest_path(
     g: &PyGraphView,
-    source: PyInputNode,
+    source: NodeRef,
     cutoff: Option<usize>,
 ) -> AlgorithmResult<DynamicGraph, Vec<String>, Vec<String>> {
     single_source_shortest_path_rs(&g.graph, source, cutoff)
@@ -580,8 +614,8 @@ pub fn single_source_shortest_path(
 #[pyo3[signature = (g, source, targets, direction=PyDirection::new("BOTH"), weight="weight".to_string())]]
 pub fn dijkstra_single_source_shortest_paths(
     g: &PyGraphView,
-    source: PyInputNode,
-    targets: Vec<PyInputNode>,
+    source: NodeRef,
+    targets: Vec<NodeRef>,
     direction: PyDirection,
     weight: Option<String>,
 ) -> PyResult<HashMap<String, (Prop, Vec<String>)>> {

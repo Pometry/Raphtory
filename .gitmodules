@@ -1,0 +1,3 @@
+[submodule "pometry-storage-private"]
+	path = pometry-storage-private
+	url = git@github.com:Pometry/pometry-storage.git

@@ -343,12 +343,13 @@ impl PyRaphtoryServer {
     ///
     /// Arguments:
     ///   * `port`: the port to use (defaults to 1736).
-    #[pyo3(signature = (port = 1736, log_level="INFO".to_string(),enable_tracing=false))]
+    #[pyo3(signature = (port = 1736, log_level="INFO".to_string(),enable_tracing=false,enable_auth=false))]
     pub fn start(
         slf: PyRefMut<Self>,
         port: u16,
         log_level: String,
         enable_tracing: bool,
+        enable_auth: bool,
     ) -> PyResult<PyRunningRaphtoryServer> {
         let (sender, receiver) = crossbeam_channel::bounded::<BridgeCommand>(1);
         let server = take_server_ownership(slf)?;
@@ -361,8 +362,10 @@ impl PyRaphtoryServer {
                 .build()
                 .unwrap()
                 .block_on(async move {
-                    let handler = server.start_with_port(port, &log_level, enable_tracing);
-                    let tokio_sender = handler._get_sender().clone();
+                    let handler =
+                        server.start_with_port(port, &log_level, enable_tracing, enable_auth);
+                    let running_server = handler.await;
+                    let tokio_sender = running_server._get_sender().clone();
                     tokio::task::spawn_blocking(move || {
                         match receiver.recv().expect("Failed to wait for cancellation") {
                             BridgeCommand::StopServer => tokio_sender
@@ -371,7 +374,7 @@ impl PyRaphtoryServer {
                             BridgeCommand::StopListening => (),
                         }
                     });
-                    let result = handler.wait().await;
+                    let result = running_server.wait().await;
                     _ = cloned_sender.send(BridgeCommand::StopListening);
                     result
                 })
@@ -384,15 +387,17 @@ impl PyRaphtoryServer {
     ///
     /// Arguments:
     ///   * `port`: the port to use (defaults to 1736).
-    #[pyo3(signature = (port = 1736, log_level="INFO".to_string(),enable_tracing=false))]
+    #[pyo3(signature = (port = 1736, log_level="INFO".to_string(),enable_tracing=false,enable_auth=false))]
     pub fn run(
         slf: PyRefMut<Self>,
         py: Python,
         port: u16,
         log_level: String,
         enable_tracing: bool,
+        enable_auth: bool,
     ) -> PyResult<()> {
-        let mut server = Self::start(slf, port, log_level, enable_tracing)?.server_handler;
+        let mut server =
+            Self::start(slf, port, log_level, enable_tracing, enable_auth)?.server_handler;
         py.allow_threads(|| wait_server(&mut server))
     }
 }

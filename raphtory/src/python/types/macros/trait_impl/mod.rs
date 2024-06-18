@@ -15,5 +15,4 @@ mod repr;
 #[macro_use]
 mod iterable_mixin;
 
-#[macro_use]
-mod nodetypesfilter;
+mod node_state;

@@ -263,7 +263,7 @@ impl PyEdge {
     /// Returns:
     ///     (int) The time of an exploded edge
     #[getter]
-    pub fn time(&self) -> Option<i64> {
+    pub fn time(&self) -> Result<i64, GraphError> {
         self.edge.time()
     }
 
@@ -281,7 +281,7 @@ impl PyEdge {
     /// Returns:
     ///     (List<str>) The name of the layer
     #[getter]
-    pub fn layer_name(&self) -> Option<ArcStr> {
+    pub fn layer_name(&self) -> Result<ArcStr, GraphError> {
         self.edge.layer_name().map(|v| v.clone())
     }
 
@@ -444,6 +444,12 @@ impl PyDirection {
 impl Into<Direction> for PyDirection {
     fn into(self) -> Direction {
         self.inner
+    }
+}
+
+impl From<Direction> for PyDirection {
+    fn from(d: Direction) -> Self {
+        PyDirection { inner: d }
     }
 }
 

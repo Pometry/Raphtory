@@ -5,14 +5,13 @@
 //! `u64`, `&str`, and `String`.
 
 use crate::core::utils::hashing;
-use regex::Regex;
 const MAX_U64_BYTES: [u8; 20] = [
     49, 56, 52, 52, 54, 55, 52, 52, 48, 55, 51, 55, 48, 57, 53, 53, 49, 54, 49, 53,
 ];
 
-fn parse_u64_strict(input: &str) -> Option<u64> {
+pub fn parse_u64_strict(input: &str) -> Option<u64> {
     if input.len() > 20 {
-        /// a u64 string has at most 20 bytes
+        // a u64 string has at most 20 bytes
         return None;
     }
     let byte_0 = b'0';
@@ -23,28 +22,33 @@ fn parse_u64_strict(input: &str) -> Option<u64> {
     if first == byte_0 {
         return input_iter.next().is_none().then_some(0);
     }
-    if input.len() == 20 && (byte_1..=MAX_U64_BYTES[0]).contains(&first) {
-        let mut result = (first - byte_0) as u64;
-        for (next_byte, max_byte) in input_iter.zip(MAX_U64_BYTES[1..].iter().copied()) {
+
+    let mut check_max = input.len() == 20;
+    if check_max {
+        if !(byte_1..=MAX_U64_BYTES[0]).contains(&first) {
+            return None;
+        }
+    } else {
+        if !(byte_1..=byte_9).contains(&first) {
+            return None;
+        }
+    }
+
+    let mut result = (first - byte_0) as u64;
+    for (next_byte, max_byte) in input_iter.zip(MAX_U64_BYTES[1..].iter().copied()) {
+        if check_max {
             if !(byte_0..=max_byte).contains(&next_byte) {
                 return None;
             }
-            result = result * 10 + (next_byte - byte_0) as u64;
-        }
-        return Some(result);
-    }
-    if (byte_1..=byte_9).contains(&first) {
-        let mut result = (first - byte_0) as u64;
-        for next_byte in input_iter {
+            check_max = next_byte == max_byte;
+        } else {
             if !(byte_0..=byte_9).contains(&next_byte) {
                 return None;
             }
-            result = result * 10 + (next_byte - byte_0) as u64;
         }
-        return Some(result);
+        result = result * 10 + (next_byte - byte_0) as u64;
     }
-
-    None
+    return Some(result);
 }
 
 pub trait InputNode: Clone {
@@ -85,8 +89,8 @@ impl InputNode for String {
 
 #[cfg(test)]
 mod test {
-    use crate::core::entities::nodes::input_node::InputNode;
-    use regex::Regex;
+    use crate::core::entities::nodes::input_node::{parse_u64_strict, InputNode};
+    use proptest::prelude::*;
 
     #[test]
     fn test_weird_num_edge_cases() {
@@ -94,5 +98,22 @@ mod test {
         assert_eq!(3.id(), "3".id());
         assert_ne!("00".id(), "0".id());
         assert_eq!("0".id(), 0.id());
+    }
+
+    #[test]
+    fn test_u64_string_works() {
+        proptest!(|(n in any::<u64>())| {
+            assert_eq!(n.to_string().id(), n);
+        });
+    }
+
+    #[test]
+    fn test_if_str_parses_it_is_a_u64() {
+        proptest!(|(s in any::<String>())| {
+            let res = parse_u64_strict(&s);
+            if let Some(n) = res {
+                assert_eq!(n.to_string(), s)
+            }
+        });
     }
 }

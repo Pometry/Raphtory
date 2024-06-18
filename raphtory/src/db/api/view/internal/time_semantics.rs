@@ -1,13 +1,12 @@
 use crate::{
     core::{
-        entities::{
-            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-            nodes::node_store::NodeStore,
-            LayerIds, VID,
-        },
+        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         Prop,
     },
-    db::api::view::{internal::Base, BoxedIter, MaterializedGraph},
+    db::api::{
+        storage::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
+        view::{internal::Base, BoxedIter, MaterializedGraph},
+    },
 };
 use enum_dispatch::enum_dispatch;
 use std::ops::Range;
@@ -43,10 +42,15 @@ pub trait TimeSemantics {
     /// Return the latest time for a node in a window
     fn node_latest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64>;
     /// check if node `v` should be included in window `w`
-    fn include_node_window(&self, v: &NodeStore, w: Range<i64>, layer_ids: &LayerIds) -> bool;
+    fn include_node_window(&self, v: NodeStorageRef, w: Range<i64>, layer_ids: &LayerIds) -> bool;
 
     /// check if edge `e` should be included in window `w`
-    fn include_edge_window(&self, edge: &EdgeStore, w: Range<i64>, layer_ids: &LayerIds) -> bool;
+    fn include_edge_window(
+        &self,
+        edge: EdgeStorageRef,
+        w: Range<i64>,
+        layer_ids: &LayerIds,
+    ) -> bool;
 
     /// Get the timestamps at which a node `v` is active (i.e has an edge addition)
     fn node_history(&self, v: VID) -> Vec<i64>;
@@ -59,12 +63,12 @@ pub trait TimeSemantics {
     fn edge_history_window(&self, e: EdgeRef, layer_ids: LayerIds, w: Range<i64>) -> Vec<i64>;
 
     /// The number of exploded edge events for the `edge`
-    fn edge_exploded_count(&self, edge: &EdgeStore, layer_ids: &LayerIds) -> usize;
+    fn edge_exploded_count(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> usize;
 
     /// The number of exploded edge events for the edge in the window `w`
     fn edge_exploded_count_window(
         &self,
-        edge: &EdgeStore,
+        edge: EdgeStorageRef,
         layer_ids: &LayerIds,
         w: Range<i64>,
     ) -> usize;
@@ -241,7 +245,7 @@ pub trait TimeSemantics {
         e: EdgeRef,
         prop_id: usize,
         w: Range<i64>,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> bool;
 
     /// Returns a vector of tuples containing the values of the temporal property with the given name
@@ -265,7 +269,7 @@ pub trait TimeSemantics {
         id: usize,
         start: i64,
         end: i64,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> Vec<(i64, Prop)>;
 
     /// Check if edge has temporal property with the given id
@@ -274,7 +278,7 @@ pub trait TimeSemantics {
     ///
     /// * `e` - The id of the edge
     /// * `prop_id` - The id of the property to retrieve.
-    fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: LayerIds) -> bool;
+    fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: &LayerIds) -> bool;
 
     /// Returns a vector of tuples containing the values of the temporal property with the given name
     /// for the given edge reference.
@@ -291,7 +295,7 @@ pub trait TimeSemantics {
         &self,
         e: EdgeRef,
         id: usize,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> Vec<(i64, Prop)>;
 }
 
@@ -358,12 +362,22 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         self.graph().node_latest_time_window(v, start, end)
     }
     #[inline]
-    fn include_node_window(&self, node: &NodeStore, w: Range<i64>, layer_ids: &LayerIds) -> bool {
+    fn include_node_window(
+        &self,
+        node: NodeStorageRef,
+        w: Range<i64>,
+        layer_ids: &LayerIds,
+    ) -> bool {
         self.graph().include_node_window(node, w, layer_ids)
     }
 
     #[inline]
-    fn include_edge_window(&self, edge: &EdgeStore, w: Range<i64>, layer_ids: &LayerIds) -> bool {
+    fn include_edge_window(
+        &self,
+        edge: EdgeStorageRef,
+        w: Range<i64>,
+        layer_ids: &LayerIds,
+    ) -> bool {
         self.graph().include_edge_window(edge, w, layer_ids)
     }
 
@@ -388,14 +402,14 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
     }
 
     #[inline]
-    fn edge_exploded_count(&self, edge: &EdgeStore, layer_ids: &LayerIds) -> usize {
+    fn edge_exploded_count(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> usize {
         self.graph().edge_exploded_count(edge, layer_ids)
     }
 
     #[inline]
     fn edge_exploded_count_window(
         &self,
-        edge: &EdgeStore,
+        edge: EdgeStorageRef,
         layer_ids: &LayerIds,
         w: Range<i64>,
     ) -> usize {
@@ -539,7 +553,7 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         e: EdgeRef,
         prop_id: usize,
         w: Range<i64>,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> bool {
         self.graph()
             .has_temporal_edge_prop_window(e, prop_id, w, layer_ids)
@@ -552,13 +566,13 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         prop_id: usize,
         start: i64,
         end: i64,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> Vec<(i64, Prop)> {
         self.graph()
             .temporal_edge_prop_vec_window(e, prop_id, start, end, layer_ids)
     }
 
-    fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: LayerIds) -> bool {
+    fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: &LayerIds) -> bool {
         self.graph().has_temporal_edge_prop(e, prop_id, layer_ids)
     }
 
@@ -567,7 +581,7 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         &self,
         e: EdgeRef,
         prop_id: usize,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> Vec<(i64, Prop)> {
         self.graph().temporal_edge_prop_vec(e, prop_id, layer_ids)
     }

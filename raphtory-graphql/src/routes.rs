@@ -21,6 +21,8 @@ pub(crate) async fn health() -> impl IntoResponse {
 #[handler]
 pub(crate) async fn graphql_playground() -> impl IntoResponse {
     Html(playground_source(
-        GraphQLPlaygroundConfig::new("/").subscription_endpoint("/ws"),
+        GraphQLPlaygroundConfig::new("/")
+            .subscription_endpoint("/ws")
+            .with_setting("request.credentials", "include"),
     ))
 }

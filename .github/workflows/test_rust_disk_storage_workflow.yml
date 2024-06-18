@@ -1,0 +1,91 @@
+name: Run Rust test
+on:
+  workflow_call:
+    inputs:
+      skip_tests:
+        type: boolean
+        default: false
+        required: false
+# DO NOT CHANGE NAME OF WORKFLOW, USED IN OTHER WORKFLOWS KEEP "Rust Tests"
+jobs:
+  rust-test:
+    if: ${{ !inputs.skip_tests }}
+    name: Rust Tests
+    runs-on: '${{ matrix.os }}'
+    env:
+      CARGO_NET_GIT_FETCH_WITH_CLI: true
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+          - os: ubuntu-latest
+          - os: windows-latest
+    steps:
+      - uses: maxim-lobanov/setup-xcode@v1
+        name: Xcode version
+        if: "contains(matrix.os, 'macOS')"
+        with:
+          xcode-version: latest-stable
+      - uses: actions/checkout@v3
+        name: Checkout
+      - uses: actions-rs/toolchain@v1
+        name: Setup Rust
+        with:
+          profile: minimal
+          toolchain: 1.77.0
+          override: true
+          components: rustfmt, clippy
+      - name: Free up space (ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+      - uses: webfactory/ssh-agent@v0.7.0
+        name: Load pometry-storage key
+        with:
+          ssh-private-key: ${{ secrets.RA_SSH_PRIVATE_KEY }}
+      - name: Rust version
+        run: rustc --version --verbose
+      - uses: Swatinem/rust-cache@v2
+        name: Cargo cache
+        with:
+          cache-all-crates: true
+      - name: Install bininstall
+        uses: cargo-bins/cargo-binstall@main
+      - name: Install nextest
+        run: cargo binstall -y --force cargo-nextest
+      - name: Activate pometry-storage in Cargo.toml
+        run: make pull-storage
+      - name: Run all Tests (disk_graph)
+        env:
+          RUSTFLAGS: -Awarnings
+          TEMPDIR: ${{ runner.temp }}
+        run: |
+          cargo nextest run --all --no-default-features --features "storage"
+      - name: Run Tests (features=io)
+        env:
+          RUSTFLAGS: -Awarnings
+        run: |
+          cargo check -p raphtory --no-default-features --features "io"
+      - name: Run Tests (features=python)
+        env:
+          RUSTFLAGS: -Awarnings
+        run: |
+          cargo check -p raphtory --no-default-features --features "python"
+      - name: Run Tests (features=search)
+        env:
+          RUSTFLAGS: -Awarnings
+        run: |
+          cargo check -p raphtory --no-default-features --features "search"
+      - name: Run Tests (features=vectors)
+        env:
+          RUSTFLAGS: -Awarnings
+        run: |
+          cargo check -p raphtory --no-default-features --features "vectors"
+      - name: Run Tests (features=storage)
+        env:
+          RUSTFLAGS: -Awarnings
+        run: |
+          cargo check -p raphtory --no-default-features --features "storage"

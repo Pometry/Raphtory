@@ -1,4 +1,4 @@
-use crate::core::{entities::graph::tgraph::InnerTemporalGraph, utils::errors::GraphError, Prop};
+use crate::core::{entities::graph::tgraph::InternalGraph, utils::errors::GraphError, Prop};
 use pyo3::{prelude::*, types::IntoPyDict};
 use std::collections::HashMap;
 
@@ -9,8 +9,8 @@ use super::pandas::{
     },
 };
 
-pub fn load_nodes_from_pandas<const N: usize>(
-    graph: &InnerTemporalGraph<N>,
+pub fn load_nodes_from_pandas(
+    graph: &InternalGraph,
     df: &PyAny,
     id: &str,
     time: &str,
@@ -60,8 +60,8 @@ pub fn load_nodes_from_pandas<const N: usize>(
     Ok(())
 }
 
-pub fn load_edges_from_pandas<const N: usize>(
-    graph: &InnerTemporalGraph<N>,
+pub fn load_edges_from_pandas(
+    graph: &InternalGraph,
     df: &PyAny,
     src: &str,
     dst: &str,
@@ -114,8 +114,8 @@ pub fn load_edges_from_pandas<const N: usize>(
     Ok(())
 }
 
-pub fn load_node_props_from_pandas<const N: usize>(
-    graph: &InnerTemporalGraph<N>,
+pub fn load_node_props_from_pandas(
+    graph: &InternalGraph,
     df: &PyAny,
     id: &str,
     const_properties: Option<Vec<&str>>,
@@ -150,8 +150,8 @@ pub fn load_node_props_from_pandas<const N: usize>(
     Ok(())
 }
 
-pub fn load_edge_props_from_pandas<const N: usize>(
-    graph: &InnerTemporalGraph<N>,
+pub fn load_edge_props_from_pandas(
+    graph: &InternalGraph,
     df: &PyAny,
     src: &str,
     dst: &str,

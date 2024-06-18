@@ -1,5 +1,5 @@
 use crate::{
-    core::entities::nodes::node_ref::NodeRef,
+    core::entities::nodes::node_ref::AsNodeRef,
     db::{
         api::view::{DynamicGraph, StaticGraphViewOps},
         graph::{edge::EdgeView, node::NodeView},
@@ -145,7 +145,7 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
     ///
     /// # Returns
     ///   A new vectorised graph containing the updated selection
-    pub fn append<V: Into<NodeRef>>(&self, nodes: Vec<V>, edges: Vec<(V, V)>) -> Self {
+    pub fn append<V: AsNodeRef>(&self, nodes: Vec<V>, edges: Vec<(V, V)>) -> Self {
         let node_docs = nodes.into_iter().flat_map(|id| {
             let node = self.source_graph.node(id);
             let opt = node.map(|node| self.node_documents.get(&EntityId::from_node(&node)));

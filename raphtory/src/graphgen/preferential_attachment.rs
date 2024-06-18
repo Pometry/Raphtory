@@ -17,7 +17,7 @@ use crate::{
         api::{mutation::AdditionOps, view::*},
         graph::graph::Graph,
     },
-    prelude::NO_PROPS,
+    prelude::{NodeStateOps, NO_PROPS},
 };
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use std::collections::HashSet;
@@ -63,8 +63,8 @@ pub fn ba_preferential_attachment(
     }
     let mut latest_time = graph.end().unwrap_or(0);
     let view = graph.window(i64::MIN, i64::MAX);
-    let mut ids: Vec<u64> = view.nodes().id().collect();
-    let r: Vec<usize> = view.nodes().degree().collect();
+    let mut ids: Vec<u64> = view.nodes().id().values().collect();
+    let r: Vec<usize> = view.nodes().degree().values().collect();
     let mut degrees: Vec<usize> = r;
     let mut edge_count: usize = degrees.iter().sum();
 

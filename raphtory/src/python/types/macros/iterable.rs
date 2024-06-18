@@ -9,7 +9,7 @@ macro_rules! _py_numeric_methods {
             }
 
             pub fn mean(&self) -> f64 {
-                use $crate::python::types::wrappers::iterators::MeanExt;
+                use $crate::python::types::wrappers::iterables::MeanExt;
                 self.iter().mean()
             }
         }
@@ -249,7 +249,7 @@ macro_rules! py_iterable_comp {
             ) -> Box<dyn Iterator<Item = $cmp_item> + 'py> {
                 match self {
                     Self::Vec(v) => Box::new(v.iter().cloned()),
-                    Self::This(t) => Box::new(t.borrow(py).iter().map_into()),
+                    Self::This(t) => Box::new(t.borrow(py).iter().map(|v| v.into())),
                 }
             }
         }
@@ -262,7 +262,7 @@ macro_rules! py_iterable_comp {
 
         impl<I: Iterator<Item = J>, J: Into<$cmp_item>> From<I> for $cmp_internal {
             fn from(value: I) -> Self {
-                Self::Vec(value.map_into().collect())
+                Self::Vec(value.map(|v| v.into()).collect())
             }
         }
 

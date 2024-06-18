@@ -11,7 +11,7 @@ use crate::{
     db::api::view::*,
     python::graph::node::PyNode,
 };
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 use pyo3::{exceptions::PyTypeError, prelude::*, types::PyDateTime};
 use std::{future::Future, thread};
 
@@ -29,14 +29,14 @@ pub(crate) mod export;
 ///
 /// Returns
 ///    A `NodeRef` extracted from the Python object.
-impl<'source> FromPyObject<'source> for NodeRef {
+impl<'source> FromPyObject<'source> for NodeRef<'source> {
     fn extract(vref: &'source PyAny) -> PyResult<Self> {
-        if let Ok(s) = vref.extract::<String>() {
-            Ok(s.into())
+        if let Ok(s) = vref.extract::<&'source str>() {
+            Ok(NodeRef::ExternalStr(s))
         } else if let Ok(gid) = vref.extract::<u64>() {
-            Ok(gid.into())
+            Ok(NodeRef::External(gid))
         } else if let Ok(v) = vref.extract::<PyNode>() {
-            Ok(v.into())
+            Ok(NodeRef::Internal(v.node.node))
         } else {
             Err(PyTypeError::new_err("Not a valid node"))
         }
@@ -70,7 +70,7 @@ impl<'source> FromPyObject<'source> for PyTime {
         if let Ok(number) = time.extract::<i64>() {
             return Ok(PyTime::new(number.try_into_time()?));
         }
-        if let Ok(parsed_datetime) = time.extract::<NaiveDateTime>() {
+        if let Ok(parsed_datetime) = time.extract::<DateTime<Utc>>() {
             return Ok(PyTime::new(parsed_datetime.try_into_time()?));
         }
         if let Ok(py_datetime) = time.extract::<&PyDateTime>() {

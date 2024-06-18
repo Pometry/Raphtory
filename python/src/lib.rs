@@ -1,8 +1,12 @@
+#![allow(non_local_definitions)]
 mod graphql;
 
 extern crate core;
+
 use graphql::*;
 use pyo3::prelude::*;
+#[cfg(feature = "storage")]
+use raphtory_core::python::graph::disk_graph::{PyDiskGraph, PyGraphQuery, PyState};
 use raphtory_core::python::{
     graph::{
         algorithm_result::AlgorithmResult,
@@ -62,6 +66,9 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         GraphIndex
     );
 
+    #[cfg(feature = "storage")]
+    add_classes!(m, PyDiskGraph, PyGraphQuery, PyState);
+
     //GRAPHQL
     let graphql_module = PyModule::new(py, "graphql")?;
     graphql_module.add_class::<PyGlobalPlugins>()?;
@@ -93,6 +100,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         single_source_shortest_path,
         global_clustering_coefficient,
         temporally_reachable_nodes,
+        temporal_bipartite_graph_projection,
         local_clustering_coefficient,
         weakly_connected_components,
         strongly_connected_components,
@@ -109,6 +117,10 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         fruchterman_reingold,
         cohesive_fruchterman_reingold,
     );
+
+    #[cfg(feature = "storage")]
+    add_functions!(algorithm_module, connected_components,);
+
     m.add_submodule(algorithm_module)?;
 
     // let usecase_algorithm_module = PyModule::new(py, "usecase_algorithms")?;

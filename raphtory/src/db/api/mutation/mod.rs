@@ -19,11 +19,25 @@ pub use addition_ops::AdditionOps;
 pub use deletion_ops::DeletionOps;
 pub use import_ops::ImportOps;
 pub use property_addition_ops::PropertyAdditionOps;
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+
+use self::internal::InternalAdditionOps;
 
 /// Used to handle automatic injection of secondary index if not explicitly provided
 pub enum InputTime {
     Simple(i64),
     Indexed(i64, usize),
+}
+
+pub fn time_from_input<G: InternalAdditionOps, T: TryIntoInputTime>(
+    g: &G,
+    t: T,
+) -> Result<TimeIndexEntry, ParseTimeError> {
+    let t = t.try_into_input_time()?;
+    Ok(match t {
+        InputTime::Simple(t) => TimeIndexEntry::new(t, g.next_event_id()),
+        InputTime::Indexed(t, s) => TimeIndexEntry::new(t, s),
+    })
 }
 
 pub trait TryIntoInputTime {

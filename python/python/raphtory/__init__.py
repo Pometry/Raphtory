@@ -7,6 +7,11 @@ sys.modules["raphtory.graph_loader"] = graph_loader
 sys.modules["raphtory.vectors"] = vectors
 sys.modules["raphtory.graphql"] = graphql
 
+try:
+    sys.modules["raphtory.disk_graph"] = disk_graph
+except Exception as e:
+    pass
+
 from .nullmodels import *
 from .plottingutils import *
 from .ml.pyg import *

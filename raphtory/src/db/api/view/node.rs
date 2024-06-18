@@ -1,5 +1,3 @@
-use chrono::{DateTime, Utc};
-
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
@@ -8,14 +6,16 @@ use crate::{
     },
     db::api::{
         properties::{internal::PropertiesOps, Properties},
-        storage::locked::LockedGraph,
+        storage::{nodes::node_storage_ops::NodeStorageOps, storage_ops::GraphStorage},
         view::{
-            internal::{CoreGraphOps, TimeSemantics},
+            internal::{CoreGraphOps, OneHopFilter, TimeSemantics},
+            reset_filter::ResetFilter,
             TimeOps,
         },
     },
     prelude::{EdgeViewOps, GraphViewOps, LayerOps},
 };
+use chrono::{DateTime, Utc};
 
 pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     type BaseGraph: GraphViewOps<'graph>;
@@ -29,7 +29,10 @@ pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
         + 'graph;
     type Edges: EdgeViewOps<'graph, Graph = Self::Graph, BaseGraph = Self::BaseGraph> + 'graph;
 
-    fn map<O: 'graph, F: Fn(&LockedGraph, &Self::Graph, VID) -> O + Send + Sync + Clone + 'graph>(
+    fn map<
+        O: Clone + Send + Sync + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> O + Send + Sync + Clone + 'graph,
+    >(
         &self,
         op: F,
     ) -> Self::ValueType<O>;
@@ -38,7 +41,7 @@ pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
 
     fn map_edges<
         I: Iterator<Item = EdgeRef> + Send + 'graph,
-        F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
@@ -46,7 +49,7 @@ pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
 
     fn hop<
         I: Iterator<Item = VID> + Send + 'graph,
-        F: for<'a> Fn(&LockedGraph, &'a Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+        F: for<'a> Fn(&GraphStorage, &'a Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
@@ -77,7 +80,7 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
 
     /// Returns the type of node
     fn node_type(&self) -> Self::ValueType<Option<ArcStr>>;
-
+    fn node_type_id(&self) -> Self::ValueType<usize>;
     /// Get the timestamp for the earliest activity of the node
     fn earliest_time(&self) -> Self::ValueType<Option<i64>>;
 
@@ -175,7 +178,7 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
 
     #[inline]
     fn id(&self) -> Self::ValueType<u64> {
-        self.map(|_cg, g, v| g.node_id(v))
+        self.map(|cg, _g, v| cg.node(v).id())
     }
     #[inline]
     fn name(&self) -> Self::ValueType<String> {
@@ -184,6 +187,10 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     #[inline]
     fn node_type(&self) -> Self::ValueType<Option<ArcStr>> {
         self.map(|_cg, g, v| g.node_type(v))
+    }
+    #[inline]
+    fn node_type_id(&self) -> Self::ValueType<usize> {
+        self.map(|_cg, g, v| g.node_type_id(v))
     }
     #[inline]
     fn earliest_time(&self) -> Self::ValueType<Option<i64>> {
@@ -274,3 +281,5 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
         })
     }
 }
+
+impl<'graph, V: BaseNodeViewOps<'graph> + OneHopFilter<'graph>> ResetFilter<'graph> for V {}
