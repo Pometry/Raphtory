@@ -6,11 +6,9 @@ use crate::disk_graph::storage_interface::nodes_ref::DiskNodesRef;
 #[cfg(not(feature = "storage"))]
 use either::Either;
 
-use crate::{
-    core::{
-        entities::{nodes::node_store::NodeStore, VID},
-        storage::ReadLockedStorage,
-    },
+use crate::core::{
+    entities::{nodes::node_store::NodeStore, VID},
+    storage::ReadLockedStorage,
 };
 use rayon::iter::ParallelIterator;
 

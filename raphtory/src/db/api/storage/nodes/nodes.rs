@@ -5,7 +5,7 @@ use crate::{
         entities::{graph::tgraph::InternalGraph, nodes::node_store::NodeStore, VID},
         storage::ReadLockedStorage,
     },
-    db::api::storage::nodes::{nodes_ref::NodesStorageRef},
+    db::api::storage::nodes::nodes_ref::NodesStorageRef,
 };
 use std::sync::Arc;
 

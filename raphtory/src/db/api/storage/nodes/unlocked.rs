@@ -1,5 +1,3 @@
-
-
 use ouroboros::self_referencing;
 use raphtory_api::core::{
     entities::{edges::edge_ref::EdgeRef, VID},
@@ -9,13 +7,10 @@ use rayon::prelude::*;
 
 use crate::{
     core::{
-        entities::{
-            graph::tgraph::InternalGraph, nodes::node_store::NodeStore,
-            LayerIds,
-        },
+        entities::{graph::tgraph::InternalGraph, nodes::node_store::NodeStore, LayerIds},
         storage::{ArcEntry, Entry},
     },
-    db::api::{storage::tprop_storage_ops::TPropOps},
+    db::api::storage::tprop_storage_ops::TPropOps,
 };
 
 impl<'a> Entry<'a, NodeStore> {

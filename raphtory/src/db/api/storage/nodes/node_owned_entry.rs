@@ -1,5 +1,3 @@
-
-
 #[cfg(not(feature = "storage"))]
 use either::Either;
 
@@ -13,13 +11,7 @@ use crate::{
         storage::ArcEntry,
         Direction,
     },
-    db::api::{
-        storage::{
-            nodes::{
-                node_storage_ops::{NodeStorageIntoOps},
-            },
-        },
-    },
+    db::api::storage::nodes::node_storage_ops::NodeStorageIntoOps,
 };
 
 use super::unlocked::UnlockedOwnedNode;

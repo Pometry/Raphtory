@@ -8,9 +8,7 @@ use crate::{
         Direction,
     },
     db::api::{
-        storage::{
-            nodes::node_storage_ops::NodeStorageOps, tprop_storage_ops::TPropOps,
-        },
+        storage::{nodes::node_storage_ops::NodeStorageOps, tprop_storage_ops::TPropOps},
         view::internal::NodeAdditions,
     },
 };
