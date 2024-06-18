@@ -1,6 +1,7 @@
 pub mod dataframe;
-pub mod loaders;
+pub mod df_loaders;
 mod prop_handler;
+pub mod panda_loaders;
 
 #[cfg(test)]
 mod test {
@@ -9,7 +10,7 @@ mod test {
         prelude::*,
         python::graph::io::{
             dataframe::PretendDF,
-            loaders::{load_edges_from_df, load_nodes_from_df},
+            df_loaders::{load_edges_from_df, load_nodes_from_df},
         },
     };
     use polars_arrow::array::{PrimitiveArray, Utf8Array};

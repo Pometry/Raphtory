@@ -2,9 +2,9 @@ use crate::core::{entities::graph::tgraph::InternalGraph, utils::errors::GraphEr
 use pyo3::{prelude::*, types::IntoPyDict};
 use std::collections::HashMap;
 
-use super::io::{
+use crate::python::graph::io::{
     dataframe::{process_pandas_py_df, GraphLoadException},
-    loaders::{
+    df_loaders::{
         load_edges_from_df, load_edges_props_from_df, load_node_props_from_df, load_nodes_from_df,
     },
 };

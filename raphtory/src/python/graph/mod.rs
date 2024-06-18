@@ -13,5 +13,4 @@ pub mod index;
 pub mod node;
 pub mod io;
 pub mod properties;
-pub mod utils;
 pub mod views;

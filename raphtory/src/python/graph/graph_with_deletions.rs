@@ -34,9 +34,9 @@ use super::{
     graph::PyGraph,
     io::{
         dataframe::{process_pandas_py_df, GraphLoadException},
-        loaders::load_edges_deletions_from_df,
+        panda_loaders::*,
+        df_loaders::load_edges_deletions_from_df
     },
-    utils,
 };
 
 /// A temporal graph that allows edges and nodes to be deleted.
@@ -480,7 +480,7 @@ impl PyPersistentGraph {
         const_properties: Option<Vec<&str>>,
         shared_const_properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
-        utils::load_nodes_from_pandas(
+        load_nodes_from_pandas(
             &self.graph.0,
             df,
             id,
@@ -521,7 +521,7 @@ impl PyPersistentGraph {
         layer: Option<&str>,
         layer_in_df: Option<bool>,
     ) -> Result<(), GraphError> {
-        utils::load_edges_from_pandas(
+        load_edges_from_pandas(
             &self.graph.0,
             df,
             src,
@@ -556,7 +556,7 @@ impl PyPersistentGraph {
         time: &str,
         layer: Option<&str>,
         layer_in_df: Option<bool>,
-    ) -> Result<(), GraphError> {
+    ) -> Result<(), GraphError> { // TODO: move this to panda_loaders
         let graph = &self.graph.0;
         Python::with_gil(|py| {
             let size: usize = py
@@ -613,7 +613,7 @@ impl PyPersistentGraph {
         const_properties: Option<Vec<&str>>,
         shared_const_properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
-        utils::load_node_props_from_pandas(
+        load_node_props_from_pandas(
             &self.graph.0,
             df,
             id,
@@ -646,7 +646,7 @@ impl PyPersistentGraph {
         layer: Option<&str>,
         layer_in_df: Option<bool>,
     ) -> Result<(), GraphError> {
-        utils::load_edge_props_from_pandas(
+        load_edge_props_from_pandas(
             &self.graph.0,
             df,
             src,

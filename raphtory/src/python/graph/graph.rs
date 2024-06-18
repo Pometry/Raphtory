@@ -3,7 +3,6 @@
 //! This is the base class used to create a temporal graph, add nodes and edges,
 //! create windows, and query the graph with a variety of algorithms.
 //! In Python, this class wraps around the rust graph.
-use super::utils;
 use crate::{
     algorithms::components::LargestConnectedComponent,
     core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError, ArcStr},
@@ -26,6 +25,7 @@ use std::{
     fmt::{Debug, Formatter},
     path::Path,
 };
+use crate::python::graph::io::panda_loaders::*;
 
 /// A temporal graph.
 #[derive(Clone)]
@@ -483,7 +483,7 @@ impl PyGraph {
         const_properties: Option<Vec<&str>>,
         shared_const_properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
-        utils::load_nodes_from_pandas(
+        load_nodes_from_pandas(
             &self.graph.0,
             df,
             id,
@@ -524,7 +524,7 @@ impl PyGraph {
         layer: Option<&str>,
         layer_in_df: Option<bool>,
     ) -> Result<(), GraphError> {
-        utils::load_edges_from_pandas(
+        load_edges_from_pandas(
             &self.graph.0,
             df,
             src,
@@ -556,7 +556,7 @@ impl PyGraph {
         const_properties: Option<Vec<&str>>,
         shared_const_properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
-        utils::load_node_props_from_pandas(
+        load_node_props_from_pandas(
             &self.graph.0,
             df,
             id,
@@ -589,7 +589,7 @@ impl PyGraph {
         layer: Option<&str>,
         layer_in_df: Option<bool>,
     ) -> Result<(), GraphError> {
-        utils::load_edge_props_from_pandas(
+        load_edge_props_from_pandas(
             &self.graph.0,
             df,
             src,
