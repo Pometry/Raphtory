@@ -28,6 +28,7 @@ pub enum EdgeStorageEntry<'a> {
 }
 
 impl<'a> EdgeStorageEntry<'a> {
+    #[inline]
     pub fn as_ref(&self) -> EdgeStorageRef {
         match self {
             EdgeStorageEntry::Mem(edge) => EdgeStorageRef::Mem(edge),

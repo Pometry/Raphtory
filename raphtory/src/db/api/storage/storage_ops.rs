@@ -48,7 +48,7 @@ use super::{
     edges::edge_entry::EdgeStorageEntry,
     nodes::{
         node_entry::NodeStorageEntry,
-        unlocked::{UnlockedNodes, UnlockedOwnedNode},
+        unlocked::{UnlockedEdges, UnlockedNodes, UnlockedOwnedNode},
     },
 };
 
@@ -114,9 +114,9 @@ impl GraphStorage {
     pub fn edges(&self) -> EdgesStorageRef {
         match self {
             GraphStorage::Mem(storage) => EdgesStorageRef::Mem(&storage.edges),
+            GraphStorage::Unlocked(storage) => EdgesStorageRef::Unlocked(UnlockedEdges(storage)),
             #[cfg(feature = "storage")]
             GraphStorage::Disk(storage) => EdgesStorageRef::Disk(DiskEdgesRef::new(storage)),
-            _ => todo!(),
         }
     }
 
@@ -291,22 +291,22 @@ impl GraphStorage {
             FilterState::Neither => FilterVariants::Neither(iter),
             FilterState::Both => {
                 let nodes = self.nodes();
-                FilterVariants::Both(iter.filter(move |&e| {
-                    view.filter_edge(e, view.layer_ids())
+                FilterVariants::Both(iter.filter(move |e| {
+                    view.filter_edge(e.as_ref(), view.layer_ids())
                         && view.filter_node(nodes.node(e.src()).as_ref(), view.layer_ids())
                         && view.filter_node(nodes.node(e.dst()).as_ref(), view.layer_ids())
                 }))
             }
             FilterState::Nodes => {
                 let nodes = self.nodes();
-                FilterVariants::Nodes(iter.filter(move |&e| {
+                FilterVariants::Nodes(iter.filter(move |e| {
                     view.filter_node(nodes.node(e.src()).as_ref(), view.layer_ids())
                         && view.filter_node(nodes.node(e.dst()).as_ref(), view.layer_ids())
                 }))
             }
-            FilterState::Edges | FilterState::BothIndependent => {
-                FilterVariants::Edges(iter.filter(|&e| view.filter_edge(e, view.layer_ids())))
-            }
+            FilterState::Edges | FilterState::BothIndependent => FilterVariants::Edges(
+                iter.filter(|e| view.filter_edge(e.as_ref(), view.layer_ids())),
+            ),
         };
         filtered.map(|e| e.out_ref())
     }
@@ -417,13 +417,13 @@ impl GraphStorage {
     ) -> impl ParallelIterator<Item = EdgeRef> + 'graph {
         self.edges()
             .par_iter(view.layer_ids().clone())
-            .filter(|&edge| match view.filter_state() {
+            .filter(|edge| match view.filter_state() {
                 FilterState::Neither => true,
                 FilterState::Both => {
                     let layer_ids = view.layer_ids();
                     let src = self.node(edge.src());
                     let dst = self.node(edge.dst());
-                    view.filter_edge(edge, view.layer_ids())
+                    view.filter_edge(edge.as_ref(), view.layer_ids())
                         && view.filter_node(src.as_ref(), layer_ids)
                         && view.filter_node(dst.as_ref(), layer_ids)
                 }
@@ -435,7 +435,7 @@ impl GraphStorage {
                         && view.filter_node(dst.as_ref(), layer_ids)
                 }
                 FilterState::Edges | FilterState::BothIndependent => {
-                    view.filter_edge(edge, view.layer_ids())
+                    view.filter_edge(edge.as_ref(), view.layer_ids())
                 }
             })
             .map(|e| e.out_ref())

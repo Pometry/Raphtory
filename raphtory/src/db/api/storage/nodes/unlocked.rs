@@ -1,13 +1,16 @@
 use ouroboros::self_referencing;
 use raphtory_api::core::{
-    entities::{edges::edge_ref::EdgeRef, VID},
+    entities::{edges::edge_ref::EdgeRef, EID, VID},
     Direction,
 };
 use rayon::prelude::*;
 
 use crate::{
     core::{
-        entities::{graph::tgraph::InternalGraph, nodes::node_store::NodeStore, LayerIds},
+        entities::{
+            edges::edge_store::EdgeStore, graph::tgraph::InternalGraph,
+            nodes::node_store::NodeStore, LayerIds,
+        },
         storage::{ArcEntry, Entry},
     },
     db::api::storage::tprop_storage_ops::TPropOps,
@@ -90,5 +93,27 @@ impl UnlockedOwnedNode {
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> {
         self.arc_node().into_edges(&layers, dir)
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct UnlockedEdges<'a>(pub &'a InternalGraph);
+
+impl<'a> UnlockedEdges<'a> {
+    pub fn iter(self) -> impl Iterator<Item = Entry<'a, EdgeStore>> + 'a {
+        let storage = &self.0.inner().storage.edges;
+        (0..storage.len()).map(EID).map(|eid| storage.entry(eid))
+    }
+
+    pub fn par_iter(self) -> impl ParallelIterator<Item = Entry<'a, EdgeStore>> + 'a {
+        let storage = &self.0.inner().storage.edges;
+        (0..storage.len())
+            .into_par_iter()
+            .map(EID)
+            .map(|eid| storage.entry(eid))
+    }
+
+    pub fn len(self) -> usize {
+        self.0.inner().storage.edges.len()
     }
 }
