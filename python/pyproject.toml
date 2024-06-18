@@ -14,7 +14,7 @@ dependencies = [
     "pyvis >= 0.3.2",
     "networkx >= 2.6.3",
     "pandas >= 2.0.3",
-    "pyarrow >= 16.1.0",
+    "pyarrow >=14.0.1, <16",
     "requests >= 2.31.0",
     "gql[all] == 3.5.0",
     "matplotlib >= 3.4.3",
