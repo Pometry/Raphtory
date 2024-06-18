@@ -140,7 +140,7 @@ impl InheritMutationOps for Graph {}
 impl InheritViewOps for Graph {}
 
 impl Graph {
-    /// Create a new graph with the specified number of shards
+    /// Create a new graph
     ///
     /// Returns:
     ///
@@ -156,6 +156,14 @@ impl Graph {
         Self(Arc::new(InternalGraph::default()))
     }
 
+    /// Create a new graph with specified number of shards
+    ///
+    /// Returns:
+    ///
+    /// A raphtory graph
+    pub fn new_with_shards(num_shards: usize) -> Self {
+        Self(Arc::new(InternalGraph::new(num_shards)))
+    }
     pub(crate) fn from_internal_graph(internal_graph: Arc<InternalGraph>) -> Self {
         Self(internal_graph)
     }
@@ -2902,5 +2910,15 @@ mod db_tests {
                 (5, "in-progress".to_string()),
             ]
         );
+    }
+
+    #[test]
+    fn num_locks_same_as_threads() {
+        let pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(5)
+            .build()
+            .unwrap();
+        let graph = pool.install(|| Graph::new());
+        assert_eq!(graph.0.inner().storage.nodes.data.len(), 5);
     }
 }
