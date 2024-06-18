@@ -26,7 +26,7 @@ pub fn graph(c: &mut Criterion) {
     let group_name = "analysis_graph_window_100";
     let make_graph = || graph.window(i64::MIN, i64::MAX);
     let mut graph_window_group_100 = c.benchmark_group(group_name);
-    graph_window_group_100.sample_size(10);
+    // graph_window_group_100.sample_size(10);
     run_analysis_benchmarks(&mut graph_window_group_100, make_graph, None);
     graph_window_group_100.finish();
 
@@ -38,7 +38,7 @@ pub fn graph(c: &mut Criterion) {
     let latest = graph.latest_time().expect("non-empty graph");
     let earliest = graph.earliest_time().expect("non-empty graph");
     let start = latest - (latest - earliest) / 10;
-    graph_window_group_10.sample_size(10);
+    // graph_window_group_10.sample_size(10);
     let make_graph = || graph.window(start, latest + 1);
     run_analysis_benchmarks(&mut graph_window_group_10, make_graph, None);
     graph_window_group_10.finish();
@@ -56,7 +56,7 @@ pub fn graph(c: &mut Criterion) {
     let subgraph = graph.subgraph(nodes);
     let group_name = "analysis_subgraph_10pc";
     let mut subgraph_10 = c.benchmark_group(group_name);
-    subgraph_10.sample_size(10);
+    // subgraph_10.sample_size(10);
 
     let make_graph = || subgraph.clone();
     run_analysis_benchmarks(&mut subgraph_10, make_graph, None);
@@ -66,7 +66,7 @@ pub fn graph(c: &mut Criterion) {
     // subgraph windowed
     let group_name = "analysis_subgraph_10pc_windowed";
     let mut subgraph_10_windowed = c.benchmark_group(group_name);
-    subgraph_10_windowed.sample_size(10);
+    // subgraph_10_windowed.sample_size(10);
 
     let make_graph = || subgraph.window(start, latest + 1);
     run_analysis_benchmarks(&mut subgraph_10_windowed, make_graph, None);

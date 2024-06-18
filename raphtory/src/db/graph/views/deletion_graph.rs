@@ -240,11 +240,15 @@ impl TimeSemantics for PersistentGraph {
     }
 
     fn earliest_time_window(&self, start: i64, end: i64) -> Option<i64> {
-        self.0.earliest_time_window(start, end)
+        self.earliest_time_global()
+            .map(|t| t.max(start))
+            .filter(|&t| t < end)
     }
 
     fn latest_time_window(&self, start: i64, end: i64) -> Option<i64> {
-        self.0.latest_time_window(start, end)
+        self.latest_time_global()
+            .map(|t| t.min(end.saturating_sub(1)))
+            .filter(|&t| t > start)
     }
 
     fn node_earliest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
@@ -685,7 +689,9 @@ mod test_deletions {
         db::{
             api::view::time::internal::InternalTimeOps,
             graph::{
-                edge::EdgeView, graph::assert_graph_equal, views::deletion_graph::PersistentGraph,
+                edge::EdgeView,
+                graph::assert_graph_equal,
+                views::deletion_graph::{PersistentGraph, TimeSemantics},
             },
         },
         prelude::*,
@@ -846,6 +852,44 @@ mod test_deletions {
             .into_persistent()
             .unwrap();
         assert_graph_equal(&gm, &g.window(3, 5))
+    }
+
+    #[test]
+    fn test_materialize_window_earliest_time() {
+        let g = PersistentGraph::new();
+        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        g.delete_edge(10, 1, 2, None).unwrap();
+
+        let ltg = g.latest_time_global();
+        assert_eq!(ltg, Some(10));
+
+        let wg = g.window(3, 5);
+
+        let e = wg.edge(1, 2).unwrap();
+        assert_eq!(e.earliest_time(), Some(3));
+        assert_eq!(e.latest_time(), Some(4));
+        let n1 = wg.node(1).unwrap();
+        assert_eq!(n1.earliest_time(), Some(3));
+        assert_eq!(n1.latest_time(), Some(4));
+        let n2 = wg.node(2).unwrap();
+        assert_eq!(n2.earliest_time(), Some(3));
+        assert_eq!(n2.latest_time(), Some(4));
+
+        let actual_lt = wg.latest_time();
+        assert_eq!(actual_lt, Some(4));
+
+        let actual_et = wg.earliest_time();
+        assert_eq!(actual_et, Some(3));
+
+        let gm = g
+            .window(3, 5)
+            .materialize()
+            .unwrap()
+            .into_persistent()
+            .unwrap();
+
+        let expected_et = gm.earliest_time();
+        assert_eq!(actual_et, expected_et);
     }
 
     #[test]
