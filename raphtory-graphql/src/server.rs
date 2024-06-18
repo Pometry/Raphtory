@@ -247,7 +247,7 @@ impl RaphtoryServer {
         let (signal_sender, signal_receiver) = mpsc::channel(1);
 
         println!("Playground: http://localhost:{port}");
-        let server_task = Server::new(TcpListener::bind(format!("127.0.0.1:{port}")))
+        let server_task = Server::new(TcpListener::bind(format!("0.0.0.0:{port}")))
             .run_with_graceful_shutdown(app, server_termination(signal_receiver), None);
         let server_result = tokio::spawn(server_task);
 
@@ -480,7 +480,7 @@ mod server_tests {
         let graphs = HashMap::from([("test".to_owned(), g)]);
         let server = RaphtoryServer::from_map(graphs);
         println!("calling start at time {}", Local::now());
-        let handler = server.start_with_port(0, "info", false, false);
+        let handler = server.start_with_port(0, "trace", false, false);
         sleep(Duration::from_secs(1)).await;
         println!("Calling stop at time {}", Local::now());
         handler.await.stop().await
