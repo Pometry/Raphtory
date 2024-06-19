@@ -1,6 +1,9 @@
 #[cfg(feature = "storage")]
 use crate::disk_graph::storage_interface::node::DiskOwnedNode;
 
+#[cfg(feature = "storage")]
+use either::Either;
+
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, nodes::node_store::NodeStore, LayerIds},
