@@ -25,7 +25,9 @@ use std::{
     fmt::{Debug, Formatter},
     path::Path,
 };
+use std::path::PathBuf;
 use crate::python::graph::io::panda_loaders::*;
+use crate::python::graph::io::parquet_loaders::load_edges_from_parquet;
 
 /// A temporal graph.
 #[derive(Clone)]
@@ -527,6 +529,48 @@ impl PyGraph {
         load_edges_from_pandas(
             &self.graph.0,
             df,
+            src,
+            dst,
+            time,
+            properties,
+            const_properties,
+            shared_const_properties,
+            layer,
+            layer_in_df,
+        )
+    }
+
+    /// Load edges from a Parquet file into the graph.
+    ///
+    /// Arguments:
+    ///     parquet_file_path: Parquet file path
+    ///     src (str): The column name for the source node ids.
+    ///     dst (str): The column name for the destination node ids.
+    ///     time (str): The column name for the update timestamps.
+    ///     properties (List<str>): List of edge property column names. Defaults to None. (optional)
+    ///     const_properties (List<str>): List of constant edge property column names. Defaults to None. (optional)
+    ///     shared_const_properties (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
+    ///     layer (str): The edge layer name (optional) Defaults to None.
+    ///     layer_in_df (bool): Whether the layer name should be used to look up the values in a column of the dataframe or if it should be used directly as the layer for all edges (optional) defaults to True.
+    ///
+    /// Returns:
+    ///     Result<(), GraphError>: Result of the operation.
+    #[pyo3(signature = (parquet_file_path, src, dst, time, properties = None, const_properties = None, shared_const_properties = None, layer = None, layer_in_df = true))]
+    fn load_edges_from_parquet(
+        &self,
+        parquet_file_path: PathBuf,
+        src: &str,
+        dst: &str,
+        time: &str,
+        properties: Option<Vec<&str>>,
+        const_properties: Option<Vec<&str>>,
+        shared_const_properties: Option<HashMap<String, Prop>>,
+        layer: Option<&str>,
+        layer_in_df: Option<bool>,
+    ) -> Result<(), GraphError> {
+        load_edges_from_parquet(
+            &self.graph.0,
+            parquet_file_path.as_path(),
             src,
             dst,
             time,

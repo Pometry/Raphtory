@@ -50,22 +50,23 @@ pub fn load_edges_from_parquet(
     }
 
     let df = process_parquet_file_to_df(parquet_file_path, cols_to_check.clone())?;
-
-    // df.check_cols_exist(&cols_to_check)?;
-    // load_edges_from_df(
-    //     &df,
-    //     size,
-    //     src,
-    //     dst,
-    //     time,
-    //     properties,
-    //     const_properties,
-    //     shared_const_properties,
-    //     layer,
-    //     layer_in_df.unwrap_or(true),
-    //     graph,
-    // )
-    //     .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+    df.check_cols_exist(&cols_to_check)?;
+    let size = cols_to_check.len();
+    
+    load_edges_from_df(
+        &df,
+        size,
+        src,
+        dst,
+        time,
+        properties,
+        const_properties,
+        shared_const_properties,
+        layer,
+        layer_in_df.unwrap_or(true),
+        graph,
+    )
+        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
 
     Ok(())
 }
@@ -150,7 +151,7 @@ mod test {
             .parent()
             .map(|p| p.join("raphtory/resources/test/test_data.parquet"))
             .unwrap();
-        
+
         let col_names = vec!["src", "dst", "time", "weight", "marbles"];
         let df = process_parquet_file_to_df(
             parquet_file_path.as_path(),
