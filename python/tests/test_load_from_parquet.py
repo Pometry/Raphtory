@@ -6,16 +6,26 @@ from raphtory import Graph, PersistentGraph
 
 
 def test_load_from_parquet():
+    # data = {
+    #     "src": [1, 2, 3, 4, 5],
+    #     "dst": [2, 3, 4, 5, 6],
+    #     "time": [1, 2, 3, 4, 5],
+    #     "weight": [1.0, 2.0, 3.0, 4.0, 5.0],
+    #     "marbles": ["red", "blue", "green", "yellow", "purple"],
+    # }
+    #
+    # table = pa.table(data)
+    # pq.write_table(table, '/tmp/parquet/test_data.parquet')
+
     data = {
-        "src": [1, 2, 3, 4, 5],
-        "dst": [2, 3, 4, 5, 6],
-        "time": [1, 2, 3, 4, 5],
-        "weight": [1.0, 2.0, 3.0, 4.0, 5.0],
-        "marbles": ["red", "blue", "green", "yellow", "purple"],
+        "id": [1, 2, 3, 4, 5, 6],
+        "name": ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank"],
+        "time": [1, 2, 3, 4, 5, 6],
+        "node_type": ["p", "p", "p", "p", "p", "p"],
     }
 
     table = pa.table(data)
-    pq.write_table(table, '/tmp/parquet/test_data.parquet')
+    pq.write_table(table, '/tmp/parquet/nodes.parquet')
 
 
 #
@@ -66,3 +76,27 @@ def test_load_edges_from_parquet():
         edges.append((e.src.id, e.dst.id, weight, marbles))
 
     assert edges == expected_edges
+
+
+def test_load_nodes_from_parquet():
+    file_path = os.path.join(os.path.dirname(__file__), 'data', 'parquet', 'nodes.parquet')
+    expected_node_ids = [1, 2, 3, 4, 5, 6]
+    expected_nodes = [
+        (1, "Alice"),
+        (2, "Bob"),
+        (3, "Carol"),
+        (4, "Dave"),
+        (5, "Eve"),
+        (6, "Frank"),
+    ]
+
+    g = Graph()
+    g.load_nodes_from_parquet(file_path, "id", "time", "node_type", properties=["name"])
+
+    nodes = []
+    for v in g.nodes:
+        name = v["name"]
+        nodes.append((v.id, name))
+
+    assert g.nodes.id.collect() == expected_node_ids
+    assert nodes == expected_nodes

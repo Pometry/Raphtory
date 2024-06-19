@@ -27,7 +27,7 @@ use std::{
 };
 use std::path::PathBuf;
 use crate::python::graph::io::panda_loaders::*;
-use crate::python::graph::io::parquet_loaders::load_edges_from_parquet;
+use crate::python::graph::io::parquet_loaders::*;
 
 /// A temporal graph.
 #[derive(Clone)]
@@ -488,6 +488,44 @@ impl PyGraph {
         load_nodes_from_pandas(
             &self.graph.0,
             df,
+            id,
+            time,
+            node_type,
+            node_type_in_df,
+            properties,
+            const_properties,
+            shared_const_properties,
+        )
+    }
+
+    /// Load nodes from a Parquet file into the graph.
+    ///
+    /// Arguments:
+    ///     parquet_file_path: Parquet file path
+    ///     id (str): The column name for the node IDs.
+    ///     time (str): The column name for the timestamps.
+    ///     node_type (str): the column name for the node type
+    ///     node_type_in_df (bool): whether the node type should be used to look up the values in a column of the df or if it should be used directly as the node type
+    ///     properties (List<str>): List of node property column names. Defaults to None. (optional)
+    ///     const_properties (List<str>): List of constant node property column names. Defaults to None.  (optional)
+    ///     shared_const_properties (Dictionary/Hashmap of properties): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
+    /// Returns:
+    ///     Result<(), GraphError>: Result of the operation.
+    #[pyo3(signature = (parquet_file_path, id, time, node_type = None, node_type_in_df = true, properties = None, const_properties = None, shared_const_properties = None))]
+    fn load_nodes_from_parquet(
+        &self,
+        parquet_file_path: PathBuf,
+        id: &str,
+        time: &str,
+        node_type: Option<&str>,
+        node_type_in_df: Option<bool>,
+        properties: Option<Vec<&str>>,
+        const_properties: Option<Vec<&str>>,
+        shared_const_properties: Option<HashMap<String, Prop>>,
+    ) -> Result<(), GraphError> {
+        load_nodes_from_parquet(
+            &self.graph.0,
+            parquet_file_path.as_path(),
             id,
             time,
             node_type,

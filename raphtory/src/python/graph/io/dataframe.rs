@@ -18,6 +18,13 @@ pub(crate) struct PretendDF {
 }
 
 impl PretendDF {
+    pub(crate) fn get_inner_size(&self) -> usize {
+        if self.arrays.is_empty() || self.arrays[0].is_empty() {
+            return 0;
+        }
+        self.arrays[0][0].len()
+    }
+    
     pub fn check_cols_exist(&self, cols: &[&str]) -> Result<(), GraphError> {
         let non_cols: Vec<&&str> = cols
             .iter()

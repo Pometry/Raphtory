@@ -39,7 +39,7 @@ pub(crate) fn load_nodes_from_df<'a>(
                     };
                 iter_res?
             } else {
-                Box::new(std::iter::repeat(Some(node_type)))
+                Box::new(iter::repeat(Some(node_type)))
             }
         }
         None => Box::new(iter::repeat(None)),

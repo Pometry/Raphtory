@@ -1,17 +1,14 @@
 use crate::core::{entities::graph::tgraph::InternalGraph, utils::errors::GraphError, Prop};
 use std::collections::HashMap;
-use std::num::TryFromIntError;
 use std::path::{Path, PathBuf};
 use itertools::Itertools;
 use polars_arrow::array::Array;
 use polars_arrow::datatypes::{ArrowSchema, Field};
 use polars_arrow::legacy::error;
-use polars_arrow::legacy::error::PolarsResult;
 use polars_parquet::read;
 use polars_parquet::read::{FileMetaData, FileReader, read_metadata};
 use crate::python::graph::io::{dataframe::*, df_loaders::*};
 use polars_arrow::datatypes::ArrowDataType as DataType;
-use polars_arrow::datatypes::ArrowSchema as Schema;
 use polars_arrow::record_batch::RecordBatch as Chunk;
 
 pub fn load_nodes_from_parquet(
@@ -25,7 +22,34 @@ pub fn load_nodes_from_parquet(
     const_properties: Option<Vec<&str>>,
     shared_const_properties: Option<HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
-    todo!()
+    let mut cols_to_check = vec![id, time];
+    cols_to_check.extend(properties.as_ref().unwrap_or(&Vec::new()));
+    cols_to_check.extend(const_properties.as_ref().unwrap_or(&Vec::new()));
+    if node_type_in_df.unwrap_or(true) {
+        if let Some(ref node_type) = node_type {
+            cols_to_check.push(node_type.as_ref());
+        }
+    }
+
+    let df = process_parquet_file_to_df(parquet_file_path, cols_to_check.clone())?;
+    df.check_cols_exist(&cols_to_check)?;
+    let size = df.get_inner_size();
+
+    load_nodes_from_df(
+        &df,
+        size,
+        id,
+        time,
+        properties,
+        const_properties,
+        shared_const_properties,
+        node_type,
+        node_type_in_df.unwrap_or(true),
+        graph,
+    )
+        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+
+    Ok(())
 }
 
 pub fn load_edges_from_parquet(
@@ -52,7 +76,7 @@ pub fn load_edges_from_parquet(
     let df = process_parquet_file_to_df(parquet_file_path, cols_to_check.clone())?;
     df.check_cols_exist(&cols_to_check)?;
     let size = cols_to_check.len();
-    
+
     load_edges_from_df(
         &df,
         size,
@@ -98,10 +122,12 @@ pub(crate) fn process_parquet_file_to_df(
     parquet_file_path: &Path,
     col_names: Vec<&str>,
 ) -> Result<PretendDF, GraphError> {
-    let iter = read_parquet_file(parquet_file_path)?;
+    let (names, arrays) = read_parquet_file(parquet_file_path, &col_names)?;
 
-    let names = col_names.iter().map(|s| s.to_string()).collect();
-    let arrays = iter.map_ok(|r| {
+    let names = names.into_iter()
+        .filter(|x| col_names.contains(&x.as_str()))
+        .collect();
+    let arrays = arrays.map_ok(|r| {
         r.into_iter().map(|boxed| boxed.clone()).collect_vec()
     }).collect::<Result<Vec<_>, _>>()?;
 
@@ -113,8 +139,9 @@ pub(crate) fn process_parquet_file_to_df(
 
 fn read_parquet_file(
     path: impl AsRef<Path>,
-) -> Result<impl Iterator<Item=Result<Chunk<Box<dyn Array>>, error::PolarsError>>, GraphError> {
-    fn read_schema(metadata: &FileMetaData) -> Result<ArrowSchema, GraphError> {
+    col_names: &Vec<&str>,
+) -> Result<(Vec<String>, impl Iterator<Item=Result<Chunk<Box<dyn Array>>, error::PolarsError>>), GraphError> {
+    let read_schema = |metadata: &FileMetaData| -> Result<ArrowSchema, GraphError> {
         let schema = read::infer_schema(metadata)?;
         let fields = schema
             .fields
@@ -126,17 +153,25 @@ fn read_parquet_file(
                     f.clone()
                 }
             })
+            .filter(|f| {  // Filtered fields to avoid loading data that is not needed
+                col_names.contains(&f.name.as_str())
+            })
             .collect::<Vec<_>>();
 
         Ok(ArrowSchema::from(fields).with_metadata(schema.metadata))
-    }
+    };
 
     let mut file = std::fs::File::open(&path)?;
     let metadata = read_metadata(&mut file)?;
     let row_groups = metadata.clone().row_groups;
     let schema = read_schema(&metadata)?;
+
+    // Although fields are already filtered by col_names, we need names in the order as it appears
+    // in the schema to create PretendDF
+    let names = schema.fields.iter().map(|f| f.name.clone()).collect_vec();
+
     let reader = FileReader::new(file, row_groups, schema, None, None, None);
-    Ok(reader)
+    Ok((names, reader))
 }
 
 #[cfg(test)]
@@ -146,7 +181,6 @@ mod test {
 
     #[test]
     fn test_process_parquet_file_to_df() {
-        // let parquet_file_path = Path::new("/tmp/parquet/test_data.parquet");
         let parquet_file_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .parent()
             .map(|p| p.join("raphtory/resources/test/test_data.parquet"))
