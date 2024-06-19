@@ -2,40 +2,35 @@
 use crate::disk_graph::storage_interface::nodes::DiskNodesOwned;
 use crate::{
     core::{
-        entities::{graph::tgraph::InternalGraph, nodes::node_store::NodeStore, VID},
+        entities::{nodes::node_store::NodeStore, VID},
         storage::ReadLockedStorage,
     },
-    db::api::storage::nodes::nodes_ref::NodesStorageRef,
+    db::api::storage::nodes::nodes_ref::NodesStorageEntry,
 };
 use std::sync::Arc;
 
-use super::{node_entry::NodeStorageEntry, unlocked::UnlockedNodes};
+use super::node_ref::NodeStorageRef;
 
 pub enum NodesStorage {
     Mem(Arc<ReadLockedStorage<NodeStore, VID>>),
-    Unlocked(InternalGraph),
     #[cfg(feature = "storage")]
     Disk(DiskNodesOwned),
 }
 
 impl NodesStorage {
-    pub fn as_ref(&self) -> NodesStorageRef {
+    pub fn as_ref(&self) -> NodesStorageEntry {
         match self {
-            NodesStorage::Mem(storage) => NodesStorageRef::Mem(storage),
-            NodesStorage::Unlocked(storage) => NodesStorageRef::Unlocked(UnlockedNodes(storage)),
+            NodesStorage::Mem(storage) => NodesStorageEntry::Mem(storage),
             #[cfg(feature = "storage")]
-            NodesStorage::Disk(storage) => NodesStorageRef::Disk(storage.as_ref()),
+            NodesStorage::Disk(storage) => NodesStorageEntry::Disk(storage.as_ref()),
         }
     }
 
-    pub fn node_entry(&self, vid: VID) -> NodeStorageEntry {
+    pub fn node_entry(&self, vid: VID) -> NodeStorageRef {
         match self {
-            NodesStorage::Mem(storage) => NodeStorageEntry::Mem(storage.get(vid)),
-            NodesStorage::Unlocked(storage) => {
-                NodeStorageEntry::Unlocked(UnlockedNodes(storage).node(vid))
-            }
+            NodesStorage::Mem(storage) => NodeStorageRef::Mem(storage.get(vid)),
             #[cfg(feature = "storage")]
-            NodesStorage::Disk(storage) => NodeStorageEntry::Disk(storage.node(vid)),
+            NodesStorage::Disk(storage) => NodeStorageRef::Disk(storage.node(vid)),
         }
     }
 }

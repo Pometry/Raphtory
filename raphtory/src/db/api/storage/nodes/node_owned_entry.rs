@@ -1,10 +1,8 @@
-#[cfg(not(feature = "storage"))]
 use either::Either;
 
 #[cfg(feature = "storage")]
-use crate::db::api::storage::variants::storage_variants3::StorageVariants;
-#[cfg(feature = "storage")]
 use crate::disk_graph::storage_interface::node::DiskOwnedNode;
+
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, nodes::node_store::NodeStore, LayerIds},
@@ -14,11 +12,8 @@ use crate::{
     db::api::storage::nodes::node_storage_ops::NodeStorageIntoOps,
 };
 
-use super::unlocked::UnlockedOwnedNode;
-
 pub enum NodeOwnedEntry {
     Mem(ArcEntry<NodeStore>),
-    Unlocked(UnlockedOwnedNode),
     #[cfg(feature = "storage")]
     Disk(DiskOwnedNode),
 }
@@ -27,9 +22,8 @@ pub enum NodeOwnedEntry {
 macro_rules! for_all_iter {
     ($value:expr, $pattern:pat => $result:expr) => {{
         match $value {
-            NodeOwnedEntry::Mem($pattern) => StorageVariants::Mem($result),
-            NodeOwnedEntry::Unlocked($pattern) => StorageVariants::Unlocked($result),
-            NodeOwnedEntry::Disk($pattern) => StorageVariants::Disk($result),
+            NodeOwnedEntry::Mem($pattern) => Either::Left($result),
+            NodeOwnedEntry::Disk($pattern) => Either::Right($result),
         }
     }};
 }
@@ -38,8 +32,7 @@ macro_rules! for_all_iter {
 macro_rules! for_all_iter {
     ($value:expr, $pattern:pat => $result:expr) => {{
         match $value {
-            NodeOwnedEntry::Mem($pattern) => Either::Left($result),
-            NodeOwnedEntry::Unlocked($pattern) => Either::Right($result),
+            NodeOwnedEntry::Mem($pattern) => $result,
         }
     }};
 }

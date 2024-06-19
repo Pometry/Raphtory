@@ -4,16 +4,12 @@ use raphtory_api::core::{
     Direction,
 };
 use rayon::prelude::*;
-
-use crate::{
-    core::{
-        entities::{
-            edges::edge_store::EdgeStore, graph::tgraph::InternalGraph,
-            nodes::node_store::NodeStore, LayerIds,
-        },
-        storage::{ArcEntry, Entry},
+use crate::core::{
+    entities::{
+        edges::edge_store::EdgeStore, graph::tgraph::InternalGraph, nodes::node_store::NodeStore,
+        LayerIds,
     },
-    db::api::storage::tprop_storage_ops::TPropOps,
+    storage::{ArcEntry, Entry},
 };
 
 impl<'a> Entry<'a, NodeStore> {
