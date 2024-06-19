@@ -574,7 +574,7 @@ impl PyPersistentGraph {
                 }
             }
 
-            let df = process_pandas_py_df(df, py, size, cols_to_check.clone())?;
+            let df = process_pandas_py_df(df, py, cols_to_check.clone())?;
 
             df.check_cols_exist(&cols_to_check)?;
             load_edges_deletions_from_df(

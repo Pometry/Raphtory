@@ -1,3 +1,4 @@
+use polars_arrow::legacy::error;
 use crate::core::{utils::time::error::ParseTimeError, ArcStr, Prop, PropType};
 #[cfg(feature = "search")]
 use tantivy;
@@ -6,6 +7,8 @@ use tantivy::query::QueryParserError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum GraphError {
+    #[error("Arrow error: {0}")]
+    Arrow(#[from] error::PolarsError),
     #[error("Graph error occurred")]
     UnsupportedDataType,
     #[error("Graph already exists by name = {name}")]

@@ -1,7 +1,18 @@
 use crate::core::{entities::graph::tgraph::InternalGraph, utils::errors::GraphError, Prop};
 use std::collections::HashMap;
-use std::path::Path;
+use std::num::TryFromIntError;
+use std::path::{Path, PathBuf};
+use itertools::Itertools;
+use polars_arrow::array::Array;
+use polars_arrow::datatypes::{ArrowSchema, Field};
+use polars_arrow::legacy::error;
+use polars_arrow::legacy::error::PolarsResult;
+use polars_parquet::read;
+use polars_parquet::read::{FileMetaData, FileReader, read_metadata};
 use crate::python::graph::io::{dataframe::*, df_loaders::*};
+use polars_arrow::datatypes::ArrowDataType as DataType;
+use polars_arrow::datatypes::ArrowSchema as Schema;
+use polars_arrow::record_batch::RecordBatch as Chunk;
 
 pub fn load_nodes_from_parquet(
     graph: &InternalGraph,
@@ -29,7 +40,34 @@ pub fn load_edges_from_parquet(
     layer: Option<&str>,
     layer_in_df: Option<bool>,
 ) -> Result<(), GraphError> {
-    todo!()
+    let mut cols_to_check = vec![src, dst, time];
+    cols_to_check.extend(properties.as_ref().unwrap_or(&Vec::new()));
+    cols_to_check.extend(const_properties.as_ref().unwrap_or(&Vec::new()));
+    if layer_in_df.unwrap_or(false) {
+        if let Some(ref layer) = layer {
+            cols_to_check.push(layer.as_ref());
+        }
+    }
+
+    let df = process_parquet_file_to_df(parquet_file_path, cols_to_check.clone())?;
+
+    // df.check_cols_exist(&cols_to_check)?;
+    // load_edges_from_df(
+    //     &df,
+    //     size,
+    //     src,
+    //     dst,
+    //     time,
+    //     properties,
+    //     const_properties,
+    //     shared_const_properties,
+    //     layer,
+    //     layer_in_df.unwrap_or(true),
+    //     graph,
+    // )
+    //     .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+
+    Ok(())
 }
 
 pub fn load_node_props_from_parquet(
@@ -59,5 +97,82 @@ pub(crate) fn process_parquet_file_to_df(
     parquet_file_path: &Path,
     col_names: Vec<&str>,
 ) -> Result<PretendDF, GraphError> {
-    todo!()
+    let iter = read_parquet_file(parquet_file_path)?;
+
+    let names = col_names.iter().map(|s| s.to_string()).collect();
+    let arrays = iter.map_ok(|r| {
+        r.into_iter().map(|boxed| boxed.clone()).collect_vec()
+    }).collect::<Result<Vec<_>, _>>()?;
+
+    Ok(PretendDF {
+        names,
+        arrays,
+    })
+}
+
+fn read_parquet_file(
+    path: impl AsRef<Path>,
+) -> Result<impl Iterator<Item=Result<Chunk<Box<dyn Array>>, error::PolarsError>>, GraphError> {
+    fn read_schema(metadata: &FileMetaData) -> Result<ArrowSchema, GraphError> {
+        let schema = read::infer_schema(metadata)?;
+        let fields = schema
+            .fields
+            .iter()
+            .map(|f| {
+                if f.data_type == DataType::Utf8View {
+                    Field::new(f.name.clone(), DataType::LargeUtf8, f.is_nullable)
+                } else {
+                    f.clone()
+                }
+            })
+            .collect::<Vec<_>>();
+
+        Ok(ArrowSchema::from(fields).with_metadata(schema.metadata))
+    }
+
+    let mut file = std::fs::File::open(&path)?;
+    let metadata = read_metadata(&mut file)?;
+    let row_groups = metadata.clone().row_groups;
+    let schema = read_schema(&metadata)?;
+    let reader = FileReader::new(file, row_groups, schema, None, None, None);
+    Ok(reader)
+}
+
+#[cfg(test)]
+mod test {
+    use polars_arrow::array::{PrimitiveArray, Utf8Array};
+    use super::*;
+
+    #[test]
+    fn test_process_parquet_file_to_df() {
+        // let parquet_file_path = Path::new("/tmp/parquet/test_data.parquet");
+        let parquet_file_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .map(|p| p.join("raphtory/resources/test/test_data.parquet"))
+            .unwrap();
+        
+        let col_names = vec!["src", "dst", "time", "weight", "marbles"];
+        let df = process_parquet_file_to_df(
+            parquet_file_path.as_path(),
+            col_names,
+        ).unwrap();
+
+        let df1 = PretendDF {
+            names: vec!["src", "dst", "time", "weight", "marbles"]
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+            arrays: vec![
+                vec![
+                    Box::new(PrimitiveArray::<i64>::from_values(vec![1, 2, 3, 4, 5])),
+                    Box::new(PrimitiveArray::<i64>::from_values(vec![2, 3, 4, 5, 6])),
+                    Box::new(PrimitiveArray::<i64>::from_values(vec![1, 2, 3, 4, 5])),
+                    Box::new(PrimitiveArray::<f64>::from_values(vec![1f64, 2f64, 3f64, 4f64, 5f64])),
+                    Box::new(Utf8Array::<i64>::from_iter_values(vec!["red", "blue", "green", "yellow", "purple"].into_iter())),
+                ]],
+        };
+
+        assert_eq!(df.names, df1.names);
+        assert_eq!(df.arrays, df1.arrays);
+    }
 }

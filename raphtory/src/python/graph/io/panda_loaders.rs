@@ -35,7 +35,7 @@ pub fn load_nodes_from_pandas(
             }
         }
 
-        let df = process_pandas_py_df(df, py, size, cols_to_check.clone())?;
+        let df = process_pandas_py_df(df, py, cols_to_check.clone())?;
         df.check_cols_exist(&cols_to_check)?;
 
         load_nodes_from_df(
@@ -87,7 +87,7 @@ pub fn load_edges_from_pandas(
             }
         }
 
-        let df = process_pandas_py_df(df, py, size, cols_to_check.clone())?;
+        let df = process_pandas_py_df(df, py, cols_to_check.clone())?;
 
         df.check_cols_exist(&cols_to_check)?;
         load_edges_from_df(
@@ -128,7 +128,7 @@ pub fn load_node_props_from_pandas(
             .extract()?;
         let mut cols_to_check = vec![id];
         cols_to_check.extend(const_properties.as_ref().unwrap_or(&Vec::new()));
-        let df = process_pandas_py_df(df, py, size, cols_to_check.clone())?;
+        let df = process_pandas_py_df(df, py, cols_to_check.clone())?;
         df.check_cols_exist(&cols_to_check)?;
 
         load_node_props_from_df(
@@ -172,7 +172,7 @@ pub fn load_edge_props_from_pandas(
             }
         }
         cols_to_check.extend(const_properties.as_ref().unwrap_or(&Vec::new()));
-        let df = process_pandas_py_df(df, py, size, cols_to_check.clone())?;
+        let df = process_pandas_py_df(df, py, cols_to_check.clone())?;
         df.check_cols_exist(&cols_to_check)?;
         load_edges_props_from_df(
             &df,
@@ -196,7 +196,6 @@ pub fn load_edge_props_from_pandas(
 pub(crate) fn process_pandas_py_df(
     df: &PyAny,
     py: Python,
-    _size: usize,
     col_names: Vec<&str>,
 ) -> PyResult<PretendDF> {
     is_jupyter(py);
