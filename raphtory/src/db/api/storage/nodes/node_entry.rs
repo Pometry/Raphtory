@@ -44,6 +44,7 @@ impl<'a> From<DiskNode<'a>> for NodeStorageEntry<'a> {
     }
 }
 
+#[cfg(feature = "storage")]
 macro_rules! for_all {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
@@ -62,16 +63,6 @@ macro_rules! for_all_iter {
             NodeStorageEntry::Mem($pattern) => StorageVariants::Mem($result),
             NodeStorageEntry::Unlocked($pattern) => StorageVariants::Unlocked($result),
             NodeStorageEntry::Disk($pattern) => StorageVariants::Disk($result),
-        }
-    }};
-}
-
-#[cfg(not(feature = "storage"))]
-macro_rules! for_all_iter {
-    ($value:expr, $pattern:pat => $result:expr) => {{
-        match $value {
-            NodeStorageEntry::Mem($pattern) => Either::Left($result),
-            NodeStorageEntry::Unlocked($pattern) => Either::Right($result),
         }
     }};
 }

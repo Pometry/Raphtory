@@ -1,9 +1,3 @@
-use ouroboros::self_referencing;
-use raphtory_api::core::{
-    entities::{edges::edge_ref::EdgeRef, EID, VID},
-    Direction,
-};
-use rayon::prelude::*;
 use crate::core::{
     entities::{
         edges::edge_store::EdgeStore, graph::tgraph::InternalGraph, nodes::node_store::NodeStore,
@@ -11,6 +5,12 @@ use crate::core::{
     },
     storage::{ArcEntry, Entry},
 };
+use ouroboros::self_referencing;
+use raphtory_api::core::{
+    entities::{edges::edge_ref::EdgeRef, EID, VID},
+    Direction,
+};
+use rayon::prelude::*;
 
 impl<'a> Entry<'a, NodeStore> {
     pub fn into_edges_iter(

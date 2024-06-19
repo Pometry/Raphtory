@@ -1,5 +1,3 @@
-use either::Either;
-
 #[cfg(feature = "storage")]
 use crate::disk_graph::storage_interface::node::DiskOwnedNode;
 

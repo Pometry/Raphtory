@@ -298,10 +298,8 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                     .par_iter(self.layer_ids().clone())
                     .filter(|e| {
                         self.filter_edge(e.as_ref(), self.layer_ids())
-                            && self
-                                .filter_node(nodes.node_entry(e.src()), self.layer_ids())
-                            && self
-                                .filter_node(nodes.node_entry(e.dst()), self.layer_ids())
+                            && self.filter_node(nodes.node_entry(e.src()), self.layer_ids())
+                            && self.filter_node(nodes.node_entry(e.dst()), self.layer_ids())
                     })
                     .count()
             }
@@ -313,8 +311,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                     .par_iter(self.layer_ids().clone())
                     .filter(|e| {
                         self.filter_node(nodes.node_entry(e.src()), self.layer_ids())
-                            && self
-                                .filter_node(nodes.node_entry(e.dst()), self.layer_ids())
+                            && self.filter_node(nodes.node_entry(e.dst()), self.layer_ids())
                     })
                     .count()
             }
@@ -345,10 +342,8 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                     .par_iter(layer_ids.clone())
                     .filter(|e| {
                         self.filter_edge(e.as_ref(), self.layer_ids())
-                            && self
-                                .filter_node(nodes.node_entry(e.src()), self.layer_ids())
-                            && self
-                                .filter_node(nodes.node_entry(e.dst()), self.layer_ids())
+                            && self.filter_node(nodes.node_entry(e.src()), self.layer_ids())
+                            && self.filter_node(nodes.node_entry(e.dst()), self.layer_ids())
                     })
                     .map(|e| self.edge_exploded_count(e.as_ref(), layer_ids))
                     .sum()
@@ -360,8 +355,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                     .par_iter(layer_ids.clone())
                     .filter(|e| {
                         self.filter_node(nodes.node_entry(e.src()), self.layer_ids())
-                            && self
-                                .filter_node(nodes.node_entry(e.dst()), self.layer_ids())
+                            && self.filter_node(nodes.node_entry(e.dst()), self.layer_ids())
                     })
                     .map(|e| self.edge_exploded_count(e.as_ref(), layer_ids))
                     .sum()
