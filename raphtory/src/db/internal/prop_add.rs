@@ -68,21 +68,21 @@ impl InternalPropertyAdditionOps for InternalGraph {
         props: Vec<(usize, Prop)>,
     ) -> Result<(), GraphError> {
         let mut edge = self.inner().storage.get_edge_mut(eid);
-        let mut edge_layer = edge.layer_mut(layer);
-        for (prop_id, value) in props {
-            edge_layer
-                .add_constant_prop(prop_id, value)
-                .map_err(|err| {
-                    let name = self.edge_meta().get_prop_name(prop_id, true);
-                    GraphError::ConstantPropertyMutationError {
-                        name,
-                        new: err.new_value.expect("new value exists"),
-                        old: err
-                            .previous_value
-                            .expect("previous value exists if set failed"),
-                    }
-                })?;
-        }
+        // let mut edge_layer = edge.layer_mut(layer);
+        // for (prop_id, value) in props {
+        //     edge_layer
+        //         .add_constant_prop(prop_id, value)
+        //         .map_err(|err| {
+        //             let name = self.edge_meta().get_prop_name(prop_id, true);
+        //             GraphError::ConstantPropertyMutationError {
+        //                 name,
+        //                 new: err.new_value.expect("new value exists"),
+        //                 old: err
+        //                     .previous_value
+        //                     .expect("previous value exists if set failed"),
+        //             }
+        //         })?;
+        // }
         Ok(())
     }
 
@@ -93,10 +93,10 @@ impl InternalPropertyAdditionOps for InternalGraph {
         props: Vec<(usize, Prop)>,
     ) -> Result<(), GraphError> {
         let mut edge = self.inner().storage.get_edge_mut(eid);
-        let mut edge_layer = edge.layer_mut(layer);
-        for (prop_id, value) in props {
-            edge_layer.update_constant_prop(prop_id, value)?;
-        }
+        // let mut edge_layer = edge.layer_mut(layer);
+        // for (prop_id, value) in props {
+        //     edge_layer.update_constant_prop(prop_id, value)?;
+        // }
         Ok(())
     }
 }
