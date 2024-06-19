@@ -1,6 +1,6 @@
 use crate::core::{entities::graph::tgraph::InternalGraph, utils::errors::GraphError, Prop};
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use itertools::Itertools;
 use polars_arrow::array::Array;
 use polars_arrow::datatypes::{ArrowSchema, Field};
@@ -102,7 +102,24 @@ pub fn load_node_props_from_parquet(
     const_properties: Option<Vec<&str>>,
     shared_const_properties: Option<HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
-    todo!()
+    let mut cols_to_check = vec![id];
+    cols_to_check.extend(const_properties.as_ref().unwrap_or(&Vec::new()));
+
+    let df = process_parquet_file_to_df(parquet_file_path, cols_to_check.clone())?;
+    df.check_cols_exist(&cols_to_check)?;
+    let size = cols_to_check.len();
+
+    load_node_props_from_df(
+        &df,
+        size,
+        id,
+        const_properties,
+        shared_const_properties,
+        graph,
+    )
+        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+
+    Ok(())
 }
 
 pub fn load_edge_props_from_parquet(
@@ -115,7 +132,32 @@ pub fn load_edge_props_from_parquet(
     layer: Option<&str>,
     layer_in_df: Option<bool>,
 ) -> Result<(), GraphError> {
-    todo!()
+    let mut cols_to_check = vec![src, dst];
+    if layer_in_df.unwrap_or(false) {
+        if let Some(ref layer) = layer {
+            cols_to_check.push(layer.as_ref());
+        }
+    }
+    cols_to_check.extend(const_properties.as_ref().unwrap_or(&Vec::new()));
+
+    let df = process_parquet_file_to_df(parquet_file_path, cols_to_check.clone())?;
+    df.check_cols_exist(&cols_to_check)?;
+    let size = cols_to_check.len();
+
+    load_edges_props_from_df(
+        &df,
+        size,
+        src,
+        dst,
+        const_properties,
+        shared_const_properties,
+        layer,
+        layer_in_df.unwrap_or(true),
+        graph,
+    )
+        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+
+    Ok(())
 }
 
 pub(crate) fn process_parquet_file_to_df(

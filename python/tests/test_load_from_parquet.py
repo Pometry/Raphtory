@@ -6,51 +6,60 @@ from raphtory import Graph, PersistentGraph
 
 
 def test_load_from_parquet():
-    # data = {
-    #     "src": [1, 2, 3, 4, 5],
-    #     "dst": [2, 3, 4, 5, 6],
-    #     "time": [1, 2, 3, 4, 5],
-    #     "weight": [1.0, 2.0, 3.0, 4.0, 5.0],
-    #     "marbles": ["red", "blue", "green", "yellow", "purple"],
-    # }
-    #
-    # table = pa.table(data)
-    # pq.write_table(table, '/tmp/parquet/test_data.parquet')
+    nodes_parquet_file_path = os.path.join(os.path.dirname(__file__), 'data', 'parquet', 'nodes.parquet')
+    edges_parquet_file_path = os.path.join(os.path.dirname(__file__), 'data', 'parquet', 'edges.parquet')
 
-    data = {
-        "id": [1, 2, 3, 4, 5, 6],
-        "name": ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank"],
-        "time": [1, 2, 3, 4, 5, 6],
-        "node_type": ["p", "p", "p", "p", "p", "p"],
-    }
+    expected_node_ids = [1, 2, 3, 4, 5, 6]
+    expected_nodes = [
+        (1, "Alice"),
+        (2, "Bob"),
+        (3, "Carol"),
+        (4, "Dave"),
+        (5, "Eve"),
+        (6, "Frank"),
+    ]
+    expected_edges = [
+        (1, 2, 1.0, "red"),
+        (2, 3, 2.0, "blue"),
+        (3, 4, 3.0, "green"),
+        (4, 5, 4.0, "yellow"),
+        (5, 6, 5.0, "purple"),
+    ]
 
-    table = pa.table(data)
-    pq.write_table(table, '/tmp/parquet/nodes.parquet')
+    def assertions(g):
+        nodes = []
+        for v in g.nodes:
+            name = v["name"]
+            nodes.append((v.id, name))
+        assert g.nodes.id.collect() == expected_node_ids
+        assert nodes == expected_nodes
 
+        edges = []
+        for e in g.edges:
+            weight = e["weight"]
+            marbles = e["marbles"]
+            edges.append((e.src.id, e.dst.id, weight, marbles))
+        assert edges == expected_edges
 
-#
-#     expected_nodes = [1, 2, 3, 4, 5, 6]
-#     expected_edges = [
-#         (1, 2, 1.0, "red"),
-#         (2, 3, 2.0, "blue"),
-#         (3, 4, 3.0, "green"),
-#         (4, 5, 4.0, "yellow"),
-#         (5, 6, 5.0, "purple"),
-#     ]
-#
-#     def assertions(g):
-#         edges = []
-#         for e in g.edges:
-#             weight = e["weight"]
-#             marbles = e["marbles"]
-#             edges.append((e.src.id, e.dst.id, weight, marbles))
-#
-#         assert g.nodes.id.collect() == expected_nodes
-#         assert edges == expected_edges
-#
-#     g = Graph.load_from_parquet('test_data.parquet', "src", "dst", "time", ["weight", "marbles"])
-#     assertions(g)
-#
+    g = Graph()
+    g.load_nodes_from_parquet(nodes_parquet_file_path, "id", "time", "node_type", properties=["name"])
+    g.load_edges_from_parquet(edges_parquet_file_path, "src", "dst", "time", ["weight", "marbles"])
+    assertions(g)
+
+    g = Graph.load_from_parquet(
+        edge_parquet_file_path=edges_parquet_file_path,
+        edge_src="src",
+        edge_dst="dst",
+        edge_time="time",
+        edge_properties=["weight", "marbles"],
+        node_parquet_file_path=nodes_parquet_file_path,
+        node_id="id",
+        node_time="time",
+        node_properties=["name"],
+        node_type="node_type",
+    )
+    assertions(g)
+
 #     # g = PersistentGraph.load_from_parquet(
 #     #     'test_data.parquet', "src", "dst", "time", ["weight", "marbles"]
 #     # )
