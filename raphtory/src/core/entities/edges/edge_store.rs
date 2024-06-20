@@ -26,7 +26,7 @@ use ouroboros::self_referencing;
 use serde::{Deserialize, Serialize};
 use std::{
     iter,
-    ops::{Deref, DerefMut, Range},
+    ops::{DerefMut, Range},
 };
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
@@ -42,23 +42,6 @@ pub struct EdgeData {
     pub(crate) layer: EdgeLayer,
     pub(crate) additions: TimeIndex<TimeIndexEntry>,
     pub(crate) deletions: TimeIndex<TimeIndexEntry>,
-}
-
-#[derive(Debug)]
-pub struct EdgeLayerMut<'a>(&'a mut EdgeData);
-
-impl Deref for EdgeLayerMut<'_> {
-    type Target = EdgeLayer;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0.layer
-    }
-}
-
-impl DerefMut for EdgeLayerMut<'_> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0.layer
-    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
@@ -119,11 +102,12 @@ impl EdgeStore {
     pub fn internal_num_layers(&self) -> usize {
         self.data.len()
     }
-    fn get_or_allocate_layer(&mut self, layer_id: usize) -> EdgeLayerMut {
+
+    fn get_or_allocate_layer(&mut self, layer_id: usize) -> &mut EdgeLayer {
         if self.data.len() <= layer_id {
             self.data.resize_with(layer_id + 1, Default::default);
         }
-        EdgeLayerMut(&mut self.data[layer_id])
+        &mut self.data[layer_id].layer
     }
 
     pub fn has_layer_inner(&self, layer_id: usize) -> bool {
