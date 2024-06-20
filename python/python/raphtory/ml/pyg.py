@@ -70,10 +70,10 @@ def from_pyg(data):
 #def raph_to_pyg(G, re_index = False, nodelist = None, node_props_to_save = ['x'], edge_props_to_save = []):
 def to_pyg(G, re_index=False, nodelist=None, node_props_to_save=['x'], edge_props_to_save=[]):
     """
-    Converts a Raphthory graph to PyG (PyTorch Geometric) format.
+    Converts a Raphtory graph to PyG (PyTorch Geometric) format.
 
     Args:
-        G (object): The Raphthory graph object.
+        G (object): The Raphtory graph object.
         re_index (bool, optional): If True, re-indexes node indices. Defaults to False.
         nodelist (list, optional): A list of node indices to include. If None, includes all nodes. Defaults to None.
         node_props_to_save (list, optional): A list of node properties to save. Defaults to ['x'].
@@ -101,14 +101,17 @@ def to_pyg(G, re_index=False, nodelist=None, node_props_to_save=['x'], edge_prop
     # If the ids are not from 0 to N, we need a new id. If we do, we may want to store the previous one.
     if re_index:
         if nodelist is None:
-            nodelist = sorted(G.nodes.id, key=int)
+            nodelist = list(G.nodes.id.sorted())
         mapping_node = dict(zip(nodelist, (i for i in range(len(nodelist)) ) ))
     else:
         mapping_node = dict(zip(G.nodes.id,G.nodes.id)) # returns the same id
 
-    d.num_nodes = len(mapping_node)
+    d.num_nodes = G.count_nodes()
     #print(d.num_nodes)
     # Preparing the edges
+
+
+
     src = []
     dst = []
 
@@ -132,10 +135,9 @@ def to_pyg(G, re_index=False, nodelist=None, node_props_to_save=['x'], edge_prop
         node_props_to_save = []
 
     for k in node_props_to_save:
-        if k in G.nodes.properties.keys():
-            node_props = G.nodes.properties.get(k).collect()
-            props_tensor = torch.tensor(node_props)
-            d[k] = props_tensor#.astype('float32')
+        node_props = G.nodes.properties.get(k).collect()
+        props_tensor = torch.tensor(node_props)
+        d[k] = props_tensor#.astype('float32')
 
     if edge_props_to_save == 'all':
         edge_props_to_save = G.edges.properties.keys()
@@ -144,20 +146,19 @@ def to_pyg(G, re_index=False, nodelist=None, node_props_to_save=['x'], edge_prop
         edge_props_to_save = []
 
     for k in edge_props_to_save:
-        if k in G.edges.properties.keys():
-            edge_props = G.edges.properties.get(k).collect()
-            props_tensor = torch.tensor(edge_props)
-            d[k] = props_tensor
+        edge_props = G.edges.properties.get(k).collect()
+        props_tensor = torch.tensor(edge_props)
+        d[k] = props_tensor
 
     # Machine learning masks and labels
-
-    if 'y' in G.properties.keys():
+    g_keys = G.properties.keys()
+    if 'y' in g_keys:
         d.y = torch.tensor(G.properties['y'])
-    if 'train_mask' in G.properties.keys():
+    if 'train_mask' in g_keys:
         d.train_mask = torch.tensor(G.properties['train_mask'])
-    if 'val_mask' in G.properties.keys():
+    if 'val_mask' in g_keys:
         d.val_mask = torch.tensor(G.properties['val_mask'])
-    if 'test_mask' in G.properties.keys():
+    if 'test_mask' in g_keys:
         d.test_mask = torch.tensor(G.properties['test_mask'])
 
     if re_index:
