@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1718878555040,
+  "lastUpdate": 1718896463117,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -53695,6 +53695,66 @@ window.BENCHMARK_DATA = {
             "name": "temporal_motifs/temporal_motifs",
             "value": 20585030,
             "range": "± 320862",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "2404621+fabianmurariu@users.noreply.github.com",
+            "name": "Fabian Murariu",
+            "username": "fabianmurariu"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b89065ed2509c21a9437d740f9458c5d55eab207",
+          "message": "simple change to reduce memory usage (#1668)\n\n* simple change to reduce memory usage\r\n\r\n* remove EdgeLayerRef from edge_store.rs\r\n\r\n* rename x to data\r\n\r\n* rename l to data\r\n\r\n* remove useless wrapper struct",
+          "timestamp": "2024-06-20T15:47:12+01:00",
+          "tree_id": "11c7f0a9654d119b9cd77551ba9a03bb7f3039e9",
+          "url": "https://github.com/Pometry/Raphtory/commit/b89065ed2509c21a9437d740f9458c5d55eab207"
+        },
+        "date": 1718896461869,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "local_triangle_count/local_triangle_count",
+            "value": 864209,
+            "range": "± 25537",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "local_clustering_coefficient/local_clustering_coefficient",
+            "value": 102565,
+            "range": "± 902",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_clustering_coeff/graphgen_large_clustering_coeff/Graph(num_nodes=500004, num_edges=20...",
+            "value": 2440281552,
+            "range": "± 75852730",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_pagerank/graphgen_large_pagerank/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 245344062,
+            "range": "± 4932693",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_concomp/graphgen_large_concomp/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 2381861397,
+            "range": "± 42786330",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "temporal_motifs/temporal_motifs",
+            "value": 20460734,
+            "range": "± 282012",
             "unit": "ns/iter"
           }
         ]
