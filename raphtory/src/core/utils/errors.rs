@@ -129,6 +129,9 @@ pub enum GraphError {
 
     #[error("The time function is only available once an edge has been exploded via .explode(). You may want to retrieve the history for this edge via .history(), or the earliest/latest time via earliest_time or latest_time")]
     TimeAPIError,
+
+    #[error("Illegal set error {0}")]
+    IllegalSet(String),
 }
 
 impl GraphError {

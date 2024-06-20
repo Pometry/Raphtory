@@ -1,19 +1,20 @@
+use std::ops::Range;
+
+use rayon::prelude::*;
+
 #[cfg(feature = "storage")]
 use crate::db::api::storage::variants::storage_variants::StorageVariants;
 #[cfg(feature = "storage")]
 use crate::disk_graph::storage_interface::edge::DiskEdge;
 use crate::{
-    core::entities::{
-        edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-        LayerIds, EID, VID,
-    },
+    core::entities::{edges::edge_ref::EdgeRef, LayerIds, EID, VID},
     db::api::storage::{
         edges::edge_storage_ops::{EdgeStorageOps, TimeIndexRef},
         tprop_storage_ops::TPropOps,
     },
 };
-use rayon::prelude::*;
-use std::ops::Range;
+
+use super::edge_storage_ops::MemEdge;
 
 macro_rules! for_all {
     ($value:expr, $pattern:pat => $result:expr) => {
@@ -46,7 +47,7 @@ macro_rules! for_all_iter {
 
 #[derive(Copy, Clone, Debug)]
 pub enum EdgeStorageRef<'a> {
-    Mem(&'a EdgeStore),
+    Mem(MemEdge<'a>),
     #[cfg(feature = "storage")]
     Disk(DiskEdge<'a>),
 }
@@ -55,7 +56,7 @@ impl<'a> EdgeStorageRef<'a> {
     #[inline]
     pub fn eid(&self) -> EID {
         match self {
-            EdgeStorageRef::Mem(e) => e.eid,
+            EdgeStorageRef::Mem(e) => e.eid(),
             #[cfg(feature = "storage")]
             EdgeStorageRef::Disk(e) => e.eid(),
         }

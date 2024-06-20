@@ -1,6 +1,11 @@
+use super::edges::{EdgesStorage, LockedEdges};
 use crate::core::{
     entities::{edges::edge_store::EdgeStore, nodes::node_store::NodeStore, EID, VID},
-    storage::{self, Entry, EntryMut, PairEntryMut},
+    storage::{
+        self,
+        raw_edges::{EdgeArcGuard, EdgeRGuard, EdgeWGuard},
+        Entry, EntryMut, PairEntryMut,
+    },
 };
 use serde::{Deserialize, Serialize};
 
@@ -9,28 +14,42 @@ pub(crate) struct GraphStorage {
     // node storage with having (id, time_index, properties, adj list for each layer)
     pub(crate) nodes: storage::RawStorage<NodeStore, VID>,
 
-    // edge storage with having (src, dst, time_index, properties) for each layer
-    pub(crate) edges: storage::RawStorage<EdgeStore, EID>,
+    edges: EdgesStorage,
 }
 
 impl GraphStorage {
     pub(crate) fn new(num_locks: usize) -> Self {
         Self {
             nodes: storage::RawStorage::new(num_locks),
-            edges: storage::RawStorage::new(num_locks),
+            edges: EdgesStorage::new(),
         }
     }
 
+    pub fn nodes_read_lock(&self) -> storage::ReadLockedStorage<NodeStore, VID> {
+        self.nodes.read_lock()
+    }
+
+    pub fn edges_read_lock(&self) -> LockedEdges {
+        self.edges.read_lock()
+    }
+
+    pub fn nodes_len(&self) -> usize {
+        self.nodes.len()
+    }
+
+    pub fn edges_len(&self) -> usize {
+        self.edges.len()
+    }
+
+    #[inline]
     pub(crate) fn push_node(&self, node: NodeStore) -> VID {
         self.nodes
             .push(node, |vid, node| node.vid = vid.into())
             .into()
     }
-
-    pub(crate) fn push_edge(&self, edge: EdgeStore) -> EID {
-        self.edges
-            .push(edge, |eid, edge| edge.eid = eid.into())
-            .into()
+    #[inline]
+    pub(crate) fn push_edge(&self, edge: EdgeStore) -> EdgeWGuard {
+        self.edges.push(edge)
     }
 
     #[inline]
@@ -39,7 +58,7 @@ impl GraphStorage {
     }
 
     #[inline]
-    pub(crate) fn get_edge_mut(&self, id: EID) -> EntryMut<'_, EdgeStore> {
+    pub(crate) fn get_edge_mut(&self, id: EID) -> EdgeWGuard {
         self.edges.entry_mut(id)
     }
 
@@ -49,10 +68,16 @@ impl GraphStorage {
     }
 
     #[inline]
-    pub(crate) fn get_edge(&self, id: EID) -> Entry<'_, EdgeStore> {
+    pub(crate) fn edge_entry(&self, id: EID) -> EdgeRGuard {
         self.edges.entry(id)
     }
 
+    #[inline]
+    pub(crate) fn get_edge_arc(&self, id: EID) -> EdgeArcGuard {
+        self.edges.entry_arc(id)
+    }
+
+    #[inline]
     pub(crate) fn pair_node_mut(&self, i: VID, j: VID) -> PairEntryMut<'_, NodeStore> {
         self.nodes.pair_entry_mut(i, j)
     }

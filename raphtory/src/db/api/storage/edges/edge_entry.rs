@@ -1,28 +1,29 @@
-use crate::{
-    core::{
-        entities::{
-            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-            LayerIds, VID,
-        },
-        storage::Entry,
-    },
-    db::api::storage::edges::{
-        edge_ref::EdgeStorageRef,
-        edge_storage_ops::{EdgeStorageOps, TimeIndexRef},
-    },
-};
+use std::ops::Range;
+
+use rayon::prelude::*;
 
 #[cfg(feature = "storage")]
 use crate::disk_graph::storage_interface::edge::DiskEdge;
+use crate::{
+    core::{
+        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
+        storage::raw_edges::EdgeRGuard,
+    },
+    db::api::storage::{
+        edges::{
+            edge_ref::EdgeStorageRef,
+            edge_storage_ops::{EdgeStorageOps, TimeIndexRef},
+        },
+        tprop_storage_ops::TPropOps,
+    },
+};
 
-use crate::db::api::storage::tprop_storage_ops::TPropOps;
-use rayon::prelude::*;
-use std::ops::Range;
+use super::edge_storage_ops::MemEdge;
 
 #[derive(Debug)]
 pub enum EdgeStorageEntry<'a> {
-    Mem(&'a EdgeStore),
-    Unlocked(Entry<'a, EdgeStore>),
+    Mem(MemEdge<'a>),
+    Unlocked(EdgeRGuard<'a>),
     #[cfg(feature = "storage")]
     Disk(DiskEdge<'a>),
 }
@@ -31,8 +32,8 @@ impl<'a> EdgeStorageEntry<'a> {
     #[inline]
     pub fn as_ref(&self) -> EdgeStorageRef {
         match self {
-            EdgeStorageEntry::Mem(edge) => EdgeStorageRef::Mem(edge),
-            EdgeStorageEntry::Unlocked(edge) => EdgeStorageRef::Mem(edge),
+            EdgeStorageEntry::Mem(edge) => EdgeStorageRef::Mem(*edge),
+            EdgeStorageEntry::Unlocked(edge) => EdgeStorageRef::Mem(edge.as_mem_edge()),
             #[cfg(feature = "storage")]
             EdgeStorageEntry::Disk(edge) => EdgeStorageRef::Disk(*edge),
         }

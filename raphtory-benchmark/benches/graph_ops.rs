@@ -1,13 +1,11 @@
 use common::run_graph_ops_benches;
 use criterion::{criterion_group, criterion_main, Criterion};
 use raphtory::{
-    core::utils::hashing::calculate_hash,
-    graph_loader::{
-        example::sx_superuser_graph::{sx_superuser_file, sx_superuser_graph, TEdge},
-        source::csv_loader::CsvLoader,
-    },
+    graph_loader::sx_superuser_graph::{sx_superuser_file, sx_superuser_graph, TEdge},
+    io::csv_loader::CsvLoader,
     prelude::*,
 };
+use raphtory_api::core::utils::hashing::calculate_hash;
 
 mod common;
 

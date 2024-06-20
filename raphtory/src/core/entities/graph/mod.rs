@@ -1,3 +1,4 @@
+pub mod edges;
 pub mod tgraph;
 pub mod tgraph_storage;
 pub(crate) mod timer;
@@ -38,7 +39,7 @@ mod test {
             )
             .unwrap();
 
-        let first = g.inner().storage.nodes.get(v1);
+        let first = g.inner().storage.nodes.entry(v1);
 
         let ns = first
             .neighbours(&vec![l_btc, l_eth].into(), Direction::OUT)

@@ -87,7 +87,7 @@ impl GraphStorage {
         match self {
             GraphStorage::Mem(storage) => NodeStorageEntry::Mem(storage.nodes.get(vid)),
             GraphStorage::Unlocked(storage) => {
-                NodeStorageEntry::Unlocked(storage.inner().node_entry(vid))
+                NodeStorageEntry::Unlocked(storage.inner().storage.get_node(vid))
             }
             #[cfg(feature = "storage")]
             GraphStorage::Disk(storage) => NodeStorageEntry::Disk(DiskNode::new(storage, vid)),
@@ -110,7 +110,9 @@ impl GraphStorage {
     pub fn edges(&self) -> EdgesStorageRef {
         match self {
             GraphStorage::Mem(storage) => EdgesStorageRef::Mem(&storage.edges),
-            GraphStorage::Unlocked(storage) => EdgesStorageRef::Unlocked(UnlockedEdges(storage)),
+            GraphStorage::Unlocked(storage) => {
+                EdgesStorageRef::Unlocked(UnlockedEdges(&storage.inner().storage))
+            }
             #[cfg(feature = "storage")]
             GraphStorage::Disk(storage) => EdgesStorageRef::Disk(DiskEdgesRef::new(storage)),
         }
@@ -129,7 +131,7 @@ impl GraphStorage {
         match self {
             GraphStorage::Mem(storage) => EdgeStorageEntry::Mem(storage.edges.get(eid.pid())),
             GraphStorage::Unlocked(storage) => {
-                EdgeStorageEntry::Unlocked(storage.inner().edge_entry(eid.pid()))
+                EdgeStorageEntry::Unlocked(storage.inner().storage.edge_entry(eid.pid()))
             }
             #[cfg(feature = "storage")]
             GraphStorage::Disk(storage) => {
@@ -226,15 +228,10 @@ impl GraphStorage {
     ) -> impl ParallelIterator<Item = VID> + 'graph {
         view.node_list().into_par_iter().filter(move |&vid| {
             let node = self.node(vid);
-            let n = node.name();
-            let i = node.node_type_id();
             let r = type_filter
                 .as_ref()
                 .map_or(true, |type_filter| type_filter[node.node_type_id()]);
             let s = view.filter_node(self.node(vid).as_ref(), view.layer_ids());
-
-            println!("name = {:?}, id = {}, r = {}, s = {}", n, i, r, s);
-
             r && s
         })
     }

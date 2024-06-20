@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 criterion = { workspace = true }
 raphtory = { path = "../raphtory", features = ["io"] }
+raphtory-api = { path = "../raphtory-api" }
 raphtory-graphql = { path = "../raphtory-graphql", version = "0.9.3" }
 pometry-storage.workspace = true
 sorted_vector_map = { workspace = true }

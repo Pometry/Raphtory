@@ -6,13 +6,13 @@ use crate::{
 impl ListOps for InternalGraph {
     fn node_list(&self) -> NodeList {
         NodeList::All {
-            num_nodes: self.inner().storage.nodes.len(),
+            num_nodes: self.inner().storage.nodes_len(),
         }
     }
 
     fn edge_list(&self) -> EdgeList {
         EdgeList::All {
-            num_edges: self.inner().storage.edges.len(),
+            num_edges: self.inner().storage.edges_len(),
         }
     }
 }

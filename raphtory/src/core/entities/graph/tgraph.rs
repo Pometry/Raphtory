@@ -12,8 +12,9 @@ use crate::{
         },
         storage::{
             locked_view::LockedView,
+            raw_edges::EdgeWGuard,
             timeindex::{AsTime, TimeIndexEntry},
-            Entry, EntryMut,
+            EntryMut,
         },
         utils::errors::GraphError,
         Direction, Prop,
@@ -52,8 +53,8 @@ impl InternalGraph {
     }
 
     pub(crate) fn lock(&self) -> LockedGraph {
-        let nodes = Arc::new(self.inner().storage.nodes.read_lock());
-        let edges = Arc::new(self.inner().storage.edges.read_lock());
+        let nodes = Arc::new(self.inner().storage.nodes_read_lock());
+        let edges = Arc::new(self.inner().storage.edges_read_lock());
         LockedGraph { nodes, edges }
     }
 
@@ -105,8 +106,8 @@ impl std::fmt::Display for InternalGraph {
         write!(
             f,
             "Graph(num_nodes={}, num_edges={})",
-            self.inner().storage.nodes.len(),
-            self.inner().storage.edges.len()
+            self.inner().storage.nodes_len(),
+            self.inner().storage.edges_len()
         )
     }
 }
@@ -260,16 +261,6 @@ impl TemporalGraph {
     pub(crate) fn get_all_node_types(&self) -> Vec<ArcStr> {
         self.node_meta.get_all_node_types()
     }
-
-    #[inline]
-    pub(crate) fn node_entry(&self, v: VID) -> Entry<'_, NodeStore> {
-        self.storage.get_node(v)
-    }
-
-    #[inline]
-    pub(crate) fn edge_entry(&self, e: EID) -> Entry<'_, EdgeStore> {
-        self.storage.get_edge(e)
-    }
 }
 
 impl TemporalGraph {
@@ -417,7 +408,7 @@ impl TemporalGraph {
         Ok(())
     }
 
-    fn link_nodes<F: FnOnce(&mut EdgeStore) -> Result<(), GraphError>>(
+    fn link_nodes<F: FnOnce(&mut EdgeWGuard) -> Result<(), GraphError>>(
         &self,
         src_id: VID,
         dst_id: VID,
@@ -436,9 +427,10 @@ impl TemporalGraph {
                 edge_id
             }
             None => {
-                let mut edge = EdgeStore::new(src_id, dst_id);
+                let mut edge = self.storage.push_edge(EdgeStore::new(src_id, dst_id));
+                let eid = edge.edge_store().eid;
                 edge_fn(&mut edge)?;
-                self.storage.push_edge(edge)
+                eid
             }
         };
 
@@ -461,7 +453,7 @@ impl TemporalGraph {
         // get the entries for the src and dst nodes
         self.link_nodes(src_id, dst_id, t, layer, move |edge| {
             edge.additions_mut(layer).insert(t);
-            let mut edge_layer = edge.layer_mut(layer);
+            let edge_layer = edge.layer_mut(layer);
             for (prop_id, prop_value) in props {
                 edge_layer.add_prop(t, prop_id, prop_value)?;
             }

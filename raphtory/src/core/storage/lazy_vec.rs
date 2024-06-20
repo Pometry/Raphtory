@@ -31,13 +31,13 @@ pub(crate) enum LazyVec<A> {
 
 impl<A> LazyVec<A>
 where
-    A: PartialEq + Default + Clone + Debug,
+    A: PartialEq + Default + Clone + Debug + Send + Sync,
 {
     pub(crate) fn from(id: usize, value: A) -> Self {
         LazyVec::LazyVec1(id, value)
     }
 
-    pub(crate) fn filled_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
+    pub(crate) fn filled_ids(&self) -> Box<dyn Iterator<Item = usize> + Send + '_> {
         match self {
             LazyVec::Empty => Box::new(iter::empty()),
             LazyVec::LazyVec1(id, _) => Box::new(iter::once(*id)),
@@ -127,7 +127,7 @@ where
                 let mut value = A::default();
                 updater(&mut value)?;
                 self.set(id, value)
-                    .expect("Set failed over a non existing value")
+                    .map_err(|e| GraphError::IllegalSet(e.to_string()))?;
             }
         };
         Ok(())

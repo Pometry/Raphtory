@@ -4465,6 +4465,7 @@ dependencies = [
  "pometry-storage",
  "rand 0.8.5",
  "raphtory",
+ "raphtory-api",
  "raphtory-graphql",
  "rayon",
  "sorted_vector_map",

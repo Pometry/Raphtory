@@ -1,7 +1,7 @@
 use crate::{
     core::{
         entities::{
-            edges::edge_ref::EdgeRef,
+            edges::{edge_ref::EdgeRef, edge_store::EdgeDataLike},
             graph::tgraph::InternalGraph,
             nodes::node_ref::NodeRef,
             properties::{graph_meta::GraphMeta, props::Meta, tprop::TProp},
@@ -124,7 +124,7 @@ impl CoreGraphOps for InternalGraph {
 
     #[inline]
     fn constant_node_prop(&self, v: VID, prop_id: usize) -> Option<Prop> {
-        let entry = self.inner().node_entry(v);
+        let entry = self.inner().storage.get_node(v);
         entry.const_prop(prop_id).cloned()
     }
 
@@ -133,7 +133,8 @@ impl CoreGraphOps for InternalGraph {
         // FIXME: revisit the locking scheme so we don't have to collect the ids
         Box::new(
             self.inner()
-                .node_entry(v)
+                .storage
+                .get_node(v)
                 .const_prop_ids()
                 .collect_vec()
                 .into_iter(),
@@ -145,7 +146,8 @@ impl CoreGraphOps for InternalGraph {
         // FIXME: revisit the locking scheme so we don't have to collect the ids
         Box::new(
             self.inner()
-                .node_entry(v)
+                .storage
+                .get_node(v)
                 .temporal_prop_ids()
                 .collect_vec()
                 .into_iter(),
@@ -154,7 +156,7 @@ impl CoreGraphOps for InternalGraph {
 
     fn get_const_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: LayerIds) -> Option<Prop> {
         let layer_ids = layer_ids.constrain_from_edge(e);
-        let entry = self.inner().edge_entry(e.pid());
+        let entry = self.inner().storage.edge_entry(e.pid());
         match layer_ids {
             LayerIds::None => None,
             LayerIds::All => {
@@ -163,14 +165,12 @@ impl CoreGraphOps for InternalGraph {
                     entry
                         .layer_iter()
                         .next()
-                        .and_then(|data| data.layer.const_prop(prop_id).cloned())
+                        .and_then(|(_, data)| data.const_prop(prop_id).cloned())
                 } else {
                     let prop_map: HashMap<_, _> = entry
                         .layer_iter()
-                        .enumerate()
                         .flat_map(|(id, data)| {
-                            data.layer
-                                .const_prop(prop_id)
+                            data.const_prop(prop_id)
                                 .map(|p| (self.inner().get_layer_name(id), p.clone()))
                         })
                         .collect();
@@ -186,9 +186,8 @@ impl CoreGraphOps for InternalGraph {
                 let prop_map: HashMap<_, _> = ids
                     .iter()
                     .flat_map(|&id| {
-                        entry.layer(id).and_then(|layer| {
-                            layer
-                                .const_prop(prop_id)
+                        entry.layer(id).and_then(|data| {
+                            data.const_prop(prop_id)
                                 .map(|p| (self.inner().get_layer_name(id), p.clone()))
                         })
                     })
@@ -207,14 +206,14 @@ impl CoreGraphOps for InternalGraph {
         e: EdgeRef,
         layer_ids: LayerIds,
     ) -> Box<dyn Iterator<Item = usize> + '_> {
-        // FIXME: revisit the locking scheme so we don't have to collect all the ids
+        // // FIXME: revisit the locking scheme so we don't have to collect all the ids
         let layer_ids = layer_ids.constrain_from_edge(e);
-        let entry = self.inner().edge_entry(e.pid());
+        let entry = self.inner().storage.edge_entry(e.pid());
         let ids: Vec<_> = match layer_ids {
             LayerIds::None => vec![],
             LayerIds::All => entry
                 .layer_iter()
-                .map(|data| data.layer.const_prop_ids())
+                .map(|(_, data)| data.const_prop_ids())
                 .kmerge()
                 .dedup()
                 .collect(),
@@ -237,8 +236,8 @@ impl CoreGraphOps for InternalGraph {
         e: EdgeRef,
         layer_ids: &LayerIds,
     ) -> Box<dyn Iterator<Item = usize> + '_> {
-        // FIXME: revisit the locking scheme so we don't have to collect the ids
-        let entry = self.inner().edge_entry(e.pid());
+        // // FIXME: revisit the locking scheme so we don't have to collect the ids
+        let entry = self.inner().storage.edge_entry(e.pid());
         match layer_ids {
             LayerIds::None => Box::new(iter::empty()),
             LayerIds::All => Box::new(entry.temp_prop_ids(None).collect_vec().into_iter()),
@@ -256,17 +255,17 @@ impl CoreGraphOps for InternalGraph {
 
     #[inline]
     fn core_edges(&self) -> EdgesStorage {
-        EdgesStorage::Mem(Arc::new(self.inner().storage.edges.read_lock()))
+        EdgesStorage::Mem(Arc::new(self.inner().storage.edges_read_lock()))
     }
 
     #[inline]
     fn core_nodes(&self) -> NodesStorage {
-        NodesStorage::Mem(Arc::new(self.inner().storage.nodes.read_lock()))
+        NodesStorage::Mem(Arc::new(self.inner().storage.nodes_read_lock()))
     }
 
     #[inline]
     fn core_edge(&self, eid: ELID) -> EdgeStorageEntry {
-        EdgeStorageEntry::Unlocked(self.inner().storage.edges.entry(eid.pid()))
+        EdgeStorageEntry::Unlocked(self.inner().storage.edge_entry(eid.pid()))
     }
 
     #[inline]
@@ -279,12 +278,12 @@ impl CoreGraphOps for InternalGraph {
     }
 
     fn core_edge_arc(&self, eid: ELID) -> EdgeOwnedEntry {
-        EdgeOwnedEntry::Mem(self.inner().storage.edges.entry_arc(eid.pid()))
+        EdgeOwnedEntry::Mem(self.inner().storage.get_edge_arc(eid.pid()))
     }
 
     #[inline]
     fn unfiltered_num_edges(&self) -> usize {
-        self.inner().storage.edges.len()
+        self.inner().storage.edges_len()
     }
 }
 

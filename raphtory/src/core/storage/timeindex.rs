@@ -18,6 +18,7 @@ use std::{
     ops::{Deref, Range},
 };
 
+use crate::core::utils::iter::GenLockedIter;
 pub use raphtory_api::core::storage::timeindex::*;
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -539,5 +540,87 @@ impl<'a, Ops: TimeIndexOps + 'a> TimeIndexOps for LayeredTimeIndexWindow<'a, Ops
 
     fn len(&self) -> usize {
         self.timeindex.par_iter().map(|ts| ts.len()).sum()
+    }
+}
+
+impl<'a, T: AsTime> TimeIndexIntoOps for LockedView<'a, TimeIndex<T>> {
+    type IndexType = T;
+
+    type RangeType = LockedTimeIndexWindow<'a, T>;
+
+    fn into_range(self, w: Range<Self::IndexType>) -> Self::RangeType {
+        LockedTimeIndexWindow {
+            timeindex: self,
+            range: w,
+        }
+    }
+
+    fn into_iter(self) -> impl Iterator<Item = Self::IndexType> + Send {
+        GenLockedIter::from(self, |t| t.iter())
+    }
+}
+
+#[derive(Debug)]
+pub struct LockedTimeIndexWindow<'a, T: AsTime> {
+    timeindex: LockedView<'a, TimeIndex<T>>,
+    range: Range<T>,
+}
+
+impl<'a, T: AsTime> TimeIndexIntoOps for LockedTimeIndexWindow<'a, T> {
+    type IndexType = T;
+    type RangeType = Self;
+
+    fn into_range(self, w: Range<Self::IndexType>) -> Self::RangeType {
+        let start = w.start.max(self.range.start);
+        let end = w.end.min(self.range.end);
+        LockedTimeIndexWindow {
+            timeindex: self.timeindex,
+            range: start..end,
+        }
+    }
+
+    fn into_iter(self) -> impl Iterator<Item = Self::IndexType> + Send {
+        GenLockedIter::from(self.timeindex, |t| t.range_iter_forward(self.range.clone()))
+    }
+}
+
+impl<'a, T: AsTime> TimeIndexOps for LockedTimeIndexWindow<'a, T> {
+    type IndexType = T;
+    type RangeType<'b> = TimeIndexWindow<'b, T> where Self: 'b;
+
+    fn active(&self, w: Range<Self::IndexType>) -> bool {
+        let Self { timeindex, range } = self;
+        w.start < range.end
+            && w.end > range.start
+            && (timeindex.active(max(w.start, range.start)..min(w.end, range.end)))
+    }
+
+    fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType<'_> {
+        let Self { timeindex, range } = self;
+        let start = max(range.start, w.start);
+        let end = min(range.start, w.start);
+        TimeIndexWindow::TimeIndexRange {
+            timeindex: timeindex.deref(),
+            range: start..end,
+        }
+    }
+
+    fn first(&self) -> Option<Self::IndexType> {
+        let Self { timeindex, range } = self;
+        timeindex.range_iter(range.clone()).next()
+    }
+
+    fn last(&self) -> Option<Self::IndexType> {
+        let Self { timeindex, range } = self;
+        timeindex.range_iter(range.clone()).next_back()
+    }
+
+    fn iter(&self) -> Box<dyn Iterator<Item = Self::IndexType> + Send + '_> {
+        todo!()
+    }
+
+    fn len(&self) -> usize {
+        let Self { timeindex, range } = self;
+        timeindex.range_iter(range.clone()).count()
     }
 }
