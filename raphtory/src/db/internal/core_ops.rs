@@ -163,13 +163,14 @@ impl CoreGraphOps for InternalGraph {
                     entry
                         .layer_iter()
                         .next()
-                        .and_then(|layer| layer.const_prop(prop_id).cloned())
+                        .and_then(|layer| layer.layer.const_prop(prop_id).cloned())
                 } else {
                     let prop_map: HashMap<_, _> = entry
                         .layer_iter()
                         .enumerate()
                         .flat_map(|(id, layer)| {
                             layer
+                                .layer
                                 .const_prop(prop_id)
                                 .map(|p| (self.inner().get_layer_name(id), p.clone()))
                         })
@@ -214,7 +215,7 @@ impl CoreGraphOps for InternalGraph {
             LayerIds::None => vec![],
             LayerIds::All => entry
                 .layer_iter()
-                .map(|l| l.const_prop_ids())
+                .map(|l| l.layer.const_prop_ids())
                 .kmerge()
                 .dedup()
                 .collect(),
