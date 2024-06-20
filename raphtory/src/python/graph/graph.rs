@@ -460,7 +460,7 @@ impl PyGraph {
         Ok(graph.graph)
     }
 
-    /// Load a graph from a Pandas DataFrame.
+    /// Load a graph from Parquet file.
     ///
     /// Args:
     ///     edge_parquet_file_path (str): Parquet file containing the edges.
