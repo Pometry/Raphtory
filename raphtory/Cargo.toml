@@ -109,6 +109,7 @@ python = [
     "dep:display-error-chain",
     "dep:polars-arrow",
     "polars-arrow?/compute",
+    "dep:polars-parquet",
     "dep:kdam",
     "dep:rpds",
 ]
