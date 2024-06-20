@@ -240,6 +240,7 @@ impl<'a, T: AsTime, Ops: TimeIndexOps<IndexType = T>, V: AsRef<Vec<Ops>> + Send 
     = LayeredTimeIndexWindow<'b, Ops::RangeType<'b>> where
         Self: 'b;
 
+    #[inline(always)]
     fn active(&self, w: Range<Self::IndexType>) -> bool {
         self.view.as_ref().iter().any(|t| t.active(w.clone()))
     }
@@ -425,6 +426,7 @@ where
     type IndexType = T;
     type RangeType<'a> = TimeIndexWindow<'a, T> where Self: 'a;
 
+    #[inline(always)]
     fn active(&self, w: Range<T>) -> bool {
         match self {
             TimeIndexWindow::Empty => false,
@@ -509,6 +511,7 @@ impl<'a, Ops: TimeIndexOps + 'a> TimeIndexOps for LayeredTimeIndexWindow<'a, Ops
     type IndexType = Ops::IndexType;
     type RangeType<'b> = LayeredTimeIndexWindow<'b, Ops::RangeType<'b>> where Self: 'b;
 
+    #[inline(always)]
     fn active(&self, w: Range<Self::IndexType>) -> bool {
         self.timeindex.iter().any(|t| t.active(w.clone()))
     }

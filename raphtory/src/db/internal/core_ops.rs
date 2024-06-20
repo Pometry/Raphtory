@@ -38,7 +38,7 @@ impl CoreGraphOps for InternalGraph {
     }
 
     fn core_graph(&self) -> GraphStorage {
-        GraphStorage::Mem(self.lock())
+        GraphStorage::Unlocked(self.clone())
     }
     #[inline]
     fn node_meta(&self) -> &Meta {
@@ -266,12 +266,12 @@ impl CoreGraphOps for InternalGraph {
 
     #[inline]
     fn core_edge(&self, eid: ELID) -> EdgeStorageEntry {
-        EdgeStorageEntry::Mem(self.inner().storage.edges.entry(eid.pid()))
+        EdgeStorageEntry::Unlocked(self.inner().storage.edges.entry(eid.pid()))
     }
 
     #[inline]
     fn core_node_entry(&self, vid: VID) -> NodeStorageEntry {
-        NodeStorageEntry::Mem(self.inner().storage.nodes.entry(vid))
+        NodeStorageEntry::Unlocked(self.inner().storage.nodes.entry(vid))
     }
 
     fn core_node_arc(&self, vid: VID) -> NodeOwnedEntry {

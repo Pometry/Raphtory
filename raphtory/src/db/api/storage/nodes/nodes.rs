@@ -5,9 +5,11 @@ use crate::{
         entities::{nodes::node_store::NodeStore, VID},
         storage::ReadLockedStorage,
     },
-    db::api::storage::nodes::{node_ref::NodeStorageRef, nodes_ref::NodesStorageRef},
+    db::api::storage::nodes::nodes_ref::NodesStorageEntry,
 };
 use std::sync::Arc;
+
+use super::node_ref::NodeStorageRef;
 
 pub enum NodesStorage {
     Mem(Arc<ReadLockedStorage<NodeStore, VID>>),
@@ -16,15 +18,15 @@ pub enum NodesStorage {
 }
 
 impl NodesStorage {
-    pub fn as_ref(&self) -> NodesStorageRef {
+    pub fn as_ref(&self) -> NodesStorageEntry {
         match self {
-            NodesStorage::Mem(storage) => NodesStorageRef::Mem(storage),
+            NodesStorage::Mem(storage) => NodesStorageEntry::Mem(storage),
             #[cfg(feature = "storage")]
-            NodesStorage::Disk(storage) => NodesStorageRef::Disk(storage.as_ref()),
+            NodesStorage::Disk(storage) => NodesStorageEntry::Disk(storage.as_ref()),
         }
     }
 
-    pub fn node_ref(&self, vid: VID) -> NodeStorageRef {
+    pub fn node_entry(&self, vid: VID) -> NodeStorageRef {
         match self {
             NodesStorage::Mem(storage) => NodeStorageRef::Mem(storage.get(vid)),
             #[cfg(feature = "storage")]

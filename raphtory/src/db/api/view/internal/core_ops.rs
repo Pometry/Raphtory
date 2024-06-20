@@ -372,6 +372,7 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
 
 pub enum NodeAdditions<'a> {
     Mem(&'a TimeIndex<i64>),
+    Locked(LockedView<'a, TimeIndex<i64>>),
     Range(TimeIndexWindow<'a, i64>),
     #[cfg(feature = "storage")]
     Col(Vec<TimeStamps<'a, i64>>),
@@ -381,9 +382,11 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
     type IndexType = i64;
     type RangeType<'a> = NodeAdditions<'a> where Self: 'a;
 
+    #[inline]
     fn active(&self, w: Range<i64>) -> bool {
         match self {
             NodeAdditions::Mem(index) => index.active_t(w),
+            NodeAdditions::Locked(index) => index.active_t(w),
             #[cfg(feature = "storage")]
             NodeAdditions::Col(index) => index.par_iter().any(|index| index.active_t(w.clone())),
             NodeAdditions::Range(index) => index.active_t(w),
@@ -393,6 +396,7 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
     fn range(&self, w: Range<i64>) -> Self::RangeType<'_> {
         match self {
             NodeAdditions::Mem(index) => NodeAdditions::Range(index.range(w)),
+            NodeAdditions::Locked(index) => NodeAdditions::Range(index.range(w)),
             #[cfg(feature = "storage")]
             NodeAdditions::Col(index) => {
                 let mut ranges = Vec::with_capacity(index.len());
@@ -409,6 +413,7 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
     fn first(&self) -> Option<Self::IndexType> {
         match self {
             NodeAdditions::Mem(index) => index.first(),
+            NodeAdditions::Locked(index) => index.first(),
             #[cfg(feature = "storage")]
             NodeAdditions::Col(index) => index.par_iter().flat_map(|index| index.first()).min(),
             NodeAdditions::Range(index) => index.first(),
@@ -418,6 +423,7 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
     fn last(&self) -> Option<Self::IndexType> {
         match self {
             NodeAdditions::Mem(index) => index.last(),
+            NodeAdditions::Locked(index) => index.last(),
             #[cfg(feature = "storage")]
             NodeAdditions::Col(index) => index.par_iter().flat_map(|index| index.last()).max(),
             NodeAdditions::Range(index) => index.last(),
@@ -427,6 +433,7 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
     fn iter(&self) -> Box<dyn Iterator<Item = i64> + Send + '_> {
         match self {
             NodeAdditions::Mem(index) => index.iter(),
+            NodeAdditions::Locked(index) => Box::new(index.iter()),
             #[cfg(feature = "storage")]
             NodeAdditions::Col(index) => Box::new(index.iter().flat_map(|index| index.iter())),
             NodeAdditions::Range(index) => index.iter(),
@@ -436,6 +443,7 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
     fn len(&self) -> usize {
         match self {
             NodeAdditions::Mem(index) => index.len(),
+            NodeAdditions::Locked(index) => index.len(),
             NodeAdditions::Range(range) => range.len(),
             #[cfg(feature = "storage")]
             NodeAdditions::Col(col) => col.len(),

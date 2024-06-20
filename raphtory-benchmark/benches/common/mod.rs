@@ -1,14 +1,10 @@
 #![allow(dead_code)]
 
 use criterion::{
-    black_box, measurement::WallTime, BatchSize, Bencher, BenchmarkGroup, BenchmarkId,
+    black_box, measurement::WallTime, BatchSize, Bencher, BenchmarkGroup, BenchmarkId, Criterion,
 };
-use rand::{distributions::Uniform, seq::*, Rng};
-use raphtory::{
-    core::entities::{LayerIds, VID},
-    db::api::view::StaticGraphViewOps,
-    prelude::*,
-};
+use rand::{distributions::Uniform, seq::*, Rng, SeedableRng};
+use raphtory::{db::api::view::StaticGraphViewOps, prelude::*};
 use std::collections::HashSet;
 
 fn make_index_gen() -> Box<dyn Iterator<Item = u64>> {
@@ -421,20 +417,144 @@ pub fn run_analysis_benchmarks<F, G>(
         },
     );
 
+    bench(
+        group,
+        "max_neighbour_degree",
+        parameter,
+        |b: &mut Bencher| {
+            let v = graph
+                .nodes()
+                .into_iter()
+                .next()
+                .expect("graph should not be empty");
+            b.iter(|| v.neighbours().degree().max())
+        },
+    );
+}
+
+pub fn run_materialize<F, G>(
+    group: &mut BenchmarkGroup<WallTime>,
+    make_graph: F,
+    parameter: Option<usize>,
+) where
+    F: Fn() -> G,
+    G: StaticGraphViewOps,
+{
+    let graph = make_graph();
     bench(group, "materialize", parameter, |b: &mut Bencher| {
         b.iter(|| {
             let mg = graph.materialize();
             black_box(mg)
         })
     });
+}
 
-    bench(
-        group,
-        "max_neighbour_degree",
-        parameter,
-        |b: &mut Bencher| {
-            let v = graph.node(VID(0)).expect("graph should not be empty");
-            b.iter(|| v.neighbours().degree().max())
-        },
-    );
+pub fn run_graph_ops_benches(
+    c: &mut Criterion,
+    graph_name: &str,
+    graph: Graph,
+    layered_graph: Graph,
+) {
+    let mut graph_group = c.benchmark_group(graph_name);
+    let make_graph = || graph.clone();
+    run_analysis_benchmarks(&mut graph_group, make_graph, None);
+    graph_group.finish();
+
+    bench_materialise(&format!("{graph_name}_materialise"), c, make_graph);
+
+    let group_name = format!("{graph_name}_window_100");
+    let make_graph = || graph.window(i64::MIN, i64::MAX);
+    let mut graph_window_group_100 = c.benchmark_group(group_name);
+    // graph_window_group_100.sample_size(10);
+    run_analysis_benchmarks(&mut graph_window_group_100, make_graph, None);
+    graph_window_group_100.finish();
+
+    bench_materialise(&format!("{graph_name}_materialise"), c, make_graph);
+
+    // graph windowed
+    let group_name = format!("{graph_name}_graph_window_10");
+    let mut graph_window_group_10 = c.benchmark_group(group_name);
+    let latest = graph.latest_time().expect("non-empty graph");
+    let earliest = graph.earliest_time().expect("non-empty graph");
+    let start = latest - (latest - earliest) / 10;
+    // graph_window_group_10.sample_size(10);
+    let make_graph = || graph.window(start, latest + 1);
+    run_analysis_benchmarks(&mut graph_window_group_10, make_graph, None);
+    graph_window_group_10.finish();
+    bench_materialise(&format!("{graph_name}_materialise"), c, make_graph);
+
+    // subgraph
+    let mut rng = rand::rngs::StdRng::seed_from_u64(73);
+    let nodes = graph
+        .nodes()
+        .into_iter()
+        .choose_multiple(&mut rng, graph.count_nodes() / 10)
+        .into_iter()
+        .map(|n| n.id())
+        .collect::<Vec<_>>();
+    let subgraph = graph.subgraph(nodes);
+    let group_name = format!("{graph_name}_subgraph_10pc");
+    let mut subgraph_10 = c.benchmark_group(group_name);
+    // subgraph_10.sample_size(10);
+
+    let make_graph = || subgraph.clone();
+    run_analysis_benchmarks(&mut subgraph_10, make_graph, None);
+    subgraph_10.finish();
+    bench_materialise(&format!("{graph_name}_materialise"), c, make_graph);
+
+    // subgraph windowed
+    let group_name = format!("{graph_name}_subgraph_10pc_windowed");
+    let mut subgraph_10_windowed = c.benchmark_group(group_name);
+
+    let make_graph = || subgraph.window(start, latest + 1);
+    run_analysis_benchmarks(&mut subgraph_10_windowed, make_graph, None);
+    subgraph_10_windowed.finish();
+    bench_materialise(&format!("{graph_name}_materialise"), c, make_graph);
+
+    // layered graph windowed
+    let graph = layered_graph;
+    let group_name = format!("{graph_name}_graph_window_50_layered");
+    let mut graph_window_layered_group_50 = c.benchmark_group(group_name);
+    let latest = graph.latest_time().expect("non-empty graph");
+    let earliest = graph.earliest_time().expect("non-empty graph");
+    let start = latest - (latest - earliest) / 2;
+    graph_window_layered_group_50.sample_size(10);
+    let make_graph = || {
+        graph
+            .window(start, latest + 1)
+            .layers(["0", "1", "2", "3", "4"])
+            .unwrap()
+    };
+    run_analysis_benchmarks(&mut graph_window_layered_group_50, make_graph, None);
+    graph_window_layered_group_50.finish();
+    bench_materialise(&format!("{graph_name}_materialise"), c, make_graph);
+
+    let graph = graph.persistent_graph();
+
+    let group_name = format!("{graph_name}_persistent_window_50_layered");
+    let mut graph_window_layered_group_50 = c.benchmark_group(group_name);
+    let latest = graph.latest_time().expect("non-empty graph");
+    let earliest = graph.earliest_time().expect("non-empty graph");
+    let start = latest - (latest - earliest) / 2;
+    graph_window_layered_group_50.sample_size(10);
+    let make_graph = || {
+        graph
+            .window(start, latest + 1)
+            .layers(["0", "1", "2", "3", "4"])
+            .unwrap()
+    };
+    run_analysis_benchmarks(&mut graph_window_layered_group_50, make_graph, None);
+    graph_window_layered_group_50.finish();
+    bench_materialise(&format!("{graph_name}_materialise"), c, make_graph);
+}
+
+fn bench_materialise<F, G>(name: &str, c: &mut Criterion, make_graph: F)
+where
+    F: Fn() -> G,
+    G: StaticGraphViewOps,
+{
+    let mut mat_graph_group = c.benchmark_group(name);
+    mat_graph_group.sample_size(10);
+    run_materialize(&mut mat_graph_group, make_graph, None);
+    mat_graph_group.finish();
 }
