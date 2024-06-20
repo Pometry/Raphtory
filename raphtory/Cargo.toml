@@ -104,12 +104,11 @@ io = [
 # Enables generating the pyo3 python bindings
 python = [
     "io",
+    "arrow",
     "dep:pyo3",
     "dep:num",
     "dep:display-error-chain",
-    "dep:polars-arrow",
     "polars-arrow?/compute",
-    "dep:polars-parquet",
     "dep:kdam",
     "dep:rpds",
 ]
@@ -119,10 +118,9 @@ search = ["dep:tantivy"]
 vectors = ["dep:futures-util", "dep:async-trait", "dep:async-openai"]
 # storage
 storage = [
+    "arrow",
     "pometry-storage",
-    "dep:polars-arrow",
     "dep:polars-utils",
-    "dep:polars-parquet",
     "dep:memmap2",
     "dep:ahash",
     "dep:tempfile",
@@ -132,4 +130,8 @@ storage = [
     "polars-arrow?/io_ipc",
     "polars-arrow?/arrow_rs",
     "polars-parquet?/compression",
+]
+arrow = [
+    "dep:polars-arrow",
+    "dep:polars-parquet",
 ]

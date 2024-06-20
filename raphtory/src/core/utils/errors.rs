@@ -1,4 +1,5 @@
 use crate::core::{utils::time::error::ParseTimeError, ArcStr, Prop, PropType};
+#[cfg(feature = "arrow")]
 use polars_arrow::legacy::error;
 #[cfg(feature = "search")]
 use tantivy;
@@ -7,6 +8,7 @@ use tantivy::query::QueryParserError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum GraphError {
+    #[cfg(feature = "arrow")]
     #[error("Arrow error: {0}")]
     Arrow(#[from] error::PolarsError),
     #[error("Graph error occurred")]

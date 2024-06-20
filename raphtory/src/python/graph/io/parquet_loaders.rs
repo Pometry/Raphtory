@@ -1,6 +1,6 @@
 use crate::{
     core::{entities::graph::tgraph::InternalGraph, utils::errors::GraphError, Prop},
-    python::graph::io::{dataframe::*, df_loaders::*, panda_loaders::process_pandas_py_df},
+    python::graph::io::{dataframe::*, df_loaders::*},
 };
 use itertools::Itertools;
 use polars_arrow::{
@@ -13,7 +13,6 @@ use polars_parquet::{
     read,
     read::{read_metadata, FileMetaData, FileReader},
 };
-use pyo3::{types::IntoPyDict, PyAny, PyErr, Python};
 use std::{collections::HashMap, path::Path};
 
 pub fn load_nodes_from_parquet(
