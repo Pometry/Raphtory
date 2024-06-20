@@ -109,6 +109,7 @@ python = [
     "dep:display-error-chain",
     "dep:polars-arrow",
     "polars-arrow?/compute",
+    "raphtory-api/python",
     "dep:kdam",
     "dep:rpds",
 ]

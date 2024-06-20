@@ -34,7 +34,7 @@ use crate::{
 use itertools::Itertools;
 use polars_arrow::datatypes::ArrowDataType;
 use pometry_storage::{
-    properties::{ConstProps, Properties},
+    properties::ConstProps,
     GidRef, GID,
 };
 use raphtory_api::core::storage::arc_str::ArcStr;
@@ -250,6 +250,6 @@ where
         ArrowDataType::Utf8 => props.prop_str(index, id).map(Into::into).map(Prop::Str),
         ArrowDataType::LargeUtf8 => props.prop_str(index, id).map(Into::into).map(Prop::Str),
         ArrowDataType::Utf8View => props.prop_str(index, id).map(Into::into).map(Prop::Str),
-        _ => unimplemented!(),
+        _ => unimplemented!("Data type not supported"),
     }
 }

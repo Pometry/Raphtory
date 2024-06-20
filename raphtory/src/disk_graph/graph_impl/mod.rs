@@ -1,17 +1,14 @@
 use std::{
     fmt::{Display, Formatter},
-    num::NonZeroUsize,
     path::{Path, PathBuf},
     sync::Arc,
 };
 
 use pometry_storage::{
-    chunked_array::chunked_array::ChunkedArray,
     disk_hmap::DiskHashMap,
     graph::TemporalGraph,
     graph_fragment::TempColGraphFragment,
-    load::{list_parquet_files, ExternalEdgeList},
-    properties::{ConstProps, Properties, TemporalProps},
+    load::ExternalEdgeList,
     RAError,
 };
 use raphtory_api::core::storage::timeindex::TimeIndexEntry;
@@ -867,7 +864,7 @@ mod test {
     }
 
     #[test]
-    fn test_type_filter_storage() {
+    fn test_type_filter_disk_graph_loaded_from_parquets() {
         let tmp_dir = tempfile::tempdir().unwrap();
         let graph_dir = tmp_dir.path();
         let chunk_size = 268_435_456;
@@ -1032,7 +1029,10 @@ mod test {
             l.nodes().type_filter(&vec![""]).name().collect_vec(),
             Vec::<String>::new()
         );
+    }
 
+    #[test]
+    fn test_type_filter_disk_graph_created_from_in_memory_graph() {
         let g = Graph::new();
         g.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
         g.add_node(1, 2, NO_PROPS, Some("b")).unwrap();

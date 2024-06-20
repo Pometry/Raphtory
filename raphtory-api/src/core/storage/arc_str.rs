@@ -8,8 +8,6 @@ use std::{
     sync::Arc,
 };
 
-use pyo3::{FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject};
-
 #[derive(Clone, Debug, Eq, Ord, Hash, Serialize, Deserialize)]
 pub struct ArcStr(pub Arc<str>);
 
@@ -75,23 +73,6 @@ impl<T: Borrow<str>> PartialOrd<T> for ArcStr {
     }
 }
 
-impl IntoPy<PyObject> for ArcStr {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.0.into_py(py)
-    }
-}
-
-impl ToPyObject for ArcStr {
-    fn to_object(&self, py: Python) -> PyObject {
-        self.0.to_string().to_object(py)
-    }
-}
-
-impl<'source> FromPyObject<'source> for ArcStr {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
-        ob.extract::<String>().map(|v| v.into())
-    }
-}
 
 pub trait OptionAsStr<'a> {
     fn as_str(self) -> Option<&'a str>;
@@ -129,7 +110,7 @@ mod test_arc_str {
 
         let opt_str = test.as_str();
         assert_eq!(opt_str, Some("test"));
-        
+
         let test_ref = test.as_ref();
         let opt_str = test_ref.as_str();
         assert_eq!(opt_str, Some("test"));
