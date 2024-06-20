@@ -129,9 +129,9 @@ storage = [
     "dep:thread_local",
     "polars-arrow?/io_ipc",
     "polars-arrow?/arrow_rs",
-    "polars-parquet?/compression",
 ]
 arrow = [
     "dep:polars-arrow",
     "dep:polars-parquet",
+    "polars-parquet?/compression"
 ]
