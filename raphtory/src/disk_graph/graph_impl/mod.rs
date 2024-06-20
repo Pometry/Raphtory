@@ -5,11 +5,8 @@ use std::{
 };
 
 use pometry_storage::{
-    disk_hmap::DiskHashMap,
-    graph::TemporalGraph,
-    graph_fragment::TempColGraphFragment,
-    load::ExternalEdgeList,
-    RAError,
+    disk_hmap::DiskHashMap, graph::TemporalGraph, graph_fragment::TempColGraphFragment,
+    load::ExternalEdgeList, RAError,
 };
 use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use rayon::prelude::*;

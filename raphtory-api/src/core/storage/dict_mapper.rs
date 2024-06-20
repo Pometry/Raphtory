@@ -69,9 +69,9 @@ impl DictMapper {
 mod test {
     use std::{collections::HashMap, sync::Arc, thread};
 
+    use crate::core::storage::dict_mapper::DictMapper;
     use quickcheck_macros::quickcheck;
     use rand::seq::SliceRandom;
-    use crate::core::storage::dict_mapper::DictMapper;
     use rayon::prelude::*;
 
     use super::*;
@@ -144,5 +144,4 @@ mod test {
 
         assert_eq!(actual, vec![0, 1, 2, 3, 4]);
     }
-
 }

@@ -33,10 +33,7 @@ use crate::{
 };
 use itertools::Itertools;
 use polars_arrow::datatypes::ArrowDataType;
-use pometry_storage::{
-    properties::ConstProps,
-    GidRef, GID,
-};
+use pometry_storage::{properties::ConstProps, GidRef, GID};
 use raphtory_api::core::storage::arc_str::ArcStr;
 use rayon::prelude::*;
 

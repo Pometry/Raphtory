@@ -73,7 +73,6 @@ impl<T: Borrow<str>> PartialOrd<T> for ArcStr {
     }
 }
 
-
 pub trait OptionAsStr<'a> {
     fn as_str(self) -> Option<&'a str>;
 }
@@ -92,8 +91,8 @@ impl<'a, O: AsRef<str> + 'a> OptionAsStr<'a> for Option<&'a O> {
 
 #[cfg(test)]
 mod test_arc_str {
-    use std::sync::Arc;
     use crate::core::storage::arc_str::{ArcStr, OptionAsStr};
+    use std::sync::Arc;
 
     #[test]
     fn can_compare_with_str() {
@@ -119,5 +118,4 @@ mod test_arc_str {
         let opt_str = test.as_str();
         assert_eq!(opt_str, Some("test"));
     }
-
 }

@@ -1,5 +1,5 @@
-use pyo3::*;
 use crate::core::storage::arc_str::ArcStr;
+use pyo3::*;
 
 impl IntoPy<PyObject> for ArcStr {
     fn into_py(self, py: Python<'_>) -> PyObject {

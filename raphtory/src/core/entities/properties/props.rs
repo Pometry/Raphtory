@@ -318,10 +318,10 @@ impl PropMapper {
 
 #[cfg(test)]
 mod test {
-    use std::{sync::Arc, thread};
-    use rayon::prelude::*;
     use super::*;
-    
+    use rayon::prelude::*;
+    use std::{sync::Arc, thread};
+
     #[test]
     fn test_prop_mapper_concurrent() {
         let values = [Prop::I64(1), Prop::U16(0), Prop::Bool(true), Prop::F64(0.0)];
