@@ -176,7 +176,7 @@ def assert_expected_test_layer(g):
     assert g.layers(["test_layer"]).edges.src.id.collect() == [1, 2, 3, 4, 5]
 
 
-def test_load_from_parquet():
+def test_load_from_parquet_graphs():
     g = Graph.load_from_parquet(
         edge_parquet_file_path=edges_parquet_file_path,
         edge_src="src",
@@ -276,6 +276,121 @@ def test_load_from_parquet():
     assert_expected_node_property_dept(g)
 
     g = Graph.load_from_parquet(
+        edge_parquet_file_path=edges_parquet_file_path,
+        edge_src="src",
+        edge_dst="dst",
+        edge_time="time",
+        edge_layer="layers",
+        node_parquet_file_path=nodes_parquet_file_path,
+        node_id="id",
+        node_time="time",
+        node_properties=["name"],
+        node_const_properties=["type"],
+    )
+    assert_expected_node_property_type(g)
+    assert_expected_layers(g)
+
+
+def test_load_from_parquet_persistent_graphs():
+    g = PersistentGraph.load_from_parquet(
+        edge_parquet_file_path=edges_parquet_file_path,
+        edge_src="src",
+        edge_dst="dst",
+        edge_time="time",
+        edge_properties=["weight", "marbles"],
+        node_parquet_file_path=nodes_parquet_file_path,
+        node_id="id",
+        node_time="time",
+        node_properties=["name"],
+        node_type="node_type",
+    )
+    assert_expected_nodes(g)
+    assert_expected_edges(g)
+
+    g = PersistentGraph()
+    g.load_nodes_from_parquet(
+        nodes_parquet_file_path,
+        "id",
+        "time",
+        "node_type",
+        properties=["name"]
+    )
+    g.load_edges_from_parquet(
+        edges_parquet_file_path,
+        "src",
+        "dst",
+        "time",
+        ["weight", "marbles"],
+        layer="layers"
+    )
+    assert_expected_nodes(g)
+    assert_expected_edges(g)
+    assert_expected_layers(g)
+
+    g.load_node_props_from_parquet(
+        nodes_parquet_file_path,
+        "id",
+        const_properties=["type"],
+        shared_const_properties={"tag": "test_tag"},
+    )
+    assert_expected_node_property_tag(g)
+    assert_expected_node_property_type(g)
+
+    g.load_edge_props_from_parquet(
+        edges_parquet_file_path,
+        "src",
+        "dst",
+        const_properties=["marbles_const"],
+        shared_const_properties={"tag": "test_tag"},
+        layer="layers",
+    )
+    assert_expected_edge_properties(g)
+    assert_expected_layers(g)
+
+    g = PersistentGraph()
+    g.load_nodes_from_parquet(
+        nodes_parquet_file_path,
+        "id",
+        "time",
+        "node_type",
+        properties=["name"],
+        shared_const_properties={"tag": "test_tag"},
+    )
+    assert_expected_node_types(g)
+    assert_expected_node_property_tag(g)
+
+    g = PersistentGraph()
+    g.load_edges_from_parquet(
+        edges_parquet_file_path,
+        "src",
+        "dst",
+        "time",
+        properties=["weight", "marbles"],
+        const_properties=["marbles_const"],
+        shared_const_properties={"type": "Edge", "tag": "test_tag"},
+        layer="test_layer",
+        layer_in_df=False,
+    )
+    assert_expected_edge_properties_test_layer(g)
+    assert_expected_test_layer(g)
+
+    g = Graph.load_from_parquet(
+        edge_parquet_file_path=edges_parquet_file_path,
+        edge_src="src",
+        edge_dst="dst",
+        edge_time="time",
+        edge_layer="test_layer",
+        layer_in_df=False,
+        node_parquet_file_path=nodes_parquet_file_path,
+        node_id="id",
+        node_time="time",
+        node_properties=["name"],
+        node_shared_const_properties={"dept": "Sales"},
+    )
+    assert_expected_test_layer(g)
+    assert_expected_node_property_dept(g)
+
+    g = PersistentGraph.load_from_parquet(
         edge_parquet_file_path=edges_parquet_file_path,
         edge_src="src",
         edge_dst="dst",
