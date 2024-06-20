@@ -22,3 +22,6 @@ rustc-hash = { workspace = true }
 lock_api = { workspace = true }
 parking_lot = { workspace = true }
 pyo3 = { workspace = true }
+rayon = { workspace = true }
+rand = { workspace = true }
+quickcheck_macros = { workspace = true }
