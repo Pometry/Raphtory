@@ -44,21 +44,8 @@ pub struct EdgeData {
     pub(crate) deletions: TimeIndex<TimeIndexEntry>,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct EdgeLayerRef<'a> {
-    layer: &'a EdgeData,
-}
-
 #[derive(Debug)]
 pub struct EdgeLayerMut<'a>(&'a mut EdgeData);
-
-impl Deref for EdgeLayerRef<'_> {
-    type Target = EdgeLayer;
-
-    fn deref(&self) -> &Self::Target {
-        &self.layer.layer
-    }
-}
 
 impl Deref for EdgeLayerMut<'_> {
     type Target = EdgeLayer;
