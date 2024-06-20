@@ -36,7 +36,7 @@ use super::{
     io::{
         dataframe::GraphLoadException,
         panda_loaders::*,
-        df_loaders::load_edges_deletions_from_df
+        df_loaders::load_edges_deletions_from_df,
     },
 };
 
@@ -68,8 +68,8 @@ impl IntoPy<PyObject> for PersistentGraph {
                 PyGraphView::from(self),
             ),
         )
-        .unwrap() // I think this only fails if we are out of memory? Seems to be unavoidable if we want to create an actual graph.
-        .into_py(py)
+            .unwrap() // I think this only fails if we are out of memory? Seems to be unavoidable if we want to create an actual graph.
+            .into_py(py)
     }
 }
 
@@ -712,43 +712,16 @@ impl PyPersistentGraph {
         time: &str,
         layer: Option<&str>,
         layer_in_df: Option<bool>,
-    ) -> Result<(), GraphError> { // TODO: move this to panda_loaders
-        let graph = &self.graph.0;
-        Python::with_gil(|py| {
-            let size: usize = py
-                .eval(
-                    "index.__len__()",
-                    Some([("index", df.getattr("index")?)].into_py_dict(py)),
-                    None,
-                )?
-                .extract()?;
-
-            let mut cols_to_check = vec![src, dst, time];
-            if layer_in_df.unwrap_or(true) {
-                if let Some(ref layer) = layer {
-                    cols_to_check.push(layer.as_ref());
-                }
-            }
-
-            let df = process_pandas_py_df(df, py, cols_to_check.clone())?;
-
-            df.check_cols_exist(&cols_to_check)?;
-            load_edges_deletions_from_df(
-                &df,
-                size,
-                src,
-                dst,
-                time,
-                layer,
-                layer_in_df.unwrap_or(true),
-                graph,
-            )
-            .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
-
-            Ok::<(), PyErr>(())
-        })
-        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
-        Ok(())
+    ) -> Result<(), GraphError> {
+        load_edges_deletions_from_pandas(
+            &self.graph.0,
+            df,
+            src,
+            dst,
+            time,
+            layer,
+            layer_in_df,
+        )
     }
 
     /// Load node properties from a Pandas DataFrame.

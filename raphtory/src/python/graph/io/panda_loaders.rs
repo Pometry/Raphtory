@@ -193,6 +193,52 @@ pub fn load_edge_props_from_pandas(
     Ok(())
 }
 
+pub fn load_edges_deletions_from_pandas(
+    graph: &InternalGraph,
+    df: &PyAny,
+    src: &str,
+    dst: &str,
+    time: &str,
+    layer: Option<&str>,
+    layer_in_df: Option<bool>,
+) -> Result<(), GraphError> {
+    Python::with_gil(|py| {
+        let size: usize = py
+            .eval(
+                "index.__len__()",
+                Some([("index", df.getattr("index")?)].into_py_dict(py)),
+                None,
+            )?
+            .extract()?;
+
+        let mut cols_to_check = vec![src, dst, time];
+        if layer_in_df.unwrap_or(true) {
+            if let Some(ref layer) = layer {
+                cols_to_check.push(layer.as_ref());
+            }
+        }
+
+        let df = process_pandas_py_df(df, py, cols_to_check.clone())?;
+
+        df.check_cols_exist(&cols_to_check)?;
+        load_edges_deletions_from_df(
+            &df,
+            size,
+            src,
+            dst,
+            time,
+            layer,
+            layer_in_df.unwrap_or(true),
+            graph,
+        )
+            .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
+
+        Ok::<(), PyErr>(())
+    })
+        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+    Ok(())
+}
+
 pub(crate) fn process_pandas_py_df(
     df: &PyAny,
     py: Python,
