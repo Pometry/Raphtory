@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1718717085031,
+  "lastUpdate": 1718878555040,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -53635,6 +53635,66 @@ window.BENCHMARK_DATA = {
             "name": "temporal_motifs/temporal_motifs",
             "value": 20943631,
             "range": "± 218164",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "2404621+fabianmurariu@users.noreply.github.com",
+            "name": "Fabian Murariu",
+            "username": "fabianmurariu"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5703639930a74bb76a049af736fa71fc4880548b",
+          "message": "Unlocked storage 2 (#1662)\n\n* 1 fatal error\r\n\r\n* fixed fatal error\r\n\r\n* able to make neighbours iterators out of Entry\r\n\r\n* make TPropOps non Copy\r\n\r\n* LockedView<TProp> needs to be TPropOps\r\n\r\n* add edge_tuples to Entry<NodeStore>\r\n\r\n* changed name in NodeStorageOps to return cows\r\n\r\n* actually add the unlocked and the variants files\r\n\r\n* NodesStorageRef compiles\r\n\r\n* NodesStorage compiles\r\n\r\n* NodeOwnedEntry compiles\r\n\r\n* fixed compilation on non storage feature\r\n\r\n* still needing to implement EdgeStorageRef\r\n\r\n* node storage additions work with reference\r\n\r\n* add node additions_ref\r\n\r\n* tests pass\r\n\r\n* replace EdgeStoreRef with EdgeStoreEntry\r\n\r\n* change the benchmarks to reduce the sample size for materialize\r\n\r\n* fix materialize for Persistent graph and add global locks only when we need all the nodes\r\n\r\n* redo the nodes to move to unlocked\r\n\r\n* ready to merge\r\n\r\n* removed some useless stuff\r\n\r\n* clippy fix\r\n\r\n* fmt\r\n\r\n* inline active\r\n\r\n* increase sample size in graph_ops bench and fix earliest_time\r\n\r\n* fix the build issues\r\n\r\n* fix build errors\r\n\r\n* revert back to NodeStorageRef and always lock when we get all nodes\r\n\r\n* refactor Node storage remove graph_ops from GH benches\r\n\r\n* deactivate storage\r\n\r\n* fix node_owned_entry.rs",
+          "timestamp": "2024-06-20T10:44:09+01:00",
+          "tree_id": "8541cc7ed04f806fb7d388d3a35eef16efa3f937",
+          "url": "https://github.com/Pometry/Raphtory/commit/5703639930a74bb76a049af736fa71fc4880548b"
+        },
+        "date": 1718878553155,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "local_triangle_count/local_triangle_count",
+            "value": 872491,
+            "range": "± 52220",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "local_clustering_coefficient/local_clustering_coefficient",
+            "value": 102265,
+            "range": "± 1342",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_clustering_coeff/graphgen_large_clustering_coeff/Graph(num_nodes=500004, num_edges=20...",
+            "value": 2485246351,
+            "range": "± 45304641",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_pagerank/graphgen_large_pagerank/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 248961267,
+            "range": "± 2128518",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_concomp/graphgen_large_concomp/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 2452763306,
+            "range": "± 46794062",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "temporal_motifs/temporal_motifs",
+            "value": 20585030,
+            "range": "± 320862",
             "unit": "ns/iter"
           }
         ]
