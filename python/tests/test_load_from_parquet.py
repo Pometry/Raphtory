@@ -1,4 +1,5 @@
 import os
+import re
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -72,7 +73,29 @@ def assert_expected_edges(g):
     assert edges == expected_edges
 
 
-def assert_expected_node_properties(g):
+def assert_expected_node_types(g):
+    assert g.nodes.node_type == [
+        "p",
+        "p",
+        "p",
+        "p",
+        "p",
+        "p",
+    ]
+
+
+def assert_expected_node_property_tag(g):
+    assert g.nodes.properties.constant.get("tag").collect() == [
+        "test_tag",
+        "test_tag",
+        "test_tag",
+        "test_tag",
+        "test_tag",
+        "test_tag",
+    ]
+
+
+def assert_expected_node_property_type(g):
     assert g.nodes.properties.constant.get("type").collect() == [
         "Person 1",
         "Person 2",
@@ -81,13 +104,16 @@ def assert_expected_node_properties(g):
         "Person 5",
         "Person 6",
     ]
-    assert g.nodes.properties.constant.get("tag").collect() == [
-        "test_tag",
-        "test_tag",
-        "test_tag",
-        "test_tag",
-        "test_tag",
-        "test_tag",
+
+
+def assert_expected_node_property_dept(g):
+    assert g.nodes.properties.constant.get("dept").collect() == [
+        "Sales",
+        "Sales",
+        "Sales",
+        "Sales",
+        "Sales",
+        "Sales",
     ]
 
 
@@ -106,6 +132,48 @@ def assert_expected_edge_properties(g):
         {"layer 4": "test_tag"},
         {"layer 5": "test_tag"},
     ]
+
+
+def assert_expected_edge_properties_test_layer(g):
+    assert g.edges.properties.constant.get("type").collect() == [
+        {"test_layer": "Edge"},
+        {"test_layer": "Edge"},
+        {"test_layer": "Edge"},
+        {"test_layer": "Edge"},
+        {"test_layer": "Edge"},
+    ]
+    assert g.edges.properties.constant.get("tag").collect() == [
+        {"test_layer": "test_tag"},
+        {"test_layer": "test_tag"},
+        {"test_layer": "test_tag"},
+        {"test_layer": "test_tag"},
+        {"test_layer": "test_tag"},
+    ]
+    assert g.edges.properties.constant.get("tag").collect() == [
+        {"test_layer": "test_tag"},
+        {"test_layer": "test_tag"},
+        {"test_layer": "test_tag"},
+        {"test_layer": "test_tag"},
+        {"test_layer": "test_tag"},
+    ]
+
+
+def assert_expected_layers(g):
+    assert g.unique_layers == ["_default", "layer 1", "layer 2", "layer 3", "layer 4", "layer 5"]
+    assert g.layers(["layer 1"]).edges.src.id.collect() == [1]
+    assert g.layers(["layer 1", "layer 2"]).edges.src.id.collect() == [1, 2]
+    assert g.layers(["layer 1", "layer 2", "layer 3"]).edges.src.id.collect() == [1, 2, 3]
+    assert g.layers(["layer 1", "layer 4", "layer 5"]).edges.src.id.collect() == [1, 4, 5]
+    with pytest.raises(
+            Exception,
+            match=re.escape("Invalid layer test_layer."),
+    ):
+        g.layers(["test_layer"])
+
+
+def assert_expected_test_layer(g):
+    assert g.unique_layers == ["_default", "test_layer"]
+    assert g.layers(["test_layer"]).edges.src.id.collect() == [1, 2, 3, 4, 5]
 
 
 def test_load_from_parquet():
@@ -142,6 +210,7 @@ def test_load_from_parquet():
     )
     assert_expected_nodes(g)
     assert_expected_edges(g)
+    assert_expected_layers(g)
 
     g.load_node_props_from_parquet(
         nodes_parquet_file_path,
@@ -149,7 +218,8 @@ def test_load_from_parquet():
         const_properties=["type"],
         shared_const_properties={"tag": "test_tag"},
     )
-    assert_expected_node_properties(g)
+    assert_expected_node_property_tag(g)
+    assert_expected_node_property_type(g)
 
     g.load_edge_props_from_parquet(
         edges_parquet_file_path,
@@ -160,3 +230,63 @@ def test_load_from_parquet():
         layer="layers",
     )
     assert_expected_edge_properties(g)
+    assert_expected_layers(g)
+
+    g = Graph()
+    g.load_nodes_from_parquet(
+        nodes_parquet_file_path,
+        "id",
+        "time",
+        "node_type",
+        properties=["name"],
+        shared_const_properties={"tag": "test_tag"},
+    )
+    assert_expected_node_types(g)
+    assert_expected_node_property_tag(g)
+
+    g = Graph()
+    g.load_edges_from_parquet(
+        edges_parquet_file_path,
+        "src",
+        "dst",
+        "time",
+        properties=["weight", "marbles"],
+        const_properties=["marbles_const"],
+        shared_const_properties={"type": "Edge", "tag": "test_tag"},
+        layer="test_layer",
+        layer_in_df=False,
+    )
+    assert_expected_edge_properties_test_layer(g)
+    assert_expected_test_layer(g)
+
+    g = Graph.load_from_parquet(
+        edge_parquet_file_path=edges_parquet_file_path,
+        edge_src="src",
+        edge_dst="dst",
+        edge_time="time",
+        edge_layer="test_layer",
+        layer_in_df=False,
+        node_parquet_file_path=nodes_parquet_file_path,
+        node_id="id",
+        node_time="time",
+        node_properties=["name"],
+        node_shared_const_properties={"dept": "Sales"},
+    )
+    assert_expected_test_layer(g)
+    assert_expected_node_property_dept(g)
+
+    g = Graph.load_from_parquet(
+        edge_parquet_file_path=edges_parquet_file_path,
+        edge_src="src",
+        edge_dst="dst",
+        edge_time="time",
+        edge_layer="layers",
+        node_parquet_file_path=nodes_parquet_file_path,
+        node_id="id",
+        node_time="time",
+        node_properties=["name"],
+        node_const_properties=["type"],
+    )
+    assert_expected_node_property_type(g)
+    assert_expected_layers(g)
+
