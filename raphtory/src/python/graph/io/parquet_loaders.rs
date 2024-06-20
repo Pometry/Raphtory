@@ -10,6 +10,9 @@ use polars_parquet::read::{FileMetaData, FileReader, read_metadata};
 use crate::python::graph::io::{dataframe::*, df_loaders::*};
 use polars_arrow::datatypes::ArrowDataType as DataType;
 use polars_arrow::record_batch::RecordBatch as Chunk;
+use pyo3::{PyAny, PyErr, Python};
+use pyo3::types::IntoPyDict;
+use crate::python::graph::io::panda_loaders::process_pandas_py_df;
 
 pub fn load_nodes_from_parquet(
     graph: &InternalGraph,
@@ -160,6 +163,41 @@ pub fn load_edge_props_from_parquet(
     Ok(())
 }
 
+pub fn load_edges_deletions_from_parquet(
+    graph: &InternalGraph,
+    parquet_file_path: &Path,
+    src: &str,
+    dst: &str,
+    time: &str,
+    layer: Option<&str>,
+    layer_in_df: Option<bool>,
+) -> Result<(), GraphError> {
+    let mut cols_to_check = vec![src, dst, time];
+    if layer_in_df.unwrap_or(true) {
+        if let Some(ref layer) = layer {
+            cols_to_check.push(layer.as_ref());
+        }
+    }
+
+    let df = process_parquet_file_to_df(parquet_file_path, cols_to_check.clone())?;
+    df.check_cols_exist(&cols_to_check)?;
+    let size = cols_to_check.len();
+
+    load_edges_deletions_from_df(
+        &df,
+        size,
+        src,
+        dst,
+        time,
+        layer,
+        layer_in_df.unwrap_or(true),
+        graph,
+    )
+        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+    
+    Ok(())
+}
+
 pub(crate) fn process_parquet_file_to_df(
     parquet_file_path: &Path,
     col_names: Vec<&str>,
@@ -218,6 +256,7 @@ fn read_parquet_file(
 
 #[cfg(test)]
 mod test {
+    use std::path::PathBuf;
     use polars_arrow::array::{PrimitiveArray, Utf8Array};
     use super::*;
 
