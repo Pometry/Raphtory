@@ -194,7 +194,7 @@ pub fn load_edges_deletions_from_parquet(
         graph,
     )
         .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
-    
+
     Ok(())
 }
 

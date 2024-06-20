@@ -219,8 +219,8 @@ pub fn load_edges_deletions_from_pandas(
         }
 
         let df = process_pandas_py_df(df, py, cols_to_check.clone())?;
-
         df.check_cols_exist(&cols_to_check)?;
+        
         load_edges_deletions_from_df(
             &df,
             size,

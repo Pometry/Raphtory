@@ -34,9 +34,20 @@ def test_prepare_data():
     table = pa.table(data)
     pq.write_table(table, '/tmp/parquet/edges.parquet')
 
+    data = {
+        "src": [3, 4],
+        "dst": [4, 5],
+        "time": [6, 7],
+    }
 
-edges_parquet_file_path = os.path.join(os.path.dirname(__file__), 'data', 'parquet', 'edges.parquet')
+    table = pa.table(data)
+    pq.write_table(table, '/tmp/parquet/edges_deletions.parquet')
+
+
 nodes_parquet_file_path = os.path.join(os.path.dirname(__file__), 'data', 'parquet', 'nodes.parquet')
+edges_parquet_file_path = os.path.join(os.path.dirname(__file__), 'data', 'parquet', 'edges.parquet')
+edges_deletions_parquet_file_path = os.path.join(os.path.dirname(__file__), 'data', 'parquet',
+                                                 'edges_deletions.parquet')
 
 
 def assert_expected_nodes(g):
@@ -404,4 +415,20 @@ def test_load_from_parquet_persistent_graphs():
     )
     assert_expected_node_property_type(g)
     assert_expected_layers(g)
+
+    g = PersistentGraph()
+    g.load_edges_from_parquet(
+        edges_parquet_file_path,
+        "src",
+        "dst",
+        "time",
+    )
+    assert g.window(10, 12).edges.src.id.collect() == [1, 2, 3, 4, 5]
+    g.load_edges_deletions_from_parquet(
+        parquet_file_path=edges_deletions_parquet_file_path,
+        src="src",
+        dst="dst",
+        time="time"
+    )
+    assert g.window(10, 12).edges.src.id.collect() == [1, 2, 5]
 
