@@ -131,9 +131,7 @@ impl EdgeStore {
             .filter(|t_index| !t_index.is_empty())
             .is_some()
             || self
-                .data
-                .get(layer_id)
-                .map(|x| &x.deletions)
+                .get_deletions(layer_id)
                 .filter(|t_index| !t_index.is_empty())
                 .is_some()
     }
@@ -252,7 +250,7 @@ impl EdgeStore {
     }
 
     pub fn layer(&self, layer_id: usize) -> Option<&EdgeLayer> {
-        self.data.get(layer_id).map(|x| &x.layer)
+        self.data.get(layer_id).map(|data| &data.layer)
     }
 
     /// an edge is active in a window if it has an addition event in any of the layers
@@ -279,12 +277,7 @@ impl EdgeStore {
             LayerIds::One(id) => self.get_deletions(*id).and_then(|t| t.last()),
             LayerIds::Multiple(ids) => ids
                 .iter()
-                .flat_map(|id| {
-                    self.data
-                        .get(*id)
-                        .map(|x| &x.deletions)
-                        .and_then(|t| t.last())
-                })
+                .flat_map(|id| self.get_deletions(*id).and_then(|t| t.last()))
                 .max(),
         }
     }
@@ -349,19 +342,19 @@ impl EdgeStore {
     }
 
     pub fn get_additions(&self, layer_id: usize) -> Option<&TimeIndex<TimeIndexEntry>> {
-        self.data.get(layer_id).map(|x| &x.additions)
+        self.data.get(layer_id).map(|data| &data.additions)
     }
 
     pub fn get_deletions(&self, layer_id: usize) -> Option<&TimeIndex<TimeIndexEntry>> {
-        self.data.get(layer_id).map(|x| &x.deletions)
+        self.data.get(layer_id).map(|data| &data.deletions)
     }
 
     pub fn iter_additions(&self) -> impl Iterator<Item = &TimeIndex<TimeIndexEntry>> + '_ {
-        self.data.iter().map(|x| &x.additions)
+        self.data.iter().map(|data| &data.additions)
     }
 
     pub fn iter_deletions(&self) -> impl Iterator<Item = &TimeIndex<TimeIndexEntry>> + '_ {
-        self.data.iter().map(|x| &x.deletions)
+        self.data.iter().map(|data| &data.deletions)
     }
 }
 
