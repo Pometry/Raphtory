@@ -1,5 +1,5 @@
-use polars_arrow::legacy::error;
 use crate::core::{utils::time::error::ParseTimeError, ArcStr, Prop, PropType};
+use polars_arrow::legacy::error;
 #[cfg(feature = "search")]
 use tantivy;
 #[cfg(feature = "search")]

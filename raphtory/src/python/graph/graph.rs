@@ -13,7 +13,10 @@ use crate::{
     prelude::*,
     python::{
         graph::{
-            edge::PyEdge, graph_with_deletions::PyPersistentGraph, node::PyNode,
+            edge::PyEdge,
+            graph_with_deletions::PyPersistentGraph,
+            io::{panda_loaders::*, parquet_loaders::*},
+            node::PyNode,
             views::graph_view::PyGraphView,
         },
         utils::{PyInputNode, PyTime},
@@ -23,11 +26,8 @@ use pyo3::{prelude::*, types::PyBytes};
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
-    path::Path,
+    path::{Path, PathBuf},
 };
-use std::path::PathBuf;
-use crate::python::graph::io::panda_loaders::*;
-use crate::python::graph::io::parquet_loaders::*;
 
 /// A temporal graph.
 #[derive(Clone)]
@@ -509,7 +509,9 @@ impl PyGraph {
         let graph = PyGraph {
             graph: Graph::new(),
         };
-        if let (Some(node_parquet_file_path), Some(node_id), Some(node_time)) = (node_parquet_file_path, node_id, node_time) {
+        if let (Some(node_parquet_file_path), Some(node_id), Some(node_time)) =
+            (node_parquet_file_path, node_id, node_time)
+        {
             graph.load_nodes_from_parquet(
                 node_parquet_file_path,
                 node_id,
@@ -748,7 +750,6 @@ impl PyGraph {
             shared_const_properties,
         )
     }
-
 
     /// Load edge properties from a Pandas DataFrame.
     ///

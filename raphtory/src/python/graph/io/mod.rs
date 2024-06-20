@@ -1,8 +1,8 @@
 pub mod dataframe;
 pub mod df_loaders;
-mod prop_handler;
 pub mod panda_loaders;
 pub mod parquet_loaders;
+mod prop_handler;
 
 #[cfg(test)]
 mod test {

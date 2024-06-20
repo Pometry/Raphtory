@@ -24,7 +24,7 @@ impl PretendDF {
         }
         self.arrays[0][0].len()
     }
-    
+
     pub fn check_cols_exist(&self, cols: &[&str]) -> Result<(), GraphError> {
         let non_cols: Vec<&&str> = cols
             .iter()
@@ -40,7 +40,7 @@ impl PretendDF {
     pub(crate) fn iter_col<T: NativeType>(
         &self,
         name: &str,
-    ) -> Option<impl Iterator<Item=Option<&T>> + '_> {
+    ) -> Option<impl Iterator<Item = Option<&T>> + '_> {
         let idx = self.names.iter().position(|n| n == name)?;
 
         let _ = (&self.arrays[0])[idx]
@@ -56,7 +56,7 @@ impl PretendDF {
         Some(iter)
     }
 
-    pub fn utf8<O: Offset>(&self, name: &str) -> Option<impl Iterator<Item=Option<&str>> + '_> {
+    pub fn utf8<O: Offset>(&self, name: &str) -> Option<impl Iterator<Item = Option<&str>> + '_> {
         let idx = self.names.iter().position(|n| n == name)?;
         // test that it's actually a utf8 array
         let _ = (&self.arrays[0])[idx]
@@ -72,7 +72,7 @@ impl PretendDF {
         Some(iter)
     }
 
-    pub fn time_iter_col(&self, name: &str) -> Option<impl Iterator<Item=Option<i64>> + '_> {
+    pub fn time_iter_col(&self, name: &str) -> Option<impl Iterator<Item = Option<i64>> + '_> {
         let idx = self.names.iter().position(|n| n == name)?;
 
         let _ = (&self.arrays[0])[idx]
@@ -87,7 +87,7 @@ impl PretendDF {
                     &DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".to_string())),
                     CastOptions::default(),
                 )
-                    .unwrap();
+                .unwrap();
                 array
             } else {
                 arr.clone()

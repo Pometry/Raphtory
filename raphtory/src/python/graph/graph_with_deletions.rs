@@ -16,25 +16,20 @@ use crate::{
     },
     prelude::{DeletionOps, GraphViewOps, ImportOps},
     python::{
-        graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
+        graph::{
+            edge::PyEdge, io::parquet_loaders::*, node::PyNode, views::graph_view::PyGraphView,
+        },
         utils::{PyInputNode, PyTime},
     },
 };
-use pyo3::{
-    prelude::*,
-    types::PyBytes,
-};
+use pyo3::{prelude::*, types::PyBytes};
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
     path::{Path, PathBuf},
 };
-use crate::python::graph::io::parquet_loaders::*;
 
-use super::{
-    graph::PyGraph,
-    io::panda_loaders::*,
-};
+use super::{graph::PyGraph, io::panda_loaders::*};
 
 /// A temporal graph that allows edges and nodes to be deleted.
 #[derive(Clone)]
@@ -64,8 +59,8 @@ impl IntoPy<PyObject> for PersistentGraph {
                 PyGraphView::from(self),
             ),
         )
-            .unwrap() // I think this only fails if we are out of memory? Seems to be unavoidable if we want to create an actual graph.
-            .into_py(py)
+        .unwrap() // I think this only fails if we are out of memory? Seems to be unavoidable if we want to create an actual graph.
+        .into_py(py)
     }
 }
 
@@ -501,7 +496,9 @@ impl PyPersistentGraph {
         let graph = PyPersistentGraph {
             graph: PersistentGraph::new(),
         };
-        if let (Some(node_parquet_file_path), Some(node_id), Some(node_time)) = (node_parquet_file_path, node_id, node_time) {
+        if let (Some(node_parquet_file_path), Some(node_id), Some(node_time)) =
+            (node_parquet_file_path, node_id, node_time)
+        {
             graph.load_nodes_from_parquet(
                 node_parquet_file_path,
                 node_id,
@@ -709,15 +706,7 @@ impl PyPersistentGraph {
         layer: Option<&str>,
         layer_in_df: Option<bool>,
     ) -> Result<(), GraphError> {
-        load_edges_deletions_from_pandas(
-            &self.graph.0,
-            df,
-            src,
-            dst,
-            time,
-            layer,
-            layer_in_df,
-        )
+        load_edges_deletions_from_pandas(&self.graph.0, df, src, dst, time, layer, layer_in_df)
     }
 
     /// Load edges deletions from a Parquet file into the graph.
