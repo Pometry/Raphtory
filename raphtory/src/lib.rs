@@ -104,6 +104,7 @@ pub mod search;
 #[cfg(feature = "vectors")]
 pub mod vectors;
 
+#[cfg(feature = "io")]
 pub mod io;
 
 pub mod prelude {
