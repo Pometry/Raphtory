@@ -3,7 +3,6 @@ use crate::{
         entities::{graph::tgraph::InternalGraph, nodes::node_ref::AsNodeRef, LayerIds, VID},
         storage::timeindex::AsTime,
         utils::errors::GraphError,
-        ArcStr, OptionAsStr,
     },
     db::{
         api::{
@@ -28,6 +27,7 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
+use raphtory_api::core::storage::arc_str::{ArcStr, OptionAsStr};
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::{borrow::Borrow, sync::Arc};
@@ -491,10 +491,8 @@ mod test_exploded_edges {
 
 #[cfg(test)]
 mod test_materialize {
-    use crate::{
-        core::OptionAsStr, db::api::view::internal::CoreGraphOps, prelude::*,
-        test_utils::test_graph,
-    };
+    use crate::{db::api::view::internal::CoreGraphOps, prelude::*, test_storage};
+    use raphtory_api::core::storage::arc_str::OptionAsStr;
 
     #[test]
     fn test_materialize() {
@@ -576,8 +574,7 @@ mod test_materialize {
         graph.add_node(0, "A", NO_PROPS, None).unwrap();
         graph.add_node(1, "B", NO_PROPS, Some("H")).unwrap();
 
-        // FIXME: Node types not yet supported (Issue #51)
-        test_graph(&graph, |graph| {
+        test_storage!(&graph, |graph| {
             let node_a = graph.node("A").unwrap();
             let node_b = graph.node("B").unwrap();
             let node_a_type = node_a.node_type();

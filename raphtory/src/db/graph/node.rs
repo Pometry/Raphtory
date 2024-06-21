@@ -4,7 +4,6 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef, VID},
         utils::errors::GraphError,
-        ArcStr,
     },
     db::{
         api::{
@@ -34,6 +33,7 @@ use crate::{
     },
 };
 use chrono::{DateTime, Utc};
+use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{
     fmt,
     hash::{Hash, Hasher},
@@ -384,7 +384,8 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
 
 #[cfg(test)]
 mod node_test {
-    use crate::{core::ArcStr, prelude::*, test_utils::test_graph};
+    use crate::{prelude::*, test_utils::test_graph};
+    use raphtory_api::core::storage::arc_str::ArcStr;
     use std::collections::HashMap;
 
     #[test]

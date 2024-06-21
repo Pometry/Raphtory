@@ -7,7 +7,7 @@ use crate::{
             LayerIds, ELID, VID,
         },
         storage::locked_view::LockedView,
-        ArcStr, Prop,
+        Prop,
     },
     db::api::{
         storage::{
@@ -33,7 +33,8 @@ use crate::{
 };
 use itertools::Itertools;
 use polars_arrow::datatypes::ArrowDataType;
-use pometry_storage::{properties::Properties, GidRef, GID};
+use pometry_storage::{properties::ConstProps, GidRef, GID};
+use raphtory_api::core::storage::arc_str::ArcStr;
 use rayon::prelude::*;
 
 impl CoreGraphOps for DiskGraph {
@@ -93,7 +94,7 @@ impl CoreGraphOps for DiskGraph {
     }
 
     fn get_all_node_types(&self) -> Vec<ArcStr> {
-        todo!("Node types are not supported on diskgraph yet")
+        self.node_meta.get_all_node_types()
     }
 
     fn node_id(&self, v: VID) -> u64 {
@@ -112,8 +113,9 @@ impl CoreGraphOps for DiskGraph {
         }
     }
 
-    fn node_type(&self, _v: VID) -> Option<ArcStr> {
-        None
+    fn node_type(&self, v: VID) -> Option<ArcStr> {
+        let node_type_id = self.inner.node_type_id(v);
+        self.node_meta.get_node_type_name_by_id(node_type_id)
     }
 
     fn internalise_node(&self, v: NodeRef) -> Option<VID> {
@@ -137,19 +139,18 @@ impl CoreGraphOps for DiskGraph {
     }
 
     fn constant_node_prop(&self, v: VID, id: usize) -> Option<Prop> {
-        match &self.inner.node_properties() {
+        match &self.inner.node_properties().const_props {
             None => None,
             Some(props) => const_props(props, v, id),
         }
     }
 
     fn constant_node_prop_ids(&self, v: VID) -> Box<dyn Iterator<Item = usize> + '_> {
-        match self.inner.node_properties() {
+        match &self.inner.node_properties().const_props {
             None => Box::new(std::iter::empty()),
-            Some(props) => Box::new(
-                (0..props.const_props.num_props())
-                    .filter(move |id| props.const_props.has_prop(v, *id)),
-            ),
+            Some(props) => {
+                Box::new((0..props.num_props()).filter(move |id| props.has_prop(v, *id)))
+            }
         }
     }
 
@@ -224,41 +225,28 @@ impl CoreGraphOps for DiskGraph {
             .sum()
     }
 
-    fn node_type_id(&self, _v: VID) -> usize {
-        // self.graph().node_type_id(v) TODO: Impl node types for disk_graph graphs
-        0
+    fn node_type_id(&self, v: VID) -> usize {
+        self.inner.node_type_id(v)
     }
 }
 
-pub fn const_props<Index>(props: &Properties<Index>, index: Index, id: usize) -> Option<Prop>
+pub fn const_props<Index>(props: &ConstProps<Index>, index: Index, id: usize) -> Option<Prop>
 where
     usize: From<Index>,
 {
-    let dtype = props.const_props.prop_dtype(id);
+    let dtype = props.prop_dtype(id);
     match dtype.data_type() {
-        ArrowDataType::Int64 => props.const_props.prop_native(index, id).map(Prop::I64),
-        ArrowDataType::Int32 => props.const_props.prop_native(index, id).map(Prop::I32),
-        ArrowDataType::UInt64 => props.const_props.prop_native(index, id).map(Prop::U64),
-        ArrowDataType::UInt32 => props.const_props.prop_native(index, id).map(Prop::U32),
-        ArrowDataType::UInt16 => props.const_props.prop_native(index, id).map(Prop::U16),
-        ArrowDataType::UInt8 => props.const_props.prop_native(index, id).map(Prop::U8),
-        ArrowDataType::Float64 => props.const_props.prop_native(index, id).map(Prop::F64),
-        ArrowDataType::Float32 => props.const_props.prop_native(index, id).map(Prop::F32),
-        ArrowDataType::Utf8 => props
-            .const_props
-            .prop_str(index, id)
-            .map(Into::into)
-            .map(Prop::Str),
-        ArrowDataType::LargeUtf8 => props
-            .const_props
-            .prop_str(index, id)
-            .map(Into::into)
-            .map(Prop::Str),
-        ArrowDataType::Utf8View => props
-            .const_props
-            .prop_str(index, id)
-            .map(Into::into)
-            .map(Prop::Str),
-        _ => unimplemented!(),
+        ArrowDataType::Int64 => props.prop_native(index, id).map(Prop::I64),
+        ArrowDataType::Int32 => props.prop_native(index, id).map(Prop::I32),
+        ArrowDataType::UInt64 => props.prop_native(index, id).map(Prop::U64),
+        ArrowDataType::UInt32 => props.prop_native(index, id).map(Prop::U32),
+        ArrowDataType::UInt16 => props.prop_native(index, id).map(Prop::U16),
+        ArrowDataType::UInt8 => props.prop_native(index, id).map(Prop::U8),
+        ArrowDataType::Float64 => props.prop_native(index, id).map(Prop::F64),
+        ArrowDataType::Float32 => props.prop_native(index, id).map(Prop::F32),
+        ArrowDataType::Utf8 => props.prop_str(index, id).map(Into::into).map(Prop::Str),
+        ArrowDataType::LargeUtf8 => props.prop_str(index, id).map(Into::into).map(Prop::Str),
+        ArrowDataType::Utf8View => props.prop_str(index, id).map(Into::into).map(Prop::Str),
+        _ => unimplemented!("Data type not supported"),
     }
 }

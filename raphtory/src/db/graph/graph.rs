@@ -164,6 +164,7 @@ impl Graph {
     pub fn new_with_shards(num_shards: usize) -> Self {
         Self(Arc::new(InternalGraph::new(num_shards)))
     }
+
     pub(crate) fn from_internal_graph(internal_graph: Arc<InternalGraph>) -> Self {
         Self(internal_graph)
     }
@@ -211,7 +212,7 @@ mod db_tests {
         algorithms::components::weakly_connected_components,
         core::{
             utils::time::{error::ParseTimeError, TryIntoTime},
-            ArcStr, OptionAsStr, Prop,
+            Prop,
         },
         db::{
             api::{
@@ -232,8 +233,13 @@ mod db_tests {
     use chrono::NaiveDateTime;
     use itertools::Itertools;
     use quickcheck_macros::quickcheck;
+    use raphtory_api::core::storage::arc_str::{ArcStr, OptionAsStr};
+    use rayon::prelude::*;
     use serde_json::Value;
-    use std::collections::{HashMap, HashSet};
+    use std::{
+        collections::{HashMap, HashSet},
+        path::PathBuf,
+    };
     use tempfile::TempDir;
 
     #[test]

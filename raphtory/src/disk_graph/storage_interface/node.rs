@@ -9,7 +9,7 @@ use crate::{
             tprop_storage_ops::TPropOps,
             variants::{direction_variants::DirectionVariants, layer_variants::LayerVariants},
         },
-        view::internal::NodeAdditions,
+        view::internal::{CoreGraphOps, NodeAdditions},
     },
 };
 use itertools::Itertools;
@@ -154,8 +154,9 @@ impl<'a> DiskNode<'a> {
                 additions
             }
         };
-        if let Some(props) = self.graph.node_properties() {
-            let timestamps = props.temporal_props.timestamps::<i64>(self.vid);
+
+        if let Some(props) = &self.graph.node_properties().temporal_props {
+            let timestamps = props.timestamps::<i64>(self.vid);
             if timestamps.len() > 0 {
                 let ts = timestamps.times();
                 additions.push(ts);
@@ -218,8 +219,9 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
     fn tprop(self, prop_id: usize) -> impl TPropOps<'a> {
         self.graph
             .node_properties()
-            .unwrap()
             .temporal_props
+            .as_ref()
+            .unwrap()
             .prop(self.vid, prop_id)
     }
 
@@ -236,7 +238,7 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
     }
 
     fn node_type_id(self) -> usize {
-        0
+        self.graph.node_type_id(self.vid)
     }
 
     fn vid(self) -> VID {

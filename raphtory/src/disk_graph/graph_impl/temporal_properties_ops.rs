@@ -1,8 +1,8 @@
 use crate::{
-    core::ArcStr,
     db::api::properties::internal::{TemporalPropertiesOps, TemporalPropertyViewOps},
     prelude::Prop,
 };
+use raphtory_api::core::storage::arc_str::ArcStr;
 
 use super::DiskGraph;
 

@@ -1,9 +1,10 @@
 use crate::{
-    core::{storage::timeindex::AsTime, ArcStr, Prop},
+    core::{storage::timeindex::AsTime, Prop},
     db::api::view::internal::Base,
 };
 use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
+use raphtory_api::core::storage::arc_str::ArcStr;
 
 #[enum_dispatch]
 pub trait TemporalPropertyViewOps {

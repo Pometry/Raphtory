@@ -226,10 +226,16 @@ impl GraphStorage {
     ) -> impl ParallelIterator<Item = VID> + 'graph {
         view.node_list().into_par_iter().filter(move |&vid| {
             let node = self.node(vid);
-            type_filter
+            let n = node.name();
+            let i = node.node_type_id();
+            let r = type_filter
                 .as_ref()
-                .map_or(true, |type_filter| type_filter[node.node_type_id()])
-                && view.filter_node(self.node(vid).as_ref(), view.layer_ids())
+                .map_or(true, |type_filter| type_filter[node.node_type_id()]);
+            let s = view.filter_node(self.node(vid).as_ref(), view.layer_ids());
+
+            println!("name = {:?}, id = {}, r = {}, s = {}", n, i, r, s);
+
+            r && s
         })
     }
 

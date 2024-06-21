@@ -41,7 +41,7 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         storage::timeindex::AsTime,
-        ArcStr, Prop,
+        Prop,
     },
     db::{
         api::{
@@ -62,6 +62,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use chrono::{DateTime, Utc};
+use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{
     fmt::{Debug, Formatter},
     ops::Range,

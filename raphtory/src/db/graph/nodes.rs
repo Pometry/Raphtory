@@ -127,6 +127,18 @@ where
             self.graph.node_meta().node_type_meta(),
             node_types,
         ));
+        println!(
+            "node_types_filter = {:?}",
+            node_types_filter.as_ref().unwrap()
+        );
+        println!(
+            "node_types = {:?}",
+            self.graph.nodes().node_type().collect_vec()
+        );
+        println!(
+            "node_type_ids = {:?}",
+            self.graph.nodes().node_type_id().collect_vec()
+        );
         Nodes {
             base_graph: self.base_graph.clone(),
             graph: self.graph.clone(),
