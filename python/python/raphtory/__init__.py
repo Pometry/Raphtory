@@ -10,7 +10,7 @@ sys.modules["raphtory.graphql"] = graphql
 try:
     sys.modules["raphtory.disk_graph"] = disk_graph
 except Exception as e:
-    print(e)
+    pass
 
 from .nullmodels import *
 from .plottingutils import *

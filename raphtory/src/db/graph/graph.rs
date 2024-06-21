@@ -24,6 +24,7 @@ use crate::{
     },
     prelude::*,
 };
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Display, Formatter},
@@ -44,7 +45,7 @@ pub fn graph_equal<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps
     g2: &G2,
 ) -> bool {
     if g1.count_nodes() == g2.count_nodes() && g1.count_edges() == g2.count_edges() {
-        g1.nodes().id().all(|v| g2.has_node(v)) && // all nodes exist in other
+        g1.nodes().id().par_values().all(|v| g2.has_node(v)) && // all nodes exist in other
             g1.count_temporal_edges() == g2.count_temporal_edges() && // same number of exploded edges
             g1.edges().explode().iter().all(|e| { // all exploded edges exist in other
                 g2
@@ -87,7 +88,7 @@ pub fn assert_graph_equal<
         g1.count_temporal_edges(),
         g2.count_temporal_edges()
     );
-    for n_id in g1.nodes().id() {
+    for n_id in g1.nodes().id().values() {
         assert!(g2.has_node(n_id), "missing node {n_id}");
     }
     for e in g1.edges().explode() {
@@ -139,7 +140,7 @@ impl InheritMutationOps for Graph {}
 impl InheritViewOps for Graph {}
 
 impl Graph {
-    /// Create a new graph with the specified number of shards
+    /// Create a new graph
     ///
     /// Returns:
     ///
@@ -155,6 +156,15 @@ impl Graph {
         Self(Arc::new(InternalGraph::default()))
     }
 
+    /// Create a new graph with specified number of shards
+    ///
+    /// Returns:
+    ///
+    /// A raphtory graph
+    pub fn new_with_shards(num_shards: usize) -> Self {
+        Self(Arc::new(InternalGraph::new(num_shards)))
+    }
+    
     pub(crate) fn from_internal_graph(internal_graph: Arc<InternalGraph>) -> Self {
         Self(internal_graph)
     }
@@ -2304,7 +2314,11 @@ mod db_tests {
         g.add_node(1, 4, NO_PROPS, Some("wallet")).unwrap();
 
         assert_eq!(
-            g.nodes().type_filter(&vec!["wallet"]).name().collect_vec(),
+            g.nodes()
+                .type_filter(&vec!["wallet"])
+                .name()
+                .into_iter()
+                .collect_vec(),
             vec!["1", "4"]
         );
 
@@ -2471,11 +2485,19 @@ mod db_tests {
         assert_eq!(g.nodes().type_filter(&vec!["d"]).is_empty(), true);
 
         assert_eq!(
-            g.nodes().type_filter(&vec!["a"]).name().collect_vec(),
+            g.nodes()
+                .type_filter(&vec!["a"])
+                .name()
+                .into_iter()
+                .collect_vec(),
             vec!["1", "4"]
         );
         assert_eq!(
-            g.nodes().type_filter(&vec!["a", "c"]).name().collect_vec(),
+            g.nodes()
+                .type_filter(&vec!["a", "c"])
+                .name()
+                .into_iter()
+                .collect_vec(),
             vec!["1", "4", "5"]
         );
 
@@ -2894,5 +2916,15 @@ mod db_tests {
                 (5, "in-progress".to_string()),
             ]
         );
+    }
+
+    #[test]
+    fn num_locks_same_as_threads() {
+        let pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(5)
+            .build()
+            .unwrap();
+        let graph = pool.install(|| Graph::new());
+        assert_eq!(graph.0.inner().storage.nodes.data.len(), 5);
     }
 }

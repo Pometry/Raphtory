@@ -219,11 +219,11 @@ impl PyGraphView {
         self.graph.node(id)
     }
 
-    /// Get the edges that match the properties name and value
+    /// Get the nodes that match the properties name and value
     /// Arguments:
     ///     property_dict (dict): the properties name and value
     /// Returns:
-    ///    the edges that match the properties name and value
+    ///    the nodes that match the properties name and value
     #[pyo3(signature = (properties_dict))]
     pub fn find_nodes(&self, properties_dict: HashMap<String, Prop>) -> Vec<PyNode> {
         let iter = self.nodes().into_iter().par_bridge();

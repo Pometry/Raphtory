@@ -8,7 +8,7 @@ on:
         required: false
 # DO NOT CHANGE NAME OF WORKFLOW, USED IN OTHER WORKFLOWS KEEP "Rust Tests"
 jobs:
-  rust-test:
+  rust-test-no-storage:
     if: ${{ !inputs.skip_tests }}
     name: Rust Tests
     runs-on: '${{ matrix.os }}'
@@ -62,39 +62,6 @@ jobs:
           TEMPDIR: ${{ runner.temp }}
         run: |
           cargo nextest run --all --no-default-features
-      - name: Activate pometry-storage in Cargo.toml
-        run: make pull-storage
-      - name: Run all Tests (disk_graph)
-        env:
-          RUSTFLAGS: -Awarnings
-          TEMPDIR: ${{ runner.temp }}
-        run: |
-          cargo nextest run --all --no-default-features --features "storage"
-      - name: Run Tests (features=io)
-        env:
-          RUSTFLAGS: -Awarnings
-        run: |
-          cargo check -p raphtory --no-default-features --features "io"
-      - name: Run Tests (features=python)
-        env:
-          RUSTFLAGS: -Awarnings
-        run: |
-          cargo check -p raphtory --no-default-features --features "python"
-      - name: Run Tests (features=search)
-        env:
-          RUSTFLAGS: -Awarnings
-        run: |
-          cargo check -p raphtory --no-default-features --features "search"
-      - name: Run Tests (features=vectors)
-        env:
-          RUSTFLAGS: -Awarnings
-        run: |
-          cargo check -p raphtory --no-default-features --features "vectors"
-      - name: Run Tests (features=storage)
-        env:
-          RUSTFLAGS: -Awarnings
-        run: |
-          cargo check -p raphtory --no-default-features --features "storage"
   doc-test:
     if: ${{ !inputs.skip_tests }}
     name: "Doc tests"

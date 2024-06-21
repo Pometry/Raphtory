@@ -54,7 +54,7 @@ impl From<JsProp> for JsValue {
             )
             .into(),
             Prop::Graph(v) => Graph(UnderGraph::TGraph(Arc::new(v))).into(),
-            Prop::PersistentGraph(v) => todo!("PersistentGraph not yet implemented"),
+            Prop::PersistentGraph(_v) => todo!("PersistentGraph not yet implemented"),
             Prop::List(v) => {
                 let v: Array = v.iter().map(|v| JsValue::from(JsProp(v.clone()))).collect();
                 v.into()

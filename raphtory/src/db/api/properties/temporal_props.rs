@@ -72,11 +72,9 @@ impl<P: PropertiesOps> TemporalPropertyView<P> {
                     current_entry = Some((t, prop.clone()));
                 }
                 last_seen_value = Some(prop.clone());
-            } else {
-                if last_seen_value != Some(prop.clone()) {
-                    result.push((t, prop.clone()));
-                    last_seen_value = Some(prop.clone());
-                }
+            } else if last_seen_value != Some(prop.clone()) {
+                result.push((t, prop.clone()));
+                last_seen_value = Some(prop.clone());
             }
         }
 

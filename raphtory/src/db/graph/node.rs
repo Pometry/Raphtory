@@ -41,7 +41,7 @@ use std::{
 };
 
 /// View of a Node in a Graph
-#[derive(Clone, Copy)]
+#[derive(Copy, Clone)]
 pub struct NodeView<G, GH = G> {
     pub base_graph: G,
     pub graph: GH,
@@ -53,6 +53,16 @@ impl<G1: CoreGraphOps, G1H, G2: CoreGraphOps, G2H> PartialEq<NodeView<G2, G2H>>
 {
     fn eq(&self, other: &NodeView<G2, G2H>) -> bool {
         self.base_graph.node_id(self.node) == other.base_graph.node_id(other.node)
+    }
+}
+
+impl<'a, G: Clone, GH: Clone> NodeView<&'a G, &'a GH> {
+    pub fn cloned(&self) -> NodeView<G, GH> {
+        NodeView {
+            base_graph: self.base_graph.clone(),
+            graph: self.graph.clone(),
+            node: self.node,
+        }
     }
 }
 

@@ -9,6 +9,7 @@ pub mod timeindex;
 use self::iter::Iter;
 use lock_api;
 use locked_view::LockedView;
+use ouroboros::self_referencing;
 use parking_lot::{RwLock, RwLockReadGuard};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -43,6 +44,12 @@ impl<T: PartialEq + Default> PartialEq for LockVec<T> {
         let a = self.data.read();
         let b = other.data.read();
         a.deref() == b.deref()
+    }
+}
+
+impl<T: Default> Default for LockVec<T> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

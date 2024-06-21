@@ -13,7 +13,7 @@ use crate::{
         types::{
             repr::{iterator_dict_repr, iterator_repr, Repr},
             wrappers::{
-                iterators::{
+                iterables::{
                     I64VecIterable, NestedI64VecIterable, NestedUsizeIterable, PropIterable,
                     UsizeIterable,
                 },

@@ -127,8 +127,14 @@ impl<
             return Err(NodeExistsError(node.id()));
         }
 
-        let node_internal =
-            self.resolve_node(node.id(), node.graph.core_node_entry(node.node).name());
+        let node_internal = self.resolve_node(
+            node.id(),
+            node.graph
+                .core_node_entry(node.node)
+                .name()
+                .as_ref()
+                .map(|x| x.as_ref()),
+        );
         let node_internal_type_id = self
             .resolve_node_type(node_internal, node.node_type().as_str())
             .unwrap_or(0usize);

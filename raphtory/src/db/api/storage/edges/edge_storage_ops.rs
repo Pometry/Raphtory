@@ -42,6 +42,7 @@ impl<'a> TimeIndexOps for TimeIndexRef<'a> {
     type IndexType = TimeIndexEntry;
     type RangeType<'b> = TimeIndexRef<'b> where Self: 'b;
 
+    #[inline(always)]
     fn active(&self, w: Range<TimeIndexEntry>) -> bool {
         match self {
             TimeIndexRef::Ref(t) => t.active(w),
@@ -301,11 +302,11 @@ impl<'a> EdgeStorageOps<'a> for &'a EdgeStore {
     }
 
     fn additions(self, layer_id: usize) -> TimeIndexRef<'a> {
-        TimeIndexRef::Ref(self.additions.get(layer_id).unwrap_or(&TimeIndex::Empty))
+        TimeIndexRef::Ref(self.get_additions(layer_id).unwrap_or(&TimeIndex::Empty))
     }
 
     fn deletions(self, layer_id: usize) -> TimeIndexRef<'a> {
-        TimeIndexRef::Ref(self.deletions.get(layer_id).unwrap_or(&TimeIndex::Empty))
+        TimeIndexRef::Ref(self.get_deletions(layer_id).unwrap_or(&TimeIndex::Empty))
     }
 
     fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> impl TPropOps<'a> + 'a {

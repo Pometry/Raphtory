@@ -12,6 +12,10 @@ impl<'a> DiskNodesRef<'a> {
         Self { graph }
     }
 
+    pub fn len(&self) -> usize {
+        self.graph.num_nodes()
+    }
+
     pub fn node(self, vid: VID) -> DiskNode<'a> {
         DiskNode::new(self.graph, vid)
     }
@@ -26,7 +30,4 @@ impl<'a> DiskNodesRef<'a> {
         (0..self.graph.num_nodes()).map(move |vid| self.node(VID(vid)))
     }
 
-    pub fn len(self) -> usize {
-        self.graph.num_nodes()
-    }
 }

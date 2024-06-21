@@ -314,7 +314,7 @@ impl TProp {
 }
 
 impl<'a> TPropOps<'a> for &'a TProp {
-    fn last_before(self, t: i64) -> Option<(TimeIndexEntry, Prop)> {
+    fn last_before(&self, t: i64) -> Option<(TimeIndexEntry, Prop)> {
         match self {
             TProp::Empty => None,
             TProp::Str(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::Str(v.clone()))),

@@ -24,6 +24,7 @@ parking_lot = { workspace = true }
 pyo3 = { workspace = true, optional = true }
 rayon = { workspace = true }
 rand = { workspace = true }
+quickcheck = { workspace = true }
 quickcheck_macros = { workspace = true }
 
 [features]

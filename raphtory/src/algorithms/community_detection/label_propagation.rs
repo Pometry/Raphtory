@@ -50,7 +50,7 @@ where
             }
 
             if let Some(max_label) = find_max_label(&label_count) {
-                if max_label != labels[&node] {
+                if max_label != labels[node] {
                     labels.insert(node.clone(), max_label);
                     changed = true;
                 }

@@ -247,7 +247,7 @@ impl RaphtoryServer {
         let (signal_sender, signal_receiver) = mpsc::channel(1);
 
         println!("Playground: http://localhost:{port}");
-        let server_task = Server::new(TcpListener::bind(format!("127.0.0.1:{port}")))
+        let server_task = Server::new(TcpListener::bind(format!("0.0.0.0:{port}")))
             .run_with_graceful_shutdown(app, server_termination(signal_receiver), None);
         let server_result = tokio::spawn(server_task);
 

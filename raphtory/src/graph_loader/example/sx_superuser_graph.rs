@@ -54,9 +54,9 @@ use std::path::PathBuf;
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct TEdge {
-    src_id: u64,
-    dst_id: u64,
-    time: i64,
+    pub src_id: u64,
+    pub dst_id: u64,
+    pub time: i64,
 }
 
 /// Download the SX SuperUser dataset
@@ -72,12 +72,7 @@ pub fn sx_superuser_file() -> Result<PathBuf, Box<dyn std::error::Error>> {
         600,
     )
 }
-
 /// Load the SX SuperUser dataset into a graph and return it
-///
-/// # Arguments
-///
-/// * `shards` - The number of shards to use for the graph
 ///
 /// Returns:
 ///
@@ -90,7 +85,6 @@ pub fn sx_superuser_graph() -> Result<Graph, Box<dyn std::error::Error>> {
             g.add_edge(edge.time, edge.src_id, edge.dst_id, NO_PROPS, None)
                 .expect("Error: Unable to add edge");
         })?;
-
     Ok(graph)
 }
 

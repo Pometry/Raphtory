@@ -1,4 +1,5 @@
-use crate::common::{bootstrap_graph, run_analysis_benchmarks, run_large_ingestion_benchmarks};
+use crate::common::{bootstrap_graph, run_large_ingestion_benchmarks};
+use common::run_graph_ops_benches;
 use criterion::{criterion_group, criterion_main, Criterion, Throughput};
 use raphtory::{graph_loader::example::lotr_graph::lotr_graph, prelude::*};
 
@@ -21,29 +22,28 @@ pub fn base(c: &mut Criterion) {
     // Make an option of None
     run_large_ingestion_benchmarks(&mut large_group, || bootstrap_graph(10000), None);
     large_group.finish();
-    let mut graph_group = c.benchmark_group("lotr_graph");
+
     let graph = lotr_graph();
-    run_analysis_benchmarks(&mut graph_group, || graph.clone(), None);
-    graph_group.finish();
-    let mut graph_window_group_100 = c.benchmark_group("lotr_graph_window_100");
-    graph_window_group_100.sample_size(10);
-    run_analysis_benchmarks(
-        &mut graph_window_group_100,
-        || graph.window(i64::MIN, i64::MAX),
-        None,
-    );
-    graph_window_group_100.finish();
-    let mut graph_window_group_10 = c.benchmark_group("lotr_graph_window_10");
-    let latest = graph.latest_time().expect("non-empty graph");
-    let earliest = graph.earliest_time().expect("non-empty graph");
-    let start = latest - (latest - earliest) / 10;
-    graph_window_group_10.sample_size(10);
-    run_analysis_benchmarks(
-        &mut graph_window_group_10,
-        || graph.window(start, latest + 1),
-        None,
-    );
-    graph_window_group_10.finish();
+
+    let layered_graph = Graph::new();
+
+    for layer in (0..10).map(|i| i.to_string()) {
+        for edge in graph.edges() {
+            for t in edge.history() {
+                layered_graph
+                    .add_edge(
+                        t,
+                        edge.src().name().clone(),
+                        edge.dst().name().clone(),
+                        NO_PROPS,
+                        Some(&layer),
+                    )
+                    .expect("Error: Unable to add edge");
+            }
+        }
+    }
+
+    run_graph_ops_benches(c, "lotr", graph, layered_graph)
 }
 
 criterion_group!(benches, base);

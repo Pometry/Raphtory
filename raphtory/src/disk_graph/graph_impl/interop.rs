@@ -28,7 +28,7 @@ impl GraphLike<TimeIndexEntry> for Graph {
     }
 
     fn node_names(&self) -> impl Iterator<Item = String> {
-        self.nodes().name()
+        self.nodes().name().into_iter()
     }
 
     fn node_type_ids(&self) -> Option<impl Iterator<Item = usize>> {
@@ -36,7 +36,7 @@ impl GraphLike<TimeIndexEntry> for Graph {
             None
         } else {
             let core_nodes = self.core_nodes();
-            Some((0..core_nodes.len()).map(move |i| core_nodes.node_ref(VID(i)).node_type_id()))
+            Some((0..core_nodes.len()).map(move |i| core_nodes.node_entry(VID(i)).node_type_id()))
         }
     }
 
