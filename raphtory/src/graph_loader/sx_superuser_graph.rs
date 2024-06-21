@@ -45,13 +45,9 @@
 //! println!("The graph has {:?} edges", graph.count_edges());
 //! ```
 
-use crate::{
-    graph_loader::fetch_file,
-    prelude::*,
-};
+use crate::{graph_loader::fetch_file, io::csv_loader::CsvLoader, prelude::*};
 use serde::Deserialize;
 use std::path::PathBuf;
-use crate::io::csv_loader::CsvLoader;
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct TEdge {

@@ -67,9 +67,10 @@ pub fn lotr_graph() -> PyResult<Py<PyGraph>> {
 #[pyfunction]
 #[pyo3(signature = (timeout_seconds=600))]
 pub fn reddit_hyperlink_graph(timeout_seconds: u64) -> PyResult<Py<PyGraph>> {
-    PyGraph::py_from_db_graph(
-        crate::graph_loader::reddit_hyperlinks::reddit_graph(timeout_seconds, false),
-    )
+    PyGraph::py_from_db_graph(crate::graph_loader::reddit_hyperlinks::reddit_graph(
+        timeout_seconds,
+        false,
+    ))
 }
 
 #[pyfunction]
@@ -84,12 +85,10 @@ pub fn reddit_hyperlink_graph_local(file_path: &str) -> PyResult<Py<PyGraph>> {
 #[pyfunction]
 #[pyo3(signature = (path=None,subset=None))]
 pub fn stable_coin_graph(path: Option<String>, subset: Option<bool>) -> PyResult<Py<PyGraph>> {
-    PyGraph::py_from_db_graph(
-        crate::graph_loader::stable_coins::stable_coin_graph(
-            path,
-            subset.unwrap_or(false),
-        ),
-    )
+    PyGraph::py_from_db_graph(crate::graph_loader::stable_coins::stable_coin_graph(
+        path,
+        subset.unwrap_or(false),
+    ))
 }
 
 #[pyfunction]
@@ -100,11 +99,12 @@ pub fn neo4j_movie_graph(
     password: String,
     database: String,
 ) -> PyResult<Py<PyGraph>> {
-    let g = Runtime::new().unwrap().block_on(
-        crate::graph_loader::neo4j_examples::neo4j_movie_graph(
-            uri, username, password, database,
-        ),
-    );
+    let g =
+        Runtime::new()
+            .unwrap()
+            .block_on(crate::graph_loader::neo4j_examples::neo4j_movie_graph(
+                uri, username, password, database,
+            ));
     PyGraph::py_from_db_graph(g)
 }
 

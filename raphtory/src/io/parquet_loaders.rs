@@ -1,4 +1,12 @@
-use crate::core::{entities::graph::tgraph::InternalGraph, utils::errors::GraphError, Prop};
+use crate::{
+    core::{entities::graph::tgraph::InternalGraph, utils::errors::GraphError, Prop},
+    db::api::{
+        mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
+        view::StaticGraphViewOps,
+    },
+    io::arrow::{dataframe::*, df_loaders::*},
+    prelude::DeletionOps,
+};
 use itertools::Itertools;
 use polars_arrow::{
     array::Array,
@@ -11,10 +19,11 @@ use polars_parquet::{
     read::{read_metadata, FileMetaData, FileReader},
 };
 use std::{collections::HashMap, path::Path};
-use crate::io::arrow::{dataframe::*, df_loaders::*};
 
-pub fn load_nodes_from_parquet(
-    graph: &InternalGraph,
+pub fn load_nodes_from_parquet<
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
+>(
+    graph: &G,
     parquet_file_path: &Path,
     id: &str,
     time: &str,
@@ -54,8 +63,10 @@ pub fn load_nodes_from_parquet(
     Ok(())
 }
 
-pub fn load_edges_from_parquet(
-    graph: &InternalGraph,
+pub fn load_edges_from_parquet<
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
+>(
+    graph: &G,
     parquet_file_path: &Path,
     src: &str,
     dst: &str,
@@ -97,8 +108,10 @@ pub fn load_edges_from_parquet(
     Ok(())
 }
 
-pub fn load_node_props_from_parquet(
-    graph: &InternalGraph,
+pub fn load_node_props_from_parquet<
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
+>(
+    graph: &G,
     parquet_file_path: &Path,
     id: &str,
     const_properties: Option<Vec<&str>>,
@@ -124,8 +137,10 @@ pub fn load_node_props_from_parquet(
     Ok(())
 }
 
-pub fn load_edge_props_from_parquet(
-    graph: &InternalGraph,
+pub fn load_edge_props_from_parquet<
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
+>(
+    graph: &G,
     parquet_file_path: &Path,
     src: &str,
     dst: &str,
@@ -162,8 +177,10 @@ pub fn load_edge_props_from_parquet(
     Ok(())
 }
 
-pub fn load_edges_deletions_from_parquet(
-    graph: &InternalGraph,
+pub fn load_edges_deletions_from_parquet<
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + DeletionOps,
+>(
+    graph: &G,
     parquet_file_path: &Path,
     src: &str,
     dst: &str,

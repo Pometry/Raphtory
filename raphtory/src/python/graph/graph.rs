@@ -10,14 +10,12 @@ use crate::{
         api::view::internal::{CoreGraphOps, DynamicGraph, IntoDynamic, MaterializedGraph},
         graph::{edge::EdgeView, node::NodeView, views::node_subgraph::NodeSubgraph},
     },
+    io::parquet_loaders::*,
     prelude::*,
     python::{
         graph::{
-            edge::PyEdge,
-            graph_with_deletions::PyPersistentGraph,
-            io::panda_loaders::*,
-            node::PyNode,
-            views::graph_view::PyGraphView,
+            edge::PyEdge, graph_with_deletions::PyPersistentGraph, io::panda_loaders::*,
+            node::PyNode, views::graph_view::PyGraphView,
         },
         utils::{PyInputNode, PyTime},
     },
@@ -28,7 +26,6 @@ use std::{
     fmt::{Debug, Formatter},
     path::{Path, PathBuf},
 };
-use crate::io::parquet_loaders::*;
 
 /// A temporal graph.
 #[derive(Clone)]
@@ -602,7 +599,7 @@ impl PyGraph {
         shared_const_properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
         load_nodes_from_parquet(
-            &self.graph.0,
+            &self.graph,
             parquet_file_path.as_path(),
             id,
             time,
@@ -685,7 +682,7 @@ impl PyGraph {
         layer_in_df: Option<bool>,
     ) -> Result<(), GraphError> {
         load_edges_from_parquet(
-            &self.graph.0,
+            &self.graph,
             parquet_file_path.as_path(),
             src,
             dst,
@@ -744,7 +741,7 @@ impl PyGraph {
         shared_const_properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
         load_node_props_from_parquet(
-            &self.graph.0,
+            &self.graph,
             parquet_file_path.as_path(),
             id,
             const_properties,
@@ -813,7 +810,7 @@ impl PyGraph {
         layer_in_df: Option<bool>,
     ) -> Result<(), GraphError> {
         load_edge_props_from_parquet(
-            &self.graph.0,
+            &self.graph,
             parquet_file_path.as_path(),
             src,
             dst,

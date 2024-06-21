@@ -16,9 +16,7 @@ use crate::{
     },
     prelude::{DeletionOps, GraphViewOps, ImportOps},
     python::{
-        graph::{
-            edge::PyEdge, node::PyNode, views::graph_view::PyGraphView,
-        },
+        graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
         utils::{PyInputNode, PyTime},
     },
 };
@@ -589,7 +587,7 @@ impl PyPersistentGraph {
         shared_const_properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
         load_nodes_from_parquet(
-            &self.graph.0,
+            &self.graph,
             parquet_file_path.as_path(),
             id,
             time,
@@ -672,7 +670,7 @@ impl PyPersistentGraph {
         layer_in_df: Option<bool>,
     ) -> Result<(), GraphError> {
         load_edges_from_parquet(
-            &self.graph.0,
+            &self.graph,
             parquet_file_path.as_path(),
             src,
             dst,
@@ -733,7 +731,7 @@ impl PyPersistentGraph {
         layer_in_df: Option<bool>,
     ) -> Result<(), GraphError> {
         load_edges_deletions_from_parquet(
-            &self.graph.0,
+            &self.graph,
             parquet_file_path.as_path(),
             src,
             dst,
@@ -789,7 +787,7 @@ impl PyPersistentGraph {
         shared_const_properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
         load_node_props_from_parquet(
-            &self.graph.0,
+            &self.graph,
             parquet_file_path.as_path(),
             id,
             const_properties,
@@ -858,7 +856,7 @@ impl PyPersistentGraph {
         layer_in_df: Option<bool>,
     ) -> Result<(), GraphError> {
         load_edge_props_from_parquet(
-            &self.graph.0,
+            &self.graph,
             parquet_file_path.as_path(),
             src,
             dst,

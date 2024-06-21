@@ -210,8 +210,8 @@ mod graph_loader_test {
     fn db_lotr() {
         let g = Graph::new();
 
-        let data_dir = crate::graph_loader::lotr_graph::lotr_file()
-            .expect("Failed to get lotr.csv file");
+        let data_dir =
+            crate::graph_loader::lotr_graph::lotr_file().expect("Failed to get lotr.csv file");
 
         fn parse_record(rec: &StringRecord) -> Option<(String, String, i64)> {
             let src = rec.get(0).and_then(|s| s.parse::<String>().ok())?;

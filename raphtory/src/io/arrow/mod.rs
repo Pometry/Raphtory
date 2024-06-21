@@ -6,11 +6,10 @@ mod prop_handler;
 mod test {
     use crate::{
         core::ArcStr,
+        io::arrow::{dataframe::PretendDF, df_loaders::*},
         prelude::*,
     };
     use polars_arrow::array::{PrimitiveArray, Utf8Array};
-    use crate::io::arrow::dataframe::PretendDF;
-    use crate::io::arrow::df_loaders::*;
 
     #[test]
     fn load_edges_from_pretend_df() {
@@ -50,9 +49,9 @@ mod test {
             None,
             layer,
             layer_in_df,
-            &graph.0,
+            &graph,
         )
-            .expect("failed to load edges from pretend df");
+        .expect("failed to load edges from pretend df");
 
         let actual = graph
             .edges()
@@ -118,9 +117,9 @@ mod test {
             None,
             Some("node_type"),
             false,
-            &graph.0,
+            &graph,
         )
-            .expect("failed to load nodes from pretend df");
+        .expect("failed to load nodes from pretend df");
 
         let actual = graph
             .nodes()

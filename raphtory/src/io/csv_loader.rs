@@ -474,10 +474,7 @@ impl CsvLoader {
 
 #[cfg(test)]
 mod csv_loader_test {
-    use crate::{
-        core::utils::hashing::calculate_hash, io::csv_loader::CsvLoader,
-        prelude::*,
-    };
+    use crate::{core::utils::hashing::calculate_hash, io::csv_loader::CsvLoader, prelude::*};
     use csv::StringRecord;
     use regex::Regex;
     use serde::Deserialize;

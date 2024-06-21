@@ -1,12 +1,12 @@
 use crate::{
     graph_loader::{fetch_file, unzip_file},
+    io::csv_loader::CsvLoader,
     prelude::*,
 };
 use chrono::DateTime;
 use regex::Regex;
 use serde::Deserialize;
 use std::{collections::HashMap, fs, path::PathBuf, time::Instant};
-use crate::io::csv_loader::CsvLoader;
 
 #[allow(dead_code)]
 #[derive(Deserialize, std::fmt::Debug)]
