@@ -95,6 +95,9 @@ def to_pyg(G, re_index=False, nodelist=None, node_props_to_save=['x'], edge_prop
 
     import torch
     from torch_geometric.data import Data
+    import pickle
+    from tqdm import tqdm
+    import os
     import raphtory as rp
 
     d = Data()
@@ -107,61 +110,63 @@ def to_pyg(G, re_index=False, nodelist=None, node_props_to_save=['x'], edge_prop
         mapping_node = dict(zip(G.nodes.id,G.nodes.id)) # returns the same id
 
     d.num_nodes = G.count_nodes()
-    #print(d.num_nodes)
-    # Preparing the edges
 
+    file_exists = os.path.exists(f'{G.count_nodes()}.pickle')
 
+    if file_exists:
+        # Deserialize (unpickle) the graph
+        with open(f'{G.count_nodes()}.pickle', 'rb') as f:
+            d = pickle.load(f)
+            if re_index:
+                return d, mapping_node
+            return d
+    else:
+        edges = list(map(lambda x: (mapping_node[x[0]],mapping_node[x[1]]),sorted(zip(G.edges.src.id,G.edges.dst.id),key=lambda l:l[0])))
+        src, dst = zip(*edges)
 
-    src = []
-    dst = []
+        d.edge_index = torch.tensor([dst, src]) # directions get flipped otherwise
 
-    for e in sorted(G.edges, key = lambda e : (int(e.src.id),int(e.dst.id))):
-        src.append(mapping_node[e.src.id])
-        dst.append(mapping_node[e.dst.id])
+        # Now features
+        #print('Node Props')
 
-    #print(len(src),len(dst))
-    #print(src[0],dst[0])
-    edge_index = torch.tensor([dst, src]) # directions get flipped otherwise
+        if node_props_to_save == 'all':
+            node_props_to_save = G.nodes.properties.keys()
 
-    d.edge_index = edge_index
+        if node_props_to_save is None:
+            node_props_to_save = []
 
-    # Now features
-    #print('Node Props')
+        for k in tqdm(node_props_to_save):
+            node_props = G.nodes.properties.get(k).collect()
+            props_tensor = torch.tensor(node_props)
+            d[k] = props_tensor#.astype('float32')
 
-    if node_props_to_save == 'all':
-        node_props_to_save = G.nodes.properties.keys()
+        if edge_props_to_save == 'all':
+            edge_props_to_save = G.edges.properties.keys()
 
-    if node_props_to_save is None:
-        node_props_to_save = []
+        if edge_props_to_save is None:
+            edge_props_to_save = []
 
-    for k in node_props_to_save:
-        node_props = G.nodes.properties.get(k).collect()
-        props_tensor = torch.tensor(node_props)
-        d[k] = props_tensor#.astype('float32')
+        for k in edge_props_to_save:
+            edge_props = G.edges.properties.get(k).collect()
+            props_tensor = torch.tensor(edge_props)
+            d[k] = props_tensor
 
-    if edge_props_to_save == 'all':
-        edge_props_to_save = G.edges.properties.keys()
+        # Machine learning masks and labels
+        g_keys = G.properties.keys()
+        if 'y' in g_keys:
+            d.y = torch.tensor(G.properties['y'])
+        if 'train_mask' in g_keys:
+            d.train_mask = torch.tensor(G.properties['train_mask'])
+        if 'val_mask' in g_keys:
+            d.val_mask = torch.tensor(G.properties['val_mask'])
+        if 'test_mask' in g_keys:
+            d.test_mask = torch.tensor(G.properties['test_mask'])
 
-    if edge_props_to_save is None:
-        edge_props_to_save = []
+        # Serialize (pickle) the graph
+        with open(f'{G.count_nodes()}.pickle', 'wb') as f:
+            pickle.dump(d, f)
 
-    for k in edge_props_to_save:
-        edge_props = G.edges.properties.get(k).collect()
-        props_tensor = torch.tensor(edge_props)
-        d[k] = props_tensor
+        if re_index:
+            return d, mapping_node
 
-    # Machine learning masks and labels
-    g_keys = G.properties.keys()
-    if 'y' in g_keys:
-        d.y = torch.tensor(G.properties['y'])
-    if 'train_mask' in g_keys:
-        d.train_mask = torch.tensor(G.properties['train_mask'])
-    if 'val_mask' in g_keys:
-        d.val_mask = torch.tensor(G.properties['val_mask'])
-    if 'test_mask' in g_keys:
-        d.test_mask = torch.tensor(G.properties['test_mask'])
-
-    if re_index:
-        return d, mapping_node
-
-    return d
+        return d
