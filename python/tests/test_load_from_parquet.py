@@ -1,5 +1,6 @@
 import os
 import re
+import tempfile
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -10,6 +11,13 @@ from raphtory import Graph, PersistentGraph
 
 @pytest.mark.skip(reason="Prepares data for debugging purposes")
 def test_prepare_data():
+    dirname = tempfile.TemporaryDirectory()
+    nodes_parquet_fp = os.path.join(dirname.name, "parquet", "nodes.parquet")
+    edges_parquet_fp = os.path.join(dirname.name, "parquet", "edges.parquet")
+    edge_deletions_parquet_fp = os.path.join(dirname.name, "parquet", "edges_deletions.parquet")
+
+    os.makedirs(os.path.dirname(nodes_parquet_fp), exist_ok=True)
+
     data = {
         "id": [1, 2, 3, 4, 5, 6],
         "name": ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank"],
@@ -19,7 +27,8 @@ def test_prepare_data():
     }
 
     table = pa.table(data)
-    pq.write_table(table, '/tmp/parquet/nodes.parquet')
+    pq.write_table(table, nodes_parquet_fp)
+    print("""Created nodes.parquet at loc = {}""".format(nodes_parquet_fp))
 
     data = {
         "src": [1, 2, 3, 4, 5],
@@ -32,7 +41,8 @@ def test_prepare_data():
     }
 
     table = pa.table(data)
-    pq.write_table(table, '/tmp/parquet/edges.parquet')
+    pq.write_table(table, edges_parquet_fp)
+    print("""Created edges.parquet at loc = {}""".format(edges_parquet_fp))
 
     data = {
         "src": [3, 4],
@@ -41,7 +51,8 @@ def test_prepare_data():
     }
 
     table = pa.table(data)
-    pq.write_table(table, '/tmp/parquet/edges_deletions.parquet')
+    pq.write_table(table, edge_deletions_parquet_fp)
+    print("""Created edges_deletions.parquet at loc = {}""".format(edge_deletions_parquet_fp))
 
 
 nodes_parquet_file_path = os.path.join(os.path.dirname(__file__), 'data', 'parquet', 'nodes.parquet')
