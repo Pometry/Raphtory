@@ -13,7 +13,7 @@
 //!
 //! Example:
 //! ```rust
-//! use raphtory::graph_loader::example::lotr_graph::lotr_graph;
+//! use raphtory::graph_loader::lotr_graph::lotr_graph;
 //! use raphtory::prelude::*;
 //!
 //! let graph = lotr_graph();
@@ -22,11 +22,12 @@
 //! println!("The graph has {:?} edges", graph.count_edges());
 //! ```
 use crate::{
-    graph_loader::{fetch_file, source::csv_loader::CsvLoader},
+    graph_loader::fetch_file,
     prelude::*,
 };
 use serde::Deserialize;
 use std::path::PathBuf;
+use crate::io::csv_loader::CsvLoader;
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct Lotr {

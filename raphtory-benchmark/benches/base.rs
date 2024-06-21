@@ -1,6 +1,6 @@
 use crate::common::{bootstrap_graph, run_analysis_benchmarks, run_large_ingestion_benchmarks};
 use criterion::{criterion_group, criterion_main, Criterion, Throughput};
-use raphtory::{graph_loader::example::lotr_graph::lotr_graph, prelude::*};
+use raphtory::{graph_loader::lotr_graph::lotr_graph, prelude::*};
 
 mod common;
 

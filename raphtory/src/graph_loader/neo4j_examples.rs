@@ -1,6 +1,6 @@
 use crate::{
     db::{api::mutation::AdditionOps, graph::graph as rap},
-    graph_loader::source::neo4j_loader::Neo4JConnection,
+    io::neo4j_loader::Neo4JConnection,
     prelude::{IntoProp, NO_PROPS},
 };
 use neo4rs::*;

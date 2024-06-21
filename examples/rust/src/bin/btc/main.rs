@@ -2,7 +2,7 @@
 #![allow(dead_code)]
 
 use chrono::{DateTime, Utc};
-use raphtory::{core::utils::hashing, graph_loader::source::csv_loader::CsvLoader, prelude::*};
+use raphtory::{core::utils::hashing, io::csv_loader::CsvLoader, prelude::*};
 use regex::Regex;
 use serde::Deserialize;
 use std::{

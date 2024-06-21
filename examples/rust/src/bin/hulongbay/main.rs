@@ -9,7 +9,7 @@ use raphtory::{
             triangle_count::triangle_count,
         },
     },
-    graph_loader::source::csv_loader::CsvLoader,
+    io::csv_loader::CsvLoader,
     prelude::*,
 };
 use regex::Regex;

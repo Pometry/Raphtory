@@ -26,7 +26,7 @@ use tokio::runtime::Runtime;
 ///   A Graph containing the LOTR dataset
 #[pyfunction]
 pub fn lotr_graph() -> PyResult<Py<PyGraph>> {
-    PyGraph::py_from_db_graph(crate::graph_loader::example::lotr_graph::lotr_graph())
+    PyGraph::py_from_db_graph(crate::graph_loader::lotr_graph::lotr_graph())
 }
 
 /// Load (a subset of) Reddit hyperlinks dataset into a graph.
@@ -68,7 +68,7 @@ pub fn lotr_graph() -> PyResult<Py<PyGraph>> {
 #[pyo3(signature = (timeout_seconds=600))]
 pub fn reddit_hyperlink_graph(timeout_seconds: u64) -> PyResult<Py<PyGraph>> {
     PyGraph::py_from_db_graph(
-        crate::graph_loader::example::reddit_hyperlinks::reddit_graph(timeout_seconds, false),
+        crate::graph_loader::reddit_hyperlinks::reddit_graph(timeout_seconds, false),
     )
 }
 
@@ -77,7 +77,7 @@ pub fn reddit_hyperlink_graph(timeout_seconds: u64) -> PyResult<Py<PyGraph>> {
 pub fn reddit_hyperlink_graph_local(file_path: &str) -> PyResult<Py<PyGraph>> {
     let file_path_buf = PathBuf::from(file_path);
     PyGraph::py_from_db_graph(
-        crate::graph_loader::example::reddit_hyperlinks::generate_reddit_graph(file_path_buf),
+        crate::graph_loader::reddit_hyperlinks::generate_reddit_graph(file_path_buf),
     )
 }
 
@@ -85,7 +85,7 @@ pub fn reddit_hyperlink_graph_local(file_path: &str) -> PyResult<Py<PyGraph>> {
 #[pyo3(signature = (path=None,subset=None))]
 pub fn stable_coin_graph(path: Option<String>, subset: Option<bool>) -> PyResult<Py<PyGraph>> {
     PyGraph::py_from_db_graph(
-        crate::graph_loader::example::stable_coins::stable_coin_graph(
+        crate::graph_loader::stable_coins::stable_coin_graph(
             path,
             subset.unwrap_or(false),
         ),
@@ -101,7 +101,7 @@ pub fn neo4j_movie_graph(
     database: String,
 ) -> PyResult<Py<PyGraph>> {
     let g = Runtime::new().unwrap().block_on(
-        crate::graph_loader::example::neo4j_examples::neo4j_movie_graph(
+        crate::graph_loader::neo4j_examples::neo4j_movie_graph(
             uri, username, password, database,
         ),
     );
@@ -131,5 +131,5 @@ pub fn neo4j_movie_graph(
 #[pyfunction]
 #[pyo3(signature = ())]
 pub fn karate_club_graph() -> PyResult<Py<PyGraph>> {
-    PyGraph::py_from_db_graph(crate::graph_loader::example::karate_club::karate_club_graph())
+    PyGraph::py_from_db_graph(crate::graph_loader::karate_club::karate_club_graph())
 }

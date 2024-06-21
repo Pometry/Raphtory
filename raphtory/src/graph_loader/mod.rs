@@ -10,7 +10,7 @@
 //! ```rust
 //! use raphtory::algorithms::metrics::degree::average_degree;
 //! use raphtory::prelude::*;
-//! use raphtory::graph_loader::example::lotr_graph::lotr_graph;
+//! use raphtory::graph_loader::lotr_graph::lotr_graph;
 //!
 //! let graph = lotr_graph();
 //!
@@ -32,7 +32,7 @@
 //! ```no_run
 //! use std::time::Instant;
 //! use serde::Deserialize;
-//! use raphtory::graph_loader::source::csv_loader::CsvLoader;
+//! use raphtory::io::csv_loader::CsvLoader;
 //! use raphtory::prelude::*;
 //!
 //! let data_dir = "/tmp/lotr.csv";
@@ -105,8 +105,13 @@ use std::{
 };
 use zip::read::ZipArchive;
 
-pub mod example;
-pub mod source;
+pub mod company_house;
+pub mod karate_club;
+pub mod lotr_graph;
+pub mod neo4j_examples;
+pub mod reddit_hyperlinks;
+pub mod stable_coins;
+pub mod sx_superuser_graph;
 
 pub fn fetch_file(
     name: &str,
@@ -177,13 +182,13 @@ mod graph_loader_test {
 
     #[test]
     fn test_lotr_load_graph() {
-        let g = crate::graph_loader::example::lotr_graph::lotr_graph();
+        let g = crate::graph_loader::lotr_graph::lotr_graph();
         assert_eq!(g.count_edges(), 701);
     }
 
     #[test]
     fn test_graph_at() {
-        let g = crate::graph_loader::example::lotr_graph::lotr_graph();
+        let g = crate::graph_loader::lotr_graph::lotr_graph();
 
         let g_at_empty = g.at(1);
         let g_astart = g.at(7059);
@@ -196,7 +201,7 @@ mod graph_loader_test {
 
     #[test]
     fn test_karate_graph() {
-        let g = crate::graph_loader::example::karate_club::karate_club_graph();
+        let g = crate::graph_loader::karate_club::karate_club_graph();
         assert_eq!(g.count_nodes(), 34);
         assert_eq!(g.count_edges(), 155);
     }
@@ -205,7 +210,7 @@ mod graph_loader_test {
     fn db_lotr() {
         let g = Graph::new();
 
-        let data_dir = crate::graph_loader::example::lotr_graph::lotr_file()
+        let data_dir = crate::graph_loader::lotr_graph::lotr_file()
             .expect("Failed to get lotr.csv file");
 
         fn parse_record(rec: &StringRecord) -> Option<(String, String, i64)> {
@@ -244,7 +249,7 @@ mod graph_loader_test {
 
     #[test]
     fn test_all_degrees_window() {
-        let g = crate::graph_loader::example::lotr_graph::lotr_graph();
+        let g = crate::graph_loader::lotr_graph::lotr_graph();
 
         assert_eq!(g.count_edges(), 701);
         assert_eq!(g.node("Gandalf").unwrap().degree(), 49);
@@ -263,7 +268,7 @@ mod graph_loader_test {
 
     #[test]
     fn test_all_neighbours_window() {
-        let g = crate::graph_loader::example::lotr_graph::lotr_graph();
+        let g = crate::graph_loader::lotr_graph::lotr_graph();
 
         assert_eq!(g.count_edges(), 701);
         assert_eq!(g.node("Gandalf").unwrap().neighbours().iter().count(), 49);
@@ -316,7 +321,7 @@ mod graph_loader_test {
 
     #[test]
     fn test_all_edges_window() {
-        let g = crate::graph_loader::example::lotr_graph::lotr_graph();
+        let g = crate::graph_loader::lotr_graph::lotr_graph();
 
         assert_eq!(g.count_edges(), 701);
         assert_eq!(g.node("Gandalf").unwrap().edges().iter().count(), 59);

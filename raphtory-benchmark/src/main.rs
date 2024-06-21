@@ -5,7 +5,8 @@ use raphtory::{
     algorithms::{
         centrality::pagerank::unweighted_page_rank, components::weakly_connected_components,
     },
-    graph_loader::{fetch_file, source::csv_loader::CsvLoader},
+    graph_loader::fetch_file,
+    io::csv_loader::CsvLoader,
     prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, NO_PROPS},
 };
 use std::{
@@ -16,10 +17,10 @@ use std::{
 };
 
 #[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None )]
+#[command(author, version, about, long_about = None)]
 struct Args {
     /// Set if the file has a header, default is False
-    #[arg(long, action=ArgAction::SetTrue)]
+    #[arg(long, action = ArgAction::SetTrue)]
     header: bool,
 
     /// Delimiter of the csv file
@@ -43,11 +44,11 @@ struct Args {
     time_column: i32,
 
     /// Download default files
-    #[arg(long, action=ArgAction::SetTrue)]
+    #[arg(long, action = ArgAction::SetTrue)]
     download: bool,
 
     /// Debug to print more info to the screen
-    #[arg(long, action=ArgAction::SetTrue)]
+    #[arg(long, action = ArgAction::SetTrue)]
     debug: bool,
 
     /// Set the number of locks for the node and edge storage
