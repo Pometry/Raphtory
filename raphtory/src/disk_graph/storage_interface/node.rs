@@ -9,14 +9,13 @@ use crate::{
             tprop_storage_ops::TPropOps,
             variants::{direction_variants::DirectionVariants, layer_variants::LayerVariants},
         },
-        view::internal::NodeAdditions,
+        view::internal::{CoreGraphOps, NodeAdditions},
     },
 };
 use itertools::Itertools;
 use pometry_storage::{graph::TemporalGraph, timestamps::TimeStamps, GidRef};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use std::{borrow::Cow, iter, sync::Arc};
-use crate::db::api::view::internal::CoreGraphOps;
 
 #[derive(Copy, Clone, Debug)]
 pub struct DiskNode<'a> {

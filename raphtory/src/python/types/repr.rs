@@ -1,5 +1,5 @@
-use crate::core::storage::locked_view::LockedView;
 use crate::{
+    core::storage::locked_view::LockedView,
     db::api::state::{LazyNodeState, NodeState},
     prelude::{GraphViewOps, NodeStateOps, NodeViewOps},
 };

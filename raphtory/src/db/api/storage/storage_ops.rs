@@ -144,7 +144,7 @@ impl GraphStorage {
     pub fn layer_ids_iter<'graph, G: GraphViewOps<'graph>>(
         &self,
         view: &G,
-    ) -> Box<dyn Iterator<Item=usize>> {
+    ) -> Box<dyn Iterator<Item = usize>> {
         let layer_ids = view.layer_ids().clone();
         match layer_ids {
             LayerIds::None => Box::new(iter::empty()),
@@ -181,7 +181,7 @@ impl GraphStorage {
         self,
         view: G,
         type_filter: Option<Arc<[bool]>>,
-    ) -> Box<dyn Iterator<Item=VID> + Send + 'graph> {
+    ) -> Box<dyn Iterator<Item = VID> + Send + 'graph> {
         let iter = view.node_list().into_iter();
         match type_filter {
             None => {
@@ -211,7 +211,7 @@ impl GraphStorage {
         &'a self,
         view: &'a G,
         type_filter: Option<&'a Arc<[bool]>>,
-    ) -> impl ParallelIterator<Item=VID> + 'a {
+    ) -> impl ParallelIterator<Item = VID> + 'a {
         view.node_list().into_par_iter().filter(move |&vid| {
             let node = self.node(vid);
             type_filter.map_or(true, |type_filter| type_filter[node.node_type_id()])
@@ -223,7 +223,7 @@ impl GraphStorage {
         self,
         view: G,
         type_filter: Option<Arc<[bool]>>,
-    ) -> impl ParallelIterator<Item=VID> + 'graph {
+    ) -> impl ParallelIterator<Item = VID> + 'graph {
         view.node_list().into_par_iter().filter(move |&vid| {
             let node = self.node(vid);
             let n = node.name();
@@ -242,7 +242,7 @@ impl GraphStorage {
     pub fn edges_iter<'graph, G: GraphViewOps<'graph>>(
         &'graph self,
         view: &'graph G,
-    ) -> impl Iterator<Item=EdgeRef> + Send + 'graph {
+    ) -> impl Iterator<Item = EdgeRef> + Send + 'graph {
         let iter = self.edges().iter(view.layer_ids().clone());
 
         let filtered = match view.filter_state() {
@@ -272,7 +272,7 @@ impl GraphStorage {
     pub fn into_edges_iter<'graph, G: GraphViewOps<'graph>>(
         self,
         view: G,
-    ) -> impl Iterator<Item=EdgeRef> + Send + 'graph {
+    ) -> impl Iterator<Item = EdgeRef> + Send + 'graph {
         let edges = self.owned_edges();
         let nodes = self.owned_nodes();
 
@@ -288,13 +288,13 @@ impl GraphStorage {
                         (view.filter_edge(e, view.layer_ids())
                             && view.filter_node(nodes.node_entry(e.src()), view.layer_ids())
                             && view.filter_node(nodes.node_entry(e.dst()), view.layer_ids()))
-                            .then(|| e.out_ref())
+                        .then(|| e.out_ref())
                     })),
                     FilterState::Nodes => FilterVariants::Nodes(iter.filter_map(move |e| {
                         let e = EdgeStorageRef::Mem(edges.get(e));
                         (view.filter_node(nodes.node_entry(e.src()), view.layer_ids())
                             && view.filter_node(nodes.node_entry(e.dst()), view.layer_ids()))
-                            .then(|| e.out_ref())
+                        .then(|| e.out_ref())
                     })),
                     FilterState::Edges | FilterState::BothIndependent => {
                         FilterVariants::Edges(iter.filter_map(move |e| {
@@ -369,7 +369,7 @@ impl GraphStorage {
     pub fn edges_par<'graph, G: GraphViewOps<'graph>>(
         &'graph self,
         view: &'graph G,
-    ) -> impl ParallelIterator<Item=EdgeRef> + 'graph {
+    ) -> impl ParallelIterator<Item = EdgeRef> + 'graph {
         self.edges()
             .par_iter(view.layer_ids().clone())
             .filter(|edge| match view.filter_state() {
@@ -399,7 +399,7 @@ impl GraphStorage {
     pub fn into_edges_par<'graph, G: GraphViewOps<'graph>>(
         self,
         view: G,
-    ) -> impl ParallelIterator<Item=EdgeRef> + 'graph {
+    ) -> impl ParallelIterator<Item = EdgeRef> + 'graph {
         let edges = self.owned_edges();
         let nodes = self.owned_nodes();
 
@@ -415,13 +415,13 @@ impl GraphStorage {
                         (view.filter_edge(e, view.layer_ids())
                             && view.filter_node(nodes.node_entry(e.src()), view.layer_ids())
                             && view.filter_node(nodes.node_entry(e.dst()), view.layer_ids()))
-                            .then(|| e.out_ref())
+                        .then(|| e.out_ref())
                     })),
                     FilterState::Nodes => FilterVariants::Nodes(iter.filter_map(move |e| {
                         let e = EdgeStorageRef::Mem(edges.get(e));
                         (view.filter_node(nodes.node_entry(e.src()), view.layer_ids())
                             && view.filter_node(nodes.node_entry(e.dst()), view.layer_ids()))
-                            .then(|| e.out_ref())
+                        .then(|| e.out_ref())
                     })),
                     FilterState::Edges | FilterState::BothIndependent => {
                         FilterVariants::Edges(iter.filter_map(move |e| {
@@ -500,7 +500,7 @@ impl GraphStorage {
         node: VID,
         dir: Direction,
         view: &'a G,
-    ) -> impl Iterator<Item=VID> + Send + '_ {
+    ) -> impl Iterator<Item = VID> + Send + '_ {
         self.node_edges_iter(node, dir, view)
             .map(|e| e.remote())
             .dedup()
@@ -511,7 +511,7 @@ impl GraphStorage {
         node: VID,
         dir: Direction,
         view: G,
-    ) -> impl Iterator<Item=VID> + 'graph {
+    ) -> impl Iterator<Item = VID> + 'graph {
         self.into_node_edges_iter(node, dir, view)
             .map(|e| e.remote())
             .dedup()
@@ -536,7 +536,7 @@ impl GraphStorage {
         node: VID,
         dir: Direction,
         view: &'a G,
-    ) -> impl Iterator<Item=EdgeRef> + 'a {
+    ) -> impl Iterator<Item = EdgeRef> + 'a {
         let source = self.node(node);
         let layers = view.layer_ids();
         let iter = source.into_edges_iter(layers, dir);
@@ -560,7 +560,7 @@ impl GraphStorage {
         node: VID,
         dir: Direction,
         view: G,
-    ) -> impl Iterator<Item=EdgeRef> + 'graph {
+    ) -> impl Iterator<Item = EdgeRef> + 'graph {
         let layers = view.layer_ids().clone();
         let local = self.owned_node(node);
         let iter = local.into_edges_iter(layers, dir);

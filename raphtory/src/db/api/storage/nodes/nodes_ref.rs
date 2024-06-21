@@ -61,7 +61,7 @@ impl<'a> NodesStorageEntry<'a> {
             NodesStorageEntry::Disk(store) => store.len(),
         }
     }
-    
+
     pub fn par_iter(&self) -> impl ParallelIterator<Item = NodeStorageRef<'_>> {
         for_all_variants!(self, nodes => nodes.par_iter().map(|n| n.into()))
     }
@@ -69,5 +69,4 @@ impl<'a> NodesStorageEntry<'a> {
     pub fn iter(&self) -> impl Iterator<Item = NodeStorageRef<'_>> {
         for_all_variants!(self, nodes => nodes.iter().map(|n| n.into()))
     }
-
 }

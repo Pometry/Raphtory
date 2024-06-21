@@ -918,7 +918,7 @@ mod test {
         .unwrap();
 
         println!("node types = {:?}", g.nodes().node_type().collect_vec());
-        
+
         assert_eq!(
             g.nodes().type_filter(&vec!["A"]).name().collect_vec(),
             vec!["Comp710070", "Comp844043"]

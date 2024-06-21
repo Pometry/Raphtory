@@ -164,7 +164,7 @@ impl Graph {
     pub fn new_with_shards(num_shards: usize) -> Self {
         Self(Arc::new(InternalGraph::new(num_shards)))
     }
-    
+
     pub(crate) fn from_internal_graph(internal_graph: Arc<InternalGraph>) -> Self {
         Self(internal_graph)
     }

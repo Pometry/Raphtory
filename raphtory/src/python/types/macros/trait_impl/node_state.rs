@@ -1,6 +1,6 @@
 #![allow(non_local_definitions)]
 use crate::{
-    core::{entities::nodes::node_ref::NodeRef},
+    core::entities::nodes::node_ref::NodeRef,
     db::{
         api::{
             state::{LazyNodeState, NodeState, NodeStateOps, OrderedNodeStateOps},
@@ -17,8 +17,8 @@ use pyo3::{
     prelude::*,
     types::PyNotImplemented,
 };
-use std::sync::Arc;
 use raphtory_api::core::storage::arc_str::ArcStr;
+use std::sync::Arc;
 
 macro_rules! impl_node_state_ops {
     ($name:ident<$value:ty>, $inner_t:ty, $to_owned:expr) => {
