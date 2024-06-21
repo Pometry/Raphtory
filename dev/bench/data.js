@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1718898703135,
+  "lastUpdate": 1718963880999,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -53815,6 +53815,60 @@ window.BENCHMARK_DATA = {
             "name": "temporal_motifs/temporal_motifs",
             "value": 20613421,
             "range": "± 230711",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "4599890+iamsmkr@users.noreply.github.com",
+            "name": "Shivam Kapoor",
+            "username": "iamsmkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "360ad5739e7b2babf25b005b468f7523641aac69",
+          "message": "impl node_types for disk graph (#1641)\n\n* impl node_types for disk graph\r\n\r\n* update pometry storage\r\n\r\n* udpate storage\r\n\r\n* impl test\r\n\r\n* move tests to disk graph\r\n\r\n* ref\r\n\r\n* fmt\r\n\r\n* refactor node properties and add more tests\r\n\r\n* fix cypher tests\r\n\r\n* py tests\r\n\r\n* update submodule commit id\r\n\r\n* move arc_str tests to api package\r\n\r\n* move dict_mapper tests to raphtory api\r\n\r\n* impl review suggestions\r\n\r\n* fmt\r\n\r\n* fmt",
+          "timestamp": "2024-06-21T10:19:30+01:00",
+          "tree_id": "2002495662602244043d8a9959542123c5054fe6",
+          "url": "https://github.com/Pometry/Raphtory/commit/360ad5739e7b2babf25b005b468f7523641aac69"
+        },
+        "date": 1718963879388,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "local_clustering_coefficient/local_clustering_coefficient",
+            "value": 100216,
+            "range": "± 4440",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_clustering_coeff/graphgen_large_clustering_coeff/Graph(num_nodes=500004, num_edges=20...",
+            "value": 2857842439,
+            "range": "± 42118291",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_pagerank/graphgen_large_pagerank/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 299180186,
+            "range": "± 5572564",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_concomp/graphgen_large_concomp/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 2905946778,
+            "range": "± 44011894",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "temporal_motifs/temporal_motifs",
+            "value": 21419956,
+            "range": "± 1870918",
             "unit": "ns/iter"
           }
         ]
