@@ -2,13 +2,10 @@ use crate::{
     core::{entities::graph::tgraph::InternalGraph, utils::errors::GraphError},
     db::api::mutation::AdditionOps,
     prelude::*,
-    python::graph::io::{
-        dataframe::PretendDF,
-        prop_handler::{get_prop_rows, lift_layer},
-    },
 };
 use kdam::tqdm;
 use std::{collections::HashMap, iter};
+use crate::io::arrow::{dataframe::PretendDF, prop_handler::*};
 
 pub(crate) fn load_nodes_from_df<'a>(
     df: &'a PretendDF,

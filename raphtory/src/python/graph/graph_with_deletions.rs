@@ -17,7 +17,7 @@ use crate::{
     prelude::{DeletionOps, GraphViewOps, ImportOps},
     python::{
         graph::{
-            edge::PyEdge, io::parquet_loaders::*, node::PyNode, views::graph_view::PyGraphView,
+            edge::PyEdge, node::PyNode, views::graph_view::PyGraphView,
         },
         utils::{PyInputNode, PyTime},
     },
@@ -30,6 +30,7 @@ use std::{
 };
 
 use super::{graph::PyGraph, io::panda_loaders::*};
+use crate::io::parquet_loaders::*;
 
 /// A temporal graph that allows edges and nodes to be deleted.
 #[derive(Clone)]

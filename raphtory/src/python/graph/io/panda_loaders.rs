@@ -1,10 +1,8 @@
-use crate::{
-    core::{entities::graph::tgraph::InternalGraph, utils::errors::GraphError, Prop},
-    python::graph::io::{dataframe::*, df_loaders::*},
-};
+use crate::core::{entities::graph::tgraph::InternalGraph, utils::errors::GraphError, Prop};
 use polars_arrow::{array::Array, ffi};
 use pyo3::{ffi::Py_uintptr_t, prelude::*, types::IntoPyDict};
 use std::collections::HashMap;
+use crate::io::arrow::{dataframe::*, df_loaders::*};
 
 pub fn load_nodes_from_pandas(
     graph: &InternalGraph,

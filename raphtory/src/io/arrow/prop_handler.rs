@@ -7,8 +7,8 @@ use polars_arrow::{
 use crate::{
     core::{utils::errors::GraphError, IntoPropList},
     prelude::Prop,
-    python::graph::io::dataframe::PretendDF,
 };
+use crate::io::arrow::dataframe::PretendDF;
 
 pub struct PropIter<'a> {
     inner: Box<dyn Iterator<Item = Vec<(&'a str, Prop)>> + 'a>,

@@ -15,7 +15,7 @@ use crate::{
         graph::{
             edge::PyEdge,
             graph_with_deletions::PyPersistentGraph,
-            io::{panda_loaders::*, parquet_loaders::*},
+            io::panda_loaders::*,
             node::PyNode,
             views::graph_view::PyGraphView,
         },
@@ -28,6 +28,7 @@ use std::{
     fmt::{Debug, Formatter},
     path::{Path, PathBuf},
 };
+use crate::io::parquet_loaders::*;
 
 /// A temporal graph.
 #[derive(Clone)]

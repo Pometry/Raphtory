@@ -1,7 +1,4 @@
-use crate::{
-    core::{entities::graph::tgraph::InternalGraph, utils::errors::GraphError, Prop},
-    python::graph::io::{dataframe::*, df_loaders::*},
-};
+use crate::core::{entities::graph::tgraph::InternalGraph, utils::errors::GraphError, Prop};
 use itertools::Itertools;
 use polars_arrow::{
     array::Array,
@@ -14,6 +11,7 @@ use polars_parquet::{
     read::{read_metadata, FileMetaData, FileReader},
 };
 use std::{collections::HashMap, path::Path};
+use crate::io::arrow::{dataframe::*, df_loaders::*};
 
 pub fn load_nodes_from_parquet(
     graph: &InternalGraph,
