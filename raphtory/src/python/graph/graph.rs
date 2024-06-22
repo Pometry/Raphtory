@@ -24,6 +24,7 @@ use pyo3::{prelude::*, types::PyBytes};
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
+    ops::Deref,
     path::{Path, PathBuf},
 };
 

@@ -1,6 +1,7 @@
 use crate::{
     core::{entities::graph::tgraph::InternalGraph, utils::errors::GraphError, Prop},
     io::arrow::{dataframe::*, df_loaders::*},
+    python::graph::io::*,
 };
 use polars_arrow::{array::Array, ffi};
 use pyo3::{ffi::Py_uintptr_t, prelude::*, types::IntoPyDict};

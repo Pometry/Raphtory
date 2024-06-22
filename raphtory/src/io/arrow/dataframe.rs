@@ -9,7 +9,6 @@ use polars_arrow::{
 };
 
 use itertools::Itertools;
-use pyo3::{create_exception, exceptions::PyException};
 
 #[derive(Debug)]
 pub(crate) struct PretendDF {
@@ -100,8 +99,3 @@ impl PretendDF {
         Some(iter)
     }
 }
-
-pub type ArrayRef = Box<dyn Array>;
-
-create_exception!(exceptions, ArrowErrorException, PyException);
-create_exception!(exceptions, GraphLoadException, PyException);
