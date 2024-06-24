@@ -1,5 +1,5 @@
 use crate::{
-    core::{entities::graph::tgraph::InternalGraph, utils::errors::GraphError, Prop},
+    core::{utils::errors::GraphError, Prop},
     db::api::{
         mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
         view::StaticGraphViewOps,
@@ -18,13 +18,17 @@ use polars_parquet::{
     read,
     read::{read_metadata, FileMetaData, FileReader},
 };
-use std::{collections::HashMap, path::Path};
+use std::{
+    collections::HashMap,
+    fs,
+    path::{Path, PathBuf},
+};
 
 pub fn load_nodes_from_parquet<
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
 >(
     graph: &G,
-    parquet_file_path: &Path,
+    parquet_path: &Path,
     id: &str,
     time: &str,
     node_type: Option<&str>,
@@ -42,23 +46,24 @@ pub fn load_nodes_from_parquet<
         }
     }
 
-    let df = process_parquet_file_to_df(parquet_file_path, cols_to_check.clone())?;
-    df.check_cols_exist(&cols_to_check)?;
-    let size = df.get_inner_size();
-
-    load_nodes_from_df(
-        &df,
-        size,
-        id,
-        time,
-        properties,
-        const_properties,
-        shared_const_properties,
-        node_type,
-        node_type_in_df.unwrap_or(true),
-        graph,
-    )
-    .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+    for path in get_parquet_file_paths(parquet_path) {
+        let df = process_parquet_file_to_df(path.as_path(), cols_to_check.clone())?;
+        df.check_cols_exist(&cols_to_check)?;
+        let size = df.get_inner_size();
+        load_nodes_from_df(
+            &df,
+            size,
+            id,
+            time,
+            properties.clone(),
+            const_properties.clone(),
+            shared_const_properties.clone(),
+            node_type,
+            node_type_in_df.unwrap_or(true),
+            graph,
+        )
+        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+    }
 
     Ok(())
 }
@@ -67,7 +72,7 @@ pub fn load_edges_from_parquet<
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
 >(
     graph: &G,
-    parquet_file_path: &Path,
+    parquet_path: &Path,
     src: &str,
     dst: &str,
     time: &str,
@@ -86,24 +91,25 @@ pub fn load_edges_from_parquet<
         }
     }
 
-    let df = process_parquet_file_to_df(parquet_file_path, cols_to_check.clone())?;
-    df.check_cols_exist(&cols_to_check)?;
-    let size = cols_to_check.len();
-
-    load_edges_from_df(
-        &df,
-        size,
-        src,
-        dst,
-        time,
-        properties,
-        const_properties,
-        shared_const_properties,
-        layer,
-        layer_in_df.unwrap_or(true),
-        graph,
-    )
-    .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+    for path in get_parquet_file_paths(parquet_path) {
+        let df = process_parquet_file_to_df(path.as_path(), cols_to_check.clone())?;
+        df.check_cols_exist(&cols_to_check)?;
+        let size = cols_to_check.len();
+        load_edges_from_df(
+            &df,
+            size,
+            src,
+            dst,
+            time,
+            properties.clone(),
+            const_properties.clone(),
+            shared_const_properties.clone(),
+            layer,
+            layer_in_df.unwrap_or(true),
+            graph,
+        )
+        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+    }
 
     Ok(())
 }
@@ -112,7 +118,7 @@ pub fn load_node_props_from_parquet<
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
 >(
     graph: &G,
-    parquet_file_path: &Path,
+    parquet_path: &Path,
     id: &str,
     const_properties: Option<Vec<&str>>,
     shared_const_properties: Option<HashMap<String, Prop>>,
@@ -120,19 +126,20 @@ pub fn load_node_props_from_parquet<
     let mut cols_to_check = vec![id];
     cols_to_check.extend(const_properties.as_ref().unwrap_or(&Vec::new()));
 
-    let df = process_parquet_file_to_df(parquet_file_path, cols_to_check.clone())?;
-    df.check_cols_exist(&cols_to_check)?;
-    let size = cols_to_check.len();
-
-    load_node_props_from_df(
-        &df,
-        size,
-        id,
-        const_properties,
-        shared_const_properties,
-        graph,
-    )
-    .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+    for path in get_parquet_file_paths(parquet_path) {
+        let df = process_parquet_file_to_df(path.as_path(), cols_to_check.clone())?;
+        df.check_cols_exist(&cols_to_check)?;
+        let size = cols_to_check.len();
+        load_node_props_from_df(
+            &df,
+            size,
+            id,
+            const_properties.clone(),
+            shared_const_properties.clone(),
+            graph,
+        )
+        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+    }
 
     Ok(())
 }
@@ -141,7 +148,7 @@ pub fn load_edge_props_from_parquet<
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
 >(
     graph: &G,
-    parquet_file_path: &Path,
+    parquet_path: &Path,
     src: &str,
     dst: &str,
     const_properties: Option<Vec<&str>>,
@@ -157,22 +164,23 @@ pub fn load_edge_props_from_parquet<
     }
     cols_to_check.extend(const_properties.as_ref().unwrap_or(&Vec::new()));
 
-    let df = process_parquet_file_to_df(parquet_file_path, cols_to_check.clone())?;
-    df.check_cols_exist(&cols_to_check)?;
-    let size = cols_to_check.len();
-
-    load_edges_props_from_df(
-        &df,
-        size,
-        src,
-        dst,
-        const_properties,
-        shared_const_properties,
-        layer,
-        layer_in_df.unwrap_or(true),
-        graph,
-    )
-    .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+    for path in get_parquet_file_paths(parquet_path) {
+        let df = process_parquet_file_to_df(path.as_path(), cols_to_check.clone())?;
+        df.check_cols_exist(&cols_to_check)?;
+        let size = cols_to_check.len();
+        load_edges_props_from_df(
+            &df,
+            size,
+            src,
+            dst,
+            const_properties.clone(),
+            shared_const_properties.clone(),
+            layer,
+            layer_in_df.unwrap_or(true),
+            graph,
+        )
+        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+    }
 
     Ok(())
 }
@@ -181,7 +189,7 @@ pub fn load_edges_deletions_from_parquet<
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + DeletionOps,
 >(
     graph: &G,
-    parquet_file_path: &Path,
+    parquet_path: &Path,
     src: &str,
     dst: &str,
     time: &str,
@@ -195,21 +203,22 @@ pub fn load_edges_deletions_from_parquet<
         }
     }
 
-    let df = process_parquet_file_to_df(parquet_file_path, cols_to_check.clone())?;
-    df.check_cols_exist(&cols_to_check)?;
-    let size = cols_to_check.len();
-
-    load_edges_deletions_from_df(
-        &df,
-        size,
-        src,
-        dst,
-        time,
-        layer,
-        layer_in_df.unwrap_or(true),
-        graph,
-    )
-    .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+    for path in get_parquet_file_paths(parquet_path) {
+        let df = process_parquet_file_to_df(path.as_path(), cols_to_check.clone())?;
+        df.check_cols_exist(&cols_to_check)?;
+        let size = cols_to_check.len();
+        load_edges_deletions_from_df(
+            &df,
+            size,
+            src,
+            dst,
+            time,
+            layer,
+            layer_in_df.unwrap_or(true),
+            graph,
+        )
+        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+    }
 
     Ok(())
 }
@@ -275,6 +284,25 @@ fn read_parquet_file(
     Ok((names, reader))
 }
 
+fn get_parquet_file_paths(parquet_path: &Path) -> Vec<PathBuf> {
+    let mut parquet_files = Vec::new();
+    if parquet_path.is_file() {
+        parquet_files.push(parquet_path.to_path_buf());
+    } else if parquet_path.is_dir() {
+        for entry in fs::read_dir(parquet_path).expect("Directory not found") {
+            let entry = entry.expect("Unable to read entry");
+            let path = entry.path();
+            if path.extension().map_or(false, |ext| ext == "parquet") {
+                parquet_files.push(path);
+            }
+        }
+    } else {
+        println!("Invalid path provided: {:?}", parquet_path);
+    }
+
+    parquet_files
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -283,8 +311,8 @@ mod test {
 
     #[test]
     fn test_process_parquet_file_to_df() {
-        let parquet_file_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("resources/test/test_data.parquet");
+        let parquet_file_path =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources/test/test_data.parquet");
 
         let col_names = vec!["src", "dst", "time", "weight", "marbles"];
         let df = process_parquet_file_to_df(parquet_file_path.as_path(), col_names).unwrap();

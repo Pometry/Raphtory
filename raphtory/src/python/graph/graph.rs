@@ -462,7 +462,7 @@ impl PyGraph {
     /// Load a graph from Parquet file.
     ///
     /// Args:
-    ///     edge_parquet_file_path (str): Parquet file containing the edges.
+    ///     edge_parquet_path (str): Parquet file or directory of Parquet files containing the edges.
     ///     edge_src (str): The column name for the source node ids.
     ///     edge_dst (str): The column name for the destination node ids.
     ///     edge_time (str): The column name for the timestamps.
@@ -471,7 +471,7 @@ impl PyGraph {
     ///     edge_shared_const_properties (dict): A dictionary of constant properties that will be added to every edge (optional) Defaults to None.
     ///     edge_layer (str): The edge layer name (optional) Defaults to None.
     ///     layer_in_df (bool): Whether the layer name should be used to look up the values in a column of the edge_df or if it should be used directly as the layer for all edges (optional) defaults to True.
-    ///     node_parquet_file_path (str): Parquet file containing the nodes (optional) Defaults to None.
+    ///     node_parquet_path (str): Parquet file or directory of Parquet files containing the nodes (optional) Defaults to None.
     ///     node_id (str): The column name for the node ids (optional) Defaults to None.
     ///     node_time (str): The column name for the node timestamps (optional) Defaults to None.
     ///     node_properties (list): The column names for the node temporal properties (optional) Defaults to None.
@@ -483,11 +483,11 @@ impl PyGraph {
     /// Returns:
     ///      Graph: The loaded Graph object.
     #[staticmethod]
-    #[pyo3(signature = (edge_parquet_file_path, edge_src, edge_dst, edge_time, edge_properties = None, edge_const_properties = None, edge_shared_const_properties = None,
-    edge_layer = None, layer_in_df = true, node_parquet_file_path = None, node_id = None, node_time = None, node_properties = None,
+    #[pyo3(signature = (edge_parquet_path, edge_src, edge_dst, edge_time, edge_properties = None, edge_const_properties = None, edge_shared_const_properties = None,
+    edge_layer = None, layer_in_df = true, node_parquet_path = None, node_id = None, node_time = None, node_properties = None,
     node_const_properties = None, node_shared_const_properties = None, node_type = None, node_type_in_df = true))]
     fn load_from_parquet(
-        edge_parquet_file_path: PathBuf,
+        edge_parquet_path: PathBuf,
         edge_src: &str,
         edge_dst: &str,
         edge_time: &str,
@@ -496,7 +496,7 @@ impl PyGraph {
         edge_shared_const_properties: Option<HashMap<String, Prop>>,
         edge_layer: Option<&str>,
         layer_in_df: Option<bool>,
-        node_parquet_file_path: Option<PathBuf>,
+        node_parquet_path: Option<PathBuf>,
         node_id: Option<&str>,
         node_time: Option<&str>,
         node_properties: Option<Vec<&str>>,
@@ -508,11 +508,11 @@ impl PyGraph {
         let graph = PyGraph {
             graph: Graph::new(),
         };
-        if let (Some(node_parquet_file_path), Some(node_id), Some(node_time)) =
-            (node_parquet_file_path, node_id, node_time)
+        if let (Some(node_parquet_path), Some(node_id), Some(node_time)) =
+            (node_parquet_path, node_id, node_time)
         {
             graph.load_nodes_from_parquet(
-                node_parquet_file_path,
+                node_parquet_path,
                 node_id,
                 node_time,
                 node_type,
@@ -523,7 +523,7 @@ impl PyGraph {
             )?;
         }
         graph.load_edges_from_parquet(
-            edge_parquet_file_path,
+            edge_parquet_path,
             edge_src,
             edge_dst,
             edge_time,
@@ -577,7 +577,7 @@ impl PyGraph {
     /// Load nodes from a Parquet file into the graph.
     ///
     /// Arguments:
-    ///     parquet_file_path (str): Parquet file path containing the nodes
+    ///     parquet_path (str): Parquet file or directory of Parquet files containing the nodes
     ///     id (str): The column name for the node IDs.
     ///     time (str): The column name for the timestamps.
     ///     node_type (str): the column name for the node type
@@ -587,10 +587,10 @@ impl PyGraph {
     ///     shared_const_properties (Dictionary/Hashmap of properties): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
     /// Returns:
     ///     Result<(), GraphError>: Result of the operation.
-    #[pyo3(signature = (parquet_file_path, id, time, node_type = None, node_type_in_df = true, properties = None, const_properties = None, shared_const_properties = None))]
+    #[pyo3(signature = (parquet_path, id, time, node_type = None, node_type_in_df = true, properties = None, const_properties = None, shared_const_properties = None))]
     fn load_nodes_from_parquet(
         &self,
-        parquet_file_path: PathBuf,
+        parquet_path: PathBuf,
         id: &str,
         time: &str,
         node_type: Option<&str>,
@@ -601,7 +601,7 @@ impl PyGraph {
     ) -> Result<(), GraphError> {
         load_nodes_from_parquet(
             &self.graph,
-            parquet_file_path.as_path(),
+            parquet_path.as_path(),
             id,
             time,
             node_type,
@@ -657,7 +657,7 @@ impl PyGraph {
     /// Load edges from a Parquet file into the graph.
     ///
     /// Arguments:
-    ///     parquet_file_path (str): Parquet file path containing edges
+    ///     parquet_path (str): Parquet file or directory of Parquet files path containing edges
     ///     src (str): The column name for the source node ids.
     ///     dst (str): The column name for the destination node ids.
     ///     time (str): The column name for the update timestamps.
@@ -669,10 +669,10 @@ impl PyGraph {
     ///
     /// Returns:
     ///     Result<(), GraphError>: Result of the operation.
-    #[pyo3(signature = (parquet_file_path, src, dst, time, properties = None, const_properties = None, shared_const_properties = None, layer = None, layer_in_df = true))]
+    #[pyo3(signature = (parquet_path, src, dst, time, properties = None, const_properties = None, shared_const_properties = None, layer = None, layer_in_df = true))]
     fn load_edges_from_parquet(
         &self,
-        parquet_file_path: PathBuf,
+        parquet_path: PathBuf,
         src: &str,
         dst: &str,
         time: &str,
@@ -684,7 +684,7 @@ impl PyGraph {
     ) -> Result<(), GraphError> {
         load_edges_from_parquet(
             &self.graph,
-            parquet_file_path.as_path(),
+            parquet_path.as_path(),
             src,
             dst,
             time,
@@ -726,24 +726,24 @@ impl PyGraph {
     /// Load node properties from a parquet file.
     ///
     /// Arguments:
-    ///     parquet_file_path (str): Parquet file path containing node information.
+    ///     parquet_path (str): Parquet file or directory of Parquet files path containing node information.
     ///     id(str): The column name for the node IDs.
     ///     const_properties (List<str>): List of constant node property column names. Defaults to None. (optional)
     ///     shared_const_properties (<HashMap<String, Prop>>):  A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
     ///
     /// Returns:
     ///     Result<(), GraphError>: Result of the operation.
-    #[pyo3(signature = (parquet_file_path, id, const_properties = None, shared_const_properties = None))]
+    #[pyo3(signature = (parquet_path, id, const_properties = None, shared_const_properties = None))]
     fn load_node_props_from_parquet(
         &self,
-        parquet_file_path: PathBuf,
+        parquet_path: PathBuf,
         id: &str,
         const_properties: Option<Vec<&str>>,
         shared_const_properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
         load_node_props_from_parquet(
             &self.graph,
-            parquet_file_path.as_path(),
+            parquet_path.as_path(),
             id,
             const_properties,
             shared_const_properties,
@@ -789,7 +789,7 @@ impl PyGraph {
     /// Load edge properties from parquet file
     ///
     /// Arguments:
-    ///     parquet_file_path (str): Parquet file path containing edge information.
+    ///     parquet_path (str): Parquet file or directory of Parquet files path containing edge information.
     ///     src (str): The column name for the source node.
     ///     dst (str): The column name for the destination node.
     ///     const_properties (List<str>): List of constant edge property column names. Defaults to None. (optional)
@@ -799,10 +799,10 @@ impl PyGraph {
     ///
     /// Returns:
     ///     Result<(), GraphError>: Result of the operation.
-    #[pyo3(signature = (parquet_file_path, src, dst, const_properties = None, shared_const_properties = None, layer = None, layer_in_df = true))]
+    #[pyo3(signature = (parquet_path, src, dst, const_properties = None, shared_const_properties = None, layer = None, layer_in_df = true))]
     fn load_edge_props_from_parquet(
         &self,
-        parquet_file_path: PathBuf,
+        parquet_path: PathBuf,
         src: &str,
         dst: &str,
         const_properties: Option<Vec<&str>>,
@@ -812,7 +812,7 @@ impl PyGraph {
     ) -> Result<(), GraphError> {
         load_edge_props_from_parquet(
             &self.graph,
-            parquet_file_path.as_path(),
+            parquet_path.as_path(),
             src,
             dst,
             const_properties,
