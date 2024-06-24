@@ -3,6 +3,7 @@ use crate::{
     db::api::view::internal::InternalLayerOps,
     prelude::Layer,
 };
+use itertools::Itertools;
 
 use super::DiskGraph;
 
@@ -16,6 +17,12 @@ impl InternalLayerOps for DiskGraph {
     }
 
     fn layer_ids_from_names(&self, key: Layer) -> Result<LayerIds, GraphError> {
+        let valid_layers = self
+            .inner
+            .layer_names()
+            .into_iter()
+            .map(|x| x.clone())
+            .collect_vec();
         match key {
             Layer::All => Ok(LayerIds::All),
             Layer::Default => Ok(LayerIds::One(0)),
@@ -23,7 +30,7 @@ impl InternalLayerOps for DiskGraph {
                 let id = self
                     .inner
                     .find_layer_id(&name)
-                    .ok_or_else(|| GraphError::InvalidLayer(name.to_string()))?;
+                    .ok_or_else(|| GraphError::invalid_layer(name.to_string(), valid_layers))?;
                 Ok(LayerIds::One(id))
             }
             Layer::None => Ok(LayerIds::None),
@@ -31,9 +38,9 @@ impl InternalLayerOps for DiskGraph {
                 let ids = names
                     .iter()
                     .map(|name| {
-                        self.inner
-                            .find_layer_id(name)
-                            .ok_or_else(|| GraphError::InvalidLayer(name.to_string()))
+                        self.inner.find_layer_id(name).ok_or_else(|| {
+                            GraphError::invalid_layer(name.to_string(), valid_layers.clone())
+                        })
                     })
                     .collect::<Result<Vec<_>, _>>()?;
                 Ok(LayerIds::Multiple(ids.into()))

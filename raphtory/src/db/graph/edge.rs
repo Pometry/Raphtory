@@ -163,20 +163,25 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<
 
 impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> EdgeView<G, G> {
     fn resolve_layer(&self, layer: Option<&str>, create: bool) -> Result<usize, GraphError> {
+        let valid_layers = self
+            .graph
+            .unique_layers()
+            .map(|l| l.0.to_string())
+            .collect::<Vec<_>>();
         match layer {
             Some(name) => match self.edge.layer() {
                 Some(l_id) => self
                     .graph
                     .get_layer_id(name)
                     .filter(|id| id == l_id)
-                    .ok_or_else(|| GraphError::InvalidLayer(name.to_owned())),
+                    .ok_or_else(|| GraphError::invalid_layer(name.to_owned(), valid_layers)),
                 None => {
                     if create {
                         Ok(self.graph.resolve_layer(layer))
                     } else {
                         self.graph
                             .get_layer_id(name)
-                            .ok_or(GraphError::InvalidLayer(name.to_owned()))
+                            .ok_or(GraphError::invalid_layer(name.to_owned(), valid_layers))
                     }
                 }
             },

@@ -66,8 +66,11 @@ pub enum GraphError {
     // wasm
     #[error("Node is not String or Number")]
     NodeIdNotStringOrNumber,
-    #[error("Invalid layer {0}.")]
-    InvalidLayer(String),
+    #[error("Invalid layer: {invalid_layer}. Valid layers: {valid_layers}")]
+    InvalidLayer {
+        invalid_layer: String,
+        valid_layers: String,
+    },
     #[error("Layer {layer} does not exist for edge ({src}, {dst})")]
     InvalidEdgeLayer {
         layer: String,
@@ -123,6 +126,16 @@ pub enum GraphError {
 
     #[error("The time function is only available once an edge has been exploded via .explode(). You may want to retrieve the history for this edge via .history(), or the earliest/latest time via earliest_time or latest_time")]
     TimeAPIError,
+}
+
+impl GraphError {
+    pub fn invalid_layer(invalid_layer: String, valid_layers: Vec<String>) -> Self {
+        let valid_layers = valid_layers.join(", ");
+        GraphError::InvalidLayer {
+            invalid_layer,
+            valid_layers,
+        }
+    }
 }
 
 #[derive(thiserror::Error, Debug, PartialEq)]

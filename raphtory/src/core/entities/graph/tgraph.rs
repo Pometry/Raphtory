@@ -143,21 +143,28 @@ impl TemporalGraph {
     }
 
     pub(crate) fn layer_ids(&self, key: Layer) -> Result<LayerIds, GraphError> {
+        let valid_layers = self
+            .edge_meta
+            .layer_meta()
+            .get_keys()
+            .iter()
+            .map(|x| x.to_string())
+            .collect::<Vec<_>>();
         match key {
             Layer::None => Ok(LayerIds::None),
             Layer::All => Ok(LayerIds::All),
             Layer::Default => Ok(LayerIds::One(0)),
             Layer::One(id) => match self.edge_meta.get_layer_id(&id) {
                 Some(id) => Ok(LayerIds::One(id)),
-                None => Err(GraphError::InvalidLayer(id.to_string())),
+                None => Err(GraphError::invalid_layer(id.to_string(), valid_layers)),
             },
             Layer::Multiple(ids) => {
                 let mut new_layers = ids
                     .iter()
                     .map(|id| {
-                        self.edge_meta
-                            .get_layer_id(id)
-                            .ok_or_else(|| GraphError::InvalidLayer(id.to_string()))
+                        self.edge_meta.get_layer_id(id).ok_or_else(|| {
+                            GraphError::invalid_layer(id.to_string(), valid_layers.clone())
+                        })
                     })
                     .collect::<Result<Vec<_>, GraphError>>()?;
                 let num_layers = self.num_layers();
