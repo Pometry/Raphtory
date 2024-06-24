@@ -244,7 +244,7 @@ pub(crate) fn process_pandas_py_df(
     df: &PyAny,
     py: Python,
     col_names: Vec<&str>,
-) -> PyResult<PretendDF> {
+) -> PyResult<DFView> {
     is_jupyter(py);
     py.import("pandas")?;
     let module = py.import("pyarrow")?;
@@ -292,7 +292,7 @@ pub(crate) fn process_pandas_py_df(
         })
         .collect::<Result<Vec<_>, PyErr>>()?;
 
-    let df = PretendDF { names, arrays };
+    let df = DFView { names, arrays };
     Ok(df)
 }
 

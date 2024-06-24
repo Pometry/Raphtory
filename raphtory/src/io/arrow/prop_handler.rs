@@ -6,7 +6,7 @@ use polars_arrow::{
 
 use crate::{
     core::{utils::errors::GraphError, IntoPropList},
-    io::arrow::dataframe::PretendDF,
+    io::arrow::dataframe::DFView,
     prelude::Prop,
 };
 
@@ -23,7 +23,7 @@ impl<'a> Iterator for PropIter<'a> {
 }
 
 pub(crate) fn get_prop_rows<'a>(
-    df: &'a PretendDF,
+    df: &'a DFView,
     props: Option<Vec<&'a str>>,
     const_props: Option<Vec<&'a str>>,
 ) -> Result<(PropIter<'a>, PropIter<'a>), GraphError> {
@@ -34,7 +34,7 @@ pub(crate) fn get_prop_rows<'a>(
 
 fn combine_properties<'a>(
     props: Option<Vec<&'a str>>,
-    df: &'a PretendDF,
+    df: &'a DFView,
 ) -> Result<PropIter<'a>, GraphError> {
     let iter = props
         .unwrap_or_default()
@@ -148,7 +148,7 @@ fn validate_data_types(dt: &DataType) -> Result<(), GraphError> {
 
 pub(crate) fn lift_property<'a: 'b, 'b>(
     name: &'a str,
-    df: &'b PretendDF,
+    df: &'b DFView,
 ) -> Result<Box<dyn Iterator<Item = Vec<(&'b str, Prop)>> + 'b>, GraphError> {
     let idx = df
         .names
@@ -383,7 +383,7 @@ pub(crate) fn lift_property<'a: 'b, 'b>(
 pub(crate) fn lift_layer<'a, S: AsRef<str>>(
     layer: Option<S>,
     layer_in_df: bool,
-    df: &'a PretendDF,
+    df: &'a DFView,
 ) -> Box<dyn Iterator<Item = Option<String>> + 'a> {
     if let Some(layer) = layer {
         if layer_in_df {

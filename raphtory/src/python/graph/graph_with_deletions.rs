@@ -27,7 +27,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use super::{graph::PyGraph, io::panda_loaders::*};
+use super::{graph::PyGraph, io::pandas_loaders::*};
 use crate::io::parquet_loaders::*;
 
 /// A temporal graph that allows edges and nodes to be deleted.

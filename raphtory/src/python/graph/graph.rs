@@ -14,7 +14,7 @@ use crate::{
     prelude::*,
     python::{
         graph::{
-            edge::PyEdge, graph_with_deletions::PyPersistentGraph, io::panda_loaders::*,
+            edge::PyEdge, graph_with_deletions::PyPersistentGraph, io::pandas_loaders::*,
             node::PyNode, views::graph_view::PyGraphView,
         },
         utils::{PyInputNode, PyTime},

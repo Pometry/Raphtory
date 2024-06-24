@@ -4,7 +4,7 @@ use crate::{
         mutation::{internal::*, AdditionOps},
         view::StaticGraphViewOps,
     },
-    io::arrow::{dataframe::PretendDF, prop_handler::*},
+    io::arrow::{dataframe::DFView, prop_handler::*},
     prelude::*,
 };
 use kdam::tqdm;
@@ -14,7 +14,7 @@ pub(crate) fn load_nodes_from_df<
     'a,
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
 >(
-    df: &'a PretendDF,
+    df: &'a DFView,
     size: usize,
     node_id: &str,
     time: &str,
@@ -144,7 +144,7 @@ pub(crate) fn load_edges_from_df<
     S: AsRef<str>,
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
 >(
-    df: &'a PretendDF,
+    df: &'a DFView,
     size: usize,
     src: &str,
     dst: &str,
@@ -252,7 +252,7 @@ pub(crate) fn load_edges_deletions_from_df<
     S: AsRef<str>,
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + DeletionOps,
 >(
-    df: &'a PretendDF,
+    df: &'a DFView,
     size: usize,
     src: &str,
     dst: &str,
@@ -350,7 +350,7 @@ pub(crate) fn load_node_props_from_df<
     'a,
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
 >(
-    df: &'a PretendDF,
+    df: &'a DFView,
     size: usize,
     node_id: &str,
     const_properties: Option<Vec<&str>>,
@@ -448,7 +448,7 @@ pub(crate) fn load_edges_props_from_df<
     S: AsRef<str>,
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
 >(
-    df: &'a PretendDF,
+    df: &'a DFView,
     size: usize,
     src: &str,
     dst: &str,

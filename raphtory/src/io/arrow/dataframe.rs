@@ -11,12 +11,12 @@ use polars_arrow::{
 use itertools::Itertools;
 
 #[derive(Debug)]
-pub(crate) struct PretendDF {
+pub(crate) struct DFView {
     pub(crate) names: Vec<String>,
     pub(crate) arrays: Vec<Vec<Box<dyn Array>>>,
 }
 
-impl PretendDF {
+impl DFView {
     pub(crate) fn get_inner_size(&self) -> usize {
         if self.arrays.is_empty() || self.arrays[0].is_empty() {
             return 0;

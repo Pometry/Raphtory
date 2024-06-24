@@ -217,7 +217,7 @@ pub fn load_edges_deletions_from_parquet<
 pub(crate) fn process_parquet_file_to_df(
     parquet_file_path: &Path,
     col_names: Vec<&str>,
-) -> Result<PretendDF, GraphError> {
+) -> Result<DFView, GraphError> {
     let (names, arrays) = read_parquet_file(parquet_file_path, &col_names)?;
 
     let names = names
@@ -228,7 +228,7 @@ pub(crate) fn process_parquet_file_to_df(
         .map_ok(|r| r.into_iter().map(|boxed| boxed.clone()).collect_vec())
         .collect::<Result<Vec<_>, _>>()?;
 
-    Ok(PretendDF { names, arrays })
+    Ok(DFView { names, arrays })
 }
 
 fn read_parquet_file(
@@ -291,7 +291,7 @@ mod test {
         let col_names = vec!["src", "dst", "time", "weight", "marbles"];
         let df = process_parquet_file_to_df(parquet_file_path.as_path(), col_names).unwrap();
 
-        let df1 = PretendDF {
+        let df1 = DFView {
             names: vec!["src", "dst", "time", "weight", "marbles"]
                 .iter()
                 .map(|s| s.to_string())

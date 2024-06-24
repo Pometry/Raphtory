@@ -33,8 +33,8 @@ use pyo3::{
     types::{IntoPyDict, PyDict, PyList, PyString},
 };
 
-use super::io::panda_loaders::*;
-use crate::io::arrow::dataframe::PretendDF;
+use super::io::pandas_loaders::*;
+use crate::io::arrow::dataframe::DFView;
 
 impl From<Error> for PyErr {
     fn from(value: Error) -> Self {
@@ -238,7 +238,7 @@ impl PyDiskGraph {
 impl PyDiskGraph {
     fn from_pandas(
         graph_dir: &str,
-        df: PretendDF,
+        df: DFView,
         src: &str,
         dst: &str,
         time: &str,
