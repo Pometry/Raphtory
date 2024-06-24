@@ -1,19 +1,23 @@
 #[cfg(feature = "storage")]
-use crate::db::api::storage::variants::storage_variants::StorageVariants;
+use crate::db::api::storage::variants::storage_variants3::StorageVariants;
 #[cfg(feature = "storage")]
 use crate::disk_graph::storage_interface::nodes_ref::DiskNodesRef;
-use crate::{
-    core::{
-        entities::{nodes::node_store::NodeStore, VID},
-        storage::ReadLockedStorage,
-    },
-    db::api::storage::nodes::node_ref::NodeStorageRef,
+
+#[cfg(not(feature = "storage"))]
+use either::Either;
+
+use crate::core::{
+    entities::{nodes::node_store::NodeStore, VID},
+    storage::ReadLockedStorage,
 };
 use rayon::iter::ParallelIterator;
 
-#[derive(Copy, Clone, Debug)]
-pub enum NodesStorageRef<'a> {
+use super::node_ref::NodeStorageRef;
+
+#[derive(Debug)]
+pub enum NodesStorageEntry<'a> {
     Mem(&'a ReadLockedStorage<NodeStore, VID>),
+    Unlocked(ReadLockedStorage<NodeStore, VID>),
     #[cfg(feature = "storage")]
     Disk(DiskNodesRef<'a>),
 }
@@ -22,8 +26,9 @@ pub enum NodesStorageRef<'a> {
 macro_rules! for_all_variants {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
-            NodesStorageRef::Mem($pattern) => StorageVariants::Mem($result),
-            NodesStorageRef::Disk($pattern) => StorageVariants::Disk($result),
+            NodesStorageEntry::Mem($pattern) => StorageVariants::Mem($result),
+            NodesStorageEntry::Unlocked($pattern) => StorageVariants::Unlocked($result),
+            NodesStorageEntry::Disk($pattern) => StorageVariants::Disk($result),
         }
     };
 }
@@ -32,32 +37,36 @@ macro_rules! for_all_variants {
 macro_rules! for_all_variants {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
-            NodesStorageRef::Mem($pattern) => $result,
+            NodesStorageEntry::Mem($pattern) => Either::Left($result),
+            NodesStorageEntry::Unlocked($pattern) => Either::Right($result),
         }
     };
 }
 
-impl<'a> NodesStorageRef<'a> {
-    pub fn node(self, vid: VID) -> NodeStorageRef<'a> {
+impl<'a> NodesStorageEntry<'a> {
+    pub fn node(&self, vid: VID) -> NodeStorageRef<'_> {
         match self {
-            NodesStorageRef::Mem(store) => NodeStorageRef::Mem(store.get(vid)),
+            NodesStorageEntry::Mem(store) => NodeStorageRef::Mem(store.get(vid)),
+            NodesStorageEntry::Unlocked(store) => NodeStorageRef::Mem(store.get(vid)),
             #[cfg(feature = "storage")]
-            NodesStorageRef::Disk(store) => NodeStorageRef::Disk(store.node(vid)),
+            NodesStorageEntry::Disk(store) => NodeStorageRef::Disk(store.node(vid)),
         }
     }
 
     pub fn len(&self) -> usize {
         match self {
-            NodesStorageRef::Mem(store) => store.len(),
+            NodesStorageEntry::Mem(store) => store.len(),
+            NodesStorageEntry::Unlocked(store) => store.len(),
             #[cfg(feature = "storage")]
-            NodesStorageRef::Disk(store) => store.len(),
+            NodesStorageEntry::Disk(store) => store.len(),
         }
     }
-    pub fn par_iter(self) -> impl ParallelIterator<Item = NodeStorageRef<'a>> {
+
+    pub fn par_iter(&self) -> impl ParallelIterator<Item = NodeStorageRef<'_>> {
         for_all_variants!(self, nodes => nodes.par_iter().map(|n| n.into()))
     }
 
-    pub fn iter(self) -> impl Iterator<Item = NodeStorageRef<'a>> {
+    pub fn iter(&self) -> impl Iterator<Item = NodeStorageRef<'_>> {
         for_all_variants!(self, nodes => nodes.iter().map(|n| n.into()))
     }
 }

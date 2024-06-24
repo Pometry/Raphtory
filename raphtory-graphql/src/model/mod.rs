@@ -14,11 +14,12 @@ use dynamic_graphql::{
 };
 use itertools::Itertools;
 use raphtory::{
-    core::{utils::errors::GraphError, ArcStr, Prop},
+    core::{utils::errors::GraphError, Prop},
     db::api::view::MaterializedGraph,
     prelude::{GraphViewOps, ImportOps, NodeViewOps, PropertyAdditionOps},
     search::IndexedGraph,
 };
+use raphtory_api::core::storage::arc_str::ArcStr;
 use serde_json::Value;
 use std::{
     collections::HashMap,

@@ -9,6 +9,7 @@ pub mod timeindex;
 use self::iter::Iter;
 use lock_api;
 use locked_view::LockedView;
+use ouroboros::self_referencing;
 use parking_lot::{RwLock, RwLockReadGuard};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};

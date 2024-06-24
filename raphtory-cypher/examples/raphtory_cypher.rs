@@ -73,6 +73,10 @@ mod cypher {
         #[arg(short, long)]
         node_props: Option<String>,
 
+        /// Node properties to load
+        #[arg(short, long)]
+        node_type_col: Option<String>,
+
         /// Edge list parquet files to load as layers
         #[arg(short='l', last = true, value_parser = parse_key_val::<String, ArgLayer>)]
         layers: Vec<(String, ArgLayer)>,
@@ -192,6 +196,7 @@ mod cypher {
                     args.read_chunk_size,
                     args.concurrent_files,
                     args.num_threads,
+                    args.node_type_col.as_deref(),
                 )
                 .expect("Failed to load graph");
             }

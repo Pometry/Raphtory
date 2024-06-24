@@ -5,8 +5,16 @@
 //! create windows, and query the graph with a variety of algorithms.
 //! It is a wrapper around a set of shards, which are the actual graph data structures.
 //! In Python, this class wraps around the rust graph.
+use super::{
+    graph::PyGraph,
+    pandas::{
+        dataframe::{process_pandas_py_df, GraphLoadException},
+        loaders::load_edges_deletions_from_df,
+    },
+    utils,
+};
 use crate::{
-    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError, ArcStr, Prop},
+    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError, Prop},
     db::{
         api::{
             mutation::{AdditionOps, PropertyAdditionOps},
@@ -24,19 +32,11 @@ use pyo3::{
     prelude::*,
     types::{IntoPyDict, PyBytes},
 };
+use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
     path::{Path, PathBuf},
-};
-
-use super::{
-    graph::PyGraph,
-    pandas::{
-        dataframe::{process_pandas_py_df, GraphLoadException},
-        loaders::load_edges_deletions_from_df,
-    },
-    utils,
 };
 
 /// A temporal graph that allows edges and nodes to be deleted.

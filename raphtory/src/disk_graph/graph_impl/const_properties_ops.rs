@@ -1,4 +1,5 @@
-use crate::{core::ArcStr, db::api::properties::internal::ConstPropertiesOps, prelude::Prop};
+use crate::{db::api::properties::internal::ConstPropertiesOps, prelude::Prop};
+use raphtory_api::core::storage::arc_str::ArcStr;
 
 use super::DiskGraph;
 

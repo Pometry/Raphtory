@@ -4,6 +4,7 @@ pub mod into_indexed;
 
 use std::{collections::HashSet, ops::Deref, path::Path, sync::Arc};
 
+use raphtory_api::core::storage::arc_str::{ArcStr, OptionAsStr};
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
 use tantivy::{
     collector::TopDocs,
@@ -16,7 +17,7 @@ use crate::{
         entities::{nodes::node_ref::NodeRef, EID, ELID, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
         utils::errors::GraphError,
-        ArcStr, OptionAsStr, PropType,
+        PropType,
     },
     db::{
         api::{

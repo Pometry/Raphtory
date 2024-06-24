@@ -1,5 +1,5 @@
 use crate::{
-    core::{ArcStr, Prop},
+    core::Prop,
     db::api::{
         properties::{
             dyn_props::{DynConstProperties, DynProperties, DynTemporalProperties},
@@ -25,6 +25,7 @@ use pyo3::{
     exceptions::{PyKeyError, PyTypeError},
     prelude::*,
 };
+use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{collections::HashMap, ops::Deref, sync::Arc};
 
 #[derive(PartialEq, Clone)]

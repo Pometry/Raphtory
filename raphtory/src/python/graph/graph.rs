@@ -6,7 +6,7 @@
 use super::utils;
 use crate::{
     algorithms::components::LargestConnectedComponent,
-    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError, ArcStr},
+    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError},
     db::{
         api::view::internal::{CoreGraphOps, DynamicGraph, IntoDynamic, MaterializedGraph},
         graph::{edge::EdgeView, node::NodeView, views::node_subgraph::NodeSubgraph},
@@ -21,6 +21,7 @@ use crate::{
     },
 };
 use pyo3::{prelude::*, types::PyBytes};
+use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},

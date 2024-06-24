@@ -109,12 +109,14 @@ impl TimeSemantics for InternalGraph {
 
     fn node_history(&self, v: VID) -> Vec<i64> {
         let node = self.core_node_entry(v);
-        node.additions().iter_t().collect()
+        let collect = node.additions().iter_t().collect();
+        collect
     }
 
     fn node_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
         let node = self.core_node_entry(v);
-        node.additions().range_t(w).iter_t().collect()
+        let collect = node.additions().range_t(w).iter_t().collect();
+        collect
     }
 
     fn edge_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64> {
@@ -293,14 +295,15 @@ impl TimeSemantics for InternalGraph {
         self.inner()
             .graph_meta
             .get_temporal_prop(prop_id)
-            .filter(|p| p.iter_window_t(w).next().is_some())
+            .map(|p| p.iter_window_t(w).next().is_some())
+            .filter(|p| *p)
             .is_some()
     }
 
     fn temporal_prop_vec_window(&self, prop_id: usize, start: i64, end: i64) -> Vec<(i64, Prop)> {
         self.inner()
             .get_temporal_prop(prop_id)
-            .map(|prop| (&prop).iter_window_t(start..end).collect())
+            .map(|prop| prop.iter_window_t(start..end).collect())
             .unwrap_or_default()
     }
 

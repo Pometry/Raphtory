@@ -1,14 +1,11 @@
 use crate::core::{
-    entities::{
-        graph::tgraph::FxDashMap,
-        properties::{
-            props::{ArcReadLockedVec, DictMapper},
-            tprop::TProp,
-        },
-    },
+    entities::properties::tprop::TProp,
     storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
     utils::errors::{GraphError, MutateGraphError},
-    ArcStr, Prop, PropType,
+    Prop, PropType,
+};
+use raphtory_api::core::storage::{
+    arc_str::ArcStr, dict_mapper::DictMapper, locked_vec::ArcReadLockedVec, FxDashMap,
 };
 use serde::{Deserialize, Serialize};
 use std::ops::DerefMut;

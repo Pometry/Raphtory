@@ -1,8 +1,9 @@
 use crate::{
-    core::{entities::properties::props::Meta, storage::timeindex::AsTime, ArcStr, Prop},
+    core::{entities::properties::props::Meta, storage::timeindex::AsTime, Prop},
     db::api::properties::{internal::PropertiesOps, Properties},
 };
 use itertools::Itertools;
+use raphtory_api::core::storage::arc_str::ArcStr;
 use rayon::{iter::IntoParallelRefIterator, prelude::*};
 use std::{
     collections::{HashMap, HashSet},

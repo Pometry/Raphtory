@@ -1,7 +1,8 @@
 use crate::{
-    core::{entities::graph::tgraph::InternalGraph, ArcStr, Prop},
+    core::{entities::graph::tgraph::InternalGraph, Prop},
     db::api::properties::internal::ConstPropertiesOps,
 };
+use raphtory_api::core::storage::arc_str::ArcStr;
 
 impl ConstPropertiesOps for InternalGraph {
     fn get_const_prop_id(&self, name: &str) -> Option<usize> {

@@ -54,87 +54,8 @@ pub mod storage;
 pub mod utils;
 
 // this is here because Arc<str> annoyingly doesn't implement all the expected comparisons
-#[derive(Clone, Debug, Eq, Ord, Hash, Serialize, Deserialize)]
-pub struct ArcStr(pub(crate) Arc<str>);
 
-impl Display for ArcStr {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        Display::fmt(&self.0, f)
-    }
-}
-
-impl<T: Into<Arc<str>>> From<T> for ArcStr {
-    fn from(value: T) -> Self {
-        ArcStr(value.into())
-    }
-}
-
-impl From<ArcStr> for String {
-    fn from(value: ArcStr) -> Self {
-        value.to_string()
-    }
-}
-
-impl From<&ArcStr> for String {
-    fn from(value: &ArcStr) -> Self {
-        value.clone().into()
-    }
-}
-
-impl Deref for ArcStr {
-    type Target = Arc<str>;
-
-    #[inline]
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl Borrow<str> for ArcStr {
-    #[inline]
-    fn borrow(&self) -> &str {
-        self.0.borrow()
-    }
-}
-
-impl<T> AsRef<T> for ArcStr
-where
-    T: ?Sized,
-    <ArcStr as Deref>::Target: AsRef<T>,
-{
-    fn as_ref(&self) -> &T {
-        self.deref().as_ref()
-    }
-}
-
-impl<T: Borrow<str> + ?Sized> PartialEq<T> for ArcStr {
-    fn eq(&self, other: &T) -> bool {
-        <ArcStr as Borrow<str>>::borrow(self).eq(other.borrow())
-    }
-}
-
-impl<T: Borrow<str>> PartialOrd<T> for ArcStr {
-    fn partial_cmp(&self, other: &T) -> Option<Ordering> {
-        <ArcStr as Borrow<str>>::borrow(self).partial_cmp(other.borrow())
-    }
-}
-
-pub trait OptionAsStr<'a> {
-    fn as_str(self) -> Option<&'a str>;
-}
-
-impl<'a, O: AsRef<str> + 'a> OptionAsStr<'a> for &'a Option<O> {
-    fn as_str(self) -> Option<&'a str> {
-        self.as_ref().map(|s| s.as_ref())
-    }
-}
-
-impl<'a, O: AsRef<str> + 'a> OptionAsStr<'a> for Option<&'a O> {
-    fn as_str(self) -> Option<&'a str> {
-        self.map(|s| s.as_ref())
-    }
-}
-
+use raphtory_api::core::storage::arc_str::ArcStr;
 pub use raphtory_api::core::*;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Hash)]
@@ -963,45 +884,5 @@ mod serde_value_into_prop {
                     .map(|item| item.into_prop_map()),
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod test_arc_str {
-    use crate::core::{ArcStr, OptionAsStr, Prop};
-    use std::sync::Arc;
-
-    #[test]
-    fn can_compare_with_str() {
-        let test: ArcStr = "test".into();
-        assert_eq!(test, "test");
-        assert_eq!(test, "test".to_string());
-        assert_eq!(test, Arc::from("test"));
-        assert_eq!(&test, &"test".to_string())
-    }
-
-    #[test]
-    fn test_option_conv() {
-        let test: Option<ArcStr> = Some("test".into());
-
-        let test_ref = test.as_ref();
-
-        let opt_str = test.as_str();
-        let opt_str3 = test_ref.as_str();
-
-        let test2 = Some("test".to_string());
-        let opt_str_2 = test2.as_str();
-
-        assert_eq!(opt_str, Some("test"));
-        assert_eq!(opt_str_2, Some("test"));
-        assert_eq!(opt_str3, Some("test"));
-    }
-
-    #[test]
-    fn test_prop_min_max() {
-        let v1 = Prop::I64(4);
-        let v2 = Prop::I64(2);
-        assert_eq!(v1.clone().max(v2.clone()), Some(Prop::I64(4)));
-        assert_eq!((v1.min(v2)), Some(Prop::I64(2)));
     }
 }
