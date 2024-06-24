@@ -28,10 +28,8 @@ pub fn parse_u64_strict(input: &str) -> Option<u64> {
         if !(byte_1..=MAX_U64_BYTES[0]).contains(&first) {
             return None;
         }
-    } else {
-        if !(byte_1..=byte_9).contains(&first) {
-            return None;
-        }
+    } else if !(byte_1..=byte_9).contains(&first) {
+        return None;
     }
 
     let mut result = (first - byte_0) as u64;
@@ -41,14 +39,12 @@ pub fn parse_u64_strict(input: &str) -> Option<u64> {
                 return None;
             }
             check_max = next_byte == max_byte;
-        } else {
-            if !(byte_0..=byte_9).contains(&next_byte) {
-                return None;
-            }
+        } else if !(byte_0..=byte_9).contains(&next_byte) {
+            return None;
         }
         result = result * 10 + (next_byte - byte_0) as u64;
     }
-    return Some(result);
+    Some(result)
 }
 
 pub trait InputNode: Clone {

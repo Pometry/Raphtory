@@ -9,13 +9,13 @@ use crate::{
             tprop_storage_ops::TPropOps,
             variants::{direction_variants::DirectionVariants, layer_variants::LayerVariants},
         },
-        view::internal::NodeAdditions,
+        view::internal::{CoreGraphOps, NodeAdditions},
     },
 };
 use itertools::Itertools;
 use pometry_storage::{graph::TemporalGraph, timestamps::TimeStamps, GidRef};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
-use std::{iter, sync::Arc};
+use std::{borrow::Cow, iter, sync::Arc};
 
 #[derive(Copy, Clone, Debug)]
 pub struct DiskNode<'a> {
@@ -115,7 +115,7 @@ impl<'a> DiskNode<'a> {
             .merge_by(self.out_edges(layers), |e1, e2| e1.remote() <= e2.remote())
     }
 
-    pub fn additions_for_layers(self, layer_ids: &LayerIds) -> NodeAdditions<'a> {
+    pub fn additions_for_layers(&self, layer_ids: &LayerIds) -> NodeAdditions<'a> {
         let mut additions = match layer_ids {
             LayerIds::None => Vec::with_capacity(1),
             LayerIds::All => {
@@ -154,8 +154,9 @@ impl<'a> DiskNode<'a> {
                 additions
             }
         };
-        if let Some(props) = self.graph.node_properties() {
-            let timestamps = props.temporal_props.timestamps::<i64>(self.vid);
+
+        if let Some(props) = &self.graph.node_properties().temporal_props {
+            let timestamps = props.timestamps::<i64>(self.vid);
             if timestamps.len() > 0 {
                 let ts = timestamps.times();
                 additions.push(ts);
@@ -218,8 +219,9 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
     fn tprop(self, prop_id: usize) -> impl TPropOps<'a> {
         self.graph
             .node_properties()
-            .unwrap()
             .temporal_props
+            .as_ref()
+            .unwrap()
             .prop(self.vid, prop_id)
     }
 
@@ -236,7 +238,7 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
     }
 
     fn node_type_id(self) -> usize {
-        0
+        self.graph.node_type_id(self.vid)
     }
 
     fn vid(self) -> VID {
@@ -251,11 +253,11 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
         }
     }
 
-    fn name(self) -> Option<&'a str> {
+    fn name(self) -> Option<Cow<'a, str>> {
         match self.graph.node_gid(self.vid).unwrap() {
             GidRef::U64(_) => None,
             GidRef::I64(_) => None,
-            GidRef::Str(v) => Some(v),
+            GidRef::Str(v) => Some(Cow::from(v)),
         }
     }
 
@@ -494,7 +496,7 @@ impl<'a> NodeStorageOps<'a> for &'a DiskOwnedNode {
         self.as_ref().id()
     }
 
-    fn name(self) -> Option<&'a str> {
+    fn name(self) -> Option<Cow<'a, str>> {
         self.as_ref().name()
     }
 

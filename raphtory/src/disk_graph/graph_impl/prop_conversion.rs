@@ -20,14 +20,14 @@ use std::path::Path;
 pub fn make_node_properties_from_graph(
     graph: &Graph,
     graph_dir: impl AsRef<Path>,
-) -> Result<Option<Properties<VID>>, RAError> {
+) -> Result<Properties<VID>, RAError> {
     let graph_dir = graph_dir.as_ref();
     let n = graph.unfiltered_num_nodes();
 
     let temporal_meta = graph.node_meta().temporal_prop_meta();
     let constant_meta = graph.node_meta().const_prop_meta();
     if temporal_meta.is_empty() && constant_meta.is_empty() {
-        return Ok(None);
+        return Ok(Properties::default());
     }
 
     let nodes = graph.0.inner().storage.nodes.read_lock();
@@ -91,7 +91,7 @@ pub fn make_node_properties_from_graph(
                 (Field::new(prop_key, dtype, true), col)
             })
         });
-    let props = builder.build().map(Some)?;
+    let props = builder.build()?;
     Ok(props)
 }
 

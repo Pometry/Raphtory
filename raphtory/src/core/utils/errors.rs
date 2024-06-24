@@ -1,6 +1,7 @@
-use crate::core::{utils::time::error::ParseTimeError, ArcStr, Prop, PropType};
+use crate::core::{utils::time::error::ParseTimeError, Prop, PropType};
 #[cfg(feature = "arrow")]
 use polars_arrow::legacy::error;
+use raphtory_api::core::storage::arc_str::ArcStr;
 #[cfg(feature = "search")]
 use tantivy;
 #[cfg(feature = "search")]

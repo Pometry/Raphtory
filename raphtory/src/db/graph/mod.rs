@@ -1,4 +1,4 @@
-use crate::core::entities::properties::props::DictMapper;
+use raphtory_api::core::storage::dict_mapper::DictMapper;
 use std::sync::Arc;
 
 pub mod edge;

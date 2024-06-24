@@ -182,6 +182,14 @@ impl DiskGraph {
         let mut edge_meta = Meta::new();
         let graph_meta = GraphMeta::new();
 
+        for node_type in inner_graph.node_types().into_iter().flatten() {
+            if let Some(node_type) = node_type {
+                node_meta.get_or_create_node_type_id(node_type);
+            } else {
+                panic!("Node types cannot be null");
+            }
+        }
+
         for layer in inner_graph.layers() {
             let edge_props_fields = layer.edges_data_type();
 
@@ -204,15 +212,17 @@ impl DiskGraph {
             edge_meta.layer_meta().get_or_create_id(l_name);
         }
 
-        if let Some(props) = inner_graph.node_properties().as_ref() {
-            let node_const_props_fields = props.const_props.prop_dtypes();
+        if let Some(props) = &inner_graph.node_properties().const_props {
+            let node_const_props_fields = props.prop_dtypes();
             for field in node_const_props_fields {
                 node_meta
                     .resolve_prop_id(&field.name, field.data_type().into(), true)
                     .expect("Initial resolve should not fail");
             }
+        }
 
-            let node_temporal_props_fields = props.temporal_props.prop_dtypes();
+        if let Some(props) = &inner_graph.node_properties().temporal_props {
+            let node_temporal_props_fields = props.prop_dtypes();
             for field in node_temporal_props_fields {
                 node_meta
                     .resolve_prop_id(&field.name, field.data_type().into(), false)
@@ -273,6 +283,7 @@ impl DiskGraph {
         read_chunk_size: Option<usize>,
         concurrent_files: Option<usize>,
         num_threads: usize,
+        node_type_col: Option<&str>,
     ) -> Result<DiskGraph, RAError> {
         let layered_edge_list: Vec<ExternalEdgeList<&Path>> = layer_parquet_cols
             .iter()
@@ -290,7 +301,7 @@ impl DiskGraph {
             )
             .collect::<Vec<_>>();
 
-        let t_graph = TemporalGraph::from_edge_lists(
+        let t_graph = TemporalGraph::from_parquets(
             num_threads,
             chunk_size,
             t_props_chunk_size,
@@ -299,6 +310,7 @@ impl DiskGraph {
             graph_dir.as_ref(),
             layered_edge_list,
             node_properties.as_ref().map(|p| p.as_ref()),
+            node_type_col,
         )?;
         Ok(Self::new(t_graph, graph_dir.as_ref().to_path_buf()))
     }
@@ -471,20 +483,26 @@ impl InternalPropertyAdditionOps for DiskGraph {
 
 #[cfg(test)]
 mod test {
-    use std::{cmp::Reverse, iter::once, path::Path};
+    use std::{
+        cmp::Reverse,
+        iter::once,
+        path::{Path, PathBuf},
+    };
 
     use itertools::{chain, Itertools};
-    use pometry_storage::graph::TemporalGraph;
+    use pometry_storage::{graph::TemporalGraph, properties::Properties};
     use proptest::{prelude::*, sample::size_range};
     use rayon::prelude::*;
     use tempfile::TempDir;
 
     use crate::{
-        algorithms::components::weakly_connected_components, db::api::view::StaticGraphViewOps,
-        disk_graph::Time, prelude::*,
+        algorithms::components::weakly_connected_components,
+        db::api::view::{internal::TimeSemantics, StaticGraphViewOps},
+        disk_graph::Time,
+        prelude::*,
     };
 
-    use super::DiskGraph;
+    use super::{DiskGraph, ParquetLayerCols};
 
     fn make_simple_graph(graph_dir: impl AsRef<Path>, edges: &[(u64, u64, i64, f64)]) -> DiskGraph {
         DiskGraph::make_simple_graph(graph_dir, edges, 1000, 1000)
@@ -770,7 +788,8 @@ mod test {
         mem_graph.add_edge(0, 0, 1, [("test", 0u64)], None).unwrap();
         let test_dir = TempDir::new().unwrap();
         let disk_graph =
-            TemporalGraph::from_graph(&mem_graph, test_dir.path(), || Ok(None)).unwrap();
+            TemporalGraph::from_graph(&mem_graph, test_dir.path(), || Ok(Properties::default()))
+                .unwrap();
         assert_eq!(disk_graph.num_nodes(), 2);
         assert_eq!(disk_graph.num_edges(0), 1);
     }
@@ -838,6 +857,244 @@ mod test {
                 .get("test")
                 .unwrap_str(),
             "test"
+        );
+    }
+
+    #[test]
+    fn test_type_filter_disk_graph_loaded_from_parquets() {
+        let tmp_dir = tempfile::tempdir().unwrap();
+        let graph_dir = tmp_dir.path();
+        let chunk_size = 268_435_456;
+        let num_threads = 4;
+        let t_props_chunk_size = chunk_size / 8;
+        let read_chunk_size = 4_000_000;
+        let concurrent_files = 1;
+
+        let netflow_layer_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .map(|p| p.join("pometry-storage-private/resources/test/netflow.parquet"))
+            .unwrap();
+
+        let v1_layer_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .map(|p| p.join("pometry-storage-private/resources/test/wls.parquet"))
+            .unwrap();
+
+        let node_properties = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .map(|p| p.join("pometry-storage-private/resources/test/node_types.parquet"))
+            .unwrap();
+
+        let layer_parquet_cols = vec![
+            ParquetLayerCols {
+                parquet_dir: netflow_layer_path.to_str().unwrap(),
+                layer: "netflow",
+                src_col: "source",
+                dst_col: "destination",
+                time_col: "time",
+            },
+            ParquetLayerCols {
+                parquet_dir: v1_layer_path.to_str().unwrap(),
+                layer: "wls",
+                src_col: "src",
+                dst_col: "dst",
+                time_col: "Time",
+            },
+        ];
+
+        let node_type_col = Some("node_type");
+
+        let g = DiskGraph::load_from_parquets(
+            graph_dir,
+            layer_parquet_cols,
+            Some(&node_properties),
+            chunk_size,
+            t_props_chunk_size,
+            Some(read_chunk_size as usize),
+            Some(concurrent_files),
+            num_threads,
+            node_type_col,
+        )
+        .unwrap();
+
+        println!("node types = {:?}", g.nodes().node_type().collect_vec());
+
+        assert_eq!(
+            g.nodes().type_filter(&vec!["A"]).name().collect_vec(),
+            vec!["Comp710070", "Comp844043"]
+        );
+
+        assert_eq!(
+            g.nodes()
+                .type_filter(&Vec::<String>::new())
+                .name()
+                .collect_vec(),
+            Vec::<String>::new()
+        );
+
+        assert_eq!(
+            g.nodes().type_filter(&vec![""]).name().collect_vec(),
+            Vec::<String>::new()
+        );
+
+        assert_eq!(
+            g.nodes()
+                .type_filter(&vec!["A"])
+                .neighbours()
+                .name()
+                .map(|n| { n.collect::<Vec<_>>() })
+                .collect_vec(),
+            vec![vec!["Comp844043"], vec!["Comp710070"]]
+        );
+
+        assert_eq!(
+            g.nodes()
+                .type_filter(&vec!["A", "B"])
+                .neighbours()
+                .name()
+                .map(|n| { n.collect::<Vec<_>>() })
+                .collect_vec(),
+            vec![vec!["Comp244393"], vec!["Comp844043"], vec!["Comp710070"]]
+        );
+
+        assert_eq!(
+            g.nodes()
+                .type_filter(&vec!["C"])
+                .neighbours()
+                .name()
+                .map(|n| { n.collect::<Vec<_>>() })
+                .collect_vec(),
+            Vec::<Vec<&str>>::new()
+        );
+
+        assert_eq!(
+            g.nodes()
+                .type_filter(&vec!["A"])
+                .neighbours()
+                .type_filter(&vec!["A"])
+                .name()
+                .map(|n| { n.collect::<Vec<_>>() })
+                .collect_vec(),
+            vec![vec!["Comp844043"], vec!["Comp710070"]]
+        );
+
+        assert_eq!(
+            g.nodes()
+                .type_filter(&vec!["A"])
+                .neighbours()
+                .type_filter(&Vec::<&str>::new())
+                .name()
+                .map(|n| { n.collect::<Vec<_>>() })
+                .collect_vec(),
+            vec![vec![], Vec::<&str>::new()]
+        );
+
+        let w = g.window(6415659, 7387801);
+
+        assert_eq!(
+            w.nodes().type_filter(&vec!["A"]).name().collect_vec(),
+            vec!["Comp710070", "Comp844043"]
+        );
+
+        assert_eq!(
+            w.nodes()
+                .type_filter(&Vec::<String>::new())
+                .name()
+                .collect_vec(),
+            Vec::<String>::new()
+        );
+
+        assert_eq!(
+            w.nodes().type_filter(&vec![""]).name().collect_vec(),
+            Vec::<String>::new()
+        );
+
+        let l = g.layers(["netflow"]).unwrap();
+
+        assert_eq!(
+            l.nodes().type_filter(&vec!["A"]).name().collect_vec(),
+            vec!["Comp710070", "Comp844043"]
+        );
+
+        assert_eq!(
+            l.nodes()
+                .type_filter(&Vec::<String>::new())
+                .name()
+                .collect_vec(),
+            Vec::<String>::new()
+        );
+
+        assert_eq!(
+            l.nodes().type_filter(&vec![""]).name().collect_vec(),
+            Vec::<String>::new()
+        );
+    }
+
+    #[test]
+    fn test_type_filter_disk_graph_created_from_in_memory_graph() {
+        let g = Graph::new();
+        g.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
+        g.add_node(1, 2, NO_PROPS, Some("b")).unwrap();
+        g.add_node(1, 3, NO_PROPS, Some("b")).unwrap();
+        g.add_node(1, 4, NO_PROPS, Some("a")).unwrap();
+        g.add_node(1, 5, NO_PROPS, Some("c")).unwrap();
+        g.add_node(1, 6, NO_PROPS, Some("e")).unwrap();
+        g.add_node(1, 7, NO_PROPS, None).unwrap();
+        g.add_node(1, 8, NO_PROPS, None).unwrap();
+        g.add_node(1, 9, NO_PROPS, None).unwrap();
+        g.add_edge(2, 1, 2, NO_PROPS, Some("a")).unwrap();
+        g.add_edge(2, 3, 2, NO_PROPS, Some("a")).unwrap();
+        g.add_edge(2, 2, 4, NO_PROPS, Some("a")).unwrap();
+        g.add_edge(2, 4, 5, NO_PROPS, Some("a")).unwrap();
+        g.add_edge(2, 4, 5, NO_PROPS, Some("a")).unwrap();
+        g.add_edge(2, 5, 6, NO_PROPS, Some("a")).unwrap();
+        g.add_edge(2, 3, 6, NO_PROPS, Some("a")).unwrap();
+
+        let tmp_dir = tempfile::tempdir().unwrap();
+        let g = DiskGraph::from_graph(&g, tmp_dir.path()).unwrap();
+
+        assert_eq!(
+            g.nodes()
+                .type_filter(&vec!["a", "b", "c", "e"])
+                .name()
+                .collect_vec(),
+            vec!["1", "2", "3", "4", "5", "6"]
+        );
+
+        assert_eq!(
+            g.nodes()
+                .type_filter(&Vec::<String>::new())
+                .name()
+                .collect_vec(),
+            Vec::<String>::new()
+        );
+
+        assert_eq!(
+            g.nodes().type_filter(&vec![""]).name().collect_vec(),
+            vec!["7", "8", "9"]
+        );
+
+        let g = DiskGraph::load_from_dir(tmp_dir.path()).unwrap();
+
+        assert_eq!(
+            g.nodes()
+                .type_filter(&vec!["a", "b", "c", "e"])
+                .name()
+                .collect_vec(),
+            vec!["1", "2", "3", "4", "5", "6"]
+        );
+
+        assert_eq!(
+            g.nodes()
+                .type_filter(&Vec::<String>::new())
+                .name()
+                .collect_vec(),
+            Vec::<String>::new()
+        );
+
+        assert_eq!(
+            g.nodes().type_filter(&vec![""]).name().collect_vec(),
+            vec!["7", "8", "9"]
         );
     }
 }

@@ -12,7 +12,6 @@ use crate::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         storage::timeindex::AsTime,
         utils::{errors::GraphError, time::IntoTime},
-        ArcStr,
     },
     db::{
         api::{
@@ -34,6 +33,7 @@ use crate::{
     },
     prelude::*,
 };
+use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{
     fmt::{Debug, Formatter},
     sync::Arc,
@@ -407,13 +407,9 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'gr
 
 #[cfg(test)]
 mod test_edge {
-    use crate::{
-        core::{ArcStr, IntoPropMap},
-        prelude::*,
-        test_storage,
-        test_utils::test_graph,
-    };
+    use crate::{core::IntoPropMap, prelude::*, test_storage, test_utils::test_graph};
     use itertools::Itertools;
+    use raphtory_api::core::storage::arc_str::ArcStr;
     use std::collections::HashMap;
 
     #[test]

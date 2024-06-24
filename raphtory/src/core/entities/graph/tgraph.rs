@@ -7,11 +7,7 @@ use crate::{
                 timer::{MaxCounter, MinCounter, TimeCounterTrait},
             },
             nodes::{input_node::InputNode, node_ref::NodeRef, node_store::NodeStore},
-            properties::{
-                graph_meta::GraphMeta,
-                props::{ArcReadLockedVec, Meta},
-                tprop::TProp,
-            },
+            properties::{graph_meta::GraphMeta, props::Meta, tprop::TProp},
             LayerIds, EID, VID,
         },
         storage::{
@@ -20,7 +16,7 @@ use crate::{
             Entry, EntryMut,
         },
         utils::errors::GraphError,
-        ArcStr, Direction, Prop,
+        Direction, Prop,
     },
     db::api::{
         storage::locked::LockedGraph,
@@ -29,6 +25,7 @@ use crate::{
     prelude::DeletionOps,
 };
 use dashmap::{DashMap, DashSet};
+use raphtory_api::core::storage::{arc_str::ArcStr, locked_vec::ArcReadLockedVec, FxDashMap};
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -38,7 +35,6 @@ use std::{
     sync::{atomic::AtomicUsize, Arc},
 };
 
-pub(crate) type FxDashMap<K, V> = DashMap<K, V, BuildHasherDefault<FxHasher>>;
 pub(crate) type FxDashSet<K> = DashSet<K, BuildHasherDefault<FxHasher>>;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

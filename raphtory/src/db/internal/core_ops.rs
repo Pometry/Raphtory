@@ -8,7 +8,6 @@ use crate::{
             LayerIds, ELID, VID,
         },
         storage::locked_view::LockedView,
-        ArcStr,
     },
     db::api::{
         storage::{
@@ -25,6 +24,7 @@ use crate::{
     prelude::Prop,
 };
 use itertools::Itertools;
+use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{collections::HashMap, iter, sync::Arc};
 
 impl CoreGraphOps for InternalGraph {
@@ -38,7 +38,7 @@ impl CoreGraphOps for InternalGraph {
     }
 
     fn core_graph(&self) -> GraphStorage {
-        GraphStorage::Mem(self.lock())
+        GraphStorage::Unlocked(self.clone())
     }
     #[inline]
     fn node_meta(&self) -> &Meta {
@@ -163,13 +163,13 @@ impl CoreGraphOps for InternalGraph {
                     entry
                         .layer_iter()
                         .next()
-                        .and_then(|layer| layer.const_prop(prop_id).cloned())
+                        .and_then(|data| data.layer.const_prop(prop_id).cloned())
                 } else {
                     let prop_map: HashMap<_, _> = entry
                         .layer_iter()
                         .enumerate()
-                        .flat_map(|(id, layer)| {
-                            layer
+                        .flat_map(|(id, data)| {
+                            data.layer
                                 .const_prop(prop_id)
                                 .map(|p| (self.inner().get_layer_name(id), p.clone()))
                         })
@@ -214,7 +214,7 @@ impl CoreGraphOps for InternalGraph {
             LayerIds::None => vec![],
             LayerIds::All => entry
                 .layer_iter()
-                .map(|l| l.const_prop_ids())
+                .map(|data| data.layer.const_prop_ids())
                 .kmerge()
                 .dedup()
                 .collect(),
@@ -266,12 +266,12 @@ impl CoreGraphOps for InternalGraph {
 
     #[inline]
     fn core_edge(&self, eid: ELID) -> EdgeStorageEntry {
-        EdgeStorageEntry::Mem(self.inner().storage.edges.entry(eid.pid()))
+        EdgeStorageEntry::Unlocked(self.inner().storage.edges.entry(eid.pid()))
     }
 
     #[inline]
     fn core_node_entry(&self, vid: VID) -> NodeStorageEntry {
-        NodeStorageEntry::Mem(self.inner().storage.nodes.entry(vid))
+        NodeStorageEntry::Unlocked(self.inner().storage.nodes.entry(vid))
     }
 
     fn core_node_arc(&self, vid: VID) -> NodeOwnedEntry {
@@ -290,12 +290,10 @@ impl CoreGraphOps for InternalGraph {
 
 #[cfg(test)]
 mod test_edges {
+    use raphtory_api::core::storage::arc_str::ArcStr;
     use std::collections::HashMap;
 
-    use crate::{
-        core::{ArcStr, IntoPropMap},
-        prelude::*,
-    };
+    use crate::{core::IntoPropMap, prelude::*};
 
     #[test]
     fn test_edge_properties_for_layers() {

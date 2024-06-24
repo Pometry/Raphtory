@@ -1,10 +1,11 @@
 use crate::{
-    core::{storage::locked_view::LockedView, ArcStr},
+    core::storage::locked_view::LockedView,
     db::api::state::{LazyNodeState, NodeState},
     prelude::{GraphViewOps, NodeStateOps, NodeViewOps},
 };
 use chrono::{DateTime, NaiveDateTime, TimeZone};
 use itertools::Itertools;
+use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{collections::HashMap, ops::Deref};
 
 pub fn iterator_repr<I: Iterator<Item = V>, V: Repr>(iter: I) -> String {

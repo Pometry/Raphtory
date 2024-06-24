@@ -6,7 +6,7 @@
 //! It is a wrapper around a set of shards, which are the actual graph data structures.
 //! In Python, this class wraps around the rust graph.
 use crate::{
-    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError, ArcStr, Prop},
+    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError, Prop},
     db::{
         api::{
             mutation::{AdditionOps, PropertyAdditionOps},
@@ -21,6 +21,7 @@ use crate::{
     },
 };
 use pyo3::{prelude::*, types::PyBytes};
+use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},

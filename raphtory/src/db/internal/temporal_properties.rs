@@ -1,11 +1,12 @@
 use crate::{
-    core::{entities::graph::tgraph::InternalGraph, storage::timeindex::AsTime, ArcStr, Prop},
+    core::{entities::graph::tgraph::InternalGraph, storage::timeindex::AsTime, Prop},
     db::api::{
         properties::internal::{TemporalPropertiesOps, TemporalPropertyViewOps},
         storage::tprop_storage_ops::TPropOps,
     },
 };
 use chrono::{DateTime, Utc};
+use raphtory_api::core::storage::arc_str::ArcStr;
 use std::ops::Deref;
 
 impl TemporalPropertyViewOps for InternalGraph {

@@ -1,5 +1,5 @@
 use crate::{
-    core::{utils::errors::GraphError, ArcStr, Prop},
+    core::{utils::errors::GraphError, Prop},
     db::{
         api::view::{
             internal::CoreGraphOps, BoxedIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
@@ -34,6 +34,7 @@ use pyo3::{
     prelude::PyModule, pyclass, pymethods, types::PyDict, IntoPy, PyObject, PyResult, Python,
     ToPyObject,
 };
+use raphtory_api::core::storage::arc_str::ArcStr;
 use rayon::{iter::IntoParallelIterator, prelude::*};
 use std::collections::HashMap;
 

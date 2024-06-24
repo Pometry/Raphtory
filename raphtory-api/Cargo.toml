@@ -17,3 +17,19 @@ edition.workspace = true
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
 chrono.workspace = true
+dashmap = { workspace = true }
+rustc-hash = { workspace = true }
+lock_api = { workspace = true }
+parking_lot = { workspace = true }
+pyo3 = { workspace = true, optional = true }
+rayon = { workspace = true }
+rand = { workspace = true }
+quickcheck = { workspace = true }
+quickcheck_macros = { workspace = true }
+
+[features]
+default = []
+# Enables generating the pyo3 python bindings
+python = [
+    "dep:pyo3",
+]

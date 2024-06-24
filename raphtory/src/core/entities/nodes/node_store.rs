@@ -8,7 +8,7 @@ use crate::core::{
     storage::{
         lazy_vec::IllegalSet,
         timeindex::{AsTime, TimeIndex, TimeIndexEntry},
-        ArcEntry,
+        ArcEntry, Entry,
     },
     utils::errors::GraphError,
     Direction, Prop,
@@ -383,6 +383,24 @@ impl ArcEntry<NodeStore> {
     }
 }
 
+impl<'a> Entry<'a, NodeStore> {
+    pub fn into_neighbours(self, layers: &LayerIds, dir: Direction) -> LockedRefNeighboursIter<'a> {
+        LockedRefNeighboursIterBuilder {
+            entry: self,
+            iter_builder: |node| node.neighbours(layers, dir),
+        }
+        .build()
+    }
+
+    pub fn into_edges(self, layers: &LayerIds, dir: Direction) -> LockedRefEdgesIter<'a> {
+        LockedRefEdgesIterBuilder {
+            entry: self,
+            iter_builder: |node| node.edge_tuples(layers, dir),
+        }
+        .build()
+    }
+}
+
 #[self_referencing]
 pub struct LockedAdjIter {
     entry: ArcEntry<NodeStore>,
@@ -410,6 +428,38 @@ pub struct LockedNeighboursIter {
 
 impl Iterator for LockedNeighboursIter {
     type Item = VID;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.with_iter_mut(|iter| iter.next())
+    }
+}
+
+#[self_referencing]
+pub struct LockedRefNeighboursIter<'a> {
+    entry: Entry<'a, NodeStore>,
+    #[borrows(entry)]
+    #[covariant]
+    iter: Box<dyn Iterator<Item = VID> + Send + 'this>,
+}
+
+impl<'a> Iterator for LockedRefNeighboursIter<'a> {
+    type Item = VID;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.with_iter_mut(|iter| iter.next())
+    }
+}
+
+#[self_referencing]
+pub struct LockedRefEdgesIter<'a> {
+    entry: Entry<'a, NodeStore>,
+    #[borrows(entry)]
+    #[covariant]
+    iter: Box<dyn Iterator<Item = EdgeRef> + Send + 'this>,
+}
+
+impl<'a> Iterator for LockedRefEdgesIter<'a> {
+    type Item = EdgeRef;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.with_iter_mut(|iter| iter.next())

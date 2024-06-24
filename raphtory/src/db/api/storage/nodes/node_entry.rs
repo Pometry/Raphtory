@@ -1,5 +1,5 @@
-#[cfg(feature = "storage")]
-use crate::db::api::storage::variants::storage_variants::StorageVariants;
+use std::borrow::Cow;
+
 #[cfg(feature = "storage")]
 use crate::disk_graph::storage_interface::node::DiskNode;
 use crate::{
@@ -12,21 +12,44 @@ use crate::{
         storage::{
             nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
             tprop_storage_ops::TPropOps,
+            variants::storage_variants3::StorageVariants,
         },
         view::internal::NodeAdditions,
     },
 };
 
 pub enum NodeStorageEntry<'a> {
-    Mem(Entry<'a, NodeStore>),
+    Mem(&'a NodeStore),
+    Unlocked(Entry<'a, NodeStore>),
     #[cfg(feature = "storage")]
     Disk(DiskNode<'a>),
 }
 
+impl<'a> From<&'a NodeStore> for NodeStorageEntry<'a> {
+    fn from(value: &'a NodeStore) -> Self {
+        NodeStorageEntry::Mem(value)
+    }
+}
+
+impl<'a> From<Entry<'a, NodeStore>> for NodeStorageEntry<'a> {
+    fn from(value: Entry<'a, NodeStore>) -> Self {
+        NodeStorageEntry::Unlocked(value)
+    }
+}
+
+#[cfg(feature = "storage")]
+impl<'a> From<DiskNode<'a>> for NodeStorageEntry<'a> {
+    fn from(value: DiskNode<'a>) -> Self {
+        NodeStorageEntry::Disk(value)
+    }
+}
+
+#[cfg(feature = "storage")]
 macro_rules! for_all {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
             NodeStorageEntry::Mem($pattern) => $result,
+            NodeStorageEntry::Unlocked($pattern) => $result,
             #[cfg(feature = "storage")]
             NodeStorageEntry::Disk($pattern) => $result,
         }
@@ -38,24 +61,18 @@ macro_rules! for_all_iter {
     ($value:expr, $pattern:pat => $result:expr) => {{
         match $value {
             NodeStorageEntry::Mem($pattern) => StorageVariants::Mem($result),
+            NodeStorageEntry::Unlocked($pattern) => StorageVariants::Unlocked($result),
             NodeStorageEntry::Disk($pattern) => StorageVariants::Disk($result),
         }
     }};
 }
 
-#[cfg(not(feature = "storage"))]
-macro_rules! for_all_iter {
-    ($value:expr, $pattern:pat => $result:expr) => {{
-        match $value {
-            NodeStorageEntry::Mem($pattern) => $result,
-        }
-    }};
-}
-
 impl<'a> NodeStorageEntry<'a> {
+    #[inline]
     pub fn as_ref(&self) -> NodeStorageRef {
         match self {
             NodeStorageEntry::Mem(entry) => NodeStorageRef::Mem(entry),
+            NodeStorageEntry::Unlocked(entry) => NodeStorageRef::Mem(entry),
             #[cfg(feature = "storage")]
             NodeStorageEntry::Disk(node) => NodeStorageRef::Disk(*node),
         }
@@ -68,17 +85,34 @@ impl<'a, 'b: 'a> From<&'a NodeStorageEntry<'b>> for NodeStorageRef<'a> {
     }
 }
 
+impl<'b> NodeStorageEntry<'b> {
+    pub fn into_edges_iter(
+        self,
+        layers: &'b LayerIds,
+        dir: Direction,
+    ) -> impl Iterator<Item = EdgeRef> + '_ {
+        match self {
+            NodeStorageEntry::Mem(entry) => StorageVariants::Mem(entry.edges_iter(layers, dir)),
+            NodeStorageEntry::Unlocked(entry) => {
+                StorageVariants::Unlocked(entry.into_edges_iter(layers, dir))
+            }
+            #[cfg(feature = "storage")]
+            NodeStorageEntry::Disk(node) => StorageVariants::Disk(node.edges_iter(layers, dir)),
+        }
+    }
+}
+
 impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize {
-        for_all!(self, node => node.degree(layers, dir))
+        self.as_ref().degree(layers, dir)
     }
 
     fn additions(self) -> NodeAdditions<'a> {
-        for_all!(self, node => node.additions())
+        self.as_ref().additions()
     }
 
     fn tprop(self, prop_id: usize) -> impl TPropOps<'a> {
-        for_all_iter!(self, node => node.tprop(prop_id))
+        self.as_ref().tprop(prop_id)
     }
 
     fn edges_iter(
@@ -86,26 +120,26 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
         layers: &'a LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + 'a {
-        for_all_iter!(self, node => node.edges_iter(layers, dir))
+        self.as_ref().edges_iter(layers, dir)
     }
 
     fn node_type_id(self) -> usize {
-        for_all!(self, node => node.node_type_id())
+        self.as_ref().node_type_id()
     }
 
     fn vid(self) -> VID {
-        for_all!(self, node => node.vid())
+        self.as_ref().vid()
     }
 
     fn id(self) -> u64 {
-        for_all!(self, node => node.id())
+        self.as_ref().id()
     }
 
-    fn name(self) -> Option<&'a str> {
-        for_all!(self, node => node.name())
+    fn name(self) -> Option<Cow<'a, str>> {
+        self.as_ref().name()
     }
 
     fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef> {
-        for_all!(self, node => node.find_edge(dst, layer_ids))
+        self.as_ref().find_edge(dst, layer_ids)
     }
 }

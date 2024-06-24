@@ -13,7 +13,8 @@ readme.workspace = true
 homepage.workspace = true
 
 [dependencies]
-raphtory = { path = "../raphtory", version = "0.9.2", features = ['vectors', 'search', "io"] }
+raphtory = { path = "../raphtory", version = "0.9.3", features = ['vectors', 'search', "io"] }
+raphtory-api = { path = "../raphtory-api", version = "0.9.3" }
 bincode = { workspace = true }
 base64 = { workspace = true }
 thiserror = { workspace = true }
