@@ -27,6 +27,8 @@ use std::{
     io::Read,
     path::Path,
 };
+use raphtory::search::into_indexed::DynamicIndexedGraph;
+use crate::model::graph::graphs::GqlGraphs;
 
 pub mod algorithms;
 pub(crate) mod graph;
@@ -82,14 +84,14 @@ impl QueryRoot {
         Some(g.into())
     }
 
-    // TODO: Impl this as GqlGraphs instead
-    async fn graphs<'a>(ctx: &Context<'a>) -> Result<Vec<GqlGraph>> {
+    async fn graphs<'a>(ctx: &Context<'a>) -> Result<Option<GqlGraphs>> {
         let data = ctx.data_unchecked::<Data>();
-        Ok(data
+        let graphs = data
             .get_graphs()?
             .iter()
-            .map(|(name, g)| GqlGraph::new(name.to_string(), (*g).clone()))
-            .collect_vec())
+            .map(|(_, g)| (*g).clone())
+            .collect_vec();
+        Ok(Some(GqlGraphs::new(graphs)))
     }
 
     async fn plugins<'a>(ctx: &Context<'a>) -> GlobalPlugins {

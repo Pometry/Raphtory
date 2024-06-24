@@ -6,3 +6,4 @@ mod nodes;
 mod path_from_node;
 pub(crate) mod property;
 pub(crate) mod vectorised_graph;
+pub(crate) mod graphs;
