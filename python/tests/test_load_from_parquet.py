@@ -9,14 +9,14 @@ import pytest
 from raphtory import Graph, PersistentGraph
 
 
-@pytest.mark.skip(reason="Prepares data for debugging purposes")
-def test_prepare_data():
+@pytest.fixture(scope="session")
+def parquet_files():
     dirname = tempfile.TemporaryDirectory()
-    nodes_parquet_fp = os.path.join(dirname.name, "parquet", "nodes.parquet")
-    edges_parquet_fp = os.path.join(dirname.name, "parquet", "edges.parquet")
-    edge_deletions_parquet_fp = os.path.join(dirname.name, "parquet", "edges_deletions.parquet")
+    nodes_parquet_file_path = os.path.join(dirname.name, "parquet", "nodes.parquet")
+    edges_parquet_file_path = os.path.join(dirname.name, "parquet", "edges.parquet")
+    edge_deletions_parquet_file_path = os.path.join(dirname.name, "parquet", "edges_deletions.parquet")
 
-    os.makedirs(os.path.dirname(nodes_parquet_fp), exist_ok=True)
+    os.makedirs(os.path.dirname(nodes_parquet_file_path), exist_ok=True)
 
     data = {
         "id": [1, 2, 3, 4, 5, 6],
@@ -27,8 +27,8 @@ def test_prepare_data():
     }
 
     table = pa.table(data)
-    pq.write_table(table, nodes_parquet_fp)
-    print("""Created nodes.parquet at loc = {}""".format(nodes_parquet_fp))
+    pq.write_table(table, nodes_parquet_file_path)
+    print("""Created nodes.parquet at loc = {}""".format(nodes_parquet_file_path))
 
     data = {
         "src": [1, 2, 3, 4, 5],
@@ -41,8 +41,8 @@ def test_prepare_data():
     }
 
     table = pa.table(data)
-    pq.write_table(table, edges_parquet_fp)
-    print("""Created edges.parquet at loc = {}""".format(edges_parquet_fp))
+    pq.write_table(table, edges_parquet_file_path)
+    print("""Created edges.parquet at loc = {}""".format(edges_parquet_file_path))
 
     data = {
         "src": [3, 4],
@@ -51,14 +51,13 @@ def test_prepare_data():
     }
 
     table = pa.table(data)
-    pq.write_table(table, edge_deletions_parquet_fp)
-    print("""Created edges_deletions.parquet at loc = {}""".format(edge_deletions_parquet_fp))
+    pq.write_table(table, edge_deletions_parquet_file_path)
+    print("""Created edges_deletions.parquet at loc = {}""".format(edge_deletions_parquet_file_path))
 
+    yield nodes_parquet_file_path, edges_parquet_file_path, edge_deletions_parquet_file_path
 
-nodes_parquet_file_path = os.path.join(os.path.dirname(__file__), 'data', 'parquet', 'nodes.parquet')
-edges_parquet_file_path = os.path.join(os.path.dirname(__file__), 'data', 'parquet', 'edges.parquet')
-edges_deletions_parquet_file_path = os.path.join(os.path.dirname(__file__), 'data', 'parquet',
-                                                 'edges_deletions.parquet')
+    # Cleanup the temporary directory after tests
+    dirname.cleanup()
 
 
 def assert_expected_nodes(g):
@@ -198,7 +197,9 @@ def assert_expected_test_layer(g):
     assert g.layers(["test_layer"]).edges.src.id.collect() == [1, 2, 3, 4, 5]
 
 
-def test_load_from_parquet_graphs():
+def test_load_from_parquet_graphs(parquet_files):
+    nodes_parquet_file_path, edges_parquet_file_path, edges_deletions_parquet_file_path = parquet_files
+
     g = Graph.load_from_parquet(
         edge_parquet_file_path=edges_parquet_file_path,
         edge_src="src",
@@ -313,7 +314,9 @@ def test_load_from_parquet_graphs():
     assert_expected_layers(g)
 
 
-def test_load_from_parquet_persistent_graphs():
+def test_load_from_parquet_persistent_graphs(parquet_files):
+    nodes_parquet_file_path, edges_parquet_file_path, edges_deletions_parquet_file_path = parquet_files
+
     g = PersistentGraph.load_from_parquet(
         edge_parquet_file_path=edges_parquet_file_path,
         edge_src="src",
