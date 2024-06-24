@@ -284,9 +284,7 @@ mod test {
     #[test]
     fn test_process_parquet_file_to_df() {
         let parquet_file_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .parent()
-            .map(|p| p.join("raphtory/resources/test/test_data.parquet"))
-            .unwrap();
+            .join("resources/test/test_data.parquet");
 
         let col_names = vec!["src", "dst", "time", "weight", "marbles"];
         let df = process_parquet_file_to_df(parquet_file_path.as_path(), col_names).unwrap();
