@@ -35,7 +35,7 @@ use raphtory::{
 
 use crate::{
     data::get_graphs_from_work_dir,
-    server_config::{load_config, AppConfig, CacheConfig, LoggingConfig},
+    server_config::{load_config, AppConfig, AuthConfig, CacheConfig, LoggingConfig},
 };
 use std::{
     collections::HashMap,
@@ -70,13 +70,15 @@ impl RaphtoryServer {
         graphs: Option<HashMap<String, MaterializedGraph>>,
         graph_paths: Option<Vec<PathBuf>>,
         cache_config: Option<CacheConfig>,
+        auth_config: Option<AuthConfig>,
         config_path: Option<&Path>,
     ) -> Self {
         if !work_dir.exists() {
             fs::create_dir_all(work_dir).unwrap();
         }
 
-        let configs = load_config(cache_config, config_path).expect("Failed to load configs");
+        let configs =
+            load_config(cache_config, auth_config, config_path).expect("Failed to load configs");
 
         let data = Data::new(work_dir, graphs, graph_paths, &configs);
 
@@ -300,10 +302,9 @@ impl RaphtoryServer {
         };
 
         dotenv().ok();
-        println!("Loading env");
-        let client_id_str = env::var("CLIENT_ID").expect("CLIENT_ID not set");
-        let client_secret_str = env::var("CLIENT_SECRET").expect("CLIENT_SECRET not set");
-        let tenant_id_str = env::var("TENANT_ID").expect("TENANT_ID not set");
+        let client_id_str = self.configs.auth.client_id;
+        let client_secret_str = self.configs.auth.client_secret;
+        let tenant_id_str = self.configs.auth.tenant_id;
 
         let client_id = ClientId::new(client_id_str);
         let client_secret = ClientSecret::new(client_secret_str);
@@ -470,7 +471,7 @@ mod server_tests {
     #[tokio::test]
     async fn test_server_stop() {
         let tmp_dir = tempfile::tempdir().unwrap();
-        let server = RaphtoryServer::new(tmp_dir.path(), None, None, None, None);
+        let server = RaphtoryServer::new(tmp_dir.path(), None, None, None, None, None);
         println!("calling start at time {}", Local::now());
         let handler = server.start_with_port(0, None, false, false);
         sleep(Duration::from_secs(1)).await;

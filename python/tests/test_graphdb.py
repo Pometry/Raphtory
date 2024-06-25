@@ -1872,7 +1872,6 @@ def test_layers_earliest_time():
     g = Graph()
     e = g.add_edge(1, 1, 2, layer="test")
     e = g.edge(1, 2)
-    print(e)
     assert e.earliest_time == 1
 
 
@@ -1895,7 +1894,6 @@ def test_edge_explode_layers():
     e_layers = [ee.layer_names for ee in layered_edges]
     e_layer_prop = [[str(ee.properties["layer"])] for ee in layered_edges]
     assert e_layers == e_layer_prop
-    print(e_layers)
 
     nested_layered_edges = g.nodes.out_edges.explode_layers()
     e_layers = [[ee.layer_names for ee in edges] for edges in nested_layered_edges]
@@ -1904,11 +1902,8 @@ def test_edge_explode_layers():
         for layered_edges in nested_layered_edges
     ]
     assert e_layers == e_layer_prop
-    print(e_layers)
 
-    print(g.nodes.out_neighbours.collect)
     nested_layered_edges = g.nodes.out_neighbours.out_edges.explode_layers()
-    print(nested_layered_edges)
     e_layers = [
         [ee.layer_names for ee in layered_edges]
         for layered_edges in nested_layered_edges
@@ -1918,7 +1913,6 @@ def test_edge_explode_layers():
         for layered_edges in nested_layered_edges
     ]
     assert e_layers == e_layer_prop
-    print(e_layers)
 
 
 def test_starend_edges():

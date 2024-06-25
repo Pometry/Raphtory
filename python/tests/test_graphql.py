@@ -427,7 +427,6 @@ def test_properties():
     s = client.query(q)
     json_a = json.loads(json.dumps(s))
     json_ra = json.loads(r)
-    print(json_a)
     assert sorted(
         json_a["graph"]["nodes"]["list"][0]["properties"]["constant"]["values"],
         key=lambda x: x["key"],

@@ -714,6 +714,7 @@ mod graphql_test {
         let f1 = &test_dir.path().join("g1");
 
         let g0 = PersistentGraph::new();
+        g0.add_constant_properties([("name", "g0")]).unwrap();
         g0.save_to_file(f0).unwrap();
 
         let g1 = PersistentGraph::new();
@@ -726,10 +727,9 @@ mod graphql_test {
         let data = Data::new(tmp_dir.path(), None, None, &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
 
-        let list_graphs = r#"
-        {
+        let list_graphs = r#"{
           graphs {
-            name
+            names
           }
         }"#;
 
@@ -780,7 +780,7 @@ mod graphql_test {
         let req = Request::new(list_graphs);
         let res = schema.execute(req).await;
         let res_json = res.data.into_json().unwrap();
-        assert_eq!(res_json, json!({"graphs": [{"name": "g0"}]}));
+        assert_eq!(res_json, json!({"graphs": {"names": ["g0"]}}));
 
         let req = Request::new(list_nodes("g0"));
         let res = schema.execute(req).await;
@@ -817,7 +817,6 @@ mod graphql_test {
         // Test save graph
         let req = Request::new(save_graph("g0", "g3", r#""{ \"2\": {} }""#));
         let res = schema.execute(req).await;
-        println!("{:?}", res.errors);
         assert!(res.errors.is_empty());
         let req = Request::new(list_nodes("g3"));
         let res = schema.execute(req).await;
