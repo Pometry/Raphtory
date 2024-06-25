@@ -2,7 +2,7 @@ use crate::{
     data::{load_graphs_from_path, Data},
     model::{
         algorithms::global_plugins::GlobalPlugins,
-        graph::{graph::GqlGraph, vectorised_graph::GqlVectorisedGraph},
+        graph::{graph::GqlGraph, graphs::GqlGraphs, vectorised_graph::GqlVectorisedGraph},
     },
 };
 use async_graphql::Context;
@@ -17,7 +17,7 @@ use raphtory::{
     core::{utils::errors::GraphError, ArcStr, Prop},
     db::api::view::MaterializedGraph,
     prelude::{GraphViewOps, ImportOps, NodeViewOps, PropertyAdditionOps},
-    search::IndexedGraph,
+    search::{into_indexed::DynamicIndexedGraph, IndexedGraph},
 };
 use serde_json::Value;
 use std::{
@@ -27,8 +27,6 @@ use std::{
     io::Read,
     path::Path,
 };
-use raphtory::search::into_indexed::DynamicIndexedGraph;
-use crate::model::graph::graphs::GqlGraphs;
 
 pub mod algorithms;
 pub(crate) mod graph;

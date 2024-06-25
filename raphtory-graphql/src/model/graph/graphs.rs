@@ -1,11 +1,11 @@
+use crate::model::graph::property::GqlProperties;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
-use raphtory::db::api::properties::dyn_props::DynProperties;
-use raphtory::db::api::view::DynamicGraph;
-use raphtory::prelude::GraphViewOps;
-use raphtory::search::IndexedGraph;
-use raphtory::search::into_indexed::DynamicIndexedGraph;
-use crate::model::graph::property::GqlProperties;
+use raphtory::{
+    db::api::{properties::dyn_props::DynProperties, view::DynamicGraph},
+    prelude::GraphViewOps,
+    search::{into_indexed::DynamicIndexedGraph, IndexedGraph},
+};
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlGraphs {
@@ -14,7 +14,12 @@ pub(crate) struct GqlGraphs {
 
 impl GqlGraphs {
     pub fn new<G: DynamicIndexedGraph>(graphs: Vec<G>) -> Self {
-        Self { graphs: graphs.into_iter().map(|g| g.into_dynamic_indexed()).collect() }
+        Self {
+            graphs: graphs
+                .into_iter()
+                .map(|g| g.into_dynamic_indexed())
+                .collect(),
+        }
     }
 }
 

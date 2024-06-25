@@ -1,6 +1,6 @@
 use crate::{
     model::algorithms::global_plugins::GlobalPlugins,
-    server_config::{load_config, CacheConfig},
+    server_config::{load_config, AppConfig, CacheConfig},
 };
 use async_graphql::Error;
 use dynamic_graphql::Result;
@@ -31,16 +31,11 @@ pub struct Data {
 impl Data {
     pub fn new(
         work_dir: &Path,
-        maybe_graphs: Option<HashMap<String, MaterializedGraph>>,
-        maybe_graph_paths: Option<Vec<PathBuf>>,
-        maybe_cache_config: Option<CacheConfig>,
+        graphs: Option<HashMap<String, MaterializedGraph>>,
+        graph_paths: Option<Vec<PathBuf>>,
+        configs: &AppConfig,
     ) -> Self {
-        let cache_configs = if maybe_cache_config.is_some() {
-            maybe_cache_config.unwrap()
-        } else {
-            let app_config = load_config().expect("Failed to load config file");
-            app_config.cache
-        };
+        let cache_configs = &configs.cache;
 
         let graphs_cache_builder = Cache::builder()
             .max_capacity(cache_configs.capacity)
@@ -50,10 +45,10 @@ impl Data {
         let graphs_cache: Arc<Cache<String, IndexedGraph<MaterializedGraph>>> =
             Arc::new(graphs_cache_builder);
 
-        save_graphs_to_work_dir(work_dir, &maybe_graphs.unwrap_or_default())
+        save_graphs_to_work_dir(work_dir, &graphs.unwrap_or_default())
             .expect("Failed to save graphs to work dir");
 
-        load_graphs_from_paths(work_dir, maybe_graph_paths.unwrap_or_default(), true)
+        load_graphs_from_paths(work_dir, graph_paths.unwrap_or_default(), true)
             .expect("Failed to save graph paths to work dir");
 
         Self {
@@ -341,7 +336,7 @@ mod data_tests {
             get_graph_from_path, get_graphs_from_work_dir, load_graph_from_path,
             load_graphs_from_path, load_graphs_from_paths, save_graphs_to_work_dir, Data,
         },
-        server_config::CacheConfig,
+        server_config::{AppConfig, CacheConfig, LoggingConfig},
     };
     use itertools::Itertools;
     #[cfg(feature = "storage")]
@@ -901,14 +896,19 @@ mod data_tests {
         let graph_path3 = tmp_graph_dir.path().join("test_g2");
         graph.save_to_file(&graph_path3).unwrap();
 
+        let configs = AppConfig {
+            logging: LoggingConfig::default(),
+            cache: CacheConfig {
+                capacity: 1,
+                tti_seconds: 2,
+            },
+        };
+
         let data = Data::new(
             tmp_work_dir.path(),
             None,
             Some(vec![graph_path1, graph_path2, graph_path3]),
-            Some(CacheConfig {
-                capacity: 1,
-                tti_seconds: 2,
-            }),
+            configs,
         );
 
         assert!(!data.graphs.contains_key("test_dg"));

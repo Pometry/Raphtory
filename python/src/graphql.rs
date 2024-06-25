@@ -240,6 +240,7 @@ impl PyRaphtoryServer {
                 capacity: cache_capacity,
                 tti_seconds: cache_tti_seconds,
             }),
+            None,
         );
         Ok(PyRaphtoryServer::new(server))
     }
