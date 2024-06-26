@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1719406732915,
+  "lastUpdate": 1719421562598,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -53923,6 +53923,60 @@ window.BENCHMARK_DATA = {
             "name": "temporal_motifs/temporal_motifs",
             "value": 21675803,
             "range": "± 1874844",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "4599890+iamsmkr@users.noreply.github.com",
+            "name": "Shivam Kapoor",
+            "username": "iamsmkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0f6bc2142e836554e3a41965a274290ca608c18c",
+          "message": "Parquet loader (#1666)\n\n* rename graph/pandas to graph/io\r\n\r\n* rename utils to panda_loaders\r\n\r\n* refactor panda loader related functions to panda_loader from df_loaders\r\n\r\n* init parquet loader\r\n\r\n* impl and test process_parquet_file_to_df\r\n\r\n* impl load edges from parquet for graph\r\n\r\n* impl/test load nodes from parquet and fix names order issue\r\n\r\n* impl/test load from parquet. load node/edge props from parquet\r\n\r\n* add tests for props\r\n\r\n* ref tests\r\n\r\n* simplify tests\r\n\r\n* more tests\r\n\r\n* impl loaders for persistent graphs\r\n\r\n* impl loader tests for persistent graphs\r\n\r\n* move load_edges_deletions_from_pandas to panda_loaders\r\n\r\n* impl load_edges_deletions_from_parquet\r\n\r\n* impl edge deletions tests\r\n\r\n* fmt\r\n\r\n* add py dep\r\n\r\n* add deps\r\n\r\n* move compression to arrow dep\r\n\r\n* restruct io\r\n\r\n* restruct arrow\r\n\r\n* tmpdir impl\r\n\r\n* add feature gates\r\n\r\n* make parquet loader compatible for rust\r\n\r\n* move py impls to python package\r\n\r\n* rename PretendDF to DFView, panda_loaders to pandas_loaders\r\n\r\n* rid parent\r\n\r\n* make test create parquet\r\n\r\n* load parquet from dir or file\r\n\r\n* change invalid layers error message to include valid layers\r\n\r\n* fix issue with valid_layers",
+          "timestamp": "2024-06-26T17:31:44+01:00",
+          "tree_id": "2941ca2b25c9de41ec0df14e4c08efb842d3603c",
+          "url": "https://github.com/Pometry/Raphtory/commit/0f6bc2142e836554e3a41965a274290ca608c18c"
+        },
+        "date": 1719421561449,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "local_clustering_coefficient/local_clustering_coefficient",
+            "value": 97931,
+            "range": "± 2316",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_clustering_coeff/graphgen_large_clustering_coeff/Graph(num_nodes=500004, num_edges=20...",
+            "value": 3047728482,
+            "range": "± 33109234",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_pagerank/graphgen_large_pagerank/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 312807756,
+            "range": "± 6608408",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_concomp/graphgen_large_concomp/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 3011131019,
+            "range": "± 29744902",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "temporal_motifs/temporal_motifs",
+            "value": 20781165,
+            "range": "± 1700479",
             "unit": "ns/iter"
           }
         ]
