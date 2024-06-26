@@ -119,6 +119,7 @@ pub mod prelude {
             graph::graph::Graph,
         },
     };
+    pub use raphtory_api::core::input::input_node::InputNode;
 }
 
 pub const BINCODE_VERSION: u32 = 1u32;

@@ -2,7 +2,7 @@ use crate::{
     core::{
         entities::{
             edges::edge_ref::EdgeRef,
-            nodes::{input_node::InputNode, node_ref::NodeRef},
+            nodes::node_ref::NodeRef,
             properties::{graph_meta::GraphMeta, props::Meta, tprop::TProp},
             LayerIds, ELID, VID,
         },
@@ -34,7 +34,7 @@ use crate::{
 use itertools::Itertools;
 use polars_arrow::datatypes::ArrowDataType;
 use pometry_storage::{properties::ConstProps, GidRef, GID};
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::{input::input_node::InputNode, storage::arc_str::ArcStr};
 use rayon::prelude::*;
 
 impl CoreGraphOps for DiskGraph {

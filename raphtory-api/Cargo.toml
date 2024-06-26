@@ -26,6 +26,10 @@ rayon = { workspace = true }
 rand = { workspace = true }
 quickcheck = { workspace = true }
 quickcheck_macros = { workspace = true }
+twox-hash.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
 
 [features]
 default = []

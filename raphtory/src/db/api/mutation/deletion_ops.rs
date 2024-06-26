@@ -1,13 +1,11 @@
 use crate::{
-    core::{
-        entities::nodes::input_node::InputNode,
-        utils::{errors::GraphError, time::IntoTimeWithFormat},
-    },
+    core::utils::{errors::GraphError, time::IntoTimeWithFormat},
     db::api::mutation::{
         internal::{InternalAdditionOps, InternalDeletionOps},
         TryIntoInputTime,
     },
 };
+use raphtory_api::core::input::input_node::InputNode;
 
 use super::time_from_input;
 

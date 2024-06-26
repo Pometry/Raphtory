@@ -10,13 +10,12 @@ use crate::{
     },
     db::api::storage::tprop_storage_ops::TPropOps,
 };
-use lock_api;
 use parking_lot::RwLock;
 use raphtory_api::core::storage::{
     arc_str::ArcStr, dict_mapper::DictMapper, locked_vec::ArcReadLockedVec,
 };
 use serde::{Deserialize, Serialize};
-use std::{borrow::Borrow, fmt::Debug, hash::Hash, ops::Deref, sync::Arc};
+use std::{fmt::Debug, hash::Hash, ops::Deref, sync::Arc};
 
 #[derive(Serialize, Deserialize, Default, Debug, PartialEq)]
 pub struct Props {
@@ -319,7 +318,6 @@ impl PropMapper {
 #[cfg(test)]
 mod test {
     use super::*;
-    use rayon::prelude::*;
     use std::{sync::Arc, thread};
 
     #[test]
