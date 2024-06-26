@@ -49,10 +49,7 @@ mod graphql_test {
         prelude::*,
     };
     use serde_json::json;
-    use std::{
-        collections::{HashMap, HashSet},
-        path::Path,
-    };
+    use std::collections::{HashMap, HashSet};
     use tempfile::{tempdir, TempDir};
 
     #[tokio::test]

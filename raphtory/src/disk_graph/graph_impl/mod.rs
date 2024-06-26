@@ -1,17 +1,3 @@
-use std::{
-    fmt::{Display, Formatter},
-    path::{Path, PathBuf},
-    sync::Arc,
-};
-
-use pometry_storage::{
-    disk_hmap::DiskHashMap, graph::TemporalGraph, graph_fragment::TempColGraphFragment,
-    load::ExternalEdgeList, RAError,
-};
-use raphtory_api::core::storage::timeindex::TimeIndexEntry;
-use rayon::prelude::*;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-
 use crate::{
     arrow2::{
         array::{PrimitiveArray, StructArray},
@@ -31,6 +17,18 @@ use crate::{
     },
     disk_graph::{graph_impl::prop_conversion::make_node_properties_from_graph, Error},
     prelude::{Graph, GraphViewOps},
+};
+use pometry_storage::{
+    disk_hmap::DiskHashMap, graph::TemporalGraph, graph_fragment::TempColGraphFragment,
+    load::ExternalEdgeList, RAError,
+};
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+use rayon::prelude::*;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::{
+    fmt::{Display, Formatter},
+    path::{Path, PathBuf},
+    sync::Arc,
 };
 
 pub mod const_properties_ops;
@@ -483,26 +481,21 @@ impl InternalPropertyAdditionOps for DiskGraph {
 
 #[cfg(test)]
 mod test {
+    use super::{DiskGraph, ParquetLayerCols};
+    use crate::{
+        algorithms::components::weakly_connected_components, db::api::view::StaticGraphViewOps,
+        disk_graph::Time, prelude::*,
+    };
+    use itertools::{chain, Itertools};
+    use pometry_storage::{graph::TemporalGraph, properties::Properties};
+    use proptest::{prelude::*, sample::size_range};
+    use rayon::prelude::*;
     use std::{
         cmp::Reverse,
         iter::once,
         path::{Path, PathBuf},
     };
-
-    use itertools::{chain, Itertools};
-    use pometry_storage::{graph::TemporalGraph, properties::Properties};
-    use proptest::{prelude::*, sample::size_range};
-    use rayon::prelude::*;
     use tempfile::TempDir;
-
-    use crate::{
-        algorithms::components::weakly_connected_components,
-        db::api::view::{internal::TimeSemantics, StaticGraphViewOps},
-        disk_graph::Time,
-        prelude::*,
-    };
-
-    use super::{DiskGraph, ParquetLayerCols};
 
     fn make_simple_graph(graph_dir: impl AsRef<Path>, edges: &[(u64, u64, i64, f64)]) -> DiskGraph {
         DiskGraph::make_simple_graph(graph_dir, edges, 1000, 1000)

@@ -44,29 +44,6 @@ impl<'a> From<DiskNode<'a>> for NodeStorageEntry<'a> {
     }
 }
 
-#[cfg(feature = "storage")]
-macro_rules! for_all {
-    ($value:expr, $pattern:pat => $result:expr) => {
-        match $value {
-            NodeStorageEntry::Mem($pattern) => $result,
-            NodeStorageEntry::Unlocked($pattern) => $result,
-            #[cfg(feature = "storage")]
-            NodeStorageEntry::Disk($pattern) => $result,
-        }
-    };
-}
-
-#[cfg(feature = "storage")]
-macro_rules! for_all_iter {
-    ($value:expr, $pattern:pat => $result:expr) => {{
-        match $value {
-            NodeStorageEntry::Mem($pattern) => StorageVariants::Mem($result),
-            NodeStorageEntry::Unlocked($pattern) => StorageVariants::Unlocked($result),
-            NodeStorageEntry::Disk($pattern) => StorageVariants::Disk($result),
-        }
-    }};
-}
-
 impl<'a> NodeStorageEntry<'a> {
     #[inline]
     pub fn as_ref(&self) -> NodeStorageRef {
