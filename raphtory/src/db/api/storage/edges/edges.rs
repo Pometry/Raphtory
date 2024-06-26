@@ -4,7 +4,10 @@ use crate::{
         entities::{edges::edge_store::EdgeStore, LayerIds, EID},
         storage::ReadLockedStorage,
     },
-    db::api::storage::{edges::edge_storage_ops::EdgeStorageOps, nodes::unlocked::UnlockedEdges},
+    db::api::storage::{
+        edges::edge_storage_ops::EdgeStorageOps, nodes::unlocked::UnlockedEdges,
+        variants::storage_variants3::StorageVariants,
+    },
 };
 use rayon::iter::ParallelIterator;
 use std::sync::Arc;
@@ -37,9 +40,6 @@ pub enum EdgesStorageRef<'a> {
     Disk(DiskEdgesRef<'a>),
 }
 
-#[cfg(feature = "storage")]
-use crate::db::api::storage::variants::storage_variants3::StorageVariants;
-
 impl<'a> EdgesStorageRef<'a> {
     #[cfg(feature = "storage")]
     pub fn iter(self, layers: LayerIds) -> impl Iterator<Item = EdgeStorageEntry<'a>> {
@@ -65,13 +65,13 @@ impl<'a> EdgesStorageRef<'a> {
     #[cfg(not(feature = "storage"))]
     pub fn iter(self, layers: LayerIds) -> impl Iterator<Item = EdgeStorageEntry<'a>> {
         match self {
-            EdgesStorageRef::Mem(storage) => Either::Left(
+            EdgesStorageRef::Mem(storage) => StorageVariants::Mem(
                 storage
                     .iter()
                     .filter(move |e| e.has_layer(&layers))
                     .map(EdgeStorageEntry::Mem),
             ),
-            EdgesStorageRef::Unlocked(edges) => Either::Right(
+            EdgesStorageRef::Unlocked(edges) => StorageVariants::Unlocked(
                 edges
                     .iter()
                     .filter(move |e| e.has_layer(&layers))
@@ -104,13 +104,13 @@ impl<'a> EdgesStorageRef<'a> {
     #[cfg(not(feature = "storage"))]
     pub fn par_iter(self, layers: LayerIds) -> impl ParallelIterator<Item = EdgeStorageEntry<'a>> {
         match self {
-            EdgesStorageRef::Mem(storage) => Either::Left(
+            EdgesStorageRef::Mem(storage) => StorageVariants::Mem(
                 storage
                     .par_iter()
                     .filter(move |e| e.has_layer(&layers))
                     .map(EdgeStorageEntry::Mem),
             ),
-            EdgesStorageRef::Unlocked(edges) => Either::Right(
+            EdgesStorageRef::Unlocked(edges) => StorageVariants::Unlocked(
                 edges
                     .par_iter()
                     .filter(move |e| e.has_layer(&layers))
