@@ -12,6 +12,8 @@ pub enum GraphError {
     #[cfg(feature = "arrow")]
     #[error("Arrow error: {0}")]
     Arrow(#[from] error::PolarsError),
+    #[error("Invalid path = {0}")]
+    InvalidPath(String),
     #[error("Graph error occurred")]
     UnsupportedDataType,
     #[error("Graph already exists by name = {name}")]

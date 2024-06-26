@@ -46,7 +46,7 @@ pub fn load_nodes_from_parquet<
         }
     }
 
-    for path in get_parquet_file_paths(parquet_path) {
+    for path in get_parquet_file_paths(parquet_path)? {
         let df = process_parquet_file_to_df(path.as_path(), cols_to_check.clone())?;
         df.check_cols_exist(&cols_to_check)?;
         let size = df.get_inner_size();
@@ -91,7 +91,7 @@ pub fn load_edges_from_parquet<
         }
     }
 
-    for path in get_parquet_file_paths(parquet_path) {
+    for path in get_parquet_file_paths(parquet_path)? {
         let df = process_parquet_file_to_df(path.as_path(), cols_to_check.clone())?;
         df.check_cols_exist(&cols_to_check)?;
         let size = cols_to_check.len();
@@ -126,7 +126,7 @@ pub fn load_node_props_from_parquet<
     let mut cols_to_check = vec![id];
     cols_to_check.extend(const_properties.as_ref().unwrap_or(&Vec::new()));
 
-    for path in get_parquet_file_paths(parquet_path) {
+    for path in get_parquet_file_paths(parquet_path)? {
         let df = process_parquet_file_to_df(path.as_path(), cols_to_check.clone())?;
         df.check_cols_exist(&cols_to_check)?;
         let size = cols_to_check.len();
@@ -164,7 +164,7 @@ pub fn load_edge_props_from_parquet<
     }
     cols_to_check.extend(const_properties.as_ref().unwrap_or(&Vec::new()));
 
-    for path in get_parquet_file_paths(parquet_path) {
+    for path in get_parquet_file_paths(parquet_path)? {
         let df = process_parquet_file_to_df(path.as_path(), cols_to_check.clone())?;
         df.check_cols_exist(&cols_to_check)?;
         let size = cols_to_check.len();
@@ -203,7 +203,7 @@ pub fn load_edges_deletions_from_parquet<
         }
     }
 
-    for path in get_parquet_file_paths(parquet_path) {
+    for path in get_parquet_file_paths(parquet_path)? {
         let df = process_parquet_file_to_df(path.as_path(), cols_to_check.clone())?;
         df.check_cols_exist(&cols_to_check)?;
         let size = cols_to_check.len();
@@ -284,7 +284,7 @@ fn read_parquet_file(
     Ok((names, reader))
 }
 
-fn get_parquet_file_paths(parquet_path: &Path) -> Vec<PathBuf> {
+fn get_parquet_file_paths(parquet_path: &Path) -> Result<Vec<PathBuf>, GraphError> {
     let mut parquet_files = Vec::new();
     if parquet_path.is_file() {
         parquet_files.push(parquet_path.to_path_buf());
@@ -297,10 +297,10 @@ fn get_parquet_file_paths(parquet_path: &Path) -> Vec<PathBuf> {
             }
         }
     } else {
-        println!("Invalid path provided: {:?}", parquet_path);
+        return Err(GraphError::InvalidPath(parquet_path.display().to_string()));
     }
 
-    parquet_files
+    Ok(parquet_files)
 }
 
 #[cfg(test)]
