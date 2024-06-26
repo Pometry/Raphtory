@@ -1,10 +1,20 @@
+use super::DiskGraph;
 use crate::{
     core::{entities::LayerIds, utils::errors::GraphError},
     db::api::view::internal::InternalLayerOps,
     prelude::Layer,
 };
+use itertools::Itertools;
+use pometry_storage::graph::TemporalGraph;
+use std::sync::Arc;
 
-use super::DiskGraph;
+fn get_valid_layers(graph: &Arc<TemporalGraph>) -> Vec<String> {
+    graph
+        .layer_names()
+        .into_iter()
+        .map(|x| x.clone())
+        .collect_vec()
+}
 
 impl InternalLayerOps for DiskGraph {
     fn layer_ids(&self) -> &LayerIds {
@@ -20,10 +30,9 @@ impl InternalLayerOps for DiskGraph {
             Layer::All => Ok(LayerIds::All),
             Layer::Default => Ok(LayerIds::One(0)),
             Layer::One(name) => {
-                let id = self
-                    .inner
-                    .find_layer_id(&name)
-                    .ok_or_else(|| GraphError::InvalidLayer(name.to_string()))?;
+                let id = self.inner.find_layer_id(&name).ok_or_else(|| {
+                    GraphError::invalid_layer(name.to_string(), get_valid_layers(&self.inner))
+                })?;
                 Ok(LayerIds::One(id))
             }
             Layer::None => Ok(LayerIds::None),
@@ -31,9 +40,12 @@ impl InternalLayerOps for DiskGraph {
                 let ids = names
                     .iter()
                     .map(|name| {
-                        self.inner
-                            .find_layer_id(name)
-                            .ok_or_else(|| GraphError::InvalidLayer(name.to_string()))
+                        self.inner.find_layer_id(name).ok_or_else(|| {
+                            GraphError::invalid_layer(
+                                name.to_string(),
+                                get_valid_layers(&self.inner),
+                            )
+                        })
                     })
                     .collect::<Result<Vec<_>, _>>()?;
                 Ok(LayerIds::Multiple(ids.into()))

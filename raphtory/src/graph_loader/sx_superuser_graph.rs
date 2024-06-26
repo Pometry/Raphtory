@@ -36,7 +36,7 @@
 //!
 //! Example:
 //! ```no_run
-//! use raphtory::graph_loader::example::sx_superuser_graph::sx_superuser_graph;
+//! use raphtory::graph_loader::sx_superuser_graph::sx_superuser_graph;
 //! use raphtory::prelude::*;
 //!
 //! let graph = sx_superuser_graph().unwrap();
@@ -45,10 +45,7 @@
 //! println!("The graph has {:?} edges", graph.count_edges());
 //! ```
 
-use crate::{
-    graph_loader::{fetch_file, source::csv_loader::CsvLoader},
-    prelude::*,
-};
+use crate::{graph_loader::fetch_file, io::csv_loader::CsvLoader, prelude::*};
 use serde::Deserialize;
 use std::path::PathBuf;
 
@@ -90,7 +87,7 @@ pub fn sx_superuser_graph() -> Result<Graph, Box<dyn std::error::Error>> {
 
 #[cfg(test)]
 mod sx_superuser_test {
-    use crate::graph_loader::example::sx_superuser_graph::{sx_superuser_file, sx_superuser_graph};
+    use crate::graph_loader::sx_superuser_graph::{sx_superuser_file, sx_superuser_graph};
 
     #[test]
     #[ignore] // don't hit SNAP by default

@@ -33,7 +33,8 @@ use pyo3::{
     types::{IntoPyDict, PyDict, PyList, PyString},
 };
 
-use super::pandas::dataframe::{process_pandas_py_df, PretendDF};
+use super::io::pandas_loaders::*;
+use crate::io::arrow::dataframe::DFView;
 
 impl From<Error> for PyErr {
     fn from(value: Error) -> Self {
@@ -172,7 +173,7 @@ impl PyDiskGraph {
             let df_columns: Vec<String> = edge_df.getattr("columns")?.extract()?;
             let df_columns: Vec<&str> = df_columns.iter().map(|x| x.as_str()).collect();
 
-            let df = process_pandas_py_df(edge_df, py, size, df_columns)?;
+            let df = process_pandas_py_df(edge_df, py, df_columns)?;
 
             df.check_cols_exist(&cols_to_check)?;
             let graph = Self::from_pandas(graph_dir, df, src_col, dst_col, time_col)?;
@@ -239,7 +240,7 @@ impl PyDiskGraph {
 impl PyDiskGraph {
     fn from_pandas(
         graph_dir: &str,
-        df: PretendDF,
+        df: DFView,
         src: &str,
         dst: &str,
         time: &str,

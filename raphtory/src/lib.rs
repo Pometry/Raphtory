@@ -104,6 +104,9 @@ pub mod search;
 #[cfg(feature = "vectors")]
 pub mod vectors;
 
+#[cfg(feature = "io")]
+pub mod io;
+
 pub mod prelude {
     pub const NO_PROPS: [(&str, Prop); 0] = [];
     pub use crate::{

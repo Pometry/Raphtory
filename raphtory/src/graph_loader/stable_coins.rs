@@ -1,5 +1,6 @@
 use crate::{
-    graph_loader::{fetch_file, source::csv_loader::CsvLoader, unzip_file},
+    graph_loader::{fetch_file, unzip_file},
+    io::csv_loader::CsvLoader,
     prelude::*,
 };
 use chrono::DateTime;

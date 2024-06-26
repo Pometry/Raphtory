@@ -1,6 +1,5 @@
 use raphtory::{
-    algorithms::centrality::pagerank::unweighted_page_rank,
-    graph_loader::source::csv_loader::CsvLoader, prelude::*,
+    algorithms::centrality::pagerank::unweighted_page_rank, io::csv_loader::CsvLoader, prelude::*,
 };
 use serde::Deserialize;
 use std::{

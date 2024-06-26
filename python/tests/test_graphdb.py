@@ -2,6 +2,8 @@ from __future__ import unicode_literals
 import math
 import sys
 import random
+import re
+
 import pandas as pd
 import pandas.core.frame
 import pytest
@@ -1434,6 +1436,18 @@ def test_layer():
     assert g.exclude_layer("layer1").count_edges() == 2
     assert g.exclude_layers(["layer1", "layer2"]).count_edges() == 1
     assert g.exclude_layer("layer2").count_edges() == 4
+
+    with pytest.raises(
+            Exception,
+            match=re.escape("Invalid layer: test_layer. Valid layers: _default, layer1, layer2"),
+    ):
+        g.layers(["test_layer"])
+
+    with pytest.raises(
+            Exception,
+            match=re.escape("Invalid layer: test_layer. Valid layers: _default, layer1, layer2"),
+    ):
+        g.edge(1, 2).layers(["test_layer"])
 
 
 def test_layer_node():

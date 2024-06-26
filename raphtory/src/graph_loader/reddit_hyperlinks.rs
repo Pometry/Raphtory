@@ -29,7 +29,7 @@
 //!
 //! Example:
 //! ```no_run
-//! use raphtory::graph_loader::example::reddit_hyperlinks::reddit_graph;
+//! use raphtory::graph_loader::reddit_hyperlinks::reddit_graph;
 //! use raphtory::prelude::*;
 //!
 //! let graph = reddit_graph(120, false);
@@ -158,7 +158,7 @@ pub fn generate_reddit_graph(path: PathBuf) -> Graph {
 mod reddit_test {
     use crate::{
         db::api::view::*,
-        graph_loader::example::reddit_hyperlinks::{reddit_file, reddit_graph},
+        graph_loader::reddit_hyperlinks::{reddit_file, reddit_graph},
     };
 
     #[test]

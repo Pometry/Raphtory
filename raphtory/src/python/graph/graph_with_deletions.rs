@@ -5,14 +5,6 @@
 //! create windows, and query the graph with a variety of algorithms.
 //! It is a wrapper around a set of shards, which are the actual graph data structures.
 //! In Python, this class wraps around the rust graph.
-use super::{
-    graph::PyGraph,
-    pandas::{
-        dataframe::{process_pandas_py_df, GraphLoadException},
-        loaders::load_edges_deletions_from_df,
-    },
-    utils,
-};
 use crate::{
     core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError, Prop},
     db::{
@@ -28,16 +20,16 @@ use crate::{
         utils::{PyInputNode, PyTime},
     },
 };
-use pyo3::{
-    prelude::*,
-    types::{IntoPyDict, PyBytes},
-};
+use pyo3::{prelude::*, types::PyBytes};
 use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
     path::{Path, PathBuf},
 };
+
+use super::{graph::PyGraph, io::pandas_loaders::*};
+use crate::io::parquet_loaders::*;
 
 /// A temporal graph that allows edges and nodes to be deleted.
 #[derive(Clone)]
@@ -455,6 +447,83 @@ impl PyPersistentGraph {
         Ok(graph.graph)
     }
 
+    /// Load a graph from Parquet file.
+    ///
+    /// Args:
+    ///     edge_parquet_path (str): Parquet file or directory of Parquet files containing the edges.
+    ///     edge_src (str): The column name for the source node ids.
+    ///     edge_dst (str): The column name for the destination node ids.
+    ///     edge_time (str): The column name for the timestamps.
+    ///     edge_properties (list): The column names for the temporal properties (optional) Defaults to None.
+    ///     edge_const_properties (list): The column names for the constant properties (optional) Defaults to None.
+    ///     edge_shared_const_properties (dict): A dictionary of constant properties that will be added to every edge (optional) Defaults to None.
+    ///     edge_layer (str): The edge layer name (optional) Defaults to None.
+    ///     layer_in_df (bool): Whether the layer name should be used to look up the values in a column of the edge_df or if it should be used directly as the layer for all edges (optional) defaults to True.
+    ///     node_parquet_path (str): Parquet file or directory of Parquet files containing the nodes (optional) Defaults to None.
+    ///     node_id (str): The column name for the node ids (optional) Defaults to None.
+    ///     node_time (str): The column name for the node timestamps (optional) Defaults to None.
+    ///     node_properties (list): The column names for the node temporal properties (optional) Defaults to None.
+    ///     node_const_properties (list): The column names for the node constant properties (optional) Defaults to None.
+    ///     node_shared_const_properties (dict): A dictionary of constant properties that will be added to every node (optional) Defaults to None.
+    ///     node_type (str): the column name for the node type
+    ///     node_type_in_df (bool): whether the node type should be used to look up the values in a column of the df or if it should be used directly as the node type
+    ///
+    /// Returns:
+    ///      Graph: The loaded Graph object.
+    #[staticmethod]
+    #[pyo3(signature = (edge_parquet_path, edge_src, edge_dst, edge_time, edge_properties = None, edge_const_properties = None, edge_shared_const_properties = None,
+    edge_layer = None, layer_in_df = true, node_parquet_path = None, node_id = None, node_time = None, node_properties = None,
+    node_const_properties = None, node_shared_const_properties = None, node_type = None, node_type_in_df = true))]
+    fn load_from_parquet(
+        edge_parquet_path: PathBuf,
+        edge_src: &str,
+        edge_dst: &str,
+        edge_time: &str,
+        edge_properties: Option<Vec<&str>>,
+        edge_const_properties: Option<Vec<&str>>,
+        edge_shared_const_properties: Option<HashMap<String, Prop>>,
+        edge_layer: Option<&str>,
+        layer_in_df: Option<bool>,
+        node_parquet_path: Option<PathBuf>,
+        node_id: Option<&str>,
+        node_time: Option<&str>,
+        node_properties: Option<Vec<&str>>,
+        node_const_properties: Option<Vec<&str>>,
+        node_shared_const_properties: Option<HashMap<String, Prop>>,
+        node_type: Option<&str>,
+        node_type_in_df: Option<bool>,
+    ) -> Result<PersistentGraph, GraphError> {
+        let graph = PyPersistentGraph {
+            graph: PersistentGraph::new(),
+        };
+        if let (Some(node_parquet_file_path), Some(node_id), Some(node_time)) =
+            (node_parquet_path, node_id, node_time)
+        {
+            graph.load_nodes_from_parquet(
+                node_parquet_file_path,
+                node_id,
+                node_time,
+                node_type,
+                node_type_in_df,
+                node_properties,
+                node_const_properties,
+                node_shared_const_properties,
+            )?;
+        }
+        graph.load_edges_from_parquet(
+            edge_parquet_path,
+            edge_src,
+            edge_dst,
+            edge_time,
+            edge_properties,
+            edge_const_properties,
+            edge_shared_const_properties,
+            edge_layer,
+            layer_in_df,
+        )?;
+        Ok(graph.graph)
+    }
+
     /// Load nodes from a Pandas DataFrame into the graph.
     ///
     /// Arguments:
@@ -480,9 +549,47 @@ impl PyPersistentGraph {
         const_properties: Option<Vec<&str>>,
         shared_const_properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
-        utils::load_nodes_from_pandas(
+        load_nodes_from_pandas(
             &self.graph.0,
             df,
+            id,
+            time,
+            node_type,
+            node_type_in_df,
+            properties,
+            const_properties,
+            shared_const_properties,
+        )
+    }
+
+    /// Load nodes from a Parquet file into the graph.
+    ///
+    /// Arguments:
+    ///     parquet_path (str): Parquet file or directory of Parquet files containing the nodes
+    ///     id (str): The column name for the node IDs.
+    ///     time (str): The column name for the timestamps.
+    ///     node_type (str): the column name for the node type
+    ///     node_type_in_df (bool): whether the node type should be used to look up the values in a column of the df or if it should be used directly as the node type
+    ///     properties (List<str>): List of node property column names. Defaults to None. (optional)
+    ///     const_properties (List<str>): List of constant node property column names. Defaults to None.  (optional)
+    ///     shared_const_properties (Dictionary/Hashmap of properties): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
+    /// Returns:
+    ///     Result<(), GraphError>: Result of the operation.
+    #[pyo3(signature = (parquet_path, id, time, node_type = None, node_type_in_df = true, properties = None, const_properties = None, shared_const_properties = None))]
+    fn load_nodes_from_parquet(
+        &self,
+        parquet_path: PathBuf,
+        id: &str,
+        time: &str,
+        node_type: Option<&str>,
+        node_type_in_df: Option<bool>,
+        properties: Option<Vec<&str>>,
+        const_properties: Option<Vec<&str>>,
+        shared_const_properties: Option<HashMap<String, Prop>>,
+    ) -> Result<(), GraphError> {
+        load_nodes_from_parquet(
+            &self.graph,
+            parquet_path.as_path(),
             id,
             time,
             node_type,
@@ -504,7 +611,7 @@ impl PyPersistentGraph {
     ///     const_properties (List<str>): List of constant edge property column names. Defaults to None. (optional)
     ///     shared_const_properties (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
     ///     layer (str): The edge layer name (optional) Defaults to None.
-    ///     layer_in_df (bool): Whether the layer name should be used to look up the values in a column of the dateframe or if it should be used directly as the layer for all edges (optional) defaults to True.
+    ///     layer_in_df (bool): Whether the layer name should be used to look up the values in a column of the dataframe or if it should be used directly as the layer for all edges (optional) defaults to True.
     ///
     /// Returns:
     ///     Result<(), GraphError>: Result of the operation.
@@ -521,9 +628,51 @@ impl PyPersistentGraph {
         layer: Option<&str>,
         layer_in_df: Option<bool>,
     ) -> Result<(), GraphError> {
-        utils::load_edges_from_pandas(
+        load_edges_from_pandas(
             &self.graph.0,
             df,
+            src,
+            dst,
+            time,
+            properties,
+            const_properties,
+            shared_const_properties,
+            layer,
+            layer_in_df,
+        )
+    }
+
+    /// Load edges from a Parquet file into the graph.
+    ///
+    /// Arguments:
+    ///     parquet_path (str): Parquet file or directory of Parquet files path containing edges
+    ///     src (str): The column name for the source node ids.
+    ///     dst (str): The column name for the destination node ids.
+    ///     time (str): The column name for the update timestamps.
+    ///     properties (List<str>): List of edge property column names. Defaults to None. (optional)
+    ///     const_properties (List<str>): List of constant edge property column names. Defaults to None. (optional)
+    ///     shared_const_properties (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
+    ///     layer (str): The edge layer name (optional) Defaults to None.
+    ///     layer_in_df (bool): Whether the layer name should be used to look up the values in a column of the dataframe or if it should be used directly as the layer for all edges (optional) defaults to True.
+    ///
+    /// Returns:
+    ///     Result<(), GraphError>: Result of the operation.
+    #[pyo3(signature = (parquet_path, src, dst, time, properties = None, const_properties = None, shared_const_properties = None, layer = None, layer_in_df = true))]
+    fn load_edges_from_parquet(
+        &self,
+        parquet_path: PathBuf,
+        src: &str,
+        dst: &str,
+        time: &str,
+        properties: Option<Vec<&str>>,
+        const_properties: Option<Vec<&str>>,
+        shared_const_properties: Option<HashMap<String, Prop>>,
+        layer: Option<&str>,
+        layer_in_df: Option<bool>,
+    ) -> Result<(), GraphError> {
+        load_edges_from_parquet(
+            &self.graph,
+            parquet_path.as_path(),
             src,
             dst,
             time,
@@ -543,7 +692,7 @@ impl PyPersistentGraph {
     ///     dst (str): The column name for the destination node ids.
     ///     time (str): The column name for the update timestamps.
     ///     layer (str): The edge layer name (optional) Defaults to None.
-    ///     layer_in_df (bool): Whether the layer name should be used to look up the values in a column of the dateframe or if it should be used directly as the layer for all edges (optional) defaults to True.
+    ///     layer_in_df (bool): Whether the layer name should be used to look up the values in a column of the dataframe or if it should be used directly as the layer for all edges (optional) defaults to True.
     ///
     /// Returns:
     ///     Result<(), GraphError>: Result of the operation.
@@ -557,42 +706,40 @@ impl PyPersistentGraph {
         layer: Option<&str>,
         layer_in_df: Option<bool>,
     ) -> Result<(), GraphError> {
-        let graph = &self.graph.0;
-        Python::with_gil(|py| {
-            let size: usize = py
-                .eval(
-                    "index.__len__()",
-                    Some([("index", df.getattr("index")?)].into_py_dict(py)),
-                    None,
-                )?
-                .extract()?;
+        load_edges_deletions_from_pandas(&self.graph.0, df, src, dst, time, layer, layer_in_df)
+    }
 
-            let mut cols_to_check = vec![src, dst, time];
-            if layer_in_df.unwrap_or(true) {
-                if let Some(ref layer) = layer {
-                    cols_to_check.push(layer.as_ref());
-                }
-            }
-
-            let df = process_pandas_py_df(df, py, size, cols_to_check.clone())?;
-
-            df.check_cols_exist(&cols_to_check)?;
-            load_edges_deletions_from_df(
-                &df,
-                size,
-                src,
-                dst,
-                time,
-                layer,
-                layer_in_df.unwrap_or(true),
-                graph,
-            )
-            .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
-
-            Ok::<(), PyErr>(())
-        })
-        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
-        Ok(())
+    /// Load edges deletions from a Parquet file into the graph.
+    ///
+    /// Arguments:
+    ///     parquet_path (str): Parquet file or directory of Parquet files path containing node information.
+    ///     src (str): The column name for the source node ids.
+    ///     dst (str): The column name for the destination node ids.
+    ///     time (str): The column name for the update timestamps.
+    ///     layer (str): The edge layer name (optional) Defaults to None.
+    ///     layer_in_df (bool): Whether the layer name should be used to look up the values in a column of the dataframe or if it should be used directly as the layer for all edges (optional) defaults to True.
+    ///
+    /// Returns:
+    ///     Result<(), GraphError>: Result of the operation.
+    #[pyo3(signature = (parquet_path, src, dst, time, layer = None, layer_in_df = true))]
+    fn load_edges_deletions_from_parquet(
+        &self,
+        parquet_path: PathBuf,
+        src: &str,
+        dst: &str,
+        time: &str,
+        layer: Option<&str>,
+        layer_in_df: Option<bool>,
+    ) -> Result<(), GraphError> {
+        load_edges_deletions_from_parquet(
+            &self.graph,
+            parquet_path.as_path(),
+            src,
+            dst,
+            time,
+            layer,
+            layer_in_df,
+        )
     }
 
     /// Load node properties from a Pandas DataFrame.
@@ -613,9 +760,36 @@ impl PyPersistentGraph {
         const_properties: Option<Vec<&str>>,
         shared_const_properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
-        utils::load_node_props_from_pandas(
+        load_node_props_from_pandas(
             &self.graph.0,
             df,
+            id,
+            const_properties,
+            shared_const_properties,
+        )
+    }
+
+    /// Load node properties from a parquet file.
+    ///
+    /// Arguments:
+    ///     parquet_path (str): Parquet file or directory of Parquet files path containing node information.
+    ///     id(str): The column name for the node IDs.
+    ///     const_properties (List<str>): List of constant node property column names. Defaults to None. (optional)
+    ///     shared_const_properties (<HashMap<String, Prop>>):  A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
+    ///
+    /// Returns:
+    ///     Result<(), GraphError>: Result of the operation.
+    #[pyo3(signature = (parquet_path, id, const_properties = None, shared_const_properties = None))]
+    fn load_node_props_from_parquet(
+        &self,
+        parquet_path: PathBuf,
+        id: &str,
+        const_properties: Option<Vec<&str>>,
+        shared_const_properties: Option<HashMap<String, Prop>>,
+    ) -> Result<(), GraphError> {
+        load_node_props_from_parquet(
+            &self.graph,
+            parquet_path.as_path(),
             id,
             const_properties,
             shared_const_properties,
@@ -646,9 +820,45 @@ impl PyPersistentGraph {
         layer: Option<&str>,
         layer_in_df: Option<bool>,
     ) -> Result<(), GraphError> {
-        utils::load_edge_props_from_pandas(
+        load_edge_props_from_pandas(
             &self.graph.0,
             df,
+            src,
+            dst,
+            const_properties,
+            shared_const_properties,
+            layer,
+            layer_in_df,
+        )
+    }
+
+    /// Load edge properties from parquet file
+    ///
+    /// Arguments:
+    ///     parquet_path (str): Parquet file or directory of Parquet files path containing edge information.
+    ///     src (str): The column name for the source node.
+    ///     dst (str): The column name for the destination node.
+    ///     const_properties (List<str>): List of constant edge property column names. Defaults to None. (optional)
+    ///     shared_const_properties (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
+    ///     layer (str): Layer name. Defaults to None.  (optional)
+    ///     layer_in_df (bool): Whether the layer name should be used to look up the values in a column of the data frame or if it should be used directly as the layer for all edges (optional) defaults to True.
+    ///
+    /// Returns:
+    ///     Result<(), GraphError>: Result of the operation.
+    #[pyo3(signature = (parquet_path, src, dst, const_properties = None, shared_const_properties = None, layer = None, layer_in_df = true))]
+    fn load_edge_props_from_parquet(
+        &self,
+        parquet_path: PathBuf,
+        src: &str,
+        dst: &str,
+        const_properties: Option<Vec<&str>>,
+        shared_const_properties: Option<HashMap<String, Prop>>,
+        layer: Option<&str>,
+        layer_in_df: Option<bool>,
+    ) -> Result<(), GraphError> {
+        load_edge_props_from_parquet(
+            &self.graph,
+            parquet_path.as_path(),
             src,
             dst,
             const_properties,

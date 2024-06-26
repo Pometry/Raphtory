@@ -118,6 +118,15 @@ impl Default for InternalGraph {
 }
 
 impl TemporalGraph {
+    fn get_valid_layers(edge_meta: &Arc<Meta>) -> Vec<String> {
+        edge_meta
+            .layer_meta()
+            .get_keys()
+            .iter()
+            .map(|x| x.to_string())
+            .collect::<Vec<_>>()
+    }
+
     pub(crate) fn num_layers(&self) -> usize {
         self.edge_meta.layer_meta().len()
     }
@@ -148,15 +157,21 @@ impl TemporalGraph {
             Layer::Default => Ok(LayerIds::One(0)),
             Layer::One(id) => match self.edge_meta.get_layer_id(&id) {
                 Some(id) => Ok(LayerIds::One(id)),
-                None => Err(GraphError::InvalidLayer(id.to_string())),
+                None => Err(GraphError::invalid_layer(
+                    id.to_string(),
+                    Self::get_valid_layers(&self.edge_meta),
+                )),
             },
             Layer::Multiple(ids) => {
                 let mut new_layers = ids
                     .iter()
                     .map(|id| {
-                        self.edge_meta
-                            .get_layer_id(id)
-                            .ok_or_else(|| GraphError::InvalidLayer(id.to_string()))
+                        self.edge_meta.get_layer_id(id).ok_or_else(|| {
+                            GraphError::invalid_layer(
+                                id.to_string(),
+                                Self::get_valid_layers(&self.edge_meta),
+                            )
+                        })
                     })
                     .collect::<Result<Vec<_>, GraphError>>()?;
                 let num_layers = self.num_layers();

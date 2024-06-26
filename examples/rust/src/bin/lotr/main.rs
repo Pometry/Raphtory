@@ -1,6 +1,6 @@
 use raphtory::{
     algorithms::pathing::temporal_reachability::temporally_reachable_nodes,
-    graph_loader::source::csv_loader::CsvLoader, prelude::*,
+    io::csv_loader::CsvLoader, prelude::*,
 };
 use serde::Deserialize;
 use std::{

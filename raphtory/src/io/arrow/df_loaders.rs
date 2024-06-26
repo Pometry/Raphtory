@@ -1,17 +1,20 @@
 use crate::{
-    core::{entities::graph::tgraph::InternalGraph, utils::errors::GraphError},
-    db::api::mutation::AdditionOps,
-    prelude::*,
-    python::graph::pandas::{
-        dataframe::PretendDF,
-        prop_handler::{get_prop_rows, lift_layer},
+    core::utils::errors::GraphError,
+    db::api::{
+        mutation::{internal::*, AdditionOps},
+        view::StaticGraphViewOps,
     },
+    io::arrow::{dataframe::DFView, prop_handler::*},
+    prelude::*,
 };
 use kdam::tqdm;
 use std::{collections::HashMap, iter};
 
-pub(crate) fn load_nodes_from_df<'a>(
-    df: &'a PretendDF,
+pub(crate) fn load_nodes_from_df<
+    'a,
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
+>(
+    df: &'a DFView,
     size: usize,
     node_id: &str,
     time: &str,
@@ -20,7 +23,7 @@ pub(crate) fn load_nodes_from_df<'a>(
     shared_const_properties: Option<HashMap<String, Prop>>,
     node_type: Option<&str>,
     node_type_in_df: bool,
-    graph: &InternalGraph,
+    graph: &G,
 ) -> Result<(), GraphError> {
     let (prop_iter, const_prop_iter) = get_prop_rows(df, properties, const_properties)?;
 
@@ -39,7 +42,7 @@ pub(crate) fn load_nodes_from_df<'a>(
                     };
                 iter_res?
             } else {
-                Box::new(std::iter::repeat(Some(node_type)))
+                Box::new(iter::repeat(Some(node_type)))
             }
         }
         None => Box::new(iter::repeat(None)),
@@ -136,8 +139,12 @@ fn extract_out_default_type(n_t: Option<&str>) -> Option<&str> {
     }
 }
 
-pub(crate) fn load_edges_from_df<'a, S: AsRef<str>>(
-    df: &'a PretendDF,
+pub(crate) fn load_edges_from_df<
+    'a,
+    S: AsRef<str>,
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
+>(
+    df: &'a DFView,
     size: usize,
     src: &str,
     dst: &str,
@@ -147,7 +154,7 @@ pub(crate) fn load_edges_from_df<'a, S: AsRef<str>>(
     shared_const_properties: Option<HashMap<String, Prop>>,
     layer: Option<S>,
     layer_in_df: bool,
-    graph: &InternalGraph,
+    graph: &G,
 ) -> Result<(), GraphError> {
     let (prop_iter, const_prop_iter) = get_prop_rows(df, properties, const_properties)?;
     let layer = lift_layer(layer, layer_in_df, df);
@@ -162,7 +169,7 @@ pub(crate) fn load_edges_from_df<'a, S: AsRef<str>>(
             .zip(dst.map(|i| i.copied()))
             .zip(time);
         load_edges_from_num_iter(
-            &graph,
+            graph,
             size,
             triplets,
             prop_iter,
@@ -180,7 +187,7 @@ pub(crate) fn load_edges_from_df<'a, S: AsRef<str>>(
             .zip(dst.map(i64_opt_into_u64_opt))
             .zip(time);
         load_edges_from_num_iter(
-            &graph,
+            graph,
             size,
             triplets,
             prop_iter,
@@ -240,15 +247,19 @@ pub(crate) fn load_edges_from_df<'a, S: AsRef<str>>(
     Ok(())
 }
 
-pub(crate) fn load_edges_deletions_from_df<'a, S: AsRef<str>>(
-    df: &'a PretendDF,
+pub(crate) fn load_edges_deletions_from_df<
+    'a,
+    S: AsRef<str>,
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + DeletionOps,
+>(
+    df: &'a DFView,
     size: usize,
     src: &str,
     dst: &str,
     time: &str,
     layer: Option<S>,
     layer_in_df: bool,
-    graph: &InternalGraph,
+    graph: &G,
 ) -> Result<(), GraphError> {
     let layer = lift_layer(layer, layer_in_df, df);
 
@@ -335,13 +346,16 @@ pub(crate) fn load_edges_deletions_from_df<'a, S: AsRef<str>>(
     Ok(())
 }
 
-pub(crate) fn load_node_props_from_df<'a>(
-    df: &'a PretendDF,
+pub(crate) fn load_node_props_from_df<
+    'a,
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
+>(
+    df: &'a DFView,
     size: usize,
     node_id: &str,
     const_properties: Option<Vec<&str>>,
     shared_const_properties: Option<HashMap<String, Prop>>,
-    graph: &InternalGraph,
+    graph: &G,
 ) -> Result<(), GraphError> {
     let (_, const_prop_iter) = get_prop_rows(df, None, const_properties)?;
 
@@ -429,8 +443,12 @@ pub(crate) fn load_node_props_from_df<'a>(
     Ok(())
 }
 
-pub(crate) fn load_edges_props_from_df<'a, S: AsRef<str>>(
-    df: &'a PretendDF,
+pub(crate) fn load_edges_props_from_df<
+    'a,
+    S: AsRef<str>,
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
+>(
+    df: &'a DFView,
     size: usize,
     src: &str,
     dst: &str,
@@ -438,7 +456,7 @@ pub(crate) fn load_edges_props_from_df<'a, S: AsRef<str>>(
     shared_const_properties: Option<HashMap<String, Prop>>,
     layer: Option<S>,
     layer_in_df: bool,
-    graph: &InternalGraph,
+    graph: &G,
 ) -> Result<(), GraphError> {
     let (_, const_prop_iter) = get_prop_rows(df, None, const_properties)?;
     let layer = lift_layer(layer, layer_in_df, df);
@@ -547,8 +565,9 @@ fn load_edges_from_num_iter<
     I: Iterator<Item = ((Option<u64>, Option<u64>), Option<i64>)>,
     PI: Iterator<Item = Vec<(S, Prop)>>,
     IL: Iterator<Item = Option<String>>,
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
 >(
-    graph: &InternalGraph,
+    graph: &G,
     size: usize,
     edges: I,
     properties: PI,
@@ -579,8 +598,9 @@ fn load_nodes_from_num_iter<
     S: AsRef<str>,
     I: Iterator<Item = (Option<u64>, Option<i64>, Option<&'a str>)>,
     PI: Iterator<Item = Vec<(S, Prop)>>,
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
 >(
-    graph: &InternalGraph,
+    graph: &G,
     size: usize,
     nodes: I,
     properties: PI,

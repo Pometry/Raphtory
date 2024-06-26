@@ -1,22 +1,19 @@
 pub mod dataframe;
-pub mod loaders;
+pub mod df_loaders;
 mod prop_handler;
 
 #[cfg(test)]
 mod test {
     use crate::{
+        io::arrow::{dataframe::DFView, df_loaders::*},
         prelude::*,
-        python::graph::pandas::{
-            dataframe::PretendDF,
-            loaders::{load_edges_from_df, load_nodes_from_df},
-        },
     };
     use polars_arrow::array::{PrimitiveArray, Utf8Array};
     use raphtory_api::core::storage::arc_str::ArcStr;
 
     #[test]
     fn load_edges_from_pretend_df() {
-        let df = PretendDF {
+        let df = DFView {
             names: vec!["src", "dst", "time", "prop1", "prop2"]
                 .iter()
                 .map(|s| s.to_string())
@@ -52,7 +49,7 @@ mod test {
             None,
             layer,
             layer_in_df,
-            &graph.0,
+            &graph,
         )
         .expect("failed to load edges from pretend df");
 
@@ -88,7 +85,7 @@ mod test {
 
     #[test]
     fn load_nodes_from_pretend_df() {
-        let df = PretendDF {
+        let df = DFView {
             names: vec!["id", "name", "time", "node_type"]
                 .iter()
                 .map(|s| s.to_string())
@@ -120,7 +117,7 @@ mod test {
             None,
             Some("node_type"),
             false,
-            &graph.0,
+            &graph,
         )
         .expect("failed to load nodes from pretend df");
 

@@ -133,7 +133,7 @@ mod test {
     #[cfg(feature = "io")]
     #[test]
     fn lfr_test() {
-        use crate::graph_loader::source::csv_loader::CsvLoader;
+        use crate::io::csv_loader::CsvLoader;
         use serde::{Deserialize, Serialize};
         use std::path::PathBuf;
 
