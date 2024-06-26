@@ -4,7 +4,7 @@
 //! These functions are not part of the public API and are not exported to the Python module.
 use crate::{
     core::{
-        entities::nodes::{input_node::InputNode, node_ref::NodeRef},
+        entities::nodes::node_ref::NodeRef,
         storage::timeindex::AsTime,
         utils::time::{error::ParseTimeError, Interval, IntoTime, TryIntoTime},
     },
@@ -13,6 +13,7 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use pyo3::{exceptions::PyTypeError, prelude::*, types::PyDateTime};
+use raphtory_api::core::input::input_node::InputNode;
 use std::{future::Future, thread};
 
 pub mod errors;

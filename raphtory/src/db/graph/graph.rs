@@ -234,12 +234,8 @@ mod db_tests {
     use itertools::Itertools;
     use quickcheck_macros::quickcheck;
     use raphtory_api::core::storage::arc_str::{ArcStr, OptionAsStr};
-    use rayon::prelude::*;
     use serde_json::Value;
-    use std::{
-        collections::{HashMap, HashSet},
-        path::PathBuf,
-    };
+    use std::collections::{HashMap, HashSet};
     use tempfile::TempDir;
 
     #[test]

@@ -166,7 +166,7 @@ fn unzip_file(zip_file_path: &str, destination_path: &str) -> std::io::Result<()
 
 #[cfg(test)]
 mod graph_loader_test {
-    use crate::{core::utils::hashing, graph_loader::fetch_file, prelude::*};
+    use crate::{graph_loader::fetch_file, prelude::*};
     use csv::StringRecord;
 
     #[test]
@@ -223,8 +223,8 @@ mod graph_loader_test {
         if let Ok(mut reader) = csv::Reader::from_path(data_dir) {
             for rec in reader.records().flatten() {
                 if let Some((src, dst, t)) = parse_record(&rec) {
-                    let src_id = hashing::calculate_hash(&src);
-                    let dst_id = hashing::calculate_hash(&dst);
+                    let src_id = src.id();
+                    let dst_id = dst.id();
 
                     g.add_node(t, src_id, [("name", Prop::str("Character"))], None)
                         .unwrap();
@@ -242,7 +242,7 @@ mod graph_loader_test {
             }
         }
 
-        let gandalf = hashing::calculate_hash(&"Gandalf");
+        let gandalf = "Gandalf".id();
         assert!(g.has_node(gandalf));
         assert!(g.has_node("Gandalf"))
     }

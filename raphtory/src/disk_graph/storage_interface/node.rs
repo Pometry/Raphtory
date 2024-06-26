@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, nodes::input_node::InputNode, LayerIds, EID, VID},
+        entities::{edges::edge_ref::EdgeRef, LayerIds, EID, VID},
         Direction,
     },
     db::api::{
@@ -9,11 +9,12 @@ use crate::{
             tprop_storage_ops::TPropOps,
             variants::{direction_variants::DirectionVariants, layer_variants::LayerVariants},
         },
-        view::internal::{CoreGraphOps, NodeAdditions},
+        view::internal::NodeAdditions,
     },
 };
 use itertools::Itertools;
 use pometry_storage::{graph::TemporalGraph, timestamps::TimeStamps, GidRef};
+use raphtory_api::core::input::input_node::InputNode;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use std::{borrow::Cow, iter, sync::Arc};
 

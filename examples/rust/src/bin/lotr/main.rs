@@ -1,5 +1,5 @@
 use raphtory::{
-    algorithms::pathing::temporal_reachability::temporally_reachable_nodes, core::utils::hashing,
+    algorithms::pathing::temporal_reachability::temporally_reachable_nodes,
     io::csv_loader::CsvLoader, prelude::*,
 };
 use serde::Deserialize;
@@ -99,7 +99,7 @@ fn main() {
     assert_eq!(graph.count_nodes(), 139);
     assert_eq!(graph.count_edges(), 701);
 
-    let gandalf = hashing::calculate_hash(&"Gandalf");
+    let gandalf = "Gandalf".id();
 
     assert_eq!(gandalf, 2760374808085341115);
     assert!(graph.has_node(gandalf));

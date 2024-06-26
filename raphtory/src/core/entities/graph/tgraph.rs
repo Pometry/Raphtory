@@ -6,7 +6,7 @@ use crate::{
                 tgraph_storage::GraphStorage,
                 timer::{MaxCounter, MinCounter, TimeCounterTrait},
             },
-            nodes::{input_node::InputNode, node_ref::NodeRef, node_store::NodeStore},
+            nodes::{node_ref::NodeRef, node_store::NodeStore},
             properties::{graph_meta::GraphMeta, props::Meta, tprop::TProp},
             LayerIds, EID, VID,
         },
@@ -24,8 +24,11 @@ use crate::{
     },
     prelude::DeletionOps,
 };
-use dashmap::{DashMap, DashSet};
-use raphtory_api::core::storage::{arc_str::ArcStr, locked_vec::ArcReadLockedVec, FxDashMap};
+use dashmap::DashSet;
+use raphtory_api::core::{
+    input::input_node::InputNode,
+    storage::{arc_str::ArcStr, locked_vec::ArcReadLockedVec, FxDashMap},
+};
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 use std::{

@@ -29,16 +29,15 @@ use crate::{
     prelude::GraphViewOps,
 };
 use chrono::{DateTime, NaiveDateTime, Utc};
+use raphtory_api::core::storage::arc_str::ArcStr;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
-    borrow::Borrow,
     cmp::Ordering,
     collections::HashMap,
     fmt,
     fmt::{Display, Formatter},
     hash::{Hash, Hasher},
-    ops::Deref,
     sync::Arc,
 };
 
@@ -53,9 +52,6 @@ pub mod state;
 pub mod storage;
 pub mod utils;
 
-// this is here because Arc<str> annoyingly doesn't implement all the expected comparisons
-
-use raphtory_api::core::storage::arc_str::ArcStr;
 pub use raphtory_api::core::*;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Hash)]

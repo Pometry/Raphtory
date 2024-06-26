@@ -67,14 +67,11 @@ impl DictMapper {
 
 #[cfg(test)]
 mod test {
-    use std::{collections::HashMap, sync::Arc, thread};
-
     use crate::core::storage::dict_mapper::DictMapper;
     use quickcheck_macros::quickcheck;
     use rand::seq::SliceRandom;
     use rayon::prelude::*;
-
-    use super::*;
+    use std::collections::HashMap;
 
     #[test]
     fn test_dict_mapper() {

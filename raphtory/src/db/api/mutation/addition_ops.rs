@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, nodes::input_node::InputNode},
+        entities::edges::edge_ref::EdgeRef,
         utils::{errors::GraphError, time::IntoTimeWithFormat},
         Prop,
     },
@@ -12,6 +12,7 @@ use crate::{
         graph::{edge::EdgeView, node::NodeView},
     },
 };
+use raphtory_api::core::input::input_node::InputNode;
 
 use super::time_from_input;
 

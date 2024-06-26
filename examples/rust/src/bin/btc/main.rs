@@ -2,7 +2,7 @@
 #![allow(dead_code)]
 
 use chrono::{DateTime, Utc};
-use raphtory::{core::utils::hashing, io::csv_loader::CsvLoader, prelude::*};
+use raphtory::{io::csv_loader::CsvLoader, prelude::*};
 use regex::Regex;
 use serde::Deserialize;
 use std::{
@@ -54,7 +54,7 @@ fn main() {
         panic!("Missing data dir = {}", data_dir.to_str().unwrap())
     }
 
-    let test_v = hashing::calculate_hash(&"139eeGkMGR6F9EuJQ3qYoXebfkBbNAsLtV:btc");
+    let test_v = "139eeGkMGR6F9EuJQ3qYoXebfkBbNAsLtV:btc".id();
 
     // If data_dir/graphdb.bincode exists, use bincode to load the graph from binary encoded data files
     // otherwise load the graph from csv data files
@@ -82,8 +82,8 @@ fn main() {
         CsvLoader::new(data_dir)
             .with_filter(Regex::new(r".+(sent|received)").unwrap())
             .load_into_graph(&g, |sent: Sent, g: &Graph| {
-                let src = hashing::calculate_hash(&sent.addr);
-                let dst = hashing::calculate_hash(&sent.txn);
+                let src = sent.addr.id();
+                let dst = sent.txn.id();
                 let time = sent.time.timestamp();
 
                 if src == test_v || dst == test_v {

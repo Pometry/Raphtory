@@ -4,7 +4,6 @@
 //! ```no_run
 //! use std::path::{Path, PathBuf};
 //! use regex::Regex;
-//! use raphtory::core::utils::hashing::calculate_hash;
 //! use raphtory::io::csv_loader::CsvLoader;
 //! use raphtory::graph_loader::lotr_graph::Lotr;
 //! use raphtory::prelude::*;
@@ -25,8 +24,8 @@
 //!      .set_delimiter(delimiter)
 //!      .with_filter(r)
 //!      .load_into_graph(&g, |lotr: Lotr, g: &Graph| {
-//!          let src_id = calculate_hash(&lotr.src_id);
-//!          let dst_id = calculate_hash(&lotr.dst_id);
+//!          let src_id = lotr.src_id.id();
+//!          let dst_id = lotr.dst_id.id();
 //!          let time = lotr.time;
 //!
 //!          g.add_node(
@@ -474,7 +473,7 @@ impl CsvLoader {
 
 #[cfg(test)]
 mod csv_loader_test {
-    use crate::{core::utils::hashing::calculate_hash, io::csv_loader::CsvLoader, prelude::*};
+    use crate::{io::csv_loader::CsvLoader, prelude::*};
     use csv::StringRecord;
     use regex::Regex;
     use serde::Deserialize;
@@ -515,8 +514,8 @@ mod csv_loader_test {
             .set_delimiter(delimiter)
             .with_filter(r)
             .load_into_graph(&g, |lotr: Lotr, g: &Graph| {
-                let src_id = calculate_hash(&lotr.src_id);
-                let dst_id = calculate_hash(&lotr.dst_id);
+                let src_id = lotr.src_id.id();
+                let dst_id = lotr.dst_id.id();
                 let time = lotr.time;
 
                 g.add_node(time, src_id, [("name", Prop::str("Character"))], None)
@@ -543,14 +542,8 @@ mod csv_loader_test {
             .set_delimiter(delimiter)
             .with_filter(r)
             .load_rec_into_graph(&g, |lotr: StringRecord, g: &Graph| {
-                let src_id = lotr
-                    .get(0)
-                    .map(|s| calculate_hash(&(s.to_owned())))
-                    .unwrap();
-                let dst_id = lotr
-                    .get(1)
-                    .map(|s| calculate_hash(&(s.to_owned())))
-                    .unwrap();
+                let src_id = lotr.get(0).map(|s| s.id()).unwrap();
+                let dst_id = lotr.get(1).map(|s| s.id()).unwrap();
                 let time = lotr.get(2).map(|s| s.parse::<i64>().unwrap()).unwrap();
 
                 g.add_node(time, src_id, [("name", Prop::str("Character"))], None)
