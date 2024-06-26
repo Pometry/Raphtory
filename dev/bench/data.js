@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1718963880999,
+  "lastUpdate": 1719406732915,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -53869,6 +53869,60 @@ window.BENCHMARK_DATA = {
             "name": "temporal_motifs/temporal_motifs",
             "value": 21419956,
             "range": "± 1870918",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d0a25c34ff9f20a31f7ac3fdcb7670bf708436d3",
+          "message": "Bump urllib3 from 2.2.1 to 2.2.2 in /docs in the pip group across 1 directory (#1663)\n\nBump urllib3 in /docs in the pip group across 1 directory\r\n\r\nBumps the pip group with 1 update in the /docs directory: [urllib3](https://github.com/urllib3/urllib3).\r\n\r\n\r\nUpdates `urllib3` from 2.2.1 to 2.2.2\r\n- [Release notes](https://github.com/urllib3/urllib3/releases)\r\n- [Changelog](https://github.com/urllib3/urllib3/blob/main/CHANGES.rst)\r\n- [Commits](https://github.com/urllib3/urllib3/compare/2.2.1...2.2.2)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: urllib3\r\n  dependency-type: indirect\r\n  dependency-group: pip\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\r\nCo-authored-by: Ben Steer <b.a.steer@qmul.ac.uk>",
+          "timestamp": "2024-06-26T13:22:10+01:00",
+          "tree_id": "36e2afce45b4255ae504917a243383c189e9d290",
+          "url": "https://github.com/Pometry/Raphtory/commit/d0a25c34ff9f20a31f7ac3fdcb7670bf708436d3"
+        },
+        "date": 1719406731151,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "local_clustering_coefficient/local_clustering_coefficient",
+            "value": 99347,
+            "range": "± 13355",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_clustering_coeff/graphgen_large_clustering_coeff/Graph(num_nodes=500004, num_edges=20...",
+            "value": 3294111068,
+            "range": "± 109335729",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_pagerank/graphgen_large_pagerank/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 343014300,
+            "range": "± 16996609",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_concomp/graphgen_large_concomp/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 3166377246,
+            "range": "± 78849064",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "temporal_motifs/temporal_motifs",
+            "value": 21675803,
+            "range": "± 1874844",
             "unit": "ns/iter"
           }
         ]
