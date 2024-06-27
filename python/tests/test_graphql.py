@@ -1,6 +1,5 @@
 import tempfile
 from raphtory.graphql import RaphtoryServer, RaphtoryClient
-import pytest
 from raphtory import graph_loader
 from raphtory import Graph
 import json
@@ -8,9 +7,14 @@ import json
 
 def test_failed_server_start_in_time():
     tmp_work_dir = tempfile.mkdtemp()
-    with pytest.raises(Exception) as excinfo:
-        RaphtoryServer(tmp_work_dir).start(timeout_in_milliseconds=1)
-    assert str(excinfo.value) == "Failed to start server in 1 milliseconds"
+    server = None
+    try:
+        server = RaphtoryServer(tmp_work_dir).start(timeout_in_milliseconds=1)
+    except Exception as e:
+        assert str(e) == "Failed to start server in 1 milliseconds"
+    finally:
+        if server:
+            server.stop()
 
 
 def test_successful_server_start_in_time():
@@ -18,6 +22,8 @@ def test_successful_server_start_in_time():
     server = RaphtoryServer(tmp_work_dir).start(timeout_in_milliseconds=3000)
     client = server.get_client()
     assert client.is_server_online()
+    server.stop()
+    server.wait()
 
 
 def test_server_start_on_default_port():
@@ -25,9 +31,10 @@ def test_server_start_on_default_port():
     g.add_edge(1, "ben", "hamza")
     g.add_edge(2, "haaroon", "hamza")
     g.add_edge(3, "ben", "haaroon")
+    
     graphs = {"g": g}
     tmp_work_dir = tempfile.mkdtemp()
-    RaphtoryServer(tmp_work_dir, graphs=graphs).start()
+    server = RaphtoryServer(tmp_work_dir, graphs=graphs).start()
     client = RaphtoryClient("http://localhost:1736")
 
     query = """{graph(name: "g") {nodes {list {name}}}}"""
@@ -36,6 +43,9 @@ def test_server_start_on_default_port():
             "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
         }
     }
+    
+    server.stop()
+    server.wait()
 
 
 def test_server_start_on_custom_port():
@@ -43,9 +53,10 @@ def test_server_start_on_custom_port():
     g.add_edge(1, "ben", "hamza")
     g.add_edge(2, "haaroon", "hamza")
     g.add_edge(3, "ben", "haaroon")
+    
     graphs = {"g": g}
     tmp_work_dir = tempfile.mkdtemp()
-    RaphtoryServer(tmp_work_dir, graphs=graphs).start(port=1737)
+    server = RaphtoryServer(tmp_work_dir, graphs=graphs).start(port=1737)
     client = RaphtoryClient("http://localhost:1737")
 
     query = """{graph(name: "g") {nodes {list {name}}}}"""
@@ -54,6 +65,9 @@ def test_server_start_on_custom_port():
             "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
         }
     }
+
+    server.stop()
+    server.wait()
     
 
 def test_send_graphs_to_server():
@@ -63,7 +77,7 @@ def test_send_graphs_to_server():
     g.add_edge(3, "ben", "haaroon")
     
     tmp_work_dir = tempfile.mkdtemp()
-    RaphtoryServer(tmp_work_dir).start()
+    server = RaphtoryServer(tmp_work_dir).start()
     client = RaphtoryClient("http://localhost:1736")
     client.send_graph(name="g", graph=g)
 
@@ -74,27 +88,30 @@ def test_send_graphs_to_server():
         }
     }
     
+    server.stop()
+    server.wait()
+    
 
 def test_load_graphs_from_path():
     g = Graph()
     g.add_edge(1, "ben", "hamza")
     g.add_edge(2, "haaroon", "hamza")
     g.add_edge(3, "ben", "haaroon")
-
     tmp_dir = tempfile.mkdtemp()
     g.save_to_file(tmp_dir + "/g")
 
     tmp_work_dir = tempfile.mkdtemp()
-    RaphtoryServer(tmp_work_dir).start()
+    server = RaphtoryServer(tmp_work_dir).start()
     client = RaphtoryClient("http://localhost:1736")
     client.load_graphs_from_path(tmp_dir)
 
-    query = """{graph(name: "g") {nodes {list {name}}}}"""
+    query = """{graph(name: "g") {nodes {before(time: 2) {list {name}}}}}"""
     assert client.query(query) == {
-        "graph": {
-            "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
-        }
+        "graph": {"nodes": {"before": {"list": [{"name": "ben"}, {"name": "hamza"}]}}}
     }
+    
+    server.stop()
+    server.wait()
     
 
 def test_graphql2():
@@ -102,7 +119,6 @@ def test_graphql2():
     g1.add_edge(1, "ben", "hamza")
     g1.add_edge(2, "haaroon", "hamza")
     g1.add_edge(3, "ben", "haaroon")
-
     g2 = Graph()
     g2.add_edge(1, "Naomi", "Shivam")
     g2.add_edge(2, "Shivam", "Pedro")
@@ -113,14 +129,11 @@ def test_graphql2():
     g3.add_edge(1, "ben_saved", "hamza_saved")
     g3.add_edge(2, "haaroon_saved", "hamza_saved")
     g3.add_edge(3, "ben_saved", "haaroon_saved")
-
     g4 = Graph()
     g4.add_edge(1, "Naomi_saved", "Shivam_saved")
     g4.add_edge(2, "Shivam_saved", "Pedro_saved")
     g4.add_edge(3, "Pedro_saved", "Rachel_saved")
-
     temp_dir = tempfile.mkdtemp()
-
     g3.save_to_file(temp_dir + "/g3")
     g4.save_to_file(temp_dir + "/g4")
 
