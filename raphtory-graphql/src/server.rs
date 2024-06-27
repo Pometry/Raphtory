@@ -302,21 +302,25 @@ impl RaphtoryServer {
         };
 
         dotenv().ok();
-        let client_id_str = self.configs.auth.client_id;
-        let client_secret_str = self.configs.auth.client_secret;
-        let tenant_id_str = self.configs.auth.tenant_id;
+        let client_id = self.configs.auth.client_id.expect("No client id provided");
+        let client_secret = self
+            .configs
+            .auth
+            .client_secret
+            .expect("No client secret provided");
+        let tenant_id = self.configs.auth.tenant_id.expect("No tenant id provided");
 
-        let client_id = ClientId::new(client_id_str);
-        let client_secret = ClientSecret::new(client_secret_str);
+        let client_id = ClientId::new(client_id);
+        let client_secret = ClientSecret::new(client_secret);
 
         let auth_url = AuthUrl::new(format!(
             "https://login.microsoftonline.com/{}/oauth2/v2.0/authorize",
-            tenant_id_str.clone()
+            tenant_id.clone()
         ))
         .expect("Invalid authorization endpoint URL");
         let token_url = TokenUrl::new(format!(
             "https://login.microsoftonline.com/{}/oauth2/v2.0/token",
-            tenant_id_str.clone()
+            tenant_id.clone()
         ))
         .expect("Invalid token endpoint URL");
 

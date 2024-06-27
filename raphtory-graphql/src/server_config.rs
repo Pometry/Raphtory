@@ -32,17 +32,17 @@ impl Default for CacheConfig {
 
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct AuthConfig {
-    pub client_id: String,
-    pub client_secret: String,
-    pub tenant_id: String,
+    pub client_id: Option<String>,
+    pub client_secret: Option<String>,
+    pub tenant_id: Option<String>,
 }
 
 impl Default for AuthConfig {
     fn default() -> Self {
         AuthConfig {
-            client_id: "client_id".to_string(),
-            client_secret: "client_secret".to_string(),
-            tenant_id: "tenant_id".to_string(),
+            client_id: None,
+            client_secret: None,
+            tenant_id: None,
         }
     }
 }
@@ -92,15 +92,9 @@ pub fn load_config(
     if let Some(tti_seconds) = settings.get::<u64>("cache.tti_seconds").ok() {
         loaded_config.cache.tti_seconds = tti_seconds;
     }
-    if let Some(client_id) = settings.get::<String>("auth.client_id").ok() {
-        loaded_config.auth.client_id = client_id;
-    }
-    if let Some(client_secret) = settings.get::<String>("auth.client_secret").ok() {
-        loaded_config.auth.client_secret = client_secret;
-    }
-    if let Some(tenant_id) = settings.get::<String>("auth.tenant_id").ok() {
-        loaded_config.auth.tenant_id = tenant_id;
-    }
+    loaded_config.auth.client_id = settings.get::<String>("auth.client_id").ok();
+    loaded_config.auth.client_secret = settings.get::<String>("auth.client_secret").ok();
+    loaded_config.auth.tenant_id = settings.get::<String>("auth.tenant_id").ok();
 
     // Override with provided cache configs if any
     if let Some(cache_config) = cache_config {
@@ -180,9 +174,9 @@ mod tests {
     fn test_load_config_with_custom_auth() {
         // Prepare a custom cache configuration
         let custom_auth = AuthConfig {
-            client_id: "custom_client_id".to_string(),
-            client_secret: "custom_client_secret".to_string(),
-            tenant_id: "custom_tenant_id".to_string(),
+            client_id: Some("custom_client_id".to_string()),
+            client_secret: Some("custom_client_secret".to_string()),
+            tenant_id: Some("custom_tenant_id".to_string()),
         };
 
         // Load config with custom cache configuration
@@ -196,9 +190,9 @@ mod tests {
                 tti_seconds: 900,
             },
             auth: AuthConfig {
-                client_id: "custom_client_id".to_string(),
-                client_secret: "custom_client_secret".to_string(),
-                tenant_id: "custom_tenant_id".to_string(),
+                client_id: Some("custom_client_id".to_string()),
+                client_secret: Some("custom_client_secret".to_string()),
+                tenant_id: Some("custom_tenant_id".to_string()),
             },
         };
 

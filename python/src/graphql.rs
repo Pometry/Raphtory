@@ -222,7 +222,7 @@ impl PyRaphtoryServer {
 impl PyRaphtoryServer {
     #[new]
     #[pyo3(
-        signature = (work_dir, graphs = None, graph_paths = None, cache_capacity = 30, cache_tti_seconds = 900, client_id = "client_id".to_string(), client_secret = "client_secret".to_string(), tenant_id = "tenant_id".to_string())
+        signature = (work_dir, graphs = None, graph_paths = None, cache_capacity = 30, cache_tti_seconds = 900, client_id = None, client_secret = None, tenant_id = None)
     )]
     fn py_new(
         work_dir: String,
@@ -230,9 +230,9 @@ impl PyRaphtoryServer {
         graph_paths: Option<Vec<String>>,
         cache_capacity: u64,
         cache_tti_seconds: u64,
-        client_id: String,
-        client_secret: String,
-        tenant_id: String,
+        client_id: Option<String>,
+        client_secret: Option<String>,
+        tenant_id: Option<String>,
     ) -> PyResult<Self> {
         let graph_paths = graph_paths.map(|paths| paths.into_iter().map(PathBuf::from).collect());
         let server = RaphtoryServer::new(
