@@ -5,19 +5,97 @@ from raphtory import graph_loader
 from raphtory import Graph
 import json
 
+
 def test_failed_server_start_in_time():
     tmp_work_dir = tempfile.mkdtemp()
     with pytest.raises(Exception) as excinfo:
-        RaphtoryServer(tmp_work_dir).start(port=1751, timeout_in_milliseconds=1)
+        RaphtoryServer(tmp_work_dir).start(timeout_in_milliseconds=1)
     assert str(excinfo.value) == "Failed to start server in 1 milliseconds"
 
 
 def test_successful_server_start_in_time():
     tmp_work_dir = tempfile.mkdtemp()
-    server = RaphtoryServer(tmp_work_dir).start(port=1751, timeout_in_milliseconds=3000)
+    server = RaphtoryServer(tmp_work_dir).start(timeout_in_milliseconds=3000)
     client = server.get_client()
     assert client.is_server_online()
 
+
+def test_server_start_on_default_port():
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+    graphs = {"g": g}
+    tmp_work_dir = tempfile.mkdtemp()
+    RaphtoryServer(tmp_work_dir, graphs=graphs).start()
+    client = RaphtoryClient("http://localhost:1736")
+
+    query = """{graph(name: "g") {nodes {list {name}}}}"""
+    assert client.query(query) == {
+        "graph": {
+            "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
+        }
+    }
+
+
+def test_server_start_on_custom_port():
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+    graphs = {"g": g}
+    tmp_work_dir = tempfile.mkdtemp()
+    RaphtoryServer(tmp_work_dir, graphs=graphs).start(port=1737)
+    client = RaphtoryClient("http://localhost:1737")
+
+    query = """{graph(name: "g") {nodes {list {name}}}}"""
+    assert client.query(query) == {
+        "graph": {
+            "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
+        }
+    }
+    
+
+def test_send_graphs_to_server():
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+    
+    tmp_work_dir = tempfile.mkdtemp()
+    RaphtoryServer(tmp_work_dir).start()
+    client = RaphtoryClient("http://localhost:1736")
+    client.send_graph(name="g", graph=g)
+
+    query = """{graph(name: "g") {nodes {list {name}}}}"""
+    assert client.query(query) == {
+        "graph": {
+            "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
+        }
+    }
+    
+
+def test_load_graphs_from_path():
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+
+    tmp_dir = tempfile.mkdtemp()
+    g.save_to_file(tmp_dir + "/g")
+
+    tmp_work_dir = tempfile.mkdtemp()
+    RaphtoryServer(tmp_work_dir).start()
+    client = RaphtoryClient("http://localhost:1736")
+    client.load_graphs_from_path(tmp_dir)
+
+    query = """{graph(name: "g") {nodes {list {name}}}}"""
+    assert client.query(query) == {
+        "graph": {
+            "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
+        }
+    }
+    
 
 def test_graphql2():
     g1 = Graph()
