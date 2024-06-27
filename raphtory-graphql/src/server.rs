@@ -39,7 +39,7 @@ use crate::{
 };
 use std::{
     collections::HashMap,
-    env, fs,
+    fs,
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
 };
@@ -469,7 +469,7 @@ mod server_tests {
     use tokio::time::{sleep, Duration};
 
     #[tokio::test]
-    async fn test_server_stop() {
+    async fn test_server_start_stop() {
         let tmp_dir = tempfile::tempdir().unwrap();
         let server = RaphtoryServer::new(tmp_dir.path(), None, None, None, None, None);
         println!("calling start at time {}", Local::now());
