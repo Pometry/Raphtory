@@ -70,6 +70,48 @@ def test_server_start_on_custom_port():
     server.wait()
     
 
+def test_load_graphs_from_graph_paths_when_starting_server():
+    g1 = Graph()
+    g1.add_edge(1, "ben", "hamza")
+    g1.add_edge(2, "haaroon", "hamza")
+    g1.add_edge(3, "ben", "haaroon")
+    g1_file_path = tempfile.mkdtemp() + "/g1"
+    g1.save_to_file(g1_file_path)
+    g2 = Graph()
+    g2.add_edge(1, "Naomi", "Shivam")
+    g2.add_edge(2, "Shivam", "Pedro")
+    g2.add_edge(3, "Pedro", "Rachel")
+    g2_file_path = tempfile.mkdtemp() + "/g2"
+    g2.save_to_file(g2_file_path)
+
+    tmp_work_dir = tempfile.mkdtemp()
+    server = RaphtoryServer(tmp_work_dir, graph_paths=[g1_file_path, g2_file_path]).start()
+    client = server.get_client()
+
+    query_g1 = """{graph(name: "g1") {nodes {list {name}}}}"""
+    query_g2 = """{graph(name: "g2") {nodes {list {name}}}}"""
+    assert client.query(query_g1) == {
+        "graph": {
+            "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
+        }
+    }
+    assert client.query(query_g2) == {
+        "graph": {
+            "nodes": {
+                "list": [
+                    {"name": "Naomi"},
+                    {"name": "Shivam"},
+                    {"name": "Pedro"},
+                    {"name": "Rachel"},
+                ]
+            }
+        }
+    }
+
+    server.stop()
+    server.wait()
+    
+
 def test_send_graphs_to_server():
     g = Graph()
     g.add_edge(1, "ben", "hamza")
@@ -93,23 +135,94 @@ def test_send_graphs_to_server():
     
 
 def test_load_graphs_from_path():
-    g = Graph()
-    g.add_edge(1, "ben", "hamza")
-    g.add_edge(2, "haaroon", "hamza")
-    g.add_edge(3, "ben", "haaroon")
-    tmp_dir = tempfile.mkdtemp()
-    g.save_to_file(tmp_dir + "/g")
+    g1 = Graph()
+    g1.add_edge(1, "ben", "hamza")
+    g1.add_edge(2, "haaroon", "hamza")
+    g1.add_edge(3, "ben", "haaroon")
+    g2 = Graph()
+    g2.add_edge(1, "Naomi", "Shivam")
+    g2.add_edge(2, "Shivam", "Pedro")
+    g2.add_edge(3, "Pedro", "Rachel")
 
     tmp_work_dir = tempfile.mkdtemp()
-    server = RaphtoryServer(tmp_work_dir).start()
-    client = RaphtoryClient("http://localhost:1736")
+    graphs = {"g1": g1, "g2": g2}
+    server = RaphtoryServer(tmp_work_dir, graphs=graphs).start()
+    client = server.get_client()
+
+    g2 = Graph()
+    g2.add_edge(1, "shifu", "po")
+    g2.add_edge(2, "oogway", "phi")
+    g2.add_edge(3, "phi", "po")
+    tmp_dir = tempfile.mkdtemp()
+    g2_file_path = tmp_dir + "/g2"
+    g2.save_to_file(g2_file_path)
+
+    # Since overwrite is False by default, it will not overwrite the existing graph g2
     client.load_graphs_from_path(tmp_dir)
 
-    query = """{graph(name: "g") {nodes {before(time: 2) {list {name}}}}}"""
-    assert client.query(query) == {
-        "graph": {"nodes": {"before": {"list": [{"name": "ben"}, {"name": "hamza"}]}}}
+    query_g1 = """{graph(name: "g1") {nodes {list {name}}}}"""
+    query_g2 = """{graph(name: "g2") {nodes {list {name}}}}"""
+    assert client.query(query_g1) == {
+        "graph": {
+            "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
+        }
     }
-    
+    assert client.query(query_g2) == {
+        "graph": {
+            "nodes": {
+                "list": [
+                    {"name": "Naomi"},
+                    {"name": "Shivam"},
+                    {"name": "Pedro"},
+                    {"name": "Rachel"},
+                ]
+            }
+        }
+    }
+
+    server.stop()
+    server.wait()
+
+
+def test_load_graphs_from_path_overwrite():
+    g1 = Graph()
+    g1.add_edge(1, "ben", "hamza")
+    g1.add_edge(2, "haaroon", "hamza")
+    g1.add_edge(3, "ben", "haaroon")
+    g2 = Graph()
+    g2.add_edge(1, "Naomi", "Shivam")
+    g2.add_edge(2, "Shivam", "Pedro")
+    g2.add_edge(3, "Pedro", "Rachel")
+    tmp_dir = tempfile.mkdtemp()
+    g2_file_path = tmp_dir + "/g2"
+    g2.save_to_file(g2_file_path)
+
+    tmp_work_dir = tempfile.mkdtemp()
+    graphs = {"g1": g1, "g2": g2}
+    server = RaphtoryServer(tmp_work_dir, graphs=graphs).start()
+    client = server.get_client()
+    client.load_graphs_from_path(tmp_dir, True)
+
+    query_g1 = """{graph(name: "g1") {nodes {list {name}}}}"""
+    query_g2 = """{graph(name: "g2") {nodes {list {name}}}}"""
+    assert client.query(query_g1) == {
+        "graph": {
+            "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
+        }
+    }
+    assert client.query(query_g2) == {
+        "graph": {
+            "nodes": {
+                "list": [
+                    {"name": "Naomi"},
+                    {"name": "Shivam"},
+                    {"name": "Pedro"},
+                    {"name": "Rachel"},
+                ]
+            }
+        }
+    }
+
     server.stop()
     server.wait()
     
