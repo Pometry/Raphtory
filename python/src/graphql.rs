@@ -412,8 +412,7 @@ impl PyRaphtoryServer {
             ) {
                 Ok(_) => return Ok(server),
                 Err(e) => {
-                    server.stop()?;
-                    py.allow_threads(|| wait_server(&mut server.server_handler))?;
+                    PyRunningRaphtoryServer::stop_server(&mut server, py)?;
                     Err(e)
                 }
             }
@@ -552,6 +551,18 @@ impl PyRunningRaphtoryServer {
             millis
         )))
     }
+
+    fn stop_server(&mut self, py: Python) -> PyResult<()> {
+        Self::apply_if_alive(self, |handler| {
+            handler
+                .sender
+                .send(BridgeCommand::StopServer)
+                .expect("Failed when sending cancellation signal");
+            Ok(())
+        })?;
+        let server = &mut self.server_handler;
+        py.allow_threads(|| wait_server(server))
+    }
 }
 
 #[pymethods]
@@ -560,21 +571,9 @@ impl PyRunningRaphtoryServer {
         self.apply_if_alive(|handler| Ok(handler.client.clone()))
     }
 
-    /// Stop the server.
-    pub(crate) fn stop(&self) -> PyResult<()> {
-        self.apply_if_alive(|handler| {
-            handler
-                .sender
-                .send(BridgeCommand::StopServer)
-                .expect("Failed when sending cancellation signal");
-            Ok(())
-        })
-    }
-
-    /// Wait until server completion.
-    pub(crate) fn wait(mut slf: PyRefMut<Self>, py: Python) -> PyResult<()> {
-        let server = &mut slf.server_handler;
-        py.allow_threads(|| wait_server(server))
+    /// Stop the server and wait for it to finish
+    pub(crate) fn stop(mut slf: PyRefMut<Self>, py: Python) -> PyResult<()> {
+        slf.stop_server(py)
     }
 }
 

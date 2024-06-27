@@ -23,7 +23,7 @@ def test_successful_server_start_in_time():
     client = server.get_client()
     assert client.is_server_online()
     server.stop()
-    server.wait()
+    assert not client.is_server_online()
 
 
 def test_server_start_on_default_port():
@@ -45,7 +45,6 @@ def test_server_start_on_default_port():
     }
     
     server.stop()
-    server.wait()
 
 
 def test_server_start_on_custom_port():
@@ -67,7 +66,6 @@ def test_server_start_on_custom_port():
     }
 
     server.stop()
-    server.wait()
     
 
 def test_load_graphs_from_graph_paths_when_starting_server():
@@ -109,7 +107,6 @@ def test_load_graphs_from_graph_paths_when_starting_server():
     }
 
     server.stop()
-    server.wait()
     
 
 def test_send_graphs_to_server():
@@ -131,7 +128,6 @@ def test_send_graphs_to_server():
     }
     
     server.stop()
-    server.wait()
     
 
 def test_load_graphs_from_path():
@@ -181,7 +177,6 @@ def test_load_graphs_from_path():
     }
 
     server.stop()
-    server.wait()
 
 
 def test_load_graphs_from_path_overwrite():
@@ -224,7 +219,6 @@ def test_load_graphs_from_path_overwrite():
     }
 
     server.stop()
-    server.wait()
     
 
 def test_graph_windows_and_layers_query():
@@ -323,7 +317,6 @@ def test_graph_windows_and_layers_query():
     assert json_a == json_ra
     
     server.stop()
-    server.wait()
 
 
 def test_graph_properties_query():
@@ -411,4 +404,3 @@ def test_graph_properties_query():
         key=lambda x: x["key"],
     )
     server.stop()
-    server.wait()
