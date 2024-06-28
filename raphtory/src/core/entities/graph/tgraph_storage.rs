@@ -37,6 +37,7 @@ impl GraphStorage {
         self.nodes.len()
     }
 
+    #[inline]
     pub fn edges_len(&self) -> usize {
         self.edges.len()
     }

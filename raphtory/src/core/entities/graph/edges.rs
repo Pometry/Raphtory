@@ -50,6 +50,7 @@ impl EdgesStorage {
         }
     }
 
+    #[inline]
     pub(crate) fn len(&self) -> usize {
         self.edges.len()
     }
