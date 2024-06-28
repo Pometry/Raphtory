@@ -80,7 +80,7 @@ impl<Index, T: PartialEq + Default> PartialEq for RawStorage<T, Index> {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct ReadLockedStorage<T, Index = usize> {
     pub(crate) locks: Vec<Arc<ArcRwLockReadGuard<Vec<T>>>>,
     len: usize,
@@ -107,12 +107,6 @@ where
         let (bucket, offset) = self.resolve(index);
         let bucket = &self.locks[bucket];
         &bucket[offset]
-    }
-
-    pub(crate) fn get_opt(&self, index: Index) -> Option<&T> {
-        let (bucket, offset) = self.resolve(index);
-        let bucket = self.locks.get(bucket)?;
-        bucket.get(offset)
     }
 
     pub(crate) fn arc_entry(&self, index: Index) -> ArcEntry<T> {
@@ -197,10 +191,6 @@ where
         }
     }
 
-    pub fn indices(&self) -> impl Iterator<Item = usize> + Send + '_ {
-        0..self.len()
-    }
-
     pub fn new(n_locks: usize) -> Self {
         let data: Box<[LockVec<T>]> = (0..n_locks)
             .map(|_| LockVec::new())
@@ -225,43 +215,12 @@ where
         index
     }
 
-    pub fn insert(&self, index: Index, value: T) {
-        let index: usize = index.into();
-        let (bucket, offset) = self.resolve(index);
-        let mut vec = self.data[bucket].data.write();
-        if offset >= vec.len() {
-            vec.resize_with(offset + 1, || Default::default());
-        }
-        vec[offset] = value;
-        self.len.fetch_max(index + 1, Ordering::Relaxed);
-    }
-
     #[inline]
     pub fn entry(&self, index: Index) -> Entry<'_, T> {
         let index = index.into();
         let (bucket, offset) = self.resolve(index);
         let guard = self.data[bucket].data.read_recursive();
         Entry { offset, guard }
-    }
-
-    pub fn entry_opt(&self, index: Index) -> Option<Entry<'_, T>> {
-        let index = index.into();
-        let (bucket, offset) = self.resolve(index);
-        let bucket = self.data.get(bucket)?;
-        let guard = bucket.data.read_recursive();
-        if guard.get(offset).is_some() {
-            Some(Entry { offset, guard })
-        } else {
-            None
-        }
-    }
-
-    #[inline]
-    pub fn has_entry(&self, index: Index) -> bool {
-        let index = index.into();
-        let (bucket, offset) = self.resolve(index);
-        let guard = self.data[bucket].data.read_recursive();
-        guard.get(offset).is_some()
     }
 
     pub fn entry_arc(&self, index: Index) -> ArcEntry<T> {
@@ -279,7 +238,7 @@ where
         let index = index.into();
         let (bucket, offset) = self.resolve(index);
         let guard = self.data[bucket].data.write();
-        EntryMut { i: offset, guard }.ensure_exists()
+        EntryMut { i: offset, guard }
     }
 
     // This helps get the right locks when adding an edge
@@ -328,14 +287,6 @@ pub struct Entry<'a, T: 'static> {
     guard: RwLockReadGuard<'a, Vec<T>>,
 }
 
-impl<'a, T: 'static> Clone for Entry<'a, T> {
-    fn clone(&self) -> Self {
-        let guard = RwLockReadGuard::rwlock(&self.guard).read_recursive();
-        let i = self.offset;
-        Self { offset: i, guard }
-    }
-}
-
 #[derive(Debug)]
 pub struct ArcEntry<T> {
     guard: Arc<ArcRwLockReadGuard<Vec<T>>>,
@@ -359,42 +310,11 @@ impl<T> Deref for ArcEntry<T> {
     }
 }
 
-impl<T, S> AsRef<T> for ArcEntry<S>
-where
-    T: ?Sized,
-    S: AsRef<T>,
-{
-    fn as_ref(&self) -> &T {
-        self.deref().as_ref()
-    }
-}
-
-impl<'a, T> Entry<'a, T> {
-    pub fn value(&self) -> &T {
-        &self.guard[self.offset]
-    }
-
-    pub fn map_guard<U, F: Fn(&T) -> &U>(
-        entry: Self,
-        f: F,
-    ) -> lock_api::MappedRwLockReadGuard<'a, parking_lot::RawRwLock, U> {
-        RwLockReadGuard::map(entry.guard, |guard| {
-            let what = &guard[entry.offset];
-            f(what)
-        })
-    }
-
-    pub fn map<U, F: Fn(&T) -> &U>(entry: Self, f: F) -> LockedView<'a, U> {
-        let mapped_guard = Self::map_guard(entry, f);
-        LockedView::LockMapped(mapped_guard)
-    }
-}
-
 impl<'a, T> Deref for Entry<'a, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        self.value()
+        &self.guard[self.offset]
     }
 }
 
@@ -431,15 +351,6 @@ impl<'a, T: 'static> PairEntryMut<'a, T> {
 pub struct EntryMut<'a, T: 'static> {
     i: usize,
     guard: parking_lot::RwLockWriteGuard<'a, Vec<T>>,
-}
-
-impl<'a, T: Default + 'static> EntryMut<'a, T> {
-    pub fn ensure_exists(mut self) -> Self {
-        if self.guard.len() <= self.i {
-            self.guard.resize_with(self.i + 1, Default::default);
-        }
-        self
-    }
 }
 
 impl<'a, T> Deref for EntryMut<'a, T> {

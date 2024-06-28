@@ -1,25 +1,14 @@
-use std::ops::{Deref, Range};
-
-#[cfg(not(feature = "storage"))]
-use either::Either;
-
+use crate::core::{entities::properties::tprop::TProp, storage::timeindex::AsTime, Prop};
+#[cfg(feature = "storage")]
+use crate::db::api::storage::variants::storage_variants::StorageVariants;
 #[cfg(feature = "storage")]
 use pometry_storage::tprops::DiskTProp;
 use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+use std::ops::Range;
 
-use crate::core::{
-    entities::properties::tprop::TProp,
-    storage::{locked_view::LockedView, timeindex::AsTime},
-    utils::iter::GenLockedIter,
-    Prop,
-};
-#[cfg(feature = "storage")]
-use crate::db::api::storage::variants::storage_variants3::StorageVariants;
-
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum TPropRef<'a> {
     Mem(&'a TProp),
-    Locked(LockedView<'a, TProp>),
     #[cfg(feature = "storage")]
     Disk(DiskTProp<'a, TimeIndexEntry>),
 }
@@ -28,7 +17,6 @@ macro_rules! for_all {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
             TPropRef::Mem($pattern) => $result,
-            TPropRef::Locked($pattern) => $result,
             #[cfg(feature = "storage")]
             TPropRef::Disk($pattern) => $result,
         }
@@ -40,7 +28,6 @@ macro_rules! for_all_variants {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
             TPropRef::Mem($pattern) => StorageVariants::Mem($result),
-            TPropRef::Locked($pattern) => StorageVariants::Unlocked($result),
             TPropRef::Disk($pattern) => StorageVariants::Disk($result),
         }
     };
@@ -50,8 +37,7 @@ macro_rules! for_all_variants {
 macro_rules! for_all_variants {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
-            TPropRef::Mem($pattern) => Either::Left($result),
-            TPropRef::Locked($pattern) => Either::Right($result),
+            TPropRef::Mem($pattern) => $result,
         }
     };
 }
@@ -113,24 +99,5 @@ impl<'a> TPropOps<'a> for TPropRef<'a> {
 
     fn len(self) -> usize {
         for_all!(self, tprop => tprop.len())
-    }
-}
-
-impl<'a> LockedView<'a, TProp> {
-    pub fn last_before(&self, t: i64) -> Option<(TimeIndexEntry, Prop)> {
-        self.deref().last_before(t)
-    }
-
-    pub fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
-        GenLockedIter::from(self, |t_prop| Box::new(t_prop.deref().iter()))
-    }
-
-    pub fn iter_window(
-        self,
-        r: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
-        GenLockedIter::from(self, move |t_prop| {
-            Box::new(t_prop.deref().iter_window(r.clone()))
-        })
     }
 }

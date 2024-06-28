@@ -4,12 +4,7 @@ use crate::{
             edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
             LayerIds, VID,
         },
-        storage::{
-            locked_view::LockedView,
-            timeindex::{
-                LockedTimeIndexWindow, TimeIndex, TimeIndexIntoOps, TimeIndexOps, TimeIndexWindow,
-            },
-        },
+        storage::timeindex::{TimeIndex, TimeIndexIntoOps, TimeIndexOps, TimeIndexWindow},
     },
     db::api::view::IntoDynBoxed,
 };
@@ -18,21 +13,15 @@ use crate::{
 use pometry_storage::timestamps::TimeStamps;
 
 use crate::{
-    core::{
-        entities::properties::tprop::TProp, storage::raw_edges::EdgeShard,
-        utils::iter::GenLockedIter,
-    },
+    core::{entities::properties::tprop::TProp, storage::raw_edges::EdgeShard},
     db::api::storage::{tprop_storage_ops::TPropOps, variants::layer_variants::LayerVariants},
 };
 use raphtory_api::core::{entities::EID, storage::timeindex::TimeIndexEntry};
 use rayon::prelude::*;
 use std::ops::Range;
 
-#[derive(Debug)]
 pub enum TimeIndexRef<'a> {
     Ref(&'a TimeIndex<TimeIndexEntry>),
-    Locked(LockedView<'a, TimeIndex<TimeIndexEntry>>),
-    LockedRange(LockedTimeIndexWindow<'a, TimeIndexEntry>),
     Range(TimeIndexWindow<'a, TimeIndexEntry>),
     #[cfg(feature = "storage")]
     External(TimeStamps<'a, TimeIndexEntry>),
@@ -42,8 +31,6 @@ impl<'a> TimeIndexRef<'a> {
     pub fn len(&self) -> usize {
         match self {
             TimeIndexRef::Ref(ts) => ts.len(),
-            TimeIndexRef::Locked(ts) => ts.len(),
-            TimeIndexRef::LockedRange(ts) => ts.len(),
             TimeIndexRef::Range(ts) => ts.len(),
             #[cfg(feature = "storage")]
             TimeIndexRef::External(ts) => ts.len(),
@@ -59,8 +46,6 @@ impl<'a> TimeIndexOps for TimeIndexRef<'a> {
     fn active(&self, w: Range<TimeIndexEntry>) -> bool {
         match self {
             TimeIndexRef::Ref(t) => t.active(w),
-            TimeIndexRef::Locked(t) => t.active(w),
-            TimeIndexRef::LockedRange(t) => t.active(w),
             TimeIndexRef::Range(ref t) => t.active(w),
             #[cfg(feature = "storage")]
             TimeIndexRef::External(ref t) => t.active(w),
@@ -70,8 +55,6 @@ impl<'a> TimeIndexOps for TimeIndexRef<'a> {
     fn range(&self, w: Range<TimeIndexEntry>) -> Self::RangeType<'_> {
         match self {
             TimeIndexRef::Ref(t) => TimeIndexRef::Range(t.range(w)),
-            TimeIndexRef::Locked(t) => TimeIndexRef::Range(t.range(w)),
-            TimeIndexRef::LockedRange(t) => TimeIndexRef::Range(t.range(w)),
             TimeIndexRef::Range(ref t) => TimeIndexRef::Range(t.range(w)),
             #[cfg(feature = "storage")]
             TimeIndexRef::External(ref t) => TimeIndexRef::External(t.range(w)),
@@ -81,8 +64,6 @@ impl<'a> TimeIndexOps for TimeIndexRef<'a> {
     fn first(&self) -> Option<Self::IndexType> {
         match self {
             TimeIndexRef::Ref(t) => t.first(),
-            TimeIndexRef::Locked(t) => t.first(),
-            TimeIndexRef::LockedRange(t) => t.first(),
             TimeIndexRef::Range(ref t) => t.first(),
             #[cfg(feature = "storage")]
             TimeIndexRef::External(ref t) => t.first(),
@@ -92,8 +73,6 @@ impl<'a> TimeIndexOps for TimeIndexRef<'a> {
     fn last(&self) -> Option<Self::IndexType> {
         match self {
             TimeIndexRef::Ref(t) => t.last(),
-            TimeIndexRef::Locked(t) => t.last(),
-            TimeIndexRef::LockedRange(t) => t.last(),
             TimeIndexRef::Range(ref t) => t.last(),
             #[cfg(feature = "storage")]
             TimeIndexRef::External(ref t) => t.last(),
@@ -103,8 +82,6 @@ impl<'a> TimeIndexOps for TimeIndexRef<'a> {
     fn iter(&self) -> Box<dyn Iterator<Item = Self::IndexType> + Send + '_> {
         match self {
             TimeIndexRef::Ref(t) => t.iter(),
-            TimeIndexRef::Locked(t) => t.iter(),
-            TimeIndexRef::LockedRange(t) => t.iter(),
             TimeIndexRef::Range(t) => t.iter(),
             #[cfg(feature = "storage")]
             TimeIndexRef::External(ref t) => t.iter(),
@@ -114,8 +91,6 @@ impl<'a> TimeIndexOps for TimeIndexRef<'a> {
     fn len(&self) -> usize {
         match self {
             TimeIndexRef::Ref(ts) => ts.len(),
-            TimeIndexRef::Locked(ts) => ts.len(),
-            TimeIndexRef::LockedRange(ts) => ts.len(),
             TimeIndexRef::Range(ts) => ts.len(),
             #[cfg(feature = "storage")]
             TimeIndexRef::External(ref t) => t.len(),
@@ -131,8 +106,6 @@ impl<'a> TimeIndexIntoOps for TimeIndexRef<'a> {
     fn into_range(self, w: Range<TimeIndexEntry>) -> TimeIndexRef<'a> {
         match self {
             TimeIndexRef::Ref(t) => TimeIndexRef::Range(t.range_inner(w)),
-            TimeIndexRef::Locked(t) => TimeIndexRef::LockedRange(t.into_range(w)),
-            TimeIndexRef::LockedRange(t) => TimeIndexRef::LockedRange(t.into_range(w)),
             TimeIndexRef::Range(t) => TimeIndexRef::Range(t.into_range(w)),
             #[cfg(feature = "storage")]
             TimeIndexRef::External(t) => TimeIndexRef::External(t.into_range(w)),
@@ -141,8 +114,6 @@ impl<'a> TimeIndexIntoOps for TimeIndexRef<'a> {
     fn into_iter(self) -> impl Iterator<Item = TimeIndexEntry> + Send {
         match self {
             TimeIndexRef::Ref(t) => t.iter(),
-            TimeIndexRef::Locked(t) => GenLockedIter::from(t, |t| t.iter()).into_dyn_boxed(),
-            TimeIndexRef::LockedRange(t) => t.into_iter().into_dyn_boxed(),
             TimeIndexRef::Range(t) => t.into_iter().into_dyn_boxed(),
             #[cfg(feature = "storage")]
             TimeIndexRef::External(t) => t.into_iter().into_dyn_boxed(),

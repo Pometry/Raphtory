@@ -26,21 +26,11 @@ use std::ops::Range;
 
 impl TimeSemantics for InternalGraph {
     fn node_earliest_time(&self, v: VID) -> Option<i64> {
-        self.inner()
-            .storage
-            .get_node(v)
-            .value()
-            .timestamps()
-            .first_t()
+        self.inner().storage.get_node(v).timestamps().first_t()
     }
 
     fn node_latest_time(&self, v: VID) -> Option<i64> {
-        self.inner()
-            .storage
-            .get_node(v)
-            .value()
-            .timestamps()
-            .last_t()
+        self.inner().storage.get_node(v).timestamps().last_t()
     }
 
     fn view_start(&self) -> Option<i64> {
@@ -83,7 +73,6 @@ impl TimeSemantics for InternalGraph {
         self.inner()
             .storage
             .get_node(v)
-            .value()
             .timestamps()
             .range_t(start..end)
             .first_t()
@@ -93,7 +82,6 @@ impl TimeSemantics for InternalGraph {
         self.inner()
             .storage
             .get_node(v)
-            .value()
             .timestamps()
             .range_t(start..end)
             .last_t()
