@@ -56,7 +56,7 @@ impl EdgeShard {
     }
 
     pub fn props(&self, index: usize, layer_id: usize) -> Option<&EdgeLayer> {
-        self.props[layer_id].get(index)
+        self.props.get(layer_id).and_then(|props| props.get(index))
     }
 
     pub fn props_iter(&self, index: usize) -> impl Iterator<Item = (usize, &EdgeLayer)> {
