@@ -31,7 +31,7 @@ use raphtory_graphql::{
         algorithm_entry_point::AlgorithmEntryPoint, document::GqlDocument,
         global_plugins::GlobalPlugins, vector_algorithms::VectorAlgorithms,
     },
-    server_config::CacheConfig,
+    server_config::*,
     url_encode_graph, RaphtoryServer,
 };
 use reqwest::Client;
@@ -222,7 +222,7 @@ impl PyRaphtoryServer {
 impl PyRaphtoryServer {
     #[new]
     #[pyo3(
-        signature = (work_dir, graphs = None, graph_paths = None, cache_capacity = 30, cache_tti_seconds = 900)
+        signature = (work_dir, graphs = None, graph_paths = None, cache_capacity = 30, cache_tti_seconds = 900, client_id = None, client_secret = None, tenant_id = None)
     )]
     fn py_new(
         work_dir: String,
@@ -230,6 +230,9 @@ impl PyRaphtoryServer {
         graph_paths: Option<Vec<String>>,
         cache_capacity: u64,
         cache_tti_seconds: u64,
+        client_id: Option<String>,
+        client_secret: Option<String>,
+        tenant_id: Option<String>,
     ) -> PyResult<Self> {
         let graph_paths = graph_paths.map(|paths| paths.into_iter().map(PathBuf::from).collect());
         let server = RaphtoryServer::new(
@@ -240,6 +243,12 @@ impl PyRaphtoryServer {
                 capacity: cache_capacity,
                 tti_seconds: cache_tti_seconds,
             }),
+            Some(AuthConfig {
+                client_id,
+                client_secret,
+                tenant_id,
+            }),
+            None,
         );
         Ok(PyRaphtoryServer::new(server))
     }
@@ -350,15 +359,21 @@ impl PyRaphtoryServer {
     ///
     /// Arguments:
     ///   * `port`: the port to use (defaults to 1736).
+    ///   * `log_level`: set log level (defaults to INFO).
+    ///   * `enable_tracing`: enable tracing (defaults to False).
+    ///   * `enable_auth`: enable authentication (defaults to False).
+    ///   * `timeout_in_milliseconds`: wait for server to be online (defaults to 5000). The server is stopped if not online within timeout_in_milliseconds but manages to come online as soon as timeout_in_milliseconds finishes!
     #[pyo3(
-        signature = (port = 1736, log_level = "INFO".to_string(), enable_tracing = false, enable_auth = false)
+        signature = (port = 1736, log_level = "INFO".to_string(), enable_tracing = false, enable_auth = false, timeout_in_milliseconds = None)
     )]
     pub fn start(
         slf: PyRefMut<Self>,
+        py: Python,
         port: u16,
         log_level: String,
         enable_tracing: bool,
         enable_auth: bool,
+        timeout_in_milliseconds: Option<u64>,
     ) -> PyResult<PyRunningRaphtoryServer> {
         let (sender, receiver) = crossbeam_channel::bounded::<BridgeCommand>(1);
         let server = take_server_ownership(slf)?;
@@ -389,7 +404,21 @@ impl PyRaphtoryServer {
                 })
         });
 
-        Ok(PyRunningRaphtoryServer::new(join_handle, sender, port))
+        let mut server = PyRunningRaphtoryServer::new(join_handle, sender, port);
+        if let Some(server_handler) = &server.server_handler {
+            match PyRunningRaphtoryServer::wait_for_server_online(
+                &server_handler.client.url,
+                timeout_in_milliseconds,
+            ) {
+                Ok(_) => return Ok(server),
+                Err(e) => {
+                    PyRunningRaphtoryServer::stop_server(&mut server, py)?;
+                    Err(e)
+                }
+            }
+        } else {
+            Err(PyException::new_err("Failed to start server"))
+        }
     }
 
     /// Run the server until completion.
@@ -397,7 +426,7 @@ impl PyRaphtoryServer {
     /// Arguments:
     ///   * `port`: the port to use (defaults to 1736).
     #[pyo3(
-        signature = (port = 1736, log_level = "INFO".to_string(), enable_tracing = false, enable_auth = false)
+        signature = (port = 1736, log_level = "INFO".to_string(), enable_tracing = false, enable_auth = false, timeout_in_milliseconds = None)
     )]
     pub fn run(
         slf: PyRefMut<Self>,
@@ -406,9 +435,18 @@ impl PyRaphtoryServer {
         log_level: String,
         enable_tracing: bool,
         enable_auth: bool,
+        timeout_in_milliseconds: Option<u64>,
     ) -> PyResult<()> {
-        let mut server =
-            Self::start(slf, port, log_level, enable_tracing, enable_auth)?.server_handler;
+        let mut server = Self::start(
+            slf,
+            py,
+            port,
+            log_level,
+            enable_tracing,
+            enable_auth,
+            timeout_in_milliseconds,
+        )?
+        .server_handler;
         py.allow_threads(|| wait_server(&mut server))
     }
 }
@@ -495,85 +533,54 @@ impl PyRunningRaphtoryServer {
             None => Err(PyException::new_err(RUNNING_SERVER_CONSUMED_MSG)),
         }
     }
-}
 
-#[pymethods]
-impl PyRunningRaphtoryServer {
-    /// Stop the server.
-    pub(crate) fn stop(&self) -> PyResult<()> {
-        self.apply_if_alive(|handler| {
+    fn wait_for_server_online(url: &String, timeout_in_milliseconds: Option<u64>) -> PyResult<()> {
+        let millis = timeout_in_milliseconds.unwrap_or(5000);
+        let num_intervals = millis / WAIT_CHECK_INTERVAL_MILLIS;
+
+        for _ in 0..num_intervals {
+            if is_online(url)? {
+                return Ok(());
+            } else {
+                sleep(Duration::from_millis(WAIT_CHECK_INTERVAL_MILLIS))
+            }
+        }
+
+        Err(PyException::new_err(format!(
+            "Failed to start server in {} milliseconds",
+            millis
+        )))
+    }
+
+    fn stop_server(&mut self, py: Python) -> PyResult<()> {
+        Self::apply_if_alive(self, |handler| {
             handler
                 .sender
                 .send(BridgeCommand::StopServer)
                 .expect("Failed when sending cancellation signal");
             Ok(())
-        })
-    }
-
-    /// Wait until server completion.
-    pub(crate) fn wait(mut slf: PyRefMut<Self>, py: Python) -> PyResult<()> {
-        let server = &mut slf.server_handler;
+        })?;
+        let server = &mut self.server_handler;
         py.allow_threads(|| wait_server(server))
     }
+}
 
-    /// Wait for the server to be online.
-    ///
-    /// Arguments:
-    ///   * `timeout_millis`: the timeout in milliseconds (default 5000).
-    fn wait_for_online(&self, timeout_millis: Option<u64>) -> PyResult<()> {
-        self.apply_if_alive(|handler| handler.client.wait_for_online(timeout_millis))
+#[pymethods]
+impl PyRunningRaphtoryServer {
+    pub(crate) fn get_client(&self) -> PyResult<PyRaphtoryClient> {
+        self.apply_if_alive(|handler| Ok(handler.client.clone()))
     }
 
-    /// Make a graphQL query against the server.
-    ///
-    /// Arguments:
-    ///   * `query`: the query to make.
-    ///   * `variables`: a dict of variables present on the query and their values.
-    ///
-    /// Returns:
-    ///    The `data` field from the graphQL response.
-    fn query(
-        &self,
-        py: Python,
-        query: String,
-        variables: Option<HashMap<String, PyObject>>,
-    ) -> PyResult<HashMap<String, PyObject>> {
-        self.apply_if_alive(|handler| handler.client.query(py, query, variables))
+    /// Stop the server and wait for it to finish
+    pub(crate) fn stop(mut slf: PyRefMut<Self>, py: Python) -> PyResult<()> {
+        slf.stop_server(py)
     }
+}
 
-    /// Send a graph to the server.
-    ///
-    /// Arguments:
-    ///   * `name`: the name of the graph sent.
-    ///   * `graph`: the graph to send.
-    ///
-    /// Returns:
-    ///    The `data` field from the graphQL response after executing the mutation.
-    fn send_graph(
-        &self,
-        py: Python,
-        name: String,
-        graph: MaterializedGraph,
-    ) -> PyResult<HashMap<String, PyObject>> {
-        self.apply_if_alive(|handler| handler.client.send_graph(py, name, graph))
-    }
-
-    /// Set the server to load all the graphs from its path `path`.
-    ///
-    /// Arguments:
-    ///   * `path`: the path to load the graphs from.
-    ///   * `overwrite`: whether or not to overwrite existing graphs (defaults to False)
-    ///
-    /// Returns:
-    ///    The `data` field from the graphQL response after executing the mutation.
-    #[pyo3(signature = (path, overwrite = false))]
-    fn load_graphs_from_path(
-        &self,
-        py: Python,
-        path: String,
-        overwrite: bool,
-    ) -> PyResult<HashMap<String, PyObject>> {
-        self.apply_if_alive(|handler| handler.client.load_graphs_from_path(py, path, overwrite))
+fn is_online(url: &String) -> PyResult<bool> {
+    match reqwest::blocking::get(url) {
+        Ok(response) => Ok(response.status().as_u16() == 200),
+        _ => Ok(false),
     }
 }
 
@@ -581,7 +588,7 @@ impl PyRunningRaphtoryServer {
 #[derive(Clone)]
 #[pyclass(name = "RaphtoryClient")]
 pub(crate) struct PyRaphtoryClient {
-    url: String,
+    pub(crate) url: String,
 }
 
 impl PyRaphtoryClient {
@@ -659,13 +666,6 @@ impl PyRaphtoryClient {
             ))),
         }
     }
-
-    fn is_online(&self) -> bool {
-        match reqwest::blocking::get(&self.url) {
-            Ok(response) => response.status().as_u16() == 200,
-            _ => false,
-        }
-    }
 }
 
 const WAIT_CHECK_INTERVAL_MILLIS: u64 = 200;
@@ -677,32 +677,12 @@ impl PyRaphtoryClient {
         Self { url }
     }
 
-    /// Wait for the server to be online.
+    /// Check if the server is online.
     ///
-    /// Arguments:
-    ///   * `millis`: the minimum number of milliseconds to wait (default 5000).
-    fn wait_for_online(&self, millis: Option<u64>) -> PyResult<()> {
-        let millis = millis.unwrap_or(5000);
-        let num_intervals = millis / WAIT_CHECK_INTERVAL_MILLIS;
-
-        let mut online = false;
-        for _ in 0..num_intervals {
-            if self.is_online() {
-                online = true;
-                break;
-            } else {
-                sleep(Duration::from_millis(WAIT_CHECK_INTERVAL_MILLIS))
-            }
-        }
-
-        if online {
-            Ok(())
-        } else {
-            Err(PyException::new_err(format!(
-                "Failed to connect to the server after {} milliseconds",
-                millis
-            )))
-        }
+    /// Returns:
+    ///    Returns true if server is online otherwise false.
+    fn is_server_online(&self) -> PyResult<bool> {
+        is_online(&self.url)
     }
 
     /// Make a graphQL query against the server.
@@ -775,7 +755,7 @@ impl PyRaphtoryClient {
     ///
     /// Arguments:
     ///   * `path`: the path to load the graphs from.
-    ///   * `overwrite`: whether or not to overwrite existing graphs (defaults to False)
+    ///   * `overwrite`: overwrite existing graphs (defaults to False)
     ///
     /// Returns:
     ///    The `data` field from the graphQL response after executing the mutation.

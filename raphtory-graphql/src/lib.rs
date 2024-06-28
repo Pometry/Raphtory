@@ -38,7 +38,7 @@ pub fn url_decode_graph<T: AsRef<[u8]>>(graph: T) -> Result<MaterializedGraph, U
 #[cfg(test)]
 mod graphql_test {
     use super::*;
-    use crate::{data::Data, model::App};
+    use crate::{data::Data, model::App, server_config::AppConfig};
     use async_graphql::UploadValue;
     use dynamic_graphql::{Request, Variables};
     #[cfg(feature = "storage")]
@@ -79,7 +79,7 @@ mod graphql_test {
 
         let graphs = HashMap::from([("lotr".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), Some(graphs), None, None);
+        let data = Data::new(tmp_dir.path(), Some(graphs), None, &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let query = r#"
@@ -120,7 +120,7 @@ mod graphql_test {
         let graph: MaterializedGraph = graph.into();
         let graphs = HashMap::from([("lotr".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), Some(graphs), None, None);
+        let data = Data::new(tmp_dir.path(), Some(graphs), None, &AppConfig::default());
 
         let schema = App::create_schema().data(data).finish().unwrap();
 
@@ -170,7 +170,7 @@ mod graphql_test {
 
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), Some(graphs), None, None);
+        let data = Data::new(tmp_dir.path(), Some(graphs), None, &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
         let prop_has_key_filter = r#"
         {
@@ -233,7 +233,7 @@ mod graphql_test {
         let graph: MaterializedGraph = g.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), Some(graphs), None, None);
+        let data = Data::new(tmp_dir.path(), Some(graphs), None, &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let prop_has_key_filter = r#"
@@ -423,7 +423,7 @@ mod graphql_test {
         let g = g.into();
         let graphs = HashMap::from([("graph".to_string(), g)]);
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), Some(graphs), None, None);
+        let data = Data::new(tmp_dir.path(), Some(graphs), None, &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let prop_has_key_filter = r#"
@@ -670,7 +670,7 @@ mod graphql_test {
         let graph = graph.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), Some(graphs), None, None);
+        let data = Data::new(tmp_dir.path(), Some(graphs), None, &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
         let prop_has_key_filter = r#"
         {
@@ -714,6 +714,7 @@ mod graphql_test {
         let f1 = &test_dir.path().join("g1");
 
         let g0 = PersistentGraph::new();
+        g0.add_constant_properties([("name", "g0")]).unwrap();
         g0.save_to_file(f0).unwrap();
 
         let g1 = PersistentGraph::new();
@@ -723,13 +724,12 @@ mod graphql_test {
         g2.add_node(0, 2, [("name", "2")], None).unwrap();
 
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), None, None, None);
+        let data = Data::new(tmp_dir.path(), None, None, &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
 
-        let list_graphs = r#"
-        {
+        let list_graphs = r#"{
           graphs {
-            name
+            names
           }
         }"#;
 
@@ -780,7 +780,7 @@ mod graphql_test {
         let req = Request::new(list_graphs);
         let res = schema.execute(req).await;
         let res_json = res.data.into_json().unwrap();
-        assert_eq!(res_json, json!({"graphs": [{"name": "g0"}]}));
+        assert_eq!(res_json, json!({"graphs": {"names": ["g0"]}}));
 
         let req = Request::new(list_nodes("g0"));
         let res = schema.execute(req).await;
@@ -817,7 +817,6 @@ mod graphql_test {
         // Test save graph
         let req = Request::new(save_graph("g0", "g3", r#""{ \"2\": {} }""#));
         let res = schema.execute(req).await;
-        println!("{:?}", res.errors);
         assert!(res.errors.is_empty());
         let req = Request::new(list_nodes("g3"));
         let res = schema.execute(req).await;
@@ -853,7 +852,7 @@ mod graphql_test {
         };
 
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), None, None, None);
+        let data = Data::new(tmp_dir.path(), None, None, &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let query = r##"
@@ -901,7 +900,7 @@ mod graphql_test {
         let graph_str = url_encode_graph(g.clone()).unwrap();
 
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), None, None, None);
+        let data = Data::new(tmp_dir.path(), None, None, &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let query = r#"
@@ -974,7 +973,7 @@ mod graphql_test {
         let graph = graph.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), Some(graphs), None, None);
+        let data = Data::new(tmp_dir.path(), Some(graphs), None, &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let req = r#"
@@ -1095,7 +1094,12 @@ mod graphql_test {
         let graph = disk_graph.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_work_dir = tempdir().unwrap();
-        let data = Data::new(tmp_work_dir.path(), Some(graphs), None, None);
+        let data = Data::new(
+            tmp_work_dir.path(),
+            Some(graphs),
+            None,
+            &AppConfig::default(),
+        );
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let req = r#"

@@ -2,7 +2,7 @@ use crate::{
     data::{load_graphs_from_path, Data},
     model::{
         algorithms::global_plugins::GlobalPlugins,
-        graph::{graph::GqlGraph, vectorised_graph::GqlVectorisedGraph},
+        graph::{graph::GqlGraph, graphs::GqlGraphs, vectorised_graph::GqlVectorisedGraph},
     },
 };
 use async_graphql::Context;
@@ -17,7 +17,7 @@ use raphtory::{
     core::{utils::errors::GraphError, ArcStr, Prop},
     db::api::view::MaterializedGraph,
     prelude::{GraphViewOps, ImportOps, NodeViewOps, PropertyAdditionOps},
-    search::IndexedGraph,
+    search::{into_indexed::DynamicIndexedGraph, IndexedGraph},
 };
 use serde_json::Value;
 use std::{
@@ -82,14 +82,14 @@ impl QueryRoot {
         Some(g.into())
     }
 
-    // TODO: Impl this as GqlGraphs instead
-    async fn graphs<'a>(ctx: &Context<'a>) -> Result<Vec<GqlGraph>> {
+    async fn graphs<'a>(ctx: &Context<'a>) -> Result<Option<GqlGraphs>> {
         let data = ctx.data_unchecked::<Data>();
-        Ok(data
+        let graphs = data
             .get_graphs()?
             .iter()
-            .map(|(name, g)| GqlGraph::new(name.to_string(), (*g).clone()))
-            .collect_vec())
+            .map(|(_, g)| (*g).clone())
+            .collect_vec();
+        Ok(Some(GqlGraphs::new(graphs)))
     }
 
     async fn plugins<'a>(ctx: &Context<'a>) -> GlobalPlugins {
