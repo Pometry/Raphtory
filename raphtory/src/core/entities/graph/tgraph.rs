@@ -453,9 +453,11 @@ impl TemporalGraph {
         // get the entries for the src and dst nodes
         self.link_nodes(src_id, dst_id, t, layer, move |edge| {
             edge.additions_mut(layer).insert(t);
-            let edge_layer = edge.layer_mut(layer);
-            for (prop_id, prop_value) in props {
-                edge_layer.add_prop(t, prop_id, prop_value)?;
+            if !props.is_empty() {
+                let edge_layer = edge.layer_mut(layer);
+                for (prop_id, prop_value) in props {
+                    edge_layer.add_prop(t, prop_id, prop_value)?;
+                }
             }
             Ok(())
         })

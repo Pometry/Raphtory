@@ -67,7 +67,7 @@ impl EdgeShard {
     }
 }
 
-pub const SHARD_SIZE: usize = 64;
+pub const SHARD_SIZE: usize = 32;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EdgesShard {
@@ -91,7 +91,7 @@ impl EdgesShard {
         let mut shards = (0..SHARD_SIZE).into_iter().map(|_| {
             Arc::new(RwLock::new(EdgeShard {
                 edge_ids: vec![],
-                props: Vec::with_capacity(1),
+                props: Vec::with_capacity(0),
                 additions: Vec::with_capacity(1),
                 deletions: Vec::with_capacity(0),
             }))
