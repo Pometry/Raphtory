@@ -21,6 +21,7 @@ impl<'a> UnlockedEdges<'a> {
             .map(|eid| storage.edge_entry(eid))
     }
 
+    #[inline]
     pub fn len(self) -> usize {
         self.0.edges_len()
     }

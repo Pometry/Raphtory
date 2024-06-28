@@ -102,6 +102,7 @@ impl EdgesShard {
         }
     }
 
+    #[inline]
     pub fn len(&self) -> usize {
         self.len.load(atomic::Ordering::SeqCst)
     }
