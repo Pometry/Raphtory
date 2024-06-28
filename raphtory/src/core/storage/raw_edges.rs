@@ -67,7 +67,7 @@ impl EdgeShard {
     }
 }
 
-pub const SHARD_SIZE: usize = 32;
+pub const SHARD_SIZE: usize = 64;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EdgesShard {
