@@ -1204,6 +1204,61 @@ mod storage_tests {
     }
 
     #[test]
+    fn test_one_empty_graph() {
+        inner_merge_test(&[], &[(0, 0, 0)])
+    }
+
+    #[test]
+    fn inbounds_not_merging() {
+        inner_merge_test(&[], &[(0, 0, 0), (0, 0, 1), (0, 0, 2)])
+    }
+
+    #[test]
+    fn inbounds_not_merging_take2() {
+        inner_merge_test(
+            &[(0, 0, 2)],
+            &[
+                (0, 1, 0),
+                (0, 0, 0),
+                (0, 0, 0),
+                (0, 0, 0),
+                (0, 0, 0),
+                (0, 0, 0),
+                (0, 0, 0),
+            ],
+        )
+    }
+
+    #[test]
+    fn offsets_panic_overflow() {
+        inner_merge_test(
+            &[
+                (0, 0, 4),
+                (0, 0, 4),
+                (0, 0, 0),
+                (0, 0, 4),
+                (0, 1, 2),
+                (0, 3, 4),
+            ],
+            &[(0, 0, 5), (0, 2, 0)],
+        )
+    }
+
+    #[test]
+    fn inbounds_not_merging_take3() {
+        inner_merge_test(
+            &[
+                (0, 0, 4),
+                (0, 0, 4),
+                (0, 0, 0),
+                (0, 0, 4),
+                (0, 1, 2),
+                (0, 3, 4),
+            ],
+            &[(0, 0, 3), (0, 0, 4), (0, 2, 2), (0, 0, 5), (0, 0, 6)],
+        )
+    }
+    #[test]
     fn test_merge_1_edge() {
         let g1 = Graph::new();
         g1.add_node(0, 0, NO_PROPS, None).unwrap();

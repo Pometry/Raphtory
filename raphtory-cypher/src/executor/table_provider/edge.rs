@@ -99,7 +99,7 @@ impl EdgeListTableProvider {
 
 fn lift_nested_arrow_schema(graph: &DiskGraph, layer_id: usize) -> Result<Arc<Schema>, ExecError> {
     let arrow2_fields = graph.as_ref().layer(layer_id).edges_data_type();
-    let a2_dt = crate::arrow2::datatypes::ArrowDataType::Struct(arrow2_fields.clone());
+    let a2_dt = crate::arrow2::datatypes::ArrowDataType::Struct(arrow2_fields.to_vec());
     let a_dt: DataType = a2_dt.into();
     let schema = match a_dt {
         DataType::Struct(fields) => {
