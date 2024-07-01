@@ -24,7 +24,7 @@ impl GqlGraphs {
 
 #[ResolvedObjectFields]
 impl GqlGraphs {
-    async fn names(&self) -> Result<Vec<String>, Error> {
+    async fn name(&self) -> Result<Vec<String>, Error> {
         Ok(self
             .graphs
             .iter()
