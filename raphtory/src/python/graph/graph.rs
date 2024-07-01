@@ -25,7 +25,6 @@ use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
-    ops::Deref,
     path::{Path, PathBuf},
 };
 
