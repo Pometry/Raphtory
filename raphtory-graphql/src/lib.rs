@@ -10,6 +10,8 @@ pub mod server;
 pub mod azure_auth;
 
 mod data;
+
+#[cfg(feature = "python")]
 pub mod python;
 
 #[derive(thiserror::Error, Debug)]
