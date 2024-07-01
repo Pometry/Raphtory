@@ -7,6 +7,7 @@ use crossbeam_channel::Sender as CrossbeamSender;
 use dynamic_graphql::internal::{Registry, TypeName};
 use itertools::intersperse;
 use pyo3::{
+    append_to_inittab,
     exceptions::{PyAttributeError, PyException, PyTypeError, PyValueError},
     prelude::*,
     types::{IntoPyDict, PyDict, PyFunction, PyList},
@@ -222,34 +223,43 @@ impl PyRaphtoryServer {
 impl PyRaphtoryServer {
     #[new]
     #[pyo3(
-        signature = (work_dir, graphs = None, graph_paths = None, cache_capacity = 30, cache_tti_seconds = 900, client_id = None, client_secret = None, tenant_id = None)
+        signature = (work_dir, graphs = None, graph_paths = None, cache_capacity = None, cache_tti_seconds = None, client_id = None, client_secret = None, tenant_id = None, log_level = None, config_path = None)
     )]
     fn py_new(
-        work_dir: String,
+        work_dir: PathBuf,
         graphs: Option<HashMap<String, MaterializedGraph>>,
         graph_paths: Option<Vec<String>>,
-        cache_capacity: u64,
-        cache_tti_seconds: u64,
+        cache_capacity: Option<u64>,
+        cache_tti_seconds: Option<u64>,
         client_id: Option<String>,
         client_secret: Option<String>,
         tenant_id: Option<String>,
+        log_level: Option<String>,
+        config_path: Option<PathBuf>,
     ) -> PyResult<Self> {
+        let mut app_config_builder = AppConfigBuilder::new();
+        if let Some(log_level) = log_level {
+            app_config_builder = app_config_builder.with_log_level(log_level);
+        }
+        if let Some(cache_capacity) = cache_capacity {
+            app_config_builder = app_config_builder.with_cache_capacity(cache_capacity);
+        }
+        if let Some(cache_tti_seconds) = cache_tti_seconds {
+            app_config_builder = app_config_builder.with_cache_tti_seconds(cache_tti_seconds);
+        }
+        if let Some(client_id) = client_id {
+            app_config_builder = app_config_builder.with_auth_client_id(client_id);
+        }
+        if let Some(client_secret) = client_secret {
+            app_config_builder = app_config_builder.with_auth_client_secret(client_secret);
+        }
+        if let Some(tenant_id) = tenant_id {
+            app_config_builder = app_config_builder.with_auth_tenant_id(tenant_id);
+        }
+        let app_config = Some(app_config_builder.build());
+
         let graph_paths = graph_paths.map(|paths| paths.into_iter().map(PathBuf::from).collect());
-        let server = RaphtoryServer::new(
-            Path::new(&work_dir),
-            graphs,
-            graph_paths,
-            Some(CacheConfig {
-                capacity: cache_capacity,
-                tti_seconds: cache_tti_seconds,
-            }),
-            Some(AuthConfig {
-                client_id,
-                client_secret,
-                tenant_id,
-            }),
-            None,
-        );
+        let server = RaphtoryServer::new(work_dir, graphs, graph_paths, app_config, config_path);
         Ok(PyRaphtoryServer::new(server))
     }
 
@@ -364,13 +374,12 @@ impl PyRaphtoryServer {
     ///   * `enable_auth`: enable authentication (defaults to False).
     ///   * `timeout_in_milliseconds`: wait for server to be online (defaults to 5000). The server is stopped if not online within timeout_in_milliseconds but manages to come online as soon as timeout_in_milliseconds finishes!
     #[pyo3(
-        signature = (port = 1736, log_level = "INFO".to_string(), enable_tracing = false, enable_auth = false, timeout_in_milliseconds = None)
+        signature = (port = 1736, enable_tracing = false, enable_auth = false, timeout_in_milliseconds = None)
     )]
     pub fn start(
         slf: PyRefMut<Self>,
         py: Python,
         port: u16,
-        log_level: String,
         enable_tracing: bool,
         enable_auth: bool,
         timeout_in_milliseconds: Option<u64>,
@@ -386,8 +395,7 @@ impl PyRaphtoryServer {
                 .build()
                 .unwrap()
                 .block_on(async move {
-                    let handler =
-                        server.start_with_port(port, Some(&log_level), enable_tracing, enable_auth);
+                    let handler = server.start_with_port(port, enable_tracing, enable_auth);
                     let running_server = handler.await;
                     let tokio_sender = running_server._get_sender().clone();
                     tokio::task::spawn_blocking(move || {
@@ -426,26 +434,17 @@ impl PyRaphtoryServer {
     /// Arguments:
     ///   * `port`: the port to use (defaults to 1736).
     #[pyo3(
-        signature = (port = 1736, log_level = "INFO".to_string(), enable_tracing = false, enable_auth = false)
+        signature = (port = 1736, enable_tracing = false, enable_auth = false)
     )]
     pub fn run(
         slf: PyRefMut<Self>,
         py: Python,
         port: u16,
-        log_level: String,
         enable_tracing: bool,
         enable_auth: bool,
     ) -> PyResult<()> {
-        let mut server = Self::start(
-            slf,
-            py,
-            port,
-            log_level,
-            enable_tracing,
-            enable_auth,
-            Some(180000),
-        )?
-        .server_handler;
+        let mut server =
+            Self::start(slf, py, port, enable_tracing, enable_auth, Some(180000))?.server_handler;
         py.allow_threads(|| wait_server(&mut server))
     }
 }

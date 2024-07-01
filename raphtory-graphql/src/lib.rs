@@ -38,7 +38,11 @@ pub fn url_decode_graph<T: AsRef<[u8]>>(graph: T) -> Result<MaterializedGraph, U
 #[cfg(test)]
 mod graphql_test {
     use super::*;
-    use crate::{data::Data, model::App, server_config::AppConfig};
+    use crate::{
+        data::Data,
+        model::App,
+        server_config::{AppConfig, AppConfigBuilder},
+    };
     use async_graphql::UploadValue;
     use dynamic_graphql::{Request, Variables};
     #[cfg(feature = "storage")]
@@ -79,7 +83,12 @@ mod graphql_test {
 
         let graphs = HashMap::from([("lotr".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), Some(graphs), None, &AppConfig::default());
+        let data = Data::new(
+            tmp_dir.path(),
+            Some(graphs),
+            None,
+            &AppConfigBuilder::new().build(),
+        );
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let query = r#"
@@ -120,7 +129,12 @@ mod graphql_test {
         let graph: MaterializedGraph = graph.into();
         let graphs = HashMap::from([("lotr".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), Some(graphs), None, &AppConfig::default());
+        let data = Data::new(
+            tmp_dir.path(),
+            Some(graphs),
+            None,
+            &AppConfigBuilder::new().build(),
+        );
 
         let schema = App::create_schema().data(data).finish().unwrap();
 
@@ -170,7 +184,12 @@ mod graphql_test {
 
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), Some(graphs), None, &AppConfig::default());
+        let data = Data::new(
+            tmp_dir.path(),
+            Some(graphs),
+            None,
+            &AppConfigBuilder::new().build(),
+        );
         let schema = App::create_schema().data(data).finish().unwrap();
         let prop_has_key_filter = r#"
         {
@@ -233,7 +252,12 @@ mod graphql_test {
         let graph: MaterializedGraph = g.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), Some(graphs), None, &AppConfig::default());
+        let data = Data::new(
+            tmp_dir.path(),
+            Some(graphs),
+            None,
+            &AppConfigBuilder::new().build(),
+        );
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let prop_has_key_filter = r#"
@@ -423,7 +447,12 @@ mod graphql_test {
         let g = g.into();
         let graphs = HashMap::from([("graph".to_string(), g)]);
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), Some(graphs), None, &AppConfig::default());
+        let data = Data::new(
+            tmp_dir.path(),
+            Some(graphs),
+            None,
+            &AppConfigBuilder::new().build(),
+        );
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let prop_has_key_filter = r#"
@@ -670,7 +699,12 @@ mod graphql_test {
         let graph = graph.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), Some(graphs), None, &AppConfig::default());
+        let data = Data::new(
+            tmp_dir.path(),
+            Some(graphs),
+            None,
+            &AppConfigBuilder::new().build(),
+        );
         let schema = App::create_schema().data(data).finish().unwrap();
         let prop_has_key_filter = r#"
         {
@@ -724,7 +758,7 @@ mod graphql_test {
         g2.add_node(0, 2, [("name", "2")], None).unwrap();
 
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), None, None, &AppConfig::default());
+        let data = Data::new(tmp_dir.path(), None, None, &AppConfigBuilder::new().build());
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let list_graphs = r#"{
@@ -852,7 +886,7 @@ mod graphql_test {
         };
 
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), None, None, &AppConfig::default());
+        let data = Data::new(tmp_dir.path(), None, None, &AppConfigBuilder::new().build());
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let query = r##"
@@ -900,7 +934,7 @@ mod graphql_test {
         let graph_str = url_encode_graph(g.clone()).unwrap();
 
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), None, None, &AppConfig::default());
+        let data = Data::new(tmp_dir.path(), None, None, &AppConfigBuilder::new().build());
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let query = r#"
@@ -973,7 +1007,12 @@ mod graphql_test {
         let graph = graph.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), Some(graphs), None, &AppConfig::default());
+        let data = Data::new(
+            tmp_dir.path(),
+            Some(graphs),
+            None,
+            &AppConfigBuilder::new().build(),
+        );
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let req = r#"
@@ -1098,7 +1137,7 @@ mod graphql_test {
             tmp_work_dir.path(),
             Some(graphs),
             None,
-            &AppConfig::default(),
+            &AppConfigBuilder::new().build(),
         );
         let schema = App::create_schema().data(data).finish().unwrap();
 
