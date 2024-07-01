@@ -1,33 +1,32 @@
 //ALGORITHMS
 
-
-use pyo3::prelude::PyModule;
-use pyo3::{PyErr, PyResult, Python};
-use crate::python::packages::vectors::PyVectorisedGraph;
-use crate::python::types::wrappers::document::PyDocument;
-use crate::{add_classes, add_functions};
 #[cfg(feature = "storage")]
 use crate::python::graph::disk_graph::{PyDiskGraph, PyGraphQuery, PyState};
-use crate::python::{
-    graph::{
-        algorithm_result::AlgorithmResult,
-        edge::{PyDirection, PyEdge, PyMutableEdge},
-        edges::PyEdges,
-        graph::PyGraph,
-        graph_with_deletions::PyPersistentGraph,
-        index::GraphIndex,
-        node::{PyMutableNode, PyNode, PyNodes},
-        properties::{PyConstProperties, PyProperties, PyTemporalProp, PyTemporalProperties},
+use crate::{
+    add_classes, add_functions,
+    python::{
+        graph::{
+            algorithm_result::AlgorithmResult,
+            edge::{PyDirection, PyEdge, PyMutableEdge},
+            edges::PyEdges,
+            graph::PyGraph,
+            graph_with_deletions::PyPersistentGraph,
+            index::GraphIndex,
+            node::{PyMutableNode, PyNode, PyNodes},
+            properties::{PyConstProperties, PyProperties, PyTemporalProp, PyTemporalProperties},
+        },
+        packages::{
+            algorithms::*,
+            graph_gen::*,
+            graph_loader::*,
+            vectors::{generate_property_list, PyVectorisedGraph},
+        },
+        types::wrappers::document::PyDocument,
     },
 };
-use crate::python::packages::{
-    algorithms::*,
-    graph_gen::*,
-    graph_loader::*,
-    vectors::{generate_property_list},
-};
+use pyo3::{prelude::PyModule, PyErr, PyResult, Python};
 
-pub fn add_raphtory_classes(m: &PyModule) -> PyResult<()>  {
+pub fn add_raphtory_classes(m: &PyModule) -> PyResult<()> {
     //Graph classes
     add_classes!(
         m,
@@ -50,10 +49,10 @@ pub fn add_raphtory_classes(m: &PyModule) -> PyResult<()>  {
 
     #[cfg(feature = "storage")]
     add_classes!(m, PyDiskGraph, PyGraphQuery, PyState);
-    return Ok(())
+    return Ok(());
 }
 
-pub fn base_algorithm_module(py: Python<'_>) -> Result<&PyModule, PyErr>{
+pub fn base_algorithm_module(py: Python<'_>) -> Result<&PyModule, PyErr> {
     let algorithm_module = PyModule::new(py, "algorithms")?;
     add_functions!(
         algorithm_module,
@@ -96,7 +95,7 @@ pub fn base_algorithm_module(py: Python<'_>) -> Result<&PyModule, PyErr>{
 
     #[cfg(feature = "storage")]
     add_functions!(algorithm_module, connected_components);
-    return Ok(algorithm_module)
+    return Ok(algorithm_module);
 }
 
 pub fn base_graph_loader_module(py: Python<'_>) -> Result<&PyModule, PyErr> {
@@ -110,7 +109,7 @@ pub fn base_graph_loader_module(py: Python<'_>) -> Result<&PyModule, PyErr> {
         reddit_hyperlink_graph_local,
         karate_club_graph,
     );
-    return Ok(graph_loader_module)
+    return Ok(graph_loader_module);
 }
 
 pub fn base_graph_gen_module(py: Python<'_>) -> Result<&PyModule, PyErr> {
@@ -120,7 +119,7 @@ pub fn base_graph_gen_module(py: Python<'_>) -> Result<&PyModule, PyErr> {
         random_attachment,
         ba_preferential_attachment,
     );
-    return Ok(graph_gen_module)
+    return Ok(graph_gen_module);
 }
 
 pub fn base_vectors_module(py: Python<'_>) -> Result<&PyModule, PyErr> {
@@ -128,6 +127,5 @@ pub fn base_vectors_module(py: Python<'_>) -> Result<&PyModule, PyErr> {
     vectors_module.add_class::<PyVectorisedGraph>()?;
     vectors_module.add_class::<PyDocument>()?;
     add_functions!(vectors_module, generate_property_list);
-    return Ok(vectors_module)
+    return Ok(vectors_module);
 }
-

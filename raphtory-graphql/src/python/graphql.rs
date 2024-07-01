@@ -5,6 +5,13 @@ use async_graphql::{
     Value as GraphqlValue,
 };
 
+use crate::{
+    model::algorithms::{
+        algorithm_entry_point::AlgorithmEntryPoint, document::GqlDocument,
+        global_plugins::GlobalPlugins, vector_algorithms::VectorAlgorithms,
+    },
+    url_encode_graph, RaphtoryServer,
+};
 use crossbeam_channel::Sender as CrossbeamSender;
 use dynamic_graphql::internal::{Registry, TypeName};
 use itertools::intersperse;
@@ -27,13 +34,6 @@ use raphtory::{
         embeddings::openai_embedding, vectorised_cluster::VectorisedCluster, Document,
         EmbeddingFunction,
     },
-};
-use crate::{
-    model::algorithms::{
-        algorithm_entry_point::AlgorithmEntryPoint, document::GqlDocument,
-        global_plugins::GlobalPlugins, vector_algorithms::VectorAlgorithms,
-    },
-    url_encode_graph, RaphtoryServer,
 };
 use reqwest::Client;
 use serde_json::{json, Map, Number, Value as JsonValue};
