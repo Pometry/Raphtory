@@ -426,7 +426,7 @@ impl PyRaphtoryServer {
     /// Arguments:
     ///   * `port`: the port to use (defaults to 1736).
     #[pyo3(
-        signature = (port = 1736, log_level = "INFO".to_string(), enable_tracing = false, enable_auth = false, timeout_in_milliseconds = None)
+        signature = (port = 1736, log_level = "INFO".to_string(), enable_tracing = false, enable_auth = false)
     )]
     pub fn run(
         slf: PyRefMut<Self>,
@@ -435,7 +435,6 @@ impl PyRaphtoryServer {
         log_level: String,
         enable_tracing: bool,
         enable_auth: bool,
-        timeout_in_milliseconds: Option<u64>,
     ) -> PyResult<()> {
         let mut server = Self::start(
             slf,
@@ -444,7 +443,7 @@ impl PyRaphtoryServer {
             log_level,
             enable_tracing,
             enable_auth,
-            timeout_in_milliseconds,
+            Some(180000),
         )?
         .server_handler;
         py.allow_threads(|| wait_server(&mut server))
