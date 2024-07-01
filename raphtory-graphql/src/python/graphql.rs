@@ -1,3 +1,5 @@
+#![allow(non_local_definitions)]
+
 use async_graphql::{
     dynamic::{Field, FieldFuture, FieldValue, InputValue, Object, TypeRef, ValueAccessor},
     Value as GraphqlValue,
@@ -11,7 +13,7 @@ use pyo3::{
     prelude::*,
     types::{IntoPyDict, PyDict, PyFunction, PyList},
 };
-use raphtory_core::{
+use raphtory::{
     db::api::view::MaterializedGraph,
     python::{
         packages::vectors::{
@@ -26,7 +28,7 @@ use raphtory_core::{
         EmbeddingFunction,
     },
 };
-use raphtory_graphql::{
+use crate::{
     model::algorithms::{
         algorithm_entry_point::AlgorithmEntryPoint, document::GqlDocument,
         global_plugins::GlobalPlugins, vector_algorithms::VectorAlgorithms,
@@ -47,7 +49,7 @@ use tokio::{self, io::Result as IoResult};
 /// A class for accessing graphs hosted in a Raphtory GraphQL server and running global search for
 /// graph documents
 #[pyclass(name = "GraphqlGraphs")]
-pub(crate) struct PyGlobalPlugins(GlobalPlugins);
+pub struct PyGlobalPlugins(GlobalPlugins);
 
 #[pymethods]
 impl PyGlobalPlugins {
@@ -113,7 +115,7 @@ impl PyGlobalPlugins {
 
 /// A class for defining and running a Raphtory GraphQL server
 #[pyclass(name = "RaphtoryServer")]
-pub(crate) struct PyRaphtoryServer(Option<RaphtoryServer>);
+pub struct PyRaphtoryServer(Option<RaphtoryServer>);
 
 impl PyRaphtoryServer {
     fn new(server: RaphtoryServer) -> Self {
@@ -444,7 +446,7 @@ const RUNNING_SERVER_CONSUMED_MSG: &str =
 
 /// A Raphtory server handler that also enables querying the server
 #[pyclass(name = "RunningRaphtoryServer")]
-pub(crate) struct PyRunningRaphtoryServer {
+pub struct PyRunningRaphtoryServer {
     server_handler: Option<ServerHandler>,
 }
 
@@ -489,7 +491,7 @@ impl PyRunningRaphtoryServer {
 #[pymethods]
 impl PyRunningRaphtoryServer {
     /// Stop the server.
-    pub(crate) fn stop(&self) -> PyResult<()> {
+    pub fn stop(&self) -> PyResult<()> {
         self.apply_if_alive(|handler| {
             handler
                 .sender
@@ -500,7 +502,7 @@ impl PyRunningRaphtoryServer {
     }
 
     /// Wait until server completion.
-    pub(crate) fn wait(mut slf: PyRefMut<Self>, py: Python) -> PyResult<()> {
+    pub fn wait(mut slf: PyRefMut<Self>, py: Python) -> PyResult<()> {
         let server = &mut slf.server_handler;
         py.allow_threads(|| wait_server(server))
     }
@@ -569,7 +571,7 @@ impl PyRunningRaphtoryServer {
 /// A client for handling GraphQL operations in the context of Raphtory.
 #[derive(Clone)]
 #[pyclass(name = "RaphtoryClient")]
-pub(crate) struct PyRaphtoryClient {
+pub struct PyRaphtoryClient {
     url: String,
 }
 

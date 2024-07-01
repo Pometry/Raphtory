@@ -3,13 +3,12 @@
 
 use pyo3::prelude::PyModule;
 use pyo3::{PyErr, PyResult, Python};
-use raphtory_core::python::packages::vectors::PyVectorisedGraph;
-use raphtory_core::python::types::wrappers::document::PyDocument;
+use crate::python::packages::vectors::PyVectorisedGraph;
+use crate::python::types::wrappers::document::PyDocument;
 use crate::{add_classes, add_functions};
-use crate::graphql::{PyGlobalPlugins, PyRaphtoryClient, PyRaphtoryServer, PyRunningRaphtoryServer};
 #[cfg(feature = "storage")]
-use raphtory_core::python::graph::disk_graph::{PyDiskGraph, PyGraphQuery, PyState};
-use raphtory_core::python::{
+use crate::python::graph::disk_graph::{PyDiskGraph, PyGraphQuery, PyState};
+use crate::python::{
     graph::{
         algorithm_result::AlgorithmResult,
         edge::{PyDirection, PyEdge, PyMutableEdge},
@@ -21,7 +20,7 @@ use raphtory_core::python::{
         properties::{PyConstProperties, PyProperties, PyTemporalProp, PyTemporalProperties},
     },
 };
-use raphtory_core::python::packages::{
+use crate::python::packages::{
     algorithms::*,
     graph_gen::*,
     graph_loader::*,
@@ -112,15 +111,6 @@ pub fn base_graph_loader_module(py: Python<'_>) -> Result<&PyModule, PyErr> {
         karate_club_graph,
     );
     return Ok(graph_loader_module)
-}
-
-pub fn base_graphql_module(py: Python<'_>) -> Result<&PyModule, PyErr> {
-    let graphql_module = PyModule::new(py, "graphql")?;
-    graphql_module.add_class::<PyGlobalPlugins>()?;
-    graphql_module.add_class::<PyRaphtoryServer>()?;
-    graphql_module.add_class::<PyRunningRaphtoryServer>()?;
-    graphql_module.add_class::<PyRaphtoryClient>()?;
-    return Ok(graphql_module)
 }
 
 pub fn base_graph_gen_module(py: Python<'_>) -> Result<&PyModule, PyErr> {

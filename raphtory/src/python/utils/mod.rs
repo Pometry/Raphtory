@@ -18,6 +18,7 @@ use std::{future::Future, thread};
 
 pub mod errors;
 pub(crate) mod export;
+mod module_helpers;
 
 /// Extract a `NodeRef` from a Python object.
 /// The object can be a `str`, `u64` or `PyNode`.

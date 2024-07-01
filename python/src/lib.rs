@@ -1,11 +1,9 @@
 #![allow(non_local_definitions)]
-mod graphql;
-mod base_modules;
-pub mod utils;
 
 extern crate core;
 use pyo3::prelude::*;
-use crate::base_modules::{add_raphtory_classes, base_algorithm_module, base_graph_gen_module, base_graph_loader_module, base_graphql_module, base_vectors_module};
+use raphtory_core::python::packages::base_modules::{add_raphtory_classes, base_algorithm_module, base_graph_gen_module, base_graph_loader_module, base_vectors_module};
+use raphtory_graphql::python::pymodule::base_graphql_module;
 
 /// Raphtory graph analytics library
 #[pymodule]

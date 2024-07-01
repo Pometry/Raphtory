@@ -4,3 +4,4 @@ pub mod graph_loader;
 
 #[cfg(feature = "vectors")]
 pub mod vectors;
+pub mod base_modules;

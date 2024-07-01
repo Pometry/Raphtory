@@ -10,6 +10,7 @@ pub mod server;
 pub mod azure_auth;
 
 mod data;
+pub mod python;
 
 #[derive(thiserror::Error, Debug)]
 pub enum UrlDecodeError {

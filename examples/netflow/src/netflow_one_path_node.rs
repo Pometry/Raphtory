@@ -1,4 +1,4 @@
-use raphtory::{
+use raphtory_core::{
     core::state::{
         accumulator_id::accumulators::sum,
         compute_state::{ComputeState, ComputeStateVec},
