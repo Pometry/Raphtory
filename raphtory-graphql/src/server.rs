@@ -25,7 +25,7 @@ use poem::{
     EndpointExt, Route, Server,
 };
 use raphtory::{
-    db::api::view::{DynamicGraph, IntoDynamic, MaterializedGraph},
+    db::api::view::{DynamicGraph, IntoDynamic},
     vectors::{
         document_template::{DefaultTemplate, DocumentTemplate},
         vectorisable::Vectorisable,
@@ -35,15 +35,18 @@ use raphtory::{
 
 use crate::{
     data::get_graphs_from_work_dir,
-    server_config::{load_config, AppConfig, AuthConfig, CacheConfig, LoggingConfig},
+    server_config::{load_config, AppConfig, LoggingConfig},
 };
+use config::ConfigError;
 use std::{
     collections::HashMap,
     fs,
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
 };
+use thiserror::Error;
 use tokio::{
+    io,
     io::Result as IoResult,
     signal,
     sync::{
@@ -52,11 +55,34 @@ use tokio::{
     },
     task::JoinHandle,
 };
-use tracing::{metadata::ParseLevelError, Level};
 use tracing_subscriber::{
-    fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, FmtSubscriber,
-    Registry,
+    layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, FmtSubscriber, Registry,
 };
+use url::ParseError;
+
+#[derive(Error, Debug)]
+pub enum ServerError {
+    #[error("Config error: {0}")]
+    ConfigError(#[from] ConfigError),
+    #[error("Cache error: {0}")]
+    CacheError(String),
+    #[error("No client id provided")]
+    MissingClientId,
+    #[error("No client secret provided")]
+    MissingClientSecret,
+    #[error("No tenant id provided")]
+    MissingTenantId,
+    #[error("Parse error: {0}")]
+    FailedToParseUrl(#[from] ParseError),
+    #[error("Failed to fetch JWKS")]
+    FailedToFetchJWKS,
+}
+
+impl From<ServerError> for io::Error {
+    fn from(error: ServerError) -> Self {
+        io::Error::new(io::ErrorKind::Other, error)
+    }
+}
 
 /// A struct for defining and running a Raphtory GraphQL server
 pub struct RaphtoryServer {
@@ -69,14 +95,15 @@ impl RaphtoryServer {
         work_dir: PathBuf,
         app_config: Option<AppConfig>,
         config_path: Option<PathBuf>,
-    ) -> Self {
+    ) -> IoResult<Self> {
         if !work_dir.exists() {
             fs::create_dir_all(&work_dir).unwrap();
         }
-        let configs = load_config(app_config, config_path).expect("Failed to load configs");
+        let configs =
+            load_config(app_config, config_path).map_err(|err| ServerError::ConfigError(err))?;
         let data = Data::new(work_dir.as_path(), &configs);
 
-        Self { data, configs }
+        Ok(Self { data, configs })
     }
 
     /// Vectorise a subset of the graphs of the server.
@@ -95,7 +122,7 @@ impl RaphtoryServer {
         embedding: F,
         cache: &Path,
         template: Option<T>,
-    ) -> Self
+    ) -> IoResult<Self>
     where
         F: EmbeddingFunction + Clone + 'static,
         T: DocumentTemplate<DynamicGraph> + 'static,
@@ -104,9 +131,10 @@ impl RaphtoryServer {
         let graphs = &self.data.global_plugins.graphs;
         let stores = &self.data.global_plugins.vectorised_graphs;
 
-        graphs
-            .write()
-            .extend(get_graphs_from_work_dir(work_dir).expect("Failed to load graphs"));
+        graphs.write().extend(
+            get_graphs_from_work_dir(work_dir)
+                .map_err(|err| ServerError::CacheError(err.message))?,
+        );
 
         let template = template
             .map(|template| Arc::new(template) as Arc<dyn DocumentTemplate<DynamicGraph>>)
@@ -141,7 +169,7 @@ impl RaphtoryServer {
         }
         println!("Embeddings were loaded successfully");
 
-        self
+        Ok(self)
     }
 
     pub fn register_algorithm<
@@ -157,7 +185,11 @@ impl RaphtoryServer {
     }
 
     /// Start the server on the default port and return a handle to it.
-    pub async fn start(self, enable_tracing: bool, enable_auth: bool) -> RunningRaphtoryServer {
+    pub async fn start(
+        self,
+        enable_tracing: bool,
+        enable_auth: bool,
+    ) -> IoResult<RunningRaphtoryServer> {
         self.start_with_port(1736, enable_tracing, enable_auth)
             .await
     }
@@ -168,7 +200,7 @@ impl RaphtoryServer {
         port: u16,
         enable_tracing: bool,
         enable_auth: bool,
-    ) -> RunningRaphtoryServer {
+    ) -> IoResult<RunningRaphtoryServer> {
         fn configure_logger(configs: &LoggingConfig) {
             let log_level = &configs.log_level;
             let filter = EnvFilter::new(log_level);
@@ -200,9 +232,9 @@ impl RaphtoryServer {
         let app: CorsEndpoint<CookieJarManagerEndpoint<Route>> = if enable_auth {
             println!("Generating endpoint with auth");
             self.generate_microsoft_endpoint_with_auth(enable_tracing, port)
-                .await
+                .await?
         } else {
-            self.generate_endpoint(enable_tracing).await
+            self.generate_endpoint(enable_tracing).await?
         };
 
         let (signal_sender, signal_receiver) = mpsc::channel(1);
@@ -212,16 +244,16 @@ impl RaphtoryServer {
             .run_with_graceful_shutdown(app, server_termination(signal_receiver), None);
         let server_result = tokio::spawn(server_task);
 
-        RunningRaphtoryServer {
+        Ok(RunningRaphtoryServer {
             signal_sender,
             server_result,
-        }
+        })
     }
 
     async fn generate_endpoint(
         self,
         enable_tracing: bool,
-    ) -> CorsEndpoint<CookieJarManagerEndpoint<Route>> {
+    ) -> IoResult<CorsEndpoint<CookieJarManagerEndpoint<Route>>> {
         let schema_builder = App::create_schema();
         let schema_builder = schema_builder.data(self.data);
         let schema = if enable_tracing {
@@ -236,14 +268,14 @@ impl RaphtoryServer {
             .at("/health", get(health))
             .with(CookieJarManager::new())
             .with(Cors::new());
-        app
+        Ok(app)
     }
 
     async fn generate_microsoft_endpoint_with_auth(
         self,
         enable_tracing: bool,
         port: u16,
-    ) -> CorsEndpoint<CookieJarManagerEndpoint<Route>> {
+    ) -> IoResult<CorsEndpoint<CookieJarManagerEndpoint<Route>>> {
         let schema_builder = App::create_schema();
         let schema_builder = schema_builder.data(self.data);
         let schema = if enable_tracing {
@@ -254,13 +286,21 @@ impl RaphtoryServer {
         };
 
         dotenv().ok();
-        let client_id = self.configs.auth.client_id.expect("No client id provided");
+        let client_id = self
+            .configs
+            .auth
+            .client_id
+            .ok_or(ServerError::MissingClientId)?;
         let client_secret = self
             .configs
             .auth
             .client_secret
-            .expect("No client secret provided");
-        let tenant_id = self.configs.auth.tenant_id.expect("No tenant id provided");
+            .ok_or(ServerError::MissingClientSecret)?;
+        let tenant_id = self
+            .configs
+            .auth
+            .tenant_id
+            .ok_or(ServerError::MissingTenantId)?;
 
         let client_id = ClientId::new(client_id);
         let client_secret = ClientSecret::new(client_secret);
@@ -269,12 +309,12 @@ impl RaphtoryServer {
             "https://login.microsoftonline.com/{}/oauth2/v2.0/authorize",
             tenant_id.clone()
         ))
-        .expect("Invalid authorization endpoint URL");
+        .map_err(|e| ServerError::FailedToParseUrl(e))?;
         let token_url = TokenUrl::new(format!(
             "https://login.microsoftonline.com/{}/oauth2/v2.0/token",
             tenant_id.clone()
         ))
-        .expect("Invalid token endpoint URL");
+        .map_err(|e| ServerError::FailedToParseUrl(e))?;
 
         println!("Loading client");
         let client = BasicClient::new(
@@ -288,11 +328,13 @@ impl RaphtoryServer {
                 "http://localhost:{}/auth/callback",
                 port.to_string()
             ))
-            .expect("Invalid redirect URL"),
+            .map_err(|e| ServerError::FailedToParseUrl(e))?,
         );
 
         println!("Fetching JWKS");
-        let jwks = get_jwks().await.expect("Failed to fetch JWKS");
+        let jwks = get_jwks()
+            .await
+            .map_err(|_| ServerError::FailedToFetchJWKS)?;
 
         let app_state = AppState {
             oauth_client: Arc::new(client),
@@ -324,22 +366,22 @@ impl RaphtoryServer {
             .with(CookieJarManager::new())
             .with(Cors::new());
         println!("App done");
-        app
+        Ok(app)
     }
 
     /// Run the server on the default port until completion.
     pub async fn run(self, enable_tracing: bool) -> IoResult<()> {
-        self.start(enable_tracing, false).await.wait().await
+        self.start(enable_tracing, false).await?.wait().await
     }
 
     pub async fn run_with_auth(self, enable_tracing: bool) -> IoResult<()> {
-        self.start(enable_tracing, true).await.wait().await
+        self.start(enable_tracing, true).await?.wait().await
     }
 
     /// Run the server on the port `port` until completion.
     pub async fn run_with_port(self, port: u16, enable_tracing: bool) -> IoResult<()> {
         self.start_with_port(port, enable_tracing, false)
-            .await
+            .await?
             .wait()
             .await
     }
@@ -412,11 +454,11 @@ mod server_tests {
     #[tokio::test]
     async fn test_server_start_stop() {
         let tmp_dir = tempfile::tempdir().unwrap();
-        let server = RaphtoryServer::new(tmp_dir.path().to_path_buf(), None, None);
+        let server = RaphtoryServer::new(tmp_dir.path().to_path_buf(), None, None).unwrap();
         println!("Calling start at time {}", Local::now());
         let handler = server.start_with_port(0, false, false);
         sleep(Duration::from_secs(1)).await;
         println!("Calling stop at time {}", Local::now());
-        handler.await.stop().await
+        handler.await.unwrap().stop().await
     }
 }

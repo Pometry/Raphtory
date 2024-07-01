@@ -325,7 +325,7 @@ mod data_tests {
             get_graph_from_path, get_graphs_from_work_dir, load_graph_from_path,
             load_graphs_from_path, load_graphs_from_paths, save_graphs_to_work_dir, Data,
         },
-        server_config::{AppConfig, AppConfigBuilder, CacheConfig, LoggingConfig},
+        server_config::AppConfigBuilder,
     };
     use itertools::Itertools;
     #[cfg(feature = "storage")]

@@ -1,8 +1,6 @@
 use crate::server::RaphtoryServer;
-use std::{
-    env,
-    path::{Path, PathBuf},
-};
+use std::{env, path::PathBuf};
+use tokio::io::Result as IoResult;
 
 mod azure_auth;
 mod data;
@@ -15,7 +13,7 @@ mod server_config;
 extern crate base64_compat as base64_compat;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> IoResult<()> {
     let work_dir = env::var("GRAPH_DIRECTORY").unwrap_or("/tmp/graphs".to_string());
     let work_dir = PathBuf::from(&work_dir);
 
@@ -23,14 +21,14 @@ async fn main() {
     let use_auth = args.contains(&"--server".to_string());
 
     if use_auth {
-        RaphtoryServer::new(work_dir, None, None)
+        RaphtoryServer::new(work_dir, None, None)?
             .run_with_auth(false)
-            .await
-            .unwrap();
+            .await?;
     } else {
-        RaphtoryServer::new(work_dir, None, None)
+        RaphtoryServer::new(work_dir, None, None)?
             .run(false)
-            .await
-            .unwrap();
+            .await?;
     }
+
+    Ok(())
 }

@@ -141,7 +141,7 @@ impl PyRaphtoryServer {
                     &PathBuf::from(cache),
                     Some(template),
                 )
-                .await;
+                .await?;
             Ok(Self::new(new_server))
         })
     }
@@ -256,7 +256,7 @@ impl PyRaphtoryServer {
         }
         let app_config = Some(app_config_builder.build());
 
-        let server = RaphtoryServer::new(work_dir, app_config, config_path);
+        let server = RaphtoryServer::new(work_dir, app_config, config_path)?;
         Ok(PyRaphtoryServer::new(server))
     }
 
@@ -393,7 +393,7 @@ impl PyRaphtoryServer {
                 .unwrap()
                 .block_on(async move {
                     let handler = server.start_with_port(port, enable_tracing, enable_auth);
-                    let running_server = handler.await;
+                    let running_server = handler.await?;
                     let tokio_sender = running_server._get_sender().clone();
                     tokio::task::spawn_blocking(move || {
                         match receiver.recv().expect("Failed to wait for cancellation") {
