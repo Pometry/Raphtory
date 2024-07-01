@@ -67,18 +67,14 @@ pub struct RaphtoryServer {
 impl RaphtoryServer {
     pub fn new(
         work_dir: PathBuf,
-        graphs: Option<HashMap<String, MaterializedGraph>>,
-        graph_paths: Option<Vec<PathBuf>>,
         app_config: Option<AppConfig>,
         config_path: Option<PathBuf>,
     ) -> Self {
         if !work_dir.exists() {
             fs::create_dir_all(&work_dir).unwrap();
         }
-
         let configs = load_config(app_config, config_path).expect("Failed to load configs");
-
-        let data = Data::new(work_dir.as_path(), graphs, graph_paths, &configs);
+        let data = Data::new(work_dir.as_path(), &configs);
 
         Self { data, configs }
     }
@@ -416,8 +412,8 @@ mod server_tests {
     #[tokio::test]
     async fn test_server_start_stop() {
         let tmp_dir = tempfile::tempdir().unwrap();
-        let server = RaphtoryServer::new(tmp_dir.path().to_path_buf(), None, None, None, None);
-        println!("calling start at time {}", Local::now());
+        let server = RaphtoryServer::new(tmp_dir.path().to_path_buf(), None, None);
+        println!("Calling start at time {}", Local::now());
         let handler = server.start_with_port(0, false, false);
         sleep(Duration::from_secs(1)).await;
         println!("Calling stop at time {}", Local::now());

@@ -23,12 +23,12 @@ async fn main() {
     let use_auth = args.contains(&"--server".to_string());
 
     if use_auth {
-        RaphtoryServer::new(work_dir, None, None, None, None)
+        RaphtoryServer::new(work_dir, None, None)
             .run_with_auth(false)
             .await
             .unwrap();
     } else {
-        RaphtoryServer::new(work_dir, None, None, None, None)
+        RaphtoryServer::new(work_dir, None, None)
             .run(false)
             .await
             .unwrap();

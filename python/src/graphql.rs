@@ -223,12 +223,10 @@ impl PyRaphtoryServer {
 impl PyRaphtoryServer {
     #[new]
     #[pyo3(
-        signature = (work_dir, graphs = None, graph_paths = None, cache_capacity = None, cache_tti_seconds = None, client_id = None, client_secret = None, tenant_id = None, log_level = None, config_path = None)
+        signature = (work_dir, cache_capacity = None, cache_tti_seconds = None, client_id = None, client_secret = None, tenant_id = None, log_level = None, config_path = None)
     )]
     fn py_new(
         work_dir: PathBuf,
-        graphs: Option<HashMap<String, MaterializedGraph>>,
-        graph_paths: Option<Vec<String>>,
         cache_capacity: Option<u64>,
         cache_tti_seconds: Option<u64>,
         client_id: Option<String>,
@@ -258,8 +256,7 @@ impl PyRaphtoryServer {
         }
         let app_config = Some(app_config_builder.build());
 
-        let graph_paths = graph_paths.map(|paths| paths.into_iter().map(PathBuf::from).collect());
-        let server = RaphtoryServer::new(work_dir, graphs, graph_paths, app_config, config_path);
+        let server = RaphtoryServer::new(work_dir, app_config, config_path);
         Ok(PyRaphtoryServer::new(server))
     }
 

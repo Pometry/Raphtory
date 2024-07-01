@@ -29,12 +29,7 @@ pub struct Data {
 }
 
 impl Data {
-    pub fn new(
-        work_dir: &Path,
-        graphs: Option<HashMap<String, MaterializedGraph>>,
-        graph_paths: Option<Vec<PathBuf>>,
-        configs: &AppConfig,
-    ) -> Self {
+    pub fn new(work_dir: &Path, configs: &AppConfig) -> Self {
         let cache_configs = &configs.cache;
 
         let graphs_cache_builder = Cache::builder()
@@ -44,12 +39,6 @@ impl Data {
 
         let graphs_cache: Arc<Cache<String, IndexedGraph<MaterializedGraph>>> =
             Arc::new(graphs_cache_builder);
-
-        save_graphs_to_work_dir(work_dir, &graphs.unwrap_or_default())
-            .expect("Failed to save graphs to work dir");
-
-        load_graphs_from_paths(work_dir, graph_paths.unwrap_or_default(), true)
-            .expect("Failed to save graph paths to work dir");
 
         Self {
             work_dir: work_dir.to_string_lossy().into_owned(),
@@ -292,7 +281,7 @@ fn get_graph_name(path: &Path, graph: &MaterializedGraph) -> String {
         .unwrap_or_else(|| path.file_name().unwrap().to_str().unwrap().to_owned())
 }
 
-fn save_graphs_to_work_dir(
+pub(crate) fn save_graphs_to_work_dir(
     work_dir: &Path,
     graphs: &HashMap<String, MaterializedGraph>,
 ) -> Result<()> {
@@ -336,7 +325,7 @@ mod data_tests {
             get_graph_from_path, get_graphs_from_work_dir, load_graph_from_path,
             load_graphs_from_path, load_graphs_from_paths, save_graphs_to_work_dir, Data,
         },
-        server_config::{AppConfig, CacheConfig, LoggingConfig},
+        server_config::{AppConfig, AppConfigBuilder, CacheConfig, LoggingConfig},
     };
     use itertools::Itertools;
     #[cfg(feature = "storage")]
@@ -896,20 +885,12 @@ mod data_tests {
         let graph_path3 = tmp_graph_dir.path().join("test_g2");
         graph.save_to_file(&graph_path3).unwrap();
 
-        let configs = AppConfig {
-            logging: LoggingConfig::default(),
-            cache: CacheConfig {
-                capacity: 1,
-                tti_seconds: 2,
-            },
-        };
+        let configs = AppConfigBuilder::new()
+            .with_cache_capacity(1)
+            .with_cache_tti_seconds(2)
+            .build();
 
-        let data = Data::new(
-            tmp_work_dir.path(),
-            None,
-            Some(vec![graph_path1, graph_path2, graph_path3]),
-            configs,
-        );
+        let data = Data::new(tmp_work_dir.path(), &configs);
 
         assert!(!data.graphs.contains_key("test_dg"));
         assert!(!data.graphs.contains_key("test_g"));
