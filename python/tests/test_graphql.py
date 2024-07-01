@@ -32,10 +32,10 @@ def test_server_start_on_default_port():
     g.add_edge(2, "haaroon", "hamza")
     g.add_edge(3, "ben", "haaroon")
     
-    graphs = {"g": g}
     tmp_work_dir = tempfile.mkdtemp()
-    server = RaphtoryServer(tmp_work_dir, graphs=graphs).start()
+    server = RaphtoryServer(tmp_work_dir).start()
     client = RaphtoryClient("http://localhost:1736")
+    client.send_graph(name="g", graph=g)
 
     query = """{graph(name: "g") {nodes {list {name}}}}"""
     assert client.query(query) == {
@@ -53,56 +53,15 @@ def test_server_start_on_custom_port():
     g.add_edge(2, "haaroon", "hamza")
     g.add_edge(3, "ben", "haaroon")
     
-    graphs = {"g": g}
     tmp_work_dir = tempfile.mkdtemp()
-    server = RaphtoryServer(tmp_work_dir, graphs=graphs).start(port=1737)
+    server = RaphtoryServer(tmp_work_dir).start(port=1737)
     client = RaphtoryClient("http://localhost:1737")
+    client.send_graph(name="g", graph=g)
 
     query = """{graph(name: "g") {nodes {list {name}}}}"""
     assert client.query(query) == {
         "graph": {
             "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
-        }
-    }
-
-    server.stop()
-    
-
-def test_load_graphs_from_graph_paths_when_starting_server():
-    g1 = Graph()
-    g1.add_edge(1, "ben", "hamza")
-    g1.add_edge(2, "haaroon", "hamza")
-    g1.add_edge(3, "ben", "haaroon")
-    g1_file_path = tempfile.mkdtemp() + "/g1"
-    g1.save_to_file(g1_file_path)
-    g2 = Graph()
-    g2.add_edge(1, "Naomi", "Shivam")
-    g2.add_edge(2, "Shivam", "Pedro")
-    g2.add_edge(3, "Pedro", "Rachel")
-    g2_file_path = tempfile.mkdtemp() + "/g2"
-    g2.save_to_file(g2_file_path)
-
-    tmp_work_dir = tempfile.mkdtemp()
-    server = RaphtoryServer(tmp_work_dir, graph_paths=[g1_file_path, g2_file_path]).start()
-    client = server.get_client()
-
-    query_g1 = """{graph(name: "g1") {nodes {list {name}}}}"""
-    query_g2 = """{graph(name: "g2") {nodes {list {name}}}}"""
-    assert client.query(query_g1) == {
-        "graph": {
-            "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
-        }
-    }
-    assert client.query(query_g2) == {
-        "graph": {
-            "nodes": {
-                "list": [
-                    {"name": "Naomi"},
-                    {"name": "Shivam"},
-                    {"name": "Pedro"},
-                    {"name": "Rachel"},
-                ]
-            }
         }
     }
 
@@ -141,9 +100,10 @@ def test_load_graphs_from_path():
     g2.add_edge(3, "Pedro", "Rachel")
 
     tmp_work_dir = tempfile.mkdtemp()
-    graphs = {"g1": g1, "g2": g2}
-    server = RaphtoryServer(tmp_work_dir, graphs=graphs).start()
+    server = RaphtoryServer(tmp_work_dir).start()
     client = server.get_client()
+    client.send_graph(name="g1", graph=g1)
+    client.send_graph(name="g2", graph=g2)
 
     g2 = Graph()
     g2.add_edge(1, "shifu", "po")
@@ -193,9 +153,10 @@ def test_load_graphs_from_path_overwrite():
     g2.save_to_file(g2_file_path)
 
     tmp_work_dir = tempfile.mkdtemp()
-    graphs = {"g1": g1, "g2": g2}
-    server = RaphtoryServer(tmp_work_dir, graphs=graphs).start()
+    server = RaphtoryServer(tmp_work_dir).start()
     client = server.get_client()
+    client.send_graph(name="g1", graph=g1)
+    client.send_graph(name="g2", graph=g2)
     client.load_graphs_from_path(tmp_dir, True)
 
     query_g1 = """{graph(name: "g1") {nodes {list {name}}}}"""
@@ -230,9 +191,11 @@ def test_graph_windows_and_layers_query():
     g2.add_edge(1, 2, 3, layer="layer2")
     
     tmp_work_dir = tempfile.mkdtemp()
-    graphs = {"lotr": g1, "layers": g2}
-    server = RaphtoryServer(tmp_work_dir, graphs=graphs).start()
+    server = RaphtoryServer(tmp_work_dir).start()
     client = server.get_client()
+    client.send_graph(name="lotr", graph=g1)
+    client.send_graph(name="layers", graph=g2)
+
     q = """
     query GetEdges {
       graph(name: "lotr") {
@@ -328,8 +291,9 @@ def test_graph_properties_query():
     n.add_constant_properties({"prop5": "val4"})
 
     tmp_work_dir = tempfile.mkdtemp()
-    server = RaphtoryServer(tmp_work_dir, graphs={"g": g}).start()
+    server = RaphtoryServer(tmp_work_dir).start()
     client = server.get_client()
+    client.send_graph(name="g", graph=g)
     q = """
     query GetEdges {
       graph(name: "g") {
