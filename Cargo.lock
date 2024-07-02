@@ -3208,15 +3208,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "netflow_algorithm"
-version = "0.9.3"
-dependencies = [
- "pyo3",
- "pyo3-build-config",
- "raphtory",
-]
-
-[[package]]
 name = "nix"
 version = "0.28.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4515,6 +4506,7 @@ dependencies = [
  "bincode",
  "chrono",
  "config",
+ "crossbeam-channel",
  "dotenv",
  "dynamic-graphql",
  "futures-util",
@@ -4529,6 +4521,7 @@ dependencies = [
  "parking_lot",
  "poem",
  "poem-openapi",
+ "pyo3",
  "raphtory",
  "raphtory-api",
  "reqwest",
@@ -4563,6 +4556,16 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+]
+
+[[package]]
+name = "raphtory_netflow"
+version = "0.9.3"
+dependencies = [
+ "pyo3",
+ "pyo3-build-config",
+ "raphtory",
+ "raphtory-graphql",
 ]
 
 [[package]]

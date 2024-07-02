@@ -20,7 +20,7 @@ crate-type = ["cdylib"]
 [dependencies]
 pyo3 = { workspace = true }
 raphtory_core = { path = "../raphtory", version = "0.9.3", features = ["python", "search", "vectors"], package = "raphtory" }
-raphtory-graphql = { path = "../raphtory-graphql", version = "0.9.3" }
+raphtory-graphql = { path = "../raphtory-graphql", version = "0.9.3",features = ["python"] }
 serde_json = { workspace = true }
 reqwest = { workspace = true }
 tokio = { workspace = true }

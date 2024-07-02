@@ -11,6 +11,9 @@ pub mod azure_auth;
 
 mod data;
 
+#[cfg(feature = "python")]
+pub mod python;
+
 #[derive(thiserror::Error, Debug)]
 pub enum UrlDecodeError {
     #[error("Bincode operation failed")]
