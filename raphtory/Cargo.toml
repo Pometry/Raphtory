@@ -67,8 +67,6 @@ polars-arrow = { workspace = true, optional = true }
 polars-parquet = { workspace = true, optional = true }
 polars-utils = { workspace = true, optional = true }
 kdam = { workspace = true, optional = true }
-
-# disk storage optional dependencies
 memmap2 = { workspace = true, optional = true }
 ahash = { workspace = true, optional = true }
 tempfile = { workspace = true, optional = true }
@@ -76,6 +74,10 @@ bytemuck = { workspace = true, optional = true }
 rpds = { workspace = true, optional = true }
 thread_local = { workspace = true, optional = true }
 pometry-storage = { workspace = true, optional = true }
+
+prost = "0.12"
+prost-types = "0.12"
+bytes = "1.6.0"
 
 [dev-dependencies]
 csv = { workspace = true }
@@ -89,8 +91,13 @@ dotenv = { workspace = true }            # for vector testing
 streaming-stats = { workspace = true }
 proptest = { workspace = true }
 
+[build-dependencies]
+prost-build = { version = "0.12"}
+
 [features]
-default = []
+default = [
+    "dep:memmap2",
+]
 # Enables the graph loader io module
 io = [
     "dep:zip",

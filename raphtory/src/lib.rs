@@ -129,6 +129,10 @@ pub const BINCODE_VERSION: u32 = 2u32;
 #[cfg(feature = "storage")]
 pub use polars_arrow as arrow2;
 
+mod serialise {
+    include!(concat!(env!("OUT_DIR"), "/serialise.rs"));
+}
+
 #[cfg(test)]
 mod test_utils {
     #[cfg(feature = "storage")]
