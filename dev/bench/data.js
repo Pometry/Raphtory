@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1719920245044,
+  "lastUpdate": 1719926037829,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -54031,6 +54031,66 @@ window.BENCHMARK_DATA = {
             "name": "temporal_motifs/temporal_motifs",
             "value": 21079160,
             "range": "± 1840919",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "2404621+fabianmurariu@users.noreply.github.com",
+            "name": "Fabian Murariu",
+            "username": "fabianmurariu"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fd400bc050cfae2765abbd3e7d5fd36b7383963e",
+          "message": "Make the edge storage more columnar to reduce memory usage (#1670)\n\n* Refactor the graph storage to reduce memory usage\r\n\r\n* delete some useless stuff\r\n\r\n* only load props when they exist\r\n\r\n* fix props Optional\r\n\r\n* inline len\r\n\r\n* 64 shards should be good enough\r\n\r\n* fix the errors with the benchmarks\r\n\r\n* actually inline the len calls\r\n\r\n* increment the BINCODE_VERSION constant\r\n\r\n* get pometry-storage-private up to master\r\n\r\n* fixes as per review\r\n\r\n* removed the comments and sorted out the imports",
+          "timestamp": "2024-07-02T13:47:07+01:00",
+          "tree_id": "3f8b1e4606482dd1a538abd93b4a3102b941f00d",
+          "url": "https://github.com/Pometry/Raphtory/commit/fd400bc050cfae2765abbd3e7d5fd36b7383963e"
+        },
+        "date": 1719926036514,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "local_triangle_count/local_triangle_count",
+            "value": 849904,
+            "range": "± 85830",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "local_clustering_coefficient/local_clustering_coefficient",
+            "value": 97637,
+            "range": "± 986",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_clustering_coeff/graphgen_large_clustering_coeff/Graph(num_nodes=500004, num_edges=20...",
+            "value": 2263513072,
+            "range": "± 31459727",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_pagerank/graphgen_large_pagerank/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 224867670,
+            "range": "± 3921862",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_concomp/graphgen_large_concomp/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 2155701855,
+            "range": "± 37621834",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "temporal_motifs/temporal_motifs",
+            "value": 20602727,
+            "range": "± 286328",
             "unit": "ns/iter"
           }
         ]
