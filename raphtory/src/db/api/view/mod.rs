@@ -7,6 +7,7 @@ mod layer;
 pub(crate) mod node;
 mod reset_filter;
 pub(crate) mod time;
+pub mod serialise;
 
 pub(crate) use edge::BaseEdgeViewOps;
 pub use edge::EdgeViewOps;

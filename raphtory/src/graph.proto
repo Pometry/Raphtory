@@ -1,0 +1,96 @@
+syntax = "proto3";
+
+// import "google/protobuf/timestamp.proto";
+package serialise;
+
+message Prop {
+  oneof value {
+    string str = 1;
+    uint32 u8 = 2; // Note: Protobuf does not have a UInt8 type, using uint32 instead.
+    uint32 u16 = 3; // Note: Protobuf does not have a UInt16 type, using uint32 instead.
+    int32 i32 = 4;
+    int64 i64 = 5;
+    uint32 u32 = 6;
+    uint64 u64 = 7;
+    float f32 = 8;
+    double f64 = 9;
+    bool bool_value = 10;
+    Props prop = 11;
+    Dict map = 12;
+    bytes graph = 13; // Assuming Data can be represented as bytes.
+    bytes persistentGraph = 14; // Assuming Data can be represented as bytes.
+    // Timestamp ndTime = 15;
+    // Timestamp dTime = 15;
+    DocumentInput documentInput = 17;
+  }
+}
+
+message Dict{
+    map<string, Prop> map = 1;
+}
+
+message Props{
+  repeated Prop properties = 1;
+}
+
+message DocumentInput {
+  string content = 1;
+  Lifespan life = 2;
+}
+
+message Lifespan {
+  oneof type {
+    Interval interval = 1;
+    Event event = 2;
+    // Inherited is represented by the absence of both interval and event.
+  }
+
+  message Interval {
+    int64 start = 1;
+    int64 end = 2;
+  }
+
+  message Event {
+    int64 time = 1;
+  }
+}
+
+message Graph {
+  repeated AddNode nodes = 1;
+  repeated AddEdge edges = 2;
+  repeated UpdateNodeConstProps constNodesProps = 3;
+  repeated UpdateEdgeConstProps constEdgesProps = 4;
+  repeated Prop graphProperties = 5;
+
+  message AddEdge {
+    uint64 src = 1;
+    uint64 dst = 2;
+    PropPair properties = 3;
+    int64 time = 4;
+    optional string layer = 5;
+  }
+
+  message AddNode {
+    uint64 id = 1;
+    string name = 2;
+    optional PropPair properties = 3;
+    int64 time = 4;
+    optional string node_type = 5;
+  }
+
+  message UpdateNodeConstProps {
+    int64 id = 1;
+    repeated PropPair properties = 2;
+  }
+
+  message UpdateEdgeConstProps {
+    int64 src = 1;
+    int64 dst = 2;
+    repeated PropPair properties = 3;
+  }
+
+  message PropPair {
+    string key = 1;
+    Prop value = 2;
+  }
+}
