@@ -113,21 +113,6 @@ impl EdgesStorage {
         edge
     }
 
-    // #[inline]
-    // pub(crate) fn entry(&self, id: EID) -> EdgeRGuard {
-    //     self.get_edge(id)
-    // }
-
-    // #[inline]
-    // pub(crate) fn entry_mut(&self, id: EID) -> EdgeWGuard {
-    //     self.get_edge_mut(id)
-    // }
-
-    // #[inline]
-    // pub(crate) fn entry_arc(&self, id: EID) -> EdgeArcGuard {
-    //     self.get_edge_arc(id)
-    // }
-
     pub fn read_lock(&self) -> LockedEdges {
         LockedEdges {
             shards: self.shards.iter().map(|shard| shard.read_arc()).collect(),
