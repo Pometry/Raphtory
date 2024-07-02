@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::core::{
-    entities::{graph::edges::LockedEdges, nodes::node_store::NodeStore, VID},
-    storage::ReadLockedStorage,
+    entities::{nodes::node_store::NodeStore, VID},
+    storage::{raw_edges::LockedEdges, ReadLockedStorage},
 };
 
 #[derive(Debug)]

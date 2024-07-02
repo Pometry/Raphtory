@@ -1,9 +1,8 @@
-use super::edges::{EdgesStorage, LockedEdges};
 use crate::core::{
     entities::{edges::edge_store::EdgeStore, nodes::node_store::NodeStore, EID, VID},
     storage::{
         self,
-        raw_edges::{EdgeArcGuard, EdgeRGuard, EdgeWGuard},
+        raw_edges::{EdgeArcGuard, EdgeRGuard, EdgeWGuard, EdgesStorage, LockedEdges},
         Entry, EntryMut, PairEntryMut,
     },
 };
@@ -50,7 +49,7 @@ impl GraphStorage {
     }
     #[inline]
     pub(crate) fn push_edge(&self, edge: EdgeStore) -> EdgeWGuard {
-        self.edges.push(edge)
+        self.edges.push_edge(edge)
     }
 
     #[inline]
@@ -59,8 +58,8 @@ impl GraphStorage {
     }
 
     #[inline]
-    pub(crate) fn get_edge_mut(&self, id: EID) -> EdgeWGuard {
-        self.edges.entry_mut(id)
+    pub(crate) fn get_edge_mut(&self, eid: EID) -> EdgeWGuard {
+        self.edges.get_edge_mut(eid)
     }
 
     #[inline]
@@ -69,13 +68,13 @@ impl GraphStorage {
     }
 
     #[inline]
-    pub(crate) fn edge_entry(&self, id: EID) -> EdgeRGuard {
-        self.edges.entry(id)
+    pub(crate) fn edge_entry(&self, eid: EID) -> EdgeRGuard {
+        self.edges.get_edge(eid)
     }
 
     #[inline]
-    pub(crate) fn get_edge_arc(&self, id: EID) -> EdgeArcGuard {
-        self.edges.entry_arc(id)
+    pub(crate) fn get_edge_arc(&self, eid: EID) -> EdgeArcGuard {
+        self.edges.get_edge_arc(eid)
     }
 
     #[inline]

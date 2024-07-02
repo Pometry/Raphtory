@@ -70,12 +70,12 @@ impl EdgeShard {
 pub const SHARD_SIZE: usize = 64;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EdgesShard {
+pub struct EdgesStorage {
     shards: Arc<[Arc<RwLock<EdgeShard>>]>,
     len: Arc<AtomicUsize>,
 }
 
-impl PartialEq for EdgesShard {
+impl PartialEq for EdgesStorage {
     fn eq(&self, other: &Self) -> bool {
         self.shards.len() == other.shards.len()
             && self
@@ -86,7 +86,7 @@ impl PartialEq for EdgesShard {
     }
 }
 
-impl EdgesShard {
+impl EdgesStorage {
     pub fn new() -> Self {
         let mut shards = (0..SHARD_SIZE).into_iter().map(|_| {
             Arc::new(RwLock::new(EdgeShard {
@@ -96,7 +96,7 @@ impl EdgesShard {
                 deletions: Vec::with_capacity(0),
             }))
         });
-        EdgesShard {
+        EdgesStorage {
             shards: shards.collect(),
             len: Arc::new(AtomicUsize::new(0)),
         }
@@ -107,8 +107,29 @@ impl EdgesShard {
         self.len.load(atomic::Ordering::SeqCst)
     }
 
-    pub fn lock(&self) -> LockedEdgesShard {
-        LockedEdgesShard {
+    pub(crate) fn push_edge(&self, edge: EdgeStore) -> EdgeWGuard {
+        let (eid, mut edge) = self.push(edge);
+        edge.edge_store_mut().eid = eid;
+        edge
+    }
+
+    // #[inline]
+    // pub(crate) fn entry(&self, id: EID) -> EdgeRGuard {
+    //     self.get_edge(id)
+    // }
+
+    // #[inline]
+    // pub(crate) fn entry_mut(&self, id: EID) -> EdgeWGuard {
+    //     self.get_edge_mut(id)
+    // }
+
+    // #[inline]
+    // pub(crate) fn entry_arc(&self, id: EID) -> EdgeArcGuard {
+    //     self.get_edge_arc(id)
+    // }
+
+    pub fn read_lock(&self) -> LockedEdges {
+        LockedEdges {
             shards: self.shards.iter().map(|shard| shard.read_arc()).collect(),
             len: self.len(),
         }
@@ -119,8 +140,8 @@ impl EdgesShard {
         resolve(index, self.shards.len())
     }
 
-    pub fn push(&self, mut value: EdgeStore) -> (EID, EdgeWGuard) {
-        let index = self.len.fetch_add(1, atomic::Ordering::SeqCst);
+    fn push(&self, mut value: EdgeStore) -> (EID, EdgeWGuard) {
+        let index = self.len.fetch_add(1, atomic::Ordering::Relaxed);
         let (bucket, offset) = self.resolve(index);
         let mut shard = self.shards[bucket].write();
         shard.insert(offset, value);
@@ -263,12 +284,12 @@ impl<'a> EdgeRGuard<'a> {
 }
 
 #[derive(Debug)]
-pub struct LockedEdgesShard {
+pub struct LockedEdges {
     shards: Arc<[ArcRwLockReadGuard<parking_lot::RawRwLock, EdgeShard>]>,
     len: usize,
 }
 
-impl LockedEdgesShard {
+impl LockedEdges {
     pub fn get(&self, eid: EID) -> &EdgeShard {
         let (bucket, offset) = resolve(eid.into(), self.shards.len());
         let shard = &self.shards[bucket];

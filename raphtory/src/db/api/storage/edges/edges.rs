@@ -1,22 +1,15 @@
-use std::sync::Arc;
-
-use rayon::iter::ParallelIterator;
-
-#[cfg(not(feature = "storage"))]
-use either::Either;
-
+use super::{edge_entry::EdgeStorageEntry, unlocked::UnlockedEdges};
 #[cfg(feature = "storage")]
-use crate::db::api::storage::variants::storage_variants3::StorageVariants;
-#[cfg(feature = "storage")]
-use crate::disk_graph::storage_interface::edges::DiskEdges;
-#[cfg(feature = "storage")]
-use crate::disk_graph::storage_interface::edges_ref::DiskEdgesRef;
+use crate::disk_graph::storage_interface::{edges::DiskEdges, edges_ref::DiskEdgesRef};
 use crate::{
-    core::entities::{graph::edges::LockedEdges, LayerIds},
-    db::api::storage::{edges::edge_storage_ops::EdgeStorageOps, nodes::unlocked::UnlockedEdges},
+    core::{entities::LayerIds, storage::raw_edges::LockedEdges},
+    db::api::storage::edges::edge_storage_ops::EdgeStorageOps,
 };
 
-use super::edge_entry::EdgeStorageEntry;
+use crate::db::api::storage::variants::storage_variants3::StorageVariants;
+
+use rayon::iter::ParallelIterator;
+use std::sync::Arc;
 
 pub enum EdgesStorage {
     Mem(Arc<LockedEdges>),
@@ -68,13 +61,13 @@ impl<'a> EdgesStorageRef<'a> {
     #[cfg(not(feature = "storage"))]
     pub fn iter(self, layers: LayerIds) -> impl Iterator<Item = EdgeStorageEntry<'a>> {
         match self {
-            EdgesStorageRef::Mem(storage) => Either::Left(
+            EdgesStorageRef::Mem(storage) => StorageVariants::Mem(
                 storage
                     .iter()
                     .filter(move |e| e.has_layer(&layers))
                     .map(EdgeStorageEntry::Mem),
             ),
-            EdgesStorageRef::Unlocked(edges) => Either::Right(
+            EdgesStorageRef::Unlocked(edges) => StorageVariants::Unlocked(
                 edges
                     .iter()
                     .filter(move |e| e.as_mem_edge().has_layer(&layers))
@@ -107,13 +100,13 @@ impl<'a> EdgesStorageRef<'a> {
     #[cfg(not(feature = "storage"))]
     pub fn par_iter(self, layers: LayerIds) -> impl ParallelIterator<Item = EdgeStorageEntry<'a>> {
         match self {
-            EdgesStorageRef::Mem(storage) => Either::Left(
+            EdgesStorageRef::Mem(storage) => StorageVariants::Mem(
                 storage
                     .par_iter()
                     .filter(move |e| e.has_layer(&layers))
                     .map(EdgeStorageEntry::Mem),
             ),
-            EdgesStorageRef::Unlocked(edges) => Either::Right(
+            EdgesStorageRef::Unlocked(edges) => StorageVariants::Unlocked(
                 edges
                     .par_iter()
                     .filter(move |e| e.as_mem_edge().has_layer(&layers))
