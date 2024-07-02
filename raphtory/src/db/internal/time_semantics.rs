@@ -26,11 +26,11 @@ use std::ops::Range;
 
 impl TimeSemantics for InternalGraph {
     fn node_earliest_time(&self, v: VID) -> Option<i64> {
-        self.inner().node_entry(v).value().timestamps().first_t()
+        self.inner().storage.get_node(v).timestamps().first_t()
     }
 
     fn node_latest_time(&self, v: VID) -> Option<i64> {
-        self.inner().node_entry(v).value().timestamps().last_t()
+        self.inner().storage.get_node(v).timestamps().last_t()
     }
 
     fn view_start(&self) -> Option<i64> {
@@ -71,8 +71,8 @@ impl TimeSemantics for InternalGraph {
 
     fn node_earliest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
         self.inner()
-            .node_entry(v)
-            .value()
+            .storage
+            .get_node(v)
             .timestamps()
             .range_t(start..end)
             .first_t()
@@ -80,8 +80,8 @@ impl TimeSemantics for InternalGraph {
 
     fn node_latest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
         self.inner()
-            .node_entry(v)
-            .value()
+            .storage
+            .get_node(v)
             .timestamps()
             .range_t(start..end)
             .last_t()
@@ -158,7 +158,7 @@ impl TimeSemantics for InternalGraph {
     }
 
     fn edge_exploded(&self, e: EdgeRef, layer_ids: &LayerIds) -> BoxedIter<EdgeRef> {
-        let entry = self.inner().storage.edges.entry_arc(e.pid());
+        let entry = self.inner().storage.get_edge_arc(e.pid());
         entry.into_exploded(layer_ids.clone(), e).into_dyn_boxed()
     }
 
@@ -308,17 +308,17 @@ impl TimeSemantics for InternalGraph {
     }
 
     fn has_temporal_node_prop(&self, v: VID, prop_id: usize) -> bool {
-        let entry = self.inner().storage.nodes.get(v);
+        let entry = self.inner().storage.nodes.entry(v);
         entry.temporal_property(prop_id).is_some()
     }
 
     fn temporal_node_prop_vec(&self, v: VID, prop_id: usize) -> Vec<(i64, Prop)> {
-        let node = self.inner().storage.nodes.get(v);
+        let node = self.inner().storage.nodes.entry(v);
         node.temporal_properties(prop_id, None).collect()
     }
 
     fn has_temporal_node_prop_window(&self, v: VID, prop_id: usize, w: Range<i64>) -> bool {
-        let entry = self.inner().storage.nodes.get(v);
+        let entry = self.inner().storage.nodes.entry(v);
         entry
             .temporal_property(prop_id)
             .filter(|p| p.iter_window_t(w).next().is_some())
@@ -335,7 +335,7 @@ impl TimeSemantics for InternalGraph {
         self.inner()
             .storage
             .nodes
-            .get(v)
+            .entry(v)
             .temporal_properties(prop_id, Some(start..end))
             .collect()
     }

@@ -1,22 +1,17 @@
-use super::edge_entry::EdgeStorageEntry;
+use super::{edge_entry::EdgeStorageEntry, unlocked::UnlockedEdges};
+#[cfg(feature = "storage")]
+use crate::disk_graph::storage_interface::{edges::DiskEdges, edges_ref::DiskEdgesRef};
 use crate::{
-    core::{
-        entities::{edges::edge_store::EdgeStore, LayerIds, EID},
-        storage::ReadLockedStorage,
-    },
+    core::{entities::LayerIds, storage::raw_edges::LockedEdges},
     db::api::storage::{
-        edges::edge_storage_ops::EdgeStorageOps, nodes::unlocked::UnlockedEdges,
-        variants::storage_variants3::StorageVariants,
+        edges::edge_storage_ops::EdgeStorageOps, variants::storage_variants3::StorageVariants,
     },
 };
 use rayon::iter::ParallelIterator;
 use std::sync::Arc;
 
-#[cfg(feature = "storage")]
-use crate::disk_graph::storage_interface::{edges::DiskEdges, edges_ref::DiskEdgesRef};
-
 pub enum EdgesStorage {
-    Mem(Arc<ReadLockedStorage<EdgeStore, EID>>),
+    Mem(Arc<LockedEdges>),
     #[cfg(feature = "storage")]
     Disk(DiskEdges),
 }
@@ -34,7 +29,7 @@ impl EdgesStorage {
 
 #[derive(Debug)]
 pub enum EdgesStorageRef<'a> {
-    Mem(&'a ReadLockedStorage<EdgeStore, EID>),
+    Mem(&'a LockedEdges),
     Unlocked(UnlockedEdges<'a>),
     #[cfg(feature = "storage")]
     Disk(DiskEdgesRef<'a>),
@@ -74,7 +69,7 @@ impl<'a> EdgesStorageRef<'a> {
             EdgesStorageRef::Unlocked(edges) => StorageVariants::Unlocked(
                 edges
                     .iter()
-                    .filter(move |e| e.has_layer(&layers))
+                    .filter(move |e| e.as_mem_edge().has_layer(&layers))
                     .map(EdgeStorageEntry::Unlocked),
             ),
         }
@@ -113,7 +108,7 @@ impl<'a> EdgesStorageRef<'a> {
             EdgesStorageRef::Unlocked(edges) => StorageVariants::Unlocked(
                 edges
                     .par_iter()
-                    .filter(move |e| e.has_layer(&layers))
+                    .filter(move |e| e.as_mem_edge().has_layer(&layers))
                     .map(EdgeStorageEntry::Unlocked),
             ),
         }
@@ -130,7 +125,10 @@ impl<'a> EdgesStorageRef<'a> {
             EdgesStorageRef::Unlocked(edges) => match layers {
                 LayerIds::None => 0,
                 LayerIds::All => edges.len(),
-                _ => edges.par_iter().filter(|e| e.has_layer(layers)).count(),
+                _ => edges
+                    .par_iter()
+                    .filter(|e| e.as_mem_edge().has_layer(layers))
+                    .count(),
             },
             #[cfg(feature = "storage")]
             EdgesStorageRef::Disk(storage) => storage.count(layers),

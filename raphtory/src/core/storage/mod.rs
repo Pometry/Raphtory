@@ -3,6 +3,7 @@
 pub(crate) mod iter;
 pub mod lazy_vec;
 pub mod locked_view;
+pub mod raw_edges;
 pub mod sorted_vec_map;
 pub mod timeindex;
 
@@ -190,10 +191,6 @@ where
         }
     }
 
-    pub fn indices(&self) -> impl Iterator<Item = usize> + Send + '_ {
-        0..self.len()
-    }
-
     pub fn new(n_locks: usize) -> Self {
         let data: Box<[LockVec<T>]> = (0..n_locks)
             .map(|_| LockVec::new())
@@ -224,14 +221,6 @@ where
         let (bucket, offset) = self.resolve(index);
         let guard = self.data[bucket].data.read_recursive();
         Entry { offset, guard }
-    }
-
-    #[inline]
-    pub fn get(&self, index: Index) -> impl Deref<Target = T> + '_ {
-        let index = index.into();
-        let (bucket, offset) = self.resolve(index);
-        let guard = self.data[bucket].data.read_recursive();
-        RwLockReadGuard::map(guard, |guard| &guard[offset])
     }
 
     pub fn entry_arc(&self, index: Index) -> ArcEntry<T> {
@@ -298,14 +287,6 @@ pub struct Entry<'a, T: 'static> {
     guard: RwLockReadGuard<'a, Vec<T>>,
 }
 
-impl<'a, T: 'static> Clone for Entry<'a, T> {
-    fn clone(&self) -> Self {
-        let guard = RwLockReadGuard::rwlock(&self.guard).read_recursive();
-        let i = self.offset;
-        Self { offset: i, guard }
-    }
-}
-
 #[derive(Debug)]
 pub struct ArcEntry<T> {
     guard: Arc<ArcRwLockReadGuard<Vec<T>>>,
@@ -329,35 +310,11 @@ impl<T> Deref for ArcEntry<T> {
     }
 }
 
-impl<T, S> AsRef<T> for ArcEntry<S>
-where
-    T: ?Sized,
-    S: AsRef<T>,
-{
-    fn as_ref(&self) -> &T {
-        self.deref().as_ref()
-    }
-}
-
-impl<'a, T> Entry<'a, T> {
-    pub fn value(&self) -> &T {
-        &self.guard[self.offset]
-    }
-
-    pub fn map<U, F: Fn(&T) -> &U>(self, f: F) -> LockedView<'a, U> {
-        let mapped_guard = RwLockReadGuard::map(self.guard, |guard| {
-            let what = &guard[self.offset];
-            f(what)
-        });
-        LockedView::LockMapped(mapped_guard)
-    }
-}
-
 impl<'a, T> Deref for Entry<'a, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        self.value()
+        &self.guard[self.offset]
     }
 }
 

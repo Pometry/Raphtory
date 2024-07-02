@@ -68,7 +68,7 @@ impl InternalPropertyAdditionOps for InternalGraph {
         props: Vec<(usize, Prop)>,
     ) -> Result<(), GraphError> {
         let mut edge = self.inner().storage.get_edge_mut(eid);
-        let mut edge_layer = edge.layer_mut(layer);
+        let edge_layer = edge.layer_mut(layer);
         for (prop_id, value) in props {
             edge_layer
                 .add_constant_prop(prop_id, value)
@@ -93,7 +93,7 @@ impl InternalPropertyAdditionOps for InternalGraph {
         props: Vec<(usize, Prop)>,
     ) -> Result<(), GraphError> {
         let mut edge = self.inner().storage.get_edge_mut(eid);
-        let mut edge_layer = edge.layer_mut(layer);
+        let edge_layer = edge.layer_mut(layer);
         for (prop_id, value) in props {
             edge_layer.update_constant_prop(prop_id, value)?;
         }
