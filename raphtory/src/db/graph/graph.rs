@@ -46,6 +46,11 @@ pub fn graph_equal<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps
 ) -> bool {
     if g1.count_nodes() == g2.count_nodes() && g1.count_edges() == g2.count_edges() {
         g1.nodes().id().par_values().all(|v| g2.has_node(v)) && // all nodes exist in other
+        g1.nodes().par_iter().all(|v1| {
+            let c1 = Some(v1.properties().temporal().into_iter().count());
+            let c2 = g2.node(v1.id()).map(|n| n.properties().temporal().into_iter().count());
+            c1 == c2
+        }) &&
             g1.count_temporal_edges() == g2.count_temporal_edges() && // same number of exploded edges
             g1.edges().explode().iter().all(|e| { // all exploded edges exist in other
                 g2
