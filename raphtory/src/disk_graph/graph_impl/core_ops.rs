@@ -33,7 +33,7 @@ use crate::{
 };
 use itertools::Itertools;
 use polars_arrow::datatypes::ArrowDataType;
-use pometry_storage::{properties::ConstProps, GidRef, GID};
+use pometry_storage::{properties::ConstProps, GidRef};
 use raphtory_api::core::{input::input_node::InputNode, storage::arc_str::ArcStr};
 use rayon::prelude::*;
 
@@ -121,8 +121,8 @@ impl CoreGraphOps for DiskGraph {
     fn internalise_node(&self, v: NodeRef) -> Option<VID> {
         match v {
             NodeRef::Internal(vid) => Some(vid),
-            NodeRef::External(vid) => self.inner.find_node(&GID::U64(vid)),
-            NodeRef::ExternalStr(string) => self.inner.find_node(&GID::Str(string.into())),
+            NodeRef::External(vid) => self.inner.find_node(GidRef::U64(vid)),
+            NodeRef::ExternalStr(string) => self.inner.find_node(GidRef::Str(string)),
         }
     }
 

@@ -1,4 +1,3 @@
-#![allow(non_local_definitions)]
 use crate::core::{DocumentInput, Lifespan};
 use itertools::Itertools;
 use pyo3::{exceptions::PyAttributeError, prelude::*, types::PyTuple};
