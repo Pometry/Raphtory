@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1719421562598,
+  "lastUpdate": 1719920245044,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -53977,6 +53977,60 @@ window.BENCHMARK_DATA = {
             "name": "temporal_motifs/temporal_motifs",
             "value": 20781165,
             "range": "± 1700479",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "b.a.steer@qmul.ac.uk",
+            "name": "Ben Steer",
+            "username": "miratepuffin"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "876cdbb95f8cf356ae9a9c088c1a8b48ffc58edc",
+          "message": "Improve python extensibility (#1677)\n\n* base compiling\r\n\r\n* moved files so that raphtory can be extended in custom python packages\r\n\r\n* fmt\r\n\r\n* forgot to fix test\r\n\r\n* locked graphql python module behind feature\r\n\r\n* add python dep on search/vectors1#\r\n\r\n* Moved dep to workspace",
+          "timestamp": "2024-07-02T12:00:49+01:00",
+          "tree_id": "76e7cbc26ee863e2d67b165462265c70601ff72f",
+          "url": "https://github.com/Pometry/Raphtory/commit/876cdbb95f8cf356ae9a9c088c1a8b48ffc58edc"
+        },
+        "date": 1719920243123,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "local_clustering_coefficient/local_clustering_coefficient",
+            "value": 99004,
+            "range": "± 3604",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_clustering_coeff/graphgen_large_clustering_coeff/Graph(num_nodes=500004, num_edges=20...",
+            "value": 3141431434,
+            "range": "± 51539605",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_pagerank/graphgen_large_pagerank/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 319312584,
+            "range": "± 11492069",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_concomp/graphgen_large_concomp/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 3122051390,
+            "range": "± 57128086",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "temporal_motifs/temporal_motifs",
+            "value": 21079160,
+            "range": "± 1840919",
             "unit": "ns/iter"
           }
         ]
