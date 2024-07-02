@@ -35,16 +35,18 @@ use raphtory_graphql::{
     server_config::*,
     url_encode_graph, RaphtoryServer,
 };
-use reqwest::Client;
+use reqwest::{multipart, Client};
 use serde_json::{json, Map, Number, Value as JsonValue};
 use std::{
     collections::HashMap,
+    fs::File,
+    io::Read,
     path::{Path, PathBuf},
     thread,
     thread::{sleep, JoinHandle},
     time::Duration,
 };
-use tokio::{self, io::Result as IoResult};
+use tokio::{self, io::Result as IoResult, runtime::Runtime};
 
 /// A class for accessing graphs hosted in a Raphtory GraphQL server and running global search for
 /// graph documents
@@ -744,6 +746,60 @@ impl PyRaphtoryClient {
                 data
             ))),
         }
+    }
+
+    fn upload_graph(
+        &self,
+        py: Python,
+        name: String,
+        file_path: String,
+    ) -> PyResult<HashMap<String, PyObject>> {
+        let rt = Runtime::new().unwrap();
+        rt.block_on(async {
+            let client = Client::new();
+
+            let mut file = File::open(Path::new(&file_path)).map_err(|err| adapt_err_value(&err))?;
+
+            let mut buffer = Vec::new();
+            file.read_to_end(&mut buffer).map_err(|err| adapt_err_value(&err))?;
+
+            let form = multipart::Form::new()
+                .text("operations", format!(
+                    r#"{{
+                    "query": "mutation UploadGraph($name: String!, $graph: Upload!) {{ uploadGraph(name: $name, graph: $graph) }}",
+                    "variables": {{ "name": "{}", "graph": null }}
+                }}"#, name
+                ))
+                .text("map", r#"{"0": ["variables.graph"]}"#)
+                .part("0", multipart::Part::bytes(buffer).file_name(file_path.clone()));
+
+            let response = client
+                .post(&self.url)
+                .multipart(form)
+                .send()
+                .await
+                .map_err(|err| adapt_err_value(&err))?;
+
+            let text = response.text().await.map_err(|err| adapt_err_value(&err))?;
+
+            let mut data: HashMap<String, JsonValue> = serde_json::from_str(&text).map_err(|err| adapt_err_value(&err))?;
+            match data.remove("data") {
+                Some(JsonValue::Object(data)) => {
+                    let mut result_map = HashMap::new();
+                    for (key, value) in data {
+                        result_map.insert(key, translate_to_python(py, value)?);
+                    }
+                    Ok(result_map)
+                }
+                _ => match data.remove("errors") {
+                    Some(JsonValue::Array(errors)) => Err(PyException::new_err(format!(
+                        "Error Uploading Graph. Got errors:\n\t{:#?}",
+                        errors
+                    ))),
+                    _ => Err(PyException::new_err("Error Uploading Graph.")),
+                },
+            }
+        })
     }
 
     /// Set the server to load all the graphs from its path `path`.
