@@ -1,8 +1,16 @@
 use std::{fs::File, io::Write, path::Path};
 
 use prost::Message;
+use raphtory_api::core::storage::arc_str::ArcStr;
 
-use crate::{core::utils::errors::GraphError, prelude::*, serialise::{self, graph::{AddNode, PropPair}}};
+use crate::{
+    core::utils::errors::GraphError,
+    prelude::*,
+    serialise::{
+        self,
+        graph::{AddNode, PropPair},
+    },
+};
 
 use super::GraphViewOps;
 
@@ -11,7 +19,7 @@ pub trait StableSerialise {
     fn stable_deserialise(path: impl AsRef<Path>) -> Result<Graph, GraphError>;
 }
 
-impl <'graph, G:GraphViewOps<'graph>> StableSerialise for G {
+impl<'graph, G: GraphViewOps<'graph>> StableSerialise for G {
     fn stable_serialise(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
         let mut graph = serialise::Graph::default();
 
@@ -56,7 +64,6 @@ impl <'graph, G:GraphViewOps<'graph>> StableSerialise for G {
         file.write_all(&bytes)?;
 
         Ok(())
-
     }
 
     fn stable_deserialise(path: impl AsRef<Path>) -> Result<Graph, GraphError> {
@@ -69,13 +76,39 @@ impl <'graph, G:GraphViewOps<'graph>> StableSerialise for G {
             graph.add_node(
                 add_node.time,
                 add_node.name.as_ref(),
-                NO_PROPS,
+                add_node.properties.as_ref().map(as_prop),
                 add_node.node_type.as_deref(),
             )?;
         }
         Ok(graph)
-
     }
+}
+
+fn as_prop(prop_pair: &PropPair) -> (String, Prop) {
+    let PropPair { key, value } = prop_pair;
+    let value = value.as_ref().expect("Missing prop value");
+    let value = match value.value.as_ref().expect("Missing prop value") {
+        serialise::prop::Value::BoolValue(b) => Prop::Bool(*b),
+        serialise::prop::Value::U8(u) => Prop::U8((*u).try_into().unwrap()),
+        serialise::prop::Value::U16(u) => Prop::U16((*u).try_into().unwrap()),
+        serialise::prop::Value::U32(u) => Prop::U32(*u),
+        serialise::prop::Value::I32(i) => Prop::I32(*i),
+        serialise::prop::Value::I64(i) => Prop::I64(*i),
+        serialise::prop::Value::U64(u) => Prop::U64(*u),
+        serialise::prop::Value::F32(f) => Prop::F32(*f),
+        serialise::prop::Value::F64(f) => Prop::F64(*f),
+        serialise::prop::Value::Str(s) => Prop::Str(ArcStr::from(s.clone())),
+        _ => todo!(),
+        // serialise::prop::Value::List(_) => todo!(),
+        // serialise::prop::Value::Map(_) => todo!(),
+        // serialise::prop::Value::NDTime(_) => todo!(),
+        // serialise::prop::Value::DTime(_) => todo!(),
+        // serialise::prop::Value::Graph(_) => todo!(),
+        // serialise::prop::Value::PersistentGraph(_) => todo!(),
+        // serialise::prop::Value::Document(_) => todo!(),
+    };
+
+    (key.clone(), value)
 }
 
 fn as_prop_pair(prop_name: &str, prop: &Prop) -> PropPair {
@@ -114,15 +147,24 @@ mod proto_test {
     use super::*;
 
     #[test]
-    fn one_node_check() {
+    fn node_no_props() {
+        let temp_file = tempfile::NamedTempFile::new().unwrap();
         let g1 = Graph::new();
         g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
-        let temp_file = tempfile::NamedTempFile::new().unwrap();
-
         g1.stable_serialise(&temp_file).unwrap();
-
         let g2 = Graph::stable_deserialise(&temp_file).unwrap();
+        assert_eq!(&g1, &g2);
+    }
 
+    #[test]
+    fn node_with_props() {
+        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let g1 = Graph::new();
+        g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
+        g1.add_node(2, "Bob", [("age", Prop::U32(47))], None)
+            .unwrap();
+        g1.stable_serialise(&temp_file).unwrap();
+        let g2 = Graph::stable_deserialise(&temp_file).unwrap();
         assert_eq!(&g1, &g2);
     }
 }
