@@ -19,8 +19,8 @@ message Prop {
     Dict map = 12;
     bytes graph = 13; // Assuming Data can be represented as bytes.
     bytes persistentGraph = 14; // Assuming Data can be represented as bytes.
-    // Timestamp ndTime = 15;
-    // Timestamp dTime = 15;
+    string ndTime = 15;
+    string dTime = 16;
     DocumentInput documentInput = 17;
   }
 }
@@ -39,7 +39,7 @@ message DocumentInput {
 }
 
 message Lifespan {
-  oneof type {
+  oneof l_type {
     Interval interval = 1;
     Event event = 2;
     // Inherited is represented by the absence of both interval and event.
@@ -131,7 +131,8 @@ message Graph {
   message UpdateEdgeConstProps {
     uint64 src = 1;
     uint64 dst = 2;
-    PropPair properties = 3;
+    uint64 layer_id = 3;
+    PropPair properties = 4;
   }
 
   message PropPair {

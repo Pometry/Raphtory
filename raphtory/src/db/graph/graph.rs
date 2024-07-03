@@ -47,19 +47,25 @@ pub fn graph_equal<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps
     if g1.count_nodes() == g2.count_nodes() && g1.count_edges() == g2.count_edges() {
         g1.nodes().id().par_values().all(|v| g2.has_node(v)) && // all nodes exist in other
         g1.nodes().par_iter().all(|v1| {
-            let c1 = Some(v1.properties().temporal().into_iter().count());
-            let c2 = g2.node(v1.id()).map(|n| n.properties().temporal().into_iter().count());
-
-            let t1 = Some(v1.properties().constant().into_iter().count());
-            let t2 = g2.node(v1.id()).map(|n| n.properties().constant().into_iter().count());
-
-            c1 == c2 && t1 == t2
+            let c1 = v1.properties().constant().into_iter().count();
+            let t1 = v1.properties().temporal().into_iter().count();
+            g2.node(v1.id()).filter(|node|{
+                c1 == node.properties().constant().into_iter().count() &&
+                t1 == node.properties().temporal().into_iter().count()
+            }).is_some()
         }) &&
             g1.count_temporal_edges() == g2.count_temporal_edges() && // same number of exploded edges
             g1.edges().explode().iter().all(|e| { // all exploded edges exist in other
+
+            let c1 = e.properties().constant().into_iter().count();
+            let t1 = e.properties().temporal().into_iter().count();
                 g2
                     .edge(e.src().id(), e.dst().id())
-                    .filter(|ee| ee.active(e.time().expect("exploded")))
+                    .filter(|ee| {
+                        ee.active(e.time().expect("exploded")) &&
+                        c1 == e.properties().constant().into_iter().count() &&
+                        t1 == e.properties().temporal().into_iter().count()
+                    })
                     .is_some()
             })
     } else {

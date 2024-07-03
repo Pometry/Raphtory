@@ -7,9 +7,15 @@ use raphtory_api::core::{
 };
 
 use crate::{
-    core::{entities::properties::props::PropMapper, utils::errors::GraphError, PropType},
+    core::{
+        entities::{properties::props::PropMapper, LayerIds},
+        utils::errors::GraphError,
+        Lifespan, PropType,
+    },
     db::api::{
-        mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
+        mutation::internal::{
+            DelegatePropertyAdditionOps, InternalAdditionOps, InternalPropertyAdditionOps,
+        },
         storage::nodes::node_storage_ops::NodeStorageOps,
     },
     prelude::*,
@@ -17,17 +23,34 @@ use crate::{
         self,
         graph::{
             properties_meta::{self, PropName},
-            AddNode, Node, PropPair,
+            AddEdge, AddNode, Node, PropPair, UpdateEdgeConstProps,
         },
-        prop, Dict,
+        lifespan, prop, Dict,
     },
 };
 
-use super::{internal::CoreGraphOps, GraphViewOps};
+use super::GraphViewOps;
 
-pub trait StableSerialise {
-    fn stable_serialise(&self, path: impl AsRef<Path>) -> Result<(), GraphError>;
-    fn stable_deserialise(path: impl AsRef<Path>) -> Result<Graph, GraphError>;
+pub trait StableEncoder {
+    fn encode_to_vec(&self) -> Result<Vec<u8>, GraphError>;
+
+    fn stable_serialise(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
+        let mut file = File::create(path)?;
+        let bytes = self.encode_to_vec()?;
+        file.write_all(&bytes)?;
+
+        Ok(())
+    }
+}
+
+pub trait StableDecode {
+    fn decode_from_bytes(bytes: &[u8], g: &Self) -> Result<(), GraphError>;
+    fn decode(path: impl AsRef<Path>, g: &Self) -> Result<(), GraphError> {
+        let file = File::open(path)?;
+        let buf = unsafe { memmap2::MmapOptions::new().map(&file)? };
+        let bytes = buf.as_ref();
+        Self::decode_from_bytes(bytes, g)
+    }
 }
 
 fn as_proto_prop_type(p_type: &PropType) -> properties_meta::PropType {
@@ -93,8 +116,8 @@ fn collect_prop_names<'a>(
         .collect()
 }
 
-impl<'graph, G: GraphViewOps<'graph>> StableSerialise for G {
-    fn stable_serialise(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
+impl<'graph, G: GraphViewOps<'graph>> StableEncoder for G {
+    fn encode_to_vec(&self) -> Result<Vec<u8>, GraphError> {
         let mut graph = serialise::Graph::default();
 
         graph.layers = self
@@ -126,7 +149,9 @@ impl<'graph, G: GraphViewOps<'graph>> StableSerialise for G {
         let serialise::Graph {
             ref mut add_nodes,
             ref mut const_nodes_props,
+            ref mut const_edges_props,
             ref mut nodes,
+            ref mut edges,
             ..
         } = graph;
 
@@ -168,7 +193,7 @@ impl<'graph, G: GraphViewOps<'graph>> StableSerialise for G {
                         .unwrap();
                     add_nodes.push(AddNode {
                         id,
-                        properties: Some(as_prop_pair(key as u64, &prop)),
+                        properties: Some(as_prop_pair(key as u64, &prop)?),
                         type_id,
                         time,
                     });
@@ -183,23 +208,70 @@ impl<'graph, G: GraphViewOps<'graph>> StableSerialise for G {
                     .unwrap();
                 const_nodes_props.push(serialise::graph::UpdateNodeConstProps {
                     id,
-                    properties: Some(as_prop_pair(key as u64, &prop)),
+                    properties: Some(as_prop_pair(key as u64, &prop)?),
                 });
             }
         }
 
-        let mut file = File::create(path)?;
-        let bytes = graph.encode_to_vec();
-        file.write_all(&bytes)?;
+        for e in self.edges() {
+            let src = e.src().node.0 as u64;
+            let dst = e.dst().node.0 as u64;
+            // FIXME: this needs to be verified
+            for ee in e.explode_layers() {
+                let layer_id = *ee.edge.layer().expect("exploded layers");
 
-        Ok(())
+                for (prop_name, prop) in ee.properties().constant() {
+                    let key = self
+                        .edge_meta()
+                        .const_prop_meta()
+                        .get_id(&prop_name)
+                        .unwrap();
+                    const_edges_props.push(serialise::graph::UpdateEdgeConstProps {
+                        src,
+                        dst,
+                        layer_id: layer_id as u64,
+                        properties: Some(as_prop_pair(key as u64, &prop)?),
+                    });
+                }
+
+                for ee in ee.explode() {
+                    edges.push(AddEdge {
+                        src,
+                        dst,
+                        properties: None,
+                        time: ee.time().expect("exploded edge"),
+                        layer_id: Some(layer_id as u64),
+                    });
+
+                    for (prop_name, prop_view) in ee.properties().temporal() {
+                        for (time, prop) in prop_view.iter() {
+                            let key = self
+                                .edge_meta()
+                                .temporal_prop_meta()
+                                .get_id(&prop_name)
+                                .unwrap();
+                            edges.push(AddEdge {
+                                src,
+                                dst,
+                                properties: Some(as_prop_pair(key as u64, &prop)?),
+                                time,
+                                layer_id: Some(layer_id as u64),
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(graph.encode_to_vec())
     }
+}
 
-    fn stable_deserialise(path: impl AsRef<Path>) -> Result<Graph, GraphError> {
-        let file = File::open(path)?;
-        let buf = unsafe { memmap2::MmapOptions::new().map(&file)? };
+impl<'graph, G: InternalAdditionOps + GraphViewOps<'graph> + DelegatePropertyAdditionOps>
+    StableDecode for G
+{
+    fn decode_from_bytes(buf: &[u8], graph: &Self) -> Result<(), GraphError> {
         let g = serialise::Graph::decode(&buf[..]).expect("Failed to decode graph");
-        let graph = Graph::new();
 
         // align the nodes
         for node in g.nodes {
@@ -280,7 +352,46 @@ impl<'graph, G: GraphViewOps<'graph>> StableSerialise for G {
                 .collect();
             graph.internal_update_constant_node_properties(vid, props)?;
         }
-        Ok(graph)
+
+        for AddEdge {
+            src,
+            dst,
+            properties,
+            time,
+            layer_id,
+        } in &g.edges
+        {
+            let src = VID(*src as usize);
+            let dst = VID(*dst as usize);
+            let props = properties.as_ref().map(as_prop).into_iter().collect();
+            graph.internal_add_edge(
+                TimeIndexEntry::from(*time),
+                src,
+                dst,
+                props,
+                layer_id.map(|id| id as usize).unwrap(),
+            )?;
+        }
+
+        for UpdateEdgeConstProps {
+            src,
+            dst,
+            properties,
+            layer_id,
+        } in &g.const_edges_props
+        {
+            let src = VID(*src as usize);
+            let dst = VID(*dst as usize);
+            let eid = graph
+                .core_node_entry(src)
+                .find_edge(dst, &LayerIds::All)
+                .map(|e| e.pid())
+                .unwrap();
+            let props = properties.iter().map(|prop| as_prop(prop)).collect();
+            graph.internal_update_constant_edge_properties(eid, *layer_id as usize, props)?;
+        }
+
+        Ok(())
     }
 }
 
@@ -329,14 +440,14 @@ fn as_prop_value(value: Option<&prop::Value>) -> Prop {
     value
 }
 
-fn as_prop_pair(key: u64, prop: &Prop) -> PropPair {
-    PropPair {
+fn as_prop_pair(key: u64, prop: &Prop) -> Result<PropPair, GraphError> {
+    Ok(PropPair {
         key,
-        value: Some(as_proto_prop(prop)),
-    }
+        value: Some(as_proto_prop(prop)?),
+    })
 }
 
-fn as_proto_prop(prop: &Prop) -> serialise::Prop {
+fn as_proto_prop(prop: &Prop) -> Result<serialise::Prop, GraphError> {
     let value: prop::Value = match prop {
         Prop::Bool(b) => prop::Value::BoolValue(*b),
         Prop::U8(u) => prop::Value::U8((*u).into()),
@@ -348,23 +459,45 @@ fn as_proto_prop(prop: &Prop) -> serialise::Prop {
         Prop::F32(f) => prop::Value::F32(*f),
         Prop::F64(f) => prop::Value::F64(*f),
         Prop::Str(s) => prop::Value::Str(s.to_string()),
-        Prop::List(list) => prop::Value::Prop(serialise::Props {
-            properties: list.iter().map(as_proto_prop).collect(),
-        }),
-        Prop::Map(map) => prop::Value::Map(Dict {
-            map: map
+        Prop::List(list) => {
+            let properties = list.iter().map(as_proto_prop).collect::<Result<_, _>>()?;
+            prop::Value::Prop(serialise::Props { properties })
+        }
+        Prop::Map(map) => {
+            let map = map
                 .iter()
-                .map(|(k, v)| (k.to_string(), as_proto_prop(v)))
-                .collect(),
-        }),
-        Prop::NDTime(_) => todo!(),
-        Prop::DTime(_) => todo!(),
-        Prop::Graph(_) => todo!(),
-        Prop::PersistentGraph(_) => todo!(),
-        Prop::Document(_) => todo!(),
+                .map(|(k, v)| as_proto_prop(v).map(|v| (k.to_string(), v)))
+                .collect::<Result<_, _>>()?;
+            prop::Value::Map(Dict { map })
+        }
+        Prop::NDTime(time) => prop::Value::NdTime(time.format("%Y%m%dT%H:%M:%S.%9f").to_string()),
+        Prop::DTime(dt) => {
+            prop::Value::DTime(dt.to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true))
+        }
+        Prop::Graph(g) => {
+            let bytes = g.encode_to_vec()?;
+            prop::Value::Graph(bytes)
+        }
+        Prop::PersistentGraph(g) => {
+            let bytes = g.encode_to_vec()?;
+            prop::Value::PersistentGraph(bytes)
+        }
+        Prop::Document(doc) => {
+            let life = match doc.life {
+                Lifespan::Interval { start, end } => {
+                    Some(lifespan::LType::Interval(lifespan::Interval { start, end }))
+                }
+                Lifespan::Event { time } => Some(lifespan::LType::Event(lifespan::Event { time })),
+                Lifespan::Inherited => None,
+            };
+            prop::Value::DocumentInput(serialise::DocumentInput {
+                content: doc.content.clone(),
+                life: Some(serialise::Lifespan { l_type: life }),
+            })
+        }
     };
 
-    serialise::Prop { value: Some(value) }
+    Ok(serialise::Prop { value: Some(value) })
 }
 
 #[cfg(test)]
@@ -377,7 +510,8 @@ mod proto_test {
         let g1 = Graph::new();
         g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
         g1.stable_serialise(&temp_file).unwrap();
-        let g2 = Graph::stable_deserialise(&temp_file).unwrap();
+        let g2 = Graph::new();
+        Graph::decode(&temp_file, &g2).unwrap();
         assert_eq!(&g1, &g2);
     }
 
@@ -389,7 +523,8 @@ mod proto_test {
         g1.add_node(2, "Bob", [("age", Prop::U32(47))], None)
             .unwrap();
         g1.stable_serialise(&temp_file).unwrap();
-        let g2 = Graph::stable_deserialise(&temp_file).unwrap();
+        let g2 = Graph::new();
+        Graph::decode(&temp_file, &g2).unwrap();
         assert_eq!(&g1, &g2);
     }
 
@@ -406,7 +541,62 @@ mod proto_test {
             .expect("Failed to update constant properties");
 
         g1.stable_serialise(&temp_file).unwrap();
-        let g2 = Graph::stable_deserialise(&temp_file).unwrap();
+        let g2 = Graph::new();
+        Graph::decode(&temp_file, &g2).unwrap();
+        assert_eq!(&g1, &g2);
+    }
+
+    #[test]
+    fn edge_no_props() {
+        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let g1 = Graph::new();
+        g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
+        g1.add_node(2, "Bob", NO_PROPS, None).unwrap();
+        g1.add_edge(3, "Alice", "Bob", NO_PROPS, None).unwrap();
+        g1.stable_serialise(&temp_file).unwrap();
+        let g2 = Graph::new();
+        Graph::decode(&temp_file, &g2).unwrap();
+        assert_eq!(&g1, &g2);
+    }
+
+    #[test]
+    fn edge_t_props() {
+        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let g1 = Graph::new();
+        g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
+        g1.add_node(2, "Bob", NO_PROPS, None).unwrap();
+        g1.add_edge(3, "Alice", "Bob", [("kind", "friends")], None)
+            .unwrap();
+        g1.stable_serialise(&temp_file).unwrap();
+        let g2 = Graph::new();
+        Graph::decode(&temp_file, &g2).unwrap();
+        assert_eq!(&g1, &g2);
+    }
+
+    #[test]
+    fn edge_const_props() {
+        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let g1 = Graph::new();
+        let e1 = g1.add_edge(3, "Alice", "Bob", NO_PROPS, None).unwrap();
+        e1.update_constant_properties([("friends", true)], None)
+            .expect("Failed to update constant properties");
+        g1.stable_serialise(&temp_file).unwrap();
+        let g2 = Graph::new();
+        Graph::decode(&temp_file, &g2).unwrap();
+        assert_eq!(&g1, &g2);
+    }
+
+    #[test]
+    fn edge_layers() {
+        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let g1 = Graph::new();
+        g1.add_edge(7, "Alice", "Bob", NO_PROPS, Some("one"))
+            .unwrap();
+        g1.add_edge(7, "Bob", "Charlie", [("friends", false)], Some("two"))
+            .unwrap();
+        g1.stable_serialise(&temp_file).unwrap();
+        let g2 = Graph::new();
+        Graph::decode(&temp_file, &g2).unwrap();
         assert_eq!(&g1, &g2);
     }
 }
