@@ -873,12 +873,12 @@ mod graphql_test {
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let query = r##"
-        mutation($file: Upload!) {
-            uploadGraph(name: "test", graph: $file)
+        mutation($file: Upload!, $overwrite: Boolean!) {
+            uploadGraph(name: "test", graph: $file, overwrite: $overwrite)
         }
         "##;
 
-        let variables = json!({ "file": null });
+        let variables = json!({ "file": null, "overwrite": false });
         let mut req = Request::new(query).variables(Variables::from_json(variables));
         req.set_upload("variables.file", upload_val);
         let res = schema.execute(req).await;
@@ -921,12 +921,13 @@ mod graphql_test {
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let query = r#"
-        mutation($graph: String!) {
-            sendGraph(name: "test", graph: $graph)
+        mutation($graph: String!, $overwrite: Boolean!) {
+            sendGraph(name: "test", graph: $graph, overwrite: $overwrite)
         }
         "#;
-        let req =
-            Request::new(query).variables(Variables::from_json(json!({ "graph": graph_str })));
+        let req = Request::new(query).variables(Variables::from_json(
+            json!({ "graph": graph_str, "overwrite": false }),
+        ));
 
         let res = schema.execute(req).await;
         assert_eq!(res.errors.len(), 0);

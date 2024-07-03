@@ -682,31 +682,35 @@ impl PyRaphtoryClient {
         translate_map_to_python(py, data)
     }
 
-    /// Send a graph to the server.
+    /// Send a graph to the server
     ///
     /// Arguments:
-    ///   * `name`: the name of the graph sent.
-    ///   * `graph`: the graph to send.
+    ///   * `name`: the name of the graph
+    ///   * `graph`: the graph to send
+    ///   * `overwrite`: overwrite existing graph (defaults to False)
     ///
     /// Returns:
     ///    The `data` field from the graphQL response after executing the mutation.
+    #[pyo3(signature = (name, graph, overwrite = false))]
     fn send_graph(
         &self,
         py: Python,
         name: String,
         graph: MaterializedGraph,
+        overwrite: bool,
     ) -> PyResult<HashMap<String, PyObject>> {
         let encoded_graph = encode_graph(graph)?;
 
         let query = r#"
-            mutation SendGraph($name: String!, $graph: String!) {
-                sendGraph(name: $name, graph: $graph)
+            mutation SendGraph($name: String!, $graph: String!, $overwrite: Boolean!) {
+                sendGraph(name: $name, graph: $graph, overwrite: $overwrite)
             }
         "#
         .to_owned();
         let variables = [
             ("name".to_owned(), json!(name)),
             ("graph".to_owned(), json!(encoded_graph)),
+            ("overwrite".to_owned(), json!(overwrite)),
         ];
 
         let data = self.query_with_json_variables(query, variables.into())?;
@@ -723,11 +727,22 @@ impl PyRaphtoryClient {
         }
     }
 
+    /// Upload graph file from a path `file_path` on the client
+    ///
+    /// Arguments:
+    ///   * `name`: the name of the graph
+    ///   * `file_path`: the path of the graph on the client
+    ///   * `overwrite`: overwrite existing graph (defaults to False)
+    ///
+    /// Returns:
+    ///    The `data` field from the graphQL response after executing the mutation.
+    #[pyo3(signature = (name, file_path, overwrite = false))]
     fn upload_graph(
         &self,
         py: Python,
         name: String,
         file_path: String,
+        overwrite: bool,
     ) -> PyResult<HashMap<String, PyObject>> {
         let rt = Runtime::new().unwrap();
         rt.block_on(async {
@@ -741,9 +756,9 @@ impl PyRaphtoryClient {
             let form = multipart::Form::new()
                 .text("operations", format!(
                     r#"{{
-                    "query": "mutation UploadGraph($name: String!, $graph: Upload!) {{ uploadGraph(name: $name, graph: $graph) }}",
-                    "variables": {{ "name": "{}", "graph": null }}
-                }}"#, name
+                    "query": "mutation UploadGraph($name: String!, $graph: Upload!, $overwrite: Boolean!) {{ uploadGraph(name: $name, graph: $graph, overwrite: $overwrite) }}",
+                    "variables": {{ "name": "{}", "overwrite": {}, "graph": null  }}
+                }}"#, name, overwrite
                 ))
                 .text("map", r#"{"0": ["variables.graph"]}"#)
                 .part("0", multipart::Part::bytes(buffer).file_name(file_path.clone()));

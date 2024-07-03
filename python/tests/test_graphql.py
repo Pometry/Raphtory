@@ -68,7 +68,7 @@ def test_server_start_on_custom_port():
     server.stop()
     
 
-def test_send_graphs_to_server():
+def test_send_graph_to_server():
     g = Graph()
     g.add_edge(1, "ben", "hamza")
     g.add_edge(2, "haaroon", "hamza")
@@ -85,9 +85,57 @@ def test_send_graphs_to_server():
             "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
         }
     }
-    
+
+    try:
+        client.send_graph(name="g", graph=g)
+    except Exception as e:
+        assert "Graph already exists by name = g" in str(e), f"Unexpected exception message: {e}"
+
+    client.send_graph(name="g", graph=g, overwrite=True)
+    assert client.query(query) == {
+        "graph": {
+            "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
+        }
+    }
+
     server.stop()
-    
+
+
+def test_upload_graph_to_server():
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+    tmp_dir = tempfile.mkdtemp()
+    g_file_path = tmp_dir + "/g"
+    g.save_to_file(g_file_path)
+
+    tmp_work_dir = tempfile.mkdtemp()
+    server = RaphtoryServer(tmp_work_dir).start()
+    client = RaphtoryClient("http://localhost:1736")
+    client.upload_graph(name="g", file_path=g_file_path, overwrite=False)
+
+    query = """{graph(name: "g") {nodes {list {name}}}}"""
+    assert client.query(query) == {
+        "graph": {
+            "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
+        }
+    }
+
+    try:
+        client.upload_graph(name="g", file_path=g_file_path)
+    except Exception as e:
+        assert "Graph already exists by name = g" in str(e), f"Unexpected exception message: {e}"
+
+    client.upload_graph(name="g", file_path=g_file_path, overwrite=True)
+    assert client.query(query) == {
+        "graph": {
+            "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
+        }
+    }
+
+    server.stop()
+
 
 def test_load_graph():
     g1 = Graph()

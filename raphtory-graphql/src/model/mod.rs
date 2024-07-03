@@ -388,13 +388,22 @@ impl Mut {
     ///
     /// Returns::
     ///    name of the new graph
-    async fn upload_graph<'a>(ctx: &Context<'a>, name: String, graph: Upload) -> Result<String> {
+    async fn upload_graph<'a>(
+        ctx: &Context<'a>,
+        name: String,
+        graph: Upload,
+        overwrite: bool,
+    ) -> Result<String> {
+        let data = ctx.data_unchecked::<Data>();
+        let path = Path::new(data.work_dir.as_str()).join(name.as_str());
+        if path.exists() && !overwrite {
+            return Err(GraphError::GraphNameAlreadyExists { name }.into());
+        }
         let mut buffer = Vec::new();
         let mut buff_read = graph.value(ctx)?.content;
         buff_read.read_to_end(&mut buffer)?;
         let g: MaterializedGraph = MaterializedGraph::from_bincode(&buffer)?;
-        let data = ctx.data_unchecked::<Data>();
-        g.save_to_file(Path::new(data.work_dir.as_str()).join(name.as_str()))?;
+        g.save_to_file(&path)?;
         data.graphs.insert(name.clone(), g.into());
         Ok(name)
     }
@@ -403,10 +412,19 @@ impl Mut {
     ///
     /// Returns::
     ///    name of the new graph
-    async fn send_graph<'a>(ctx: &Context<'a>, name: String, graph: String) -> Result<String> {
+    async fn send_graph<'a>(
+        ctx: &Context<'a>,
+        name: String,
+        graph: String,
+        overwrite: bool,
+    ) -> Result<String> {
+        let data = ctx.data_unchecked::<Data>();
+        let path = Path::new(data.work_dir.as_str()).join(name.as_str());
+        if path.exists() && !overwrite {
+            return Err(GraphError::GraphNameAlreadyExists { name }.into());
+        }
         let g: MaterializedGraph = bincode::deserialize(&URL_SAFE_NO_PAD.decode(graph)?)?;
-        let data = ctx.data_unchecked::<Data>().clone();
-        g.save_to_file(Path::new(data.work_dir.as_str()).join(name.as_str()))?;
+        g.save_to_file(&path)?;
         data.graphs.insert(name.clone(), g.into());
         Ok(name)
     }
