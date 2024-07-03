@@ -24,7 +24,7 @@ use futures::Stream;
 use pometry_storage::properties::ConstProps;
 use raphtory::{
     core::entities::VID,
-    disk_graph::{graph_impl::DiskGraph, prelude::*},
+    disk_graph::{prelude::*, DiskGraph},
 };
 use std::{any::Any, fmt::Formatter, sync::Arc};
 

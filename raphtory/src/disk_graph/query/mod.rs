@@ -9,7 +9,7 @@ use crate::{
 use self::state::HopState;
 use crate::core::storage::timeindex::TimeIndexOps;
 
-use super::graph_impl::DiskGraph;
+use crate::disk_graph::DiskGraph;
 use pometry_storage::nodes::Node;
 
 pub mod ast;

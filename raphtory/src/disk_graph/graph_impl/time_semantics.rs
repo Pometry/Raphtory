@@ -1,4 +1,3 @@
-use super::DiskGraph;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
@@ -12,7 +11,7 @@ use crate::{
         },
         view::{internal::TimeSemantics, BoxedIter},
     },
-    disk_graph::graph_impl::tprops::read_tprop_column,
+    disk_graph::{graph_impl::tprops::read_tprop_column, DiskGraph},
     prelude::*,
 };
 use itertools::Itertools;

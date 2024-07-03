@@ -28,7 +28,7 @@ use datafusion::{
 };
 use futures::Stream;
 use pometry_storage::prelude::*;
-use raphtory::disk_graph::graph_impl::DiskGraph;
+use raphtory::disk_graph::DiskGraph;
 
 use crate::executor::{arrow2_to_arrow_buf, ExecError};
 

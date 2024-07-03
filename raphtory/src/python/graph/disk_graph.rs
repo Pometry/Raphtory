@@ -1,5 +1,6 @@
 use std::{io::Write, sync::Arc};
 
+use super::io::pandas_loaders::*;
 use crate::{
     arrow2::{
         array::StructArray,
@@ -14,10 +15,11 @@ use crate::{
         graph::{edge::EdgeView, node::NodeView},
     },
     disk_graph::{
-        graph_impl::{DiskGraph, ParquetLayerCols},
+        graph_impl::ParquetLayerCols,
         query::{ast::Query, executors::rayon2, state::StaticGraphHopState, NodeSource},
-        Error,
+        DiskGraph, DiskGraphError,
     },
+    io::arrow::dataframe::DFView,
     prelude::{EdgeViewOps, GraphViewOps, NodeViewOps, TimeOps},
     python::{
         graph::{edge::PyDirection, graph::PyGraph, views::graph_view::PyGraphView},
@@ -30,14 +32,11 @@ use pometry_storage::GID;
 /// A columnar temporal graph.
 use pyo3::{
     prelude::*,
-    types::{IntoPyDict, PyDict, PyList, PyString},
+    types::{PyDict, PyList, PyString},
 };
 
-use super::io::pandas_loaders::*;
-use crate::io::arrow::dataframe::DFView;
-
-impl From<Error> for PyErr {
-    fn from(value: Error) -> Self {
+impl From<DiskGraphError> for PyErr {
+    fn from(value: DiskGraphError) -> Self {
         adapt_err_value(&value)
     }
 }
@@ -143,7 +142,7 @@ impl<'a> FromPyObject<'a> for ParquetLayerColsList<'a> {
 #[pymethods]
 impl PyGraph {
     /// save graph in disk_graph format and memory map the result
-    pub fn persist_as_disk_graph(&self, graph_dir: &str) -> Result<DiskGraph, Error> {
+    pub fn persist_as_disk_graph(&self, graph_dir: &str) -> Result<DiskGraph, DiskGraphError> {
         self.graph.persist_as_disk_graph(graph_dir)
     }
 }

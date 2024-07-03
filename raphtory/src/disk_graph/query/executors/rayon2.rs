@@ -2,12 +2,12 @@ use crate::{
     core::{entities::VID, Direction},
     db::{api::view::StaticGraphViewOps, graph::node::NodeView},
     disk_graph::{
-        graph_impl::DiskGraph,
         query::{
             ast::{Hop, Query, Sink},
             state::{HopState, StaticGraphHopState},
             NodeSource,
         },
+        DiskGraph,
     },
     prelude::*,
 };

@@ -14,7 +14,7 @@ use raphtory::{
         Direction,
     },
     db::{api::properties::internal::ConstPropertiesOps, graph::node::NodeView},
-    disk_graph::graph_impl::DiskGraph,
+    disk_graph::DiskGraph,
     prelude::*,
 };
 use sqlparser::ast::{
@@ -1143,17 +1143,14 @@ fn sql_like(
 
 #[cfg(test)]
 mod test {
-
     use crate::{parser, transpiler};
-
-    use super::*;
+    use pretty_assertions::assert_eq;
     use raphtory::{
         db::{api::mutation::AdditionOps, graph::graph::Graph},
+        disk_graph::DiskGraph,
         prelude::NO_PROPS,
     };
     use tempfile::tempdir;
-
-    use pretty_assertions::assert_eq;
 
     #[test]
     fn count_all_nodes() {

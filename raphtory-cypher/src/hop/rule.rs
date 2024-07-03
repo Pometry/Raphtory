@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::hop::operator::HopPlan;
 use async_trait::async_trait;
 use datafusion::{
     common::Column,
@@ -10,9 +11,7 @@ use datafusion::{
     physical_plan::ExecutionPlan,
     physical_planner::{DefaultPhysicalPlanner, ExtensionPlanner, PhysicalPlanner},
 };
-use raphtory::{core::Direction, disk_graph::graph_impl::DiskGraph};
-
-use crate::hop::operator::HopPlan;
+use raphtory::{core::Direction, disk_graph::DiskGraph};
 
 use super::execution::HopExec;
 
@@ -141,7 +140,7 @@ impl ExtensionPlanner for HopPlanner {
 #[cfg(test)]
 mod test {
     use arrow::util::pretty::print_batches;
-    use raphtory::disk_graph::graph_impl::DiskGraph;
+    use raphtory::disk_graph::DiskGraph;
     use tempfile::tempdir;
 
     use crate::prepare_plan;

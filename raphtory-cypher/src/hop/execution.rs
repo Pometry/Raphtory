@@ -38,16 +38,15 @@ use datafusion::{
 use datafusion::physical_expr::Partitioning;
 use futures::{Stream, StreamExt};
 
+use crate::take_record_batch;
 use pometry_storage::graph_fragment::TempColGraphFragment;
 use raphtory::{
     core::{entities::VID, Direction},
     disk_graph::{
-        graph_impl::DiskGraph,
         prelude::{ArrayOps, BaseArrayOps, PrimitiveCol},
+        DiskGraph,
     },
 };
-
-use crate::take_record_batch;
 
 use super::operator::HopPlan;
 

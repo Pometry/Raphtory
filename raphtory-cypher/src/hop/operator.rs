@@ -5,7 +5,7 @@ use datafusion::{
     logical_expr::{Expr, LogicalPlan, TableScan, UserDefinedLogicalNodeCore},
 };
 
-use raphtory::{core::Direction, disk_graph::graph_impl::DiskGraph};
+use raphtory::{core::Direction, disk_graph::DiskGraph};
 
 #[derive(Debug, PartialEq, Hash, Eq)]
 pub struct HopPlan {

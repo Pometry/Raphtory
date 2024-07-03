@@ -22,13 +22,13 @@ use crate::{
         view::{internal::CoreGraphOps, BoxedIter},
     },
     disk_graph::{
-        graph_impl::DiskGraph,
         storage_interface::{
             edge::DiskOwnedEdge,
             edges::DiskEdges,
             node::{DiskNode, DiskOwnedNode},
             nodes::DiskNodesOwned,
         },
+        DiskGraph,
     },
 };
 use itertools::Itertools;
