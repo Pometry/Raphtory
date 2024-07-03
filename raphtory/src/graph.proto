@@ -56,41 +56,86 @@ message Lifespan {
 }
 
 message Graph {
-  repeated AddNode nodes = 1;
+  repeated AddNode add_nodes = 1;
   repeated AddEdge edges = 2;
   repeated UpdateNodeConstProps constNodesProps = 3;
   repeated UpdateEdgeConstProps constEdgesProps = 4;
   repeated Prop graphProperties = 5;
+  PropertiesMeta meta = 6;
+  repeated string layers = 7;
+  repeated string node_types = 8;
+  repeated Node nodes = 9;
+
+  message Node{
+    uint64 gid = 1;
+    uint64 vid = 2;
+    optional string name = 3;
+  }
+
+  message PropertiesMeta{
+    PropNames nodes = 1;
+    PropNames edges = 2;
+    
+    message PropNames{
+      repeated PropName constant = 1;
+      repeated PropName temporal = 2;
+    }
+
+    message PropName{
+      string name = 1;
+      PropType p_type = 2;
+    }
+
+    enum PropType {
+      Str = 0;
+      U8 = 1;
+      U16 = 2;
+      I32 = 3;
+      I64 = 4;
+      U32 = 5;
+      U64 = 6;
+      F32 = 7;
+      F64 = 8;
+      Bool = 9;
+      List = 10;
+      Map = 11;
+      NDTime = 12;
+      Graph = 13;
+      PersistentGraph = 14;
+      Document = 15;
+      DTime = 16;
+    }
+    
+  }
 
   message AddEdge {
     uint64 src = 1;
     uint64 dst = 2;
     PropPair properties = 3;
     int64 time = 4;
-    optional string layer = 5;
+    optional uint64 layer_id = 5;
   }
 
   message AddNode {
     uint64 id = 1;
-    string name = 2;
     optional PropPair properties = 3;
     int64 time = 4;
-    optional string node_type = 5;
+    optional uint64 type_id = 5;
   }
 
   message UpdateNodeConstProps {
-    int64 id = 1;
-    repeated PropPair properties = 2;
+    uint64 id = 1;
+    PropPair properties = 2;
   }
 
   message UpdateEdgeConstProps {
-    int64 src = 1;
-    int64 dst = 2;
-    repeated PropPair properties = 3;
+    uint64 src = 1;
+    uint64 dst = 2;
+    PropPair properties = 3;
   }
 
   message PropPair {
-    string key = 1;
+    uint64 key = 1;
     Prop value = 2;
   }
 }
