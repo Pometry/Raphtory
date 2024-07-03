@@ -7,7 +7,6 @@ use crossbeam_channel::Sender as CrossbeamSender;
 use dynamic_graphql::internal::{Registry, TypeName};
 use itertools::intersperse;
 use pyo3::{
-    append_to_inittab,
     exceptions::{PyAttributeError, PyException, PyTypeError, PyValueError},
     prelude::*,
     types::{IntoPyDict, PyDict, PyFunction, PyList},
@@ -461,7 +460,7 @@ fn adapt_graphql_value(value: &ValueAccessor, py: Python) -> PyObject {
         }
         GraphqlValue::String(value) => value.to_object(py),
         GraphqlValue::Boolean(value) => value.to_object(py),
-        value => panic!("graphql input value {value} has an unsuported type"),
+        value => panic!("graphql input value {value} has an unsupported type"),
     }
 }
 
@@ -639,30 +638,6 @@ impl PyRaphtoryClient {
             .map_err(|err| adapt_err_value(&err))
             .map(|json| (request_body, json))
     }
-
-    fn load_graphs(
-        &self,
-        py: Python,
-        path: String,
-        overwrite: bool,
-    ) -> PyResult<HashMap<String, PyObject>> {
-        let query =
-            format!("mutation {{ loadGraphsFromPath(path: \"{path}\", overwrite: {overwrite}) }}");
-        let variables = [];
-
-        let data = self.query_with_json_variables(query.clone(), variables.into())?;
-
-        match data.get("loadGraphsFromPath") {
-            Some(JsonValue::Array(loads)) => {
-                let num_graphs = loads.len();
-                println!("Loaded {num_graphs} graph(s)");
-                translate_map_to_python(py, data)
-            }
-            _ => Err(PyException::new_err(format!(
-                "Error while reading server response for query:\n\t{query}\nGot data:\n\t'{data:?}'"
-            ))),
-        }
-    }
 }
 
 const WAIT_CHECK_INTERVAL_MILLIS: u64 = 200;
@@ -802,22 +777,36 @@ impl PyRaphtoryClient {
         })
     }
 
-    /// Set the server to load all the graphs from its path `path`.
+    /// Load graph from a path `path` on the server.
     ///
     /// Arguments:
-    ///   * `path`: the path to load the graphs from.
-    ///   * `overwrite`: overwrite existing graphs (defaults to False)
+    ///   * `path`: the path to load the graph from.
+    ///   * `overwrite`: overwrite existing graph (defaults to False)
     ///
     /// Returns:
     ///    The `data` field from the graphQL response after executing the mutation.
     #[pyo3(signature = (path, overwrite = false))]
-    fn load_graphs_from_path(
+    fn load_graph(
         &self,
         py: Python,
         path: String,
         overwrite: bool,
     ) -> PyResult<HashMap<String, PyObject>> {
-        self.load_graphs(py, path, overwrite)
+        let query =
+            format!("mutation {{ loadGraphFromPath(path: \"{path}\", overwrite: {overwrite}) }}");
+        let variables = [];
+
+        let data = self.query_with_json_variables(query.clone(), variables.into())?;
+
+        match data.get("loadGraphFromPath") {
+            Some(JsonValue::String(name)) => {
+                println!("Loaded graph: '{name}'");
+                translate_map_to_python(py, data)
+            }
+            _ => Err(PyException::new_err(format!(
+                "Error while reading server response for query:\n\t{query}\nGot data:\n\t'{data:?}'"
+            ))),
+        }
     }
 }
 

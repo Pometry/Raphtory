@@ -1,5 +1,5 @@
 use crate::{
-    data::{load_graphs_from_path, Data},
+    data::{load_graph_from_path, load_graphs_from_path, Data},
     model::{
         algorithms::global_plugins::GlobalPlugins,
         graph::{graph::GqlGraph, graphs::GqlGraphs, vectorised_graph::GqlVectorisedGraph},
@@ -49,6 +49,8 @@ pub enum GqlGraphError {
     ImmutableDiskGraph,
     #[error("Graph does exists at path {0}")]
     GraphDoesNotExists(String),
+    #[error("Failed to load graph")]
+    FailedToLoadGraph,
 }
 
 #[derive(ResolvedObject)]
@@ -113,21 +115,6 @@ pub(crate) struct Mut(MutRoot);
 
 #[MutationFields]
 impl Mut {
-    /// Load graphs from a directory of bincode files (existing graphs with the same name are overwritten)
-    ///
-    /// Returns::
-    ///   list of names for newly added graphs
-    async fn load_graphs_from_path<'a>(
-        ctx: &Context<'a>,
-        path: String,
-        overwrite: bool,
-    ) -> Result<Vec<String>> {
-        let data = ctx.data_unchecked::<Data>();
-        let names = load_graphs_from_path(data.work_dir.as_ref(), (&path).as_ref(), overwrite)?;
-        names.iter().for_each(|name| data.graphs.invalidate(name));
-        Ok(names)
-    }
-
     async fn rename_graph<'a>(
         ctx: &Context<'a>,
         parent_graph_name: String,
@@ -360,6 +347,41 @@ impl Mut {
         data.graphs.insert(new_graph_name.clone(), gi);
 
         Ok(true)
+    }
+
+    /// Load graphs from a directory of bincode files (existing graphs with the same name are overwritten)
+    ///
+    /// Returns::
+    ///   list of names for newly added graphs
+    async fn load_graphs_from_path<'a>(
+        ctx: &Context<'a>,
+        path: String,
+        overwrite: bool,
+    ) -> Result<Vec<String>> {
+        let data = ctx.data_unchecked::<Data>();
+        let names = load_graphs_from_path(data.work_dir.as_ref(), (&path).as_ref(), overwrite)?;
+        names.iter().for_each(|name| data.graphs.invalidate(name));
+        Ok(names)
+    }
+
+    /// Load graph from path
+    ///
+    /// Returns::
+    ///   list of names for newly added graphs
+    async fn load_graph_from_path<'a>(
+        ctx: &Context<'a>,
+        path: String,
+        overwrite: bool,
+    ) -> Result<String> {
+        let data = ctx.data_unchecked::<Data>();
+        let name = load_graph_from_path(data.work_dir.as_ref(), (&path).as_ref(), overwrite)?;
+        match name {
+            Some(name) => {
+                data.graphs.invalidate(&name);
+                Ok(name)
+            }
+            None => Err(GqlGraphError::FailedToLoadGraph.into()),
+        }
     }
 
     /// Use GQL multipart upload to send new graphs to server

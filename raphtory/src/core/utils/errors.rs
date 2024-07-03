@@ -1,4 +1,5 @@
 use crate::core::{utils::time::error::ParseTimeError, ArcStr, Prop, PropType};
+use std::path::PathBuf;
 #[cfg(feature = "search")]
 use tantivy;
 #[cfg(feature = "search")]
@@ -6,6 +7,8 @@ use tantivy::query::QueryParserError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum GraphError {
+    #[error("Invalid path: {0:?}")]
+    InvalidPath(PathBuf),
     #[error("Graph error occurred")]
     UnsupportedDataType,
     #[error("Graph already exists by name = {name}")]

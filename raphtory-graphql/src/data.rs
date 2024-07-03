@@ -1,15 +1,12 @@
-use crate::{
-    model::algorithms::global_plugins::GlobalPlugins,
-    server_config::{load_config, AppConfig, CacheConfig},
-};
+use crate::{model::algorithms::global_plugins::GlobalPlugins, server_config::AppConfig};
 use async_graphql::Error;
 use dynamic_graphql::Result;
 use itertools::Itertools;
-use moka::sync::{Cache, CacheBuilder};
+use moka::sync::Cache;
 #[cfg(feature = "storage")]
 use raphtory::disk_graph::graph_impl::DiskGraph;
 use raphtory::{
-    core::Prop,
+    core::{utils::errors::GraphError, Prop},
     db::api::view::MaterializedGraph,
     prelude::{GraphViewOps, PropUnwrap, PropertyAdditionOps},
     search::IndexedGraph,
@@ -127,6 +124,8 @@ fn load_disk_graph_from_path(
             fs::remove_dir_all(target_dir)?;
             copy_dir_recursive(graph_dir, target_dir)?;
             println!("Disk Graph loaded = {}", path.display());
+        } else {
+            return Err(GraphError::GraphNameAlreadyExists { name }.into());
         }
     } else {
         copy_dir_recursive(graph_dir, target_dir)?;
@@ -144,17 +143,20 @@ fn load_disk_graph_from_path(
     Ok(None)
 }
 
-// If overwrite is false, graphs with names that already exist in the work directory will be silently ignored!
-fn load_graph_from_path(work_dir: &Path, path: &Path, overwrite: bool) -> Result<Option<String>> {
+pub fn load_graph_from_path(
+    work_dir: &Path,
+    path: &Path,
+    overwrite: bool,
+) -> Result<Option<String>> {
     if !path.exists() {
-        return Ok(None);
+        return Err(GraphError::InvalidPath(path.to_path_buf()).into());
     }
     println!("Loading graph from {}", path.display());
     if path.is_dir() {
         if is_disk_graph_dir(path) {
             load_disk_graph_from_path(work_dir, path, overwrite)
         } else {
-            Ok(None)
+            Err(GraphError::InvalidPath(path.to_path_buf()).into())
         }
     } else {
         let (name, graph) = load_bincode_graph(work_dir, path)?;
@@ -164,6 +166,8 @@ fn load_graph_from_path(work_dir: &Path, path: &Path, overwrite: bool) -> Result
                 fs::remove_file(&path)?;
                 graph.save_to_file(&path)?;
                 println!("Graph loaded = {}", path.display());
+            } else {
+                return Err(GraphError::GraphNameAlreadyExists { name }.into());
             }
         } else {
             graph.save_to_file(&path)?;
@@ -394,19 +398,51 @@ mod data_tests {
         let graph = Graph::load_from_file(tmp_work_dir.path().join("test_g"), false).unwrap();
         assert_eq!(graph.count_edges(), 2);
 
-        // Dir path doesn't exists
-        let res = load_graph_from_path(
-            tmp_work_dir.path(),
-            &tmp_graph_dir.path().join("test_dg1"),
-            true,
-        )
-        .unwrap();
-        assert!(res.is_none());
+        // Test directory path doesn't exist
+        let result = std::panic::catch_unwind(|| {
+            load_graph_from_path(
+                tmp_work_dir.path(),
+                &tmp_graph_dir.path().join("test_dg1"),
+                true,
+            )
+            .unwrap();
+        });
+
+        // Assert that it panicked with the expected message
+        assert!(result.is_err());
+        if let Err(err) = result {
+            let panic_message = err
+                .downcast_ref::<String>()
+                .expect("Expected a String panic message");
+            assert!(
+                panic_message.contains("Invalid path:"),
+                "Unexpected panic message: {}",
+                panic_message
+            );
+            assert!(
+                panic_message.contains("test_dg1"),
+                "Unexpected panic message: {}",
+                panic_message
+            );
+        }
 
         // Dir path exists but is not a disk graph path
-        let tmp_graph_dir = tempfile::tempdir().unwrap();
-        let res = load_graph_from_path(tmp_work_dir.path(), &tmp_graph_dir.path(), true).unwrap();
-        assert!(res.is_none());
+        let result = std::panic::catch_unwind(|| {
+            load_graph_from_path(tmp_work_dir.path(), &tmp_graph_dir.path(), true).unwrap();
+        });
+
+        // Assert that it panicked with the expected message
+        assert!(result.is_err());
+        if let Err(err) = result {
+            let panic_message = err
+                .downcast_ref::<String>()
+                .expect("Expected a String panic message");
+            assert!(
+                panic_message.contains("Invalid path:"),
+                "Unexpected panic message: {}",
+                panic_message
+            );
+        }
 
         // Dir path exists and is a disk graph path but storage feature is disabled
         let graph_path = tmp_graph_dir.path().join("test_dg");
@@ -495,8 +531,20 @@ mod data_tests {
         graph.save_to_file(&graph_path).unwrap();
 
         // Test overwrite false
-        let res = load_graphs_from_path(tmp_work_dir.path(), tmp_graph_dir.path(), false).unwrap();
-        assert_eq!(res, vec!["test_g2", "test_g1"]);
+        let result = std::panic::catch_unwind(|| {
+            load_graphs_from_path(tmp_work_dir.path(), tmp_graph_dir.path(), false).unwrap();
+        });
+        assert!(result.is_err());
+        if let Err(err) = result {
+            let panic_message = err
+                .downcast_ref::<String>()
+                .expect("Expected a String panic message");
+            assert!(
+                panic_message.contains("Graph already exists by name = test_g2"),
+                "Unexpected panic message: {}",
+                panic_message
+            );
+        }
 
         let graph = Graph::load_from_file(tmp_work_dir.path().join("test_g2"), false).unwrap();
         assert_eq!(graph.count_edges(), 3);

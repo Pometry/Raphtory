@@ -89,7 +89,7 @@ def test_send_graphs_to_server():
     server.stop()
     
 
-def test_load_graphs_from_path():
+def test_load_graph():
     g1 = Graph()
     g1.add_edge(1, "ben", "hamza")
     g1.add_edge(2, "haaroon", "hamza")
@@ -113,8 +113,17 @@ def test_load_graphs_from_path():
     g2_file_path = tmp_dir + "/g2"
     g2.save_to_file(g2_file_path)
 
-    # Since overwrite is False by default, it will not overwrite the existing graph g2
-    client.load_graphs_from_path(tmp_dir)
+    # Since overwrite is False by default, it will not overwrite the existing graph g2 but will instead fail
+    try:
+        client.load_graph(tmp_dir + "/g2")
+    except Exception as e:
+        assert "Graph already exists by name = g2" in str(e), f"Unexpected exception message: {e}"
+
+    # Path is not a valid disk graph path
+    try:
+        client.load_graph(tmp_dir)
+    except Exception as e:
+        assert "Invalid path" in str(e), f"Unexpected exception message: {e}"
 
     query_g1 = """{graph(name: "g1") {nodes {list {name}}}}"""
     query_g2 = """{graph(name: "g2") {nodes {list {name}}}}"""
@@ -139,7 +148,7 @@ def test_load_graphs_from_path():
     server.stop()
 
 
-def test_load_graphs_from_path_overwrite():
+def test_load_graph_overwrite():
     g1 = Graph()
     g1.add_edge(1, "ben", "hamza")
     g1.add_edge(2, "haaroon", "hamza")
@@ -157,7 +166,8 @@ def test_load_graphs_from_path_overwrite():
     client = server.get_client()
     client.send_graph(name="g1", graph=g1)
     client.send_graph(name="g2", graph=g2)
-    client.load_graphs_from_path(tmp_dir, True)
+
+    client.load_graph(tmp_dir + "/g2", True)
 
     query_g1 = """{graph(name: "g1") {nodes {list {name}}}}"""
     query_g2 = """{graph(name: "g2") {nodes {list {name}}}}"""
