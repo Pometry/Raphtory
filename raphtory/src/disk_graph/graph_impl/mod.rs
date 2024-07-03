@@ -1106,10 +1106,13 @@ mod test {
 #[cfg(test)]
 mod storage_tests {
     use crate::{
+        core::Prop,
         db::graph::graph::assert_graph_equal,
-        prelude::{AdditionOps, Graph, GraphViewOps, NO_PROPS},
+        prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, NO_PROPS, *},
     };
+    use itertools::Itertools;
     use proptest::prelude::*;
+    use raphtory_api::core::storage::arc_str::OptionAsStr;
     use std::collections::BTreeSet;
     use tempfile::TempDir;
 
@@ -1120,11 +1123,11 @@ mod storage_tests {
         g1.add_node(0, 1, NO_PROPS, None).unwrap();
         g1.add_node(0, 2, [("node_prop", 2f64)], Some("2")).unwrap();
         g1.add_edge(1, 0, 1, [("test", 1i32)], None).unwrap();
-        g1.add_edge(2, 0, 1, [("test", 2i32)], None).unwrap();
+        g1.add_edge(2, 0, 1, [("test", 2i32)], Some("1")).unwrap();
         g1.add_edge(2, 1, 2, [("test2", "test")], None).unwrap();
-        g1.edge(0, 1)
+        g1.node(1)
             .unwrap()
-            .add_constant_properties([("const_str", "test")], None)
+            .add_constant_properties([("const_str", "test")])
             .unwrap();
         g1.node(0)
             .unwrap()
@@ -1132,15 +1135,15 @@ mod storage_tests {
             .unwrap();
 
         let g2 = Graph::new();
-        g2.add_node(1, 0, [("node_prop", 1f64)], Some("1")).unwrap();
+        g2.add_node(1, 0, [("node_prop", 1f64)], None).unwrap();
         g2.add_node(0, 1, NO_PROPS, None).unwrap();
-        g2.add_node(3, 2, [("node_prop", 3f64)], Some("2")).unwrap();
+        g2.add_node(3, 2, [("node_prop", 3f64)], Some("3")).unwrap();
         g2.add_edge(1, 0, 1, [("test", 2i32)], None).unwrap();
-        g2.add_edge(3, 0, 1, [("test", 3i32)], None).unwrap();
+        g2.add_edge(3, 0, 1, [("test", 3i32)], Some("2")).unwrap();
         g2.add_edge(2, 1, 2, [("test2", "test")], None).unwrap();
-        g2.edge(0, 1)
+        g2.node(1)
             .unwrap()
-            .add_constant_properties([("const_str", "test2")], None)
+            .add_constant_properties([("const_str2", "test2")])
             .unwrap();
         g2.node(0)
             .unwrap()
@@ -1154,6 +1157,50 @@ mod storage_tests {
         let g2_a = g2.persist_as_disk_graph(&g2_dir).unwrap();
 
         let gm = g1_a.merge_by_sorted_gids(&g2_a, &gm_dir).unwrap();
+
+        let n0 = gm.node(0).unwrap();
+        assert_eq!(
+            n0.properties()
+                .temporal()
+                .get("node_prop")
+                .unwrap()
+                .iter()
+                .collect_vec(),
+            [(0, Prop::F64(0.)), (1, Prop::F64(1.))]
+        );
+        assert_eq!(
+            n0.properties()
+                .temporal()
+                .get("test")
+                .unwrap()
+                .iter()
+                .collect_vec(),
+            [(3, Prop::str("test")), (3, Prop::str("test"))]
+        );
+        assert_eq!(n0.node_type().as_str(), Some("1"));
+        let n1 = gm.node(1).unwrap();
+        assert_eq!(n1.properties().get("const_str"), Some(Prop::str("test")));
+        assert_eq!(n1.properties().get("const_str2").unwrap_str(), "test2");
+        assert!(n1
+            .properties()
+            .temporal()
+            .values()
+            .all(|prop| prop.values().is_empty()));
+        let n2 = gm.node(2).unwrap();
+        assert_eq!(n2.node_type().as_str(), Some("3")); // right has priority
+
+        assert_eq!(
+            gm.default_layer().edges().id().collect::<Vec<_>>(),
+            [(0, 1), (1, 2)]
+        );
+        assert_eq!(
+            gm.valid_layers("1").edges().id().collect::<Vec<_>>(),
+            [(0, 1)]
+        );
+        assert_eq!(
+            gm.valid_layers("2").edges().id().collect::<Vec<_>>(),
+            [(0, 1)]
+        );
     }
 
     fn add_edges(g: &Graph, edges: &[(i64, u64, u64)]) {
@@ -1257,25 +1304,5 @@ mod storage_tests {
             ],
             &[(0, 0, 3), (0, 0, 4), (0, 2, 2), (0, 0, 5), (0, 0, 6)],
         )
-    }
-    #[test]
-    fn test_merge_1_edge() {
-        let g1 = Graph::new();
-        g1.add_node(0, 0, NO_PROPS, None).unwrap();
-        g1.add_node(0, 1, NO_PROPS, None).unwrap();
-        g1.add_edge(1, 0, 1, NO_PROPS, None).unwrap();
-
-        let g2 = Graph::new();
-        g2.add_node(0, 0, NO_PROPS, None).unwrap();
-        g2.add_edge(1, 0, 0, NO_PROPS, None).unwrap();
-
-        let g1_dir = TempDir::new().unwrap();
-        let g2_dir = TempDir::new().unwrap();
-        let gm_dir = TempDir::new().unwrap();
-
-        let g1_a = g1.persist_as_disk_graph(&g1_dir).unwrap();
-        let g2_a = g2.persist_as_disk_graph(&g2_dir).unwrap();
-
-        let gm = g1_a.merge_by_sorted_gids(&g2_a, &gm_dir).unwrap();
     }
 }

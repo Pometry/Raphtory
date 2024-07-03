@@ -36,6 +36,7 @@ use chrono::{DateTime, Utc};
 use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{
     fmt,
+    fmt::Debug,
     hash::{Hash, Hasher},
     sync::Arc,
 };
@@ -72,15 +73,12 @@ impl<G, GH> AsNodeRef for NodeView<G, GH> {
     }
 }
 
-impl<'graph, G, GH: GraphViewOps<'graph>> fmt::Debug for NodeView<G, GH> {
+impl<'graph, G, GH: GraphViewOps<'graph> + Debug> fmt::Debug for NodeView<G, GH> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "NodeView {{ graph: {}{}, node: {} }}",
-            self.graph.count_nodes(),
-            self.graph.count_edges(),
-            self.node.0
-        )
+        f.debug_struct("NodeView")
+            .field("node", &self.node)
+            .field("graph", &self.graph)
+            .finish()
     }
 }
 

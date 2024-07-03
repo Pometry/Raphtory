@@ -160,14 +160,6 @@ impl PyDiskGraph {
         time_col: &str,
     ) -> Result<DiskGraph, GraphError> {
         let graph: Result<DiskGraph, PyErr> = Python::with_gil(|py| {
-            let size: usize = py
-                .eval(
-                    "index.__len__()",
-                    Some([("index", edge_df.getattr("index")?)].into_py_dict(py)),
-                    None,
-                )?
-                .extract()?;
-
             let cols_to_check = vec![src_col, dst_col, time_col];
 
             let df_columns: Vec<String> = edge_df.getattr("columns")?.extract()?;
