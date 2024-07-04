@@ -65,16 +65,17 @@ message Lifespan {
 }
 
 message Graph {
-  repeated AddNode add_nodes = 1;
-  repeated AddEdge edges = 2;
-  repeated UpdateNodeConstProps constNodesProps = 3;
-  repeated UpdateEdgeConstProps constEdgesProps = 4;
-  GraphConstProps constProperties = 5;
-  GraphTempProps tempProperties = 6;
-  PropertiesMeta meta = 7;
-  repeated string layers = 8;
-  repeated string node_types = 9;
-  repeated Node nodes = 10;
+  GraphConstProps constProperties = 1;
+  GraphTempProps tempProperties = 2;
+  PropertiesMeta meta = 3;
+  repeated AddNode add_nodes = 4;
+  repeated AddEdge edges = 5;
+  repeated DelEdge del_edges = 6;
+  repeated UpdateNodeConstProps constNodesProps = 7;
+  repeated UpdateEdgeConstProps constEdgesProps = 8;
+  repeated string layers = 9;
+  repeated string node_types = 10;
+  repeated Node nodes = 11;
 
   message Node{
     uint64 gid = 1;
@@ -124,6 +125,13 @@ message Graph {
     PropPair properties = 3;
     int64 time = 4;
     optional uint64 layer_id = 5;
+  }
+
+  message DelEdge{
+    uint64 src = 1;
+    uint64 dst = 2;
+    int64 time = 3;
+    optional uint64 layer_id = 4;
   }
 
   message AddNode {

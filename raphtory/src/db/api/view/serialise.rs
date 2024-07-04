@@ -16,7 +16,8 @@ use crate::{
     db::{
         api::{
             mutation::internal::{
-                DelegatePropertyAdditionOps, InternalAdditionOps, InternalPropertyAdditionOps,
+                DelegatePropertyAdditionOps, InternalAdditionOps, InternalDeletionOps,
+                InternalPropertyAdditionOps,
             },
             storage::nodes::node_storage_ops::NodeStorageOps,
         },
@@ -27,7 +28,7 @@ use crate::{
         self,
         graph::{
             properties_meta::{self, PropName},
-            AddEdge, AddNode, GraphConstProps, Node, PropPair, UpdateEdgeConstProps,
+            AddEdge, AddNode, DelEdge, GraphConstProps, Node, PropPair, UpdateEdgeConstProps,
         },
         lifespan, prop, Dict, NdTime,
     },
@@ -205,13 +206,14 @@ impl<'graph, G: GraphViewOps<'graph>> StableEncoder for G {
             ref mut const_edges_props,
             ref mut nodes,
             ref mut edges,
+            ref mut del_edges,
             ..
         } = graph;
 
         *nodes = self
             .nodes()
             .into_iter()
-            .map(|n| {
+            .map(|n: crate::db::graph::node::NodeView<G>| {
                 let gid = n.id();
                 let vid = n.node;
                 let node = self.core_node_entry(vid);
@@ -312,6 +314,15 @@ impl<'graph, G: GraphViewOps<'graph>> StableEncoder for G {
                             });
                         }
                     }
+
+                    for time in ee.deletions() {
+                        del_edges.push(DelEdge {
+                            src,
+                            dst,
+                            time,
+                            layer_id: Some(layer_id as u64),
+                        });
+                    }
                 }
             }
         }
@@ -320,8 +331,13 @@ impl<'graph, G: GraphViewOps<'graph>> StableEncoder for G {
     }
 }
 
-impl<'graph, G: InternalAdditionOps + GraphViewOps<'graph> + DelegatePropertyAdditionOps>
-    StableDecode for G
+impl<
+        'graph,
+        G: InternalAdditionOps
+            + GraphViewOps<'graph>
+            + DelegatePropertyAdditionOps
+            + InternalDeletionOps,
+    > StableDecode for G
 {
     fn decode_from_bytes(buf: &[u8], graph: &Self) -> Result<(), GraphError> {
         let g = serialise::Graph::decode(&buf[..]).expect("Failed to decode graph");
@@ -449,6 +465,23 @@ impl<'graph, G: InternalAdditionOps + GraphViewOps<'graph> + DelegatePropertyAdd
                 src,
                 dst,
                 props,
+                layer_id.map(|id| id as usize).unwrap(),
+            )?;
+        }
+
+        for DelEdge {
+            src,
+            dst,
+            time,
+            layer_id,
+        } in &g.del_edges
+        {
+            let src = VID(*src as usize);
+            let dst = VID(*dst as usize);
+            graph.internal_delete_edge(
+                TimeIndexEntry::from(*time),
+                src,
+                dst,
                 layer_id.map(|id| id as usize).unwrap(),
             )?;
         }
@@ -645,9 +678,13 @@ fn as_proto_prop(prop: &Prop) -> Result<serialise::Prop, GraphError> {
 
 #[cfg(test)]
 mod proto_test {
-    use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike};
+    use chrono::{DateTime, NaiveDateTime};
 
-    use crate::{core::DocumentInput, db::api::properties::internal::ConstPropertiesOps};
+    use crate::{
+        core::DocumentInput,
+        db::api::{mutation::DeletionOps, properties::internal::ConstPropertiesOps},
+        prelude::*,
+    };
 
     use super::*;
 
@@ -704,6 +741,23 @@ mod proto_test {
         let g2 = Graph::new();
         Graph::decode(&temp_file, &g2).unwrap();
         assert_eq!(&g1, &g2);
+    }
+
+    #[test]
+    fn edge_no_props_delete() {
+        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let g1 = Graph::new().persistent_graph();
+        g1.add_edge(3, "Alice", "Bob", NO_PROPS, None).unwrap();
+        g1.delete_edge(19, "Alice", "Bob", None).unwrap();
+        g1.stable_serialise(&temp_file).unwrap();
+        let g2 = PersistentGraph::new();
+        PersistentGraph::decode(&temp_file, &g2).unwrap();
+        assert_eq!(&g1, &g2);
+
+        let edge = g2.edge("Alice", "Bob").expect("Failed to get edge");
+
+        let deletions = edge.deletions().iter().copied().collect::<Vec<_>>();
+        assert_eq!(deletions, vec![19]);
     }
 
     #[test]
