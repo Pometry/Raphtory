@@ -416,7 +416,7 @@ impl Mut {
         overwrite: bool,
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
-        let path = Path::new(data.work_dir.as_str()).join(name.as_str());
+        let path = construct_graph_path(data.work_dir.as_str(), name.as_str(), namespace)?;
         if path.exists() && !overwrite {
             return Err(GraphError::GraphNameAlreadyExists { name }.into());
         }
@@ -424,6 +424,9 @@ impl Mut {
         let mut buff_read = graph.value(ctx)?.content;
         buff_read.read_to_end(&mut buffer)?;
         let g: MaterializedGraph = MaterializedGraph::from_bincode(&buffer)?;
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(GraphError::from)?;
+        }
         g.save_to_file(&path)?;
         data.graphs.insert(name.clone(), g.into());
         Ok(name)
