@@ -42,6 +42,8 @@ jobs:
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
       - uses: webfactory/ssh-agent@v0.7.0
         name: Load pometry-storage key
         with:
