@@ -44,8 +44,8 @@ jobs:
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}        
       - uses: webfactory/ssh-agent@v0.7.0
         name: Load pometry-storage key
         with:
@@ -86,8 +86,8 @@ jobs:
           components: rustfmt, clippy
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}        
       - uses: Swatinem/rust-cache@v2
         name: Cargo cache
         with:
