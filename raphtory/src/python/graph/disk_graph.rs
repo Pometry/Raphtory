@@ -215,6 +215,16 @@ impl PyDiskGraph {
         })
     }
 
+    /// Merge this graph with another `DiskGraph`. Note that both graphs should have nodes that are
+    /// sorted by their global ids or the resulting graph will be nonsense!
+    fn merge_by_sorted_gids(
+        &self,
+        other: &Self,
+        graph_dir: &str,
+    ) -> Result<DiskGraph, DiskGraphError> {
+        self.graph.merge_by_sorted_gids(&other.graph, graph_dir)
+    }
+
     fn __repr__(&self) -> String {
         StructReprBuilder::new("DiskGraph")
             .add_field("number_of_nodes", self.graph.count_nodes())
