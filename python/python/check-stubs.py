@@ -1,70 +1,9 @@
 # %% Imports
 
 import ast
-import inspect
-from typing import Dict, List, Optional, TypedDict
-
-import raphtory
+from typing import Optional, TypedDict
 
 # %% Functions
-
-
-def parse_stub_file(filename: str) -> Dict[str, List[str]]:
-    with open(filename, "r") as file:
-        tree = ast.parse(file.read())
-
-    stub_info = {}
-    for node in ast.iter_child_nodes(tree):
-        if isinstance(node, ast.ClassDef) and node.name == "Graph":
-            for method in node.body:
-                if isinstance(method, ast.FunctionDef):
-                    stub_info[method.name] = [arg.arg for arg in method.args.args]
-
-    return stub_info
-
-
-def get_actual_signatures() -> Dict[str, List[str]]:
-    actual_info = {}
-    for name, method in inspect.getmembers(raphtory.Graph, inspect.isfunction):
-        try:
-            sig = inspect.signature(method)
-            actual_info[name] = list(sig.parameters.keys())
-        except ValueError:
-            print(f"Couldn't get signature for {name}")
-
-    return actual_info
-
-
-def validate_stubs(stub_info: Dict[str, List[str]], actual_info: Dict[str, List[str]]):
-    all_methods = set(stub_info.keys()) | set(actual_info.keys())
-
-    for method in all_methods:
-        if method not in stub_info:
-            print(f"Method {method} is missing from the stub file")
-        elif method not in actual_info:
-            print(f"Method {method} is in the stub file but not in the actual class")
-        else:
-            stub_params = stub_info[method]
-            actual_params = actual_info[method]
-
-            if stub_params != actual_params:
-                print(f"Mismatch in parameters for method {method}:")
-                print(f"  Stub: {stub_params}")
-                print(f"  Actual: {actual_params}")
-            else:
-                print(f"Method {method} matches between stub and actual class")
-
-
-# %% Testing
-
-
-stub_filename = "./raphtory/raphtory.pyi"
-
-with open(stub_filename, "r") as file:
-    tree = ast.parse(file.read())
-
-classes = {}
-functions = {}
 
 
 class FunctionTypeDef(TypedDict):
@@ -106,6 +45,13 @@ def parse_func(f: ast.FunctionDef) -> FunctionTypeDef:
 
     return FunctionTypeDef(name=f.name, args=args, returns=returns)
 
+
+# %% Testing
+
+stub_filename = "./raphtory/raphtory.pyi"
+
+with open(stub_filename, "r") as file:
+    tree = ast.parse(file.read())
 
 for node in ast.iter_child_nodes(tree):
     if isinstance(node, ast.ClassDef):
