@@ -11,6 +11,8 @@ pub enum GraphError {
     InvalidPath(PathBuf),
     #[error("Graph error occurred")]
     UnsupportedDataType,
+    #[error("Disk graph not found")]
+    DiskGraphNotFound,
     #[error("Graph already exists by name = {name}")]
     GraphNameAlreadyExists { name: String },
     #[error("Immutable graph reference already exists. You can access mutable graph apis only exclusively.")]

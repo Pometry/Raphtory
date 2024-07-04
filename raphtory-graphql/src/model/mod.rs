@@ -373,7 +373,12 @@ impl Mut {
         overwrite: bool,
     ) -> Result<Vec<String>> {
         let data = ctx.data_unchecked::<Data>();
-        let names = load_graphs_from_path(data.work_dir.as_ref(), (&path).as_ref(), overwrite)?;
+        let names = load_graphs_from_path(
+            data.work_dir.as_ref(),
+            (&path).as_ref(),
+            namespace,
+            overwrite,
+        )?;
         names.iter().for_each(|name| data.graphs.invalidate(name));
         Ok(names)
     }
@@ -389,14 +394,14 @@ impl Mut {
         overwrite: bool,
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
-        let name = load_graph_from_path(data.work_dir.as_ref(), (&path).as_ref(), overwrite)?;
-        match name {
-            Some(name) => {
-                data.graphs.invalidate(&name);
-                Ok(name)
-            }
-            None => Err(GqlGraphError::FailedToLoadGraph.into()),
-        }
+        let name = load_graph_from_path(
+            data.work_dir.as_ref(),
+            (&path).as_ref(),
+            namespace,
+            overwrite,
+        )?;
+        data.graphs.invalidate(&name);
+        Ok(name)
     }
 
     /// Use GQL multipart upload to send new graphs to server

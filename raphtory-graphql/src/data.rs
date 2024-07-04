@@ -125,11 +125,13 @@ fn copy_dir_recursive(source_dir: &Path, target_dir: &Path) -> Result<()> {
 fn load_disk_graph_from_path(
     work_dir: &Path,
     path: &Path,
+    namespace: &Option<String>,
     overwrite: bool,
 ) -> Result<Option<String>> {
     let (name, graph) = load_disk_graph(path)?;
     let graph_dir = &graph.into_disk_graph().unwrap().graph_dir;
-    let target_dir = &Path::new(work_dir).join(name.as_str());
+    let target_dir =
+        &construct_graph_path(&work_dir.display().to_string(), name.as_str(), namespace)?;
     if target_dir.exists() {
         if overwrite {
             fs::remove_dir_all(target_dir)?;
@@ -149,6 +151,7 @@ fn load_disk_graph_from_path(
 fn load_disk_graph_from_path(
     work_dir: &Path,
     path: &Path,
+    namespace: &Option<String>,
     overwrite: bool,
 ) -> Result<Option<String>> {
     Ok(None)
@@ -157,15 +160,17 @@ fn load_disk_graph_from_path(
 pub fn load_graph_from_path(
     work_dir: &Path,
     path: &Path,
+    namespace: &Option<String>,
     overwrite: bool,
-) -> Result<Option<String>> {
+) -> Result<String> {
     if !path.exists() {
         return Err(GraphError::InvalidPath(path.to_path_buf()).into());
     }
     println!("Loading graph from {}", path.display());
     if path.is_dir() {
         if is_disk_graph_dir(path) {
-            load_disk_graph_from_path(work_dir, path, overwrite)
+            load_disk_graph_from_path(work_dir, path, namespace, overwrite)?
+                .ok_or(GraphError::DiskGraphNotFound.into())
         } else {
             Err(GraphError::InvalidPath(path.to_path_buf()).into())
         }
@@ -184,19 +189,24 @@ pub fn load_graph_from_path(
             graph.save_to_file(&path)?;
             println!("Graph loaded = {}", path.display());
         }
-        Ok(Some(name))
+        Ok(name)
     }
 }
 
 // The default behaviour is to just override the existing graphs.
 // Always returns list of newly loaded graphs and not all the graphs available in the work dir.
-pub fn load_graphs_from_path(work_dir: &Path, path: &Path, overwrite: bool) -> Result<Vec<String>> {
+pub fn load_graphs_from_path(
+    work_dir: &Path,
+    path: &Path,
+    namespace: &Option<String>,
+    overwrite: bool,
+) -> Result<Vec<String>> {
     println!("loading graphs from {}", path.display());
     let entries = fs::read_dir(path).unwrap();
     entries
-        .filter_map(|entry| {
+        .map(|entry| {
             let path = entry.unwrap().path();
-            load_graph_from_path(work_dir, &path, overwrite).transpose()
+            load_graph_from_path(work_dir, &path, namespace, overwrite)
         })
         .collect()
 }
@@ -204,11 +214,12 @@ pub fn load_graphs_from_path(work_dir: &Path, path: &Path, overwrite: bool) -> R
 fn load_graphs_from_paths(
     work_dir: &Path,
     paths: Vec<PathBuf>,
+    namespace: &Option<String>,
     overwrite: bool,
 ) -> Result<Vec<String>> {
     paths
         .iter()
-        .filter_map(|path| load_graph_from_path(work_dir, path, overwrite).transpose())
+        .map(|path| load_graph_from_path(work_dir, path, namespace, overwrite))
         .collect()
 }
 
@@ -237,7 +248,7 @@ fn get_graph_from_path(
     }
     if path.is_dir() {
         if is_disk_graph_dir(path) {
-            get_disk_graph_from_path(path)?.ok_or(Error::new("Disk graph not found"))
+            get_disk_graph_from_path(path)?.ok_or(GraphError::DiskGraphNotFound.into())
         } else {
             return Err(GraphError::InvalidPath(path.to_path_buf()).into());
         }
@@ -445,9 +456,7 @@ mod data_tests {
         let graph_path = tmp_graph_dir.path().join("test_g");
         graph.save_to_file(&graph_path).unwrap();
 
-        let res = load_graph_from_path(tmp_work_dir.path(), &graph_path, true)
-            .unwrap()
-            .unwrap();
+        let res = load_graph_from_path(tmp_work_dir.path(), &graph_path, &None, true).unwrap();
         assert_eq!(res, "test_g");
 
         let graph = Graph::load_from_file(tmp_work_dir.path().join("test_g"), false).unwrap();
@@ -458,6 +467,7 @@ mod data_tests {
             load_graph_from_path(
                 tmp_work_dir.path(),
                 &tmp_graph_dir.path().join("test_dg1"),
+                &None,
                 true,
             )
             .unwrap();
@@ -483,7 +493,7 @@ mod data_tests {
 
         // Dir path exists but is not a disk graph path
         let result = std::panic::catch_unwind(|| {
-            load_graph_from_path(tmp_work_dir.path(), &tmp_graph_dir.path(), true).unwrap();
+            load_graph_from_path(tmp_work_dir.path(), &tmp_graph_dir.path(), &None, true).unwrap();
         });
 
         // Assert that it panicked with the expected message
@@ -502,8 +512,11 @@ mod data_tests {
         // Dir path exists and is a disk graph path but storage feature is disabled
         let graph_path = tmp_graph_dir.path().join("test_dg");
         create_ipc_files_in_dir(&graph_path).unwrap();
-        let res = load_graph_from_path(tmp_work_dir.path(), &graph_path, true).unwrap();
-        assert!(res.is_none());
+        let res = load_graph_from_path(tmp_work_dir.path(), &graph_path, &None, true);
+        assert!(res.is_err());
+        if let Err(err) = res {
+            assert!(err.message.contains("Disk graph not found"));
+        }
     }
 
     #[test]
@@ -523,9 +536,7 @@ mod data_tests {
         let graph_dir = tmp_graph_dir.path().join("test_dg");
         let _ = DiskGraph::from_graph(&graph, &graph_dir).unwrap();
 
-        let res = load_graph_from_path(tmp_work_dir.path(), &graph_dir, true)
-            .unwrap()
-            .unwrap();
+        let res = load_graph_from_path(tmp_work_dir.path(), &graph_dir, &None, true).unwrap();
         assert_eq!(res, "test_dg");
 
         let graph = DiskGraph::load_from_dir(tmp_work_dir.path().join("test_dg")).unwrap();
@@ -560,7 +571,8 @@ mod data_tests {
         let graph_path = tmp_graph_dir.path().join("test_g2");
         graph.save_to_file(&graph_path).unwrap();
 
-        let res = load_graphs_from_path(tmp_work_dir.path(), tmp_graph_dir.path(), true).unwrap();
+        let res =
+            load_graphs_from_path(tmp_work_dir.path(), tmp_graph_dir.path(), &None, true).unwrap();
         assert_eq!(res, vec!["test_g2", "test_g1"]);
 
         let graph = Graph::load_from_file(tmp_work_dir.path().join("test_g1"), false).unwrap();
@@ -587,7 +599,7 @@ mod data_tests {
 
         // Test overwrite false
         let result = std::panic::catch_unwind(|| {
-            load_graphs_from_path(tmp_work_dir.path(), tmp_graph_dir.path(), false).unwrap();
+            load_graphs_from_path(tmp_work_dir.path(), tmp_graph_dir.path(), &None, false).unwrap();
         });
         assert!(result.is_err());
         if let Err(err) = result {
@@ -605,7 +617,8 @@ mod data_tests {
         assert_eq!(graph.count_edges(), 3);
 
         // Test overwrite true
-        let res = load_graphs_from_path(tmp_work_dir.path(), tmp_graph_dir.path(), true).unwrap();
+        let res =
+            load_graphs_from_path(tmp_work_dir.path(), tmp_graph_dir.path(), &None, true).unwrap();
         assert_eq!(res, vec!["test_g2", "test_g1"]);
 
         let graph = Graph::load_from_file(tmp_work_dir.path().join("test_g2"), false).unwrap();
@@ -641,7 +654,8 @@ mod data_tests {
         let graph_dir = tmp_graph_dir.path().join("test_dg2");
         let _ = DiskGraph::from_graph(&graph, &graph_dir).unwrap();
 
-        let res = load_graphs_from_path(tmp_work_dir.path(), tmp_graph_dir.path(), true).unwrap();
+        let res =
+            load_graphs_from_path(tmp_work_dir.path(), tmp_graph_dir.path(), &None, true).unwrap();
         assert_eq!(res, vec!["test_dg2", "test_dg1"]);
 
         let graph = DiskGraph::load_from_dir(tmp_work_dir.path().join("test_dg1")).unwrap();
@@ -681,7 +695,7 @@ mod data_tests {
         assert_eq!(graph.count_edges(), 4);
 
         // Test overwrite false
-        let res = load_graphs_from_path(tmp_work_dir, tmp_graph_dir.path(), false).unwrap();
+        let res = load_graphs_from_path(tmp_work_dir, tmp_graph_dir.path(), &None, false).unwrap();
         assert_eq!(res, vec!["test_dg2"]);
 
         let graphs_paths = list_top_level_files_and_dirs(tmp_work_dir).unwrap();
@@ -691,7 +705,7 @@ mod data_tests {
         assert_eq!(graph.count_edges(), 3);
 
         // Test overwrite true
-        let res = load_graphs_from_path(tmp_work_dir, tmp_graph_dir.path(), true).unwrap();
+        let res = load_graphs_from_path(tmp_work_dir, tmp_graph_dir.path(), &None, true).unwrap();
         assert_eq!(res, vec!["test_dg2"]);
 
         let graphs_paths = list_top_level_files_and_dirs(tmp_work_dir).unwrap();
@@ -729,8 +743,13 @@ mod data_tests {
         let graph_path2 = tmp_graph_dir.path().join("test_g2");
         graph.save_to_file(&graph_path2).unwrap();
 
-        let res = load_graphs_from_paths(tmp_work_dir.path(), vec![graph_path1, graph_path2], true)
-            .unwrap();
+        let res = load_graphs_from_paths(
+            tmp_work_dir.path(),
+            vec![graph_path1, graph_path2],
+            &None,
+            true,
+        )
+        .unwrap();
         assert_eq!(res, vec!["test_g1", "test_g2"]);
 
         let graph = Graph::load_from_file(tmp_work_dir.path().join("test_g1"), false).unwrap();
@@ -769,8 +788,13 @@ mod data_tests {
         let graph_path2 = tmp_graph_dir.path().join("test_dg2");
         let _ = DiskGraph::from_graph(&graph, &graph_path2).unwrap();
 
-        let res = load_graphs_from_paths(tmp_work_dir.path(), vec![graph_path1, graph_path2], true)
-            .unwrap();
+        let res = load_graphs_from_paths(
+            tmp_work_dir.path(),
+            vec![graph_path1, graph_path2],
+            &None,
+            true,
+        )
+        .unwrap();
         assert_eq!(res, vec!["test_dg1", "test_dg2"]);
 
         let graph = DiskGraph::load_from_dir(tmp_work_dir.path().join("test_dg1")).unwrap();
@@ -895,7 +919,8 @@ mod data_tests {
         let graph_path = tmp_graph_dir.path().join("test_g2");
         graph.save_to_file(&graph_path).unwrap();
 
-        let res = load_graphs_from_path(tmp_work_dir.path(), tmp_graph_dir.path(), true).unwrap();
+        let res =
+            load_graphs_from_path(tmp_work_dir.path(), tmp_graph_dir.path(), &None, true).unwrap();
         assert_eq!(res, vec!["test_g2", "test_g1"]);
 
         let res = get_graphs_from_work_dir(tmp_work_dir.path()).unwrap();
@@ -934,7 +959,8 @@ mod data_tests {
         let graph_path = tmp_graph_dir.path().join("test_dg2");
         let _ = DiskGraph::from_graph(&graph, &graph_path).unwrap();
 
-        let res = load_graphs_from_path(tmp_work_dir.path(), tmp_graph_dir.path(), true).unwrap();
+        let res =
+            load_graphs_from_path(tmp_work_dir.path(), tmp_graph_dir.path(), &None, true).unwrap();
         assert_eq!(res, vec!["test_dg2", "test_dg1"]);
 
         let res = get_graphs_from_work_dir(tmp_work_dir.path()).unwrap();
