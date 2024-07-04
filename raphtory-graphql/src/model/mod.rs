@@ -471,6 +471,10 @@ fn construct_path(
 ) -> Result<PathBuf, GqlGraphError> {
     let mut path = PathBuf::from(work_dir);
     if let Some(ns) = namespace {
+        if ns.contains("//") {
+            return Err(GqlGraphError::InvalidNamespace(ns));
+        }
+
         let ns_path = Path::new(&ns);
         for comp in ns_path.components() {
             if matches!(comp, std::path::Component::ParentDir) {

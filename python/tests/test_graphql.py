@@ -150,7 +150,7 @@ def test_send_graph_to_server_with_namespace():
     assert os.path.exists(expected_path)
     assert_graph_fetch(name)
 
-    namespace = "./shivam/investigation/2024-12-12"
+    namespace = "shivam/investigation/2024-12-12"
     client.send_graph(name=name, graph=g, overwrite=True, namespace=namespace)
     expected_path = os.path.join(tmp_work_dir, namespace, name)
     assert os.path.exists(expected_path)
@@ -161,6 +161,30 @@ def test_send_graph_to_server_with_namespace():
         client.send_graph(name=name, graph=g, overwrite=True, namespace=namespace)
     except Exception as e:
         assert "Invalid namespace: ../shivam" in str(e), f"Unexpected exception message: {e}"
+
+    namespace = "./shivam/../investigation"
+    try:
+        client.send_graph(name=name, graph=g, overwrite=True, namespace=namespace)
+    except Exception as e:
+        assert "Invalid namespace: ./shivam/../investigation" in str(e), f"Unexpected exception message: {e}"
+
+    namespace = "//shivam/investigation"
+    try:
+        client.send_graph(name=name, graph=g, overwrite=True, namespace=namespace)
+    except Exception as e:
+        assert "//shivam/investigation" in str(e), f"Unexpected exception message: {e}"
+
+    namespace = "shivam/investigation//2024-12-12"
+    try:
+        client.send_graph(name=name, graph=g, overwrite=True, namespace=namespace)
+    except Exception as e:
+        assert "shivam/investigation//2024-12-12" in str(e), f"Unexpected exception message: {e}"
+
+    namespace = "shivam/investigation\2024-12-12"
+    try:
+        client.send_graph(name=name, graph=g, overwrite=True, namespace=namespace)
+    except Exception as e:
+        assert "shivam/investigation\2024-12-12" in str(e), f"Unexpected exception message: {e}"
 
     server.stop()
 
