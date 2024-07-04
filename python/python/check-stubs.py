@@ -1,63 +1,119 @@
-# %% Imports
-
 import ast
-from typing import Optional, TypedDict
+import importlib
+import inspect
+from typing import Dict, List, Tuple
 
-# %% Functions
-
-
-class FunctionTypeDef(TypedDict):
-    name: str
-    args: "list[tuple[str, Optional[str]]]"
-    returns: Optional[str]
+import pytest
 
 
-def parse_annotation(node: Optional[ast.AST]) -> Optional[str]:
-    if node is None:
-        return None
-    if isinstance(node, ast.Name):
-        return node.id
-    if isinstance(node, ast.Attribute):
-        return f"{parse_annotation(node.value)}.{node.attr}"
-    if isinstance(node, ast.Subscript):
-        value = parse_annotation(node.value)
-        slice_value = parse_annotation(node.slice)
-        return f"{value}[{slice_value}]"
-    if isinstance(node, ast.Index):
-        return parse_annotation(node.value)
-    if isinstance(node, ast.Tuple):
-        elements = [parse_annotation(elem) or "Any" for elem in node.elts]
-        return f"Tuple[{', '.join(elements)}]"
-    if isinstance(node, ast.List):
-        elements = [parse_annotation(elem) or "Any" for elem in node.elts]
-        return f"List[{', '.join(elements)}]"
-    if isinstance(node, ast.Constant):
-        return repr(node.value)
-    return str(node)
+def is_builtin_function(obj) -> bool:
+    return isinstance(obj, type(len))
 
 
-def parse_func(f: ast.FunctionDef) -> FunctionTypeDef:
-    args: list[tuple[str, Optional[str]]] = [
-        (arg.arg, parse_annotation(arg.annotation)) for arg in f.args.args
-    ]
-
-    returns: Optional[str] = parse_annotation(f.returns)
-
-    return FunctionTypeDef(name=f.name, args=args, returns=returns)
+MethodTypeDef = Dict[str, List[str]]
+ClassTypeDef = Dict[str, MethodTypeDef]
 
 
-# %% Testing
+@pytest.fixture(scope="module")
+def stub_entities() -> Tuple[ClassTypeDef, MethodTypeDef]:
+    stub_filename = "./raphtory/raphtory.pyi"
+    with open(stub_filename, "r") as file:
+        tree = ast.parse(file.read())
 
-stub_filename = "./raphtory/raphtory.pyi"
+    classes: ClassTypeDef = {}
+    functions: MethodTypeDef = {}
 
-with open(stub_filename, "r") as file:
-    tree = ast.parse(file.read())
+    for node in ast.iter_child_nodes(tree):
+        if isinstance(node, ast.ClassDef):
+            methods: MethodTypeDef = {}
+            for item in node.body:
+                if isinstance(item, ast.FunctionDef):
+                    params = [arg.arg for arg in item.args.args if arg.arg != "self"]
+                    methods[item.name] = params
+            classes[node.name] = methods
 
-for node in ast.iter_child_nodes(tree):
-    if isinstance(node, ast.ClassDef):
-        methods = {}
-        attributes = []
+        elif isinstance(node, ast.FunctionDef):
+            params = [arg.arg for arg in node.args.args]
+            functions[node.name] = params
 
-        for item in node.body:
-            if isinstance(item, ast.FunctionDef):
-                print("FUNC: ", parse_func(item))
+    return classes, functions
+
+
+@pytest.fixture(scope="module")
+def actual_entities() -> Tuple[ClassTypeDef, MethodTypeDef]:
+    tree = importlib.import_module("raphtory")
+
+    classes: ClassTypeDef = {}
+    functions: MethodTypeDef = {}
+
+    for name, obj in inspect.getmembers(tree):
+        if inspect.isclass(obj):
+            methods: MethodTypeDef = {}
+            attributes = dir(obj)
+
+            for attr_name in attributes:
+                if attr_name.startswith("__"):
+                    continue
+
+                attr = getattr(obj, attr_name)
+
+                if callable(attr):
+                    try:
+                        signature = inspect.signature(attr)
+                        args = list(signature.parameters.keys())
+                        # Remove 'self' from the argument list if it's present
+                        if args and args[0] == "self":
+                            args = args[1:]
+                        methods[attr_name] = args
+                    except ValueError:
+                        # If we can't get the signature, add the method with an empty arg list
+                        methods[attr_name] = []
+
+            classes[name] = methods
+
+        elif is_builtin_function(obj):
+            functions[name] = list(inspect.signature(obj).parameters.keys())
+
+    return classes, functions
+
+
+def test_stub_vs_actual(
+    stub_entities: Tuple[ClassTypeDef, MethodTypeDef],
+    actual_entities: Tuple[ClassTypeDef, MethodTypeDef],
+):
+    stub_classes, stub_functions = stub_entities
+    actual_classes, actual_functions = actual_entities
+
+    print(actual_classes.keys())
+
+    # Check classes
+    for name, stub_class in stub_classes.items():
+        assert name in actual_classes, f"{name} is in stub but not in Rust module"
+        actual_class = actual_classes[name]
+
+        for method_name, stub_params in stub_class.items():
+            print(name, actual_class)
+            assert (
+                method_name in actual_class
+            ), f"Method {method_name} of {name} is in stub but not in Rust module"
+
+            actual_params = actual_class[method_name]
+            assert (
+                stub_params == actual_params
+            ), f"Parameters mismatch for method {method_name} of {name}"
+
+    # Check functions
+    for name, stub_function in stub_functions.items():
+        assert (
+            name in actual_functions
+        ), f"{name} function is in stub but not in Rust module"
+        assert (
+            stub_function == actual_functions[name]
+        ), f"Parameters mismatch for function {name}"
+
+    for name in actual_classes:
+        assert name in stub_classes, f"{name} class is in Rust module but not in stub"
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
