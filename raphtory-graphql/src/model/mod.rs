@@ -25,7 +25,7 @@ use std::{
     fmt::{Display, Formatter},
     fs,
     io::Read,
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 pub mod algorithms;
@@ -51,6 +51,10 @@ pub enum GqlGraphError {
     GraphDoesNotExists(String),
     #[error("Failed to load graph")]
     FailedToLoadGraph,
+    #[error("Invalid namespace: {0}")]
+    InvalidNamespace(String),
+    #[error("Failed to create dir {0}")]
+    FailedToCreateDir(String),
 }
 
 #[derive(ResolvedObject)]
@@ -416,10 +420,11 @@ impl Mut {
         ctx: &Context<'a>,
         name: String,
         graph: String,
+        namespace: Option<String>,
         overwrite: bool,
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
-        let path = Path::new(data.work_dir.as_str()).join(name.as_str());
+        let path = construct_path(&data.work_dir, &name, namespace)?;
         if path.exists() && !overwrite {
             return Err(GraphError::GraphNameAlreadyExists { name }.into());
         }
@@ -457,6 +462,34 @@ impl Mut {
 
         Ok(true)
     }
+}
+
+fn construct_path(
+    work_dir: &str,
+    name: &str,
+    namespace: Option<String>,
+) -> Result<PathBuf, GqlGraphError> {
+    let mut path = PathBuf::from(work_dir);
+    if let Some(ns) = namespace {
+        let ns_path = Path::new(&ns);
+        for comp in ns_path.components() {
+            if matches!(comp, std::path::Component::ParentDir) {
+                return Err(GqlGraphError::InvalidNamespace(ns));
+            }
+        }
+        path = path.join(ns_path);
+    }
+    path = path.join(name);
+
+    // Check if the path exists, if not create it
+    if let Some(parent) = path.parent() {
+        if !parent.exists() {
+            fs::create_dir_all(parent)
+                .map_err(|e| GqlGraphError::FailedToCreateDir(e.to_string()))?;
+        }
+    }
+
+    Ok(path)
 }
 
 #[derive(App)]

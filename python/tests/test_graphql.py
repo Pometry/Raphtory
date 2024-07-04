@@ -1,3 +1,4 @@
+import os
 import tempfile
 from raphtory.graphql import RaphtoryServer, RaphtoryClient
 from raphtory import graph_loader
@@ -73,11 +74,12 @@ def test_send_graph_to_server():
     g.add_edge(1, "ben", "hamza")
     g.add_edge(2, "haaroon", "hamza")
     g.add_edge(3, "ben", "haaroon")
-    
+
+    name = "g"
     tmp_work_dir = tempfile.mkdtemp()
     server = RaphtoryServer(tmp_work_dir).start()
     client = RaphtoryClient("http://localhost:1736")
-    client.send_graph(name="g", graph=g)
+    client.send_graph(name=name, graph=g)
 
     query = """{graph(name: "g") {nodes {list {name}}}}"""
     assert client.query(query) == {
@@ -87,16 +89,78 @@ def test_send_graph_to_server():
     }
 
     try:
-        client.send_graph(name="g", graph=g)
+        client.send_graph(name=name, graph=g)
     except Exception as e:
         assert "Graph already exists by name = g" in str(e), f"Unexpected exception message: {e}"
 
-    client.send_graph(name="g", graph=g, overwrite=True)
+    client.send_graph(name=name, graph=g, overwrite=True)
     assert client.query(query) == {
         "graph": {
             "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
         }
     }
+
+    namespace = "shivam"
+    client.send_graph(name=name, graph=g, overwrite=True, namespace=namespace)
+    expected_path = os.path.join(tmp_work_dir, namespace, name)
+    assert os.path.exists(expected_path)
+
+    server.stop()
+
+
+def test_send_graph_to_server_with_namespace():
+    def assert_graph_fetch(name):
+        query = f"""{{ graph(name: "{name}") {{ nodes {{ list {{ name }} }} }} }}"""
+        assert client.query(query) == {
+            "graph": {
+                "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
+            }
+        }
+
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+
+    name = "g"
+    tmp_work_dir = tempfile.mkdtemp()
+    server = RaphtoryServer(tmp_work_dir).start()
+    client = RaphtoryClient("http://localhost:1736")
+
+    # Default namespace, graph is saved in the work dir
+    client.send_graph(name=name, graph=g, overwrite=True)
+    expected_path = os.path.join(tmp_work_dir, name)
+    assert os.path.exists(expected_path)
+
+    namespace = "shivam"
+    client.send_graph(name=name, graph=g, overwrite=True, namespace=namespace)
+    expected_path = os.path.join(tmp_work_dir, namespace, name)
+    assert os.path.exists(expected_path)
+    assert_graph_fetch(name)
+
+    namespace = "./shivam/investigation"
+    client.send_graph(name=name, graph=g, overwrite=True, namespace=namespace)
+    expected_path = os.path.join(tmp_work_dir, namespace, name)
+    assert os.path.exists(expected_path)
+    assert_graph_fetch(name)
+
+    namespace = "./shivam/investigation/2024/12/12"
+    client.send_graph(name=name, graph=g, overwrite=True, namespace=namespace)
+    expected_path = os.path.join(tmp_work_dir, namespace, name)
+    assert os.path.exists(expected_path)
+    assert_graph_fetch(name)
+
+    namespace = "./shivam/investigation/2024-12-12"
+    client.send_graph(name=name, graph=g, overwrite=True, namespace=namespace)
+    expected_path = os.path.join(tmp_work_dir, namespace, name)
+    assert os.path.exists(expected_path)
+    assert_graph_fetch(name)
+
+    namespace = "../shivam"
+    try:
+        client.send_graph(name=name, graph=g, overwrite=True, namespace=namespace)
+    except Exception as e:
+        assert "Invalid namespace: ../shivam" in str(e), f"Unexpected exception message: {e}"
 
     server.stop()
 

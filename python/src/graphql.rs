@@ -691,19 +691,20 @@ impl PyRaphtoryClient {
     ///
     /// Returns:
     ///    The `data` field from the graphQL response after executing the mutation.
-    #[pyo3(signature = (name, graph, overwrite = false))]
+    #[pyo3(signature = (name, graph, overwrite = false, namespace = None))]
     fn send_graph(
         &self,
         py: Python,
         name: String,
         graph: MaterializedGraph,
         overwrite: bool,
+        namespace: Option<String>,
     ) -> PyResult<HashMap<String, PyObject>> {
         let encoded_graph = encode_graph(graph)?;
 
         let query = r#"
-            mutation SendGraph($name: String!, $graph: String!, $overwrite: Boolean!) {
-                sendGraph(name: $name, graph: $graph, overwrite: $overwrite)
+            mutation SendGraph($name: String!, $graph: String!, $overwrite: Boolean!, $namespace: String) {
+                sendGraph(name: $name, graph: $graph, overwrite: $overwrite, namespace: $namespace)
             }
         "#
         .to_owned();
@@ -711,6 +712,7 @@ impl PyRaphtoryClient {
             ("name".to_owned(), json!(name)),
             ("graph".to_owned(), json!(encoded_graph)),
             ("overwrite".to_owned(), json!(overwrite)),
+            ("namespace".to_owned(), json!(namespace)),
         ];
 
         let data = self.query_with_json_variables(query, variables.into())?;
