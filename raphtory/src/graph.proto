@@ -1,6 +1,5 @@
 syntax = "proto3";
 
-// import "google/protobuf/timestamp.proto";
 package serialise;
 
 message Prop {
@@ -19,10 +18,20 @@ message Prop {
     Dict map = 12;
     bytes graph = 13; // Assuming Data can be represented as bytes.
     bytes persistentGraph = 14; // Assuming Data can be represented as bytes.
-    string ndTime = 15;
+    NDTime ndTime = 15;
     string dTime = 16;
     DocumentInput documentInput = 17;
   }
+}
+
+message NDTime{
+  uint32 year = 1;
+  uint32 month = 2;
+  uint32 day = 3;
+  uint32 hour = 4;
+  uint32 minute = 5;
+  uint32 second = 6;
+  uint32 nanos = 7;
 }
 
 message Dict{
@@ -60,11 +69,12 @@ message Graph {
   repeated AddEdge edges = 2;
   repeated UpdateNodeConstProps constNodesProps = 3;
   repeated UpdateEdgeConstProps constEdgesProps = 4;
-  repeated Prop graphProperties = 5;
-  PropertiesMeta meta = 6;
-  repeated string layers = 7;
-  repeated string node_types = 8;
-  repeated Node nodes = 9;
+  GraphConstProps constProperties = 5;
+  GraphTempProps tempProperties = 6;
+  PropertiesMeta meta = 7;
+  repeated string layers = 8;
+  repeated string node_types = 9;
+  repeated Node nodes = 10;
 
   message Node{
     uint64 gid = 1;
@@ -133,6 +143,17 @@ message Graph {
     uint64 dst = 2;
     uint64 layer_id = 3;
     PropPair properties = 4;
+  }
+
+  message GraphConstProps{
+    repeated string names = 1;
+    repeated PropPair properties = 2;
+  }
+
+  message GraphTempProps{
+    repeated string names = 1;
+    repeated int64 times = 2;
+    repeated PropPair properties = 3;
   }
 
   message PropPair {

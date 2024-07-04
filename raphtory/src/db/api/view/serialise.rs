@@ -1,5 +1,6 @@
 use std::{fs::File, io::Write, path::Path, sync::Arc};
 
+use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike};
 use prost::Message;
 use raphtory_api::core::{
     entities::VID,
@@ -10,22 +11,25 @@ use crate::{
     core::{
         entities::{properties::props::PropMapper, LayerIds},
         utils::errors::GraphError,
-        Lifespan, PropType,
+        DocumentInput, Lifespan, PropType,
     },
-    db::api::{
-        mutation::internal::{
-            DelegatePropertyAdditionOps, InternalAdditionOps, InternalPropertyAdditionOps,
+    db::{
+        api::{
+            mutation::internal::{
+                DelegatePropertyAdditionOps, InternalAdditionOps, InternalPropertyAdditionOps,
+            },
+            storage::nodes::node_storage_ops::NodeStorageOps,
         },
-        storage::nodes::node_storage_ops::NodeStorageOps,
+        graph::views::deletion_graph::PersistentGraph,
     },
     prelude::*,
     serialise::{
         self,
         graph::{
             properties_meta::{self, PropName},
-            AddEdge, AddNode, Node, PropPair, UpdateEdgeConstProps,
+            AddEdge, AddNode, GraphConstProps, Node, PropPair, UpdateEdgeConstProps,
         },
-        lifespan, prop, Dict,
+        lifespan, prop, Dict, NdTime,
     },
 };
 
@@ -119,6 +123,55 @@ fn collect_prop_names<'a>(
 impl<'graph, G: GraphViewOps<'graph>> StableEncoder for G {
     fn encode_to_vec(&self) -> Result<Vec<u8>, GraphError> {
         let mut graph = serialise::Graph::default();
+
+        // const graph properties
+        let (names, properties): (Vec<_>, Vec<_>) = self
+            .const_prop_ids()
+            .filter_map(|id| {
+                let prop = self.get_const_prop(id)?;
+                let prop_name = self.get_const_prop_name(id);
+                Some((
+                    prop_name.to_string(),
+                    PropPair {
+                        key: id as u64,
+                        value: Some(as_proto_prop(&prop).expect("Failed to convert prop")),
+                    },
+                ))
+            })
+            .unzip();
+
+        graph.const_properties = Some(GraphConstProps { names, properties });
+
+        // temporal graph properties
+        let prop_names = self
+            .temporal_prop_keys()
+            .into_iter()
+            .map(|n| n.to_string())
+            .collect::<Vec<_>>();
+
+        let (ts, props): (Vec<_>, Vec<_>) = self
+            .temporal_prop_ids()
+            .flat_map(|id| {
+                let prop_t = self.temporal_history(id);
+                let props = self.temporal_values(id);
+                props.into_iter().zip(prop_t).map(move |(prop, t)| {
+                    let prop = as_proto_prop(&prop).expect("Failed to convert prop");
+                    (
+                        t,
+                        PropPair {
+                            key: id as u64,
+                            value: Some(prop),
+                        },
+                    )
+                })
+            })
+            .unzip();
+
+        graph.temp_properties = Some(serialise::graph::GraphTempProps {
+            names: prop_names,
+            times: ts,
+            properties: props,
+        });
 
         graph.layers = self
             .unique_layers()
@@ -272,6 +325,33 @@ impl<'graph, G: InternalAdditionOps + GraphViewOps<'graph> + DelegatePropertyAdd
 {
     fn decode_from_bytes(buf: &[u8], graph: &Self) -> Result<(), GraphError> {
         let g = serialise::Graph::decode(&buf[..]).expect("Failed to decode graph");
+
+        // constant graph properties
+        if let Some(meta) = g.const_properties.as_ref() {
+            for (name, prop_pair) in meta.names.iter().zip(meta.properties.iter()) {
+                let id = graph.graph_meta().resolve_property(name, true);
+                assert_eq!(id, prop_pair.key as usize);
+
+                let prop = prop_pair.value.as_ref().and_then(|p| p.value.as_ref());
+                let prop = as_prop_value(prop);
+                graph.graph_meta().add_constant_prop(id, prop)?;
+            }
+        }
+
+        if let Some(meta) = g.temp_properties.as_ref() {
+            for name in meta.names.iter() {
+                graph.graph_meta().resolve_property(name, false);
+            }
+
+            for (time, prop_pair) in meta.times.iter().zip(meta.properties.iter()) {
+                let id = prop_pair.key as usize;
+                let prop = prop_pair.value.as_ref().and_then(|p| p.value.as_ref());
+                let prop = as_prop_value(prop);
+                graph
+                    .graph_meta()
+                    .add_prop(TimeIndexEntry::from(*time), id, prop)?;
+            }
+        }
 
         // align the nodes
         for node in g.nodes {
@@ -429,13 +509,57 @@ fn as_prop_value(value: Option<&prop::Value>) -> Prop {
                 .map(|(k, v)| (ArcStr::from(k.as_str()), as_prop_value(v.value.as_ref())))
                 .collect(),
         )),
-        _ => todo!(),
-        // serialise::prop::Value::Map(_) => todo!(),
-        // serialise::prop::Value::NDTime(_) => todo!(),
-        // serialise::prop::Value::DTime(_) => todo!(),
-        // serialise::prop::Value::Graph(_) => todo!(),
-        // serialise::prop::Value::PersistentGraph(_) => todo!(),
-        // serialise::prop::Value::Document(_) => todo!(),
+        serialise::prop::Value::NdTime(ndt) => {
+            let NdTime {
+                year,
+                month,
+                day,
+                hour,
+                minute,
+                second,
+                nanos,
+            } = ndt;
+            let ndt = NaiveDateTime::new(
+                NaiveDate::from_ymd_opt(*year as i32, *month as u32, *day as u32).unwrap(),
+                NaiveTime::from_hms_nano_opt(
+                    *hour as u32,
+                    *minute as u32,
+                    *second as u32,
+                    *nanos as u32,
+                )
+                .unwrap(),
+            );
+            Prop::NDTime(ndt)
+        }
+        serialise::prop::Value::DTime(dt) => {
+            Prop::DTime(DateTime::parse_from_rfc3339(dt).unwrap().into())
+        }
+        serialise::prop::Value::Graph(graph) => {
+            let g = Graph::new();
+            Graph::decode_from_bytes(&graph, &g).expect("Failed to decode graph");
+            Prop::Graph(g)
+        }
+        serialise::prop::Value::PersistentGraph(graph) => {
+            let g = Graph::new().persistent_graph();
+            PersistentGraph::decode_from_bytes(&graph, &g).expect("Failed to decode graph");
+            Prop::PersistentGraph(g)
+        }
+        serialise::prop::Value::DocumentInput(doc) => Prop::Document(DocumentInput {
+            content: doc.content.clone(),
+            life: doc
+                .life
+                .as_ref()
+                .map(|l| match l.l_type {
+                    Some(lifespan::LType::Interval(lifespan::Interval { start, end })) => {
+                        Lifespan::Interval { start, end }
+                    }
+                    Some(lifespan::LType::Event(lifespan::Event { time })) => {
+                        Lifespan::Event { time }
+                    }
+                    None => Lifespan::Inherited,
+                })
+                .unwrap_or(Lifespan::Inherited),
+        }),
     };
     value
 }
@@ -470,7 +594,26 @@ fn as_proto_prop(prop: &Prop) -> Result<serialise::Prop, GraphError> {
                 .collect::<Result<_, _>>()?;
             prop::Value::Map(Dict { map })
         }
-        Prop::NDTime(time) => prop::Value::NdTime(time.format("%Y%m%dT%H:%M:%S.%9f").to_string()),
+        Prop::NDTime(ndt) => {
+            let (year, month, day) = (ndt.date().year(), ndt.date().month(), ndt.date().day());
+            let (hour, minute, second, nanos) = (
+                ndt.time().hour(),
+                ndt.time().minute(),
+                ndt.time().second(),
+                ndt.time().nanosecond(),
+            );
+
+            let proto_ndt = NdTime {
+                year: year as u32,
+                month: month as u32,
+                day: day as u32,
+                hour: hour as u32,
+                minute: minute as u32,
+                second: second as u32,
+                nanos: nanos as u32,
+            };
+            prop::Value::NdTime(proto_ndt)
+        }
         Prop::DTime(dt) => {
             prop::Value::DTime(dt.to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true))
         }
@@ -502,6 +645,10 @@ fn as_proto_prop(prop: &Prop) -> Result<serialise::Prop, GraphError> {
 
 #[cfg(test)]
 mod proto_test {
+    use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike};
+
+    use crate::{core::DocumentInput, db::api::properties::internal::ConstPropertiesOps};
+
     use super::*;
 
     #[test]
@@ -598,5 +745,171 @@ mod proto_test {
         let g2 = Graph::new();
         Graph::decode(&temp_file, &g2).unwrap();
         assert_eq!(&g1, &g2);
+    }
+
+    #[test]
+    fn test_all_the_t_props_on_node() {
+        let mut props = vec![];
+        write_props_to_vec(&mut props);
+
+        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let g1 = Graph::new();
+        g1.add_node(1, "Alice", props.clone(), None).unwrap();
+        g1.stable_serialise(&temp_file).unwrap();
+        let g2 = Graph::new();
+        Graph::decode(&temp_file, &g2).unwrap();
+        assert_eq!(&g1, &g2);
+
+        let node = g2.node("Alice").expect("Failed to get node");
+
+        assert!(props.into_iter().all(|(name, expected)| {
+            node.properties()
+                .temporal()
+                .get(name)
+                .filter(|prop_view| {
+                    let (t, prop) = prop_view.iter().next().expect("Failed to get prop");
+                    prop == expected && t == 1
+                })
+                .is_some()
+        }))
+    }
+
+    #[test]
+    fn test_all_the_const_props_on_node() {
+        let mut props = vec![];
+        write_props_to_vec(&mut props);
+
+        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let g1 = Graph::new();
+        let n = g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
+        n.update_constant_properties(props.clone())
+            .expect("Failed to update constant properties");
+        g1.stable_serialise(&temp_file).unwrap();
+        let g2 = Graph::new();
+        Graph::decode(&temp_file, &g2).unwrap();
+        assert_eq!(&g1, &g2);
+
+        let node = g2.node("Alice").expect("Failed to get node");
+
+        assert!(props.into_iter().all(|(name, expected)| {
+            node.properties()
+                .constant()
+                .get(name)
+                .filter(|prop| prop == &expected)
+                .is_some()
+        }))
+    }
+
+    #[test]
+    fn graph_const_properties() {
+        let mut props = vec![];
+        write_props_to_vec(&mut props);
+
+        let g1 = Graph::new();
+        g1.add_constant_properties(props.clone())
+            .expect("Failed to add constant properties");
+
+        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        g1.stable_serialise(&temp_file).unwrap();
+        let g2 = Graph::new();
+        Graph::decode(&temp_file, &g2).unwrap();
+
+        props.into_iter().for_each(|(name, prop)| {
+            let id = g2.get_const_prop_id(name).expect("Failed to get prop id");
+            assert_eq!(prop, g2.get_const_prop(id).expect("Failed to get prop"));
+        });
+    }
+
+    #[test]
+    fn graph_temp_properties() {
+        let mut props = vec![];
+        write_props_to_vec(&mut props);
+
+        let g1 = Graph::new();
+        for t in 0..props.len() {
+            g1.add_properties(t as i64, (&props[t..t + 1]).to_vec())
+                .expect("Failed to add constant properties");
+        }
+
+        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        g1.stable_serialise(&temp_file).unwrap();
+        let g2 = Graph::new();
+        Graph::decode(&temp_file, &g2).unwrap();
+
+        props
+            .into_iter()
+            .enumerate()
+            .for_each(|(expected_t, (name, expected))| {
+                for (t, prop) in g2
+                    .properties()
+                    .temporal()
+                    .get(name)
+                    .expect("Failed to get prop view")
+                {
+                    assert_eq!(prop, expected);
+                    assert_eq!(t, expected_t as i64);
+                }
+            });
+    }
+
+    fn write_props_to_vec(props: &mut Vec<(&str, Prop)>) {
+        props.push(("name", Prop::Str("Alice".into())));
+        props.push(("age", Prop::U32(47)));
+        props.push(("score", Prop::I32(27)));
+        props.push(("is_adult", Prop::Bool(true)));
+        props.push(("height", Prop::F32(1.75)));
+        props.push(("weight", Prop::F64(75.5)));
+        props.push((
+            "children",
+            Prop::List(Arc::new(vec![
+                Prop::Str("Bob".into()),
+                Prop::Str("Charlie".into()),
+            ])),
+        ));
+        props.push((
+            "properties",
+            Prop::Map(Arc::new(
+                props
+                    .iter()
+                    .map(|(k, v)| (ArcStr::from(*k), v.clone()))
+                    .collect(),
+            )),
+        ));
+        let fmt = "%Y-%m-%d %H:%M:%S";
+        props.push((
+            "time",
+            Prop::NDTime(
+                NaiveDateTime::parse_from_str("+10000-09-09 01:46:39", fmt)
+                    .expect("Failed to parse time"),
+            ),
+        ));
+
+        props.push((
+            "dtime",
+            Prop::DTime(
+                DateTime::parse_from_rfc3339("2021-09-09T01:46:39Z")
+                    .unwrap()
+                    .into(),
+            ),
+        ));
+
+        props.push((
+            "doc",
+            Prop::Document(DocumentInput {
+                content: "Hello, World!".into(),
+                life: Lifespan::Interval {
+                    start: -11i64,
+                    end: 100i64,
+                },
+            }),
+        ));
+        let graph = Graph::new();
+        graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+        props.push(("graph", Prop::Graph(graph)));
+
+        let graph = Graph::new().persistent_graph();
+        graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+        graph.delete_edge(2, "a", "b", None).unwrap();
+        props.push(("p_graph", Prop::PersistentGraph(graph)));
     }
 }
