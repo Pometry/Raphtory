@@ -1,16 +1,12 @@
 from datetime import datetime
-from typing import (
-    Any,
-    Callable,
-    Iterator,
-    Optional,
-    Union,
-)
+from typing import Any, Callable, Iterator, Optional, Union
 
 import networkx as nx
 import pandas as pd
 
 # TODO: Edges, Nodes, TemporalProperties
+
+Timestamp = Union[int, datetime, str]
 
 class VectorisedGraph: ...
 class GraphIndex: ...
@@ -18,21 +14,16 @@ class GraphIndex: ...
 class Properties:
     """A view of the properties of an entity"""
 
-    @property
-    def constant(self) -> "Properties":
-        """Get a view of the constant properties (meta-data) only."""
-        ...
-
-    @property
-    def temporal(self) -> "Properties":
-        """Get a view of the temporal properties only."""
-        ...
-
     def as_dict(self) -> dict[str, Any]:
         """Convert properties view to a dict"""
         ...
 
-    def get(self, key: str) -> Any:
+    @property
+    def constant(self) -> "ConstProperties":
+        """Get a view of the constant properties (meta-data) only."""
+        ...
+
+    def get(self, key: str) -> Optional[Any]:
         """
         Get property value.
         First searches temporal properties and returns latest value if it exists.
@@ -46,6 +37,11 @@ class Properties:
 
     def keys(self) -> list[str]:
         """Get the names for all properties (includes temporal and static properties)"""
+        ...
+
+    @property
+    def temporal(self) -> "TemporalProp":
+        """Get a view of the temporal properties only."""
         ...
 
     def values(self) -> list[Any]:
@@ -87,18 +83,70 @@ class ConstProperties:
         """Lists the property values"""
         ...
 
+class TemporalProperties:
+    """A view of the temporal properties of an entity"""
+
+    def as_dict(self) -> dict[str, TemporalProp]:
+        """Convert the properties view to a python dict"""
+        ...
+
+    def get(self, key: str) -> Optional[TemporalProp]:
+        """
+        Get property value by key (returns None if key does not exist)
+
+        Parameters:
+        key (str): The name of the property
+
+        Returns:
+        Optional[Any]: The value of the property, or None if it doesn't exist
+        """
+        ...
+
+    def histories(self) -> dict[str, list[tuple[int, Any]]]:
+        """Get the histories of all properties"""
+        ...
+
+    def histories_date_time(self) -> dict[str, list[tuple[datetime, Any]]]:
+        """Get the histories of all properties"""
+        ...
+
+    def items(self) -> list[tuple[str, TemporalProp]]:
+        """Lists the property keys together with the corresponding value"""
+        ...
+
+    def keys(self) -> list[str]:
+        """Lists the available property keys"""
+        ...
+
+    def latest(self) -> dict[str, Any]:
+        """Get the latest value of all properties"""
+        ...
+
+    def values(self) -> list[TemporalProp]:
+        """Lists the property values"""
+        ...
+    ...
+
+class TemporalProp:
+    """A view of a temporal property"""
+
+    def at(self, t: Timestamp):
+        """Get the value of the property at time t"""
+        ...
+    ...
+
 class WindowSet: ...
 
 class Node:
-    def after(self, start: Union[int, datetime, str]) -> "Node":
+    def after(self, start: Timestamp) -> "Node":
         """Create a view of the Node including all events after start (exclusive)."""
         ...
 
-    def at(self, time: Union[int, datetime, str]) -> "Node":
+    def at(self, time: Timestamp) -> "Node":
         """Create a view of the Node including all events at time."""
         ...
 
-    def before(self, end: Union[int, datetime, str]) -> "Node":
+    def before(self, end: Timestamp) -> "Node":
         """Create a view of the Node including all events before end (exclusive)."""
         ...
 
@@ -267,17 +315,15 @@ class Node:
         """Creates a WindowSet with the given window size and optional step using a rolling window."""
         ...
 
-    def shrink_end(self, end: Union[int, datetime, str]) -> "Node":
+    def shrink_end(self, end: Timestamp) -> "Node":
         """Set the end of the window to the smaller of end and self.end()."""
         ...
 
-    def shrink_start(self, start: Union[int, datetime, str]) -> "Node":
+    def shrink_start(self, start: Timestamp) -> "Node":
         """Set the start of the window to the larger of start and self.start()."""
         ...
 
-    def shrink_window(
-        self, start: Union[int, datetime, str], end: Union[int, datetime, str]
-    ) -> "Node":
+    def shrink_window(self, start: Timestamp, end: Timestamp) -> "Node":
         """Shrink both the start and end of the window.
 
         Same as calling shrink_start followed by shrink_end but more efficient.
@@ -303,8 +349,8 @@ class Node:
 
     def window(
         self,
-        start: Optional[Union[int, datetime, str]] = None,
-        end: Optional[Union[int, datetime, str]] = None,
+        start: Optional[Timestamp] = None,
+        end: Optional[Timestamp] = None,
     ) -> "Node":
         """Create a view of the Node including all events between start (inclusive) and end (exclusive)."""
         ...
@@ -340,15 +386,15 @@ class MutableNode(Node):
 class Edge:
     """Represents an edge in the graph. An edge is a directed connection between two nodes."""
 
-    def after(self, start: Union[int, datetime, str]) -> "Edge":
+    def after(self, start: Timestamp) -> "Edge":
         """Create a view of the Edge including all events after start (exclusive)."""
         ...
 
-    def at(self, time: Union[int, datetime, str]) -> "Edge":
+    def at(self, time: Timestamp) -> "Edge":
         """Create a view of the Edge including all events at time."""
         ...
 
-    def before(self, end: Union[int, datetime, str]) -> "Edge":
+    def before(self, end: Timestamp) -> "Edge":
         """Create a view of the Edge including all events before end (exclusive)."""
         ...
 
@@ -519,17 +565,15 @@ class Edge:
         """Creates a WindowSet with the given window size and optional step using a rolling window."""
         ...
 
-    def shrink_end(self, end: Union[int, datetime, str]) -> "Edge":
+    def shrink_end(self, end: Timestamp) -> "Edge":
         """Set the end of the window to the smaller of end and self.end()."""
         ...
 
-    def shrink_start(self, start: Union[int, datetime, str]) -> "Edge":
+    def shrink_start(self, start: Timestamp) -> "Edge":
         """Set the start of the window to the larger of start and self.start()."""
         ...
 
-    def shrink_window(
-        self, start: Union[int, datetime, str], end: Union[int, datetime, str]
-    ) -> "Edge":
+    def shrink_window(self, start: Timestamp, end: Timestamp) -> "Edge":
         """Shrink both the start and end of the window.
 
         Same as calling shrink_start followed by shrink_end but more efficient.
@@ -565,8 +609,8 @@ class Edge:
 
     def window(
         self,
-        start: Optional[Union[int, datetime, str]],
-        end: Optional[Union[int, datetime, str]],
+        start: Optional[Timestamp],
+        end: Optional[Timestamp],
     ) -> "Edge":
         """Create a view of the Edge including all events between start (inclusive) and end (exclusive)."""
         ...
@@ -630,15 +674,15 @@ class GraphView:
         """Adds properties to the graph."""
         ...
 
-    def after(self, start: Union[int, datetime, str]) -> "GraphView":
+    def after(self, start: Timestamp) -> "GraphView":
         """Create a view of the GraphView including all events after start (exclusive)."""
         ...
 
-    def at(self, time: Union[int, datetime, str]) -> "GraphView":
+    def at(self, time: Timestamp) -> "GraphView":
         """Create a view of the GraphView including all events at time."""
         ...
 
-    def before(self, end: Union[int, datetime, str]) -> "GraphView":
+    def before(self, end: Timestamp) -> "GraphView":
         """Create a view of the GraphView including all events before end (exclusive)."""
         ...
 
@@ -929,17 +973,15 @@ class GraphView:
         """Saves the graph to the given path."""
         ...
 
-    def shrink_end(self, end: Union[int, datetime, str]) -> "GraphView":
+    def shrink_end(self, end: Timestamp) -> "GraphView":
         """Set the end of the window to the smaller of end and self.end()."""
         ...
 
-    def shrink_start(self, start: Union[int, datetime, str]) -> "GraphView":
+    def shrink_start(self, start: Timestamp) -> "GraphView":
         """Set the start of the window to the larger of start and self.start()."""
         ...
 
-    def shrink_window(
-        self, start: Union[int, datetime, str], end: Union[int, datetime, str]
-    ) -> "GraphView":
+    def shrink_window(self, start: Timestamp, end: Timestamp) -> "GraphView":
         """Shrink both the start and end of the window.
 
         Same as calling shrink_start followed by shrink_end but more efficient.
@@ -1021,8 +1063,8 @@ class GraphView:
 
     def window(
         self,
-        start: Optional[Union[int, datetime, str]],
-        end: Optional[Union[int, datetime, str]],
+        start: Optional[Timestamp],
+        end: Optional[Timestamp],
     ) -> "GraphView":
         """Create a view of the GraphView including all events between start (inclusive) and end (exclusive)."""
         ...
@@ -1038,7 +1080,6 @@ class Graph(GraphView):
     def persistent_graph(self) -> "PersistentGraph":
         """Get persistent graph."""
         ...
-
     ...
 
 class PersistentGraph(GraphView):
