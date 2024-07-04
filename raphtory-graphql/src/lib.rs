@@ -834,7 +834,7 @@ mod graphql_test {
         // Test save graph
         let req = Request::new(save_graph("g0", "g3", r#""{ \"2\": {} }""#));
         let res = schema.execute(req).await;
-        assert!(res.errors.get(0).unwrap().message.contains("Invalid path"));
+        assert!(res.errors.is_empty());
         let req = Request::new(list_nodes("g3"));
         let res = schema.execute(req).await;
         let res_json = res.data.into_json().unwrap();
