@@ -326,7 +326,139 @@ def test_load_graph_overwrite():
     }
 
     server.stop()
+
+
+def test_rename_graph():
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+
+    work_dir = tempfile.mkdtemp()
+    os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
+
+    g.save_to_file(os.path.join(work_dir, "g1"))
+    g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
+    g.save_to_file(os.path.join(work_dir, "shivam", "g3"))
     
+    server = RaphtoryServer(work_dir).start()
+    client = RaphtoryClient("http://localhost:1736")
+
+    # Assert if all graphs present in the work_dir are discoverable
+    query = """{graph(name: "g1") {nodes {list {name}}}}"""
+    assert client.query(query) == {
+        "graph": {
+            "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
+        }
+    }
+    query = """{graph(name: "g2", namespace: "shivam") {nodes {list {name}}}}"""
+    assert client.query(query) == {
+        "graph": {
+            "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
+        }
+    }
+    query = """{graph(name: "g3", namespace: "shivam") {nodes {list {name}}}}"""
+    assert client.query(query) == {
+        "graph": {
+            "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
+        }
+    }
+
+    # Assert if attempt to rename to an existing graph fails
+    query = """mutation {
+      renameGraph(
+        parentGraphName: "g1",
+        graphName: "g2",
+        graphNamespace: "shivam",
+        newGraphName: "g3",
+      )
+    }"""
+    try:
+        client.query(query)
+    except Exception as e:
+        assert "Graph already exists by name = shivam/g3" in str(e), f"Unexpected exception message: {e}"
+        
+    # Assert if rename graph succeeds and old graph is deleted, when parent graph belongs to different namespace
+    query = """mutation {
+      renameGraph(
+        parentGraphName: "g1",
+        graphName: "g3",
+        graphNamespace: "shivam",
+        newGraphName: "g4",
+      )
+    }"""
+    client.query(query)
+    
+    query = """{graph(name: "g3", namespace: "shivam") {nodes {list {name}}}}"""
+    try:
+        client.query(query)
+    except Exception as e:
+        assert "Invalid path" in str(e), f"Unexpected exception message: {e}"
+        
+    query = """{graph(name: "g4", namespace: "shivam") {nodes {list {name}}}}"""
+    assert client.query(query) == {
+        "graph": {
+            "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
+        }
+    }
+
+    # Assert if rename graph succeeds and old graph is deleted, when parent graph belongs to same namespace
+    query = """mutation {
+      renameGraph(
+        parentGraphName: "g2",
+        parentGraphNamespace: "shivam",
+        graphName: "g4",
+        graphNamespace: "shivam",
+        newGraphName: "g5",
+      )
+    }"""
+    client.query(query)
+
+    query = """{graph(name: "g4", namespace: "shivam") {nodes {list {name}}}}"""
+    try:
+        client.query(query)
+    except Exception as e:
+        assert "Invalid path" in str(e), f"Unexpected exception message: {e}"
+
+    query = """{graph(name: "g5", namespace: "shivam") {nodes {list {name}}}}"""
+    assert client.query(query) == {
+        "graph": {
+            "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
+        }
+    }
+
+    # Assert if rename graph fails when pointing to incorrect graphNamespace
+    query = """mutation {
+      renameGraph(
+        parentGraphName: "g2",
+        parentGraphNamespace: "shivam",
+        graphName: "g5",
+        graphNamespace: "ben",
+        newGraphName: "g6",
+      )
+    }"""
+    try:
+        client.query(query)
+    except Exception as e:
+        assert "Graph not found ben/g5" in str(e), f"Unexpected exception message: {e}"
+
+    # Assert if rename graph fails when pointing to incorrect parentGraphNamespace
+    query = """mutation {
+      renameGraph(
+        parentGraphName: "g2",
+        parentGraphNamespace: "ben",
+        graphName: "g5",
+        graphNamespace: "shivam",
+        newGraphName: "g6",
+      )
+    }"""
+    try:
+        client.query(query)
+    except Exception as e:
+        assert "Graph not found ben/g2" in str(e), f"Unexpected exception message: {e}"
+    
+    server.stop()
+
 
 def test_graph_windows_and_layers_query():
     g1 = graph_loader.lotr_graph()

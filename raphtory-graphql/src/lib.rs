@@ -83,7 +83,7 @@ mod graphql_test {
 
         let graphs = HashMap::from([("lotr".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+        save_graphs_to_work_dir(tmp_dir.path(), &None, &graphs).unwrap();
 
         let data = Data::new(tmp_dir.path(), &AppConfigBuilder::new().build());
 
@@ -127,7 +127,7 @@ mod graphql_test {
         let graph: MaterializedGraph = graph.into();
         let graphs = HashMap::from([("lotr".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+        save_graphs_to_work_dir(tmp_dir.path(), &None, &graphs).unwrap();
 
         let data = Data::new(tmp_dir.path(), &AppConfigBuilder::new().build());
 
@@ -179,7 +179,7 @@ mod graphql_test {
 
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+        save_graphs_to_work_dir(tmp_dir.path(), &None, &graphs).unwrap();
 
         let data = Data::new(tmp_dir.path(), &AppConfigBuilder::new().build());
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -244,7 +244,7 @@ mod graphql_test {
         let graph: MaterializedGraph = g.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+        save_graphs_to_work_dir(tmp_dir.path(), &None, &graphs).unwrap();
 
         let data = Data::new(tmp_dir.path(), &AppConfigBuilder::new().build());
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -436,7 +436,7 @@ mod graphql_test {
         let g = g.into();
         let graphs = HashMap::from([("graph".to_string(), g)]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+        save_graphs_to_work_dir(tmp_dir.path(), &None, &graphs).unwrap();
 
         let data = Data::new(tmp_dir.path(), &AppConfigBuilder::new().build());
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -685,7 +685,7 @@ mod graphql_test {
         let graph = graph.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+        save_graphs_to_work_dir(tmp_dir.path(), &None, &graphs).unwrap();
 
         let data = Data::new(tmp_dir.path(), &AppConfigBuilder::new().build());
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -991,7 +991,7 @@ mod graphql_test {
         let graph = graph.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+        save_graphs_to_work_dir(tmp_dir.path(), &None, &graphs).unwrap();
 
         let data = Data::new(tmp_dir.path(), &AppConfigBuilder::new().build());
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -1114,7 +1114,7 @@ mod graphql_test {
         let graph = disk_graph.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_work_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_work_dir.path(), &graphs).unwrap();
+        save_graphs_to_work_dir(tmp_work_dir.path(), &None, &graphs).unwrap();
 
         let data = Data::new(tmp_work_dir.path(), &AppConfigBuilder::new().build());
         let schema = App::create_schema().data(data).finish().unwrap();

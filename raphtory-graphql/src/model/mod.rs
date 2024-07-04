@@ -127,73 +127,72 @@ impl Mut {
     async fn rename_graph<'a>(
         ctx: &Context<'a>,
         parent_graph_name: String,
+        parent_graph_namespace: &Option<String>,
         graph_name: String,
+        graph_namespace: &Option<String>,
         new_graph_name: String,
-        namespace: &Option<String>,
     ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
-        if data.graphs.contains_key(&new_graph_name) {
+        let parent_graph_path =
+            construct_graph_path(&data.work_dir, &parent_graph_name, parent_graph_namespace)?;
+        if !parent_graph_path.exists() {
+            return Err(GraphError::GraphNotFound(get_graph_name(
+                &parent_graph_name,
+                parent_graph_namespace,
+            ))
+            .into());
+        }
+        let current_graph_path =
+            construct_graph_path(&data.work_dir, &graph_name, graph_namespace)?;
+        if !current_graph_path.exists() {
+            return Err(
+                GraphError::GraphNotFound(get_graph_name(&graph_name, graph_namespace)).into(),
+            );
+        }
+        let new_graph_path =
+            construct_graph_path(&data.work_dir, &new_graph_name, graph_namespace)?;
+        if new_graph_path.exists() {
             return Err(GraphError::GraphNameAlreadyExists {
-                name: new_graph_name,
+                name: get_graph_name(&new_graph_name, graph_namespace),
             }
             .into());
         }
 
         let data = ctx.data_unchecked::<Data>();
-        let subgraph = data.get_graph(&graph_name, namespace)?;
+        let current_graph = data.get_graph(&graph_name, graph_namespace)?;
 
         #[cfg(feature = "storage")]
-        if subgraph.clone().graph.into_disk_graph().is_some() {
+        if current_graph.clone().graph.into_disk_graph().is_some() {
             return Err(GqlGraphError::ImmutableDiskGraph.into());
         }
 
         if new_graph_name.ne(&graph_name) && parent_graph_name.ne(&graph_name) {
-            let old_path = subgraph
-                .properties()
-                .constant()
-                .get("path")
-                .ok_or("Path is missing")?
-                .to_string();
-            let old_path = Path::new(&old_path);
-            let path = old_path
-                .parent()
-                .map(|p| p.to_path_buf())
-                .ok_or("Path is missing")?;
-            let path = path.join(&new_graph_name);
-
-            let parent_graph = data.get_graph(&parent_graph_name, namespace)?;
-            let new_subgraph = parent_graph
-                .subgraph(subgraph.nodes().iter().map(|v| v.name()).collect_vec())
+            let parent_graph = data.get_graph(&parent_graph_name, parent_graph_namespace)?;
+            let new_graph = parent_graph
+                .subgraph(current_graph.nodes().iter().map(|v| v.name()).collect_vec())
                 .materialize()?;
 
-            let static_props_without_name: Vec<(ArcStr, Prop)> = subgraph
+            let static_props_without_name: Vec<(ArcStr, Prop)> = current_graph
                 .properties()
                 .into_iter()
                 .filter(|(a, _)| a != "name")
                 .collect_vec();
 
-            new_subgraph.update_constant_properties(static_props_without_name)?;
-
-            new_subgraph
+            new_graph.update_constant_properties(static_props_without_name)?;
+            new_graph
                 .update_constant_properties([("name", Prop::Str(new_graph_name.clone().into()))])?;
-            new_subgraph.update_constant_properties([(
-                "path",
-                Prop::Str(path.display().to_string().into()),
-            )])?;
 
             let dt = Utc::now();
             let timestamp: i64 = dt.timestamp();
-            new_subgraph
-                .update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
-            new_subgraph
-                .update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
-            new_subgraph.save_to_file(&path)?;
+            new_graph.update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
+            new_graph.update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
+            new_graph.save_to_file(&new_graph_path)?;
 
-            let gi: IndexedGraph<MaterializedGraph> = new_subgraph.into();
+            let gi: IndexedGraph<MaterializedGraph> = new_graph.into();
 
             data.graphs.insert(new_graph_name, gi);
-            data.graphs.remove(&graph_name);
-            delete_graph(&old_path)?;
+            data.graphs.invalidate(&graph_name);
+            delete_graph(&current_graph_path)?;
         }
 
         Ok(true)
@@ -233,59 +232,54 @@ impl Mut {
     async fn save_graph<'a>(
         ctx: &Context<'a>,
         parent_graph_name: String,
+        parent_graph_namespace: &Option<String>,
         graph_name: String,
+        graph_namespace: &Option<String>,
         new_graph_name: String,
         props: String,
         is_archive: u8,
         graph_nodes: String,
-        namespace: &Option<String>,
     ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
+        let parent_graph_path =
+            construct_graph_path(&data.work_dir, &parent_graph_name, parent_graph_namespace)?;
+        if !parent_graph_path.exists() {
+            return Err(GraphError::GraphNotFound(get_graph_name(
+                &parent_graph_name,
+                parent_graph_namespace,
+            ))
+            .into());
+        }
+        let current_graph_path =
+            construct_graph_path(&data.work_dir, &graph_name, graph_namespace)?;
+        if !current_graph_path.exists() {
+            return Err(
+                GraphError::GraphNotFound(get_graph_name(&graph_name, graph_namespace)).into(),
+            );
+        }
 
         // If graph_name == new_graph_name, it is a "save" action otherwise it is "save as" action.
         // Overwriting the same graph is permitted, not otherwise
+        let new_graph_path =
+            construct_graph_path(&data.work_dir, &new_graph_name, graph_namespace)?;
         if graph_name.ne(&new_graph_name) {
-            let new_graph_path = Path::new(&data.work_dir).join(&new_graph_name);
             if new_graph_path.exists() {
                 return Err(GraphError::GraphNameAlreadyExists {
-                    name: new_graph_name,
+                    name: get_graph_name(&new_graph_name, graph_namespace),
                 }
                 .into());
             }
         }
 
-        let parent_graph = data.get_graph(&parent_graph_name, namespace)?;
-        let subgraph = data.get_graph(&graph_name, namespace)?;
+        let parent_graph = data.get_graph(&parent_graph_name, parent_graph_namespace)?;
+        let subgraph = data.get_graph(&graph_name, graph_namespace)?;
 
         #[cfg(feature = "storage")]
         if subgraph.clone().graph.into_disk_graph().is_some() {
             return Err(GqlGraphError::ImmutableDiskGraph.into());
         }
 
-        let path = construct_graph_path(&data.work_dir, &new_graph_name, namespace)?;
-        let path = if !path.exists() {
-            let base_path = subgraph
-                .properties()
-                .constant()
-                .get("path")
-                .ok_or("Path is missing")?
-                .to_string();
-            let path: &Path = Path::new(base_path.as_str());
-            path.with_file_name(&new_graph_name)
-                .to_str()
-                .ok_or("Invalid path")?
-                .to_string()
-        } else {
-            let new_graph = data.get_graph(&new_graph_name, namespace)?;
-            new_graph
-                .properties()
-                .constant()
-                .get("path")
-                .ok_or("Path is missing")?
-                .to_string()
-        };
-
-        println!("Saving graph to path {path}");
+        println!("Saving graph to path {new_graph_path:?}");
 
         let deserialized_node_map: Value = serde_json::from_str(graph_nodes.as_str())?;
         let node_map = deserialized_node_map
@@ -349,10 +343,9 @@ impl Mut {
         new_subgraph.update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
         new_subgraph.update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
         new_subgraph.update_constant_properties([("uiProps", Prop::Str(props.into()))])?;
-        new_subgraph.update_constant_properties([("path", Prop::Str(path.clone().into()))])?;
         new_subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
 
-        new_subgraph.save_to_file(path)?;
+        new_subgraph.save_to_file(new_graph_path)?;
 
         let m_g = new_subgraph.materialize()?;
         let gi: IndexedGraph<MaterializedGraph> = m_g.into();
@@ -482,6 +475,13 @@ impl Mut {
         data.graphs.insert(graph_name, subgraph);
 
         Ok(true)
+    }
+}
+
+fn get_graph_name(name: &String, namespace: &Option<String>) -> String {
+    match namespace {
+        Some(namespace) if !namespace.is_empty() => format!("{}/{}", namespace, name),
+        _ => name.clone(),
     }
 }
 

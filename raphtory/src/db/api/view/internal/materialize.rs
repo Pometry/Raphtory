@@ -132,8 +132,8 @@ impl MaterializedGraph {
     }
 
     pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), GraphError> {
-        let f = std::fs::File::create(path)?;
-        let mut writer = std::io::BufWriter::new(f);
+        let f = fs::File::create(path)?;
+        let mut writer = io::BufWriter::new(f);
         let versioned_data = VersionedGraph {
             version: BINCODE_VERSION,
             graph: self.clone(),

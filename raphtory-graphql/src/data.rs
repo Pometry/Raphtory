@@ -60,7 +60,7 @@ impl Data {
             match self.graphs.get(&name) {
                 Some(graph) => Ok(graph.clone()),
                 None => {
-                    let (_, graph) = get_graph_from_path(Path::new(&self.work_dir), &path)?;
+                    let (_, graph) = get_graph_from_path(&path)?;
                     Ok(self.graphs.get_with(name, || graph))
                 }
             }
@@ -175,7 +175,7 @@ pub fn load_graph_from_path(
             Err(GraphError::InvalidPath(path.to_path_buf()).into())
         }
     } else {
-        let (name, graph) = load_bincode_graph(work_dir, path)?;
+        let (name, graph) = load_bincode_graph(path)?;
         let path = Path::new(work_dir).join(name.as_str());
         if path.exists() {
             if overwrite {
@@ -239,10 +239,7 @@ fn get_disk_graph_from_path(
     Ok(None)
 }
 
-fn get_graph_from_path(
-    work_dir: &Path,
-    path: &Path,
-) -> Result<(String, IndexedGraph<MaterializedGraph>), Error> {
+fn get_graph_from_path(path: &Path) -> Result<(String, IndexedGraph<MaterializedGraph>), Error> {
     if !path.exists() {
         return Err(GraphError::InvalidPath(path.to_path_buf()).into());
     }
@@ -253,7 +250,7 @@ fn get_graph_from_path(
             return Err(GraphError::InvalidPath(path.to_path_buf()).into());
         }
     } else {
-        let (name, graph) = load_bincode_graph(work_dir, path)?;
+        let (name, graph) = load_bincode_graph(path)?;
         println!("Graph loaded = {}", path.display());
         Ok((name, IndexedGraph::from_graph(&graph.into())?))
     }
@@ -264,7 +261,7 @@ pub(crate) fn get_graphs_from_work_dir(
 ) -> Result<HashMap<String, IndexedGraph<MaterializedGraph>>> {
     let mut graphs = HashMap::new();
     for path in get_graph_paths(work_dir) {
-        let (name, graph) = get_graph_from_path(work_dir, &path)?;
+        let (name, graph) = get_graph_from_path(&path)?;
         graphs.insert(name, graph);
     }
     Ok(graphs)
@@ -276,7 +273,7 @@ pub(crate) fn get_graph_names_namespaces_from_work_dir(
     let mut names = vec![];
     let mut namespaces = vec![];
     for path in get_graph_paths(work_dir) {
-        let (name, _) = get_graph_from_path(work_dir, &path)?;
+        let (name, _) = get_graph_from_path(&path)?;
         names.push(name);
         namespaces.push(get_namespace_from_path(work_dir, path));
     }
@@ -352,23 +349,19 @@ fn get_graph_name(path: &Path, graph: &MaterializedGraph) -> String {
 
 pub(crate) fn save_graphs_to_work_dir(
     work_dir: &Path,
+    namespace: &Option<String>,
     graphs: &HashMap<String, MaterializedGraph>,
 ) -> Result<()> {
     for (name, graph) in graphs {
-        let path = work_dir.join(&name);
+        let path = construct_graph_path(&work_dir.display().to_string(), name, &namespace)?;
         graph.save_to_path(&path)?;
     }
     Ok(())
 }
 
-fn load_bincode_graph(work_dir: &Path, path: &Path) -> Result<(String, MaterializedGraph)> {
+fn load_bincode_graph(path: &Path) -> Result<(String, MaterializedGraph)> {
     let graph = MaterializedGraph::load_from_file(path, false)?;
     let name = get_graph_name(path, &graph);
-    let path = Path::new(work_dir).join(name.as_str());
-    graph.update_constant_properties([(
-        "path".to_string(),
-        Prop::str(path.display().to_string().clone()),
-    )])?;
     Ok((name, graph))
 }
 
@@ -377,7 +370,6 @@ fn load_disk_graph(path: &Path) -> Result<(String, MaterializedGraph)> {
     let disk_graph = DiskGraph::load_from_dir(path)?;
     let graph: MaterializedGraph = disk_graph.into();
     let graph_name = get_graph_name(path, &graph);
-
     Ok((graph_name, graph))
 }
 
@@ -820,18 +812,18 @@ mod data_tests {
         let graph_path = tmp_graph_dir.path().join("test_g1");
         graph.save_to_file(&graph_path).unwrap();
 
-        let res = get_graph_from_path(tmp_work_dir.path(), &graph_path).unwrap();
+        let res = get_graph_from_path(&graph_path).unwrap();
         assert_eq!(res.0, "test_g1");
         assert_eq!(res.1.graph.into_events().unwrap().count_edges(), 2);
 
-        let res = get_graph_from_path(tmp_work_dir.path(), &tmp_graph_dir.path().join("test_g2"));
+        let res = get_graph_from_path(&tmp_graph_dir.path().join("test_g2"));
         assert!(res.is_err());
         if let Err(err) = res {
             assert!(err.message.contains("Invalid path"));
         }
 
         // Dir path doesn't exists
-        let res = get_graph_from_path(tmp_work_dir.path(), &tmp_graph_dir.path().join("test_dg1"));
+        let res = get_graph_from_path(&tmp_graph_dir.path().join("test_dg1"));
         assert!(res.is_err());
         if let Err(err) = res {
             assert!(err.message.contains("Invalid path"));
@@ -839,7 +831,7 @@ mod data_tests {
 
         // Dir path exists but is not a disk graph path
         let tmp_graph_dir = tempfile::tempdir().unwrap();
-        let res = get_graph_from_path(tmp_work_dir.path(), &tmp_graph_dir.path());
+        let res = get_graph_from_path(&tmp_graph_dir.path());
         assert!(res.is_err());
         if let Err(err) = res {
             assert!(err.message.contains("Invalid path"));
@@ -848,7 +840,7 @@ mod data_tests {
         // Dir path exists and is a disk graph path but storage feature is disabled
         let graph_path = tmp_graph_dir.path().join("test_dg");
         create_ipc_files_in_dir(&graph_path).unwrap();
-        let res = get_graph_from_path(tmp_work_dir.path(), &graph_path);
+        let res = get_graph_from_path(&graph_path);
         assert!(res.is_err());
         if let Err(err) = res {
             assert!(err.message.contains("Disk graph not found"));
@@ -871,12 +863,12 @@ mod data_tests {
         let graph_path = tmp_graph_dir.path().join("test_dg");
         let _ = DiskGraph::from_graph(&graph, &graph_path).unwrap();
 
-        let res = get_graph_from_path(tmp_work_dir.path(), &graph_path).unwrap();
+        let res = get_graph_from_path(&graph_path).unwrap();
         assert_eq!(res.0, "test_dg");
         assert_eq!(res.1.graph.into_disk_graph().unwrap().count_edges(), 2);
 
         // Dir path doesn't exists
-        let res = get_graph_from_path(tmp_work_dir.path(), &tmp_graph_dir.path().join("test_dg1"));
+        let res = get_graph_from_path(&tmp_graph_dir.path().join("test_dg1"));
         assert!(res.is_err());
         if let Err(err) = res {
             assert!(err.message.contains("Invalid path"));
@@ -884,7 +876,7 @@ mod data_tests {
 
         // Dir path exists but is not a disk graph path
         let tmp_graph_dir = tempfile::tempdir().unwrap();
-        let res = get_graph_from_path(tmp_work_dir.path(), &tmp_graph_dir.path());
+        let res = get_graph_from_path(&tmp_graph_dir.path());
         assert!(res.is_err());
         if let Err(err) = res {
             assert!(err.message.contains("Invalid path"));
@@ -994,7 +986,7 @@ mod data_tests {
             ("test_dg".to_string(), graph2),
         ]);
 
-        save_graphs_to_work_dir(tmp_graph_dir.path(), &graphs).unwrap();
+        save_graphs_to_work_dir(tmp_graph_dir.path(), &None, &graphs).unwrap();
 
         let graphs = list_top_level_files_and_dirs(tmp_graph_dir.path()).unwrap();
         assert_eq!(graphs, vec!["test_g", "test_dg"]);
