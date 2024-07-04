@@ -1,4 +1,7 @@
-use crate::{model::algorithms::global_plugins::GlobalPlugins, server_config::AppConfig};
+use crate::{
+    model::{algorithms::global_plugins::GlobalPlugins, construct_graph_path},
+    server_config::AppConfig,
+};
 use async_graphql::Error;
 use dynamic_graphql::Result;
 use itertools::Itertools;
@@ -44,18 +47,20 @@ impl Data {
         }
     }
 
-    pub fn get_graph(&self, name: &str) -> Result<Option<IndexedGraph<MaterializedGraph>>> {
+    pub fn get_graph(
+        &self,
+        name: &str,
+        namespace: &Option<String>,
+    ) -> Result<Option<IndexedGraph<MaterializedGraph>>> {
+        let path = construct_graph_path(&self.work_dir, name, namespace)?;
         let name = name.to_string();
-        let path = Path::new(&self.work_dir).join(name.as_str());
         if !path.exists() {
-            Ok(None)
+            return Err(GraphError::InvalidPath(path).into());
         } else {
             match self.graphs.get(&name) {
                 Some(graph) => Ok(Some(graph.clone())),
-                None => match get_graph_from_path(Path::new(&self.work_dir), &path)? {
-                    Some((_, graph)) => Ok(Some(self.graphs.get_with(name, || graph))),
-                    None => Ok(None),
-                },
+                None => Ok(get_graph_from_path(Path::new(&self.work_dir), &path)?
+                    .map(|(_, graph)| self.graphs.get_with(name, || graph))),
             }
         }
     }
@@ -64,6 +69,10 @@ impl Data {
         Ok(get_graphs_from_work_dir(Path::new(&self.work_dir))?
             .into_iter()
             .collect_vec())
+    }
+
+    pub fn get_graph_names_namespaces(&self) -> Result<(Vec<String>, Vec<Option<String>>)> {
+        get_graph_names_namespaces_from_work_dir(Path::new(&self.work_dir))
     }
 
     #[allow(dead_code)]
@@ -222,13 +231,13 @@ fn get_graph_from_path(
     path: &Path,
 ) -> Result<Option<(String, IndexedGraph<MaterializedGraph>)>, Error> {
     if !path.exists() {
-        return Ok(None);
+        return Err(GraphError::InvalidPath(path.to_path_buf()).into());
     }
     if path.is_dir() {
         if is_disk_graph_dir(path) {
             get_disk_graph_from_path(path)
         } else {
-            Ok(None)
+            return Err(GraphError::InvalidPath(path.to_path_buf()).into());
         }
     } else {
         let (name, graph) = load_bincode_graph(work_dir, path)?;
@@ -240,26 +249,72 @@ fn get_graph_from_path(
 pub(crate) fn get_graphs_from_work_dir(
     work_dir: &Path,
 ) -> Result<HashMap<String, IndexedGraph<MaterializedGraph>>> {
-    fn get_graph_paths(work_dir: &Path) -> Vec<PathBuf> {
-        let mut paths = Vec::new();
-        if let Ok(entries) = fs::read_dir(work_dir) {
-            for entry in entries {
-                if let Ok(entry) = entry {
-                    paths.push(entry.path());
-                }
-            }
-        }
-        paths
-    }
-
     let mut graphs = HashMap::new();
     for path in get_graph_paths(work_dir) {
         if let Some((name, graph)) = get_graph_from_path(work_dir, &path)? {
             graphs.insert(name, graph);
         }
     }
-
     Ok(graphs)
+}
+
+pub(crate) fn get_graph_names_namespaces_from_work_dir(
+    work_dir: &Path,
+) -> Result<(Vec<String>, Vec<Option<String>>)> {
+    let mut names = vec![];
+    let mut namespaces = vec![];
+    for path in get_graph_paths(work_dir) {
+        if let Some((name, _)) = get_graph_from_path(work_dir, &path)? {
+            let namespace = get_namespace_from_path(work_dir, path);
+            names.push(name);
+            namespaces.push(namespace);
+        }
+    }
+
+    Ok((names, namespaces))
+}
+
+fn get_namespace_from_path(work_dir: &Path, path: PathBuf) -> Option<String> {
+    let relative_path = match path.strip_prefix(work_dir) {
+        Ok(relative_path) => relative_path,
+        Err(_) => return None, // Skip paths that cannot be stripped
+    };
+
+    let parent_path = relative_path.parent().unwrap_or(Path::new(""));
+    if let Some(parent_str) = parent_path.to_str() {
+        if parent_str.is_empty() {
+            None
+        } else {
+            Some(parent_str.to_string())
+        }
+    } else {
+        None
+    }
+}
+
+fn get_graph_paths(work_dir: &Path) -> Vec<PathBuf> {
+    fn traverse_directory(dir: &Path, paths: &mut Vec<PathBuf>) {
+        if let Ok(entries) = fs::read_dir(dir) {
+            for entry in entries {
+                if let Ok(entry) = entry {
+                    let path = entry.path();
+                    if path.is_dir() {
+                        if is_disk_graph_dir(&path) {
+                            paths.push(path);
+                        } else {
+                            traverse_directory(&path, paths);
+                        }
+                    } else if path.is_file() {
+                        paths.push(path);
+                    }
+                }
+            }
+        }
+    }
+
+    let mut paths = Vec::new();
+    traverse_directory(work_dir, &mut paths);
+    paths
 }
 
 fn is_disk_graph_dir(path: &Path) -> bool {
@@ -326,8 +381,9 @@ fn load_disk_graph(path: &Path) -> Result<(String, MaterializedGraph)> {
 mod data_tests {
     use crate::{
         data::{
-            get_graph_from_path, get_graphs_from_work_dir, load_graph_from_path,
-            load_graphs_from_path, load_graphs_from_paths, save_graphs_to_work_dir, Data,
+            get_graph_from_path, get_graph_paths, get_graphs_from_work_dir,
+            get_namespace_from_path, load_graph_from_path, load_graphs_from_path,
+            load_graphs_from_paths, save_graphs_to_work_dir, Data,
         },
         server_config::AppConfigBuilder,
     };
@@ -338,7 +394,7 @@ mod data_tests {
         db::api::view::MaterializedGraph,
         prelude::{AdditionOps, Graph, GraphViewOps, PropertyAdditionOps},
     };
-    use std::{collections::HashMap, fs, io, path::Path, thread, time::Duration};
+    use std::{collections::HashMap, fs, fs::File, io, path::Path, thread, time::Duration};
 
     fn list_top_level_files_and_dirs(path: &Path) -> io::Result<Vec<String>> {
         let mut entries_vec = Vec::new();
@@ -748,19 +804,26 @@ mod data_tests {
         assert_eq!(res.0, "test_g1");
         assert_eq!(res.1.graph.into_events().unwrap().count_edges(), 2);
 
-        let res = get_graph_from_path(tmp_work_dir.path(), &tmp_graph_dir.path().join("test_g2"))
-            .unwrap();
-        assert!(res.is_none());
+        let res = get_graph_from_path(tmp_work_dir.path(), &tmp_graph_dir.path().join("test_g2"));
+        assert!(res.is_err());
+        if let Err(err) = res {
+            assert!(err.message.contains("Invalid path"));
+        }
 
         // Dir path doesn't exists
-        let res = get_graph_from_path(tmp_work_dir.path(), &tmp_graph_dir.path().join("test_dg1"))
-            .unwrap();
-        assert!(res.is_none());
+        let res = get_graph_from_path(tmp_work_dir.path(), &tmp_graph_dir.path().join("test_dg1"));
+        assert!(res.is_err());
+        if let Err(err) = res {
+            assert!(err.message.contains("Invalid path"));
+        }
 
         // Dir path exists but is not a disk graph path
         let tmp_graph_dir = tempfile::tempdir().unwrap();
-        let res = get_graph_from_path(tmp_work_dir.path(), &tmp_graph_dir.path()).unwrap();
-        assert!(res.is_none());
+        let res = get_graph_from_path(tmp_work_dir.path(), &tmp_graph_dir.path());
+        assert!(res.is_err());
+        if let Err(err) = res {
+            assert!(err.message.contains("Invalid path"));
+        }
 
         // Dir path exists and is a disk graph path but storage feature is disabled
         let graph_path = tmp_graph_dir.path().join("test_dg");
@@ -944,11 +1007,11 @@ mod data_tests {
         assert!(!data.graphs.contains_key("test_g"));
 
         // Test size based eviction
-        let _ = data.get_graph("test_dg");
+        let _ = data.get_graph("test_dg", &None);
         assert!(data.graphs.contains_key("test_dg"));
         assert!(!data.graphs.contains_key("test_g"));
 
-        let _ = data.get_graph("test_g");
+        let _ = data.get_graph("test_g", &None);
         // data.graphs.iter().for_each(|(k, _)| println!("{}", k));
         // assert!(!data.graphs.contains_key("test_dg"));
         assert!(data.graphs.contains_key("test_g"));
@@ -956,5 +1019,62 @@ mod data_tests {
         thread::sleep(Duration::from_secs(3));
         assert!(!data.graphs.contains_key("test_dg"));
         assert!(!data.graphs.contains_key("test_g"));
+    }
+
+    #[test]
+    fn test_get_graph_paths() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let work_dir = temp_dir.path();
+        let g0_path = work_dir.join("g0");
+        let g1_path = work_dir.join("g1");
+        let g2_path = work_dir
+            .join("shivam")
+            .join("investigations")
+            .join("2024-12-22")
+            .join("g2");
+        let g3_path = work_dir.join("shivam").join("investigations").join("g3"); // Graph
+        let g4_path = work_dir.join("shivam").join("investigations").join("g4"); // Disk graph dir
+        let g5_path = work_dir.join("shivam").join("investigations").join("g5"); // Empty dir
+
+        fs::create_dir_all(
+            &work_dir
+                .join("shivam")
+                .join("investigations")
+                .join("2024-12-22"),
+        )
+        .unwrap();
+        fs::create_dir_all(&g4_path).unwrap();
+        create_ipc_files_in_dir(&g4_path).unwrap();
+        fs::create_dir_all(&g5_path).unwrap();
+
+        File::create(&g0_path).unwrap();
+        File::create(&g1_path).unwrap();
+        File::create(&g2_path).unwrap();
+        File::create(&g3_path).unwrap();
+
+        let paths = get_graph_paths(work_dir);
+
+        assert_eq!(paths.len(), 5);
+        assert!(paths.contains(&g0_path));
+        assert!(paths.contains(&g1_path));
+        assert!(paths.contains(&g2_path));
+        assert!(paths.contains(&g3_path));
+        assert!(paths.contains(&g4_path));
+        assert!(!paths.contains(&g5_path)); // Empty dir are ignored
+
+        assert_eq!(get_namespace_from_path(work_dir, g0_path), None);
+        assert_eq!(get_namespace_from_path(work_dir, g1_path), None);
+        assert_eq!(
+            get_namespace_from_path(work_dir, g2_path),
+            Some("shivam/investigations/2024-12-22".to_string())
+        );
+        assert_eq!(
+            get_namespace_from_path(work_dir, g3_path),
+            Some("shivam/investigations".to_string())
+        );
+        assert_eq!(
+            get_namespace_from_path(work_dir, g4_path),
+            Some("shivam/investigations".to_string())
+        );
     }
 }

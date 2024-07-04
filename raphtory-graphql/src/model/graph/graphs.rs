@@ -1,38 +1,33 @@
 use async_graphql::parser::Error;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
-use raphtory::{
-    db::api::view::DynamicGraph,
-    prelude::GraphViewOps,
-    search::{into_indexed::DynamicIndexedGraph, IndexedGraph},
-};
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlGraphs {
-    graphs: Vec<IndexedGraph<DynamicGraph>>,
+    names: Vec<String>,
+    namespaces: Vec<Option<String>>,
 }
 
 impl GqlGraphs {
-    pub fn new<G: DynamicIndexedGraph>(graphs: Vec<G>) -> Self {
-        Self {
-            graphs: graphs
-                .into_iter()
-                .map(|g| g.into_dynamic_indexed())
-                .collect(),
-        }
+    pub fn new(names: Vec<String>, namespaces: Vec<Option<String>>) -> Self {
+        Self { names, namespaces }
     }
 }
 
 #[ResolvedObjectFields]
 impl GqlGraphs {
     async fn name(&self) -> Result<Vec<String>, Error> {
+        Ok(self.names.clone())
+    }
+
+    async fn path(&self) -> Result<Vec<String>, Error> {
         Ok(self
-            .graphs
-            .iter()
-            .filter_map(|g| {
-                g.properties()
-                    .constant()
-                    .get("name")
-                    .map(|name| name.to_string())
+            .names
+            .clone()
+            .into_iter()
+            .zip(self.namespaces.clone().into_iter())
+            .map(|(name, namespace)| match namespace {
+                Some(ns) => format!("{}/{}", ns, name),
+                None => name,
             })
             .collect())
     }

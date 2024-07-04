@@ -68,16 +68,22 @@ impl QueryRoot {
     }
 
     /// Returns a graph
-    async fn graph<'a>(ctx: &Context<'a>, name: &str) -> Result<Option<GqlGraph>> {
+    async fn graph<'a>(
+        ctx: &Context<'a>,
+        name: &str,
+        namespace: &Option<String>,
+    ) -> Result<Option<GqlGraph>> {
         let data = ctx.data_unchecked::<Data>();
-        let graph = data.get_graph(name)?;
-        match graph {
-            Some(g) => Ok(Some(GqlGraph::new(name.to_string(), g))),
-            None => Ok(None),
-        }
+        Ok(data
+            .get_graph(name, namespace)?
+            .map(|g| GqlGraph::new(name.to_string(), namespace.clone(), g)))
     }
 
-    async fn vectorised_graph<'a>(ctx: &Context<'a>, name: &str) -> Option<GqlVectorisedGraph> {
+    async fn vectorised_graph<'a>(
+        ctx: &Context<'a>,
+        name: &str,
+        namespace: &Option<String>, // TODO: Need to fix this
+    ) -> Option<GqlVectorisedGraph> {
         let data = ctx.data_unchecked::<Data>();
         let g = data
             .global_plugins
@@ -90,12 +96,8 @@ impl QueryRoot {
 
     async fn graphs<'a>(ctx: &Context<'a>) -> Result<Option<GqlGraphs>> {
         let data = ctx.data_unchecked::<Data>();
-        let graphs = data
-            .get_graphs()?
-            .iter()
-            .map(|(_, g)| (*g).clone())
-            .collect_vec();
-        Ok(Some(GqlGraphs::new(graphs)))
+        let (names, namespaces) = data.get_graph_names_namespaces()?;
+        Ok(Some(GqlGraphs::new(names, namespaces)))
     }
 
     async fn plugins<'a>(ctx: &Context<'a>) -> GlobalPlugins {
@@ -103,9 +105,16 @@ impl QueryRoot {
         data.global_plugins.clone()
     }
 
-    async fn receive_graph<'a>(ctx: &Context<'a>, name: &str) -> Result<String> {
+    async fn receive_graph<'a>(
+        ctx: &Context<'a>,
+        name: &str,
+        namespace: &Option<String>,
+    ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
-        let g = data.get_graph(name)?.ok_or(MissingGraph)?.materialize()?;
+        let g = data
+            .get_graph(name, namespace)?
+            .ok_or(MissingGraph)?
+            .materialize()?;
         let bincode = bincode::serialize(&g)?;
         Ok(URL_SAFE_NO_PAD.encode(bincode))
     }
@@ -124,6 +133,7 @@ impl Mut {
         parent_graph_name: String,
         graph_name: String,
         new_graph_name: String,
+        namespace: &Option<String>,
     ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
         if data.graphs.contains_key(&new_graph_name) {
@@ -134,7 +144,9 @@ impl Mut {
         }
 
         let data = ctx.data_unchecked::<Data>();
-        let subgraph = data.get_graph(&graph_name)?.ok_or("Graph not found")?;
+        let subgraph = data
+            .get_graph(&graph_name, namespace)?
+            .ok_or("Graph not found")?;
 
         #[cfg(feature = "storage")]
         if subgraph.clone().graph.into_disk_graph().is_some() {
@@ -156,7 +168,7 @@ impl Mut {
             let path = path.join(&new_graph_name);
 
             let parent_graph = data
-                .get_graph(&parent_graph_name)?
+                .get_graph(&parent_graph_name, namespace)?
                 .ok_or("Graph not found")?;
             let new_subgraph = parent_graph
                 .subgraph(subgraph.nodes().iter().map(|v| v.name()).collect_vec())
@@ -195,9 +207,15 @@ impl Mut {
         Ok(true)
     }
 
-    async fn update_graph_last_opened<'a>(ctx: &Context<'a>, graph_name: String) -> Result<bool> {
+    async fn update_graph_last_opened<'a>(
+        ctx: &Context<'a>,
+        graph_name: String,
+        namespace: &Option<String>,
+    ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
-        let subgraph = data.get_graph(&graph_name)?.ok_or("Graph not found")?;
+        let subgraph = data
+            .get_graph(&graph_name, namespace)?
+            .ok_or("Graph not found")?;
 
         #[cfg(feature = "storage")]
         if subgraph.clone().graph.into_disk_graph().is_some() {
@@ -230,6 +248,7 @@ impl Mut {
         props: String,
         is_archive: u8,
         graph_nodes: String,
+        namespace: &Option<String>,
     ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
 
@@ -246,16 +265,18 @@ impl Mut {
         }
 
         let parent_graph = data
-            .get_graph(&parent_graph_name)?
+            .get_graph(&parent_graph_name, namespace)?
             .ok_or("Graph not found")?;
-        let subgraph = data.get_graph(&graph_name)?.ok_or("Graph not found")?;
+        let subgraph = data
+            .get_graph(&graph_name, namespace)?
+            .ok_or("Graph not found")?;
 
         #[cfg(feature = "storage")]
         if subgraph.clone().graph.into_disk_graph().is_some() {
             return Err(GqlGraphError::ImmutableDiskGraph.into());
         }
 
-        let path = match data.get_graph(&new_graph_name)? {
+        let path = match data.get_graph(&new_graph_name, namespace)? {
             Some(new_graph) => new_graph
                 .properties()
                 .constant()
@@ -360,6 +381,7 @@ impl Mut {
     async fn load_graphs_from_path<'a>(
         ctx: &Context<'a>,
         path: String,
+        namespace: &Option<String>,
         overwrite: bool,
     ) -> Result<Vec<String>> {
         let data = ctx.data_unchecked::<Data>();
@@ -375,6 +397,7 @@ impl Mut {
     async fn load_graph_from_path<'a>(
         ctx: &Context<'a>,
         path: String,
+        namespace: &Option<String>,
         overwrite: bool,
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
@@ -396,6 +419,7 @@ impl Mut {
         ctx: &Context<'a>,
         name: String,
         graph: Upload,
+        namespace: &Option<String>,
         overwrite: bool,
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
@@ -420,11 +444,11 @@ impl Mut {
         ctx: &Context<'a>,
         name: String,
         graph: String,
-        namespace: Option<String>,
+        namespace: &Option<String>,
         overwrite: bool,
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
-        let path = construct_path(&data.work_dir, &name, namespace)?;
+        let path = construct_graph_path(&data.work_dir, &name, namespace)?;
         if path.exists() && !overwrite {
             return Err(GraphError::GraphNameAlreadyExists { name }.into());
         }
@@ -438,10 +462,13 @@ impl Mut {
         ctx: &Context<'a>,
         graph_name: String,
         _parent_graph_name: String,
+        namespace: &Option<String>,
         is_archive: u8,
     ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
-        let subgraph = data.get_graph(&graph_name)?.ok_or("Graph not found")?;
+        let subgraph = data
+            .get_graph(&graph_name, namespace)?
+            .ok_or("Graph not found")?;
 
         #[cfg(feature = "storage")]
         if subgraph.clone().graph.into_disk_graph().is_some() {
@@ -464,21 +491,21 @@ impl Mut {
     }
 }
 
-fn construct_path(
+pub(crate) fn construct_graph_path(
     work_dir: &str,
     name: &str,
-    namespace: Option<String>,
+    namespace: &Option<String>,
 ) -> Result<PathBuf, GqlGraphError> {
     let mut path = PathBuf::from(work_dir);
     if let Some(ns) = namespace {
         if ns.contains("//") {
-            return Err(GqlGraphError::InvalidNamespace(ns));
+            return Err(GqlGraphError::InvalidNamespace(ns.to_string()));
         }
 
         let ns_path = Path::new(&ns);
         for comp in ns_path.components() {
             if matches!(comp, std::path::Component::ParentDir) {
-                return Err(GqlGraphError::InvalidNamespace(ns));
+                return Err(GqlGraphError::InvalidNamespace(ns.to_string()));
             }
         }
         path = path.join(ns_path);

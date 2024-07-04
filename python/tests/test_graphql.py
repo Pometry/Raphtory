@@ -109,8 +109,8 @@ def test_send_graph_to_server():
 
 
 def test_send_graph_to_server_with_namespace():
-    def assert_graph_fetch(name):
-        query = f"""{{ graph(name: "{name}") {{ nodes {{ list {{ name }} }} }} }}"""
+    def assert_graph_fetch(name, namespace):
+        query = f"""{{ graph(name: "{name}", namespace: "{namespace}") {{ nodes {{ list {{ name }} }} }} }}"""
         assert client.query(query) == {
             "graph": {
                 "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
@@ -136,25 +136,25 @@ def test_send_graph_to_server_with_namespace():
     client.send_graph(name=name, graph=g, overwrite=True, namespace=namespace)
     expected_path = os.path.join(tmp_work_dir, namespace, name)
     assert os.path.exists(expected_path)
-    assert_graph_fetch(name)
+    assert_graph_fetch(name, namespace)
 
     namespace = "./shivam/investigation"
     client.send_graph(name=name, graph=g, overwrite=True, namespace=namespace)
     expected_path = os.path.join(tmp_work_dir, namespace, name)
     assert os.path.exists(expected_path)
-    assert_graph_fetch(name)
+    assert_graph_fetch(name, namespace)
 
     namespace = "./shivam/investigation/2024/12/12"
     client.send_graph(name=name, graph=g, overwrite=True, namespace=namespace)
     expected_path = os.path.join(tmp_work_dir, namespace, name)
     assert os.path.exists(expected_path)
-    assert_graph_fetch(name)
+    assert_graph_fetch(name, namespace)
 
     namespace = "shivam/investigation/2024-12-12"
     client.send_graph(name=name, graph=g, overwrite=True, namespace=namespace)
     expected_path = os.path.join(tmp_work_dir, namespace, name)
     assert os.path.exists(expected_path)
-    assert_graph_fetch(name)
+    assert_graph_fetch(name, namespace)
 
     namespace = "../shivam"
     try:
