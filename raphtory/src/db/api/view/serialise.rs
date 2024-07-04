@@ -775,6 +775,63 @@ mod proto_test {
     }
 
     #[test]
+    fn test_all_the_t_props_on_edge() {
+        let mut props = vec![];
+        write_props_to_vec(&mut props);
+
+        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let g1 = Graph::new();
+        g1.add_edge(1, "Alice", "Bob", props.clone(), None).unwrap();
+        g1.stable_serialise(&temp_file).unwrap();
+        let g2 = Graph::new();
+        Graph::decode(&temp_file, &g2).unwrap();
+        assert_eq!(&g1, &g2);
+
+        let edge = g2.edge("Alice", "Bob").expect("Failed to get edge");
+
+        assert!(props.into_iter().all(|(name, expected)| {
+            edge.properties()
+                .temporal()
+                .get(name)
+                .filter(|prop_view| {
+                    let (t, prop) = prop_view.iter().next().expect("Failed to get prop");
+                    prop == expected && t == 1
+                })
+                .is_some()
+        }))
+    }
+
+    #[test]
+    fn test_all_the_const_props_on_edge() {
+        let mut props = vec![];
+        write_props_to_vec(&mut props);
+
+        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let g1 = Graph::new();
+        let e = g1.add_edge(1, "Alice", "Bob", NO_PROPS, Some("a")).unwrap();
+        e.update_constant_properties(props.clone(), Some("a"))
+            .expect("Failed to update constant properties");
+        g1.stable_serialise(&temp_file).unwrap();
+        let g2 = Graph::new();
+        Graph::decode(&temp_file, &g2).unwrap();
+        assert_eq!(&g1, &g2);
+
+        let edge = g2
+            .edge("Alice", "Bob")
+            .expect("Failed to get edge")
+            .layers("a")
+            .unwrap();
+
+        assert!(props.into_iter().all(|(name, expected)| {
+            edge.properties()
+                .constant()
+                .get(name)
+                .filter(|prop| prop == &expected)
+                .is_some()
+        }))
+    }
+
+    #[test]
     fn test_all_the_const_props_on_node() {
         let mut props = vec![];
         write_props_to_vec(&mut props);
