@@ -84,7 +84,7 @@ display-error-chain = "0.2.0"
 polars-arrow = "0.39.2"
 polars-parquet = "0.39.2"
 polars-utils = "0.39.2"
-kdam = { version = "0.5.1", features = ["notebook"] }
+kdam = { version = "0.5.1" }
 pretty_assertions = "1.4.0"
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
