@@ -270,10 +270,10 @@ impl Mut {
         }
 
         let parent_graph = data.get_graph(&parent_graph_name, parent_graph_namespace)?;
-        let subgraph = data.get_graph(&graph_name, graph_namespace)?;
+        let current_graph = data.get_graph(&graph_name, graph_namespace)?;
 
         #[cfg(feature = "storage")]
-        if subgraph.clone().graph.into_disk_graph().is_some() {
+        if current_graph.clone().graph.into_disk_graph().is_some() {
             return Err(GqlGraphError::ImmutableDiskGraph.into());
         }
 
@@ -285,43 +285,21 @@ impl Mut {
             .ok_or("graph_nodes not object")?;
         let node_ids = node_map.keys().map(|key| key.as_str()).collect_vec();
 
-        let _new_subgraph = parent_graph.subgraph(node_ids.clone()).materialize()?;
-        _new_subgraph.update_constant_properties([("name", Prop::str(new_graph_name.clone()))])?;
-
-        let new_subgraph = &_new_subgraph.clone().into_persistent().unwrap();
-        let new_subgraph_data = subgraph.subgraph(node_ids).materialize()?;
-
-        // Copy nodes over
-        let new_subgraph_nodes: Vec<_> = new_subgraph_data
-            .clone()
-            .into_persistent()
-            .unwrap()
-            .nodes()
-            .collect();
-        let node_views = new_subgraph_nodes.iter().map(|node| node).collect();
-        new_subgraph.import_nodes(node_views, true)?;
-
-        // Copy edges over
-        let new_subgraph_edges: Vec<_> = new_subgraph_data
-            .into_persistent()
-            .unwrap()
-            .edges()
-            .collect();
-        let edge_views = new_subgraph_edges.iter().map(|edge| edge).collect();
-        new_subgraph.import_edges(edge_views, true)?;
+        let new_subgraph = parent_graph.subgraph(node_ids.clone()).materialize()?;
+        new_subgraph.update_constant_properties([("name", Prop::str(new_graph_name.clone()))])?;
 
         // If parent_graph_name == graph_name, it means that the graph is being created from UI
         if parent_graph_name.ne(&graph_name) {
             // If graph_name == new_graph_name, it is a "save" action otherwise it is "save as" action
             if graph_name.ne(&new_graph_name) {
-                let static_props: Vec<(ArcStr, Prop)> = subgraph
+                let static_props: Vec<(ArcStr, Prop)> = current_graph
                     .properties()
                     .into_iter()
                     .filter(|(a, _)| a != "name" && a != "creationTime" && a != "uiProps")
                     .collect_vec();
                 new_subgraph.update_constant_properties(static_props)?;
             } else {
-                let static_props: Vec<(ArcStr, Prop)> = subgraph
+                let static_props: Vec<(ArcStr, Prop)> = current_graph
                     .properties()
                     .into_iter()
                     .filter(|(a, _)| a != "name" && a != "lastUpdated" && a != "uiProps")
@@ -330,8 +308,7 @@ impl Mut {
             }
         }
 
-        let dt = Utc::now();
-        let timestamp: i64 = dt.timestamp();
+        let timestamp: i64 = Utc::now().timestamp();
 
         if parent_graph_name.eq(&graph_name) || graph_name.ne(&new_graph_name) {
             new_subgraph
@@ -344,11 +321,9 @@ impl Mut {
         new_subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
 
         new_subgraph.save_to_file(new_graph_path)?;
-
-        let m_g = new_subgraph.materialize()?;
-        let gi: IndexedGraph<MaterializedGraph> = m_g.into();
-
-        data.graphs.insert(new_graph_name.clone(), gi);
+        
+        data.graphs.invalidate(graph_name.as_str());
+        data.graphs.insert(new_graph_name.clone(), new_subgraph.into());
 
         Ok(true)
     }
