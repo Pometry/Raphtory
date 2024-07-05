@@ -218,6 +218,16 @@ impl Graph {
     pub fn persistent_graph(&self) -> PersistentGraph {
         PersistentGraph::from_internal_graph(self.0.clone())
     }
+
+    pub fn bincode(&self) -> Result<Vec<u8>, GraphError> {
+        let encoded = bincode::serialize(&self)?;
+        Ok(encoded)
+    }
+
+    pub fn from_bincode(b: &[u8]) -> Result<Self, GraphError> {
+        let g: Graph = bincode::deserialize(b)?;
+        Ok(g)
+    }
 }
 
 #[cfg(test)]

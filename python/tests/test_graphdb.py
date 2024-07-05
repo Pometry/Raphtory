@@ -19,6 +19,7 @@ from pytest import fixture
 import os
 import shutil
 import numpy as np
+import pickle
 
 base_dir = Path(__file__).parent
 edges = [(1, 1, 2), (2, 1, 3), (-1, 2, 1), (0, 1, 1), (7, 3, 2), (1, 1, 1)]
@@ -58,6 +59,29 @@ def test_graph_len_edge_len():
     assert g.count_nodes() == 3
     assert g.count_edges() == 5
 
+
+def test_graph_pickle():
+    g = create_graph()
+    # pickle graph
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        pickle.dump(g, open(tmpdirname + "/graph.p", "wb"))
+        # unpickle graph
+        g2 = pickle.load(open(tmpdirname + "/graph.p", "rb"))
+
+        assert g2.count_nodes() == 3
+        assert g2.count_edges() == 5
+
+
+def test_persistent_graph_pickle():
+    g = create_graph_with_deletions()
+    # pickle graph
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        pickle.dump(g, open(tmpdirname + "/graph.p", "wb"))
+        # unpickle graph
+        g2 = pickle.load(open(tmpdirname + "/graph.p", "rb"))
+
+        assert g2.count_nodes() == 3
+        assert g2.count_edges() == 5
 
 def test_id_iterable():
     g = create_graph()

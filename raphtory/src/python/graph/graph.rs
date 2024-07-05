@@ -7,8 +7,15 @@ use crate::{
     algorithms::components::LargestConnectedComponent,
     core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError},
     db::{
-        api::view::internal::{CoreGraphOps, DynamicGraph, IntoDynamic, MaterializedGraph},
-        graph::{edge::EdgeView, node::NodeView, views::node_subgraph::NodeSubgraph},
+        api::view::{
+            internal::{CoreGraphOps, DynamicGraph, IntoDynamic, MaterializedGraph},
+            serialise::{StableDecode, StableEncoder},
+        },
+        graph::{
+            edge::EdgeView,
+            node::NodeView,
+            views::{deletion_graph::PersistentGraph, node_subgraph::NodeSubgraph},
+        },
     },
     io::parquet_loaders::*,
     prelude::*,
@@ -20,7 +27,10 @@ use crate::{
         utils::{PyInputNode, PyTime},
     },
 };
-use pyo3::{prelude::*, types::PyBytes};
+use pyo3::{
+    prelude::*,
+    types::{PyBytes, PyTuple},
+};
 use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{
     collections::HashMap,
@@ -30,7 +40,7 @@ use std::{
 
 /// A temporal graph.
 #[derive(Clone)]
-#[pyclass(name = "Graph", extends = PyGraphView)]
+#[pyclass(name = "Graph", extends = PyGraphView, module = "raphtory")]
 pub struct PyGraph {
     pub graph: Graph,
 }
@@ -111,6 +121,58 @@ impl PyGraph {
     }
 }
 
+#[pyclass(module = "raphtory")]
+pub enum PyGraphEncoder {
+    Graph,
+    PersistentGraph,
+}
+
+#[pymethods]
+impl PyGraphEncoder {
+    #[new]
+    pub fn new() -> Self {
+        PyGraphEncoder::Graph
+    }
+
+    pub fn __call__(&self, bytes: Vec<u8>) -> PyResult<PyObject> {
+        Python::with_gil(|py| match self {
+            PyGraphEncoder::Graph => {
+                let g = Graph::new();
+                Graph::decode_from_bytes(&bytes, &g)?;
+                Ok(g.into_py(py))
+            }
+            PyGraphEncoder::PersistentGraph => {
+                let g = PersistentGraph::new();
+                PersistentGraph::decode_from_bytes(&bytes, &g)?;
+                Ok(g.into_py(py))
+            }
+        })
+    }
+
+    pub fn __setstate__(&mut self, state: &PyBytes) -> PyResult<()> {
+        match state.as_bytes() {
+            [0] => *self = PyGraphEncoder::Graph,
+            [1] => *self = PyGraphEncoder::PersistentGraph,
+            _ => {
+                return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                    "Invalid state".to_string(),
+                ))
+            }
+        }
+        Ok(())
+    }
+    pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<&'py PyBytes> {
+        match self {
+            PyGraphEncoder::Graph => Ok(PyBytes::new(py, &[0])),
+            PyGraphEncoder::PersistentGraph => Ok(PyBytes::new(py, &[1])),
+        }
+    }
+
+    pub fn __getnewargs__<'a>(&self, py: Python<'a>) -> PyResult<&'a PyTuple> {
+        Ok(PyTuple::empty(py))
+    }
+}
+
 /// A temporal graph.
 #[pymethods]
 impl PyGraph {
@@ -123,6 +185,11 @@ impl PyGraph {
             },
             PyGraphView::from(graph),
         )
+    }
+
+    fn __reduce__(&self) -> PyResult<(PyGraphEncoder, (Vec<u8>,))> {
+        let state = self.graph.encode_to_vec()?;
+        Ok((PyGraphEncoder::Graph, (state,)))
     }
 
     /// Adds a new node with the given id and properties to the graph.

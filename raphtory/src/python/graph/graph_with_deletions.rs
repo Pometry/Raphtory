@@ -10,7 +10,7 @@ use crate::{
     db::{
         api::{
             mutation::{AdditionOps, PropertyAdditionOps},
-            view::internal::{CoreGraphOps, MaterializedGraph},
+            view::{internal::{CoreGraphOps, MaterializedGraph}, serialise::StableEncoder},
         },
         graph::{edge::EdgeView, node::NodeView, views::deletion_graph::PersistentGraph},
     },
@@ -28,7 +28,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use super::{graph::PyGraph, io::pandas_loaders::*};
+use super::{graph::{PyGraph, PyGraphEncoder}, io::pandas_loaders::*};
 use crate::io::parquet_loaders::*;
 
 /// A temporal graph that allows edges and nodes to be deleted.
@@ -97,6 +97,11 @@ impl PyPersistentGraph {
             },
             PyGraphView::from(graph),
         )
+    }
+
+    fn __reduce__(&self) -> PyResult<(PyGraphEncoder, (Vec<u8>,))> {
+        let state = self.graph.encode_to_vec()?;
+        Ok((PyGraphEncoder::PersistentGraph, (state,)))
     }
 
     /// Adds a new node with the given id and properties to the graph.
