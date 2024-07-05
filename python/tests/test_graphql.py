@@ -1,5 +1,7 @@
 import os
 import tempfile
+import time
+
 from raphtory.graphql import RaphtoryServer, RaphtoryClient
 from raphtory import graph_loader
 from raphtory import Graph
@@ -562,6 +564,55 @@ def test_rename_graph():
         client.query(query)
     except Exception as e:
         assert "Graph not found ben/g2" in str(e), f"Unexpected exception message: {e}"
+    
+    server.stop()
+
+
+def test_update_graph_last_opened():
+    work_dir = tempfile.mkdtemp()
+    server = RaphtoryServer(work_dir).start()
+    client = server.get_client()
+
+    query = """mutation { updateGraphLastOpened(graphName: "g1") }"""
+    try:
+        client.query(query)
+    except Exception as e:
+        assert "Graph not found g1" in str(e), f"Unexpected exception message: {e}"
+
+    query = """mutation { updateGraphLastOpened(graphName: "g1", namespace: "shivam") }"""
+    try:
+        client.query(query)
+    except Exception as e:
+        assert "Graph not found shivam/g1" in str(e), f"Unexpected exception message: {e}"
+
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+
+    os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
+    g.save_to_file(os.path.join(work_dir, "g1"))
+    g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
+
+    query_last_opened = """{ graph(name: "g1") { properties { constant { get(key: "lastOpened") { key, value } } } } }"""
+    mutate_last_opened = """mutation { updateGraphLastOpened(graphName: "g1") }"""
+    assert client.query(query_last_opened) == {'graph': {'properties': {'constant': {'get': None}}}}
+    assert client.query(mutate_last_opened) == {'updateGraphLastOpened': True}
+    updated_last_opened1 = client.query(query_last_opened)['graph']['properties']['constant']['get']['value']
+    time.sleep(1)
+    assert client.query(mutate_last_opened) == {'updateGraphLastOpened': True}
+    updated_last_opened2 = client.query(query_last_opened)['graph']['properties']['constant']['get']['value']
+    assert updated_last_opened2 > updated_last_opened1
+
+    query_last_opened = """{ graph(name: "g2", namespace: "shivam") { properties { constant { get(key: "lastOpened") { key, value } } } } }"""
+    mutate_last_opened = """mutation { updateGraphLastOpened(graphName: "g2", namespace: "shivam") }"""
+    assert client.query(query_last_opened) == {'graph': {'properties': {'constant': {'get': None}}}}
+    assert client.query(mutate_last_opened) == {'updateGraphLastOpened': True}
+    updated_last_opened1 = client.query(query_last_opened)['graph']['properties']['constant']['get']['value']
+    time.sleep(1)
+    assert client.query(mutate_last_opened) == {'updateGraphLastOpened': True}
+    updated_last_opened2 = client.query(query_last_opened)['graph']['properties']['constant']['get']['value']
+    assert updated_last_opened2 > updated_last_opened1
     
     server.stop()
 

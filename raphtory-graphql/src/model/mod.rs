@@ -216,13 +216,7 @@ impl Mut {
 
         subgraph.update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
 
-        let path = subgraph
-            .properties()
-            .constant()
-            .get("path")
-            .ok_or("Path is missing")?
-            .to_string();
-
+        let path = construct_graph_path(&data.work_dir, &graph_name, namespace)?;
         subgraph.save_to_file(path)?;
         data.graphs.insert(graph_name, subgraph);
 
