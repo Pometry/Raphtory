@@ -35,10 +35,6 @@ jobs:
           toolchain: 1.77.0
           override: true
           components: rustfmt, clippy
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v3
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}        
       - name: Free up space (ubuntu)
         if: matrix.os == 'ubuntu-latest'
         run: |
@@ -56,6 +52,10 @@ jobs:
         name: Cargo cache
         with:
           cache-all-crates: true
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}        
       - name: Install bininstall
         uses: cargo-bins/cargo-binstall@main
         env:
