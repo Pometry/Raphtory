@@ -9,7 +9,7 @@ use crate::{
             algorithm_result::AlgorithmResult,
             edge::{PyDirection, PyEdge, PyMutableEdge},
             edges::PyEdges,
-            graph::{PyGraphEncoder, PyGraph},
+            graph::{PyGraph, PyGraphEncoder},
             graph_with_deletions::PyPersistentGraph,
             index::GraphIndex,
             node::{PyMutableNode, PyNode, PyNodes},
