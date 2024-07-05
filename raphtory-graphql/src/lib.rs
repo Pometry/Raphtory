@@ -55,6 +55,9 @@ mod graphql_test {
     use std::collections::{HashMap, HashSet};
     use tempfile::tempdir;
 
+    #[cfg(feature = "storage")]
+    use tempfile::TempDir;
+
     #[tokio::test]
     async fn search_for_gandalf_query() {
         let graph = PersistentGraph::new();
