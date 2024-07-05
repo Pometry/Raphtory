@@ -19,7 +19,7 @@ jobs:
       matrix:
         include:
           - os: macos-latest
-          - os: ubuntu-latest
+          - os: ubuntu-20.04
           - os: windows-latest
     steps:
       - uses: maxim-lobanov/setup-xcode@v1
@@ -37,7 +37,7 @@ jobs:
           override: true
           components: rustfmt, clippy
       - name: Free up space (ubuntu)
-        if: matrix.os == 'ubuntu-latest'
+        if: "contains(matrix.os, 'ubuntu')"
         run: |
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /usr/local/lib/android
@@ -62,7 +62,7 @@ jobs:
           RUSTFLAGS: -Awarnings
           TEMPDIR: ${{ runner.temp }}
         run: |
-          cargo nextest run -v -j1 --all --no-default-features --features "storage"
+          cargo nextest run --all --no-default-features --features "storage"
       - name: Run Tests (features=io)
         env:
           RUSTFLAGS: -Awarnings
