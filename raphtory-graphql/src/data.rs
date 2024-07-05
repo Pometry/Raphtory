@@ -9,7 +9,7 @@ use moka::sync::Cache;
 #[cfg(feature = "storage")]
 use raphtory::disk_graph::graph_impl::DiskGraph;
 use raphtory::{
-    core::{utils::errors::GraphError, Prop},
+    core::utils::errors::GraphError,
     db::api::view::MaterializedGraph,
     prelude::{GraphViewOps, PropUnwrap, PropertyAdditionOps},
     search::IndexedGraph,
@@ -21,6 +21,7 @@ use std::{
     sync::Arc,
 };
 use walkdir::WalkDir;
+use crate::model::construct_graph_name;
 
 pub struct Data {
     pub(crate) work_dir: String,
@@ -55,7 +56,7 @@ impl Data {
         let path = construct_graph_path(&self.work_dir, name, namespace)?;
         let name = name.to_string();
         if !path.exists() {
-            return Err(GraphError::InvalidPath(path).into());
+            return Err(GraphError::GraphNotFound(construct_graph_name(&name, namespace)).into());
         } else {
             match self.graphs.get(&name) {
                 Some(graph) => Ok(graph.clone()),

@@ -329,27 +329,73 @@ def test_load_graph_overwrite():
 
 
 def test_get_graphs():
+    work_dir = tempfile.mkdtemp()
+    server = RaphtoryServer(work_dir).start()
+    client = server.get_client()
+    
+    # Assert if no graphs are discoverable
+    query = """{ graphs { name, path } }"""
+    assert client.query(query) == {
+        'graphs': {'name': [], 'path': []}
+    }
+    
     g = Graph()
     g.add_edge(1, "ben", "hamza")
     g.add_edge(2, "haaroon", "hamza")
     g.add_edge(3, "ben", "haaroon")
 
-    work_dir = tempfile.mkdtemp()
     os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
-
     g.save_to_file(os.path.join(work_dir, "g1"))
     g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
     g.save_to_file(os.path.join(work_dir, "shivam", "g3"))
 
-    server = RaphtoryServer(work_dir).start()
-    client = server.get_client()
-    
     # Assert if all graphs present in the work_dir are discoverable
     query = """{ graphs { name, path } }"""
     assert client.query(query) == {
         'graphs': {'name': ['g1', 'g2', 'g3'], 'path': ['g1', 'shivam/g2', 'shivam/g3']}
     }
     
+    server.stop()
+    
+    
+def test_receive_graph():
+    work_dir = tempfile.mkdtemp()
+    server = RaphtoryServer(work_dir).start()
+    client = server.get_client()
+
+    query = """{ receiveGraph(name: "g2") }"""
+    try:
+        client.query(query)
+    except Exception as e:
+        assert "Graph not found g2" in str(e), f"Unexpected exception message: {e}"
+
+    query = """{ receiveGraph(name: "g2", namespace: "shivam") }"""
+    try:
+        client.query(query)
+    except Exception as e:
+        assert "Graph not found shivam/g2" in str(e), f"Unexpected exception message: {e}"
+        
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+
+    os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
+    g.save_to_file(os.path.join(work_dir, "g1"))
+    g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
+
+    received_graph = 'AAAAAAMAAAAAAAAAlNcECxwg2OUBAAAAAAAAAO_T5CcRykTMAgAAAAAAAACtSFF47MOYUAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAEAAAAAAAAArUhReOzDmFABAwAAAAAAAABiZW4AAAAAAAAAAAIAAAACAAAAAAAAAAEAAAAAAAAAAwAAAAAAAAABAAAAAAAAAAEAAAACAAAAAgAAAAAAAAABAAAAAAAAAAIAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAlNcECxwg2OUBBQAAAAAAAABoYW16YQEAAAAAAAAAAgAAAAIAAAAAAAAAAQAAAAAAAAACAAAAAAAAAAEAAAAAAAAAAQAAAAAAAAACAAAAAgAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAADv0-QnEcpEzAEHAAAAAAAAAGhhYXJvb24CAAAAAAAAAAIAAAACAAAAAAAAAAIAAAAAAAAAAwAAAAAAAAABAAAAAAAAAAEAAAABAAAAAQAAAAAAAAABAAAAAAAAAAEAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMAAAAAAAAACAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAEAAAAAAAAAAAEAAAAAAAAAAQAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAAACAAAAAAAAAAEAAAAAAAAAAQAAAAAAAAAAAQAAAAAAAAABAAAAAgAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAABAAAAAAAAAAABAAAAAAAAAAEAAAADAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwAAAAAAAAAJAAAAAAAAAAEAAAAAAAAAAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAgAAAAAAAAAX2RlZmF1bHQAAAAAAAAAAAEAAAAAAAAACAAAAAAAAABfZGVmYXVsdAEAAAAAAAAACAAAAAAAAABfZGVmYXVsdAAAAAAAAAAAAQAAAAAAAAAIAAAAAAAAAF9kZWZhdWx0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAIAAAAAAAAAF9kZWZhdWx0AAAAAAAAAAABAAAAAAAAAAgAAAAAAAAAX2RlZmF1bHQBAAAAAAAAAAgAAAAAAAAAX2RlZmF1bHQAAAAAAAAAAAEAAAAAAAAACAAAAAAAAABfZGVmYXVsdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+    
+    query = """{ receiveGraph(name: "g1") }"""
+    assert client.query(query) == {
+        'receiveGraph': received_graph
+    }
+
+    query = """{ receiveGraph(name: "g2", namespace: "shivam") }"""
+    assert client.query(query) == {
+        'receiveGraph': received_graph
+    }
+
     server.stop()
 
 

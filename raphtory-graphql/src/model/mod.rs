@@ -136,7 +136,7 @@ impl Mut {
         let parent_graph_path =
             construct_graph_path(&data.work_dir, &parent_graph_name, parent_graph_namespace)?;
         if !parent_graph_path.exists() {
-            return Err(GraphError::GraphNotFound(get_graph_name(
+            return Err(GraphError::GraphNotFound(construct_graph_name(
                 &parent_graph_name,
                 parent_graph_namespace,
             ))
@@ -146,14 +146,14 @@ impl Mut {
             construct_graph_path(&data.work_dir, &graph_name, graph_namespace)?;
         if !current_graph_path.exists() {
             return Err(
-                GraphError::GraphNotFound(get_graph_name(&graph_name, graph_namespace)).into(),
+                GraphError::GraphNotFound(construct_graph_name(&graph_name, graph_namespace)).into(),
             );
         }
         let new_graph_path =
             construct_graph_path(&data.work_dir, &new_graph_name, graph_namespace)?;
         if new_graph_path.exists() {
             return Err(GraphError::GraphNameAlreadyExists {
-                name: get_graph_name(&new_graph_name, graph_namespace),
+                name: construct_graph_name(&new_graph_name, graph_namespace),
             }
             .into());
         }
@@ -244,7 +244,7 @@ impl Mut {
         let parent_graph_path =
             construct_graph_path(&data.work_dir, &parent_graph_name, parent_graph_namespace)?;
         if !parent_graph_path.exists() {
-            return Err(GraphError::GraphNotFound(get_graph_name(
+            return Err(GraphError::GraphNotFound(construct_graph_name(
                 &parent_graph_name,
                 parent_graph_namespace,
             ))
@@ -254,7 +254,7 @@ impl Mut {
             construct_graph_path(&data.work_dir, &graph_name, graph_namespace)?;
         if !current_graph_path.exists() {
             return Err(
-                GraphError::GraphNotFound(get_graph_name(&graph_name, graph_namespace)).into(),
+                GraphError::GraphNotFound(construct_graph_name(&graph_name, graph_namespace)).into(),
             );
         }
 
@@ -265,7 +265,7 @@ impl Mut {
         if graph_name.ne(&new_graph_name) {
             if new_graph_path.exists() {
                 return Err(GraphError::GraphNameAlreadyExists {
-                    name: get_graph_name(&new_graph_name, graph_namespace),
+                    name: construct_graph_name(&new_graph_name, graph_namespace),
                 }
                 .into());
             }
@@ -478,7 +478,7 @@ impl Mut {
     }
 }
 
-fn get_graph_name(name: &String, namespace: &Option<String>) -> String {
+pub(crate) fn construct_graph_name(name: &String, namespace: &Option<String>) -> String {
     match namespace {
         Some(namespace) if !namespace.is_empty() => format!("{}/{}", namespace, name),
         _ => name.clone(),
