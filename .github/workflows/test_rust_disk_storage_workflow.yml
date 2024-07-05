@@ -62,7 +62,7 @@ jobs:
           RUSTFLAGS: -Awarnings
           TEMPDIR: ${{ runner.temp }}
         run: |
-          cargo nextest run -j1 --all --no-default-features --features "storage"
+          cargo nextest run -v -j1 --all --no-default-features --features "storage"
       - name: Run Tests (features=io)
         env:
           RUSTFLAGS: -Awarnings
