@@ -328,6 +328,41 @@ def test_load_graph_overwrite():
     server.stop()
 
 
+def test_get_graph():
+    work_dir = tempfile.mkdtemp()
+    server = RaphtoryServer(work_dir).start()
+    client = server.get_client()
+
+    query = """{ graph(name: "g1") { name, path, nodes { list { name } } } }"""
+    try:
+        client.query(query)
+    except Exception as e:
+        assert "Graph not found g1" in str(e), f"Unexpected exception message: {e}"
+
+    query = """{ graph(name: "g1", namespace: "shivam") { name, path, nodes { list { name } } } }"""
+    try:
+        client.query(query)
+    except Exception as e:
+        assert "Graph not found shivam/g1" in str(e), f"Unexpected exception message: {e}"
+
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+
+    os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
+    g.save_to_file(os.path.join(work_dir, "g1"))
+    g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
+
+    query = """{ graph(name: "g1") { name, path, nodes { list { name } } } }"""
+    assert client.query(query) == {'graph': {'name': 'g1', 'nodes': {'list': [{'name': 'ben'}, {'name': 'hamza'}, {'name': 'haaroon'}]}, 'path': 'g1'}}
+
+    query = """{ graph(name: "g2", namespace: "shivam") { name, path, nodes { list { name } } } }"""
+    assert client.query(query) == {'graph': {'name': 'g2', 'nodes': {'list': [{'name': 'ben'}, {'name': 'hamza'}, {'name': 'haaroon'}]}, 'path': 'shivam/g2'}}
+
+    server.stop()
+
+
 def test_get_graphs():
     work_dir = tempfile.mkdtemp()
     server = RaphtoryServer(work_dir).start()
