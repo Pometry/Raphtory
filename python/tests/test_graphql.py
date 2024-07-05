@@ -328,6 +328,31 @@ def test_load_graph_overwrite():
     server.stop()
 
 
+def test_get_graphs():
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+
+    work_dir = tempfile.mkdtemp()
+    os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
+
+    g.save_to_file(os.path.join(work_dir, "g1"))
+    g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
+    g.save_to_file(os.path.join(work_dir, "shivam", "g3"))
+
+    server = RaphtoryServer(work_dir).start()
+    client = server.get_client()
+    
+    # Assert if all graphs present in the work_dir are discoverable
+    query = """{ graphs { name, path } }"""
+    assert client.query(query) == {
+        'graphs': {'name': ['g1', 'g2', 'g3'], 'path': ['g1', 'shivam/g2', 'shivam/g3']}
+    }
+    
+    server.stop()
+
+
 def test_rename_graph():
     g = Graph()
     g.add_edge(1, "ben", "hamza")
