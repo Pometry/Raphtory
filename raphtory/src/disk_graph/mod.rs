@@ -97,6 +97,9 @@ impl IntoDynamic for DiskGraph {
 }
 
 impl DiskGraph {
+    pub fn graph_dir(&self) -> &Path {
+        &self.graph_dir
+    }
     fn layer_from_ids(&self, layer_ids: &LayerIds) -> Option<usize> {
         match layer_ids {
             LayerIds::One(layer_id) => Some(*layer_id),

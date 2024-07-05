@@ -1,5 +1,3 @@
-use std::{io::Write, sync::Arc};
-
 use super::io::pandas_loaders::*;
 use crate::{
     arrow2::{
@@ -34,6 +32,7 @@ use pyo3::{
     prelude::*,
     types::{PyDict, PyList, PyString},
 };
+use std::{io::Write, path::Path, sync::Arc};
 
 impl From<DiskGraphError> for PyErr {
     fn from(value: DiskGraphError) -> Self {
@@ -149,6 +148,9 @@ impl PyGraph {
 
 #[pymethods]
 impl PyDiskGraph {
+    pub fn graph_dir(&self) -> &Path {
+        self.graph.graph_dir()
+    }
     #[staticmethod]
     #[pyo3(signature = (graph_dir, edge_df, src_col, dst_col, time_col))]
     pub fn load_from_pandas(
