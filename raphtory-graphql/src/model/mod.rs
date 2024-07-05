@@ -145,9 +145,11 @@ impl Mut {
         let current_graph_path =
             construct_graph_path(&data.work_dir, &graph_name, graph_namespace)?;
         if !current_graph_path.exists() {
-            return Err(
-                GraphError::GraphNotFound(construct_graph_name(&graph_name, graph_namespace)).into(),
-            );
+            return Err(GraphError::GraphNotFound(construct_graph_name(
+                &graph_name,
+                graph_namespace,
+            ))
+            .into());
         }
         let new_graph_path =
             construct_graph_path(&data.work_dir, &new_graph_name, graph_namespace)?;
@@ -247,9 +249,11 @@ impl Mut {
         let current_graph_path =
             construct_graph_path(&data.work_dir, &graph_name, graph_namespace)?;
         if !current_graph_path.exists() {
-            return Err(
-                GraphError::GraphNotFound(construct_graph_name(&graph_name, graph_namespace)).into(),
-            );
+            return Err(GraphError::GraphNotFound(construct_graph_name(
+                &graph_name,
+                graph_namespace,
+            ))
+            .into());
         }
 
         // If graph_name == new_graph_name, it is a "save" action otherwise it is "save as" action.
@@ -444,7 +448,6 @@ impl Mut {
     async fn archive_graph<'a>(
         ctx: &Context<'a>,
         graph_name: String,
-        _parent_graph_name: String,
         namespace: &Option<String>,
         is_archive: u8,
     ) -> Result<bool> {
@@ -458,12 +461,7 @@ impl Mut {
 
         subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
 
-        let path = subgraph
-            .properties()
-            .constant()
-            .get("path")
-            .ok_or("Path is missing")?
-            .to_string();
+        let path = construct_graph_path(&data.work_dir, &graph_name, namespace)?;
         subgraph.save_to_file(path)?;
 
         data.graphs.insert(graph_name, subgraph);

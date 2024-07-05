@@ -1,5 +1,7 @@
 use crate::{
-    model::{algorithms::global_plugins::GlobalPlugins, construct_graph_path},
+    model::{
+        algorithms::global_plugins::GlobalPlugins, construct_graph_name, construct_graph_path,
+    },
     server_config::AppConfig,
 };
 use async_graphql::Error;
@@ -21,7 +23,6 @@ use std::{
     sync::Arc,
 };
 use walkdir::WalkDir;
-use crate::model::construct_graph_name;
 
 pub struct Data {
     pub(crate) work_dir: String,

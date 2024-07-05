@@ -594,7 +594,7 @@ def test_update_graph_last_opened():
     g.save_to_file(os.path.join(work_dir, "g1"))
     g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
 
-    query_last_opened = """{ graph(name: "g1") { properties { constant { get(key: "lastOpened") { key, value } } } } }"""
+    query_last_opened = """{ graph(name: "g1") { properties { constant { get(key: "lastOpened") { value } } } } }"""
     mutate_last_opened = """mutation { updateGraphLastOpened(graphName: "g1") }"""
     assert client.query(query_last_opened) == {'graph': {'properties': {'constant': {'get': None}}}}
     assert client.query(mutate_last_opened) == {'updateGraphLastOpened': True}
@@ -604,7 +604,7 @@ def test_update_graph_last_opened():
     updated_last_opened2 = client.query(query_last_opened)['graph']['properties']['constant']['get']['value']
     assert updated_last_opened2 > updated_last_opened1
 
-    query_last_opened = """{ graph(name: "g2", namespace: "shivam") { properties { constant { get(key: "lastOpened") { key, value } } } } }"""
+    query_last_opened = """{ graph(name: "g2", namespace: "shivam") { properties { constant { get(key: "lastOpened") { value } } } } }"""
     mutate_last_opened = """mutation { updateGraphLastOpened(graphName: "g2", namespace: "shivam") }"""
     assert client.query(query_last_opened) == {'graph': {'properties': {'constant': {'get': None}}}}
     assert client.query(mutate_last_opened) == {'updateGraphLastOpened': True}
@@ -617,6 +617,53 @@ def test_update_graph_last_opened():
     server.stop()
 
 
+def test_archive_graph():
+    work_dir = tempfile.mkdtemp()
+    server = RaphtoryServer(work_dir).start()
+    client = server.get_client()
+
+    query = """mutation { archiveGraph(graphName: "g1", isArchive: 0) }"""
+    try:
+        client.query(query)
+    except Exception as e:
+        assert "Graph not found g1" in str(e), f"Unexpected exception message: {e}"
+
+    query = """mutation { archiveGraph(graphName: "g1", namespace: "shivam", isArchive: 0) }"""
+    try:
+        client.query(query)
+    except Exception as e:
+        assert "Graph not found shivam/g1" in str(e), f"Unexpected exception message: {e}"
+
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+
+    os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
+    g.save_to_file(os.path.join(work_dir, "g1"))
+    g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
+
+    query_is_archive = """{ graph(name: "g1") { properties { constant { get(key: "isArchive") { value } } } } }"""
+    assert client.query(query_is_archive) == {'graph': {'properties': {'constant': {'get': None}}}}
+    update_archive_graph = """mutation { archiveGraph(graphName: "g1", isArchive: 0) }"""
+    assert client.query(update_archive_graph) == {"archiveGraph": True}
+    assert client.query(query_is_archive)['graph']['properties']['constant']['get']['value'] == 0
+    update_archive_graph = """mutation { archiveGraph(graphName: "g1", isArchive: 1) }"""
+    assert client.query(update_archive_graph) == {"archiveGraph": True}
+    assert client.query(query_is_archive)['graph']['properties']['constant']['get']['value'] == 1
+
+    query_is_archive = """{ graph(name: "g2", namespace: "shivam") { properties { constant { get(key: "isArchive") { value } } } } }"""
+    assert client.query(query_is_archive) == {'graph': {'properties': {'constant': {'get': None}}}}
+    update_archive_graph = """mutation { archiveGraph(graphName: "g2", namespace: "shivam", isArchive: 0) }"""
+    assert client.query(update_archive_graph) == {"archiveGraph": True}
+    assert client.query(query_is_archive)['graph']['properties']['constant']['get']['value'] == 0
+    update_archive_graph = """mutation { archiveGraph(graphName: "g2", namespace: "shivam", isArchive: 1) }"""
+    assert client.query(update_archive_graph) == {"archiveGraph": True}
+    assert client.query(query_is_archive)['graph']['properties']['constant']['get']['value'] == 1
+
+    server.stop()
+    
+    
 def test_graph_windows_and_layers_query():
     g1 = graph_loader.lotr_graph()
     g1.add_constant_properties({"name": "lotr"})
