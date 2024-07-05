@@ -53,10 +53,8 @@ jobs:
         name: Cargo cache
         with:
           cache-all-crates: true
-      - name: Install bininstall
-        uses: cargo-bins/cargo-binstall@main
       - name: Install nextest
-        run: cargo binstall -y --force cargo-nextest
+        uses: taiki-e/install-action@nextest
       - name: Activate pometry-storage in Cargo.toml
         run: make pull-storage
       - name: Run all Tests (disk_graph)
@@ -64,7 +62,7 @@ jobs:
           RUSTFLAGS: -Awarnings
           TEMPDIR: ${{ runner.temp }}
         run: |
-          cargo nextest run -j4 --all --no-default-features --features "storage"
+          cargo nextest run -j1 --all --no-default-features --features "storage"
       - name: Run Tests (features=io)
         env:
           RUSTFLAGS: -Awarnings

@@ -52,10 +52,8 @@ jobs:
         name: Cargo cache
         with:
           cache-all-crates: true
-      - name: Install bininstall
-        uses: cargo-bins/cargo-binstall@main
       - name: Install nextest
-        run: cargo binstall -y --force cargo-nextest
+        uses: taiki-e/install-action@nextest
       - name: Run all Tests (no disk_graph)
         env:
           RUSTFLAGS: -Awarnings
