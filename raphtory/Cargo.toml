@@ -118,8 +118,8 @@ python = [
     "dep:display-error-chain",
     "polars-arrow?/compute",
     "raphtory-api/python",
-    "dep:kdam",
     "dep:rpds",
+    "kdam?/notebook"
 ]
 
 # storage
@@ -139,5 +139,6 @@ storage = [
 arrow = [
     "dep:polars-arrow",
     "dep:polars-parquet",
-    "polars-parquet?/compression"
+    "polars-parquet?/compression",
+    "dep:kdam",
 ]
