@@ -47,7 +47,7 @@ jobs:
           override: true
           components: rustfmt, clippy
       - name: Install Protoc
-        run: arduino/setup-protoc@v3
+        uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}        
       - uses: webfactory/ssh-agent@v0.7.0
