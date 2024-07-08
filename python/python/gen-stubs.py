@@ -1,12 +1,13 @@
 import ast
 import importlib
 import inspect
-from typing import Dict, List, Optional, Tuple, TypedDict
+from typing import Dict, List, Literal, Optional, Tuple, TypedDict, Union
 
 import astunparse
 
 
 class ParamsTypeDef(TypedDict):
+    type: Union[Literal["function"], Literal["method"], Literal["property"]]
     keywords: List[str]
     args: bool
     kwargs: bool
@@ -21,6 +22,7 @@ def is_builtin_function(obj) -> bool:
     return isinstance(obj, type(len))
 
 
+# TODO: Properties vs. methods
 def parse_rust_module(module_name: str) -> Tuple[ClassTypeDef, MethodTypeDef]:
     tree = importlib.import_module(module_name)
 
@@ -36,6 +38,15 @@ def parse_rust_module(module_name: str) -> Tuple[ClassTypeDef, MethodTypeDef]:
 
                 if attr_name.startswith("__"):
                     continue
+
+                elif isinstance(attr, property):
+                    methods[attr_name] = {
+                        "type": "property",
+                        "keywords": [],
+                        "args": False,
+                        "kwargs": False,
+                        "docstring": docstring,
+                    }
 
                 elif callable(attr):
                     try:
@@ -56,6 +67,7 @@ def parse_rust_module(module_name: str) -> Tuple[ClassTypeDef, MethodTypeDef]:
                             args.remove("kwargs")
 
                         methods[attr_name] = {
+                            "type": "method",
                             "keywords": args,
                             "args": has_args,
                             "kwargs": has_kwargs,
@@ -64,6 +76,7 @@ def parse_rust_module(module_name: str) -> Tuple[ClassTypeDef, MethodTypeDef]:
                     except ValueError:
                         # If we can't get the signature, add the method with an empty arg list
                         methods[attr_name] = {
+                            "type": "method",
                             "keywords": [],
                             "args": False,
                             "kwargs": False,
@@ -71,6 +84,7 @@ def parse_rust_module(module_name: str) -> Tuple[ClassTypeDef, MethodTypeDef]:
                         }
                 else:
                     methods[attr_name] = {
+                        "type": "property",
                         "keywords": [],
                         "args": False,
                         "kwargs": False,
@@ -93,6 +107,7 @@ def parse_rust_module(module_name: str) -> Tuple[ClassTypeDef, MethodTypeDef]:
                 params.remove("kwargs")
 
             functions[name] = {
+                "type": "function",
                 "keywords": params,
                 "args": has_args,
                 "kwargs": has_kwargs,
@@ -152,7 +167,11 @@ def write_stubs(module_name: str) -> None:
                     defaults=[],
                 ),
                 body=body,
-                decorator_list=[],
+                decorator_list=(
+                    [ast.Name(id="property")]
+                    if method_params["type"] == "property"
+                    else []
+                ),
             )
 
             class_node.body.append(method_node)
