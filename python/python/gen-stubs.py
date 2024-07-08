@@ -1,223 +1,177 @@
 import ast
 import importlib
 import inspect
-from typing import Dict, List, Literal, Optional, Tuple, TypedDict, Union
+from typing import List, Optional, TypedDict
 
 import astunparse
 
 
 class ParamsTypeDef(TypedDict):
-    type: Union[Literal["function"], Literal["method"], Literal["property"]]
-    keywords: List[str]
-    args: bool
-    kwargs: bool
-    docstring: Optional[str]
-
-
-MethodTypeDef = Dict[str, ParamsTypeDef]
-ClassTypeDef = Dict[str, MethodTypeDef]
+    args: List[str]
+    defaults: List[ast.expr]
+    vararg: Optional[ast.arg]
+    kwarg: Optional[ast.arg]
 
 
 def is_builtin_function(obj) -> bool:
     return isinstance(obj, type(len))
 
 
-# TODO: Properties vs. methods
-def parse_rust_module(module_name: str) -> Tuple[ClassTypeDef, MethodTypeDef]:
-    tree = importlib.import_module(module_name)
+def parse_params(sig: inspect.Signature) -> ParamsTypeDef:
+    vararg = None
+    kwarg = None
 
-    classes: ClassTypeDef = {}
-    functions: MethodTypeDef = {}
+    args: List[str] = []
+    defaults: List[ast.expr] = []
 
-    for name, obj in inspect.getmembers(tree):
+    for name, param in sig.parameters.items():
+        if name == "self":
+            continue
+
+        if name == "args":
+            vararg = ast.arg(arg="args", type_comment=None, annotation=None)
+            continue
+        if name == "kwargs":
+            kwarg = ast.arg(arg="kwargs", type_comment=None, annotation=None)
+            continue
+
+        is_optional = param.default is not inspect.Parameter.empty
+        default_value = param.default if is_optional else None
+
+        args.append(name)
+        if is_optional:
+            if type(param.default).__name__ == "_Unset":  # TODO: Hack
+                default_value = None
+            defaults.append(ast.Constant(value=default_value, kind=None))
+
+    return {"args": args, "defaults": defaults, "vararg": vararg, "kwarg": kwarg}
+
+
+# TODO: Optional vs required params
+def gen_stubs(module_name: str) -> None:
+    rust_tree = importlib.import_module(module_name)
+    stub_tree = ast.Module(body=[], type_ignores=[])
+
+    for name, obj in inspect.getmembers(rust_tree):
         if inspect.isclass(obj):
-            methods: MethodTypeDef = {}
+            class_node = ast.ClassDef(
+                name=name,
+                bases=[],
+                keywords=[],
+                body=[],
+                decorator_list=[],
+            )
 
             for attr_name, attr in inspect.getmembers(obj):
-                docstring = inspect.getdoc(attr)
-
                 if attr_name.startswith("__"):
                     continue
 
-                elif isinstance(attr, property):
-                    methods[attr_name] = {
-                        "type": "property",
-                        "keywords": [],
-                        "args": False,
-                        "kwargs": False,
-                        "docstring": docstring,
-                    }
+                body = []
+                docstring = inspect.getdoc(attr)
+
+                if docstring:
+                    body.append(
+                        ast.Expr(value=ast.Constant(value=docstring, kind=None))
+                    )
+
+                body.append(ast.Expr(value=ast.Constant(value=...)))
+
+                if isinstance(attr, property):
+                    method_node = ast.FunctionDef(
+                        name=attr_name,
+                        args=ast.arguments(
+                            posonlyargs=[],
+                            args=[
+                                ast.arg(arg="self", type_comment=None, annotation=None)
+                            ],
+                            vararg=None,
+                            kwonlyargs=[],
+                            kw_defaults=[],
+                            kwarg=None,
+                            defaults=[],
+                        ),
+                        body=body,
+                        decorator_list=([ast.Name(id="property")]),
+                    )
 
                 elif callable(attr):
-                    try:
-                        signature = inspect.signature(attr)
-                        args = list(signature.parameters.keys())
+                    signature = inspect.signature(attr)
+                    params = parse_params(signature)
 
-                        # Remove 'self' from the argument list if it's present
-                        if args and args[0] == "self":
-                            args = args[1:]
+                    if not params["args"] or params["args"][0] != "self":
+                        params["args"] = ["self"] + params["args"]
 
-                        has_args = "args" in args
-                        has_kwargs = "kwargs" in args
+                    method_node = ast.FunctionDef(
+                        name=attr_name,
+                        args=ast.arguments(
+                            posonlyargs=[],
+                            args=[  # TODO: type_comment, annotation
+                                ast.arg(arg=arg, type_comment=None, annotation=None)
+                                for arg in params["args"]
+                            ],
+                            vararg=params["vararg"],
+                            kwonlyargs=[],
+                            kw_defaults=[],
+                            kwarg=params["kwarg"],
+                            defaults=params["defaults"],
+                        ),
+                        body=body,
+                        decorator_list=[],
+                    )
 
-                        if "args" in args:
-                            args.remove("args")
-
-                        if "kwargs" in args:
-                            args.remove("kwargs")
-
-                        methods[attr_name] = {
-                            "type": "method",
-                            "keywords": args,
-                            "args": has_args,
-                            "kwargs": has_kwargs,
-                            "docstring": docstring,
-                        }
-                    except ValueError:
-                        # If we can't get the signature, add the method with an empty arg list
-                        methods[attr_name] = {
-                            "type": "method",
-                            "keywords": [],
-                            "args": False,
-                            "kwargs": False,
-                            "docstring": docstring,
-                        }
                 else:
-                    methods[attr_name] = {
-                        "type": "property",
-                        "keywords": [],
-                        "args": False,
-                        "kwargs": False,
-                        "docstring": docstring,
-                    }
+                    method_node = ast.FunctionDef(
+                        name=attr_name,
+                        args=ast.arguments(
+                            posonlyargs=[],
+                            args=[
+                                ast.arg(arg="self", type_comment=None, annotation=None)
+                            ],
+                            vararg=None,
+                            kwonlyargs=[],
+                            kw_defaults=[],
+                            kwarg=None,
+                            defaults=[],
+                        ),
+                        body=body,
+                        decorator_list=([ast.Name(id="property")]),
+                    )
 
-            classes[name] = methods
+                class_node.body.append(method_node)
+            stub_tree.body.append(class_node)
 
         elif is_builtin_function(obj):
-            params = list(inspect.signature(obj).parameters.keys())
             docstring = inspect.getdoc(obj)
-
-            has_args = "args" in params
-            has_kwargs = "kwargs" in params
-
-            if "args" in params:
-                params.remove("args")
-
-            if "kwargs" in params:
-                params.remove("kwargs")
-
-            functions[name] = {
-                "type": "function",
-                "keywords": params,
-                "args": has_args,
-                "kwargs": has_kwargs,
-                "docstring": docstring,
-            }
-
-    return classes, functions
-
-
-def write_stubs(module_name: str) -> None:
-    classes, functions = parse_rust_module(module_name)
-
-    tree = ast.Module(body=[], type_ignores=[])
-
-    # Write class stubs
-    for class_name, methods in classes.items():
-        class_node = ast.ClassDef(
-            name=class_name,
-            bases=[],
-            keywords=[],
-            body=[],
-            decorator_list=[],
-        )
-
-        for method_name, method_params in methods.items():
             body = []
 
-            if method_params["docstring"]:
-                body.append(
-                    ast.Expr(
-                        value=ast.Constant(value=method_params["docstring"], kind=None)
-                    )
-                )
+            if docstring:
+                body.append(ast.Expr(value=ast.Constant(value=docstring, kind=None)))
 
             body.append(ast.Expr(value=ast.Constant(value=...)))
 
-            method_node = ast.FunctionDef(
-                name=method_name,
+            params = parse_params(inspect.signature(obj))
+
+            fn_node = ast.FunctionDef(
+                name=name,
                 args=ast.arguments(
                     posonlyargs=[],
                     args=[  # TODO: type_comment, annotation
                         ast.arg(arg=arg, type_comment=None, annotation=None)
-                        for arg in ["self", *method_params["keywords"]]
+                        for arg in params["args"]
                     ],
-                    vararg=(
-                        ast.arg(arg="args", type_comment=None, annotation=None)
-                        if method_params["args"]
-                        else None
-                    ),
+                    vararg=params["vararg"],
                     kwonlyargs=[],
                     kw_defaults=[],
-                    kwarg=(
-                        ast.arg(arg="kwargs", type_comment=None, annotation=None)
-                        if method_params["kwargs"]
-                        else None
-                    ),
-                    defaults=[],
+                    kwarg=params["kwarg"],
+                    defaults=params["defaults"],
                 ),
                 body=body,
-                decorator_list=(
-                    [ast.Name(id="property")]
-                    if method_params["type"] == "property"
-                    else []
-                ),
+                decorator_list=[],
             )
 
-            class_node.body.append(method_node)
+            stub_tree.body.append(fn_node)
 
-        tree.body.append(class_node)
-
-    # Write function stubs
-    for fn_name, fn_params in functions.items():
-        body = []
-
-        if fn_params["docstring"]:
-            body.append(
-                ast.Expr(value=ast.Constant(value=fn_params["docstring"], kind=None))
-            )
-
-        body.append(ast.Expr(value=ast.Constant(value=...)))
-
-        fn_node = ast.FunctionDef(
-            name=fn_name,
-            args=ast.arguments(
-                posonlyargs=[],
-                args=[  # TODO: type_comment, annotation
-                    ast.arg(arg=arg, type_comment=None, annotation=None)
-                    for arg in fn_params["keywords"]
-                ],
-                vararg=(
-                    ast.arg(arg="args", type_comment=None, annotation=None)
-                    if fn_params["args"]
-                    else None
-                ),
-                kwonlyargs=[],
-                kw_defaults=[],
-                kwarg=(
-                    ast.arg(arg="kwargs", type_comment=None, annotation=None)
-                    if fn_params["kwargs"]
-                    else None
-                ),
-                defaults=[],
-            ),
-            body=body,
-            decorator_list=[],
-        )
-
-        tree.body.append(fn_node)
-
-    stub_content = astunparse.unparse(tree)
+    stub_content = astunparse.unparse(stub_tree)
 
     comment = """###############################################################################
 #                                                                             #
@@ -243,4 +197,4 @@ if __name__ == "__main__":
         "raphtory.vectors",
     ]
     for module in modules:
-        write_stubs(module)
+        gen_stubs(module)
