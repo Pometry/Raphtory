@@ -15,23 +15,23 @@ def average_degree(g):
     'The average (undirected) degree of all nodes in the graph.\n\nNote that this treats the graph as simple and undirected and is equal to twice\nthe number of undirected edges divided by the number of nodes.\n\nArguments:\n    g (Raphtory graph) : a Raphtory graph\n\nReturns:\n    float : the average degree of the nodes in the graph'
     ...
 
-def balance(g, name, direction, threads):
+def balance(g, name=..., direction=..., threads=None):
     'Sums the weights of edges in the graph based on the specified direction.\n\nThis function computes the sum of edge weights based on the direction provided, and can be executed in parallel using a given number of threads.\n\nArguments:\n    g (Raphtory Graph): The graph view on which the operation is to be performed.\n    name (str, default = "weight"): The name of the edge property used as the weight. Defaults to "weight" if not provided.\n    direction (`PyDirection`, default = PyDirection("BOTH")): Specifies the direction of the edges to be considered for summation.\n            * PyDirection("OUT"): Only consider outgoing edges.\n            * PyDirection("IN"): Only consider incoming edges.\n            * PyDirection("BOTH"): Consider both outgoing and incoming edges. This is the default.\n    threads (int, default = `None`): The number of threads to be used for parallel execution. Defaults to single-threaded operation if not provided.\n\nReturns:\n    AlgorithmResult<String, OrderedFloat<f64>>: A result containing a mapping of node names to the computed sum of their associated edge weights.'
     ...
 
-def betweenness_centrality(g, k, normalized):
+def betweenness_centrality(g, k=None, normalized=True):
     'Computes the betweenness centrality for nodes in a given graph.\n\nArguments:\n    g (Raphtory Graph): A reference to the graph.\n    k (int, optional): Specifies the number of nodes to consider for the centrality computation. Defaults to all nodes if `None`.\n    normalized (boolean, optional): Indicates whether to normalize the centrality values.\n\nReturns:\n    AlgorithmResult[float]: Returns an `AlgorithmResult` containing the betweenness centrality of each node.'
     ...
 
-def cohesive_fruchterman_reingold(graph, iterations, scale, node_start_size, cooloff_factor, dt):
+def cohesive_fruchterman_reingold(graph, iterations=100, scale=1.0, node_start_size=1.0, cooloff_factor=0.95, dt=0.1):
     'Cohesive version of `fruchterman_reingold` that adds virtual edges between isolated nodes'
     ...
 
-def degree_centrality(g, threads):
+def degree_centrality(g, threads=None):
     'Computes the degree centrality of all nodes in the graph. The values are normalized\nby dividing each result with the maximum possible degree. Graphs with self-loops can have\nvalues of centrality greater than 1.\n\nArguments:\n    g (Raphtory Graph): The graph view on which the operation is to be performed.\n    threads (`Option<usize>`, default = `None`): The number of threads to be used for parallel execution. Defaults to single-threaded operation if not provided.\n\nReturns:\n    AlgorithmResult<String, OrderedFloat<f64>>: A result containing a mapping of node names to the computed sum of their associated degree centrality.'
     ...
 
-def dijkstra_single_source_shortest_paths(g, source, targets, direction, weight):
+def dijkstra_single_source_shortest_paths(g, source, targets, direction=..., weight=...):
     'Finds the shortest paths from a single source to multiple targets in a graph.\n\nArguments:\n    g (Raphtory Graph): The graph to search in.\n    source (InputNode): The source node.\n    targets (List(InputNodes)): A list of target nodes.\n    direction (PyDirection, Optional): The direction of the edges to be considered for the shortest path. Defaults to "BOTH". Options are "OUT", "IN", and "BOTH".\n    weight (String, Optional): The name of the weight property for the edges ("weight" is default).\n\nReturns:\n    Returns a `Dict` where the key is the target node and the value is a tuple containing the total cost and a vector of nodes representing the shortest path.'
     ...
 
@@ -39,7 +39,7 @@ def directed_graph_density(g):
     'Graph density - measures how dense or sparse a graph is.\n\nThe ratio of the number of directed edges in the graph to the total number of possible directed\nedges (given by N * (N-1) where N is the number of nodes).\n\nArguments:\n    g (Raphtory graph) : a directed Raphtory graph\n\nReturns:\n    float : Directed graph density of G.'
     ...
 
-def fruchterman_reingold(graph, iterations, scale, node_start_size, cooloff_factor, dt):
+def fruchterman_reingold(graph, iterations=100, scale=1.0, node_start_size=1.0, cooloff_factor=0.95, dt=0.1):
     'Fruchterman Reingold layout algorithm\n\nArguments:\n    graph (GraphView): the graph view\n    iterations (int | None): the number of iterations to run (default: 100)\n    scale (float | None): the scale to apply (default: 1.0)\n    node_start_size (float | None): the start node size to assign random positions (default: 1.0)\n    cooloff_factor (float | None): the cool off factor for the algorithm (default: 0.95)\n    dt (float | None): the time increment between iterations (default: 0.1)\n\nReturns:\n    a dict with the position for each node as a list with two numbers [x, y]'
     ...
 
@@ -59,7 +59,7 @@ def global_temporal_three_node_motif_multi(g, deltas):
     'Computes the global counts of three-edge up-to-three node temporal motifs for a range of timescales. See `global_temporal_three_node_motif` for an interpretation of each row returned.\n\nArguments:\n    g (raphtory graph) : A directed raphtory graph\n    deltas(list(int)): A list of delta values to use.\n\nReturns:\n    list(list(int)) : A list of 40d arrays, each array is the motif count for a particular value of delta, returned in the order that the deltas were given as input.'
     ...
 
-def hits(g, iter_count, threads):
+def hits(g, iter_count=20, threads=None):
     'HITS (Hubs and Authority) Algorithm:\nAuthScore of a node (A) = Sum of HubScore of all nodes pointing at node (A) from previous iteration /\n    Sum of HubScore of all nodes in the current iteration\n\nHubScore of a node (A) = Sum of AuthScore of all nodes pointing away from node (A) from previous iteration /\n    Sum of AuthScore of all nodes in the current iteration\n\nArguments:\n    g (Raphtory Graph): Graph to run the algorithm on\n    iter_count (int): How many iterations to run the algorithm\n    threads (int): Number of threads to use (optional)\n\nReturns\n    An AlgorithmResult object containing the mapping from node ID to the hub and authority score of the node'
     ...
 
@@ -67,7 +67,7 @@ def in_components(g):
     'In components -- Finding the "in-component" of a node in a directed graph involves identifying all nodes that can be reached following only incoming edges.\n\nArguments:\n    g (Raphtory graph) : Raphtory graph\n\nReturns:\n    AlgorithmResult : AlgorithmResult object mapping each node to an array containing the ids of all nodes within their \'in-component\''
     ...
 
-def label_propagation(g, seed):
+def label_propagation(g, seed=None):
     'Computes components using a label propagation algorithm\n\nArguments:\n    g (Raphtory Graph): A reference to the graph\n    seed (Array of ints, optional) Array of 32 bytes of u8 which is set as the rng seed\n\nReturns:\n    A list of sets each containing nodes that have been grouped'
     ...
 
@@ -83,7 +83,7 @@ def local_triangle_count(g, v):
     'Implementations of various graph algorithms that can be run on a graph.\n\nTo run an algorithm simply import the module and call the function with the graph as the argument\n\nLocal triangle count - calculates the number of triangles (a cycle of length 3) a node participates in.\n\nThis function returns the number of pairs of neighbours of a given node which are themselves connected.\n\nArguments:\n    g (Raphtory graph) : Raphtory graph, this can be directed or undirected but will be treated as undirected\n    v (int or str) : node id or name\n\nReturns:\n    triangles(int) : number of triangles associated with node v'
     ...
 
-def louvain(graph, resolution, weight_prop, tol):
+def louvain(graph, resolution=1.0, weight_prop=None, tol=None):
     'Louvain algorithm for community detection\n\nArguments:\n    graph (GraphView): the graph view\n    resolution (float): the resolution paramter for modularity\n    weight_prop (str | None): the edge property to use for weights (has to be float)\n    tol (None | float): the floating point tolerance for deciding if improvements are significant (default: 1e-8)'
     ...
 
@@ -115,11 +115,11 @@ def out_components(g):
     'Out components -- Finding the "out-component" of a node in a directed graph involves identifying all nodes that can be reached following only outgoing edges.\n\nArguments:\n    g (Raphtory graph) : Raphtory graph\n\nReturns:\n    AlgorithmResult : AlgorithmResult object mapping each node to an array containing the ids of all nodes within their \'out-component\''
     ...
 
-def pagerank(g, iter_count, max_diff, use_l2_norm, damping_factor):
+def pagerank(g, iter_count=20, max_diff=None, use_l2_norm=True, damping_factor=0.85):
     'Pagerank -- pagerank centrality value of the nodes in a graph\n\nThis function calculates the Pagerank value of each node in a graph. See https://en.wikipedia.org/wiki/PageRank for more information on PageRank centrality.\nA default damping factor of 0.85 is used. This is an iterative algorithm which terminates if the sum of the absolute difference in pagerank values between iterations\nis less than the max diff value given.\n\nArguments:\n    g (Raphtory graph) : Raphtory graph\n    iter_count (int) : Maximum number of iterations to run. Note that this will terminate early if convergence is reached.\n    max_diff (float) : Optional parameter providing an alternative stopping condition. The algorithm will terminate if the sum of the absolute difference in pagerank values between iterations\nis less than the max diff value given.\n\nReturns:\n    AlgorithmResult : AlgorithmResult with string keys and float values mapping node names to their pagerank value.'
     ...
 
-def single_source_shortest_path(g, source, cutoff):
+def single_source_shortest_path(g, source, cutoff=None):
     'Calculates the single source shortest paths from a given source node.\n\nArguments:\n    g (Raphtory Graph): A reference to the graph. Must implement `GraphViewOps`.\n    source (InputNode): The source node. Must implement `InputNode`.\n    cutoff (Int, Optional): An optional cutoff level. The algorithm will stop if this level is reached.\n\nReturns:\n    Returns an `AlgorithmResult<String, Vec<String>>` containing the shortest paths from the source to all reachable nodes.'
     ...
 
@@ -127,7 +127,7 @@ def strongly_connected_components(g):
     'Strongly connected components\n\nPartitions the graph into node sets which are mutually reachable by an directed path\n\nArguments:\n    g (Raphtory graph) : Raphtory graph\n\nReturns:\n    Vec<Vec<u64>> : List of strongly connected nodes identified by ids'
     ...
 
-def temporal_SEIR(graph, seeds, infection_prob, initial_infection, recovery_rate, incubation_rate, rng_seed):
+def temporal_SEIR(graph, seeds, infection_prob, initial_infection, recovery_rate=None, incubation_rate=None, rng_seed=None):
     'Simulate an SEIR dynamic on the network\n\nThe algorithm uses the event-based sampling strategy from https://doi.org/10.1371/journal.pone.0246961\n\nArguments:\n    graph (GraphView): the graph view\n    seeds (int | float | list[Node]): the seeding strategy to use for the initial infection (if `int`, choose fixed number\n           of nodes at random, if `float` infect each node with this probability, if `[Node]`\n           initially infect the specified nodes\n    infection_prob (float): the probability for a contact between infected and susceptible nodes to lead\n                    to a transmission\n    initial_infection (int | str | DateTime): the time of the initial infection\n    recovery_rate (float | None): optional recovery rate (if None, simulates SEI dynamic where nodes never recover)\n                   the actual recovery time is sampled from an exponential distribution with this rate\n    incubation_rate ( float | None): optional incubation rate (if None, simulates SI or SIR dynamics where infected\n                     nodes are infectious at the next time step)\n                     the actual incubation time is sampled from an exponential distribution with\n                     this rate\n    rng_seed (int | None): optional seed for the random number generator\n\nReturns:\n    AlgorithmResult[Infected]: Returns an `Infected` object for each infected node with attributes\n    \n    `infected`: the time stamp of the infection event\n\n    `active`: the time stamp at which the node actively starts spreading the infection (i.e., the end of the incubation period)\n\n    `recovered`: the time stamp at which the node recovered (i.e., stopped spreading the infection)'
     ...
 
@@ -135,7 +135,7 @@ def temporal_bipartite_graph_projection(g, delta, pivot_type):
     "Projects a temporal bipartite graph into an undirected temporal graph over the pivot node type. Let G be a bipartite graph with node types A and B. Given delta > 0, the projection graph G' pivoting over type B nodes,\nwill make a connection between nodes n1 and n2 (of type A) at time (t1 + t2)/2 if they respectively have an edge at time t1, t2 with the same node of type B in G, and |t2-t1| < delta.\n\nArguments:\n    g (raphtory graph) : A directed raphtory graph\n    delta (int): Time period\n    pivot (string) : node type to pivot over. If a bipartite graph has types A and B, and B is the pivot type, the new graph will consist of type A nodes.\n\nReturns:\n    raphtory graph : Projected (unipartite) temporal graph."
     ...
 
-def temporally_reachable_nodes(g, max_hops, start_time, seed_nodes, stop_nodes):
+def temporally_reachable_nodes(g, max_hops, start_time, seed_nodes, stop_nodes=None):
     "Temporally reachable nodes -- the nodes that are reachable by a time respecting path followed out from a set of seed nodes at a starting time.\n\nThis function starts at a set of seed nodes and follows all time respecting paths until either a) a maximum number of hops is reached, b) one of a set of\nstop nodes is reached, or c) no further time respecting edges exist. A time respecting path is a sequence of nodes v_1, v_2, ... , v_k such that there exists\na sequence of edges (v_i, v_i+1, t_i) with t_i < t_i+1 for i = 1, ... , k - 1.\n\nArguments:\n    g (Raphtory graph) : directed Raphtory graph\n    max_hops (int) : maximum number of hops to propagate out\n    start_time (int) : time at which to start the path (such that t_1 > start_time for any path starting from these seed nodes)\n    seed_nodes (list(str) or list(int)) : list of node names or ids which should be the starting nodes\n    stop_nodes (list(str) or list(int)) : nodes at which a path shouldn't go any further\n\nReturns:\n    AlgorithmResult : AlgorithmResult with string keys and float values mapping node names to their pagerank value."
     ...
 
@@ -143,6 +143,6 @@ def triplet_count(g):
     'Computes the number of connected triplets within a graph\n\nA connected triplet (also known as a wedge, 2-hop path) is a pair of edges with one node in common. For example, the triangle made up of edges\nA-B, B-C, C-A is formed of three connected triplets.\n\nArguments:\n    g (Raphtory graph) : a Raphtory graph, treated as undirected\n\nReturns:\n    int : the number of triplets in the graph'
     ...
 
-def weakly_connected_components(g, iter_count):
+def weakly_connected_components(g, iter_count=9223372036854775807):
     'Weakly connected components -- partitions the graph into node sets which are mutually reachable by an undirected path\n\nThis function assigns a component id to each node such that nodes with the same component id are mutually reachable\nby an undirected path.\n\nArguments:\n    g (Raphtory graph) : Raphtory graph\n    iter_count (int) : Maximum number of iterations to run. Note that this will terminate early if the labels converge prior to the number of iterations being reached.\n\nReturns:\n    AlgorithmResult : AlgorithmResult object mapping nodes to their component ids.'
     ...

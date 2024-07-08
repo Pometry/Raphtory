@@ -15,15 +15,15 @@ def lotr_graph():
     'Load the Lord of the Rings dataset into a graph.\nThe dataset is available at https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv\nand is a list of interactions between characters in the Lord of the Rings books\nand movies. The dataset is a CSV file with the following columns:\n\n* src_id: The ID of the source character\n* dst_id: The ID of the destination character\n* time: The time of the interaction (in page)\n\nDataset statistics:\n   * Number of nodes (subreddits) 139\n   * Number of edges (hyperlink between subreddits) 701\n\n\nArguments:\n   shards: The number of shards to use for the graph\n\nReturns:\n  A Graph containing the LOTR dataset'
     ...
 
-def neo4j_movie_graph(uri, username, password, database):
+def neo4j_movie_graph(uri, username, password, database=...):
     ...
 
-def reddit_hyperlink_graph(timeout_seconds):
+def reddit_hyperlink_graph(timeout_seconds=600):
     'Load (a subset of) Reddit hyperlinks dataset into a graph.\nThe dataset is available at http://snap.stanford.edu/data/soc-redditHyperlinks-title.tsv\nThe hyperlink network represents the directed connections between two subreddits (a subreddit\nis a community_detection on Reddit). We also provide subreddit embeddings. The network is extracted\nfrom publicly available Reddit data of 2.5 years from Jan 2014 to April 2017.\n*NOTE: It may take a while to download the dataset\n\nDataset statistics:\n  * Number of nodes (subreddits) 35,776\n  * Number of edges (hyperlink between subreddits) 137,821\n  * Timespan Jan 2014 - April 2017\n\nSource:\n    * S. Kumar, W.L. Hamilton, J. Leskovec, D. Jurafsky. Community Interaction and Conflict\n    on the Web. World Wide Web Conference, 2018.\n\nProperties:\n\n * SOURCE_SUBREDDIT: the subreddit where the link originates\n * TARGET_SUBREDDIT: the subreddit where the link ends\n * POST_ID: the post in the source subreddit that starts the link\n * TIMESTAMP: time time of the post\n * POST_LABEL: label indicating if the source post is explicitly negative towards the target\npost. The value is -1 if the source is negative towards the target, and 1 if it is neutral or\npositive. The label is created using crowd-sourcing and training a text based classifier, and\nis better than simple sentiment analysis of the posts. Please see the reference paper for details.\n * POST_PROPERTIES: a vector representing the text properties of the source post, listed as a\nlist of comma separated numbers. This can be found on the source website\n\nArguments:\n  shards: The number of shards to use for the graph\n  timeout_seconds: The number of seconds to wait for the dataset to download\n\nReturns:\n A Graph containing the Reddit hyperlinks dataset'
     ...
 
 def reddit_hyperlink_graph_local(file_path):
     ...
 
-def stable_coin_graph(path, subset):
+def stable_coin_graph(path=None, subset=None):
     ...
