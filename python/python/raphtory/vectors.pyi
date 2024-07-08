@@ -9,12 +9,15 @@
 
 class Document():
 
+    @property
     def content(self):
         ...
 
+    @property
     def entity(self):
         ...
 
+    @property
     def life(self):
         ...
 

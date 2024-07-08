@@ -67,6 +67,7 @@ class AlgorithmResult():
 
 class AnnotationBbox():
 
+    @property
     def _PROPERTIES_EXCLUDED_FROM_SET(self):
         'Built-in mutable sequence.\n\nIf no argument is given, the constructor creates a new empty list.\nThe argument must be an iterable if specified.'
         ...
@@ -125,9 +126,11 @@ class AnnotationBbox():
         "Add a callback function that will be called whenever one of the\n`.Artist`'s properties changes.\n\nParameters\n----------\nfunc : callable\n    The callback function. It must have the signature::\n\n        def func(artist: Artist) -> Any\n\n    where *artist* is the calling `.Artist`. Return values may exist\n    but are ignored.\n\nReturns\n-------\nint\n    The observer id associated with the callback. This id can be\n    used for removing the callback with `.remove_callback` later.\n\nSee Also\n--------\nremove_callback"
         ...
 
+    @property
     def anncoords(self):
         ...
 
+    @property
     def axes(self):
         'The `~.axes.Axes` instance the artist resides in, or *None*.'
         ...
@@ -275,6 +278,7 @@ class AnnotationBbox():
         'Return whether the Artist has an explicitly set transform.\n\nThis is *True* after `.set_transform` has been called.'
         ...
 
+    @property
     def mouseover(self):
         'Return whether this artist is queried for custom context information\nwhen the mouse cursor moves over it.'
         ...
@@ -395,10 +399,12 @@ class AnnotationBbox():
         'Set the zorder for the artist.  Artists with lower zorder\nvalues are drawn first.\n\nParameters\n----------\nlevel : float'
         ...
 
+    @property
     def stale(self):
         "Whether the artist is 'stale' and needs to be re-drawn for the output\nto match the internal state of the artist."
         ...
 
+    @property
     def sticky_edges(self):
         '``x`` and ``y`` sticky edge lists for autoscaling.\n\nWhen performing autoscaling, if a data limit coincides with a value in\nthe corresponding sticky_edges list, then no margin will be added--the\nview limit "sticks" to the edge. A typical use case is histograms,\nwhere one usually expects no margin on the bottom edge (0) of the\nhistogram.\n\nMoreover, margin expansion "bumps" against sticky edges and cannot\ncross them.  For example, if the upper data limit is 1.0, the upper\nview limit computed by simple margin application is 1.2, but there is a\nsticky edge at 1.1, then the actual upper view limit will be 1.1.\n\nThis attribute cannot be assigned to; however, the ``x`` and ``y``\nlists can be modified in place as needed.\n\nExamples\n--------\n>>> artist.sticky_edges.x[:] = (xmin, xmax)\n>>> artist.sticky_edges.y[:] = (ymin, ymax)'
         ...
@@ -415,9 +421,11 @@ class AnnotationBbox():
         'Update pixel positions for the annotated point, the text and the arrow.'
         ...
 
+    @property
     def xyann(self):
         ...
 
+    @property
     def zorder(self):
         "int([x]) -> integer\nint(x, base=10) -> integer\n\nConvert a number or string to an integer, or return 0 if no arguments\nare given.  If x is a number, return x.__int__().  For floating point\nnumbers, this truncates towards zero.\n\nIf x is not a number or if base is given, then x must be a string,\nbytes, or bytearray instance representing an integer literal in the\ngiven base.  The literal can be preceded by '+' or '-' and be surrounded\nby whitespace.  The base defaults to 10.  Valid bases are 0 and 2-36.\nBase 0 means to interpret the base from the string as an integer literal.\n>>> int('0b100', base=0)\n4"
         ...
@@ -458,6 +466,7 @@ class Edge():
         'Create a view of the Edge including all events before `end` (exclusive).\n\nArguments:\n    end (int | DateTime | str): The end time of the window.\n\nReturns:\n     A Edge object.'
         ...
 
+    @property
     def date_time(self):
         'Gets the datetime of an exploded edge.\n\nReturns:\n    (datetime) the datetime of an exploded edge'
         ...
@@ -474,22 +483,27 @@ class Edge():
         'Returns a list of timestamps of when an edge is deleted\n\nReturns:\n    A list of DateTime objects'
         ...
 
+    @property
     def dst(self):
         'Returns the destination node of the edge.'
         ...
 
+    @property
     def earliest_date_time(self):
         'Gets of earliest datetime of an edge.\n\nReturns:\n    the earliest datetime of an edge'
         ...
 
+    @property
     def earliest_time(self):
         'Gets the earliest time of an edge.\n\nReturns:\n    (int) The earliest time of an edge'
         ...
 
+    @property
     def end(self):
         'Gets the latest time that this Edge is valid.\n\nReturns:\n   The latest time that this Edge is valid or None if the Edge is valid for all times.'
         ...
 
+    @property
     def end_date_time(self):
         'Gets the latest datetime that this Edge is valid\n\nReturns:\n     The latest datetime that this Edge is valid or None if the Edge is valid for all times.'
         ...
@@ -533,6 +547,7 @@ class Edge():
         'Returns a list of timestamps of when an edge is added or change to an edge is made.\n\nReturns:\n    A list of timestamps.'
         ...
 
+    @property
     def id(self):
         'The id of the edge.'
         ...
@@ -549,10 +564,12 @@ class Edge():
         'Check if the edge is currently valid (i.e., not deleted)'
         ...
 
+    @property
     def latest_date_time(self):
         'Gets of latest datetime of an edge.\n\nReturns:\n    (datetime) the latest datetime of an edge'
         ...
 
+    @property
     def latest_time(self):
         'Gets the latest time of an edge.\n\nReturns:\n    (int) The latest time of an edge'
         ...
@@ -561,10 +578,12 @@ class Edge():
         'Return a view of Edge containing the layer `"name"`\nErrors if the layer does not exist\n\nReturns:\n     Edge: The layered view'
         ...
 
+    @property
     def layer_name(self):
         'Gets the name of the layer this edge belongs to - assuming it only belongs to one layer\n\nReturns:\n    (List<str>) The name of the layer'
         ...
 
+    @property
     def layer_names(self):
         'Gets the names of the layers this edge belongs to\n\nReturns:\n    (List<str>) The name of the layer'
         ...
@@ -573,10 +592,12 @@ class Edge():
         'Return a view of Edge containing all layers `names`\nErrors if any of the layers do not exist.\n\nArguments:\n    names (list[str]): list of layer names for the new view\n\nReturns:\n     Edge: The layered view'
         ...
 
+    @property
     def nbr(self):
         'Returns the node at the other end of the edge (same as `dst()` for out-edges and `src()` for in-edges)'
         ...
 
+    @property
     def properties(self):
         'Returns a view of the properties of the edge.\n\nReturns:\n  Properties on the Edge.'
         ...
@@ -597,18 +618,22 @@ class Edge():
         'Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)\n\nArguments:'
         ...
 
+    @property
     def src(self):
         'Returns the source node of the edge.'
         ...
 
+    @property
     def start(self):
         'Gets the start time for rolling and expanding windows for this Edge\n\nReturns:\n    The earliest time that this Edge is valid or None if the Edge is valid for all times.'
         ...
 
+    @property
     def start_date_time(self):
         'Gets the earliest datetime that this Edge is valid\n\nReturns:\n     The earliest datetime that this Edge is valid or None if the Edge is valid for all times.'
         ...
 
+    @property
     def time(self):
         'Gets the time of an exploded edge.\n\nReturns:\n    (int) The time of an exploded edge'
         ...
@@ -621,6 +646,7 @@ class Edge():
         'Create a view of the Edge including all events between `start` (inclusive) and `end` (exclusive)\n\nArguments:\n    start (int | DateTime | str | None): The start time of the window (unbounded if `None`).\n    end (int | DateTime | str | None): The end time of the window (unbounded if `None`).\n\nReturns:\nr    A Edge object.'
         ...
 
+    @property
     def window_size(self):
         'Get the window size (difference between start and end) for this Edge'
         ...
@@ -647,6 +673,7 @@ class Edges():
         'Returns the number of edges'
         ...
 
+    @property
     def date_time(self):
         'Returns the date times of exploded edges\n\nReturns:\n   A list of date times.'
         ...
@@ -663,22 +690,27 @@ class Edges():
         'Returns all timestamps of edges where an edge is deleted\n\nReturns:\n    A list of lists of DateTime objects'
         ...
 
+    @property
     def dst(self):
         'Returns the destination node of the edge.'
         ...
 
+    @property
     def earliest_date_time(self):
         'Returns the earliest date time of the edges.\n\nReturns:\n Earliest date time of the edges.'
         ...
 
+    @property
     def earliest_time(self):
         'Returns the earliest time of the edges.\n\nReturns:\nEarliest time of the edges.'
         ...
 
+    @property
     def end(self):
         'Gets the latest time that this Edges is valid.\n\nReturns:\n   The latest time that this Edges is valid or None if the Edges is valid for all times.'
         ...
 
+    @property
     def end_date_time(self):
         'Gets the latest datetime that this Edges is valid\n\nReturns:\n     The latest datetime that this Edges is valid or None if the Edges is valid for all times.'
         ...
@@ -722,6 +754,7 @@ class Edges():
         'Returns all timestamps of edges, when an edge is added or change to an edge is made.\n\nReturns:\n   A list of lists of timestamps.'
         ...
 
+    @property
     def id(self):
         'Returns all ids of the edges.'
         ...
@@ -738,10 +771,12 @@ class Edges():
         'Check if the edges are valid (i.e. not deleted)'
         ...
 
+    @property
     def latest_date_time(self):
         'Returns the latest date time of the edges.\n\nReturns:\n  Latest date time of the edges.'
         ...
 
+    @property
     def latest_time(self):
         'Returns the latest time of the edges.\n\nReturns:\n Latest time of the edges.'
         ...
@@ -750,10 +785,12 @@ class Edges():
         'Return a view of Edges containing the layer `"name"`\nErrors if the layer does not exist\n\nReturns:\n     Edges: The layered view'
         ...
 
+    @property
     def layer_name(self):
         'Get the layer name that all edges belong to - assuming they only belong to one layer\n\nReturns:\n The name of the layer'
         ...
 
+    @property
     def layer_names(self):
         'Get the layer names that all edges belong to - assuming they only belong to one layer\n\nReturns:\n  A list of layer names'
         ...
@@ -762,10 +799,12 @@ class Edges():
         'Return a view of Edges containing all layers `names`\nErrors if any of the layers do not exist.\n\nArguments:\n    names (list[str]): list of layer names for the new view\n\nReturns:\n     Edges: The layered view'
         ...
 
+    @property
     def nbr(self):
         'Returns the node at the other end of the edge (same as `dst()` for out-edges and `src()` for in-edges)'
         ...
 
+    @property
     def properties(self):
         'Returns all properties of the edges'
         ...
@@ -786,18 +825,22 @@ class Edges():
         'Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)\n\nArguments:'
         ...
 
+    @property
     def src(self):
         'Returns the source node of the edge.'
         ...
 
+    @property
     def start(self):
         'Gets the start time for rolling and expanding windows for this Edges\n\nReturns:\n    The earliest time that this Edges is valid or None if the Edges is valid for all times.'
         ...
 
+    @property
     def start_date_time(self):
         'Gets the earliest datetime that this Edges is valid\n\nReturns:\n     The earliest datetime that this Edges is valid or None if the Edges is valid for all times.'
         ...
 
+    @property
     def time(self):
         'Returns the times of exploded edges\n\nReturns:\n  Time of edge'
         ...
@@ -814,6 +857,7 @@ class Edges():
         'Create a view of the Edges including all events between `start` (inclusive) and `end` (exclusive)\n\nArguments:\n    start (int | DateTime | str | None): The start time of the window (unbounded if `None`).\n    end (int | DateTime | str | None): The end time of the window (unbounded if `None`).\n\nReturns:\nr    A Edges object.'
         ...
 
+    @property
     def window_size(self):
         'Get the window size (difference between start and end) for this Edges'
         ...
@@ -868,10 +912,12 @@ class Graph():
         'Return a view of GraphView containing only the default edge layer\nReturns:\n     GraphView: The layered view'
         ...
 
+    @property
     def earliest_date_time(self):
         'DateTime of earliest activity in the graph\n\nReturns:\n    the datetime of the earliest activity in the graph'
         ...
 
+    @property
     def earliest_time(self):
         'Timestamp of earliest activity in the graph\n\nReturns:\n    the timestamp of the earliest activity in the graph'
         ...
@@ -880,14 +926,17 @@ class Graph():
         'Gets the edge with the specified source and destination nodes\n\nArguments:\n    src (str or int): the source node id\n    dst (str or int): the destination node id\n\nReturns:\n    the edge with the specified source and destination nodes, or None if the edge does not exist'
         ...
 
+    @property
     def edges(self):
         'Gets all edges in the graph\n\nReturns:\n the edges in the graph'
         ...
 
+    @property
     def end(self):
         'Gets the latest time that this GraphView is valid.\n\nReturns:\n   The latest time that this GraphView is valid or None if the GraphView is valid for all times.'
         ...
 
+    @property
     def end_date_time(self):
         'Gets the latest datetime that this GraphView is valid\n\nReturns:\n     The latest datetime that this GraphView is valid or None if the GraphView is valid for all times.'
         ...
@@ -964,10 +1013,12 @@ class Graph():
         'Gives the large connected component of a graph.\n\n# Example Usage:\ng.largest_connected_component()\n\n# Returns:\nA raphtory graph, which essentially is a sub-graph of the graph `g`'
         ...
 
+    @property
     def latest_date_time(self):
         'DateTime of latest activity in the graph\n\nReturns:\n    the datetime of the latest activity in the graph'
         ...
 
+    @property
     def latest_time(self):
         'Timestamp of latest activity in the graph\n\nReturns:\n    the timestamp of the latest activity in the graph'
         ...
@@ -1032,6 +1083,7 @@ class Graph():
         'Gets the node with the specified id\n\nArguments:\n  id (str or int): the node id\n\nReturns:\n  the node with the specified id, or None if the node does not exist'
         ...
 
+    @property
     def nodes(self):
         'Gets the nodes in the graph\n\nReturns:\n the nodes in the graph'
         ...
@@ -1040,6 +1092,7 @@ class Graph():
         'Get persistent graph'
         ...
 
+    @property
     def properties(self):
         'Get all graph properties\n\n\nReturns:\n   HashMap<String, Prop> - Properties paired with their names'
         ...
@@ -1064,10 +1117,12 @@ class Graph():
         'Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)\n\nArguments:'
         ...
 
+    @property
     def start(self):
         'Gets the start time for rolling and expanding windows for this GraphView\n\nReturns:\n    The earliest time that this GraphView is valid or None if the GraphView is valid for all times.'
         ...
 
+    @property
     def start_date_time(self):
         'Gets the earliest datetime that this GraphView is valid\n\nReturns:\n     The earliest datetime that this GraphView is valid or None if the GraphView is valid for all times.'
         ...
@@ -1088,6 +1143,7 @@ class Graph():
         'Draw a graph with PyVis.\nPyvis is a required dependency. If you intend to use this function make sure that you install Pyvis\nwith ``pip install pyvis``\n\n    Args:\n        graph (graph): A Raphtory graph.\n        explode_edges (bool): A boolean that is set to True if you want to explode the edges in the graph. By default this is set to False.\n        edge_color (str): A string defining the colour of the edges in the graph. By default ``#000000`` (black) is set.\n        shape (str): An optional string defining what the node looks like.\n            There are two types of nodes. One type has the label inside of it and the other type has the label underneath it.\n            The types with the label inside of it are: ellipse, circle, database, box, text.\n            The ones with the label outside of it are: image, circularImage, diamond, dot, star, triangle, triangleDown, square and icon.\n            By default ``"dot"`` is set.\n        node_image (str): An optional string defining the url of a custom node image. By default an image of a circle is set.\n        edge_weight (str): An optional string defining the name of the property where edge weight is set on your Raphtory graph. By default ``1`` is set.\n        edge_label (str): An optional string defining the name of the property where edge label is set on your Raphtory graph. By default, an empty string as the label is set.\n        notebook (bool): A boolean that is set to True if using jupyter notebook. By default this is set to True.\n        kwargs: Additional keyword arguments that are passed to the pyvis Network class.\n\n    Returns:\n        A pyvis network'
         ...
 
+    @property
     def unique_layers(self):
         'Return all the layer ids in the graph'
         ...
@@ -1108,6 +1164,7 @@ class Graph():
         'Create a view of the GraphView including all events between `start` (inclusive) and `end` (exclusive)\n\nArguments:\n    start (int | DateTime | str | None): The start time of the window (unbounded if `None`).\n    end (int | DateTime | str | None): The end time of the window (unbounded if `None`).\n\nReturns:\nr    A GraphView object.'
         ...
 
+    @property
     def window_size(self):
         'Get the window size (difference between start and end) for this GraphView'
         ...
@@ -1152,6 +1209,7 @@ class MutableEdge():
         'Create a view of the Edge including all events before `end` (exclusive).\n\nArguments:\n    end (int | DateTime | str): The end time of the window.\n\nReturns:\n     A Edge object.'
         ...
 
+    @property
     def date_time(self):
         'Gets the datetime of an exploded edge.\n\nReturns:\n    (datetime) the datetime of an exploded edge'
         ...
@@ -1168,22 +1226,27 @@ class MutableEdge():
         'Returns a list of timestamps of when an edge is deleted\n\nReturns:\n    A list of DateTime objects'
         ...
 
+    @property
     def dst(self):
         'Returns the destination node of the edge.'
         ...
 
+    @property
     def earliest_date_time(self):
         'Gets of earliest datetime of an edge.\n\nReturns:\n    the earliest datetime of an edge'
         ...
 
+    @property
     def earliest_time(self):
         'Gets the earliest time of an edge.\n\nReturns:\n    (int) The earliest time of an edge'
         ...
 
+    @property
     def end(self):
         'Gets the latest time that this Edge is valid.\n\nReturns:\n   The latest time that this Edge is valid or None if the Edge is valid for all times.'
         ...
 
+    @property
     def end_date_time(self):
         'Gets the latest datetime that this Edge is valid\n\nReturns:\n     The latest datetime that this Edge is valid or None if the Edge is valid for all times.'
         ...
@@ -1227,6 +1290,7 @@ class MutableEdge():
         'Returns a list of timestamps of when an edge is added or change to an edge is made.\n\nReturns:\n    A list of timestamps.'
         ...
 
+    @property
     def id(self):
         'The id of the edge.'
         ...
@@ -1243,10 +1307,12 @@ class MutableEdge():
         'Check if the edge is currently valid (i.e., not deleted)'
         ...
 
+    @property
     def latest_date_time(self):
         'Gets of latest datetime of an edge.\n\nReturns:\n    (datetime) the latest datetime of an edge'
         ...
 
+    @property
     def latest_time(self):
         'Gets the latest time of an edge.\n\nReturns:\n    (int) The latest time of an edge'
         ...
@@ -1255,10 +1321,12 @@ class MutableEdge():
         'Return a view of Edge containing the layer `"name"`\nErrors if the layer does not exist\n\nReturns:\n     Edge: The layered view'
         ...
 
+    @property
     def layer_name(self):
         'Gets the name of the layer this edge belongs to - assuming it only belongs to one layer\n\nReturns:\n    (List<str>) The name of the layer'
         ...
 
+    @property
     def layer_names(self):
         'Gets the names of the layers this edge belongs to\n\nReturns:\n    (List<str>) The name of the layer'
         ...
@@ -1267,10 +1335,12 @@ class MutableEdge():
         'Return a view of Edge containing all layers `names`\nErrors if any of the layers do not exist.\n\nArguments:\n    names (list[str]): list of layer names for the new view\n\nReturns:\n     Edge: The layered view'
         ...
 
+    @property
     def nbr(self):
         'Returns the node at the other end of the edge (same as `dst()` for out-edges and `src()` for in-edges)'
         ...
 
+    @property
     def properties(self):
         'Returns a view of the properties of the edge.\n\nReturns:\n  Properties on the Edge.'
         ...
@@ -1291,18 +1361,22 @@ class MutableEdge():
         'Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)\n\nArguments:'
         ...
 
+    @property
     def src(self):
         'Returns the source node of the edge.'
         ...
 
+    @property
     def start(self):
         'Gets the start time for rolling and expanding windows for this Edge\n\nReturns:\n    The earliest time that this Edge is valid or None if the Edge is valid for all times.'
         ...
 
+    @property
     def start_date_time(self):
         'Gets the earliest datetime that this Edge is valid\n\nReturns:\n     The earliest datetime that this Edge is valid or None if the Edge is valid for all times.'
         ...
 
+    @property
     def time(self):
         'Gets the time of an exploded edge.\n\nReturns:\n    (int) The time of an exploded edge'
         ...
@@ -1319,6 +1393,7 @@ class MutableEdge():
         'Create a view of the Edge including all events between `start` (inclusive) and `end` (exclusive)\n\nArguments:\n    start (int | DateTime | str | None): The start time of the window (unbounded if `None`).\n    end (int | DateTime | str | None): The end time of the window (unbounded if `None`).\n\nReturns:\nr    A Edge object.'
         ...
 
+    @property
     def window_size(self):
         'Get the window size (difference between start and end) for this Edge'
         ...
@@ -1353,22 +1428,27 @@ class MutableNode():
         'Get the degree of this node (i.e., the number of edges that are incident to it).\n\nReturns\n    The degree of this node.'
         ...
 
+    @property
     def earliest_date_time(self):
         'Returns the earliest datetime that the node exists.\n\nReturns:\n    The earliest datetime that the node exists as an integer.'
         ...
 
+    @property
     def earliest_time(self):
         'Returns the earliest time that the node exists.\n\nReturns:\n    The earliest time that the node exists as an integer.'
         ...
 
+    @property
     def edges(self):
         'Get the edges that are incident to this node.\n\nReturns:\n\nAn iterator over the edges that are incident to this node.'
         ...
 
+    @property
     def end(self):
         'Gets the latest time that this Node is valid.\n\nReturns:\n   The latest time that this Node is valid or None if the Node is valid for all times.'
         ...
 
+    @property
     def end_date_time(self):
         'Gets the latest datetime that this Node is valid\n\nReturns:\n     The latest datetime that this Node is valid or None if the Node is valid for all times.'
         ...
@@ -1405,6 +1485,7 @@ class MutableNode():
         'Returns the history of a node, including node additions and changes made to node.\n\nReturns:\n    A list of timestamps of the event history of node.'
         ...
 
+    @property
     def id(self):
         'Returns the id of the node.\nThis is a unique identifier for the node.\n\nReturns:\n   The id of the node as an integer.'
         ...
@@ -1413,18 +1494,22 @@ class MutableNode():
         'Get the in-degree of this node (i.e., the number of edges that are incident to it from other nodes).\n\nReturns:\n   The in-degree of this node.'
         ...
 
+    @property
     def in_edges(self):
         'Get the edges that point into this node.\n\nReturns:\n\nAn iterator over the edges that point into this node.'
         ...
 
+    @property
     def in_neighbours(self):
         'Get the neighbours of this node that point into this node.\n\nReturns:\n\nAn iterator over the neighbours of this node that point into this node.'
         ...
 
+    @property
     def latest_date_time(self):
         'Returns the latest datetime that the node exists.\n\nArguments:\n   None\n\nReturns:\n    The latest datetime that the node exists as an integer.'
         ...
 
+    @property
     def latest_time(self):
         'Returns the latest time that the node exists.\n\nReturns:\n    The latest time that the node exists as an integer.'
         ...
@@ -1437,14 +1522,17 @@ class MutableNode():
         'Return a view of Node containing all layers `names`\nErrors if any of the layers do not exist.\n\nArguments:\n    names (list[str]): list of layer names for the new view\n\nReturns:\n     Node: The layered view'
         ...
 
+    @property
     def name(self):
         'Returns the name of the node.\n\nReturns:\n    The name of the node as a string.'
         ...
 
+    @property
     def neighbours(self):
         'Get the neighbours of this node.\n\nReturns:\n\nAn iterator over the neighbours of this node.'
         ...
 
+    @property
     def node_type(self):
         'Returns the type of node'
         ...
@@ -1453,14 +1541,17 @@ class MutableNode():
         'Get the out-degree of this node (i.e., the number of edges that are incident to it from this node).\n\nReturns:\n  The out-degree of this node.'
         ...
 
+    @property
     def out_edges(self):
         'Get the edges that point out of this node.\n\nReturns:\n\nAn iterator over the edges that point out of this node.'
         ...
 
+    @property
     def out_neighbours(self):
         'Get the neighbours of this node that point out of this node.\n\nReturns:\n\nAn iterator over the neighbours of this node that point out of this node.'
         ...
 
+    @property
     def properties(self):
         'The properties of the node\n\nReturns:\n    A list of properties.'
         ...
@@ -1485,10 +1576,12 @@ class MutableNode():
         'Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)\n\nArguments:'
         ...
 
+    @property
     def start(self):
         'Gets the start time for rolling and expanding windows for this Node\n\nReturns:\n    The earliest time that this Node is valid or None if the Node is valid for all times.'
         ...
 
+    @property
     def start_date_time(self):
         'Gets the earliest datetime that this Node is valid\n\nReturns:\n     The earliest datetime that this Node is valid or None if the Node is valid for all times.'
         ...
@@ -1505,6 +1598,7 @@ class MutableNode():
         'Create a view of the Node including all events between `start` (inclusive) and `end` (exclusive)\n\nArguments:\n    start (int | DateTime | str | None): The start time of the window (unbounded if `None`).\n    end (int | DateTime | str | None): The end time of the window (unbounded if `None`).\n\nReturns:\nr    A Node object.'
         ...
 
+    @property
     def window_size(self):
         'Get the window size (difference between start and end) for this Node'
         ...
@@ -1531,22 +1625,27 @@ class Node():
         'Get the degree of this node (i.e., the number of edges that are incident to it).\n\nReturns\n    The degree of this node.'
         ...
 
+    @property
     def earliest_date_time(self):
         'Returns the earliest datetime that the node exists.\n\nReturns:\n    The earliest datetime that the node exists as an integer.'
         ...
 
+    @property
     def earliest_time(self):
         'Returns the earliest time that the node exists.\n\nReturns:\n    The earliest time that the node exists as an integer.'
         ...
 
+    @property
     def edges(self):
         'Get the edges that are incident to this node.\n\nReturns:\n\nAn iterator over the edges that are incident to this node.'
         ...
 
+    @property
     def end(self):
         'Gets the latest time that this Node is valid.\n\nReturns:\n   The latest time that this Node is valid or None if the Node is valid for all times.'
         ...
 
+    @property
     def end_date_time(self):
         'Gets the latest datetime that this Node is valid\n\nReturns:\n     The latest datetime that this Node is valid or None if the Node is valid for all times.'
         ...
@@ -1583,6 +1682,7 @@ class Node():
         'Returns the history of a node, including node additions and changes made to node.\n\nReturns:\n    A list of timestamps of the event history of node.'
         ...
 
+    @property
     def id(self):
         'Returns the id of the node.\nThis is a unique identifier for the node.\n\nReturns:\n   The id of the node as an integer.'
         ...
@@ -1591,18 +1691,22 @@ class Node():
         'Get the in-degree of this node (i.e., the number of edges that are incident to it from other nodes).\n\nReturns:\n   The in-degree of this node.'
         ...
 
+    @property
     def in_edges(self):
         'Get the edges that point into this node.\n\nReturns:\n\nAn iterator over the edges that point into this node.'
         ...
 
+    @property
     def in_neighbours(self):
         'Get the neighbours of this node that point into this node.\n\nReturns:\n\nAn iterator over the neighbours of this node that point into this node.'
         ...
 
+    @property
     def latest_date_time(self):
         'Returns the latest datetime that the node exists.\n\nArguments:\n   None\n\nReturns:\n    The latest datetime that the node exists as an integer.'
         ...
 
+    @property
     def latest_time(self):
         'Returns the latest time that the node exists.\n\nReturns:\n    The latest time that the node exists as an integer.'
         ...
@@ -1615,14 +1719,17 @@ class Node():
         'Return a view of Node containing all layers `names`\nErrors if any of the layers do not exist.\n\nArguments:\n    names (list[str]): list of layer names for the new view\n\nReturns:\n     Node: The layered view'
         ...
 
+    @property
     def name(self):
         'Returns the name of the node.\n\nReturns:\n    The name of the node as a string.'
         ...
 
+    @property
     def neighbours(self):
         'Get the neighbours of this node.\n\nReturns:\n\nAn iterator over the neighbours of this node.'
         ...
 
+    @property
     def node_type(self):
         'Returns the type of node'
         ...
@@ -1631,14 +1738,17 @@ class Node():
         'Get the out-degree of this node (i.e., the number of edges that are incident to it from this node).\n\nReturns:\n  The out-degree of this node.'
         ...
 
+    @property
     def out_edges(self):
         'Get the edges that point out of this node.\n\nReturns:\n\nAn iterator over the edges that point out of this node.'
         ...
 
+    @property
     def out_neighbours(self):
         'Get the neighbours of this node that point out of this node.\n\nReturns:\n\nAn iterator over the neighbours of this node that point out of this node.'
         ...
 
+    @property
     def properties(self):
         'The properties of the node\n\nReturns:\n    A list of properties.'
         ...
@@ -1659,10 +1769,12 @@ class Node():
         'Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)\n\nArguments:'
         ...
 
+    @property
     def start(self):
         'Gets the start time for rolling and expanding windows for this Node\n\nReturns:\n    The earliest time that this Node is valid or None if the Node is valid for all times.'
         ...
 
+    @property
     def start_date_time(self):
         'Gets the earliest datetime that this Node is valid\n\nReturns:\n     The earliest datetime that this Node is valid or None if the Node is valid for all times.'
         ...
@@ -1675,6 +1787,7 @@ class Node():
         'Create a view of the Node including all events between `start` (inclusive) and `end` (exclusive)\n\nArguments:\n    start (int | DateTime | str | None): The start time of the window (unbounded if `None`).\n    end (int | DateTime | str | None): The end time of the window (unbounded if `None`).\n\nReturns:\nr    A Node object.'
         ...
 
+    @property
     def window_size(self):
         'Get the window size (difference between start and end) for this Node'
         ...
@@ -1705,22 +1818,27 @@ class Nodes():
         'Returns the number of edges of the nodes\n\nReturns:\n    An iterator of the number of edges of the nodes'
         ...
 
+    @property
     def earliest_date_time(self):
         'Returns the earliest time of the nodes.\n\nReturns:\nEarliest time of the nodes.'
         ...
 
+    @property
     def earliest_time(self):
         'Returns an iterator over the nodes earliest time'
         ...
 
+    @property
     def edges(self):
         'Get the edges that are incident to this node.\n\nReturns:\n\nAn iterator over the edges that are incident to this node.'
         ...
 
+    @property
     def end(self):
         'Gets the latest time that this Nodes is valid.\n\nReturns:\n   The latest time that this Nodes is valid or None if the Nodes is valid for all times.'
         ...
 
+    @property
     def end_date_time(self):
         'Gets the latest datetime that this Nodes is valid\n\nReturns:\n     The latest datetime that this Nodes is valid or None if the Nodes is valid for all times.'
         ...
@@ -1757,6 +1875,7 @@ class Nodes():
         'Returns all timestamps of nodes, when an node is added or change to an node is made.\n\nReturns:\n   An  list of timestamps.'
         ...
 
+    @property
     def id(self):
         'Returns an iterator over the nodes ids'
         ...
@@ -1765,18 +1884,22 @@ class Nodes():
         'Returns the number of in edges of the nodes\n\nReturns:\n    An iterator of the number of in edges of the nodes'
         ...
 
+    @property
     def in_edges(self):
         'Get the edges that point into this node.\n\nReturns:\n\nAn iterator over the edges that point into this node.'
         ...
 
+    @property
     def in_neighbours(self):
         'Get the neighbours of this node that point into this node.\n\nReturns:\n\nAn iterator over the neighbours of this node that point into this node.'
         ...
 
+    @property
     def latest_date_time(self):
         'Returns the latest date time of the nodes.\n\nReturns:\n  Latest date time of the nodes.'
         ...
 
+    @property
     def latest_time(self):
         'Returns an iterator over the nodes latest time'
         ...
@@ -1789,14 +1912,17 @@ class Nodes():
         'Return a view of Nodes containing all layers `names`\nErrors if any of the layers do not exist.\n\nArguments:\n    names (list[str]): list of layer names for the new view\n\nReturns:\n     Nodes: The layered view'
         ...
 
+    @property
     def name(self):
         'Returns an iterator over the nodes name'
         ...
 
+    @property
     def neighbours(self):
         'Get the neighbours of this node.\n\nReturns:\n\nAn iterator over the neighbours of this node.'
         ...
 
+    @property
     def node_type(self):
         'Returns the type of node'
         ...
@@ -1805,14 +1931,17 @@ class Nodes():
         'Returns the number of out edges of the nodes\n\nReturns:\n    An iterator of the number of out edges of the nodes'
         ...
 
+    @property
     def out_edges(self):
         'Get the edges that point out of this node.\n\nReturns:\n\nAn iterator over the edges that point out of this node.'
         ...
 
+    @property
     def out_neighbours(self):
         'Get the neighbours of this node that point out of this node.\n\nReturns:\n\nAn iterator over the neighbours of this node that point out of this node.'
         ...
 
+    @property
     def properties(self):
         'The properties of the node\n\nReturns:\n    A List of properties'
         ...
@@ -1833,10 +1962,12 @@ class Nodes():
         'Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)\n\nArguments:'
         ...
 
+    @property
     def start(self):
         'Gets the start time for rolling and expanding windows for this Nodes\n\nReturns:\n    The earliest time that this Nodes is valid or None if the Nodes is valid for all times.'
         ...
 
+    @property
     def start_date_time(self):
         'Gets the earliest datetime that this Nodes is valid\n\nReturns:\n     The earliest datetime that this Nodes is valid or None if the Nodes is valid for all times.'
         ...
@@ -1856,12 +1987,14 @@ class Nodes():
         'Create a view of the Nodes including all events between `start` (inclusive) and `end` (exclusive)\n\nArguments:\n    start (int | DateTime | str | None): The start time of the window (unbounded if `None`).\n    end (int | DateTime | str | None): The end time of the window (unbounded if `None`).\n\nReturns:\nr    A Nodes object.'
         ...
 
+    @property
     def window_size(self):
         'Get the window size (difference between start and end) for this Nodes'
         ...
 
 class OffsetImage():
 
+    @property
     def _PROPERTIES_EXCLUDED_FROM_SET(self):
         'Built-in mutable sequence.\n\nIf no argument is given, the constructor creates a new empty list.\nThe argument must be an iterable if specified.'
         ...
@@ -1906,6 +2039,7 @@ class OffsetImage():
         "Add a callback function that will be called whenever one of the\n`.Artist`'s properties changes.\n\nParameters\n----------\nfunc : callable\n    The callback function. It must have the signature::\n\n        def func(artist: Artist) -> Any\n\n    where *artist* is the calling `.Artist`. Return values may exist\n    but are ignored.\n\nReturns\n-------\nint\n    The observer id associated with the callback. This id can be\n    used for removing the callback with `.remove_callback` later.\n\nSee Also\n--------\nremove_callback"
         ...
 
+    @property
     def axes(self):
         'The `~.axes.Axes` instance the artist resides in, or *None*.'
         ...
@@ -2067,6 +2201,7 @@ class OffsetImage():
         'Return whether the Artist has an explicitly set transform.\n\nThis is *True* after `.set_transform` has been called.'
         ...
 
+    @property
     def mouseover(self):
         'Return whether this artist is queried for custom context information\nwhen the mouse cursor moves over it.'
         ...
@@ -2197,10 +2332,12 @@ class OffsetImage():
         'Set the zorder for the artist.  Artists with lower zorder\nvalues are drawn first.\n\nParameters\n----------\nlevel : float'
         ...
 
+    @property
     def stale(self):
         "Whether the artist is 'stale' and needs to be re-drawn for the output\nto match the internal state of the artist."
         ...
 
+    @property
     def sticky_edges(self):
         '``x`` and ``y`` sticky edge lists for autoscaling.\n\nWhen performing autoscaling, if a data limit coincides with a value in\nthe corresponding sticky_edges list, then no margin will be added--the\nview limit "sticks" to the edge. A typical use case is histograms,\nwhere one usually expects no margin on the bottom edge (0) of the\nhistogram.\n\nMoreover, margin expansion "bumps" against sticky edges and cannot\ncross them.  For example, if the upper data limit is 1.0, the upper\nview limit computed by simple margin application is 1.2, but there is a\nsticky edge at 1.1, then the actual upper view limit will be 1.1.\n\nThis attribute cannot be assigned to; however, the ``x`` and ``y``\nlists can be modified in place as needed.\n\nExamples\n--------\n>>> artist.sticky_edges.x[:] = (xmin, xmax)\n>>> artist.sticky_edges.y[:] = (ymin, ymax)'
         ...
@@ -2213,24 +2350,30 @@ class OffsetImage():
         'Copy properties from *other* to *self*.'
         ...
 
+    @property
     def zorder(self):
         "int([x]) -> integer\nint(x, base=10) -> integer\n\nConvert a number or string to an integer, or return 0 if no arguments\nare given.  If x is a number, return x.__int__().  For floating point\nnumbers, this truncates towards zero.\n\nIf x is not a number or if base is given, then x must be a string,\nbytes, or bytearray instance representing an integer literal in the\ngiven base.  The literal can be preceded by '+' or '-' and be surrounded\nby whitespace.  The base defaults to 10.  Valid bases are 0 and 2-36.\nBase 0 means to interpret the base from the string as an integer literal.\n>>> int('0b100', base=0)\n4"
         ...
 
 class Path():
 
+    @property
     def _accessor(self):
         ...
 
+    @property
     def _cached_cparts(self):
         ...
 
+    @property
     def _closed(self):
         ...
 
+    @property
     def _cparts(self):
         ...
 
+    @property
     def _drv(self):
         ...
 
@@ -2243,6 +2386,7 @@ class Path():
     def _from_parts(self, init, *args):
         ...
 
+    @property
     def _hash(self):
         ...
 
@@ -2261,9 +2405,11 @@ class Path():
     def _parse_args(self, *args):
         ...
 
+    @property
     def _parts(self):
         ...
 
+    @property
     def _pparts(self):
         ...
 
@@ -2274,9 +2420,11 @@ class Path():
         'Open the file pointed by this path and return a file descriptor,\nas os.open() does.'
         ...
 
+    @property
     def _root(self):
         ...
 
+    @property
     def _str(self):
         ...
 
@@ -2284,6 +2432,7 @@ class Path():
         "Return an absolute version of this path.  This function works\neven if the path doesn't point to anything.\n\nNo normalization is done, i.e. all '.' and '..' will be kept along.\nUse resolve() to get the canonical path to a file."
         ...
 
+    @property
     def anchor(self):
         "The concatenation of the drive and root, or ''."
         ...
@@ -2304,6 +2453,7 @@ class Path():
         'Return a new path pointing to the current working directory\n(as returned by os.getcwd()).'
         ...
 
+    @property
     def drive(self):
         'The drive prefix (letter or UNC path), if any.'
         ...
@@ -2396,6 +2546,7 @@ class Path():
         'Create a new directory at this given path.'
         ...
 
+    @property
     def name(self):
         'The final path component, if any.'
         ...
@@ -2408,14 +2559,17 @@ class Path():
         'Return the login name of the file owner.'
         ...
 
+    @property
     def parent(self):
         'The logical parent of the path.'
         ...
 
+    @property
     def parents(self):
         "A sequence of this path's logical parents."
         ...
 
+    @property
     def parts(self):
         'An object providing sequence-like access to the\ncomponents in the filesystem path.'
         ...
@@ -2452,6 +2606,7 @@ class Path():
         'Remove this directory.  The directory must be empty.'
         ...
 
+    @property
     def root(self):
         'The root of the path, if any.'
         ...
@@ -2464,14 +2619,17 @@ class Path():
         'Return the result of the stat() system call on this path, like\nos.stat() does.'
         ...
 
+    @property
     def stem(self):
         'The final path component, minus its last suffix.'
         ...
 
+    @property
     def suffix(self):
         "The final component's last suffix, if any.\n\nThis includes the leading period. For example: '.txt'"
         ...
 
+    @property
     def suffixes(self):
         "A list of the final component's suffixes, if any.\n\nThese include the leading periods. For example: ['.tar', '.gz']"
         ...
@@ -2558,10 +2716,12 @@ class PersistentGraph():
         'Deletes an edge given the timestamp, src and dst nodes and layer (optional)\n\nArguments:\n  timestamp (int): The timestamp of the edge.\n  src (str or int): The id of the source node.\n  dst (str or int): The id of the destination node.\n  layer (str): The layer of the edge. (optional)\n\nReturns:\n None or a GraphError if the edge could not be deleted'
         ...
 
+    @property
     def earliest_date_time(self):
         'DateTime of earliest activity in the graph\n\nReturns:\n    the datetime of the earliest activity in the graph'
         ...
 
+    @property
     def earliest_time(self):
         'Timestamp of earliest activity in the graph\n\nReturns:\n    the timestamp of the earliest activity in the graph'
         ...
@@ -2570,14 +2730,17 @@ class PersistentGraph():
         'Gets the edge with the specified source and destination nodes\n\nArguments:\n    src (str or int): the source node id\n    dst (str or int): the destination node id\n\nReturns:\n    the edge with the specified source and destination nodes, or None if the edge does not exist'
         ...
 
+    @property
     def edges(self):
         'Gets all edges in the graph\n\nReturns:\n the edges in the graph'
         ...
 
+    @property
     def end(self):
         'Gets the latest time that this GraphView is valid.\n\nReturns:\n   The latest time that this GraphView is valid or None if the GraphView is valid for all times.'
         ...
 
+    @property
     def end_date_time(self):
         'Gets the latest datetime that this GraphView is valid\n\nReturns:\n     The latest datetime that this GraphView is valid or None if the GraphView is valid for all times.'
         ...
@@ -2654,10 +2817,12 @@ class PersistentGraph():
         'Indexes all node and edge properties.\nReturns a GraphIndex which allows the user to search the edges and nodes of the graph via tantivity fuzzy matching queries.\nNote this is currently immutable and will not update if the graph changes. This is to be improved in a future release.\n\nReturns:\n   GraphIndex - Returns a GraphIndex'
         ...
 
+    @property
     def latest_date_time(self):
         'DateTime of latest activity in the graph\n\nReturns:\n    the datetime of the latest activity in the graph'
         ...
 
+    @property
     def latest_time(self):
         'Timestamp of latest activity in the graph\n\nReturns:\n    the timestamp of the latest activity in the graph'
         ...
@@ -2730,10 +2895,12 @@ class PersistentGraph():
         'Gets the node with the specified id\n\nArguments:\n  id (str or int): the node id\n\nReturns:\n  the node with the specified id, or None if the node does not exist'
         ...
 
+    @property
     def nodes(self):
         'Gets the nodes in the graph\n\nReturns:\n the nodes in the graph'
         ...
 
+    @property
     def properties(self):
         'Get all graph properties\n\n\nReturns:\n   HashMap<String, Prop> - Properties paired with their names'
         ...
@@ -2758,10 +2925,12 @@ class PersistentGraph():
         'Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)\n\nArguments:'
         ...
 
+    @property
     def start(self):
         'Gets the start time for rolling and expanding windows for this GraphView\n\nReturns:\n    The earliest time that this GraphView is valid or None if the GraphView is valid for all times.'
         ...
 
+    @property
     def start_date_time(self):
         'Gets the earliest datetime that this GraphView is valid\n\nReturns:\n     The earliest datetime that this GraphView is valid or None if the GraphView is valid for all times.'
         ...
@@ -2782,6 +2951,7 @@ class PersistentGraph():
         'Draw a graph with PyVis.\nPyvis is a required dependency. If you intend to use this function make sure that you install Pyvis\nwith ``pip install pyvis``\n\n    Args:\n        graph (graph): A Raphtory graph.\n        explode_edges (bool): A boolean that is set to True if you want to explode the edges in the graph. By default this is set to False.\n        edge_color (str): A string defining the colour of the edges in the graph. By default ``#000000`` (black) is set.\n        shape (str): An optional string defining what the node looks like.\n            There are two types of nodes. One type has the label inside of it and the other type has the label underneath it.\n            The types with the label inside of it are: ellipse, circle, database, box, text.\n            The ones with the label outside of it are: image, circularImage, diamond, dot, star, triangle, triangleDown, square and icon.\n            By default ``"dot"`` is set.\n        node_image (str): An optional string defining the url of a custom node image. By default an image of a circle is set.\n        edge_weight (str): An optional string defining the name of the property where edge weight is set on your Raphtory graph. By default ``1`` is set.\n        edge_label (str): An optional string defining the name of the property where edge label is set on your Raphtory graph. By default, an empty string as the label is set.\n        notebook (bool): A boolean that is set to True if using jupyter notebook. By default this is set to True.\n        kwargs: Additional keyword arguments that are passed to the pyvis Network class.\n\n    Returns:\n        A pyvis network'
         ...
 
+    @property
     def unique_layers(self):
         'Return all the layer ids in the graph'
         ...
@@ -2802,6 +2972,7 @@ class PersistentGraph():
         'Create a view of the GraphView including all events between `start` (inclusive) and `end` (exclusive)\n\nArguments:\n    start (int | DateTime | str | None): The start time of the window (unbounded if `None`).\n    end (int | DateTime | str | None): The end time of the window (unbounded if `None`).\n\nReturns:\nr    A GraphView object.'
         ...
 
+    @property
     def window_size(self):
         'Get the window size (difference between start and end) for this GraphView'
         ...
@@ -2812,6 +2983,7 @@ class Properties():
         'Convert properties view to a dict'
         ...
 
+    @property
     def constant(self):
         'Get a view of the constant properties (meta-data) only.'
         ...
@@ -2828,6 +3000,7 @@ class Properties():
         'Get the names for all properties (includes temporal and static properties)'
         ...
 
+    @property
     def temporal(self):
         'Get a view of the temporal properties only.'
         ...
