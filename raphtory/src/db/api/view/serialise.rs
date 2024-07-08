@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fs::File, io::Write, path::Path, sync::Arc};
 
 use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike};
-use prost::Message;
+use prost::{decode_length_delimiter, encode_length_delimiter, Message};
 use raphtory_api::core::{
     entities::VID,
     storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
@@ -25,12 +25,9 @@ use crate::{
     },
     prelude::*,
     serialise::{
-        self,
-        graph::{
-            properties_meta::{self, PropName},
-            AddEdge, AddNode, DelEdge, GraphConstProps, Node, PropPair, UpdateEdgeConstProps,
-        },
-        lifespan, prop, Dict, NdTime,
+        self, lifespan, prop,
+        properties_meta::{self, PropName},
+        AddEdge, AddNode, DelEdge, Dict, GraphConstProps, NdTime, PropPair, UpdateEdgeConstProps,
     },
 };
 
@@ -123,7 +120,7 @@ fn collect_prop_names<'a>(
 
 impl<'graph, G: GraphViewOps<'graph>> StableEncoder for G {
     fn encode_to_vec(&self) -> Result<Vec<u8>, GraphError> {
-        let mut graph = serialise::Graph::default();
+        let mut graph = serialise::GraphMeta::default();
 
         // const graph properties
         let (names, properties): (Vec<_>, Vec<_>) = self
@@ -168,7 +165,7 @@ impl<'graph, G: GraphViewOps<'graph>> StableEncoder for G {
             })
             .unzip();
 
-        graph.temp_properties = Some(serialise::graph::GraphTempProps {
+        graph.temp_properties = Some(serialise::GraphTempProps {
             names: prop_names,
             times: ts,
             properties: props,
@@ -189,7 +186,7 @@ impl<'graph, G: GraphViewOps<'graph>> StableEncoder for G {
         let e_const_meta = &self.edge_meta().const_prop_meta();
         let e_temporal_meta = &self.edge_meta().temporal_prop_meta();
 
-        graph.meta = Some(serialise::graph::PropertiesMeta {
+        graph.meta = Some(serialise::PropertiesMeta {
             nodes: Some(properties_meta::PropNames {
                 constant: collect_prop_names(n_const_meta.get_keys().iter(), n_const_meta),
                 temporal: collect_prop_names(n_temporal_meta.get_keys().iter(), n_temporal_meta),
@@ -200,17 +197,7 @@ impl<'graph, G: GraphViewOps<'graph>> StableEncoder for G {
             }),
         });
 
-        let serialise::Graph {
-            ref mut add_nodes,
-            ref mut const_nodes_props,
-            ref mut const_edges_props,
-            ref mut nodes,
-            ref mut edges,
-            ref mut del_edges,
-            ..
-        } = graph;
-
-        *nodes = self
+        graph.nodes = self
             .nodes()
             .into_iter()
             .map(|n: crate::db::graph::node::NodeView<G>| {
@@ -218,13 +205,20 @@ impl<'graph, G: GraphViewOps<'graph>> StableEncoder for G {
                 let vid = n.node;
                 let node = self.core_node_entry(vid);
                 let name = node.as_ref().name().map(|n| n.to_string());
-                Node {
+                serialise::Node {
                     gid,
                     vid: vid.0 as u64,
                     name,
                 }
             })
             .collect::<Vec<_>>();
+
+        let mut bytes = vec![];
+
+        graph.encode_length_delimited(&mut bytes)?;
+
+        let mut add_nodes = vec![];
+        let mut const_nodes_props = vec![];
 
         for v in self.nodes().iter() {
             let type_id = Some(v.node_type_id() as u64);
@@ -261,12 +255,26 @@ impl<'graph, G: GraphViewOps<'graph>> StableEncoder for G {
                     .const_prop_meta()
                     .get_id(&prop_name)
                     .unwrap();
-                const_nodes_props.push(serialise::graph::UpdateNodeConstProps {
+                const_nodes_props.push(serialise::UpdateNodeConstProps {
                     id,
                     properties: Some(as_prop_pair(key as u64, &prop)?),
                 });
             }
         }
+
+        encode_length_delimiter(add_nodes.len(), &mut bytes)?;
+        for add_node in add_nodes {
+            add_node.encode_length_delimited(&mut bytes)?;
+        }
+
+        encode_length_delimiter(const_nodes_props.len(), &mut bytes)?;
+        for const_node_props in const_nodes_props {
+            const_node_props.encode_length_delimited(&mut bytes)?;
+        }
+
+        let mut const_edges_props = vec![];
+        let mut edges = vec![];
+        let mut del_edges = vec![];
 
         for e in self.edges() {
             let src = e.src().node.0 as u64;
@@ -281,7 +289,7 @@ impl<'graph, G: GraphViewOps<'graph>> StableEncoder for G {
                         .const_prop_meta()
                         .get_id(&prop_name)
                         .unwrap();
-                    const_edges_props.push(serialise::graph::UpdateEdgeConstProps {
+                    const_edges_props.push(serialise::UpdateEdgeConstProps {
                         src,
                         dst,
                         layer_id: layer_id as u64,
@@ -327,7 +335,22 @@ impl<'graph, G: GraphViewOps<'graph>> StableEncoder for G {
             }
         }
 
-        Ok(graph.encode_to_vec())
+        encode_length_delimiter(edges.len(), &mut bytes)?;
+        for edge in edges {
+            edge.encode_length_delimited(&mut bytes)?;
+        }
+
+        encode_length_delimiter(del_edges.len(), &mut bytes)?;
+        for del_edge in del_edges {
+            del_edge.encode_length_delimited(&mut bytes)?;
+        }
+
+        encode_length_delimiter(const_edges_props.len(), &mut bytes)?;
+        for const_edge_props in const_edges_props {
+            const_edge_props.encode_length_delimited(&mut bytes)?;
+        }
+
+        Ok(bytes)
     }
 }
 
@@ -340,7 +363,10 @@ impl<
     > StableDecode for G
 {
     fn decode_from_bytes(buf: &[u8], graph: &Self) -> Result<(), GraphError> {
-        let g = serialise::Graph::decode(&buf[..]).expect("Failed to decode graph");
+        let mut buf = buf;
+
+        let g = serialise::GraphMeta::decode_length_delimited(&mut buf)
+            .expect("Failed to decode graph");
         let mut string_intern_map: HashMap<String, ArcStr> = HashMap::new();
 
         // constant graph properties
@@ -423,28 +449,35 @@ impl<
             }
         }
 
-        for AddNode {
-            id,
-            properties,
-            time,
-            type_id,
-        } in &g.add_nodes
-        {
-            let v = VID(*id as usize);
+        let nodes_len = decode_length_delimiter(&mut buf)?;
+
+        for node_res in (0..nodes_len).map(|_| AddNode::decode_length_delimited(&mut buf)) {
+            let AddNode {
+                id,
+                properties,
+                time,
+                type_id,
+            } = node_res?;
+            let v = VID(id as usize);
             let props = properties
                 .as_ref()
                 .map(|p| as_prop(p, &mut string_intern_map))
                 .into_iter()
                 .collect();
             graph.internal_add_node(
-                TimeIndexEntry::from(*time),
+                TimeIndexEntry::from(time),
                 v,
                 props,
                 type_id.map(|id| id as usize).unwrap(),
             )?;
         }
 
-        for update_node_const_props in &g.const_nodes_props {
+        let const_nodes_len = decode_length_delimiter(&mut buf)?;
+
+        for update_node_const_props in (0..const_nodes_len)
+            .map(|_| serialise::UpdateNodeConstProps::decode_length_delimited(&mut buf))
+        {
+            let update_node_const_props = update_node_const_props?;
             let vid = VID(update_node_const_props.id as usize);
             let props = update_node_const_props
                 .properties
@@ -454,23 +487,25 @@ impl<
             graph.internal_update_constant_node_properties(vid, props)?;
         }
 
-        for AddEdge {
-            src,
-            dst,
-            properties,
-            time,
-            layer_id,
-        } in &g.edges
-        {
-            let src = VID(*src as usize);
-            let dst = VID(*dst as usize);
+        let edges_len = decode_length_delimiter(&mut buf)?;
+
+        for add_edge in (0..edges_len).map(|_| AddEdge::decode_length_delimited(&mut buf)) {
+            let AddEdge {
+                src,
+                dst,
+                properties,
+                time,
+                layer_id,
+            } = add_edge?;
+            let src = VID(src as usize);
+            let dst = VID(dst as usize);
             let props = properties
                 .as_ref()
                 .map(|p| as_prop(p, &mut string_intern_map))
                 .into_iter()
                 .collect();
             graph.internal_add_edge(
-                TimeIndexEntry::from(*time),
+                TimeIndexEntry::from(time),
                 src,
                 dst,
                 props,
@@ -478,32 +513,38 @@ impl<
             )?;
         }
 
-        for DelEdge {
-            src,
-            dst,
-            time,
-            layer_id,
-        } in &g.del_edges
-        {
-            let src = VID(*src as usize);
-            let dst = VID(*dst as usize);
+        let del_edges_len = decode_length_delimiter(&mut buf)?;
+
+        for del_edge in (0..del_edges_len).map(|_| DelEdge::decode_length_delimited(&mut buf)) {
+            let DelEdge {
+                src,
+                dst,
+                time,
+                layer_id,
+            } = del_edge?;
+            let src = VID(src as usize);
+            let dst = VID(dst as usize);
             graph.internal_delete_edge(
-                TimeIndexEntry::from(*time),
+                TimeIndexEntry::from(time),
                 src,
                 dst,
                 layer_id.map(|id| id as usize).unwrap(),
             )?;
         }
 
-        for UpdateEdgeConstProps {
-            src,
-            dst,
-            properties,
-            layer_id,
-        } in &g.const_edges_props
+        let const_edges_len = decode_length_delimiter(&mut buf)?;
+
+        for update_edge in (0..const_edges_len)
+            .map(|_| serialise::UpdateEdgeConstProps::decode_length_delimited(&mut buf))
         {
-            let src = VID(*src as usize);
-            let dst = VID(*dst as usize);
+            let UpdateEdgeConstProps {
+                src,
+                dst,
+                properties,
+                layer_id,
+            } = update_edge?;
+            let src = VID(src as usize);
+            let dst = VID(dst as usize);
             let eid = graph
                 .core_node_entry(src)
                 .find_edge(dst, &LayerIds::All)
@@ -513,7 +554,7 @@ impl<
                 .iter()
                 .map(|prop| as_prop(prop, &mut string_intern_map))
                 .collect();
-            graph.internal_update_constant_edge_properties(eid, *layer_id as usize, props)?;
+            graph.internal_update_constant_edge_properties(eid, layer_id as usize, props)?;
         }
 
         Ok(())

@@ -64,108 +64,104 @@ message Lifespan {
   }
 }
 
-message Graph {
+message GraphMeta{
+  // Graph metadata
   GraphConstProps constProperties = 1;
   GraphTempProps tempProperties = 2;
   PropertiesMeta meta = 3;
-  repeated AddNode add_nodes = 4;
-  repeated AddEdge edges = 5;
-  repeated DelEdge del_edges = 6;
-  repeated UpdateNodeConstProps constNodesProps = 7;
-  repeated UpdateEdgeConstProps constEdgesProps = 8;
-  repeated string layers = 9;
-  repeated string node_types = 10;
-  repeated Node nodes = 11;
+  repeated string layers = 4;
+  repeated string node_types = 5;
+  repeated Node nodes = 6;
+}
 
-  message Node{
-    uint64 gid = 1;
-    uint64 vid = 2;
-    optional string name = 3;
+message Node{
+  uint64 gid = 1;
+  uint64 vid = 2;
+  optional string name = 3;
+}
+
+message PropertiesMeta{
+  PropNames nodes = 1;
+  PropNames edges = 2;
+  
+  message PropNames{
+    repeated PropName constant = 1;
+    repeated PropName temporal = 2;
   }
 
-  message PropertiesMeta{
-    PropNames nodes = 1;
-    PropNames edges = 2;
-    
-    message PropNames{
-      repeated PropName constant = 1;
-      repeated PropName temporal = 2;
-    }
-
-    message PropName{
-      string name = 1;
-      PropType p_type = 2;
-    }
-
-    enum PropType {
-      Str = 0;
-      U8 = 1;
-      U16 = 2;
-      I32 = 3;
-      I64 = 4;
-      U32 = 5;
-      U64 = 6;
-      F32 = 7;
-      F64 = 8;
-      Bool = 9;
-      List = 10;
-      Map = 11;
-      NDTime = 12;
-      Graph = 13;
-      PersistentGraph = 14;
-      Document = 15;
-      DTime = 16;
-    }
-    
+  message PropName{
+    string name = 1;
+    PropType p_type = 2;
   }
 
-  message AddEdge {
-    uint64 src = 1;
-    uint64 dst = 2;
-    PropPair properties = 3;
-    int64 time = 4;
-    optional uint64 layer_id = 5;
+  enum PropType {
+    Str = 0;
+    U8 = 1;
+    U16 = 2;
+    I32 = 3;
+    I64 = 4;
+    U32 = 5;
+    U64 = 6;
+    F32 = 7;
+    F64 = 8;
+    Bool = 9;
+    List = 10;
+    Map = 11;
+    NDTime = 12;
+    Graph = 13;
+    PersistentGraph = 14;
+    Document = 15;
+    DTime = 16;
   }
+  
+}
 
-  message DelEdge{
-    uint64 src = 1;
-    uint64 dst = 2;
-    int64 time = 3;
-    optional uint64 layer_id = 4;
-  }
+message AddEdge {
+  uint64 src = 1;
+  uint64 dst = 2;
+  PropPair properties = 3;
+  int64 time = 4;
+  optional uint64 layer_id = 5;
+}
 
-  message AddNode {
-    uint64 id = 1;
-    optional PropPair properties = 3;
-    int64 time = 4;
-    optional uint64 type_id = 5;
-  }
+message DelEdge{
+  uint64 src = 1;
+  uint64 dst = 2;
+  int64 time = 3;
+  optional uint64 layer_id = 4;
+}
 
-  message UpdateNodeConstProps {
-    uint64 id = 1;
-    PropPair properties = 2;
-  }
+message AddNode {
+  uint64 id = 1;
+  optional PropPair properties = 3;
+  int64 time = 4;
+  optional uint64 type_id = 5;
+}
 
-  message UpdateEdgeConstProps {
-    uint64 src = 1;
-    uint64 dst = 2;
-    uint64 layer_id = 3;
-    PropPair properties = 4;
-  }
+message UpdateNodeConstProps {
+  uint64 id = 1;
+  PropPair properties = 2;
+}
 
-  message GraphConstProps{
-    repeated string names = 1;
-    repeated PropPair properties = 2;
-  }
+message UpdateEdgeConstProps {
+  uint64 src = 1;
+  uint64 dst = 2;
+  uint64 layer_id = 3;
+  PropPair properties = 4;
+}
 
-  message GraphTempProps{
-    repeated string names = 1;
-    repeated int64 times = 2;
-    repeated PropPair properties = 3;
-  }
+message GraphConstProps{
+  repeated string names = 1;
+  repeated PropPair properties = 2;
+}
 
-  message PropPair {
-    uint64 key = 1;
-    Prop value = 2;
-  }
+message GraphTempProps{
+  repeated string names = 1;
+  repeated int64 times = 2;
+  repeated PropPair properties = 3;
+}
+
+message PropPair {
+  uint64 key = 1;
+  Prop value = 2;
 }
