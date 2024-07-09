@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs::File, io::Write, path::Path, sync::Arc};
+use std::{fs::File, io::Write, path::Path, sync::Arc};
 
 use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike};
 use prost::{decode_length_delimiter, encode_length_delimiter, Message};
@@ -362,12 +362,9 @@ impl<
             + InternalDeletionOps,
     > StableDecode for G
 {
-    fn decode_from_bytes(buf: &[u8], graph: &Self) -> Result<(), GraphError> {
-        let mut buf = buf;
-
+    fn decode_from_bytes(mut buf: &[u8], graph: &Self) -> Result<(), GraphError> {
         let g = serialise::GraphMeta::decode_length_delimited(&mut buf)
             .expect("Failed to decode graph");
-        let mut string_intern_map: HashMap<String, ArcStr> = HashMap::new();
 
         // constant graph properties
         if let Some(meta) = g.const_properties.as_ref() {
@@ -376,7 +373,7 @@ impl<
                 assert_eq!(id, prop_pair.key as usize);
 
                 let prop = prop_pair.value.as_ref().and_then(|p| p.value.as_ref());
-                let prop = as_prop_value(prop, &mut string_intern_map);
+                let prop = graph.process_prop_value(as_prop_value(prop));
                 graph.graph_meta().add_constant_prop(id, prop)?;
             }
         }
@@ -389,7 +386,7 @@ impl<
             for (time, prop_pair) in meta.times.iter().zip(meta.properties.iter()) {
                 let id = prop_pair.key as usize;
                 let prop = prop_pair.value.as_ref().and_then(|p| p.value.as_ref());
-                let prop = as_prop_value(prop, &mut string_intern_map);
+                let prop = graph.process_prop_value(as_prop_value(prop));
                 graph
                     .graph_meta()
                     .add_prop(TimeIndexEntry::from(*time), id, prop)?;
@@ -461,7 +458,8 @@ impl<
             let v = VID(id as usize);
             let props = properties
                 .as_ref()
-                .map(|p| as_prop(p, &mut string_intern_map))
+                .map(|p| as_prop(p))
+                .map(|(id, prop)| (id, graph.process_prop_value(prop)))
                 .into_iter()
                 .collect();
             graph.internal_add_node(
@@ -482,7 +480,8 @@ impl<
             let props = update_node_const_props
                 .properties
                 .iter()
-                .map(|prop| as_prop(prop, &mut string_intern_map))
+                .map(|prop| as_prop(prop))
+                .map(|(id, prop)| (id, graph.process_prop_value(prop)))
                 .collect();
             graph.internal_update_constant_node_properties(vid, props)?;
         }
@@ -501,7 +500,8 @@ impl<
             let dst = VID(dst as usize);
             let props = properties
                 .as_ref()
-                .map(|p| as_prop(p, &mut string_intern_map))
+                .map(|p| as_prop(p))
+                .map(|(id, prop)| (id, graph.process_prop_value(prop)))
                 .into_iter()
                 .collect();
             graph.internal_add_edge(
@@ -552,7 +552,8 @@ impl<
                 .unwrap();
             let props = properties
                 .iter()
-                .map(|prop| as_prop(prop, &mut string_intern_map))
+                .map(|prop| as_prop(prop))
+                .map(|(id, prop)| (id, graph.process_prop_value(prop)))
                 .collect();
             graph.internal_update_constant_edge_properties(eid, layer_id as usize, props)?;
         }
@@ -561,16 +562,16 @@ impl<
     }
 }
 
-fn as_prop(prop_pair: &PropPair, intern_map: &mut HashMap<String, ArcStr>) -> (usize, Prop) {
+fn as_prop(prop_pair: &PropPair) -> (usize, Prop) {
     let PropPair { key, value } = prop_pair;
     let value = value.as_ref().expect("Missing prop value");
     let value = value.value.as_ref();
-    let value = as_prop_value(value, intern_map);
+    let value = as_prop_value(value);
 
     (*key as usize, value)
 }
 
-fn as_prop_value(value: Option<&prop::Value>, intern_map: &mut HashMap<String, ArcStr>) -> Prop {
+fn as_prop_value(value: Option<&prop::Value>) -> Prop {
     let value = match value.expect("Missing prop value") {
         prop::Value::BoolValue(b) => Prop::Bool(*b),
         prop::Value::U8(u) => Prop::U8((*u).try_into().unwrap()),
@@ -581,23 +582,18 @@ fn as_prop_value(value: Option<&prop::Value>, intern_map: &mut HashMap<String, A
         prop::Value::U64(u) => Prop::U64(*u),
         prop::Value::F32(f) => Prop::F32(*f),
         prop::Value::F64(f) => Prop::F64(*f),
-        prop::Value::Str(s) => Prop::Str(intern_str(intern_map, s)),
+        prop::Value::Str(s) => Prop::Str(ArcStr::from(s.as_str())),
         prop::Value::Prop(props) => Prop::List(Arc::new(
             props
                 .properties
                 .iter()
-                .map(|prop| as_prop_value(prop.value.as_ref(), intern_map))
+                .map(|prop| as_prop_value(prop.value.as_ref()))
                 .collect(),
         )),
         prop::Value::Map(dict) => Prop::Map(Arc::new(
             dict.map
                 .iter()
-                .map(|(k, v)| {
-                    (
-                        intern_str(intern_map, k),
-                        as_prop_value(v.value.as_ref(), intern_map),
-                    )
-                })
+                .map(|(k, v)| (ArcStr::from(k.as_str()), as_prop_value(v.value.as_ref())))
                 .collect(),
         )),
         serialise::prop::Value::NdTime(ndt) => {
@@ -655,13 +651,13 @@ fn as_prop_value(value: Option<&prop::Value>, intern_map: &mut HashMap<String, A
     value
 }
 
-fn intern_str(intern_map: &mut HashMap<String, ArcStr>, s: &String) -> ArcStr {
-    let s = intern_map.entry(s.clone()).or_insert_with(|| {
-        let s: ArcStr = s.clone().into();
-        s
-    });
-    s.clone()
-}
+// fn intern_str(intern_map: &mut HashMap<String, ArcStr>, s: &String) -> ArcStr {
+//     let s = intern_map.entry(s.clone()).or_insert_with(|| {
+//         let s: ArcStr = s.clone().into();
+//         s
+//     });
+//     s.clone()
+// }
 
 fn as_prop_pair(key: u64, prop: &Prop) -> Result<PropPair, GraphError> {
     Ok(PropPair {
