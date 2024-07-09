@@ -369,13 +369,13 @@ def test_get_graphs():
     work_dir = tempfile.mkdtemp()
     server = RaphtoryServer(work_dir).start()
     client = server.get_client()
-    
+
     # Assert if no graphs are discoverable
     query = """{ graphs { name, path } }"""
     assert client.query(query) == {
         'graphs': {'name': [], 'path': []}
     }
-    
+
     g = Graph()
     g.add_edge(1, "ben", "hamza")
     g.add_edge(2, "haaroon", "hamza")
@@ -391,10 +391,10 @@ def test_get_graphs():
     assert client.query(query) == {
         'graphs': {'name': ['g1', 'g2', 'g3'], 'path': ['g1', 'shivam/g2', 'shivam/g3']}
     }
-    
+
     server.stop()
-    
-    
+
+
 def test_receive_graph():
     work_dir = tempfile.mkdtemp()
     server = RaphtoryServer(work_dir).start()
@@ -411,7 +411,7 @@ def test_receive_graph():
         client.query(query)
     except Exception as e:
         assert "Graph not found shivam/g2" in str(e), f"Unexpected exception message: {e}"
-        
+
     g = Graph()
     g.add_edge(1, "ben", "hamza")
     g.add_edge(2, "haaroon", "hamza")
@@ -422,7 +422,7 @@ def test_receive_graph():
     g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
 
     received_graph = 'AAAAAAMAAAAAAAAAlNcECxwg2OUBAAAAAAAAAO_T5CcRykTMAgAAAAAAAACtSFF47MOYUAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAEAAAAAAAAArUhReOzDmFABAwAAAAAAAABiZW4AAAAAAAAAAAIAAAACAAAAAAAAAAEAAAAAAAAAAwAAAAAAAAABAAAAAAAAAAEAAAACAAAAAgAAAAAAAAABAAAAAAAAAAIAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAlNcECxwg2OUBBQAAAAAAAABoYW16YQEAAAAAAAAAAgAAAAIAAAAAAAAAAQAAAAAAAAACAAAAAAAAAAEAAAAAAAAAAQAAAAAAAAACAAAAAgAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAADv0-QnEcpEzAEHAAAAAAAAAGhhYXJvb24CAAAAAAAAAAIAAAACAAAAAAAAAAIAAAAAAAAAAwAAAAAAAAABAAAAAAAAAAEAAAABAAAAAQAAAAAAAAABAAAAAAAAAAEAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMAAAAAAAAACAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAEAAAAAAAAAAAEAAAAAAAAAAQAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAAACAAAAAAAAAAEAAAAAAAAAAQAAAAAAAAAAAQAAAAAAAAABAAAAAgAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAABAAAAAAAAAAABAAAAAAAAAAEAAAADAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwAAAAAAAAAJAAAAAAAAAAEAAAAAAAAAAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAgAAAAAAAAAX2RlZmF1bHQAAAAAAAAAAAEAAAAAAAAACAAAAAAAAABfZGVmYXVsdAEAAAAAAAAACAAAAAAAAABfZGVmYXVsdAAAAAAAAAAAAQAAAAAAAAAIAAAAAAAAAF9kZWZhdWx0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAIAAAAAAAAAF9kZWZhdWx0AAAAAAAAAAABAAAAAAAAAAgAAAAAAAAAX2RlZmF1bHQBAAAAAAAAAAgAAAAAAAAAX2RlZmF1bHQAAAAAAAAAAAEAAAAAAAAACAAAAAAAAABfZGVmYXVsdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
-    
+
     query = """{ receiveGraph(name: "g1") }"""
     assert client.query(query) == {
         'receiveGraph': received_graph
@@ -501,7 +501,7 @@ def test_rename_graph():
     try:
         client.query(query)
     except Exception as e:
-        assert "Invalid path" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph not found shivam/g3" in str(e), f"Unexpected exception message: {e}"
         
     query = """{graph(name: "g4", namespace: "shivam") {nodes {list {name}}}}"""
     assert client.query(query) == {
@@ -526,7 +526,7 @@ def test_rename_graph():
     try:
         client.query(query)
     except Exception as e:
-        assert "Invalid path" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph not found shivam/g4" in str(e), f"Unexpected exception message: {e}"
 
     query = """{graph(name: "g5", namespace: "shivam") {nodes {list {name}}}}"""
     assert client.query(query) == {
@@ -573,15 +573,15 @@ def test_save_as_graph():
     g.add_edge(1, "ben", "hamza")
     g.add_edge(2, "haaroon", "hamza")
     g.add_edge(3, "ben", "haaroon")
-    
+
     work_dir = tempfile.mkdtemp()
     # work_dir = "/tmp/graphs"
     os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
-    
+
     g.save_to_file(os.path.join(work_dir, "g1"))
     g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
     g.save_to_file(os.path.join(work_dir, "shivam", "g3"))
-    
+
     server = RaphtoryServer(work_dir).start()
     client = server.get_client()
 
@@ -671,7 +671,7 @@ def test_save_as_graph():
     assert result['graph']['properties']['constant']['lastUpdated']['value'] is not None
     assert result['graph']['properties']['constant']['uiProps']['value'] == '{ "target": 6 : }'
     assert result['graph']['properties']['constant']['isArchive']['value'] == 1
-    
+
     server.stop()
 
 
@@ -704,7 +704,7 @@ def test_save_graph():
             }}
         }
     }"""
-    result = client.query(query)    
+    result = client.query(query)
     # Assertions pre-save graph
     assert result['graph']['nodes']['list'] == [{'name': 'ben'}, {'name': 'hamza'}, {'name': 'haaroon'}]
     assert result['graph']['properties']['constant']['creationTime'] is None
@@ -712,7 +712,7 @@ def test_save_graph():
     assert result['graph']['properties']['constant']['lastUpdated'] is None
     assert result['graph']['properties']['constant']['uiProps'] is None
     assert result['graph']['properties']['constant']['isArchive'] is None
-    
+
     save_graph = """mutation {
       saveGraph(
         parentGraphName: "g1",
@@ -784,7 +784,7 @@ def test_save_graph():
     #     client.query(query)
     # except Exception as e:
     #     assert "Graph not found ben/g5" in str(e), f"Unexpected exception message: {e}"
-    # 
+    #
     # # Assert if rename graph fails when pointing to incorrect parentGraphNamespace
     # query = """mutation {
     #   renameGraph(
@@ -848,7 +848,7 @@ def test_update_graph_last_opened():
     assert client.query(mutate_last_opened) == {'updateGraphLastOpened': True}
     updated_last_opened2 = client.query(query_last_opened)['graph']['properties']['constant']['get']['value']
     assert updated_last_opened2 > updated_last_opened1
-    
+
     server.stop()
 
 
@@ -897,8 +897,8 @@ def test_archive_graph():
     assert client.query(query_is_archive)['graph']['properties']['constant']['get']['value'] == 1
 
     server.stop()
-    
-    
+
+
 def test_graph_windows_and_layers_query():
     g1 = graph_loader.lotr_graph()
     g1.add_constant_properties({"name": "lotr"})

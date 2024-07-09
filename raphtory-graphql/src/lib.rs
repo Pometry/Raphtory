@@ -850,8 +850,6 @@ mod graphql_test {
         let error_message = &data[0].message;
         let expected_error_message = "Graph already exists by name = g3";
         assert_eq!(error_message, expected_error_message);
-
-        // TODO: Add a test that we can update the isArchive on the graph while saving it by the same name as well
     }
 
     #[tokio::test]

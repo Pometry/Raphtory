@@ -13,6 +13,10 @@ pub enum GraphError {
     UnsupportedDataType,
     #[error("Disk graph not found")]
     DiskGraphNotFound,
+    #[error("Disk Graph is immutable")]
+    ImmutableDiskGraph,
+    #[error("Event Graph doesn't support deletions")]
+    EventGraphDeletionsNotSupported,
     #[error("Graph not found {0}")]
     GraphNotFound(String),
     #[error("Graph already exists by name = {name}")]
