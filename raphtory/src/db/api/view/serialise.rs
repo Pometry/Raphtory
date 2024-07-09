@@ -736,7 +736,10 @@ mod proto_test {
 
     use crate::{
         core::DocumentInput,
-        db::api::{mutation::DeletionOps, properties::internal::ConstPropertiesOps},
+        db::{
+            api::{mutation::DeletionOps, properties::internal::ConstPropertiesOps},
+            graph::graph::assert_graph_equal,
+        },
         prelude::*,
     };
 
@@ -749,7 +752,7 @@ mod proto_test {
         g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
         g1.stable_serialise(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
-        assert_eq!(&g1, &g2);
+        assert_graph_equal(&g1, &g2);
     }
 
     #[test]
@@ -761,7 +764,7 @@ mod proto_test {
             .unwrap();
         g1.stable_serialise(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
-        assert_eq!(&g1, &g2);
+        assert_graph_equal(&g1, &g2);
     }
 
     #[test]
@@ -778,7 +781,7 @@ mod proto_test {
 
         g1.stable_serialise(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
-        assert_eq!(&g1, &g2);
+        assert_graph_equal(&g1, &g2);
     }
 
     #[test]
@@ -790,7 +793,7 @@ mod proto_test {
         g1.add_edge(3, "Alice", "Bob", NO_PROPS, None).unwrap();
         g1.stable_serialise(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
-        assert_eq!(&g1, &g2);
+        assert_graph_equal(&g1, &g2);
     }
 
     #[test]
@@ -801,10 +804,9 @@ mod proto_test {
         g1.delete_edge(19, "Alice", "Bob", None).unwrap();
         g1.stable_serialise(&temp_file).unwrap();
         let g2 = PersistentGraph::decode(&temp_file).unwrap();
-        assert_eq!(&g1, &g2);
+        assert_graph_equal(&g1, &g2);
 
         let edge = g2.edge("Alice", "Bob").expect("Failed to get edge");
-
         let deletions = edge.deletions().iter().copied().collect::<Vec<_>>();
         assert_eq!(deletions, vec![19]);
     }
@@ -819,7 +821,7 @@ mod proto_test {
             .unwrap();
         g1.stable_serialise(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
-        assert_eq!(&g1, &g2);
+        assert_graph_equal(&g1, &g2);
     }
 
     #[test]
@@ -831,7 +833,7 @@ mod proto_test {
             .expect("Failed to update constant properties");
         g1.stable_serialise(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
-        assert_eq!(&g1, &g2);
+        assert_graph_equal(&g1, &g2);
     }
 
     #[test]
@@ -844,7 +846,7 @@ mod proto_test {
             .unwrap();
         g1.stable_serialise(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
-        assert_eq!(&g1, &g2);
+        assert_graph_equal(&g1, &g2);
     }
 
     #[test]
@@ -857,7 +859,7 @@ mod proto_test {
         g1.add_node(1, "Alice", props.clone(), None).unwrap();
         g1.stable_serialise(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
-        assert_eq!(&g1, &g2);
+        assert_graph_equal(&g1, &g2);
 
         let node = g2.node("Alice").expect("Failed to get node");
 
@@ -883,7 +885,7 @@ mod proto_test {
         g1.add_edge(1, "Alice", "Bob", props.clone(), None).unwrap();
         g1.stable_serialise(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
-        assert_eq!(&g1, &g2);
+        assert_graph_equal(&g1, &g2);
 
         let edge = g2.edge("Alice", "Bob").expect("Failed to get edge");
 
@@ -911,7 +913,7 @@ mod proto_test {
             .expect("Failed to update constant properties");
         g1.stable_serialise(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
-        assert_eq!(&g1, &g2);
+        assert_graph_equal(&g1, &g2);
 
         let edge = g2
             .edge("Alice", "Bob")
@@ -940,7 +942,7 @@ mod proto_test {
             .expect("Failed to update constant properties");
         g1.stable_serialise(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
-        assert_eq!(&g1, &g2);
+        assert_graph_equal(&g1, &g2);
 
         let node = g2.node("Alice").expect("Failed to get node");
 
@@ -965,6 +967,7 @@ mod proto_test {
         let temp_file = tempfile::NamedTempFile::new().unwrap();
         g1.stable_serialise(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
+        assert_graph_equal(&g1, &g2);
 
         props.into_iter().for_each(|(name, prop)| {
             let id = g2.get_const_prop_id(name).expect("Failed to get prop id");
@@ -986,6 +989,7 @@ mod proto_test {
         let temp_file = tempfile::NamedTempFile::new().unwrap();
         g1.stable_serialise(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
+        assert_graph_equal(&g1, &g2);
 
         props
             .into_iter()

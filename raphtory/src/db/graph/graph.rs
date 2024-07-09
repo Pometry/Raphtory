@@ -46,26 +46,11 @@ pub fn graph_equal<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps
 ) -> bool {
     if g1.count_nodes() == g2.count_nodes() && g1.count_edges() == g2.count_edges() {
         g1.nodes().id().par_values().all(|v| g2.has_node(v)) && // all nodes exist in other
-        g1.nodes().par_iter().all(|v1| {
-            let c1 = v1.properties().constant().into_iter().count();
-            let t1 = v1.properties().temporal().into_iter().count();
-            g2.node(v1.id()).filter(|node|{
-                c1 == node.properties().constant().into_iter().count() &&
-                t1 == node.properties().temporal().into_iter().count()
-            }).is_some()
-        }) &&
             g1.count_temporal_edges() == g2.count_temporal_edges() && // same number of exploded edges
             g1.edges().explode().iter().all(|e| { // all exploded edges exist in other
-
-            let c1 = e.properties().constant().into_iter().count();
-            let t1 = e.properties().temporal().into_iter().count();
                 g2
                     .edge(e.src().id(), e.dst().id())
-                    .filter(|ee| {
-                        ee.active(e.time().expect("exploded")) &&
-                        c1 == e.properties().constant().into_iter().count() &&
-                        t1 == e.properties().temporal().into_iter().count()
-                    })
+                    .filter(|ee| ee.active(e.time().expect("exploded")))
                     .is_some()
             })
     } else {
@@ -103,9 +88,22 @@ pub fn assert_graph_equal<
         g1.count_temporal_edges(),
         g2.count_temporal_edges()
     );
-    for n_id in g1.nodes().id().values() {
-        assert!(g2.has_node(n_id), "missing node {n_id}");
+    for n1 in g1.nodes() {
+        assert!(g2.has_node(n1.id()), "missing node {}", n1.id());
+
+        let c1 = n1.properties().constant().into_iter().count();
+        let t1 = n1.properties().temporal().into_iter().count();
+        let check = g2
+            .node(n1.id())
+            .filter(|node| {
+                c1 == node.properties().constant().into_iter().count()
+                    && t1 == node.properties().temporal().into_iter().count()
+            })
+            .is_some();
+
+        assert!(check, "node {:?} properties mismatch", n1.id());
     }
+
     for e in g1.edges().explode() {
         // all exploded edges exist in other
         let e2 = g2
@@ -116,7 +114,20 @@ pub fn assert_graph_equal<
             "exploded edge {:?} not active as expected at time {}",
             e2.id(),
             e.time().unwrap()
-        )
+        );
+
+        let c1 = e.properties().constant().into_iter().count();
+        let t1 = e.properties().temporal().into_iter().count();
+        let check = g2
+            .edge(e.src().id(), e.dst().id())
+            .filter(|ee| {
+                ee.active(e.time().expect("exploded"))
+                    && c1 == e.properties().constant().into_iter().count()
+                    && t1 == e.properties().temporal().into_iter().count()
+            })
+            .is_some();
+
+        assert!(check, "edge {:?} properties mismatch", e.id());
     }
 }
 
