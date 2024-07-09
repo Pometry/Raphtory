@@ -137,13 +137,11 @@ impl PyGraphEncoder {
     pub fn __call__(&self, bytes: Vec<u8>) -> PyResult<PyObject> {
         Python::with_gil(|py| match self {
             PyGraphEncoder::Graph => {
-                let g = Graph::new();
-                Graph::decode_from_bytes(&bytes, &g)?;
+                let g = Graph::decode_from_bytes(&bytes)?;
                 Ok(g.into_py(py))
             }
             PyGraphEncoder::PersistentGraph => {
-                let g = PersistentGraph::new();
-                PersistentGraph::decode_from_bytes(&bytes, &g)?;
+                let g = PersistentGraph::decode_from_bytes(&bytes)?;
                 Ok(g.into_py(py))
             }
         })
