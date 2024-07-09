@@ -16,8 +16,7 @@ use crate::{
     db::{
         api::{
             mutation::internal::{
-                DelegatePropertyAdditionOps, InternalAdditionOps, InternalDeletionOps,
-                InternalPropertyAdditionOps,
+                InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
             },
             storage::nodes::node_storage_ops::NodeStorageOps,
         },
@@ -45,13 +44,13 @@ pub trait StableEncoder {
     }
 }
 
-pub trait StableDecode {
-    fn decode_from_bytes(bytes: &[u8], g: &Self) -> Result<(), GraphError>;
-    fn decode(path: impl AsRef<Path>, g: &Self) -> Result<(), GraphError> {
+pub trait StableDecode: Default {
+    fn decode_from_bytes(bytes: &[u8]) -> Result<Self, GraphError>;
+    fn decode(path: impl AsRef<Path>) -> Result<Self, GraphError> {
         let file = File::open(path)?;
         let buf = unsafe { memmap2::MmapOptions::new().map(&file)? };
         let bytes = buf.as_ref();
-        Self::decode_from_bytes(bytes, g)
+        Self::decode_from_bytes(bytes)
     }
 }
 
@@ -358,11 +357,13 @@ impl<
         'graph,
         G: InternalAdditionOps
             + GraphViewOps<'graph>
-            + DelegatePropertyAdditionOps
-            + InternalDeletionOps,
+            + InternalPropertyAdditionOps
+            + InternalDeletionOps
+            + Default,
     > StableDecode for G
 {
-    fn decode_from_bytes(mut buf: &[u8], graph: &Self) -> Result<(), GraphError> {
+    fn decode_from_bytes(mut buf: &[u8]) -> Result<Self, GraphError> {
+        let graph = G::default();
         let g = serialise::GraphMeta::decode_length_delimited(&mut buf)
             .expect("Failed to decode graph");
 
@@ -558,7 +559,7 @@ impl<
             graph.internal_update_constant_edge_properties(eid, layer_id as usize, props)?;
         }
 
-        Ok(())
+        Ok(graph)
     }
 }
 
@@ -621,14 +622,13 @@ fn as_prop_value(value: Option<&prop::Value>) -> Prop {
         serialise::prop::Value::DTime(dt) => {
             Prop::DTime(DateTime::parse_from_rfc3339(dt).unwrap().into())
         }
-        serialise::prop::Value::Graph(graph) => {
-            let g = Graph::new();
-            Graph::decode_from_bytes(&graph, &g).expect("Failed to decode graph");
+        serialise::prop::Value::Graph(graph_bytes) => {
+            let g = Graph::decode_from_bytes(&graph_bytes).expect("Failed to decode graph");
             Prop::Graph(g)
         }
-        serialise::prop::Value::PersistentGraph(graph) => {
-            let g = Graph::new().persistent_graph();
-            PersistentGraph::decode_from_bytes(&graph, &g).expect("Failed to decode graph");
+        serialise::prop::Value::PersistentGraph(graph_bytes) => {
+            let g =
+                PersistentGraph::decode_from_bytes(&graph_bytes).expect("Failed to decode graph");
             Prop::PersistentGraph(g)
         }
         serialise::prop::Value::DocumentInput(doc) => Prop::Document(DocumentInput {
@@ -650,14 +650,6 @@ fn as_prop_value(value: Option<&prop::Value>) -> Prop {
     };
     value
 }
-
-// fn intern_str(intern_map: &mut HashMap<String, ArcStr>, s: &String) -> ArcStr {
-//     let s = intern_map.entry(s.clone()).or_insert_with(|| {
-//         let s: ArcStr = s.clone().into();
-//         s
-//     });
-//     s.clone()
-// }
 
 fn as_prop_pair(key: u64, prop: &Prop) -> Result<PropPair, GraphError> {
     Ok(PropPair {
@@ -756,8 +748,7 @@ mod proto_test {
         let g1 = Graph::new();
         g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
         g1.stable_serialise(&temp_file).unwrap();
-        let g2 = Graph::new();
-        Graph::decode(&temp_file, &g2).unwrap();
+        let g2 = Graph::decode(&temp_file).unwrap();
         assert_eq!(&g1, &g2);
     }
 
@@ -769,8 +760,7 @@ mod proto_test {
         g1.add_node(2, "Bob", [("age", Prop::U32(47))], None)
             .unwrap();
         g1.stable_serialise(&temp_file).unwrap();
-        let g2 = Graph::new();
-        Graph::decode(&temp_file, &g2).unwrap();
+        let g2 = Graph::decode(&temp_file).unwrap();
         assert_eq!(&g1, &g2);
     }
 
@@ -787,8 +777,7 @@ mod proto_test {
             .expect("Failed to update constant properties");
 
         g1.stable_serialise(&temp_file).unwrap();
-        let g2 = Graph::new();
-        Graph::decode(&temp_file, &g2).unwrap();
+        let g2 = Graph::decode(&temp_file).unwrap();
         assert_eq!(&g1, &g2);
     }
 
@@ -800,8 +789,7 @@ mod proto_test {
         g1.add_node(2, "Bob", NO_PROPS, None).unwrap();
         g1.add_edge(3, "Alice", "Bob", NO_PROPS, None).unwrap();
         g1.stable_serialise(&temp_file).unwrap();
-        let g2 = Graph::new();
-        Graph::decode(&temp_file, &g2).unwrap();
+        let g2 = Graph::decode(&temp_file).unwrap();
         assert_eq!(&g1, &g2);
     }
 
@@ -812,8 +800,7 @@ mod proto_test {
         g1.add_edge(3, "Alice", "Bob", NO_PROPS, None).unwrap();
         g1.delete_edge(19, "Alice", "Bob", None).unwrap();
         g1.stable_serialise(&temp_file).unwrap();
-        let g2 = PersistentGraph::new();
-        PersistentGraph::decode(&temp_file, &g2).unwrap();
+        let g2 = PersistentGraph::decode(&temp_file).unwrap();
         assert_eq!(&g1, &g2);
 
         let edge = g2.edge("Alice", "Bob").expect("Failed to get edge");
@@ -831,8 +818,7 @@ mod proto_test {
         g1.add_edge(3, "Alice", "Bob", [("kind", "friends")], None)
             .unwrap();
         g1.stable_serialise(&temp_file).unwrap();
-        let g2 = Graph::new();
-        Graph::decode(&temp_file, &g2).unwrap();
+        let g2 = Graph::decode(&temp_file).unwrap();
         assert_eq!(&g1, &g2);
     }
 
@@ -844,8 +830,7 @@ mod proto_test {
         e1.update_constant_properties([("friends", true)], None)
             .expect("Failed to update constant properties");
         g1.stable_serialise(&temp_file).unwrap();
-        let g2 = Graph::new();
-        Graph::decode(&temp_file, &g2).unwrap();
+        let g2 = Graph::decode(&temp_file).unwrap();
         assert_eq!(&g1, &g2);
     }
 
@@ -858,8 +843,7 @@ mod proto_test {
         g1.add_edge(7, "Bob", "Charlie", [("friends", false)], Some("two"))
             .unwrap();
         g1.stable_serialise(&temp_file).unwrap();
-        let g2 = Graph::new();
-        Graph::decode(&temp_file, &g2).unwrap();
+        let g2 = Graph::decode(&temp_file).unwrap();
         assert_eq!(&g1, &g2);
     }
 
@@ -872,8 +856,7 @@ mod proto_test {
         let g1 = Graph::new();
         g1.add_node(1, "Alice", props.clone(), None).unwrap();
         g1.stable_serialise(&temp_file).unwrap();
-        let g2 = Graph::new();
-        Graph::decode(&temp_file, &g2).unwrap();
+        let g2 = Graph::decode(&temp_file).unwrap();
         assert_eq!(&g1, &g2);
 
         let node = g2.node("Alice").expect("Failed to get node");
@@ -899,8 +882,7 @@ mod proto_test {
         let g1 = Graph::new();
         g1.add_edge(1, "Alice", "Bob", props.clone(), None).unwrap();
         g1.stable_serialise(&temp_file).unwrap();
-        let g2 = Graph::new();
-        Graph::decode(&temp_file, &g2).unwrap();
+        let g2 = Graph::decode(&temp_file).unwrap();
         assert_eq!(&g1, &g2);
 
         let edge = g2.edge("Alice", "Bob").expect("Failed to get edge");
@@ -928,8 +910,7 @@ mod proto_test {
         e.update_constant_properties(props.clone(), Some("a"))
             .expect("Failed to update constant properties");
         g1.stable_serialise(&temp_file).unwrap();
-        let g2 = Graph::new();
-        Graph::decode(&temp_file, &g2).unwrap();
+        let g2 = Graph::decode(&temp_file).unwrap();
         assert_eq!(&g1, &g2);
 
         let edge = g2
@@ -958,8 +939,7 @@ mod proto_test {
         n.update_constant_properties(props.clone())
             .expect("Failed to update constant properties");
         g1.stable_serialise(&temp_file).unwrap();
-        let g2 = Graph::new();
-        Graph::decode(&temp_file, &g2).unwrap();
+        let g2 = Graph::decode(&temp_file).unwrap();
         assert_eq!(&g1, &g2);
 
         let node = g2.node("Alice").expect("Failed to get node");
@@ -984,8 +964,7 @@ mod proto_test {
 
         let temp_file = tempfile::NamedTempFile::new().unwrap();
         g1.stable_serialise(&temp_file).unwrap();
-        let g2 = Graph::new();
-        Graph::decode(&temp_file, &g2).unwrap();
+        let g2 = Graph::decode(&temp_file).unwrap();
 
         props.into_iter().for_each(|(name, prop)| {
             let id = g2.get_const_prop_id(name).expect("Failed to get prop id");
@@ -1006,8 +985,7 @@ mod proto_test {
 
         let temp_file = tempfile::NamedTempFile::new().unwrap();
         g1.stable_serialise(&temp_file).unwrap();
-        let g2 = Graph::new();
-        Graph::decode(&temp_file, &g2).unwrap();
+        let g2 = Graph::decode(&temp_file).unwrap();
 
         props
             .into_iter()
