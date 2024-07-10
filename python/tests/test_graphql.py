@@ -71,46 +71,135 @@ def test_server_start_on_custom_port():
     server.stop()
 
 
-def test_send_graph_to_server():
+def test_send_graph_succeeds_if_no_graph_found_with_same_name():
     g = Graph()
     g.add_edge(1, "ben", "hamza")
     g.add_edge(2, "haaroon", "hamza")
     g.add_edge(3, "ben", "haaroon")
 
-    name = "g"
     tmp_work_dir = tempfile.mkdtemp()
     server = RaphtoryServer(tmp_work_dir).start()
     client = RaphtoryClient("http://localhost:1736")
-    client.send_graph(name=name, graph=g)
-
-    query = """{graph(name: "g") {nodes {list {name}}}}"""
-    assert client.query(query) == {
-        "graph": {
-            "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
-        }
-    }
-
-    try:
-        client.send_graph(name=name, graph=g)
-    except Exception as e:
-        assert "Graph already exists by name = g" in str(e), f"Unexpected exception message: {e}"
-
-    client.send_graph(name=name, graph=g, overwrite=True)
-    assert client.query(query) == {
-        "graph": {
-            "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
-        }
-    }
-
-    namespace = "shivam"
-    client.send_graph(name=name, graph=g, overwrite=True, namespace=namespace)
-    expected_path = os.path.join(tmp_work_dir, namespace, name)
-    assert os.path.exists(expected_path)
+    client.send_graph(name="g", graph=g)
 
     server.stop()
 
 
-def test_send_graph_to_server_with_namespace():
+def test_send_graph_fails_if_graph_already_exists():
+    tmp_work_dir = tempfile.mkdtemp()
+
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+    g.save_to_file(os.path.join(tmp_work_dir, "g"))
+
+    server = RaphtoryServer(tmp_work_dir).start()
+    client = RaphtoryClient("http://localhost:1736")
+
+    try:
+        client.send_graph(name="g", graph=g)
+    except Exception as e:
+        assert "Graph already exists by name = g" in str(e), f"Unexpected exception message: {e}"
+
+    server.stop()
+
+
+def test_send_graph_succeeds_if_graph_already_exists_with_overwrite_enabled():
+    tmp_work_dir = tempfile.mkdtemp()
+
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+    g.save_to_file(os.path.join(tmp_work_dir, "g"))
+
+    server = RaphtoryServer(tmp_work_dir).start()
+    client = RaphtoryClient("http://localhost:1736")
+
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+    g.add_edge(4, "ben", "shivam")
+    client.send_graph(name="g", graph=g, overwrite=True)
+
+    query = """{graph(name: "g") {nodes {list {name}}}}"""
+    assert client.query(query) == {
+        "graph": {
+            "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}, {"name": "shivam"}]}
+        }
+    }
+
+    server.stop()
+
+
+def test_send_graph_succeeds_if_no_graph_found_with_same_name_at_namespace():
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+
+    tmp_work_dir = tempfile.mkdtemp()
+    server = RaphtoryServer(tmp_work_dir).start()
+    client = RaphtoryClient("http://localhost:1736")
+    client.send_graph(name="g", graph=g, namespace="shivam")
+
+    server.stop()
+
+
+def test_send_graph_fails_if_graph_already_exists_at_namespace():
+    tmp_work_dir = tempfile.mkdtemp()
+
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+    os.makedirs(os.path.join(tmp_work_dir, "shivam"), exist_ok=True)
+    g.save_to_file(os.path.join(tmp_work_dir, "shivam", "g"))
+
+    server = RaphtoryServer(tmp_work_dir).start()
+    client = RaphtoryClient("http://localhost:1736")
+
+    try:
+        client.send_graph(name="g", graph=g, namespace="shivam")
+    except Exception as e:
+        assert "Graph already exists by name = g" in str(e), f"Unexpected exception message: {e}"
+
+    server.stop()
+
+
+def test_send_graph_succeeds_if_graph_already_exists_at_namespace_with_overwrite_enabled():
+    tmp_work_dir = tempfile.mkdtemp()
+    
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+    os.makedirs(os.path.join(tmp_work_dir, "shivam"), exist_ok=True)
+    g.save_to_file(os.path.join(tmp_work_dir, "shivam", "g"))
+
+    server = RaphtoryServer(tmp_work_dir).start()
+    client = RaphtoryClient("http://localhost:1736")
+
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+    g.add_edge(4, "ben", "shivam")
+    client.send_graph(name="g", graph=g, overwrite=True, namespace="shivam")
+
+    query = """{graph(name: "g", namespace: "shivam") {nodes {list {name}}}}"""
+    assert client.query(query) == {
+        "graph": {
+            "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}, {"name": "shivam"}]}
+        }
+    }
+
+    server.stop()
+
+
+def test_send_graph_to_server_with_various_namespaces():
     def assert_graph_fetch(name, namespace):
         query = f"""{{ graph(name: "{name}", namespace: "{namespace}") {{ nodes {{ list {{ name }} }} }} }}"""
         assert client.query(query) == {
@@ -572,7 +661,7 @@ def test_rename_graph():
     server.stop()
 
 
-# Update Graph with new graph name tests    
+# Update Graph with new graph name tests
 def test_update_graph_with_new_graph_name_fails_if_parent_graph_not_found():
     work_dir = tempfile.mkdtemp()
     server = RaphtoryServer(work_dir).start()
@@ -588,12 +677,12 @@ def test_update_graph_with_new_graph_name_fails_if_parent_graph_not_found():
           graphNodes: "{ \\"ben\\": {} }"
         )
     }"""
-    
+
     try:
         client.query(query)
     except Exception as e:
         assert "Graph not found g0" in str(e), f"Unexpected exception message: {e}"
-    
+
     server.stop()
 
 
@@ -614,7 +703,7 @@ def test_update_graph_with_new_graph_name_fails_if_current_graph_not_found():
           graphNodes: "{ \\"ben\\": {} }"
         )
     }"""
-    
+
     try:
         client.query(query)
     except Exception as e:
@@ -649,7 +738,7 @@ def test_update_graph_with_new_graph_name_fails_if_new_graph_already_exists():
           graphNodes: "{ \\"ben\\": {} }"
         )
     }"""
-    
+
     try:
         client.query(query)
     except Exception as e:
@@ -708,7 +797,7 @@ def test_update_graph_with_new_graph_name_succeeds_if_parent_graph_belongs_to_di
     assert result['graph']['properties']['constant']['isArchive']['value'] == 1
 
     server.stop()
-    
+
 
 def test_update_graph_with_new_graph_name_succeeds_if_parent_graph_belongs_to_same_namespace():
     g = Graph()
@@ -816,7 +905,7 @@ def test_update_graph_with_new_graph_name_succeeds_with_new_node_from_parent_gra
     assert result['graph']['properties']['constant']['isArchive']['value'] == 1
 
     server.stop()
-    
+
 
 def test_update_graph_with_new_graph_name_succeeds_with_new_node_removed_from_new_graph():
     g = Graph()
@@ -870,7 +959,7 @@ def test_update_graph_with_new_graph_name_succeeds_with_new_node_removed_from_ne
     server.stop()
 
 
-# Update Graph with new graph name tests    
+# Update Graph tests
 def test_update_graph_fails_if_parent_graph_not_found():
     work_dir = tempfile.mkdtemp()
     server = RaphtoryServer(work_dir).start()
