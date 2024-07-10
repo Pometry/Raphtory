@@ -9,7 +9,7 @@ use crate::{
             algorithm_result::AlgorithmResult,
             edge::{PyDirection, PyEdge, PyMutableEdge},
             edges::PyEdges,
-            graph::PyGraph,
+            graph::{PyGraph, PyGraphEncoder},
             graph_with_deletions::PyPersistentGraph,
             index::GraphIndex,
             node::{PyMutableNode, PyNode, PyNodes},
@@ -31,6 +31,7 @@ pub fn add_raphtory_classes(m: &PyModule) -> PyResult<()> {
     add_classes!(
         m,
         PyGraph,
+        PyGraphEncoder,
         PyPersistentGraph,
         PyNode,
         PyNodes,
