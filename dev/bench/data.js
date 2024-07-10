@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1719926037829,
+  "lastUpdate": 1720607948403,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -54091,6 +54091,66 @@ window.BENCHMARK_DATA = {
             "name": "temporal_motifs/temporal_motifs",
             "value": 20602727,
             "range": "± 286328",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "2404621+fabianmurariu@users.noreply.github.com",
+            "name": "Fabian Murariu",
+            "username": "fabianmurariu"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0d4530914996e37e4124b69e5836c8b1ca575b99",
+          "message": "Stable serialise (#1683)\n\n* serialise one node graph with proto and prost\r\n\r\n* add minimal support for properties\r\n\r\n* add better support for properties and start using ids\r\n\r\n* can encode props and encode and decode edges\r\n\r\n* added graph const and temporal properties\r\n\r\n* add test for edge properties\r\n\r\n* add test for edge deletions\r\n\r\n* arrange dependencies\r\n\r\n* add string interning and add protoc to the build\r\n\r\n* add protoc to rust doctest\r\n\r\n* try adding github token to binstall and protoc install\r\n\r\n* add protoc to benchmarks\r\n\r\n* attempt to fix the github token issues with protoc\r\n\r\n* more protoc\r\n\r\n* Graph and Persistend graph now work with pickle and the format is stable\r\n\r\n* move protobuf in a separate feature\r\n\r\n* fix the python workflow\r\n\r\n* fmt\r\n\r\n* add more protoc in yml\r\n\r\n* attempt to fix the disk storage\r\n\r\n* fix python failing\r\n\r\n* fix graphql lib import issues\r\n\r\n* change the proto format so it can be easily extended\r\n\r\n* try ubuntu 20.04 to avoid 143 error\r\n\r\n* some changes as per review\r\n\r\n* refactor StableDecode trait\r\n\r\n* use assert_graph_equals\r\n\r\n* fix compile issues",
+          "timestamp": "2024-07-10T12:08:19+02:00",
+          "tree_id": "5f952650e44a4168cec0e020ced618a181f91030",
+          "url": "https://github.com/Pometry/Raphtory/commit/0d4530914996e37e4124b69e5836c8b1ca575b99"
+        },
+        "date": 1720607947278,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "local_triangle_count/local_triangle_count",
+            "value": 851955,
+            "range": "± 4315",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "local_clustering_coefficient/local_clustering_coefficient",
+            "value": 98582,
+            "range": "± 946",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_clustering_coeff/graphgen_large_clustering_coeff/Graph(num_nodes=500004, num_edges=20...",
+            "value": 2252963398,
+            "range": "± 33354874",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_pagerank/graphgen_large_pagerank/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 218120921,
+            "range": "± 2172841",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_concomp/graphgen_large_concomp/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 2213924903,
+            "range": "± 30915190",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "temporal_motifs/temporal_motifs",
+            "value": 20492702,
+            "range": "± 135402",
             "unit": "ns/iter"
           }
         ]
