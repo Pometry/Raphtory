@@ -868,9 +868,60 @@ def test_update_graph_with_new_graph_name_succeeds_with_new_node_removed_from_ne
     assert result['graph']['properties']['constant']['isArchive']['value'] == 1
 
     server.stop()
-    
 
-def test_update_graph():
+
+# Update Graph with new graph name tests    
+def test_update_graph_fails_if_parent_graph_not_found():
+    work_dir = tempfile.mkdtemp()
+    server = RaphtoryServer(work_dir).start()
+    client = server.get_client()
+    query = """mutation {
+        updateGraph(
+          parentGraphName: "g0",
+          graphName: "g2",
+          graphNamespace: "shivam",
+          newGraphName: "g2",
+          props: "{{ \\"target\\": 6 : }}",
+          isArchive: 0,
+          graphNodes: "{ \\"ben\\": {} }"
+        )
+    }"""
+
+    try:
+        client.query(query)
+    except Exception as e:
+        assert "Graph not found g0" in str(e), f"Unexpected exception message: {e}"
+
+    server.stop()
+
+
+def test_update_graph_fails_if_current_graph_not_found():
+    g = Graph()
+    work_dir = tempfile.mkdtemp()
+    g.save_to_file(os.path.join(work_dir, "g1"))
+    server = RaphtoryServer(work_dir).start()
+    client = server.get_client()
+    query = """mutation {
+        updateGraph(
+          parentGraphName: "g1",
+          graphName: "g0",
+          graphNamespace: "shivam",
+          newGraphName: "g0",
+          props: "{{ \\"target\\": 6 : }}",
+          isArchive: 0,
+          graphNodes: "{ \\"ben\\": {} }"
+        )
+    }"""
+
+    try:
+        client.query(query)
+    except Exception as e:
+        assert "Graph not found shivam/g0" in str(e), f"Unexpected exception message: {e}"
+
+    server.stop()
+
+
+def test_update_graph_succeeds_if_parent_graph_belongs_to_different_namespace():
     g = Graph()
     g.add_edge(1, "ben", "hamza")
     g.add_edge(2, "haaroon", "hamza")
@@ -881,14 +932,25 @@ def test_update_graph():
 
     g.save_to_file(os.path.join(work_dir, "g1"))
     g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
-    g.save_to_file(os.path.join(work_dir, "shivam", "g3"))
 
     server = RaphtoryServer(work_dir).start()
     client = server.get_client()
 
-    # Assert if "save" graph succeeds, when parent graph belongs to different namespace
+    query = """mutation {
+      updateGraph(
+        parentGraphName: "g1",
+        graphName: "g2",
+        graphNamespace: "shivam",
+        newGraphName: "g2",
+        props: "{ \\"target\\": 6 : }",
+        isArchive: 1,
+        graphNodes: "{ \\"ben\\": {} }"
+      )
+    }"""
+    client.query(query)
+
     query = """{
-        graph(name: "g3", namespace: "shivam") { 
+        graph(name: "g2", namespace: "shivam") { 
             nodes { list { name } }
             properties { constant {
               creationTime: get(key: "creationTime") { value }
@@ -899,39 +961,33 @@ def test_update_graph():
             }}
         }
     }"""
-    result = client.query(query)
-    # Assertions pre-save graph
-    assert result['graph']['nodes']['list'] == [{'name': 'ben'}, {'name': 'hamza'}, {'name': 'haaroon'}]
-    assert result['graph']['properties']['constant']['creationTime'] is None
-    assert result['graph']['properties']['constant']['lastOpened'] is None
-    assert result['graph']['properties']['constant']['lastUpdated'] is None
-    assert result['graph']['properties']['constant']['uiProps'] is None
-    assert result['graph']['properties']['constant']['isArchive'] is None
-
-    save_graph = """mutation {
-      updateGraph(
-        parentGraphName: "g1",
-        graphName: "g3",
-        graphNamespace: "shivam",
-        newGraphName: "g3",
-        props: "{ \\"target\\": 6 : }",
-        isArchive: 1,
-        graphNodes: "{ \\"ben\\": {}, \\"haaroon\\": {} }"
-      )
-    }"""
-    client.query(save_graph)
 
     result = client.query(query)
-    # Assertions post-save graph
-    assert result['graph']['nodes']['list'] == [{'name': 'ben'}, {'name': 'haaroon'}]
-    assert result['graph']['properties']['constant']['creationTime'] is None  # Since it is an existing graph
+    assert result['graph']['nodes']['list'] == [{'name': 'ben'}]
     assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
     assert result['graph']['properties']['constant']['lastUpdated']['value'] is not None
     assert result['graph']['properties']['constant']['uiProps']['value'] == '{ "target": 6 : }'
     assert result['graph']['properties']['constant']['isArchive']['value'] == 1
 
-    # Assert if "save" graph succeeds, when parent graph belongs to same namespace
-    save_graph = """mutation {
+    server.stop()
+
+
+def test_update_graph_succeeds_if_parent_graph_belongs_to_same_namespace():
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+
+    work_dir = tempfile.mkdtemp()
+    os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
+
+    g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
+    g.save_to_file(os.path.join(work_dir, "shivam", "g3"))
+
+    server = RaphtoryServer(work_dir).start()
+    client = server.get_client()
+
+    query = """mutation {
       updateGraph(
         parentGraphName: "g2",
         parentGraphNamespace: "shivam",
@@ -943,7 +999,7 @@ def test_update_graph():
         graphNodes: "{ \\"ben\\": {} }"
       )
     }"""
-    client.query(save_graph)
+    client.query(query)
 
     query = """{
         graph(name: "g3", namespace: "shivam") { 
@@ -959,41 +1015,116 @@ def test_update_graph():
     }"""
     result = client.query(query)
     assert result['graph']['nodes']['list'] == [{'name': 'ben'}]
-    assert result['graph']['properties']['constant']['creationTime'] is None  # Since it is an existing graph
     assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
     assert result['graph']['properties']['constant']['lastUpdated']['value'] is not None
     assert result['graph']['properties']['constant']['uiProps']['value'] == '{ "target": 6 : }'
     assert result['graph']['properties']['constant']['isArchive']['value'] == 1
 
-    # # Assert if rename graph fails when pointing to incorrect graphNamespace
-    # query = """mutation {
-    #   renameGraph(
-    #     parentGraphName: "g2",
-    #     parentGraphNamespace: "shivam",
-    #     graphName: "g5",
-    #     graphNamespace: "ben",
-    #     newGraphName: "g6",
-    #   )
-    # }"""
-    # try:
-    #     client.query(query)
-    # except Exception as e:
-    #     assert "Graph not found ben/g5" in str(e), f"Unexpected exception message: {e}"
-    #
-    # # Assert if rename graph fails when pointing to incorrect parentGraphNamespace
-    # query = """mutation {
-    #   renameGraph(
-    #     parentGraphName: "g2",
-    #     parentGraphNamespace: "ben",
-    #     graphName: "g5",
-    #     graphNamespace: "shivam",
-    #     newGraphName: "g6",
-    #   )
-    # }"""
-    # try:
-    #     client.query(query)
-    # except Exception as e:
-    #     assert "Graph not found ben/g2" in str(e), f"Unexpected exception message: {e}"
+    server.stop()
+
+
+def test_update_graph_succeeds_with_new_node_from_parent_graph_added_to_new_graph():
+    work_dir = tempfile.mkdtemp()
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+    g.add_edge(4, "ben", "shivam")
+    g.save_to_file(os.path.join(work_dir, "g1"))
+
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+    os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
+    g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
+
+    server = RaphtoryServer(work_dir).start()
+    client = server.get_client()
+
+    query = """mutation {
+      updateGraph(
+        parentGraphName: "g1",
+        graphName: "g2",
+        graphNamespace: "shivam",
+        newGraphName: "g2",
+        props: "{ \\"target\\": 6 : }",
+        isArchive: 1,
+        graphNodes: "{ \\"ben\\": {}, \\"shivam\\": {} }"
+      )
+    }"""
+    client.query(query)
+
+    query = """{
+        graph(name: "g2", namespace: "shivam") { 
+            nodes { list { name } }
+            properties { constant {
+              creationTime: get(key: "creationTime") { value }
+              lastUpdated: get(key: "lastUpdated") { value }
+              lastOpened: get(key: "lastOpened") { value }
+              uiProps: get(key: "uiProps") { value }
+              isArchive: get(key: "isArchive") { value }
+            }}
+        }
+    }"""
+
+    result = client.query(query)
+    assert result['graph']['nodes']['list'] == [{'name': 'ben'}, {'name': 'shivam'}]
+    assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
+    assert result['graph']['properties']['constant']['lastUpdated']['value'] is not None
+    assert result['graph']['properties']['constant']['uiProps']['value'] == '{ "target": 6 : }'
+    assert result['graph']['properties']['constant']['isArchive']['value'] == 1
+
+    server.stop()
+
+
+def test_update_graph_succeeds_with_new_node_removed_from_new_graph():
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+
+    work_dir = tempfile.mkdtemp()
+    os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
+
+    g.save_to_file(os.path.join(work_dir, "g1"))
+    g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
+
+    server = RaphtoryServer(work_dir).start()
+    client = server.get_client()
+
+    query = """mutation {
+      updateGraph(
+        parentGraphName: "g1",
+        graphName: "g2",
+        graphNamespace: "shivam",
+        newGraphName: "g2",
+        props: "{ \\"target\\": 6 : }",
+        isArchive: 1,
+        graphNodes: "{ \\"ben\\": {} }"
+      )
+    }"""
+    client.query(query)
+
+    query = """{
+        graph(name: "g2", namespace: "shivam") { 
+            nodes { list { name } }
+            properties { constant {
+              creationTime: get(key: "creationTime") { value }
+              lastUpdated: get(key: "lastUpdated") { value }
+              lastOpened: get(key: "lastOpened") { value }
+              uiProps: get(key: "uiProps") { value }
+              isArchive: get(key: "isArchive") { value }
+            }}
+        }
+    }"""
+
+    result = client.query(query)
+    assert result['graph']['nodes']['list'] == [{'name': 'ben'}]
+    assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
+    assert result['graph']['properties']['constant']['lastUpdated']['value'] is not None
+    assert result['graph']['properties']['constant']['uiProps']['value'] == '{ "target": 6 : }'
+    assert result['graph']['properties']['constant']['isArchive']['value'] == 1
 
     server.stop()
 
