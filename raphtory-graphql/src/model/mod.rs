@@ -225,7 +225,65 @@ impl Mut {
         Ok(true)
     }
 
-    async fn save_graph<'a>(
+    async fn create_graph<'a>(
+        ctx: &Context<'a>,
+        parent_graph_name: String,
+        parent_graph_namespace: &Option<String>,
+        new_graph_namespace: &Option<String>,
+        new_graph_name: String,
+        props: String,
+        is_archive: u8,
+        graph_nodes: String,
+    ) -> Result<bool> {
+        let data = ctx.data_unchecked::<Data>();
+        let parent_graph_path =
+            construct_graph_path(&data.work_dir, &parent_graph_name, parent_graph_namespace)?;
+        if !parent_graph_path.exists() {
+            return Err(GraphError::GraphNotFound(construct_graph_name(
+                &parent_graph_name,
+                parent_graph_namespace,
+            ))
+            .into());
+        }
+
+        let new_graph_path =
+            construct_graph_path(&data.work_dir, &new_graph_name, new_graph_namespace)?;
+        if new_graph_path.exists() {
+            return Err(GraphError::GraphNameAlreadyExists {
+                name: construct_graph_name(&new_graph_name, new_graph_namespace),
+            }
+            .into());
+        }
+
+        let timestamp: i64 = Utc::now().timestamp();
+        let deserialized_node_map: Value = serde_json::from_str(graph_nodes.as_str())?;
+        let node_map = deserialized_node_map
+            .as_object()
+            .ok_or("graph_nodes not object")?;
+        let node_ids = node_map.keys().map(|key| key.as_str()).collect_vec();
+
+        // Creating a new graph (owner is user) from UI
+        // Graph is created from the parent graph. This means the new graph retains the character of the parent graph i.e.,
+        // the new graph is an event or persistent graph depending on if the parent graph is event or persistent graph, respectively.
+        let parent_graph = data.get_graph(&parent_graph_name, parent_graph_namespace)?;
+        let new_subgraph = parent_graph.subgraph(node_ids.clone()).materialize()?;
+
+        new_subgraph.update_constant_properties([("creationTime", Prop::I64(timestamp * 1000))])?;
+        new_subgraph.update_constant_properties([("name", Prop::str(new_graph_name.clone()))])?;
+        new_subgraph.update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
+        new_subgraph.update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
+        new_subgraph.update_constant_properties([("uiProps", Prop::Str(props.into()))])?;
+        new_subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
+
+        new_subgraph.save_to_file(new_graph_path)?;
+
+        data.graphs
+            .insert(new_graph_name.clone(), new_subgraph.into());
+
+        Ok(true)
+    }
+
+    async fn update_graph<'a>(
         ctx: &Context<'a>,
         parent_graph_name: String,
         parent_graph_namespace: &Option<String>,
@@ -247,18 +305,21 @@ impl Mut {
             .into());
         }
 
-        let deserialized_node_map: Value = serde_json::from_str(graph_nodes.as_str())?;
-        let node_map = deserialized_node_map
-            .as_object()
-            .ok_or("graph_nodes not object")?;
-        let node_ids = node_map.keys().map(|key| key.as_str()).collect_vec();
+        // Saving an existing graph
+        let current_graph_path =
+            construct_graph_path(&data.work_dir, &graph_name, graph_namespace)?;
+        if !current_graph_path.exists() {
+            return Err(GraphError::GraphNotFound(construct_graph_name(
+                &graph_name,
+                graph_namespace,
+            ))
+            .into());
+        }
 
-        let timestamp: i64 = Utc::now().timestamp();
         let new_graph_path =
             construct_graph_path(&data.work_dir, &new_graph_name, graph_namespace)?;
-
-        if parent_graph_name == graph_name || graph_name != new_graph_name {
-            // New graph or Save as
+        if graph_name != new_graph_name {
+            // Save as
             if new_graph_path.exists() {
                 return Err(GraphError::GraphNameAlreadyExists {
                     name: construct_graph_name(&new_graph_name, graph_namespace),
@@ -267,66 +328,54 @@ impl Mut {
             }
         }
 
-        let new_subgraph = if parent_graph_name == graph_name {
-            // Creating a new graph (owner is user) from UI
-            // Graph is created from the parent graph. This means the new graph retains the character of the parent graph i.e.,
-            // the new graph is an event or persistent graph depending on if the parent graph is event or persistent graph, respectively.
-            let parent_graph = data.get_graph(&parent_graph_name, parent_graph_namespace)?;
-            let new_subgraph = parent_graph.subgraph(node_ids.clone()).materialize()?;
+        let current_graph = data.get_graph(&graph_name, graph_namespace)?;
+        #[cfg(feature = "storage")]
+        if current_graph.clone().graph.into_disk_graph().is_some() {
+            return Err(GqlGraphError::ImmutableDiskGraph.into());
+        }
 
+        let timestamp: i64 = Utc::now().timestamp();
+        let deserialized_node_map: Value = serde_json::from_str(graph_nodes.as_str())?;
+        let node_map = deserialized_node_map
+            .as_object()
+            .ok_or("graph_nodes not object")?;
+        let node_ids = node_map.keys().map(|key| key.as_str()).collect_vec();
+
+        // Creating a new graph from the current graph instead of the parent graph preserves the character of the new graph
+        // i.e., the new graph is an event or persistent graph depending on if the current graph is event or persistent graph, respectively.
+        let new_subgraph = current_graph.subgraph(node_ids.clone()).materialize()?;
+
+        let parent_graph = data.get_graph(&parent_graph_name, parent_graph_namespace)?;
+        let new_node_ids = node_ids
+            .iter()
+            .filter(|x| current_graph.graph.node(x).is_none())
+            .collect_vec();
+        let parent_subgraph = parent_graph.subgraph(new_node_ids);
+
+        let nodes = parent_subgraph.nodes();
+        new_subgraph.import_nodes(nodes, true)?;
+        let edges = parent_subgraph.edges();
+        new_subgraph.import_edges(edges, true)?;
+
+        if graph_name == new_graph_name {
+            // Save
+            let static_props: Vec<(ArcStr, Prop)> = current_graph
+                .properties()
+                .into_iter()
+                .filter(|(a, _)| a != "name" && a != "lastUpdated" && a != "uiProps")
+                .collect_vec();
+            new_subgraph.update_constant_properties(static_props)?;
+        } else {
+            // Save as
+            let static_props: Vec<(ArcStr, Prop)> = current_graph
+                .properties()
+                .into_iter()
+                .filter(|(a, _)| a != "name" && a != "creationTime" && a != "uiProps")
+                .collect_vec();
+            new_subgraph.update_constant_properties(static_props)?;
             new_subgraph
                 .update_constant_properties([("creationTime", Prop::I64(timestamp * 1000))])?;
-            new_subgraph
-        } else {
-            // Saving an existing graph
-            let current_graph_path =
-                construct_graph_path(&data.work_dir, &graph_name, graph_namespace)?;
-            if !current_graph_path.exists() {
-                return Err(GraphError::GraphNotFound(construct_graph_name(
-                    &graph_name,
-                    graph_namespace,
-                ))
-                .into());
-            }
-
-            let current_graph = data.get_graph(&graph_name, graph_namespace)?;
-            #[cfg(feature = "storage")]
-            if current_graph.clone().graph.into_disk_graph().is_some() {
-                return Err(GqlGraphError::ImmutableDiskGraph.into());
-            }
-            // Creating a new graph from the current graph instead of the parent graph preserves the character of the new graph
-            // i.e., the new graph is an event or persistent graph depending on if the current graph is event or persistent graph, respectively.
-            let new_subgraph = current_graph.subgraph(node_ids.clone()).materialize()?;
-
-            let parent_graph = data.get_graph(&parent_graph_name, parent_graph_namespace)?;
-            let parent_subgraph = parent_graph.subgraph(node_ids.clone());
-
-            let nodes = parent_subgraph.nodes();
-            new_subgraph.import_nodes(nodes, true)?;
-            let edges = parent_subgraph.edges();
-            new_subgraph.import_edges(edges, true)?;
-
-            if graph_name == new_graph_name {
-                // Save
-                let static_props: Vec<(ArcStr, Prop)> = current_graph
-                    .properties()
-                    .into_iter()
-                    .filter(|(a, _)| a != "name" && a != "lastUpdated" && a != "uiProps")
-                    .collect_vec();
-                new_subgraph.update_constant_properties(static_props)?;
-            } else {
-                // Save as
-                let static_props: Vec<(ArcStr, Prop)> = current_graph
-                    .properties()
-                    .into_iter()
-                    .filter(|(a, _)| a != "name" && a != "creationTime" && a != "uiProps")
-                    .collect_vec();
-                new_subgraph.update_constant_properties(static_props)?;
-                new_subgraph
-                    .update_constant_properties([("creationTime", Prop::I64(timestamp * 1000))])?;
-            }
-            new_subgraph
-        };
+        }
 
         new_subgraph.update_constant_properties([("name", Prop::str(new_graph_name.clone()))])?;
         new_subgraph.update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;

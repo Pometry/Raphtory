@@ -773,21 +773,6 @@ mod graphql_test {
             true
         );
 
-        let save_graph = |parent_name: &str, new_graph_name: &str, nodes: &str| {
-            format!(
-                r#"mutation {{
-                  saveGraph(
-                    parentGraphName: "{parent_name}",
-                    graphName: "{parent_name}",
-                    newGraphName: "{new_graph_name}",
-                    props: "{{}}",
-                    isArchive: 0,
-                    graphNodes: {nodes},
-                  )
-              }}"#
-            )
-        };
-
         // only g0 which is empty
         let req = Request::new(load_all);
         let res = schema.execute(req).await;
@@ -830,26 +815,6 @@ mod graphql_test {
             res_json,
             json!({"graph": {"nodes": {"list": [{"id": "1"}]}}})
         );
-
-        // Test save graph
-        let req = Request::new(save_graph("g0", "g3", r#""{ \"2\": {} }""#));
-        let res = schema.execute(req).await;
-        assert!(res.errors.is_empty());
-        let req = Request::new(list_nodes("g3"));
-        let res = schema.execute(req).await;
-        let res_json = res.data.into_json().unwrap();
-        assert_eq!(
-            res_json,
-            json!({"graph": {"nodes": {"list": [{"id": "2"}]}}})
-        );
-
-        // Test exception case when saving with a name against which there already exists a graph
-        let req = Request::new(save_graph("g0", "g3", r#""{ \"2\": {} }""#));
-        let res = schema.execute(req).await;
-        let data = res.errors;
-        let error_message = &data[0].message;
-        let expected_error_message = "Graph already exists by name = g3";
-        assert_eq!(error_message, expected_error_message);
     }
 
     #[tokio::test]
