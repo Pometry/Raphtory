@@ -603,125 +603,38 @@ def test_load_graph_succeeds_if_graph_already_exists_at_namespace_with_overwrite
     server.stop()
 
 
-def test_load_graph():
-    g1 = Graph()
-    g1.add_edge(1, "ben", "hamza")
-    g1.add_edge(2, "haaroon", "hamza")
-    g1.add_edge(3, "ben", "haaroon")
-    g2 = Graph()
-    g2.add_edge(1, "Naomi", "Shivam")
-    g2.add_edge(2, "Shivam", "Pedro")
-    g2.add_edge(3, "Pedro", "Rachel")
-
-    tmp_work_dir = tempfile.mkdtemp()
-    server = RaphtoryServer(tmp_work_dir).start()
-    client = server.get_client()
-    client.send_graph(name="g1", graph=g1)
-    client.send_graph(name="g2", graph=g2)
-
-    g2 = Graph()
-    g2.add_edge(1, "shifu", "po")
-    g2.add_edge(2, "oogway", "phi")
-    g2.add_edge(3, "phi", "po")
-    tmp_dir = tempfile.mkdtemp()
-    g2_file_path = tmp_dir + "/g2"
-    g2.save_to_file(g2_file_path)
-
-    # Since overwrite is False by default, it will not overwrite the existing graph g2 but will instead fail
-    try:
-        client.load_graph(tmp_dir + "/g2")
-    except Exception as e:
-        assert "Graph already exists by name = g2" in str(e), f"Unexpected exception message: {e}"
-
-    # Path is not a valid disk graph path
-    try:
-        client.load_graph(tmp_dir)
-    except Exception as e:
-        assert "Invalid path" in str(e), f"Unexpected exception message: {e}"
-
-    query_g1 = """{graph(name: "g1") {nodes {list {name}}}}"""
-    query_g2 = """{graph(name: "g2") {nodes {list {name}}}}"""
-    assert client.query(query_g1) == {
-        "graph": {
-            "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
-        }
-    }
-    assert client.query(query_g2) == {
-        "graph": {
-            "nodes": {
-                "list": [
-                    {"name": "Naomi"},
-                    {"name": "Shivam"},
-                    {"name": "Pedro"},
-                    {"name": "Rachel"},
-                ]
-            }
-        }
-    }
-
-    server.stop()
-
-
-def test_load_graph_overwrite():
-    g1 = Graph()
-    g1.add_edge(1, "ben", "hamza")
-    g1.add_edge(2, "haaroon", "hamza")
-    g1.add_edge(3, "ben", "haaroon")
-    g2 = Graph()
-    g2.add_edge(1, "Naomi", "Shivam")
-    g2.add_edge(2, "Shivam", "Pedro")
-    g2.add_edge(3, "Pedro", "Rachel")
-    tmp_dir = tempfile.mkdtemp()
-    g2_file_path = tmp_dir + "/g2"
-    g2.save_to_file(g2_file_path)
-
-    tmp_work_dir = tempfile.mkdtemp()
-    server = RaphtoryServer(tmp_work_dir).start()
-    client = server.get_client()
-    client.send_graph(name="g1", graph=g1)
-    client.send_graph(name="g2", graph=g2)
-
-    client.load_graph(tmp_dir + "/g2", True)
-
-    query_g1 = """{graph(name: "g1") {nodes {list {name}}}}"""
-    query_g2 = """{graph(name: "g2") {nodes {list {name}}}}"""
-    assert client.query(query_g1) == {
-        "graph": {
-            "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
-        }
-    }
-    assert client.query(query_g2) == {
-        "graph": {
-            "nodes": {
-                "list": [
-                    {"name": "Naomi"},
-                    {"name": "Shivam"},
-                    {"name": "Pedro"},
-                    {"name": "Rachel"},
-                ]
-            }
-        }
-    }
-
-    server.stop()
-
-
-def test_get_graph():
+def test_get_graph_fails_if_graph_not_found():
     work_dir = tempfile.mkdtemp()
     server = RaphtoryServer(work_dir).start()
     client = server.get_client()
-
+    
     query = """{ graph(name: "g1") { name, path, nodes { list { name } } } }"""
     try:
         client.query(query)
     except Exception as e:
         assert "Graph not found g1" in str(e), f"Unexpected exception message: {e}"
 
+    server.stop()
+    
+
+def test_get_graph_fails_if_graph_not_found_at_namespace():
+    work_dir = tempfile.mkdtemp()
+    server = RaphtoryServer(work_dir).start()
+    client = server.get_client()
+
     query = """{ graph(name: "g1", namespace: "shivam") { name, path, nodes { list { name } } } }"""
     try:
         client.query(query)
     except Exception as e:
         assert "Graph not found shivam/g1" in str(e), f"Unexpected exception message: {e}"
+
+    server.stop()
+    
+
+def test_get_graph_succeeds_if_graph_found():
+    work_dir = tempfile.mkdtemp()
+    server = RaphtoryServer(work_dir).start()
+    client = server.get_client()
 
     g = Graph()
     g.add_edge(1, "ben", "hamza")
@@ -730,18 +643,33 @@ def test_get_graph():
 
     os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
     g.save_to_file(os.path.join(work_dir, "g1"))
-    g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
 
     query = """{ graph(name: "g1") { name, path, nodes { list { name } } } }"""
     assert client.query(query) == {
         'graph': {'name': 'g1', 'nodes': {'list': [{'name': 'ben'}, {'name': 'hamza'}, {'name': 'haaroon'}]},
                   'path': 'g1'}}
 
+    server.stop()
+
+
+def test_get_graph_succeeds_if_graph_found_at_namespace():
+    work_dir = tempfile.mkdtemp()
+    server = RaphtoryServer(work_dir).start()
+    client = server.get_client()
+    
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+    
+    os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
+    g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
+    
     query = """{ graph(name: "g2", namespace: "shivam") { name, path, nodes { list { name } } } }"""
     assert client.query(query) == {
         'graph': {'name': 'g2', 'nodes': {'list': [{'name': 'ben'}, {'name': 'hamza'}, {'name': 'haaroon'}]},
                   'path': 'shivam/g2'}}
-
+    
     server.stop()
 
 
