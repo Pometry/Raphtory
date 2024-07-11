@@ -1482,7 +1482,7 @@ def test_update_graph_succeeds_with_new_node_removed_from_new_graph():
     server.stop()
 
 
-def test_update_graph_last_opened():
+def test_update_graph_last_opened_fails_if_graph_not_found():
     work_dir = tempfile.mkdtemp()
     server = RaphtoryServer(work_dir).start()
     client = server.get_client()
@@ -1493,11 +1493,23 @@ def test_update_graph_last_opened():
     except Exception as e:
         assert "Graph not found g1" in str(e), f"Unexpected exception message: {e}"
 
+
+def test_update_graph_last_opened_fails_if_graph_not_found_at_namespace():
+    work_dir = tempfile.mkdtemp()
+    server = RaphtoryServer(work_dir).start()
+    client = server.get_client()
+
     query = """mutation { updateGraphLastOpened(graphName: "g1", namespace: "shivam") }"""
     try:
         client.query(query)
     except Exception as e:
         assert "Graph not found shivam/g1" in str(e), f"Unexpected exception message: {e}"
+    
+
+def test_update_graph_last_opened_succeeds():
+    work_dir = tempfile.mkdtemp()
+    server = RaphtoryServer(work_dir).start()
+    client = server.get_client()
 
     g = Graph()
     g.add_edge(1, "ben", "hamza")
@@ -1518,6 +1530,23 @@ def test_update_graph_last_opened():
     updated_last_opened2 = client.query(query_last_opened)['graph']['properties']['constant']['get']['value']
     assert updated_last_opened2 > updated_last_opened1
 
+    server.stop()
+
+
+def test_update_graph_last_opened_succeeds_at_namespace():
+    work_dir = tempfile.mkdtemp()
+    server = RaphtoryServer(work_dir).start()
+    client = server.get_client()
+
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+
+    os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
+    g.save_to_file(os.path.join(work_dir, "g1"))
+    g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
+
     query_last_opened = """{ graph(name: "g2", namespace: "shivam") { properties { constant { get(key: "lastOpened") { value } } } } }"""
     mutate_last_opened = """mutation { updateGraphLastOpened(graphName: "g2", namespace: "shivam") }"""
     assert client.query(query_last_opened) == {'graph': {'properties': {'constant': {'get': None}}}}
@@ -1531,7 +1560,7 @@ def test_update_graph_last_opened():
     server.stop()
 
 
-def test_archive_graph():
+def test_archive_graph_fails_if_graph_not_found():
     work_dir = tempfile.mkdtemp()
     server = RaphtoryServer(work_dir).start()
     client = server.get_client()
@@ -1542,11 +1571,23 @@ def test_archive_graph():
     except Exception as e:
         assert "Graph not found g1" in str(e), f"Unexpected exception message: {e}"
 
+
+def test_archive_graph_fails_if_graph_not_found_at_namespace():
+    work_dir = tempfile.mkdtemp()
+    server = RaphtoryServer(work_dir).start()
+    client = server.get_client()
+
     query = """mutation { archiveGraph(graphName: "g1", namespace: "shivam", isArchive: 0) }"""
     try:
         client.query(query)
     except Exception as e:
         assert "Graph not found shivam/g1" in str(e), f"Unexpected exception message: {e}"
+
+
+def test_archive_graph_succeeds():
+    work_dir = tempfile.mkdtemp()
+    server = RaphtoryServer(work_dir).start()
+    client = server.get_client()
 
     g = Graph()
     g.add_edge(1, "ben", "hamza")
@@ -1565,6 +1606,23 @@ def test_archive_graph():
     update_archive_graph = """mutation { archiveGraph(graphName: "g1", isArchive: 1) }"""
     assert client.query(update_archive_graph) == {"archiveGraph": True}
     assert client.query(query_is_archive)['graph']['properties']['constant']['get']['value'] == 1
+
+    server.stop()
+
+
+def test_archive_graph_succeeds_at_namespace():
+    work_dir = tempfile.mkdtemp()
+    server = RaphtoryServer(work_dir).start()
+    client = server.get_client()
+
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+
+    os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
+    g.save_to_file(os.path.join(work_dir, "g1"))
+    g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
 
     query_is_archive = """{ graph(name: "g2", namespace: "shivam") { properties { constant { get(key: "isArchive") { value } } } } }"""
     assert client.query(query_is_archive) == {'graph': {'properties': {'constant': {'get': None}}}}
