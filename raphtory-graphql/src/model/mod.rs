@@ -26,7 +26,7 @@ use serde_json::Value;
 use std::{
     error::Error,
     fmt::{Display, Formatter},
-    fs,
+    fs, io,
     io::Read,
     path::{Path, PathBuf},
 };
@@ -129,22 +129,11 @@ pub(crate) struct Mut(MutRoot);
 impl Mut {
     async fn rename_graph<'a>(
         ctx: &Context<'a>,
-        parent_graph_name: String,
-        parent_graph_namespace: &Option<String>,
         graph_name: String,
         graph_namespace: &Option<String>,
         new_graph_name: String,
     ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
-        let parent_graph_path =
-            construct_graph_path(&data.work_dir, &parent_graph_name, parent_graph_namespace)?;
-        if !parent_graph_path.exists() {
-            return Err(GraphError::GraphNotFound(construct_graph_name(
-                &parent_graph_name,
-                parent_graph_namespace,
-            ))
-            .into());
-        }
         let current_graph_path =
             construct_graph_path(&data.work_dir, &graph_name, graph_namespace)?;
         if !current_graph_path.exists() {
@@ -171,33 +160,19 @@ impl Mut {
             return Err(GqlGraphError::ImmutableDiskGraph.into());
         }
 
-        if new_graph_name.ne(&graph_name) && parent_graph_name.ne(&graph_name) {
-            let parent_graph = data.get_graph(&parent_graph_name, parent_graph_namespace)?;
-            let new_graph = parent_graph
-                .subgraph(current_graph.nodes().iter().map(|v| v.name()).collect_vec())
-                .materialize()?;
+        if new_graph_name.ne(&graph_name) {
+            let timestamp: i64 = Utc::now().timestamp();
 
-            let static_props_without_name: Vec<(ArcStr, Prop)> = current_graph
-                .properties()
-                .into_iter()
-                .filter(|(a, _)| a != "name")
-                .collect_vec();
-
-            new_graph.update_constant_properties(static_props_without_name)?;
-            new_graph
+            current_graph
                 .update_constant_properties([("name", Prop::Str(new_graph_name.clone().into()))])?;
+            current_graph
+                .update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
+            current_graph
+                .update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
+            current_graph.save_to_file(&new_graph_path)?;
 
-            let dt = Utc::now();
-            let timestamp: i64 = dt.timestamp();
-            new_graph.update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
-            new_graph.update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
-            new_graph.save_to_file(&new_graph_path)?;
-
-            let gi: IndexedGraph<MaterializedGraph> = new_graph.into();
-
-            data.graphs.insert(new_graph_name, gi);
-            data.graphs.invalidate(&graph_name);
             delete_graph(&current_graph_path)?;
+            data.graphs.invalidate(&graph_name);
         }
 
         Ok(true)
@@ -395,27 +370,6 @@ impl Mut {
         Ok(true)
     }
 
-    /// Load graphs from a directory of bincode files (existing graphs with the same name are overwritten)
-    ///
-    /// Returns::
-    ///   list of names for newly added graphs
-    async fn load_graphs_from_path<'a>(
-        ctx: &Context<'a>,
-        path: String,
-        namespace: &Option<String>,
-        overwrite: bool,
-    ) -> Result<Vec<String>> {
-        let data = ctx.data_unchecked::<Data>();
-        let names = load_graphs_from_path(
-            data.work_dir.as_ref(),
-            (&path).as_ref(),
-            namespace,
-            overwrite,
-        )?;
-        names.iter().for_each(|name| data.graphs.invalidate(name));
-        Ok(names)
-    }
-
     /// Load graph from path
     ///
     /// Returns::
@@ -509,6 +463,24 @@ impl Mut {
         data.graphs.insert(graph_name, subgraph);
 
         Ok(true)
+    }
+
+    // This function does not serve use case as yet. Need to decide on the semantics for multi-graphs.
+    async fn load_graphs_from_path<'a>(
+        ctx: &Context<'a>,
+        path: String,
+        namespace: &Option<String>,
+        overwrite: bool,
+    ) -> Result<Vec<String>> {
+        let data = ctx.data_unchecked::<Data>();
+        let names = load_graphs_from_path(
+            data.work_dir.as_ref(),
+            (&path).as_ref(),
+            namespace,
+            overwrite,
+        )?;
+        names.iter().for_each(|name| data.graphs.invalidate(name));
+        Ok(names)
     }
 }
 

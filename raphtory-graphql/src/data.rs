@@ -258,6 +258,7 @@ fn get_graph_from_path(path: &Path) -> Result<(String, IndexedGraph<Materialized
     }
 }
 
+// We are loading all the graphs in the work dir for vectorized APIs
 pub(crate) fn get_graphs_from_work_dir(
     work_dir: &Path,
 ) -> Result<HashMap<String, IndexedGraph<MaterializedGraph>>> {
