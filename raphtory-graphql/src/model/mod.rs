@@ -419,14 +419,14 @@ impl Mut {
     ///   list of names for newly added graphs
     async fn load_graph_from_path<'a>(
         ctx: &Context<'a>,
-        path: String,
+        file_path: String,
         namespace: &Option<String>,
         overwrite: bool,
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
         let name = load_graph_from_path(
             data.work_dir.as_ref(),
-            (&path).as_ref(),
+            (&file_path).as_ref(),
             namespace,
             overwrite,
         )?;

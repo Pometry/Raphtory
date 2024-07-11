@@ -831,21 +831,30 @@ impl PyRaphtoryClient {
     /// Load graph from a path `path` on the server.
     ///
     /// Arguments:
-    ///   * `path`: the path to load the graph from.
+    ///   * `file_path`: the path to load the graph from.
     ///   * `overwrite`: overwrite existing graph (defaults to False)
     ///
     /// Returns:
     ///    The `data` field from the graphQL response after executing the mutation.
-    #[pyo3(signature = (path, overwrite = false))]
+    #[pyo3(signature = (file_path, overwrite = false, namespace = None))]
     fn load_graph(
         &self,
         py: Python,
-        path: String,
+        file_path: String,
         overwrite: bool,
+        namespace: Option<String>,
     ) -> PyResult<HashMap<String, PyObject>> {
-        let query =
-            format!("mutation {{ loadGraphFromPath(path: \"{path}\", overwrite: {overwrite}) }}");
-        let variables = [];
+        let query = r#"
+            mutation LoadGraph($file_path: String!, $overwrite: Boolean!, $namespace: String) {
+                loadGraphFromPath(filePath: $file_path, overwrite: $overwrite, namespace: $namespace) 
+            }
+        "#
+            .to_owned();
+        let variables = [
+            ("file_path".to_owned(), json!(file_path)),
+            ("overwrite".to_owned(), json!(overwrite)),
+            ("namespace".to_owned(), json!(namespace)),
+        ];
 
         let data = self.query_with_json_variables(query.clone(), variables.into())?;
 

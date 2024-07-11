@@ -178,7 +178,7 @@ pub fn load_graph_from_path(
         }
     } else {
         let (name, graph) = load_bincode_graph(path)?;
-        let path = Path::new(work_dir).join(name.as_str());
+        let path = construct_graph_path(&work_dir.display().to_string(), name.as_str(), namespace)?;
         if path.exists() {
             if overwrite {
                 fs::remove_file(&path)?;

@@ -280,6 +280,7 @@ def test_namespaces():
     server.stop()
 
 
+# Test upload graph
 def test_upload_graph_succeeds_if_no_graph_found_with_same_name():
     g = Graph()
     g.add_edge(1, "ben", "hamza")
@@ -360,6 +361,7 @@ def test_upload_graph_succeeds_if_graph_already_exists_with_overwrite_enabled():
     server.stop()
 
 
+# Test upload graph at namespace
 def test_upload_graph_succeeds_if_no_graph_found_with_same_name_at_namespace():
     g = Graph()
     g.add_edge(1, "ben", "hamza")
@@ -429,6 +431,167 @@ def test_upload_graph_succeeds_if_graph_already_exists_at_namespace_with_overwri
     g.save_to_file(g_file_path)
 
     client.upload_graph(name="g", file_path=g_file_path, overwrite=True, namespace="shivam")
+
+    query = """{graph(name: "g", namespace: "shivam") {nodes {list {name}}}}"""
+    assert client.query(query) == {
+        "graph": {
+            "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}, {"name": "shivam"}]}
+        }
+    }
+
+    server.stop()
+
+
+def test_load_graph_succeeds_if_no_graph_found_with_same_name():
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+    tmp_dir = tempfile.mkdtemp()
+    g_file_path = tmp_dir + "/g"
+    g.save_to_file(g_file_path)
+
+    tmp_work_dir = tempfile.mkdtemp()
+    server = RaphtoryServer(tmp_work_dir).start()
+    client = RaphtoryClient("http://localhost:1736")
+    client.load_graph(file_path=g_file_path, overwrite=False)
+
+    query = """{graph(name: "g") {nodes {list {name}}}}"""
+    assert client.query(query) == {
+        "graph": {
+            "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
+        }
+    }
+
+    server.stop()
+
+
+def test_load_graph_fails_if_graph_already_exists():
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+    tmp_dir = tempfile.mkdtemp()
+    g_file_path = tmp_dir + "/g"
+    g.save_to_file(g_file_path)
+
+    tmp_work_dir = tempfile.mkdtemp()
+    g.save_to_file(os.path.join(tmp_work_dir, "g"))
+    server = RaphtoryServer(tmp_work_dir).start()
+    client = RaphtoryClient("http://localhost:1736")
+
+    try:
+        client.load_graph(file_path=g_file_path)
+    except Exception as e:
+        assert "Graph already exists by name = g" in str(e), f"Unexpected exception message: {e}"
+
+    server.stop()
+
+
+def test_load_graph_succeeds_if_graph_already_exists_with_overwrite_enabled():
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+    tmp_dir = tempfile.mkdtemp()
+    g_file_path = tmp_dir + "/g"
+    g.save_to_file(g_file_path)
+
+    tmp_work_dir = tempfile.mkdtemp()
+    server = RaphtoryServer(tmp_work_dir).start()
+    client = RaphtoryClient("http://localhost:1736")
+
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+    g.add_edge(4, "ben", "shivam")
+    tmp_dir = tempfile.mkdtemp()
+    g_file_path = tmp_dir + "/g"
+    g.save_to_file(g_file_path)
+
+    client.load_graph(file_path=g_file_path, overwrite=True)
+
+    query = """{graph(name: "g") {nodes {list {name}}}}"""
+    assert client.query(query) == {
+        "graph": {
+            "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}, {"name": "shivam"}]}
+        }
+    }
+
+    server.stop()
+
+
+# Test load graph at namespace
+def test_load_graph_succeeds_if_no_graph_found_with_same_name_at_namespace():
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+    tmp_dir = tempfile.mkdtemp()
+    g_file_path = tmp_dir + "/g"
+    g.save_to_file(g_file_path)
+
+    tmp_work_dir = tempfile.mkdtemp()
+    server = RaphtoryServer(tmp_work_dir).start()
+    client = RaphtoryClient("http://localhost:1736")
+    client.load_graph(file_path=g_file_path, overwrite=False, namespace="shivam")
+
+    query = """{graph(name: "g", namespace: "shivam") {nodes {list {name}}}}"""
+    assert client.query(query) == {
+        "graph": {
+            "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
+        }
+    }
+
+    server.stop()
+
+
+def test_load_graph_fails_if_graph_already_exists_at_namespace():
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+    tmp_dir = tempfile.mkdtemp()
+    g_file_path = tmp_dir + "/g"
+    g.save_to_file(g_file_path)
+
+    tmp_work_dir = tempfile.mkdtemp()
+    os.makedirs(os.path.join(tmp_work_dir, "shivam"), exist_ok=True)
+    g.save_to_file(os.path.join(tmp_work_dir, "shivam", "g"))
+    server = RaphtoryServer(tmp_work_dir).start()
+    client = RaphtoryClient("http://localhost:1736")
+
+    try:
+        client.load_graph(file_path=g_file_path, overwrite=False, namespace="shivam")
+    except Exception as e:
+        assert "Graph already exists by name = g" in str(e), f"Unexpected exception message: {e}"
+
+    server.stop()
+
+
+def test_load_graph_succeeds_if_graph_already_exists_at_namespace_with_overwrite_enabled():
+    tmp_work_dir = tempfile.mkdtemp()
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+    os.makedirs(os.path.join(tmp_work_dir, "shivam"), exist_ok=True)
+    g.save_to_file(os.path.join(tmp_work_dir, "shivam", "g"))
+
+    server = RaphtoryServer(tmp_work_dir).start()
+    client = RaphtoryClient("http://localhost:1736")
+
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+    g.add_edge(4, "ben", "shivam")
+    tmp_dir = tempfile.mkdtemp()
+    g_file_path = tmp_dir + "/g"
+    g.save_to_file(g_file_path)
+
+    client.load_graph(file_path=g_file_path, overwrite=True, namespace="shivam")
 
     query = """{graph(name: "g", namespace: "shivam") {nodes {list {name}}}}"""
     assert client.query(query) == {
