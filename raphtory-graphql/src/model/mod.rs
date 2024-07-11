@@ -6,7 +6,10 @@ use crate::{
     },
 };
 use async_graphql::Context;
-use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+use base64::{
+    engine::general_purpose::{STANDARD, URL_SAFE, URL_SAFE_NO_PAD},
+    Engine,
+};
 use chrono::Utc;
 use dynamic_graphql::{
     App, Mutation, MutationFields, MutationRoot, ResolvedObject, ResolvedObjectFields, Result,
@@ -112,7 +115,7 @@ impl QueryRoot {
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
         let g = data.get_graph(name, namespace)?.materialize()?;
-        Ok(URL_SAFE_NO_PAD.encode(bincode::serialize(&g)?))
+        Ok(STANDARD.encode(g.bincode()?))
     }
 }
 

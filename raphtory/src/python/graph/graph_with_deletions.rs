@@ -14,7 +14,7 @@ use crate::{
         },
         graph::{edge::EdgeView, node::NodeView, views::deletion_graph::PersistentGraph},
     },
-    prelude::{DeletionOps, GraphViewOps, ImportOps},
+    prelude::{DeletionOps, Graph, GraphViewOps, ImportOps},
     python::{
         graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
         utils::{PyInputNode, PyTime},
@@ -361,6 +361,13 @@ impl PyPersistentGraph {
     pub fn bincode<'py>(&'py self, py: Python<'py>) -> Result<&'py PyBytes, GraphError> {
         let bytes = MaterializedGraph::from(self.graph.clone()).bincode()?;
         Ok(PyBytes::new(py, &bytes))
+    }
+
+    /// Creates a graph from a bincode encoded graph
+    #[staticmethod]
+    fn from_bincode(bytes: &[u8]) -> Result<Option<PersistentGraph>, GraphError> {
+        let graph = MaterializedGraph::from_bincode(bytes)?;
+        Ok(graph.into_persistent())
     }
 
     /// Get event graph

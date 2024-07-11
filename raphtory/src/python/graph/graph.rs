@@ -354,6 +354,13 @@ impl PyGraph {
         Ok(PyBytes::new(py, &bytes))
     }
 
+    /// Creates a graph from a bincode encoded graph
+    #[staticmethod]
+    fn from_bincode(bytes: &[u8]) -> Result<Option<Graph>, GraphError> {
+        let graph = MaterializedGraph::from_bincode(bytes)?;
+        Ok(graph.into_events())
+    }
+
     /// Gives the large connected component of a graph.
     ///
     /// # Example Usage:

@@ -1,3 +1,4 @@
+import base64
 import os
 import tempfile
 import time
@@ -171,7 +172,7 @@ def test_send_graph_fails_if_graph_already_exists_at_namespace():
 
 def test_send_graph_succeeds_if_graph_already_exists_at_namespace_with_overwrite_enabled():
     tmp_work_dir = tempfile.mkdtemp()
-    
+
     g = Graph()
     g.add_edge(1, "ben", "hamza")
     g.add_edge(2, "haaroon", "hamza")
@@ -348,9 +349,9 @@ def test_upload_graph_succeeds_if_graph_already_exists_with_overwrite_enabled():
     tmp_dir = tempfile.mkdtemp()
     g_file_path = tmp_dir + "/g"
     g.save_to_file(g_file_path)
-    
+
     client.upload_graph(name="g", file_path=g_file_path, overwrite=True)
-    
+
     query = """{graph(name: "g") {nodes {list {name}}}}"""
     assert client.query(query) == {
         "graph": {
@@ -370,19 +371,19 @@ def test_upload_graph_succeeds_if_no_graph_found_with_same_name_at_namespace():
     tmp_dir = tempfile.mkdtemp()
     g_file_path = tmp_dir + "/g"
     g.save_to_file(g_file_path)
-    
+
     tmp_work_dir = tempfile.mkdtemp()
     server = RaphtoryServer(tmp_work_dir).start()
     client = RaphtoryClient("http://localhost:1736")
     client.upload_graph(name="g", file_path=g_file_path, overwrite=False, namespace="shivam")
-    
+
     query = """{graph(name: "g", namespace: "shivam") {nodes {list {name}}}}"""
     assert client.query(query) == {
         "graph": {
             "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
         }
     }
-    
+
     server.stop()
 
 
@@ -417,7 +418,7 @@ def test_upload_graph_succeeds_if_graph_already_exists_at_namespace_with_overwri
     g.add_edge(3, "ben", "haaroon")
     os.makedirs(os.path.join(tmp_work_dir, "shivam"), exist_ok=True)
     g.save_to_file(os.path.join(tmp_work_dir, "shivam", "g"))
-    
+
     server = RaphtoryServer(tmp_work_dir).start()
     client = RaphtoryClient("http://localhost:1736")
 
@@ -607,7 +608,7 @@ def test_get_graph_fails_if_graph_not_found():
     work_dir = tempfile.mkdtemp()
     server = RaphtoryServer(work_dir).start()
     client = server.get_client()
-    
+
     query = """{ graph(name: "g1") { name, path, nodes { list { name } } } }"""
     try:
         client.query(query)
@@ -615,7 +616,7 @@ def test_get_graph_fails_if_graph_not_found():
         assert "Graph not found g1" in str(e), f"Unexpected exception message: {e}"
 
     server.stop()
-    
+
 
 def test_get_graph_fails_if_graph_not_found_at_namespace():
     work_dir = tempfile.mkdtemp()
@@ -629,7 +630,7 @@ def test_get_graph_fails_if_graph_not_found_at_namespace():
         assert "Graph not found shivam/g1" in str(e), f"Unexpected exception message: {e}"
 
     server.stop()
-    
+
 
 def test_get_graph_succeeds_if_graph_found():
     work_dir = tempfile.mkdtemp()
@@ -656,20 +657,20 @@ def test_get_graph_succeeds_if_graph_found_at_namespace():
     work_dir = tempfile.mkdtemp()
     server = RaphtoryServer(work_dir).start()
     client = server.get_client()
-    
+
     g = Graph()
     g.add_edge(1, "ben", "hamza")
     g.add_edge(2, "haaroon", "hamza")
     g.add_edge(3, "ben", "haaroon")
-    
+
     os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
     g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
-    
+
     query = """{ graph(name: "g2", namespace: "shivam") { name, path, nodes { list { name } } } }"""
     assert client.query(query) == {
         'graph': {'name': 'g2', 'nodes': {'list': [{'name': 'ben'}, {'name': 'hamza'}, {'name': 'haaroon'}]},
                   'path': 'shivam/g2'}}
-    
+
     server.stop()
 
 
@@ -709,9 +710,9 @@ def test_get_graphs_returns_graph_list_if_graphs_found():
     }
 
     server.stop()
-    
 
-def test_receive_graph():
+
+def test_receive_graph_fails_if_no_graph_found():
     work_dir = tempfile.mkdtemp()
     server = RaphtoryServer(work_dir).start()
     client = server.get_client()
@@ -722,11 +723,54 @@ def test_receive_graph():
     except Exception as e:
         assert "Graph not found g2" in str(e), f"Unexpected exception message: {e}"
 
+    server.stop()
+
+
+def test_receive_graph_succeeds_if_graph_found():
+    work_dir = tempfile.mkdtemp()
+    server = RaphtoryServer(work_dir).start()
+    client = server.get_client()
+
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+
+    g.save_to_file(os.path.join(work_dir, "g1"))
+
+    received_graph = 'AQAAAAAAAAADAAAAAAAAAJTXBAscINjlAQAAAAAAAADv0+QnEcpEzAIAAAAAAAAArUhReOzDmFAAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAABAAAAAAAAAK1IUXjsw5hQAQMAAAAAAAAAYmVuAAAAAAAAAAACAAAAAgAAAAAAAAABAAAAAAAAAAMAAAAAAAAAAQAAAAAAAAABAAAAAgAAAAIAAAAAAAAAAQAAAAAAAAACAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAJTXBAscINjlAQUAAAAAAAAAaGFtemEBAAAAAAAAAAIAAAACAAAAAAAAAAEAAAAAAAAAAgAAAAAAAAABAAAAAAAAAAEAAAAAAAAAAgAAAAIAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAA79PkJxHKRMwBBwAAAAAAAABoYWFyb29uAgAAAAAAAAACAAAAAgAAAAAAAAACAAAAAAAAAAMAAAAAAAAAAQAAAAAAAAABAAAAAQAAAAEAAAAAAAAAAQAAAAAAAAABAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADAAAAAAAAAAgAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAABAAAAAAAAAAABAAAAAAAAAAEAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAEAAAAAAAAAAgAAAAAAAAABAAAAAAAAAAEAAAAAAAAAAAEAAAAAAAAAAQAAAAIAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAQAAAAAAAAAAAQAAAAAAAAABAAAAAwAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMAAAAAAAAACQAAAAAAAAABAAAAAAAAAAMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAIAAAAAAAAAF9kZWZhdWx0AAAAAAAAAAABAAAAAAAAAAgAAAAAAAAAX2RlZmF1bHQBAAAAAAAAAAgAAAAAAAAAX2RlZmF1bHQAAAAAAAAAAAEAAAAAAAAACAAAAAAAAABfZGVmYXVsdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAACAAAAAAAAABfZGVmYXVsdAAAAAAAAAAAAQAAAAAAAAAIAAAAAAAAAF9kZWZhdWx0AQAAAAAAAAAIAAAAAAAAAF9kZWZhdWx0AAAAAAAAAAABAAAAAAAAAAgAAAAAAAAAX2RlZmF1bHQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+
+    query = """{ receiveGraph(name: "g1") }"""
+    assert client.query(query) == {
+        'receiveGraph': received_graph
+    }
+
+    decoded_bytes = base64.b64decode(received_graph)
+    
+    g = Graph.from_bincode(decoded_bytes)
+    assert g.nodes.name == ["ben", "hamza", "haaroon"]
+
+    server.stop()
+
+
+def test_receive_graph_fails_if_no_graph_found_at_namespace():
+    work_dir = tempfile.mkdtemp()
+    server = RaphtoryServer(work_dir).start()
+    client = server.get_client()
+
     query = """{ receiveGraph(name: "g2", namespace: "shivam") }"""
     try:
         client.query(query)
     except Exception as e:
         assert "Graph not found shivam/g2" in str(e), f"Unexpected exception message: {e}"
+
+    server.stop()
+    
+    
+def test_receive_graph_succeeds_if_graph_found_at_namespace():
+    work_dir = tempfile.mkdtemp()
+    server = RaphtoryServer(work_dir).start()
+    client = server.get_client()
 
     g = Graph()
     g.add_edge(1, "ben", "hamza")
@@ -734,20 +778,19 @@ def test_receive_graph():
     g.add_edge(3, "ben", "haaroon")
 
     os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
-    g.save_to_file(os.path.join(work_dir, "g1"))
     g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
 
-    received_graph = 'AAAAAAMAAAAAAAAAlNcECxwg2OUBAAAAAAAAAO_T5CcRykTMAgAAAAAAAACtSFF47MOYUAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAEAAAAAAAAArUhReOzDmFABAwAAAAAAAABiZW4AAAAAAAAAAAIAAAACAAAAAAAAAAEAAAAAAAAAAwAAAAAAAAABAAAAAAAAAAEAAAACAAAAAgAAAAAAAAABAAAAAAAAAAIAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAlNcECxwg2OUBBQAAAAAAAABoYW16YQEAAAAAAAAAAgAAAAIAAAAAAAAAAQAAAAAAAAACAAAAAAAAAAEAAAAAAAAAAQAAAAAAAAACAAAAAgAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAADv0-QnEcpEzAEHAAAAAAAAAGhhYXJvb24CAAAAAAAAAAIAAAACAAAAAAAAAAIAAAAAAAAAAwAAAAAAAAABAAAAAAAAAAEAAAABAAAAAQAAAAAAAAABAAAAAAAAAAEAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMAAAAAAAAACAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAEAAAAAAAAAAAEAAAAAAAAAAQAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAAACAAAAAAAAAAEAAAAAAAAAAQAAAAAAAAAAAQAAAAAAAAABAAAAAgAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAABAAAAAAAAAAABAAAAAAAAAAEAAAADAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwAAAAAAAAAJAAAAAAAAAAEAAAAAAAAAAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAgAAAAAAAAAX2RlZmF1bHQAAAAAAAAAAAEAAAAAAAAACAAAAAAAAABfZGVmYXVsdAEAAAAAAAAACAAAAAAAAABfZGVmYXVsdAAAAAAAAAAAAQAAAAAAAAAIAAAAAAAAAF9kZWZhdWx0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAIAAAAAAAAAF9kZWZhdWx0AAAAAAAAAAABAAAAAAAAAAgAAAAAAAAAX2RlZmF1bHQBAAAAAAAAAAgAAAAAAAAAX2RlZmF1bHQAAAAAAAAAAAEAAAAAAAAACAAAAAAAAABfZGVmYXVsdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
-
-    query = """{ receiveGraph(name: "g1") }"""
-    assert client.query(query) == {
-        'receiveGraph': received_graph
-    }
+    received_graph = 'AQAAAAAAAAADAAAAAAAAAJTXBAscINjlAQAAAAAAAADv0+QnEcpEzAIAAAAAAAAArUhReOzDmFAAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAABAAAAAAAAAK1IUXjsw5hQAQMAAAAAAAAAYmVuAAAAAAAAAAACAAAAAgAAAAAAAAABAAAAAAAAAAMAAAAAAAAAAQAAAAAAAAABAAAAAgAAAAIAAAAAAAAAAQAAAAAAAAACAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAJTXBAscINjlAQUAAAAAAAAAaGFtemEBAAAAAAAAAAIAAAACAAAAAAAAAAEAAAAAAAAAAgAAAAAAAAABAAAAAAAAAAEAAAAAAAAAAgAAAAIAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAA79PkJxHKRMwBBwAAAAAAAABoYWFyb29uAgAAAAAAAAACAAAAAgAAAAAAAAACAAAAAAAAAAMAAAAAAAAAAQAAAAAAAAABAAAAAQAAAAEAAAAAAAAAAQAAAAAAAAABAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADAAAAAAAAAAgAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAABAAAAAAAAAAABAAAAAAAAAAEAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAEAAAAAAAAAAgAAAAAAAAABAAAAAAAAAAEAAAAAAAAAAAEAAAAAAAAAAQAAAAIAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAQAAAAAAAAAAAQAAAAAAAAABAAAAAwAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMAAAAAAAAACQAAAAAAAAABAAAAAAAAAAMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAIAAAAAAAAAF9kZWZhdWx0AAAAAAAAAAABAAAAAAAAAAgAAAAAAAAAX2RlZmF1bHQBAAAAAAAAAAgAAAAAAAAAX2RlZmF1bHQAAAAAAAAAAAEAAAAAAAAACAAAAAAAAABfZGVmYXVsdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAACAAAAAAAAABfZGVmYXVsdAAAAAAAAAAAAQAAAAAAAAAIAAAAAAAAAF9kZWZhdWx0AQAAAAAAAAAIAAAAAAAAAF9kZWZhdWx0AAAAAAAAAAABAAAAAAAAAAgAAAAAAAAAX2RlZmF1bHQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
 
     query = """{ receiveGraph(name: "g2", namespace: "shivam") }"""
     assert client.query(query) == {
         'receiveGraph': received_graph
     }
+    
+    decoded_bytes = base64.b64decode(received_graph)
+    
+    g = Graph.from_bincode(decoded_bytes)
+    assert g.nodes.name == ["ben", "hamza", "haaroon"]
 
     server.stop()
 
