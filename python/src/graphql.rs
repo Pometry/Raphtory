@@ -34,7 +34,7 @@ use raphtory_graphql::{
     server_config::*,
     url_encode_graph, RaphtoryServer,
 };
-use reqwest::{multipart, Client};
+use reqwest::{multipart, multipart::Part, Client};
 use serde_json::{json, Map, Number, Value as JsonValue};
 use std::{
     collections::HashMap,
@@ -688,6 +688,7 @@ impl PyRaphtoryClient {
     ///   * `name`: the name of the graph
     ///   * `graph`: the graph to send
     ///   * `overwrite`: overwrite existing graph (defaults to False)
+    ///   * `namespace`: the namespace of the graph
     ///
     /// Returns:
     ///    The `data` field from the graphQL response after executing the mutation.
@@ -707,7 +708,7 @@ impl PyRaphtoryClient {
                 sendGraph(name: $name, graph: $graph, overwrite: $overwrite, namespace: $namespace)
             }
         "#
-        .to_owned();
+            .to_owned();
         let variables = [
             ("name".to_owned(), json!(name)),
             ("graph".to_owned(), json!(encoded_graph)),
@@ -735,16 +736,18 @@ impl PyRaphtoryClient {
     ///   * `name`: the name of the graph
     ///   * `file_path`: the path of the graph on the client
     ///   * `overwrite`: overwrite existing graph (defaults to False)
+    ///   * `namespace`: the namespace of the graph
     ///
     /// Returns:
     ///    The `data` field from the graphQL response after executing the mutation.
-    #[pyo3(signature = (name, file_path, overwrite = false))]
+    #[pyo3(signature = (name, file_path, overwrite = false, namespace = None))]
     fn upload_graph(
         &self,
         py: Python,
         name: String,
         file_path: String,
         overwrite: bool,
+        namespace: Option<String>,
     ) -> PyResult<HashMap<String, PyObject>> {
         let rt = Runtime::new().unwrap();
         rt.block_on(async {
@@ -755,15 +758,29 @@ impl PyRaphtoryClient {
             let mut buffer = Vec::new();
             file.read_to_end(&mut buffer).map_err(|err| adapt_err_value(&err))?;
 
+            let mut variables = format!(
+                r#""name": "{}", "overwrite": {}, "graph": null"#,
+                name, overwrite
+            );
+
+            if let Some(ns) = &namespace {
+                variables = format!(r#""namespace": "{}", {}"#, ns, variables);
+            }
+
+            let operations = format!(
+                r#"{{
+            "query": "mutation UploadGraph($name: String!, $graph: Upload!, $overwrite: Boolean!{}) {{ uploadGraph(name: $name, graph: $graph, overwrite: $overwrite{}) }}",
+            "variables": {{ {} }}
+        }}"#,
+                if namespace.is_some() { ", $namespace: String" } else { "" },
+                if namespace.is_some() { ", namespace: $namespace" } else { "" },
+                variables
+            );
+
             let form = multipart::Form::new()
-                .text("operations", format!(
-                    r#"{{
-                    "query": "mutation UploadGraph($name: String!, $graph: Upload!, $overwrite: Boolean!) {{ uploadGraph(name: $name, graph: $graph, overwrite: $overwrite) }}",
-                    "variables": {{ "name": "{}", "overwrite": {}, "graph": null  }}
-                }}"#, name, overwrite
-                ))
+                .text("operations", operations)
                 .text("map", r#"{"0": ["variables.graph"]}"#)
-                .part("0", multipart::Part::bytes(buffer).file_name(file_path.clone()));
+                .part("0", Part::bytes(buffer).file_name(file_path.clone()));
 
             let response = client
                 .post(&self.url)
@@ -772,9 +789,23 @@ impl PyRaphtoryClient {
                 .await
                 .map_err(|err| adapt_err_value(&err))?;
 
+            let status = response.status();
             let text = response.text().await.map_err(|err| adapt_err_value(&err))?;
 
-            let mut data: HashMap<String, JsonValue> = serde_json::from_str(&text).map_err(|err| adapt_err_value(&err))?;
+            if !status.is_success() {
+                return Err(PyException::new_err(format!(
+                    "Error Uploading Graph. Status: {}. Response: {}",
+                    status, text
+                )));
+            }
+
+            let mut data: HashMap<String, JsonValue> = serde_json::from_str(&text).map_err(|err| {
+                PyException::new_err(format!(
+                    "Failed to parse JSON response: {}. Response text: {}",
+                    err, text
+                ))
+            })?;
+
             match data.remove("data") {
                 Some(JsonValue::Object(data)) => {
                     let mut result_map = HashMap::new();
@@ -788,7 +819,10 @@ impl PyRaphtoryClient {
                         "Error Uploading Graph. Got errors:\n\t{:#?}",
                         errors
                     ))),
-                    _ => Err(PyException::new_err("Error Uploading Graph.")),
+                    _ => Err(PyException::new_err(format!(
+                        "Error Uploading Graph. Unexpected response: {}",
+                        text
+                    ))),
                 },
             }
         })
