@@ -673,7 +673,7 @@ def test_get_graph_succeeds_if_graph_found_at_namespace():
     server.stop()
 
 
-def test_get_graphs():
+def test_get_graphs_returns_emtpy_list_if_no_graphs_found():
     work_dir = tempfile.mkdtemp()
     server = RaphtoryServer(work_dir).start()
     client = server.get_client()
@@ -683,6 +683,14 @@ def test_get_graphs():
     assert client.query(query) == {
         'graphs': {'name': [], 'path': []}
     }
+
+    server.stop()
+
+
+def test_get_graphs_returns_graph_list_if_graphs_found():
+    work_dir = tempfile.mkdtemp()
+    server = RaphtoryServer(work_dir).start()
+    client = server.get_client()
 
     g = Graph()
     g.add_edge(1, "ben", "hamza")
@@ -701,7 +709,7 @@ def test_get_graphs():
     }
 
     server.stop()
-
+    
 
 def test_receive_graph():
     work_dir = tempfile.mkdtemp()
