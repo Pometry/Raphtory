@@ -286,7 +286,7 @@ impl Mut {
         new_graph_name: String,
         props: String,
         is_archive: u8,
-        graph_nodes: String,
+        graph_nodes: Vec<String>,
     ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
         let parent_graph_path =
@@ -309,11 +309,7 @@ impl Mut {
         }
 
         let timestamp: i64 = Utc::now().timestamp();
-        let deserialized_node_map: Value = serde_json::from_str(graph_nodes.as_str())?;
-        let node_map = deserialized_node_map
-            .as_object()
-            .ok_or("graph_nodes not object")?;
-        let node_ids = node_map.keys().map(|key| key.as_str()).collect_vec();
+        let node_ids = graph_nodes.iter().map(|key| key.as_str()).collect_vec();
 
         // Creating a new graph (owner is user) from UI
         // Graph is created from the parent graph. This means the new graph retains the character of the parent graph i.e.,
