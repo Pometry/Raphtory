@@ -125,6 +125,29 @@ pub(crate) struct Mut(MutRoot);
 #[MutationFields]
 impl Mut {
     // If namespace is not provided, it will be set to the current working directory.
+    async fn delete_graph<'a>(
+        ctx: &Context<'a>,
+        graph_name: String,
+        graph_namespace: &Option<String>,
+    ) -> Result<bool> {
+        let data = ctx.data_unchecked::<Data>();
+        let current_graph_path =
+            construct_graph_path(&data.work_dir, &graph_name, graph_namespace)?;
+        if !current_graph_path.exists() {
+            return Err(GraphError::GraphNotFound(construct_graph_name(
+                &graph_name,
+                graph_namespace,
+            ))
+            .into());
+        }
+
+        delete_graph(&current_graph_path)?;
+        data.graphs.remove(&graph_name);
+
+        Ok(true)
+    }
+
+    // If namespace is not provided, it will be set to the current working directory.
     // This applies to both the graph namespace and new graph namespace.
     async fn move_graph<'a>(
         ctx: &Context<'a>,
@@ -152,7 +175,6 @@ impl Mut {
             .into());
         }
 
-        let data = ctx.data_unchecked::<Data>();
         let current_graph = data.get_graph(&graph_name, graph_namespace)?;
 
         #[cfg(feature = "storage")]
@@ -206,7 +228,6 @@ impl Mut {
             .into());
         }
 
-        let data = ctx.data_unchecked::<Data>();
         let current_graph = data.get_graph(&graph_name, graph_namespace)?;
 
         #[cfg(feature = "storage")]
