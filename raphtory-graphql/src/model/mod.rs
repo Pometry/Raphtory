@@ -82,14 +82,15 @@ impl QueryRoot {
     async fn vectorised_graph<'a>(
         ctx: &Context<'a>,
         name: &str,
-        namespace: &Option<String>, // TODO: Need to fix this
+        namespace: &Option<String>,
     ) -> Option<GqlVectorisedGraph> {
         let data = ctx.data_unchecked::<Data>();
+        let graph_name = construct_graph_name(&name.to_string(), namespace);
         let g = data
             .global_plugins
             .vectorised_graphs
             .read()
-            .get(name)
+            .get(&graph_name)
             .cloned()?;
         Some(g.into())
     }
@@ -186,8 +187,6 @@ impl Mut {
             let timestamp: i64 = Utc::now().timestamp();
 
             current_graph
-                .update_constant_properties([("name", Prop::Str(new_graph_name.clone().into()))])?;
-            current_graph
                 .update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
             current_graph
                 .update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
@@ -242,8 +241,6 @@ impl Mut {
                 .subgraph(current_graph.nodes().name().collect_vec())
                 .materialize()?;
 
-            new_graph
-                .update_constant_properties([("name", Prop::Str(new_graph_name.clone().into()))])?;
             new_graph.update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
             new_graph.update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
 
@@ -318,7 +315,6 @@ impl Mut {
         let new_subgraph = parent_graph.subgraph(node_ids.clone()).materialize()?;
 
         new_subgraph.update_constant_properties([("creationTime", Prop::I64(timestamp * 1000))])?;
-        new_subgraph.update_constant_properties([("name", Prop::str(new_graph_name.clone()))])?;
         new_subgraph.update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
         new_subgraph.update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
         new_subgraph.update_constant_properties([("uiProps", Prop::Str(props.into()))])?;
@@ -422,7 +418,6 @@ impl Mut {
                 .update_constant_properties([("creationTime", Prop::I64(timestamp * 1000))])?;
         }
 
-        new_subgraph.update_constant_properties([("name", Prop::str(new_graph_name.clone()))])?;
         new_subgraph.update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
         new_subgraph.update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
         new_subgraph.update_constant_properties([("uiProps", Prop::Str(props.into()))])?;

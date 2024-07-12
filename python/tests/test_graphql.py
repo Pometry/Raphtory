@@ -938,7 +938,6 @@ def test_move_graph_succeeds():
             nodes {list {name}}
             properties {
                 constant {
-                    name: get(key: "name") { value }
                     lastUpdated: get(key: "lastUpdated") { value }
                     lastOpened: get(key: "lastOpened") { value }
                 }
@@ -947,7 +946,6 @@ def test_move_graph_succeeds():
 
     result = client.query(query)
     assert result['graph']['nodes']['list'] == [{'name': 'ben'}, {"name": "hamza"}, {'name': 'haaroon'}]
-    assert result['graph']['properties']['constant']['name']['value'] == "g4"
     assert result['graph']['properties']['constant']['lastUpdated']['value'] is not None
     assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
 
@@ -989,7 +987,6 @@ def test_move_graph_succeeds_at_same_namespace_as_graph():
             nodes {list {name}}
             properties {
                 constant {
-                    name: get(key: "name") { value }
                     lastUpdated: get(key: "lastUpdated") { value }
                     lastOpened: get(key: "lastOpened") { value }
                 }
@@ -998,7 +995,6 @@ def test_move_graph_succeeds_at_same_namespace_as_graph():
 
     result = client.query(query)
     assert result['graph']['nodes']['list'] == [{'name': 'ben'}, {"name": "hamza"}, {'name': 'haaroon'}]
-    assert result['graph']['properties']['constant']['name']['value'] == "g4"
     assert result['graph']['properties']['constant']['lastUpdated']['value'] is not None
     assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
 
@@ -1041,7 +1037,6 @@ def test_move_graph_succeeds_at_diff_namespace_as_graph():
             nodes {list {name}}
             properties {
                 constant {
-                    name: get(key: "name") { value }
                     lastUpdated: get(key: "lastUpdated") { value }
                     lastOpened: get(key: "lastOpened") { value }
                 }
@@ -1050,7 +1045,6 @@ def test_move_graph_succeeds_at_diff_namespace_as_graph():
 
     result = client.query(query)
     assert result['graph']['nodes']['list'] == [{'name': 'ben'}, {"name": "hamza"}, {'name': 'haaroon'}]
-    assert result['graph']['properties']['constant']['name']['value'] == "g4"
     assert result['graph']['properties']['constant']['lastUpdated']['value'] is not None
     assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
 
@@ -1198,7 +1192,6 @@ def test_copy_graph_succeeds():
             nodes {list {name}}
             properties {
                 constant {
-                    name: get(key: "name") { value }
                     lastUpdated: get(key: "lastUpdated") { value }
                     lastOpened: get(key: "lastOpened") { value }
                 }
@@ -1207,7 +1200,6 @@ def test_copy_graph_succeeds():
 
     result = client.query(query)
     assert result['graph']['nodes']['list'] == [{'name': 'ben'}, {"name": "hamza"}, {'name': 'haaroon'}]
-    assert result['graph']['properties']['constant']['name']['value'] == "g4"
     assert result['graph']['properties']['constant']['lastUpdated']['value'] is not None
     assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
 
@@ -1247,7 +1239,6 @@ def test_copy_graph_succeeds_at_same_namespace_as_graph():
             nodes {list {name}}
             properties {
                 constant {
-                    name: get(key: "name") { value }
                     lastUpdated: get(key: "lastUpdated") { value }
                     lastOpened: get(key: "lastOpened") { value }
                 }
@@ -1256,7 +1247,6 @@ def test_copy_graph_succeeds_at_same_namespace_as_graph():
 
     result = client.query(query)
     assert result['graph']['nodes']['list'] == [{'name': 'ben'}, {"name": "hamza"}, {'name': 'haaroon'}]
-    assert result['graph']['properties']['constant']['name']['value'] == "g4"
     assert result['graph']['properties']['constant']['lastUpdated']['value'] is not None
     assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
 
@@ -1297,7 +1287,6 @@ def test_copy_graph_succeeds_at_diff_namespace_as_graph():
             nodes {list {name}}
             properties {
                 constant {
-                    name: get(key: "name") { value }
                     lastUpdated: get(key: "lastUpdated") { value }
                     lastOpened: get(key: "lastOpened") { value }
                 }
@@ -1306,7 +1295,6 @@ def test_copy_graph_succeeds_at_diff_namespace_as_graph():
 
     result = client.query(query)
     assert result['graph']['nodes']['list'] == [{'name': 'ben'}, {"name": "hamza"}, {'name': 'haaroon'}]
-    assert result['graph']['properties']['constant']['name']['value'] == "g4"
     assert result['graph']['properties']['constant']['lastUpdated']['value'] is not None
     assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
 

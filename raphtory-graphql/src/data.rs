@@ -341,13 +341,11 @@ fn is_disk_graph_dir(path: &Path) -> bool {
     has_disk_graph_files
 }
 
-fn get_graph_name(path: &Path, graph: &MaterializedGraph) -> String {
-    graph
-        .properties()
-        .get("name")
-        .into_str()
-        .map(|v| v.to_string())
-        .unwrap_or_else(|| path.file_name().unwrap().to_str().unwrap().to_owned())
+fn get_graph_name(path: &Path) -> Result<String, &'static str> {
+    path.file_name()
+        .and_then(|os_str| os_str.to_str())
+        .map(|str_slice| str_slice.to_string())
+        .ok_or("No file name found in the path or invalid UTF-8")
 }
 
 pub(crate) fn save_graphs_to_work_dir(
@@ -364,7 +362,7 @@ pub(crate) fn save_graphs_to_work_dir(
 
 fn load_bincode_graph(path: &Path) -> Result<(String, MaterializedGraph)> {
     let graph = MaterializedGraph::load_from_file(path, false)?;
-    let name = get_graph_name(path, &graph);
+    let name = get_graph_name(path)?;
     Ok((name, graph))
 }
 
@@ -372,7 +370,7 @@ fn load_bincode_graph(path: &Path) -> Result<(String, MaterializedGraph)> {
 fn load_disk_graph(path: &Path) -> Result<(String, MaterializedGraph)> {
     let disk_graph = DiskGraph::load_from_dir(path)?;
     let graph: MaterializedGraph = disk_graph.into();
-    let graph_name = get_graph_name(path, &graph);
+    let graph_name = get_graph_name(path)?;
     Ok((graph_name, graph))
 }
 
