@@ -120,7 +120,7 @@ pub enum GraphError {
     },
 
     #[error(
-        "Failed to load the graph as the bincode version {0} is different to installed version {1}"
+        "Failed to load the graph as the bincode version {0} is different to supported version {1}"
     )]
     BincodeVersionError(u32, u32),
 

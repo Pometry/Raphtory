@@ -4,6 +4,7 @@ use crate::{
         algorithms::global_plugins::GlobalPlugins,
         graph::{graph::GqlGraph, graphs::GqlGraphs, vectorised_graph::GqlVectorisedGraph},
     },
+    url_encode::url_decode_graph,
 };
 use async_graphql::Context;
 use base64::{
@@ -184,21 +185,21 @@ impl Mut {
         namespace: &Option<String>,
     ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
-        let subgraph = data.get_graph(&graph_name, namespace)?;
+        let graph = data.get_graph(&graph_name, namespace)?;
 
         #[cfg(feature = "storage")]
-        if subgraph.clone().graph.into_disk_graph().is_some() {
+        if graph.clone().graph.into_disk_graph().is_some() {
             return Err(GqlGraphError::ImmutableDiskGraph.into());
         }
 
         let dt = Utc::now();
         let timestamp: i64 = dt.timestamp();
 
-        subgraph.update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
+        graph.update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
 
         let path = construct_graph_path(&data.work_dir, &graph_name, namespace)?;
-        subgraph.save_to_file(path)?;
-        data.graphs.insert(graph_name, subgraph);
+        graph.save_to_file(path)?;
+        data.graphs.insert(graph_name, graph);
 
         Ok(true)
     }
@@ -270,7 +271,7 @@ impl Mut {
         new_graph_name: String,
         props: String,
         is_archive: u8,
-        graph_nodes: String,
+        graph_nodes: Vec<String>,
     ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
         let parent_graph_path =
@@ -313,11 +314,7 @@ impl Mut {
         }
 
         let timestamp: i64 = Utc::now().timestamp();
-        let deserialized_node_map: Value = serde_json::from_str(graph_nodes.as_str())?;
-        let node_map = deserialized_node_map
-            .as_object()
-            .ok_or("graph_nodes not object")?;
-        let node_ids = node_map.keys().map(|key| key.as_str()).collect_vec();
+        let node_ids = graph_nodes.iter().map(|key| key.as_str()).collect_vec();
 
         // Creating a new graph from the current graph instead of the parent graph preserves the character of the new graph
         // i.e., the new graph is an event or persistent graph depending on if the current graph is event or persistent graph, respectively.
@@ -435,7 +432,7 @@ impl Mut {
         if path.exists() && !overwrite {
             return Err(GraphError::GraphNameAlreadyExists { name }.into());
         }
-        let g: MaterializedGraph = bincode::deserialize(&URL_SAFE_NO_PAD.decode(graph)?)?;
+        let g: MaterializedGraph = url_decode_graph(graph)?;
         g.save_to_file(&path)?;
         data.graphs.insert(name.clone(), g.into());
         Ok(name)

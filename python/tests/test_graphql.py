@@ -908,7 +908,7 @@ def test_update_graph_with_new_graph_name_fails_if_parent_graph_not_found():
           newGraphName: "g3",
           props: "{{ \\"target\\": 6 : }}",
           isArchive: 0,
-          graphNodes: "{ \\"ben\\": {} }"
+          graphNodes: ["ben"]
         )
     }"""
 
@@ -934,7 +934,7 @@ def test_update_graph_with_new_graph_name_fails_if_current_graph_not_found():
           newGraphName: "g3",
           props: "{{ \\"target\\": 6 : }}",
           isArchive: 0,
-          graphNodes: "{ \\"ben\\": {} }"
+          graphNodes: ["ben"]
         )
     }"""
 
@@ -969,7 +969,7 @@ def test_update_graph_with_new_graph_name_fails_if_new_graph_already_exists():
           newGraphName: "g3",
           props: "{{ \\"target\\": 6 : }}",
           isArchive: 0,
-          graphNodes: "{ \\"ben\\": {} }"
+          graphNodes: ["ben"]
         )
     }"""
 
@@ -1004,7 +1004,7 @@ def test_update_graph_with_new_graph_name_succeeds_if_parent_graph_belongs_to_di
         newGraphName: "g3",
         props: "{ \\"target\\": 6 : }",
         isArchive: 1,
-        graphNodes: "{ \\"ben\\": {} }"
+        graphNodes: ["ben"]
       )
     }"""
     client.query(query)
@@ -1057,7 +1057,7 @@ def test_update_graph_with_new_graph_name_succeeds_if_parent_graph_belongs_to_sa
         newGraphName: "g5",
         props: "{ \\"target\\": 6 : }",
         isArchive: 1,
-        graphNodes: "{ \\"ben\\": {} }"
+        graphNodes: ["ben"]
       )
     }"""
     client.query(query)
@@ -1112,7 +1112,7 @@ def test_update_graph_with_new_graph_name_succeeds_with_new_node_from_parent_gra
         newGraphName: "g3",
         props: "{ \\"target\\": 6 : }",
         isArchive: 1,
-        graphNodes: "{ \\"ben\\": {}, \\"shivam\\": {} }"
+        graphNodes: ["ben", "shivam"]
       )
     }"""
     client.query(query)
@@ -1164,7 +1164,7 @@ def test_update_graph_with_new_graph_name_succeeds_with_new_node_removed_from_ne
         newGraphName: "g3",
         props: "{ \\"target\\": 6 : }",
         isArchive: 1,
-        graphNodes: "{ \\"ben\\": {} }"
+        graphNodes: ["ben"]
       )
     }"""
     client.query(query)
@@ -1206,7 +1206,7 @@ def test_update_graph_fails_if_parent_graph_not_found():
           newGraphName: "g2",
           props: "{{ \\"target\\": 6 : }}",
           isArchive: 0,
-          graphNodes: "{ \\"ben\\": {} }"
+          graphNodes: ["ben"]
         )
     }"""
 
@@ -1232,7 +1232,7 @@ def test_update_graph_fails_if_current_graph_not_found():
           newGraphName: "g0",
           props: "{{ \\"target\\": 6 : }}",
           isArchive: 0,
-          graphNodes: "{ \\"ben\\": {} }"
+          graphNodes: ["ben"]
         )
     }"""
 
@@ -1267,7 +1267,7 @@ def test_update_graph_succeeds_if_parent_graph_belongs_to_different_namespace():
         newGraphName: "g2",
         props: "{ \\"target\\": 6 : }",
         isArchive: 1,
-        graphNodes: "{ \\"ben\\": {} }"
+        graphNodes: ["ben"]
       )
     }"""
     client.query(query)
@@ -1319,7 +1319,7 @@ def test_update_graph_succeeds_if_parent_graph_belongs_to_same_namespace():
         newGraphName: "g3",
         props: "{ \\"target\\": 6 : }",
         isArchive: 1,
-        graphNodes: "{ \\"ben\\": {} }"
+        graphNodes: ["ben"]
       )
     }"""
     client.query(query)
@@ -1373,7 +1373,7 @@ def test_update_graph_succeeds_with_new_node_from_parent_graph_added_to_new_grap
         newGraphName: "g2",
         props: "{ \\"target\\": 6 : }",
         isArchive: 1,
-        graphNodes: "{ \\"ben\\": {}, \\"shivam\\": {} }"
+        graphNodes: ["ben", "shivam"]
       )
     }"""
     client.query(query)
@@ -1424,7 +1424,7 @@ def test_update_graph_succeeds_with_new_node_removed_from_new_graph():
         newGraphName: "g2",
         props: "{ \\"target\\": 6 : }",
         isArchive: 1,
-        graphNodes: "{ \\"ben\\": {} }"
+        graphNodes: ["ben"]
       )
     }"""
     client.query(query)
@@ -1463,6 +1463,8 @@ def test_update_graph_last_opened_fails_if_graph_not_found():
     except Exception as e:
         assert "Graph not found g1" in str(e), f"Unexpected exception message: {e}"
 
+    server.stop()
+    
 
 def test_update_graph_last_opened_fails_if_graph_not_found_at_namespace():
     work_dir = tempfile.mkdtemp()
@@ -1475,6 +1477,8 @@ def test_update_graph_last_opened_fails_if_graph_not_found_at_namespace():
     except Exception as e:
         assert "Graph not found shivam/g1" in str(e), f"Unexpected exception message: {e}"
 
+    server.stop()
+
 
 def test_update_graph_last_opened_succeeds():
     work_dir = tempfile.mkdtemp()
@@ -1486,8 +1490,9 @@ def test_update_graph_last_opened_succeeds():
     g.add_edge(2, "haaroon", "hamza")
     g.add_edge(3, "ben", "haaroon")
 
-    os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
     g.save_to_file(os.path.join(work_dir, "g1"))
+    
+    os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
     g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
 
     query_last_opened = """{ graph(name: "g1") { properties { constant { get(key: "lastOpened") { value } } } } }"""
@@ -1541,6 +1546,8 @@ def test_archive_graph_fails_if_graph_not_found():
     except Exception as e:
         assert "Graph not found g1" in str(e), f"Unexpected exception message: {e}"
 
+    server.stop()
+    
 
 def test_archive_graph_fails_if_graph_not_found_at_namespace():
     work_dir = tempfile.mkdtemp()
@@ -1553,6 +1560,8 @@ def test_archive_graph_fails_if_graph_not_found_at_namespace():
     except Exception as e:
         assert "Graph not found shivam/g1" in str(e), f"Unexpected exception message: {e}"
 
+    server.stop()
+    
 
 def test_archive_graph_succeeds():
     work_dir = tempfile.mkdtemp()

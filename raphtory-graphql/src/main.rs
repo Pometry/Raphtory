@@ -1,16 +1,6 @@
-use crate::server::RaphtoryServer;
+use raphtory_graphql::RaphtoryServer;
 use std::{env, path::PathBuf};
 use tokio::io::Result as IoResult;
-
-mod azure_auth;
-mod data;
-mod model;
-mod observability;
-mod routes;
-mod server;
-mod server_config;
-
-extern crate base64_compat as base64_compat;
 
 #[tokio::main]
 async fn main() -> IoResult<()> {

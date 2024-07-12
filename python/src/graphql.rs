@@ -32,7 +32,8 @@ use raphtory_graphql::{
         global_plugins::GlobalPlugins, vector_algorithms::VectorAlgorithms,
     },
     server_config::*,
-    url_encode_graph, RaphtoryServer,
+    url_encode::url_encode_graph,
+    RaphtoryServer,
 };
 use reqwest::{multipart, multipart::Part, Client};
 use serde_json::{json, Map, Number, Value as JsonValue};
