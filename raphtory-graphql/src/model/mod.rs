@@ -194,7 +194,7 @@ impl Mut {
             current_graph.save_to_file(&new_graph_path)?;
 
             delete_graph(&current_graph_path)?;
-            data.graphs.invalidate(&graph_name);
+            data.graphs.remove(&graph_name);
         }
 
         Ok(true)

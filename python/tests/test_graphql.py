@@ -1384,7 +1384,7 @@ def test_delete_graph_succeeds_if_graph_found_at_namespace():
     server.stop()
 
 
-# Update Graph with new graph name tests
+# Update Graph with new graph name tests (save as new graph name)
 def test_update_graph_with_new_graph_name_fails_if_parent_graph_not_found():
     work_dir = tempfile.mkdtemp()
     server = RaphtoryServer(work_dir).start()
@@ -1472,9 +1472,12 @@ def test_update_graph_with_new_graph_name_fails_if_new_graph_already_exists():
 
 def test_update_graph_with_new_graph_name_succeeds_if_parent_graph_belongs_to_different_namespace():
     g = Graph()
-    g.add_edge(1, "ben", "hamza")
-    g.add_edge(2, "haaroon", "hamza")
-    g.add_edge(3, "ben", "haaroon")
+    g.add_edge(1, "ben", "hamza", {"prop1": 1})
+    g.add_edge(2, "haaroon", "hamza", {"prop1": 2})
+    g.add_edge(3, "ben", "haaroon", {"prop1": 3})
+    g.add_node(4, "ben", {"dept": "engineering"})
+    g.add_node(5, "hamza", {"dept": "director"})
+    g.add_node(6, "haaroon", {"dept": "operations"})
 
     work_dir = tempfile.mkdtemp()
     os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
@@ -1493,26 +1496,36 @@ def test_update_graph_with_new_graph_name_succeeds_if_parent_graph_belongs_to_di
         newGraphName: "g3",
         props: "{ \\"target\\": 6 : }",
         isArchive: 1,
-        graphNodes: ["ben"]
+        graphNodes: ["ben", "hamza"]
       )
     }"""
     client.query(query)
 
     query = """{
         graph(name: "g3", namespace: "shivam") { 
-            nodes { list { name } }
+            nodes {list { 
+                name
+                properties { temporal { get(key: "dept") { values } } } 
+            }}
+            edges { list {
+                properties { temporal { get(key: "prop1") { values } } }
+            }}
             properties { constant {
-              creationTime: get(key: "creationTime") { value }
-              lastUpdated: get(key: "lastUpdated") { value }
-              lastOpened: get(key: "lastOpened") { value }
-              uiProps: get(key: "uiProps") { value }
-              isArchive: get(key: "isArchive") { value }
+                creationTime: get(key: "creationTime") { value }
+                lastUpdated: get(key: "lastUpdated") { value }
+                lastOpened: get(key: "lastOpened") { value }
+                uiProps: get(key: "uiProps") { value }
+                isArchive: get(key: "isArchive") { value }
             }}
         }
     }"""
 
     result = client.query(query)
-    assert result['graph']['nodes']['list'] == [{'name': 'ben'}]
+    assert result['graph']['nodes']['list'] == [
+        {'name': 'ben', 'properties': {'temporal': {'get': {'values': ['engineering']}}}},
+        {'name': 'hamza', 'properties': {'temporal': {'get': {'values': ['director']}}}}
+    ]
+    assert result['graph']['edges']['list'] == [{'properties': {'temporal': {'get': {'values': ['1']}}}}]
     assert result['graph']['properties']['constant']['creationTime']['value'] is not None
     assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
     assert result['graph']['properties']['constant']['lastUpdated']['value'] is not None
@@ -1524,9 +1537,12 @@ def test_update_graph_with_new_graph_name_succeeds_if_parent_graph_belongs_to_di
 
 def test_update_graph_with_new_graph_name_succeeds_if_parent_graph_belongs_to_same_namespace():
     g = Graph()
-    g.add_edge(1, "ben", "hamza")
-    g.add_edge(2, "haaroon", "hamza")
-    g.add_edge(3, "ben", "haaroon")
+    g.add_edge(1, "ben", "hamza", {"prop1": 1})
+    g.add_edge(2, "haaroon", "hamza", {"prop1": 2})
+    g.add_edge(3, "ben", "haaroon", {"prop1": 3})
+    g.add_node(4, "ben", {"dept": "engineering"})
+    g.add_node(5, "hamza", {"dept": "director"})
+    g.add_node(6, "haaroon", {"dept": "operations"})
 
     work_dir = tempfile.mkdtemp()
     os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
@@ -1546,25 +1562,35 @@ def test_update_graph_with_new_graph_name_succeeds_if_parent_graph_belongs_to_sa
         newGraphName: "g5",
         props: "{ \\"target\\": 6 : }",
         isArchive: 1,
-        graphNodes: ["ben"]
+        graphNodes: ["ben", "hamza"]
       )
     }"""
     client.query(query)
 
     query = """{
         graph(name: "g5", namespace: "shivam") { 
-            nodes { list { name } }
+            nodes {list { 
+                name
+                properties { temporal { get(key: "dept") { values } } } 
+            }}
+            edges { list {
+                properties { temporal { get(key: "prop1") { values } } }
+            }}
             properties { constant {
-              creationTime: get(key: "creationTime") { value }
-              lastUpdated: get(key: "lastUpdated") { value }
-              lastOpened: get(key: "lastOpened") { value }
-              uiProps: get(key: "uiProps") { value }
-              isArchive: get(key: "isArchive") { value }
+                creationTime: get(key: "creationTime") { value }
+                lastUpdated: get(key: "lastUpdated") { value }
+                lastOpened: get(key: "lastOpened") { value }
+                uiProps: get(key: "uiProps") { value }
+                isArchive: get(key: "isArchive") { value }
             }}
         }
     }"""
     result = client.query(query)
-    assert result['graph']['nodes']['list'] == [{'name': 'ben'}]
+    assert result['graph']['nodes']['list'] == [
+        {'name': 'ben', 'properties': {'temporal': {'get': {'values': ['engineering']}}}},
+        {'name': 'hamza', 'properties': {'temporal': {'get': {'values': ['director']}}}}
+    ]
+    assert result['graph']['edges']['list'] == [{'properties': {'temporal': {'get': {'values': ['1']}}}}]
     assert result['graph']['properties']['constant']['creationTime']['value'] is not None
     assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
     assert result['graph']['properties']['constant']['lastUpdated']['value'] is not None
@@ -1577,16 +1603,24 @@ def test_update_graph_with_new_graph_name_succeeds_if_parent_graph_belongs_to_sa
 def test_update_graph_with_new_graph_name_succeeds_with_new_node_from_parent_graph_added_to_new_graph():
     work_dir = tempfile.mkdtemp()
     g = Graph()
-    g.add_edge(1, "ben", "hamza")
-    g.add_edge(2, "haaroon", "hamza")
-    g.add_edge(3, "ben", "haaroon")
-    g.add_edge(4, "ben", "shivam")
+
+    g.add_edge(1, "ben", "hamza", {"prop1": 1})
+    g.add_edge(2, "haaroon", "hamza", {"prop1": 2})
+    g.add_edge(3, "ben", "haaroon", {"prop1": 3})
+    g.add_edge(4, "ben", "shivam", {"prop1": 4})
+    g.add_node(4, "ben", {"dept": "engineering"})
+    g.add_node(5, "hamza", {"dept": "director"})
+    g.add_node(6, "haaroon", {"dept": "operations"})
+    g.add_node(7, "shivam", {"dept": "engineering"})
     g.save_to_file(os.path.join(work_dir, "g1"))
 
     g = Graph()
-    g.add_edge(1, "ben", "hamza")
-    g.add_edge(2, "haaroon", "hamza")
-    g.add_edge(3, "ben", "haaroon")
+    g.add_edge(1, "ben", "hamza", {"prop1": 1})
+    g.add_edge(2, "haaroon", "hamza", {"prop1": 2})
+    g.add_edge(3, "ben", "haaroon", {"prop1": 3})
+    g.add_node(4, "ben", {"dept": "engineering"})
+    g.add_node(5, "hamza", {"dept": "director"})
+    g.add_node(6, "haaroon", {"dept": "operations"})
     os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
     g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
 
@@ -1608,7 +1642,13 @@ def test_update_graph_with_new_graph_name_succeeds_with_new_node_from_parent_gra
 
     query = """{
         graph(name: "g3", namespace: "shivam") { 
-            nodes { list { name } }
+            nodes {list { 
+                name
+                properties { temporal { get(key: "dept") { values } } } 
+            }}
+            edges { list {
+                properties { temporal { get(key: "prop1") { values } } }
+            }}
             properties { constant {
               creationTime: get(key: "creationTime") { value }
               lastUpdated: get(key: "lastUpdated") { value }
@@ -1620,7 +1660,11 @@ def test_update_graph_with_new_graph_name_succeeds_with_new_node_from_parent_gra
     }"""
 
     result = client.query(query)
-    assert result['graph']['nodes']['list'] == [{'name': 'ben'}, {'name': 'shivam'}]
+    assert result['graph']['nodes']['list'] == [
+        {'name': 'ben', 'properties': {'temporal': {'get': {'values': ['engineering']}}}},
+        {'name': 'shivam', 'properties': {'temporal': {'get': {'values': ['engineering']}}}}
+    ]
+    assert result['graph']['edges']['list'] == []
     assert result['graph']['properties']['constant']['creationTime']['value'] is not None
     assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
     assert result['graph']['properties']['constant']['lastUpdated']['value'] is not None
@@ -1632,9 +1676,12 @@ def test_update_graph_with_new_graph_name_succeeds_with_new_node_from_parent_gra
 
 def test_update_graph_with_new_graph_name_succeeds_with_new_node_removed_from_new_graph():
     g = Graph()
-    g.add_edge(1, "ben", "hamza")
-    g.add_edge(2, "haaroon", "hamza")
-    g.add_edge(3, "ben", "haaroon")
+    g.add_edge(1, "ben", "hamza", {"prop1": 1})
+    g.add_edge(2, "haaroon", "hamza", {"prop1": 2})
+    g.add_edge(3, "ben", "haaroon", {"prop1": 3})
+    g.add_node(4, "ben", {"dept": "engineering"})
+    g.add_node(5, "hamza", {"dept": "director"})
+    g.add_node(6, "haaroon", {"dept": "operations"})
 
     work_dir = tempfile.mkdtemp()
     os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
@@ -1653,14 +1700,20 @@ def test_update_graph_with_new_graph_name_succeeds_with_new_node_removed_from_ne
         newGraphName: "g3",
         props: "{ \\"target\\": 6 : }",
         isArchive: 1,
-        graphNodes: ["ben"]
+        graphNodes: ["ben", "hamza"]
       )
     }"""
     client.query(query)
 
     query = """{
         graph(name: "g3", namespace: "shivam") { 
-            nodes { list { name } }
+            nodes {list { 
+                name
+                properties { temporal { get(key: "dept") { values } } } 
+            }}
+            edges { list {
+                properties { temporal { get(key: "prop1") { values } } }
+            }}
             properties { constant {
               creationTime: get(key: "creationTime") { value }
               lastUpdated: get(key: "lastUpdated") { value }
@@ -1672,7 +1725,11 @@ def test_update_graph_with_new_graph_name_succeeds_with_new_node_removed_from_ne
     }"""
 
     result = client.query(query)
-    assert result['graph']['nodes']['list'] == [{'name': 'ben'}]
+    assert result['graph']['nodes']['list'] == [
+        {'name': 'ben', 'properties': {'temporal': {'get': {'values': ['engineering']}}}},
+        {'name': 'hamza', 'properties': {'temporal': {'get': {'values': ['director']}}}}
+    ]
+    assert result['graph']['edges']['list'] == [{'properties': {'temporal': {'get': {'values': ['1']}}}}]
     assert result['graph']['properties']['constant']['creationTime']['value'] is not None
     assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
     assert result['graph']['properties']['constant']['lastUpdated']['value'] is not None
@@ -1682,7 +1739,7 @@ def test_update_graph_with_new_graph_name_succeeds_with_new_node_removed_from_ne
     server.stop()
 
 
-# Update Graph tests
+# Update Graph tests (save graph as same graph name)
 def test_update_graph_fails_if_parent_graph_not_found():
     work_dir = tempfile.mkdtemp()
     server = RaphtoryServer(work_dir).start()
@@ -1735,9 +1792,12 @@ def test_update_graph_fails_if_current_graph_not_found():
 
 def test_update_graph_succeeds_if_parent_graph_belongs_to_different_namespace():
     g = Graph()
-    g.add_edge(1, "ben", "hamza")
-    g.add_edge(2, "haaroon", "hamza")
-    g.add_edge(3, "ben", "haaroon")
+    g.add_edge(1, "ben", "hamza", {"prop1": 1})
+    g.add_edge(2, "haaroon", "hamza", {"prop1": 2})
+    g.add_edge(3, "ben", "haaroon", {"prop1": 3})
+    g.add_node(4, "ben", {"dept": "engineering"})
+    g.add_node(5, "hamza", {"dept": "director"})
+    g.add_node(6, "haaroon", {"dept": "operations"})
 
     work_dir = tempfile.mkdtemp()
     os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
@@ -1756,14 +1816,20 @@ def test_update_graph_succeeds_if_parent_graph_belongs_to_different_namespace():
         newGraphName: "g2",
         props: "{ \\"target\\": 6 : }",
         isArchive: 1,
-        graphNodes: ["ben"]
+        graphNodes: ["ben", "hamza"]
       )
     }"""
     client.query(query)
 
     query = """{
         graph(name: "g2", namespace: "shivam") { 
-            nodes { list { name } }
+            nodes {list { 
+                name
+                properties { temporal { get(key: "dept") { values } } } 
+            }}
+            edges { list {
+                properties { temporal { get(key: "prop1") { values } } }
+            }}
             properties { constant {
               creationTime: get(key: "creationTime") { value }
               lastUpdated: get(key: "lastUpdated") { value }
@@ -1775,7 +1841,11 @@ def test_update_graph_succeeds_if_parent_graph_belongs_to_different_namespace():
     }"""
 
     result = client.query(query)
-    assert result['graph']['nodes']['list'] == [{'name': 'ben'}]
+    assert result['graph']['nodes']['list'] == [
+        {'name': 'ben', 'properties': {'temporal': {'get': {'values': ['engineering']}}}},
+        {'name': 'hamza', 'properties': {'temporal': {'get': {'values': ['director']}}}}
+    ]
+    assert result['graph']['edges']['list'] == [{'properties': {'temporal': {'get': {'values': ['1']}}}}]
     assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
     assert result['graph']['properties']['constant']['lastUpdated']['value'] is not None
     assert result['graph']['properties']['constant']['uiProps']['value'] == '{ "target": 6 : }'
@@ -1786,9 +1856,12 @@ def test_update_graph_succeeds_if_parent_graph_belongs_to_different_namespace():
 
 def test_update_graph_succeeds_if_parent_graph_belongs_to_same_namespace():
     g = Graph()
-    g.add_edge(1, "ben", "hamza")
-    g.add_edge(2, "haaroon", "hamza")
-    g.add_edge(3, "ben", "haaroon")
+    g.add_edge(1, "ben", "hamza", {"prop1": 1})
+    g.add_edge(2, "haaroon", "hamza", {"prop1": 2})
+    g.add_edge(3, "ben", "haaroon", {"prop1": 3})
+    g.add_node(4, "ben", {"dept": "engineering"})
+    g.add_node(5, "hamza", {"dept": "director"})
+    g.add_node(6, "haaroon", {"dept": "operations"})
 
     work_dir = tempfile.mkdtemp()
     os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
@@ -1808,14 +1881,20 @@ def test_update_graph_succeeds_if_parent_graph_belongs_to_same_namespace():
         newGraphName: "g3",
         props: "{ \\"target\\": 6 : }",
         isArchive: 1,
-        graphNodes: ["ben"]
+        graphNodes: ["ben", "hamza"]
       )
     }"""
     client.query(query)
 
     query = """{
         graph(name: "g3", namespace: "shivam") { 
-            nodes { list { name } }
+            nodes {list { 
+                name
+                properties { temporal { get(key: "dept") { values } } } 
+            }}
+            edges { list {
+                properties { temporal { get(key: "prop1") { values } } }
+            }}
             properties { constant {
               creationTime: get(key: "creationTime") { value }
               lastUpdated: get(key: "lastUpdated") { value }
@@ -1826,7 +1905,11 @@ def test_update_graph_succeeds_if_parent_graph_belongs_to_same_namespace():
         }
     }"""
     result = client.query(query)
-    assert result['graph']['nodes']['list'] == [{'name': 'ben'}]
+    assert result['graph']['nodes']['list'] == [
+        {'name': 'ben', 'properties': {'temporal': {'get': {'values': ['engineering']}}}},
+        {'name': 'hamza', 'properties': {'temporal': {'get': {'values': ['director']}}}}
+    ]
+    assert result['graph']['edges']['list'] == [{'properties': {'temporal': {'get': {'values': ['1']}}}}]
     assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
     assert result['graph']['properties']['constant']['lastUpdated']['value'] is not None
     assert result['graph']['properties']['constant']['uiProps']['value'] == '{ "target": 6 : }'
@@ -1838,16 +1921,23 @@ def test_update_graph_succeeds_if_parent_graph_belongs_to_same_namespace():
 def test_update_graph_succeeds_with_new_node_from_parent_graph_added_to_new_graph():
     work_dir = tempfile.mkdtemp()
     g = Graph()
-    g.add_edge(1, "ben", "hamza")
-    g.add_edge(2, "haaroon", "hamza")
-    g.add_edge(3, "ben", "haaroon")
-    g.add_edge(4, "ben", "shivam")
+    g.add_edge(1, "ben", "hamza", {"prop1": 1})
+    g.add_edge(2, "haaroon", "hamza", {"prop1": 2})
+    g.add_edge(3, "ben", "haaroon", {"prop1": 3})
+    g.add_edge(4, "ben", "shivam", {"prop1": 4})
+    g.add_node(4, "ben", {"dept": "engineering"})
+    g.add_node(5, "hamza", {"dept": "director"})
+    g.add_node(6, "haaroon", {"dept": "operations"})
+    g.add_node(7, "shivam", {"dept": "engineering"})
     g.save_to_file(os.path.join(work_dir, "g1"))
 
     g = Graph()
-    g.add_edge(1, "ben", "hamza")
-    g.add_edge(2, "haaroon", "hamza")
-    g.add_edge(3, "ben", "haaroon")
+    g.add_edge(1, "ben", "hamza", {"prop1": 1})
+    g.add_edge(2, "haaroon", "hamza", {"prop1": 2})
+    g.add_edge(3, "ben", "haaroon", {"prop1": 3})
+    g.add_node(4, "ben", {"dept": "engineering"})
+    g.add_node(5, "hamza", {"dept": "director"})
+    g.add_node(6, "haaroon", {"dept": "operations"})
     os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
     g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
 
@@ -1869,7 +1959,13 @@ def test_update_graph_succeeds_with_new_node_from_parent_graph_added_to_new_grap
 
     query = """{
         graph(name: "g2", namespace: "shivam") { 
-            nodes { list { name } }
+            nodes {list { 
+                name
+                properties { temporal { get(key: "dept") { values } } } 
+            }}
+            edges { list {
+                properties { temporal { get(key: "prop1") { values } } }
+            }}
             properties { constant {
               creationTime: get(key: "creationTime") { value }
               lastUpdated: get(key: "lastUpdated") { value }
@@ -1881,7 +1977,11 @@ def test_update_graph_succeeds_with_new_node_from_parent_graph_added_to_new_grap
     }"""
 
     result = client.query(query)
-    assert result['graph']['nodes']['list'] == [{'name': 'ben'}, {'name': 'shivam'}]
+    assert result['graph']['nodes']['list'] == [
+        {'name': 'ben', 'properties': {'temporal': {'get': {'values': ['engineering']}}}},
+        {'name': 'shivam', 'properties': {'temporal': {'get': {'values': ['engineering']}}}}
+    ]
+    assert result['graph']['edges']['list'] == []
     assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
     assert result['graph']['properties']['constant']['lastUpdated']['value'] is not None
     assert result['graph']['properties']['constant']['uiProps']['value'] == '{ "target": 6 : }'
@@ -1892,9 +1992,12 @@ def test_update_graph_succeeds_with_new_node_from_parent_graph_added_to_new_grap
 
 def test_update_graph_succeeds_with_new_node_removed_from_new_graph():
     g = Graph()
-    g.add_edge(1, "ben", "hamza")
-    g.add_edge(2, "haaroon", "hamza")
-    g.add_edge(3, "ben", "haaroon")
+    g.add_edge(1, "ben", "hamza", {"prop1": 1})
+    g.add_edge(2, "haaroon", "hamza", {"prop1": 2})
+    g.add_edge(3, "ben", "haaroon", {"prop1": 3})
+    g.add_node(4, "ben", {"dept": "engineering"})
+    g.add_node(5, "hamza", {"dept": "director"})
+    g.add_node(6, "haaroon", {"dept": "operations"})
 
     work_dir = tempfile.mkdtemp()
     os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
@@ -1920,7 +2023,13 @@ def test_update_graph_succeeds_with_new_node_removed_from_new_graph():
 
     query = """{
         graph(name: "g2", namespace: "shivam") { 
-            nodes { list { name } }
+            nodes {list { 
+                name
+                properties { temporal { get(key: "dept") { values } } } 
+            }}
+            edges { list {
+                properties { temporal { get(key: "prop1") { values } } }
+            }}
             properties { constant {
               creationTime: get(key: "creationTime") { value }
               lastUpdated: get(key: "lastUpdated") { value }
@@ -1932,7 +2041,10 @@ def test_update_graph_succeeds_with_new_node_removed_from_new_graph():
     }"""
 
     result = client.query(query)
-    assert result['graph']['nodes']['list'] == [{'name': 'ben'}]
+    assert result['graph']['nodes']['list'] == [
+        {'name': 'ben', 'properties': {'temporal': {'get': {'values': ['engineering']}}}},
+    ]
+    assert result['graph']['edges']['list'] == []
     assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
     assert result['graph']['properties']['constant']['lastUpdated']['value'] is not None
     assert result['graph']['properties']['constant']['uiProps']['value'] == '{ "target": 6 : }'
