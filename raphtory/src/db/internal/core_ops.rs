@@ -37,8 +37,8 @@ impl CoreGraphOps for InternalGraph {
         self.inner().num_layers()
     }
 
-    fn core_graph(&self) -> GraphStorage {
-        GraphStorage::Unlocked(self.clone())
+    fn core_graph(&self) -> &GraphStorage {
+        todo!("this entire thing should go away")
     }
     #[inline]
     fn node_meta(&self) -> &Meta {
@@ -152,105 +152,6 @@ impl CoreGraphOps for InternalGraph {
                 .collect_vec()
                 .into_iter(),
         )
-    }
-
-    fn get_const_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: LayerIds) -> Option<Prop> {
-        let layer_ids = layer_ids.constrain_from_edge(e);
-        let entry = self.inner().storage.edge_entry(e.pid());
-        match layer_ids {
-            LayerIds::None => None,
-            LayerIds::All => {
-                if self.inner().num_layers() == 1 {
-                    // iterator has at most 1 element
-                    entry
-                        .layer_iter()
-                        .next()
-                        .and_then(|(_, data)| data.const_prop(prop_id).cloned())
-                } else {
-                    let prop_map: HashMap<_, _> = entry
-                        .layer_iter()
-                        .flat_map(|(id, data)| {
-                            data.const_prop(prop_id)
-                                .map(|p| (self.inner().get_layer_name(id), p.clone()))
-                        })
-                        .collect();
-                    if prop_map.is_empty() {
-                        None
-                    } else {
-                        Some(prop_map.into())
-                    }
-                }
-            }
-            LayerIds::One(id) => entry.layer(id).and_then(|l| l.const_prop(prop_id).cloned()),
-            LayerIds::Multiple(ids) => {
-                let prop_map: HashMap<_, _> = ids
-                    .iter()
-                    .flat_map(|&id| {
-                        entry.layer(id).and_then(|data| {
-                            data.const_prop(prop_id)
-                                .map(|p| (self.inner().get_layer_name(id), p.clone()))
-                        })
-                    })
-                    .collect();
-                if prop_map.is_empty() {
-                    None
-                } else {
-                    Some(prop_map.into())
-                }
-            }
-        }
-    }
-
-    fn const_edge_prop_ids(
-        &self,
-        e: EdgeRef,
-        layer_ids: LayerIds,
-    ) -> Box<dyn Iterator<Item = usize> + '_> {
-        // // FIXME: revisit the locking scheme so we don't have to collect all the ids
-        let layer_ids = layer_ids.constrain_from_edge(e);
-        let entry = self.inner().storage.edge_entry(e.pid());
-        let ids: Vec<_> = match layer_ids {
-            LayerIds::None => vec![],
-            LayerIds::All => entry
-                .layer_iter()
-                .map(|(_, data)| data.const_prop_ids())
-                .kmerge()
-                .dedup()
-                .collect(),
-            LayerIds::One(id) => match entry.layer(id) {
-                Some(l) => l.const_prop_ids().collect(),
-                None => vec![],
-            },
-            LayerIds::Multiple(ids) => ids
-                .iter()
-                .flat_map(|id| entry.layer(*id).map(|l| l.const_prop_ids()))
-                .kmerge()
-                .dedup()
-                .collect(),
-        };
-        Box::new(ids.into_iter())
-    }
-
-    fn temporal_edge_prop_ids(
-        &self,
-        e: EdgeRef,
-        layer_ids: &LayerIds,
-    ) -> Box<dyn Iterator<Item = usize> + '_> {
-        // // FIXME: revisit the locking scheme so we don't have to collect the ids
-        let entry = self.inner().storage.edge_entry(e.pid());
-        match layer_ids {
-            LayerIds::None => Box::new(iter::empty()),
-            LayerIds::All => Box::new(entry.temp_prop_ids(None).collect_vec().into_iter()),
-            LayerIds::One(id) => Box::new(entry.temp_prop_ids(Some(*id)).collect_vec().into_iter()),
-            LayerIds::Multiple(ids) => Box::new(
-                ids.iter()
-                    .map(|id| entry.temp_prop_ids(Some(*id)))
-                    .kmerge()
-                    .dedup()
-                    .collect_vec()
-                    .into_iter(),
-            ),
-        }
     }
 
     #[inline]

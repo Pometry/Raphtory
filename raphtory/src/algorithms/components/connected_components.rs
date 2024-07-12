@@ -11,11 +11,12 @@ use crate::{
         },
     },
 };
-use std::cmp;
+use raphtory_api::core::entities::GID;
+use rayon::prelude::*;
 
 #[derive(Clone, Debug, Default)]
 struct WccState {
-    component: u64,
+    component: usize,
 }
 
 /// Computes the connected community_detection of a graph using the Simple Connected Components algorithm
@@ -34,21 +35,21 @@ pub fn weakly_connected_components<G>(
     graph: &G,
     iter_count: usize,
     threads: Option<usize>,
-) -> AlgorithmResult<G, u64, u64>
+) -> AlgorithmResult<G, GID, GID>
 where
     G: StaticGraphViewOps,
 {
     let ctx: Context<G, ComputeStateVec> = graph.into();
     let step1 = ATask::new(move |vv| {
-        let min_neighbour_id = vv.neighbours().id().min();
-        let id = vv.id();
+        let min_neighbour_id = vv.neighbours().iter().map(|n| n.node.0).min();
+        let id = vv.node.0;
         let state: &mut WccState = vv.get_mut();
-        state.component = cmp::min(min_neighbour_id.unwrap_or(id), id);
+        state.component = min_neighbour_id.unwrap_or(id).min(id);
         Step::Continue
     });
 
     let step2 = ATask::new(move |vv: &mut EvalNodeView<G, WccState>| {
-        let prev: u64 = vv.prev().component;
+        let prev: usize = vv.prev().component;
         let current = vv
             .neighbours()
             .into_iter()
@@ -74,10 +75,11 @@ where
         |_, _, _, local: Vec<WccState>| {
             graph
                 .nodes()
-                .iter()
+                .par_iter()
                 .map(|node| {
                     let VID(id) = node.node;
-                    (id, local[id].component)
+                    let comp = graph.node_id(VID(local[id].component));
+                    (id, comp)
                 })
                 .collect()
         },
@@ -121,17 +123,17 @@ mod cc_test {
             assert_eq!(
                 results,
                 vec![
-                    ("1".to_string(), 1),
-                    ("2".to_string(), 1),
-                    ("3".to_string(), 1),
-                    ("4".to_string(), 1),
-                    ("5".to_string(), 1),
-                    ("6".to_string(), 1),
-                    ("7".to_string(), 7),
-                    ("8".to_string(), 7),
+                    ("1".to_string(), GID::U64(1)),
+                    ("2".to_string(), GID::U64(1)),
+                    ("3".to_string(), GID::U64(1)),
+                    ("4".to_string(), GID::U64(1)),
+                    ("5".to_string(), GID::U64(1)),
+                    ("6".to_string(), GID::U64(1)),
+                    ("7".to_string(), GID::U64(7)),
+                    ("8".to_string(), GID::U64(7)),
                 ]
                 .into_iter()
-                .collect::<HashMap<String, u64>>()
+                .collect::<HashMap<_, _>>()
             );
         });
     }
@@ -176,20 +178,20 @@ mod cc_test {
             assert_eq!(
                 results,
                 vec![
-                    ("1".to_string(), 1),
-                    ("2".to_string(), 1),
-                    ("3".to_string(), 1),
-                    ("4".to_string(), 1),
-                    ("5".to_string(), 1),
-                    ("6".to_string(), 1),
-                    ("7".to_string(), 1),
-                    ("8".to_string(), 1),
-                    ("9".to_string(), 1),
-                    ("10".to_string(), 1),
-                    ("11".to_string(), 1),
+                    ("1".to_string(), GID::U64(1)),
+                    ("2".to_string(), GID::U64(1)),
+                    ("3".to_string(), GID::U64(1)),
+                    ("4".to_string(), GID::U64(1)),
+                    ("5".to_string(), GID::U64(1)),
+                    ("6".to_string(), GID::U64(1)),
+                    ("7".to_string(), GID::U64(1)),
+                    ("8".to_string(), GID::U64(1)),
+                    ("9".to_string(), GID::U64(1)),
+                    ("10".to_string(), GID::U64(1)),
+                    ("11".to_string(), GID::U64(1)),
                 ]
                 .into_iter()
-                .collect::<HashMap<String, u64>>()
+                .collect::<HashMap<_, _>>()
             );
         });
     }
@@ -210,9 +212,9 @@ mod cc_test {
 
             assert_eq!(
                 results,
-                vec![("1".to_string(), 1)]
+                vec![("1".to_string(), GID::U64(1))]
                     .into_iter()
-                    .collect::<HashMap<String, u64>>()
+                    .collect::<HashMap<_, _>>()
             );
         });
     }
@@ -228,13 +230,13 @@ mod cc_test {
         test_storage!(&graph, |graph| {
             let results = weakly_connected_components(graph, usize::MAX, None).get_all_with_names();
             let expected = vec![
-                ("1".to_string(), 1),
-                ("2".to_string(), 1),
-                ("3".to_string(), 3),
-                ("4".to_string(), 3),
+                ("1".to_string(), GID::U64(1)),
+                ("2".to_string(), GID::U64(1)),
+                ("3".to_string(), GID::U64(3)),
+                ("4".to_string(), GID::U64(3)),
             ]
             .into_iter()
-            .collect::<HashMap<String, u64>>();
+            .collect::<HashMap<_, _>>();
 
             assert_eq!(results, expected);
 
@@ -243,8 +245,8 @@ mod cc_test {
 
             let expected = vec![("1", 1), ("2", 1)]
                 .into_iter()
-                .map(|(k, v)| (k.to_string(), v))
-                .collect::<HashMap<String, u64>>();
+                .map(|(k, v)| (k.to_string(), GID::U64(v)))
+                .collect::<HashMap<_, _>>();
 
             assert_eq!(results, expected);
         });
@@ -277,7 +279,7 @@ mod cc_test {
 
             let vs = vs.into_iter().unique().collect::<Vec<u64>>();
 
-            let smallest = vs.iter().min().unwrap();
+            // let smallest = vs.iter().min().unwrap();
 
             let first = vs[0];
 
@@ -296,7 +298,7 @@ mod cc_test {
                 // now we do connected community_detection over window 0..1
                 let res = weakly_connected_components(graph, usize::MAX, None).group_by();
 
-                let actual = res
+                let (node, size) = res
                     .into_iter()
                     .map(|(cc, group)| (cc, Reverse(group.len())))
                     .sorted_by(|l, r| l.1.cmp(&r.1))
@@ -305,7 +307,10 @@ mod cc_test {
                     .next()
                     .unwrap();
 
-                assert_eq!(actual, (*smallest, edges.len()));
+                let node = graph.node(node).map(|node| node.node);
+                assert_eq!(node, Some(VID(0)));
+
+                assert_eq!(size, edges.len());
             });
         }
     }

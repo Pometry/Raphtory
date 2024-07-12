@@ -4,6 +4,7 @@ use crate::{
 };
 use glam::Vec2;
 use quad_rand::RandomRange;
+use raphtory_api::core::entities::GID;
 
 /// Return the position of the nodes after running Fruchterman Reingold algorithm on the `graph`
 pub fn fruchterman_reingold_unbounded<'graph, G: GraphViewOps<'graph>>(
@@ -41,7 +42,7 @@ fn update_positions<'graph, G: GraphViewOps<'graph>>(
 ) -> NodeVectors {
     let mut new_positions: NodeVectors = NodeVectors::default();
 
-    for (&id, old_position) in old_positions {
+    for (id, old_position) in old_positions {
         // force that will be applied to the node
         let mut force = Vec2::ZERO;
 
@@ -54,17 +55,17 @@ fn update_positions<'graph, G: GraphViewOps<'graph>>(
         *velocity *= cooloff_factor;
 
         let new_position = *old_position + *velocity * dt;
-        new_positions.insert(id, new_position);
+        new_positions.insert(id.clone(), new_position);
     }
     new_positions
 }
 
-fn compute_repulsion(id: u64, scale: f32, old_positions: &NodeVectors) -> Vec2 {
+fn compute_repulsion(id: &GID, scale: f32, old_positions: &NodeVectors) -> Vec2 {
     let mut force = Vec2::ZERO;
-    let position = old_positions.get(&id).unwrap();
+    let position = old_positions.get(id).unwrap();
 
     for (alt_id, alt_position) in old_positions {
-        if *alt_id != id {
+        if alt_id != id {
             force += -((scale * scale) / position.distance(*alt_position))
                 * unit_vector(*position, *alt_position);
         }
@@ -74,14 +75,14 @@ fn compute_repulsion(id: u64, scale: f32, old_positions: &NodeVectors) -> Vec2 {
 }
 
 fn compute_attraction<'graph, G: GraphViewOps<'graph>>(
-    id: u64,
+    id: &GID,
     scale: f32,
     old_positions: &NodeVectors,
     graph: &G,
 ) -> Vec2 {
     let mut force = Vec2::ZERO;
     let node = graph.node(id).unwrap();
-    let position = old_positions.get(&id).unwrap();
+    let position = old_positions.get(id).unwrap();
 
     for alt_node in node.neighbours() {
         let alt_position = old_positions.get(&alt_node.id()).unwrap();

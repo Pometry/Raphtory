@@ -9,7 +9,7 @@ use crate::{
 use self::state::HopState;
 use crate::core::storage::timeindex::TimeIndexOps;
 
-use crate::disk_graph::DiskGraph;
+use super::graph_impl::DiskGraphStorage;
 use pometry_storage::nodes::Node;
 
 pub mod ast;
@@ -21,11 +21,11 @@ pub enum NodeSource {
     All,
     NodeIds(Vec<VID>),
     ExternalIds(Vec<GID>),
-    Filter(Arc<dyn Fn(VID, &DiskGraph) -> bool + Send + Sync>),
+    Filter(Arc<dyn Fn(VID, &DiskGraphStorage) -> bool + Send + Sync>),
 }
 
 impl NodeSource {
-    fn into_iter(self, graph: &DiskGraph) -> Box<dyn Iterator<Item = VID> + '_> {
+    fn into_iter(self, graph: &DiskGraphStorage) -> Box<dyn Iterator<Item = VID> + '_> {
         match self {
             NodeSource::All => Box::new((0..graph.inner.num_nodes()).map(VID)),
             NodeSource::NodeIds(ids) => Box::new(ids.into_iter()),
@@ -38,7 +38,7 @@ impl NodeSource {
             NodeSource::ExternalIds(ext_ids) => Box::new(
                 ext_ids
                     .into_iter()
-                    .filter_map(move |gid| graph.inner.find_node(gid.as_ref())),
+                    .filter_map(move |gid| graph.inner.find_node(&gid)),
             ),
         }
     }
@@ -120,7 +120,7 @@ mod test {
         g.add_edge(0, 0u64, 1, NO_PROPS, None).unwrap();
         g.add_edge(1, 1u64, 2, NO_PROPS, None).unwrap();
 
-        let graph = DiskGraph::from_graph(&g, graph_dir.path()).unwrap();
+        let graph = DiskGraphStorage::from_graph(&g, graph_dir.path()).unwrap();
 
         let result = rayon2::execute::<NoState>(query, NodeSource::All, &graph, |_| NoState::new());
         assert!(result.is_ok());
@@ -146,7 +146,7 @@ mod test {
         g.add_edge(0, 0u64, 1, NO_PROPS, None).unwrap();
         g.add_edge(1, 1u64, 2, NO_PROPS, None).unwrap();
 
-        let graph = DiskGraph::from_graph(&g, graph_dir.path()).unwrap();
+        let graph = DiskGraphStorage::from_graph(&g, graph_dir.path()).unwrap();
 
         let result = rayon2::execute::<NoState>(query, NodeSource::All, &graph, |_| NoState::new());
         assert!(result.is_ok());
@@ -170,7 +170,7 @@ mod test {
         g.add_edge(0, 0u64, 1, NO_PROPS, None).unwrap();
         g.add_edge(1, 1u64, 2, NO_PROPS, None).unwrap();
 
-        let graph = DiskGraph::from_graph(&g, graph_dir.path()).unwrap();
+        let graph = DiskGraphStorage::from_graph(&g, graph_dir.path()).unwrap();
 
         let result = rayon2::execute::<VecState>(query, NodeSource::All, &graph, VecState::new);
         assert!(result.is_ok());
@@ -203,7 +203,7 @@ mod test {
         g.add_edge(0, 0u64, 1, NO_PROPS, None).unwrap();
         g.add_edge(1, 1u64, 2, NO_PROPS, None).unwrap();
 
-        let graph = DiskGraph::from_graph(&g, graph_dir.path()).unwrap();
+        let graph = DiskGraphStorage::from_graph(&g, graph_dir.path()).unwrap();
 
         let result = rayon2::execute::<VecState>(query, NodeSource::All, &graph, VecState::new);
         assert!(result.is_ok());
@@ -228,7 +228,7 @@ mod test {
         g.add_edge(1, 1u64, 2, NO_PROPS, None).unwrap();
         g.add_edge(2, 1u64, 3, NO_PROPS, None).unwrap();
 
-        let graph = DiskGraph::from_graph(&g, graph_dir.path()).unwrap();
+        let graph = DiskGraphStorage::from_graph(&g, graph_dir.path()).unwrap();
 
         let result = rayon2::execute::<VecState>(query, NodeSource::All, &graph, VecState::new);
         assert!(result.is_ok());
@@ -279,7 +279,7 @@ mod test {
             g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
 
-        let graph = DiskGraph::from_graph(&g, graph_dir.path()).unwrap();
+        let graph = DiskGraphStorage::from_graph(&g, graph_dir.path()).unwrap();
 
         let t = 10;
         let result = rayon2::execute::<ForwardState>(

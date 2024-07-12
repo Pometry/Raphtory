@@ -275,7 +275,7 @@ pub fn run_analysis_benchmarks<F, G>(
     let edges: HashSet<(u64, u64)> = graph
         .edges()
         .into_iter()
-        .map(|e| (e.src().id(), e.dst().id()))
+        .filter_map(|e| e.src().id().as_u64().zip(e.dst().id().as_u64()))
         .collect();
 
     let edges_t = graph
@@ -285,7 +285,12 @@ pub fn run_analysis_benchmarks<F, G>(
         .map(|e| (e.src().id(), e.dst().id(), e.time().expect("need time")))
         .collect::<Vec<_>>();
 
-    let nodes: HashSet<u64> = graph.nodes().id().into_iter().collect();
+    let nodes: HashSet<u64> = graph
+        .nodes()
+        .id()
+        .into_iter()
+        .filter_map(|n| n.as_u64())
+        .collect();
 
     bench(group, "num_edges", parameter, |b: &mut Bencher| {
         b.iter(|| graph.count_edges())

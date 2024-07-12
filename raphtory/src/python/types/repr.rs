@@ -5,7 +5,7 @@ use crate::{
 };
 use chrono::{DateTime, NaiveDateTime, TimeZone};
 use itertools::Itertools;
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 use std::{collections::HashMap, ops::Deref};
 
 pub fn iterator_repr<I: Iterator<Item = V>, V: Repr>(iter: I) -> String {
@@ -76,6 +76,16 @@ impl StructReprBuilder {
 
 pub trait Repr {
     fn repr(&self) -> String;
+}
+
+impl Repr for GID {
+    fn repr(&self) -> String {
+        match self {
+            GID::U64(v) => v.repr(),
+            GID::I64(v) => v.repr(),
+            GID::Str(v) => v.repr(),
+        }
+    }
 }
 
 impl Repr for bool {

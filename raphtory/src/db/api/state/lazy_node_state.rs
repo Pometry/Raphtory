@@ -224,7 +224,7 @@ impl<
             let cg = self.graph.core_graph();
             Some((
                 NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, vid),
-                (self.op)(&cg, &self.graph, vid),
+                (self.op)(cg, &self.graph, vid),
             ))
         }
     }
@@ -242,7 +242,7 @@ impl<
         }
 
         let cg = self.graph.core_graph();
-        Some(self.apply(&cg, &self.graph, vid))
+        Some(self.apply(cg, &self.graph, vid))
     }
 
     fn len(&self) -> usize {

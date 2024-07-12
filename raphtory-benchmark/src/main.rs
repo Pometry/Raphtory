@@ -190,8 +190,8 @@ fn main() {
 
     // Out neighbours of all nodes with time
     now = Instant::now();
-    let _out_neighbours = g
-        .nodes()
+    let nodes = &g.nodes();
+    let _out_neighbours = nodes
         .iter()
         .map(|v| v.out_neighbours())
         .collect::<Vec<_>>();

@@ -28,7 +28,7 @@ use datafusion::{
 };
 use futures::Stream;
 use pometry_storage::prelude::*;
-use raphtory::disk_graph::DiskGraph;
+use raphtory::disk_graph::graph_impl::DiskGraphStorage;
 
 use crate::executor::{arrow2_to_arrow_buf, ExecError};
 
@@ -37,7 +37,7 @@ use crate::executor::{arrow2_to_arrow_buf, ExecError};
 pub struct EdgeListTableProvider {
     layer_id: usize,
     layer_name: String,
-    graph: DiskGraph,
+    graph: DiskGraphStorage,
     nested_schema: SchemaRef,
     num_partitions: usize,
     row_count: usize,
@@ -45,7 +45,7 @@ pub struct EdgeListTableProvider {
 }
 
 impl EdgeListTableProvider {
-    pub fn new(layer_name: &str, g: DiskGraph) -> Result<Self, ExecError> {
+    pub fn new(layer_name: &str, g: DiskGraphStorage) -> Result<Self, ExecError> {
         let graph = g.as_ref();
         let layer_id = graph
             .find_layer_id(layer_name)
@@ -97,7 +97,10 @@ impl EdgeListTableProvider {
     }
 }
 
-fn lift_nested_arrow_schema(graph: &DiskGraph, layer_id: usize) -> Result<Arc<Schema>, ExecError> {
+fn lift_nested_arrow_schema(
+    graph: &DiskGraphStorage,
+    layer_id: usize,
+) -> Result<Arc<Schema>, ExecError> {
     let arrow2_fields = graph.as_ref().layer(layer_id).edges_data_type();
     let a2_dt = crate::arrow2::datatypes::ArrowDataType::Struct(arrow2_fields.to_vec());
     let a_dt: DataType = a2_dt.into();
@@ -165,7 +168,7 @@ impl TableProvider for EdgeListTableProvider {
 struct EdgeListExecPlan {
     layer_id: usize,
     layer_name: String,
-    graph: DiskGraph,
+    graph: DiskGraphStorage,
     schema: SchemaRef,
     num_partitions: usize,
     row_count: usize,
@@ -175,7 +178,7 @@ struct EdgeListExecPlan {
 }
 
 fn produce_record_batch(
-    graph: DiskGraph,
+    graph: DiskGraphStorage,
     schema: SchemaRef,
     layer_id: usize,
     start_offset: usize,
@@ -444,7 +447,7 @@ mod test {
             (3, 4, 7, 6.),
             (4, 5, 9, 7.),
         ];
-        let graph = DiskGraph::make_simple_graph(graph_dir, &edges, 10, 10);
+        let graph = DiskGraphStorage::make_simple_graph(graph_dir, &edges, 10, 10);
         ctx.register_table(
             "graph",
             Arc::new(EdgeListTableProvider::new("_default", graph).unwrap()),

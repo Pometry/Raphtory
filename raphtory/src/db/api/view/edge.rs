@@ -1,7 +1,7 @@
 use std::iter;
 
 use chrono::{DateTime, Utc};
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 
 use crate::{
     core::{
@@ -99,7 +99,7 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     fn active(&self, t: i64) -> Self::ValueType<bool>;
 
     /// Returns the id of the edge.
-    fn id(&self) -> Self::ValueType<(u64, u64)>;
+    fn id(&self) -> Self::ValueType<(GID, GID)>;
 
     /// Explodes an edge and returns all instances it had been updated as seperate edges
     fn explode(&self) -> Self::Exploded;
@@ -214,7 +214,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         })
     }
 
-    fn id(&self) -> Self::ValueType<(u64, u64)> {
+    fn id(&self) -> Self::ValueType<(GID, GID)> {
         self.map(|g, e| (g.node_id(e.src()), g.node_id(e.dst())))
     }
 
@@ -437,12 +437,12 @@ mod test_edge_view {
 
             let res: Vec<_> = exploded_edges
                 .into_iter()
-                .map(|e| {
-                    (
-                        e.src().id(),
-                        e.dst().id(),
+                .filter_map(|e| {
+                    Some((
+                        e.src().id().as_u64()?,
+                        e.dst().id().as_u64()?,
                         e.properties().get("second").into_bool(),
-                    )
+                    ))
                 })
                 .collect();
             assert_eq!(

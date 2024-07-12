@@ -86,9 +86,15 @@ impl PartialEq for EdgesStorage {
     }
 }
 
+impl Default for EdgesStorage {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EdgesStorage {
     pub fn new() -> Self {
-        let mut shards = (0..SHARD_SIZE).into_iter().map(|_| {
+        let mut shards = (0..SHARD_SIZE).map(|_| {
             Arc::new(RwLock::new(EdgeShard {
                 edge_ids: vec![],
                 props: Vec::with_capacity(0),
@@ -115,7 +121,11 @@ impl EdgesStorage {
 
     pub fn read_lock(&self) -> LockedEdges {
         LockedEdges {
-            shards: self.shards.iter().map(|shard| shard.read_arc()).collect(),
+            shards: self
+                .shards
+                .iter()
+                .map(|shard| Arc::new(shard.read_arc()))
+                .collect(),
             len: self.len(),
         }
     }
@@ -270,7 +280,7 @@ impl<'a> EdgeRGuard<'a> {
 
 #[derive(Debug)]
 pub struct LockedEdges {
-    shards: Arc<[ArcRwLockReadGuard<parking_lot::RawRwLock, EdgeShard>]>,
+    shards: Arc<[Arc<ArcRwLockReadGuard<parking_lot::RawRwLock, EdgeShard>>]>,
     len: usize,
 }
 
@@ -278,12 +288,20 @@ impl LockedEdges {
     pub fn get(&self, eid: EID) -> &EdgeShard {
         let (bucket, offset) = resolve(eid.into(), self.shards.len());
         let shard = &self.shards[bucket];
-        &shard
+        shard
     }
 
     pub fn get_mem(&self, eid: EID) -> MemEdge {
         let (bucket, offset) = resolve(eid.into(), self.shards.len());
         MemEdge::new(&self.shards[bucket], offset)
+    }
+
+    pub fn get_edge_arc(&self, eid: EID) -> EdgeArcGuard {
+        let (bucket, offset) = resolve(eid.into(), self.shards.len());
+        EdgeArcGuard {
+            guard: self.shards[bucket].clone(),
+            offset,
+        }
     }
 
     pub fn len(&self) -> usize {
@@ -296,7 +314,7 @@ impl LockedEdges {
                 .edge_ids
                 .iter()
                 .enumerate()
-                .map(move |(offset, _)| MemEdge::new(&shard, offset))
+                .map(move |(offset, _)| MemEdge::new(shard, offset))
         })
     }
 
@@ -306,7 +324,7 @@ impl LockedEdges {
                 .edge_ids
                 .par_iter()
                 .enumerate()
-                .map(move |(offset, _)| MemEdge::new(&shard, offset))
+                .map(move |(offset, _)| MemEdge::new(shard, offset))
         })
     }
 }

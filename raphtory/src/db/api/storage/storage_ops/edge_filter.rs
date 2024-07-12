@@ -4,7 +4,9 @@ use crate::{
     disk_graph::DiskGraph,
 };
 
-impl EdgeFilterOps for DiskGraph {
+use super::GraphStorage;
+
+impl EdgeFilterOps for GraphStorage {
     fn edges_filtered(&self) -> bool {
         false
     }

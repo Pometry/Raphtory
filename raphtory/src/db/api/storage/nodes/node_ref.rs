@@ -1,5 +1,7 @@
 use std::borrow::Cow;
 
+use raphtory_api::core::entities::GID;
+
 #[cfg(feature = "storage")]
 use crate::db::api::storage::variants::storage_variants::StorageVariants;
 
@@ -14,6 +16,7 @@ use crate::{
         storage::{nodes::node_storage_ops::NodeStorageOps, tprop_storage_ops::TPropOps},
         view::internal::NodeAdditions,
     },
+    prelude::Prop,
 };
 
 #[derive(Copy, Clone, Debug)]
@@ -94,7 +97,7 @@ impl<'a> NodeStorageOps<'a> for NodeStorageRef<'a> {
         for_all!(self, node => node.vid())
     }
 
-    fn id(self) -> u64 {
+    fn id(self) -> GID {
         for_all!(self, node => node.id())
     }
 
@@ -104,5 +107,9 @@ impl<'a> NodeStorageOps<'a> for NodeStorageRef<'a> {
 
     fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef> {
         for_all!(self, node => NodeStorageOps::find_edge(node, dst, layer_ids))
+    }
+
+    fn prop(self, prop_id: usize) -> Option<Prop> {
+        for_all!(self, node => node.prop(prop_id))
     }
 }

@@ -16,7 +16,7 @@ use pyo3::{
     prelude::*,
     types::PyNotImplemented,
 };
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 use std::sync::Arc;
 
 macro_rules! impl_node_state_ops {
@@ -264,6 +264,9 @@ impl_node_state_num!(NodeStateUsize<usize>);
 
 impl_lazy_node_state_num!(LazyNodeStateU64<u64>);
 impl_node_state_num!(NodeStateU64<u64>);
+
+impl_node_state!(NodeStateGID<GID>);
+impl_lazy_node_state!(LazyNodeStateGID<GID>);
 
 impl_lazy_node_state_ord!(LazyNodeStateOptionI64<Option<i64>>);
 impl_node_state_ord!(NodeStateOptionI64<Option<i64>>);

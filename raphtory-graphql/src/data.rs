@@ -1,6 +1,6 @@
 use parking_lot::RwLock;
 #[cfg(feature = "storage")]
-use raphtory::disk_graph::DiskGraph;
+use raphtory::disk_graph::graph_impl::DiskGraphStorage;
 use raphtory::{
     core::Prop,
     db::api::view::MaterializedGraph,
@@ -124,9 +124,9 @@ impl Data {
 
         #[cfg(feature = "storage")]
         fn load_disk_graph(path: &Path) -> (String, MaterializedGraph) {
-            let disk_graph =
-                DiskGraph::load_from_dir(path).expect("Unable to load from disk_graph graph");
-            let graph: MaterializedGraph = disk_graph.into();
+            let disk_graph = DiskGraphStorage::load_from_dir(path)
+                .expect("Unable to load from disk_graph graph");
+            let graph: MaterializedGraph = MaterializedGraph::EventGraph(disk_graph.into_graph());
             let graph_name = get_graph_name(path, &graph);
 
             (graph_name, graph)

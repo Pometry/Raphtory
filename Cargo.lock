@@ -4510,6 +4510,7 @@ dependencies = [
  "chrono",
  "dashmap",
  "lock_api",
+ "num-traits",
  "parking_lot",
  "proptest",
  "pyo3",

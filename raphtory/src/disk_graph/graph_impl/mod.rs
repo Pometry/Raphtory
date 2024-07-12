@@ -1,29 +1,33 @@
 use crate::{
     core::{
-        entities::{EID, VID},
+        entities::{
+            properties::{graph_meta::GraphMeta, props::Meta},
+            LayerIds,
+        },
         utils::errors::GraphError,
-        Prop, PropType,
     },
-    db::api::mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-    disk_graph::{DiskGraph, DiskGraphError},
-    prelude::Graph,
+    disk_graph::{graph_impl::prop_conversion::make_node_properties_from_graph, Error},
+    prelude::{Graph, Layer},
 };
-use raphtory_api::core::storage::timeindex::TimeIndexEntry;
-use std::path::Path;
+use pometry_storage::{
+    disk_hmap::DiskHashMap, graph::TemporalGraph, graph_fragment::TempColGraphFragment,
+    load::ExternalEdgeList, RAError,
+};
+use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
+use rayon::prelude::*;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::{
+    fmt::{Display, Formatter},
+    path::{Path, PathBuf},
+    sync::Arc,
+};
+};
+use crate::disk_graph::DiskGraphError;
 
-pub mod const_properties_ops;
-pub mod core_ops;
-pub mod edge_filter_ops;
 mod edge_storage_ops;
 mod interop;
-pub mod layer_ops;
-mod list_ops;
-pub mod materialize;
-mod node_filter_ops;
 pub mod prop_conversion;
-pub mod temporal_properties_ops;
 mod time_index_into_ops;
-pub mod time_semantics;
 pub mod tprops;
 
 #[derive(Debug)]
@@ -35,162 +39,400 @@ pub struct ParquetLayerCols<'a> {
     pub time_col: &'a str,
 }
 
+#[derive(Clone, Debug)]
+pub struct DiskGraphStorage {
+    pub(crate) inner: Arc<TemporalGraph>,
+    node_meta: Arc<Meta>,
+    edge_meta: Arc<Meta>,
+    graph_props: Arc<GraphMeta>,
+    graph_dir: PathBuf,
+}
+
+impl Serialize for DiskGraphStorage {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let path = self.graph_dir.clone();
+        path.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for DiskGraphStorage {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let path = PathBuf::deserialize(deserializer)?;
+        let graph_result = DiskGraphStorage::load_from_dir(&path).map_err(|err| {
+            serde::de::Error::custom(format!("Failed to load Diskgraph: {:?}", err))
+        })?;
+        Ok(graph_result)
+    }
+}
+
+impl Display for DiskGraphStorage {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Diskgraph(num_nodes={}, num_temporal_edges={}",
+            self.inner.num_nodes(),
+            self.inner.count_temporal_edges()
+        )
+    }
+}
+
+impl AsRef<TemporalGraph> for DiskGraphStorage {
+    fn as_ref(&self) -> &TemporalGraph {
+        &self.inner
+    }
+}
+
 impl Graph {
     pub fn persist_as_disk_graph(
         &self,
         graph_dir: impl AsRef<Path>,
-    ) -> Result<DiskGraph, DiskGraphError> {
-        DiskGraph::from_graph(self, graph_dir)
+    ) -> Result<DiskGraphStorage, DiskGraphError> {
+        DiskGraphStorage::from_graph(self, graph_dir)
     }
 }
 
-impl InternalAdditionOps for DiskGraph {
-    fn next_event_id(&self) -> usize {
-        unimplemented!("Diskgraph is immutable")
-    }
-
-    fn resolve_layer(&self, _layer: Option<&str>) -> usize {
-        // Will check this
-        unimplemented!("Diskgraph is immutable")
-    }
-
-    fn resolve_node_type(
-        &self,
-        _v_id: VID,
-        _node_typee: Option<&str>,
-    ) -> Result<usize, GraphError> {
-        unimplemented!("Diskgraph is immutable")
-    }
-
-    fn resolve_node(&self, _id: u64, _name: Option<&str>) -> VID {
-        unimplemented!("Diskgraph is immutable")
-    }
-
-    fn resolve_graph_property(&self, _prop: &str, _is_static: bool) -> usize {
-        unimplemented!("Diskgraph is immutable")
-    }
-
-    fn resolve_node_property(
-        &self,
-        _prop: &str,
-        _dtype: PropType,
-        _is_static: bool,
-    ) -> Result<usize, GraphError> {
-        unimplemented!("Diskgraph is immutable")
-    }
-
-    fn resolve_edge_property(
-        &self,
-        _prop: &str,
-        _dtype: PropType,
-        _is_static: bool,
-    ) -> Result<usize, GraphError> {
-        unimplemented!("Diskgraph is immutable")
-    }
-
-    fn process_prop_value(&self, _prop: Prop) -> Prop {
-        unimplemented!("Diskgraph is immutable")
-    }
-
-    fn internal_add_node(
-        &self,
-        _t: TimeIndexEntry,
-        _v: VID,
-        _props: Vec<(usize, Prop)>,
-        _node_type_id: usize,
-    ) -> Result<(), GraphError> {
-        unimplemented!("Diskgraph is immutable")
-    }
-
-    fn internal_add_edge(
-        &self,
-        _t: TimeIndexEntry,
-        _src: VID,
-        _dst: VID,
-        _props: Vec<(usize, Prop)>,
-        _layer: usize,
-    ) -> Result<EID, GraphError> {
-        unimplemented!("Diskgraph is immutable")
-    }
+fn get_valid_layers(graph: &Arc<TemporalGraph>) -> Vec<String> {
+    graph.layer_names().into_iter().map(|x| x.clone()).collect()
 }
 
-impl InternalPropertyAdditionOps for DiskGraph {
-    fn internal_add_properties(
-        &self,
-        _t: TimeIndexEntry,
-        _props: Vec<(usize, Prop)>,
-    ) -> Result<(), GraphError> {
-        unimplemented!("Diskgraph is immutable")
+impl DiskGraphStorage {
+    pub fn valid_layer_ids_from_names(&self, key: Layer) -> LayerIds {
+        match key {
+            Layer::All | Layer::Default => LayerIds::One(0), // FIXME: need to handle all correctly
+            Layer::One(name) => {
+                let name = name.as_ref();
+                self.inner
+                    .layer_names()
+                    .iter()
+                    .enumerate()
+                    .find(move |(_, ref n)| n == &name)
+                    .map(|(i, _)| LayerIds::One(i))
+                    .unwrap_or(LayerIds::None)
+            }
+            _ => todo!("Layer ids for multiple names not implemented for Diskgraph"),
+        }
     }
 
-    fn internal_add_static_properties(&self, _props: Vec<(usize, Prop)>) -> Result<(), GraphError> {
-        unimplemented!("Diskgraph is immutable")
+    pub fn layer_ids_from_names(&self, key: Layer) -> Result<LayerIds, GraphError> {
+        match key {
+            Layer::All => Ok(LayerIds::All),
+            Layer::Default => Ok(LayerIds::One(0)),
+            Layer::One(name) => {
+                let id = self.inner.find_layer_id(&name).ok_or_else(|| {
+                    GraphError::invalid_layer(name.to_string(), get_valid_layers(&self.inner))
+                })?;
+                Ok(LayerIds::One(id))
+            }
+            Layer::None => Ok(LayerIds::None),
+            Layer::Multiple(names) => {
+                let ids = names
+                    .iter()
+                    .map(|name| {
+                        self.inner.find_layer_id(name).ok_or_else(|| {
+                            GraphError::invalid_layer(
+                                name.to_string(),
+                                get_valid_layers(&self.inner),
+                            )
+                        })
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(LayerIds::Multiple(ids.into()))
+            }
+        }
     }
 
-    fn internal_update_static_properties(
-        &self,
-        _props: Vec<(usize, Prop)>,
-    ) -> Result<(), GraphError> {
-        unimplemented!("Diskgraph is immutable")
+    pub fn into_graph(self) -> Graph {
+        Graph::from_internal_graph(&crate::db::api::storage::storage_ops::GraphStorage::Disk(
+            Arc::new(self),
+        ))
     }
 
-    fn internal_add_constant_node_properties(
+    pub(crate) fn core_temporal_edge_prop_ids(
         &self,
-        _vid: VID,
-        _props: Vec<(usize, Prop)>,
-    ) -> Result<(), GraphError> {
-        unimplemented!("Diskgraph is immutable")
+        e: EdgeRef,
+        layer_ids: &LayerIds,
+    ) -> Box<dyn Iterator<Item = usize> + '_> {
+        let layer_id = match layer_ids.constrain_from_edge(e) {
+            LayerIds::One(id) => id,
+            _ => panic!("Only one layer is supported"),
+        };
+        Box::new(1..self.inner.edges_data_type(layer_id).len())
     }
 
-    fn internal_update_constant_node_properties(
-        &self,
-        _vid: VID,
-        _props: Vec<(usize, Prop)>,
-    ) -> Result<(), GraphError> {
-        unimplemented!("Diskgraph is immutable")
+    pub fn layer_from_ids(&self, layer_ids: &LayerIds) -> Option<usize> {
+        match layer_ids {
+            LayerIds::One(layer_id) => Some(*layer_id),
+            LayerIds::None => None,
+            LayerIds::All => match self.inner.layers().len() {
+                0 => None,
+                1 => Some(0),
+                _ => todo!("multilayer edge views not yet supported in Diskgraph"),
+            },
+            LayerIds::Multiple(ids) => match ids.len() {
+                0 => None,
+                1 => Some(ids[0]),
+                _ => todo!("multilayer edge views not yet supported in Diskgraph"),
+            },
+        }
     }
 
-    fn internal_add_constant_edge_properties(
-        &self,
-        _eid: EID,
-        _layer: usize,
-        _props: Vec<(usize, Prop)>,
-    ) -> Result<(), GraphError> {
-        unimplemented!("Diskgraph is immutable")
+    pub fn make_simple_graph(
+        graph_dir: impl AsRef<Path>,
+        edges: &[(u64, u64, i64, f64)],
+        chunk_size: usize,
+        t_props_chunk_size: usize,
+    ) -> DiskGraphStorage {
+        // unzip into 4 vectors
+        let (src, (dst, (time, weight))): (Vec<_>, (Vec<_>, (Vec<_>, Vec<_>))) = edges
+            .iter()
+            .map(|(a, b, c, d)| (*a, (*b, (*c, *d))))
+            .unzip();
+
+        let edge_lists = vec![StructArray::new(
+            DataType::Struct(vec![
+                Field::new("src", DataType::UInt64, false),
+                Field::new("dst", DataType::UInt64, false),
+                Field::new("time", DataType::Int64, false),
+                Field::new("weight", DataType::Float64, false),
+            ]),
+            vec![
+                PrimitiveArray::from_vec(src).boxed(),
+                PrimitiveArray::from_vec(dst).boxed(),
+                PrimitiveArray::from_vec(time).boxed(),
+                PrimitiveArray::from_vec(weight).boxed(),
+            ],
+            None,
+        )];
+        DiskGraphStorage::load_from_edge_lists(
+            &edge_lists,
+            chunk_size,
+            t_props_chunk_size,
+            graph_dir.as_ref(),
+            0,
+            1,
+            2,
+        )
+        .expect("failed to create graph")
     }
 
-    fn internal_update_constant_edge_properties(
-        &self,
-        _eid: EID,
-        _layer: usize,
-        _props: Vec<(usize, Prop)>,
-    ) -> Result<(), GraphError> {
-        unimplemented!("Diskgraph is immutable")
+    fn new(inner_graph: TemporalGraph, graph_dir: PathBuf) -> Self {
+        let node_meta = Meta::new();
+        let mut edge_meta = Meta::new();
+        let graph_meta = GraphMeta::new();
+
+        for node_type in inner_graph.node_types().into_iter().flatten() {
+            if let Some(node_type) = node_type {
+                node_meta.get_or_create_node_type_id(node_type);
+            } else {
+                panic!("Node types cannot be null");
+            }
+        }
+
+        for layer in inner_graph.layers() {
+            let edge_props_fields = layer.edges_data_type();
+
+            for (id, field) in edge_props_fields.iter().enumerate() {
+                let prop_name = &field.name;
+                let data_type = field.data_type();
+
+                let resolved_id = edge_meta
+                    .resolve_prop_id(prop_name, data_type.into(), false)
+                    .expect("Arrow data types should without failing");
+                if id != resolved_id {
+                    println!("Warning: Layers with different edge properties are not supported by the high-level apis on top of the disk_graph graph yet, edge properties will not be available to high-level apis");
+                    edge_meta = Meta::new();
+                    break;
+                }
+            }
+        }
+
+        for l_name in inner_graph.layer_names() {
+            edge_meta.layer_meta().get_or_create_id(l_name);
+        }
+
+        if let Some(props) = &inner_graph.node_properties().const_props {
+            let node_const_props_fields = props.prop_dtypes();
+            for field in node_const_props_fields {
+                node_meta
+                    .resolve_prop_id(&field.name, field.data_type().into(), true)
+                    .expect("Initial resolve should not fail");
+            }
+        }
+
+        if let Some(props) = &inner_graph.node_properties().temporal_props {
+            let node_temporal_props_fields = props.prop_dtypes();
+            for field in node_temporal_props_fields {
+                node_meta
+                    .resolve_prop_id(&field.name, field.data_type().into(), false)
+                    .expect("Initial resolve should not fail");
+            }
+        }
+
+        Self {
+            inner: Arc::new(inner_graph),
+            node_meta: Arc::new(node_meta),
+            edge_meta: Arc::new(edge_meta),
+            graph_props: Arc::new(graph_meta),
+            graph_dir,
+        }
+    }
+
+    pub fn from_graph(graph: &Graph, graph_dir: impl AsRef<Path>) -> Result<Self, Error> {
+        let inner_graph = TemporalGraph::from_graph(graph, graph_dir.as_ref(), || {
+            make_node_properties_from_graph(graph, graph_dir.as_ref())
+        })?;
+        Ok(Self::new(inner_graph, graph_dir.as_ref().to_path_buf()))
+    }
+
+    pub fn load_from_edge_lists(
+        edge_list: &[StructArray],
+        chunk_size: usize,
+        t_props_chunk_size: usize,
+        graph_dir: impl AsRef<Path> + Sync,
+        src_col_idx: usize,
+        dst_col_idx: usize,
+        time_col_idx: usize,
+    ) -> Result<Self, RAError> {
+        let path = graph_dir.as_ref().to_path_buf();
+        let inner = TemporalGraph::from_sorted_edge_list(
+            graph_dir,
+            src_col_idx,
+            dst_col_idx,
+            time_col_idx,
+            chunk_size,
+            t_props_chunk_size,
+            edge_list,
+        )?;
+        Ok(Self::new(inner, path))
+    }
+
+    pub fn load_from_dir(graph_dir: impl AsRef<Path>) -> Result<DiskGraphStorage, RAError> {
+        let path = graph_dir.as_ref().to_path_buf();
+        let inner = TemporalGraph::new(graph_dir)?;
+        Ok(Self::new(inner, path))
+    }
+
+    pub fn load_from_parquets<P: AsRef<Path>>(
+        graph_dir: P,
+        layer_parquet_cols: Vec<ParquetLayerCols>,
+        node_properties: Option<P>,
+        chunk_size: usize,
+        t_props_chunk_size: usize,
+        read_chunk_size: Option<usize>,
+        concurrent_files: Option<usize>,
+        num_threads: usize,
+        node_type_col: Option<&str>,
+    ) -> Result<DiskGraphStorage, RAError> {
+        let layered_edge_list: Vec<ExternalEdgeList<&Path>> = layer_parquet_cols
+            .iter()
+            .map(
+                |ParquetLayerCols {
+                     parquet_dir,
+                     layer,
+                     src_col,
+                     dst_col,
+                     time_col,
+                 }| {
+                    ExternalEdgeList::new(layer, parquet_dir.as_ref(), src_col, dst_col, time_col)
+                        .expect("Failed to load events")
+                },
+            )
+            .collect::<Vec<_>>();
+
+        let t_graph = TemporalGraph::from_parquets(
+            num_threads,
+            chunk_size,
+            t_props_chunk_size,
+            read_chunk_size,
+            concurrent_files,
+            graph_dir.as_ref(),
+            layered_edge_list,
+            node_properties.as_ref().map(|p| p.as_ref()),
+            node_type_col,
+        )?;
+        Ok(Self::new(t_graph, graph_dir.as_ref().to_path_buf()))
+    }
+
+    pub fn filtered_layers_par<'a>(
+        &'a self,
+        layer_ids: &'a LayerIds,
+    ) -> impl ParallelIterator<Item = &'a TempColGraphFragment> + 'a {
+        self.inner
+            .layers()
+            .par_iter()
+            .enumerate()
+            .filter(|(l_id, _)| layer_ids.contains(l_id))
+            .map(|(_, layer)| layer)
+    }
+
+    pub fn filtered_layers_iter<'a>(
+        &'a self,
+        layer_ids: &'a LayerIds,
+    ) -> impl Iterator<Item = &'a TempColGraphFragment> + 'a {
+        self.inner
+            .layers()
+            .iter()
+            .enumerate()
+            .filter(|(l_id, _)| layer_ids.contains(l_id))
+            .map(|(_, layer)| layer)
+    }
+
+    pub fn from_layer(layer: TempColGraphFragment) -> Self {
+        let path = layer.graph_dir().to_path_buf();
+        let global_ordering = layer.nodes_storage().gids().clone();
+
+        let global_order = DiskHashMap::from_sorted_dedup(global_ordering.clone())
+            .expect("Failed to create global order");
+
+        let inner = TemporalGraph::new_from_layers(
+            global_ordering,
+            Arc::new(global_order),
+            vec![layer],
+            vec!["_default".to_string()],
+        );
+        Self::new(inner, path)
+    }
+
+    pub fn node_meta(&self) -> &Meta {
+        &self.node_meta
+    }
+
+    pub fn edge_meta(&self) -> &Meta {
+        &self.edge_meta
+    }
+
+    pub fn graph_meta(&self) -> &GraphMeta {
+        &self.graph_props
     }
 }
 
 #[cfg(test)]
 mod test {
-    use super::ParquetLayerCols;
+    use super::{DiskGraphStorage, ParquetLayerCols};
     use crate::{
-        algorithms::components::weakly_connected_components,
-        db::api::view::StaticGraphViewOps,
-        disk_graph::{DiskGraph, Time},
+        db::api::{storage::storage_ops::GraphStorage, view::StaticGraphViewOps},
+        disk_graph::Time,
         prelude::*,
     };
-    use itertools::{chain, Itertools};
+    use itertools::Itertools;
     use pometry_storage::{graph::TemporalGraph, properties::Properties};
     use proptest::{prelude::*, sample::size_range};
     use rayon::prelude::*;
     use std::{
-        cmp::Reverse,
-        iter::once,
         path::{Path, PathBuf},
+        sync::Arc,
     };
     use tempfile::TempDir;
 
-    fn make_simple_graph(graph_dir: impl AsRef<Path>, edges: &[(u64, u64, i64, f64)]) -> DiskGraph {
-        DiskGraph::make_simple_graph(graph_dir, edges, 1000, 1000)
+    fn make_simple_graph(graph_dir: impl AsRef<Path>, edges: &[(u64, u64, i64, f64)]) -> Graph {
+        let storage = DiskGraphStorage::make_simple_graph(graph_dir, edges, 1000, 1000);
+        Graph::from_internal_graph(&GraphStorage::Disk(Arc::new(storage)))
     }
 
     fn check_graph_counts(edges: &[(u64, u64, Time, f64)], g: &impl StaticGraphViewOps) {
@@ -402,51 +644,6 @@ mod test {
         }
     }
 
-    fn connected_components_check(vs: Vec<u64>) {
-        let vs = vs.into_iter().unique().collect::<Vec<u64>>();
-
-        let smallest = vs.iter().min().unwrap();
-
-        let first = vs[0];
-
-        // pairs of nodes from vs one after the next
-        let mut edges = vs
-            .iter()
-            .zip(chain!(vs.iter().skip(1), once(&first)))
-            .enumerate()
-            .map(|(t, (a, b))| (*a, *b, t as i64, 1f64))
-            .collect::<Vec<(u64, u64, i64, f64)>>();
-
-        edges.sort_by_key(|(src, dst, t, _)| (*src, *dst, *t));
-
-        let test_dir = tempfile::tempdir().unwrap();
-        let graph = make_simple_graph(test_dir, &edges);
-
-        let res = weakly_connected_components(&graph, usize::MAX, None).group_by();
-
-        let actual = res
-            .into_iter()
-            .map(|(cc, group)| (cc, Reverse(group.len())))
-            .sorted_by(|l, r| l.1.cmp(&r.1))
-            .map(|(cc, count)| (cc, count.0))
-            .take(1)
-            .next()
-            .unwrap();
-
-        assert_eq!(actual, (*smallest, edges.len()));
-    }
-
-    #[test]
-    fn cc_smallest_in_2_edges() {
-        let vs = vec![9616798649147808099, 0];
-        connected_components_check(vs);
-    }
-
-    proptest! {
-        #[test]
-        fn connected_components_smallest_values(vs in any_with::<Vec<u64>>(size_range(1..=100).lift())){ connected_components_check(vs) }
-    }
-
     #[test]
     fn test_par_nodes() {
         let test_dir = TempDir::new().unwrap();
@@ -499,7 +696,9 @@ mod test {
         ])
         .unwrap();
         let test_dir = TempDir::new().unwrap();
-        let disk_graph = DiskGraph::from_graph(&mem_graph, test_dir.path()).unwrap();
+        let disk_graph = DiskGraphStorage::from_graph(&mem_graph, test_dir.path())
+            .unwrap()
+            .into_graph();
         assert_eq!(disk_graph.count_nodes(), 1);
         let props = disk_graph.node(0).unwrap().properties();
         assert_eq!(props.get("test_num").unwrap_u64(), 0);
@@ -509,7 +708,9 @@ mod test {
 
         drop(disk_graph);
 
-        let disk_graph = DiskGraph::load_from_dir(test_dir.path()).unwrap();
+        let disk_graph = DiskGraphStorage::load_from_dir(test_dir.path())
+            .unwrap()
+            .into_graph();
         let props = disk_graph.node(0).unwrap().properties();
         assert_eq!(props.get("test_num").unwrap_u64(), 0);
         assert_eq!(props.get("test_str").unwrap_str(), "test");
@@ -523,7 +724,10 @@ mod test {
         let v = g.add_node(0, 1, NO_PROPS, None).unwrap();
         v.add_constant_properties([("test", "test")]).unwrap();
         let test_dir = TempDir::new().unwrap();
-        let disk_graph = g.persist_as_disk_graph(test_dir.path()).unwrap();
+        let disk_graph = g
+            .persist_as_disk_graph(test_dir.path())
+            .unwrap()
+            .into_graph();
         assert_eq!(
             disk_graph
                 .node(1)
@@ -533,7 +737,9 @@ mod test {
                 .unwrap_str(),
             "test"
         );
-        let disk_graph = DiskGraph::load_from_dir(test_dir.path()).unwrap();
+        let disk_graph = DiskGraphStorage::load_from_dir(test_dir.path())
+            .unwrap()
+            .into_graph();
         assert_eq!(
             disk_graph
                 .node(1)
@@ -589,7 +795,7 @@ mod test {
 
         let node_type_col = Some("node_type");
 
-        let g = DiskGraph::load_from_parquets(
+        let g = DiskGraphStorage::load_from_parquets(
             graph_dir,
             layer_parquet_cols,
             Some(&node_properties),
@@ -600,7 +806,8 @@ mod test {
             num_threads,
             node_type_col,
         )
-        .unwrap();
+        .unwrap()
+        .into_graph();
 
         println!("node types = {:?}", g.nodes().node_type().collect_vec());
 
@@ -736,7 +943,9 @@ mod test {
         g.add_edge(2, 3, 6, NO_PROPS, Some("a")).unwrap();
 
         let tmp_dir = tempfile::tempdir().unwrap();
-        let g = DiskGraph::from_graph(&g, tmp_dir.path()).unwrap();
+        let g = DiskGraphStorage::from_graph(&g, tmp_dir.path())
+            .unwrap()
+            .into_graph();
 
         assert_eq!(
             g.nodes()
@@ -759,7 +968,9 @@ mod test {
             vec!["7", "8", "9"]
         );
 
-        let g = DiskGraph::load_from_dir(tmp_dir.path()).unwrap();
+        let g = DiskGraphStorage::load_from_dir(tmp_dir.path())
+            .unwrap()
+            .into_graph();
 
         assert_eq!(
             g.nodes()

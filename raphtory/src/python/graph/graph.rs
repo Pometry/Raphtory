@@ -24,14 +24,14 @@ use crate::{
             edge::PyEdge, graph_with_deletions::PyPersistentGraph, io::pandas_loaders::*,
             node::PyNode, views::graph_view::PyGraphView,
         },
-        utils::{PyInputNode, PyTime},
+        utils::PyTime,
     },
 };
 use pyo3::{
     prelude::*,
     types::{PyBytes, PyTuple},
 };
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
@@ -203,7 +203,7 @@ impl PyGraph {
     pub fn add_node(
         &self,
         timestamp: PyTime,
-        id: PyInputNode,
+        id: GID,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
     ) -> Result<NodeView<Graph, Graph>, GraphError> {
@@ -270,8 +270,8 @@ impl PyGraph {
     pub fn add_edge(
         &self,
         timestamp: PyTime,
-        src: PyInputNode,
-        dst: PyInputNode,
+        src: GID,
+        dst: GID,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
     ) -> Result<EdgeView<Graph, Graph>, GraphError> {
@@ -627,7 +627,7 @@ impl PyGraph {
         shared_const_properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
         load_nodes_from_pandas(
-            &self.graph.0,
+            self.graph.core_graph(),
             df,
             id,
             time,
@@ -706,7 +706,7 @@ impl PyGraph {
         layer_in_df: Option<bool>,
     ) -> Result<(), GraphError> {
         load_edges_from_pandas(
-            &self.graph.0,
+            self.graph.core_graph(),
             df,
             src,
             dst,
@@ -780,7 +780,7 @@ impl PyGraph {
         shared_const_properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
         load_node_props_from_pandas(
-            &self.graph.0,
+            self.graph.core_graph(),
             df,
             id,
             const_properties,
@@ -840,7 +840,7 @@ impl PyGraph {
         layer_in_df: Option<bool>,
     ) -> Result<(), GraphError> {
         load_edge_props_from_pandas(
-            &self.graph.0,
+            self.graph.core_graph(),
             df,
             src,
             dst,

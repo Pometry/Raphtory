@@ -5,11 +5,10 @@ use crate::{
         graph::graph::Graph,
     },
 };
-use std::sync::Arc;
 
 impl InternalMaterialize for InternalGraph {
     fn new_base_graph(&self, graph: InternalGraph) -> MaterializedGraph {
-        MaterializedGraph::EventGraph(Graph::from_internal_graph(Arc::new(graph)))
+        MaterializedGraph::EventGraph(Graph::from_internal_graph(&graph))
     }
 
     fn include_deletions(&self) -> bool {

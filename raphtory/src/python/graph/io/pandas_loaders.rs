@@ -1,5 +1,6 @@
 use crate::{
-    core::{entities::graph::tgraph::InternalGraph, utils::errors::GraphError, Prop},
+    core::{utils::errors::GraphError, Prop},
+    db::api::{storage::storage_ops::GraphStorage, view::internal::CoreGraphOps},
     io::arrow::{dataframe::*, df_loaders::*},
     python::graph::io::*,
 };
@@ -8,7 +9,7 @@ use pyo3::{ffi::Py_uintptr_t, prelude::*, types::IntoPyDict};
 use std::collections::HashMap;
 
 pub fn load_nodes_from_pandas(
-    graph: &InternalGraph,
+    graph: &GraphStorage,
     df: &PyAny,
     id: &str,
     time: &str,
@@ -59,7 +60,7 @@ pub fn load_nodes_from_pandas(
 }
 
 pub fn load_edges_from_pandas(
-    graph: &InternalGraph,
+    graph: &GraphStorage,
     df: &PyAny,
     src: &str,
     dst: &str,
@@ -113,7 +114,7 @@ pub fn load_edges_from_pandas(
 }
 
 pub fn load_node_props_from_pandas(
-    graph: &InternalGraph,
+    graph: &GraphStorage,
     df: &PyAny,
     id: &str,
     const_properties: Option<Vec<&str>>,
@@ -149,7 +150,7 @@ pub fn load_node_props_from_pandas(
 }
 
 pub fn load_edge_props_from_pandas(
-    graph: &InternalGraph,
+    graph: &GraphStorage,
     df: &PyAny,
     src: &str,
     dst: &str,
@@ -195,7 +196,7 @@ pub fn load_edge_props_from_pandas(
 }
 
 pub fn load_edges_deletions_from_pandas(
-    graph: &InternalGraph,
+    graph: &GraphStorage,
     df: &PyAny,
     src: &str,
     dst: &str,
@@ -230,7 +231,7 @@ pub fn load_edges_deletions_from_pandas(
             time,
             layer,
             layer_in_df.unwrap_or(true),
-            graph,
+            graph.core_graph(),
         )
         .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
 

@@ -20,12 +20,12 @@ pub(crate) struct DocumentRef {
 
 impl Hash for DocumentRef {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        match self.entity_id {
+        match &self.entity_id {
             EntityId::Graph { .. } => (),
-            EntityId::Node { id } => state.write_u64(id),
+            EntityId::Node { id } => id.hash(state),
             EntityId::Edge { src, dst } => {
-                state.write_u64(src);
-                state.write_u64(dst);
+                src.hash(state);
+                dst.hash(state);
             }
         };
         state.write_usize(self.index);
@@ -81,7 +81,7 @@ impl DocumentRef {
     }
 
     fn entity_exists_in_graph<G: StaticGraphViewOps>(&self, graph: Option<&G>) -> bool {
-        match self.entity_id {
+        match &self.entity_id {
             EntityId::Graph { .. } => true, // TODO: maybe consider dead a graph with no entities
             EntityId::Node { id } => graph.map(|g| g.has_node(id)).unwrap_or(true),
             EntityId::Edge { src, dst } => graph.map(|g| g.has_edge(src, dst)).unwrap_or(true),
@@ -108,19 +108,19 @@ impl DocumentRef {
                 life: self.life,
             },
             EntityId::Node { id } => Document::Node {
-                name: original_graph.node(*id).unwrap().name(),
+                name: original_graph.node(id).unwrap().name(),
                 content: template
-                    .node(&original_graph.node(*id).unwrap())
+                    .node(&original_graph.node(id).unwrap())
                     .nth(self.index)
                     .unwrap()
                     .content,
                 life: self.life,
             },
             EntityId::Edge { src, dst } => Document::Edge {
-                src: original_graph.node(*src).unwrap().name(),
-                dst: original_graph.node(*dst).unwrap().name(),
+                src: original_graph.node(src).unwrap().name(),
+                dst: original_graph.node(dst).unwrap().name(),
                 content: template
-                    .edge(&original_graph.edge(*src, *dst).unwrap())
+                    .edge(&original_graph.edge(src, dst).unwrap())
                     .nth(self.index)
                     .unwrap()
                     .content,

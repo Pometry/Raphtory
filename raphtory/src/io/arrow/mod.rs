@@ -9,7 +9,7 @@ mod test {
         prelude::*,
     };
     use polars_arrow::array::{PrimitiveArray, Utf8Array};
-    use raphtory_api::core::storage::arc_str::ArcStr;
+    use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 
     #[test]
     fn load_edges_from_pretend_df() {
@@ -76,9 +76,27 @@ mod test {
         assert_eq!(
             actual,
             vec![
-                (1, 2, Some(1), Some(Prop::F64(1.0)), Some(Prop::str("a"))),
-                (2, 3, Some(2), Some(Prop::F64(2.0)), Some(Prop::str("b"))),
-                (3, 4, Some(3), Some(Prop::F64(3.0)), Some(Prop::str("c"))),
+                (
+                    GID::U64(1),
+                    GID::U64(2),
+                    Some(1),
+                    Some(Prop::F64(1.0)),
+                    Some(Prop::str("a"))
+                ),
+                (
+                    GID::U64(2),
+                    GID::U64(3),
+                    Some(2),
+                    Some(Prop::F64(2.0)),
+                    Some(Prop::str("b"))
+                ),
+                (
+                    GID::U64(3),
+                    GID::U64(4),
+                    Some(3),
+                    Some(Prop::F64(3.0)),
+                    Some(Prop::str("c"))
+                ),
             ]
         );
     }
@@ -141,13 +159,13 @@ mod test {
             actual,
             vec![
                 (
-                    1,
+                    GID::U64(1),
                     Some(1),
                     Some(Prop::str("a")),
                     Some(ArcStr::from("node_type"))
                 ),
                 (
-                    2,
+                    GID::U64(2),
                     Some(2),
                     Some(Prop::str("b")),
                     Some(ArcStr::from("node_type"))

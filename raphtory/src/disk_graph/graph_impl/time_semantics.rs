@@ -1,3 +1,4 @@
+use super::DiskGraphStorage;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
@@ -11,7 +12,7 @@ use crate::{
         },
         view::{internal::TimeSemantics, BoxedIter},
     },
-    disk_graph::{graph_impl::tprops::read_tprop_column, DiskGraph},
+    disk_graph::graph_impl::tprops::read_tprop_column,
     prelude::*,
 };
 use itertools::Itertools;
@@ -19,7 +20,7 @@ use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use rayon::prelude::*;
 use std::{iter, ops::Range};
 
-impl TimeSemantics for DiskGraph {
+impl TimeSemantics for DiskGraphStorage {
     fn node_earliest_time(&self, v: VID) -> Option<i64> {
         self.inner
             .layers()

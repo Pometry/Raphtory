@@ -20,11 +20,11 @@ use crate::{
     prelude::{DeletionOps, GraphViewOps, ImportOps},
     python::{
         graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
-        utils::{PyInputNode, PyTime},
+        utils::PyTime,
     },
 };
 use pyo3::{prelude::*, types::PyBytes};
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
@@ -124,7 +124,7 @@ impl PyPersistentGraph {
     pub fn add_node(
         &self,
         timestamp: PyTime,
-        id: PyInputNode,
+        id: GID,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
     ) -> Result<NodeView<PersistentGraph>, GraphError> {
@@ -191,8 +191,8 @@ impl PyPersistentGraph {
     pub fn add_edge(
         &self,
         timestamp: PyTime,
-        src: PyInputNode,
-        dst: PyInputNode,
+        src: GID,
+        dst: GID,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
     ) -> Result<EdgeView<PersistentGraph, PersistentGraph>, GraphError> {
@@ -213,8 +213,8 @@ impl PyPersistentGraph {
     pub fn delete_edge(
         &self,
         timestamp: PyTime,
-        src: PyInputNode,
-        dst: PyInputNode,
+        src: GID,
+        dst: GID,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
         self.graph.delete_edge(timestamp, src, dst, layer)

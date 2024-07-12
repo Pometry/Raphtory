@@ -2,12 +2,12 @@ use crate::{
     core::{entities::VID, Direction},
     db::{api::view::StaticGraphViewOps, graph::node::NodeView},
     disk_graph::{
+        graph_impl::DiskGraphStorage,
         query::{
             ast::{Hop, Query, Sink},
             state::{HopState, StaticGraphHopState},
             NodeSource,
         },
-        DiskGraph,
     },
     prelude::*,
 };
@@ -19,7 +19,7 @@ use std::{cell::RefCell, fs::File, io::BufWriter, path::Path, sync::Arc};
 pub fn execute<S: HopState + 'static>(
     query: Query<S>,
     source: NodeSource,
-    graph: &DiskGraph,
+    graph: &DiskGraphStorage,
     make_state: impl Fn(Node) -> S + Send + Sync,
 ) -> Result<(), RAError> {
     let tp = ThreadPoolBuilder::new()
@@ -93,7 +93,7 @@ fn node_view<'a, G: StaticGraphViewOps>(
     NodeView::new_internal(graph, node)
 }
 
-fn lookup_layer(layer: &str, graph: &DiskGraph) -> usize {
+fn lookup_layer(layer: &str, graph: &DiskGraphStorage) -> usize {
     graph.inner.find_layer_id(layer).expect("No layer")
 }
 
@@ -117,7 +117,7 @@ fn hop_disk_graph<'a, S: HopState + 'a>(
     query: &'a Query<S>,
     step: usize,
     state: S,
-    graph: &'a DiskGraph,
+    graph: &'a DiskGraphStorage,
     s: &rayon::Scope<'a>,
     tl: &'a Arc<thread_local::ThreadLocal<RefCell<BufWriter<File>>>>,
 ) {

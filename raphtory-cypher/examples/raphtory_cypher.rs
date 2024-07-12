@@ -17,7 +17,7 @@ mod cypher {
     use arrow::util::pretty::print_batches;
     use clap::Parser;
     use futures::{stream, StreamExt};
-    use raphtory::disk_graph::{graph_impl::ParquetLayerCols, DiskGraph};
+    use raphtory::disk_graph::graph_impl::{DiskGraphStorage, ParquetLayerCols};
     use raphtory_cypher::{run_cypher, run_cypher_to_streams, run_sql};
     use serde::{de::DeserializeOwned, Deserialize};
 
@@ -138,7 +138,7 @@ mod cypher {
         match args {
             Args::Query(args) => {
                 let graph =
-                    DiskGraph::load_from_dir(&args.graph_dir).expect("Failed to load graph");
+                    DiskGraphStorage::load_from_dir(&args.graph_dir).expect("Failed to load graph");
 
                 let now = std::time::Instant::now();
 
@@ -187,7 +187,7 @@ mod cypher {
                         }
                     })
                     .collect();
-                DiskGraph::load_from_parquets(
+                DiskGraphStorage::load_from_parquets(
                     args.graph_dir.as_str(),
                     layer_parquet_cols,
                     args.node_props.as_deref(),

@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, LayerIds, EID, VID},
+        entities::{edges::edge_ref::EdgeRef, LayerIds, EID, GID, VID},
         Direction,
     },
     db::api::{
@@ -11,10 +11,11 @@ use crate::{
         },
         view::internal::NodeAdditions,
     },
+    prelude::Prop,
 };
 use itertools::Itertools;
+use polars_arrow::datatypes::ArrowDataType;
 use pometry_storage::{graph::TemporalGraph, timestamps::TimeStamps, GidRef};
-use raphtory_api::core::input::input_node::InputNode;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use std::{borrow::Cow, iter, sync::Arc};
 
@@ -25,6 +26,19 @@ pub struct DiskNode<'a> {
 }
 
 impl<'a> DiskNode<'a> {
+    pub fn constant_node_prop_ids(self) -> Box<dyn Iterator<Item = usize> + 'a> {
+        match &self.graph.node_properties().const_props {
+            None => Box::new(std::iter::empty()),
+            Some(props) => {
+                Box::new((0..props.num_props()).filter(move |id| props.has_prop(self.vid, *id)))
+            }
+        }
+    }
+
+    pub fn temporal_node_prop_ids(self) -> Box<dyn Iterator<Item = usize> + 'a> {
+        Box::new(std::iter::empty())
+    }
+
     pub(crate) fn new(graph: &'a TemporalGraph, vid: VID) -> Self {
         Self { graph, vid }
     }
@@ -226,6 +240,24 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
             .prop(self.vid, prop_id)
     }
 
+    fn prop(self, prop_id: usize) -> Option<Prop> {
+        let cprops = self.graph.node_properties().const_props.as_ref()?;
+        let prop_type = cprops.prop_dtype(prop_id);
+        match prop_type.data_type {
+            ArrowDataType::Int32 => cprops.prop_native::<i32>(self.vid, prop_id).map(Prop::I32),
+            ArrowDataType::Int64 => cprops.prop_native::<i64>(self.vid, prop_id).map(Prop::I64),
+            ArrowDataType::UInt32 => cprops.prop_native::<u32>(self.vid, prop_id).map(Prop::U32),
+            ArrowDataType::UInt64 => cprops.prop_native::<u64>(self.vid, prop_id).map(Prop::U64),
+            ArrowDataType::Float32 => cprops.prop_native::<f32>(self.vid, prop_id).map(Prop::F32),
+            ArrowDataType::Float64 => cprops.prop_native::<f64>(self.vid, prop_id).map(Prop::F64),
+            ArrowDataType::Utf8 | ArrowDataType::LargeUtf8 | ArrowDataType::Utf8View => {
+                cprops.prop_str(self.vid, prop_id).map(Prop::str)
+            }
+            // Add cases for other types, including special handling for complex types
+            _ => None, // Placeholder for unhandled types
+        }
+    }
+
     fn edges_iter(
         self,
         layers: &'a LayerIds,
@@ -246,11 +278,11 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
         self.vid
     }
 
-    fn id(self) -> u64 {
+    fn id(self) -> GID {
         match self.graph.node_gid(self.vid).unwrap() {
-            GidRef::U64(v) => v,
-            GidRef::I64(v) => v as u64,
-            GidRef::Str(v) => v.id(),
+            GidRef::U64(v) => GID::U64(v),
+            GidRef::I64(v) => GID::I64(v),
+            GidRef::Str(v) => GID::Str(v.to_string()),
         }
     }
 
@@ -493,7 +525,7 @@ impl<'a> NodeStorageOps<'a> for &'a DiskOwnedNode {
     }
 
     #[inline]
-    fn id(self) -> u64 {
+    fn id(self) -> GID {
         self.as_ref().id()
     }
 
@@ -503,6 +535,10 @@ impl<'a> NodeStorageOps<'a> for &'a DiskOwnedNode {
 
     fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef> {
         self.as_ref().find_edge(dst, layer_ids)
+    }
+
+    fn prop(self, prop_id: usize) -> Option<Prop> {
+        self.as_ref().prop(prop_id)
     }
 }
 

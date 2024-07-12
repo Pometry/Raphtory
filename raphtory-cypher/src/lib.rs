@@ -34,7 +34,7 @@ mod cypher {
         parser::ast::*,
         *,
     };
-    use raphtory::disk_graph::DiskGraph;
+    use raphtory::disk_graph::graph_impl::DiskGraphStorage;
 
     use crate::{
         executor::table_provider::node::NodeTableProvider,
@@ -45,7 +45,7 @@ mod cypher {
 
     pub async fn run_cypher(
         query: &str,
-        g: &DiskGraph,
+        g: &DiskGraphStorage,
         enable_hop_optim: bool,
     ) -> Result<DataFrame, ExecError> {
         let (ctx, plan) = prepare_plan(query, g, enable_hop_optim).await?;
@@ -55,7 +55,7 @@ mod cypher {
 
     pub async fn prepare_plan(
         query: &str,
-        g: &DiskGraph,
+        g: &DiskGraphStorage,
         enable_hop_optim: bool,
     ) -> Result<(SessionContext, LogicalPlan), ExecError> {
         // println!("Running query: {:?}", query);
@@ -135,14 +135,14 @@ mod cypher {
 
     pub async fn run_cypher_to_streams(
         query: &str,
-        graph: &DiskGraph,
+        graph: &DiskGraphStorage,
     ) -> Result<Vec<SendableRecordBatchStream>, ExecError> {
         let df = run_cypher(query, graph, true).await?;
         let stream = df.execute_stream_partitioned().await?;
         Ok(stream)
     }
 
-    pub async fn run_sql(query: &str, graph: &DiskGraph) -> Result<DataFrame, ExecError> {
+    pub async fn run_sql(query: &str, graph: &DiskGraphStorage) -> Result<DataFrame, ExecError> {
         let ctx = SessionContext::new();
 
         for layer in graph.as_ref().layer_names() {
@@ -185,8 +185,9 @@ mod cypher {
         use arrow_array::RecordBatch;
         use tempfile::tempdir;
 
+        use raphtory::{disk_graph::graph_impl::DiskGraphStorage, prelude::*};
+
         use crate::run_cypher;
-        use raphtory::{disk_graph::DiskGraph, prelude::*};
 
         lazy_static::lazy_static! {
             static ref EDGES: Vec<(u64, u64, i64, f64)> = vec![
@@ -244,7 +245,7 @@ mod cypher {
         #[tokio::test]
         async fn select_table() {
             let graph_dir = tempdir().unwrap();
-            let graph = DiskGraph::make_simple_graph(graph_dir, &EDGES, 3, 2);
+            let graph = DiskGraphStorage::make_simple_graph(graph_dir, &EDGES, 3, 2);
 
             let df = run_cypher("match ()-[e]->() RETURN *", &graph, true)
                 .await
@@ -258,7 +259,7 @@ mod cypher {
         #[tokio::test]
         async fn select_table_order_by() {
             let graph_dir = tempdir().unwrap();
-            let graph = DiskGraph::make_simple_graph(graph_dir, &EDGES, 3, 2);
+            let graph = DiskGraphStorage::make_simple_graph(graph_dir, &EDGES, 3, 2);
 
             let df = run_cypher("match ()-[e]->() RETURN * ORDER by e.weight", &graph, true)
                 .await
@@ -277,8 +278,9 @@ mod cypher {
                 datatypes::*,
             };
             use arrow::util::pretty::print_batches;
-            use raphtory::disk_graph::{graph_impl::ParquetLayerCols, DiskGraph};
             use tempfile::tempdir;
+
+            use raphtory::disk_graph::graph_impl::{DiskGraphStorage, ParquetLayerCols};
 
             use crate::run_cypher;
 
@@ -311,7 +313,7 @@ mod cypher {
                 let edge_lists = vec![chunk];
 
                 let graph =
-                    DiskGraph::load_from_edge_lists(&edge_lists, 20, 20, graph_dir, 0, 1, 2)
+                    DiskGraphStorage::load_from_edge_lists(&edge_lists, 20, 20, graph_dir, 0, 1, 2)
                         .unwrap();
 
                 let df = run_cypher("match ()-[e]->() RETURN *", &graph, true)
@@ -354,7 +356,7 @@ mod cypher {
                     },
                 ];
 
-                let graph = DiskGraph::load_from_parquets(
+                let graph = DiskGraphStorage::load_from_parquets(
                     graph_dir,
                     layer_parquet_cols,
                     None,
@@ -385,7 +387,7 @@ mod cypher {
             load_nodes(&graph);
             load_star_edges(&graph);
 
-            let graph = DiskGraph::from_graph(&graph, graph_dir).unwrap();
+            let graph = DiskGraphStorage::from_graph(&graph, graph_dir).unwrap();
 
             let df = run_cypher("match ()-[e1]->(b)-[e2]->(), (b)-[e3]->() RETURN e1.src, e1.id, b.id, e2.id, e2.dst, e3.id, e3.dst", &graph, true)
                 .await
@@ -403,7 +405,7 @@ mod cypher {
         #[tokio::test]
         async fn select_table_filter_weight() {
             let graph_dir = tempdir().unwrap();
-            let graph = DiskGraph::make_simple_graph(graph_dir, &EDGES, 10, 10);
+            let graph = DiskGraphStorage::make_simple_graph(graph_dir, &EDGES, 10, 10);
 
             let df = run_cypher("match ()-[e {src: 0}]->() RETURN *", &graph, true)
                 .await
@@ -428,7 +430,7 @@ mod cypher {
         #[tokio::test]
         async fn two_hops() {
             let graph_dir = tempdir().unwrap();
-            let graph = DiskGraph::make_simple_graph(graph_dir, &EDGES, 100, 100);
+            let graph = DiskGraphStorage::make_simple_graph(graph_dir, &EDGES, 100, 100);
 
             let query = "match ()-[e1]->()-[e2]->() return e1.src as start, e1.dst as mid, e2.dst as end ORDER BY start, mid, end";
 
@@ -438,7 +440,11 @@ mod cypher {
             assert_eq!(rb_hop, rb_join);
         }
 
-        async fn run_to_rb(graph: &DiskGraph, query: &str, enable_hop_optim: bool) -> RecordBatch {
+        async fn run_to_rb(
+            graph: &DiskGraphStorage,
+            query: &str,
+            enable_hop_optim: bool,
+        ) -> RecordBatch {
             let df = run_cypher(query, &graph, enable_hop_optim).await.unwrap();
             let data = df.collect().await.unwrap();
             print_batches(&data).unwrap();
@@ -450,7 +456,7 @@ mod cypher {
         #[ignore] // Hop optimization is not yet fully implemented
         async fn three_hops() {
             let graph_dir = tempdir().unwrap();
-            let graph = DiskGraph::make_simple_graph(graph_dir, &EDGES, 100, 100);
+            let graph = DiskGraphStorage::make_simple_graph(graph_dir, &EDGES, 100, 100);
 
             let query = "match ()-[e1]->()-[e2]->()-[e3]->() return * ORDER BY e1.src, e1.dst, e2.src, e2.dst, e3.src, e3.dst";
             let hop_rb = run_to_rb(&graph, query, true).await;
@@ -463,7 +469,7 @@ mod cypher {
         #[tokio::test]
         async fn three_hops_with_condition() {
             let graph_dir = tempdir().unwrap();
-            let graph = DiskGraph::make_simple_graph(graph_dir, &EDGES, 100, 100);
+            let graph = DiskGraphStorage::make_simple_graph(graph_dir, &EDGES, 100, 100);
 
             let df = run_cypher(
                 "match ()-[e1]->()-[e2]->()<-[e3]-() where e2.weight > 5 return *",
@@ -480,7 +486,7 @@ mod cypher {
         #[tokio::test]
         async fn five_hops() {
             let graph_dir = tempdir().unwrap();
-            let graph = DiskGraph::make_simple_graph(graph_dir, &EDGES, 100, 100);
+            let graph = DiskGraphStorage::make_simple_graph(graph_dir, &EDGES, 100, 100);
 
             let df = run_cypher(
                 "match ()-[e1]->()-[e2]->()-[e3]->()-[e4]->()-[e5]->() return *",
@@ -494,21 +500,21 @@ mod cypher {
             print_batches(&data).unwrap();
         }
 
-        fn make_graph_with_str_col(graph_dir: impl AsRef<Path>) -> DiskGraph {
+        fn make_graph_with_str_col(graph_dir: impl AsRef<Path>) -> DiskGraphStorage {
             let graph = Graph::new();
 
             load_edges_with_str_props(&graph, None);
 
-            DiskGraph::from_graph(&graph, graph_dir).unwrap()
+            DiskGraphStorage::from_graph(&graph, graph_dir).unwrap()
         }
 
-        fn make_graph_with_node_props(graph_dir: impl AsRef<Path>) -> DiskGraph {
+        fn make_graph_with_node_props(graph_dir: impl AsRef<Path>) -> DiskGraphStorage {
             let graph = Graph::new();
 
             load_nodes(&graph);
             load_edges_with_str_props(&graph, None);
 
-            DiskGraph::from_graph(&graph, graph_dir).unwrap()
+            DiskGraphStorage::from_graph(&graph, graph_dir).unwrap()
         }
 
         fn load_nodes(graph: &Graph) {
@@ -658,7 +664,7 @@ mod cypher {
             load_edges_1(&g, Some("LAYER1"));
             load_edges_with_str_props(&g, Some("LAYER2"));
 
-            let graph = DiskGraph::from_graph(&g, graph_dir).unwrap();
+            let graph = DiskGraphStorage::from_graph(&g, graph_dir).unwrap();
 
             let df = run_cypher(
                 "match ()-[e:_default|LAYER1|LAYER2]->() where (e.weight > 3 and e.weight < 5) or e.name starts with 'xb' return e",
@@ -677,7 +683,7 @@ mod cypher {
             load_edges_1(&g, Some("LAYER1"));
             load_edges_with_str_props(&g, Some("LAYER2"));
 
-            let graph = DiskGraph::from_graph(&g, graph_dir).unwrap();
+            let graph = DiskGraphStorage::from_graph(&g, graph_dir).unwrap();
 
             let df = run_cypher("match ()-[e2:LAYER2]->() RETURN *", &graph, true)
                 .await
@@ -705,7 +711,7 @@ mod cypher {
             load_edges_1(&g, Some("LAYER1"));
             load_edges_with_str_props(&g, Some("LAYER2"));
 
-            let graph = DiskGraph::from_graph(&g, graph_dir).unwrap();
+            let graph = DiskGraphStorage::from_graph(&g, graph_dir).unwrap();
 
             let df = run_cypher("match ()-[e]->() RETURN *", &graph, true)
                 .await
@@ -724,7 +730,7 @@ mod cypher {
             load_edges_1(&g, Some("LAYER1"));
             load_edges_with_str_props(&g, Some("LAYER2"));
 
-            let graph = DiskGraph::from_graph(&g, graph_dir).unwrap();
+            let graph = DiskGraphStorage::from_graph(&g, graph_dir).unwrap();
             let df = run_cypher("match ()-[e]->() return type(e), e", &graph, true)
                 .await
                 .unwrap();

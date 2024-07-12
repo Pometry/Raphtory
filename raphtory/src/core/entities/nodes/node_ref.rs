@@ -1,4 +1,6 @@
 use crate::core::entities::VID;
+use either::Either;
+use raphtory_api::core::entities::GID;
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Debug)]
 pub enum NodeRef<'a> {
@@ -9,6 +11,17 @@ pub enum NodeRef<'a> {
 
 pub trait AsNodeRef {
     fn as_node_ref(&self) -> NodeRef;
+
+    fn into_gid(self) -> Either<GID, VID>
+    where
+        Self: Sized,
+    {
+        match self.as_node_ref() {
+            NodeRef::Internal(vid) => Either::Right(vid),
+            NodeRef::External(u) => Either::Left(GID::U64(u)),
+            NodeRef::ExternalStr(s) => Either::Left(GID::Str(s.to_string())),
+        }
+    }
 }
 
 impl<'a> AsNodeRef for NodeRef<'a> {
@@ -44,6 +57,16 @@ impl<'a> AsNodeRef for &'a str {
 impl<'a, V: AsNodeRef> AsNodeRef for &'a V {
     fn as_node_ref(&self) -> NodeRef {
         V::as_node_ref(self)
+    }
+}
+
+impl AsNodeRef for GID {
+    fn as_node_ref(&self) -> NodeRef {
+        match self {
+            GID::U64(u) => NodeRef::External(*u),
+            GID::Str(s) => NodeRef::ExternalStr(s),
+            GID::I64(i) => NodeRef::External(*i as u64),
+        }
     }
 }
 

@@ -1,7 +1,7 @@
 //ALGORITHMS
 
 #[cfg(feature = "storage")]
-use crate::python::graph::disk_graph::{PyDiskGraph, PyGraphQuery, PyState};
+use crate::python::graph::disk_graph::PyDiskGraph;
 use crate::{
     add_classes, add_functions,
     python::{
@@ -49,7 +49,7 @@ pub fn add_raphtory_classes(m: &PyModule) -> PyResult<()> {
     );
 
     #[cfg(feature = "storage")]
-    add_classes!(m, PyDiskGraph, PyGraphQuery, PyState);
+    add_classes!(m, PyDiskGraph);
     return Ok(());
 }
 

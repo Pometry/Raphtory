@@ -454,7 +454,8 @@ mod test {
         // check persist_as_disk_graph works
         let disk_graph_from_expected = expected_graph
             .persist_as_disk_graph(graph_dir.path())
-            .unwrap();
+            .unwrap()
+            .into_graph();
         assert_graph_equal(&disk_graph_from_expected, &expected_graph);
 
         let actual_num_verts = nodes.len();
@@ -492,7 +493,7 @@ mod test {
 
             let actual_inbound = graph
                 .edges(VID(v_id), Direction::IN)
-                .map(|(_, v)| nodes[v.0])
+                .map(|(_, v)| GID::U64(nodes[v.0]))
                 .collect::<Vec<_>>();
 
             assert_eq!(expected_inbound, actual_inbound);

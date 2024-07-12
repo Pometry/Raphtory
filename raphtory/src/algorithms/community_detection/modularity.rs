@@ -184,14 +184,10 @@ impl ModularityFunction for ModularityUnDir {
         tol: f64,
     ) -> Self {
         let _n = graph.count_nodes();
-        let local_id_map: HashMap<_, _> = graph
-            .nodes()
-            .iter()
-            .enumerate()
-            .map(|(i, n)| (n, VID(i)))
-            .collect();
-        let adj: Vec<_> = graph
-            .nodes()
+        let nodes = graph.nodes();
+        let local_id_map: HashMap<_, _> =
+            nodes.iter().enumerate().map(|(i, n)| (n, VID(i))).collect();
+        let adj: Vec<_> = nodes
             .iter()
             .map(|node| {
                 node.edges()

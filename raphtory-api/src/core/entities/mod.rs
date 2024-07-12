@@ -1,6 +1,18 @@
+use std::{
+    borrow::Cow,
+    fmt::{Display, Formatter},
+};
+
+#[cfg(feature = "python")]
+use pyo3::exceptions::PyTypeError;
+#[cfg(feature = "python")]
+use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use self::edges::edge_ref::EdgeRef;
+use num_traits::cast::ToPrimitive;
+
+use super::input::input_node::parse_u64_strict;
 
 pub mod edges;
 
@@ -83,5 +95,166 @@ impl From<EdgeRef> for ELID {
 impl EID {
     pub fn from_u64(id: u64) -> Self {
         EID(id as usize)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize, Deserialize)]
+pub enum GID {
+    U64(u64),
+    I64(i64),
+    Str(String),
+}
+
+impl Default for GID {
+    fn default() -> Self {
+        GID::U64(0)
+    }
+}
+
+impl Display for GID {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GID::U64(v) => write!(f, "{}", v),
+            GID::I64(v) => write!(f, "{}", v),
+            GID::Str(v) => write!(f, "{}", v),
+        }
+    }
+}
+
+#[cfg(feature = "python")]
+impl IntoPy<PyObject> for GID {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        match self {
+            GID::U64(v) => v.into_py(py),
+            GID::I64(v) => v.into_py(py),
+            GID::Str(v) => v.into_py(py),
+        }
+    }
+}
+
+#[cfg(feature = "python")]
+impl ToPyObject for GID {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
+        match self {
+            GID::U64(v) => v.to_object(py),
+            GID::I64(v) => v.to_object(py),
+            GID::Str(v) => v.to_object(py),
+        }
+    }
+}
+
+#[cfg(feature = "python")]
+impl<'source> FromPyObject<'source> for GID {
+    fn extract(id: &'source PyAny) -> PyResult<Self> {
+        id.extract::<String>()
+            .map(GID::Str)
+            .or_else(|_| {
+                id.extract::<i64>()
+                    .map(GID::I64)
+                    .or_else(|_| id.extract::<u64>().map(GID::U64))
+            })
+            .map_err(|_| {
+                let msg = "IDs need to be strings or an unsigned integers";
+                PyTypeError::new_err(msg)
+            })
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq, Ord, Hash)]
+pub enum GidRef<'a> {
+    U64(u64),
+    I64(i64),
+    Str(&'a str),
+}
+
+impl GID {
+    pub fn into_str(self) -> Option<String> {
+        match self {
+            GID::Str(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn into_i64(self) -> Option<i64> {
+        match self {
+            GID::I64(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn into_u64(self) -> Option<u64> {
+        match self {
+            GID::U64(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn as_str(&self) -> Option<&str> {
+        match self {
+            GID::Str(v) => Some(v.as_str()),
+            _ => None,
+        }
+    }
+
+    pub fn as_i64(&self) -> Option<i64> {
+        match self {
+            GID::I64(v) => Some(*v),
+            _ => None,
+        }
+    }
+
+    pub fn as_u64(&self) -> Option<u64> {
+        match self {
+            GID::U64(v) => Some(*v),
+            _ => None,
+        }
+    }
+
+    pub fn to_str(&self) -> Cow<String> {
+        match self {
+            GID::U64(v) => Cow::Owned(v.to_string()),
+            GID::I64(v) => Cow::Owned(v.to_string()),
+            GID::Str(v) => Cow::Borrowed(v),
+        }
+    }
+
+    pub fn to_i64(&self) -> Option<i64> {
+        match self {
+            GID::U64(v) => v.to_i64(),
+            GID::I64(v) => Some(*v),
+            GID::Str(v) => parse_u64_strict(v)?.to_i64(),
+        }
+    }
+
+    pub fn to_u64(&self) -> Option<u64> {
+        match self {
+            GID::U64(v) => Some(*v),
+            GID::I64(v) => v.to_u64(),
+            GID::Str(v) => parse_u64_strict(v),
+        }
+    }
+}
+
+impl From<u64> for GID {
+    fn from(id: u64) -> Self {
+        Self::U64(id)
+    }
+}
+
+impl From<i64> for GID {
+    fn from(id: i64) -> Self {
+        Self::I64(id)
+    }
+}
+
+impl From<String> for GID {
+    fn from(id: String) -> Self {
+        Self::Str(id)
+    }
+}
+
+impl From<&str> for GID {
+    fn from(id: &str) -> Self {
+        Self::Str(id.to_string())
     }
 }

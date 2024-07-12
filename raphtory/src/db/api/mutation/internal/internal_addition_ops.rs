@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{EID, VID},
+        entities::{nodes::node_ref::AsNodeRef, EID, VID},
         storage::timeindex::TimeIndexEntry,
         utils::errors::GraphError,
         Prop, PropType,
@@ -20,7 +20,7 @@ pub trait InternalAdditionOps {
     fn resolve_node_type(&self, v_id: VID, node_type: Option<&str>) -> Result<usize, GraphError>;
 
     /// map external node id to internal id, allocating a new empty node if needed
-    fn resolve_node(&self, id: u64, name: Option<&str>) -> VID;
+    fn resolve_node<V: AsNodeRef>(&self, id: V) -> Result<VID, GraphError>;
 
     /// map property key to internal id, allocating new property if needed
     fn resolve_graph_property(&self, prop: &str, is_static: bool) -> usize;
@@ -98,8 +98,8 @@ impl<G: DelegateAdditionOps> InternalAdditionOps for G {
     }
 
     #[inline]
-    fn resolve_node(&self, id: u64, name: Option<&str>) -> VID {
-        self.graph().resolve_node(id, name)
+    fn resolve_node<V: AsNodeRef>(&self, n: V) -> Result<VID, GraphError> {
+        self.graph().resolve_node(n)
     }
 
     #[inline]

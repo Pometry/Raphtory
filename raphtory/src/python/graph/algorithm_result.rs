@@ -5,6 +5,7 @@ use crate::{
 };
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
+use raphtory_api::core::entities::GID;
 
 impl<G: StaticGraphViewOps, V: Repr + Clone, O> Repr for AlgorithmResultRs<G, V, O> {
     fn repr(&self) -> String {
@@ -277,6 +278,9 @@ py_algorithm_result_partial_ord!(AlgorithmResultF64, DynamicGraph, f64, OrderedF
 py_algorithm_result!(AlgorithmResultU64, DynamicGraph, u64, u64);
 py_algorithm_result_new_ord_hash_eq!(AlgorithmResultU64, DynamicGraph, u64, u64);
 
+py_algorithm_result!(AlgorithmResultGID, DynamicGraph, GID, GID);
+py_algorithm_result_new_ord_hash_eq!(AlgorithmResultGID, DynamicGraph, GID, GID);
+
 py_algorithm_result!(
     AlgorithmResultTupleF32F32,
     DynamicGraph,
@@ -321,6 +325,9 @@ py_algorithm_result_new_ord_hash_eq!(
 
 py_algorithm_result!(AlgorithmResultU64VecU64, DynamicGraph, Vec<u64>, Vec<u64>);
 py_algorithm_result_new_ord_hash_eq!(AlgorithmResultU64VecU64, DynamicGraph, Vec<u64>, Vec<u64>);
+
+py_algorithm_result!(AlgorithmResultGIDVecGID, DynamicGraph, Vec<GID>, Vec<GID>);
+py_algorithm_result_new_ord_hash_eq!(AlgorithmResultGIDVecGID, DynamicGraph, Vec<GID>, Vec<GID>);
 
 py_algorithm_result!(
     AlgorithmResultVecStr,

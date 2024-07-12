@@ -10,9 +10,10 @@ use crate::{
         Direction,
     },
     db::api::{storage::tprop_storage_ops::TPropOps, view::internal::NodeAdditions},
+    prelude::Prop,
 };
 use itertools::Itertools;
-use raphtory_api::core::storage::arc_str::OptionAsStr;
+use raphtory_api::core::{entities::GID, storage::arc_str::OptionAsStr};
 
 pub trait NodeStorageOps<'a>: Sized {
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize;
@@ -21,6 +22,8 @@ pub trait NodeStorageOps<'a>: Sized {
 
     fn tprop(self, prop_id: usize) -> impl TPropOps<'a>;
 
+    fn prop(self, prop_id: usize) -> Option<Prop>;
+
     fn edges_iter(self, layers: &'a LayerIds, dir: Direction)
         -> impl Iterator<Item = EdgeRef> + 'a;
 
@@ -28,7 +31,7 @@ pub trait NodeStorageOps<'a>: Sized {
 
     fn vid(self) -> VID;
 
-    fn id(self) -> u64;
+    fn id(self) -> GID;
 
     fn name(self) -> Option<Cow<'a, str>>;
 
@@ -48,6 +51,10 @@ impl<'a> NodeStorageOps<'a> for &'a NodeStore {
         self.temporal_property(prop_id).unwrap_or(&TProp::Empty)
     }
 
+    fn prop(self, prop_id: usize) -> Option<Prop> {
+        self.constant_property(prop_id).cloned()
+    }
+
     fn edges_iter(
         self,
         layers: &'a LayerIds,
@@ -64,8 +71,8 @@ impl<'a> NodeStorageOps<'a> for &'a NodeStore {
         self.vid
     }
 
-    fn id(self) -> u64 {
-        self.global_id
+    fn id(self) -> GID {
+        self.global_id.clone()
     }
 
     fn name(self) -> Option<Cow<'a, str>> {

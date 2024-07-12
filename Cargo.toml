@@ -25,6 +25,9 @@ authors = ["Pometry"]
 rust-version = "1.77"
 edition = "2021"
 
+[profile.dev]
+split-debuginfo = "unpacked"
+
 [profile.release-with-debug]
 inherits = "release"
 debug = true

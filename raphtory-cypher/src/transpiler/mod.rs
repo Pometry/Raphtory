@@ -14,7 +14,7 @@ use raphtory::{
         Direction,
     },
     db::{api::properties::internal::ConstPropertiesOps, graph::node::NodeView},
-    disk_graph::DiskGraph,
+    disk_graph::graph_impl::DiskGraphStorage,
     prelude::*,
 };
 use sqlparser::ast::{
@@ -23,7 +23,7 @@ use sqlparser::ast::{
 
 mod exprs;
 
-pub fn to_sql(query: Query, graph: &DiskGraph) -> sql_ast::Statement {
+pub fn to_sql(query: Query, graph: &DiskGraphStorage) -> sql_ast::Statement {
     let query = bind_unbound_pattern_filters(query);
     let query = unbind_unused_binds(query);
 
@@ -204,7 +204,7 @@ fn parse_order_by(query: &Query, rel_binds: &[String], node_binds: &[String]) ->
 fn scan_edges_as_sql_cte(
     layer_names: &[impl AsRef<str>],
     name: &impl AsRef<str>,
-    graph: &DiskGraph,
+    graph: &DiskGraphStorage,
 ) -> sql_ast::Cte {
     // fetch and merge the schemas
 
@@ -245,7 +245,7 @@ fn scan_edges_as_sql_cte(
 }
 
 // TODO: this needs to match the schema from EdgeListTableProvider
-fn full_layer_fields(graph: &DiskGraph, layer_id: usize) -> Option<Fields> {
+fn full_layer_fields(graph: &DiskGraphStorage, layer_id: usize) -> Option<Fields> {
     let dt = graph.as_ref().layer(layer_id).edges_props_data_type();
     let arr_dt: arrow_schema::DataType = dt.clone().into();
     match arr_dt {
@@ -301,7 +301,7 @@ fn query_union(q1: Box<sql_ast::Query>, q2: Box<sql_ast::Query>) -> Box<sql_ast:
 
 fn select_scan_query(
     layer_name: &str,
-    graph: &DiskGraph,
+    graph: &DiskGraphStorage,
     total_schema: Option<&Schema>,
 ) -> (usize, Box<sql_ast::Query>) {
     let layer_id = graph
@@ -411,7 +411,7 @@ fn select_query_with_projection(
     })
 }
 
-fn parse_rels_to_ctes(query: &Query, graph: &DiskGraph) -> With {
+fn parse_rels_to_ctes(query: &Query, graph: &DiskGraphStorage) -> With {
     // each rel can become a CTE
     // inside the cte
     // if the pattern has no layers -[e]- and the graph has one layer then we just select * from the layer
@@ -479,7 +479,7 @@ fn node_scan_cte(node: &NodePattern) -> sql_ast::Cte {
 
 fn parse_select_body(
     query: &Query,
-    _graph: &DiskGraph,
+    _graph: &DiskGraphStorage,
     rel_binds: &[String],
     node_binds: &[String],
 ) -> Box<SetExpr> {
@@ -1147,7 +1147,6 @@ mod test {
     use pretty_assertions::assert_eq;
     use raphtory::{
         db::{api::mutation::AdditionOps, graph::graph::Graph},
-        disk_graph::DiskGraph,
         prelude::NO_PROPS,
     };
     use tempfile::tempdir;
@@ -1643,7 +1642,7 @@ mod test {
             g.add_edge(0, 0, 0, NO_PROPS, Some(layer.as_ref()))
                 .expect("failed to add edge");
         }
-        let graph = DiskGraph::from_graph(&g, graph_dir).unwrap();
+        let graph = DiskGraphStorage::from_graph(&g, graph_dir).unwrap();
         let sql = transpiler::to_sql(query, &graph);
         assert_eq!(sql.to_string(), expected.to_string());
     }

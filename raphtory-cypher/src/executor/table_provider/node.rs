@@ -24,19 +24,19 @@ use futures::Stream;
 use pometry_storage::properties::ConstProps;
 use raphtory::{
     core::entities::VID,
-    disk_graph::{prelude::*, DiskGraph},
+    disk_graph::{graph_impl::DiskGraphStorage, prelude::*},
 };
 use std::{any::Any, fmt::Formatter, sync::Arc};
 
 pub struct NodeTableProvider {
-    graph: DiskGraph,
+    graph: DiskGraphStorage,
     schema: SchemaRef,
     num_partitions: usize,
     chunk_size: usize,
 }
 
 impl NodeTableProvider {
-    pub fn new(g: DiskGraph) -> Result<Self, ExecError> {
+    pub fn new(g: DiskGraphStorage) -> Result<Self, ExecError> {
         let graph = g.as_ref();
         let (num_partitions, chunk_size) = graph
             .node_properties()
@@ -134,7 +134,7 @@ impl TableProvider for NodeTableProvider {
 }
 
 async fn produce_record_batch(
-    g: DiskGraph,
+    g: DiskGraphStorage,
     schema: SchemaRef,
     chunk_id: usize,
     chunk_size: usize,
@@ -186,7 +186,7 @@ async fn produce_record_batch(
 }
 
 struct NodeScanExecPlan {
-    graph: DiskGraph,
+    graph: DiskGraphStorage,
     schema: SchemaRef,
     num_partitions: usize,
     chunk_size: usize,

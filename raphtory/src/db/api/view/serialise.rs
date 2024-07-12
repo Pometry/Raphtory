@@ -3,7 +3,7 @@ use std::{fs::File, io::Write, path::Path, sync::Arc};
 use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike};
 use prost::{decode_length_delimiter, encode_length_delimiter, Message};
 use raphtory_api::core::{
-    entities::VID,
+    entities::{GID, VID},
     storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
 };
 
@@ -24,9 +24,10 @@ use crate::{
     },
     prelude::*,
     serialise::{
-        self, lifespan, prop,
+        self, gid, lifespan, prop,
         properties_meta::{self, PropName},
-        AddEdge, AddNode, DelEdge, Dict, GraphConstProps, NdTime, PropPair, UpdateEdgeConstProps,
+        AddEdge, AddNode, DelEdge, Dict, Gid, GraphConstProps, NdTime, PropPair,
+        UpdateEdgeConstProps,
     },
 };
 
@@ -204,8 +205,19 @@ impl<'graph, G: GraphViewOps<'graph>> StableEncoder for G {
                 let vid = n.node;
                 let node = self.core_node_entry(vid);
                 let name = node.as_ref().name().map(|n| n.to_string());
+                let proto_gid = match gid {
+                    GID::U64(g) => Gid {
+                        gid: Some(gid::Gid::GidU64(g)),
+                    },
+                    GID::Str(g) => Gid {
+                        gid: Some(gid::Gid::GidStr(g.to_string())),
+                    },
+                    GID::I64(g) => Gid {
+                        gid: Some(gid::Gid::GidI64(g)),
+                    },
+                };
                 serialise::Node {
-                    gid,
+                    gid: Some(proto_gid),
                     vid: vid.0 as u64,
                     name,
                 }
@@ -396,7 +408,8 @@ impl<
 
         // align the nodes
         for node in g.nodes {
-            let l_vid = graph.resolve_node(node.gid, node.name.as_deref());
+            let gid = from_proto_gid(node.gid.and_then(|gid| gid.gid).expect("Missing GID"));
+            let l_vid = graph.resolve_node(gid)?;
             assert_eq!(l_vid, VID(node.vid as usize));
         }
 
@@ -560,6 +573,14 @@ impl<
         }
 
         Ok(graph)
+    }
+}
+
+fn from_proto_gid(gid: gid::Gid) -> GID {
+    match gid {
+        gid::Gid::GidU64(n) => GID::U64(n),
+        gid::Gid::GidI64(n) => GID::I64(n),
+        gid::Gid::GidStr(s) => GID::Str(s),
     }
 }
 

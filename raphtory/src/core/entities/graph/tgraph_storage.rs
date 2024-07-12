@@ -24,14 +24,17 @@ impl GraphStorage {
         }
     }
 
+    #[inline]
     pub fn nodes_read_lock(&self) -> storage::ReadLockedStorage<NodeStore, VID> {
         self.nodes.read_lock()
     }
 
+    #[inline]
     pub fn edges_read_lock(&self) -> LockedEdges {
         self.edges.read_lock()
     }
 
+    #[inline]
     pub fn nodes_len(&self) -> usize {
         self.nodes.len()
     }

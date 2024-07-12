@@ -23,7 +23,7 @@ use raphtory_api::core::{
 };
 
 impl GraphLike<TimeIndexEntry> for Graph {
-    fn external_ids(&self) -> Vec<u64> {
+    fn external_ids(&self) -> Vec<GID> {
         self.nodes().id().collect()
     }
 
@@ -32,7 +32,7 @@ impl GraphLike<TimeIndexEntry> for Graph {
     }
 
     fn node_type_ids(&self) -> Option<impl Iterator<Item = usize>> {
-        if self.0.inner().node_meta.node_type_meta().len() <= 1 {
+        if self.core_graph().node_meta().node_type_meta().len() <= 1 {
             None
         } else {
             let core_nodes = self.core_nodes();
@@ -41,7 +41,7 @@ impl GraphLike<TimeIndexEntry> for Graph {
     }
 
     fn node_types(&self) -> Option<impl Iterator<Item = String>> {
-        let meta = self.0.inner().node_meta.node_type_meta();
+        let meta = self.core_graph().node_meta().node_type_meta();
         if meta.len() <= 1 {
             None
         } else {

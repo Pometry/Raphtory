@@ -18,7 +18,8 @@ use crate::{
                 edge_entry::EdgeStorageEntry, edge_owned_entry::EdgeOwnedEntry, edges::EdgesStorage,
             },
             nodes::{
-                node_entry::NodeStorageEntry, node_owned_entry::NodeOwnedEntry, nodes::NodesStorage,
+                node_entry::NodeStorageEntry, node_owned_entry::NodeOwnedEntry,
+                node_storage_ops::NodeStorageOps, nodes::NodesStorage,
             },
             storage_ops::GraphStorage,
         },
@@ -26,11 +27,11 @@ use crate::{
     },
 };
 use enum_dispatch::enum_dispatch;
-use std::ops::Range;
+use std::{iter, ops::Range};
 
 #[cfg(feature = "storage")]
 use pometry_storage::timestamps::TimeStamps;
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 #[cfg(feature = "storage")]
 use rayon::prelude::*;
 
@@ -38,57 +39,120 @@ use rayon::prelude::*;
 #[enum_dispatch]
 pub trait CoreGraphOps {
     /// get the number of nodes in the main graph
-    fn unfiltered_num_nodes(&self) -> usize;
+    fn unfiltered_num_nodes(&self) -> usize {
+        self.core_graph().internal_num_nodes()
+    }
 
-    fn unfiltered_num_edges(&self) -> usize;
+    fn unfiltered_num_edges(&self) -> usize {
+        self.core_graph().internal_num_edges()
+    }
 
-    fn unfiltered_num_layers(&self) -> usize;
+    fn unfiltered_num_layers(&self) -> usize {
+        self.core_graph().internal_num_layers()
+    }
 
-    // FIXME: we should make this return a reference but that requires some changes internally
-    fn core_graph(&self) -> GraphStorage;
+    fn core_graph(&self) -> &GraphStorage;
 
-    fn core_edges(&self) -> EdgesStorage;
-    fn core_edge(&self, eid: ELID) -> EdgeStorageEntry;
+    fn core_edges(&self) -> EdgesStorage {
+        self.core_graph().owned_edges()
+    }
+    fn core_edge(&self, eid: ELID) -> EdgeStorageEntry {
+        self.core_graph().edge_entry(eid)
+    }
 
-    fn core_edge_arc(&self, eid: ELID) -> EdgeOwnedEntry;
-    fn core_nodes(&self) -> NodesStorage;
+    fn core_edge_arc(&self, eid: ELID) -> EdgeOwnedEntry {
+        self.core_graph().edge_owned(eid)
+    }
+    fn core_nodes(&self) -> NodesStorage {
+        self.core_graph().owned_nodes()
+    }
 
-    fn core_node_entry(&self, vid: VID) -> NodeStorageEntry;
+    fn core_node_entry(&self, vid: VID) -> NodeStorageEntry {
+        self.core_graph().node_entry(vid)
+    }
 
-    fn core_node_arc(&self, vid: VID) -> NodeOwnedEntry;
+    fn core_node_arc(&self, vid: VID) -> NodeOwnedEntry {
+        self.core_graph().owned_node(vid)
+    }
 
-    fn node_meta(&self) -> &Meta;
+    fn node_meta(&self) -> &Meta {
+        self.core_graph().node_meta()
+    }
 
-    fn edge_meta(&self) -> &Meta;
+    fn edge_meta(&self) -> &Meta {
+        self.core_graph().edge_meta()
+    }
 
-    fn graph_meta(&self) -> &GraphMeta;
+    fn graph_meta(&self) -> &GraphMeta {
+        self.core_graph().graph_meta()
+    }
 
-    fn get_layer_name(&self, layer_id: usize) -> ArcStr;
+    fn get_layer_name(&self, layer_id: usize) -> ArcStr {
+        self.edge_meta().layer_meta().get_name(layer_id).clone()
+    }
 
-    fn get_layer_id(&self, name: &str) -> Option<usize>;
+    fn get_layer_id(&self, name: &str) -> Option<usize> {
+        self.edge_meta().get_layer_id(name)
+    }
 
     /// Get the layer name for a given id
-    fn get_layer_names_from_ids(&self, layer_ids: &LayerIds) -> BoxedIter<ArcStr>;
+    fn get_layer_names_from_ids(&self, layer_ids: &LayerIds) -> BoxedIter<ArcStr> {
+        let layer_ids = layer_ids.clone();
+        match layer_ids {
+            LayerIds::None => Box::new(iter::empty()),
+            LayerIds::All => Box::new(self.edge_meta().layer_meta().get_keys().into_iter()),
+            LayerIds::One(id) => {
+                let name = self.edge_meta().layer_meta().get_name(id).clone();
+                Box::new(iter::once(name))
+            }
+            LayerIds::Multiple(ids) => {
+                let keys = self.edge_meta().layer_meta().get_keys();
+                Box::new((0..ids.len()).map(move |index| {
+                    let id = ids[index];
+                    keys[id].clone()
+                }))
+            }
+        }
+    }
 
     /// Get all node types
-    fn get_all_node_types(&self) -> Vec<ArcStr>;
+    fn get_all_node_types(&self) -> Vec<ArcStr> {
+        self.node_meta().get_all_node_types()
+    }
 
     /// Returns the external ID for a node
-    fn node_id(&self, v: VID) -> u64;
+    fn node_id(&self, v: VID) -> GID {
+        self.core_graph().node_entry(v).id()
+    }
 
     /// Returns the string name for a node
-    fn node_name(&self, v: VID) -> String;
+    fn node_name(&self, v: VID) -> String {
+        let node = self.core_node_entry(v);
+        node.name()
+            .map(|name| name.to_string())
+            .unwrap_or_else(|| node.id().to_str().to_string())
+    }
 
     /// Returns the type of node
-    fn node_type(&self, v: VID) -> Option<ArcStr>;
+    fn node_type(&self, v: VID) -> Option<ArcStr> {
+        let type_id = self.node_type_id(v);
+        self.node_meta().get_node_type_name_by_id(type_id)
+    }
 
-    fn node_type_id(&self, v: VID) -> usize;
+    fn node_type_id(&self, v: VID) -> usize {
+        let node = self.core_node_entry(v);
+        node.node_type_id()
+    }
 
     /// Gets the internal reference for an external node reference and keeps internal references unchanged.
-    fn internalise_node(&self, v: NodeRef) -> Option<VID>;
+    fn internalise_node(&self, v: NodeRef) -> Option<VID> {
+        self.core_graph().internalise_node(v)
+    }
 
     /// Gets the internal reference for an external node reference and keeps internal references unchanged. Assumes node exists!
-    fn internalise_node_unchecked(&self, v: NodeRef) -> VID;
+    fn internalise_node_unchecked(&self, v: NodeRef) -> VID {
+        self.core_graph().internalise_node(v).unwrap()
+    }
 
     /// Gets a static graph property.
     ///
@@ -99,7 +163,9 @@ pub trait CoreGraphOps {
     /// Returns:
     ///
     /// Option<Prop> - The property value if it exists.
-    fn constant_prop(&self, id: usize) -> Option<Prop>;
+    fn constant_prop(&self, id: usize) -> Option<Prop> {
+        self.graph_meta().get_constant(id)
+    }
 
     /// Gets a temporal graph property.
     ///
@@ -110,7 +176,9 @@ pub trait CoreGraphOps {
     /// Returns:
     ///
     /// Option<LockedView<TProp>> - The history of property values if it exists.
-    fn temporal_prop(&self, id: usize) -> Option<LockedView<TProp>>;
+    fn temporal_prop(&self, id: usize) -> Option<LockedView<TProp>> {
+        self.graph_meta().get_temporal_prop(id)
+    }
 
     /// Gets a static property of a given node given the name and node reference.
     ///
@@ -122,7 +190,10 @@ pub trait CoreGraphOps {
     /// Returns:
     ///
     /// Option<Prop> - The property value if it exists.
-    fn constant_node_prop(&self, v: VID, id: usize) -> Option<Prop>;
+    fn constant_node_prop(&self, v: VID, id: usize) -> Option<Prop> {
+        let core_node_entry = self.core_node_entry(v);
+        core_node_entry.prop(id)
+    }
 
     /// Gets the keys of constant properties of a given node
     ///
@@ -133,7 +204,10 @@ pub trait CoreGraphOps {
     /// Returns:
     ///
     /// The keys of the constant properties.
-    fn constant_node_prop_ids(&self, v: VID) -> Box<dyn Iterator<Item = usize> + '_>;
+    fn constant_node_prop_ids(&self, v: VID) -> Box<dyn Iterator<Item = usize> + '_> {
+        let core_node_entry = self.core_node_entry(v);
+        core_node_entry.prop_ids()
+    }
 
     /// Returns a vector of all ids of temporal properties within the given node
     ///
@@ -144,7 +218,10 @@ pub trait CoreGraphOps {
     /// Returns:
     ///
     /// the ids of the temporal properties
-    fn temporal_node_prop_ids(&self, v: VID) -> Box<dyn Iterator<Item = usize> + '_>;
+    fn temporal_node_prop_ids(&self, v: VID) -> Box<dyn Iterator<Item = usize> + '_> {
+        let core_node_entry = self.core_node_entry(v);
+        core_node_entry.temporal_prop_ids()
+    }
 
     /// Returns the static edge property with the given name for the
     /// given edge reference.
@@ -157,7 +234,14 @@ pub trait CoreGraphOps {
     /// Returns:
     ///
     /// A property if it exists
-    fn get_const_edge_prop(&self, e: EdgeRef, id: usize, layer_ids: LayerIds) -> Option<Prop>;
+    fn get_const_edge_prop(&self, e: EdgeRef, id: usize, layer_ids: LayerIds) -> Option<Prop> {
+        match self.core_graph() {
+            GraphStorage::Mem(storage) => storage.graph.core_get_const_edge_prop(e, id, layer_ids),
+            GraphStorage::Unlocked(storage) => storage.core_get_const_edge_prop(e, id, layer_ids),
+            #[cfg(feature = "storage")]
+            GraphStorage::Disk(_) => None,
+        }
+    }
 
     /// Returns a vector of keys for the static properties of the given edge reference.
     ///
@@ -172,7 +256,14 @@ pub trait CoreGraphOps {
         &self,
         e: EdgeRef,
         layer_ids: LayerIds,
-    ) -> Box<dyn Iterator<Item = usize> + '_>;
+    ) -> Box<dyn Iterator<Item = usize> + '_> {
+        match self.core_graph() {
+            GraphStorage::Mem(storage) => storage.graph.core_const_edge_prop_ids(e, layer_ids),
+            GraphStorage::Unlocked(storage) => storage.core_const_edge_prop_ids(e, layer_ids),
+            #[cfg(feature = "storage")]
+            GraphStorage::Disk(_) => Box::new(std::iter::empty()),
+        }
+    }
 
     /// Returns a vector of keys for the temporal properties of the given edge reference.
     ///
@@ -187,7 +278,15 @@ pub trait CoreGraphOps {
         &self,
         e: EdgeRef,
         layer_ids: &LayerIds,
-    ) -> Box<dyn Iterator<Item = usize> + '_>;
+    ) -> Box<dyn Iterator<Item = usize> + '_> {
+        // FIXME once the disk storage can handle multiple layers this can be implemented generically over the EdgeStorageEntry
+        match self.core_graph() {
+            GraphStorage::Mem(storage) => storage.graph.core_temporal_edge_prop_ids(e, layer_ids),
+            GraphStorage::Unlocked(storage) => storage.core_temporal_edge_prop_ids(e, layer_ids),
+            #[cfg(feature = "storage")]
+            GraphStorage::Disk(storage) => storage.core_temporal_edge_prop_ids(e, layer_ids),
+        }
+    }
 }
 
 pub trait InheritCoreOps: Base {}
@@ -212,162 +311,8 @@ pub trait DelegateCoreOps {
 
 impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     #[inline]
-    fn unfiltered_num_nodes(&self) -> usize {
-        self.graph().unfiltered_num_nodes()
-    }
-
-    #[inline]
-    fn unfiltered_num_layers(&self) -> usize {
-        self.graph().unfiltered_num_layers()
-    }
-
-    #[inline]
-    fn core_graph(&self) -> GraphStorage {
+    fn core_graph(&self) -> &GraphStorage {
         self.graph().core_graph()
-    }
-
-    #[inline]
-    fn node_meta(&self) -> &Meta {
-        self.graph().node_meta()
-    }
-
-    #[inline]
-    fn edge_meta(&self) -> &Meta {
-        self.graph().edge_meta()
-    }
-
-    #[inline]
-    fn graph_meta(&self) -> &GraphMeta {
-        self.graph().graph_meta()
-    }
-
-    #[inline]
-    fn get_layer_name(&self, layer_id: usize) -> ArcStr {
-        self.graph().get_layer_name(layer_id)
-    }
-
-    #[inline]
-    fn get_layer_id(&self, name: &str) -> Option<usize> {
-        self.graph().get_layer_id(name)
-    }
-
-    #[inline]
-    fn get_layer_names_from_ids(&self, layer_ids: &LayerIds) -> BoxedIter<ArcStr> {
-        self.graph().get_layer_names_from_ids(layer_ids)
-    }
-
-    #[inline]
-    fn get_all_node_types(&self) -> Vec<ArcStr> {
-        self.graph().node_meta().get_all_node_types()
-    }
-
-    #[inline]
-    fn node_id(&self, v: VID) -> u64 {
-        self.graph().node_id(v)
-    }
-
-    #[inline]
-    fn node_name(&self, v: VID) -> String {
-        self.graph().node_name(v)
-    }
-
-    #[inline]
-    fn node_type(&self, v: VID) -> Option<ArcStr> {
-        self.graph().node_type(v)
-    }
-
-    #[inline]
-    fn internalise_node(&self, v: NodeRef) -> Option<VID> {
-        self.graph().internalise_node(v)
-    }
-
-    #[inline]
-    fn internalise_node_unchecked(&self, v: NodeRef) -> VID {
-        self.graph().internalise_node_unchecked(v)
-    }
-
-    #[inline]
-    fn constant_prop(&self, id: usize) -> Option<Prop> {
-        self.graph().constant_prop(id)
-    }
-
-    #[inline]
-    fn temporal_prop(&self, id: usize) -> Option<LockedView<TProp>> {
-        self.graph().temporal_prop(id)
-    }
-
-    #[inline]
-    fn constant_node_prop(&self, v: VID, id: usize) -> Option<Prop> {
-        self.graph().constant_node_prop(v, id)
-    }
-
-    #[inline]
-    fn constant_node_prop_ids(&self, v: VID) -> Box<dyn Iterator<Item = usize> + '_> {
-        self.graph().constant_node_prop_ids(v)
-    }
-    #[inline]
-    fn temporal_node_prop_ids(&self, v: VID) -> Box<dyn Iterator<Item = usize> + '_> {
-        self.graph().temporal_node_prop_ids(v)
-    }
-
-    #[inline]
-    fn get_const_edge_prop(&self, e: EdgeRef, id: usize, layer_ids: LayerIds) -> Option<Prop> {
-        self.graph().get_const_edge_prop(e, id, layer_ids)
-    }
-
-    #[inline]
-    fn const_edge_prop_ids(
-        &self,
-        e: EdgeRef,
-        layer_ids: LayerIds,
-    ) -> Box<dyn Iterator<Item = usize> + '_> {
-        self.graph().const_edge_prop_ids(e, layer_ids)
-    }
-
-    #[inline]
-    fn temporal_edge_prop_ids(
-        &self,
-        e: EdgeRef,
-        layer_ids: &LayerIds,
-    ) -> Box<dyn Iterator<Item = usize> + '_> {
-        self.graph().temporal_edge_prop_ids(e, layer_ids)
-    }
-
-    #[inline]
-    fn core_edges(&self) -> EdgesStorage {
-        self.graph().core_edges()
-    }
-
-    #[inline]
-    fn core_nodes(&self) -> NodesStorage {
-        self.graph().core_nodes()
-    }
-
-    #[inline]
-    fn core_edge(&self, eid: ELID) -> EdgeStorageEntry {
-        self.graph().core_edge(eid)
-    }
-
-    #[inline]
-    fn core_edge_arc(&self, eid: ELID) -> EdgeOwnedEntry {
-        self.graph().core_edge_arc(eid)
-    }
-
-    #[inline]
-    fn core_node_entry(&self, vid: VID) -> NodeStorageEntry {
-        self.graph().core_node_entry(vid)
-    }
-
-    fn core_node_arc(&self, vid: VID) -> NodeOwnedEntry {
-        self.graph().core_node_arc(vid)
-    }
-
-    #[inline]
-    fn unfiltered_num_edges(&self) -> usize {
-        self.graph().unfiltered_num_edges()
-    }
-    fn node_type_id(&self, v: VID) -> usize {
-        self.graph().node_type_id(v)
     }
 }
 
