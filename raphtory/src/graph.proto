@@ -1,0 +1,167 @@
+syntax = "proto3";
+
+package serialise;
+
+message Prop {
+  oneof value {
+    string str = 1;
+    uint32 u8 = 2; // Note: Protobuf does not have a UInt8 type, using uint32 instead.
+    uint32 u16 = 3; // Note: Protobuf does not have a UInt16 type, using uint32 instead.
+    int32 i32 = 4;
+    int64 i64 = 5;
+    uint32 u32 = 6;
+    uint64 u64 = 7;
+    float f32 = 8;
+    double f64 = 9;
+    bool bool_value = 10;
+    Props prop = 11;
+    Dict map = 12;
+    bytes graph = 13; // Assuming Data can be represented as bytes.
+    bytes persistentGraph = 14; // Assuming Data can be represented as bytes.
+    NDTime ndTime = 15;
+    string dTime = 16;
+    DocumentInput documentInput = 17;
+  }
+}
+
+message NDTime{
+  uint32 year = 1;
+  uint32 month = 2;
+  uint32 day = 3;
+  uint32 hour = 4;
+  uint32 minute = 5;
+  uint32 second = 6;
+  uint32 nanos = 7;
+}
+
+message Dict{
+    map<string, Prop> map = 1;
+}
+
+message Props{
+  repeated Prop properties = 1;
+}
+
+message DocumentInput {
+  string content = 1;
+  Lifespan life = 2;
+}
+
+message Lifespan {
+  oneof l_type {
+    Interval interval = 1;
+    Event event = 2;
+    // Inherited is represented by the absence of both interval and event.
+  }
+
+  message Interval {
+    int64 start = 1;
+    int64 end = 2;
+  }
+
+  message Event {
+    int64 time = 1;
+  }
+}
+
+message GraphMeta{
+  // Graph metadata
+  GraphConstProps constProperties = 1;
+  GraphTempProps tempProperties = 2;
+  PropertiesMeta meta = 3;
+  repeated string layers = 4;
+  repeated string node_types = 5;
+  repeated Node nodes = 6;
+}
+
+message Node{
+  uint64 gid = 1;
+  uint64 vid = 2;
+  optional string name = 3;
+}
+
+message PropertiesMeta{
+  PropNames nodes = 1;
+  PropNames edges = 2;
+  
+  message PropNames{
+    repeated PropName constant = 1;
+    repeated PropName temporal = 2;
+  }
+
+  message PropName{
+    string name = 1;
+    PropType p_type = 2;
+  }
+
+  enum PropType {
+    Str = 0;
+    U8 = 1;
+    U16 = 2;
+    I32 = 3;
+    I64 = 4;
+    U32 = 5;
+    U64 = 6;
+    F32 = 7;
+    F64 = 8;
+    Bool = 9;
+    List = 10;
+    Map = 11;
+    NDTime = 12;
+    Graph = 13;
+    PersistentGraph = 14;
+    Document = 15;
+    DTime = 16;
+  }
+  
+}
+
+message AddEdge {
+  uint64 src = 1;
+  uint64 dst = 2;
+  PropPair properties = 3;
+  int64 time = 4;
+  optional uint64 layer_id = 5;
+}
+
+message DelEdge{
+  uint64 src = 1;
+  uint64 dst = 2;
+  int64 time = 3;
+  optional uint64 layer_id = 4;
+}
+
+message AddNode {
+  uint64 id = 1;
+  optional PropPair properties = 3;
+  int64 time = 4;
+  optional uint64 type_id = 5;
+}
+
+message UpdateNodeConstProps {
+  uint64 id = 1;
+  PropPair properties = 2;
+}
+
+message UpdateEdgeConstProps {
+  uint64 src = 1;
+  uint64 dst = 2;
+  uint64 layer_id = 3;
+  PropPair properties = 4;
+}
+
+message GraphConstProps{
+  repeated string names = 1;
+  repeated PropPair properties = 2;
+}
+
+message GraphTempProps{
+  repeated string names = 1;
+  repeated int64 times = 2;
+  repeated PropPair properties = 3;
+}
+
+message PropPair {
+  uint64 key = 1;
+  Prop value = 2;
+}

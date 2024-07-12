@@ -127,6 +127,11 @@ url = "2.2"
 base64-compat = { package = "base64-compat", version = "1.0.0" }
 time = "0.3.36"
 
+prost = "0.12"
+prost-types = "0.12"
+bytes = "1.6.0"
+prost-build = "0.12"
+
 lazy_static = "1.4.0"
 pest = "2.7.8"
 pest_derive = "2.7.8"

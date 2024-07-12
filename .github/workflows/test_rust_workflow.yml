@@ -14,11 +14,12 @@ jobs:
     runs-on: '${{ matrix.os }}'
     env:
       CARGO_NET_GIT_FETCH_WITH_CLI: true
+      RUST_BACKTRACE: 1
     strategy:
       matrix:
         include:
           - os: macos-latest
-          - os: ubuntu-latest
+          - os: ubuntu-20.04
           - os: windows-latest
     steps:
       - uses: maxim-lobanov/setup-xcode@v1
@@ -36,12 +37,16 @@ jobs:
           override: true
           components: rustfmt, clippy
       - name: Free up space (ubuntu)
-        if: matrix.os == 'ubuntu-latest'
+        if: "contains(matrix.os, 'ubuntu')"
         run: |
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}        
       - uses: webfactory/ssh-agent@v0.7.0
         name: Load pometry-storage key
         with:
@@ -78,6 +83,10 @@ jobs:
           toolchain: 1.77.0
           override: true
           components: rustfmt, clippy
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}        
       - uses: Swatinem/rust-cache@v2
         name: Cargo cache
         with:

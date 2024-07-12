@@ -67,8 +67,6 @@ polars-arrow = { workspace = true, optional = true }
 polars-parquet = { workspace = true, optional = true }
 polars-utils = { workspace = true, optional = true }
 kdam = { workspace = true, optional = true }
-
-# disk storage optional dependencies
 memmap2 = { workspace = true, optional = true }
 ahash = { workspace = true, optional = true }
 tempfile = { workspace = true, optional = true }
@@ -76,6 +74,10 @@ bytemuck = { workspace = true, optional = true }
 rpds = { workspace = true, optional = true }
 thread_local = { workspace = true, optional = true }
 pometry-storage = { workspace = true, optional = true }
+
+prost = { workspace = true, optional = true}
+prost-types = { workspace = true, optional = true}
+bytes = { workspace = true, optional = true}
 
 [dev-dependencies]
 csv = { workspace = true }
@@ -88,6 +90,9 @@ tokio = { workspace = true }             # for vector testing
 dotenv = { workspace = true }            # for vector testing
 streaming-stats = { workspace = true }
 proptest = { workspace = true }
+
+[build-dependencies]
+prost-build = { workspace = true, optional = true}
 
 [features]
 default = []
@@ -113,6 +118,7 @@ python = [
     "arrow",
     "search",
     "vectors",
+    "proto",
     "dep:pyo3",
     "dep:num",
     "dep:display-error-chain",
@@ -141,4 +147,12 @@ arrow = [
     "dep:polars-parquet",
     "polars-parquet?/compression",
     "dep:kdam",
+]
+
+proto = [
+    "dep:prost",
+    "dep:prost-types",
+    "dep:bytes",
+    "dep:prost-build",
+    "dep:memmap2",
 ]

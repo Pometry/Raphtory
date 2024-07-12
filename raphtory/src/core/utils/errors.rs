@@ -132,6 +132,14 @@ pub enum GraphError {
 
     #[error("Illegal set error {0}")]
     IllegalSet(String),
+
+    #[cfg(feature = "proto")]
+    #[error("Protobuf encode error{0}")]
+    DecodeError(#[from] prost::DecodeError),
+
+    #[cfg(feature = "proto")]
+    #[error("Protobuf decode error{0}")]
+    EncodeError(#[from] prost::EncodeError),
 }
 
 impl GraphError {

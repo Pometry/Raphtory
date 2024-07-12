@@ -53,6 +53,10 @@ jobs:
         name: Cargo cache
         with:
           cache-all-crates: true
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install nextest
         uses: taiki-e/install-action@nextest
       - name: Activate pometry-storage in Cargo.toml
