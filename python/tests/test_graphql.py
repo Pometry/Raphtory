@@ -795,13 +795,13 @@ def test_receive_graph_succeeds_if_graph_found_at_namespace():
     server.stop()
 
 
-def test_rename_graph_fails_if_graph_not_found():
+def test_move_graph_fails_if_graph_not_found():
     work_dir = tempfile.mkdtemp()
     server = RaphtoryServer(work_dir).start()
     client = RaphtoryClient("http://localhost:1736")
 
     query = """mutation {
-      renameGraph(
+      moveGraph(
         graphName: "g5",
         graphNamespace: "ben",
         newGraphName: "g6",
@@ -815,7 +815,36 @@ def test_rename_graph_fails_if_graph_not_found():
     server.stop()
 
 
-def test_rename_graph_fails_if_graph_with_same_name_already_exists():
+def test_move_graph_fails_if_graph_with_same_name_already_exists():
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+
+    work_dir = tempfile.mkdtemp()
+    os.makedirs(os.path.join(work_dir, "ben"), exist_ok=True)
+    g.save_to_file(os.path.join(work_dir, "ben", "g5"))
+    g.save_to_file(os.path.join(work_dir, "g6"))
+
+    server = RaphtoryServer(work_dir).start()
+    client = RaphtoryClient("http://localhost:1736")
+
+    query = """mutation {
+      moveGraph(
+        graphName: "g5",
+        graphNamespace: "ben",
+        newGraphName: "g6",
+      )
+    }"""
+    try:
+        client.query(query)
+    except Exception as e:
+        assert "Graph already exists by name = g6" in str(e), f"Unexpected exception message: {e}"
+
+    server.stop()
+
+
+def test_move_graph_fails_if_graph_with_same_name_already_exists_at_same_namespace_as_graph():
     g = Graph()
     g.add_edge(1, "ben", "hamza")
     g.add_edge(2, "haaroon", "hamza")
@@ -830,10 +859,11 @@ def test_rename_graph_fails_if_graph_with_same_name_already_exists():
     client = RaphtoryClient("http://localhost:1736")
 
     query = """mutation {
-      renameGraph(
+      moveGraph(
         graphName: "g5",
         graphNamespace: "ben",
         newGraphName: "g6",
+        newGraphNamespace: "ben",
       )
     }"""
     try:
@@ -844,7 +874,87 @@ def test_rename_graph_fails_if_graph_with_same_name_already_exists():
     server.stop()
 
 
-def test_rename_graph_succeeds():
+def test_move_graph_fails_if_graph_with_same_name_already_exists_at_diff_namespace_as_graph():
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+
+    work_dir = tempfile.mkdtemp()
+    os.makedirs(os.path.join(work_dir, "ben"), exist_ok=True)
+    os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
+    g.save_to_file(os.path.join(work_dir, "ben", "g5"))
+    g.save_to_file(os.path.join(work_dir, "shivam", "g6"))
+
+    server = RaphtoryServer(work_dir).start()
+    client = RaphtoryClient("http://localhost:1736")
+
+    query = """mutation {
+      moveGraph(
+        graphName: "g5",
+        graphNamespace: "ben",
+        newGraphName: "g6",
+        newGraphNamespace: "shivam",
+      )
+    }"""
+    try:
+        client.query(query)
+    except Exception as e:
+        assert "Graph already exists by name = shivam/g6" in str(e), f"Unexpected exception message: {e}"
+
+    server.stop()
+    
+
+def test_move_graph_succeeds():
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+
+    work_dir = tempfile.mkdtemp()
+    os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
+    g.save_to_file(os.path.join(work_dir, "shivam", "g3"))
+
+    server = RaphtoryServer(work_dir).start()
+    client = RaphtoryClient("http://localhost:1736")
+
+    # Assert if rename graph succeeds and old graph is deleted
+    query = """mutation {
+      moveGraph(
+        graphName: "g3",
+        graphNamespace: "shivam",
+        newGraphName: "g4",
+      )
+    }"""
+    client.query(query)
+
+    query = """{graph(name: "g3", namespace: "shivam") {nodes {list {name}}}}"""
+    try:
+        client.query(query)
+    except Exception as e:
+        assert "Graph not found shivam/g3" in str(e), f"Unexpected exception message: {e}"
+
+    query = """{graph(name: "g4") {
+            nodes {list {name}}
+            properties {
+                constant {
+                    name: get(key: "name") { value }
+                    lastUpdated: get(key: "lastUpdated") { value }
+                    lastOpened: get(key: "lastOpened") { value }
+                }
+            }
+        }}"""
+
+    result = client.query(query)
+    assert result['graph']['nodes']['list'] == [{'name': 'ben'}, {"name": "hamza"}, {'name': 'haaroon'}]
+    assert result['graph']['properties']['constant']['name']['value'] == "g4"
+    assert result['graph']['properties']['constant']['lastUpdated']['value'] is not None
+    assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
+
+    server.stop()
+
+
+def test_move_graph_succeeds_at_same_namespace_as_graph():
     g = Graph()
     g.add_edge(1, "ben", "hamza")
     g.add_edge(2, "haaroon", "hamza")
@@ -853,7 +963,6 @@ def test_rename_graph_succeeds():
     work_dir = tempfile.mkdtemp()
     os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
 
-    g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
     g.save_to_file(os.path.join(work_dir, "shivam", "g3"))
 
     server = RaphtoryServer(work_dir).start()
@@ -861,10 +970,11 @@ def test_rename_graph_succeeds():
 
     # Assert if rename graph succeeds and old graph is deleted
     query = """mutation {
-      renameGraph(
+      moveGraph(
         graphName: "g3",
         graphNamespace: "shivam",
         newGraphName: "g4",
+        newGraphNamespace: "shivam"
       )
     }"""
     client.query(query)
@@ -895,6 +1005,58 @@ def test_rename_graph_succeeds():
     server.stop()
 
 
+def test_move_graph_succeeds_at_diff_namespace_as_graph():
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+
+    work_dir = tempfile.mkdtemp()
+    os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
+    os.makedirs(os.path.join(work_dir, "ben"), exist_ok=True)
+
+    g.save_to_file(os.path.join(work_dir, "ben", "g3"))
+
+    server = RaphtoryServer(work_dir).start()
+    client = RaphtoryClient("http://localhost:1736")
+
+    # Assert if rename graph succeeds and old graph is deleted
+    query = """mutation {
+      moveGraph(
+        graphName: "g3",
+        graphNamespace: "ben",
+        newGraphName: "g4",
+        newGraphNamespace: "shivam",
+      )
+    }"""
+    client.query(query)
+
+    query = """{graph(name: "g3", namespace: "ben") {nodes {list {name}}}}"""
+    try:
+        client.query(query)
+    except Exception as e:
+        assert "Graph not found ben/g3" in str(e), f"Unexpected exception message: {e}"
+
+    query = """{graph(name: "g4", namespace: "shivam") {
+            nodes {list {name}}
+            properties {
+                constant {
+                    name: get(key: "name") { value }
+                    lastUpdated: get(key: "lastUpdated") { value }
+                    lastOpened: get(key: "lastOpened") { value }
+                }
+            }
+        }}"""
+
+    result = client.query(query)
+    assert result['graph']['nodes']['list'] == [{'name': 'ben'}, {"name": "hamza"}, {'name': 'haaroon'}]
+    assert result['graph']['properties']['constant']['name']['value'] == "g4"
+    assert result['graph']['properties']['constant']['lastUpdated']['value'] is not None
+    assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
+
+    server.stop()
+    
+    
 # Update Graph with new graph name tests
 def test_update_graph_with_new_graph_name_fails_if_parent_graph_not_found():
     work_dir = tempfile.mkdtemp()

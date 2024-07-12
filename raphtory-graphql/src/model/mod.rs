@@ -7,10 +7,7 @@ use crate::{
     url_encode::url_decode_graph,
 };
 use async_graphql::Context;
-use base64::{
-    engine::general_purpose::{STANDARD, URL_SAFE, URL_SAFE_NO_PAD},
-    Engine,
-};
+use base64::{engine::general_purpose::STANDARD, Engine};
 use chrono::Utc;
 use dynamic_graphql::{
     App, Mutation, MutationFields, MutationRoot, ResolvedObject, ResolvedObjectFields, Result,
@@ -21,13 +18,12 @@ use raphtory::{
     core::{utils::errors::GraphError, ArcStr, Prop},
     db::api::view::MaterializedGraph,
     prelude::{GraphViewOps, ImportOps, NodeViewOps, PropertyAdditionOps},
-    search::{into_indexed::DynamicIndexedGraph, IndexedGraph},
 };
 use serde_json::Value;
 use std::{
     error::Error,
     fmt::{Display, Formatter},
-    fs, io,
+    fs,
     io::Read,
     path::{Path, PathBuf},
 };
@@ -128,11 +124,14 @@ pub(crate) struct Mut(MutRoot);
 
 #[MutationFields]
 impl Mut {
-    async fn rename_graph<'a>(
+    // If namespace is not provided, it will be set to the current working directory.
+    // This applies to both the graph namespace and new graph namespace.
+    async fn move_graph<'a>(
         ctx: &Context<'a>,
         graph_name: String,
         graph_namespace: &Option<String>,
         new_graph_name: String,
+        new_graph_namespace: &Option<String>,
     ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
         let current_graph_path =
@@ -145,10 +144,10 @@ impl Mut {
             .into());
         }
         let new_graph_path =
-            construct_graph_path(&data.work_dir, &new_graph_name, graph_namespace)?;
+            construct_graph_path(&data.work_dir, &new_graph_name, new_graph_namespace)?;
         if new_graph_path.exists() {
             return Err(GraphError::GraphNameAlreadyExists {
-                name: construct_graph_name(&new_graph_name, graph_namespace),
+                name: construct_graph_name(&new_graph_name, new_graph_namespace),
             }
             .into());
         }
@@ -161,7 +160,7 @@ impl Mut {
             return Err(GqlGraphError::ImmutableDiskGraph.into());
         }
 
-        if new_graph_name.ne(&graph_name) {
+        if new_graph_path.ne(&current_graph_path) {
             let timestamp: i64 = Utc::now().timestamp();
 
             current_graph
@@ -174,6 +173,60 @@ impl Mut {
 
             delete_graph(&current_graph_path)?;
             data.graphs.invalidate(&graph_name);
+        }
+
+        Ok(true)
+    }
+
+    // If namespace is not provided, it will be set to the current working directory.
+    // This applies to both the graph namespace and new graph namespace.
+    async fn copy_graph<'a>(
+        ctx: &Context<'a>,
+        graph_name: String,
+        graph_namespace: &Option<String>,
+        new_graph_name: String,
+        new_graph_namespace: &Option<String>,
+    ) -> Result<bool> {
+        let data = ctx.data_unchecked::<Data>();
+        let current_graph_path =
+            construct_graph_path(&data.work_dir, &graph_name, graph_namespace)?;
+        if !current_graph_path.exists() {
+            return Err(GraphError::GraphNotFound(construct_graph_name(
+                &graph_name,
+                graph_namespace,
+            ))
+            .into());
+        }
+        let new_graph_path =
+            construct_graph_path(&data.work_dir, &new_graph_name, new_graph_namespace)?;
+        if new_graph_path.exists() {
+            return Err(GraphError::GraphNameAlreadyExists {
+                name: construct_graph_name(&new_graph_name, new_graph_namespace),
+            }
+            .into());
+        }
+
+        let data = ctx.data_unchecked::<Data>();
+        let current_graph = data.get_graph(&graph_name, graph_namespace)?;
+
+        #[cfg(feature = "storage")]
+        if current_graph.clone().graph.into_disk_graph().is_some() {
+            return Err(GqlGraphError::ImmutableDiskGraph.into());
+        }
+
+        if new_graph_path.ne(&current_graph_path) {
+            let timestamp: i64 = Utc::now().timestamp();
+
+            let new_graph = current_graph
+                .subgraph(current_graph.nodes().name().collect_vec())
+                .materialize()?;
+
+            new_graph
+                .update_constant_properties([("name", Prop::Str(new_graph_name.clone().into()))])?;
+            new_graph.update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
+            new_graph.update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
+
+            new_graph.save_to_file(&new_graph_path)?;
         }
 
         Ok(true)

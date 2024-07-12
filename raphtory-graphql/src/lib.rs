@@ -1,6 +1,4 @@
 pub use crate::server::RaphtoryServer;
-use base64::{prelude::BASE64_URL_SAFE, DecodeError, Engine};
-use raphtory::{core::utils::errors::GraphError, db::api::view::MaterializedGraph};
 
 pub mod azure_auth;
 mod data;
@@ -13,27 +11,25 @@ pub mod url_encode;
 
 #[cfg(test)]
 mod graphql_test {
-    use super::*;
     use crate::{
         data::{save_graphs_to_work_dir, Data},
         model::App,
-        server_config::{AppConfig, AppConfigBuilder},
+        server_config::AppConfigBuilder,
         url_encode::{url_decode_graph, url_encode_graph},
     };
     use async_graphql::UploadValue;
     use dynamic_graphql::{Request, Variables};
-    use itertools::Itertools;
     #[cfg(feature = "storage")]
     use raphtory::disk_graph::graph_impl::DiskGraph;
     use raphtory::{
-        db::{api::view::IntoDynamic, graph::views::deletion_graph::PersistentGraph},
+        db::{
+            api::view::{IntoDynamic, MaterializedGraph},
+            graph::views::deletion_graph::PersistentGraph,
+        },
         prelude::*,
     };
     use serde_json::json;
-    use std::{
-        collections::{HashMap, HashSet},
-        path::Path,
-    };
+    use std::collections::{HashMap, HashSet};
     use tempfile::{tempdir, TempDir};
 
     #[tokio::test]
