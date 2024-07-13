@@ -2,16 +2,11 @@
 Generate randomised reference models for a temporal graph edgelist
 """
 
-from typing import Optional
-
 import pandas as pd
 
 
 def shuffle_column(
-    graph_df: pd.DataFrame,
-    col_number: Optional[int] = None,
-    col_name: Optional[str] = None,
-    inplace: bool = False,
+    graph_df: pd.DataFrame, col_number=None, col_name=None, inplace=False
 ):
     """
     Returns an edgelist with a given column shuffled. Exactly one of col_number or col_name should be specified.
@@ -32,10 +27,10 @@ def shuffle_column(
     """
     assert (
         col_number is not None or col_name is not None
-    ), "No column number or name provided."
+    ), f"No column number or name provided."
     assert not (
         col_name is not None and col_number is not None
-    ), "Cannot have both a column number and a column name."
+    ), f"Cannot have both a column number and a column name."
 
     if inplace:
         df = graph_df
@@ -57,9 +52,9 @@ def shuffle_column(
 
 def shuffle_multiple_columns(
     graph_df: pd.DataFrame,
-    col_numbers: Optional[list] = None,
-    col_names: Optional[list] = None,
-    inplace: bool = False,
+    col_numbers: list = None,
+    col_names: list = None,
+    inplace=False,
 ):
     """
     Returns an edgelist with given columns shuffled. Exactly one of col_numbers or col_names should be specified.
@@ -80,10 +75,10 @@ def shuffle_multiple_columns(
     """
     assert (
         col_numbers is not None or col_names is not None
-    ), "No column numbers or names provided."
+    ), f"No column numbers or names provided."
     assert not (
         col_names is not None and col_numbers is not None
-    ), "Cannot have both column numbers and column names."
+    ), f"Cannot have both column numbers and column names."
 
     if col_numbers is not None:
         for n in col_numbers:
@@ -96,10 +91,10 @@ def shuffle_multiple_columns(
 
 def permuted_timestamps_model(
     graph_df: pd.DataFrame,
-    time_col: Optional[int] = None,
-    time_name: Optional[str] = None,
-    inplace: bool = False,
-    sorted: bool = False,
+    time_col: int = None,
+    time_name: str = None,
+    inplace=False,
+    sorted=False,
 ):
     """
     Returns a DataFrame with the time column shuffled.
