@@ -9,6 +9,9 @@
 
 class Document:
 
+    def __init__(self, /, *args, **kwargs):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+
     @property
     def content(self):
         ...
@@ -22,6 +25,9 @@ class Document:
         ...
 
 class VectorisedGraph:
+
+    def __init__(self, /, *args, **kwargs):
+        """Initialize self.  See help(type(self)) for accurate signature."""
 
     def append(self, nodes, edges):
         """

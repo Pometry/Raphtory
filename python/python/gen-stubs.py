@@ -74,13 +74,16 @@ def gen_class(cls: type) -> str:
     entities: list[str] = []
 
     for entity in contents:
-        if hasattr(entity, "__name__") and entity.__name__.startswith("__"):
+        if not hasattr(entity, "__name__"):
             continue
 
-        if isinstance(entity, MethodTypes):
+        if entity.__name__ == "__init__":
             entities.append(gen_fn(entity, is_method=True))
-        elif isinstance(entity, GetSetDescriptorType):
-            entities.append(gen_property(entity))
+        elif not entity.__name__.startswith("__"):
+            if isinstance(entity, MethodTypes):
+                entities.append(gen_fn(entity, is_method=True))
+            elif isinstance(entity, GetSetDescriptorType):
+                entities.append(gen_property(entity))
 
     docstr = format_docstring(cls.__doc__, tab=tab, ellipsis=not entities)
     str_entities = "\n".join(entities)
