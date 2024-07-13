@@ -88,7 +88,7 @@ def gen_class(cls: type) -> str:
     return f"class {cls.__name__}:\n{docstr}\n{str_entities}"
 
 
-def gen_module(module: ModuleType) -> None:
+def gen_module(module: ModuleType, base: bool = False) -> None:
     objs = [getattr(module, obj) for obj in dir(module)]
 
     stubs: List[str] = []
@@ -103,7 +103,14 @@ def gen_module(module: ModuleType) -> None:
             modules.append(obj)
 
     stub_file = "\n".join([comment, *sorted(stubs)])
-    Path(".", "python", "raphtory", f"{module.__name__}.pyi").write_text(stub_file)
+
+    if base:
+        path = Path(".", "python", "raphtory", "__init__.pyi")
+    else:
+        path = Path(".", "python", "raphtory", module.__name__, "__init__.pyi")
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(stub_file)
 
     for module in modules:
         gen_module(module)
@@ -113,4 +120,4 @@ def gen_module(module: ModuleType) -> None:
 
 if __name__ == "__main__":
     raphtory = import_module("raphtory")
-    gen_module(raphtory)
+    gen_module(raphtory, base=True)
