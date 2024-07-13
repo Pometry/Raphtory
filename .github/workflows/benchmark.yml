@@ -25,6 +25,10 @@ jobs:
         name: Checkout
       - name: Update Rust
         run: rustup update
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}        
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2
         with:
