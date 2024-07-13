@@ -4538,6 +4538,11 @@ class PyDirection:
     def as_str(self):
         ...
 
+class PyGraphEncoder:
+
+    def __init__(self):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+
 class TemporalProp:
     """A view of a temporal property"""
 

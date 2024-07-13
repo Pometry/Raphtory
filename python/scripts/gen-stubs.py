@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import inspect
 import textwrap
 from importlib import import_module
 from pathlib import Path
@@ -12,8 +13,11 @@ from types import (
 )
 from typing import List, Optional, Tuple, Union
 
+TARGET_MODULES = ["raphtory", "builtins"]
+TAB = " " * 4
+
 MethodTypes = (BuiltinMethodType, MethodDescriptorType)
-tab = " " * 4
+
 
 comment = """###############################################################################
 #                                                                             #
@@ -52,6 +56,13 @@ def insert_self(signature: str) -> str:
     return f"({new_params})"
 
 
+def from_raphtory(obj) -> bool:
+    module = inspect.getmodule(obj)
+    if module:
+        return any(module.__name__.startswith(target) for target in TARGET_MODULES)
+    return False
+
+
 def format_docstring(docstr: Optional[str], tab: str, ellipsis: bool) -> str:
     if docstr:
         if "\n" in docstr:
@@ -67,8 +78,8 @@ def gen_fn(
     is_method: bool = False,
     signature_overwrite: Optional[str] = None,
 ) -> str:
-    init_tab = tab if is_method else ""
-    fn_tab = tab * 2 if is_method else tab
+    init_tab = TAB if is_method else ""
+    fn_tab = TAB * 2 if is_method else TAB
     docstr = format_docstring(function.__doc__, tab=fn_tab, ellipsis=True)
     signature, decorator = clean_signature(
         signature_overwrite or function.__text_signature__,  # type: ignore
@@ -81,10 +92,10 @@ def gen_fn(
 
 
 def gen_property(prop: GetSetDescriptorType) -> str:
-    prop_tab = tab * 2
+    prop_tab = TAB * 2
     docstr = format_docstring(prop.__doc__, tab=prop_tab, ellipsis=True)
 
-    return f"{tab}@property\n{tab}def {prop.__name__}(self):\n{docstr}"
+    return f"{TAB}@property\n{TAB}def {prop.__name__}(self):\n{docstr}"
 
 
 def gen_class(cls: type) -> str:
@@ -107,7 +118,7 @@ def gen_class(cls: type) -> str:
             elif isinstance(entity, GetSetDescriptorType):
                 entities.append(gen_property(entity))
 
-    docstr = format_docstring(cls.__doc__, tab=tab, ellipsis=not entities)
+    docstr = format_docstring(cls.__doc__, tab=TAB, ellipsis=not entities)
     str_entities = "\n".join(entities)
 
     return f"class {cls.__name__}:\n{docstr}\n{str_entities}"
@@ -120,7 +131,7 @@ def gen_module(module: ModuleType, base: bool = False) -> None:
     modules: List[ModuleType] = []
 
     for obj in objs:
-        if isinstance(obj, type) and obj.__module__ == "builtins":
+        if isinstance(obj, type) and from_raphtory(obj):
             stubs.append(gen_class(obj))
         elif isinstance(obj, BuiltinFunctionType):
             stubs.append(gen_fn(obj))
