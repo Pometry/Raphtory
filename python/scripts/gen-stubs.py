@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import textwrap
 from importlib import import_module
 from pathlib import Path
