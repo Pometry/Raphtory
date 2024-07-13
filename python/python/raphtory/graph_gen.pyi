@@ -8,9 +8,45 @@
 ###############################################################################
 
 def ba_preferential_attachment(g, nodes_to_add, edges_per_step, seed=None):
-    'Generates a graph using the preferential attachment model.\n\nGiven a graph this function will add a user defined number of nodes, each with a user\ndefined number of edges.\nThis is an iterative algorithm where at each `step` a node is added and its neighbours are\nchosen from the pool of nodes already within the network.\nFor this model the neighbours are chosen proportionally based upon their degree, favouring\nnodes with higher degree (more connections).\nThis sampling is conducted without replacement.\n\n**Note:**  If the provided graph doesnt have enough nodes/edges for the initial sample,\nthe min number of both will be added before generation begins.\n\nArguments:\n   g: The graph you wish to add nodes and edges to\n   nodes_to_add: The amount of nodes you wish to add to the graph (steps)\n   edges_per_step: The amount of edges a joining node should add to the graph\n   seed: The seed used in rng, an array of length 32 containing ints (ints must have a max size of u8)\n\nReturns:\n\nNone'
-    ...
+    """
+    Generates a graph using the preferential attachment model.
+
+    Given a graph this function will add a user defined number of nodes, each with a user
+    defined number of edges.
+    This is an iterative algorithm where at each `step` a node is added and its neighbours are
+    chosen from the pool of nodes already within the network.
+    For this model the neighbours are chosen proportionally based upon their degree, favouring
+    nodes with higher degree (more connections).
+    This sampling is conducted without replacement.
+
+    **Note:**  If the provided graph doesnt have enough nodes/edges for the initial sample,
+    the min number of both will be added before generation begins.
+
+    Arguments:
+       g: The graph you wish to add nodes and edges to
+       nodes_to_add: The amount of nodes you wish to add to the graph (steps)
+       edges_per_step: The amount of edges a joining node should add to the graph
+       seed: The seed used in rng, an array of length 32 containing ints (ints must have a max size of u8)
+
+    Returns:
+
+    None
+    """
 
 def random_attachment(g, nodes_to_add, edges_per_step, seed=None):
-    'Generates a graph using the random attachment model\n\nThis function is a graph generation model based upon:\nCallaway, Duncan S., et al. "Are randomly grown graphs really random?."\nPhysical Review E 64.4 (2001): 041902.\n\nArguments:\n  g: The graph you wish to add nodes and edges to\n  nodes_to_add: The amount of nodes you wish to add to the graph (steps)\n  edges_per_step: The amount of edges a joining node should add to the graph\n  seed: The seed used in rng, an array of length 32 containing ints (ints must have a max size of u8)\n\nReturns:\n None'
-    ...
+    """
+    Generates a graph using the random attachment model
+
+    This function is a graph generation model based upon:
+    Callaway, Duncan S., et al. "Are randomly grown graphs really random?."
+    Physical Review E 64.4 (2001): 041902.
+
+    Arguments:
+      g: The graph you wish to add nodes and edges to
+      nodes_to_add: The amount of nodes you wish to add to the graph (steps)
+      edges_per_step: The amount of edges a joining node should add to the graph
+      seed: The seed used in rng, an array of length 32 containing ints (ints must have a max size of u8)
+
+    Returns:
+     None
+    """
