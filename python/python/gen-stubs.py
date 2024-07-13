@@ -1,200 +1,116 @@
-import ast
-import importlib
-import inspect
-from typing import List, Optional, TypedDict
+import textwrap
+from importlib import import_module
+from pathlib import Path
+from types import (
+    BuiltinFunctionType,
+    BuiltinMethodType,
+    GetSetDescriptorType,
+    MethodDescriptorType,
+    ModuleType,
+)
+from typing import List, Optional, Tuple, Union
 
-import astunparse
+MethodTypes = (BuiltinMethodType, MethodDescriptorType)
+tab = " " * 4
 
-
-class ParamsTypeDef(TypedDict):
-    args: List[str]
-    defaults: List[ast.expr]
-    vararg: Optional[ast.arg]
-    kwarg: Optional[ast.arg]
-
-
-def is_builtin_function(obj) -> bool:
-    return isinstance(obj, type(len))
-
-
-def parse_params(sig: inspect.Signature) -> ParamsTypeDef:
-    vararg = None
-    kwarg = None
-
-    args: List[str] = []
-    defaults: List[ast.expr] = []
-
-    for name, param in sig.parameters.items():
-        if name == "self":
-            continue
-
-        if name == "args":
-            vararg = ast.arg(arg="args", type_comment=None, annotation=None)
-            continue
-        if name == "kwargs":
-            kwarg = ast.arg(arg="kwargs", type_comment=None, annotation=None)
-            continue
-
-        is_optional = param.default is not inspect.Parameter.empty
-        default_value = param.default if is_optional else None
-
-        args.append(name)
-        if is_optional:
-            if type(param.default).__name__ == "_Unset":  # TODO: Hack
-                default_value = None
-            defaults.append(ast.Constant(value=default_value, kind=None))
-
-    return {"args": args, "defaults": defaults, "vararg": vararg, "kwarg": kwarg}
-
-
-# TODO: Optional vs required params
-def gen_stubs(module_name: str) -> None:
-    rust_tree = importlib.import_module(module_name)
-    stub_tree = ast.Module(body=[], type_ignores=[])
-
-    for name, obj in inspect.getmembers(rust_tree):
-        if inspect.isclass(obj):
-            class_node = ast.ClassDef(
-                name=name,
-                bases=[],
-                keywords=[],
-                body=[],
-                decorator_list=[],
-            )
-
-            for attr_name, attr in inspect.getmembers(obj):
-                if attr_name.startswith("__"):
-                    continue
-
-                body = []
-                docstring = inspect.getdoc(attr)
-
-                if docstring:
-                    body.append(
-                        ast.Expr(value=ast.Constant(value=docstring, kind=None))
-                    )
-
-                body.append(ast.Expr(value=ast.Constant(value=...)))
-
-                if isinstance(attr, property):
-                    method_node = ast.FunctionDef(
-                        name=attr_name,
-                        args=ast.arguments(
-                            posonlyargs=[],
-                            args=[
-                                ast.arg(arg="self", type_comment=None, annotation=None)
-                            ],
-                            vararg=None,
-                            kwonlyargs=[],
-                            kw_defaults=[],
-                            kwarg=None,
-                            defaults=[],
-                        ),
-                        body=body,
-                        decorator_list=([ast.Name(id="property")]),
-                    )
-
-                elif callable(attr):
-                    signature = inspect.signature(attr)
-                    params = parse_params(signature)
-
-                    if not params["args"] or params["args"][0] != "self":
-                        params["args"] = ["self"] + params["args"]
-
-                    method_node = ast.FunctionDef(
-                        name=attr_name,
-                        args=ast.arguments(
-                            posonlyargs=[],
-                            args=[  # TODO: type_comment, annotation
-                                ast.arg(arg=arg, type_comment=None, annotation=None)
-                                for arg in params["args"]
-                            ],
-                            vararg=params["vararg"],
-                            kwonlyargs=[],
-                            kw_defaults=[],
-                            kwarg=params["kwarg"],
-                            defaults=params["defaults"],
-                        ),
-                        body=body,
-                        decorator_list=[],
-                    )
-
-                else:
-                    method_node = ast.FunctionDef(
-                        name=attr_name,
-                        args=ast.arguments(
-                            posonlyargs=[],
-                            args=[
-                                ast.arg(arg="self", type_comment=None, annotation=None)
-                            ],
-                            vararg=None,
-                            kwonlyargs=[],
-                            kw_defaults=[],
-                            kwarg=None,
-                            defaults=[],
-                        ),
-                        body=body,
-                        decorator_list=([ast.Name(id="property")]),
-                    )
-
-                class_node.body.append(method_node)
-            stub_tree.body.append(class_node)
-
-        elif is_builtin_function(obj):
-            docstring = inspect.getdoc(obj)
-            body = []
-
-            if docstring:
-                body.append(ast.Expr(value=ast.Constant(value=docstring, kind=None)))
-
-            body.append(ast.Expr(value=ast.Constant(value=...)))
-
-            params = parse_params(inspect.signature(obj))
-
-            fn_node = ast.FunctionDef(
-                name=name,
-                args=ast.arguments(
-                    posonlyargs=[],
-                    args=[  # TODO: type_comment, annotation
-                        ast.arg(arg=arg, type_comment=None, annotation=None)
-                        for arg in params["args"]
-                    ],
-                    vararg=params["vararg"],
-                    kwonlyargs=[],
-                    kw_defaults=[],
-                    kwarg=params["kwarg"],
-                    defaults=params["defaults"],
-                ),
-                body=body,
-                decorator_list=[],
-            )
-
-            stub_tree.body.append(fn_node)
-
-    stub_content = astunparse.unparse(stub_tree)
-
-    comment = """###############################################################################
+comment = """###############################################################################
 #                                                                             #
 #                      AUTOGENERATED TYPE STUB FILE                           #
 #                                                                             #
 #    This file was automatically generated. Do not modify it directly.        #
 #    Any changes made here may be lost when the file is regenerated.          #
 #                                                                             #
-###############################################################################"""
+###############################################################################\n"""
 
-    full_content = f"{comment}{stub_content}"
 
-    with open(f"./raphtory/{module_name.replace('raphtory.', '')}.pyi", "w") as file:
-        file.write(full_content)
+def clean_signature(sig: str, is_method: bool = False) -> Tuple[str, Optional[str]]:
+    sig = sig.replace("$self", "self")
+    sig = sig.replace("$cls", "cls")
+
+    decorator = None
+    if is_method:
+        decorator = "@staticmethod"
+        if "cls" in sig:
+            decorator = "@classmethod"
+        if "self" in sig:
+            decorator = None
+
+    return sig, decorator
+
+
+def format_docstring(docstr: Optional[str], tab: str, ellipsis: bool) -> str:
+    if docstr:
+        if "\n" in docstr:
+            return f'{tab}"""\n{textwrap.indent(docstr, tab)}\n{tab}"""\n'
+        else:
+            return f'{tab}"""{docstr}"""\n'
+    else:
+        return f"{tab}...\n" if ellipsis else ""
+
+
+def gen_fn(
+    function: Union[BuiltinFunctionType, BuiltinMethodType, MethodDescriptorType],
+    is_method: bool = False,
+) -> str:
+    init_tab = tab if is_method else ""
+    fn_tab = tab * 2 if is_method else tab
+    docstr = format_docstring(function.__doc__, tab=fn_tab, ellipsis=True)
+    signature, decorator = clean_signature(function.__text_signature__, is_method)  # type: ignore
+
+    fn_str = f"{init_tab}def {function.__name__}{signature}:\n{docstr}"
+
+    return f"{init_tab}{decorator}\n{fn_str}" if decorator else fn_str
+
+
+def gen_property(prop: GetSetDescriptorType) -> str:
+    prop_tab = tab * 2
+    docstr = format_docstring(prop.__doc__, tab=prop_tab, ellipsis=True)
+
+    return f"{tab}@property\n{tab}def {prop.__name__}(self):\n{docstr}"
+
+
+def gen_class(cls: type) -> str:
+    contents = [getattr(cls, function) for function in dir(cls)]
+    entities: list[str] = []
+
+    for entity in contents:
+        if hasattr(entity, "__name__") and entity.__name__.startswith("__"):
+            continue
+
+        if isinstance(entity, MethodTypes):
+            entities.append(gen_fn(entity, is_method=True))
+        elif isinstance(entity, GetSetDescriptorType):
+            entities.append(gen_property(entity))
+
+    docstr = format_docstring(cls.__doc__, tab=tab, ellipsis=not entities)
+    str_entities = "\n".join(entities)
+
+    return f"class {cls.__name__}:\n{docstr}\n{str_entities}"
+
+
+def gen_module(module: ModuleType) -> None:
+    objs = [getattr(module, obj) for obj in dir(module)]
+
+    stubs: List[str] = []
+    modules: List[ModuleType] = []
+
+    for obj in objs:
+        if isinstance(obj, type) and obj.__module__ == "builtins":
+            stubs.append(gen_class(obj))
+        elif isinstance(obj, BuiltinFunctionType):
+            stubs.append(gen_fn(obj))
+        elif isinstance(obj, ModuleType) and obj.__loader__ is None:
+            modules.append(obj)
+
+    stub_file = "\n".join([comment, *sorted(stubs)])
+    Path(".", "python", "raphtory", f"{module.__name__}.pyi").write_text(stub_file)
+
+    for module in modules:
+        gen_module(module)
+
+    return
 
 
 if __name__ == "__main__":
-    modules = [
-        "raphtory",
-        "raphtory.algorithms",
-        "raphtory.graph_gen",
-        "raphtory.graph_loader",
-        "raphtory.vectors",
-    ]
-    for module in modules:
-        gen_stubs(module)
+    raphtory = import_module("raphtory")
+    gen_module(raphtory)
