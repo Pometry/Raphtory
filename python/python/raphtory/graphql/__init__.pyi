@@ -13,7 +13,7 @@ class GraphqlGraphs:
     graph documents
     """
 
-    def __init__(self, /, *args, **kwargs):
+    def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
     def get(self, name):
@@ -38,7 +38,7 @@ class GraphqlGraphs:
 class RaphtoryClient:
     """A client for handling GraphQL operations in the context of Raphtory."""
 
-    def __init__(self, /, *args, **kwargs):
+    def __init__(self, url):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
     def load_graphs_from_path(self, path, overwrite=False):
@@ -88,7 +88,7 @@ class RaphtoryClient:
 class RaphtoryServer:
     """A class for defining and running a Raphtory GraphQL server"""
 
-    def __init__(self, /, *args, **kwargs):
+    def __init__(self, graphs=None, graph_dir=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
     def run(self, port=1736, log_level=..., enable_tracing=False, enable_auth=False):
@@ -143,15 +143,7 @@ class RaphtoryServer:
            A new server object containing the vectorised graphs.
         """
 
-    def with_vectorised(
-        self,
-        cache,
-        graph_names=None,
-        embedding=None,
-        graph_document=None,
-        node_document=None,
-        edge_document=None,
-    ):
+    def with_vectorised(self, cache, graph_names=None, embedding=None, graph_document=None, node_document=None, edge_document=None):
         """
         Vectorise a subset of the graphs of the server.
 
@@ -174,7 +166,7 @@ class RaphtoryServer:
 class RunningRaphtoryServer:
     """A Raphtory server handler that also enables querying the server"""
 
-    def __init__(self, /, *args, **kwargs):
+    def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
     def load_graphs_from_path(self, path, overwrite=False):

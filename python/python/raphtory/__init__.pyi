@@ -9,7 +9,7 @@
 
 class AlgorithmResult:
 
-    def __init__(self, /, *args, **kwargs):
+    def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
     def get(self, key):
@@ -123,7 +123,7 @@ class AlgorithmResult:
 class ConstProperties:
     """A view of constant properties of an entity"""
 
-    def __init__(self, /, *args, **kwargs):
+    def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
     def as_dict(self):
@@ -170,7 +170,7 @@ class Edge:
     An edge is a directed connection between two nodes.
     """
 
-    def __init__(self, /, *args, **kwargs):
+    def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
     def after(self, start):
@@ -550,7 +550,7 @@ class Edge:
 class Edges:
     """A list of edges that can be iterated over."""
 
-    def __init__(self, /, *args, **kwargs):
+    def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
     def after(self, start):
@@ -956,7 +956,7 @@ class Edges:
 class Graph:
     """A temporal graph."""
 
-    def __init__(self, /, *args, **kwargs):
+    def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
     def add_constant_properties(self, properties):
@@ -1825,7 +1825,7 @@ class GraphIndex:
     To create a graph index, call `graph.index()` on any `Graph` object in python.
     """
 
-    def __init__(self, /, *args, **kwargs):
+    def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
     def fuzzy_search_edges(self, query, limit=25, offset=0, prefix=False, levenshtein_distance=0):
@@ -1887,7 +1887,7 @@ class GraphIndex:
 
 class MutableEdge:
 
-    def __init__(self, /, *args, **kwargs):
+    def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
     def add_constant_properties(self, properties, layer=None):
@@ -2313,7 +2313,7 @@ class MutableEdge:
 
 class MutableNode:
 
-    def __init__(self, /, *args, **kwargs):
+    def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
     def add_constant_properties(self, properties):
@@ -2776,7 +2776,7 @@ class MutableNode:
 class Node:
     """A node (or node) in the graph."""
 
-    def __init__(self, /, *args, **kwargs):
+    def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
     def after(self, start):
@@ -3182,7 +3182,7 @@ class Node:
 class Nodes:
     """A list of nodes that can be iterated over."""
 
-    def __init__(self, /, *args, **kwargs):
+    def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
     def after(self, start):
@@ -3593,7 +3593,7 @@ class Nodes:
 class PersistentGraph:
     """A temporal graph that allows edges and nodes to be deleted."""
 
-    def __init__(self, /, *args, **kwargs):
+    def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
     def add_constant_properties(self, properties):
@@ -4493,7 +4493,7 @@ class PersistentGraph:
 class Properties:
     """A view of the properties of an entity"""
 
-    def __init__(self, /, *args, **kwargs):
+    def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
     def as_dict(self):
@@ -4532,7 +4532,7 @@ class Properties:
 class PyDirection:
     """A direction used by an edge, being incoming or outgoing"""
 
-    def __init__(self, /, *args, **kwargs):
+    def __init__(self, direction):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
     def as_str(self):
@@ -4541,7 +4541,7 @@ class PyDirection:
 class TemporalProp:
     """A view of a temporal property"""
 
-    def __init__(self, /, *args, **kwargs):
+    def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
     def at(self, t):
@@ -4630,7 +4630,7 @@ class TemporalProp:
 class TemporalProperties:
     """A view of the temporal properties of an entity"""
 
-    def __init__(self, /, *args, **kwargs):
+    def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
     def get(self, key):

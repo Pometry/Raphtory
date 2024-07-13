@@ -38,6 +38,18 @@ def clean_signature(sig: str, is_method: bool = False) -> Tuple[str, Optional[st
     return sig, decorator
 
 
+def insert_self(signature: str) -> str:
+    # Remove the class name if present
+    params = signature.strip("()")
+
+    if params == "":
+        new_params = "self"
+    else:
+        new_params = f"self, {params}"
+
+    return f"({new_params})"
+
+
 def format_docstring(docstr: Optional[str], tab: str, ellipsis: bool) -> str:
     if docstr:
         if "\n" in docstr:
@@ -51,11 +63,15 @@ def format_docstring(docstr: Optional[str], tab: str, ellipsis: bool) -> str:
 def gen_fn(
     function: Union[BuiltinFunctionType, BuiltinMethodType, MethodDescriptorType],
     is_method: bool = False,
+    signature_overwrite: Optional[str] = None,
 ) -> str:
     init_tab = tab if is_method else ""
     fn_tab = tab * 2 if is_method else tab
     docstr = format_docstring(function.__doc__, tab=fn_tab, ellipsis=True)
-    signature, decorator = clean_signature(function.__text_signature__, is_method)  # type: ignore
+    signature, decorator = clean_signature(
+        signature_overwrite or function.__text_signature__,  # type: ignore
+        is_method,
+    )
 
     fn_str = f"{init_tab}def {function.__name__}{signature}:\n{docstr}"
 
@@ -78,7 +94,11 @@ def gen_class(cls: type) -> str:
             continue
 
         if entity.__name__ == "__init__":
-            entities.append(gen_fn(entity, is_method=True))
+            # Get __init__ signature from class info
+            signature = insert_self(cls.__text_signature__ or "()")
+            entities.append(
+                gen_fn(entity, is_method=True, signature_overwrite=signature)
+            )
         elif not entity.__name__.startswith("__"):
             if isinstance(entity, MethodTypes):
                 entities.append(gen_fn(entity, is_method=True))
