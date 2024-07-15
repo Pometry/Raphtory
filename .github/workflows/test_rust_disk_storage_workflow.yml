@@ -43,6 +43,10 @@ jobs:
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+      - name: Install LLD
+        if: "contains(matrix.os, 'ubuntu')"
+        run: |
+          sudo apt-get install lld
       - uses: webfactory/ssh-agent@v0.7.0
         name: Load pometry-storage key
         with:
