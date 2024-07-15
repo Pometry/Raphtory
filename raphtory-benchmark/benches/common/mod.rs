@@ -472,7 +472,7 @@ pub fn run_graph_ops_benches(
     bench_materialise(&format!("{graph_name}_materialise"), c, make_graph);
 
     // graph windowed
-    let group_name = format!("{graph_name}_graph_window_10");
+    let group_name = format!("{graph_name}_window_10");
     let mut graph_window_group_10 = c.benchmark_group(group_name);
     let latest = graph.latest_time().expect("non-empty graph");
     let earliest = graph.earliest_time().expect("non-empty graph");
@@ -513,7 +513,7 @@ pub fn run_graph_ops_benches(
 
     // layered graph windowed
     let graph = layered_graph;
-    let group_name = format!("{graph_name}_graph_window_50_layered");
+    let group_name = format!("{graph_name}_window_50_layered");
     let mut graph_window_layered_group_50 = c.benchmark_group(group_name);
     let latest = graph.latest_time().expect("non-empty graph");
     let earliest = graph.earliest_time().expect("non-empty graph");

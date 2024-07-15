@@ -43,7 +43,7 @@ pub fn base(c: &mut Criterion) {
         }
     }
 
-    run_graph_ops_benches(c, "lotr", graph, layered_graph)
+    run_graph_ops_benches(c, "lotr_graph", graph, layered_graph)
 }
 
 criterion_group!(benches, base);
