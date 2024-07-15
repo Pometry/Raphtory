@@ -45,3 +45,6 @@ deactivate-storage:
 
 pull-storage: activate-storage
 	git submodule update --init --recursive
+
+stubs:
+	cd python && ./scripts/gen-stubs.py && mypy python/raphtory/**/*.pyi
