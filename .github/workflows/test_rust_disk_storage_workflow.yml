@@ -18,9 +18,9 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: macos-latest
-          - os: ubuntu-20.04
-          - os: windows-latest
+          - { os: macos-latest, flags: "" }
+          - { os: ubuntu-20.04, flags: "-C link-arg=-fuse-ld=lld" }
+          - { os: windows-latest, flags: "" }
     steps:
       - uses: maxim-lobanov/setup-xcode@v1
         name: Xcode version
@@ -63,7 +63,7 @@ jobs:
         run: make pull-storage
       - name: Run all Tests (disk_graph)
         env:
-          RUSTFLAGS: -Awarnings
+          RUSTFLAGS: -Awarnings ${{ matrix.flags }}
           TEMPDIR: ${{ runner.temp }}
         run: |
           cargo nextest run --all --no-default-features --features "storage"
