@@ -1,5 +1,4 @@
-use std::{io::Write, sync::Arc};
-
+use super::io::pandas_loaders::*;
 use crate::{
     arrow2::{
         array::StructArray,
@@ -14,10 +13,11 @@ use crate::{
         graph::{edge::EdgeView, node::NodeView},
     },
     disk_graph::{
-        graph_impl::{DiskGraph, ParquetLayerCols},
+        graph_impl::ParquetLayerCols,
         query::{ast::Query, executors::rayon2, state::StaticGraphHopState, NodeSource},
-        Error,
+        DiskGraph, DiskGraphError,
     },
+    io::arrow::dataframe::DFView,
     prelude::{EdgeViewOps, GraphViewOps, NodeViewOps, TimeOps},
     python::{
         graph::{edge::PyDirection, graph::PyGraph, views::graph_view::PyGraphView},
@@ -30,14 +30,12 @@ use pometry_storage::GID;
 /// A columnar temporal graph.
 use pyo3::{
     prelude::*,
-    types::{IntoPyDict, PyDict, PyList, PyString},
+    types::{PyDict, PyList, PyString},
 };
+use std::{io::Write, path::Path, sync::Arc};
 
-use super::io::pandas_loaders::*;
-use crate::io::arrow::dataframe::DFView;
-
-impl From<Error> for PyErr {
-    fn from(value: Error) -> Self {
+impl From<DiskGraphError> for PyErr {
+    fn from(value: DiskGraphError) -> Self {
         adapt_err_value(&value)
     }
 }
@@ -143,13 +141,16 @@ impl<'a> FromPyObject<'a> for ParquetLayerColsList<'a> {
 #[pymethods]
 impl PyGraph {
     /// save graph in disk_graph format and memory map the result
-    pub fn persist_as_disk_graph(&self, graph_dir: &str) -> Result<DiskGraph, Error> {
+    pub fn persist_as_disk_graph(&self, graph_dir: &str) -> Result<DiskGraph, DiskGraphError> {
         self.graph.persist_as_disk_graph(graph_dir)
     }
 }
 
 #[pymethods]
 impl PyDiskGraph {
+    pub fn graph_dir(&self) -> &Path {
+        self.graph.graph_dir()
+    }
     #[staticmethod]
     #[pyo3(signature = (graph_dir, edge_df, src_col, dst_col, time_col))]
     pub fn load_from_pandas(
@@ -160,14 +161,6 @@ impl PyDiskGraph {
         time_col: &str,
     ) -> Result<DiskGraph, GraphError> {
         let graph: Result<DiskGraph, PyErr> = Python::with_gil(|py| {
-            let size: usize = py
-                .eval(
-                    "index.__len__()",
-                    Some([("index", edge_df.getattr("index")?)].into_py_dict(py)),
-                    None,
-                )?
-                .extract()?;
-
             let cols_to_check = vec![src_col, dst_col, time_col];
 
             let df_columns: Vec<String> = edge_df.getattr("columns")?.extract()?;
@@ -222,6 +215,16 @@ impl PyDiskGraph {
         graph.map_err(|e| {
             GraphError::LoadFailure(format!("Failed to load graph {e:?} from parquet files"))
         })
+    }
+
+    /// Merge this graph with another `DiskGraph`. Note that both graphs should have nodes that are
+    /// sorted by their global ids or the resulting graph will be nonsense!
+    fn merge_by_sorted_gids(
+        &self,
+        other: &Self,
+        graph_dir: &str,
+    ) -> Result<DiskGraph, DiskGraphError> {
+        self.graph.merge_by_sorted_gids(&other.graph, graph_dir)
     }
 
     fn __repr__(&self) -> String {

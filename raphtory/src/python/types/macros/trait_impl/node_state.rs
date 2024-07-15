@@ -1,4 +1,3 @@
-#![allow(non_local_definitions)]
 use crate::{
     core::entities::nodes::node_ref::NodeRef,
     db::{

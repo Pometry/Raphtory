@@ -18,9 +18,9 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: macos-latest
-          - os: ubuntu-20.04
-          - os: windows-latest
+          - { os: macos-latest, flags: "" }
+          - { os: ubuntu-20.04, flags: "-C link-arg=-fuse-ld=lld" }
+          - { os: windows-latest, flags: "" }
     steps:
       - uses: maxim-lobanov/setup-xcode@v1
         name: Xcode version
@@ -43,6 +43,10 @@ jobs:
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+      - name: Install LLD
+        if: "contains(matrix.os, 'ubuntu')"
+        run: |
+          sudo apt-get install lld
       - uses: webfactory/ssh-agent@v0.7.0
         name: Load pometry-storage key
         with:
@@ -56,14 +60,14 @@ jobs:
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}        
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install nextest
         uses: taiki-e/install-action@nextest
       - name: Activate pometry-storage in Cargo.toml
         run: make pull-storage
       - name: Run all Tests (disk_graph)
         env:
-          RUSTFLAGS: -Awarnings
+          RUSTFLAGS: -Awarnings ${{ matrix.flags }}
           TEMPDIR: ${{ runner.temp }}
         run: |
           cargo nextest run --all --no-default-features --features "storage"

@@ -1,7 +1,7 @@
 use crate::{
     core::entities::LayerIds,
     db::api::{storage::nodes::node_ref::NodeStorageRef, view::internal::NodeFilterOps},
-    disk_graph::graph_impl::DiskGraph,
+    disk_graph::DiskGraph,
 };
 
 impl NodeFilterOps for DiskGraph {

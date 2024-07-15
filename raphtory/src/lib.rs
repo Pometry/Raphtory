@@ -137,7 +137,7 @@ mod serialise {
 #[cfg(test)]
 mod test_utils {
     #[cfg(feature = "storage")]
-    use crate::disk_graph::graph_impl::DiskGraph;
+    use crate::disk_graph::DiskGraph;
     use crate::prelude::Graph;
     #[cfg(feature = "storage")]
     use tempfile::TempDir;

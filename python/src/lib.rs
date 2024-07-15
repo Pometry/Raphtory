@@ -1,5 +1,3 @@
-#![allow(non_local_definitions)]
-
 extern crate core;
 use pyo3::prelude::*;
 use raphtory_core::python::packages::base_modules::{

@@ -42,7 +42,7 @@ use serde::{de::Error, Deserialize, Deserializer, Serialize};
 use std::path::Path;
 
 #[cfg(feature = "storage")]
-use crate::disk_graph::graph_impl::DiskGraph;
+use crate::disk_graph::DiskGraph;
 
 #[enum_dispatch(CoreGraphOps)]
 #[enum_dispatch(InternalLayerOps)]

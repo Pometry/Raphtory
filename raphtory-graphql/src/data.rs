@@ -1,6 +1,6 @@
 use parking_lot::RwLock;
 #[cfg(feature = "storage")]
-use raphtory::disk_graph::graph_impl::DiskGraph;
+use raphtory::disk_graph::DiskGraph;
 use raphtory::{
     core::Prop,
     db::api::view::MaterializedGraph,

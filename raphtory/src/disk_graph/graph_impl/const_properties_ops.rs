@@ -1,7 +1,7 @@
 use crate::{db::api::properties::internal::ConstPropertiesOps, prelude::Prop};
 use raphtory_api::core::storage::arc_str::ArcStr;
 
-use super::DiskGraph;
+use crate::disk_graph::DiskGraph;
 
 impl ConstPropertiesOps for DiskGraph {
     #[doc = " Find id for property name (note this only checks the meta-data, not if the property actually exists for the entity)"]

@@ -4,7 +4,7 @@ use crate::{
 };
 use raphtory_api::core::storage::arc_str::ArcStr;
 
-use super::DiskGraph;
+use crate::disk_graph::DiskGraph;
 
 impl TemporalPropertiesOps for DiskGraph {
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {

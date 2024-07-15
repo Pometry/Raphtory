@@ -9,7 +9,7 @@ use crate::{
 use self::state::HopState;
 use crate::core::storage::timeindex::TimeIndexOps;
 
-use super::graph_impl::DiskGraph;
+use crate::disk_graph::DiskGraph;
 use pometry_storage::nodes::Node;
 
 pub mod ast;
@@ -38,7 +38,7 @@ impl NodeSource {
             NodeSource::ExternalIds(ext_ids) => Box::new(
                 ext_ids
                     .into_iter()
-                    .filter_map(move |gid| graph.inner.find_node(&gid)),
+                    .filter_map(move |gid| graph.inner.find_node(gid.as_ref())),
             ),
         }
     }

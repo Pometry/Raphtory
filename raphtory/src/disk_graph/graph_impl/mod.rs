@@ -1,35 +1,15 @@
 use crate::{
-    arrow2::{
-        array::{PrimitiveArray, StructArray},
-        datatypes::{ArrowDataType as DataType, Field},
-    },
     core::{
-        entities::{
-            properties::{graph_meta::GraphMeta, props::Meta},
-            LayerIds, EID, VID,
-        },
+        entities::{EID, VID},
         utils::errors::GraphError,
         Prop, PropType,
     },
-    db::api::{
-        mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-        view::{internal::Immutable, DynamicGraph, IntoDynamic},
-    },
-    disk_graph::{graph_impl::prop_conversion::make_node_properties_from_graph, Error},
-    prelude::{Graph, GraphViewOps},
-};
-use pometry_storage::{
-    disk_hmap::DiskHashMap, graph::TemporalGraph, graph_fragment::TempColGraphFragment,
-    load::ExternalEdgeList, RAError,
+    db::api::mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
+    disk_graph::{DiskGraph, DiskGraphError},
+    prelude::Graph,
 };
 use raphtory_api::core::storage::timeindex::TimeIndexEntry;
-use rayon::prelude::*;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::{
-    fmt::{Display, Formatter},
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::path::Path;
 
 pub mod const_properties_ops;
 pub mod core_ops;
@@ -55,302 +35,12 @@ pub struct ParquetLayerCols<'a> {
     pub time_col: &'a str,
 }
 
-#[derive(Clone, Debug)]
-pub struct DiskGraph {
-    pub(crate) inner: Arc<TemporalGraph>,
-    node_meta: Arc<Meta>,
-    edge_meta: Arc<Meta>,
-    graph_props: Arc<GraphMeta>,
-    graph_dir: PathBuf,
-}
-
-impl Serialize for DiskGraph {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let path = self.graph_dir.clone();
-        path.serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for DiskGraph {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let path = PathBuf::deserialize(deserializer)?;
-        let graph_result = DiskGraph::load_from_dir(&path).map_err(|err| {
-            serde::de::Error::custom(format!("Failed to load Diskgraph: {:?}", err))
-        })?;
-        Ok(graph_result)
-    }
-}
-
-impl Display for DiskGraph {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Diskgraph(num_nodes={}, num_temporal_edges={}",
-            self.count_nodes(),
-            self.count_temporal_edges()
-        )
-    }
-}
-
-impl AsRef<TemporalGraph> for DiskGraph {
-    fn as_ref(&self) -> &TemporalGraph {
-        &self.inner
-    }
-}
-
 impl Graph {
-    pub fn persist_as_disk_graph(&self, graph_dir: impl AsRef<Path>) -> Result<DiskGraph, Error> {
-        DiskGraph::from_graph(self, graph_dir)
-    }
-}
-
-impl Immutable for DiskGraph {}
-
-impl IntoDynamic for DiskGraph {
-    fn into_dynamic(self) -> DynamicGraph {
-        DynamicGraph::new(self)
-    }
-}
-
-impl DiskGraph {
-    pub fn layer_from_ids(&self, layer_ids: &LayerIds) -> Option<usize> {
-        match layer_ids {
-            LayerIds::One(layer_id) => Some(*layer_id),
-            LayerIds::None => None,
-            LayerIds::All => match self.inner.layers().len() {
-                0 => None,
-                1 => Some(0),
-                _ => todo!("multilayer edge views not yet supported in Diskgraph"),
-            },
-            LayerIds::Multiple(ids) => match ids.len() {
-                0 => None,
-                1 => Some(ids[0]),
-                _ => todo!("multilayer edge views not yet supported in Diskgraph"),
-            },
-        }
-    }
-
-    pub fn make_simple_graph(
+    pub fn persist_as_disk_graph(
+        &self,
         graph_dir: impl AsRef<Path>,
-        edges: &[(u64, u64, i64, f64)],
-        chunk_size: usize,
-        t_props_chunk_size: usize,
-    ) -> DiskGraph {
-        // unzip into 4 vectors
-        let (src, (dst, (time, weight))): (Vec<_>, (Vec<_>, (Vec<_>, Vec<_>))) = edges
-            .iter()
-            .map(|(a, b, c, d)| (*a, (*b, (*c, *d))))
-            .unzip();
-
-        let edge_lists = vec![StructArray::new(
-            DataType::Struct(vec![
-                Field::new("src", DataType::UInt64, false),
-                Field::new("dst", DataType::UInt64, false),
-                Field::new("time", DataType::Int64, false),
-                Field::new("weight", DataType::Float64, false),
-            ]),
-            vec![
-                PrimitiveArray::from_vec(src).boxed(),
-                PrimitiveArray::from_vec(dst).boxed(),
-                PrimitiveArray::from_vec(time).boxed(),
-                PrimitiveArray::from_vec(weight).boxed(),
-            ],
-            None,
-        )];
-        DiskGraph::load_from_edge_lists(
-            &edge_lists,
-            chunk_size,
-            t_props_chunk_size,
-            graph_dir.as_ref(),
-            0,
-            1,
-            2,
-        )
-        .expect("failed to create graph")
-    }
-
-    fn new(inner_graph: TemporalGraph, graph_dir: PathBuf) -> Self {
-        let node_meta = Meta::new();
-        let mut edge_meta = Meta::new();
-        let graph_meta = GraphMeta::new();
-
-        for node_type in inner_graph.node_types().into_iter().flatten() {
-            if let Some(node_type) = node_type {
-                node_meta.get_or_create_node_type_id(node_type);
-            } else {
-                panic!("Node types cannot be null");
-            }
-        }
-
-        for layer in inner_graph.layers() {
-            let edge_props_fields = layer.edges_data_type();
-
-            for (id, field) in edge_props_fields.iter().enumerate() {
-                let prop_name = &field.name;
-                let data_type = field.data_type();
-
-                let resolved_id = edge_meta
-                    .resolve_prop_id(prop_name, data_type.into(), false)
-                    .expect("Arrow data types should without failing");
-                if id != resolved_id {
-                    println!("Warning: Layers with different edge properties are not supported by the high-level apis on top of the disk_graph graph yet, edge properties will not be available to high-level apis");
-                    edge_meta = Meta::new();
-                    break;
-                }
-            }
-        }
-
-        for l_name in inner_graph.layer_names() {
-            edge_meta.layer_meta().get_or_create_id(l_name);
-        }
-
-        if let Some(props) = &inner_graph.node_properties().const_props {
-            let node_const_props_fields = props.prop_dtypes();
-            for field in node_const_props_fields {
-                node_meta
-                    .resolve_prop_id(&field.name, field.data_type().into(), true)
-                    .expect("Initial resolve should not fail");
-            }
-        }
-
-        if let Some(props) = &inner_graph.node_properties().temporal_props {
-            let node_temporal_props_fields = props.prop_dtypes();
-            for field in node_temporal_props_fields {
-                node_meta
-                    .resolve_prop_id(&field.name, field.data_type().into(), false)
-                    .expect("Initial resolve should not fail");
-            }
-        }
-
-        Self {
-            inner: Arc::new(inner_graph),
-            node_meta: Arc::new(node_meta),
-            edge_meta: Arc::new(edge_meta),
-            graph_props: Arc::new(graph_meta),
-            graph_dir,
-        }
-    }
-
-    pub fn from_graph(graph: &Graph, graph_dir: impl AsRef<Path>) -> Result<Self, Error> {
-        let inner_graph = TemporalGraph::from_graph(graph, graph_dir.as_ref(), || {
-            make_node_properties_from_graph(graph, graph_dir.as_ref())
-        })?;
-        Ok(Self::new(inner_graph, graph_dir.as_ref().to_path_buf()))
-    }
-
-    pub fn load_from_edge_lists(
-        edge_list: &[StructArray],
-        chunk_size: usize,
-        t_props_chunk_size: usize,
-        graph_dir: impl AsRef<Path> + Sync,
-        src_col_idx: usize,
-        dst_col_idx: usize,
-        time_col_idx: usize,
-    ) -> Result<Self, RAError> {
-        let path = graph_dir.as_ref().to_path_buf();
-        let inner = TemporalGraph::from_sorted_edge_list(
-            graph_dir,
-            src_col_idx,
-            dst_col_idx,
-            time_col_idx,
-            chunk_size,
-            t_props_chunk_size,
-            edge_list,
-        )?;
-        Ok(Self::new(inner, path))
-    }
-
-    pub fn load_from_dir(graph_dir: impl AsRef<Path>) -> Result<DiskGraph, RAError> {
-        let path = graph_dir.as_ref().to_path_buf();
-        let inner = TemporalGraph::new(graph_dir)?;
-        Ok(Self::new(inner, path))
-    }
-
-    pub fn load_from_parquets<P: AsRef<Path>>(
-        graph_dir: P,
-        layer_parquet_cols: Vec<ParquetLayerCols>,
-        node_properties: Option<P>,
-        chunk_size: usize,
-        t_props_chunk_size: usize,
-        read_chunk_size: Option<usize>,
-        concurrent_files: Option<usize>,
-        num_threads: usize,
-        node_type_col: Option<&str>,
-    ) -> Result<DiskGraph, RAError> {
-        let layered_edge_list: Vec<ExternalEdgeList<&Path>> = layer_parquet_cols
-            .iter()
-            .map(
-                |ParquetLayerCols {
-                     parquet_dir,
-                     layer,
-                     src_col,
-                     dst_col,
-                     time_col,
-                 }| {
-                    ExternalEdgeList::new(layer, parquet_dir.as_ref(), src_col, dst_col, time_col)
-                        .expect("Failed to load events")
-                },
-            )
-            .collect::<Vec<_>>();
-
-        let t_graph = TemporalGraph::from_parquets(
-            num_threads,
-            chunk_size,
-            t_props_chunk_size,
-            read_chunk_size,
-            concurrent_files,
-            graph_dir.as_ref(),
-            layered_edge_list,
-            node_properties.as_ref().map(|p| p.as_ref()),
-            node_type_col,
-        )?;
-        Ok(Self::new(t_graph, graph_dir.as_ref().to_path_buf()))
-    }
-
-    pub fn filtered_layers_par<'a>(
-        &'a self,
-        layer_ids: &'a LayerIds,
-    ) -> impl ParallelIterator<Item = &'a TempColGraphFragment> + 'a {
-        self.inner
-            .layers()
-            .par_iter()
-            .enumerate()
-            .filter(|(l_id, _)| layer_ids.contains(l_id))
-            .map(|(_, layer)| layer)
-    }
-
-    pub fn filtered_layers_iter<'a>(
-        &'a self,
-        layer_ids: &'a LayerIds,
-    ) -> impl Iterator<Item = &'a TempColGraphFragment> + 'a {
-        self.inner
-            .layers()
-            .iter()
-            .enumerate()
-            .filter(|(l_id, _)| layer_ids.contains(l_id))
-            .map(|(_, layer)| layer)
-    }
-
-    pub fn from_layer(layer: TempColGraphFragment) -> Self {
-        let path = layer.graph_dir().to_path_buf();
-        let global_ordering = layer.nodes_storage().gids().clone();
-
-        let global_order = DiskHashMap::from_sorted_dedup(global_ordering.clone())
-            .expect("Failed to create global order");
-
-        let inner = TemporalGraph::new_from_layers(
-            global_ordering,
-            Arc::new(global_order),
-            vec![layer],
-            vec!["_default".to_string()],
-        );
-        Self::new(inner, path)
+    ) -> Result<DiskGraph, DiskGraphError> {
+        DiskGraph::from_graph(self, graph_dir)
     }
 }
 
@@ -481,10 +171,12 @@ impl InternalPropertyAdditionOps for DiskGraph {
 
 #[cfg(test)]
 mod test {
-    use super::{DiskGraph, ParquetLayerCols};
+    use super::ParquetLayerCols;
     use crate::{
-        algorithms::components::weakly_connected_components, db::api::view::StaticGraphViewOps,
-        disk_graph::Time, prelude::*,
+        algorithms::components::weakly_connected_components,
+        db::api::view::StaticGraphViewOps,
+        disk_graph::{DiskGraph, Time},
+        prelude::*,
     };
     use itertools::{chain, Itertools};
     use pometry_storage::{graph::TemporalGraph, properties::Properties};
@@ -1089,5 +781,210 @@ mod test {
             g.nodes().type_filter(&vec![""]).name().collect_vec(),
             vec!["7", "8", "9"]
         );
+    }
+}
+
+#[cfg(feature = "storage")]
+#[cfg(test)]
+mod storage_tests {
+    use crate::{
+        core::Prop,
+        db::graph::graph::assert_graph_equal,
+        prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, NO_PROPS, *},
+    };
+    use itertools::Itertools;
+    use proptest::prelude::*;
+    use raphtory_api::core::storage::arc_str::OptionAsStr;
+    use std::collections::BTreeSet;
+    use tempfile::TempDir;
+
+    #[test]
+    fn test_merge() {
+        let g1 = Graph::new();
+        g1.add_node(0, 0, [("node_prop", 0f64)], Some("1")).unwrap();
+        g1.add_node(0, 1, NO_PROPS, None).unwrap();
+        g1.add_node(0, 2, [("node_prop", 2f64)], Some("2")).unwrap();
+        g1.add_edge(1, 0, 1, [("test", 1i32)], None).unwrap();
+        g1.add_edge(2, 0, 1, [("test", 2i32)], Some("1")).unwrap();
+        g1.add_edge(2, 1, 2, [("test2", "test")], None).unwrap();
+        g1.node(1)
+            .unwrap()
+            .add_constant_properties([("const_str", "test")])
+            .unwrap();
+        g1.node(0)
+            .unwrap()
+            .add_updates(3, [("test", "test")])
+            .unwrap();
+
+        let g2 = Graph::new();
+        g2.add_node(1, 0, [("node_prop", 1f64)], None).unwrap();
+        g2.add_node(0, 1, NO_PROPS, None).unwrap();
+        g2.add_node(3, 2, [("node_prop", 3f64)], Some("3")).unwrap();
+        g2.add_edge(1, 0, 1, [("test", 2i32)], None).unwrap();
+        g2.add_edge(3, 0, 1, [("test", 3i32)], Some("2")).unwrap();
+        g2.add_edge(2, 1, 2, [("test2", "test")], None).unwrap();
+        g2.node(1)
+            .unwrap()
+            .add_constant_properties([("const_str2", "test2")])
+            .unwrap();
+        g2.node(0)
+            .unwrap()
+            .add_updates(3, [("test", "test")])
+            .unwrap();
+        let g1_dir = TempDir::new().unwrap();
+        let g2_dir = TempDir::new().unwrap();
+        let gm_dir = TempDir::new().unwrap();
+
+        let g1_a = g1.persist_as_disk_graph(&g1_dir).unwrap();
+        let g2_a = g2.persist_as_disk_graph(&g2_dir).unwrap();
+
+        let gm = g1_a.merge_by_sorted_gids(&g2_a, &gm_dir).unwrap();
+
+        let n0 = gm.node(0).unwrap();
+        assert_eq!(
+            n0.properties()
+                .temporal()
+                .get("node_prop")
+                .unwrap()
+                .iter()
+                .collect_vec(),
+            [(0, Prop::F64(0.)), (1, Prop::F64(1.))]
+        );
+        assert_eq!(
+            n0.properties()
+                .temporal()
+                .get("test")
+                .unwrap()
+                .iter()
+                .collect_vec(),
+            [(3, Prop::str("test")), (3, Prop::str("test"))]
+        );
+        assert_eq!(n0.node_type().as_str(), Some("1"));
+        let n1 = gm.node(1).unwrap();
+        assert_eq!(n1.properties().get("const_str"), Some(Prop::str("test")));
+        assert_eq!(n1.properties().get("const_str2").unwrap_str(), "test2");
+        assert!(n1
+            .properties()
+            .temporal()
+            .values()
+            .all(|prop| prop.values().is_empty()));
+        let n2 = gm.node(2).unwrap();
+        assert_eq!(n2.node_type().as_str(), Some("3")); // right has priority
+
+        assert_eq!(
+            gm.default_layer().edges().id().collect::<Vec<_>>(),
+            [(0, 1), (1, 2)]
+        );
+        assert_eq!(
+            gm.valid_layers("1").edges().id().collect::<Vec<_>>(),
+            [(0, 1)]
+        );
+        assert_eq!(
+            gm.valid_layers("2").edges().id().collect::<Vec<_>>(),
+            [(0, 1)]
+        );
+    }
+
+    fn add_edges(g: &Graph, edges: &[(i64, u64, u64)]) {
+        let nodes: BTreeSet<_> = edges
+            .iter()
+            .flat_map(|(_, src, dst)| [*src, *dst])
+            .collect();
+        for n in nodes {
+            g.add_node(0, n, NO_PROPS, None).unwrap();
+        }
+        for (t, src, dst) in edges {
+            g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
+        }
+    }
+
+    fn inner_merge_test(left_edges: &[(i64, u64, u64)], right_edges: &[(i64, u64, u64)]) {
+        let left_g = Graph::new();
+        add_edges(&left_g, left_edges);
+        let right_g = Graph::new();
+        add_edges(&right_g, right_edges);
+        let merged_g_expected = Graph::new();
+        add_edges(&merged_g_expected, left_edges);
+        add_edges(&merged_g_expected, right_edges);
+
+        let left_dir = TempDir::new().unwrap();
+        let right_dir = TempDir::new().unwrap();
+        let merged_dir = TempDir::new().unwrap();
+
+        let left_g_disk = left_g.persist_as_disk_graph(&left_dir).unwrap();
+        let right_g_disk = right_g.persist_as_disk_graph(&right_dir).unwrap();
+
+        let merged_g_disk = left_g_disk
+            .merge_by_sorted_gids(&right_g_disk, &merged_dir)
+            .unwrap();
+        assert_graph_equal(&merged_g_disk, &merged_g_expected)
+    }
+
+    #[test]
+    fn test_merge_proptest() {
+        proptest!(|(left_edges in prop::collection::vec((0i64..10, 0u64..10, 0u64..10), 0..=100), right_edges in prop::collection::vec((0i64..10, 0u64..10, 0u64..10), 0..=100))| {
+            inner_merge_test(&left_edges, &right_edges)
+        })
+    }
+
+    #[test]
+    fn test_empty_graphs() {
+        inner_merge_test(&[], &[])
+    }
+
+    #[test]
+    fn test_one_empty_graph() {
+        inner_merge_test(&[], &[(0, 0, 0)])
+    }
+
+    #[test]
+    fn inbounds_not_merging() {
+        inner_merge_test(&[], &[(0, 0, 0), (0, 0, 1), (0, 0, 2)])
+    }
+
+    #[test]
+    fn inbounds_not_merging_take2() {
+        inner_merge_test(
+            &[(0, 0, 2)],
+            &[
+                (0, 1, 0),
+                (0, 0, 0),
+                (0, 0, 0),
+                (0, 0, 0),
+                (0, 0, 0),
+                (0, 0, 0),
+                (0, 0, 0),
+            ],
+        )
+    }
+
+    #[test]
+    fn offsets_panic_overflow() {
+        inner_merge_test(
+            &[
+                (0, 0, 4),
+                (0, 0, 4),
+                (0, 0, 0),
+                (0, 0, 4),
+                (0, 1, 2),
+                (0, 3, 4),
+            ],
+            &[(0, 0, 5), (0, 2, 0)],
+        )
+    }
+
+    #[test]
+    fn inbounds_not_merging_take3() {
+        inner_merge_test(
+            &[
+                (0, 0, 4),
+                (0, 0, 4),
+                (0, 0, 0),
+                (0, 0, 4),
+                (0, 1, 2),
+                (0, 3, 4),
+            ],
+            &[(0, 0, 3), (0, 0, 4), (0, 2, 2), (0, 0, 5), (0, 0, 6)],
+        )
     }
 }

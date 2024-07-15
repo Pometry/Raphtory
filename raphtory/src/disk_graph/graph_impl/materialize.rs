@@ -3,7 +3,7 @@ use crate::{
     db::api::view::{internal::InternalMaterialize, MaterializedGraph},
 };
 
-use super::DiskGraph;
+use crate::disk_graph::DiskGraph;
 
 impl InternalMaterialize for DiskGraph {
     fn new_base_graph(&self, _graph: InternalGraph) -> MaterializedGraph {

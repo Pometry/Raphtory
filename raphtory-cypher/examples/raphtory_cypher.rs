@@ -17,7 +17,7 @@ mod cypher {
     use arrow::util::pretty::print_batches;
     use clap::Parser;
     use futures::{stream, StreamExt};
-    use raphtory::disk_graph::graph_impl::{DiskGraph, ParquetLayerCols};
+    use raphtory::disk_graph::{graph_impl::ParquetLayerCols, DiskGraph};
     use raphtory_cypher::{run_cypher, run_cypher_to_streams, run_sql};
     use serde::{de::DeserializeOwned, Deserialize};
 

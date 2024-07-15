@@ -34,7 +34,7 @@ mod cypher {
         parser::ast::*,
         *,
     };
-    use raphtory::disk_graph::graph_impl::DiskGraph;
+    use raphtory::disk_graph::DiskGraph;
 
     use crate::{
         executor::table_provider::node::NodeTableProvider,
@@ -185,9 +185,8 @@ mod cypher {
         use arrow_array::RecordBatch;
         use tempfile::tempdir;
 
-        use raphtory::{disk_graph::graph_impl::DiskGraph, prelude::*};
-
         use crate::run_cypher;
+        use raphtory::{disk_graph::DiskGraph, prelude::*};
 
         lazy_static::lazy_static! {
             static ref EDGES: Vec<(u64, u64, i64, f64)> = vec![
@@ -278,9 +277,8 @@ mod cypher {
                 datatypes::*,
             };
             use arrow::util::pretty::print_batches;
+            use raphtory::disk_graph::{graph_impl::ParquetLayerCols, DiskGraph};
             use tempfile::tempdir;
-
-            use raphtory::disk_graph::graph_impl::{DiskGraph, ParquetLayerCols};
 
             use crate::run_cypher;
 

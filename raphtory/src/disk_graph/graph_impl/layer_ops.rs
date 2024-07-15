@@ -1,7 +1,7 @@
-use super::DiskGraph;
 use crate::{
     core::{entities::LayerIds, utils::errors::GraphError},
     db::api::view::internal::InternalLayerOps,
+    disk_graph::DiskGraph,
     prelude::Layer,
 };
 use itertools::Itertools;

@@ -47,8 +47,7 @@ jobs:
       - name: Run benchmark (Unix)
         run: |
           set -o pipefail
-          cargo bench --bench base -p raphtory-benchmark -- --output-format=bencher | tee benchmark-result.txt
-          cargo bench --bench algobench -p raphtory-benchmark -- --output-format=bencher | tee benchmark-result.txt
+          cargo bench --bench base --bench algobench -p raphtory-benchmark -- --output-format=bencher | tee benchmark-result.txt
       - name: Delete cargo.lock if it exists
         run: |
           rm -f Cargo.lock
