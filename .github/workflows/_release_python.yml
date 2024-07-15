@@ -101,6 +101,7 @@ jobs:
               echo "Could not determine distribution."
               exit 1
             fi
+            pip install protobuf
             ARCH=$(uname -m)
             if [ "$ARCH" = "aarch64" ]; then
               echo "Running on aarch64 architecture"
