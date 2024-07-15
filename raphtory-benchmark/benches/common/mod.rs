@@ -469,7 +469,11 @@ pub fn run_graph_ops_benches(
     run_analysis_benchmarks(&mut graph_window_group_100, make_graph, None);
     graph_window_group_100.finish();
 
-    bench_materialise(&format!("{graph_name}_materialise"), c, make_graph);
+    bench_materialise(
+        &format!("{graph_name}_window_100_materialise"),
+        c,
+        make_graph,
+    );
 
     // graph windowed
     let group_name = format!("{graph_name}_window_10");
@@ -481,7 +485,11 @@ pub fn run_graph_ops_benches(
     let make_graph = || graph.window(start, latest + 1);
     run_analysis_benchmarks(&mut graph_window_group_10, make_graph, None);
     graph_window_group_10.finish();
-    bench_materialise(&format!("{graph_name}_materialise"), c, make_graph);
+    bench_materialise(
+        &format!("{graph_name}_window_10_materialise"),
+        c,
+        make_graph,
+    );
 
     // subgraph
     let mut rng = rand::rngs::StdRng::seed_from_u64(73);
@@ -500,7 +508,11 @@ pub fn run_graph_ops_benches(
     let make_graph = || subgraph.clone();
     run_analysis_benchmarks(&mut subgraph_10, make_graph, None);
     subgraph_10.finish();
-    bench_materialise(&format!("{graph_name}_materialise"), c, make_graph);
+    bench_materialise(
+        &format!("{graph_name}_subgraph_10pc_materialise"),
+        c,
+        make_graph,
+    );
 
     // subgraph windowed
     let group_name = format!("{graph_name}_subgraph_10pc_windowed");
@@ -509,7 +521,11 @@ pub fn run_graph_ops_benches(
     let make_graph = || subgraph.window(start, latest + 1);
     run_analysis_benchmarks(&mut subgraph_10_windowed, make_graph, None);
     subgraph_10_windowed.finish();
-    bench_materialise(&format!("{graph_name}_materialise"), c, make_graph);
+    bench_materialise(
+        &format!("{graph_name}_subgraph_10pc_windowed_materialise"),
+        c,
+        make_graph,
+    );
 
     // layered graph windowed
     let graph = layered_graph;
@@ -527,7 +543,11 @@ pub fn run_graph_ops_benches(
     };
     run_analysis_benchmarks(&mut graph_window_layered_group_50, make_graph, None);
     graph_window_layered_group_50.finish();
-    bench_materialise(&format!("{graph_name}_materialise"), c, make_graph);
+    bench_materialise(
+        &format!("{graph_name}_window_50_layered_materialise"),
+        c,
+        make_graph,
+    );
 
     let graph = graph.persistent_graph();
 
@@ -545,7 +565,11 @@ pub fn run_graph_ops_benches(
     };
     run_analysis_benchmarks(&mut graph_window_layered_group_50, make_graph, None);
     graph_window_layered_group_50.finish();
-    bench_materialise(&format!("{graph_name}_materialise"), c, make_graph);
+    bench_materialise(
+        &format!("{graph_name}_persistent_window_50_layered_materialise"),
+        c,
+        make_graph,
+    );
 }
 
 fn bench_materialise<F, G>(name: &str, c: &mut Criterion, make_graph: F)
