@@ -1940,7 +1940,7 @@ dependencies = [
 
 [[package]]
 name = "examples"
-version = "0.9.3"
+version = "0.10.0"
 dependencies = [
  "chrono",
  "itertools 0.12.1",
@@ -2782,7 +2782,7 @@ dependencies = [
 
 [[package]]
 name = "js-raphtory"
-version = "0.9.3"
+version = "0.10.0"
 dependencies = [
  "chrono",
  "console_error_panic_hook",
@@ -4024,7 +4024,7 @@ dependencies = [
 
 [[package]]
 name = "pometry-storage"
-version = "0.9.3"
+version = "0.10.0"
 
 [[package]]
 name = "portable-atomic"
@@ -4437,7 +4437,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory"
-version = "0.9.3"
+version = "0.10.0"
 dependencies = [
  "ahash",
  "async-openai",
@@ -4505,7 +4505,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-api"
-version = "0.9.3"
+version = "0.10.0"
 dependencies = [
  "chrono",
  "dashmap",
@@ -4524,7 +4524,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-benchmark"
-version = "0.9.3"
+version = "0.10.0"
 dependencies = [
  "chrono",
  "clap",
@@ -4545,7 +4545,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-cypher"
-version = "0.9.3"
+version = "0.10.0"
 dependencies = [
  "arrow",
  "arrow-array",
@@ -4576,7 +4576,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-graphql"
-version = "0.9.3"
+version = "0.10.0"
 dependencies = [
  "async-graphql",
  "async-graphql-poem",
@@ -4622,7 +4622,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-pymodule"
-version = "0.9.3"
+version = "0.10.0"
 dependencies = [
  "async-graphql",
  "crossbeam-channel",
@@ -4640,7 +4640,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory_netflow"
-version = "0.9.3"
+version = "0.10.0"
 dependencies = [
  "pyo3",
  "pyo3-build-config",
