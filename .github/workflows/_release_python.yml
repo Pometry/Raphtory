@@ -65,32 +65,32 @@ jobs:
                 ubuntu)
                   echo "Installing openssl-dev on Ubuntu..."
                   apt update -y
-                  apt install -y pkg-config libssl-dev libc6 build-essential musl-tools
+                  apt install -y pkg-config libssl-dev libc6 build-essential musl-tools unzip
                   ;;
                 arch)
                   echo "Installing openssl-dev on Arch Linux..."
-                  pacman -Syu --noconfirm pkg-config openssl musl
+                  pacman -Syu --noconfirm pkg-config openssl musl unzip
                   ;;
                 fedora)
                   echo "Installing openssl-dev on Fedora..."
                   dnf update -y
-                  dnf install -y pkg-config openssl-devel musl
+                  dnf install -y pkg-config openssl-devel musl unzip
                   ;;
                 alpine)
                   echo "Installing openssl-dev on Alpine Linux..."
                   apk update -y
-                  apk add pkgconfig openssl-dev musl-dev
+                  apk add pkgconfig openssl-dev musl-dev unzip
                   ;;
                 centos)
                     echo "Installing openssl-dev on CentOS..."
                     yum update -y
-                    yum install -y pkgconfig openssl-devel
+                    yum install -y pkgconfig openssl-devel unzip
                     ;;  
                 almalinux)
                     echo "Installing openssl-dev on almalinux..."
                     dnf update -y
                     dnf group install -y 'Development Tools'
-                    dnf install -y pkg-config openssl-devel
+                    dnf install -y pkg-config openssl-devel unzip
                     ;;
                 *)
                     echo "Unsupported distribution: $ID"
@@ -101,13 +101,22 @@ jobs:
               echo "Could not determine distribution."
               exit 1
             fi
+            
+            PB_REL="https://github.com/protocolbuffers/protobuf/releases"
             ARCH=$(uname -m)
             if [ "$ARCH" = "aarch64" ]; then
               echo "Running on aarch64 architecture"
               rustup override set stable-msvc
+              FILE="protoc-27.2-linux-aarch_64.zip"
             else
+              FILE="protoc-27.2-linux-x86_64.zip"
               echo "Running on non-aarch64 architecture"
             fi
+
+            curl -LO $PB_REL/download/v27.2/$FILE
+            unzip -o $FILE -d /usr/local
+            rm $FILE
+            ln -s /usr/local/bin/protoc /usr/bin/protoc
       - name: Upload wheels to gh artifact
         uses: actions/upload-artifact@v3
         with:
