@@ -6712,19 +6712,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -6760,19 +6760,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5906,
             "range": "± 25",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 64,
             "range": "± 11",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -6808,19 +6808,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5473,
             "range": "± 10",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 68,
             "range": "± 11",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -6910,19 +6910,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 30,
             "range": "± 4",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 23,
             "range": "± 6",
             "unit": "ns/iter"
@@ -6958,19 +6958,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 7876,
             "range": "± 172",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 67,
             "range": "± 17",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 29,
             "range": "± 8",
             "unit": "ns/iter"
@@ -7006,19 +7006,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 7089,
             "range": "± 96",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 83,
             "range": "± 20",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 26,
             "range": "± 7",
             "unit": "ns/iter"
@@ -7108,19 +7108,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 29,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 23,
             "range": "± 2",
             "unit": "ns/iter"
@@ -7156,19 +7156,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 7252,
             "range": "± 143",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 74,
             "range": "± 16",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -7204,19 +7204,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 7331,
             "range": "± 307",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 88,
             "range": "± 9",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 27,
             "range": "± 1",
             "unit": "ns/iter"
@@ -7306,19 +7306,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 23,
             "range": "± 0",
             "unit": "ns/iter"
@@ -7354,19 +7354,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 7903,
             "range": "± 3",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 74,
             "range": "± 13",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
@@ -7402,19 +7402,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 7566,
             "range": "± 7",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 92,
             "range": "± 18",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
@@ -7504,19 +7504,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 23,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 20,
             "range": "± 0",
             "unit": "ns/iter"
@@ -7552,19 +7552,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 6984,
             "range": "± 97",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 67,
             "range": "± 12",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 23,
             "range": "± 0",
             "unit": "ns/iter"
@@ -7600,19 +7600,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6281,
             "range": "± 185",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 77,
             "range": "± 11",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 24,
             "range": "± 1",
             "unit": "ns/iter"
@@ -7702,19 +7702,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 19,
             "range": "± 0",
             "unit": "ns/iter"
@@ -7750,19 +7750,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 6333,
             "range": "± 3",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 65,
             "range": "± 8",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 22,
             "range": "± 0",
             "unit": "ns/iter"
@@ -7798,19 +7798,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5997,
             "range": "± 8",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 68,
             "range": "± 13",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 22,
             "range": "± 0",
             "unit": "ns/iter"
@@ -7900,19 +7900,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 26,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 21,
             "range": "± 1",
             "unit": "ns/iter"
@@ -7948,19 +7948,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 7030,
             "range": "± 311",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 75,
             "range": "± 16",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 24,
             "range": "± 0",
             "unit": "ns/iter"
@@ -7996,19 +7996,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6722,
             "range": "± 137",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 84,
             "range": "± 17",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 24,
             "range": "± 1",
             "unit": "ns/iter"
@@ -8098,19 +8098,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 21,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 19,
             "range": "± 1",
             "unit": "ns/iter"
@@ -8146,19 +8146,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 6412,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 66,
             "range": "± 10",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 22,
             "range": "± 0",
             "unit": "ns/iter"
@@ -8194,19 +8194,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5922,
             "range": "± 2",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 68,
             "range": "± 15",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 22,
             "range": "± 1",
             "unit": "ns/iter"
@@ -8296,19 +8296,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 19,
             "range": "± 0",
             "unit": "ns/iter"
@@ -8344,19 +8344,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 6376,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 63,
             "range": "± 12",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 22,
             "range": "± 0",
             "unit": "ns/iter"
@@ -8392,19 +8392,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5905,
             "range": "± 2",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 56,
             "range": "± 21",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 22,
             "range": "± 0",
             "unit": "ns/iter"
@@ -8494,19 +8494,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 28,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -8542,19 +8542,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 7788,
             "range": "± 30",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 74,
             "range": "± 20",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -8590,19 +8590,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 7319,
             "range": "± 31",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 84,
             "range": "± 19",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -8692,19 +8692,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 28,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -8740,19 +8740,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 7979,
             "range": "± 22",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 75,
             "range": "± 13",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -8788,19 +8788,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 7058,
             "range": "± 118",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 78,
             "range": "± 11",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 24,
             "range": "± 0",
             "unit": "ns/iter"
@@ -8890,19 +8890,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 23,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -8938,19 +8938,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 6558,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 65,
             "range": "± 13",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -8986,19 +8986,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6038,
             "range": "± 4",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 67,
             "range": "± 16",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -9088,19 +9088,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 30,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 26,
             "range": "± 2",
             "unit": "ns/iter"
@@ -9136,19 +9136,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 7800,
             "range": "± 106",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 65,
             "range": "± 21",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
@@ -9184,19 +9184,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 7431,
             "range": "± 56",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 81,
             "range": "± 15",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 26,
             "range": "± 1",
             "unit": "ns/iter"
@@ -9286,19 +9286,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 25,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 23,
             "range": "± 1",
             "unit": "ns/iter"
@@ -9334,19 +9334,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 6981,
             "range": "± 134",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 74,
             "range": "± 16",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 24,
             "range": "± 1",
             "unit": "ns/iter"
@@ -9382,19 +9382,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6364,
             "range": "± 124",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 71,
             "range": "± 13",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 23,
             "range": "± 0",
             "unit": "ns/iter"
@@ -9484,19 +9484,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 23,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -9532,19 +9532,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 6246,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 44,
             "range": "± 11",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -9580,19 +9580,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5929,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 70,
             "range": "± 8",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -9682,19 +9682,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 23,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 21,
             "range": "± 1",
             "unit": "ns/iter"
@@ -9730,19 +9730,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 6082,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 65,
             "range": "± 13",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 23,
             "range": "± 1",
             "unit": "ns/iter"
@@ -9778,19 +9778,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5867,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 68,
             "range": "± 16",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 22,
             "range": "± 2",
             "unit": "ns/iter"
@@ -9880,19 +9880,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -9928,19 +9928,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5720,
             "range": "± 2",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 64,
             "range": "± 9",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
@@ -9976,19 +9976,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5378,
             "range": "± 3",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 67,
             "range": "± 12",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
@@ -10078,19 +10078,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 23,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -10126,19 +10126,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 6532,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 73,
             "range": "± 6",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -10174,19 +10174,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6035,
             "range": "± 2",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 70,
             "range": "± 15",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -10276,19 +10276,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
@@ -10324,19 +10324,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5987,
             "range": "± 5",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 62,
             "range": "± 13",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
@@ -10372,19 +10372,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5336,
             "range": "± 13",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 67,
             "range": "± 10",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
@@ -10474,19 +10474,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 22,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -10522,19 +10522,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5710,
             "range": "± 2",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 63,
             "range": "± 9",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -10570,19 +10570,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5630,
             "range": "± 3",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 67,
             "range": "± 16",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -10672,19 +10672,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -10720,19 +10720,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 6828,
             "range": "± 12",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 76,
             "range": "± 18",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -10768,19 +10768,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6685,
             "range": "± 3",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 83,
             "range": "± 11",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -10870,19 +10870,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
@@ -10918,19 +10918,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5507,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 65,
             "range": "± 11",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -10966,19 +10966,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5343,
             "range": "± 2",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 68,
             "range": "± 5",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -11068,19 +11068,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 22,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -11116,19 +11116,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5705,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 62,
             "range": "± 14",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -11164,19 +11164,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5629,
             "range": "± 9",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 73,
             "range": "± 7",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -11266,19 +11266,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -11314,19 +11314,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 6810,
             "range": "± 15",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 79,
             "range": "± 5",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -11362,19 +11362,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6698,
             "range": "± 19",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 84,
             "range": "± 17",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -11464,19 +11464,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 24,
             "range": "± 0",
             "unit": "ns/iter"
@@ -11512,19 +11512,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 6893,
             "range": "± 25",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 80,
             "range": "± 11",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -11560,19 +11560,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6551,
             "range": "± 101",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 78,
             "range": "± 15",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -11662,19 +11662,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -11710,19 +11710,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 6808,
             "range": "± 5",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 75,
             "range": "± 13",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -11758,19 +11758,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6717,
             "range": "± 8",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 83,
             "range": "± 20",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -11860,19 +11860,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 22,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -11908,19 +11908,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5588,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 63,
             "range": "± 15",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -11956,19 +11956,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5480,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 65,
             "range": "± 10",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -12058,19 +12058,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 25,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 24,
             "range": "± 1",
             "unit": "ns/iter"
@@ -12106,19 +12106,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 7387,
             "range": "± 120",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 57,
             "range": "± 22",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 27,
             "range": "± 1",
             "unit": "ns/iter"
@@ -12154,19 +12154,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6871,
             "range": "± 346",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 89,
             "range": "± 14",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 26,
             "range": "± 1",
             "unit": "ns/iter"
@@ -12256,19 +12256,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -12304,19 +12304,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5592,
             "range": "± 2",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 64,
             "range": "± 9",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
@@ -12352,19 +12352,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5396,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 64,
             "range": "± 12",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
@@ -12454,19 +12454,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -12502,19 +12502,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 6901,
             "range": "± 50",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 76,
             "range": "± 15",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -12550,19 +12550,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6695,
             "range": "± 29",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 78,
             "range": "± 18",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -12652,19 +12652,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 22,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -12700,19 +12700,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 6062,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 63,
             "range": "± 14",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -12748,19 +12748,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5520,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 74,
             "range": "± 17",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -12850,19 +12850,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -12898,19 +12898,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5574,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 64,
             "range": "± 11",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -12946,19 +12946,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5101,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 67,
             "range": "± 14",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -13048,19 +13048,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -13096,19 +13096,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 6979,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 62,
             "range": "± 22",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -13144,19 +13144,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6523,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 88,
             "range": "± 19",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 25,
             "range": "± 1",
             "unit": "ns/iter"
@@ -13246,19 +13246,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 26,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 26,
             "range": "± 2",
             "unit": "ns/iter"
@@ -13294,19 +13294,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 7007,
             "range": "± 233",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 78,
             "range": "± 15",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 26,
             "range": "± 1",
             "unit": "ns/iter"
@@ -13342,19 +13342,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6601,
             "range": "± 127",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 85,
             "range": "± 12",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 26,
             "range": "± 2",
             "unit": "ns/iter"
@@ -13444,19 +13444,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 22,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 21,
             "range": "± 1",
             "unit": "ns/iter"
@@ -13492,19 +13492,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5848,
             "range": "± 4",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 64,
             "range": "± 17",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 21,
             "range": "± 2",
             "unit": "ns/iter"
@@ -13540,19 +13540,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5592,
             "range": "± 2",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 71,
             "range": "± 15",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 21,
             "range": "± 2",
             "unit": "ns/iter"
@@ -13642,19 +13642,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -13690,19 +13690,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5668,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 66,
             "range": "± 9",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
@@ -13738,19 +13738,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5159,
             "range": "± 2",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 68,
             "range": "± 10",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
@@ -13840,19 +13840,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 22,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -13888,19 +13888,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5956,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 70,
             "range": "± 12",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -13936,19 +13936,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5479,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 73,
             "range": "± 11",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -14038,19 +14038,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 23,
             "range": "± 1",
             "unit": "ns/iter"
@@ -14086,19 +14086,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 6741,
             "range": "± 123",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 75,
             "range": "± 13",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 24,
             "range": "± 0",
             "unit": "ns/iter"
@@ -14134,19 +14134,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6039,
             "range": "± 250",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 84,
             "range": "± 10",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -14236,19 +14236,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -14284,19 +14284,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5587,
             "range": "± 2",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 55,
             "range": "± 13",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
@@ -14332,19 +14332,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5124,
             "range": "± 2",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 72,
             "range": "± 5",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
@@ -14434,19 +14434,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -14482,19 +14482,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5621,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 65,
             "range": "± 10",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -14530,19 +14530,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5162,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 66,
             "range": "± 15",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -14632,19 +14632,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -14680,19 +14680,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5564,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 65,
             "range": "± 11",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -14728,19 +14728,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5081,
             "range": "± 3",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 66,
             "range": "± 9",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -14830,19 +14830,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 22,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -14878,19 +14878,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5827,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 62,
             "range": "± 11",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -14926,19 +14926,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5516,
             "range": "± 3",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 63,
             "range": "± 14",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -15028,19 +15028,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 22,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 21,
             "range": "± 1",
             "unit": "ns/iter"
@@ -15076,19 +15076,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5865,
             "range": "± 7",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 65,
             "range": "± 13",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 21,
             "range": "± 2",
             "unit": "ns/iter"
@@ -15124,19 +15124,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5488,
             "range": "± 11",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 73,
             "range": "± 7",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 21,
             "range": "± 2",
             "unit": "ns/iter"
@@ -15226,19 +15226,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 25,
             "range": "± 2",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 24,
             "range": "± 1",
             "unit": "ns/iter"
@@ -15274,19 +15274,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 6911,
             "range": "± 67",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 64,
             "range": "± 16",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 24,
             "range": "± 0",
             "unit": "ns/iter"
@@ -15322,19 +15322,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6184,
             "range": "± 95",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 81,
             "range": "± 21",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 24,
             "range": "± 1",
             "unit": "ns/iter"
@@ -15424,19 +15424,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -15472,19 +15472,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 7001,
             "range": "± 69",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 77,
             "range": "± 9",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -15520,19 +15520,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6565,
             "range": "± 15",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 67,
             "range": "± 20",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -15622,19 +15622,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -15670,19 +15670,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5557,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 64,
             "range": "± 6",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -15718,19 +15718,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5062,
             "range": "± 6",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 45,
             "range": "± 13",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -15820,19 +15820,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 24,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 23,
             "range": "± 0",
             "unit": "ns/iter"
@@ -15868,19 +15868,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 6537,
             "range": "± 96",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 75,
             "range": "± 20",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 23,
             "range": "± 0",
             "unit": "ns/iter"
@@ -15916,19 +15916,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5889,
             "range": "± 66",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 79,
             "range": "± 11",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 24,
             "range": "± 1",
             "unit": "ns/iter"
@@ -16018,19 +16018,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 26,
             "range": "± 3",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 25,
             "range": "± 3",
             "unit": "ns/iter"
@@ -16066,19 +16066,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5599,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 64,
             "range": "± 12",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -16114,19 +16114,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5116,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 74,
             "range": "± 10",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 25,
             "range": "± 6",
             "unit": "ns/iter"
@@ -16216,19 +16216,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -16264,19 +16264,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 6922,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 63,
             "range": "± 19",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -16312,19 +16312,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6445,
             "range": "± 2",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 83,
             "range": "± 17",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -16414,19 +16414,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
@@ -16462,19 +16462,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5871,
             "range": "± 2",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 66,
             "range": "± 13",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
@@ -16510,19 +16510,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5401,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 66,
             "range": "± 17",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -16612,19 +16612,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -16660,19 +16660,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 7200,
             "range": "± 11",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 74,
             "range": "± 14",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -16708,19 +16708,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6685,
             "range": "± 37",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 84,
             "range": "± 17",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -16810,19 +16810,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 27,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
@@ -16858,19 +16858,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 7288,
             "range": "± 14",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 86,
             "range": "± 15",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
@@ -16906,19 +16906,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6877,
             "range": "± 11",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 89,
             "range": "± 22",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
@@ -17008,19 +17008,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 26,
             "range": "± 3",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 26,
             "range": "± 2",
             "unit": "ns/iter"
@@ -17056,19 +17056,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 7349,
             "range": "± 92",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 79,
             "range": "± 17",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 26,
             "range": "± 2",
             "unit": "ns/iter"
@@ -17104,19 +17104,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6681,
             "range": "± 118",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 87,
             "range": "± 22",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 27,
             "range": "± 2",
             "unit": "ns/iter"
@@ -17206,19 +17206,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 27,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 26,
             "range": "± 1",
             "unit": "ns/iter"
@@ -17254,19 +17254,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 7436,
             "range": "± 62",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 67,
             "range": "± 23",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
@@ -17302,19 +17302,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6971,
             "range": "± 116",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 89,
             "range": "± 21",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
@@ -17404,19 +17404,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 26,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -17452,19 +17452,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 7012,
             "range": "± 8",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 77,
             "range": "± 18",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -17500,19 +17500,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6438,
             "range": "± 42",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 79,
             "range": "± 19",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -17602,19 +17602,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 27,
             "range": "± 2",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 27,
             "range": "± 3",
             "unit": "ns/iter"
@@ -17650,19 +17650,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 7194,
             "range": "± 237",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 79,
             "range": "± 11",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 26,
             "range": "± 2",
             "unit": "ns/iter"
@@ -17698,19 +17698,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6589,
             "range": "± 134",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 86,
             "range": "± 21",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 26,
             "range": "± 2",
             "unit": "ns/iter"
@@ -17800,19 +17800,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 28,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 26,
             "range": "± 1",
             "unit": "ns/iter"
@@ -17848,19 +17848,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 7937,
             "range": "± 219",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 85,
             "range": "± 13",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 26,
             "range": "± 2",
             "unit": "ns/iter"
@@ -17896,19 +17896,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6912,
             "range": "± 300",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 77,
             "range": "± 20",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 27,
             "range": "± 0",
             "unit": "ns/iter"
@@ -17998,19 +17998,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -18046,19 +18046,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 6903,
             "range": "± 56",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 74,
             "range": "± 16",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -18094,19 +18094,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6500,
             "range": "± 53",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 86,
             "range": "± 10",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -18196,19 +18196,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 22,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -18244,19 +18244,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5870,
             "range": "± 6",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 66,
             "range": "± 12",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -18292,19 +18292,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5613,
             "range": "± 11",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 66,
             "range": "± 20",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -18394,19 +18394,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -18442,19 +18442,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 6968,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 78,
             "range": "± 6",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -18490,19 +18490,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6496,
             "range": "± 10",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 93,
             "range": "± 10",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -18592,19 +18592,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 22,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -18640,19 +18640,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5613,
             "range": "± 6",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 63,
             "range": "± 14",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -18688,19 +18688,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5499,
             "range": "± 8",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 71,
             "range": "± 14",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -18790,19 +18790,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 28,
             "range": "± 2",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 27,
             "range": "± 1",
             "unit": "ns/iter"
@@ -18838,19 +18838,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 7434,
             "range": "± 334",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 71,
             "range": "± 21",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 28,
             "range": "± 2",
             "unit": "ns/iter"
@@ -18886,19 +18886,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 7405,
             "range": "± 284",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 93,
             "range": "± 16",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 27,
             "range": "± 0",
             "unit": "ns/iter"
@@ -18988,19 +18988,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 22,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -19036,19 +19036,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5697,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 61,
             "range": "± 12",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -19084,19 +19084,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5599,
             "range": "± 3",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 67,
             "range": "± 11",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -19186,19 +19186,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 26,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 25,
             "range": "± 1",
             "unit": "ns/iter"
@@ -19234,19 +19234,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5597,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 65,
             "range": "± 9",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 25,
             "range": "± 1",
             "unit": "ns/iter"
@@ -19282,19 +19282,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5369,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 70,
             "range": "± 11",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 25,
             "range": "± 2",
             "unit": "ns/iter"
@@ -19384,19 +19384,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 22,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 22,
             "range": "± 2",
             "unit": "ns/iter"
@@ -19432,19 +19432,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5628,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 61,
             "range": "± 12",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 21,
             "range": "± 1",
             "unit": "ns/iter"
@@ -19480,19 +19480,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5505,
             "range": "± 6",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 70,
             "range": "± 15",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 21,
             "range": "± 1",
             "unit": "ns/iter"
@@ -19582,19 +19582,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 22,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -19630,19 +19630,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5696,
             "range": "± 2",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 66,
             "range": "± 14",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -19678,19 +19678,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5599,
             "range": "± 2",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 71,
             "range": "± 12",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -19780,19 +19780,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 22,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -19828,19 +19828,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5830,
             "range": "± 5",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 60,
             "range": "± 14",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -19876,19 +19876,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5587,
             "range": "± 16",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 67,
             "range": "± 15",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -19978,19 +19978,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 22,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -20026,19 +20026,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5777,
             "range": "± 2",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 66,
             "range": "± 11",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -20074,19 +20074,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5600,
             "range": "± 5",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 73,
             "range": "± 14",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -20176,19 +20176,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 25,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 24,
             "range": "± 1",
             "unit": "ns/iter"
@@ -20224,19 +20224,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 6690,
             "range": "± 183",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 80,
             "range": "± 17",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -20272,19 +20272,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6353,
             "range": "± 116",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 80,
             "range": "± 15",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 25,
             "range": "± 1",
             "unit": "ns/iter"
@@ -20374,19 +20374,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 26,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 26,
             "range": "± 1",
             "unit": "ns/iter"
@@ -20422,19 +20422,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 7318,
             "range": "± 126",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 86,
             "range": "± 20",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 27,
             "range": "± 0",
             "unit": "ns/iter"
@@ -20470,19 +20470,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6945,
             "range": "± 100",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 90,
             "range": "± 7",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 26,
             "range": "± 1",
             "unit": "ns/iter"
@@ -20572,19 +20572,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 22,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 21,
             "range": "± 1",
             "unit": "ns/iter"
@@ -20620,19 +20620,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5688,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 64,
             "range": "± 12",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 21,
             "range": "± 2",
             "unit": "ns/iter"
@@ -20668,19 +20668,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5576,
             "range": "± 7",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 70,
             "range": "± 14",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 21,
             "range": "± 2",
             "unit": "ns/iter"
@@ -20770,19 +20770,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 22,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 21,
             "range": "± 1",
             "unit": "ns/iter"
@@ -20818,19 +20818,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5908,
             "range": "± 272",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 69,
             "range": "± 12",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 22,
             "range": "± 1",
             "unit": "ns/iter"
@@ -20866,19 +20866,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6031,
             "range": "± 370",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 78,
             "range": "± 20",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 23,
             "range": "± 1",
             "unit": "ns/iter"
@@ -20968,19 +20968,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -21016,19 +21016,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5557,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 62,
             "range": "± 11",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
@@ -21064,19 +21064,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5351,
             "range": "± 3",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 63,
             "range": "± 7",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
@@ -21166,19 +21166,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 25,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 25,
             "range": "± 1",
             "unit": "ns/iter"
@@ -21214,19 +21214,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 6614,
             "range": "± 81",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 75,
             "range": "± 15",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 25,
             "range": "± 1",
             "unit": "ns/iter"
@@ -21262,19 +21262,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6575,
             "range": "± 113",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 76,
             "range": "± 18",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 24,
             "range": "± 0",
             "unit": "ns/iter"
@@ -21364,19 +21364,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 22,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -21412,19 +21412,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5696,
             "range": "± 22",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 50,
             "range": "± 12",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -21460,19 +21460,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5636,
             "range": "± 2",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 72,
             "range": "± 20",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -21562,19 +21562,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 24,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 24,
             "range": "± 1",
             "unit": "ns/iter"
@@ -21610,19 +21610,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 7071,
             "range": "± 103",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 74,
             "range": "± 15",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 25,
             "range": "± 1",
             "unit": "ns/iter"
@@ -21658,19 +21658,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6589,
             "range": "± 539",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 88,
             "range": "± 22",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 26,
             "range": "± 1",
             "unit": "ns/iter"
@@ -21760,19 +21760,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -21808,19 +21808,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5730,
             "range": "± 2",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 66,
             "range": "± 13",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
@@ -21856,19 +21856,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5520,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 68,
             "range": "± 10",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
@@ -21958,19 +21958,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 22,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 21,
             "range": "± 1",
             "unit": "ns/iter"
@@ -22006,19 +22006,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5686,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 61,
             "range": "± 12",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 21,
             "range": "± 1",
             "unit": "ns/iter"
@@ -22054,19 +22054,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5597,
             "range": "± 2",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 65,
             "range": "± 14",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 21,
             "range": "± 2",
             "unit": "ns/iter"
@@ -22156,19 +22156,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -22204,19 +22204,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 6898,
             "range": "± 2",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 77,
             "range": "± 16",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -22252,19 +22252,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6809,
             "range": "± 4",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 78,
             "range": "± 12",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -22354,19 +22354,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 22,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -22402,19 +22402,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5711,
             "range": "± 5",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 60,
             "range": "± 15",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -22450,19 +22450,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5551,
             "range": "± 3",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 66,
             "range": "± 23",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -22552,19 +22552,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -22600,19 +22600,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5539,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 65,
             "range": "± 12",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -22648,19 +22648,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5329,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 71,
             "range": "± 11",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -22750,19 +22750,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 22,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -22798,19 +22798,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5780,
             "range": "± 12",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 63,
             "range": "± 9",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -22846,19 +22846,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5557,
             "range": "± 7",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 67,
             "range": "± 11",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -22948,19 +22948,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 29,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 28,
             "range": "± 2",
             "unit": "ns/iter"
@@ -22996,19 +22996,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 7635,
             "range": "± 153",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 85,
             "range": "± 14",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 28,
             "range": "± 0",
             "unit": "ns/iter"
@@ -23044,19 +23044,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 7232,
             "range": "± 226",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 93,
             "range": "± 22",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 28,
             "range": "± 1",
             "unit": "ns/iter"
@@ -23146,19 +23146,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 23,
             "range": "± 2",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 23,
             "range": "± 1",
             "unit": "ns/iter"
@@ -23194,19 +23194,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 6416,
             "range": "± 136",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 72,
             "range": "± 17",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 25,
             "range": "± 2",
             "unit": "ns/iter"
@@ -23242,19 +23242,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6226,
             "range": "± 237",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 85,
             "range": "± 18",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 23,
             "range": "± 1",
             "unit": "ns/iter"
@@ -23344,19 +23344,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 22,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -23392,19 +23392,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5620,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 66,
             "range": "± 10",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -23440,19 +23440,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5495,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 71,
             "range": "± 18",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -23542,19 +23542,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 22,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -23590,19 +23590,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5757,
             "range": "± 5",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 62,
             "range": "± 13",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -23638,19 +23638,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5595,
             "range": "± 3",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 67,
             "range": "± 12",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -23740,19 +23740,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 22,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 21,
             "range": "± 1",
             "unit": "ns/iter"
@@ -23788,19 +23788,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5694,
             "range": "± 97",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 65,
             "range": "± 8",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 25,
             "range": "± 1",
             "unit": "ns/iter"
@@ -23836,19 +23836,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5608,
             "range": "± 191",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 68,
             "range": "± 11",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -23938,19 +23938,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 26,
             "range": "± 1",
             "unit": "ns/iter"
@@ -23986,19 +23986,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 6978,
             "range": "± 83",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 77,
             "range": "± 16",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 26,
             "range": "± 1",
             "unit": "ns/iter"
@@ -24034,19 +24034,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6813,
             "range": "± 152",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 81,
             "range": "± 6",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 25,
             "range": "± 1",
             "unit": "ns/iter"
@@ -24136,19 +24136,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 22,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 23,
             "range": "± 2",
             "unit": "ns/iter"
@@ -24184,19 +24184,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5676,
             "range": "± 9",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 65,
             "range": "± 12",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 24,
             "range": "± 2",
             "unit": "ns/iter"
@@ -24232,19 +24232,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5486,
             "range": "± 19",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 71,
             "range": "± 16",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 23,
             "range": "± 2",
             "unit": "ns/iter"
@@ -24334,19 +24334,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 22,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -24382,19 +24382,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5762,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 66,
             "range": "± 14",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -24430,19 +24430,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5689,
             "range": "± 2",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 66,
             "range": "± 13",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -24532,19 +24532,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 22,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -24580,19 +24580,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5632,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 65,
             "range": "± 13",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -24628,19 +24628,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5614,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 69,
             "range": "± 19",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -24730,19 +24730,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -24778,19 +24778,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 6905,
             "range": "± 7",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 76,
             "range": "± 15",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -24826,19 +24826,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6731,
             "range": "± 11",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 63,
             "range": "± 17",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -24928,19 +24928,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -24976,19 +24976,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 6777,
             "range": "± 12",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 74,
             "range": "± 15",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -25024,19 +25024,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6710,
             "range": "± 6",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 87,
             "range": "± 17",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -25126,19 +25126,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 25,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 23,
             "range": "± 0",
             "unit": "ns/iter"
@@ -25174,19 +25174,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 6457,
             "range": "± 136",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 60,
             "range": "± 15",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 24,
             "range": "± 0",
             "unit": "ns/iter"
@@ -25222,19 +25222,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6322,
             "range": "± 69",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 77,
             "range": "± 12",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 24,
             "range": "± 1",
             "unit": "ns/iter"
@@ -25324,19 +25324,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 22,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -25372,19 +25372,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5676,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 65,
             "range": "± 11",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -25420,19 +25420,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5586,
             "range": "± 3",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 69,
             "range": "± 18",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -25522,19 +25522,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 26,
             "range": "± 2",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 25,
             "range": "± 1",
             "unit": "ns/iter"
@@ -25570,19 +25570,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 6776,
             "range": "± 2",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 75,
             "range": "± 17",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 25,
             "range": "± 1",
             "unit": "ns/iter"
@@ -25618,19 +25618,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 6676,
             "range": "± 4",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 82,
             "range": "± 20",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 25,
             "range": "± 1",
             "unit": "ns/iter"
@@ -25720,19 +25720,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 26,
             "range": "± 1",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 25,
             "range": "± 2",
             "unit": "ns/iter"
@@ -25768,19 +25768,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 7205,
             "range": "± 139",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 89,
             "range": "± 17",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 26,
             "range": "± 1",
             "unit": "ns/iter"
@@ -25816,19 +25816,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 7077,
             "range": "± 394",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 86,
             "range": "± 17",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -25918,19 +25918,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 22,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -25966,19 +25966,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5669,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 61,
             "range": "± 12",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -26014,19 +26014,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5600,
             "range": "± 3",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 68,
             "range": "± 17",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 21,
             "range": "± 0",
             "unit": "ns/iter"
@@ -26116,19 +26116,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 10,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 9,
             "range": "± 0",
             "unit": "ns/iter"
@@ -26164,19 +26164,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 3510,
             "range": "± 17",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 34,
             "range": "± 10",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -26212,19 +26212,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 3424,
             "range": "± 7",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 38,
             "range": "± 12",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -26314,19 +26314,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 10,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 9,
             "range": "± 0",
             "unit": "ns/iter"
@@ -26362,19 +26362,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 3483,
             "range": "± 12",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 36,
             "range": "± 9",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -26410,19 +26410,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 3379,
             "range": "± 27",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 38,
             "range": "± 10",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -26512,19 +26512,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 10,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 9,
             "range": "± 0",
             "unit": "ns/iter"
@@ -26560,19 +26560,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 3554,
             "range": "± 76",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 32,
             "range": "± 8",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -26608,19 +26608,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 3463,
             "range": "± 11",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 36,
             "range": "± 11",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -26710,19 +26710,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 10,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -26758,19 +26758,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 3543,
             "range": "± 13",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 33,
             "range": "± 7",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -26806,19 +26806,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 3466,
             "range": "± 2",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 39,
             "range": "± 14",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -26908,19 +26908,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 25,
             "range": "± 0",
             "unit": "ns/iter"
@@ -26956,19 +26956,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 5639,
             "range": "± 2",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 54,
             "range": "± 10",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
@@ -27004,19 +27004,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 5368,
             "range": "± 22",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 64,
             "range": "± 8",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 26,
             "range": "± 0",
             "unit": "ns/iter"
@@ -27106,19 +27106,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 10,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -27154,19 +27154,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 3485,
             "range": "± 5",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 33,
             "range": "± 10",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 10,
             "range": "± 0",
             "unit": "ns/iter"
@@ -27202,19 +27202,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 3417,
             "range": "± 10",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 39,
             "range": "± 14",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 11,
             "range": "± 5",
             "unit": "ns/iter"
@@ -27304,19 +27304,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 10,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -27352,19 +27352,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 3490,
             "range": "± 209",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 33,
             "range": "± 7",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 10,
             "range": "± 0",
             "unit": "ns/iter"
@@ -27400,19 +27400,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 3427,
             "range": "± 3",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 33,
             "range": "± 13",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 10,
             "range": "± 0",
             "unit": "ns/iter"
@@ -27502,19 +27502,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 10,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -27550,19 +27550,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 3516,
             "range": "± 9",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 34,
             "range": "± 7",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 9,
             "range": "± 0",
             "unit": "ns/iter"
@@ -27598,19 +27598,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 3412,
             "range": "± 11",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 37,
             "range": "± 12",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 10,
             "range": "± 0",
             "unit": "ns/iter"
@@ -27700,19 +27700,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 2,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 9,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -27748,19 +27748,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 3553,
             "range": "± 9",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 35,
             "range": "± 10",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -27796,19 +27796,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 3485,
             "range": "± 45",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 41,
             "range": "± 10",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -27898,19 +27898,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 10,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -27946,19 +27946,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 3561,
             "range": "± 14",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 25,
             "range": "± 8",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -27994,19 +27994,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 3406,
             "range": "± 80",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 39,
             "range": "± 10",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -28096,19 +28096,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 10,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -28144,19 +28144,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 3554,
             "range": "± 267",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 18,
             "range": "± 9",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -28192,19 +28192,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 3400,
             "range": "± 26",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 35,
             "range": "± 11",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -28294,19 +28294,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 9,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -28342,19 +28342,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 3647,
             "range": "± 69",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 39,
             "range": "± 13",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 9,
             "range": "± 0",
             "unit": "ns/iter"
@@ -28390,19 +28390,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 3507,
             "range": "± 16",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 42,
             "range": "± 9",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 9,
             "range": "± 0",
             "unit": "ns/iter"
@@ -28492,19 +28492,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 10,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 9,
             "range": "± 3",
             "unit": "ns/iter"
@@ -28540,19 +28540,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 3714,
             "range": "± 3",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 33,
             "range": "± 8",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 9,
             "range": "± 0",
             "unit": "ns/iter"
@@ -28588,19 +28588,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 3514,
             "range": "± 4",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 26,
             "range": "± 17",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 9,
             "range": "± 5",
             "unit": "ns/iter"
@@ -28690,19 +28690,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 10,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 10,
             "range": "± 3",
             "unit": "ns/iter"
@@ -28738,19 +28738,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 3454,
             "range": "± 5",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 33,
             "range": "± 8",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 9,
             "range": "± 0",
             "unit": "ns/iter"
@@ -28786,19 +28786,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 3362,
             "range": "± 50",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 39,
             "range": "± 10",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 10,
             "range": "± 0",
             "unit": "ns/iter"
@@ -28888,19 +28888,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 9,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -28936,19 +28936,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 3455,
             "range": "± 3",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 18,
             "range": "± 8",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 27,
             "range": "± 0",
             "unit": "ns/iter"
@@ -28984,19 +28984,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 3348,
             "range": "± 7",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 32,
             "range": "± 10",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 27,
             "range": "± 5",
             "unit": "ns/iter"
@@ -29086,19 +29086,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 9,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -29134,19 +29134,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 3465,
             "range": "± 2",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 32,
             "range": "± 10",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 27,
             "range": "± 0",
             "unit": "ns/iter"
@@ -29182,19 +29182,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 3365,
             "range": "± 18",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 40,
             "range": "± 6",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 27,
             "range": "± 0",
             "unit": "ns/iter"
@@ -29284,19 +29284,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 9,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -29332,19 +29332,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 3593,
             "range": "± 4",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 33,
             "range": "± 12",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -29380,19 +29380,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 3466,
             "range": "± 29",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 38,
             "range": "± 7",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -29482,19 +29482,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 9,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -29530,19 +29530,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 3724,
             "range": "± 13",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 34,
             "range": "± 10",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -29578,19 +29578,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 3578,
             "range": "± 9",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 40,
             "range": "± 7",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -29680,19 +29680,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 9,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -29728,19 +29728,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 3557,
             "range": "± 10",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 18,
             "range": "± 10",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -29776,19 +29776,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 3429,
             "range": "± 5",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 39,
             "range": "± 6",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -29878,19 +29878,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 9,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -29926,19 +29926,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 3512,
             "range": "± 4",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 32,
             "range": "± 10",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -29974,19 +29974,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 3385,
             "range": "± 19",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 36,
             "range": "± 8",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -30076,19 +30076,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 9,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -30124,19 +30124,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 3586,
             "range": "± 3",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 34,
             "range": "± 6",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -30172,19 +30172,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 3415,
             "range": "± 11",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 42,
             "range": "± 10",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -30274,19 +30274,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 9,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -30322,19 +30322,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 3617,
             "range": "± 16",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 34,
             "range": "± 12",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 27,
             "range": "± 0",
             "unit": "ns/iter"
@@ -30370,19 +30370,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 3436,
             "range": "± 12",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 35,
             "range": "± 10",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 27,
             "range": "± 0",
             "unit": "ns/iter"
@@ -30472,19 +30472,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 9,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -30520,19 +30520,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 3644,
             "range": "± 85",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 35,
             "range": "± 3",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 27,
             "range": "± 0",
             "unit": "ns/iter"
@@ -30568,19 +30568,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 3539,
             "range": "± 39",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 37,
             "range": "± 4",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 27,
             "range": "± 0",
             "unit": "ns/iter"
@@ -30670,19 +30670,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 9,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -30718,19 +30718,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 3608,
             "range": "± 14",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 32,
             "range": "± 9",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 28,
             "range": "± 0",
             "unit": "ns/iter"
@@ -30766,19 +30766,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 3518,
             "range": "± 10",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 36,
             "range": "± 9",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 25,
             "range": "± 6",
             "unit": "ns/iter"
@@ -30868,19 +30868,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/num_vertices",
+            "name": "lotr_graph/num_nodes",
             "value": 1,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_existing",
+            "name": "lotr_graph/has_node_existing",
             "value": 9,
             "range": "± 0",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph/has_vertex_nonexisting",
+            "name": "lotr_graph/has_node_nonexisting",
             "value": 8,
             "range": "± 0",
             "unit": "ns/iter"
@@ -30916,19 +30916,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/num_vertices",
+            "name": "lotr_graph_window_100/num_nodes",
             "value": 3499,
             "range": "± 18",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_existing",
+            "name": "lotr_graph_window_100/has_node_existing",
             "value": 25,
             "range": "± 8",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "name": "lotr_graph_window_100/has_node_nonexisting",
             "value": 9,
             "range": "± 0",
             "unit": "ns/iter"
@@ -30964,19 +30964,19 @@ window.BENCHMARK_DATA = {
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/num_vertices",
+            "name": "lotr_graph_window_10/num_nodes",
             "value": 3387,
             "range": "± 30",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_existing",
+            "name": "lotr_graph_window_10/has_node_existing",
             "value": 43,
             "range": "± 10",
             "unit": "ns/iter"
           },
           {
-            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "name": "lotr_graph_window_10/has_node_nonexisting",
             "value": 9,
             "range": "± 0",
             "unit": "ns/iter"
