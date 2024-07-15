@@ -5,6 +5,7 @@ build-backend = "maturin"
 [project]
 name = "raphtory"
 requires-python = ">=3.8"
+dynamic = ["version"]
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
@@ -30,7 +31,7 @@ slack = "https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJ
 youtube = "https://www.youtube.com/@pometry8546/videos"
 
 [project.optional-dependencies]
-export = ["seaborn >= 0.11.2"]
+plot = ["seaborn >= 0.11.2"]
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
