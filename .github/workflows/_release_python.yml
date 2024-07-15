@@ -101,14 +101,22 @@ jobs:
               echo "Could not determine distribution."
               exit 1
             fi
-            pip install protobuf
+            
+            PB_REL="https://github.com/protocolbuffers/protobuf/releases"
             ARCH=$(uname -m)
             if [ "$ARCH" = "aarch64" ]; then
               echo "Running on aarch64 architecture"
               rustup override set stable-msvc
+              FILE="protoc-27.2-linux-aarch_64.zip"
             else
+              FILE="protoc-27.2-linux-x86_64.zip"
               echo "Running on non-aarch64 architecture"
             fi
+
+            curl -LO $PB_REL/download/v27.2/$FILE
+            unzip -o $FILE -d /usr/local
+            rm $FILE
+            ln -s /usr/local/bin/protoc /usr/bin/protoc
       - name: Upload wheels to gh artifact
         uses: actions/upload-artifact@v3
         with:
