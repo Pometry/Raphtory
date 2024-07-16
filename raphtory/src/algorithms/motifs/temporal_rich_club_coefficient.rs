@@ -52,6 +52,7 @@ where
     G1: GraphViewOps<'a>,
     G2: GraphViewOps<'a>,
 {
+    // Extract the set of nodes with degree greater than or equal to k
     let s_k: HashSet<VID> = agg_graph
         .nodes()
         .into_iter()
@@ -59,37 +60,20 @@ where
         .map(|v| v.node)
         .collect();
 
-    let temp_rich_club_vals = SlidingWindows::new(views.into_iter(), window_size)
+    let temp_rich_club_val = SlidingWindows::new(views.into_iter(), window_size)
         .map(|window| intermediate_rich_club_coef(s_k.clone(), window))
         .reduce(f64::max)
         .unwrap_or(0.0);
 
-    temp_rich_club_vals
+    temp_rich_club_val
 }
 
-#[derive(Hash, Eq, PartialEq, Debug, Clone)]
-pub struct UndirEdge {
-    src: VID,
-    dst: VID,
-}
-
-fn undir_edge<T: Into<VID>>(src: T, dst: T) -> UndirEdge {
-    let src_id: VID = src.into();
-    let dst_id: VID = dst.into();
-    UndirEdge {
-        src: min(src_id, dst_id),
-        dst: max(src_id, dst_id),
-    }
-}
-
-fn intermediate_rich_club_coef<'a, I, G1>(
-    s_k: HashSet<VID>,
-    views: I,
-) -> f64 
-where 
+fn intermediate_rich_club_coef<'a, I, G1>(s_k: HashSet<VID>, views: I) -> f64
+where
     I: IntoIterator<Item = G1>,
     G1: GraphViewOps<'a>,
 {
+    // Extract the edges among the top degree nodes which are stable over that subset of snapshots by computing their intersection
     let stable_edges = views
         .into_iter()
         .map(|g| {
@@ -103,12 +87,29 @@ where
         })
         .into_iter()
         .reduce(|acc_edges, item_edges| acc_edges.intersection(&item_edges).cloned().collect());
+    // Compute the density with respect to the possible number of edges between those s_k nodes.
     match stable_edges {
         Some(edges) => {
             let poss_edges = (s_k.len() * (s_k.len() - 1)) / 2;
             return (edges.len() as f64) / (poss_edges as f64);
         }
         None => return 0 as f64,
+    }
+}
+
+#[derive(Hash, Eq, PartialEq, Debug, Clone)]
+pub struct UndirEdge {
+    src: VID,
+    dst: VID,
+}
+
+// So that we can make a set of undirected edges
+fn undir_edge<T: Into<VID>>(src: T, dst: T) -> UndirEdge {
+    let src_id: VID = src.into();
+    let dst_id: VID = dst.into();
+    UndirEdge {
+        src: min(src_id, dst_id),
+        dst: max(src_id, dst_id),
     }
 }
 
@@ -165,16 +166,14 @@ mod rich_club_test {
     }
 
     #[test]
+    // Using the toy example from the paper
     fn toy_graph_test() {
         let g = load_sample_graph();
         let g_rolling = g.rolling(1, Some(1)).unwrap();
 
-        let rc_coef_1 =
-            temporal_rich_club_coefficient(g.clone(), g_rolling.clone(), 3, 1);
-        let rc_coef_3 =
-            temporal_rich_club_coefficient(g.clone(), g_rolling.clone(), 3, 3);
-        let rc_coef_5 =
-            temporal_rich_club_coefficient(g.clone(), g_rolling.clone(), 3, 5);
+        let rc_coef_1 = temporal_rich_club_coefficient(g.clone(), g_rolling.clone(), 3, 1);
+        let rc_coef_3 = temporal_rich_club_coefficient(g.clone(), g_rolling.clone(), 3, 3);
+        let rc_coef_5 = temporal_rich_club_coefficient(g.clone(), g_rolling.clone(), 3, 5);
         assert_eq_f64(Some(rc_coef_1), Some(1.0), 3);
         assert_eq_f64(Some(rc_coef_3), Some(0.66666), 3);
         assert_eq_f64(Some(rc_coef_5), Some(0.5), 3);
