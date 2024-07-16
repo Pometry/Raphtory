@@ -22,13 +22,15 @@ use std::{collections::HashSet, convert::Into};
 #[derive(ResolvedObject)]
 pub(crate) struct GqlGraph {
     name: String,
+    namespace: Option<String>,
     graph: IndexedGraph<DynamicGraph>,
 }
 
 impl GqlGraph {
-    pub fn new<G: DynamicIndexedGraph>(name: String, graph: G) -> Self {
+    pub fn new<G: DynamicIndexedGraph>(name: String, namespace: Option<String>, graph: G) -> Self {
         Self {
             name,
+            namespace,
             graph: graph.into_dynamic_indexed(),
         }
     }
@@ -45,80 +47,141 @@ impl GqlGraph {
     }
 
     async fn default_layer(&self) -> GqlGraph {
-        GqlGraph::new(self.name.clone(), self.graph.default_layer())
+        GqlGraph::new(
+            self.name.clone(),
+            self.namespace.clone(),
+            self.graph.default_layer(),
+        )
     }
 
     async fn layers(&self, names: Vec<String>) -> GqlGraph {
         let name = self.name.clone();
-        GqlGraph::new(name, self.graph.valid_layers(names))
+        GqlGraph::new(name, self.namespace.clone(), self.graph.valid_layers(names))
     }
 
     async fn exclude_layers(&self, names: Vec<String>) -> GqlGraph {
         let name = self.name.clone();
-        GqlGraph::new(name, self.graph.exclude_valid_layers(names))
+        GqlGraph::new(
+            name,
+            self.namespace.clone(),
+            self.graph.exclude_valid_layers(names),
+        )
     }
 
     async fn layer(&self, name: String) -> GqlGraph {
-        GqlGraph::new(self.name.clone(), self.graph.valid_layers(name))
+        GqlGraph::new(
+            self.name.clone(),
+            self.namespace.clone(),
+            self.graph.valid_layers(name),
+        )
     }
 
     async fn exclude_layer(&self, name: String) -> GqlGraph {
-        GqlGraph::new(self.name.clone(), self.graph.exclude_valid_layers(name))
+        GqlGraph::new(
+            self.name.clone(),
+            self.namespace.clone(),
+            self.graph.exclude_valid_layers(name),
+        )
     }
 
     async fn subgraph(&self, nodes: Vec<String>) -> GqlGraph {
-        GqlGraph::new(self.name.clone(), self.graph.subgraph(nodes))
+        GqlGraph::new(
+            self.name.clone(),
+            self.namespace.clone(),
+            self.graph.subgraph(nodes),
+        )
     }
 
     async fn subgraph_id(&self, nodes: Vec<u64>) -> GqlGraph {
         let nodes: Vec<NodeRef> = nodes.iter().map(|v| v.as_node_ref()).collect();
-        GqlGraph::new(self.name.clone(), self.graph.subgraph(nodes))
+        GqlGraph::new(
+            self.name.clone(),
+            self.namespace.clone(),
+            self.graph.subgraph(nodes),
+        )
     }
 
     async fn subgraph_node_types(&self, node_types: Vec<String>) -> GqlGraph {
         GqlGraph::new(
             self.name.clone(),
+            self.namespace.clone(),
             self.graph.subgraph_node_types(node_types),
         )
     }
 
     async fn exclude_nodes(&self, nodes: Vec<String>) -> GqlGraph {
         let nodes: Vec<NodeRef> = nodes.iter().map(|v| v.as_node_ref()).collect();
-        GqlGraph::new(self.name.clone(), self.graph.exclude_nodes(nodes))
+        GqlGraph::new(
+            self.name.clone(),
+            self.namespace.clone(),
+            self.graph.exclude_nodes(nodes),
+        )
     }
 
     async fn exclude_nodes_id(&self, nodes: Vec<u64>) -> GqlGraph {
         let nodes: Vec<NodeRef> = nodes.iter().map(|v| v.as_node_ref()).collect();
-        GqlGraph::new(self.name.clone(), self.graph.exclude_nodes(nodes))
+        GqlGraph::new(
+            self.name.clone(),
+            self.namespace.clone(),
+            self.graph.exclude_nodes(nodes),
+        )
     }
 
     /// Return a graph containing only the activity between `start` and `end` measured as milliseconds from epoch
     async fn window(&self, start: i64, end: i64) -> GqlGraph {
-        GqlGraph::new(self.name.clone(), self.graph.window(start, end))
+        GqlGraph::new(
+            self.name.clone(),
+            self.namespace.clone(),
+            self.graph.window(start, end),
+        )
     }
 
     async fn at(&self, time: i64) -> GqlGraph {
-        GqlGraph::new(self.name.clone(), self.graph.at(time))
+        GqlGraph::new(
+            self.name.clone(),
+            self.namespace.clone(),
+            self.graph.at(time),
+        )
     }
 
     async fn before(&self, time: i64) -> GqlGraph {
-        GqlGraph::new(self.name.clone(), self.graph.before(time))
+        GqlGraph::new(
+            self.name.clone(),
+            self.namespace.clone(),
+            self.graph.before(time),
+        )
     }
 
     async fn after(&self, time: i64) -> GqlGraph {
-        GqlGraph::new(self.name.clone(), self.graph.after(time))
+        GqlGraph::new(
+            self.name.clone(),
+            self.namespace.clone(),
+            self.graph.after(time),
+        )
     }
 
     async fn shrink_window(&self, start: i64, end: i64) -> Self {
-        GqlGraph::new(self.name.clone(), self.graph.shrink_window(start, end))
+        GqlGraph::new(
+            self.name.clone(),
+            self.namespace.clone(),
+            self.graph.shrink_window(start, end),
+        )
     }
 
     async fn shrink_start(&self, start: i64) -> Self {
-        GqlGraph::new(self.name.clone(), self.graph.shrink_start(start))
+        GqlGraph::new(
+            self.name.clone(),
+            self.namespace.clone(),
+            self.graph.shrink_start(start),
+        )
     }
 
     async fn shrink_end(&self, end: i64) -> Self {
-        GqlGraph::new(self.name.clone(), self.graph.shrink_end(end))
+        GqlGraph::new(
+            self.name.clone(),
+            self.namespace.clone(),
+            self.graph.shrink_end(end),
+        )
     }
 
     ////////////////////////
@@ -227,6 +290,7 @@ impl GqlGraph {
     async fn node(&self, name: String) -> Option<Node> {
         self.graph.node(name).map(|v| v.into())
     }
+
     async fn node_id(&self, id: u64) -> Option<Node> {
         self.graph.node(id).map(|v| v.into())
     }
@@ -243,6 +307,7 @@ impl GqlGraph {
             .map(|vv| vv.into())
             .collect()
     }
+
     async fn fuzzy_search_nodes(
         &self,
         query: String,
@@ -310,6 +375,13 @@ impl GqlGraph {
 
     async fn name(&self) -> String {
         self.name.clone()
+    }
+
+    async fn path(&self) -> String {
+        match self.namespace.clone() {
+            Some(ns) => format!("{}/{}", ns, self.name.clone()),
+            None => self.name.clone(),
+        }
     }
 
     async fn schema(&self) -> GraphSchema {

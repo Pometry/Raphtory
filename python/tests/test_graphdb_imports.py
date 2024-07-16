@@ -20,10 +20,9 @@ def test_import_into_graph():
     assert res.properties.constant.get("con") == 11
 
     gg = Graph()
-    res = gg.import_nodes([g_a, g_b])
-    assert len(res) == 2
+    gg.import_nodes([g_a, g_b])
     assert len(gg.nodes) == 2
-    assert [x.name for x in res] == ["A", "B"]
+    assert [x.name for x in gg.nodes] == ["A", "B"]
 
     e_a_b = g.add_edge(2, "A", "B")
     res = gg.import_edge(e_a_b)
@@ -37,7 +36,6 @@ def test_import_into_graph():
 
     e_c_d = g.add_edge(4, "C", "D")
     gg = Graph()
-    res = gg.import_edges([e_a_b, e_c_d])
-    assert len(res) == 2
+    gg.import_edges([e_a_b, e_c_d])
     assert len(gg.nodes) == 4
     assert len(gg.edges) == 2

@@ -1,65 +1,99 @@
 use config::{Config, ConfigError, File};
 use serde::Deserialize;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize, PartialEq, Clone)]
 pub struct LoggingConfig {
     pub log_level: String,
 }
 
-impl Default for LoggingConfig {
-    fn default() -> Self {
-        LoggingConfig {
-            log_level: "INFO".to_string(),
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize, PartialEq, Clone)]
 pub struct CacheConfig {
     pub capacity: u64,
     pub tti_seconds: u64,
 }
 
-impl Default for CacheConfig {
-    fn default() -> Self {
-        CacheConfig {
-            capacity: 30,
-            tti_seconds: 900,
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize, PartialEq, Clone)]
 pub struct AuthConfig {
     pub client_id: Option<String>,
     pub client_secret: Option<String>,
     pub tenant_id: Option<String>,
 }
 
-impl Default for AuthConfig {
-    fn default() -> Self {
-        AuthConfig {
-            client_id: None,
-            client_secret: None,
-            tenant_id: None,
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize, PartialEq, Clone)]
 pub struct AppConfig {
     pub logging: LoggingConfig,
     pub cache: CacheConfig,
     pub auth: AuthConfig,
 }
 
-impl Default for AppConfig {
-    fn default() -> Self {
+pub struct AppConfigBuilder {
+    logging: LoggingConfig,
+    cache: CacheConfig,
+    auth: AuthConfig,
+}
+
+impl AppConfigBuilder {
+    pub fn new() -> Self {
+        Self {
+            logging: LoggingConfig {
+                log_level: "INFO".to_string(),
+            },
+            cache: CacheConfig {
+                capacity: 30,
+                tti_seconds: 900,
+            },
+            auth: AuthConfig {
+                client_id: None,
+                client_secret: None,
+                tenant_id: None,
+            },
+        }
+    }
+
+    pub fn from(config: AppConfig) -> Self {
+        Self {
+            logging: config.logging,
+            cache: config.cache,
+            auth: config.auth,
+        }
+    }
+
+    pub fn with_log_level(mut self, log_level: String) -> Self {
+        self.logging.log_level = log_level;
+        self
+    }
+
+    pub fn with_cache_capacity(mut self, cache_capacity: u64) -> Self {
+        self.cache.capacity = cache_capacity;
+        self
+    }
+
+    pub fn with_cache_tti_seconds(mut self, tti_seconds: u64) -> Self {
+        self.cache.tti_seconds = tti_seconds;
+        self
+    }
+
+    pub fn with_auth_client_id(mut self, client_id: String) -> Self {
+        self.auth.client_id = Some(client_id);
+        self
+    }
+
+    pub fn with_auth_client_secret(mut self, client_secret: String) -> Self {
+        self.auth.client_secret = Some(client_secret);
+        self
+    }
+
+    pub fn with_auth_tenant_id(mut self, tenant_id: String) -> Self {
+        self.auth.tenant_id = Some(tenant_id);
+        self
+    }
+
+    pub fn build(self) -> AppConfig {
         AppConfig {
-            logging: Default::default(),
-            cache: Default::default(),
-            auth: Default::default(),
+            logging: self.logging,
+            cache: self.cache,
+            auth: self.auth,
         }
     }
 }
@@ -69,44 +103,42 @@ impl Default for AppConfig {
 // This would cause configs from config paths to be ignored. The reason it has been implemented so is to avoid having to pass all the configs as
 // args from the python instance i.e., being able to provide configs from config path as default configs and yet give precedence to config args.
 pub fn load_config(
-    cache_config: Option<CacheConfig>,
-    auth_config: Option<AuthConfig>,
-    config_path: Option<&Path>,
+    app_config: Option<AppConfig>,
+    config_path: Option<PathBuf>,
 ) -> Result<AppConfig, ConfigError> {
-    let mut config_builder = Config::builder();
+    let mut settings_config_builder = Config::builder();
     if let Some(config_path) = config_path {
-        config_builder = config_builder.add_source(File::from(config_path));
+        settings_config_builder = settings_config_builder.add_source(File::from(config_path));
     }
-    let settings = config_builder.build()?;
+    let settings = settings_config_builder.build()?;
 
-    // Load default configs
-    let mut loaded_config = AppConfig::default();
+    let mut app_config_builder = if let Some(app_config) = app_config {
+        AppConfigBuilder::from(app_config)
+    } else {
+        AppConfigBuilder::new()
+    };
 
     // Override with provided configs from config file if any
     if let Some(log_level) = settings.get::<String>("logging.log_level").ok() {
-        loaded_config.logging.log_level = log_level;
+        app_config_builder = app_config_builder.with_log_level(log_level);
     }
-    if let Some(capacity) = settings.get::<u64>("cache.capacity").ok() {
-        loaded_config.cache.capacity = capacity;
+    if let Some(cache_capacity) = settings.get::<u64>("cache.capacity").ok() {
+        app_config_builder = app_config_builder.with_cache_capacity(cache_capacity);
     }
-    if let Some(tti_seconds) = settings.get::<u64>("cache.tti_seconds").ok() {
-        loaded_config.cache.tti_seconds = tti_seconds;
+    if let Some(cache_tti_seconds) = settings.get::<u64>("cache.tti_seconds").ok() {
+        app_config_builder = app_config_builder.with_cache_tti_seconds(cache_tti_seconds);
     }
-    loaded_config.auth.client_id = settings.get::<String>("auth.client_id").ok();
-    loaded_config.auth.client_secret = settings.get::<String>("auth.client_secret").ok();
-    loaded_config.auth.tenant_id = settings.get::<String>("auth.tenant_id").ok();
-
-    // Override with provided cache configs if any
-    if let Some(cache_config) = cache_config {
-        loaded_config.cache = cache_config;
+    if let Some(client_id) = settings.get::<String>("auth.client_id").ok() {
+        app_config_builder = app_config_builder.with_auth_client_id(client_id);
     }
-
-    // Override with provided auth configs if any
-    if let Some(auth_config) = auth_config {
-        loaded_config.auth = auth_config;
+    if let Some(client_secret) = settings.get::<String>("auth.client_secret").ok() {
+        app_config_builder = app_config_builder.with_auth_client_secret(client_secret);
+    }
+    if let Some(tenant_id) = settings.get::<String>("auth.tenant_id").ok() {
+        app_config_builder = app_config_builder.with_auth_tenant_id(tenant_id);
     }
 
-    Ok(loaded_config)
+    Ok(app_config_builder.build())
 }
 
 #[cfg(test)]
@@ -116,7 +148,6 @@ mod tests {
 
     #[test]
     fn test_load_config_from_toml() {
-        // Prepare a test TOML configuration file
         let config_toml = r#"
             [logging]
             log_level = "DEBUG"
@@ -124,21 +155,15 @@ mod tests {
             [cache]
             tti_seconds = 1000
         "#;
-        let config_path = Path::new("test_config.toml");
-        fs::write(config_path, config_toml).unwrap();
+        let config_path = PathBuf::from("test_config.toml");
+        fs::write(&config_path, config_toml).unwrap();
 
-        // Load config using the test TOML file
-        let result = load_config(None, None, Some(config_path));
-        let expected_config = AppConfig {
-            logging: LoggingConfig {
-                log_level: "DEBUG".to_string(),
-            },
-            cache: CacheConfig {
-                capacity: 30,
-                tti_seconds: 1000,
-            },
-            auth: AuthConfig::default(),
-        };
+        let result = load_config(None, Some(config_path.clone()));
+        let expected_config = AppConfigBuilder::new()
+            .with_log_level("DEBUG".to_string())
+            .with_cache_capacity(30)
+            .with_cache_tti_seconds(1000)
+            .build();
 
         assert_eq!(result.unwrap(), expected_config);
 
@@ -148,54 +173,26 @@ mod tests {
 
     #[test]
     fn test_load_config_with_custom_cache() {
-        // Prepare a custom cache configuration
-        let custom_cache = CacheConfig {
-            capacity: 50,
-            tti_seconds: 1200,
-        };
+        let app_config = AppConfigBuilder::new()
+            .with_cache_capacity(50)
+            .with_cache_tti_seconds(1200)
+            .build();
 
-        // Load config with custom cache configuration
-        let result = load_config(Some(custom_cache), None, None);
-        let expected_config = AppConfig {
-            logging: LoggingConfig {
-                log_level: "INFO".to_string(),
-            }, // Default logging level
-            cache: CacheConfig {
-                capacity: 50,
-                tti_seconds: 1200,
-            },
-            auth: AuthConfig::default(),
-        };
+        let result = load_config(Some(app_config.clone()), None);
 
-        assert_eq!(result.unwrap(), expected_config);
+        assert_eq!(result.unwrap(), app_config);
     }
 
     #[test]
     fn test_load_config_with_custom_auth() {
-        // Prepare a custom cache configuration
-        let custom_auth = AuthConfig {
-            client_id: Some("custom_client_id".to_string()),
-            client_secret: Some("custom_client_secret".to_string()),
-            tenant_id: Some("custom_tenant_id".to_string()),
-        };
+        let app_config = AppConfigBuilder::new()
+            .with_auth_client_id("custom_client_id".to_string())
+            .with_auth_client_secret("custom_client_secret".to_string())
+            .with_auth_tenant_id("custom_tenant_id".to_string())
+            .build();
 
-        // Load config with custom cache configuration
-        let result = load_config(None, Some(custom_auth), None);
-        let expected_config = AppConfig {
-            logging: LoggingConfig {
-                log_level: "INFO".to_string(),
-            }, // Default logging level
-            cache: CacheConfig {
-                capacity: 30,
-                tti_seconds: 900,
-            },
-            auth: AuthConfig {
-                client_id: Some("custom_client_id".to_string()),
-                client_secret: Some("custom_client_secret".to_string()),
-                tenant_id: Some("custom_tenant_id".to_string()),
-            },
-        };
+        let result = load_config(Some(app_config.clone()), None);
 
-        assert_eq!(result.unwrap(), expected_config);
+        assert_eq!(result.unwrap(), app_config);
     }
 }

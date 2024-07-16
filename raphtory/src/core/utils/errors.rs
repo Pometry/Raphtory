@@ -1,4 +1,5 @@
 use crate::core::{utils::time::error::ParseTimeError, ArcStr, Prop, PropType};
+use std::path::PathBuf;
 #[cfg(feature = "search")]
 use tantivy;
 #[cfg(feature = "search")]
@@ -6,8 +7,18 @@ use tantivy::query::QueryParserError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum GraphError {
+    #[error("Invalid path: {0:?}")]
+    InvalidPath(PathBuf),
     #[error("Graph error occurred")]
     UnsupportedDataType,
+    #[error("Disk graph not found")]
+    DiskGraphNotFound,
+    #[error("Disk Graph is immutable")]
+    ImmutableDiskGraph,
+    #[error("Event Graph doesn't support deletions")]
+    EventGraphDeletionsNotSupported,
+    #[error("Graph not found {0}")]
+    GraphNotFound(String),
     #[error("Graph already exists by name = {name}")]
     GraphNameAlreadyExists { name: String },
     #[error("Immutable graph reference already exists. You can access mutable graph apis only exclusively.")]
@@ -109,7 +120,7 @@ pub enum GraphError {
     },
 
     #[error(
-        "Failed to load the graph as the bincode version {0} is different to installed version {1}"
+        "Failed to load the graph as the bincode version {0} is different to supported version {1}"
     )]
     BincodeVersionError(u32, u32),
 
