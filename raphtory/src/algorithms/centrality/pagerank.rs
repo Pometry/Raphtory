@@ -183,7 +183,7 @@ pub fn unweighted_page_rank<G: StaticGraphViewOps>(
 }
 
 #[cfg(test)]
-mod page_rank_tests {
+pub mod page_rank_tests {
     use super::*;
     use crate::{
         db::{api::mutation::AdditionOps, graph::graph::Graph},
@@ -352,7 +352,7 @@ mod page_rank_tests {
         });
     }
 
-    fn assert_eq_f64<T: Borrow<f64> + PartialEq + std::fmt::Debug>(
+    pub fn assert_eq_f64<T: Borrow<f64> + PartialEq + std::fmt::Debug>(
         a: Option<T>,
         b: Option<T>,
         decimals: u8,
