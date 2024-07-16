@@ -10,27 +10,61 @@ use rustc_hash::FxHashSet;
 
 use crate::prelude::{EdgeViewOps, GraphViewOps, NodeViewOps};
 
-pub fn temporal_rich_club_coefficient<
-    'a,
-    I: IntoIterator<Item = G1>,
-    G1: GraphViewOps<'a>,
-    G2: GraphViewOps<'a>,
-    const D: usize,
->(
+struct SlidingWindows<I> {
+    iter: I,
+    window_size: usize,
+}
+
+impl<I> SlidingWindows<I> {
+    fn new(iter: I, window_size: usize) -> Self {
+        SlidingWindows { iter, window_size }
+    }
+}
+
+impl<I> Iterator for SlidingWindows<I>
+where
+    I: Iterator,
+    I::Item: Clone,
+{
+    type Item = Vec<I::Item>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut window = Vec::with_capacity(self.window_size);
+        for _ in 0..self.window_size {
+            if let Some(item) = self.iter.next() {
+                window.push(item);
+            } else {
+                return None;
+            }
+        }
+        Some(window)
+    }
+}
+
+pub fn temporal_rich_club_coefficient<'a, I, G1, G2>(
     agg_graph: G2,
     views: I,
     k: usize,
-) -> f64 {
+    window_size: usize,
+) -> f64
+where
+    I: IntoIterator<Item = G1>,
+    G1: GraphViewOps<'a>,
+    G2: GraphViewOps<'a>,
+{
     let s_k: HashSet<VID> = agg_graph
         .nodes()
         .into_iter()
         .filter(|v| v.degree() >= k)
         .map(|v| v.node)
         .collect();
-    let temp_rich_club_vals = views
-        .into_iter()
-        .map_windows(|window: &[G1; D]| intermediate_rich_club_coef(s_k.clone(), window.clone()));
-    return temp_rich_club_vals.reduce(f64::max).unwrap_or(0.0);
+
+    let temp_rich_club_vals = SlidingWindows::new(views.into_iter(), window_size)
+        .map(|window| intermediate_rich_club_coef(s_k.clone(), window))
+        .reduce(f64::max)
+        .unwrap_or(0.0);
+
+    temp_rich_club_vals
 }
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone)]
@@ -48,10 +82,14 @@ fn undir_edge<T: Into<VID>>(src: T, dst: T) -> UndirEdge {
     }
 }
 
-fn intermediate_rich_club_coef<'a, I: IntoIterator<Item = G1>, G1: GraphViewOps<'a>>(
+fn intermediate_rich_club_coef<'a, I, G1>(
     s_k: HashSet<VID>,
     views: I,
-) -> f64 {
+) -> f64 
+where 
+    I: IntoIterator<Item = G1>,
+    G1: GraphViewOps<'a>,
+{
     let stable_edges = views
         .into_iter()
         .map(|g| {
@@ -132,11 +170,11 @@ mod rich_club_test {
         let g_rolling = g.rolling(1, Some(1)).unwrap();
 
         let rc_coef_1 =
-            temporal_rich_club_coefficient::<_, _, _, 1>(g.clone(), g_rolling.clone(), 3);
+            temporal_rich_club_coefficient(g.clone(), g_rolling.clone(), 3, 1);
         let rc_coef_3 =
-            temporal_rich_club_coefficient::<_, _, _, 3>(g.clone(), g_rolling.clone(), 3);
+            temporal_rich_club_coefficient(g.clone(), g_rolling.clone(), 3, 3);
         let rc_coef_5 =
-            temporal_rich_club_coefficient::<_, _, _, 5>(g.clone(), g_rolling.clone(), 3);
+            temporal_rich_club_coefficient(g.clone(), g_rolling.clone(), 3, 5);
         assert_eq_f64(Some(rc_coef_1), Some(1.0), 3);
         assert_eq_f64(Some(rc_coef_3), Some(0.66666), 3);
         assert_eq_f64(Some(rc_coef_5), Some(0.5), 3);

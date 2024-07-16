@@ -1,5 +1,3 @@
-#![feature(iter_map_windows)]
-
 //! # raphtory
 //!
 //! `raphtory` is a Rust library for analysing time-based graph data.

@@ -39,6 +39,7 @@ use crate::{
             },
             local_temporal_three_node_motifs::temporal_three_node_motif as local_three_node_rs,
             local_triangle_count::local_triangle_count as local_triangle_count_rs,
+            temporal_rich_club_coefficient::temporal_rich_club_coefficient as temporal_rich_club_rs,
         },
         pathing::{
             dijkstra::dijkstra_single_source_shortest_paths as dijkstra_single_source_shortest_paths_rs,
@@ -54,8 +55,9 @@ use crate::{
         utils::{PyInputNode, PyTime},
     },
 };
+use itertools::Itertools;
 use ordered_float::OrderedFloat;
-use pyo3::prelude::*;
+use pyo3::{prelude::*, types::PyIterator};
 use rand::{prelude::StdRng, SeedableRng};
 use std::collections::{HashMap, HashSet};
 
@@ -800,4 +802,39 @@ pub fn cohesive_fruchterman_reingold(
     .into_iter()
     .map(|(id, vector)| (id, [vector.x, vector.y]))
     .collect()
+}
+
+/// Temporal rich club coefficient
+///
+/// The traditional rich-club coefficient in a static undirected graph measures the density of connections between the highest
+/// degree nodes. It takes a single parameter k, creates a subgraph of the nodes of degree greater than or equal to k, and
+/// returns the density of this subgraph.
+/// 
+/// In a temporal graph taking the form of a sequence of static snapshots, the temporal rich club coefficient takes a parameter k
+/// and a window size delta (both positive integers). It measures the maximal density of the highest connected nodes (of degree 
+/// greater than or equal to k in the aggregate graph) that persists at least a delta number of consecutive snapshots. For an in-depth
+/// definition and usage example, please read to the following paper: Pedreschi, N., Battaglia, D., & Barrat, A. (2022). The temporal 
+/// rich club phenomenon. Nature Physics, 18(8), 931-938.
+/// 
+/// Arguments:
+///     graph (GraphView): the aggregate graph
+///     views (iterator(GraphView)): sequence of graphs (can be obtained by calling g.rolling(..) on an aggregate graph g)
+///     k (int): min degree of nodes to include in rich-club
+///     delta (int): the number of consecutive snapshots over which the edges should persist
+///
+/// Returns:
+///     the rich-club coefficient as a float.
+#[pyfunction]
+#[pyo3[signature = (graph, views, k, delta)]]
+pub fn temporal_rich_club_coefficient(graph: PyGraphView, views:&PyAny, k:usize, delta:usize) -> f64 {
+    let py_iterator = PyIterator::from_object(views).unwrap();
+    // let views : Vec<DynamicGraph> = py_iterator.map(|item| {
+    //     item.and_then(PyGraphView::extract)
+    //     .map(|pgv: PyGraphView| pgv.graph)
+    // }).collect::<Result<_, _>>().unwrap();
+    let iter = py_iterator.map(|item| {
+        item.and_then(PyGraphView::extract)
+            .map(|pgv: PyGraphView| pgv.graph).unwrap()
+    });
+    temporal_rich_club_rs(graph.graph, iter, k, delta)
 }
