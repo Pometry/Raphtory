@@ -465,7 +465,7 @@ impl Mut {
         overwrite: bool,
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
-        let path = construct_graph_path(data.work_dir.as_str(), name.as_str(), namespace)?;
+        let path = construct_graph_path(&data.work_dir, name.as_str(), namespace)?;
         if path.exists() && !overwrite {
             return Err(GraphError::GraphNameAlreadyExists { name }.into());
         }
@@ -554,11 +554,11 @@ pub(crate) fn construct_graph_name(name: &String, namespace: &Option<String>) ->
 }
 
 pub(crate) fn construct_graph_path(
-    work_dir: &str,
+    work_dir: &Path,
     name: &str,
     namespace: &Option<String>,
 ) -> Result<PathBuf, GqlGraphError> {
-    let mut path = PathBuf::from(work_dir);
+    let mut path = work_dir.to_path_buf();
     if let Some(ns) = namespace {
         if ns.contains("//") {
             return Err(GqlGraphError::InvalidNamespace(ns.to_string()));

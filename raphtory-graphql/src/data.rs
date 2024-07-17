@@ -25,7 +25,7 @@ use std::{
 use walkdir::WalkDir;
 
 pub struct Data {
-    pub(crate) work_dir: String,
+    pub(crate) work_dir: PathBuf,
     pub(crate) graphs: Arc<Cache<String, IndexedGraph<MaterializedGraph>>>,
     pub(crate) global_plugins: GlobalPlugins,
 }
@@ -43,7 +43,7 @@ impl Data {
             Arc::new(graphs_cache_builder);
 
         Self {
-            work_dir: work_dir.to_string_lossy().into_owned(),
+            work_dir: work_dir.to_path_buf(),
             graphs: graphs_cache,
             global_plugins: GlobalPlugins::default(),
         }
@@ -133,7 +133,7 @@ fn load_disk_graph_from_path(
     let (name, graph) = load_disk_graph(path)?;
     let graph_dir = &graph.into_disk_graph().unwrap().graph_dir;
     let target_dir =
-        &construct_graph_path(&work_dir.display().to_string(), name.as_str(), namespace)?;
+        &construct_graph_path(&work_dir, name.as_str(), namespace)?;
     if target_dir.exists() {
         if overwrite {
             fs::remove_dir_all(target_dir)?;
@@ -178,7 +178,7 @@ pub fn load_graph_from_path(
         }
     } else {
         let (name, graph) = load_bincode_graph(path)?;
-        let path = construct_graph_path(&work_dir.display().to_string(), name.as_str(), namespace)?;
+        let path = construct_graph_path(&work_dir, name.as_str(), namespace)?;
         if path.exists() {
             if overwrite {
                 fs::remove_file(&path)?;
@@ -354,7 +354,7 @@ pub(crate) fn save_graphs_to_work_dir(
     graphs: &HashMap<String, MaterializedGraph>,
 ) -> Result<()> {
     for (name, graph) in graphs {
-        let path = construct_graph_path(&work_dir.display().to_string(), name, &namespace)?;
+        let path = construct_graph_path(&work_dir, name, &namespace)?;
         graph.save_to_path(&path)?;
     }
     Ok(())
