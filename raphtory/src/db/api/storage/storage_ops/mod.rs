@@ -32,9 +32,8 @@ use crate::{
     prelude::{DeletionOps, GraphViewOps},
 };
 use itertools::Itertools;
-use pometry_storage::GidRef;
 #[cfg(feature = "storage")]
-use pometry_storage::GID;
+use pometry_storage::{GidRef, GID};
 use raphtory_api::core::entities::ELID;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
