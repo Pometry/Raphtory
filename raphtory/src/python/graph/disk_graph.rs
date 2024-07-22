@@ -5,10 +5,8 @@ use crate::{
         datatypes::{ArrowDataType as DataType, Field},
     },
     core::utils::errors::GraphError,
-    disk_graph::{
-        graph_impl::{DiskGraphStorage, ParquetLayerCols},
-        Error,
-    },
+    disk_graph::{graph_impl::ParquetLayerCols, DiskGraphError, DiskGraphStorage},
+    io::arrow::dataframe::DFView,
     python::{
         graph::graph::PyGraph, types::repr::StructReprBuilder, utils::errors::adapt_err_value,
     },
@@ -19,7 +17,7 @@ use pyo3::{
     prelude::*,
     types::{PyDict, PyList, PyString},
 };
-use std::{io::Write, path::Path, sync::Arc};
+use std::path::Path;
 
 impl From<DiskGraphError> for PyErr {
     fn from(value: DiskGraphError) -> Self {
@@ -117,7 +115,10 @@ impl<'a> FromPyObject<'a> for ParquetLayerColsList<'a> {
 #[pymethods]
 impl PyGraph {
     /// save graph in disk_graph format and memory map the result
-    pub fn persist_as_disk_graph(&self, graph_dir: &str) -> Result<DiskGraphStorage, DiskGraphError> {
+    pub fn persist_as_disk_graph(
+        &self,
+        graph_dir: &str,
+    ) -> Result<DiskGraphStorage, DiskGraphError> {
         self.graph.persist_as_disk_graph(graph_dir)
     }
 }
@@ -199,7 +200,7 @@ impl PyDiskGraph {
         &self,
         other: &Self,
         graph_dir: &str,
-    ) -> Result<DiskGraph, DiskGraphError> {
+    ) -> Result<DiskGraphStorage, DiskGraphError> {
         self.graph.merge_by_sorted_gids(&other.graph, graph_dir)
     }
 

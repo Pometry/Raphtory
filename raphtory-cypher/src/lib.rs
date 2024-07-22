@@ -34,7 +34,7 @@ mod cypher {
         parser::ast::*,
         *,
     };
-    use raphtory::disk_graph::graph_impl::DiskGraphStorage;
+    use raphtory::disk_graph::DiskGraphStorage;
 
     use crate::{
         executor::table_provider::node::NodeTableProvider,
@@ -185,7 +185,7 @@ mod cypher {
         use arrow_array::RecordBatch;
         use tempfile::tempdir;
 
-        use raphtory::{disk_graph::graph_impl::DiskGraphStorage, prelude::*};
+        use raphtory::{disk_graph::DiskGraphStorage, prelude::*};
 
         use crate::run_cypher;
 
@@ -280,7 +280,7 @@ mod cypher {
             use arrow::util::pretty::print_batches;
             use tempfile::tempdir;
 
-            use raphtory::disk_graph::graph_impl::{DiskGraphStorage, ParquetLayerCols};
+            use raphtory::disk_graph::{graph_impl::ParquetLayerCols, DiskGraphStorage};
 
             use crate::run_cypher;
 

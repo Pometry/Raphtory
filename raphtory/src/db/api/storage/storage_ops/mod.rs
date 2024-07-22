@@ -1,5 +1,5 @@
 #[cfg(feature = "storage")]
-use crate::disk_graph::{graph_impl::DiskGraphStorage, storage_interface::edge::DiskOwnedEdge};
+use crate::disk_graph::{storage_interface::edge::DiskOwnedEdge, DiskGraphStorage};
 use crate::{
     core::{
         entities::{
@@ -32,6 +32,7 @@ use crate::{
     prelude::{DeletionOps, GraphViewOps},
 };
 use itertools::Itertools;
+use pometry_storage::GidRef;
 #[cfg(feature = "storage")]
 use pometry_storage::GID;
 use raphtory_api::core::entities::ELID;
@@ -144,8 +145,8 @@ impl GraphStorage {
                 GraphStorage::Unlocked(unlocked) => unlocked.resolve_node_ref(node_ref),
                 #[cfg(feature = "storage")]
                 GraphStorage::Disk(storage) => match v {
-                    NodeRef::External(id) => storage.inner.find_node(&GID::U64(id)),
-                    NodeRef::ExternalStr(vid) => storage.inner.find_node(&GID::Str(vid.into())),
+                    NodeRef::External(id) => storage.inner.find_node(GidRef::U64(id)),
+                    NodeRef::ExternalStr(vid) => storage.inner.find_node(GidRef::Str(vid)),
                     _ => unreachable!("VID is handled above!"),
                 },
             },

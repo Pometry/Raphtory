@@ -14,7 +14,7 @@ use raphtory::{
         Direction,
     },
     db::{api::properties::internal::ConstPropertiesOps, graph::node::NodeView},
-    disk_graph::graph_impl::DiskGraphStorage,
+    disk_graph::DiskGraphStorage,
     prelude::*,
 };
 use sqlparser::ast::{
@@ -1147,6 +1147,7 @@ mod test {
     use pretty_assertions::assert_eq;
     use raphtory::{
         db::{api::mutation::AdditionOps, graph::graph::Graph},
+        disk_graph::DiskGraphStorage,
         prelude::NO_PROPS,
     };
     use tempfile::tempdir;

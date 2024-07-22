@@ -160,13 +160,6 @@ impl<'source> FromPyObject<'source> for GID {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq, Ord, Hash)]
-pub enum GidRef<'a> {
-    U64(u64),
-    I64(i64),
-    Str(&'a str),
-}
-
 impl GID {
     pub fn into_str(self) -> Option<String> {
         match self {
@@ -256,5 +249,77 @@ impl From<String> for GID {
 impl From<&str> for GID {
     fn from(id: &str) -> Self {
         Self::Str(id.to_string())
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq, Ord, Hash)]
+pub enum GidRef<'a> {
+    U64(u64),
+    I64(i64),
+    Str(&'a str),
+}
+
+impl<'a> From<&'a GID> for GidRef<'a> {
+    fn from(value: &'a GID) -> Self {
+        match value {
+            GID::U64(v) => GidRef::U64(*v),
+            GID::I64(v) => GidRef::I64(*v),
+            GID::Str(v) => GidRef::Str(v),
+        }
+    }
+}
+
+impl<'a> GidRef<'a> {
+    pub fn as_str(self) -> Option<&'a str> {
+        match self {
+            GidRef::Str(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    pub fn as_i64(self) -> Option<i64> {
+        match self {
+            GidRef::I64(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn as_u64(self) -> Option<u64> {
+        match self {
+            GidRef::U64(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn to_owned(self) -> GID {
+        match self {
+            GidRef::U64(v) => GID::U64(v),
+            GidRef::I64(v) => GID::I64(v),
+            GidRef::Str(v) => GID::Str(v.to_owned()),
+        }
+    }
+
+    pub fn to_str(self) -> Cow<'a, str> {
+        match self {
+            GidRef::U64(v) => Cow::Owned(v.to_string()),
+            GidRef::I64(v) => Cow::Owned(v.to_string()),
+            GidRef::Str(v) => Cow::Borrowed(v),
+        }
+    }
+
+    pub fn to_i64(self) -> Option<i64> {
+        match self {
+            GidRef::U64(v) => v.to_i64(),
+            GidRef::I64(v) => Some(v),
+            GidRef::Str(v) => parse_u64_strict(v)?.to_i64(),
+        }
+    }
+
+    pub fn to_u64(self) -> Option<u64> {
+        match self {
+            GidRef::U64(v) => Some(v),
+            GidRef::I64(v) => v.to_u64(),
+            GidRef::Str(v) => parse_u64_strict(v),
+        }
     }
 }

@@ -1,30 +1,35 @@
-use crate::{
-    core::entities::{
-        properties::{graph_meta::GraphMeta, props::Meta},
-        LayerIds,
-    },
-    db::api::view::{internal::Immutable, DynamicGraph, IntoDynamic},
-    disk_graph::graph_impl::{prop_conversion::make_node_properties_from_graph, ParquetLayerCols},
-    prelude::{Graph, GraphViewOps},
-};
-use polars_arrow::{
-    array::{PrimitiveArray, StructArray},
-    datatypes::{ArrowDataType as DataType, Field},
-};
-use pometry_storage::{
-    disk_hmap::DiskHashMap, graph::TemporalGraph, graph_fragment::TempColGraphFragment,
-    load::ExternalEdgeList, merge::merge_graph::merge_graphs, RAError,
-};
-use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::{
     fmt::{Display, Formatter},
     path::{Path, PathBuf},
     sync::Arc,
 };
 
+use polars_arrow::{
+    array::{PrimitiveArray, StructArray},
+    datatypes::{ArrowDataType as DataType, Field},
+};
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+use pometry_storage::{
+    disk_hmap::DiskHashMap, graph::TemporalGraph, graph_fragment::TempColGraphFragment,
+    load::ExternalEdgeList, merge::merge_graph::merge_graphs, RAError,
+};
+use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
+
+use crate::{
+    core::{
+        entities::{
+            properties::{graph_meta::GraphMeta, props::Meta},
+            LayerIds,
+        },
+        utils::errors::GraphError,
+    },
+    disk_graph::graph_impl::{prop_conversion::make_node_properties_from_graph, ParquetLayerCols},
+    prelude::{Graph, GraphViewOps, Layer},
+};
+
 pub mod graph_impl;
-pub mod query;
 pub mod storage_interface;
 
 pub type Time = i64;
@@ -36,11 +41,11 @@ pub mod prelude {
 #[derive(thiserror::Error, Debug)]
 pub enum DiskGraphError {
     #[error("Raphtory Arrow Error: {0}")]
-    RAError(#[from] pometry_storage::RAError),
+    RAError(#[from] RAError),
 }
 
 #[derive(Clone, Debug)]
-pub struct DiskGraph {
+pub struct DiskGraphStorage {
     pub(crate) inner: Arc<TemporalGraph>,
     node_meta: Arc<Meta>,
     edge_meta: Arc<Meta>,
@@ -48,7 +53,7 @@ pub struct DiskGraph {
     graph_dir: PathBuf,
 }
 
-impl Serialize for DiskGraph {
+impl Serialize for DiskGraphStorage {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -58,49 +63,104 @@ impl Serialize for DiskGraph {
     }
 }
 
-impl<'de> Deserialize<'de> for DiskGraph {
+impl<'de> Deserialize<'de> for DiskGraphStorage {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
         let path = PathBuf::deserialize(deserializer)?;
-        let graph_result = DiskGraph::load_from_dir(&path).map_err(|err| {
+        let graph_result = DiskGraphStorage::load_from_dir(&path).map_err(|err| {
             serde::de::Error::custom(format!("Failed to load Diskgraph: {:?}", err))
         })?;
         Ok(graph_result)
     }
 }
 
-impl Display for DiskGraph {
+impl Display for DiskGraphStorage {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "Diskgraph(num_nodes={}, num_temporal_edges={}",
-            self.count_nodes(),
-            self.count_temporal_edges()
+            self.inner.num_nodes(),
+            self.inner.count_temporal_edges()
         )
     }
 }
-
-impl AsRef<TemporalGraph> for DiskGraph {
+impl AsRef<TemporalGraph> for DiskGraphStorage {
     fn as_ref(&self) -> &TemporalGraph {
         &self.inner
     }
 }
 
-impl Immutable for DiskGraph {}
-
-impl IntoDynamic for DiskGraph {
-    fn into_dynamic(self) -> DynamicGraph {
-        DynamicGraph::new(self)
-    }
-}
-
-impl DiskGraph {
+impl DiskGraphStorage {
     pub fn graph_dir(&self) -> &Path {
         &self.graph_dir
     }
-    fn layer_from_ids(&self, layer_ids: &LayerIds) -> Option<usize> {
+
+    pub fn valid_layer_ids_from_names(&self, key: Layer) -> LayerIds {
+        match key {
+            Layer::All | Layer::Default => LayerIds::One(0), // FIXME: need to handle all correctly
+            Layer::One(name) => {
+                let name = name.as_ref();
+                self.inner
+                    .layer_names()
+                    .iter()
+                    .enumerate()
+                    .find(move |(_, ref n)| n == &name)
+                    .map(|(i, _)| LayerIds::One(i))
+                    .unwrap_or(LayerIds::None)
+            }
+            _ => todo!("Layer ids for multiple names not implemented for Diskgraph"),
+        }
+    }
+
+    pub fn layer_ids_from_names(&self, key: Layer) -> Result<LayerIds, GraphError> {
+        match key {
+            Layer::All => Ok(LayerIds::All),
+            Layer::Default => Ok(LayerIds::One(0)),
+            Layer::One(name) => {
+                let id = self.inner.find_layer_id(&name).ok_or_else(|| {
+                    GraphError::invalid_layer(name.to_string(), self.inner.get_valid_layers())
+                })?;
+                Ok(LayerIds::One(id))
+            }
+            Layer::None => Ok(LayerIds::None),
+            Layer::Multiple(names) => {
+                let ids = names
+                    .iter()
+                    .map(|name| {
+                        self.inner.find_layer_id(name).ok_or_else(|| {
+                            GraphError::invalid_layer(
+                                name.to_string(),
+                                self.inner.get_valid_layers(),
+                            )
+                        })
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(LayerIds::Multiple(ids.into()))
+            }
+        }
+    }
+
+    pub fn into_graph(self) -> Graph {
+        Graph::from_internal_graph(&crate::db::api::storage::storage_ops::GraphStorage::Disk(
+            Arc::new(self),
+        ))
+    }
+
+    pub(crate) fn core_temporal_edge_prop_ids(
+        &self,
+        e: EdgeRef,
+        layer_ids: &LayerIds,
+    ) -> Box<dyn Iterator<Item = usize> + '_> {
+        let layer_id = match layer_ids.constrain_from_edge(e) {
+            LayerIds::One(id) => id,
+            _ => panic!("Only one layer is supported"),
+        };
+        Box::new(1..self.inner.edges_data_type(layer_id).len())
+    }
+
+    pub fn layer_from_ids(&self, layer_ids: &LayerIds) -> Option<usize> {
         match layer_ids {
             LayerIds::One(layer_id) => Some(*layer_id),
             LayerIds::None => None,
@@ -122,7 +182,7 @@ impl DiskGraph {
         edges: &[(u64, u64, i64, f64)],
         chunk_size: usize,
         t_props_chunk_size: usize,
-    ) -> DiskGraph {
+    ) -> DiskGraphStorage {
         // unzip into 4 vectors
         let (src, (dst, (time, weight))): (Vec<_>, (Vec<_>, (Vec<_>, Vec<_>))) = edges
             .iter()
@@ -144,7 +204,7 @@ impl DiskGraph {
             ],
             None,
         )];
-        DiskGraph::load_from_edge_lists(
+        DiskGraphStorage::load_from_edge_lists(
             &edge_lists,
             chunk_size,
             t_props_chunk_size,
@@ -160,12 +220,12 @@ impl DiskGraph {
     /// sorted by their global ids or the resulting graph will be nonsense!
     pub fn merge_by_sorted_gids(
         &self,
-        other: &DiskGraph,
+        other: &DiskGraphStorage,
         new_graph_dir: impl AsRef<Path>,
-    ) -> Result<DiskGraph, DiskGraphError> {
+    ) -> Result<DiskGraphStorage, DiskGraphError> {
         let graph_dir = new_graph_dir.as_ref();
         let inner = merge_graphs(graph_dir, &self.inner, &other.inner)?;
-        Ok(DiskGraph::new(inner, graph_dir.to_path_buf()))
+        Ok(DiskGraphStorage::new(inner, graph_dir.to_path_buf()))
     }
 
     fn new(inner_graph: TemporalGraph, graph_dir: PathBuf) -> Self {
@@ -259,7 +319,7 @@ impl DiskGraph {
         Ok(Self::new(inner, path))
     }
 
-    pub fn load_from_dir(graph_dir: impl AsRef<Path>) -> Result<DiskGraph, RAError> {
+    pub fn load_from_dir(graph_dir: impl AsRef<Path>) -> Result<DiskGraphStorage, RAError> {
         let path = graph_dir.as_ref().to_path_buf();
         let inner = TemporalGraph::new(graph_dir)?;
         Ok(Self::new(inner, path))
@@ -275,7 +335,7 @@ impl DiskGraph {
         concurrent_files: Option<usize>,
         num_threads: usize,
         node_type_col: Option<&str>,
-    ) -> Result<DiskGraph, RAError> {
+    ) -> Result<DiskGraphStorage, RAError> {
         let layered_edge_list: Vec<ExternalEdgeList<&Path>> = layer_parquet_cols
             .iter()
             .map(
@@ -345,29 +405,43 @@ impl DiskGraph {
         );
         Self::new(inner, path)
     }
+
+    pub fn node_meta(&self) -> &Meta {
+        &self.node_meta
+    }
+
+    pub fn edge_meta(&self) -> &Meta {
+        &self.edge_meta
+    }
+
+    pub fn graph_meta(&self) -> &GraphMeta {
+        &self.graph_props
+    }
 }
 
 #[cfg(test)]
 mod test {
     use std::path::Path;
 
-    use crate::{
-        arrow2::datatypes::{ArrowDataType as DataType, ArrowSchema as Schema},
-        db::graph::graph::assert_graph_equal,
-        prelude::*,
-    };
     use itertools::Itertools;
     use polars_arrow::{
         array::{PrimitiveArray, StructArray},
         datatypes::Field,
     };
-    use pometry_storage::{global_order::GlobalMap, graph_fragment::TempColGraphFragment, RAError};
     use proptest::{prelude::*, sample::size_range};
+    use tempfile::TempDir;
+
+    use pometry_storage::{global_order::GlobalMap, graph_fragment::TempColGraphFragment, RAError};
     use raphtory_api::core::{
         entities::{EID, VID},
         Direction,
     };
-    use tempfile::TempDir;
+
+    use crate::{
+        arrow2::datatypes::{ArrowDataType as DataType, ArrowSchema as Schema},
+        db::graph::graph::assert_graph_equal,
+        prelude::*,
+    };
 
     fn edges_sanity_node_list(edges: &[(u64, u64, i64)]) -> Vec<u64> {
         edges
@@ -702,8 +776,9 @@ mod test {
     mod addition_bounds {
         use itertools::Itertools;
         use proptest::{prelude::*, sample::size_range};
-        use raphtory_api::core::entities::VID;
         use tempfile::TempDir;
+
+        use raphtory_api::core::entities::VID;
 
         use super::{
             edges_sanity_check_build_graph, AdditionOps, Graph, GraphViewOps, NodeViewOps,

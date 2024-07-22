@@ -43,8 +43,8 @@ use pometry_storage::graph_fragment::TempColGraphFragment;
 use raphtory::{
     core::{entities::VID, Direction},
     disk_graph::{
-        graph_impl::DiskGraphStorage,
         prelude::{ArrayOps, BaseArrayOps, PrimitiveCol},
+        DiskGraphStorage,
     },
 };
 

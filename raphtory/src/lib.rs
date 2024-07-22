@@ -122,8 +122,7 @@ pub mod prelude {
             graph::graph::Graph,
         },
     };
-    pub use raphtory_api::core::input::input_node::InputNode;
-    pub use raphtory_api::core::entities::GID;
+    pub use raphtory_api::core::{entities::GID, input::input_node::InputNode};
 }
 
 pub const BINCODE_VERSION: u32 = 2u32;

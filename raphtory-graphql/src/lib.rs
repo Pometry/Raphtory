@@ -46,7 +46,7 @@ mod graphql_test {
     use async_graphql::UploadValue;
     use dynamic_graphql::{Request, Variables};
     #[cfg(feature = "storage")]
-    use raphtory::disk_graph::graph_impl::DiskGraphStorage;
+    use raphtory::disk_graph::DiskGraphStorage;
     use raphtory::{
         db::{api::view::IntoDynamic, graph::views::deletion_graph::PersistentGraph},
         prelude::*,

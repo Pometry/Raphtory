@@ -1,7 +1,6 @@
 use crate::{
     core::entities::LayerIds,
     db::api::{storage::edges::edge_ref::EdgeStorageRef, view::internal::EdgeFilterOps},
-    disk_graph::DiskGraph,
 };
 
 use super::GraphStorage;
