@@ -106,8 +106,8 @@ impl std::fmt::Display for GraphStorage {
 impl GraphStorage {
     pub fn is_immutable(&self) -> bool {
         match self {
-            GraphStorage::Mem(_) => false,
-            GraphStorage::Unlocked(_) => true,
+            GraphStorage::Mem(_) => true,
+            GraphStorage::Unlocked(_) => false,
             #[cfg(feature = "storage")]
             GraphStorage::Disk(_) => true,
         }
