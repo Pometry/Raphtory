@@ -125,7 +125,7 @@ pub mod prelude {
     pub use raphtory_api::core::{entities::GID, input::input_node::InputNode};
 }
 
-pub const BINCODE_VERSION: u32 = 2u32;
+pub const BINCODE_VERSION: u32 = 3u32;
 #[cfg(feature = "storage")]
 pub use polars_arrow as arrow2;
 
