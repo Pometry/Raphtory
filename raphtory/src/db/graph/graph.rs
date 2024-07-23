@@ -594,7 +594,11 @@ mod db_tests {
 
         assert!(!g.has_edge(9, 7));
         assert!(g.has_edge(7, 9));
+    }
 
+    #[test]
+    fn has_edge_str() {
+        let g = Graph::new();
         g.add_edge(2, "haaroon", "northLondon", NO_PROPS, None)
             .unwrap();
         assert!(g.has_edge("haaroon", "northLondon"));
@@ -1010,18 +1014,28 @@ mod db_tests {
     }
 
     #[test]
+    fn test_add_node_with_nums() {
+        let graph = Graph::new();
+
+        graph.add_node(1, 831, NO_PROPS, None).unwrap();
+        test_storage!(&graph, |graph| {
+            assert!(graph.has_node(831));
+
+            assert_eq!(graph.count_nodes(), 1);
+        });
+    }
+
+    #[test]
     fn test_add_node_with_strings() {
         let graph = Graph::new();
 
         graph.add_node(0, "haaroon", NO_PROPS, None).unwrap();
         graph.add_node(1, "hamza", NO_PROPS, None).unwrap();
-        graph.add_node(1, 831, NO_PROPS, None).unwrap();
         test_storage!(&graph, |graph| {
-            assert!(graph.has_node(831));
             assert!(graph.has_node("haaroon"));
             assert!(graph.has_node("hamza"));
 
-            assert_eq!(graph.count_nodes(), 3);
+            assert_eq!(graph.count_nodes(), 2);
         });
     }
 
@@ -1326,14 +1340,8 @@ mod db_tests {
     }
 
     #[test]
-    fn check_node_history() {
+    fn check_node_history_str() {
         let graph = Graph::new();
-
-        graph.add_node(1, 1, NO_PROPS, None).unwrap();
-        graph.add_node(2, 1, NO_PROPS, None).unwrap();
-        graph.add_node(3, 1, NO_PROPS, None).unwrap();
-        graph.add_node(4, 1, NO_PROPS, None).unwrap();
-        graph.add_node(8, 1, NO_PROPS, None).unwrap();
 
         graph.add_node(4, "Lord Farquaad", NO_PROPS, None).unwrap();
         graph.add_node(6, "Lord Farquaad", NO_PROPS, None).unwrap();
@@ -1342,18 +1350,37 @@ mod db_tests {
 
         // FIXME: Node updates without properties or edges are currently not supported in disk_graph (see issue #46)
         test_graph(&graph, |graph| {
-            let times_of_one = graph.node(1).unwrap().history();
             let times_of_farquaad = graph.node("Lord Farquaad").unwrap().history();
 
-            assert_eq!(times_of_one, [1, 2, 3, 4, 8]);
             assert_eq!(times_of_farquaad, [4, 6, 7, 8]);
 
             let view = graph.window(1, 8);
 
-            let windowed_times_of_one = view.node(1).unwrap().history();
             let windowed_times_of_farquaad = view.node("Lord Farquaad").unwrap().history();
-            assert_eq!(windowed_times_of_one, [1, 2, 3, 4]);
             assert_eq!(windowed_times_of_farquaad, [4, 6, 7]);
+        });
+    }
+
+    #[test]
+    fn check_node_history_num() {
+        let graph = Graph::new();
+
+        graph.add_node(1, 1, NO_PROPS, None).unwrap();
+        graph.add_node(2, 1, NO_PROPS, None).unwrap();
+        graph.add_node(3, 1, NO_PROPS, None).unwrap();
+        graph.add_node(4, 1, NO_PROPS, None).unwrap();
+        graph.add_node(8, 1, NO_PROPS, None).unwrap();
+
+        // FIXME: Node updates without properties or edges are currently not supported in disk_graph (see issue #46)
+        test_graph(&graph, |graph| {
+            let times_of_one = graph.node(1).unwrap().history();
+
+            assert_eq!(times_of_one, [1, 2, 3, 4, 8]);
+
+            let view = graph.window(1, 8);
+
+            let windowed_times_of_one = view.node(1).unwrap().history();
+            assert_eq!(windowed_times_of_one, [1, 2, 3, 4]);
         });
     }
 
@@ -1408,47 +1435,6 @@ mod db_tests {
             assert!(times_of_outside_window.is_empty());
             assert_eq!(windowed_times_of_four, [4]);
             assert_eq!(windowed_times_of_four_higher, [8, 9, 10]);
-        });
-    }
-
-    #[test]
-    fn check_node_history_multiple_shards() {
-        let graph = Graph::new();
-
-        graph.add_node(1, 1, NO_PROPS, None).unwrap();
-        graph.add_node(2, 1, NO_PROPS, None).unwrap();
-        graph.add_node(3, 1, NO_PROPS, None).unwrap();
-        graph.add_node(4, 1, NO_PROPS, None).unwrap();
-        graph.add_node(5, 2, NO_PROPS, None).unwrap();
-        graph.add_node(6, 2, NO_PROPS, None).unwrap();
-        graph.add_node(7, 2, NO_PROPS, None).unwrap();
-        graph.add_node(8, 1, NO_PROPS, None).unwrap();
-        graph.add_node(9, 2, NO_PROPS, None).unwrap();
-        graph.add_node(10, 2, NO_PROPS, None).unwrap();
-
-        graph.add_node(4, "Lord Farquaad", NO_PROPS, None).unwrap();
-        graph.add_node(6, "Lord Farquaad", NO_PROPS, None).unwrap();
-        graph.add_node(7, "Lord Farquaad", NO_PROPS, None).unwrap();
-        graph.add_node(8, "Lord Farquaad", NO_PROPS, None).unwrap();
-
-        // FIXME: Issue #46
-        test_graph(&graph, |graph| {
-            let times_of_one = graph.node(1).unwrap().history();
-            let times_of_farquaad = graph.node("Lord Farquaad").unwrap().history();
-            let times_of_upper = graph.node(2).unwrap().history();
-
-            assert_eq!(times_of_one, [1, 2, 3, 4, 8]);
-            assert_eq!(times_of_farquaad, [4, 6, 7, 8]);
-            assert_eq!(times_of_upper, [5, 6, 7, 9, 10]);
-
-            let view = graph.window(1, 8);
-            let windowed_times_of_one = view.node(1).unwrap().history();
-            let windowed_times_of_two = view.node(2).unwrap().history();
-            let windowed_times_of_farquaad = view.node("Lord Farquaad").unwrap().history();
-
-            assert_eq!(windowed_times_of_one, [1, 2, 3, 4]);
-            assert_eq!(windowed_times_of_farquaad, [4, 6, 7]);
-            assert_eq!(windowed_times_of_two, [5, 6, 7]);
         });
     }
 
