@@ -87,6 +87,7 @@ impl InternalAdditionOps for GraphStorage {
                 Prop::Str(value) => Prop::Str(storage.graph.resolve_str(value)),
                 _ => prop,
             },
+            #[cfg(feature = "storage")]
             _ => prop,
         }
     }
