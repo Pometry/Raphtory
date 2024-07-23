@@ -108,14 +108,8 @@ pub fn load_node_props_from_pandas(
         let df = process_pandas_py_df(df, py, cols_to_check.clone())?;
         df.check_cols_exist(&cols_to_check)?;
 
-        load_node_props_from_df(
-            &df,
-            id,
-            const_properties,
-            shared_const_properties,
-            graph,
-        )
-        .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
+        load_node_props_from_df(&df, id, const_properties, shared_const_properties, graph)
+            .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
 
         Ok::<(), PyErr>(())
     })

@@ -204,7 +204,9 @@ impl PyGraph {
             Ok(Py::new(
                 py,
                 (
-                    Self{graph: graph.clone()},
+                    Self {
+                        graph: graph.clone(),
+                    },
                     PyGraphView::from(graph.clone()),
                 ),
             )?)

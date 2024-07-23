@@ -27,9 +27,7 @@ use dashmap::DashSet;
 use either::Either;
 use itertools::Itertools;
 use raphtory_api::core::{
-    entities::edges::edge_ref::EdgeRef,
-    input::input_node::InputNode,
-    storage::arc_str::ArcStr,
+    entities::edges::edge_ref::EdgeRef, input::input_node::InputNode, storage::arc_str::ArcStr,
 };
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
@@ -321,12 +319,10 @@ impl TemporalGraph {
         match n.into_gid() {
             Either::Left(id) => {
                 let name = id.as_str().map(|s| s.to_string());
-                let ref_mut = self
-                    .logical_to_physical
-                    .get_or_init(id.clone(), || {
-                        let node_store = NodeStore::empty(id, name);
-                        self.storage.push_node(node_store)
-                    })?;
+                let ref_mut = self.logical_to_physical.get_or_init(id.clone(), || {
+                    let node_store = NodeStore::empty(id, name);
+                    self.storage.push_node(node_store)
+                })?;
                 Ok(ref_mut)
             }
             Either::Right(vid) => Ok(vid),
