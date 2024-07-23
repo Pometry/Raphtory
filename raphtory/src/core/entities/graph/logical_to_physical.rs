@@ -89,7 +89,7 @@ impl<'de> Deserialize<'de> for Mapping {
     where
         D: Deserializer<'de>,
     {
-        if let Ok(map) = Map::deserialize(deserializer) {
+        if let Some(map) = Option::<Map>::deserialize(deserializer)? {
             let once = OnceCell::with_value(map);
             Ok(Mapping { map: once })
         } else {
@@ -106,7 +106,7 @@ impl Serialize for Mapping {
         S: serde::Serializer,
     {
         if let Some(map) = self.map.get() {
-            map.serialize(serializer)
+            Some(map).serialize(serializer)
         } else {
             serializer.serialize_none()
         }
