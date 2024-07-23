@@ -24,9 +24,7 @@ use crate::{
             LayerIds,
         },
         utils::errors::GraphError,
-    },
-    disk_graph::graph_impl::{prop_conversion::make_node_properties_from_graph, ParquetLayerCols},
-    prelude::{Graph, GraphViewOps, Layer},
+    }, db::{api::storage::storage_ops, graph::views::deletion_graph::PersistentGraph}, disk_graph::graph_impl::{prop_conversion::make_node_properties_from_graph, ParquetLayerCols}, prelude::{Graph, Layer}
 };
 
 pub mod graph_impl;
@@ -143,7 +141,13 @@ impl DiskGraphStorage {
     }
 
     pub fn into_graph(self) -> Graph {
-        Graph::from_internal_graph(&crate::db::api::storage::storage_ops::GraphStorage::Disk(
+        Graph::from_internal_graph(&storage_ops::GraphStorage::Disk(
+            Arc::new(self),
+        ))
+    }
+
+    pub fn into_persistent_graph(self) -> PersistentGraph {
+        PersistentGraph::from_internal_graph(&storage_ops::GraphStorage::Disk(
             Arc::new(self),
         ))
     }

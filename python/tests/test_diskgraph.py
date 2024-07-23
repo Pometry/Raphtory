@@ -1,4 +1,4 @@
-from raphtory import DiskGraph
+from raphtory import DiskGraphStorage
 from raphtory import algorithms
 from utils import measure
 import tempfile
@@ -43,7 +43,7 @@ def test_disk_graph():
     try:
         g = measure(
             "Graph load from dir",
-            DiskGraph.load_from_dir,
+            DiskGraphStorage.load_from_dir,
             graph_dir,
             print_result=False,
         )
@@ -56,7 +56,7 @@ def test_disk_graph():
 
         g = measure(
             "Graph load from parquets",
-            DiskGraph.load_from_parquets,
+            DiskGraphStorage.load_from_parquets,
             graph_dir.name,
             layer_parquet_cols,
             None,
@@ -115,7 +115,7 @@ def test_disk_graph_type_filter():
     read_chunk_size = 4_000_000
     concurrent_files = 1
 
-    g = DiskGraph.load_from_parquets(
+    g = DiskGraphStorage.load_from_parquets(
         graph_dir.name,
         layer_parquet_cols,
         rsc_dir + "/netflowsorted/props/props.parquet",
@@ -125,7 +125,7 @@ def test_disk_graph_type_filter():
         concurrent_files,
         num_threads,
         "node_type"
-    )
+    ).to_events()
 
     assert g.count_nodes() == 1619
     assert g.layer("netflow").count_edges() == 2018

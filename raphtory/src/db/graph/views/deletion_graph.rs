@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, graph::tgraph::TemporalGraph, LayerIds, VID},
+        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexIntoOps, TimeIndexOps},
         utils::errors::GraphError,
         Prop,
@@ -30,7 +30,6 @@ use std::{
     iter,
     ops::Range,
     path::Path,
-    sync::Arc,
 };
 
 /// A graph view where an edge remains active from the time it is added until it is explicitly marked as deleted.
@@ -119,8 +118,8 @@ impl PersistentGraph {
         Self(GraphStorage::default())
     }
 
-    pub fn from_internal_graph(internal_graph: Arc<TemporalGraph>) -> Self {
-        Self(GraphStorage::Unlocked(internal_graph))
+    pub fn from_internal_graph(internal_graph: &GraphStorage) -> Self {
+        Self(internal_graph.clone())
     }
 
     /// Save a graph to a directory

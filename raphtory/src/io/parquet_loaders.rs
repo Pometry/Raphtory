@@ -49,10 +49,8 @@ pub fn load_nodes_from_parquet<
     for path in get_parquet_file_paths(parquet_path)? {
         let df = process_parquet_file_to_df(path.as_path(), cols_to_check.clone())?;
         df.check_cols_exist(&cols_to_check)?;
-        let size = df.get_inner_size();
         load_nodes_from_df(
             &df,
-            size,
             id,
             time,
             properties.clone(),
@@ -94,10 +92,8 @@ pub fn load_edges_from_parquet<
     for path in get_parquet_file_paths(parquet_path)? {
         let df = process_parquet_file_to_df(path.as_path(), cols_to_check.clone())?;
         df.check_cols_exist(&cols_to_check)?;
-        let size = cols_to_check.len();
         load_edges_from_df(
             &df,
-            size,
             src,
             dst,
             time,
@@ -129,10 +125,8 @@ pub fn load_node_props_from_parquet<
     for path in get_parquet_file_paths(parquet_path)? {
         let df = process_parquet_file_to_df(path.as_path(), cols_to_check.clone())?;
         df.check_cols_exist(&cols_to_check)?;
-        let size = cols_to_check.len();
         load_node_props_from_df(
             &df,
-            size,
             id,
             const_properties.clone(),
             shared_const_properties.clone(),
@@ -167,10 +161,8 @@ pub fn load_edge_props_from_parquet<
     for path in get_parquet_file_paths(parquet_path)? {
         let df = process_parquet_file_to_df(path.as_path(), cols_to_check.clone())?;
         df.check_cols_exist(&cols_to_check)?;
-        let size = cols_to_check.len();
         load_edges_props_from_df(
             &df,
-            size,
             src,
             dst,
             const_properties.clone(),
@@ -206,10 +198,8 @@ pub fn load_edges_deletions_from_parquet<
     for path in get_parquet_file_paths(parquet_path)? {
         let df = process_parquet_file_to_df(path.as_path(), cols_to_check.clone())?;
         df.check_cols_exist(&cols_to_check)?;
-        let size = cols_to_check.len();
         load_edges_deletions_from_df(
             &df,
-            size,
             src,
             dst,
             time,

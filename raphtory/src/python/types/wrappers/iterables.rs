@@ -31,6 +31,7 @@ py_iterable_comp!(Float64Iterable, f64, Float64IterableCmp);
 
 py_ordered_iterable!(GIDIterable, GID);
 py_iterable_comp!(GIDIterable, GID, GIDIterableCmp);
+
 py_iterable!(OptionGIDIterable, Option<GID>);
 py_iterable_comp!(OptionGIDIterable, Option<GID>, OptionGIDIterableCmp);
 py_nested_ordered_iterable!(NestedGIDIterable, GID, OptionGIDIterable);

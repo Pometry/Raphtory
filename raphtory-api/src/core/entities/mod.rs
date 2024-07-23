@@ -149,9 +149,9 @@ impl<'source> FromPyObject<'source> for GID {
         id.extract::<String>()
             .map(GID::Str)
             .or_else(|_| {
-                id.extract::<i64>()
-                    .map(GID::I64)
-                    .or_else(|_| id.extract::<u64>().map(GID::U64))
+                id.extract::<u64>()
+                    .map(GID::U64)
+                    .or_else(|_| id.extract::<i64>().map(GID::I64))
             })
             .map_err(|_| {
                 let msg = "IDs need to be strings or an unsigned integers";

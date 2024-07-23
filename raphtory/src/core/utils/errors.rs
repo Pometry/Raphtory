@@ -173,4 +173,6 @@ pub enum MutateGraphError {
     NoLayersError,
     #[error("Cannot add properties to edge view with more than one layer")]
     AmbiguousLayersError,
+    #[error("Invalid Node id {0:?}")]
+    InvalidNodeId(GID),
 }

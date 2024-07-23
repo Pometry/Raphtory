@@ -190,6 +190,27 @@ impl PyGraph {
         Ok((PyGraphEncoder::Graph, (state,)))
     }
 
+    #[cfg(feature = "storage")]
+    pub fn to_disk_graph(&self, graph_dir: String) -> PyResult<Py<Self>> {
+        use std::sync::Arc;
+
+        use crate::db::api::storage::storage_ops::GraphStorage;
+
+        let disk_graph = Graph::persist_as_disk_graph(&self.graph, graph_dir)?;
+        let storage = GraphStorage::Disk(Arc::new(disk_graph));
+        let graph = Graph::from_internal_graph(&storage);
+
+        Python::with_gil(|py| {
+            Ok(Py::new(
+                py,
+                (
+                    Self{graph: graph.clone()},
+                    PyGraphView::from(graph.clone()),
+                ),
+            )?)
+        })
+    }
+
     /// Adds a new node with the given id and properties to the graph.
     ///
     /// Arguments:

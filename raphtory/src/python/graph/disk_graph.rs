@@ -3,13 +3,9 @@ use crate::{
     arrow2::{
         array::StructArray,
         datatypes::{ArrowDataType as DataType, Field},
-    },
-    core::utils::errors::GraphError,
-    disk_graph::{graph_impl::ParquetLayerCols, DiskGraphError, DiskGraphStorage},
-    io::arrow::dataframe::DFView,
-    python::{
+    }, core::utils::errors::GraphError, db::graph::views::deletion_graph::PersistentGraph, disk_graph::{graph_impl::ParquetLayerCols, DiskGraphError, DiskGraphStorage}, io::arrow::dataframe::DFView, prelude::Graph, python::{
         graph::graph::PyGraph, types::repr::StructReprBuilder, utils::errors::adapt_err_value,
-    },
+    }
 };
 use itertools::Itertools;
 /// A columnar temporal graph.
@@ -125,9 +121,20 @@ impl PyGraph {
 
 #[pymethods]
 impl PyDiskGraph {
+
     pub fn graph_dir(&self) -> &Path {
         self.graph.graph_dir()
     }
+
+    pub fn to_events(&self) -> Graph {
+        self.graph.clone().into_graph()
+    }
+
+    pub fn to_persistent(&self) -> PersistentGraph{
+        self.graph.clone().into_persistent_graph()
+    }
+
+
     #[staticmethod]
     #[pyo3(signature = (graph_dir, edge_df, src_col, dst_col, time_col))]
     pub fn load_from_pandas(

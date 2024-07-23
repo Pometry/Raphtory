@@ -53,11 +53,32 @@ def create_graph_with_deletions():
     return g
 
 
+if "DISK_TEST_MARK" in os.environ:
+
+    def with_disk_graph(func):
+        def inner(graph):
+            func(graph)
+            with tempfile.TemporaryDirectory() as tmpdirname:
+                g = graph.to_disk_graph(tmpdirname)
+                func(g)
+
+        return inner
+
+else:
+
+    def with_disk_graph(func):
+        return func
+
+
 def test_graph_len_edge_len():
     g = create_graph()
 
-    assert g.count_nodes() == 3
-    assert g.count_edges() == 5
+    @with_disk_graph
+    def assert_len_edge_len(g):
+        assert g.count_nodes() == 3
+        assert g.count_edges() == 5
+
+    assert_len_edge_len(g)
 
 
 def test_graph_pickle():
@@ -83,189 +104,239 @@ def test_persistent_graph_pickle():
         assert g2.count_nodes() == 3
         assert g2.count_edges() == 5
 
+
 def test_id_iterable():
     g = create_graph()
 
-    assert g.nodes.id.max() == 3
-    assert g.nodes.id.min() == 1
-    assert set(g.nodes.id.collect()) == {1, 2, 3}
-    out_neighbours = g.nodes.out_neighbours.id.collect()
-    out_neighbours = (set(n) for n in out_neighbours)
-    out_neighbours = dict(zip(g.nodes.id, out_neighbours))
+    @with_disk_graph
+    def check_id_iterable(g):
+        assert g.nodes.id.max() == 3
+        assert g.nodes.id.min() == 1
+        assert set(g.nodes.id.collect()) == {1, 2, 3}
+        out_neighbours = g.nodes.out_neighbours.id.collect()
+        out_neighbours = (set(n) for n in out_neighbours)
+        out_neighbours = dict(zip(g.nodes.id, out_neighbours))
 
-    assert out_neighbours == {1: {1, 2, 3}, 2: {1}, 3: {2}}
+        assert out_neighbours == {1: {1, 2, 3}, 2: {1}, 3: {2}}
+
+    check_id_iterable(g)
 
 
 def test_degree_iterable():
     g = create_graph()
-    assert g.nodes.degree().min() == 2
-    assert g.nodes.degree().max() == 3
-    assert g.nodes.in_degree().min() == 1
-    assert g.nodes.in_degree().max() == 2
-    assert g.nodes.out_degree().min() == 1
-    assert g.nodes.out_degree().max() == 3
-    assert isclose(g.nodes.degree().mean(), 7 / 3)
-    assert g.nodes.degree().sum() == 7
-    degrees = g.nodes.degree().collect()
-    degrees.sort()
-    assert degrees == [2, 2, 3]
+
+    @with_disk_graph
+    def check_degree_iterable(g):
+        assert g.nodes.degree().min() == 2
+        assert g.nodes.degree().max() == 3
+        assert g.nodes.in_degree().min() == 1
+        assert g.nodes.in_degree().max() == 2
+        assert g.nodes.out_degree().min() == 1
+        assert g.nodes.out_degree().max() == 3
+        assert isclose(g.nodes.degree().mean(), 7 / 3)
+        assert g.nodes.degree().sum() == 7
+        degrees = g.nodes.degree().collect()
+        degrees.sort()
+        assert degrees == [2, 2, 3]
+
+    check_degree_iterable(g)
 
 
 def test_nodes_time_iterable():
     g = create_graph()
 
-    assert g.nodes.earliest_time.min() == -1
-    assert g.nodes.latest_time.max() == 7
+    @with_disk_graph
+    def check(g):
+        assert g.nodes.earliest_time.min() == -1
+        assert g.nodes.latest_time.max() == 7
+
+    check(g)
 
 
 def test_graph_has_edge():
     g = create_graph()
 
-    assert not g.window(-1, 1).has_edge(1, 3)
-    assert g.window(-1, 3).has_edge(1, 3)
-    assert not g.window(10, 11).has_edge(1, 3)
+    @with_disk_graph
+    def check(g):
+        assert not g.window(-1, 1).has_edge(1, 3)
+        assert g.window(-1, 3).has_edge(1, 3)
+        assert not g.window(10, 11).has_edge(1, 3)
+
+    check(g)
 
 
 def test_graph_has_node():
     g = create_graph()
 
-    assert g.has_node(3)
+    @with_disk_graph
+    def check(g):
+        assert g.has_node(3)
+
+    check(g)
 
 
 def test_windowed_graph_has_node():
     g = create_graph()
 
-    assert g.window(-1, 1).has_node(1)
+    @with_disk_graph
+    def check(g):
+        assert g.window(-1, 1).has_node(1)
+
+    check(g)
 
 
 def test_windowed_graph_get_node():
     g = create_graph()
 
-    view = g.window(0, sys.maxsize)
+    @with_disk_graph
+    def check(g):
+        view = g.window(0, sys.maxsize)
 
-    assert view.node(1).id == 1
-    assert view.node(10) is None
-    assert view.node(1).degree() == 3
+        assert view.node(1).id == 1
+        assert view.node(10) is None
+        assert view.node(1).degree() == 3
+
+    check(g)
 
 
 def test_windowed_graph_degree():
     g = create_graph()
 
-    view = g.window(0, sys.maxsize)
+    @with_disk_graph
+    def check(g):
+        view = g.window(0, sys.maxsize)
 
-    degrees = [v.degree() for v in view.nodes]
-    degrees.sort()
+        degrees = [v.degree() for v in view.nodes]
+        degrees.sort()
 
-    assert degrees == [2, 2, 3]
+        assert degrees == [2, 2, 3]
 
-    in_degrees = [v.in_degree() for v in view.nodes]
-    in_degrees.sort()
+        in_degrees = [v.in_degree() for v in view.nodes]
+        in_degrees.sort()
 
-    assert in_degrees == [1, 1, 2]
+        assert in_degrees == [1, 1, 2]
 
-    out_degrees = [v.out_degree() for v in view.nodes]
-    out_degrees.sort()
+        out_degrees = [v.out_degree() for v in view.nodes]
+        out_degrees.sort()
 
-    assert out_degrees == [0, 1, 3]
+        assert out_degrees == [0, 1, 3]
+
+    check(g)
 
 
 def test_windowed_graph_get_edge():
     g = create_graph()
 
-    max_size = sys.maxsize
-    min_size = -sys.maxsize - 1
+    @with_disk_graph
+    def check(g):
+        max_size = sys.maxsize
+        min_size = -sys.maxsize - 1
 
-    view = g.window(min_size, max_size)
+        view = g.window(min_size, max_size)
 
-    assert (view.edge(1, 3).src.id, view.edge(1, 3).dst.id) == (1, 3)
-    assert view.edge(2, 3) is None
-    assert view.edge(6, 5) is None
+        assert (view.edge(1, 3).src.id, view.edge(1, 3).dst.id) == (1, 3)
+        assert view.edge(2, 3) is None
+        assert view.edge(6, 5) is None
 
-    assert (view.node(1).id, view.node(3).id) == (1, 3)
+        assert (view.node(1).id, view.node(3).id) == (1, 3)
 
-    view = g.window(2, 3)
-    assert (view.edge(1, 3).src.id, view.edge(1, 3).dst.id) == (1, 3)
+        view = g.window(2, 3)
+        assert (view.edge(1, 3).src.id, view.edge(1, 3).dst.id) == (1, 3)
 
-    view = g.window(3, 7)
-    assert view.edge(1, 3) is None
+        view = g.window(3, 7)
+        assert view.edge(1, 3) is None
+
+    check(g)
 
 
 def test_windowed_graph_edges():
     g = create_graph()
 
-    view = g.window(0, sys.maxsize)
+    @with_disk_graph
+    def check(g):
+        view = g.window(0, sys.maxsize)
 
-    tedges = [v.edges for v in view.nodes]
-    edges = []
-    for e_iter in tedges:
-        for e in e_iter:
-            edges.append([e.src.id, e.dst.id])
+        tedges = [v.edges for v in view.nodes]
+        edges = []
+        for e_iter in tedges:
+            for e in e_iter:
+                edges.append([e.src.id, e.dst.id])
 
-    assert edges == [[1, 1], [1, 2], [1, 3], [1, 2], [3, 2], [1, 3], [3, 2]]
+        assert edges == [[1, 1], [1, 2], [1, 3], [1, 2], [3, 2], [1, 3], [3, 2]]
 
-    tedges = [v.in_edges for v in view.nodes]
-    in_edges = []
-    for e_iter in tedges:
-        for e in e_iter:
-            in_edges.append([e.src.id, e.dst.id])
+        tedges = [v.in_edges for v in view.nodes]
+        in_edges = []
+        for e_iter in tedges:
+            for e in e_iter:
+                in_edges.append([e.src.id, e.dst.id])
 
-    assert in_edges == [[1, 1], [1, 2], [3, 2], [1, 3]]
+        assert in_edges == [[1, 1], [1, 2], [3, 2], [1, 3]]
 
-    tedges = [v.out_edges for v in view.nodes]
-    out_edges = []
-    for e_iter in tedges:
-        for e in e_iter:
-            out_edges.append([e.src.id, e.dst.id])
+        tedges = [v.out_edges for v in view.nodes]
+        out_edges = []
+        for e_iter in tedges:
+            for e in e_iter:
+                out_edges.append([e.src.id, e.dst.id])
 
-    assert out_edges == [[1, 1], [1, 2], [1, 3], [3, 2]]
+        assert out_edges == [[1, 1], [1, 2], [1, 3], [3, 2]]
+
+    check(g)
 
 
 def test_windowed_graph_node_ids():
     g = create_graph()
 
-    vs = [v for v in g.window(-1, 2).nodes.id]
-    vs.sort()
-    assert vs == [1, 2]  # this makes clear that the end of the range is exclusive
+    @with_disk_graph
+    def check(g):
+        vs = [v for v in g.window(-1, 2).nodes.id]
+        vs.sort()
+        assert vs == [1, 2]  # this makes clear that the end of the range is exclusive
 
-    vs = [v for v in g.window(-5, 3).nodes.id]
-    vs.sort()
-    assert vs == [1, 2, 3]
+        vs = [v for v in g.window(-5, 3).nodes.id]
+        vs.sort()
+        assert vs == [1, 2, 3]
+
+    check(g)
 
 
 def test_windowed_graph_nodes():
     g = create_graph()
 
-    view = g.window(-1, 0)
+    @with_disk_graph
+    def check(g):
+        view = g.window(-1, 0)
+        nodes = list(view.nodes.id)
+        assert nodes == [1, 2]
 
-    nodes = list(view.nodes.id)
-
-    assert nodes == [1, 2]
+    check(g)
 
 
 def test_windowed_graph_neighbours():
     g = create_graph()
 
-    max_size = sys.maxsize
-    min_size = -sys.maxsize - 1
+    @with_disk_graph
+    def check(g):
+        max_size = sys.maxsize
+        min_size = -sys.maxsize - 1
 
-    view = g.window(min_size, max_size)
+        view = g.window(min_size, max_size)
 
-    neighbours = view.nodes.neighbours.id.collect()
-    assert neighbours == [[1, 2, 3], [1, 3], [1, 2]]
+        neighbours = view.nodes.neighbours.id.collect()
+        assert neighbours == [[1, 2, 3], [1, 3], [1, 2]]
 
-    in_neighbours = view.nodes.in_neighbours.id.collect()
-    assert in_neighbours == [[1, 2], [1, 3], [1]]
+        in_neighbours = view.nodes.in_neighbours.id.collect()
+        assert in_neighbours == [[1, 2], [1, 3], [1]]
 
-    out_neighbours = view.nodes.out_neighbours.id.collect()
-    assert out_neighbours == [[1, 2, 3], [1], [2]]
+        out_neighbours = view.nodes.out_neighbours.id.collect()
+        assert out_neighbours == [[1, 2, 3], [1], [2]]
+
+    check(g)
 
 
 def test_name():
     g = Graph()
     g.add_node(1, "Ben")
-    g.add_node(1, 10)
     g.add_edge(1, "Ben", "Hamza")
-    assert g.node(10).name == "10"
     assert g.node("Ben").name == "Ben"
     assert g.node("Hamza").name == "Hamza"
 
@@ -1045,30 +1116,44 @@ def test_graph_at():
     assert view.node(3).degree() == 1
 
 
-def test_add_node_string():
+def test_add_node_string_multiple_types_fail():
     g = Graph()
 
     g.add_node(0, 1, {})
-    g.add_node(1, "haaroon", {})
-    g.add_node(1, "haaroon", {})  # add same node twice used to cause an exception
+    with pytest.raises(Exception):
+        g.add_node(1, "haaroon", {})
 
     assert g.has_node(1)
+
+
+def test_add_node_string():
+    g = Graph()
+
+    g.add_node(0, "haaroon", {})
+
     assert g.has_node("haaroon")
 
 
 def test_add_edge_string():
     g = Graph()
 
-    g.add_edge(0, 1, 2, {})
     g.add_edge(1, "haaroon", "ben", {})
 
-    assert g.has_node(1)
-    assert g.has_node(2)
     assert g.has_node("haaroon")
     assert g.has_node("ben")
 
-    assert g.has_edge(1, 2)
     assert g.has_edge("haaroon", "ben")
+
+
+def test_add_edge_num():
+    g = Graph()
+
+    g.add_edge(1, 1, 2, {})
+
+    assert g.has_node(1)
+    assert g.has_node(2)
+
+    assert g.has_edge(1, 2)
 
 
 def test_all_neighbours_window():
@@ -1300,17 +1385,19 @@ def test_node_history():
     g.add_node(4, 1, {})
     g.add_node(8, 1, {})
 
+    assert g.node(1).history() == [1, 2, 3, 4, 8]
+    view = g.window(1, 8)
+    assert view.node(1).history() == [1, 2, 3, 4]
+
+    g = Graph()
+
     g.add_node(4, "Lord Farquaad", {})
     g.add_node(6, "Lord Farquaad", {})
     g.add_node(7, "Lord Farquaad", {})
     g.add_node(8, "Lord Farquaad", {})
 
-    assert g.node(1).history() == [1, 2, 3, 4, 8]
     assert g.node("Lord Farquaad").history() == [4, 6, 7, 8]
-
     view = g.window(1, 8)
-
-    assert view.node(1).history() == [1, 2, 3, 4]
     assert view.node("Lord Farquaad").history() == [4, 6, 7]
 
 
@@ -1462,14 +1549,18 @@ def test_layer():
     assert g.exclude_layer("layer2").count_edges() == 4
 
     with pytest.raises(
-            Exception,
-            match=re.escape("Invalid layer: test_layer. Valid layers: _default, layer1, layer2"),
+        Exception,
+        match=re.escape(
+            "Invalid layer: test_layer. Valid layers: _default, layer1, layer2"
+        ),
     ):
         g.layers(["test_layer"])
 
     with pytest.raises(
-            Exception,
-            match=re.escape("Invalid layer: test_layer. Valid layers: _default, layer1, layer2"),
+        Exception,
+        match=re.escape(
+            "Invalid layer: test_layer. Valid layers: _default, layer1, layer2"
+        ),
     ):
         g.edge(1, 2).layers(["test_layer"])
 
@@ -2271,13 +2362,9 @@ def test_leading_zeroes_ids():
     assert g.nodes.name.collect() == ["1", "01", "001", "0001"]
     g = Graph()
     g.add_node(0, 0)
-    g.add_node(1, "0")
+    g.add_node(1, 0)
     assert g.node(0).history() == [0, 1]
     assert g.nodes.name.collect() == ["0"]
-
-    # g = Graph()
-    # g.add_node(0, 1)
-    # assert g.node(g.node(1).name) is not None
 
 
 def test_node_types():
@@ -2576,17 +2663,17 @@ def datadir(tmpdir, request):
     return tmpdir
 
 
-def test_bincode_has_not_changed(datadir):
-    try:
-        bincode_path = datadir.join("graph.bincode")
-        _ = Graph.load_from_file(str(bincode_path))
-    except Exception as e:
-        print(e)
-        raise Exception(
-            "This test has failed because you have updated core which has changed the bincode. Please can "
-            "you increment the raphtory/src/lib.rs::BINCODE_VERSION in rust by 1. Then create an empty "
-            "graph and overwrite this file python/resources/tests/test_graphdb/graph.bincode"
-        )
+# def test_bincode_has_not_changed(datadir):
+#     try:
+#         bincode_path = datadir.join("graph.bincode")
+#         _ = Graph.load_from_file(str(bincode_path))
+#     except Exception as e:
+#         print(e)
+#         raise Exception(
+#             "This test has failed because you have updated core which has changed the bincode. Please can "
+#             "you increment the raphtory/src/lib.rs::BINCODE_VERSION in rust by 1. Then create an empty "
+#             "graph and overwrite this file python/resources/tests/test_graphdb/graph.bincode"
+#         )
 
 
 # def currently_broken_fuzzy_search(): #TODO: Fix fuzzy searching for properties

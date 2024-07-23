@@ -33,7 +33,7 @@ use crate::{
 };
 use itertools::Itertools;
 #[cfg(feature = "storage")]
-use pometry_storage::{GidRef, GID};
+use pometry_storage::GidRef;
 use raphtory_api::core::entities::ELID;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};

@@ -42,7 +42,7 @@ impl InternalAdditionOps for GraphStorage {
 
     fn resolve_node<V: AsNodeRef>(&self, n: V) -> Result<VID, GraphError> {
         match self {
-            GraphStorage::Unlocked(storage) => Ok(storage.resolve_node(n)),
+            GraphStorage::Unlocked(storage) => storage.resolve_node(n),
             _ => Err(GraphError::AttemptToMutateImmutableGraph),
         }
     }

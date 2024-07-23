@@ -29,7 +29,7 @@ use itertools::Itertools;
 use raphtory_api::core::{
     entities::edges::edge_ref::EdgeRef,
     input::input_node::InputNode,
-    storage::{arc_str::ArcStr, FxDashMap},
+    storage::arc_str::ArcStr,
 };
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
@@ -41,12 +41,14 @@ use std::{
     sync::{atomic::AtomicUsize, Arc},
 };
 
+use super::logical_to_physical::Mapping;
+
 pub(crate) type FxDashSet<K> = DashSet<K, BuildHasherDefault<FxHasher>>;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TemporalGraph {
     // mapping between logical and physical ids
-    logical_to_physical: FxDashMap<GID, VID>,
+    logical_to_physical: Mapping,
     string_pool: FxDashSet<ArcStr>,
 
     pub(crate) storage: GraphStorage,
@@ -89,7 +91,7 @@ impl Default for TemporalGraph {
 impl TemporalGraph {
     pub fn new(num_locks: usize) -> Self {
         TemporalGraph {
-            logical_to_physical: FxDashMap::default(), // TODO: could use DictMapper here
+            logical_to_physical: Mapping::new(),
             string_pool: Default::default(),
             storage: GraphStorage::new(num_locks),
             event_counter: AtomicUsize::new(0),
@@ -315,19 +317,19 @@ impl TemporalGraph {
     }
 
     /// return local id for node, initialising storage if node does not exist yet
-    pub(crate) fn resolve_node<V: AsNodeRef>(&self, n: V) -> VID {
+    pub(crate) fn resolve_node<V: AsNodeRef>(&self, n: V) -> Result<VID, GraphError> {
         match n.into_gid() {
             Either::Left(id) => {
                 let name = id.as_str().map(|s| s.to_string());
-                *(self
+                let ref_mut = self
                     .logical_to_physical
-                    .entry(id.clone())
-                    .or_insert_with(|| {
+                    .get_or_init(id.clone(), || {
                         let node_store = NodeStore::empty(id, name);
                         self.storage.push_node(node_store)
-                    }))
+                    })?;
+                Ok(ref_mut)
             }
-            Either::Right(vid) => vid,
+            Either::Right(vid) => Ok(vid),
         }
     }
 
@@ -503,7 +505,7 @@ impl TemporalGraph {
             NodeRef::Internal(vid) => Some(vid),
             NodeRef::External(gid) => {
                 let v_id = self.logical_to_physical.get(&GID::U64(gid))?;
-                Some(*v_id)
+                Some(v_id)
             }
             NodeRef::ExternalStr(string) => {
                 let v_id = self
@@ -511,7 +513,7 @@ impl TemporalGraph {
                     .get(&GID::Str(string.to_owned()))
                     .or_else(|| self.logical_to_physical.get(&GID::U64(string.id())))
                     .or_else(|| self.logical_to_physical.get(&GID::I64(string.id() as i64)))?;
-                Some(*v_id)
+                Some(v_id)
             }
         }
     }

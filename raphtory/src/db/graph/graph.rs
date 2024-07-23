@@ -227,12 +227,7 @@ impl Graph {
 
     /// Get persistent graph
     pub fn persistent_graph(&self) -> PersistentGraph {
-        match self.inner {
-            GraphStorage::Unlocked(ref internal_graph) => {
-                PersistentGraph::from_internal_graph(internal_graph.clone())
-            }
-            _ => panic!("Cannot get persistent graph from locked storage"),
-        }
+        PersistentGraph::from_internal_graph(&self.inner)
     }
 }
 

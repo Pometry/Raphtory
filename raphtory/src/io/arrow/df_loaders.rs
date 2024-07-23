@@ -15,7 +15,6 @@ pub(crate) fn load_nodes_from_df<
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
 >(
     df: &'a DFView,
-    size: usize,
     node_id: &str,
     time: &str,
     properties: Option<Vec<&str>>,
@@ -56,7 +55,6 @@ pub(crate) fn load_nodes_from_df<
             .map(|((node_id, time), n_t)| (node_id, time, n_t));
         load_nodes_from_num_iter(
             graph,
-            size,
             iter,
             prop_iter,
             const_prop_iter,
@@ -72,7 +70,6 @@ pub(crate) fn load_nodes_from_df<
 
         load_nodes_from_num_iter(
             graph,
-            size,
             iter,
             prop_iter,
             const_prop_iter,
@@ -135,7 +132,6 @@ pub(crate) fn load_edges_from_df<
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
 >(
     df: &'a DFView,
-    size: usize,
     src: &str,
     dst: &str,
     time: &str,
@@ -160,7 +156,6 @@ pub(crate) fn load_edges_from_df<
             .zip(time);
         load_edges_from_num_iter(
             graph,
-            size,
             triplets,
             prop_iter,
             const_prop_iter,
@@ -178,7 +173,6 @@ pub(crate) fn load_edges_from_df<
             .zip(time);
         load_edges_from_num_iter(
             graph,
-            size,
             triplets,
             prop_iter,
             const_prop_iter,
@@ -235,7 +229,6 @@ pub(crate) fn load_edges_deletions_from_df<
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + DeletionOps,
 >(
     df: &'a DFView,
-    size: usize,
     src: &str,
     dst: &str,
     time: &str,
@@ -309,7 +302,6 @@ pub(crate) fn load_node_props_from_df<
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
 >(
     df: &'a DFView,
-    size: usize,
     node_id: &str,
     const_properties: Option<Vec<&str>>,
     shared_const_properties: Option<HashMap<String, Prop>>,
@@ -379,7 +371,6 @@ pub(crate) fn load_node_props_from_df<
 
 pub(crate) fn load_edges_props_from_df<'a, S: AsRef<str>>(
     df: &'a DFView,
-    size: usize,
     src: &str,
     dst: &str,
     const_properties: Option<Vec<&str>>,
@@ -475,7 +466,6 @@ fn load_edges_from_num_iter<
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
 >(
     graph: &G,
-    size: usize,
     edges: I,
     properties: PI,
     const_properties: PI,
@@ -504,7 +494,6 @@ fn load_nodes_from_num_iter<
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
 >(
     graph: &G,
-    size: usize,
     nodes: I,
     properties: PI,
     const_properties: PI,
