@@ -130,7 +130,7 @@ impl<G: InternalAdditionOps + StaticGraphViewOps> AdditionOps for G {
         let ti = time_from_input(self, t)?;
         let src_id = self.resolve_node(src)?;
         let dst_id = self.resolve_node(dst)?;
-        let layer_id = self.resolve_layer(layer);
+        let layer_id = self.resolve_layer(layer)?;
 
         let properties: Vec<(usize, Prop)> = props.collect_properties(
             |name, dtype| self.resolve_edge_property(name, dtype, false),

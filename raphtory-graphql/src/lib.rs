@@ -269,6 +269,7 @@ mod graphql_test {
 
         let req = Request::new(prop_has_key_filter);
         let res = schema.execute(req).await;
+        // let data = res.data.into_json().unwrap();
         let expected = json!({
             "graph": {
               "properties": {

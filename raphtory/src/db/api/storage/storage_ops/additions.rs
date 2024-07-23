@@ -13,23 +13,22 @@ use crate::{
 
 use super::GraphStorage;
 
-// FIXME: change the return type to Result<(), GraphError> where GraphError is AttemptToMutateImmutableGraph
 impl InternalAdditionOps for GraphStorage {
-    fn next_event_id(&self) -> usize {
+    fn next_event_id(&self) -> Result<usize, GraphError> {
         match self {
             GraphStorage::Unlocked(storage) => {
-                storage.event_counter.fetch_add(1, Ordering::Relaxed)
+                Ok(storage.event_counter.fetch_add(1, Ordering::Relaxed))
             }
-            _ => todo!(),
+            _ => Err(GraphError::AttemptToMutateImmutableGraph),
         }
     }
 
-    fn resolve_layer(&self, layer: Option<&str>) -> usize {
+    fn resolve_layer(&self, layer: Option<&str>) -> Result<usize, GraphError> {
         match self {
-            GraphStorage::Unlocked(_) => layer
+            GraphStorage::Unlocked(_) => Ok(layer
                 .map(|name| self.edge_meta().get_or_create_layer_id(name))
-                .unwrap_or(0),
-            _ => todo!(),
+                .unwrap_or(0)),
+            _ => Err(GraphError::AttemptToMutateImmutableGraph),
         }
     }
 
@@ -47,10 +46,10 @@ impl InternalAdditionOps for GraphStorage {
         }
     }
 
-    fn resolve_graph_property(&self, prop: &str, is_static: bool) -> usize {
+    fn resolve_graph_property(&self, prop: &str, is_static: bool) -> Result<usize, GraphError> {
         match self {
-            GraphStorage::Unlocked(_) => self.graph_meta().resolve_property(prop, is_static),
-            _ => todo!(),
+            GraphStorage::Unlocked(_) => Ok(self.graph_meta().resolve_property(prop, is_static)),
+            _ => Err(GraphError::AttemptToMutateImmutableGraph),
         }
     }
 
@@ -84,7 +83,11 @@ impl InternalAdditionOps for GraphStorage {
                 Prop::Str(value) => Prop::Str(storage.resolve_str(value)),
                 _ => prop,
             },
-            _ => todo!(),
+            GraphStorage::Mem(storage) => match prop {
+                Prop::Str(value) => Prop::Str(storage.graph.resolve_str(value)),
+                _ => prop,
+            },
+            _ => prop,
         }
     }
 

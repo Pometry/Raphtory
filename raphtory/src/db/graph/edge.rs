@@ -183,7 +183,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
                     }),
                 None => {
                     if create {
-                        Ok(self.graph.resolve_layer(layer))
+                        self.graph.resolve_layer(layer)
                     } else {
                         self.graph
                             .get_layer_id(name)

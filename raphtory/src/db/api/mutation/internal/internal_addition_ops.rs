@@ -12,10 +12,10 @@ use enum_dispatch::enum_dispatch;
 #[enum_dispatch]
 pub trait InternalAdditionOps {
     /// get the sequence id for the next event
-    fn next_event_id(&self) -> usize;
+    fn next_event_id(&self) -> Result<usize, GraphError>;
 
     /// map layer name to id and allocate a new layer if needed
-    fn resolve_layer(&self, layer: Option<&str>) -> usize;
+    fn resolve_layer(&self, layer: Option<&str>) -> Result<usize, GraphError>;
 
     fn resolve_node_type(&self, v_id: VID, node_type: Option<&str>) -> Result<usize, GraphError>;
 
@@ -23,7 +23,7 @@ pub trait InternalAdditionOps {
     fn resolve_node<V: AsNodeRef>(&self, id: V) -> Result<VID, GraphError>;
 
     /// map property key to internal id, allocating new property if needed
-    fn resolve_graph_property(&self, prop: &str, is_static: bool) -> usize;
+    fn resolve_graph_property(&self, prop: &str, is_static: bool) -> Result<usize, GraphError>;
 
     /// map property key to internal id, allocating new property if needed and checking property type.
     /// returns `None` if the type does not match
@@ -83,12 +83,12 @@ pub trait DelegateAdditionOps {
 
 impl<G: DelegateAdditionOps> InternalAdditionOps for G {
     #[inline(always)]
-    fn next_event_id(&self) -> usize {
+    fn next_event_id(&self) -> Result<usize, GraphError> {
         self.graph().next_event_id()
     }
 
     #[inline]
-    fn resolve_layer(&self, layer: Option<&str>) -> usize {
+    fn resolve_layer(&self, layer: Option<&str>) -> Result<usize, GraphError> {
         self.graph().resolve_layer(layer)
     }
 
@@ -103,7 +103,7 @@ impl<G: DelegateAdditionOps> InternalAdditionOps for G {
     }
 
     #[inline]
-    fn resolve_graph_property(&self, prop: &str, is_static: bool) -> usize {
+    fn resolve_graph_property(&self, prop: &str, is_static: bool) -> Result<usize, GraphError> {
         self.graph().resolve_graph_property(prop, is_static)
     }
 

@@ -421,7 +421,7 @@ impl<
 
         // alight the edge layers
         for (layer_id, layer) in g.layers.iter().enumerate() {
-            let l_id = graph.resolve_layer(Some(layer));
+            let l_id = graph.resolve_layer(Some(layer))?;
             assert_eq!(l_id, layer_id);
         }
 

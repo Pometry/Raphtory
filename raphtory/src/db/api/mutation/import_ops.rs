@@ -188,7 +188,7 @@ impl<
         // make sure we preserve all layers even if they are empty
         // skip default layer
         for layer in edge.graph.unique_layers().skip(1) {
-            self.resolve_layer(Some(&layer));
+            self.resolve_layer(Some(&layer))?;
         }
         if !force && self.has_edge(edge.src().name(), edge.dst().name()) {
             return Err(EdgeExistsError(edge.src().id(), edge.dst().id()));
@@ -219,7 +219,7 @@ impl<
                     let ti = time_from_input(self, t)?;
                     let src_id = self.resolve_node(edge.src().id())?;
                     let dst_id = self.resolve_node(edge.dst().id())?;
-                    let layer = self.resolve_layer(layer_name);
+                    let layer = self.resolve_layer(layer_name)?;
                     self.internal_delete_edge(ti, src_id, dst_id, layer)?;
                 }
             }

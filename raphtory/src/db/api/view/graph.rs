@@ -145,7 +145,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         // make sure we preserve all layers even if they are empty
         // skip default layer
         for layer in self.unique_layers().skip(1) {
-            g.resolve_layer(Some(&layer));
+            g.resolve_layer(Some(&layer))?;
         }
         // Add edges first so we definitely have all associated nodes (important in case of persistent edges)
         for e in self.edges() {

@@ -31,7 +31,6 @@ mod cypher {
 
     use super::{
         executor::{table_provider::edge::EdgeListTableProvider, ExecError},
-        parser::ast::*,
         *,
     };
     use raphtory::disk_graph::DiskGraphStorage;

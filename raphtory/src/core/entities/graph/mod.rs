@@ -14,9 +14,9 @@ mod test {
     #[test]
     fn test_neighbours_multiple_layers() {
         let g = GraphStorage::default();
-        let l_btc = g.resolve_layer(Some("btc"));
-        let l_eth = g.resolve_layer(Some("eth"));
-        let l_tether = g.resolve_layer(Some("tether"));
+        let l_btc = g.resolve_layer(Some("btc")).unwrap();
+        let l_eth = g.resolve_layer(Some("eth")).unwrap();
+        let l_tether = g.resolve_layer(Some("tether")).unwrap();
         let v1 = g.resolve_node(1).unwrap();
         let v2 = g.resolve_node(2).unwrap();
         let tx_sent_id = g

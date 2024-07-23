@@ -21,7 +21,7 @@ pub trait DeletionOps: InternalDeletionOps + InternalAdditionOps + Sized {
         let ti = time_from_input(self, t)?;
         let src_id = self.resolve_node(src)?;
         let dst_id = self.resolve_node(dst)?;
-        let layer = self.resolve_layer(layer);
+        let layer = self.resolve_layer(layer)?;
         self.internal_delete_edge(ti, src_id, dst_id, layer)
     }
 
