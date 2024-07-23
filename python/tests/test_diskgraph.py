@@ -69,6 +69,8 @@ def test_disk_graph():
             print_result=False,
         )
 
+    g = g.to_events()
+
     assert g.count_nodes() == 1624
     assert g.layer("netflow").count_edges() == 2018
     assert g.earliest_time == 7257601
