@@ -18,9 +18,9 @@ pub enum GraphError {
     #[error("Event Graph doesn't support deletions")]
     EventGraphDeletionsNotSupported,
     #[error("Graph not found {0}")]
-    GraphNotFound(String),
-    #[error("Graph already exists by name = {name}")]
-    GraphNameAlreadyExists { name: String },
+    GraphNotFound(PathBuf),
+    #[error("Graph already exists by name = {0}")]
+    GraphNameAlreadyExists(PathBuf),
     #[error("Immutable graph reference already exists. You can access mutable graph apis only exclusively.")]
     IllegalGraphAccess,
     #[error("Incorrect property given.")]

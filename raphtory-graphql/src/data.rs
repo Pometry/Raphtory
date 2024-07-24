@@ -1,7 +1,5 @@
 use crate::{
-    model::{
-        algorithms::global_plugins::GlobalPlugins, construct_graph_name, construct_graph_path,
-    },
+    model::{algorithms::global_plugins::GlobalPlugins, construct_graph_full_path},
     server_config::AppConfig,
 };
 use async_graphql::Error;
@@ -26,7 +24,7 @@ use walkdir::WalkDir;
 
 pub struct Data {
     pub(crate) work_dir: PathBuf,
-    pub(crate) graphs: Arc<Cache<String, IndexedGraph<MaterializedGraph>>>,
+    pub(crate) graphs: Arc<Cache<PathBuf, IndexedGraph<MaterializedGraph>>>,
     pub(crate) global_plugins: GlobalPlugins,
 }
 
@@ -39,7 +37,7 @@ impl Data {
             .time_to_idle(std::time::Duration::from_secs(cache_configs.tti_seconds))
             .build();
 
-        let graphs_cache: Arc<Cache<String, IndexedGraph<MaterializedGraph>>> =
+        let graphs_cache: Arc<Cache<PathBuf, IndexedGraph<MaterializedGraph>>> =
             Arc::new(graphs_cache_builder);
 
         Self {
@@ -49,34 +47,31 @@ impl Data {
         }
     }
 
-    pub fn get_graph(
-        &self,
-        name: &str,
-        namespace: &Option<String>,
-    ) -> Result<IndexedGraph<MaterializedGraph>> {
-        let path = construct_graph_path(&self.work_dir, name, namespace)?;
-        let name = name.to_string();
-        if !path.exists() {
-            return Err(GraphError::GraphNotFound(construct_graph_name(&name, namespace)).into());
+    pub fn get_graph(&self, path: &Path) -> Result<IndexedGraph<MaterializedGraph>> {
+        let full_path = construct_graph_full_path(&self.work_dir, path)?;
+        if !full_path.exists() {
+            return Err(GraphError::GraphNotFound(path.to_path_buf()).into());
         } else {
-            match self.graphs.get(&name) {
+            match self.graphs.get(&path.to_path_buf()) {
                 Some(graph) => Ok(graph.clone()),
                 None => {
-                    let (_, graph) = get_graph_from_path(&path)?;
-                    Ok(self.graphs.get_with(name, || graph))
+                    let (_, graph) = get_graph_from_path(&full_path)?;
+                    Ok(self.graphs.get_with(path.to_path_buf(), || graph))
                 }
             }
         }
     }
 
-    pub fn get_graphs(&self) -> Result<Vec<(String, IndexedGraph<MaterializedGraph>)>> {
-        Ok(get_graphs_from_work_dir(Path::new(&self.work_dir))?
-            .into_iter()
-            .collect_vec())
-    }
+    pub fn get_graph_names_paths(&self) -> Result<(Vec<String>, Vec<PathBuf>)> {
+        let mut names = vec![];
+        let mut paths = vec![];
+        for path in get_graph_paths(&self.work_dir) {
+            let (name, _) = get_graph_from_path(&path)?;
+            names.push(name);
+            paths.push(get_relative_path(&self.work_dir, path)?);
+        }
 
-    pub fn get_graph_names_namespaces(&self) -> Result<(Vec<String>, Vec<Option<String>>)> {
-        get_graph_names_namespaces_from_work_dir(Path::new(&self.work_dir))
+        Ok((names, paths))
     }
 
     #[allow(dead_code)]
@@ -125,104 +120,80 @@ fn copy_dir_recursive(source_dir: &Path, target_dir: &Path) -> Result<()> {
 
 #[cfg(feature = "storage")]
 fn load_disk_graph_from_path(
-    work_dir: &Path,
-    path: &Path,
-    namespace: &Option<String>,
+    path_on_server: &Path,
+    target_path: &Path,
     overwrite: bool,
-) -> Result<Option<String>> {
-    let (name, graph) = load_disk_graph(path)?;
+) -> Result<Option<PathBuf>> {
+    let (name, graph) = load_disk_graph(path_on_server)?;
     let graph_dir = &graph.into_disk_graph().unwrap().graph_dir;
-    let target_dir =
-        &construct_graph_path(&work_dir, name.as_str(), namespace)?;
-    if target_dir.exists() {
+    if target_path.exists() {
         if overwrite {
-            fs::remove_dir_all(target_dir)?;
-            copy_dir_recursive(graph_dir, target_dir)?;
-            println!("Disk Graph loaded = {}", path.display());
+            fs::remove_dir_all(&target_path)?;
+            copy_dir_recursive(graph_dir, &target_path)?;
+            println!("Disk Graph loaded = {}", target_path.display());
         } else {
-            return Err(GraphError::GraphNameAlreadyExists { name }.into());
+            return Err(GraphError::GraphNameAlreadyExists(target_path.to_path_buf()).into());
         }
     } else {
-        copy_dir_recursive(graph_dir, target_dir)?;
-        println!("Disk Graph loaded = {}", path.display());
+        copy_dir_recursive(graph_dir, &target_path)?;
+        println!("Disk Graph loaded = {}", target_path.display());
     }
-    Ok(Some(name))
+    Ok(Some(target_path.to_path_buf()))
 }
 
 #[cfg(not(feature = "storage"))]
 fn load_disk_graph_from_path(
-    work_dir: &Path,
-    path: &Path,
-    namespace: &Option<String>,
+    path_on_server: &Path,
+    target_path: &Path,
     overwrite: bool,
-) -> Result<Option<String>> {
+) -> Result<Option<PathBuf>> {
     Ok(None)
 }
 
 pub fn load_graph_from_path(
     work_dir: &Path,
-    path: &Path,
+    path_on_server: &Path,
     namespace: &Option<String>,
     overwrite: bool,
-) -> Result<String> {
-    if !path.exists() {
-        return Err(GraphError::InvalidPath(path.to_path_buf()).into());
+) -> Result<PathBuf> {
+    if !path_on_server.exists() {
+        return Err(GraphError::InvalidPath(path_on_server.to_path_buf()).into());
     }
-    println!("Loading graph from {}", path.display());
-    if path.is_dir() {
-        if is_disk_graph_dir(path) {
-            load_disk_graph_from_path(work_dir, path, namespace, overwrite)?
+    println!("Loading graph from {}", path_on_server.display());
+    let target_path = get_target_path(work_dir, path_on_server, namespace)?;
+    if path_on_server.is_dir() {
+        if is_disk_graph_dir(&path_on_server) {
+            load_disk_graph_from_path(&path_on_server, &target_path, overwrite)?
                 .ok_or(GraphError::DiskGraphNotFound.into())
         } else {
-            Err(GraphError::InvalidPath(path.to_path_buf()).into())
+            Err(GraphError::InvalidPath(path_on_server.to_path_buf()).into())
         }
     } else {
-        let (name, graph) = load_bincode_graph(path)?;
-        let path = construct_graph_path(&work_dir, name.as_str(), namespace)?;
-        if path.exists() {
+        let (_, graph) = load_bincode_graph(&path_on_server)?;
+        if target_path.exists() {
             if overwrite {
-                fs::remove_file(&path)?;
-                graph.save_to_file(&path)?;
-                println!("Graph loaded = {}", path.display());
+                fs::remove_file(&target_path)?;
+                graph.save_to_file(&target_path)?;
+                println!("Graph loaded = {}", target_path.display());
             } else {
-                return Err(GraphError::GraphNameAlreadyExists { name }.into());
+                return Err(GraphError::GraphNameAlreadyExists(target_path.to_path_buf()).into());
             }
         } else {
-            graph.save_to_file(&path)?;
-            println!("Graph loaded = {}", path.display());
+            graph.save_to_file(&target_path)?;
+            println!("Graph loaded = {}", target_path.display());
         }
-        Ok(name)
+        Ok(target_path)
     }
 }
 
-// The default behaviour is to just override the existing graphs.
-// Always returns list of newly loaded graphs and not all the graphs available in the work dir.
-pub fn load_graphs_from_path(
-    work_dir: &Path,
-    path: &Path,
-    namespace: &Option<String>,
-    overwrite: bool,
-) -> Result<Vec<String>> {
-    println!("loading graphs from {}", path.display());
-    let entries = fs::read_dir(path).unwrap();
-    entries
-        .map(|entry| {
-            let path = entry.unwrap().path();
-            load_graph_from_path(work_dir, &path, namespace, overwrite)
-        })
-        .collect()
-}
-
-fn load_graphs_from_paths(
-    work_dir: &Path,
-    paths: Vec<PathBuf>,
-    namespace: &Option<String>,
-    overwrite: bool,
-) -> Result<Vec<String>> {
-    paths
-        .iter()
-        .map(|path| load_graph_from_path(work_dir, path, namespace, overwrite))
-        .collect()
+fn get_target_path(work_dir: &Path, path: &Path, namespace: &Option<String>) -> Result<PathBuf> {
+    let graph_name = get_graph_name(path)?;
+    let target_dir = if let Some(namespace) = namespace {
+        construct_graph_full_path(&work_dir, &Path::new(namespace).join(graph_name))?
+    } else {
+        construct_graph_full_path(&work_dir, Path::new(&graph_name))?
+    };
+    Ok(target_dir)
 }
 
 #[cfg(feature = "storage")]
@@ -270,36 +241,8 @@ pub(crate) fn get_graphs_from_work_dir(
     Ok(graphs)
 }
 
-pub(crate) fn get_graph_names_namespaces_from_work_dir(
-    work_dir: &Path,
-) -> Result<(Vec<String>, Vec<Option<String>>)> {
-    let mut names = vec![];
-    let mut namespaces = vec![];
-    for path in get_graph_paths(work_dir) {
-        let (name, _) = get_graph_from_path(&path)?;
-        names.push(name);
-        namespaces.push(get_namespace_from_path(work_dir, path));
-    }
-
-    Ok((names, namespaces))
-}
-
-fn get_namespace_from_path(work_dir: &Path, path: PathBuf) -> Option<String> {
-    let relative_path = match path.strip_prefix(work_dir) {
-        Ok(relative_path) => relative_path,
-        Err(_) => return None, // Skip paths that cannot be stripped
-    };
-
-    let parent_path = relative_path.parent().unwrap_or(Path::new(""));
-    if let Some(parent_str) = parent_path.to_str() {
-        if parent_str.is_empty() {
-            None
-        } else {
-            Some(parent_str.to_string())
-        }
-    } else {
-        None
-    }
+fn get_relative_path(work_dir: &Path, path: PathBuf) -> Result<PathBuf> {
+    Ok(path.strip_prefix(work_dir)?.to_path_buf())
 }
 
 fn get_graph_paths(work_dir: &Path) -> Vec<PathBuf> {
@@ -341,7 +284,7 @@ fn is_disk_graph_dir(path: &Path) -> bool {
     has_disk_graph_files
 }
 
-fn get_graph_name(path: &Path) -> Result<String, &'static str> {
+pub(crate) fn get_graph_name(path: &Path) -> Result<String, &'static str> {
     path.file_name()
         .and_then(|os_str| os_str.to_str())
         .map(|str_slice| str_slice.to_string())
@@ -350,17 +293,16 @@ fn get_graph_name(path: &Path) -> Result<String, &'static str> {
 
 pub(crate) fn save_graphs_to_work_dir(
     work_dir: &Path,
-    namespace: &Option<String>,
     graphs: &HashMap<String, MaterializedGraph>,
 ) -> Result<()> {
-    for (name, graph) in graphs {
-        let path = construct_graph_path(&work_dir, name, &namespace)?;
-        graph.save_to_path(&path)?;
+    for (name, graph) in graphs.into_iter() {
+        let full_path = construct_graph_full_path(&work_dir, Path::new(name))?;
+        graph.save_to_path(&full_path)?;
     }
     Ok(())
 }
 
-fn load_bincode_graph(path: &Path) -> Result<(String, MaterializedGraph)> {
+pub(crate) fn load_bincode_graph(path: &Path) -> Result<(String, MaterializedGraph)> {
     let graph = MaterializedGraph::load_from_file(path, false)?;
     let name = get_graph_name(path)?;
     Ok((name, graph))
@@ -384,20 +326,44 @@ fn load_disk_graph(path: &Path) -> Result<(String, MaterializedGraph)> {
 mod data_tests {
     use crate::{
         data::{
-            get_graph_from_path, get_graph_paths, get_graphs_from_work_dir,
-            get_namespace_from_path, load_graph_from_path, load_graphs_from_path,
-            load_graphs_from_paths, save_graphs_to_work_dir, Data,
+            get_graph_from_path, get_graph_paths, load_graph_from_path, save_graphs_to_work_dir,
+            Data,
         },
         server_config::AppConfigBuilder,
     };
-    use itertools::Itertools;
     #[cfg(feature = "storage")]
     use raphtory::disk_graph::graph_impl::DiskGraph;
     use raphtory::{
         db::api::view::MaterializedGraph,
         prelude::{AdditionOps, Graph, GraphViewOps, PropertyAdditionOps},
     };
-    use std::{collections::HashMap, fs, fs::File, io, path::Path, thread, time::Duration};
+    use std::{
+        collections::HashMap,
+        fs,
+        fs::File,
+        io,
+        path::{Path, PathBuf},
+        thread,
+        time::Duration,
+    };
+
+    fn get_maybe_relative_path(work_dir: &Path, path: PathBuf) -> Option<String> {
+        let relative_path = match path.strip_prefix(work_dir) {
+            Ok(relative_path) => relative_path,
+            Err(_) => return None, // Skip paths that cannot be stripped
+        };
+
+        let parent_path = relative_path.parent().unwrap_or(Path::new(""));
+        if let Some(parent_str) = parent_path.to_str() {
+            if parent_str.is_empty() {
+                None
+            } else {
+                Some(parent_str.to_string())
+            }
+        } else {
+            None
+        }
+    }
 
     fn list_top_level_files_and_dirs(path: &Path) -> io::Result<Vec<String>> {
         let mut entries_vec = Vec::new();
@@ -450,7 +416,7 @@ mod data_tests {
         graph.save_to_file(&graph_path).unwrap();
 
         let res = load_graph_from_path(tmp_work_dir.path(), &graph_path, &None, true).unwrap();
-        assert_eq!(res, "test_g");
+        assert_eq!(res, tmp_work_dir.path().join("test_g"));
 
         let graph = Graph::load_from_file(tmp_work_dir.path().join("test_g"), false).unwrap();
         assert_eq!(graph.count_edges(), 2);
@@ -534,267 +500,6 @@ mod data_tests {
 
         let graph = DiskGraph::load_from_dir(tmp_work_dir.path().join("test_dg")).unwrap();
         assert_eq!(graph.count_edges(), 2);
-    }
-
-    #[test]
-    fn test_load_graphs_from_path() {
-        let tmp_graph_dir = tempfile::tempdir().unwrap();
-        let tmp_work_dir = tempfile::tempdir().unwrap();
-
-        let graph = Graph::new();
-        graph
-            .add_edge(0, 1, 2, [("name", "test_e1")], None)
-            .unwrap();
-        graph
-            .add_edge(0, 1, 3, [("name", "test_e2")], None)
-            .unwrap();
-        let graph_path = tmp_graph_dir.path().join("test_g1");
-        graph.save_to_file(&graph_path).unwrap();
-
-        let graph = Graph::new();
-        graph
-            .add_edge(0, 1, 2, [("name", "test_e1")], None)
-            .unwrap();
-        graph
-            .add_edge(0, 2, 3, [("name", "test_e2")], None)
-            .unwrap();
-        graph
-            .add_edge(0, 2, 4, [("name", "test_e3")], None)
-            .unwrap();
-        let graph_path = tmp_graph_dir.path().join("test_g2");
-        graph.save_to_file(&graph_path).unwrap();
-
-        let res =
-            load_graphs_from_path(tmp_work_dir.path(), tmp_graph_dir.path(), &None, true).unwrap();
-        assert_eq!(res, vec!["test_g2", "test_g1"]);
-
-        let graph = Graph::load_from_file(tmp_work_dir.path().join("test_g1"), false).unwrap();
-        assert_eq!(graph.count_edges(), 2);
-
-        let graph = Graph::load_from_file(tmp_work_dir.path().join("test_g2"), false).unwrap();
-        assert_eq!(graph.count_edges(), 3);
-
-        let graph = Graph::new();
-        graph
-            .add_edge(0, 1, 2, [("name", "test_e1")], None)
-            .unwrap();
-        graph
-            .add_edge(0, 2, 3, [("name", "test_e2")], None)
-            .unwrap();
-        graph
-            .add_edge(0, 2, 4, [("name", "test_e3")], None)
-            .unwrap();
-        graph
-            .add_edge(0, 2, 5, [("name", "test_e4")], None)
-            .unwrap();
-        let graph_path = tmp_graph_dir.path().join("test_g2");
-        graph.save_to_file(&graph_path).unwrap();
-
-        // Test overwrite false
-        let result = std::panic::catch_unwind(|| {
-            load_graphs_from_path(tmp_work_dir.path(), tmp_graph_dir.path(), &None, false).unwrap();
-        });
-        assert!(result.is_err());
-        if let Err(err) = result {
-            let panic_message = err
-                .downcast_ref::<String>()
-                .expect("Expected a String panic message");
-            assert!(
-                panic_message.contains("Graph already exists by name = test_g2"),
-                "Unexpected panic message: {}",
-                panic_message
-            );
-        }
-
-        let graph = Graph::load_from_file(tmp_work_dir.path().join("test_g2"), false).unwrap();
-        assert_eq!(graph.count_edges(), 3);
-
-        // Test overwrite true
-        let res =
-            load_graphs_from_path(tmp_work_dir.path(), tmp_graph_dir.path(), &None, true).unwrap();
-        assert_eq!(res, vec!["test_g2", "test_g1"]);
-
-        let graph = Graph::load_from_file(tmp_work_dir.path().join("test_g2"), false).unwrap();
-        assert_eq!(graph.count_edges(), 4);
-    }
-
-    #[test]
-    #[cfg(feature = "storage")]
-    fn test_load_disk_graphs_from_path() {
-        let tmp_graph_dir = tempfile::tempdir().unwrap();
-        let tmp_work_dir = tempfile::tempdir().unwrap();
-
-        let graph = Graph::new();
-        graph
-            .add_edge(0, 1, 2, [("name", "test_e1")], None)
-            .unwrap();
-        graph
-            .add_edge(0, 1, 3, [("name", "test_e2")], None)
-            .unwrap();
-        let graph_dir = tmp_graph_dir.path().join("test_dg1");
-        let _ = DiskGraph::from_graph(&graph, &graph_dir).unwrap();
-
-        let graph = Graph::new();
-        graph
-            .add_edge(0, 1, 2, [("name", "test_e1")], None)
-            .unwrap();
-        graph
-            .add_edge(0, 2, 3, [("name", "test_e2")], None)
-            .unwrap();
-        graph
-            .add_edge(0, 2, 4, [("name", "test_e3")], None)
-            .unwrap();
-        let graph_dir = tmp_graph_dir.path().join("test_dg2");
-        let _ = DiskGraph::from_graph(&graph, &graph_dir).unwrap();
-
-        let res =
-            load_graphs_from_path(tmp_work_dir.path(), tmp_graph_dir.path(), &None, true).unwrap();
-        assert_eq!(res, vec!["test_dg2", "test_dg1"]);
-
-        let graph = DiskGraph::load_from_dir(tmp_work_dir.path().join("test_dg1")).unwrap();
-        assert_eq!(graph.count_edges(), 2);
-
-        let graph = DiskGraph::load_from_dir(tmp_work_dir.path().join("test_dg2")).unwrap();
-        assert_eq!(graph.count_edges(), 3);
-
-        // Test if graph is overwritten while load from path
-        let graph = Graph::new();
-        graph
-            .add_constant_properties([("name", "test_dg2")])
-            .unwrap();
-        graph
-            .add_edge(0, 1, 2, [("name", "test_e1")], None)
-            .unwrap();
-        graph
-            .add_edge(0, 2, 3, [("name", "test_e2")], None)
-            .unwrap();
-        graph
-            .add_edge(0, 2, 4, [("name", "test_e3")], None)
-            .unwrap();
-        graph
-            .add_edge(0, 2, 5, [("name", "test_e4")], None)
-            .unwrap();
-
-        // You can't do this! Writing to a non-empty dir is not allowed when creating disk graph.
-        // let graph_dir = tmp_graph_dir.path().join("test_dg2");
-        // let _ = DiskGraph::from_graph(&graph, &graph_dir).unwrap();
-
-        let tmp_graph_dir = tempfile::tempdir().unwrap();
-        let graph_dir = tmp_graph_dir.path().join("test_dg2");
-        let _ = DiskGraph::from_graph(&graph, &graph_dir).unwrap();
-
-        let tmp_work_dir = tmp_work_dir.path();
-        let graph = DiskGraph::load_from_dir(&graph_dir).unwrap();
-        assert_eq!(graph.count_edges(), 4);
-
-        // Test overwrite false
-        let res = load_graphs_from_path(tmp_work_dir, tmp_graph_dir.path(), &None, false).unwrap();
-        assert_eq!(res, vec!["test_dg2"]);
-
-        let graphs_paths = list_top_level_files_and_dirs(tmp_work_dir).unwrap();
-        assert_eq!(graphs_paths, ["test_dg2", "test_dg1"]);
-
-        let graph = DiskGraph::load_from_dir(tmp_work_dir.join("test_dg2")).unwrap();
-        assert_eq!(graph.count_edges(), 3);
-
-        // Test overwrite true
-        let res = load_graphs_from_path(tmp_work_dir, tmp_graph_dir.path(), &None, true).unwrap();
-        assert_eq!(res, vec!["test_dg2"]);
-
-        let graphs_paths = list_top_level_files_and_dirs(tmp_work_dir).unwrap();
-        assert_eq!(graphs_paths, ["test_dg2", "test_dg1"]);
-
-        let graph = DiskGraph::load_from_dir(tmp_work_dir.join("test_dg2")).unwrap();
-        assert_eq!(graph.count_edges(), 4);
-    }
-
-    #[test]
-    fn test_load_graphs_from_paths() {
-        let tmp_graph_dir = tempfile::tempdir().unwrap();
-        let tmp_work_dir = tempfile::tempdir().unwrap();
-
-        let graph = Graph::new();
-        graph
-            .add_edge(0, 1, 2, [("name", "test_e1")], None)
-            .unwrap();
-        graph
-            .add_edge(0, 1, 3, [("name", "test_e2")], None)
-            .unwrap();
-        let graph_path1 = tmp_graph_dir.path().join("test_g1");
-        graph.save_to_file(&graph_path1).unwrap();
-
-        let graph = Graph::new();
-        graph
-            .add_edge(0, 1, 2, [("name", "test_e1")], None)
-            .unwrap();
-        graph
-            .add_edge(0, 2, 3, [("name", "test_e2")], None)
-            .unwrap();
-        graph
-            .add_edge(0, 2, 4, [("name", "test_e3")], None)
-            .unwrap();
-        let graph_path2 = tmp_graph_dir.path().join("test_g2");
-        graph.save_to_file(&graph_path2).unwrap();
-
-        let res = load_graphs_from_paths(
-            tmp_work_dir.path(),
-            vec![graph_path1, graph_path2],
-            &None,
-            true,
-        )
-        .unwrap();
-        assert_eq!(res, vec!["test_g1", "test_g2"]);
-
-        let graph = Graph::load_from_file(tmp_work_dir.path().join("test_g1"), false).unwrap();
-        assert_eq!(graph.count_edges(), 2);
-
-        let graph = Graph::load_from_file(tmp_work_dir.path().join("test_g2"), false).unwrap();
-        assert_eq!(graph.count_edges(), 3);
-    }
-
-    #[test]
-    #[cfg(feature = "storage")]
-    fn test_load_disk_graphs_from_paths() {
-        let tmp_graph_dir = tempfile::tempdir().unwrap();
-        let tmp_work_dir = tempfile::tempdir().unwrap();
-
-        let graph = Graph::new();
-        graph
-            .add_edge(0, 1, 2, [("name", "test_e1")], None)
-            .unwrap();
-        graph
-            .add_edge(0, 1, 3, [("name", "test_e2")], None)
-            .unwrap();
-        let graph_path1 = tmp_graph_dir.path().join("test_dg1");
-        let _ = DiskGraph::from_graph(&graph, &graph_path1).unwrap();
-
-        let graph = Graph::new();
-        graph
-            .add_edge(0, 1, 2, [("name", "test_e1")], None)
-            .unwrap();
-        graph
-            .add_edge(0, 2, 3, [("name", "test_e2")], None)
-            .unwrap();
-        graph
-            .add_edge(0, 2, 4, [("name", "test_e3")], None)
-            .unwrap();
-        let graph_path2 = tmp_graph_dir.path().join("test_dg2");
-        let _ = DiskGraph::from_graph(&graph, &graph_path2).unwrap();
-
-        let res = load_graphs_from_paths(
-            tmp_work_dir.path(),
-            vec![graph_path1, graph_path2],
-            &None,
-            true,
-        )
-        .unwrap();
-        assert_eq!(res, vec!["test_dg1", "test_dg2"]);
-
-        let graph = DiskGraph::load_from_dir(tmp_work_dir.path().join("test_dg1")).unwrap();
-        assert_eq!(graph.count_edges(), 2);
-
-        let graph = DiskGraph::load_from_dir(tmp_work_dir.path().join("test_dg2")).unwrap();
-        assert_eq!(graph.count_edges(), 3);
     }
 
     #[test]
@@ -885,85 +590,6 @@ mod data_tests {
     }
 
     #[test]
-    fn test_get_graphs_from_work_dir() {
-        let tmp_graph_dir = tempfile::tempdir().unwrap();
-        let tmp_work_dir = tempfile::tempdir().unwrap();
-
-        let graph = Graph::new();
-        graph
-            .add_edge(0, 1, 2, [("name", "test_e1")], None)
-            .unwrap();
-        graph
-            .add_edge(0, 1, 3, [("name", "test_e2")], None)
-            .unwrap();
-        let graph_path = tmp_graph_dir.path().join("test_g1");
-        graph.save_to_file(&graph_path).unwrap();
-
-        let graph = Graph::new();
-        graph
-            .add_edge(0, 1, 2, [("name", "test_e1")], None)
-            .unwrap();
-        graph
-            .add_edge(0, 2, 3, [("name", "test_e2")], None)
-            .unwrap();
-        graph
-            .add_edge(0, 2, 4, [("name", "test_e3")], None)
-            .unwrap();
-        let graph_path = tmp_graph_dir.path().join("test_g2");
-        graph.save_to_file(&graph_path).unwrap();
-
-        let res =
-            load_graphs_from_path(tmp_work_dir.path(), tmp_graph_dir.path(), &None, true).unwrap();
-        assert_eq!(res, vec!["test_g2", "test_g1"]);
-
-        let res = get_graphs_from_work_dir(tmp_work_dir.path()).unwrap();
-        assert_eq!(res.len(), 2);
-        let mut names = res.keys().collect_vec();
-        names.sort();
-        assert_eq!(names, vec!["test_g1", "test_g2"]);
-    }
-
-    #[test]
-    #[cfg(feature = "storage")]
-    fn test_get_disk_graphs_from_work_dir() {
-        let tmp_graph_dir = tempfile::tempdir().unwrap();
-        let tmp_work_dir = tempfile::tempdir().unwrap();
-
-        let graph = Graph::new();
-        graph
-            .add_edge(0, 1, 2, [("name", "test_e1")], None)
-            .unwrap();
-        graph
-            .add_edge(0, 1, 3, [("name", "test_e2")], None)
-            .unwrap();
-        let graph_path = tmp_graph_dir.path().join("test_dg1");
-        let _ = DiskGraph::from_graph(&graph, &graph_path).unwrap();
-
-        let graph = Graph::new();
-        graph
-            .add_edge(0, 1, 2, [("name", "test_e1")], None)
-            .unwrap();
-        graph
-            .add_edge(0, 2, 3, [("name", "test_e2")], None)
-            .unwrap();
-        graph
-            .add_edge(0, 2, 4, [("name", "test_e3")], None)
-            .unwrap();
-        let graph_path = tmp_graph_dir.path().join("test_dg2");
-        let _ = DiskGraph::from_graph(&graph, &graph_path).unwrap();
-
-        let res =
-            load_graphs_from_path(tmp_work_dir.path(), tmp_graph_dir.path(), &None, true).unwrap();
-        assert_eq!(res, vec!["test_dg2", "test_dg1"]);
-
-        let res = get_graphs_from_work_dir(tmp_work_dir.path()).unwrap();
-        assert_eq!(res.len(), 2);
-        let mut names = res.keys().collect_vec();
-        names.sort();
-        assert_eq!(names, vec!["test_dg1", "test_dg2"]);
-    }
-
-    #[test]
     #[cfg(feature = "storage")]
     fn test_save_graphs_to_work_dir() {
         let tmp_graph_dir = tempfile::tempdir().unwrap();
@@ -987,7 +613,7 @@ mod data_tests {
             ("test_dg".to_string(), graph2),
         ]);
 
-        save_graphs_to_work_dir(tmp_graph_dir.path(), &None, &graphs).unwrap();
+        save_graphs_to_work_dir(tmp_graph_dir.path(), &graphs).unwrap();
 
         let graphs = list_top_level_files_and_dirs(tmp_graph_dir.path()).unwrap();
         assert_eq!(graphs, vec!["test_g", "test_dg"]);
@@ -1023,22 +649,20 @@ mod data_tests {
 
         let data = Data::new(tmp_work_dir.path(), &configs);
 
-        assert!(!data.graphs.contains_key("test_dg"));
-        assert!(!data.graphs.contains_key("test_g"));
+        assert!(!data.graphs.contains_key(&PathBuf::from("test_dg")));
+        assert!(!data.graphs.contains_key(&PathBuf::from("test_g")));
 
         // Test size based eviction
-        let _ = data.get_graph("test_dg", &None);
-        assert!(data.graphs.contains_key("test_dg"));
-        assert!(!data.graphs.contains_key("test_g"));
+        let _ = data.get_graph(Path::new("test_dg"));
+        assert!(data.graphs.contains_key(&PathBuf::from("test_dg")));
+        assert!(!data.graphs.contains_key(&PathBuf::from("test_g")));
 
-        let _ = data.get_graph("test_g", &None);
-        // data.graphs.iter().for_each(|(k, _)| println!("{}", k));
-        // assert!(!data.graphs.contains_key("test_dg"));
-        assert!(data.graphs.contains_key("test_g"));
+        let _ = data.get_graph(Path::new("test_g"));
+        assert!(data.graphs.contains_key(&PathBuf::from("test_g")));
 
         thread::sleep(Duration::from_secs(3));
-        assert!(!data.graphs.contains_key("test_dg"));
-        assert!(!data.graphs.contains_key("test_g"));
+        assert!(!data.graphs.contains_key(&PathBuf::from("test_dg")));
+        assert!(!data.graphs.contains_key(&PathBuf::from("test_g")));
     }
 
     #[test]
@@ -1082,18 +706,18 @@ mod data_tests {
         assert!(paths.contains(&g4_path));
         assert!(!paths.contains(&g5_path)); // Empty dir are ignored
 
-        assert_eq!(get_namespace_from_path(work_dir, g0_path), None);
-        assert_eq!(get_namespace_from_path(work_dir, g1_path), None);
+        assert_eq!(get_maybe_relative_path(work_dir, g0_path), None);
+        assert_eq!(get_maybe_relative_path(work_dir, g1_path), None);
         assert_eq!(
-            get_namespace_from_path(work_dir, g2_path),
+            get_maybe_relative_path(work_dir, g2_path),
             Some("shivam/investigations/2024-12-22".to_string())
         );
         assert_eq!(
-            get_namespace_from_path(work_dir, g3_path),
+            get_maybe_relative_path(work_dir, g3_path),
             Some("shivam/investigations".to_string())
         );
         assert_eq!(
-            get_namespace_from_path(work_dir, g4_path),
+            get_maybe_relative_path(work_dir, g4_path),
             Some("shivam/investigations".to_string())
         );
     }
