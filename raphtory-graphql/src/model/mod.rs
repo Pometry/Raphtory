@@ -199,9 +199,6 @@ impl Mut {
             new_graph.update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
             new_graph.update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
             new_graph.save_to_file(&new_full_path)?;
-
-            delete_graph(&full_path)?;
-            data.graphs.remove(&path.to_path_buf());
         }
 
         Ok(true)
@@ -265,7 +262,8 @@ impl Mut {
         new_subgraph.update_constant_properties([("uiProps", Prop::Str(props.into()))])?;
         new_subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
 
-        new_subgraph.save_to_file(new_graph_path)?;
+        create_dirs_if_not_present(&new_graph_full_path)?;
+        new_subgraph.save_to_file(new_graph_full_path)?;
 
         data.graphs
             .insert(new_graph_path.to_path_buf(), new_subgraph.into());
@@ -358,7 +356,7 @@ impl Mut {
         new_subgraph.update_constant_properties([("uiProps", Prop::Str(props.into()))])?;
         new_subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
 
-        new_subgraph.save_to_file(new_graph_path)?;
+        new_subgraph.save_to_file(new_graph_full_path)?;
 
         data.graphs.remove(&graph_path.to_path_buf());
         data.graphs
@@ -406,7 +404,7 @@ impl Mut {
         let mut buff_read = graph.value(ctx)?.content;
         buff_read.read_to_end(&mut buffer)?;
         let g: MaterializedGraph = MaterializedGraph::from_bincode(&buffer)?;
-        create_dirs_if_not_present(path)?;
+        create_dirs_if_not_present(&full_path)?;
         g.save_to_file(&full_path)?;
         data.graphs.insert(path.to_path_buf(), g.into());
         Ok(path.display().to_string())
@@ -429,7 +427,7 @@ impl Mut {
             return Err(GraphError::GraphNameAlreadyExists(path.to_path_buf()).into());
         }
         let g: MaterializedGraph = url_decode_graph(graph)?;
-        create_dirs_if_not_present(path)?;
+        create_dirs_if_not_present(&full_path)?;
         g.save_to_file(&full_path)?;
         data.graphs.insert(path.to_path_buf(), g.into());
         Ok(path.display().to_string())

@@ -686,35 +686,32 @@ impl PyRaphtoryClient {
     /// Send a graph to the server
     ///
     /// Arguments:
-    ///   * `name`: the name of the graph
+    ///   * `path`: the path of the graph
     ///   * `graph`: the graph to send
     ///   * `overwrite`: overwrite existing graph (defaults to False)
-    ///   * `namespace`: the namespace of the graph
     ///
     /// Returns:
     ///    The `data` field from the graphQL response after executing the mutation.
-    #[pyo3(signature = (name, graph, overwrite = false, namespace = None))]
+    #[pyo3(signature = (path, graph, overwrite = false))]
     fn send_graph(
         &self,
         py: Python,
-        name: String,
+        path: String,
         graph: MaterializedGraph,
         overwrite: bool,
-        namespace: Option<String>,
     ) -> PyResult<HashMap<String, PyObject>> {
         let encoded_graph = encode_graph(graph)?;
 
         let query = r#"
-            mutation SendGraph($name: String!, $graph: String!, $overwrite: Boolean!, $namespace: String) {
-                sendGraph(name: $name, graph: $graph, overwrite: $overwrite, namespace: $namespace)
+            mutation SendGraph($path: String!, $graph: String!, $overwrite: Boolean!) {
+                sendGraph(path: $path, graph: $graph, overwrite: $overwrite)
             }
         "#
-            .to_owned();
+        .to_owned();
         let variables = [
-            ("name".to_owned(), json!(name)),
+            ("path".to_owned(), json!(path)),
             ("graph".to_owned(), json!(encoded_graph)),
             ("overwrite".to_owned(), json!(overwrite)),
-            ("namespace".to_owned(), json!(namespace)),
         ];
 
         let data = self.query_with_json_variables(query, variables.into())?;
@@ -734,21 +731,19 @@ impl PyRaphtoryClient {
     /// Upload graph file from a path `file_path` on the client
     ///
     /// Arguments:
-    ///   * `name`: the name of the graph
+    ///   * `path`: the name of the graph
     ///   * `file_path`: the path of the graph on the client
     ///   * `overwrite`: overwrite existing graph (defaults to False)
-    ///   * `namespace`: the namespace of the graph
     ///
     /// Returns:
     ///    The `data` field from the graphQL response after executing the mutation.
-    #[pyo3(signature = (name, file_path, overwrite = false, namespace = None))]
+    #[pyo3(signature = (path, file_path, overwrite = false))]
     fn upload_graph(
         &self,
         py: Python,
-        name: String,
+        path: String,
         file_path: String,
         overwrite: bool,
-        namespace: Option<String>,
     ) -> PyResult<HashMap<String, PyObject>> {
         let rt = Runtime::new().unwrap();
         rt.block_on(async {
@@ -759,22 +754,16 @@ impl PyRaphtoryClient {
             let mut buffer = Vec::new();
             file.read_to_end(&mut buffer).map_err(|err| adapt_err_value(&err))?;
 
-            let mut variables = format!(
-                r#""name": "{}", "overwrite": {}, "graph": null"#,
-                name, overwrite
+            let variables = format!(
+                r#""path": "{}", "overwrite": {}, "graph": null"#,
+                path, overwrite
             );
-
-            if let Some(ns) = &namespace {
-                variables = format!(r#""namespace": "{}", {}"#, ns, variables);
-            }
 
             let operations = format!(
                 r#"{{
-            "query": "mutation UploadGraph($name: String!, $graph: Upload!, $overwrite: Boolean!{}) {{ uploadGraph(name: $name, graph: $graph, overwrite: $overwrite{}) }}",
+            "query": "mutation UploadGraph($path: String!, $graph: Upload!, $overwrite: Boolean!) {{ uploadGraph(path: $path, graph: $graph, overwrite: $overwrite) }}",
             "variables": {{ {} }}
         }}"#,
-                if namespace.is_some() { ", $namespace: String" } else { "" },
-                if namespace.is_some() { ", namespace: $namespace" } else { "" },
                 variables
             );
 
@@ -834,6 +823,7 @@ impl PyRaphtoryClient {
     /// Arguments:
     ///   * `file_path`: the path to load the graph from.
     ///   * `overwrite`: overwrite existing graph (defaults to False)
+    ///   * `namespace`: the namespace of the graph (defaults to None)
     ///
     /// Returns:
     ///    The `data` field from the graphQL response after executing the mutation.
@@ -846,13 +836,13 @@ impl PyRaphtoryClient {
         namespace: Option<String>,
     ) -> PyResult<HashMap<String, PyObject>> {
         let query = r#"
-            mutation LoadGraph($file_path: String!, $overwrite: Boolean!, $namespace: String) {
-                loadGraphFromPath(filePath: $file_path, overwrite: $overwrite, namespace: $namespace) 
+            mutation LoadGraph($pathOnServer: String!, $overwrite: Boolean!, $namespace: String) {
+                loadGraphFromPath(pathOnServer: $pathOnServer, overwrite: $overwrite, namespace: $namespace) 
             }
         "#
             .to_owned();
         let variables = [
-            ("file_path".to_owned(), json!(file_path)),
+            ("pathOnServer".to_owned(), json!(file_path)),
             ("overwrite".to_owned(), json!(overwrite)),
             ("namespace".to_owned(), json!(namespace)),
         ];

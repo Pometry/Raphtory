@@ -1,5 +1,8 @@
 use crate::{
-    model::{algorithms::global_plugins::GlobalPlugins, construct_graph_full_path},
+    model::{
+        algorithms::global_plugins::GlobalPlugins, construct_graph_full_path,
+        create_dirs_if_not_present,
+    },
     server_config::AppConfig,
 };
 use async_graphql::Error;
@@ -179,6 +182,7 @@ pub fn load_graph_from_path(
                 return Err(GraphError::GraphNameAlreadyExists(target_path.to_path_buf()).into());
             }
         } else {
+            create_dirs_if_not_present(&target_path)?;
             graph.save_to_file(&target_path)?;
             println!("Graph loaded = {}", target_path.display());
         }

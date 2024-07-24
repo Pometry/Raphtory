@@ -39,9 +39,9 @@ def test_server_start_on_default_port():
     tmp_work_dir = tempfile.mkdtemp()
     server = RaphtoryServer(tmp_work_dir).start()
     client = RaphtoryClient("http://localhost:1736")
-    client.send_graph(name="g", graph=g)
+    client.send_graph(path="g", graph=g)
 
-    query = """{graph(name: "g") {nodes {list {name}}}}"""
+    query = """{graph(path: "g") {nodes {list {name}}}}"""
     assert client.query(query) == {
         "graph": {
             "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
@@ -60,9 +60,9 @@ def test_server_start_on_custom_port():
     tmp_work_dir = tempfile.mkdtemp()
     server = RaphtoryServer(tmp_work_dir).start(port=1737)
     client = RaphtoryClient("http://localhost:1737")
-    client.send_graph(name="g", graph=g)
+    client.send_graph(path="g", graph=g)
 
-    query = """{graph(name: "g") {nodes {list {name}}}}"""
+    query = """{graph(path: "g") {nodes {list {name}}}}"""
     assert client.query(query) == {
         "graph": {
             "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
@@ -81,7 +81,7 @@ def test_send_graph_succeeds_if_no_graph_found_with_same_name():
     tmp_work_dir = tempfile.mkdtemp()
     server = RaphtoryServer(tmp_work_dir).start()
     client = RaphtoryClient("http://localhost:1736")
-    client.send_graph(name="g", graph=g)
+    client.send_graph(path="g", graph=g)
 
     server.stop()
 
@@ -99,7 +99,7 @@ def test_send_graph_fails_if_graph_already_exists():
     client = RaphtoryClient("http://localhost:1736")
 
     try:
-        client.send_graph(name="g", graph=g)
+        client.send_graph(path="g", graph=g)
     except Exception as e:
         assert "Graph already exists by name = g" in str(e), f"Unexpected exception message: {e}"
 
@@ -123,9 +123,9 @@ def test_send_graph_succeeds_if_graph_already_exists_with_overwrite_enabled():
     g.add_edge(2, "haaroon", "hamza")
     g.add_edge(3, "ben", "haaroon")
     g.add_edge(4, "ben", "shivam")
-    client.send_graph(name="g", graph=g, overwrite=True)
+    client.send_graph(path="g", graph=g, overwrite=True)
 
-    query = """{graph(name: "g") {nodes {list {name}}}}"""
+    query = """{graph(path: "g") {nodes {list {name}}}}"""
     assert client.query(query) == {
         "graph": {
             "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}, {"name": "shivam"}]}
@@ -144,7 +144,7 @@ def test_send_graph_succeeds_if_no_graph_found_with_same_name_at_namespace():
     tmp_work_dir = tempfile.mkdtemp()
     server = RaphtoryServer(tmp_work_dir).start()
     client = RaphtoryClient("http://localhost:1736")
-    client.send_graph(name="g", graph=g, namespace="shivam")
+    client.send_graph(path="shivam/g", graph=g)
 
     server.stop()
 
@@ -163,9 +163,9 @@ def test_send_graph_fails_if_graph_already_exists_at_namespace():
     client = RaphtoryClient("http://localhost:1736")
 
     try:
-        client.send_graph(name="g", graph=g, namespace="shivam")
+        client.send_graph(path="shivam/g", graph=g)
     except Exception as e:
-        assert "Graph already exists by name = g" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph already exists by name = shivam/g" in str(e), f"Unexpected exception message: {e}"
 
     server.stop()
 
@@ -188,9 +188,9 @@ def test_send_graph_succeeds_if_graph_already_exists_at_namespace_with_overwrite
     g.add_edge(2, "haaroon", "hamza")
     g.add_edge(3, "ben", "haaroon")
     g.add_edge(4, "ben", "shivam")
-    client.send_graph(name="g", graph=g, overwrite=True, namespace="shivam")
+    client.send_graph(path="shivam/g", graph=g, overwrite=True)
 
-    query = """{graph(name: "g", namespace: "shivam") {nodes {list {name}}}}"""
+    query = """{graph(path: "shivam/g") {nodes {list {name}}}}"""
     assert client.query(query) == {
         "graph": {
             "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}, {"name": "shivam"}]}
@@ -201,8 +201,8 @@ def test_send_graph_succeeds_if_graph_already_exists_at_namespace_with_overwrite
 
 
 def test_namespaces():
-    def assert_graph_fetch(name, namespace):
-        query = f"""{{ graph(name: "{name}", namespace: "{namespace}") {{ nodes {{ list {{ name }} }} }} }}"""
+    def assert_graph_fetch(path):
+        query = f"""{{ graph(path: "{path}") {{ nodes {{ list {{ name }} }} }} }}"""
         assert client.query(query) == {
             "graph": {
                 "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
@@ -214,69 +214,69 @@ def test_namespaces():
     g.add_edge(2, "haaroon", "hamza")
     g.add_edge(3, "ben", "haaroon")
 
-    name = "g"
+    path = "g"
     tmp_work_dir = tempfile.mkdtemp()
     server = RaphtoryServer(tmp_work_dir).start()
     client = RaphtoryClient("http://localhost:1736")
 
     # Default namespace, graph is saved in the work dir
-    client.send_graph(name=name, graph=g, overwrite=True)
-    expected_path = os.path.join(tmp_work_dir, name)
+    client.send_graph(path=path, graph=g, overwrite=True)
+    expected_path = os.path.join(tmp_work_dir, path)
     assert os.path.exists(expected_path)
 
-    namespace = "shivam"
-    client.send_graph(name=name, graph=g, overwrite=True, namespace=namespace)
-    expected_path = os.path.join(tmp_work_dir, namespace, name)
+    path = "shivam/g"
+    client.send_graph(path=path, graph=g, overwrite=True)
+    expected_path = os.path.join(tmp_work_dir, path)
     assert os.path.exists(expected_path)
-    assert_graph_fetch(name, namespace)
+    assert_graph_fetch(path)
 
-    namespace = "./shivam/investigation"
-    client.send_graph(name=name, graph=g, overwrite=True, namespace=namespace)
-    expected_path = os.path.join(tmp_work_dir, namespace, name)
+    path = "./shivam/investigation/g"
+    client.send_graph(path=path, graph=g, overwrite=True)
+    expected_path = os.path.join(tmp_work_dir, path)
     assert os.path.exists(expected_path)
-    assert_graph_fetch(name, namespace)
+    assert_graph_fetch(path)
 
-    namespace = "./shivam/investigation/2024/12/12"
-    client.send_graph(name=name, graph=g, overwrite=True, namespace=namespace)
-    expected_path = os.path.join(tmp_work_dir, namespace, name)
+    path = "./shivam/investigation/2024/12/12/g"
+    client.send_graph(path=path, graph=g, overwrite=True)
+    expected_path = os.path.join(tmp_work_dir, path)
     assert os.path.exists(expected_path)
-    assert_graph_fetch(name, namespace)
+    assert_graph_fetch(path)
 
-    namespace = "shivam/investigation/2024-12-12"
-    client.send_graph(name=name, graph=g, overwrite=True, namespace=namespace)
-    expected_path = os.path.join(tmp_work_dir, namespace, name)
+    path = "shivam/investigation/2024-12-12/g"
+    client.send_graph(path=path, graph=g, overwrite=True)
+    expected_path = os.path.join(tmp_work_dir, path)
     assert os.path.exists(expected_path)
-    assert_graph_fetch(name, namespace)
+    assert_graph_fetch(path)
 
-    namespace = "../shivam"
+    path = "../shivam/g"
     try:
-        client.send_graph(name=name, graph=g, overwrite=True, namespace=namespace)
+        client.send_graph(path=path, graph=g, overwrite=True)
     except Exception as e:
-        assert "Invalid namespace: ../shivam" in str(e), f"Unexpected exception message: {e}"
+        assert "Invalid path" in str(e), f"Unexpected exception message: {e}"
 
-    namespace = "./shivam/../investigation"
+    path = "./shivam/../investigation/g"
     try:
-        client.send_graph(name=name, graph=g, overwrite=True, namespace=namespace)
+        client.send_graph(path=path, graph=g, overwrite=True)
     except Exception as e:
-        assert "Invalid namespace: ./shivam/../investigation" in str(e), f"Unexpected exception message: {e}"
+        assert "Invalid path" in str(e), f"Unexpected exception message: {e}"
 
-    namespace = "//shivam/investigation"
+    path = "//shivam/investigation/g"
     try:
-        client.send_graph(name=name, graph=g, overwrite=True, namespace=namespace)
+        client.send_graph(path=path, graph=g, overwrite=True)
     except Exception as e:
-        assert "//shivam/investigation" in str(e), f"Unexpected exception message: {e}"
+        assert "Invalid path" in str(e), f"Unexpected exception message: {e}"
 
-    namespace = "shivam/investigation//2024-12-12"
+    path = "shivam/investigation//2024-12-12/g"
     try:
-        client.send_graph(name=name, graph=g, overwrite=True, namespace=namespace)
+        client.send_graph(path=path, graph=g, overwrite=True)
     except Exception as e:
-        assert "shivam/investigation//2024-12-12" in str(e), f"Unexpected exception message: {e}"
+        assert "Invalid path" in str(e), f"Unexpected exception message: {e}"
 
-    namespace = "shivam/investigation\2024-12-12"
+    path = "shivam/investigation\2024-12-12"
     try:
-        client.send_graph(name=name, graph=g, overwrite=True, namespace=namespace)
+        client.send_graph(path=path, graph=g, overwrite=True)
     except Exception as e:
-        assert "shivam/investigation\2024-12-12" in str(e), f"Unexpected exception message: {e}"
+        assert "Invalid path" in str(e), f"Unexpected exception message: {e}"
 
     server.stop()
 
@@ -294,9 +294,9 @@ def test_upload_graph_succeeds_if_no_graph_found_with_same_name():
     tmp_work_dir = tempfile.mkdtemp()
     server = RaphtoryServer(tmp_work_dir).start()
     client = RaphtoryClient("http://localhost:1736")
-    client.upload_graph(name="g", file_path=g_file_path, overwrite=False)
+    client.upload_graph(path="g", file_path=g_file_path, overwrite=False)
 
-    query = """{graph(name: "g") {nodes {list {name}}}}"""
+    query = """{graph(path: "g") {nodes {list {name}}}}"""
     assert client.query(query) == {
         "graph": {
             "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
@@ -321,7 +321,7 @@ def test_upload_graph_fails_if_graph_already_exists():
     client = RaphtoryClient("http://localhost:1736")
 
     try:
-        client.upload_graph(name="g", file_path=g_file_path)
+        client.upload_graph(path="g", file_path=g_file_path)
     except Exception as e:
         assert "Graph already exists by name = g" in str(e), f"Unexpected exception message: {e}"
 
@@ -350,9 +350,9 @@ def test_upload_graph_succeeds_if_graph_already_exists_with_overwrite_enabled():
     g_file_path = tmp_dir + "/g"
     g.save_to_file(g_file_path)
 
-    client.upload_graph(name="g", file_path=g_file_path, overwrite=True)
+    client.upload_graph(path="g", file_path=g_file_path, overwrite=True)
 
-    query = """{graph(name: "g") {nodes {list {name}}}}"""
+    query = """{graph(path: "g") {nodes {list {name}}}}"""
     assert client.query(query) == {
         "graph": {
             "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}, {"name": "shivam"}]}
@@ -375,9 +375,9 @@ def test_upload_graph_succeeds_if_no_graph_found_with_same_name_at_namespace():
     tmp_work_dir = tempfile.mkdtemp()
     server = RaphtoryServer(tmp_work_dir).start()
     client = RaphtoryClient("http://localhost:1736")
-    client.upload_graph(name="g", file_path=g_file_path, overwrite=False, namespace="shivam")
+    client.upload_graph(path="shivam/g", file_path=g_file_path, overwrite=False)
 
-    query = """{graph(name: "g", namespace: "shivam") {nodes {list {name}}}}"""
+    query = """{graph(path: "shivam/g") {nodes {list {name}}}}"""
     assert client.query(query) == {
         "graph": {
             "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
@@ -403,9 +403,9 @@ def test_upload_graph_fails_if_graph_already_exists_at_namespace():
     client = RaphtoryClient("http://localhost:1736")
 
     try:
-        client.upload_graph(name="g", file_path=g_file_path, overwrite=False, namespace="shivam")
+        client.upload_graph(path="shivam/g", file_path=g_file_path, overwrite=False)
     except Exception as e:
-        assert "Graph already exists by name = g" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph already exists by name = shivam/g" in str(e), f"Unexpected exception message: {e}"
 
     server.stop()
 
@@ -431,9 +431,9 @@ def test_upload_graph_succeeds_if_graph_already_exists_at_namespace_with_overwri
     g_file_path = tmp_dir + "/g"
     g.save_to_file(g_file_path)
 
-    client.upload_graph(name="g", file_path=g_file_path, overwrite=True, namespace="shivam")
+    client.upload_graph(path="shivam/g", file_path=g_file_path, overwrite=True)
 
-    query = """{graph(name: "g", namespace: "shivam") {nodes {list {name}}}}"""
+    query = """{graph(path: "shivam/g") {nodes {list {name}}}}"""
     assert client.query(query) == {
         "graph": {
             "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}, {"name": "shivam"}]}
@@ -457,7 +457,7 @@ def test_load_graph_succeeds_if_no_graph_found_with_same_name():
     client = RaphtoryClient("http://localhost:1736")
     client.load_graph(file_path=g_file_path, overwrite=False)
 
-    query = """{graph(name: "g") {nodes {list {name}}}}"""
+    query = """{graph(path: "g") {nodes {list {name}}}}"""
     assert client.query(query) == {
         "graph": {
             "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
@@ -477,14 +477,15 @@ def test_load_graph_fails_if_graph_already_exists():
     g.save_to_file(g_file_path)
 
     tmp_work_dir = tempfile.mkdtemp()
-    g.save_to_file(os.path.join(tmp_work_dir, "g"))
+    path = os.path.join(tmp_work_dir, "g")
+    g.save_to_file(path)
     server = RaphtoryServer(tmp_work_dir).start()
     client = RaphtoryClient("http://localhost:1736")
 
     try:
         client.load_graph(file_path=g_file_path)
     except Exception as e:
-        assert "Graph already exists by name = g" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph already exists by name = " + path in str(e), f"Unexpected exception message: {e}"
 
     server.stop()
 
@@ -513,7 +514,7 @@ def test_load_graph_succeeds_if_graph_already_exists_with_overwrite_enabled():
 
     client.load_graph(file_path=g_file_path, overwrite=True)
 
-    query = """{graph(name: "g") {nodes {list {name}}}}"""
+    query = """{graph(path: "g") {nodes {list {name}}}}"""
     assert client.query(query) == {
         "graph": {
             "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}, {"name": "shivam"}]}
@@ -538,7 +539,7 @@ def test_load_graph_succeeds_if_no_graph_found_with_same_name_at_namespace():
     client = RaphtoryClient("http://localhost:1736")
     client.load_graph(file_path=g_file_path, overwrite=False, namespace="shivam")
 
-    query = """{graph(name: "g", namespace: "shivam") {nodes {list {name}}}}"""
+    query = """{graph(path: "shivam/g") {nodes {list {name}}}}"""
     assert client.query(query) == {
         "graph": {
             "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
@@ -559,14 +560,15 @@ def test_load_graph_fails_if_graph_already_exists_at_namespace():
 
     tmp_work_dir = tempfile.mkdtemp()
     os.makedirs(os.path.join(tmp_work_dir, "shivam"), exist_ok=True)
-    g.save_to_file(os.path.join(tmp_work_dir, "shivam", "g"))
+    path = os.path.join(tmp_work_dir, "shivam", "g")
+    g.save_to_file(path)
     server = RaphtoryServer(tmp_work_dir).start()
     client = RaphtoryClient("http://localhost:1736")
 
     try:
         client.load_graph(file_path=g_file_path, overwrite=False, namespace="shivam")
     except Exception as e:
-        assert "Graph already exists by name = g" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph already exists by name = " + path in str(e), f"Unexpected exception message: {e}"
 
     server.stop()
 
@@ -594,7 +596,7 @@ def test_load_graph_succeeds_if_graph_already_exists_at_namespace_with_overwrite
 
     client.load_graph(file_path=g_file_path, overwrite=True, namespace="shivam")
 
-    query = """{graph(name: "g", namespace: "shivam") {nodes {list {name}}}}"""
+    query = """{graph(path: "shivam/g") {nodes {list {name}}}}"""
     assert client.query(query) == {
         "graph": {
             "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}, {"name": "shivam"}]}
@@ -609,7 +611,7 @@ def test_get_graph_fails_if_graph_not_found():
     server = RaphtoryServer(work_dir).start()
     client = server.get_client()
 
-    query = """{ graph(name: "g1") { name, path, nodes { list { name } } } }"""
+    query = """{ graph(path: "g1") { name, path, nodes { list { name } } } }"""
     try:
         client.query(query)
     except Exception as e:
@@ -623,7 +625,7 @@ def test_get_graph_fails_if_graph_not_found_at_namespace():
     server = RaphtoryServer(work_dir).start()
     client = server.get_client()
 
-    query = """{ graph(name: "g1", namespace: "shivam") { name, path, nodes { list { name } } } }"""
+    query = """{ graph(path: "shivam/g1") { name, path, nodes { list { name } } } }"""
     try:
         client.query(query)
     except Exception as e:
@@ -645,7 +647,7 @@ def test_get_graph_succeeds_if_graph_found():
     os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
     g.save_to_file(os.path.join(work_dir, "g1"))
 
-    query = """{ graph(name: "g1") { name, path, nodes { list { name } } } }"""
+    query = """{ graph(path: "g1") { name, path, nodes { list { name } } } }"""
     assert client.query(query) == {
         'graph': {'name': 'g1', 'nodes': {'list': [{'name': 'ben'}, {'name': 'hamza'}, {'name': 'haaroon'}]},
                   'path': 'g1'}}
@@ -666,7 +668,7 @@ def test_get_graph_succeeds_if_graph_found_at_namespace():
     os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
     g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
 
-    query = """{ graph(name: "g2", namespace: "shivam") { name, path, nodes { list { name } } } }"""
+    query = """{ graph(path: "shivam/g2") { name, path, nodes { list { name } } } }"""
     assert client.query(query) == {
         'graph': {'name': 'g2', 'nodes': {'list': [{'name': 'ben'}, {'name': 'hamza'}, {'name': 'haaroon'}]},
                   'path': 'shivam/g2'}}
@@ -717,7 +719,7 @@ def test_receive_graph_fails_if_no_graph_found():
     server = RaphtoryServer(work_dir).start()
     client = server.get_client()
 
-    query = """{ receiveGraph(name: "g2") }"""
+    query = """{ receiveGraph(path: "g2") }"""
     try:
         client.query(query)
     except Exception as e:
@@ -740,7 +742,7 @@ def test_receive_graph_succeeds_if_graph_found():
 
     received_graph = 'AQAAAAAAAAADAAAAAAAAAJTXBAscINjlAQAAAAAAAADv0+QnEcpEzAIAAAAAAAAArUhReOzDmFAAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAABAAAAAAAAAK1IUXjsw5hQAQMAAAAAAAAAYmVuAAAAAAAAAAACAAAAAgAAAAAAAAABAAAAAAAAAAMAAAAAAAAAAQAAAAAAAAABAAAAAgAAAAIAAAAAAAAAAQAAAAAAAAACAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAJTXBAscINjlAQUAAAAAAAAAaGFtemEBAAAAAAAAAAIAAAACAAAAAAAAAAEAAAAAAAAAAgAAAAAAAAABAAAAAAAAAAEAAAAAAAAAAgAAAAIAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAA79PkJxHKRMwBBwAAAAAAAABoYWFyb29uAgAAAAAAAAACAAAAAgAAAAAAAAACAAAAAAAAAAMAAAAAAAAAAQAAAAAAAAABAAAAAQAAAAEAAAAAAAAAAQAAAAAAAAABAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADAAAAAAAAAAgAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAABAAAAAAAAAAABAAAAAAAAAAEAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAEAAAAAAAAAAgAAAAAAAAABAAAAAAAAAAEAAAAAAAAAAAEAAAAAAAAAAQAAAAIAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAQAAAAAAAAAAAQAAAAAAAAABAAAAAwAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMAAAAAAAAACQAAAAAAAAABAAAAAAAAAAMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAIAAAAAAAAAF9kZWZhdWx0AAAAAAAAAAABAAAAAAAAAAgAAAAAAAAAX2RlZmF1bHQBAAAAAAAAAAgAAAAAAAAAX2RlZmF1bHQAAAAAAAAAAAEAAAAAAAAACAAAAAAAAABfZGVmYXVsdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAACAAAAAAAAABfZGVmYXVsdAAAAAAAAAAAAQAAAAAAAAAIAAAAAAAAAF9kZWZhdWx0AQAAAAAAAAAIAAAAAAAAAF9kZWZhdWx0AAAAAAAAAAABAAAAAAAAAAgAAAAAAAAAX2RlZmF1bHQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
 
-    query = """{ receiveGraph(name: "g1") }"""
+    query = """{ receiveGraph(path: "g1") }"""
     assert client.query(query) == {
         'receiveGraph': received_graph
     }
@@ -758,7 +760,7 @@ def test_receive_graph_fails_if_no_graph_found_at_namespace():
     server = RaphtoryServer(work_dir).start()
     client = server.get_client()
 
-    query = """{ receiveGraph(name: "g2", namespace: "shivam") }"""
+    query = """{ receiveGraph(path: "shivam/g2") }"""
     try:
         client.query(query)
     except Exception as e:
@@ -782,7 +784,7 @@ def test_receive_graph_succeeds_if_graph_found_at_namespace():
 
     received_graph = 'AQAAAAAAAAADAAAAAAAAAJTXBAscINjlAQAAAAAAAADv0+QnEcpEzAIAAAAAAAAArUhReOzDmFAAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAABAAAAAAAAAK1IUXjsw5hQAQMAAAAAAAAAYmVuAAAAAAAAAAACAAAAAgAAAAAAAAABAAAAAAAAAAMAAAAAAAAAAQAAAAAAAAABAAAAAgAAAAIAAAAAAAAAAQAAAAAAAAACAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAJTXBAscINjlAQUAAAAAAAAAaGFtemEBAAAAAAAAAAIAAAACAAAAAAAAAAEAAAAAAAAAAgAAAAAAAAABAAAAAAAAAAEAAAAAAAAAAgAAAAIAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAA79PkJxHKRMwBBwAAAAAAAABoYWFyb29uAgAAAAAAAAACAAAAAgAAAAAAAAACAAAAAAAAAAMAAAAAAAAAAQAAAAAAAAABAAAAAQAAAAEAAAAAAAAAAQAAAAAAAAABAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADAAAAAAAAAAgAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAABAAAAAAAAAAABAAAAAAAAAAEAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAEAAAAAAAAAAgAAAAAAAAABAAAAAAAAAAEAAAAAAAAAAAEAAAAAAAAAAQAAAAIAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAQAAAAAAAAAAAQAAAAAAAAABAAAAAwAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMAAAAAAAAACQAAAAAAAAABAAAAAAAAAAMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAIAAAAAAAAAF9kZWZhdWx0AAAAAAAAAAABAAAAAAAAAAgAAAAAAAAAX2RlZmF1bHQBAAAAAAAAAAgAAAAAAAAAX2RlZmF1bHQAAAAAAAAAAAEAAAAAAAAACAAAAAAAAABfZGVmYXVsdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAACAAAAAAAAABfZGVmYXVsdAAAAAAAAAAAAQAAAAAAAAAIAAAAAAAAAF9kZWZhdWx0AQAAAAAAAAAIAAAAAAAAAF9kZWZhdWx0AAAAAAAAAAABAAAAAAAAAAgAAAAAAAAAX2RlZmF1bHQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
 
-    query = """{ receiveGraph(name: "g2", namespace: "shivam") }"""
+    query = """{ receiveGraph(path: "shivam/g2") }"""
     assert client.query(query) == {
         'receiveGraph': received_graph
     }
@@ -802,9 +804,8 @@ def test_move_graph_fails_if_graph_not_found():
 
     query = """mutation {
       moveGraph(
-        graphName: "g5",
-        graphNamespace: "ben",
-        newGraphName: "g6",
+        path: "ben/g5",
+        newPath: "g6",
       )
     }"""
     try:
@@ -831,9 +832,8 @@ def test_move_graph_fails_if_graph_with_same_name_already_exists():
 
     query = """mutation {
       moveGraph(
-        graphName: "g5",
-        graphNamespace: "ben",
-        newGraphName: "g6",
+        path: "ben/g5",
+        newPath: "g6",
       )
     }"""
     try:
@@ -860,10 +860,8 @@ def test_move_graph_fails_if_graph_with_same_name_already_exists_at_same_namespa
 
     query = """mutation {
       moveGraph(
-        graphName: "g5",
-        graphNamespace: "ben",
-        newGraphName: "g6",
-        newGraphNamespace: "ben",
+        path: "ben/g5",
+        newPath: "ben/g6",
       )
     }"""
     try:
@@ -891,10 +889,8 @@ def test_move_graph_fails_if_graph_with_same_name_already_exists_at_diff_namespa
 
     query = """mutation {
       moveGraph(
-        graphName: "g5",
-        graphNamespace: "ben",
-        newGraphName: "g6",
-        newGraphNamespace: "shivam",
+        path: "ben/g5",
+        newPath: "shivam/g6",
       )
     }"""
     try:
@@ -921,20 +917,19 @@ def test_move_graph_succeeds():
     # Assert if rename graph succeeds and old graph is deleted
     query = """mutation {
       moveGraph(
-        graphName: "g3",
-        graphNamespace: "shivam",
-        newGraphName: "g4",
+        path: "shivam/g3",
+        newPath: "g4",
       )
     }"""
     client.query(query)
 
-    query = """{graph(name: "g3", namespace: "shivam") {nodes {list {name}}}}"""
+    query = """{graph(path: "shivam/g3") {nodes {list {name}}}}"""
     try:
         client.query(query)
     except Exception as e:
         assert "Graph not found shivam/g3" in str(e), f"Unexpected exception message: {e}"
 
-    query = """{graph(name: "g4") {
+    query = """{graph(path: "g4") {
             nodes {list {name}}
             properties {
                 constant {
@@ -969,21 +964,19 @@ def test_move_graph_succeeds_at_same_namespace_as_graph():
     # Assert if rename graph succeeds and old graph is deleted
     query = """mutation {
       moveGraph(
-        graphName: "g3",
-        graphNamespace: "shivam",
-        newGraphName: "g4",
-        newGraphNamespace: "shivam"
+        path: "shivam/g3",
+        newPath: "shivam/g4",
       )
     }"""
     client.query(query)
 
-    query = """{graph(name: "g3", namespace: "shivam") {nodes {list {name}}}}"""
+    query = """{graph(path: "shivam/g3") {nodes {list {name}}}}"""
     try:
         client.query(query)
     except Exception as e:
         assert "Graph not found shivam/g3" in str(e), f"Unexpected exception message: {e}"
 
-    query = """{graph(name: "g4", namespace: "shivam") {
+    query = """{graph(path: "shivam/g4") {
             nodes {list {name}}
             properties {
                 constant {
@@ -1019,21 +1012,19 @@ def test_move_graph_succeeds_at_diff_namespace_as_graph():
     # Assert if rename graph succeeds and old graph is deleted
     query = """mutation {
       moveGraph(
-        graphName: "g3",
-        graphNamespace: "ben",
-        newGraphName: "g4",
-        newGraphNamespace: "shivam",
+        path: "ben/g3",
+        newPath: "shivam/g4",
       )
     }"""
     client.query(query)
 
-    query = """{graph(name: "g3", namespace: "ben") {nodes {list {name}}}}"""
+    query = """{graph(path: "ben/g3") {nodes {list {name}}}}"""
     try:
         client.query(query)
     except Exception as e:
         assert "Graph not found ben/g3" in str(e), f"Unexpected exception message: {e}"
 
-    query = """{graph(name: "g4", namespace: "shivam") {
+    query = """{graph(path: "shivam/g4") {
             nodes {list {name}}
             properties {
                 constant {
@@ -1058,9 +1049,8 @@ def test_copy_graph_fails_if_graph_not_found():
 
     query = """mutation {
       copyGraph(
-        graphName: "g5",
-        graphNamespace: "ben",
-        newGraphName: "g6",
+        path: "ben/g5",
+        newPath: "g6",
       )
     }"""
     try:
@@ -1087,9 +1077,8 @@ def test_copy_graph_fails_if_graph_with_same_name_already_exists():
 
     query = """mutation {
       copyGraph(
-        graphName: "g5",
-        graphNamespace: "ben",
-        newGraphName: "g6",
+        path: "ben/g5",
+        newPath: "g6",
       )
     }"""
     try:
@@ -1116,10 +1105,8 @@ def test_copy_graph_fails_if_graph_with_same_name_already_exists_at_same_namespa
 
     query = """mutation {
       copyGraph(
-        graphName: "g5",
-        graphNamespace: "ben",
-        newGraphName: "g6",
-        newGraphNamespace: "ben",
+        path: "ben/g5",
+        newPath: "ben/g6",
       )
     }"""
     try:
@@ -1147,10 +1134,8 @@ def test_copy_graph_fails_if_graph_with_same_name_already_exists_at_diff_namespa
 
     query = """mutation {
       copyGraph(
-        graphName: "g5",
-        graphNamespace: "ben",
-        newGraphName: "g6",
-        newGraphNamespace: "shivam",
+        path: "ben/g5",
+        newPath: "shivam/g6",
       )
     }"""
     try:
@@ -1168,6 +1153,7 @@ def test_copy_graph_succeeds():
     g.add_edge(3, "ben", "haaroon")
 
     work_dir = tempfile.mkdtemp()
+    # work_dir = "/tmp/graphs"
     os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
     g.save_to_file(os.path.join(work_dir, "shivam", "g3"))
 
@@ -1177,18 +1163,17 @@ def test_copy_graph_succeeds():
     # Assert if copy graph succeeds and old graph is retained
     query = """mutation {
       copyGraph(
-        graphName: "g3",
-        graphNamespace: "shivam",
-        newGraphName: "g4",
+        path: "shivam/g3",
+        newPath: "g4",
       )
     }"""
     client.query(query)
 
-    query = """{graph(name: "g3", namespace: "shivam") { nodes {list {name}} }}"""
+    query = """{graph(path: "shivam/g3") { nodes {list {name}} }}"""
     result = client.query(query)
     assert result['graph']['nodes']['list'] == [{'name': 'ben'}, {"name": "hamza"}, {'name': 'haaroon'}]
 
-    query = """{graph(name: "g4") {
+    query = """{graph(path: "g4") {
             nodes {list {name}}
             properties {
                 constant {
@@ -1223,19 +1208,17 @@ def test_copy_graph_succeeds_at_same_namespace_as_graph():
     # Assert if rename graph succeeds and old graph is deleted
     query = """mutation {
       copyGraph(
-        graphName: "g3",
-        graphNamespace: "shivam",
-        newGraphName: "g4",
-        newGraphNamespace: "shivam"
+        path: "shivam/g3",
+        newPath: "shivam/g4",
       )
     }"""
     client.query(query)
 
-    query = """{graph(name: "g3", namespace: "shivam") { nodes {list {name}} }}"""
+    query = """{graph(path: "shivam/g3") { nodes {list {name}} }}"""
     result = client.query(query)
     assert result['graph']['nodes']['list'] == [{'name': 'ben'}, {"name": "hamza"}, {'name': 'haaroon'}]
 
-    query = """{graph(name: "g4", namespace: "shivam") {
+    query = """{graph(path: "shivam/g4") {
             nodes {list {name}}
             properties {
                 constant {
@@ -1271,19 +1254,17 @@ def test_copy_graph_succeeds_at_diff_namespace_as_graph():
     # Assert if rename graph succeeds and old graph is deleted
     query = """mutation {
       copyGraph(
-        graphName: "g3",
-        graphNamespace: "ben",
-        newGraphName: "g4",
-        newGraphNamespace: "shivam",
+        path: "ben/g3",
+        newPath: "shivam/g4",
       )
     }"""
     client.query(query)
 
-    query = """{graph(name: "g3", namespace: "ben") { nodes {list {name}} }}"""
+    query = """{graph(path: "ben/g3") { nodes {list {name}} }}"""
     result = client.query(query)
     assert result['graph']['nodes']['list'] == [{'name': 'ben'}, {"name": "hamza"}, {'name': 'haaroon'}]
 
-    query = """{graph(name: "g4", namespace: "shivam") {
+    query = """{graph(path: "shivam/g4") {
             nodes {list {name}}
             properties {
                 constant {
@@ -1308,8 +1289,7 @@ def test_delete_graph_fails_if_graph_not_found():
 
     query = """mutation {
       deleteGraph(
-        graphName: "g5",
-        graphNamespace: "ben",
+        path: "ben/g5",
       )
     }"""
     try:
@@ -1334,7 +1314,7 @@ def test_delete_graph_succeeds_if_graph_found():
 
     query = """mutation {
       deleteGraph(
-        graphName: "g1",
+        path: "g1",
       )
     }"""
     try:
@@ -1360,8 +1340,7 @@ def test_delete_graph_succeeds_if_graph_found_at_namespace():
 
     query = """mutation {
       deleteGraph(
-        graphName: "g1",
-        graphNamespace: "shivam",
+        path: "shivam/g1",
       )
     }"""
     try:
@@ -1378,9 +1357,8 @@ def test_create_graph_fail_if_parent_graph_not_found():
     client = server.get_client()
     query = """mutation {
         createGraph(
-          parentGraphName: "g0",
-          newGraphNamespace: "shivam",
-          newGraphName: "g3",
+          parentGraphPath: "g0",
+          newGraphPath: "shivam/g3",
           props: "{{ \\"target\\": 6 : }}",
           isArchive: 0,
           graphNodes: ["ben"]
@@ -1401,10 +1379,8 @@ def test_create_graph_fail_if_parent_graph_not_found_at_namespace():
     client = server.get_client()
     query = """mutation {
         createGraph(
-          parentGraphNamespace: "shivam",
-          parentGraphName: "g0",
-          newGraphNamespace: "shivam",
-          newGraphName: "g3",
+          parentGraphPath: "shivam/g0",
+          newGraphPath: "shivam/g3",
           props: "{{ \\"target\\": 6 : }}",
           isArchive: 0,
           graphNodes: ["ben"]
@@ -1430,8 +1406,8 @@ def test_create_graph_fail_if_graph_already_exists():
     client = server.get_client()
     query = """mutation {
         createGraph(
-          parentGraphName: "g0",
-          newGraphName: "g3",
+          parentGraphPath: "g0",
+          newGraphPath: "g3",
           props: "{{ \\"target\\": 6 : }}",
           isArchive: 0,
           graphNodes: ["ben"]
@@ -1458,9 +1434,8 @@ def test_create_graph_fail_if_graph_already_exists_at_namespace():
     client = server.get_client()
     query = """mutation {
         createGraph(
-          parentGraphName: "g0",
-          newGraphNamespace: "shivam",
-          newGraphName: "g3",
+          parentGraphPath: "g0",
+          newGraphPath: "shivam/g3",
           props: "{{ \\"target\\": 6 : }}",
           isArchive: 0,
           graphNodes: ["ben"]
@@ -1493,8 +1468,8 @@ def test_create_graph_succeeds():
 
     query = """mutation {
       createGraph(
-        parentGraphName: "g1",
-        newGraphName: "g3",
+        parentGraphPath: "g1",
+        newGraphPath: "g3",
         props: "{ \\"target\\": 6 : }",
         isArchive: 1,
         graphNodes: ["ben", "hamza"]
@@ -1503,8 +1478,8 @@ def test_create_graph_succeeds():
     client.query(query)
 
     query = """{
-        graph(name: "g3") { 
-            nodes {list { 
+        graph(path: "g3") {
+            nodes { list {
                 name
                 properties { temporal { get(key: "dept") { values } } } 
             }}
@@ -1554,9 +1529,8 @@ def test_create_graph_succeeds_at_namespace():
 
     query = """mutation {
       createGraph(
-        parentGraphName: "g1",
-        newGraphNamespace: "shivam",
-        newGraphName: "g3",
+        parentGraphPath: "g1",
+        newGraphPath: "shivam/g3",
         props: "{ \\"target\\": 6 : }",
         isArchive: 1,
         graphNodes: ["ben", "hamza"]
@@ -1565,7 +1539,7 @@ def test_create_graph_succeeds_at_namespace():
     client.query(query)
 
     query = """{
-        graph(name: "g3", namespace: "shivam") { 
+        graph(path: "shivam/g3") { 
             nodes {list { 
                 name
                 properties { temporal { get(key: "dept") { values } } } 
@@ -1605,10 +1579,9 @@ def test_update_graph_with_new_graph_name_fails_if_parent_graph_not_found():
     client = server.get_client()
     query = """mutation {
         updateGraph(
-          parentGraphName: "g0",
-          graphName: "g2",
-          graphNamespace: "shivam",
-          newGraphName: "g3",
+          parentGraphPath: "g0",
+          graphPath: "shivam/g2",
+          newGraphPath: "g3",
           props: "{{ \\"target\\": 6 : }}",
           isArchive: 0,
           graphNodes: ["ben"]
@@ -1631,10 +1604,9 @@ def test_update_graph_with_new_graph_name_fails_if_current_graph_not_found():
     client = server.get_client()
     query = """mutation {
         updateGraph(
-          parentGraphName: "g1",
-          graphName: "g0",
-          graphNamespace: "shivam",
-          newGraphName: "g3",
+          parentGraphPath: "g1",
+          graphPath: "shivam/g0",
+          newGraphPath: "g3",
           props: "{{ \\"target\\": 6 : }}",
           isArchive: 0,
           graphNodes: ["ben"]
@@ -1666,10 +1638,9 @@ def test_update_graph_with_new_graph_name_fails_if_new_graph_already_exists():
 
     query = """mutation {
         updateGraph(
-          parentGraphName: "g1",
-          graphName: "g2",
-          graphNamespace: "shivam",
-          newGraphName: "g3",
+          parentGraphPath: "g1",
+          graphPath: "shivam/g2",
+          newGraphPath: "g3",
           props: "{{ \\"target\\": 6 : }}",
           isArchive: 0,
           graphNodes: ["ben"]
@@ -1679,7 +1650,7 @@ def test_update_graph_with_new_graph_name_fails_if_new_graph_already_exists():
     try:
         client.query(query)
     except Exception as e:
-        assert "Graph already exists by name = shivam/g3" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph already exists by name = g3" in str(e), f"Unexpected exception message: {e}"
 
     server.stop()
 
@@ -1704,10 +1675,9 @@ def test_update_graph_with_new_graph_name_succeeds_if_parent_graph_belongs_to_di
 
     query = """mutation {
       updateGraph(
-        parentGraphName: "g1",
-        graphName: "g2",
-        graphNamespace: "shivam",
-        newGraphName: "g3",
+        parentGraphPath: "g1",
+        graphPath: "shivam/g2",
+        newGraphPath: "g3",
         props: "{ \\"target\\": 6 : }",
         isArchive: 1,
         graphNodes: ["ben", "hamza"]
@@ -1716,7 +1686,7 @@ def test_update_graph_with_new_graph_name_succeeds_if_parent_graph_belongs_to_di
     client.query(query)
 
     query = """{
-        graph(name: "g3", namespace: "shivam") { 
+        graph(path: "g3") { 
             nodes {list { 
                 name
                 properties { temporal { get(key: "dept") { values } } } 
@@ -1769,11 +1739,9 @@ def test_update_graph_with_new_graph_name_succeeds_if_parent_graph_belongs_to_sa
 
     query = """mutation {
       updateGraph(
-        parentGraphName: "g2",
-        parentGraphNamespace: "shivam",
-        graphName: "g3",
-        graphNamespace: "shivam",
-        newGraphName: "g5",
+        parentGraphPath: "shivam/g2",
+        graphPath: "shivam/g3",
+        newGraphPath: "shivam/g5",
         props: "{ \\"target\\": 6 : }",
         isArchive: 1,
         graphNodes: ["ben", "hamza"]
@@ -1782,7 +1750,7 @@ def test_update_graph_with_new_graph_name_succeeds_if_parent_graph_belongs_to_sa
     client.query(query)
 
     query = """{
-        graph(name: "g5", namespace: "shivam") { 
+        graph(path: "shivam/g5") { 
             nodes {list { 
                 name
                 properties { temporal { get(key: "dept") { values } } } 
@@ -1843,10 +1811,9 @@ def test_update_graph_with_new_graph_name_succeeds_with_new_node_from_parent_gra
 
     query = """mutation {
       updateGraph(
-        parentGraphName: "g1",
-        graphName: "g2",
-        graphNamespace: "shivam",
-        newGraphName: "g3",
+        parentGraphPath: "g1",
+        graphPath: "shivam/g2",
+        newGraphPath: "g3",
         props: "{ \\"target\\": 6 : }",
         isArchive: 1,
         graphNodes: ["ben", "shivam"]
@@ -1855,7 +1822,7 @@ def test_update_graph_with_new_graph_name_succeeds_with_new_node_from_parent_gra
     client.query(query)
 
     query = """{
-        graph(name: "g3", namespace: "shivam") { 
+        graph(path: "g3") { 
             nodes {list { 
                 name
                 properties { temporal { get(key: "dept") { values } } } 
@@ -1908,10 +1875,9 @@ def test_update_graph_with_new_graph_name_succeeds_with_new_node_removed_from_ne
 
     query = """mutation {
       updateGraph(
-        parentGraphName: "g1",
-        graphName: "g2",
-        graphNamespace: "shivam",
-        newGraphName: "g3",
+        parentGraphPath: "g1",
+        graphPath: "shivam/g2",
+        newGraphPath: "g3",
         props: "{ \\"target\\": 6 : }",
         isArchive: 1,
         graphNodes: ["ben", "hamza"]
@@ -1920,7 +1886,7 @@ def test_update_graph_with_new_graph_name_succeeds_with_new_node_removed_from_ne
     client.query(query)
 
     query = """{
-        graph(name: "g3", namespace: "shivam") { 
+        graph(path: "g3") { 
             nodes {list { 
                 name
                 properties { temporal { get(key: "dept") { values } } } 
@@ -1960,10 +1926,9 @@ def test_update_graph_fails_if_parent_graph_not_found():
     client = server.get_client()
     query = """mutation {
         updateGraph(
-          parentGraphName: "g0",
-          graphName: "g2",
-          graphNamespace: "shivam",
-          newGraphName: "g2",
+          parentGraphPath: "g0",
+          graphPath: "shivam/g2",
+          newGraphPath: "g2",
           props: "{{ \\"target\\": 6 : }}",
           isArchive: 0,
           graphNodes: ["ben"]
@@ -1986,10 +1951,9 @@ def test_update_graph_fails_if_current_graph_not_found():
     client = server.get_client()
     query = """mutation {
         updateGraph(
-          parentGraphName: "g1",
-          graphName: "g0",
-          graphNamespace: "shivam",
-          newGraphName: "g0",
+          parentGraphPath: "g1",
+          graphPath: "shivam/g0",
+          newGraphPath: "shivam/g0",
           props: "{{ \\"target\\": 6 : }}",
           isArchive: 0,
           graphNodes: ["ben"]
@@ -2024,10 +1988,9 @@ def test_update_graph_succeeds_if_parent_graph_belongs_to_different_namespace():
 
     query = """mutation {
       updateGraph(
-        parentGraphName: "g1",
-        graphName: "g2",
-        graphNamespace: "shivam",
-        newGraphName: "g2",
+        parentGraphPath: "g1",
+        graphPath: "shivam/g2",
+        newGraphPath: "g2",
         props: "{ \\"target\\": 6 : }",
         isArchive: 1,
         graphNodes: ["ben", "hamza"]
@@ -2036,7 +1999,7 @@ def test_update_graph_succeeds_if_parent_graph_belongs_to_different_namespace():
     client.query(query)
 
     query = """{
-        graph(name: "g2", namespace: "shivam") { 
+        graph(path: "g2") { 
             nodes {list { 
                 name
                 properties { temporal { get(key: "dept") { values } } } 
@@ -2088,11 +2051,9 @@ def test_update_graph_succeeds_if_parent_graph_belongs_to_same_namespace():
 
     query = """mutation {
       updateGraph(
-        parentGraphName: "g2",
-        parentGraphNamespace: "shivam",
-        graphName: "g3",
-        graphNamespace: "shivam",
-        newGraphName: "g3",
+        parentGraphPath: "shivam/g2",
+        graphPath: "shivam/g3",
+        newGraphPath: "g3",
         props: "{ \\"target\\": 6 : }",
         isArchive: 1,
         graphNodes: ["ben", "hamza"]
@@ -2101,7 +2062,7 @@ def test_update_graph_succeeds_if_parent_graph_belongs_to_same_namespace():
     client.query(query)
 
     query = """{
-        graph(name: "g3", namespace: "shivam") { 
+        graph(path: "g3") { 
             nodes {list { 
                 name
                 properties { temporal { get(key: "dept") { values } } } 
@@ -2160,10 +2121,9 @@ def test_update_graph_succeeds_with_new_node_from_parent_graph_added_to_new_grap
 
     query = """mutation {
       updateGraph(
-        parentGraphName: "g1",
-        graphName: "g2",
-        graphNamespace: "shivam",
-        newGraphName: "g2",
+        parentGraphPath: "g1",
+        graphPath: "shivam/g2",
+        newGraphPath: "g2",
         props: "{ \\"target\\": 6 : }",
         isArchive: 1,
         graphNodes: ["ben", "shivam"]
@@ -2172,7 +2132,7 @@ def test_update_graph_succeeds_with_new_node_from_parent_graph_added_to_new_grap
     client.query(query)
 
     query = """{
-        graph(name: "g2", namespace: "shivam") { 
+        graph(path: "g2") { 
             nodes {list { 
                 name
                 properties { temporal { get(key: "dept") { values } } } 
@@ -2224,10 +2184,9 @@ def test_update_graph_succeeds_with_new_node_removed_from_new_graph():
 
     query = """mutation {
       updateGraph(
-        parentGraphName: "g1",
-        graphName: "g2",
-        graphNamespace: "shivam",
-        newGraphName: "g2",
+        parentGraphPath: "g1",
+        graphPath: "shivam/g2",
+        newGraphPath: "g2",
         props: "{ \\"target\\": 6 : }",
         isArchive: 1,
         graphNodes: ["ben"]
@@ -2236,7 +2195,7 @@ def test_update_graph_succeeds_with_new_node_removed_from_new_graph():
     client.query(query)
 
     query = """{
-        graph(name: "g2", namespace: "shivam") { 
+        graph(path: "g2") { 
             nodes {list { 
                 name
                 properties { temporal { get(key: "dept") { values } } } 
@@ -2272,7 +2231,7 @@ def test_update_graph_last_opened_fails_if_graph_not_found():
     server = RaphtoryServer(work_dir).start()
     client = server.get_client()
 
-    query = """mutation { updateGraphLastOpened(graphName: "g1") }"""
+    query = """mutation { updateGraphLastOpened(path: "g1") }"""
     try:
         client.query(query)
     except Exception as e:
@@ -2286,7 +2245,7 @@ def test_update_graph_last_opened_fails_if_graph_not_found_at_namespace():
     server = RaphtoryServer(work_dir).start()
     client = server.get_client()
 
-    query = """mutation { updateGraphLastOpened(graphName: "g1", namespace: "shivam") }"""
+    query = """mutation { updateGraphLastOpened(path: "shivam/g1") }"""
     try:
         client.query(query)
     except Exception as e:
@@ -2310,8 +2269,8 @@ def test_update_graph_last_opened_succeeds():
     os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
     g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
 
-    query_last_opened = """{ graph(name: "g1") { properties { constant { get(key: "lastOpened") { value } } } } }"""
-    mutate_last_opened = """mutation { updateGraphLastOpened(graphName: "g1") }"""
+    query_last_opened = """{ graph(path: "g1") { properties { constant { get(key: "lastOpened") { value } } } } }"""
+    mutate_last_opened = """mutation { updateGraphLastOpened(path: "g1") }"""
     assert client.query(query_last_opened) == {'graph': {'properties': {'constant': {'get': None}}}}
     assert client.query(mutate_last_opened) == {'updateGraphLastOpened': True}
     updated_last_opened1 = client.query(query_last_opened)['graph']['properties']['constant']['get']['value']
@@ -2337,8 +2296,8 @@ def test_update_graph_last_opened_succeeds_at_namespace():
     g.save_to_file(os.path.join(work_dir, "g1"))
     g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
 
-    query_last_opened = """{ graph(name: "g2", namespace: "shivam") { properties { constant { get(key: "lastOpened") { value } } } } }"""
-    mutate_last_opened = """mutation { updateGraphLastOpened(graphName: "g2", namespace: "shivam") }"""
+    query_last_opened = """{ graph(path: "shivam/g2") { properties { constant { get(key: "lastOpened") { value } } } } }"""
+    mutate_last_opened = """mutation { updateGraphLastOpened(path: "shivam/g2") }"""
     assert client.query(query_last_opened) == {'graph': {'properties': {'constant': {'get': None}}}}
     assert client.query(mutate_last_opened) == {'updateGraphLastOpened': True}
     updated_last_opened1 = client.query(query_last_opened)['graph']['properties']['constant']['get']['value']
@@ -2355,7 +2314,7 @@ def test_archive_graph_fails_if_graph_not_found():
     server = RaphtoryServer(work_dir).start()
     client = server.get_client()
 
-    query = """mutation { archiveGraph(graphName: "g1", isArchive: 0) }"""
+    query = """mutation { archiveGraph(path: "g1", isArchive: 0) }"""
     try:
         client.query(query)
     except Exception as e:
@@ -2369,7 +2328,7 @@ def test_archive_graph_fails_if_graph_not_found_at_namespace():
     server = RaphtoryServer(work_dir).start()
     client = server.get_client()
 
-    query = """mutation { archiveGraph(graphName: "g1", namespace: "shivam", isArchive: 0) }"""
+    query = """mutation { archiveGraph(path: "shivam/g1", isArchive: 0) }"""
     try:
         client.query(query)
     except Exception as e:
@@ -2392,12 +2351,12 @@ def test_archive_graph_succeeds():
     g.save_to_file(os.path.join(work_dir, "g1"))
     g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
 
-    query_is_archive = """{ graph(name: "g1") { properties { constant { get(key: "isArchive") { value } } } } }"""
+    query_is_archive = """{ graph(path: "g1") { properties { constant { get(key: "isArchive") { value } } } } }"""
     assert client.query(query_is_archive) == {'graph': {'properties': {'constant': {'get': None}}}}
-    update_archive_graph = """mutation { archiveGraph(graphName: "g1", isArchive: 0) }"""
+    update_archive_graph = """mutation { archiveGraph(path: "g1", isArchive: 0) }"""
     assert client.query(update_archive_graph) == {"archiveGraph": True}
     assert client.query(query_is_archive)['graph']['properties']['constant']['get']['value'] == 0
-    update_archive_graph = """mutation { archiveGraph(graphName: "g1", isArchive: 1) }"""
+    update_archive_graph = """mutation { archiveGraph(path: "g1", isArchive: 1) }"""
     assert client.query(update_archive_graph) == {"archiveGraph": True}
     assert client.query(query_is_archive)['graph']['properties']['constant']['get']['value'] == 1
 
@@ -2418,12 +2377,12 @@ def test_archive_graph_succeeds_at_namespace():
     g.save_to_file(os.path.join(work_dir, "g1"))
     g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
 
-    query_is_archive = """{ graph(name: "g2", namespace: "shivam") { properties { constant { get(key: "isArchive") { value } } } } }"""
+    query_is_archive = """{ graph(path: "shivam/g2") { properties { constant { get(key: "isArchive") { value } } } } }"""
     assert client.query(query_is_archive) == {'graph': {'properties': {'constant': {'get': None}}}}
-    update_archive_graph = """mutation { archiveGraph(graphName: "g2", namespace: "shivam", isArchive: 0) }"""
+    update_archive_graph = """mutation { archiveGraph(path: "shivam/g2", isArchive: 0) }"""
     assert client.query(update_archive_graph) == {"archiveGraph": True}
     assert client.query(query_is_archive)['graph']['properties']['constant']['get']['value'] == 0
-    update_archive_graph = """mutation { archiveGraph(graphName: "g2", namespace: "shivam", isArchive: 1) }"""
+    update_archive_graph = """mutation { archiveGraph(path: "shivam/g2", isArchive: 1) }"""
     assert client.query(update_archive_graph) == {"archiveGraph": True}
     assert client.query(query_is_archive)['graph']['properties']['constant']['get']['value'] == 1
 
@@ -2441,12 +2400,12 @@ def test_graph_windows_and_layers_query():
     tmp_work_dir = tempfile.mkdtemp()
     server = RaphtoryServer(tmp_work_dir).start()
     client = server.get_client()
-    client.send_graph(name="lotr", graph=g1)
-    client.send_graph(name="layers", graph=g2)
+    client.send_graph(path="lotr", graph=g1)
+    client.send_graph(path="layers", graph=g2)
 
     q = """
     query GetEdges {
-      graph(name: "lotr") {
+      graph(path: "lotr") {
         window(start: 200, end: 800) {
           node(name: "Frodo") {
             after(time: 500) {
@@ -2489,7 +2448,7 @@ def test_graph_windows_and_layers_query():
 
     q = """
         query GetEdges {
-          graph(name: "layers") {
+          graph(path: "layers") {
             node(name: "1") {
               layer(name: "layer1") {
                 name
@@ -2541,10 +2500,10 @@ def test_graph_properties_query():
     tmp_work_dir = tempfile.mkdtemp()
     server = RaphtoryServer(tmp_work_dir).start()
     client = server.get_client()
-    client.send_graph(name="g", graph=g)
+    client.send_graph(path="g", graph=g)
     q = """
     query GetEdges {
-      graph(name: "g") {
+      graph(path: "g") {
           nodes {
             list {
               properties {
