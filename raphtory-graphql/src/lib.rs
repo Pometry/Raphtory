@@ -861,7 +861,6 @@ mod graphql_test {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn test_graph_send_receive_base64() {
         let g = PersistentGraph::new();
         g.add_node(0, 1, NO_PROPS, None).unwrap();
@@ -874,7 +873,7 @@ mod graphql_test {
 
         let query = r#"
         mutation($graph: String!, $overwrite: Boolean!) {
-            sendGraph(name: "test", graph: $graph, overwrite: $overwrite)
+            sendGraph(path: "test", graph: $graph, overwrite: $overwrite)
         }
         "#;
         let req = Request::new(query).variables(Variables::from_json(
@@ -888,7 +887,7 @@ mod graphql_test {
 
         let list_nodes = r#"
         query {
-            graph(name: "test") {
+            graph(path: "test") {
                 nodes {
                   list {
                     id
@@ -909,7 +908,7 @@ mod graphql_test {
 
         let receive_graph = r#"
         query {
-            receiveGraph(name: "test")
+            receiveGraph(path: "test")
         }
         "#;
 

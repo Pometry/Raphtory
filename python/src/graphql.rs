@@ -368,7 +368,6 @@ impl PyRaphtoryServer {
     ///
     /// Arguments:
     ///   * `port`: the port to use (defaults to 1736).
-    ///   * `log_level`: set log level (defaults to INFO).
     ///   * `enable_tracing`: enable tracing (defaults to False).
     ///   * `enable_auth`: enable authentication (defaults to False).
     ///   * `timeout_in_milliseconds`: wait for server to be online (defaults to 5000). The server is stopped if not online within timeout_in_milliseconds but manages to come online as soon as timeout_in_milliseconds finishes!
