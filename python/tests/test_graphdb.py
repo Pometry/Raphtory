@@ -61,6 +61,7 @@ if "DISK_TEST_MARK" in os.environ:
             with tempfile.TemporaryDirectory() as tmpdirname:
                 g = graph.to_disk_graph(tmpdirname)
                 func(g)
+                del g
 
         return inner
 
