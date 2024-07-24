@@ -252,6 +252,16 @@ impl From<&str> for GID {
     }
 }
 
+impl<'a> From<GidRef<'a>> for GID {
+    fn from(value: GidRef<'a>) -> Self {
+        match value {
+            GidRef::U64(v) => GID::U64(v),
+            GidRef::I64(v) => GID::I64(v),
+            GidRef::Str(v) => GID::Str(v.to_owned()),
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub enum GidRef<'a> {
     U64(u64),

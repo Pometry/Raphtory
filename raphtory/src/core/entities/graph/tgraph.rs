@@ -316,11 +316,11 @@ impl TemporalGraph {
 
     /// return local id for node, initialising storage if node does not exist yet
     pub(crate) fn resolve_node<V: AsNodeRef>(&self, n: V) -> Result<VID, GraphError> {
-        match n.into_gid() {
+        match n.as_gid_ref() {
             Either::Left(id) => {
-                let name = id.as_str().map(|s| s.to_string());
-                let ref_mut = self.logical_to_physical.get_or_init(id.clone(), || {
-                    let node_store = NodeStore::empty(id, name);
+                let ref_mut = self.logical_to_physical.get_or_init(id, || {
+                    let name = id.as_str().map(|s| s.to_string());
+                    let node_store = NodeStore::empty(id.into(), name);
                     self.storage.push_node(node_store)
                 })?;
                 Ok(ref_mut)

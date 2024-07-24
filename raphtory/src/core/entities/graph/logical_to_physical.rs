@@ -1,7 +1,7 @@
 use once_cell::sync::OnceCell;
 
 use raphtory_api::core::{
-    entities::{GID, VID},
+    entities::{GidRef, VID},
     storage::FxDashMap,
 };
 use serde::{Deserialize, Deserializer, Serialize};
@@ -56,31 +56,24 @@ impl Mapping {
         }
     }
 
-    pub fn get_or_init(&self, gid: GID, f_init: impl FnOnce() -> VID) -> Result<VID, GraphError> {
+    pub fn get_or_init(
+        &self,
+        gid: GidRef,
+        f_init: impl FnOnce() -> VID,
+    ) -> Result<VID, GraphError> {
         let map = self.map.get_or_init(|| match &gid {
-            GID::U64(_) => Map::U64(FxDashMap::default()),
-            GID::I64(_) => Map::I64(FxDashMap::default()),
-            GID::Str(_) => Map::Str(FxDashMap::default()),
+            GidRef::U64(_) => Map::U64(FxDashMap::default()),
+            GidRef::I64(_) => Map::I64(FxDashMap::default()),
+            GidRef::Str(_) => Map::Str(FxDashMap::default()),
         });
-        let vid = match &gid {
-            GID::U64(id) => map.as_u64().map(|m| *(m.entry(*id).or_insert_with(f_init))),
-            GID::I64(id) => map.as_i64().map(|m| *(m.entry(*id).or_insert_with(f_init))),
-            GID::Str(id) => map
-                .as_str()
-                .map(|m| *(m.entry(id.clone()).or_insert_with(f_init))),
+        let vid = match gid {
+            GidRef::U64(id) => map.as_u64().map(|m| *(m.entry(id).or_insert_with(f_init))),
+            GidRef::I64(id) => map.as_i64().map(|m| *(m.entry(id).or_insert_with(f_init))),
+            GidRef::Str(id) => map.as_str().map(|m| optim_get_or_insert(m, id, f_init)),
         };
         vid.ok_or(GraphError::FailedToMutateGraph {
-            source: MutateGraphError::InvalidNodeId(gid),
+            source: MutateGraphError::InvalidNodeId(gid.into()),
         })
-    }
-
-    pub fn get(&self, gid: &GID) -> Option<VID> {
-        let map = self.map.get()?;
-        match gid {
-            GID::U64(id) => map.as_u64().and_then(|m| m.get(id).map(|id| *id)),
-            GID::I64(id) => map.as_i64().and_then(|m| m.get(id).map(|id| *id)),
-            GID::Str(id) => map.as_str().and_then(|m| m.get(id).map(|id| *id)),
-        }
     }
 
     pub fn get_str(&self, gid: &str) -> Option<VID> {
@@ -97,6 +90,12 @@ impl Mapping {
         let map = self.map.get()?;
         map.as_i64().and_then(|m| m.get(&gid).map(|id| *id))
     }
+}
+
+fn optim_get_or_insert(m: &FxDashMap<String, VID>, id: &str, f_init: impl FnOnce() -> VID) -> VID {
+    m.get(id)
+        .map(|vid| *vid)
+        .unwrap_or_else(|| *(m.entry(id.to_owned()).or_insert_with(f_init)))
 }
 
 impl<'de> Deserialize<'de> for Mapping {
