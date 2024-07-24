@@ -81,6 +81,7 @@ pub enum GraphStorage {
 impl DeletionOps for GraphStorage {}
 
 impl CoreGraphOps for GraphStorage {
+    #[inline(always)]
     fn core_graph(&self) -> &GraphStorage {
         self
     }
@@ -104,6 +105,7 @@ impl std::fmt::Display for GraphStorage {
 }
 
 impl GraphStorage {
+    #[inline(always)]
     pub fn is_immutable(&self) -> bool {
         match self {
             GraphStorage::Mem(_) => true,
@@ -113,6 +115,7 @@ impl GraphStorage {
         }
     }
 
+    #[inline(always)]
     pub fn lock(&self) -> Self {
         match self {
             GraphStorage::Unlocked(storage) => {
@@ -123,6 +126,7 @@ impl GraphStorage {
         }
     }
 
+    #[inline(always)]
     pub fn nodes(&self) -> NodesStorageEntry {
         match self {
             GraphStorage::Mem(storage) => NodesStorageEntry::Mem(&storage.nodes),
@@ -136,6 +140,7 @@ impl GraphStorage {
         }
     }
 
+    #[inline(always)]
     pub fn internalise_node(&self, v: NodeRef) -> Option<VID> {
         match v {
             NodeRef::Internal(vid) => Some(vid),
@@ -152,6 +157,7 @@ impl GraphStorage {
         }
     }
 
+    #[inline(always)]
     pub fn internal_num_nodes(&self) -> usize {
         match self {
             GraphStorage::Mem(storage) => storage.nodes.len(),
@@ -161,6 +167,7 @@ impl GraphStorage {
         }
     }
 
+    #[inline(always)]
     pub fn internal_num_edges(&self) -> usize {
         match self {
             GraphStorage::Mem(storage) => storage.edges.len(),
@@ -170,6 +177,7 @@ impl GraphStorage {
         }
     }
 
+    #[inline(always)]
     pub fn internal_num_layers(&self) -> usize {
         match self {
             GraphStorage::Mem(storage) => storage.graph.num_layers(),
@@ -179,6 +187,7 @@ impl GraphStorage {
         }
     }
 
+    #[inline(always)]
     pub fn owned_nodes(&self) -> NodesStorage {
         match self {
             GraphStorage::Mem(storage) => NodesStorage::Mem(storage.nodes.clone()),
@@ -206,6 +215,7 @@ impl GraphStorage {
         }
     }
 
+    #[inline(always)]
     pub fn owned_node(&self, vid: VID) -> NodeOwnedEntry {
         match self {
             GraphStorage::Mem(storage) => NodeOwnedEntry::Mem(storage.nodes.arc_entry(vid)),
@@ -219,6 +229,7 @@ impl GraphStorage {
         }
     }
 
+    #[inline(always)]
     pub fn edges(&self) -> EdgesStorageRef {
         match self {
             GraphStorage::Mem(storage) => EdgesStorageRef::Mem(&storage.edges),
@@ -230,6 +241,7 @@ impl GraphStorage {
         }
     }
 
+    #[inline(always)]
     pub fn owned_edges(&self) -> EdgesStorage {
         match self {
             GraphStorage::Mem(storage) => EdgesStorage::Mem(storage.edges.clone()),
@@ -241,6 +253,7 @@ impl GraphStorage {
         }
     }
 
+    #[inline(always)]
     pub fn edge_entry(&self, eid: ELID) -> EdgeStorageEntry {
         match self {
             GraphStorage::Mem(storage) => EdgeStorageEntry::Mem(storage.edges.get_mem(eid.pid())),
@@ -257,6 +270,7 @@ impl GraphStorage {
         }
     }
 
+    #[inline(always)]
     pub fn edge_owned(&self, eid: ELID) -> EdgeOwnedEntry {
         match self {
             GraphStorage::Mem(storage) => {

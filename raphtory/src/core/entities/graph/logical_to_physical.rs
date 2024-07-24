@@ -82,6 +82,21 @@ impl Mapping {
             GID::Str(id) => map.as_str().and_then(|m| m.get(id).map(|id| *id)),
         }
     }
+
+    pub fn get_str(&self, gid: &str) -> Option<VID> {
+        let map = self.map.get()?;
+        map.as_str().and_then(|m| m.get(gid).map(|id| *id))
+    }
+
+    pub fn get_u64(&self, gid: u64) -> Option<VID> {
+        let map = self.map.get()?;
+        map.as_u64().and_then(|m| m.get(&gid).map(|id| *id))
+    }
+
+    pub fn get_i64(&self, gid: i64) -> Option<VID> {
+        let map = self.map.get()?;
+        map.as_i64().and_then(|m| m.get(&gid).map(|id| *id))
+    }
 }
 
 impl<'de> Deserialize<'de> for Mapping {

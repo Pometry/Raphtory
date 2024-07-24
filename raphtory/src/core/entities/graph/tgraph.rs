@@ -11,7 +11,7 @@ use crate::{
                 node_store::NodeStore,
             },
             properties::{graph_meta::GraphMeta, props::Meta},
-            LayerIds, EID, GID, VID,
+            LayerIds, EID, VID,
         },
         storage::{
             raw_edges::EdgeWGuard,
@@ -500,15 +500,15 @@ impl TemporalGraph {
         match v {
             NodeRef::Internal(vid) => Some(vid),
             NodeRef::External(gid) => {
-                let v_id = self.logical_to_physical.get(&GID::U64(gid))?;
+                let v_id = self.logical_to_physical.get_u64(gid)?;
                 Some(v_id)
             }
             NodeRef::ExternalStr(string) => {
                 let v_id = self
                     .logical_to_physical
-                    .get(&GID::Str(string.to_owned()))
-                    .or_else(|| self.logical_to_physical.get(&GID::U64(string.id())))
-                    .or_else(|| self.logical_to_physical.get(&GID::I64(string.id() as i64)))?;
+                    .get_str(string)
+                    .or_else(|| self.logical_to_physical.get_u64(string.id()))
+                    .or_else(|| self.logical_to_physical.get_i64(string.id() as i64))?;
                 Some(v_id)
             }
         }

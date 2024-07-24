@@ -39,63 +39,80 @@ use rayon::prelude::*;
 #[enum_dispatch]
 pub trait CoreGraphOps {
     /// get the number of nodes in the main graph
+    #[inline]
     fn unfiltered_num_nodes(&self) -> usize {
         self.core_graph().internal_num_nodes()
     }
 
+    /// get the number of edges in the main graph
+    #[inline]
     fn unfiltered_num_edges(&self) -> usize {
         self.core_graph().internal_num_edges()
     }
 
+    /// get the number of layers in the main graph
+    #[inline]
     fn unfiltered_num_layers(&self) -> usize {
         self.core_graph().internal_num_layers()
     }
 
     fn core_graph(&self) -> &GraphStorage;
 
+    #[inline]
     fn core_edges(&self) -> EdgesStorage {
         self.core_graph().owned_edges()
     }
+    #[inline]
     fn core_edge(&self, eid: ELID) -> EdgeStorageEntry {
         self.core_graph().edge_entry(eid)
     }
 
+    #[inline]
     fn core_edge_arc(&self, eid: ELID) -> EdgeOwnedEntry {
         self.core_graph().edge_owned(eid)
     }
+    #[inline]
     fn core_nodes(&self) -> NodesStorage {
         self.core_graph().owned_nodes()
     }
 
+    #[inline]
     fn core_node_entry(&self, vid: VID) -> NodeStorageEntry {
         self.core_graph().node_entry(vid)
     }
 
+    #[inline]
     fn core_node_arc(&self, vid: VID) -> NodeOwnedEntry {
         self.core_graph().owned_node(vid)
     }
 
+    #[inline]
     fn node_meta(&self) -> &Meta {
         self.core_graph().node_meta()
     }
 
+    #[inline]
     fn edge_meta(&self) -> &Meta {
         self.core_graph().edge_meta()
     }
 
+    #[inline]
     fn graph_meta(&self) -> &GraphMeta {
         self.core_graph().graph_meta()
     }
 
+    #[inline]
     fn get_layer_name(&self, layer_id: usize) -> ArcStr {
         self.edge_meta().layer_meta().get_name(layer_id).clone()
     }
 
+    #[inline]
     fn get_layer_id(&self, name: &str) -> Option<usize> {
         self.edge_meta().get_layer_id(name)
     }
 
     /// Get the layer name for a given id
+    #[inline]
     fn get_layer_names_from_ids(&self, layer_ids: &LayerIds) -> BoxedIter<ArcStr> {
         let layer_ids = layer_ids.clone();
         match layer_ids {
@@ -116,16 +133,19 @@ pub trait CoreGraphOps {
     }
 
     /// Get all node types
+    #[inline]
     fn get_all_node_types(&self) -> Vec<ArcStr> {
         self.node_meta().get_all_node_types()
     }
 
     /// Returns the external ID for a node
+    #[inline]
     fn node_id(&self, v: VID) -> GID {
         self.core_graph().node_entry(v).id()
     }
 
     /// Returns the string name for a node
+    #[inline]
     fn node_name(&self, v: VID) -> String {
         let node = self.core_node_entry(v);
         node.name()
@@ -139,17 +159,21 @@ pub trait CoreGraphOps {
         self.node_meta().get_node_type_name_by_id(type_id)
     }
 
+    /// Returns the type id of a node
+    #[inline]
     fn node_type_id(&self, v: VID) -> usize {
         let node = self.core_node_entry(v);
         node.node_type_id()
     }
 
     /// Gets the internal reference for an external node reference and keeps internal references unchanged.
+    #[inline]
     fn internalise_node(&self, v: NodeRef) -> Option<VID> {
         self.core_graph().internalise_node(v)
     }
 
     /// Gets the internal reference for an external node reference and keeps internal references unchanged. Assumes node exists!
+    #[inline]
     fn internalise_node_unchecked(&self, v: NodeRef) -> VID {
         self.core_graph().internalise_node(v).unwrap()
     }
