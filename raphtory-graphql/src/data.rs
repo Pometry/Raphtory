@@ -27,7 +27,7 @@ use walkdir::WalkDir;
 
 pub struct Data {
     pub(crate) work_dir: PathBuf,
-    pub(crate) graphs: Arc<Cache<PathBuf, IndexedGraph<MaterializedGraph>>>,
+    pub(crate) graphs: Cache<PathBuf, IndexedGraph<MaterializedGraph>>,
     pub(crate) global_plugins: GlobalPlugins,
 }
 
@@ -40,8 +40,7 @@ impl Data {
             .time_to_idle(std::time::Duration::from_secs(cache_configs.tti_seconds))
             .build();
 
-        let graphs_cache: Arc<Cache<PathBuf, IndexedGraph<MaterializedGraph>>> =
-            Arc::new(graphs_cache_builder);
+        let graphs_cache: Cache<PathBuf, IndexedGraph<MaterializedGraph>> = graphs_cache_builder;
 
         Self {
             work_dir: work_dir.to_path_buf(),
