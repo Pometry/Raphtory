@@ -7,10 +7,27 @@ pub struct LoggingConfig {
     pub log_level: String,
 }
 
+impl Default for LoggingConfig {
+    fn default() -> Self {
+        Self {
+            log_level: "INFO".to_string(),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, PartialEq, Clone)]
 pub struct CacheConfig {
     pub capacity: u64,
     pub tti_seconds: u64,
+}
+
+impl Default for CacheConfig {
+    fn default() -> Self {
+        Self {
+            capacity: 30,
+            tti_seconds: 900,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Clone)]
@@ -20,11 +37,31 @@ pub struct AuthConfig {
     pub tenant_id: Option<String>,
 }
 
+impl Default for AuthConfig {
+    fn default() -> Self {
+        Self {
+            client_id: None,
+            client_secret: None,
+            tenant_id: None,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, PartialEq, Clone)]
 pub struct AppConfig {
     pub logging: LoggingConfig,
     pub cache: CacheConfig,
     pub auth: AuthConfig,
+}
+
+impl Default for AppConfig {
+    fn default() -> Self {
+        Self {
+            logging: LoggingConfig::default(),
+            cache: CacheConfig::default(),
+            auth: AuthConfig::default(),
+        }
+    }
 }
 
 pub struct AppConfigBuilder {
@@ -36,18 +73,9 @@ pub struct AppConfigBuilder {
 impl AppConfigBuilder {
     pub fn new() -> Self {
         Self {
-            logging: LoggingConfig {
-                log_level: "INFO".to_string(),
-            },
-            cache: CacheConfig {
-                capacity: 30,
-                tti_seconds: 900,
-            },
-            auth: AuthConfig {
-                client_id: None,
-                client_secret: None,
-                tenant_id: None,
-            },
+            logging: LoggingConfig::default(),
+            cache: CacheConfig::default(),
+            auth: AuthConfig::default(),
         }
     }
 

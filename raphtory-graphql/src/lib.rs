@@ -14,7 +14,7 @@ mod graphql_test {
     use crate::{
         data::{save_graphs_to_work_dir, Data},
         model::App,
-        server_config::AppConfigBuilder,
+        server_config::AppConfig,
         url_encode::{url_decode_graph, url_encode_graph},
     };
     use async_graphql::UploadValue;
@@ -62,7 +62,7 @@ mod graphql_test {
         let tmp_dir = tempdir().unwrap();
         save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
 
-        let data = Data::new(tmp_dir.path(), &AppConfigBuilder::new().build());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default());
 
         let schema = App::create_schema().data(data).finish().unwrap();
 
@@ -106,7 +106,7 @@ mod graphql_test {
         let tmp_dir = tempdir().unwrap();
         save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
 
-        let data = Data::new(tmp_dir.path(), &AppConfigBuilder::new().build());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default());
 
         let schema = App::create_schema().data(data).finish().unwrap();
 
@@ -158,7 +158,7 @@ mod graphql_test {
         let tmp_dir = tempdir().unwrap();
         save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
 
-        let data = Data::new(tmp_dir.path(), &AppConfigBuilder::new().build());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
         let prop_has_key_filter = r#"
         {
@@ -223,7 +223,7 @@ mod graphql_test {
         let tmp_dir = tempdir().unwrap();
         save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
 
-        let data = Data::new(tmp_dir.path(), &AppConfigBuilder::new().build());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let prop_has_key_filter = r#"
@@ -415,7 +415,7 @@ mod graphql_test {
         let tmp_dir = tempdir().unwrap();
         save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
 
-        let data = Data::new(tmp_dir.path(), &AppConfigBuilder::new().build());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let prop_has_key_filter = r#"
@@ -664,7 +664,7 @@ mod graphql_test {
         let tmp_dir = tempdir().unwrap();
         save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
 
-        let data = Data::new(tmp_dir.path(), &AppConfigBuilder::new().build());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
         let prop_has_key_filter = r#"
         {
@@ -718,7 +718,7 @@ mod graphql_test {
         g2.add_node(0, 2, [("name", "2")], None).unwrap();
 
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), &AppConfigBuilder::new().build());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default());
         let cache = data.graphs.clone();
         let schema = App::create_schema().data(data).finish().unwrap();
 
@@ -820,7 +820,7 @@ mod graphql_test {
         };
 
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), &AppConfigBuilder::new().build());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let query = r##"
@@ -867,7 +867,7 @@ mod graphql_test {
         let graph_str = url_encode_graph(g.clone()).unwrap();
 
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), &AppConfigBuilder::new().build());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let query = r#"
@@ -943,7 +943,7 @@ mod graphql_test {
         let tmp_dir = tempdir().unwrap();
         save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
 
-        let data = Data::new(tmp_dir.path(), &AppConfigBuilder::new().build());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let req = r#"
@@ -1066,7 +1066,7 @@ mod graphql_test {
         let tmp_work_dir = tempdir().unwrap();
         save_graphs_to_work_dir(tmp_work_dir.path(), &graphs).unwrap();
 
-        let data = Data::new(tmp_work_dir.path(), &AppConfigBuilder::new().build());
+        let data = Data::new(tmp_work_dir.path(), &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let req = r#"
