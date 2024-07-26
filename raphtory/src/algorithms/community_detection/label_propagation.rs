@@ -107,7 +107,6 @@ mod lpa_tests {
                 .iter()
                 .map(|n_set| n_set.iter().map(|n| n.node).collect::<Vec<_>>())
                 .collect::<Vec<_>>();
-            println!("{:?}", ids);
 
             let expected = vec![
                 HashSet::from([

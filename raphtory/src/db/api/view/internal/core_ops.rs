@@ -154,6 +154,7 @@ pub trait CoreGraphOps {
     }
 
     /// Returns the type of node
+    #[inline]
     fn node_type(&self, v: VID) -> Option<ArcStr> {
         let type_id = self.node_type_id(v);
         self.node_meta().get_node_type_name_by_id(type_id)

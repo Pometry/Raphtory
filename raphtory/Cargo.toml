@@ -125,6 +125,7 @@ python = [
     "polars-arrow?/compute",
     "raphtory-api/python",
     "dep:rpds",
+    "dep:kdam",
     "kdam?/notebook"
 ]
 
@@ -146,7 +147,6 @@ arrow = [
     "dep:polars-arrow",
     "dep:polars-parquet",
     "polars-parquet?/compression",
-    "dep:kdam",
 ]
 
 proto = [

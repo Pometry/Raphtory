@@ -279,8 +279,6 @@ mod cc_test {
 
             let vs = vs.into_iter().unique().collect::<Vec<u64>>();
 
-            // let smallest = vs.iter().min().unwrap();
-
             let first = vs[0];
 
             // pairs of nodes from vs one after the next

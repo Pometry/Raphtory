@@ -11,7 +11,6 @@ use crate::core::utils::errors::{GraphError, MutateGraphError};
 #[derive(Debug, Deserialize, Serialize)]
 enum Map {
     U64(FxDashMap<u64, VID>),
-    I64(FxDashMap<i64, VID>),
     Str(FxDashMap<String, VID>),
 }
 
@@ -26,13 +25,6 @@ impl Map {
     fn as_str(&self) -> Option<&FxDashMap<String, VID>> {
         match self {
             Map::Str(map) => Some(map),
-            _ => None,
-        }
-    }
-
-    fn as_i64(&self) -> Option<&FxDashMap<i64, VID>> {
-        match self {
-            Map::I64(map) => Some(map),
             _ => None,
         }
     }

@@ -200,10 +200,9 @@ impl<'graph, G: GraphViewOps<'graph>> StableEncoder for G {
         graph.nodes = self
             .nodes()
             .into_iter()
-            .map(|n: crate::db::graph::node::NodeView<G>| {
+            .map(|n| {
                 let gid = n.id();
                 let vid = n.node;
-                let node = self.core_node_entry(vid);
                 let proto_gid = match gid {
                     GID::U64(g) => Gid {
                         gid: Some(gid::Gid::GidU64(g)),

@@ -20,6 +20,14 @@ pub fn load_nodes_from_pandas(
     shared_const_properties: Option<HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
     Python::with_gil(|py| {
+        let size: usize = py
+            .eval(
+                "index.__len__()",
+                Some([("index", df.getattr("index")?)].into_py_dict(py)),
+                None,
+            )?
+            .extract()?;
+
         let mut cols_to_check = vec![id, time];
         cols_to_check.extend(properties.as_ref().unwrap_or(&Vec::new()));
         cols_to_check.extend(const_properties.as_ref().unwrap_or(&Vec::new()));
@@ -34,6 +42,7 @@ pub fn load_nodes_from_pandas(
 
         load_nodes_from_df(
             &df,
+            size,
             id,
             time,
             properties,
@@ -63,6 +72,14 @@ pub fn load_edges_from_pandas(
     layer_in_df: Option<bool>,
 ) -> Result<(), GraphError> {
     Python::with_gil(|py| {
+        let size: usize = py
+            .eval(
+                "index.__len__()",
+                Some([("index", df.getattr("index")?)].into_py_dict(py)),
+                None,
+            )?
+            .extract()?;
+
         let mut cols_to_check = vec![src, dst, time];
         cols_to_check.extend(properties.as_ref().unwrap_or(&Vec::new()));
         cols_to_check.extend(const_properties.as_ref().unwrap_or(&Vec::new()));
@@ -77,6 +94,7 @@ pub fn load_edges_from_pandas(
         df.check_cols_exist(&cols_to_check)?;
         load_edges_from_df(
             &df,
+            size,
             src,
             dst,
             time,
@@ -103,13 +121,27 @@ pub fn load_node_props_from_pandas(
     shared_const_properties: Option<HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
     Python::with_gil(|py| {
+        let size: usize = py
+            .eval(
+                "index.__len__()",
+                Some([("index", df.getattr("index")?)].into_py_dict(py)),
+                None,
+            )?
+            .extract()?;
         let mut cols_to_check = vec![id];
         cols_to_check.extend(const_properties.as_ref().unwrap_or(&Vec::new()));
         let df = process_pandas_py_df(df, py, cols_to_check.clone())?;
         df.check_cols_exist(&cols_to_check)?;
 
-        load_node_props_from_df(&df, id, const_properties, shared_const_properties, graph)
-            .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
+        load_node_props_from_df(
+            &df,
+            size,
+            id,
+            const_properties,
+            shared_const_properties,
+            graph,
+        )
+        .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
 
         Ok::<(), PyErr>(())
     })
@@ -128,6 +160,13 @@ pub fn load_edge_props_from_pandas(
     layer_in_df: Option<bool>,
 ) -> Result<(), GraphError> {
     Python::with_gil(|py| {
+        let size: usize = py
+            .eval(
+                "index.__len__()",
+                Some([("index", df.getattr("index")?)].into_py_dict(py)),
+                None,
+            )?
+            .extract()?;
         let mut cols_to_check = vec![src, dst];
         if layer_in_df.unwrap_or(false) {
             if let Some(ref layer) = layer {
@@ -139,6 +178,7 @@ pub fn load_edge_props_from_pandas(
         df.check_cols_exist(&cols_to_check)?;
         load_edges_props_from_df(
             &df,
+            size,
             src,
             dst,
             const_properties,
@@ -165,6 +205,14 @@ pub fn load_edges_deletions_from_pandas(
     layer_in_df: Option<bool>,
 ) -> Result<(), GraphError> {
     Python::with_gil(|py| {
+        let size: usize = py
+            .eval(
+                "index.__len__()",
+                Some([("index", df.getattr("index")?)].into_py_dict(py)),
+                None,
+            )?
+            .extract()?;
+
         let mut cols_to_check = vec![src, dst, time];
         if layer_in_df.unwrap_or(true) {
             if let Some(ref layer) = layer {
@@ -177,6 +225,7 @@ pub fn load_edges_deletions_from_pandas(
 
         load_edges_deletions_from_df(
             &df,
+            size,
             src,
             dst,
             time,
