@@ -87,10 +87,10 @@ impl QueryRoot {
         Some(g.into())
     }
 
-    async fn graphs<'a>(ctx: &Context<'a>) -> Result<Option<GqlGraphs>> {
+    async fn graphs<'a>(ctx: &Context<'a>) -> Result<GqlGraphs> {
         let data = ctx.data_unchecked::<Data>();
         let (names, paths) = data.get_graph_names_paths()?;
-        Ok(Some(GqlGraphs::new(names, paths)))
+        Ok(GqlGraphs::new(names, paths))
     }
 
     async fn plugins<'a>(ctx: &Context<'a>) -> GlobalPlugins {

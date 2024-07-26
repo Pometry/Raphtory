@@ -568,8 +568,8 @@ impl PyRunningRaphtoryServer {
     }
 
     /// Stop the server and wait for it to finish
-    pub(crate) fn stop(mut slf: PyRefMut<Self>, py: Python) -> PyResult<()> {
-        slf.stop_server(py)
+    pub(crate) fn stop(&mut self, py: Python) -> PyResult<()> {
+        self.stop_server(py)
     }
 }
 
