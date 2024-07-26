@@ -40,6 +40,7 @@ mod test {
         let layer_in_df: bool = true;
         load_edges_from_df(
             &df,
+            5,
             "src",
             "dst",
             "time",
@@ -126,6 +127,7 @@ mod test {
 
         load_nodes_from_df(
             &df,
+            3,
             "id",
             "time",
             Some(vec!["name"]),
