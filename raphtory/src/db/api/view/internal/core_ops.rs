@@ -141,7 +141,7 @@ pub trait CoreGraphOps {
     /// Returns the external ID for a node
     #[inline]
     fn node_id(&self, v: VID) -> GID {
-        self.core_graph().node_entry(v).id()
+        self.core_graph().node_entry(v).id().into()
     }
 
     /// Returns the string name for a node

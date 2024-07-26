@@ -1,12 +1,10 @@
 use std::borrow::Cow;
 
-use raphtory_api::core::entities::GID;
-
 #[cfg(feature = "storage")]
 use crate::disk_graph::storage_interface::node::DiskNode;
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, nodes::node_store::NodeStore, LayerIds, VID},
+        entities::{edges::edge_ref::EdgeRef, nodes::node_store::NodeStore, GidRef, LayerIds, VID},
         storage::Entry,
         utils::iter::GenLockedIter,
         Direction,
@@ -134,7 +132,7 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
         self.as_ref().vid()
     }
 
-    fn id(self) -> GID {
+    fn id(self) -> GidRef<'a> {
         self.as_ref().id()
     }
 

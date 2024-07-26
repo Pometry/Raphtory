@@ -32,8 +32,6 @@ use crate::{
     prelude::{DeletionOps, GraphViewOps},
 };
 use itertools::Itertools;
-#[cfg(feature = "storage")]
-use pometry_storage::GidRef;
 use raphtory_api::core::entities::ELID;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -149,8 +147,7 @@ impl GraphStorage {
                 GraphStorage::Unlocked(unlocked) => unlocked.resolve_node_ref(node_ref),
                 #[cfg(feature = "storage")]
                 GraphStorage::Disk(storage) => match v {
-                    NodeRef::External(id) => storage.inner.find_node(GidRef::U64(id)),
-                    NodeRef::ExternalStr(vid) => storage.inner.find_node(GidRef::Str(vid)),
+                    NodeRef::External(id) => storage.inner.find_node(id),
                     _ => unreachable!("VID is handled above!"),
                 },
             },

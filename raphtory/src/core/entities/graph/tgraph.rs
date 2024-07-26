@@ -27,7 +27,9 @@ use dashmap::DashSet;
 use either::Either;
 use itertools::Itertools;
 use raphtory_api::core::{
-    entities::edges::edge_ref::EdgeRef, input::input_node::InputNode, storage::arc_str::ArcStr,
+    entities::{edges::edge_ref::EdgeRef, GidRef},
+    input::input_node::InputNode,
+    storage::arc_str::ArcStr,
 };
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
@@ -319,8 +321,7 @@ impl TemporalGraph {
         match n.as_gid_ref() {
             Either::Left(id) => {
                 let ref_mut = self.logical_to_physical.get_or_init(id, || {
-                    let name = id.as_str().map(|s| s.to_string());
-                    let node_store = NodeStore::empty(id.into(), name);
+                    let node_store = NodeStore::empty(id.into());
                     self.storage.push_node(node_store)
                 })?;
                 Ok(ref_mut)
@@ -499,18 +500,11 @@ impl TemporalGraph {
     pub(crate) fn resolve_node_ref(&self, v: NodeRef) -> Option<VID> {
         match v {
             NodeRef::Internal(vid) => Some(vid),
-            NodeRef::External(gid) => {
-                let v_id = self.logical_to_physical.get_u64(gid)?;
-                Some(v_id)
-            }
-            NodeRef::ExternalStr(string) => {
-                let v_id = self
-                    .logical_to_physical
-                    .get_str(string)
-                    .or_else(|| self.logical_to_physical.get_u64(string.id()))
-                    .or_else(|| self.logical_to_physical.get_i64(string.id() as i64))?;
-                Some(v_id)
-            }
+            NodeRef::External(GidRef::U64(gid)) => self.logical_to_physical.get_u64(gid),
+            NodeRef::External(GidRef::Str(string)) => self
+                .logical_to_physical
+                .get_str(string)
+                .or_else(|| self.logical_to_physical.get_u64(string.id())),
         }
     }
 

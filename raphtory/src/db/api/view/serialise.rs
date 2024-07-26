@@ -204,7 +204,6 @@ impl<'graph, G: GraphViewOps<'graph>> StableEncoder for G {
                 let gid = n.id();
                 let vid = n.node;
                 let node = self.core_node_entry(vid);
-                let name = node.as_ref().name().map(|n| n.to_string());
                 let proto_gid = match gid {
                     GID::U64(g) => Gid {
                         gid: Some(gid::Gid::GidU64(g)),
@@ -212,14 +211,10 @@ impl<'graph, G: GraphViewOps<'graph>> StableEncoder for G {
                     GID::Str(g) => Gid {
                         gid: Some(gid::Gid::GidStr(g.to_string())),
                     },
-                    GID::I64(g) => Gid {
-                        gid: Some(gid::Gid::GidI64(g)),
-                    },
                 };
                 serialise::Node {
                     gid: Some(proto_gid),
                     vid: vid.0 as u64,
-                    name,
                 }
             })
             .collect::<Vec<_>>();
@@ -579,7 +574,6 @@ impl<
 fn from_proto_gid(gid: gid::Gid) -> GID {
     match gid {
         gid::Gid::GidU64(n) => GID::U64(n),
-        gid::Gid::GidI64(n) => GID::I64(n),
         gid::Gid::GidStr(s) => GID::Str(s),
     }
 }

@@ -4,7 +4,7 @@
 //! These functions are not part of the public API and are not exported to the Python module.
 use crate::{
     core::{
-        entities::nodes::node_ref::NodeRef,
+        entities::{nodes::node_ref::NodeRef, GidRef},
         storage::timeindex::AsTime,
         utils::time::{error::ParseTimeError, Interval, IntoTime, TryIntoTime},
     },
@@ -33,9 +33,9 @@ mod module_helpers;
 impl<'source> FromPyObject<'source> for NodeRef<'source> {
     fn extract(vref: &'source PyAny) -> PyResult<Self> {
         if let Ok(s) = vref.extract::<&'source str>() {
-            Ok(NodeRef::ExternalStr(s))
+            Ok(NodeRef::External(GidRef::Str(s)))
         } else if let Ok(gid) = vref.extract::<u64>() {
-            Ok(NodeRef::External(gid))
+            Ok(NodeRef::External(GidRef::U64(gid)))
         } else if let Ok(v) = vref.extract::<PyNode>() {
             Ok(NodeRef::Internal(v.node.node))
         } else {

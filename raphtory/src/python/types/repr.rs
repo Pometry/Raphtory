@@ -82,7 +82,6 @@ impl Repr for GID {
     fn repr(&self) -> String {
         match self {
             GID::U64(v) => v.repr(),
-            GID::I64(v) => v.repr(),
             GID::Str(v) => v.repr(),
         }
     }

@@ -4,7 +4,7 @@ use crate::{
     core::{
         entities::{
             edges::edge_ref::EdgeRef, nodes::node_store::NodeStore, properties::tprop::TProp,
-            LayerIds, VID,
+            GidRef, LayerIds, VID,
         },
         storage::ArcEntry,
         Direction,
@@ -13,7 +13,6 @@ use crate::{
     prelude::Prop,
 };
 use itertools::Itertools;
-use raphtory_api::core::{entities::GID, storage::arc_str::OptionAsStr};
 
 pub trait NodeStorageOps<'a>: Sized {
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize;
@@ -31,7 +30,7 @@ pub trait NodeStorageOps<'a>: Sized {
 
     fn vid(self) -> VID;
 
-    fn id(self) -> GID;
+    fn id(self) -> GidRef<'a>;
 
     fn name(self) -> Option<Cow<'a, str>>;
 
@@ -71,12 +70,12 @@ impl<'a> NodeStorageOps<'a> for &'a NodeStore {
         self.vid
     }
 
-    fn id(self) -> GID {
-        self.global_id.clone()
+    fn id(self) -> GidRef<'a> {
+        (&self.global_id).into()
     }
 
     fn name(self) -> Option<Cow<'a, str>> {
-        self.name.as_str().map(Cow::from)
+        self.global_id.as_str().map(Cow::from)
     }
 
     fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef> {

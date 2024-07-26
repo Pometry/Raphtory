@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, LayerIds, EID, GID, VID},
+        entities::{edges::edge_ref::EdgeRef, LayerIds, EID, VID},
         Direction,
     },
     db::api::{
@@ -278,18 +278,13 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
         self.vid
     }
 
-    fn id(self) -> GID {
-        match self.graph.node_gid(self.vid).unwrap() {
-            GidRef::U64(v) => GID::U64(v),
-            GidRef::I64(v) => GID::I64(v),
-            GidRef::Str(v) => GID::Str(v.to_string()),
-        }
+    fn id(self) -> GidRef<'a> {
+        self.graph.node_gid(self.vid).unwrap()
     }
 
     fn name(self) -> Option<Cow<'a, str>> {
         match self.graph.node_gid(self.vid).unwrap() {
             GidRef::U64(_) => None,
-            GidRef::I64(_) => None,
             GidRef::Str(v) => Some(Cow::from(v)),
         }
     }
@@ -525,7 +520,7 @@ impl<'a> NodeStorageOps<'a> for &'a DiskOwnedNode {
     }
 
     #[inline]
-    fn id(self) -> GID {
+    fn id(self) -> GidRef<'a> {
         self.as_ref().id()
     }
 

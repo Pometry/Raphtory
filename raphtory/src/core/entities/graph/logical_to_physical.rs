@@ -63,12 +63,10 @@ impl Mapping {
     ) -> Result<VID, GraphError> {
         let map = self.map.get_or_init(|| match &gid {
             GidRef::U64(_) => Map::U64(FxDashMap::default()),
-            GidRef::I64(_) => Map::I64(FxDashMap::default()),
             GidRef::Str(_) => Map::Str(FxDashMap::default()),
         });
         let vid = match gid {
             GidRef::U64(id) => map.as_u64().map(|m| *(m.entry(id).or_insert_with(f_init))),
-            GidRef::I64(id) => map.as_i64().map(|m| *(m.entry(id).or_insert_with(f_init))),
             GidRef::Str(id) => map.as_str().map(|m| optim_get_or_insert(m, id, f_init)),
         };
         vid.ok_or(GraphError::FailedToMutateGraph {
@@ -84,11 +82,6 @@ impl Mapping {
     pub fn get_u64(&self, gid: u64) -> Option<VID> {
         let map = self.map.get()?;
         map.as_u64().and_then(|m| m.get(&gid).map(|id| *id))
-    }
-
-    pub fn get_i64(&self, gid: i64) -> Option<VID> {
-        let map = self.map.get()?;
-        map.as_i64().and_then(|m| m.get(&gid).map(|id| *id))
     }
 }
 

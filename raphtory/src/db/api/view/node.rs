@@ -179,7 +179,7 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
 
     #[inline]
     fn id(&self) -> Self::ValueType<GID> {
-        self.map(|cg, _g, v| cg.node_entry(v).id())
+        self.map(|cg, _g, v| cg.node_entry(v).id().into())
     }
 
     #[inline]

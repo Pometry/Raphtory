@@ -20,7 +20,6 @@ use std::{iter, ops::Deref};
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub struct NodeStore {
     pub(crate) global_id: GID,
-    pub(crate) name: Option<String>,
     pub(crate) vid: VID,
     // all the timestamps that have been seen by this node
     timestamps: TimeIndex<i64>,
@@ -37,7 +36,6 @@ impl NodeStore {
         layers.push(Adj::Solo);
         Self {
             global_id,
-            name: None,
             vid: 0.into(),
             timestamps: TimeIndex::one(t.t()),
             layers,
@@ -46,12 +44,11 @@ impl NodeStore {
         }
     }
 
-    pub fn empty(global_id: GID, name: Option<String>) -> Self {
+    pub fn empty(global_id: GID) -> Self {
         let mut layers = Vec::with_capacity(1);
         layers.push(Adj::Solo);
         Self {
             global_id,
-            name,
             vid: VID(0),
             timestamps: TimeIndex::Empty,
             layers,
@@ -75,15 +72,6 @@ impl NodeStore {
     pub fn update_node_type(&mut self, node_type: usize) -> usize {
         self.node_type = node_type;
         node_type
-    }
-
-    pub fn update_name(&mut self, name: &str) {
-        match &self.name {
-            None => {
-                self.name = Some(name.to_owned());
-            }
-            Some(old) => debug_assert_eq!(old, name), // one-to-one mapping between name and id, name should never change
-        }
     }
 
     pub fn add_prop(

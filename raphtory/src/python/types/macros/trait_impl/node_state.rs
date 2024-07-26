@@ -62,9 +62,6 @@ macro_rules! impl_node_state_ops {
                                 None => PyTypeError::new_err("Invalid node reference"),
                             }
                         }
-                        NodeRef::ExternalStr(name) => {
-                            PyKeyError::new_err(format!("Missing value for node with name {name}"))
-                        }
                     })
             }
 

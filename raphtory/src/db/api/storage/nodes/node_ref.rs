@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use raphtory_api::core::entities::GID;
+use raphtory_api::core::entities::GidRef;
 
 #[cfg(feature = "storage")]
 use crate::db::api::storage::variants::storage_variants::StorageVariants;
@@ -97,7 +97,7 @@ impl<'a> NodeStorageOps<'a> for NodeStorageRef<'a> {
         for_all!(self, node => node.vid())
     }
 
-    fn id(self) -> GID {
+    fn id(self) -> GidRef<'a> {
         for_all!(self, node => node.id())
     }
 
