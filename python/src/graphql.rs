@@ -535,7 +535,7 @@ impl PyRunningRaphtoryServer {
         let num_intervals = millis / WAIT_CHECK_INTERVAL_MILLIS;
 
         for _ in 0..num_intervals {
-            if is_online(url)? {
+            if is_online(url) {
                 return Ok(());
             } else {
                 sleep(Duration::from_millis(WAIT_CHECK_INTERVAL_MILLIS))
@@ -573,11 +573,10 @@ impl PyRunningRaphtoryServer {
     }
 }
 
-fn is_online(url: &String) -> PyResult<bool> {
-    match reqwest::blocking::get(url) {
-        Ok(response) => Ok(response.status().as_u16() == 200),
-        _ => Ok(false),
-    }
+fn is_online(url: &String) -> bool {
+    reqwest::blocking::get(url)
+        .map(|response| response.status().as_u16() == 200)
+        .unwrap_or(false)
 }
 
 /// A client for handling GraphQL operations in the context of Raphtory.
@@ -654,7 +653,7 @@ impl PyRaphtoryClient {
     /// Returns:
     ///    Returns true if server is online otherwise false.
     fn is_server_online(&self) -> PyResult<bool> {
-        is_online(&self.url)
+        Ok(is_online(&self.url))
     }
 
     /// Make a graphQL query against the server.

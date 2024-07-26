@@ -469,7 +469,7 @@ mod db_tests {
         );
 
         let gg = Graph::new();
-        let res = gg.import_nodes(vec![&g_a, &g_b], false).unwrap();
+        let _ = gg.import_nodes(vec![&g_a, &g_b], false).unwrap();
         assert_eq!(gg.nodes().name().collect_vec(), vec!["A", "B"]);
 
         let e_a_b = g.add_edge(2, "A", "B", NO_PROPS, None).unwrap();
@@ -494,7 +494,7 @@ mod db_tests {
 
         let e_c_d = g.add_edge(4, "C", "D", NO_PROPS, None).unwrap();
         let gg = Graph::new();
-        let res = gg.import_edges(vec![&e_a_b, &e_c_d], false).unwrap();
+        let _ = gg.import_edges(vec![&e_a_b, &e_c_d], false).unwrap();
         assert_eq!(gg.edges().len(), 2);
     }
 

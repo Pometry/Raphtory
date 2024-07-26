@@ -33,11 +33,9 @@ use crate::{
                 },
                 storage_ops::GraphStorage,
             },
-            view::{internal::*, BoxedIter, StaticGraphViewOps},
+            view::{internal::*, BoxedIter},
         },
-        graph::{
-            edge::EdgeView, graph::Graph, node::NodeView, views::deletion_graph::PersistentGraph,
-        },
+        graph::{graph::Graph, views::deletion_graph::PersistentGraph},
     },
     prelude::*,
     BINCODE_VERSION,
@@ -191,10 +189,10 @@ impl InternalDeletionOps for MaterializedGraph {
         layer: usize,
     ) -> Result<(), GraphError> {
         match self {
-            MaterializedGraph::EventGraph(g) => Err(EventGraphDeletionsNotSupported),
+            MaterializedGraph::EventGraph(_) => Err(EventGraphDeletionsNotSupported),
             MaterializedGraph::PersistentGraph(g) => g.internal_delete_edge(t, src, dst, layer),
             #[cfg(feature = "storage")]
-            MaterializedGraph::DiskEventGraph(g) => Err(ImmutableDiskGraph),
+            MaterializedGraph::DiskEventGraph(_) => Err(ImmutableDiskGraph),
         }
     }
 }

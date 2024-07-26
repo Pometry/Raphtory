@@ -19,7 +19,6 @@ mod graphql_test {
     };
     use async_graphql::UploadValue;
     use dynamic_graphql::{Request, Variables};
-    use itertools::Itertools;
     #[cfg(feature = "storage")]
     use raphtory::disk_graph::graph_impl::DiskGraph;
     use raphtory::{
@@ -32,9 +31,9 @@ mod graphql_test {
     use serde_json::json;
     use std::{
         collections::{HashMap, HashSet},
-        path::{Path, PathBuf},
+        path::Path,
     };
-    use tempfile::{tempdir, TempDir};
+    use tempfile::tempdir;
 
     #[tokio::test]
     async fn search_for_gandalf_query() {
@@ -264,7 +263,7 @@ mod graphql_test {
 
         let req = Request::new(prop_has_key_filter);
         let res = schema.execute(req).await;
-        let data = res.data.into_json().unwrap();
+        let _ = res.data.into_json().unwrap();
         let expected = json!({
             "graph": {
               "properties": {

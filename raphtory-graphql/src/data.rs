@@ -7,21 +7,16 @@ use crate::{
 };
 use async_graphql::Error;
 use dynamic_graphql::Result;
-use itertools::Itertools;
 use moka::sync::Cache;
 #[cfg(feature = "storage")]
 use raphtory::disk_graph::graph_impl::DiskGraph;
 use raphtory::{
-    core::utils::errors::GraphError,
-    db::api::view::MaterializedGraph,
-    prelude::{GraphViewOps, PropUnwrap, PropertyAdditionOps},
-    search::IndexedGraph,
+    core::utils::errors::GraphError, db::api::view::MaterializedGraph, search::IndexedGraph,
 };
 use std::{
     collections::HashMap,
     fs,
     path::{Path, PathBuf},
-    sync::Arc,
 };
 use walkdir::WalkDir;
 
@@ -76,7 +71,6 @@ impl Data {
         Ok((names, paths))
     }
 
-    #[allow(dead_code)]
     // TODO: use this for loading both regular and vectorised graphs
     #[allow(dead_code)]
     pub fn generic_load_from_file<T, F>(path: &str, loader: F) -> impl Iterator<Item = T>
@@ -100,6 +94,7 @@ impl Data {
     }
 }
 
+#[cfg(feature = "storage")]
 fn copy_dir_recursive(source_dir: &Path, target_dir: &Path) -> Result<()> {
     if !target_dir.exists() {
         fs::create_dir_all(target_dir)?;
@@ -126,8 +121,11 @@ fn load_disk_graph_from_path(
     target_path: &Path,
     overwrite: bool,
 ) -> Result<Option<PathBuf>> {
-    let (name, graph) = load_disk_graph(path_on_server)?;
-    let graph_dir = &graph.into_disk_graph().unwrap().graph_dir;
+    let (_, graph) = load_disk_graph(path_on_server)?;
+    let graph_dir = &graph
+        .into_disk_graph()
+        .ok_or_else(|| Error::new("Failed to convert graph"))?
+        .graph_dir;
     if target_path.exists() {
         if overwrite {
             fs::remove_dir_all(&target_path)?;
@@ -145,9 +143,9 @@ fn load_disk_graph_from_path(
 
 #[cfg(not(feature = "storage"))]
 fn load_disk_graph_from_path(
-    path_on_server: &Path,
-    target_path: &Path,
-    overwrite: bool,
+    _path_on_server: &Path,
+    _target_path: &Path,
+    _overwrite: bool,
 ) -> Result<Option<PathBuf>> {
     Ok(None)
 }
@@ -210,7 +208,7 @@ fn get_disk_graph_from_path(
 
 #[cfg(not(feature = "storage"))]
 fn get_disk_graph_from_path(
-    path: &Path,
+    _path: &Path,
 ) -> Result<Option<(String, IndexedGraph<MaterializedGraph>)>, Error> {
     Ok(None)
 }
@@ -294,6 +292,7 @@ pub(crate) fn get_graph_name(path: &Path) -> Result<String, &'static str> {
         .ok_or("No file name found in the path or invalid UTF-8")
 }
 
+#[cfg(test)]
 pub(crate) fn save_graphs_to_work_dir(
     work_dir: &Path,
     graphs: &HashMap<String, MaterializedGraph>,
@@ -321,33 +320,21 @@ fn load_disk_graph(path: &Path) -> Result<(String, MaterializedGraph)> {
 
 #[allow(unused_variables)]
 #[cfg(not(feature = "storage"))]
-fn load_disk_graph(path: &Path) -> Result<(String, MaterializedGraph)> {
+fn _load_disk_graph(_path: &Path) -> Result<(String, MaterializedGraph)> {
     unimplemented!("Storage feature not enabled, cannot load from disk graph")
 }
 
 #[cfg(test)]
 mod data_tests {
-    use crate::{
-        data::{
-            get_graph_from_path, get_graph_paths, load_graph_from_path, save_graphs_to_work_dir,
-            Data,
-        },
-        server_config::AppConfigBuilder,
-    };
+    use crate::data::{get_graph_from_path, get_graph_paths, load_graph_from_path};
     #[cfg(feature = "storage")]
     use raphtory::disk_graph::graph_impl::DiskGraph;
-    use raphtory::{
-        db::api::view::MaterializedGraph,
-        prelude::{AdditionOps, Graph, GraphViewOps, PropertyAdditionOps},
-    };
+    use raphtory::prelude::{AdditionOps, Graph, GraphViewOps};
     use std::{
-        collections::HashMap,
         fs,
         fs::File,
         io,
         path::{Path, PathBuf},
-        thread,
-        time::Duration,
     };
 
     fn get_maybe_relative_path(work_dir: &Path, path: PathBuf) -> Option<String> {
@@ -368,6 +355,7 @@ mod data_tests {
         }
     }
 
+    #[allow(dead_code)]
     fn list_top_level_files_and_dirs(path: &Path) -> io::Result<Vec<String>> {
         let mut entries_vec = Vec::new();
         let entries = fs::read_dir(path)?;
@@ -509,7 +497,6 @@ mod data_tests {
     #[cfg(not(feature = "storage"))]
     fn test_get_graph_from_path() {
         let tmp_graph_dir = tempfile::tempdir().unwrap();
-        let tmp_work_dir = tempfile::tempdir().unwrap();
 
         let graph = Graph::new();
         graph

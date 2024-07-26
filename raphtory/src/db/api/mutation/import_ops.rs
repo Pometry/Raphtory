@@ -13,7 +13,7 @@ use crate::{
                 InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
             },
             storage::nodes::node_storage_ops::NodeStorageOps,
-            view::{internal::InternalMaterialize, IntoDynamic, StaticGraphViewOps},
+            view::{internal::InternalMaterialize, StaticGraphViewOps},
         },
         graph::{edge::EdgeView, node::NodeView},
     },

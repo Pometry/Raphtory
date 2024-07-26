@@ -1,6 +1,6 @@
 use config::{Config, ConfigError, File};
 use serde::Deserialize;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 #[derive(Debug, Deserialize, PartialEq, Clone)]
 pub struct LoggingConfig {
