@@ -2,16 +2,9 @@ use std::{
     borrow::Cow,
     fmt::{Display, Formatter},
 };
-
 use num_traits::ToPrimitive;
-#[cfg(feature = "python")]
-use pyo3::exceptions::PyTypeError;
-#[cfg(feature = "python")]
-use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
-
 use self::edges::edge_ref::EdgeRef;
-
 use super::input::input_node::parse_u64_strict;
 
 pub mod edges;
@@ -116,39 +109,6 @@ impl Display for GID {
             GID::U64(v) => write!(f, "{}", v),
             GID::Str(v) => write!(f, "{}", v),
         }
-    }
-}
-
-#[cfg(feature = "python")]
-impl IntoPy<PyObject> for GID {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        match self {
-            GID::U64(v) => v.into_py(py),
-            GID::Str(v) => v.into_py(py),
-        }
-    }
-}
-
-#[cfg(feature = "python")]
-impl ToPyObject for GID {
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        match self {
-            GID::U64(v) => v.to_object(py),
-            GID::Str(v) => v.to_object(py),
-        }
-    }
-}
-
-#[cfg(feature = "python")]
-impl<'source> FromPyObject<'source> for GID {
-    fn extract(id: &'source PyAny) -> PyResult<Self> {
-        id.extract::<String>()
-            .map(GID::Str)
-            .or_else(|_| id.extract::<u64>().map(GID::U64))
-            .map_err(|_| {
-                let msg = "IDs need to be strings or an unsigned integers";
-                PyTypeError::new_err(msg)
-            })
     }
 }
 
