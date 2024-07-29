@@ -947,6 +947,47 @@ def test_move_graph_succeeds():
     server.stop()
 
 
+def test_move_graph_using_client_api_succeeds():
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+
+    work_dir = tempfile.mkdtemp()
+    os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
+    g.save_to_file(os.path.join(work_dir, "shivam", "g3"))
+
+    server = RaphtoryServer(work_dir).start()
+    client = RaphtoryClient("http://localhost:1736")
+
+    # Assert if rename graph succeeds and old graph is deleted
+    res = client.move_graph("shivam/g3", "ben/g4")
+    assert res
+
+    query = """{graph(path: "shivam/g3") {nodes {list {name}}}}"""
+    try:
+        client.query(query)
+    except Exception as e:
+        assert "Graph not found shivam/g3" in str(e), f"Unexpected exception message: {e}"
+
+    query = """{graph(path: "ben/g4") {
+            nodes {list {name}}
+            properties {
+                constant {
+                    lastUpdated: get(key: "lastUpdated") { value }
+                    lastOpened: get(key: "lastOpened") { value }
+                }
+            }
+        }}"""
+
+    result = client.query(query)
+    assert result['graph']['nodes']['list'] == [{'name': 'ben'}, {"name": "hamza"}, {'name': 'haaroon'}]
+    assert result['graph']['properties']['constant']['lastUpdated']['value'] is not None
+    assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
+
+    server.stop()
+    
+
 def test_move_graph_succeeds_at_same_namespace_as_graph():
     g = Graph()
     g.add_edge(1, "ben", "hamza")
@@ -1228,6 +1269,7 @@ def test_copy_graph_using_client_api_succeeds():
     assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
 
     server.stop()
+
 
 def test_copy_graph_succeeds_at_same_namespace_as_graph():
     g = Graph()

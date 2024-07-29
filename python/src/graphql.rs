@@ -889,6 +889,39 @@ impl PyRaphtoryClient {
             ))),
         }
     }
+
+    /// Move graph from a path `path` on the server to a `new_path` on the server
+    ///
+    /// Arguments:
+    ///   * `path`: the path of the graph to be moved
+    ///   * `new_path`: the new path of the moved graph
+    ///
+    /// Returns:
+    ///    Move status as boolean
+    #[pyo3(signature = (path, new_path))]
+    fn move_graph(&self, path: String, new_path: String) -> PyResult<bool> {
+        let query = r#"
+            mutation MoveGraph($path: String!, $newPath: String!) {
+              moveGraph(
+                path: $path,
+                newPath: $newPath,
+              )
+            }"#
+        .to_owned();
+
+        let variables = [
+            ("path".to_owned(), json!(path)),
+            ("newPath".to_owned(), json!(new_path)),
+        ];
+
+        let data = self.query_with_json_variables(query.clone(), variables.into())?;
+        match data.get("moveGraph") {
+            Some(JsonValue::Bool(res)) => Ok((*res).clone()),
+            _ => Err(PyException::new_err(format!(
+                "Error while reading server response for query:\n\t{query}\nGot data:\n\t'{data:?}'"
+            ))),
+        }
+    }
 }
 
 fn translate_from_python(py: Python, value: PyObject) -> PyResult<JsonValue> {
