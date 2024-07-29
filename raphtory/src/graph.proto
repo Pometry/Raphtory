@@ -77,7 +77,7 @@ message GraphMeta{
 message GID {
   oneof gid {
     uint64 gid_u64 = 1;
-    string  gid_str = 3;
+    string  gid_str = 2;
   }
 }
 
