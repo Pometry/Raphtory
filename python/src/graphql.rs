@@ -922,6 +922,34 @@ impl PyRaphtoryClient {
             ))),
         }
     }
+
+    /// Delete graph from a path `path` on the server
+    ///
+    /// Arguments:
+    ///   * `path`: the path of the graph to be deleted
+    ///
+    /// Returns:
+    ///    Delete status as boolean
+    #[pyo3(signature = (path))]
+    fn delete_graph(&self, path: String) -> PyResult<bool> {
+        let query = r#"
+            mutation DeleteGraph($path: String!) {
+              deleteGraph(
+                path: $path,
+              )
+            }"#
+        .to_owned();
+
+        let variables = [("path".to_owned(), json!(path))];
+
+        let data = self.query_with_json_variables(query.clone(), variables.into())?;
+        match data.get("deleteGraph") {
+            Some(JsonValue::Bool(res)) => Ok((*res).clone()),
+            _ => Err(PyException::new_err(format!(
+                "Error while reading server response for query:\n\t{query}\nGot data:\n\t'{data:?}'"
+            ))),
+        }
+    }
 }
 
 fn translate_from_python(py: Python, value: PyObject) -> PyResult<JsonValue> {

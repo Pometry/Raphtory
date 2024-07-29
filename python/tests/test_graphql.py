@@ -1405,6 +1405,26 @@ def test_delete_graph_succeeds_if_graph_found():
     server.stop()
 
 
+def test_delete_graph_using_client_api_succeeds_if_graph_found():
+    work_dir = tempfile.mkdtemp()
+    server = RaphtoryServer(work_dir).start()
+    client = RaphtoryClient("http://localhost:1736")
+
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+
+    g.save_to_file(os.path.join(work_dir, "g1"))
+
+    try:
+        client.delete_graph("g1")
+    except Exception as e:
+        assert "Graph not found ben/g5" in str(e), f"Unexpected exception message: {e}"
+
+    server.stop()
+    
+
 def test_delete_graph_succeeds_if_graph_found_at_namespace():
     work_dir = tempfile.mkdtemp()
     server = RaphtoryServer(work_dir).start()
