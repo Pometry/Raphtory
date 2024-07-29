@@ -198,6 +198,7 @@ impl Mut {
 
             new_graph.update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
             new_graph.update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
+            create_dirs_if_not_present(&new_full_path)?;
             new_graph.save_to_file(&new_full_path)?;
         }
 

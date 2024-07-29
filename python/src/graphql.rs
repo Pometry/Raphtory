@@ -597,7 +597,6 @@ impl PyRaphtoryClient {
             client.send_graphql_query(query, variables).await
         })?;
         let mut graphql_result = graphql_result;
-
         match graphql_result.remove("data") {
             Some(JsonValue::Object(data)) => Ok(data.into_iter().collect()),
             _ => match graphql_result.remove("errors") {
@@ -852,6 +851,39 @@ impl PyRaphtoryClient {
                 println!("Loaded graph: '{name}'");
                 translate_map_to_python(py, data)
             }
+            _ => Err(PyException::new_err(format!(
+                "Error while reading server response for query:\n\t{query}\nGot data:\n\t'{data:?}'"
+            ))),
+        }
+    }
+
+    /// Copy graph from a path `path` on the server to a `new_path` on the server
+    ///
+    /// Arguments:
+    ///   * `path`: the path of the graph to be copied
+    ///   * `new_path`: the new path of the copied graph
+    ///
+    /// Returns:
+    ///    Copy status as boolean
+    #[pyo3(signature = (path, new_path))]
+    fn copy_graph(&self, path: String, new_path: String) -> PyResult<bool> {
+        let query = r#"
+            mutation CopyGraph($path: String!, $newPath: String!) {
+              copyGraph(
+                path: $path,
+                newPath: $newPath,
+              )
+            }"#
+        .to_owned();
+
+        let variables = [
+            ("path".to_owned(), json!(path)),
+            ("newPath".to_owned(), json!(new_path)),
+        ];
+
+        let data = self.query_with_json_variables(query.clone(), variables.into())?;
+        match data.get("copyGraph") {
+            Some(JsonValue::Bool(res)) => Ok((*res).clone()),
             _ => Err(PyException::new_err(format!(
                 "Error while reading server response for query:\n\t{query}\nGot data:\n\t'{data:?}'"
             ))),
