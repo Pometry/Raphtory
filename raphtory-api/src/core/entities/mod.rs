@@ -1,11 +1,11 @@
+use self::edges::edge_ref::EdgeRef;
+use super::input::input_node::parse_u64_strict;
+use num_traits::ToPrimitive;
+use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
     fmt::{Display, Formatter},
 };
-use num_traits::ToPrimitive;
-use serde::{Deserialize, Serialize};
-use self::edges::edge_ref::EdgeRef;
-use super::input::input_node::parse_u64_strict;
 
 pub mod edges;
 

@@ -1,6 +1,7 @@
-use pyo3::{FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject};
-use pyo3::exceptions::PyTypeError;
 use crate::core::entities::GID;
+use pyo3::{
+    exceptions::PyTypeError, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject,
+};
 
 impl IntoPy<PyObject> for GID {
     fn into_py(self, py: Python<'_>) -> PyObject {

@@ -1,2 +1,2 @@
-mod gid;
 mod arcstr;
+mod gid;

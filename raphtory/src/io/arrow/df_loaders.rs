@@ -7,9 +7,9 @@ use crate::{
     io::arrow::{dataframe::DFView, prop_handler::*},
     prelude::*,
 };
-use std::{collections::HashMap, iter};
 #[cfg(feature = "python")]
 use kdam::tqdm;
+use std::{collections::HashMap, iter};
 
 #[cfg(feature = "python")]
 macro_rules! maybe_tqdm {
@@ -104,13 +104,13 @@ pub(crate) fn load_nodes_from_df<
         let iter = iter
             .zip(node_type)
             .map(|((node_id, time), n_t)| (node_id, time, n_t));
-        
+
         let iter = maybe_tqdm!(
             iter.zip(prop_iter).zip(const_prop_iter),
             size,
             "Loading nodes"
         );
-        
+
         for (((node_id, time, n_t), props), const_props) in iter {
             if let (Some(node_id), Some(time), n_t) = (node_id, time, n_t) {
                 let actual_type = extract_out_default_type(n_t);
@@ -222,8 +222,12 @@ pub(crate) fn load_edges_from_df<
         df.time_iter_col(time),
     ) {
         let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
-        
-        let iter = maybe_tqdm!(triplets.zip(prop_iter).zip(const_prop_iter).zip(layer), size, "Loading edges");
+
+        let iter = maybe_tqdm!(
+            triplets.zip(prop_iter).zip(const_prop_iter).zip(layer),
+            size,
+            "Loading edges"
+        );
 
         for (((((src, dst), time), props), const_props), layer) in iter {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
@@ -240,7 +244,11 @@ pub(crate) fn load_edges_from_df<
         df.time_iter_col(time),
     ) {
         let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
-        let iter = maybe_tqdm!(triplets.zip(prop_iter).zip(const_prop_iter).zip(layer), size, "Loading edges");
+        let iter = maybe_tqdm!(
+            triplets.zip(prop_iter).zip(const_prop_iter).zip(layer),
+            size,
+            "Loading edges"
+        );
 
         for (((((src, dst), time), props), const_props), layer) in iter {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
@@ -446,7 +454,11 @@ pub(crate) fn load_edges_props_from_df<
 
     if let (Some(src), Some(dst)) = (df.iter_col::<u64>(src), df.iter_col::<u64>(dst)) {
         let triplets = src.map(|i| i.copied()).zip(dst.map(|i| i.copied()));
-        let iter = maybe_tqdm!(triplets.zip(const_prop_iter).zip(layer), size, "Loading edge properties");
+        let iter = maybe_tqdm!(
+            triplets.zip(const_prop_iter).zip(layer),
+            size,
+            "Loading edge properties"
+        );
 
         for (((src, dst), const_props), layer) in iter {
             if let (Some(src), Some(dst)) = (src, dst) {
@@ -463,7 +475,11 @@ pub(crate) fn load_edges_props_from_df<
         let triplets = src
             .map(i64_opt_into_u64_opt)
             .zip(dst.map(i64_opt_into_u64_opt));
-        let iter = maybe_tqdm!(triplets.zip(const_prop_iter).zip(layer), size, "Loading edge properties");
+        let iter = maybe_tqdm!(
+            triplets.zip(const_prop_iter).zip(layer),
+            size,
+            "Loading edge properties"
+        );
 
         for (((src, dst), const_props), layer) in iter {
             if let (Some(src), Some(dst)) = (src, dst) {
@@ -478,7 +494,11 @@ pub(crate) fn load_edges_props_from_df<
         }
     } else if let (Some(src), Some(dst)) = (df.utf8::<i32>(src), df.utf8::<i32>(dst)) {
         let triplets = src.into_iter().zip(dst.into_iter());
-        let iter = maybe_tqdm!(triplets.zip(const_prop_iter).zip(layer), size, "Loading edge properties");
+        let iter = maybe_tqdm!(
+            triplets.zip(const_prop_iter).zip(layer),
+            size,
+            "Loading edge properties"
+        );
 
         for (((src, dst), const_props), layer) in iter {
             if let (Some(src), Some(dst)) = (src, dst) {
@@ -496,7 +516,11 @@ pub(crate) fn load_edges_props_from_df<
         }
     } else if let (Some(src), Some(dst)) = (df.utf8::<i64>(src), df.utf8::<i64>(dst)) {
         let triplets = src.into_iter().zip(dst.into_iter());
-        let iter = maybe_tqdm!(triplets.zip(const_prop_iter).zip(layer), size, "Loading edge properties");
+        let iter = maybe_tqdm!(
+            triplets.zip(const_prop_iter).zip(layer),
+            size,
+            "Loading edge properties"
+        );
 
         for (((src, dst), const_props), layer) in iter {
             if let (Some(src), Some(dst)) = (src, dst) {
@@ -541,7 +565,11 @@ fn load_edges_from_num_iter<
     shared_const_properties: Option<HashMap<String, Prop>>,
     layer: IL,
 ) -> Result<(), GraphError> {
-    let iter = maybe_tqdm!(edges.zip(properties).zip(const_properties).zip(layer), size, "Loading edges");
+    let iter = maybe_tqdm!(
+        edges.zip(properties).zip(const_properties).zip(layer),
+        size,
+        "Loading edges"
+    );
     for (((((src, dst), time), edge_props), const_props), layer) in iter {
         if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
             let e = graph.add_edge(time, src, dst, edge_props, layer.as_deref())?;
@@ -568,7 +596,11 @@ fn load_nodes_from_num_iter<
     const_properties: PI,
     shared_const_properties: Option<HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
-    let iter = maybe_tqdm!(nodes.zip(properties).zip(const_properties), size, "Loading nodes");
+    let iter = maybe_tqdm!(
+        nodes.zip(properties).zip(const_properties),
+        size,
+        "Loading nodes"
+    );
     for (((node, time, node_type), props), const_props) in iter {
         if let (Some(v), Some(t), n_t, props, const_props) =
             (node, time, node_type, props, const_props)
