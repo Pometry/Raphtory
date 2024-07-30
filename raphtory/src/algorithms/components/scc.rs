@@ -102,17 +102,19 @@ where
 
     let ctx: Context<G, ComputeStateVec> = graph.into();
     let step1 = ATask::new(move |vv: &mut EvalNodeView<G, SCCNode>| {
-        let id = vv.id();
+        let id = vv.node;
         let mut out_components = HashSet::new();
         let mut to_check_stack = Vec::new();
-        vv.out_neighbours().id().for_each(|id| {
+        vv.out_neighbours().iter().for_each(|node| {
+            let id = node.node;
             out_components.insert(id);
             to_check_stack.push(id);
         });
 
         while let Some(neighbour_id) = to_check_stack.pop() {
             if let Some(neighbour) = vv.graph().node(neighbour_id) {
-                neighbour.out_neighbours().id().for_each(|id| {
+                neighbour.out_neighbours().iter().for_each(|node| {
+                    let id = node.node;
                     if !out_components.contains(&id) {
                         out_components.insert(id);
                         to_check_stack.push(id);

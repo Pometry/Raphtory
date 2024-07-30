@@ -43,9 +43,12 @@ use pyo3::{
 };
 use python::{
     types::repr::{iterator_repr, Repr},
-    utils::export::{create_row, extract_properties, get_column_names_from_props},
+    utils::{
+        export::{create_row, extract_properties, get_column_names_from_props},
+        PyGenericIterator,
+    },
 };
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr, utils::hashing::calculate_hash};
 use rayon::{iter::IntoParallelIterator, prelude::*};
 use std::collections::HashMap;
 
@@ -115,7 +118,7 @@ impl PyNode {
     /// Returns:
     ///   The node id.
     pub fn __hash__(&self) -> u64 {
-        self.node.id()
+        calculate_hash(&self.node.id())
     }
 
     /// Returns the id of the node.
@@ -124,7 +127,7 @@ impl PyNode {
     /// Returns:
     ///    The id of the node as an integer.
     #[getter]
-    pub fn id(&self) -> u64 {
+    pub fn id(&self) -> GID {
         self.node.id()
     }
 
@@ -431,13 +434,25 @@ impl_nodeviewops!(
     Nodes<'static, DynamicGraph, DynamicGraph>,
     "Nodes"
 );
-impl_iterable_mixin!(
-    PyNodes,
-    nodes,
-    Vec<NodeView<DynamicGraph>>,
-    "list[Node]",
-    "node"
-);
+#[pymethods]
+impl PyNodes {
+    fn __len__(&self) -> usize {
+        self.nodes.len()
+    }
+    fn __bool__(&self) -> bool {
+        !self.nodes.is_empty()
+    }
+    fn __iter__(&self) -> PyGenericIterator {
+        self.nodes.iter_owned().into()
+    }
+    #[doc = concat!(" Collect all ","node","s into a list")]
+    #[doc = r""]
+    #[doc = r" Returns:"]
+    #[doc = concat!("     ","list[Node]",": the list of ","node","s")]
+    fn collect(&self) -> Vec<NodeView<DynamicGraph>> {
+        self.nodes.collect()
+    }
+}
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
     From<Nodes<'static, G, GH>> for PyNodes
@@ -481,7 +496,7 @@ impl PyNodes {
 
     /// Returns an iterator over the nodes ids
     #[getter]
-    fn id(&self) -> LazyNodeState<'static, u64, DynamicGraph, DynamicGraph> {
+    fn id(&self) -> LazyNodeState<'static, GID, DynamicGraph, DynamicGraph> {
         self.nodes.id()
     }
 
@@ -692,7 +707,7 @@ impl_iterable_mixin!(
 #[pymethods]
 impl PyPathFromGraph {
     #[getter]
-    fn id(&self) -> NestedU64Iterable {
+    fn id(&self) -> NestedGIDIterable {
         let path = self.path.clone();
         (move || path.id()).into()
     }
@@ -851,7 +866,7 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic> 
 #[pymethods]
 impl PyPathFromNode {
     #[getter]
-    fn id(&self) -> U64Iterable {
+    fn id(&self) -> GIDIterable {
         let path = self.path.clone();
         (move || path.id()).into()
     }

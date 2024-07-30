@@ -1,3 +1,5 @@
+use raphtory_api::core::entities::GID;
+
 use crate::{
     algorithms::components::connected_components::weakly_connected_components,
     db::{
@@ -32,7 +34,7 @@ impl LargestConnectedComponent for Graph {
     {
         let mut connected_components_map =
             weakly_connected_components(self, usize::MAX, None).group_by();
-        let mut lcc_key = 0;
+        let mut lcc_key: GID = GID::U64(0);
         let mut key_length = 0;
         let mut is_tie = false;
 
@@ -40,7 +42,7 @@ impl LargestConnectedComponent for Graph {
             let length = value.len();
             if length > key_length {
                 key_length = length;
-                lcc_key = *key;
+                lcc_key = key.clone();
                 is_tie = false;
             } else if length == key_length {
                 is_tie = true

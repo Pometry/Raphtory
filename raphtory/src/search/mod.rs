@@ -14,7 +14,10 @@ use tantivy::{
 
 use crate::{
     core::{
-        entities::{nodes::node_ref::NodeRef, EID, ELID, VID},
+        entities::{
+            nodes::node_ref::{AsNodeRef, NodeRef},
+            EID, ELID, VID,
+        },
         storage::timeindex::{AsTime, TimeIndexEntry},
         utils::errors::GraphError,
         PropType,
@@ -758,11 +761,11 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
 
 impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph<G> {
     #[inline]
-    fn next_event_id(&self) -> usize {
+    fn next_event_id(&self) -> Result<usize, GraphError> {
         self.graph.next_event_id()
     }
     #[inline]
-    fn resolve_layer(&self, layer: Option<&str>) -> usize {
+    fn resolve_layer(&self, layer: Option<&str>) -> Result<usize, GraphError> {
         self.graph.resolve_layer(layer)
     }
 
@@ -772,12 +775,12 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
     }
 
     #[inline]
-    fn resolve_node(&self, id: u64, name: Option<&str>) -> VID {
-        self.graph.resolve_node(id, name)
+    fn resolve_node<V: AsNodeRef>(&self, n: V) -> Result<VID, GraphError> {
+        self.graph.resolve_node(n)
     }
 
     #[inline]
-    fn resolve_graph_property(&self, prop: &str, is_static: bool) -> usize {
+    fn resolve_graph_property(&self, prop: &str, is_static: bool) -> Result<usize, GraphError> {
         self.graph.resolve_graph_property(prop, is_static)
     }
 

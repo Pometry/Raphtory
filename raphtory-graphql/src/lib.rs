@@ -46,7 +46,7 @@ mod graphql_test {
     use async_graphql::UploadValue;
     use dynamic_graphql::{Request, Variables};
     #[cfg(feature = "storage")]
-    use raphtory::disk_graph::DiskGraph;
+    use raphtory::disk_graph::DiskGraphStorage;
     use raphtory::{
         db::{api::view::IntoDynamic, graph::views::deletion_graph::PersistentGraph},
         prelude::*,
@@ -269,6 +269,7 @@ mod graphql_test {
 
         let req = Request::new(prop_has_key_filter);
         let res = schema.execute(req).await;
+        // let data = res.data.into_json().unwrap();
         let expected = json!({
             "graph": {
               "properties": {
@@ -1118,7 +1119,9 @@ mod graphql_test {
         graph.add_edge(22, 3, 6, NO_PROPS, Some("a")).unwrap();
 
         let test_dir = TempDir::new().unwrap();
-        let disk_graph = DiskGraph::from_graph(&graph, test_dir.path()).unwrap();
+        let disk_graph = DiskGraphStorage::from_graph(&graph, test_dir.path())
+            .unwrap()
+            .into_graph();
         let graph: MaterializedGraph = disk_graph.into();
 
         let graphs = HashMap::from([("graph".to_string(), graph)]);

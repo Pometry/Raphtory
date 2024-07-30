@@ -3,7 +3,7 @@ use crate::core::{
         edges::edge_ref::{Dir, EdgeRef},
         nodes::structure::adj::Adj,
         properties::{props::Props, tprop::TProp},
-        LayerIds, EID, VID,
+        LayerIds, EID, GID, VID,
     },
     storage::{
         lazy_vec::IllegalSet,
@@ -15,15 +15,11 @@ use crate::core::{
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use std::{
-    iter,
-    ops::{Deref, Range},
-};
+use std::{iter, ops::Deref};
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub struct NodeStore {
-    pub(crate) global_id: u64,
-    pub(crate) name: Option<String>,
+    pub(crate) global_id: GID,
     pub(crate) vid: VID,
     // all the timestamps that have been seen by this node
     timestamps: TimeIndex<i64>,
@@ -35,12 +31,11 @@ pub struct NodeStore {
 }
 
 impl NodeStore {
-    pub fn new(global_id: u64, t: TimeIndexEntry) -> Self {
+    pub fn new(global_id: GID, t: TimeIndexEntry) -> Self {
         let mut layers = Vec::with_capacity(1);
         layers.push(Adj::Solo);
         Self {
             global_id,
-            name: None,
             vid: 0.into(),
             timestamps: TimeIndex::one(t.t()),
             layers,
@@ -49,12 +44,11 @@ impl NodeStore {
         }
     }
 
-    pub fn empty(global_id: u64, name: Option<String>) -> Self {
+    pub fn empty(global_id: GID) -> Self {
         let mut layers = Vec::with_capacity(1);
         layers.push(Adj::Solo);
         Self {
             global_id,
-            name,
             vid: VID(0),
             timestamps: TimeIndex::Empty,
             layers,
@@ -63,8 +57,8 @@ impl NodeStore {
         }
     }
 
-    pub fn global_id(&self) -> u64 {
-        self.global_id
+    pub fn global_id(&self) -> &GID {
+        &self.global_id
     }
 
     pub fn timestamps(&self) -> &TimeIndex<i64> {
@@ -78,15 +72,6 @@ impl NodeStore {
     pub fn update_node_type(&mut self, node_type: usize) -> usize {
         self.node_type = node_type;
         node_type
-    }
-
-    pub fn update_name(&mut self, name: &str) {
-        match &self.name {
-            None => {
-                self.name = Some(name.to_owned());
-            }
-            Some(old) => debug_assert_eq!(old, name), // one-to-one mapping between name and id, name should never change
-        }
     }
 
     pub fn add_prop(
@@ -147,28 +132,6 @@ impl NodeStore {
             Direction::OUT => self.layers[layer].add_edge_out(v_id, edge_id),
             _ => {}
         }
-    }
-
-    pub(crate) fn temporal_properties(
-        &self,
-        prop_id: usize,
-        window: Option<Range<i64>>,
-    ) -> impl Iterator<Item = (i64, Prop)> + '_ {
-        if let Some(window) = window {
-            self.props
-                .as_ref()
-                .map(|ps| ps.temporal_props_window(prop_id, window.start, window.end))
-                .unwrap_or_else(|| Box::new(iter::empty()))
-        } else {
-            self.props
-                .as_ref()
-                .map(|ps| ps.temporal_props(prop_id))
-                .unwrap_or_else(|| Box::new(iter::empty()))
-        }
-    }
-
-    pub(crate) fn const_prop(&self, prop_id: usize) -> Option<&Prop> {
-        self.props.as_ref().and_then(|ps| ps.const_prop(prop_id))
     }
 
     #[inline]
@@ -338,6 +301,10 @@ impl NodeStore {
 
     pub(crate) fn temporal_property(&self, prop_id: usize) -> Option<&TProp> {
         self.props.as_ref().and_then(|ps| ps.temporal_prop(prop_id))
+    }
+
+    pub(crate) fn constant_property(&self, prop_id: usize) -> Option<&Prop> {
+        self.props.as_ref().and_then(|ps| ps.const_prop(prop_id))
     }
 
     pub(crate) fn temporal_prop_ids(&self) -> impl Iterator<Item = usize> + '_ {

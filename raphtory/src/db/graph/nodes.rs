@@ -80,7 +80,13 @@ where
         g.into_nodes_iter(self.graph.clone(), node_types_filter)
     }
 
-    pub fn iter(&self) -> BoxedLIter<'graph, NodeView<G, GH>> {
+    pub fn iter(&self) -> impl Iterator<Item = NodeView<&G, &GH>> + '_ {
+        let cg = self.graph.core_graph().lock();
+        cg.into_nodes_iter(&self.graph, self.node_types_filter.clone())
+            .map(|v| NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, v))
+    }
+
+    pub fn iter_owned(&self) -> BoxedLIter<'graph, NodeView<G, GH>> {
         let base_graph = self.base_graph.clone();
         let g = self.graph.clone();
         self.iter_refs()
@@ -127,18 +133,6 @@ where
             self.graph.node_meta().node_type_meta(),
             node_types,
         ));
-        println!(
-            "node_types_filter = {:?}",
-            node_types_filter.as_ref().unwrap()
-        );
-        println!(
-            "node_types = {:?}",
-            self.graph.nodes().node_type().collect_vec()
-        );
-        println!(
-            "node_type_ids = {:?}",
-            self.graph.nodes().node_type_id().collect_vec()
-        );
         Nodes {
             base_graph: self.base_graph.clone(),
             graph: self.graph.clone(),
@@ -148,7 +142,7 @@ where
     }
 
     pub fn collect(&self) -> Vec<NodeView<G, GH>> {
-        self.iter().collect()
+        self.iter_owned().collect()
     }
 
     pub fn get_const_prop_id(&self, prop_name: &str) -> Option<usize> {
@@ -201,7 +195,7 @@ where
         let nodes = Arc::new(move || nodes.iter_refs().into_dyn_boxed());
         let edges = Arc::new(move |node: VID| {
             let cg = graph.core_graph();
-            op(&cg, &graph, node).into_dyn_boxed()
+            op(cg, &graph, node).into_dyn_boxed()
         });
         let graph = self.graph.clone();
         NestedEdges {
@@ -224,7 +218,7 @@ where
         let nodes = Arc::new(move || nodes.iter_refs().into_dyn_boxed());
         PathFromGraph::new(self.base_graph.clone(), nodes, move |v| {
             let cg = graph.core_graph();
-            op(&cg, &graph, v).into_dyn_boxed()
+            op(cg, &graph, v).into_dyn_boxed()
         })
     }
 }
@@ -269,6 +263,6 @@ where
     type IntoIter = BoxedLIter<'graph, Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
-        Box::new(self.iter())
+        Box::new(self.iter_owned())
     }
 }

@@ -22,7 +22,7 @@ impl GqlNodes {
     }
 
     fn iter(&self) -> Box<dyn Iterator<Item = Node> + '_> {
-        let iter = self.nn.iter().map(Node::from);
+        let iter = self.nn.iter_owned().map(Node::from);
         Box::new(iter)
     }
 }

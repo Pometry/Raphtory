@@ -417,7 +417,11 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
     }
 
     #[inline]
-    fn edge_exploded(&self, e: EdgeRef, layer_ids: &LayerIds) -> BoxedIter<EdgeRef> {
+    fn edge_exploded(
+        &self,
+        e: EdgeRef,
+        layer_ids: &LayerIds,
+    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         self.graph().edge_exploded(e, layer_ids)
     }
 

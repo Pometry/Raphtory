@@ -122,10 +122,10 @@ pub mod prelude {
             graph::graph::Graph,
         },
     };
-    pub use raphtory_api::core::input::input_node::InputNode;
+    pub use raphtory_api::core::{entities::GID, input::input_node::InputNode};
 }
 
-pub const BINCODE_VERSION: u32 = 2u32;
+pub const BINCODE_VERSION: u32 = 3u32;
 #[cfg(feature = "storage")]
 pub use polars_arrow as arrow2;
 
@@ -136,8 +136,6 @@ mod serialise {
 
 #[cfg(test)]
 mod test_utils {
-    #[cfg(feature = "storage")]
-    use crate::disk_graph::DiskGraph;
     use crate::prelude::Graph;
     #[cfg(feature = "storage")]
     use tempfile::TempDir;
@@ -155,9 +153,12 @@ mod test_utils {
         };
     }
     #[cfg(feature = "storage")]
-    pub(crate) fn test_disk_graph(graph: &Graph, test: impl FnOnce(&DiskGraph)) {
+    pub(crate) fn test_disk_graph(graph: &Graph, test: impl FnOnce(&Graph)) {
         let test_dir = TempDir::new().unwrap();
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
+        let disk_graph = graph
+            .persist_as_disk_graph(test_dir.path())
+            .unwrap()
+            .into_graph();
         test(&disk_graph)
     }
 }

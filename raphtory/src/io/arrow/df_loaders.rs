@@ -7,8 +7,29 @@ use crate::{
     io::arrow::{dataframe::DFView, prop_handler::*},
     prelude::*,
 };
+#[cfg(feature = "python")]
 use kdam::tqdm;
 use std::{collections::HashMap, iter};
+
+#[cfg(feature = "python")]
+macro_rules! maybe_tqdm {
+    ($iter:expr, $size:expr, $desc:literal) => {
+        tqdm!(
+            $iter,
+            desc = "Loading nodes",
+            total = $size,
+            animation = kdam::Animation::FillUp,
+            unit_scale = true
+        )
+    };
+}
+
+#[cfg(not(feature = "python"))]
+macro_rules! maybe_tqdm {
+    ($iter:expr, $size:expr, $desc:literal) => {
+        $iter
+    };
+}
 
 pub(crate) fn load_nodes_from_df<
     'a,
@@ -84,13 +105,13 @@ pub(crate) fn load_nodes_from_df<
             .zip(node_type)
             .map(|((node_id, time), n_t)| (node_id, time, n_t));
 
-        for (((node_id, time, n_t), props), const_props) in tqdm!(
+        let iter = maybe_tqdm!(
             iter.zip(prop_iter).zip(const_prop_iter),
-            desc = "Loading nodes",
-            total = size,
-            animation = kdam::Animation::FillUp,
-            unit_scale = true
-        ) {
+            size,
+            "Loading nodes"
+        );
+
+        for (((node_id, time, n_t), props), const_props) in iter {
             if let (Some(node_id), Some(time), n_t) = (node_id, time, n_t) {
                 let actual_type = extract_out_default_type(n_t);
                 let v = graph.add_node(time, node_id, props, actual_type)?;
@@ -106,13 +127,13 @@ pub(crate) fn load_nodes_from_df<
             .zip(node_type)
             .map(|((node_id, time), n_t)| (node_id, time, n_t));
 
-        for (((node_id, time, n_t), props), const_props) in tqdm!(
+        let iter = maybe_tqdm!(
             iter.zip(prop_iter).zip(const_prop_iter),
-            desc = "Loading nodes",
-            total = size,
-            animation = kdam::Animation::FillUp,
-            unit_scale = true
-        ) {
+            size,
+            "Loading nodes"
+        );
+
+        for (((node_id, time, n_t), props), const_props) in iter {
             let actual_type = extract_out_default_type(n_t);
             if let (Some(node_id), Some(time), n_t) = (node_id, time, actual_type) {
                 let v = graph.add_node(time, node_id, props, n_t)?;
@@ -202,13 +223,13 @@ pub(crate) fn load_edges_from_df<
     ) {
         let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
 
-        for (((((src, dst), time), props), const_props), layer) in tqdm!(
+        let iter = maybe_tqdm!(
             triplets.zip(prop_iter).zip(const_prop_iter).zip(layer),
-            desc = "Loading edges",
-            total = size,
-            animation = kdam::Animation::FillUp,
-            unit_scale = true
-        ) {
+            size,
+            "Loading edges"
+        );
+
+        for (((((src, dst), time), props), const_props), layer) in iter {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
                 let e = graph.add_edge(time, src, dst, props, layer.as_deref())?;
                 e.add_constant_properties(const_props, layer.as_deref())?;
@@ -223,13 +244,13 @@ pub(crate) fn load_edges_from_df<
         df.time_iter_col(time),
     ) {
         let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
-        for (((((src, dst), time), props), const_props), layer) in tqdm!(
+        let iter = maybe_tqdm!(
             triplets.zip(prop_iter).zip(const_prop_iter).zip(layer),
-            desc = "Loading edges",
-            total = size,
-            animation = kdam::Animation::FillUp,
-            unit_scale = true
-        ) {
+            size,
+            "Loading edges"
+        );
+
+        for (((((src, dst), time), props), const_props), layer) in iter {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
                 let e = graph.add_edge(time, src, dst, props, layer.as_deref())?;
                 e.add_constant_properties(const_props, layer.as_deref())?;
@@ -272,13 +293,10 @@ pub(crate) fn load_edges_deletions_from_df<
             .map(|i| i.copied())
             .zip(dst.map(|i| i.copied()))
             .zip(time);
-        for (((src, dst), time), layer) in tqdm!(
-            triplets.zip(layer),
-            desc = "Loading edges",
-            total = size,
-            animation = kdam::Animation::FillUp,
-            unit_scale = true
-        ) {
+
+        let iter = maybe_tqdm!(triplets.zip(layer), size, "Loading edges");
+
+        for (((src, dst), time), layer) in iter {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
                 graph.delete_edge(time, src, dst, layer.as_deref())?;
             }
@@ -292,13 +310,10 @@ pub(crate) fn load_edges_deletions_from_df<
             .map(i64_opt_into_u64_opt)
             .zip(dst.map(i64_opt_into_u64_opt))
             .zip(time);
-        for (((src, dst), time), layer) in tqdm!(
-            triplets.zip(layer),
-            desc = "Loading edges",
-            total = size,
-            animation = kdam::Animation::FillUp,
-            unit_scale = true
-        ) {
+
+        let iter = maybe_tqdm!(triplets.zip(layer), size, "Loading edges");
+
+        for (((src, dst), time), layer) in iter {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
                 graph.delete_edge(time, src, dst, layer.as_deref())?;
             }
@@ -309,13 +324,9 @@ pub(crate) fn load_edges_deletions_from_df<
         df.time_iter_col(time),
     ) {
         let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
-        for (((src, dst), time), layer) in tqdm!(
-            triplets.zip(layer),
-            desc = "Loading edges",
-            total = size,
-            animation = kdam::Animation::FillUp,
-            unit_scale = true
-        ) {
+        let iter = maybe_tqdm!(triplets.zip(layer), size, "Loading edges");
+
+        for (((src, dst), time), layer) in iter {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
                 graph.delete_edge(time, src, dst, layer.as_deref())?;
             }
@@ -326,13 +337,9 @@ pub(crate) fn load_edges_deletions_from_df<
         df.time_iter_col(time),
     ) {
         let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
-        for (((src, dst), time), layer) in tqdm!(
-            triplets.zip(layer),
-            desc = "Loading edges",
-            total = size,
-            animation = kdam::Animation::FillUp,
-            unit_scale = true
-        ) {
+        let iter = maybe_tqdm!(triplets.zip(layer), size, "Loading edges");
+
+        for (((src, dst), time), layer) in iter {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
                 graph.delete_edge(time, src, dst, layer.as_deref())?;
             }
@@ -361,13 +368,9 @@ pub(crate) fn load_node_props_from_df<
 
     if let Some(node_id) = df.iter_col::<u64>(node_id) {
         let iter = node_id.map(|i| i.copied());
-        for (node_id, const_props) in tqdm!(
-            iter.zip(const_prop_iter),
-            desc = "Loading node properties",
-            total = size,
-            animation = kdam::Animation::FillUp,
-            unit_scale = true
-        ) {
+        let iter = maybe_tqdm!(iter.zip(const_prop_iter), size, "Loading node properties");
+
+        for (node_id, const_props) in iter {
             if let Some(node_id) = node_id {
                 let v = graph
                     .node(node_id)
@@ -380,13 +383,9 @@ pub(crate) fn load_node_props_from_df<
         }
     } else if let Some(node_id) = df.iter_col::<i64>(node_id) {
         let iter = node_id.map(i64_opt_into_u64_opt);
-        for (node_id, const_props) in tqdm!(
-            iter.zip(const_prop_iter),
-            desc = "Loading node properties",
-            total = size,
-            animation = kdam::Animation::FillUp,
-            unit_scale = true
-        ) {
+        let iter = maybe_tqdm!(iter.zip(const_prop_iter), size, "Loading node properties");
+
+        for (node_id, const_props) in iter {
             if let Some(node_id) = node_id {
                 let v = graph
                     .node(node_id)
@@ -399,13 +398,9 @@ pub(crate) fn load_node_props_from_df<
         }
     } else if let Some(node_id) = df.utf8::<i32>(node_id) {
         let iter = node_id.into_iter();
-        for (node_id, const_props) in tqdm!(
-            iter.zip(const_prop_iter),
-            desc = "Loading node properties",
-            total = size,
-            animation = kdam::Animation::FillUp,
-            unit_scale = true
-        ) {
+        let iter = maybe_tqdm!(iter.zip(const_prop_iter), size, "Loading node properties");
+
+        for (node_id, const_props) in iter {
             if let Some(node_id) = node_id {
                 let v = graph
                     .node(node_id)
@@ -418,13 +413,9 @@ pub(crate) fn load_node_props_from_df<
         }
     } else if let Some(node_id) = df.utf8::<i64>(node_id) {
         let iter = node_id.into_iter();
-        for (node_id, const_props) in tqdm!(
-            iter.zip(const_prop_iter),
-            desc = "Loading node properties",
-            total = size,
-            animation = kdam::Animation::FillUp,
-            unit_scale = true
-        ) {
+        let iter = maybe_tqdm!(iter.zip(const_prop_iter), size, "Loading node properties");
+
+        for (node_id, const_props) in iter {
             if let Some(node_id) = node_id {
                 let v = graph
                     .node(node_id)
@@ -463,14 +454,13 @@ pub(crate) fn load_edges_props_from_df<
 
     if let (Some(src), Some(dst)) = (df.iter_col::<u64>(src), df.iter_col::<u64>(dst)) {
         let triplets = src.map(|i| i.copied()).zip(dst.map(|i| i.copied()));
-
-        for (((src, dst), const_props), layer) in tqdm!(
+        let iter = maybe_tqdm!(
             triplets.zip(const_prop_iter).zip(layer),
-            desc = "Loading edge properties",
-            total = size,
-            animation = kdam::Animation::FillUp,
-            unit_scale = true
-        ) {
+            size,
+            "Loading edge properties"
+        );
+
+        for (((src, dst), const_props), layer) in iter {
             if let (Some(src), Some(dst)) = (src, dst) {
                 let e = graph
                     .edge(src, dst)
@@ -485,13 +475,13 @@ pub(crate) fn load_edges_props_from_df<
         let triplets = src
             .map(i64_opt_into_u64_opt)
             .zip(dst.map(i64_opt_into_u64_opt));
-        for (((src, dst), const_props), layer) in tqdm!(
+        let iter = maybe_tqdm!(
             triplets.zip(const_prop_iter).zip(layer),
-            desc = "Loading edge properties",
-            total = size,
-            animation = kdam::Animation::FillUp,
-            unit_scale = true
-        ) {
+            size,
+            "Loading edge properties"
+        );
+
+        for (((src, dst), const_props), layer) in iter {
             if let (Some(src), Some(dst)) = (src, dst) {
                 let e = graph
                     .edge(src, dst)
@@ -504,13 +494,13 @@ pub(crate) fn load_edges_props_from_df<
         }
     } else if let (Some(src), Some(dst)) = (df.utf8::<i32>(src), df.utf8::<i32>(dst)) {
         let triplets = src.into_iter().zip(dst.into_iter());
-        for (((src, dst), const_props), layer) in tqdm!(
+        let iter = maybe_tqdm!(
             triplets.zip(const_prop_iter).zip(layer),
-            desc = "Loading edge properties",
-            total = size,
-            animation = kdam::Animation::FillUp,
-            unit_scale = true
-        ) {
+            size,
+            "Loading edge properties"
+        );
+
+        for (((src, dst), const_props), layer) in iter {
             if let (Some(src), Some(dst)) = (src, dst) {
                 let e = graph
                     .edge(src, dst)
@@ -526,13 +516,13 @@ pub(crate) fn load_edges_props_from_df<
         }
     } else if let (Some(src), Some(dst)) = (df.utf8::<i64>(src), df.utf8::<i64>(dst)) {
         let triplets = src.into_iter().zip(dst.into_iter());
-        for (((src, dst), const_props), layer) in tqdm!(
+        let iter = maybe_tqdm!(
             triplets.zip(const_prop_iter).zip(layer),
-            desc = "Loading edge properties",
-            total = size,
-            animation = kdam::Animation::FillUp,
-            unit_scale = true
-        ) {
+            size,
+            "Loading edge properties"
+        );
+
+        for (((src, dst), const_props), layer) in iter {
             if let (Some(src), Some(dst)) = (src, dst) {
                 let e = graph
                     .edge(src, dst)
@@ -575,13 +565,12 @@ fn load_edges_from_num_iter<
     shared_const_properties: Option<HashMap<String, Prop>>,
     layer: IL,
 ) -> Result<(), GraphError> {
-    for (((((src, dst), time), edge_props), const_props), layer) in tqdm!(
+    let iter = maybe_tqdm!(
         edges.zip(properties).zip(const_properties).zip(layer),
-        desc = "Loading edges",
-        total = size,
-        animation = kdam::Animation::FillUp,
-        unit_scale = true
-    ) {
+        size,
+        "Loading edges"
+    );
+    for (((((src, dst), time), edge_props), const_props), layer) in iter {
         if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
             let e = graph.add_edge(time, src, dst, edge_props, layer.as_deref())?;
             e.add_constant_properties(const_props, layer.as_deref())?;
@@ -607,13 +596,12 @@ fn load_nodes_from_num_iter<
     const_properties: PI,
     shared_const_properties: Option<HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
-    for (((node, time, node_type), props), const_props) in tqdm!(
+    let iter = maybe_tqdm!(
         nodes.zip(properties).zip(const_properties),
-        desc = "Loading nodes",
-        total = size,
-        animation = kdam::Animation::FillUp,
-        unit_scale = true
-    ) {
+        size,
+        "Loading nodes"
+    );
+    for (((node, time, node_type), props), const_props) in iter {
         if let (Some(v), Some(t), n_t, props, const_props) =
             (node, time, node_type, props, const_props)
         {

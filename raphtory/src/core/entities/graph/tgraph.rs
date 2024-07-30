@@ -1,17 +1,19 @@
 use crate::{
     core::{
         entities::{
-            edges::edge_store::EdgeStore,
+            edges::edge_store::{EdgeDataLike, EdgeStore},
             graph::{
                 tgraph_storage::GraphStorage,
                 timer::{MaxCounter, MinCounter, TimeCounterTrait},
             },
-            nodes::{node_ref::NodeRef, node_store::NodeStore},
-            properties::{graph_meta::GraphMeta, props::Meta, tprop::TProp},
+            nodes::{
+                node_ref::{AsNodeRef, NodeRef},
+                node_store::NodeStore,
+            },
+            properties::{graph_meta::GraphMeta, props::Meta},
             LayerIds, EID, VID,
         },
         storage::{
-            locked_view::LockedView,
             raw_edges::EdgeWGuard,
             timeindex::{AsTime, TimeIndexEntry},
             EntryMut,
@@ -19,66 +21,34 @@ use crate::{
         utils::errors::GraphError,
         Direction, Prop,
     },
-    db::api::{
-        storage::locked::LockedGraph,
-        view::{BoxedIter, Layer},
-    },
-    prelude::DeletionOps,
+    db::api::view::Layer,
 };
 use dashmap::DashSet;
+use either::Either;
+use itertools::Itertools;
 use raphtory_api::core::{
+    entities::{edges::edge_ref::EdgeRef, GidRef},
     input::input_node::InputNode,
-    storage::{arc_str::ArcStr, locked_vec::ArcReadLockedVec, FxDashMap},
+    storage::arc_str::ArcStr,
 };
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 use std::{
+    collections::HashMap,
     fmt::Debug,
     hash::BuildHasherDefault,
     iter,
     sync::{atomic::AtomicUsize, Arc},
 };
 
+use super::logical_to_physical::Mapping;
+
 pub(crate) type FxDashSet<K> = DashSet<K, BuildHasherDefault<FxHasher>>;
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct InternalGraph(Arc<TemporalGraph>);
-
-impl DeletionOps for InternalGraph {}
-
-impl InternalGraph {
-    #[inline]
-    pub(crate) fn inner(&self) -> &TemporalGraph {
-        &self.0
-    }
-
-    pub(crate) fn lock(&self) -> LockedGraph {
-        let nodes = Arc::new(self.inner().storage.nodes_read_lock());
-        let edges = Arc::new(self.inner().storage.edges_read_lock());
-        LockedGraph { nodes, edges }
-    }
-
-    pub(crate) fn new(num_locks: usize) -> Self {
-        let tg = TemporalGraph {
-            logical_to_physical: FxDashMap::default(), // TODO: could use DictMapper here
-            string_pool: Default::default(),
-            storage: GraphStorage::new(num_locks),
-            event_counter: AtomicUsize::new(0),
-            earliest_time: MinCounter::new(),
-            latest_time: MaxCounter::new(),
-            node_meta: Arc::new(Meta::new()),
-            edge_meta: Arc::new(Meta::new()),
-            graph_meta: GraphMeta::new(),
-        };
-
-        Self(Arc::new(tg))
-    }
-}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TemporalGraph {
     // mapping between logical and physical ids
-    logical_to_physical: FxDashMap<u64, VID>,
+    logical_to_physical: Mapping,
     string_pool: FxDashSet<ArcStr>,
 
     pub(crate) storage: GraphStorage,
@@ -101,24 +71,38 @@ pub struct TemporalGraph {
     pub(crate) graph_meta: GraphMeta,
 }
 
-impl std::fmt::Display for InternalGraph {
+impl std::fmt::Display for TemporalGraph {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "Graph(num_nodes={}, num_edges={})",
-            self.inner().storage.nodes_len(),
-            self.inner().storage.edges_len()
+            self.storage.nodes_len(),
+            self.storage.edges_len()
         )
     }
 }
 
-impl Default for InternalGraph {
+impl Default for TemporalGraph {
     fn default() -> Self {
         Self::new(rayon::current_num_threads())
     }
 }
 
 impl TemporalGraph {
+    pub fn new(num_locks: usize) -> Self {
+        TemporalGraph {
+            logical_to_physical: Mapping::new(),
+            string_pool: Default::default(),
+            storage: GraphStorage::new(num_locks),
+            event_counter: AtomicUsize::new(0),
+            earliest_time: MinCounter::new(),
+            latest_time: MaxCounter::new(),
+            node_meta: Arc::new(Meta::new()),
+            edge_meta: Arc::new(Meta::new()),
+            graph_meta: GraphMeta::new(),
+        }
+    }
+
     fn get_valid_layers(edge_meta: &Arc<Meta>) -> Vec<String> {
         edge_meta
             .layer_meta()
@@ -130,25 +114,6 @@ impl TemporalGraph {
 
     pub(crate) fn num_layers(&self) -> usize {
         self.edge_meta.layer_meta().len()
-    }
-
-    pub(crate) fn layer_names(&self, layer_ids: &LayerIds) -> BoxedIter<ArcStr> {
-        let layer_ids = layer_ids.clone();
-        match layer_ids {
-            LayerIds::None => Box::new(iter::empty()),
-            LayerIds::All => Box::new(self.edge_meta.layer_meta().get_keys().into_iter()),
-            LayerIds::One(id) => {
-                let name = self.edge_meta.layer_meta().get_name(id).clone();
-                Box::new(iter::once(name))
-            }
-            LayerIds::Multiple(ids) => {
-                let keys = self.edge_meta.layer_meta().get_keys();
-                Box::new((0..ids.len()).map(move |index| {
-                    let id = ids[index];
-                    keys[id].clone()
-                }))
-            }
-        }
     }
 
     pub(crate) fn layer_ids(&self, key: Layer) -> Result<LayerIds, GraphError> {
@@ -235,35 +200,111 @@ impl TemporalGraph {
         Some(self.latest_time.get()).filter(|t| *t != i64::MIN)
     }
 
+    pub(crate) fn core_temporal_edge_prop_ids(
+        &self,
+        e: EdgeRef,
+        layer_ids: &LayerIds,
+    ) -> Box<dyn Iterator<Item = usize> + '_> {
+        // // FIXME: revisit the locking scheme so we don't have to collect the ids
+        let entry = self.storage.edge_entry(e.pid());
+        match layer_ids {
+            LayerIds::None => Box::new(iter::empty()),
+            LayerIds::All => Box::new(entry.temp_prop_ids(None).collect_vec().into_iter()),
+            LayerIds::One(id) => Box::new(entry.temp_prop_ids(Some(*id)).collect_vec().into_iter()),
+            LayerIds::Multiple(ids) => Box::new(
+                ids.iter()
+                    .map(|id| entry.temp_prop_ids(Some(*id)))
+                    .kmerge()
+                    .dedup()
+                    .collect_vec()
+                    .into_iter(),
+            ),
+        }
+    }
+
+    pub(crate) fn core_const_edge_prop_ids(
+        &self,
+        e: EdgeRef,
+        layer_ids: LayerIds,
+    ) -> Box<dyn Iterator<Item = usize> + '_> {
+        // // FIXME: revisit the locking scheme so we don't have to collect all the ids
+        let layer_ids = layer_ids.constrain_from_edge(e);
+        let entry = self.storage.edge_entry(e.pid());
+        let ids: Vec<_> = match layer_ids {
+            LayerIds::None => vec![],
+            LayerIds::All => entry
+                .layer_iter()
+                .map(|(_, data)| data.const_prop_ids())
+                .kmerge()
+                .dedup()
+                .collect(),
+            LayerIds::One(id) => match entry.layer(id) {
+                Some(l) => l.const_prop_ids().collect(),
+                None => vec![],
+            },
+            LayerIds::Multiple(ids) => ids
+                .iter()
+                .flat_map(|id| entry.layer(*id).map(|l| l.const_prop_ids()))
+                .kmerge()
+                .dedup()
+                .collect(),
+        };
+        Box::new(ids.into_iter())
+    }
+
+    pub(crate) fn core_get_const_edge_prop(
+        &self,
+        e: EdgeRef,
+        prop_id: usize,
+        layer_ids: LayerIds,
+    ) -> Option<Prop> {
+        let layer_ids = layer_ids.constrain_from_edge(e);
+        let entry = self.storage.edge_entry(e.pid());
+        match layer_ids {
+            LayerIds::None => None,
+            LayerIds::All => {
+                if self.num_layers() == 1 {
+                    // iterator has at most 1 element
+                    entry
+                        .layer_iter()
+                        .next()
+                        .and_then(|(_, data)| data.const_prop(prop_id).cloned())
+                } else {
+                    let prop_map: HashMap<_, _> = entry
+                        .layer_iter()
+                        .flat_map(|(id, data)| {
+                            data.const_prop(prop_id)
+                                .map(|p| (self.get_layer_name(id), p.clone()))
+                        })
+                        .collect();
+                    if prop_map.is_empty() {
+                        None
+                    } else {
+                        Some(prop_map.into())
+                    }
+                }
+            }
+            LayerIds::One(id) => entry.layer(id).and_then(|l| l.const_prop(prop_id).cloned()),
+            LayerIds::Multiple(ids) => {
+                let prop_map: HashMap<_, _> = ids
+                    .iter()
+                    .flat_map(|&id| {
+                        entry.layer(id).and_then(|data| {
+                            data.const_prop(prop_id)
+                                .map(|p| (self.get_layer_name(id), p.clone()))
+                        })
+                    })
+                    .collect();
+                if prop_map.is_empty() {
+                    None
+                } else {
+                    Some(prop_map.into())
+                }
+            }
+        }
+    }
+
     #[inline]
-    pub(crate) fn global_node_id(&self, v: VID) -> u64 {
-        let node = self.storage.get_node(v);
-        node.global_id()
-    }
-
-    pub(crate) fn node_name(&self, v: VID) -> String {
-        let node = self.storage.get_node(v);
-        node.name
-            .clone()
-            .unwrap_or_else(|| node.global_id().to_string())
-    }
-
-    pub(crate) fn node_type(&self, v: VID) -> Option<ArcStr> {
-        let node = self.storage.get_node(v);
-        self.node_meta.get_node_type_name_by_id(node.node_type)
-    }
-
-    pub(crate) fn node_type_id(&self, v: VID) -> usize {
-        let node = self.storage.get_node(v);
-        node.node_type
-    }
-
-    pub(crate) fn get_all_node_types(&self) -> Vec<ArcStr> {
-        self.node_meta.get_all_node_types()
-    }
-}
-
-impl TemporalGraph {
     pub(crate) fn internal_num_nodes(&self) -> usize {
         self.storage.nodes.len()
     }
@@ -276,12 +317,17 @@ impl TemporalGraph {
     }
 
     /// return local id for node, initialising storage if node does not exist yet
-    pub(crate) fn resolve_node(&self, id: u64, name: Option<&str>) -> VID {
-        *(self.logical_to_physical.entry(id).or_insert_with(|| {
-            let name = name.map(|s| s.to_owned());
-            let node_store = NodeStore::empty(id, name);
-            self.storage.push_node(node_store)
-        }))
+    pub(crate) fn resolve_node<V: AsNodeRef>(&self, n: V) -> Result<VID, GraphError> {
+        match n.as_gid_ref() {
+            Either::Left(id) => {
+                let ref_mut = self.logical_to_physical.get_or_init(id, || {
+                    let node_store = NodeStore::empty(id.into());
+                    self.storage.push_node(node_store)
+                })?;
+                Ok(ref_mut)
+            }
+            Either::Right(vid) => Ok(vid),
+        }
     }
 
     pub(crate) fn resolve_node_type(
@@ -382,18 +428,6 @@ impl TemporalGraph {
         Ok(())
     }
 
-    pub(crate) fn get_constant_prop(&self, id: usize) -> Option<Prop> {
-        self.graph_meta.get_constant(id)
-    }
-
-    pub(crate) fn get_temporal_prop(&self, id: usize) -> Option<LockedView<TProp>> {
-        self.graph_meta.get_temporal_prop(id)
-    }
-
-    pub(crate) fn const_prop_names(&self) -> ArcReadLockedVec<ArcStr> {
-        self.graph_meta.constant_names()
-    }
-
     pub(crate) fn delete_edge(
         &self,
         t: TimeIndexEntry,
@@ -466,11 +500,11 @@ impl TemporalGraph {
     pub(crate) fn resolve_node_ref(&self, v: NodeRef) -> Option<VID> {
         match v {
             NodeRef::Internal(vid) => Some(vid),
-            NodeRef::External(gid) => {
-                let v_id = self.logical_to_physical.get(&gid)?;
-                Some(*v_id)
-            }
-            NodeRef::ExternalStr(string) => self.resolve_node_ref(NodeRef::External(string.id())),
+            NodeRef::External(GidRef::U64(gid)) => self.logical_to_physical.get_u64(gid),
+            NodeRef::External(GidRef::Str(string)) => self
+                .logical_to_physical
+                .get_str(string)
+                .or_else(|| self.logical_to_physical.get_u64(string.id())),
         }
     }
 

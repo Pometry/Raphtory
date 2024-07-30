@@ -177,7 +177,7 @@ pub fn load_edge_props_from_parquet<
             shared_const_properties.clone(),
             layer,
             layer_in_df.unwrap_or(true),
-            graph,
+            graph.core_graph(),
         )
         .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
     }

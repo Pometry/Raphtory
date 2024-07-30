@@ -1,9 +1,11 @@
 use crate::{
-    core::entities::{graph::tgraph::InternalGraph, LayerIds},
+    core::entities::LayerIds,
     db::api::{storage::edges::edge_ref::EdgeStorageRef, view::internal::EdgeFilterOps},
 };
 
-impl EdgeFilterOps for InternalGraph {
+use super::GraphStorage;
+
+impl EdgeFilterOps for GraphStorage {
     fn edges_filtered(&self) -> bool {
         false
     }

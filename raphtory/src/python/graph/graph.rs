@@ -24,14 +24,14 @@ use crate::{
             edge::PyEdge, graph_with_deletions::PyPersistentGraph, io::pandas_loaders::*,
             node::PyNode, views::graph_view::PyGraphView,
         },
-        utils::{PyInputNode, PyTime},
+        utils::PyTime,
     },
 };
 use pyo3::{
     prelude::*,
     types::{PyBytes, PyTuple},
 };
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
@@ -190,6 +190,29 @@ impl PyGraph {
         Ok((PyGraphEncoder::Graph, (state,)))
     }
 
+    #[cfg(feature = "storage")]
+    pub fn to_disk_graph(&self, graph_dir: String) -> PyResult<Py<Self>> {
+        use std::sync::Arc;
+
+        use crate::db::api::storage::storage_ops::GraphStorage;
+
+        let disk_graph = Graph::persist_as_disk_graph(&self.graph, graph_dir)?;
+        let storage = GraphStorage::Disk(Arc::new(disk_graph));
+        let graph = Graph::from_internal_graph(&storage);
+
+        Python::with_gil(|py| {
+            Ok(Py::new(
+                py,
+                (
+                    Self {
+                        graph: graph.clone(),
+                    },
+                    PyGraphView::from(graph.clone()),
+                ),
+            )?)
+        })
+    }
+
     /// Adds a new node with the given id and properties to the graph.
     ///
     /// Arguments:
@@ -203,7 +226,7 @@ impl PyGraph {
     pub fn add_node(
         &self,
         timestamp: PyTime,
-        id: PyInputNode,
+        id: GID,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
     ) -> Result<NodeView<Graph, Graph>, GraphError> {
@@ -270,8 +293,8 @@ impl PyGraph {
     pub fn add_edge(
         &self,
         timestamp: PyTime,
-        src: PyInputNode,
-        dst: PyInputNode,
+        src: GID,
+        dst: GID,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
     ) -> Result<EdgeView<Graph, Graph>, GraphError> {
@@ -627,7 +650,7 @@ impl PyGraph {
         shared_const_properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
         load_nodes_from_pandas(
-            &self.graph.0,
+            self.graph.core_graph(),
             df,
             id,
             time,
@@ -706,7 +729,7 @@ impl PyGraph {
         layer_in_df: Option<bool>,
     ) -> Result<(), GraphError> {
         load_edges_from_pandas(
-            &self.graph.0,
+            self.graph.core_graph(),
             df,
             src,
             dst,
@@ -780,7 +803,7 @@ impl PyGraph {
         shared_const_properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
         load_node_props_from_pandas(
-            &self.graph.0,
+            self.graph.core_graph(),
             df,
             id,
             const_properties,
@@ -840,7 +863,7 @@ impl PyGraph {
         layer_in_df: Option<bool>,
     ) -> Result<(), GraphError> {
         load_edge_props_from_pandas(
-            &self.graph.0,
+            self.graph.core_graph(),
             df,
             src,
             dst,

@@ -1,7 +1,7 @@
 use crate::core::{utils::time::error::ParseTimeError, Prop, PropType};
 #[cfg(feature = "arrow")]
 use polars_arrow::legacy::error;
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 #[cfg(feature = "search")]
 use tantivy;
 #[cfg(feature = "search")]
@@ -46,11 +46,11 @@ pub enum GraphError {
         source: ParseTimeError,
     },
 
-    #[error("Node already exists with ID {0}")]
-    NodeExistsError(u64),
+    #[error("Node already exists with ID {0:?}")]
+    NodeExistsError(GID),
 
-    #[error("Edge already exists for nodes {0} {1}")]
-    EdgeExistsError(u64, u64),
+    #[error("Edge already exists for nodes {0:?} {1:?}")]
+    EdgeExistsError(GID, GID),
 
     #[error("No Node with ID {0}")]
     NodeIdError(u64),
@@ -140,6 +140,9 @@ pub enum GraphError {
     #[cfg(feature = "proto")]
     #[error("Protobuf decode error{0}")]
     EncodeError(#[from] prost::EncodeError),
+
+    #[error("Immutable graph is .. immutable!")]
+    AttemptToMutateImmutableGraph,
 }
 
 impl GraphError {
@@ -170,4 +173,6 @@ pub enum MutateGraphError {
     NoLayersError,
     #[error("Cannot add properties to edge view with more than one layer")]
     AmbiguousLayersError,
+    #[error("Invalid Node id {0:?}")]
+    InvalidNodeId(GID),
 }

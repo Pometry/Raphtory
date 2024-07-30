@@ -4,8 +4,9 @@ use std::borrow::Cow;
 use crate::disk_graph::storage_interface::node::DiskNode;
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, nodes::node_store::NodeStore, LayerIds, VID},
+        entities::{edges::edge_ref::EdgeRef, nodes::node_store::NodeStore, GidRef, LayerIds, VID},
         storage::Entry,
+        utils::iter::GenLockedIter,
         Direction,
     },
     db::api::{
@@ -16,6 +17,7 @@ use crate::{
         },
         view::internal::NodeAdditions,
     },
+    prelude::Prop,
 };
 
 pub enum NodeStorageEntry<'a> {
@@ -77,6 +79,28 @@ impl<'b> NodeStorageEntry<'b> {
             NodeStorageEntry::Disk(node) => StorageVariants::Disk(node.edges_iter(layers, dir)),
         }
     }
+
+    pub fn prop_ids(self) -> Box<dyn Iterator<Item = usize> + 'b> {
+        match self {
+            NodeStorageEntry::Mem(entry) => Box::new(entry.const_prop_ids()),
+            NodeStorageEntry::Unlocked(entry) => {
+                Box::new(GenLockedIter::from(entry, |e| Box::new(e.const_prop_ids())))
+            }
+            #[cfg(feature = "storage")]
+            NodeStorageEntry::Disk(node) => Box::new(node.constant_node_prop_ids()),
+        }
+    }
+
+    pub fn temporal_prop_ids(self) -> Box<dyn Iterator<Item = usize> + 'b> {
+        match self {
+            NodeStorageEntry::Mem(entry) => Box::new(entry.temporal_prop_ids()),
+            NodeStorageEntry::Unlocked(entry) => Box::new(GenLockedIter::from(entry, |e| {
+                Box::new(e.temporal_prop_ids())
+            })),
+            #[cfg(feature = "storage")]
+            NodeStorageEntry::Disk(node) => Box::new(node.temporal_node_prop_ids()),
+        }
+    }
 }
 
 impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
@@ -108,7 +132,7 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
         self.as_ref().vid()
     }
 
-    fn id(self) -> u64 {
+    fn id(self) -> GidRef<'a> {
         self.as_ref().id()
     }
 
@@ -118,5 +142,9 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
 
     fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef> {
         self.as_ref().find_edge(dst, layer_ids)
+    }
+
+    fn prop(self, prop_id: usize) -> Option<Prop> {
+        self.as_ref().prop(prop_id)
     }
 }

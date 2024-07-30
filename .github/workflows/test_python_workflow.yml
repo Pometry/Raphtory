@@ -31,6 +31,7 @@ jobs:
     runs-on: '${{ matrix.os }}'
     env:
       CARGO_NET_GIT_FETCH_WITH_CLI: true
+      DISK_TEST_MARK: 1
     steps:
       - uses: actions/checkout@v3
         name: Checkout

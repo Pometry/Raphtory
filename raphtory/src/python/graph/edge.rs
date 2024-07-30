@@ -22,7 +22,7 @@ use crate::{
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use pyo3::{prelude::*, pyclass::CompareOp};
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 use std::{
     collections::{hash_map::DefaultHasher, HashMap},
     hash::{Hash, Hasher},
@@ -157,7 +157,7 @@ impl PyEdge {
 
     /// The id of the edge.
     #[getter]
-    pub fn id(&self) -> (u64, u64) {
+    pub fn id(&self) -> (GID, GID) {
         self.edge.id()
     }
 

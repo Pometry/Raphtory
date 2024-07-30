@@ -1,29 +1,14 @@
-use crate::{
-    core::{
-        entities::{EID, VID},
-        utils::errors::GraphError,
-        Prop, PropType,
-    },
-    db::api::mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-    disk_graph::{DiskGraph, DiskGraphError},
-    prelude::Graph,
-};
-use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use std::path::Path;
 
-pub mod const_properties_ops;
-pub mod core_ops;
-pub mod edge_filter_ops;
+use crate::{
+    disk_graph::{DiskGraphError, DiskGraphStorage},
+    prelude::Graph,
+};
+
 mod edge_storage_ops;
 mod interop;
-pub mod layer_ops;
-mod list_ops;
-pub mod materialize;
-mod node_filter_ops;
 pub mod prop_conversion;
-pub mod temporal_properties_ops;
 mod time_index_into_ops;
-pub mod time_semantics;
 pub mod tprops;
 
 #[derive(Debug)]
@@ -39,158 +24,36 @@ impl Graph {
     pub fn persist_as_disk_graph(
         &self,
         graph_dir: impl AsRef<Path>,
-    ) -> Result<DiskGraph, DiskGraphError> {
-        DiskGraph::from_graph(self, graph_dir)
-    }
-}
-
-impl InternalAdditionOps for DiskGraph {
-    fn next_event_id(&self) -> usize {
-        unimplemented!("Diskgraph is immutable")
-    }
-
-    fn resolve_layer(&self, _layer: Option<&str>) -> usize {
-        // Will check this
-        unimplemented!("Diskgraph is immutable")
-    }
-
-    fn resolve_node_type(
-        &self,
-        _v_id: VID,
-        _node_typee: Option<&str>,
-    ) -> Result<usize, GraphError> {
-        unimplemented!("Diskgraph is immutable")
-    }
-
-    fn resolve_node(&self, _id: u64, _name: Option<&str>) -> VID {
-        unimplemented!("Diskgraph is immutable")
-    }
-
-    fn resolve_graph_property(&self, _prop: &str, _is_static: bool) -> usize {
-        unimplemented!("Diskgraph is immutable")
-    }
-
-    fn resolve_node_property(
-        &self,
-        _prop: &str,
-        _dtype: PropType,
-        _is_static: bool,
-    ) -> Result<usize, GraphError> {
-        unimplemented!("Diskgraph is immutable")
-    }
-
-    fn resolve_edge_property(
-        &self,
-        _prop: &str,
-        _dtype: PropType,
-        _is_static: bool,
-    ) -> Result<usize, GraphError> {
-        unimplemented!("Diskgraph is immutable")
-    }
-
-    fn process_prop_value(&self, _prop: Prop) -> Prop {
-        unimplemented!("Diskgraph is immutable")
-    }
-
-    fn internal_add_node(
-        &self,
-        _t: TimeIndexEntry,
-        _v: VID,
-        _props: Vec<(usize, Prop)>,
-        _node_type_id: usize,
-    ) -> Result<(), GraphError> {
-        unimplemented!("Diskgraph is immutable")
-    }
-
-    fn internal_add_edge(
-        &self,
-        _t: TimeIndexEntry,
-        _src: VID,
-        _dst: VID,
-        _props: Vec<(usize, Prop)>,
-        _layer: usize,
-    ) -> Result<EID, GraphError> {
-        unimplemented!("Diskgraph is immutable")
-    }
-}
-
-impl InternalPropertyAdditionOps for DiskGraph {
-    fn internal_add_properties(
-        &self,
-        _t: TimeIndexEntry,
-        _props: Vec<(usize, Prop)>,
-    ) -> Result<(), GraphError> {
-        unimplemented!("Diskgraph is immutable")
-    }
-
-    fn internal_add_static_properties(&self, _props: Vec<(usize, Prop)>) -> Result<(), GraphError> {
-        unimplemented!("Diskgraph is immutable")
-    }
-
-    fn internal_update_static_properties(
-        &self,
-        _props: Vec<(usize, Prop)>,
-    ) -> Result<(), GraphError> {
-        unimplemented!("Diskgraph is immutable")
-    }
-
-    fn internal_add_constant_node_properties(
-        &self,
-        _vid: VID,
-        _props: Vec<(usize, Prop)>,
-    ) -> Result<(), GraphError> {
-        unimplemented!("Diskgraph is immutable")
-    }
-
-    fn internal_update_constant_node_properties(
-        &self,
-        _vid: VID,
-        _props: Vec<(usize, Prop)>,
-    ) -> Result<(), GraphError> {
-        unimplemented!("Diskgraph is immutable")
-    }
-
-    fn internal_add_constant_edge_properties(
-        &self,
-        _eid: EID,
-        _layer: usize,
-        _props: Vec<(usize, Prop)>,
-    ) -> Result<(), GraphError> {
-        unimplemented!("Diskgraph is immutable")
-    }
-
-    fn internal_update_constant_edge_properties(
-        &self,
-        _eid: EID,
-        _layer: usize,
-        _props: Vec<(usize, Prop)>,
-    ) -> Result<(), GraphError> {
-        unimplemented!("Diskgraph is immutable")
+    ) -> Result<DiskGraphStorage, DiskGraphError> {
+        DiskGraphStorage::from_graph(self, graph_dir)
     }
 }
 
 #[cfg(test)]
 mod test {
-    use super::ParquetLayerCols;
-    use crate::{
-        algorithms::components::weakly_connected_components,
-        db::api::view::StaticGraphViewOps,
-        disk_graph::{DiskGraph, Time},
-        prelude::*,
+    use std::{
+        path::{Path, PathBuf},
+        sync::Arc,
     };
-    use itertools::{chain, Itertools};
-    use pometry_storage::{graph::TemporalGraph, properties::Properties};
+
+    use itertools::Itertools;
     use proptest::{prelude::*, sample::size_range};
     use rayon::prelude::*;
-    use std::{
-        cmp::Reverse,
-        iter::once,
-        path::{Path, PathBuf},
-    };
     use tempfile::TempDir;
 
-    fn make_simple_graph(graph_dir: impl AsRef<Path>, edges: &[(u64, u64, i64, f64)]) -> DiskGraph {
-        DiskGraph::make_simple_graph(graph_dir, edges, 1000, 1000)
+    use pometry_storage::{graph::TemporalGraph, properties::Properties};
+
+    use crate::{
+        db::api::{storage::storage_ops::GraphStorage, view::StaticGraphViewOps},
+        disk_graph::Time,
+        prelude::*,
+    };
+
+    use super::{DiskGraphStorage, ParquetLayerCols};
+
+    fn make_simple_graph(graph_dir: impl AsRef<Path>, edges: &[(u64, u64, i64, f64)]) -> Graph {
+        let storage = DiskGraphStorage::make_simple_graph(graph_dir, edges, 1000, 1000);
+        Graph::from_internal_graph(&GraphStorage::Disk(Arc::new(storage)))
     }
 
     fn check_graph_counts(edges: &[(u64, u64, Time, f64)], g: &impl StaticGraphViewOps) {
@@ -402,51 +265,6 @@ mod test {
         }
     }
 
-    fn connected_components_check(vs: Vec<u64>) {
-        let vs = vs.into_iter().unique().collect::<Vec<u64>>();
-
-        let smallest = vs.iter().min().unwrap();
-
-        let first = vs[0];
-
-        // pairs of nodes from vs one after the next
-        let mut edges = vs
-            .iter()
-            .zip(chain!(vs.iter().skip(1), once(&first)))
-            .enumerate()
-            .map(|(t, (a, b))| (*a, *b, t as i64, 1f64))
-            .collect::<Vec<(u64, u64, i64, f64)>>();
-
-        edges.sort_by_key(|(src, dst, t, _)| (*src, *dst, *t));
-
-        let test_dir = tempfile::tempdir().unwrap();
-        let graph = make_simple_graph(test_dir, &edges);
-
-        let res = weakly_connected_components(&graph, usize::MAX, None).group_by();
-
-        let actual = res
-            .into_iter()
-            .map(|(cc, group)| (cc, Reverse(group.len())))
-            .sorted_by(|l, r| l.1.cmp(&r.1))
-            .map(|(cc, count)| (cc, count.0))
-            .take(1)
-            .next()
-            .unwrap();
-
-        assert_eq!(actual, (*smallest, edges.len()));
-    }
-
-    #[test]
-    fn cc_smallest_in_2_edges() {
-        let vs = vec![9616798649147808099, 0];
-        connected_components_check(vs);
-    }
-
-    proptest! {
-        #[test]
-        fn connected_components_smallest_values(vs in any_with::<Vec<u64>>(size_range(1..=100).lift())){ connected_components_check(vs) }
-    }
-
     #[test]
     fn test_par_nodes() {
         let test_dir = TempDir::new().unwrap();
@@ -499,7 +317,9 @@ mod test {
         ])
         .unwrap();
         let test_dir = TempDir::new().unwrap();
-        let disk_graph = DiskGraph::from_graph(&mem_graph, test_dir.path()).unwrap();
+        let disk_graph = DiskGraphStorage::from_graph(&mem_graph, test_dir.path())
+            .unwrap()
+            .into_graph();
         assert_eq!(disk_graph.count_nodes(), 1);
         let props = disk_graph.node(0).unwrap().properties();
         assert_eq!(props.get("test_num").unwrap_u64(), 0);
@@ -509,7 +329,9 @@ mod test {
 
         drop(disk_graph);
 
-        let disk_graph = DiskGraph::load_from_dir(test_dir.path()).unwrap();
+        let disk_graph = DiskGraphStorage::load_from_dir(test_dir.path())
+            .unwrap()
+            .into_graph();
         let props = disk_graph.node(0).unwrap().properties();
         assert_eq!(props.get("test_num").unwrap_u64(), 0);
         assert_eq!(props.get("test_str").unwrap_str(), "test");
@@ -523,7 +345,10 @@ mod test {
         let v = g.add_node(0, 1, NO_PROPS, None).unwrap();
         v.add_constant_properties([("test", "test")]).unwrap();
         let test_dir = TempDir::new().unwrap();
-        let disk_graph = g.persist_as_disk_graph(test_dir.path()).unwrap();
+        let disk_graph = g
+            .persist_as_disk_graph(test_dir.path())
+            .unwrap()
+            .into_graph();
         assert_eq!(
             disk_graph
                 .node(1)
@@ -533,7 +358,9 @@ mod test {
                 .unwrap_str(),
             "test"
         );
-        let disk_graph = DiskGraph::load_from_dir(test_dir.path()).unwrap();
+        let disk_graph = DiskGraphStorage::load_from_dir(test_dir.path())
+            .unwrap()
+            .into_graph();
         assert_eq!(
             disk_graph
                 .node(1)
@@ -589,7 +416,7 @@ mod test {
 
         let node_type_col = Some("node_type");
 
-        let g = DiskGraph::load_from_parquets(
+        let g = DiskGraphStorage::load_from_parquets(
             graph_dir,
             layer_parquet_cols,
             Some(&node_properties),
@@ -600,9 +427,8 @@ mod test {
             num_threads,
             node_type_col,
         )
-        .unwrap();
-
-        println!("node types = {:?}", g.nodes().node_type().collect_vec());
+        .unwrap()
+        .into_graph();
 
         assert_eq!(
             g.nodes().type_filter(&vec!["A"]).name().collect_vec(),
@@ -736,7 +562,9 @@ mod test {
         g.add_edge(2, 3, 6, NO_PROPS, Some("a")).unwrap();
 
         let tmp_dir = tempfile::tempdir().unwrap();
-        let g = DiskGraph::from_graph(&g, tmp_dir.path()).unwrap();
+        let g = DiskGraphStorage::from_graph(&g, tmp_dir.path())
+            .unwrap()
+            .into_graph();
 
         assert_eq!(
             g.nodes()
@@ -759,7 +587,9 @@ mod test {
             vec!["7", "8", "9"]
         );
 
-        let g = DiskGraph::load_from_dir(tmp_dir.path()).unwrap();
+        let g = DiskGraphStorage::load_from_dir(tmp_dir.path())
+            .unwrap()
+            .into_graph();
 
         assert_eq!(
             g.nodes()
@@ -787,16 +617,19 @@ mod test {
 #[cfg(feature = "storage")]
 #[cfg(test)]
 mod storage_tests {
+    use std::collections::BTreeSet;
+
+    use itertools::Itertools;
+    use proptest::prelude::*;
+    use tempfile::TempDir;
+
+    use raphtory_api::core::storage::arc_str::OptionAsStr;
+
     use crate::{
         core::Prop,
         db::graph::graph::assert_graph_equal,
         prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, NO_PROPS, *},
     };
-    use itertools::Itertools;
-    use proptest::prelude::*;
-    use raphtory_api::core::storage::arc_str::OptionAsStr;
-    use std::collections::BTreeSet;
-    use tempfile::TempDir;
 
     #[test]
     fn test_merge() {
@@ -838,7 +671,10 @@ mod storage_tests {
         let g1_a = g1.persist_as_disk_graph(&g1_dir).unwrap();
         let g2_a = g2.persist_as_disk_graph(&g2_dir).unwrap();
 
-        let gm = g1_a.merge_by_sorted_gids(&g2_a, &gm_dir).unwrap();
+        let gm = g1_a
+            .merge_by_sorted_gids(&g2_a, &gm_dir)
+            .unwrap()
+            .into_graph();
 
         let n0 = gm.node(0).unwrap();
         assert_eq!(
@@ -872,15 +708,27 @@ mod storage_tests {
         assert_eq!(n2.node_type().as_str(), Some("3")); // right has priority
 
         assert_eq!(
-            gm.default_layer().edges().id().collect::<Vec<_>>(),
+            gm.default_layer()
+                .edges()
+                .id()
+                .filter_map(|(a, b)| a.as_u64().zip(b.as_u64()))
+                .collect::<Vec<_>>(),
             [(0, 1), (1, 2)]
         );
         assert_eq!(
-            gm.valid_layers("1").edges().id().collect::<Vec<_>>(),
+            gm.valid_layers("1")
+                .edges()
+                .id()
+                .filter_map(|(a, b)| a.as_u64().zip(b.as_u64()))
+                .collect::<Vec<_>>(),
             [(0, 1)]
         );
         assert_eq!(
-            gm.valid_layers("2").edges().id().collect::<Vec<_>>(),
+            gm.valid_layers("2")
+                .edges()
+                .id()
+                .filter_map(|(a, b)| a.as_u64().zip(b.as_u64()))
+                .collect::<Vec<_>>(),
             [(0, 1)]
         );
     }
@@ -917,7 +765,7 @@ mod storage_tests {
         let merged_g_disk = left_g_disk
             .merge_by_sorted_gids(&right_g_disk, &merged_dir)
             .unwrap();
-        assert_graph_equal(&merged_g_disk, &merged_g_expected)
+        assert_graph_equal(&merged_g_disk.into_graph(), &merged_g_expected)
     }
 
     #[test]

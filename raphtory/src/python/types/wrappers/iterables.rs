@@ -2,7 +2,7 @@ use crate::{db::api::view::BoxedIter, prelude::Prop, python::types::repr::Repr};
 use chrono::{DateTime, Utc};
 use num::cast::AsPrimitive;
 use pyo3::prelude::*;
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 use std::{i64, iter::Sum};
 
 pub(crate) trait MeanExt<V>: Iterator<Item = V>
@@ -29,24 +29,32 @@ impl<I: ?Sized + Iterator<Item = V>, V: AsPrimitive<f64> + Sum<V>> MeanExt<V> fo
 py_float_iterable!(Float64Iterable, f64);
 py_iterable_comp!(Float64Iterable, f64, Float64IterableCmp);
 
+py_ordered_iterable!(GIDIterable, GID);
+py_iterable_comp!(GIDIterable, GID, GIDIterableCmp);
+
+py_iterable!(OptionGIDIterable, Option<GID>);
+py_iterable_comp!(OptionGIDIterable, Option<GID>, OptionGIDIterableCmp);
+py_nested_ordered_iterable!(NestedGIDIterable, GID, OptionGIDIterable);
+py_iterable_comp!(NestedGIDIterable, GIDIterableCmp, NestedGIDIterableCmp);
+
 py_numeric_iterable!(U64Iterable, u64);
 py_iterable_comp!(U64Iterable, u64, U64IterableCmp);
 py_nested_numeric_iterable!(NestedU64Iterable, u64, U64Iterable, OptionU64Iterable);
 py_iterable_comp!(NestedU64Iterable, U64IterableCmp, NestedU64IterableCmp);
 
-py_iterable!(OptionU64U64Iterable, Option<(u64, u64)>);
+py_iterable!(OptionGIDGIDIterable, Option<(GID, GID)>);
 py_iterable_comp!(
-    OptionU64U64Iterable,
-    Option<(u64, u64)>,
-    OptionU64U64IterableCmp
+    OptionGIDGIDIterable,
+    Option<(GID, GID)>,
+    OptionGIDGIDIterableCmp
 );
-py_ordered_iterable!(U64U64Iterable, (u64, u64));
-py_iterable_comp!(U64U64Iterable, (u64, u64), U64U64IterableCmp);
-py_nested_ordered_iterable!(NestedU64U64Iterable, (u64, u64), OptionU64U64Iterable);
+py_ordered_iterable!(GIDGIDIterable, (GID, GID));
+py_iterable_comp!(GIDGIDIterable, (GID, GID), GIDGIDIterableCmp);
+py_nested_ordered_iterable!(NestedGIDGIDIterable, (GID, GID), OptionGIDGIDIterable);
 py_iterable_comp!(
-    NestedU64U64Iterable,
-    U64U64IterableCmp,
-    NestedU64U64IterableCmp
+    NestedGIDGIDIterable,
+    GIDGIDIterableCmp,
+    NestedGIDGIDIterableCmp
 );
 
 py_iterable!(OptionU64Iterable, Option<u64>, Option<u64>);

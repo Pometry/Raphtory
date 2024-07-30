@@ -32,10 +32,10 @@ pub enum InputTime {
 pub fn time_from_input<G: InternalAdditionOps, T: TryIntoInputTime>(
     g: &G,
     t: T,
-) -> Result<TimeIndexEntry, ParseTimeError> {
+) -> Result<TimeIndexEntry, GraphError> {
     let t = t.try_into_input_time()?;
     Ok(match t {
-        InputTime::Simple(t) => TimeIndexEntry::new(t, g.next_event_id()),
+        InputTime::Simple(t) => TimeIndexEntry::new(t, g.next_event_id()?),
         InputTime::Indexed(t, s) => TimeIndexEntry::new(t, s),
     })
 }

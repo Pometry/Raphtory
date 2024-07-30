@@ -1,9 +1,11 @@
 use crate::{
-    core::entities::{graph::tgraph::InternalGraph, LayerIds},
+    core::entities::LayerIds,
     db::api::{storage::nodes::node_ref::NodeStorageRef, view::internal::NodeFilterOps},
 };
 
-impl NodeFilterOps for InternalGraph {
+use super::GraphStorage;
+
+impl NodeFilterOps for GraphStorage {
     #[inline]
     fn node_list_trusted(&self) -> bool {
         true

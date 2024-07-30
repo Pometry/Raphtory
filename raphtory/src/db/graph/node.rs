@@ -281,7 +281,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
         op: F,
     ) -> Self::ValueType<O> {
         let cg = self.graph.core_graph();
-        op(&cg, &self.graph, self.node)
+        op(cg, &self.graph, self.node)
     }
 
     fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>> {
@@ -299,7 +299,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
         let node = self.node;
         let edges = Arc::new(move || {
             let cg = graph.core_graph();
-            op(&cg, &graph, node).into_dyn_boxed()
+            op(cg, &graph, node).into_dyn_boxed()
         });
         let base_graph = self.base_graph.clone();
         let graph = self.graph.clone();
@@ -321,7 +321,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
         let node = self.node;
         PathFromNode::new(self.base_graph.clone(), move || {
             let cg = graph.core_graph();
-            op(&cg, &graph, node).into_dyn_boxed()
+            op(cg, &graph, node).into_dyn_boxed()
         })
     }
 }

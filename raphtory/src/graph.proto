@@ -74,10 +74,16 @@ message GraphMeta{
   repeated Node nodes = 6;
 }
 
+message GID {
+  oneof gid {
+    uint64 gid_u64 = 1;
+    string  gid_str = 2;
+  }
+}
+
 message Node{
-  uint64 gid = 1;
+  GID gid = 1;
   uint64 vid = 2;
-  optional string name = 3;
 }
 
 message PropertiesMeta{

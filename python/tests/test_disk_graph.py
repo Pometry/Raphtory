@@ -1,6 +1,9 @@
-from raphtory import DiskGraph, Query, State, PyDirection
+from raphtory import PyDirection, DiskGraphStorage
+from raphtory import algorithms
 import pandas as pd
 import tempfile
+from utils import measure
+import os
 
 edges = pd.DataFrame(
     {
@@ -33,7 +36,7 @@ edges = pd.DataFrame(
 
 
 def create_graph(edges, dir):
-    return DiskGraph.load_from_pandas(dir, edges, "src", "dst", "time")
+    return DiskGraphStorage.load_from_pandas(dir, edges, "src", "dst", "time")
 
 
 # in every test use with to create a temporary directory that will be deleted automatically
@@ -42,113 +45,159 @@ def create_graph(edges, dir):
 
 def test_counts():
     dir = tempfile.TemporaryDirectory()
-    graph = create_graph(edges, dir.name)
+    graph = create_graph(edges, dir.name).to_events()
     assert graph.count_nodes() == 5
     assert graph.count_edges() == 20
 
 
-def test_simple_hop():
-    dir = tempfile.TemporaryDirectory()
-    graph = create_graph(edges, dir.name)
-    q = Query.from_node_ids([1]).hop(dir=PyDirection("OUT"), layer=None, limit=100)
-    state = State.path()
-    actual = q.run_to_vec(graph, state)
+def test_disk_graph():
+    curr_dir = os.path.dirname(os.path.abspath(__file__))
+    rsc_dir = os.path.join(curr_dir, "..", "..", "pometry-storage-private", "resources")
+    rsc_dir = os.path.normpath(rsc_dir)
+    print("rsc_dir:", rsc_dir + "/netflowsorted/nft_sorted")
 
-    actual = [([n2.name, n1.name], n2.name) for ([n2, n1], n2) in actual]
-
-    expected = [
-        (["2", "1"], "2"),
-        (["3", "1"], "3"),
-        (["4", "1"], "4"),
-        (["5", "1"], "5"),
-    ]
-
-    actual.sort()
-    expected.sort()
-
-    assert actual == expected
-
-
-def test_simple_hop_from_node():
-    dir = tempfile.TemporaryDirectory()
-    graph = create_graph(edges, dir.name)
-    node = graph.node(1)
-    q = Query.from_node_ids([node]).out()
-    state = State.path()
-    actual = q.run_to_vec(graph, state)
-
-    actual = [([n2.name, n1.name], n2.name) for ([n2, n1], n2) in actual]
-
-    expected = [
-        (["2", "1"], "2"),
-        (["3", "1"], "3"),
-        (["4", "1"], "4"),
-        (["5", "1"], "5"),
-    ]
-
-    actual.sort()
-    expected.sort()
-
-    assert actual == expected
-
-
-def test_double_hop():
-    dir = tempfile.TemporaryDirectory()
-    graph = create_graph(edges, dir.name)
-    q = Query.from_node_ids([1]).out().out()
-    state = State.path()
-    actual = q.run_to_vec(graph, state)
-
-    actual = [([n3.name, n2.name, n1.name], n3.name) for ([n3, n2, n1], n3) in actual]
-
-    expected = [
-        (["1", "5", "1"], "1"),
-        (["2", "4", "1"], "2"),
-        (["5", "3", "1"], "5"),
-        (["2", "5", "1"], "2"),
-        (["4", "2", "1"], "4"),
-        (["4", "3", "1"], "4"),
-        (["1", "4", "1"], "1"),
-        (["3", "2", "1"], "3"),
-        (["3", "4", "1"], "3"),
-        (["5", "2", "1"], "5"),
-        (["1", "2", "1"], "1"),
-        (["5", "4", "1"], "5"),
-        (["2", "3", "1"], "2"),
-        (["1", "3", "1"], "1"),
-        (["3", "5", "1"], "3"),
-        (["4", "5", "1"], "4"),
-    ]
-
-    actual.sort()
-    expected.sort()
-
-    assert actual == expected
-
-
-def test_hop_twice_forward():
-    dir = tempfile.TemporaryDirectory()
-    edges = pd.DataFrame(
+    graph_dir = tempfile.TemporaryDirectory()
+    layer_parquet_cols = [
         {
-            "src": [0, 0, 1, 1, 3, 3, 3, 4, 4, 4],
-            "dst": [1, 2, 3, 4, 5, 6, 6, 3, 4, 7],
-            "time": [11, 10, 12, 13, 5, 10, 15, 14, 14, 10],
-        }
-    ).sort_values(["src", "dst", "time"])
-    graph = create_graph(edges, dir.name)
-    q = Query.from_node_ids([0, 1]).out().out()
-    state = State.path_window(keep_path=True, start_t=10, duration=100)
-    actual = q.run_to_vec(graph, state)
-
-    actual = [([n3.name, n2.name, n1.name], n3.name) for ([n3, n2, n1], n3) in actual]
-
-    expected = [
-        (["6", "3", "1"], "6"),
-        (["3", "1", "0"], "3"),
-        (["3", "4", "1"], "3"),
-        (["4", "4", "1"], "4"),
-        (["4", "1", "0"], "4"),
+            "parquet_dir": rsc_dir + "/netflowsorted/nft_sorted",
+            "layer": "netflow",
+            "src_col": "src",
+            "dst_col": "dst",
+            "time_col": "epoch_time",
+        },
+        {
+            "parquet_dir": rsc_dir + "/netflowsorted/v1_sorted",
+            "layer": "events_1v",
+            "src_col": "src",
+            "dst_col": "dst",
+            "time_col": "epoch_time",
+        },
+        {
+            "parquet_dir": rsc_dir + "/netflowsorted/v2_sorted",
+            "layer": "events_2v",
+            "src_col": "src",
+            "dst_col": "dst",
+            "time_col": "epoch_time",
+        },
     ]
-    actual.sort()
-    expected.sort()
-    assert actual == expected
+
+    # # Read the Parquet file
+    # table = pq.read_table(parquet_dir + '/part-00000-8b31eaa4-2bd9-4f07-b61c-a353aed2af22-c000.snappy.parquet')
+    # print(table.schema)
+
+    print()
+    try:
+        g = measure(
+            "Graph load from dir",
+            DiskGraphStorage.load_from_dir,
+            graph_dir,
+            print_result=False,
+        )
+    except Exception as e:
+        chunk_size = 268_435_456
+        num_threads = 4
+        t_props_chunk_size = int(chunk_size / 8)
+        read_chunk_size = 4_000_000
+        concurrent_files = 1
+
+        g = measure(
+            "Graph load from parquets",
+            DiskGraphStorage.load_from_parquets,
+            graph_dir.name,
+            layer_parquet_cols,
+            None,
+            chunk_size,
+            t_props_chunk_size,
+            read_chunk_size,
+            concurrent_files,
+            num_threads,
+            None,
+            print_result=False,
+        )
+
+    g = g.to_events()
+
+    assert g.count_nodes() == 1624
+    assert g.layer("netflow").count_edges() == 2018
+    assert g.earliest_time == 7257601
+    assert g.latest_time == 7343985
+
+    actual = measure(
+        "Weakly CC  Layer",
+        algorithms.weakly_connected_components,
+        g.layer("netflow"),
+        20,
+        print_result=False,
+    )
+    assert len(list(actual.get_all_with_names())) == 1624
+
+    # Doesn't work yet (was silently running on only the first layer before but now actually panics because of lack of multilayer edge views)
+    # actual = measure("Weakly CC", algorithms.weakly_connected_components, g, 20, print_result=False)
+    # assert len(list(actual.get_all_with_names())) == 1624
+
+    actual = measure(
+        "Page Rank", algorithms.pagerank, g.layer("netflow"), 100, print_result=False
+    )
+    assert len(list(actual.get_all_with_names())) == 1624
+
+def test_disk_graph_type_filter():
+    curr_dir = os.path.dirname(os.path.abspath(__file__))
+    rsc_dir = os.path.join(curr_dir, "..", "..", "pometry-storage-private", "resources")
+    rsc_dir = os.path.normpath(rsc_dir)
+    print("rsc_dir:", rsc_dir + "/netflowsorted/nft_sorted")
+
+    graph_dir = tempfile.TemporaryDirectory()
+    layer_parquet_cols = [
+        {
+            "parquet_dir": rsc_dir + "/netflowsorted/nft_sorted",
+            "layer": "netflow",
+            "src_col": "src",
+            "dst_col": "dst",
+            "time_col": "epoch_time",
+        }
+    ]
+
+    chunk_size = 268_435_456
+    num_threads = 4
+    t_props_chunk_size = int(chunk_size / 8)
+    read_chunk_size = 4_000_000
+    concurrent_files = 1
+
+    g = DiskGraphStorage.load_from_parquets(
+        graph_dir.name,
+        layer_parquet_cols,
+        rsc_dir + "/netflowsorted/props/props.parquet",
+        chunk_size,
+        t_props_chunk_size,
+        read_chunk_size,
+        concurrent_files,
+        num_threads,
+        "node_type"
+    ).to_events()
+
+    assert g.count_nodes() == 1619
+    assert g.layer("netflow").count_edges() == 2018
+    assert g.earliest_time == 7257619
+    assert g.latest_time == 7343970
+
+    assert len(g.nodes.type_filter(["A"]).name.collect()) == 785
+    assert len(g.nodes.type_filter([""]).name.collect()) == 0
+    assert len(g.nodes.type_filter(["A", "B"]).name.collect()) == 1619
+
+    neighbor_names = g.nodes.type_filter(["A"]).neighbours.name.collect()
+    total_length = sum(len(names) for names in neighbor_names)
+    assert total_length == 2056
+
+    assert g.nodes.type_filter([]).name.collect() == []
+
+    neighbor_names = g.nodes.type_filter(["A"]).neighbours.type_filter(["B"]).name.collect()
+    total_length = sum(len(names) for names in neighbor_names)
+    assert total_length == 1023
+
+    assert g.node("Comp175846").neighbours.type_filter(["A"]).name.collect() == ["Comp844043"]
+    assert g.node("Comp175846").neighbours.type_filter(["B"]).name.collect() == []
+    assert g.node("Comp175846").neighbours.type_filter([]).name.collect() == []
+    assert g.node("Comp175846").neighbours.type_filter(["A", "B"]).name.collect() == ["Comp844043"]
+
+    neighbor_names = g.node("Comp175846").neighbours.neighbours.name.collect()
+    assert len(neighbor_names) == 193

@@ -1,7 +1,16 @@
+use std::ops::Range;
+
+use itertools::{kmerge, Itertools};
+use raphtory_api::core::{
+    entities::{edges::edge_ref::EdgeRef, VID},
+    storage::timeindex::{AsTime, TimeIndexEntry},
+};
+use rayon::iter::ParallelIterator;
+
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, graph::tgraph::InternalGraph, LayerIds, VID},
-        storage::timeindex::{AsTime, TimeIndexIntoOps, TimeIndexOps},
+        entities::LayerIds,
+        storage::timeindex::{TimeIndexIntoOps, TimeIndexOps},
     },
     db::api::{
         storage::{
@@ -9,28 +18,26 @@ use crate::{
                 edge_ref::EdgeStorageRef,
                 edge_storage_ops::{EdgeStorageIntoOps, EdgeStorageOps},
             },
-            nodes::{node_ref::NodeStorageRef, node_storage_ops::*},
+            nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
             tprop_storage_ops::TPropOps,
         },
         view::{
             internal::{CoreGraphOps, TimeSemantics},
-            BoxedIter, IntoDynBoxed,
+            BoxedIter,
         },
     },
     prelude::Prop,
 };
-use itertools::{kmerge, Itertools};
-use raphtory_api::core::storage::timeindex::TimeIndexEntry;
-use rayon::prelude::*;
-use std::ops::Range;
 
-impl TimeSemantics for InternalGraph {
+use super::GraphStorage;
+
+impl TimeSemantics for GraphStorage {
     fn node_earliest_time(&self, v: VID) -> Option<i64> {
-        self.inner().storage.get_node(v).timestamps().first_t()
+        self.node_entry(v).additions().first_t()
     }
 
     fn node_latest_time(&self, v: VID) -> Option<i64> {
-        self.inner().storage.get_node(v).timestamps().last_t()
+        self.node_entry(v).additions().last_t()
     }
 
     fn view_start(&self) -> Option<i64> {
@@ -42,62 +49,49 @@ impl TimeSemantics for InternalGraph {
     }
 
     fn earliest_time_global(&self) -> Option<i64> {
-        self.inner().graph_earliest_time()
+        match self {
+            GraphStorage::Mem(storage) => storage.graph.graph_earliest_time(),
+            GraphStorage::Unlocked(storage) => storage.graph_earliest_time(),
+            #[cfg(feature = "storage")]
+            GraphStorage::Disk(storage) => storage.inner.earliest(),
+        }
     }
 
     fn latest_time_global(&self) -> Option<i64> {
-        self.inner().graph_latest_time()
+        match self {
+            GraphStorage::Mem(storage) => storage.graph.graph_latest_time(),
+            GraphStorage::Unlocked(storage) => storage.graph_latest_time(),
+            #[cfg(feature = "storage")]
+            GraphStorage::Disk(storage) => storage.inner.latest(),
+        }
     }
 
     fn earliest_time_window(&self, start: i64, end: i64) -> Option<i64> {
-        self.inner()
-            .storage
-            .nodes
-            .read_lock()
-            .into_par_iter()
-            .flat_map(|v| v.timestamps().range_t(start..end).first_t())
+        self.nodes()
+            .par_iter()
+            .flat_map(|node| node.additions().range_t(start..end).first_t())
             .min()
     }
 
     fn latest_time_window(&self, start: i64, end: i64) -> Option<i64> {
-        self.inner()
-            .storage
-            .nodes
-            .read_lock()
-            .into_par_iter()
-            .flat_map(|v| v.timestamps().range_t(start..end).last_t())
+        self.nodes()
+            .par_iter()
+            .flat_map(|node| node.additions().range_t(start..end).last_t())
             .max()
     }
 
     fn node_earliest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
-        self.inner()
-            .storage
-            .get_node(v)
-            .timestamps()
-            .range_t(start..end)
-            .first_t()
+        self.node_entry(v).additions().range_t(start..end).first_t()
     }
 
     fn node_latest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
-        self.inner()
-            .storage
-            .get_node(v)
-            .timestamps()
-            .range_t(start..end)
-            .last_t()
+        self.node_entry(v).additions().range_t(start..end).last_t()
     }
 
-    #[inline]
-    fn include_node_window(
-        &self,
-        node: NodeStorageRef,
-        w: Range<i64>,
-        _layer_ids: &LayerIds,
-    ) -> bool {
-        node.additions().active_t(w)
+    fn include_node_window(&self, v: NodeStorageRef, w: Range<i64>, _layer_ids: &LayerIds) -> bool {
+        v.additions().active_t(w)
     }
 
-    #[inline]
     fn include_edge_window(
         &self,
         edge: EdgeStorageRef,
@@ -108,19 +102,15 @@ impl TimeSemantics for InternalGraph {
     }
 
     fn node_history(&self, v: VID) -> Vec<i64> {
-        let node = self.core_node_entry(v);
-        let collect = node.additions().iter_t().collect();
-        collect
+        self.node_entry(v).additions().iter_t().collect()
     }
 
     fn node_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
-        let node = self.core_node_entry(v);
-        let collect = node.additions().range_t(w).iter_t().collect();
-        collect
+        self.node_entry(v).additions().range_t(w).iter().collect()
     }
 
     fn edge_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64> {
-        let core_edge = self.core_edge(e.into());
+        let core_edge = self.edge_entry(e.into());
         kmerge(
             core_edge
                 .additions_iter(&layer_ids)
@@ -131,7 +121,7 @@ impl TimeSemantics for InternalGraph {
     }
 
     fn edge_history_window(&self, e: EdgeRef, layer_ids: LayerIds, w: Range<i64>) -> Vec<i64> {
-        let core_edge = self.core_edge(e.into());
+        let core_edge = self.edge_entry(e.into());
         kmerge(
             core_edge
                 .additions_iter(&layer_ids)
@@ -157,14 +147,15 @@ impl TimeSemantics for InternalGraph {
             .sum()
     }
 
-    fn edge_exploded(&self, e: EdgeRef, layer_ids: &LayerIds) -> BoxedIter<EdgeRef> {
-        let entry = self.inner().storage.get_edge_arc(e.pid());
-        entry.into_exploded(layer_ids.clone(), e).into_dyn_boxed()
+    fn edge_exploded(&self, eref: EdgeRef, layer_ids: &LayerIds) -> BoxedIter<EdgeRef> {
+        let edge = self.core_edge_arc(eref.into());
+        let layer_ids = layer_ids.constrain_from_edge(eref);
+        Box::new(edge.into_exploded(layer_ids, eref))
     }
 
     fn edge_layers(&self, e: EdgeRef, layer_ids: &LayerIds) -> BoxedIter<EdgeRef> {
         let entry = self.core_edge_arc(e.into());
-        entry.into_layers(layer_ids.clone(), e).into_dyn_boxed()
+        Box::new(entry.into_layers(layer_ids.clone(), e))
     }
 
     fn edge_window_exploded(
@@ -175,8 +166,7 @@ impl TimeSemantics for InternalGraph {
     ) -> BoxedIter<EdgeRef> {
         let arc = self.core_edge_arc(e.into());
         let layer_ids = layer_ids.clone();
-        arc.into_exploded_window(layer_ids, TimeIndexEntry::range(w), e)
-            .into_dyn_boxed()
+        Box::new(arc.into_exploded_window(layer_ids, TimeIndexEntry::range(w), e))
     }
 
     fn edge_window_layers(
@@ -186,11 +176,12 @@ impl TimeSemantics for InternalGraph {
         layer_ids: &LayerIds,
     ) -> BoxedIter<EdgeRef> {
         let entry = self.core_edge_arc(e.into());
-        entry
-            .clone()
-            .into_layers(layer_ids.clone(), e)
-            .filter(move |e| entry.additions(*e.layer().unwrap()).active_t(w.clone()))
-            .into_dyn_boxed()
+        Box::new(
+            entry
+                .clone()
+                .into_layers(layer_ids.clone(), e)
+                .filter(move |e| entry.additions(*e.layer().unwrap()).active_t(w.clone())),
+        )
     }
 
     fn edge_earliest_time(&self, e: EdgeRef, layer_ids: &LayerIds) -> Option<i64> {
@@ -276,24 +267,23 @@ impl TimeSemantics for InternalGraph {
         true
     }
 
-    fn edge_is_valid_at_end(&self, _e: EdgeRef, _layer_ids: &LayerIds, _t: i64) -> bool {
+    fn edge_is_valid_at_end(&self, _e: EdgeRef, _layer_idss: &LayerIds, _t: i64) -> bool {
         true
     }
 
     fn has_temporal_prop(&self, prop_id: usize) -> bool {
-        prop_id < self.inner().graph_meta.temporal_prop_meta().len()
+        prop_id < self.graph_meta().temporal_prop_meta().len()
     }
 
     fn temporal_prop_vec(&self, prop_id: usize) -> Vec<(i64, Prop)> {
-        self.inner()
+        self.graph_meta()
             .get_temporal_prop(prop_id)
             .map(|prop| prop.iter_t().collect())
             .unwrap_or_default()
     }
 
     fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
-        self.inner()
-            .graph_meta
+        self.graph_meta()
             .get_temporal_prop(prop_id)
             .map(|p| p.iter_window_t(w).next().is_some())
             .filter(|p| *p)
@@ -301,43 +291,38 @@ impl TimeSemantics for InternalGraph {
     }
 
     fn temporal_prop_vec_window(&self, prop_id: usize, start: i64, end: i64) -> Vec<(i64, Prop)> {
-        self.inner()
+        self.graph_meta()
             .get_temporal_prop(prop_id)
             .map(|prop| prop.iter_window_t(start..end).collect())
             .unwrap_or_default()
     }
 
     fn has_temporal_node_prop(&self, v: VID, prop_id: usize) -> bool {
-        let entry = self.inner().storage.nodes.entry(v);
-        entry.temporal_property(prop_id).is_some()
+        let node = self.node_entry(v);
+        node.tprop(prop_id).len() > 0
     }
 
-    fn temporal_node_prop_vec(&self, v: VID, prop_id: usize) -> Vec<(i64, Prop)> {
-        let node = self.inner().storage.nodes.entry(v);
-        node.temporal_properties(prop_id, None).collect()
+    fn temporal_node_prop_vec(&self, v: VID, id: usize) -> Vec<(i64, Prop)> {
+        let node = self.node_entry(v);
+        node.tprop(id).iter_t().collect()
     }
 
     fn has_temporal_node_prop_window(&self, v: VID, prop_id: usize, w: Range<i64>) -> bool {
-        let entry = self.inner().storage.nodes.entry(v);
-        entry
-            .temporal_property(prop_id)
-            .filter(|p| p.iter_window_t(w).next().is_some())
-            .is_some()
+        let node = self.node_entry(v);
+        let tprop = node.tprop(prop_id);
+        let iter_window_t = &mut tprop.iter_window_t(w);
+        iter_window_t.next().is_some()
     }
 
     fn temporal_node_prop_vec_window(
         &self,
         v: VID,
-        prop_id: usize,
+        id: usize,
         start: i64,
         end: i64,
     ) -> Vec<(i64, Prop)> {
-        self.inner()
-            .storage
-            .nodes
-            .entry(v)
-            .temporal_properties(prop_id, Some(start..end))
-            .collect()
+        let node = self.node_entry(v);
+        node.tprop(id).iter_window_t(start..end).collect()
     }
 
     fn has_temporal_edge_prop_window(

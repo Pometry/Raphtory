@@ -143,10 +143,11 @@ impl Mut {
 
         let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
 
-        #[cfg(feature = "storage")]
-        if subgraph.clone().graph.into_disk_graph().is_some() {
-            return Err(GqlGraphError::ImmutableDiskGraph.into());
-        }
+        // FIXME: This check is strange as the subgraph is not mutated below
+        // #[cfg(feature = "storage")]
+        // if subgraph.clone().graph.into_disk_graph().is_some() {
+        //     return Err(GqlGraphError::ImmutableDiskGraph.into());
+        // }
 
         if new_graph_name.ne(&graph_name) && parent_graph_name.ne(&graph_name) {
             let path = subgraph
@@ -194,8 +195,7 @@ impl Mut {
 
         let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
 
-        #[cfg(feature = "storage")]
-        if subgraph.clone().graph.into_disk_graph().is_some() {
+        if subgraph.graph.storage().is_immutable() {
             return Err(GqlGraphError::ImmutableDiskGraph.into());
         }
 
@@ -230,8 +230,7 @@ impl Mut {
         let parent_graph = data.get(&parent_graph_name).ok_or("Graph not found")?;
         let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
 
-        #[cfg(feature = "storage")]
-        if subgraph.clone().graph.into_disk_graph().is_some() {
+        if subgraph.graph.storage().is_immutable() {
             return Err(GqlGraphError::ImmutableDiskGraph.into());
         }
 
@@ -383,8 +382,7 @@ impl Mut {
         let data = ctx.data_unchecked::<Data>().graphs.write();
         let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
 
-        #[cfg(feature = "storage")]
-        if subgraph.clone().graph.into_disk_graph().is_some() {
+        if subgraph.graph.storage().is_immutable() {
             return Err(GqlGraphError::ImmutableDiskGraph.into());
         }
 

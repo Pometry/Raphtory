@@ -183,7 +183,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
                     }),
                 None => {
                     if create {
-                        Ok(self.graph.resolve_layer(layer))
+                        self.graph.resolve_layer(layer)
                     } else {
                         self.graph
                             .get_layer_id(name)
@@ -381,7 +381,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperti
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Debug for EdgeView<G, GH> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "EdgeView({}, {})", self.src().id(), self.dst().id())
+        write!(f, "EdgeView({:?}, {:?})", self.src().id(), self.dst().id())
     }
 }
 

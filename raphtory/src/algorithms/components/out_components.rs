@@ -11,11 +11,13 @@ use crate::{
         },
     },
 };
-use std::{collections::HashSet, mem};
+use raphtory_api::core::entities::GID;
+use rayon::prelude::*;
+use std::collections::HashSet;
 
 #[derive(Clone, Debug, Default)]
 struct OutState {
-    out_components: Vec<u64>,
+    out_components: Vec<VID>,
 }
 
 /// Computes the out components of each node in the graph
@@ -32,7 +34,7 @@ struct OutState {
 pub fn out_components<G>(
     graph: &G,
     threads: Option<usize>,
-) -> AlgorithmResult<G, Vec<u64>, Vec<u64>>
+) -> AlgorithmResult<G, Vec<GID>, Vec<GID>>
 where
     G: StaticGraphViewOps,
 {
@@ -40,13 +42,15 @@ where
     let step1 = ATask::new(move |vv: &mut EvalNodeView<G, OutState>| {
         let mut out_components = HashSet::new();
         let mut to_check_stack = Vec::new();
-        vv.out_neighbours().id().for_each(|id| {
+        vv.out_neighbours().iter().for_each(|node| {
+            let id = node.node;
             out_components.insert(id);
             to_check_stack.push(id);
         });
         while let Some(neighbour_id) = to_check_stack.pop() {
             if let Some(neighbour) = vv.graph().node(neighbour_id) {
-                neighbour.out_neighbours().id().for_each(|id| {
+                neighbour.out_neighbours().iter().for_each(|node| {
+                    let id = node.node;
                     if !out_components.contains(&id) {
                         out_components.insert(id);
                         to_check_stack.push(id);
@@ -67,13 +71,18 @@ where
         vec![Job::new(step1)],
         vec![],
         None,
-        |_, _, _, mut local: Vec<OutState>| {
+        |_, _, _, local: Vec<OutState>| {
             graph
                 .nodes()
-                .iter()
+                .par_iter()
                 .map(|node| {
                     let VID(id) = node.node;
-                    (id, mem::take(&mut local[id].out_components))
+                    let comps = local[id]
+                        .out_components
+                        .iter()
+                        .map(|vid| graph.node_id(*vid))
+                        .collect();
+                    (id, comps)
                 })
                 .collect()
         },
@@ -124,7 +133,7 @@ mod components_test {
                 .into_iter()
                 .map(|(k, mut v)| {
                     v.sort();
-                    (k, v)
+                    (k, v.into_iter().filter_map(|v| v.as_u64()).collect())
                 })
                 .collect();
             assert_eq!(map, correct);
