@@ -7,9 +7,29 @@ use crate::{
     io::arrow::{dataframe::DFView, prop_handler::*},
     prelude::*,
 };
+use std::{collections::HashMap, iter};
 #[cfg(feature = "python")]
 use kdam::tqdm;
-use std::{collections::HashMap, iter};
+
+#[cfg(feature = "python")]
+macro_rules! maybe_tqdm {
+    ($iter:expr, $size:expr, $desc:literal) => {
+        tqdm!(
+            $iter,
+            desc = "Loading nodes",
+            total = $size,
+            animation = kdam::Animation::FillUp,
+            unit_scale = true
+        )
+    };
+}
+
+#[cfg(not(feature = "python"))]
+macro_rules! maybe_tqdm {
+    ($iter:expr, $size:expr, $desc:literal) => {
+        $iter
+    };
+}
 
 pub(crate) fn load_nodes_from_df<
     'a,
@@ -84,19 +104,13 @@ pub(crate) fn load_nodes_from_df<
         let iter = iter
             .zip(node_type)
             .map(|((node_id, time), n_t)| (node_id, time, n_t));
-
-        #[cfg(feature = "python")]
-        let iter = tqdm!(
+        
+        let iter = maybe_tqdm!(
             iter.zip(prop_iter).zip(const_prop_iter),
-            desc = "Loading nodes",
-            total = size,
-            animation = kdam::Animation::FillUp,
-            unit_scale = true
+            size,
+            "Loading nodes"
         );
-
-        #[cfg(not(feature = "python"))]
-        let iter = iter.zip(prop_iter).zip(const_prop_iter);
-
+        
         for (((node_id, time, n_t), props), const_props) in iter {
             if let (Some(node_id), Some(time), n_t) = (node_id, time, n_t) {
                 let actual_type = extract_out_default_type(n_t);
@@ -113,17 +127,11 @@ pub(crate) fn load_nodes_from_df<
             .zip(node_type)
             .map(|((node_id, time), n_t)| (node_id, time, n_t));
 
-        #[cfg(feature = "python")]
-        let iter = tqdm!(
+        let iter = maybe_tqdm!(
             iter.zip(prop_iter).zip(const_prop_iter),
-            desc = "Loading nodes",
-            total = size,
-            animation = kdam::Animation::FillUp,
-            unit_scale = true
+            size,
+            "Loading nodes"
         );
-
-        #[cfg(not(feature = "python"))]
-        let iter = iter.zip(prop_iter).zip(const_prop_iter);
 
         for (((node_id, time, n_t), props), const_props) in iter {
             let actual_type = extract_out_default_type(n_t);
@@ -214,18 +222,8 @@ pub(crate) fn load_edges_from_df<
         df.time_iter_col(time),
     ) {
         let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
-
-        #[cfg(feature = "python")]
-        let iter = tqdm!(
-            triplets.zip(prop_iter).zip(const_prop_iter).zip(layer),
-            desc = "Loading edges",
-            total = size,
-            animation = kdam::Animation::FillUp,
-            unit_scale = true
-        );
-
-        #[cfg(not(feature = "python"))]
-        let iter = triplets.zip(prop_iter).zip(const_prop_iter).zip(layer);
+        
+        let iter = maybe_tqdm!(triplets.zip(prop_iter).zip(const_prop_iter).zip(layer), size, "Loading edges");
 
         for (((((src, dst), time), props), const_props), layer) in iter {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
@@ -242,17 +240,7 @@ pub(crate) fn load_edges_from_df<
         df.time_iter_col(time),
     ) {
         let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
-        #[cfg(feature = "python")]
-        let iter = tqdm!(
-            triplets.zip(prop_iter).zip(const_prop_iter).zip(layer),
-            desc = "Loading edges",
-            total = size,
-            animation = kdam::Animation::FillUp,
-            unit_scale = true
-        );
-
-        #[cfg(not(feature = "python"))]
-        let iter = triplets.zip(prop_iter).zip(const_prop_iter).zip(layer);
+        let iter = maybe_tqdm!(triplets.zip(prop_iter).zip(const_prop_iter).zip(layer), size, "Loading edges");
 
         for (((((src, dst), time), props), const_props), layer) in iter {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
@@ -298,17 +286,7 @@ pub(crate) fn load_edges_deletions_from_df<
             .zip(dst.map(|i| i.copied()))
             .zip(time);
 
-        #[cfg(feature = "python")]
-        let iter = tqdm!(
-            triplets.zip(layer),
-            desc = "Loading edges",
-            total = size,
-            animation = kdam::Animation::FillUp,
-            unit_scale = true
-        );
-
-        #[cfg(not(feature = "python"))]
-        let iter = triplets.zip(layer);
+        let iter = maybe_tqdm!(triplets.zip(layer), size, "Loading edges");
 
         for (((src, dst), time), layer) in iter {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
@@ -325,17 +303,7 @@ pub(crate) fn load_edges_deletions_from_df<
             .zip(dst.map(i64_opt_into_u64_opt))
             .zip(time);
 
-        #[cfg(feature = "python")]
-        let iter = tqdm!(
-            triplets.zip(layer),
-            desc = "Loading edges",
-            total = size,
-            animation = kdam::Animation::FillUp,
-            unit_scale = true
-        );
-
-        #[cfg(not(feature = "python"))]
-        let iter = triplets.zip(layer);
+        let iter = maybe_tqdm!(triplets.zip(layer), size, "Loading edges");
 
         for (((src, dst), time), layer) in iter {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
@@ -348,16 +316,7 @@ pub(crate) fn load_edges_deletions_from_df<
         df.time_iter_col(time),
     ) {
         let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
-        #[cfg(feature = "python")]
-        let iter = tqdm!(
-            triplets.zip(layer),
-            desc = "Loading edges",
-            total = size,
-            animation = kdam::Animation::FillUp,
-            unit_scale = true
-        );
-        #[cfg(not(feature = "python"))]
-        let iter = triplets.zip(layer);
+        let iter = maybe_tqdm!(triplets.zip(layer), size, "Loading edges");
 
         for (((src, dst), time), layer) in iter {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
@@ -370,16 +329,7 @@ pub(crate) fn load_edges_deletions_from_df<
         df.time_iter_col(time),
     ) {
         let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
-        #[cfg(feature = "python")]
-        let iter = tqdm!(
-            triplets.zip(layer),
-            desc = "Loading edges",
-            total = size,
-            animation = kdam::Animation::FillUp,
-            unit_scale = true
-        );
-        #[cfg(not(feature = "python"))]
-        let iter = triplets.zip(layer);
+        let iter = maybe_tqdm!(triplets.zip(layer), size, "Loading edges");
 
         for (((src, dst), time), layer) in iter {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
@@ -410,16 +360,7 @@ pub(crate) fn load_node_props_from_df<
 
     if let Some(node_id) = df.iter_col::<u64>(node_id) {
         let iter = node_id.map(|i| i.copied());
-        #[cfg(feature = "python")]
-        let iter = tqdm!(
-            iter.zip(const_prop_iter),
-            desc = "Loading node properties",
-            total = size,
-            animation = kdam::Animation::FillUp,
-            unit_scale = true
-        );
-        #[cfg(not(feature = "python"))]
-        let iter = iter.zip(const_prop_iter);
+        let iter = maybe_tqdm!(iter.zip(const_prop_iter), size, "Loading node properties");
 
         for (node_id, const_props) in iter {
             if let Some(node_id) = node_id {
@@ -434,16 +375,7 @@ pub(crate) fn load_node_props_from_df<
         }
     } else if let Some(node_id) = df.iter_col::<i64>(node_id) {
         let iter = node_id.map(i64_opt_into_u64_opt);
-        #[cfg(feature = "python")]
-        let iter = tqdm!(
-            iter.zip(const_prop_iter),
-            desc = "Loading node properties",
-            total = size,
-            animation = kdam::Animation::FillUp,
-            unit_scale = true
-        );
-        #[cfg(not(feature = "python"))]
-        let iter = iter.zip(const_prop_iter);
+        let iter = maybe_tqdm!(iter.zip(const_prop_iter), size, "Loading node properties");
 
         for (node_id, const_props) in iter {
             if let Some(node_id) = node_id {
@@ -458,16 +390,7 @@ pub(crate) fn load_node_props_from_df<
         }
     } else if let Some(node_id) = df.utf8::<i32>(node_id) {
         let iter = node_id.into_iter();
-        #[cfg(feature = "python")]
-        let iter = tqdm!(
-            iter.zip(const_prop_iter),
-            desc = "Loading node properties",
-            total = size,
-            animation = kdam::Animation::FillUp,
-            unit_scale = true
-        );
-        #[cfg(not(feature = "python"))]
-        let iter = iter.zip(const_prop_iter);
+        let iter = maybe_tqdm!(iter.zip(const_prop_iter), size, "Loading node properties");
 
         for (node_id, const_props) in iter {
             if let Some(node_id) = node_id {
@@ -482,16 +405,7 @@ pub(crate) fn load_node_props_from_df<
         }
     } else if let Some(node_id) = df.utf8::<i64>(node_id) {
         let iter = node_id.into_iter();
-        #[cfg(feature = "python")]
-        let iter = tqdm!(
-            iter.zip(const_prop_iter),
-            desc = "Loading node properties",
-            total = size,
-            animation = kdam::Animation::FillUp,
-            unit_scale = true
-        );
-        #[cfg(not(feature = "python"))]
-        let iter = iter.zip(const_prop_iter);
+        let iter = maybe_tqdm!(iter.zip(const_prop_iter), size, "Loading node properties");
 
         for (node_id, const_props) in iter {
             if let Some(node_id) = node_id {
@@ -532,18 +446,7 @@ pub(crate) fn load_edges_props_from_df<
 
     if let (Some(src), Some(dst)) = (df.iter_col::<u64>(src), df.iter_col::<u64>(dst)) {
         let triplets = src.map(|i| i.copied()).zip(dst.map(|i| i.copied()));
-
-        #[cfg(feature = "python")]
-        let iter = tqdm!(
-            triplets.zip(const_prop_iter).zip(layer),
-            desc = "Loading edge properties",
-            total = size,
-            animation = kdam::Animation::FillUp,
-            unit_scale = true
-        );
-
-        #[cfg(not(feature = "python"))]
-        let iter = triplets.zip(const_prop_iter).zip(layer);
+        let iter = maybe_tqdm!(triplets.zip(const_prop_iter).zip(layer), size, "Loading edge properties");
 
         for (((src, dst), const_props), layer) in iter {
             if let (Some(src), Some(dst)) = (src, dst) {
@@ -560,18 +463,7 @@ pub(crate) fn load_edges_props_from_df<
         let triplets = src
             .map(i64_opt_into_u64_opt)
             .zip(dst.map(i64_opt_into_u64_opt));
-
-        #[cfg(feature = "python")]
-        let iter = tqdm!(
-            triplets.zip(const_prop_iter).zip(layer),
-            desc = "Loading edge properties",
-            total = size,
-            animation = kdam::Animation::FillUp,
-            unit_scale = true
-        );
-
-        #[cfg(not(feature = "python"))]
-        let iter = triplets.zip(const_prop_iter).zip(layer);
+        let iter = maybe_tqdm!(triplets.zip(const_prop_iter).zip(layer), size, "Loading edge properties");
 
         for (((src, dst), const_props), layer) in iter {
             if let (Some(src), Some(dst)) = (src, dst) {
@@ -586,17 +478,7 @@ pub(crate) fn load_edges_props_from_df<
         }
     } else if let (Some(src), Some(dst)) = (df.utf8::<i32>(src), df.utf8::<i32>(dst)) {
         let triplets = src.into_iter().zip(dst.into_iter());
-        #[cfg(feature = "python")]
-        let iter = tqdm!(
-            triplets.zip(const_prop_iter).zip(layer),
-            desc = "Loading edge properties",
-            total = size,
-            animation = kdam::Animation::FillUp,
-            unit_scale = true
-        );
-
-        #[cfg(not(feature = "python"))]
-        let iter = triplets.zip(const_prop_iter).zip(layer);
+        let iter = maybe_tqdm!(triplets.zip(const_prop_iter).zip(layer), size, "Loading edge properties");
 
         for (((src, dst), const_props), layer) in iter {
             if let (Some(src), Some(dst)) = (src, dst) {
@@ -614,18 +496,7 @@ pub(crate) fn load_edges_props_from_df<
         }
     } else if let (Some(src), Some(dst)) = (df.utf8::<i64>(src), df.utf8::<i64>(dst)) {
         let triplets = src.into_iter().zip(dst.into_iter());
-
-        #[cfg(feature = "python")]
-        let iter = tqdm!(
-            triplets.zip(const_prop_iter).zip(layer),
-            desc = "Loading edge properties",
-            total = size,
-            animation = kdam::Animation::FillUp,
-            unit_scale = true
-        );
-
-        #[cfg(not(feature = "python"))]
-        let iter = triplets.zip(const_prop_iter).zip(layer);
+        let iter = maybe_tqdm!(triplets.zip(const_prop_iter).zip(layer), size, "Loading edge properties");
 
         for (((src, dst), const_props), layer) in iter {
             if let (Some(src), Some(dst)) = (src, dst) {
@@ -670,18 +541,7 @@ fn load_edges_from_num_iter<
     shared_const_properties: Option<HashMap<String, Prop>>,
     layer: IL,
 ) -> Result<(), GraphError> {
-    #[cfg(feature = "python")]
-    let iter = tqdm!(
-        edges.zip(properties).zip(const_properties).zip(layer),
-        desc = "Loading edges",
-        total = size,
-        animation = kdam::Animation::FillUp,
-        unit_scale = true
-    );
-
-    #[cfg(not(feature = "python"))]
-    let iter = edges.zip(properties).zip(const_properties).zip(layer);
-
+    let iter = maybe_tqdm!(edges.zip(properties).zip(const_properties).zip(layer), size, "Loading edges");
     for (((((src, dst), time), edge_props), const_props), layer) in iter {
         if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
             let e = graph.add_edge(time, src, dst, edge_props, layer.as_deref())?;
@@ -708,17 +568,7 @@ fn load_nodes_from_num_iter<
     const_properties: PI,
     shared_const_properties: Option<HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
-    #[cfg(feature = "python")]
-    let iter = tqdm!(
-        nodes.zip(properties).zip(const_properties),
-        desc = "Loading nodes",
-        total = size,
-        animation = kdam::Animation::FillUp,
-        unit_scale = true
-    );
-
-    #[cfg(not(feature = "python"))]
-    let iter = nodes.zip(properties).zip(const_properties);
+    let iter = maybe_tqdm!(nodes.zip(properties).zip(const_properties), size, "Loading nodes");
     for (((node, time, node_type), props), const_props) in iter {
         if let (Some(v), Some(t), n_t, props, const_props) =
             (node, time, node_type, props, const_props)
