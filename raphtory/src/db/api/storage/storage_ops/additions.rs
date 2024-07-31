@@ -46,9 +46,14 @@ impl InternalAdditionOps for GraphStorage {
         }
     }
 
-    fn resolve_graph_property(&self, prop: &str, is_static: bool) -> Result<usize, GraphError> {
+    fn resolve_graph_property(
+        &self,
+        prop: &str,
+        dtype: PropType,
+        is_static: bool,
+    ) -> Result<usize, GraphError> {
         match self {
-            GraphStorage::Unlocked(_) => Ok(self.graph_meta().resolve_property(prop, is_static)),
+            GraphStorage::Unlocked(_) => self.graph_meta().resolve_property(prop, dtype, is_static),
             _ => Err(GraphError::AttemptToMutateImmutableGraph),
         }
     }

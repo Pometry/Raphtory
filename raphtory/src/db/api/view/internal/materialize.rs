@@ -58,6 +58,11 @@ pub enum MaterializedGraph {
     PersistentGraph(PersistentGraph),
 }
 
+pub enum GraphType {
+    EventGraph,
+    PersistentGraph,
+}
+
 fn version_deserialize<'de, D>(deserializer: D) -> Result<u32, D::Error>
 where
     D: Deserializer<'de>,
@@ -150,7 +155,18 @@ impl MaterializedGraph {
 
 #[enum_dispatch]
 pub trait InternalMaterialize {
-    fn new_base_graph(&self, graph: GraphStorage) -> MaterializedGraph;
+    fn new_base_graph(&self, graph: GraphStorage) -> MaterializedGraph {
+        match self.graph_type() {
+            GraphType::EventGraph => {
+                MaterializedGraph::EventGraph(Graph::from_internal_graph(graph))
+            }
+            GraphType::PersistentGraph => {
+                MaterializedGraph::PersistentGraph(PersistentGraph::from_internal_graph(graph))
+            }
+        }
+    }
+
+    fn graph_type(&self) -> GraphType;
 
     fn include_deletions(&self) -> bool;
 }
@@ -161,10 +177,17 @@ impl<G: InheritMaterialize> InternalMaterialize for G
 where
     G::Base: InternalMaterialize,
 {
+    #[inline]
     fn new_base_graph(&self, graph: GraphStorage) -> MaterializedGraph {
         self.base().new_base_graph(graph)
     }
 
+    #[inline]
+    fn graph_type(&self) -> GraphType {
+        self.base().graph_type()
+    }
+
+    #[inline]
     fn include_deletions(&self) -> bool {
         self.base().include_deletions()
     }

@@ -780,8 +780,13 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
     }
 
     #[inline]
-    fn resolve_graph_property(&self, prop: &str, is_static: bool) -> Result<usize, GraphError> {
-        self.graph.resolve_graph_property(prop, is_static)
+    fn resolve_graph_property(
+        &self,
+        prop: &str,
+        dtype: PropType,
+        is_static: bool,
+    ) -> Result<usize, GraphError> {
+        self.graph.resolve_graph_property(prop, dtype, is_static)
     }
 
     #[inline]

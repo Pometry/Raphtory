@@ -1,5 +1,5 @@
 use crate::core::{
-    entities::properties::tprop::TProp,
+    entities::properties::{props::PropMapper, tprop::TProp},
     storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
     utils::errors::{GraphError, MutateGraphError},
     Prop, PropType,
@@ -13,7 +13,7 @@ use std::ops::DerefMut;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GraphMeta {
     constant_mapper: DictMapper,
-    temporal_mapper: DictMapper,
+    temporal_mapper: PropMapper,
     constant: FxDashMap<usize, Option<Prop>>,
     temporal: FxDashMap<usize, TProp>,
 }
@@ -22,7 +22,7 @@ impl GraphMeta {
     pub(crate) fn new() -> Self {
         Self {
             constant_mapper: DictMapper::default(),
-            temporal_mapper: DictMapper::default(),
+            temporal_mapper: PropMapper::default(),
             constant: FxDashMap::default(),
             temporal: FxDashMap::default(),
         }
@@ -39,11 +39,16 @@ impl GraphMeta {
     }
 
     #[inline]
-    pub(crate) fn resolve_property(&self, name: &str, is_static: bool) -> usize {
+    pub(crate) fn resolve_property(
+        &self,
+        name: &str,
+        dtype: PropType,
+        is_static: bool,
+    ) -> Result<usize, GraphError> {
         if is_static {
-            self.constant_mapper.get_or_create_id(name)
+            Ok(self.constant_mapper.get_or_create_id(name))
         } else {
-            self.temporal_mapper.get_or_create_id(name)
+            self.temporal_mapper.get_or_create_and_validate(name, dtype)
         }
     }
 

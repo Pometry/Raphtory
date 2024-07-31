@@ -23,7 +23,12 @@ pub trait InternalAdditionOps {
     fn resolve_node<V: AsNodeRef>(&self, id: V) -> Result<VID, GraphError>;
 
     /// map property key to internal id, allocating new property if needed
-    fn resolve_graph_property(&self, prop: &str, is_static: bool) -> Result<usize, GraphError>;
+    fn resolve_graph_property(
+        &self,
+        prop: &str,
+        dtype: PropType,
+        is_static: bool,
+    ) -> Result<usize, GraphError>;
 
     /// map property key to internal id, allocating new property if needed and checking property type.
     /// returns `None` if the type does not match
@@ -103,8 +108,13 @@ impl<G: DelegateAdditionOps> InternalAdditionOps for G {
     }
 
     #[inline]
-    fn resolve_graph_property(&self, prop: &str, is_static: bool) -> Result<usize, GraphError> {
-        self.graph().resolve_graph_property(prop, is_static)
+    fn resolve_graph_property(
+        &self,
+        prop: &str,
+        dtype: PropType,
+        is_static: bool,
+    ) -> Result<usize, GraphError> {
+        self.graph().resolve_graph_property(prop, dtype, is_static)
     }
 
     #[inline]
