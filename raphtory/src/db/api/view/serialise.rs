@@ -1,12 +1,6 @@
 use std::{fs::File, io::Write, path::Path, sync::Arc};
 
-use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike};
-use prost::{decode_length_delimiter, encode_length_delimiter, Message};
-use raphtory_api::core::{
-    entities::{GID, VID},
-    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
-};
-
+use super::GraphViewOps;
 use crate::{
     core::{
         entities::{properties::props::PropMapper, LayerIds},
@@ -19,19 +13,20 @@ use crate::{
                 InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
             },
             storage::nodes::node_storage_ops::NodeStorageOps,
+            view::internal::{CoreGraphOps, GraphType, InternalMaterialize},
         },
         graph::views::deletion_graph::PersistentGraph,
     },
     prelude::*,
-    serialise::{
-        self, gid, lifespan, prop,
-        properties_meta::{self, PropName},
-        AddEdge, AddNode, DelEdge, Dict, Gid, GraphConstProps, NdTime, PropPair,
-        UpdateEdgeConstProps,
-    },
+    serialise,
+    serialise::prop_type::PropType as SPropType,
 };
-
-use super::GraphViewOps;
+use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike};
+use prost::{decode_length_delimiter, encode_length_delimiter, Message};
+use raphtory_api::core::{
+    entities::{GID, VID},
+    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+};
 
 pub trait StableEncoder {
     fn encode_to_vec(&self) -> Result<Vec<u8>, GraphError>;
@@ -55,72 +50,61 @@ pub trait StableDecode: Default {
     }
 }
 
-fn as_proto_prop_type(p_type: &PropType) -> properties_meta::PropType {
+fn as_proto_prop_type(p_type: &PropType) -> SPropType {
     match p_type {
-        PropType::Str => properties_meta::PropType::Str,
-        PropType::U8 => properties_meta::PropType::U8,
-        PropType::U16 => properties_meta::PropType::U16,
-        PropType::U32 => properties_meta::PropType::U32,
-        PropType::I32 => properties_meta::PropType::I32,
-        PropType::I64 => properties_meta::PropType::I64,
-        PropType::U64 => properties_meta::PropType::U64,
-        PropType::F32 => properties_meta::PropType::F32,
-        PropType::F64 => properties_meta::PropType::F64,
-        PropType::Bool => properties_meta::PropType::Bool,
-        PropType::List => properties_meta::PropType::List,
-        PropType::Map => properties_meta::PropType::Map,
-        PropType::NDTime => properties_meta::PropType::NdTime,
-        PropType::DTime => properties_meta::PropType::DTime,
-        PropType::Graph => properties_meta::PropType::Graph,
-        PropType::PersistentGraph => properties_meta::PropType::PersistentGraph,
-        PropType::Document => properties_meta::PropType::Document,
+        PropType::Str => SPropType::Str,
+        PropType::U8 => SPropType::U8,
+        PropType::U16 => SPropType::U16,
+        PropType::U32 => SPropType::U32,
+        PropType::I32 => SPropType::I32,
+        PropType::I64 => SPropType::I64,
+        PropType::U64 => SPropType::U64,
+        PropType::F32 => SPropType::F32,
+        PropType::F64 => SPropType::F64,
+        PropType::Bool => SPropType::Bool,
+        PropType::List => SPropType::List,
+        PropType::Map => SPropType::Map,
+        PropType::NDTime => SPropType::NdTime,
+        PropType::DTime => SPropType::DTime,
+        PropType::Graph => SPropType::Graph,
+        PropType::PersistentGraph => SPropType::PersistentGraph,
+        PropType::Document => SPropType::Document,
         _ => unimplemented!("Empty prop types not supported!"),
     }
 }
 
-fn as_prop_type(p_type: properties_meta::PropType) -> PropType {
+fn as_prop_type(p_type: SPropType) -> PropType {
     match p_type {
-        properties_meta::PropType::Str => PropType::Str,
-        properties_meta::PropType::U8 => PropType::U8,
-        properties_meta::PropType::U16 => PropType::U16,
-        properties_meta::PropType::U32 => PropType::U32,
-        properties_meta::PropType::I32 => PropType::I32,
-        properties_meta::PropType::I64 => PropType::I64,
-        properties_meta::PropType::U64 => PropType::U64,
-        properties_meta::PropType::F32 => PropType::F32,
-        properties_meta::PropType::F64 => PropType::F64,
-        properties_meta::PropType::Bool => PropType::Bool,
-        properties_meta::PropType::List => PropType::List,
-        properties_meta::PropType::Map => PropType::Map,
-        properties_meta::PropType::NdTime => PropType::NDTime,
-        properties_meta::PropType::DTime => PropType::DTime,
-        properties_meta::PropType::Graph => PropType::Graph,
-        properties_meta::PropType::PersistentGraph => PropType::PersistentGraph,
-        properties_meta::PropType::Document => PropType::Document,
+        SPropType::Str => PropType::Str,
+        SPropType::U8 => PropType::U8,
+        SPropType::U16 => PropType::U16,
+        SPropType::U32 => PropType::U32,
+        SPropType::I32 => PropType::I32,
+        SPropType::I64 => PropType::I64,
+        SPropType::U64 => PropType::U64,
+        SPropType::F32 => PropType::F32,
+        SPropType::F64 => PropType::F64,
+        SPropType::Bool => PropType::Bool,
+        SPropType::List => PropType::List,
+        SPropType::Map => PropType::Map,
+        SPropType::NdTime => PropType::NDTime,
+        SPropType::DTime => PropType::DTime,
+        SPropType::Graph => PropType::Graph,
+        SPropType::PersistentGraph => PropType::PersistentGraph,
+        SPropType::Document => PropType::Document,
     }
-}
-
-fn collect_prop_names<'a>(
-    names: impl Iterator<Item = &'a ArcStr>,
-    prop_mapper: &'a PropMapper,
-) -> Vec<PropName> {
-    names
-        .enumerate()
-        .map(|(prop_id, name)| {
-            let prop_type = prop_mapper
-                .get_dtype(prop_id)
-                .expect("Failed to get prop type");
-            PropName {
-                name: name.to_string(),
-                p_type: as_proto_prop_type(&prop_type).into(),
-            }
-        })
-        .collect()
 }
 
 impl<'graph, G: GraphViewOps<'graph>> StableEncoder for G {
     fn encode_to_vec(&self) -> Result<Vec<u8>, GraphError> {
-        let mut graph = serialise::GraphMeta::default();
+        let mut graph = serialise::Graph::default();
+        graph.set_graph_type(match self.graph_type() {
+            GraphType::EventGraph => serialise::GraphType::Event,
+            GraphType::PersistentGraph => serialise::GraphType::Persistent,
+        });
+
+        let graph_meta = self.core_graph().graph_meta();
+        graph_meta.const_prop_meta();
 
         // const graph properties
         let (names, properties): (Vec<_>, Vec<_>) = self
