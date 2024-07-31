@@ -103,11 +103,6 @@ mod lpa_tests {
             let seed = Some([5; 32]);
             let result = label_propagation(graph, seed).unwrap();
 
-            let ids = result
-                .iter()
-                .map(|n_set| n_set.iter().map(|n| n.node).collect::<Vec<_>>())
-                .collect::<Vec<_>>();
-
             let expected = vec![
                 HashSet::from([
                     graph.node("R1").unwrap(),

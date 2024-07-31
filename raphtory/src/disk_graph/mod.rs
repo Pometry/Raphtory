@@ -51,7 +51,6 @@ pub struct DiskGraphStorage {
     node_meta: Arc<Meta>,
     edge_meta: Arc<Meta>,
     graph_props: Arc<GraphMeta>,
-    graph_dir: PathBuf,
 }
 
 impl Serialize for DiskGraphStorage {
@@ -59,7 +58,7 @@ impl Serialize for DiskGraphStorage {
     where
         S: Serializer,
     {
-        let path = self.graph_dir.clone();
+        let path = self.graph_dir();
         path.serialize(serializer)
     }
 }
@@ -95,7 +94,7 @@ impl AsRef<TemporalGraph> for DiskGraphStorage {
 
 impl DiskGraphStorage {
     pub fn graph_dir(&self) -> &Path {
-        &self.graph_dir
+        self.inner.graph_dir()
     }
 
     pub fn valid_layer_ids_from_names(&self, key: Layer) -> LayerIds {
@@ -228,10 +227,10 @@ impl DiskGraphStorage {
     ) -> Result<DiskGraphStorage, DiskGraphError> {
         let graph_dir = new_graph_dir.as_ref();
         let inner = merge_graphs(graph_dir, &self.inner, &other.inner)?;
-        Ok(DiskGraphStorage::new(inner, graph_dir.to_path_buf()))
+        Ok(DiskGraphStorage::new(inner))
     }
 
-    fn new(inner_graph: TemporalGraph, graph_dir: PathBuf) -> Self {
+    fn new(inner_graph: TemporalGraph) -> Self {
         let node_meta = Meta::new();
         let mut edge_meta = Meta::new();
         let graph_meta = GraphMeta::new();
@@ -289,7 +288,6 @@ impl DiskGraphStorage {
             node_meta: Arc::new(node_meta),
             edge_meta: Arc::new(edge_meta),
             graph_props: Arc::new(graph_meta),
-            graph_dir,
         }
     }
 
@@ -297,7 +295,7 @@ impl DiskGraphStorage {
         let inner_graph = TemporalGraph::from_graph(graph, graph_dir.as_ref(), || {
             make_node_properties_from_graph(graph, graph_dir.as_ref())
         })?;
-        Ok(Self::new(inner_graph, graph_dir.as_ref().to_path_buf()))
+        Ok(Self::new(inner_graph))
     }
 
     pub fn load_from_edge_lists(
@@ -309,7 +307,6 @@ impl DiskGraphStorage {
         dst_col_idx: usize,
         time_col_idx: usize,
     ) -> Result<Self, RAError> {
-        let path = graph_dir.as_ref().to_path_buf();
         let inner = TemporalGraph::from_sorted_edge_list(
             graph_dir,
             src_col_idx,
@@ -319,13 +316,12 @@ impl DiskGraphStorage {
             t_props_chunk_size,
             edge_list,
         )?;
-        Ok(Self::new(inner, path))
+        Ok(Self::new(inner))
     }
 
     pub fn load_from_dir(graph_dir: impl AsRef<Path>) -> Result<DiskGraphStorage, RAError> {
-        let path = graph_dir.as_ref().to_path_buf();
         let inner = TemporalGraph::new(graph_dir)?;
-        Ok(Self::new(inner, path))
+        Ok(Self::new(inner))
     }
 
     pub fn load_from_parquets<P: AsRef<Path>>(
@@ -366,7 +362,7 @@ impl DiskGraphStorage {
             node_properties.as_ref().map(|p| p.as_ref()),
             node_type_col,
         )?;
-        Ok(Self::new(t_graph, graph_dir.as_ref().to_path_buf()))
+        Ok(Self::new(t_graph))
     }
 
     pub fn filtered_layers_par<'a>(
@@ -401,12 +397,13 @@ impl DiskGraphStorage {
             .expect("Failed to create global order");
 
         let inner = TemporalGraph::new_from_layers(
+            path,
             global_ordering,
             Arc::new(global_order),
             vec![layer],
             vec!["_default".to_string()],
         );
-        Self::new(inner, path)
+        Self::new(inner)
     }
 
     pub fn node_meta(&self) -> &Meta {
