@@ -37,7 +37,7 @@ mod graphql_test {
         collections::{HashMap, HashSet},
         path::Path,
     };
-    use tempfile::tempdir;
+    use tempfile::{tempdir, TempDir};
 
     #[tokio::test]
     async fn search_for_gandalf_query() {

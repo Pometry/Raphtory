@@ -16,11 +16,13 @@ use dynamic_graphql::{
 use itertools::Itertools;
 use raphtory::{
     core::{utils::errors::GraphError, Prop},
-    db::api::{storage::storage_ops::GraphStorage, view::MaterializedGraph},
+    db::api::{
+        storage::storage_ops::GraphStorage,
+        view::{internal::core_ops::CoreGraphOps, MaterializedGraph},
+    },
     prelude::{GraphViewOps, ImportOps, NodeViewOps, PropertyAdditionOps},
 };
 use raphtory_api::core::storage::arc_str::ArcStr;
-use serde_json::Value;
 use std::{
     error::Error,
     fmt::{Display, Formatter},
