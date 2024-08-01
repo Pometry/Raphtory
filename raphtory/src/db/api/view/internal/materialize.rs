@@ -7,10 +7,7 @@ use crate::{
             LayerIds, EID, ELID, GID, VID,
         },
         storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
-        utils::errors::{
-            GraphError,
-            GraphError::EventGraphDeletionsNotSupported,
-        },
+        utils::errors::{GraphError, GraphError::EventGraphDeletionsNotSupported},
         PropType,
     },
     db::{
