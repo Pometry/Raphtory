@@ -15,7 +15,7 @@ use crate::{
             mutation::internal::{
                 InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
             },
-            view::{internal::InternalMaterialize, IntoDynamic, StaticGraphViewOps},
+            view::{internal::InternalMaterialize, StaticGraphViewOps},
         },
         graph::{edge::EdgeView, node::NodeView},
     },

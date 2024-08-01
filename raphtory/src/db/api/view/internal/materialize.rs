@@ -9,7 +9,7 @@ use crate::{
         storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
         utils::errors::{
             GraphError,
-            GraphError::{EventGraphDeletionsNotSupported, ImmutableDiskGraph},
+            GraphError::EventGraphDeletionsNotSupported,
         },
         PropType,
     },
@@ -36,7 +36,6 @@ use crate::{
         },
         graph::{graph::Graph, views::deletion_graph::PersistentGraph},
     },
-    disk_graph::DiskGraphStorage,
     prelude::*,
     BINCODE_VERSION,
 };
