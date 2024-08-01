@@ -329,9 +329,10 @@ mod data_tests {
         },
         server_config::AppConfigBuilder,
     };
+    #[cfg(feature = "storage")]
+    use raphtory::disk_graph::DiskGraphStorage;
     use raphtory::{
         db::api::view::MaterializedGraph,
-        disk_graph::DiskGraphStorage,
         prelude::{PropertyAdditionOps, *},
     };
     use std::{
