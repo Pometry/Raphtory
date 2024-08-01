@@ -1,6 +1,7 @@
+use super::time_from_input;
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, nodes::input_node::InputNode},
+        entities::{edges::edge_ref::EdgeRef, nodes::node_ref::AsNodeRef},
         utils::{errors::GraphError, time::IntoTimeWithFormat},
         Prop,
     },
@@ -12,8 +13,6 @@ use crate::{
         graph::{edge::EdgeView, node::NodeView},
     },
 };
-
-use super::time_from_input;
 
 pub trait AdditionOps: StaticGraphViewOps {
     // TODO: Probably add vector reference here like add
@@ -38,7 +37,7 @@ pub trait AdditionOps: StaticGraphViewOps {
     /// let v = g.add_node(0, "Alice", NO_PROPS, None);
     /// let v = g.add_node(0, 5, NO_PROPS, None);
     /// ```
-    fn add_node<V: InputNode, T: TryIntoInputTime, PI: CollectProperties>(
+    fn add_node<V: AsNodeRef, T: TryIntoInputTime, PI: CollectProperties>(
         &self,
         t: T,
         v: V,
@@ -46,7 +45,7 @@ pub trait AdditionOps: StaticGraphViewOps {
         node_type: Option<&str>,
     ) -> Result<NodeView<Self, Self>, GraphError>;
 
-    fn add_node_with_custom_time_format<V: InputNode, PI: CollectProperties>(
+    fn add_node_with_custom_time_format<V: AsNodeRef, PI: CollectProperties>(
         &self,
         t: &str,
         fmt: &str,
@@ -78,7 +77,7 @@ pub trait AdditionOps: StaticGraphViewOps {
     /// graph.add_node(2, "Bob", NO_PROPS, None).unwrap();
     /// graph.add_edge(3, "Alice", "Bob", NO_PROPS, None).unwrap();
     /// ```    
-    fn add_edge<V: InputNode, T: TryIntoInputTime, PI: CollectProperties>(
+    fn add_edge<V: AsNodeRef, T: TryIntoInputTime, PI: CollectProperties>(
         &self,
         t: T,
         src: V,
@@ -87,7 +86,7 @@ pub trait AdditionOps: StaticGraphViewOps {
         layer: Option<&str>,
     ) -> Result<EdgeView<Self, Self>, GraphError>;
 
-    fn add_edge_with_custom_time_format<V: InputNode, PI: CollectProperties>(
+    fn add_edge_with_custom_time_format<V: AsNodeRef, PI: CollectProperties>(
         &self,
         t: &str,
         fmt: &str,
@@ -102,7 +101,7 @@ pub trait AdditionOps: StaticGraphViewOps {
 }
 
 impl<G: InternalAdditionOps + StaticGraphViewOps> AdditionOps for G {
-    fn add_node<V: InputNode, T: TryIntoInputTime, PI: CollectProperties>(
+    fn add_node<V: AsNodeRef, T: TryIntoInputTime, PI: CollectProperties>(
         &self,
         t: T,
         v: V,
@@ -114,13 +113,13 @@ impl<G: InternalAdditionOps + StaticGraphViewOps> AdditionOps for G {
             |prop| self.process_prop_value(prop),
         )?;
         let ti = time_from_input(self, t)?;
-        let v_id = self.resolve_node(v.id(), v.id_str());
+        let v_id = self.resolve_node(v)?;
         let type_id = self.resolve_node_type(v_id, node_type)?;
         self.internal_add_node(ti, v_id, properties, type_id)?;
         Ok(NodeView::new_internal(self.clone(), v_id))
     }
 
-    fn add_edge<V: InputNode, T: TryIntoInputTime, PI: CollectProperties>(
+    fn add_edge<V: AsNodeRef, T: TryIntoInputTime, PI: CollectProperties>(
         &self,
         t: T,
         src: V,
@@ -129,9 +128,9 @@ impl<G: InternalAdditionOps + StaticGraphViewOps> AdditionOps for G {
         layer: Option<&str>,
     ) -> Result<EdgeView<G, G>, GraphError> {
         let ti = time_from_input(self, t)?;
-        let src_id = self.resolve_node(src.id(), src.id_str());
-        let dst_id = self.resolve_node(dst.id(), dst.id_str());
-        let layer_id = self.resolve_layer(layer);
+        let src_id = self.resolve_node(src)?;
+        let dst_id = self.resolve_node(dst)?;
+        let layer_id = self.resolve_layer(layer)?;
 
         let properties: Vec<(usize, Prop)> = props.collect_properties(
             |name, dtype| self.resolve_edge_property(name, dtype, false),

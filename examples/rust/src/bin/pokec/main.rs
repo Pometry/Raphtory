@@ -3,7 +3,7 @@ use raphtory::{
         centrality::pagerank::unweighted_page_rank, components::weakly_connected_components,
     },
     db::{api::mutation::AdditionOps, graph::graph::Graph},
-    graph_loader::source::csv_loader::CsvLoader,
+    io::csv_loader::CsvLoader,
     prelude::*,
 };
 use serde::Deserialize;

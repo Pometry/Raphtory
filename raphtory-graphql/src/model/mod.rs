@@ -15,10 +15,12 @@ use dynamic_graphql::{
 };
 use itertools::Itertools;
 use raphtory::{
-    core::{utils::errors::GraphError, ArcStr, Prop},
+    core::{utils::errors::GraphError, Prop},
     db::api::view::MaterializedGraph,
     prelude::{GraphViewOps, ImportOps, NodeViewOps, PropertyAdditionOps},
 };
+use raphtory_api::core::storage::arc_str::ArcStr;
+use serde_json::Value;
 use std::{
     error::Error,
     fmt::{Display, Formatter},
@@ -185,10 +187,11 @@ impl Mut {
 
         let graph = data.get_graph(path)?;
 
-        #[cfg(feature = "storage")]
-        if graph.clone().graph.into_disk_graph().is_some() {
-            return Err(GqlGraphError::ImmutableDiskGraph.into());
-        }
+        // FIXME: This check is strange as the subgraph is not mutated below
+        // #[cfg(feature = "storage")]
+        // if graph.clone().graph.into_disk_graph().is_some() {
+        //     return Err(GqlGraphError::ImmutableDiskGraph.into());
+        // }
 
         if new_full_path.ne(&full_path) {
             let timestamp: i64 = Utc::now().timestamp();
@@ -211,8 +214,7 @@ impl Mut {
         let data = ctx.data_unchecked::<Data>();
         let graph = data.get_graph(path)?;
 
-        #[cfg(feature = "storage")]
-        if graph.clone().graph.into_disk_graph().is_some() {
+        if graph.graph.storage().is_immutable() {
             return Err(GqlGraphError::ImmutableDiskGraph.into());
         }
 
@@ -310,7 +312,7 @@ impl Mut {
 
         let current_graph = data.get_graph(graph_path)?;
         #[cfg(feature = "storage")]
-        if current_graph.clone().graph.into_disk_graph().is_some() {
+        if current_graph.graph.storage().is_immutable() {
             return Err(GqlGraphError::ImmutableDiskGraph.into());
         }
 
@@ -440,8 +442,7 @@ impl Mut {
         let data = ctx.data_unchecked::<Data>();
         let graph = data.get_graph(path)?;
 
-        #[cfg(feature = "storage")]
-        if graph.clone().graph.into_disk_graph().is_some() {
+        if graph.graph.storage().is_immutable() {
             return Err(GqlGraphError::ImmutableDiskGraph.into());
         }
 

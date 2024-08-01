@@ -1,9 +1,8 @@
 use crate::{
     core::{
-        entities::{graph::tgraph::InternalGraph, nodes::node_ref::AsNodeRef, LayerIds, VID},
+        entities::{nodes::node_ref::AsNodeRef, LayerIds, VID},
         storage::timeindex::AsTime,
         utils::errors::GraphError,
-        ArcStr, OptionAsStr,
     },
     db::{
         api::{
@@ -11,6 +10,7 @@ use crate::{
             properties::Properties,
             storage::{
                 edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
+                storage_ops::GraphStorage,
             },
             view::{internal::*, *},
         },
@@ -28,6 +28,7 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
+use raphtory_api::core::storage::arc_str::{ArcStr, OptionAsStr};
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::{borrow::Borrow, sync::Arc};
@@ -118,7 +119,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
     fn edges(&self) -> Edges<'graph, Self, Self> {
         let graph = self.clone();
         let edges = Arc::new(move || {
-            let core_graph = graph.core_graph();
+            let core_graph = graph.core_graph().lock();
             core_graph.into_edges_iter(graph.clone()).into_dyn_boxed()
         });
         Edges {
@@ -134,12 +135,17 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
     }
 
     fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
-        let g = InternalGraph::default();
+        let g = GraphStorage::default();
+        let earliest = if let Some(earliest) = self.earliest_time() {
+            earliest
+        } else {
+            return Ok(self.new_base_graph(g));
+        };
 
         // make sure we preserve all layers even if they are empty
         // skip default layer
         for layer in self.unique_layers().skip(1) {
-            g.resolve_layer(Some(&layer));
+            g.resolve_layer(Some(&layer))?;
         }
         // Add edges first so we definitely have all associated nodes (important in case of persistent edges)
         for e in self.edges() {
@@ -157,8 +163,8 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                 for ee in ee.explode() {
                     g.add_edge(
                         ee.time().expect("exploded edge"),
-                        ee.src().name(),
-                        ee.dst().name(),
+                        ee.src().id(),
+                        ee.dst().id(),
                         ee.properties().temporal().collect_properties(),
                         layer_name,
                     )?;
@@ -180,16 +186,20 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
             let v_type_string = v.node_type(); //stop it being dropped
             let v_type_str = v_type_string.as_str();
             for h in v.history() {
-                g.add_node(h, v.name(), NO_PROPS, v_type_str)?;
+                g.add_node(h, v.id(), NO_PROPS, v_type_str)?;
             }
             for (name, prop_view) in v.properties().temporal().iter() {
                 for (t, prop) in prop_view.iter() {
-                    g.add_node(t, v.name(), [(name.clone(), prop)], v_type_str)?;
+                    g.add_node(t, v.id(), [(name.clone(), prop)], v_type_str)?;
                 }
             }
-            g.node(v.id())
-                .expect("node added")
-                .add_constant_properties(v.properties().constant())?;
+
+            let node = match g.node(v.id()) {
+                Some(node) => node,
+                None => g.add_node(earliest, v.id(), NO_PROPS, v_type_str)?,
+            };
+
+            node.add_constant_properties(v.properties().constant())?;
         }
 
         g.add_constant_properties(self.properties().constant())?;
@@ -259,11 +269,11 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                 NodeList::All { .. } => core_nodes
                     .as_ref()
                     .par_iter()
-                    .filter(|&v| self.filter_node(v, layer_ids))
+                    .filter(|v| self.filter_node(*v, layer_ids))
                     .count(),
                 NodeList::List { nodes } => nodes
                     .par_iter()
-                    .filter(|&&id| self.filter_node(core_nodes.node_ref(id), layer_ids))
+                    .filter(|&&id| self.filter_node(core_nodes.node_entry(id), layer_ids))
                     .count(),
             }
         } else {
@@ -287,10 +297,10 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                 edges
                     .as_ref()
                     .par_iter(self.layer_ids().clone())
-                    .filter(|&e| {
-                        self.filter_edge(e, self.layer_ids())
-                            && self.filter_node(nodes.node_ref(e.src()), self.layer_ids())
-                            && self.filter_node(nodes.node_ref(e.dst()), self.layer_ids())
+                    .filter(|e| {
+                        self.filter_edge(e.as_ref(), self.layer_ids())
+                            && self.filter_node(nodes.node_entry(e.src()), self.layer_ids())
+                            && self.filter_node(nodes.node_entry(e.dst()), self.layer_ids())
                     })
                     .count()
             }
@@ -300,9 +310,9 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                 edges
                     .as_ref()
                     .par_iter(self.layer_ids().clone())
-                    .filter(|&e| {
-                        self.filter_node(nodes.node_ref(e.src()), self.layer_ids())
-                            && self.filter_node(nodes.node_ref(e.dst()), self.layer_ids())
+                    .filter(|e| {
+                        self.filter_node(nodes.node_entry(e.src()), self.layer_ids())
+                            && self.filter_node(nodes.node_entry(e.dst()), self.layer_ids())
                     })
                     .count()
             }
@@ -311,7 +321,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                 edges
                     .as_ref()
                     .par_iter(self.layer_ids().clone())
-                    .filter(|&e| self.filter_edge(e, self.layer_ids()))
+                    .filter(|e| self.filter_edge(e.as_ref(), self.layer_ids()))
                     .count()
             }
         }
@@ -324,19 +334,19 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
             FilterState::Neither => core_edges
                 .as_ref()
                 .par_iter(layer_ids.clone())
-                .map(|edge| self.edge_exploded_count(edge, layer_ids))
+                .map(|edge| self.edge_exploded_count(edge.as_ref(), layer_ids))
                 .sum(),
             FilterState::Both => {
                 let nodes = self.core_nodes();
                 core_edges
                     .as_ref()
                     .par_iter(layer_ids.clone())
-                    .filter(|&e| {
-                        self.filter_edge(e, self.layer_ids())
-                            && self.filter_node(nodes.node_ref(e.src()), self.layer_ids())
-                            && self.filter_node(nodes.node_ref(e.dst()), self.layer_ids())
+                    .filter(|e| {
+                        self.filter_edge(e.as_ref(), self.layer_ids())
+                            && self.filter_node(nodes.node_entry(e.src()), self.layer_ids())
+                            && self.filter_node(nodes.node_entry(e.dst()), self.layer_ids())
                     })
-                    .map(|e| self.edge_exploded_count(e, layer_ids))
+                    .map(|e| self.edge_exploded_count(e.as_ref(), layer_ids))
                     .sum()
             }
             FilterState::Nodes => {
@@ -344,18 +354,18 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                 core_edges
                     .as_ref()
                     .par_iter(layer_ids.clone())
-                    .filter(|&e| {
-                        self.filter_node(nodes.node_ref(e.src()), self.layer_ids())
-                            && self.filter_node(nodes.node_ref(e.dst()), self.layer_ids())
+                    .filter(|e| {
+                        self.filter_node(nodes.node_entry(e.src()), self.layer_ids())
+                            && self.filter_node(nodes.node_entry(e.dst()), self.layer_ids())
                     })
-                    .map(|e| self.edge_exploded_count(e, layer_ids))
+                    .map(|e| self.edge_exploded_count(e.as_ref(), layer_ids))
                     .sum()
             }
             FilterState::Edges | FilterState::BothIndependent => core_edges
                 .as_ref()
                 .par_iter(layer_ids.clone())
-                .filter(|&e| self.filter_edge(e, self.layer_ids()))
-                .map(|e| self.edge_exploded_count(e, layer_ids))
+                .filter(|e| self.filter_edge(e.as_ref(), self.layer_ids()))
+                .map(|e| self.edge_exploded_count(e.as_ref(), layer_ids))
                 .sum(),
         }
     }
@@ -482,10 +492,8 @@ mod test_exploded_edges {
 
 #[cfg(test)]
 mod test_materialize {
-    use crate::{
-        core::OptionAsStr, db::api::view::internal::CoreGraphOps, prelude::*,
-        test_utils::test_graph,
-    };
+    use crate::{db::api::view::internal::CoreGraphOps, prelude::*, test_storage};
+    use raphtory_api::core::storage::arc_str::OptionAsStr;
 
     #[test]
     fn test_materialize() {
@@ -494,11 +502,10 @@ mod test_materialize {
         g.add_edge(0, 1, 2, [("layer2", "2")], Some("2")).unwrap();
 
         let gm = g.materialize().unwrap();
-        assert!(gm
-            .nodes()
-            .name()
-            .collect::<Vec<String>>()
-            .eq(&vec!["1", "2"]));
+        assert_eq!(
+            gm.nodes().name().values().collect::<Vec<String>>(),
+            vec!["1", "2"]
+        );
 
         assert!(!g
             .layers("2")
@@ -531,7 +538,11 @@ mod test_materialize {
 
         let nodes_subgraph = g.subgraph(vec![4, 5]);
         assert_eq!(
-            nodes_subgraph.nodes().name().collect::<Vec<String>>(),
+            nodes_subgraph
+                .nodes()
+                .name()
+                .values()
+                .collect::<Vec<String>>(),
             vec!["4", "5"]
         );
     }
@@ -550,6 +561,7 @@ mod test_materialize {
             exclude_nodes_subgraph
                 .nodes()
                 .name()
+                .values()
                 .collect::<Vec<String>>(),
             vec!["1", "2", "3"]
         );
@@ -561,8 +573,7 @@ mod test_materialize {
         graph.add_node(0, "A", NO_PROPS, None).unwrap();
         graph.add_node(1, "B", NO_PROPS, Some("H")).unwrap();
 
-        // FIXME: Node types not yet supported (Issue #51)
-        test_graph(&graph, |graph| {
+        test_storage!(&graph, |graph| {
             let node_a = graph.node("A").unwrap();
             let node_b = graph.node("B").unwrap();
             let node_a_type = node_a.node_type();

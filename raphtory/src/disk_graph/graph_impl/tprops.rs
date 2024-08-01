@@ -21,7 +21,7 @@ use std::{iter, ops::Range};
 impl<'a, T: NativeType + Into<Prop>> TPropOps<'a>
     for TPropColumn<'a, ChunkedPrimitiveCol<'a, T>, TimeIndexEntry>
 {
-    fn last_before(self, t: i64) -> Option<(TimeIndexEntry, Prop)> {
+    fn last_before(&self, t: i64) -> Option<(TimeIndexEntry, Prop)> {
         let (props, timestamps) = self.into_inner();
         let (t, t_index) = timestamps.last_before(t)?;
         let v = props.get(t_index)?;
@@ -68,7 +68,7 @@ impl<'a, T: NativeType + Into<Prop>> TPropOps<'a>
 }
 
 impl<'a, I: Offset> TPropOps<'a> for TPropColumn<'a, StringCol<'a, I>, TimeIndexEntry> {
-    fn last_before(self, t: i64) -> Option<(TimeIndexEntry, Prop)> {
+    fn last_before(&self, t: i64) -> Option<(TimeIndexEntry, Prop)> {
         let (props, timestamps) = self.into_inner();
         let (t, t_index) = timestamps.last_before(t)?;
         let v = props.get(t_index)?;
@@ -152,7 +152,7 @@ pub fn read_tprop_column(id: usize, field: Field, edge: Edge) -> Option<DiskTPro
 // pub struct EmptyTProp();
 
 impl<'a> TPropOps<'a> for EmptyTProp {
-    fn last_before(self, _t: i64) -> Option<(TimeIndexEntry, Prop)> {
+    fn last_before(&self, _t: i64) -> Option<(TimeIndexEntry, Prop)> {
         None
     }
 
@@ -202,7 +202,7 @@ macro_rules! for_all {
 }
 
 impl<'a> TPropOps<'a> for DiskTProp<'a, TimeIndexEntry> {
-    fn last_before(self, t: i64) -> Option<(TimeIndexEntry, Prop)> {
+    fn last_before(&self, t: i64) -> Option<(TimeIndexEntry, Prop)> {
         for_all!(self, v => v.last_before(t))
     }
 

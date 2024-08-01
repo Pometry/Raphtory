@@ -4,7 +4,7 @@ use rayon::prelude::*;
 use std::collections::HashMap;
 
 use crate::{
-    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError, ArcStr},
+    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError},
     db::{
         api::{
             properties::Properties,
@@ -34,12 +34,11 @@ use crate::{
 };
 use chrono::prelude::*;
 use pyo3::{prelude::*, types::PyBytes};
+use raphtory_api::core::storage::arc_str::ArcStr;
 
 impl IntoPy<PyObject> for MaterializedGraph {
     fn into_py(self, py: Python<'_>) -> PyObject {
         match self {
-            #[cfg(feature = "storage")]
-            MaterializedGraph::DiskEventGraph(g) => g.into_py(py),
             MaterializedGraph::EventGraph(g) => g.into_py(py),
             MaterializedGraph::PersistentGraph(g) => g.into_py(py),
         }
@@ -218,11 +217,11 @@ impl PyGraphView {
         self.graph.node(id)
     }
 
-    /// Get the edges that match the properties name and value
+    /// Get the nodes that match the properties name and value
     /// Arguments:
     ///     property_dict (dict): the properties name and value
     /// Returns:
-    ///    the edges that match the properties name and value
+    ///    the nodes that match the properties name and value
     #[pyo3(signature = (properties_dict))]
     pub fn find_nodes(&self, properties_dict: HashMap<String, Prop>) -> Vec<PyNode> {
         let iter = self.nodes().into_iter().par_bridge();

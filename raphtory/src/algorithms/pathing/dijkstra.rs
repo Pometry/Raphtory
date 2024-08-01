@@ -155,7 +155,7 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
             let mut current_node_name = node_name.clone();
             while let Some(prev_node) = predecessor.get(&current_node_name) {
                 path.push(prev_node.clone());
-                current_node_name = prev_node.clone();
+                current_node_name.clone_from(prev_node);
             }
             path.reverse();
             paths.insert(node_name.clone(), (cost.clone(), path));

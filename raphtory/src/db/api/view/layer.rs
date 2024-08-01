@@ -1,10 +1,11 @@
 use crate::{
-    core::{utils::errors::GraphError, ArcStr},
+    core::utils::errors::GraphError,
     db::{
         api::view::internal::{InternalLayerOps, OneHopFilter},
         graph::views::layer_graph::LayeredGraph,
     },
 };
+use raphtory_api::core::storage::arc_str::ArcStr;
 use std::sync::Arc;
 
 /// Trait defining layer operations

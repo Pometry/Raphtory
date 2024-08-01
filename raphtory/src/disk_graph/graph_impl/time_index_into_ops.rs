@@ -47,7 +47,7 @@ impl<'a> TimeIndexIntoOps for TimeStamps<'a, i64> {
         let (timestamps, _) = self.into_inner();
         TimeStamps::new(timestamps.sliced(start..end), None)
     }
-    fn into_iter(self) -> impl Iterator<Item = i64> {
+    fn into_iter(self) -> impl Iterator<Item = i64> + Send {
         let (timestamps, _) = self.into_inner();
         timestamps
     }

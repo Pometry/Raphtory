@@ -9,6 +9,9 @@ pub mod server;
 pub mod server_config;
 pub mod url_encode;
 
+#[cfg(feature = "python")]
+pub mod python;
+
 #[cfg(test)]
 mod graphql_test {
     use crate::{
@@ -20,7 +23,7 @@ mod graphql_test {
     use async_graphql::UploadValue;
     use dynamic_graphql::{Request, Variables};
     #[cfg(feature = "storage")]
-    use raphtory::disk_graph::graph_impl::DiskGraph;
+    use raphtory::disk_graph::DiskGraphStorage;
     use raphtory::{
         db::{
             api::view::{IntoDynamic, MaterializedGraph},
@@ -263,7 +266,7 @@ mod graphql_test {
 
         let req = Request::new(prop_has_key_filter);
         let res = schema.execute(req).await;
-        let _ = res.data.into_json().unwrap();
+        // let data = res.data.into_json().unwrap();
         let expected = json!({
             "graph": {
               "properties": {
@@ -1060,7 +1063,9 @@ mod graphql_test {
         graph.add_edge(22, 3, 6, NO_PROPS, Some("a")).unwrap();
 
         let tmp_graph_dir = TempDir::new().unwrap();
-        let disk_graph = DiskGraph::from_graph(&graph, tmp_graph_dir.path()).unwrap();
+        let disk_graph = DiskGraphStorage::from_graph(&graph, tmp_graph_dir.path())
+            .unwrap()
+            .into_graph();
         let graph = disk_graph.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_work_dir = tempdir().unwrap();

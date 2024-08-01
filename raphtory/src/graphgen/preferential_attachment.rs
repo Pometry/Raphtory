@@ -17,10 +17,12 @@ use crate::{
         api::{mutation::AdditionOps, view::*},
         graph::graph::Graph,
     },
-    prelude::NO_PROPS,
+    prelude::{NodeStateOps, NO_PROPS},
 };
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use std::collections::HashSet;
+
+use super::next_id;
 
 /// Generates a graph using the preferential attachment model.
 ///
@@ -61,32 +63,28 @@ pub fn ba_preferential_attachment(
     } else {
         rng = StdRng::from_entropy();
     }
-    let mut latest_time = graph.end().unwrap_or(0);
-    let view = graph.window(i64::MIN, i64::MAX);
-    let mut ids: Vec<u64> = view.nodes().id().collect();
-    let r: Vec<usize> = view.nodes().degree().collect();
-    let mut degrees: Vec<usize> = r;
+    let mut latest_time = graph.latest_time().unwrap_or(0);
+    let view = graph;
+    let mut ids = graph.nodes().id().values().collect::<Vec<_>>();
+    let mut degrees: Vec<usize> = view.nodes().degree().values().collect();
     let mut edge_count: usize = degrees.iter().sum();
 
-    let mut max_id = match ids.iter().max() {
-        Some(id) => *id,
-        None => 0,
-    };
+    let mut max_id = next_id(view, ids.iter().max().cloned());
 
     while ids.len() < edges_per_step {
-        max_id += 1;
+        max_id = next_id(view, Some(max_id));
         graph
-            .add_node(latest_time, max_id, NO_PROPS, None)
+            .add_node(latest_time, &max_id, NO_PROPS, None)
             .map_err(|err| println!("{:?}", err))
             .ok();
         degrees.push(0);
-        ids.push(max_id);
+        ids.push(max_id.clone());
     }
 
     if graph.count_edges() < edges_per_step {
         for pos in 1..ids.len() {
             graph
-                .add_edge(latest_time, ids[pos], ids[pos - 1], NO_PROPS, None)
+                .add_edge(latest_time, &ids[pos], &ids[pos - 1], NO_PROPS, None)
                 .expect("Not able to add edge");
             edge_count += 2;
             degrees[pos] += 1;
@@ -95,7 +93,7 @@ pub fn ba_preferential_attachment(
     }
 
     for _ in 0..nodes_to_add {
-        max_id += 1;
+        max_id = next_id(view, Some(max_id));
         latest_time += 1;
         let mut normalisation = edge_count;
         let mut positions_to_skip: HashSet<usize> = HashSet::new();
@@ -115,13 +113,13 @@ pub fn ba_preferential_attachment(
             }
         }
         for pos in positions_to_skip {
-            let dst = ids[pos];
+            let dst = &ids[pos];
             degrees[pos] += 1;
             graph
-                .add_edge(latest_time, max_id, dst, NO_PROPS, None)
+                .add_edge(latest_time, &max_id, dst, NO_PROPS, None)
                 .expect("Not able to add edge");
         }
-        ids.push(max_id);
+        ids.push(max_id.clone());
         degrees.push(edges_per_step);
         edge_count += edges_per_step * 2;
     }

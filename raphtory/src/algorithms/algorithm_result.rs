@@ -418,6 +418,7 @@ mod algorithm_result_test {
         prelude::{NO_PROPS, *},
     };
     use ordered_float::OrderedFloat;
+    use raphtory_api::core::entities::GID;
 
     fn create_algo_result_u64() -> AlgorithmResult<Graph, u64> {
         let g = create_graph();
@@ -691,16 +692,16 @@ mod algorithm_result_test {
             .expect("Unable to add edge");
         let g_layer = g.layers(vec!["ZERO-TWO"]).unwrap();
         let res_window = weakly_connected_components(&g_layer, 20, None);
-        let mut expected_result: HashMap<String, u64> = HashMap::new();
-        expected_result.insert("8".to_string(), 8);
-        expected_result.insert("1".to_string(), 1);
-        expected_result.insert("3".to_string(), 1);
-        expected_result.insert("2".to_string(), 1);
-        expected_result.insert("5".to_string(), 4);
-        expected_result.insert("6".to_string(), 6);
-        expected_result.insert("7".to_string(), 7);
-        expected_result.insert("4".to_string(), 4);
-        expected_result.insert("9".to_string(), 9);
+        let mut expected_result = HashMap::new();
+        expected_result.insert("8".to_string(), GID::U64(8));
+        expected_result.insert("1".to_string(), GID::U64(1));
+        expected_result.insert("3".to_string(), GID::U64(1));
+        expected_result.insert("2".to_string(), GID::U64(1));
+        expected_result.insert("5".to_string(), GID::U64(4));
+        expected_result.insert("6".to_string(), GID::U64(6));
+        expected_result.insert("7".to_string(), GID::U64(7));
+        expected_result.insert("4".to_string(), GID::U64(4));
+        expected_result.insert("9".to_string(), GID::U64(9));
         assert_eq!(res_window.get_all_with_names(), expected_result);
     }
 }

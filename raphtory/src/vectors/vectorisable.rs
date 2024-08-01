@@ -95,7 +95,7 @@ impl<G: StaticGraphViewOps + IntoDynamic> Vectorisable<G> for G {
                     index,
                     life: doc.life,
                 });
-        let nodes = self.nodes().iter().flat_map(|node| {
+        let nodes = self.nodes().iter_owned().flat_map(|node| {
             template
                 .node(&node)
                 .enumerate()

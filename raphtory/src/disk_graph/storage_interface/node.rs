@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, nodes::input_node::InputNode, LayerIds, EID, VID},
+        entities::{edges::edge_ref::EdgeRef, LayerIds, EID, VID},
         Direction,
     },
     db::api::{
@@ -11,11 +11,13 @@ use crate::{
         },
         view::internal::NodeAdditions,
     },
+    prelude::Prop,
 };
 use itertools::Itertools;
+use polars_arrow::datatypes::ArrowDataType;
 use pometry_storage::{graph::TemporalGraph, timestamps::TimeStamps, GidRef};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
-use std::{iter, sync::Arc};
+use std::{borrow::Cow, iter, sync::Arc};
 
 #[derive(Copy, Clone, Debug)]
 pub struct DiskNode<'a> {
@@ -24,6 +26,19 @@ pub struct DiskNode<'a> {
 }
 
 impl<'a> DiskNode<'a> {
+    pub fn constant_node_prop_ids(self) -> Box<dyn Iterator<Item = usize> + 'a> {
+        match &self.graph.node_properties().const_props {
+            None => Box::new(std::iter::empty()),
+            Some(props) => {
+                Box::new((0..props.num_props()).filter(move |id| props.has_prop(self.vid, *id)))
+            }
+        }
+    }
+
+    pub fn temporal_node_prop_ids(self) -> Box<dyn Iterator<Item = usize> + 'a> {
+        Box::new(std::iter::empty())
+    }
+
     pub(crate) fn new(graph: &'a TemporalGraph, vid: VID) -> Self {
         Self { graph, vid }
     }
@@ -115,7 +130,7 @@ impl<'a> DiskNode<'a> {
             .merge_by(self.out_edges(layers), |e1, e2| e1.remote() <= e2.remote())
     }
 
-    pub fn additions_for_layers(self, layer_ids: &LayerIds) -> NodeAdditions<'a> {
+    pub fn additions_for_layers(&self, layer_ids: &LayerIds) -> NodeAdditions<'a> {
         let mut additions = match layer_ids {
             LayerIds::None => Vec::with_capacity(1),
             LayerIds::All => {
@@ -154,8 +169,9 @@ impl<'a> DiskNode<'a> {
                 additions
             }
         };
-        if let Some(props) = self.graph.node_properties() {
-            let timestamps = props.temporal_props.timestamps::<i64>(self.vid);
+
+        if let Some(props) = &self.graph.node_properties().temporal_props {
+            let timestamps = props.timestamps::<i64>(self.vid);
             if timestamps.len() > 0 {
                 let ts = timestamps.times();
                 additions.push(ts);
@@ -218,9 +234,28 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
     fn tprop(self, prop_id: usize) -> impl TPropOps<'a> {
         self.graph
             .node_properties()
-            .unwrap()
             .temporal_props
+            .as_ref()
+            .unwrap()
             .prop(self.vid, prop_id)
+    }
+
+    fn prop(self, prop_id: usize) -> Option<Prop> {
+        let cprops = self.graph.node_properties().const_props.as_ref()?;
+        let prop_type = cprops.prop_dtype(prop_id);
+        match prop_type.data_type {
+            ArrowDataType::Int32 => cprops.prop_native::<i32>(self.vid, prop_id).map(Prop::I32),
+            ArrowDataType::Int64 => cprops.prop_native::<i64>(self.vid, prop_id).map(Prop::I64),
+            ArrowDataType::UInt32 => cprops.prop_native::<u32>(self.vid, prop_id).map(Prop::U32),
+            ArrowDataType::UInt64 => cprops.prop_native::<u64>(self.vid, prop_id).map(Prop::U64),
+            ArrowDataType::Float32 => cprops.prop_native::<f32>(self.vid, prop_id).map(Prop::F32),
+            ArrowDataType::Float64 => cprops.prop_native::<f64>(self.vid, prop_id).map(Prop::F64),
+            ArrowDataType::Utf8 | ArrowDataType::LargeUtf8 | ArrowDataType::Utf8View => {
+                cprops.prop_str(self.vid, prop_id).map(Prop::str)
+            }
+            // Add cases for other types, including special handling for complex types
+            _ => None, // Placeholder for unhandled types
+        }
     }
 
     fn edges_iter(
@@ -236,26 +271,21 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
     }
 
     fn node_type_id(self) -> usize {
-        0
+        self.graph.node_type_id(self.vid)
     }
 
     fn vid(self) -> VID {
         self.vid
     }
 
-    fn id(self) -> u64 {
-        match self.graph.node_gid(self.vid).unwrap() {
-            GidRef::U64(v) => v,
-            GidRef::I64(v) => v as u64,
-            GidRef::Str(v) => v.id(),
-        }
+    fn id(self) -> GidRef<'a> {
+        self.graph.node_gid(self.vid).unwrap()
     }
 
-    fn name(self) -> Option<&'a str> {
+    fn name(self) -> Option<Cow<'a, str>> {
         match self.graph.node_gid(self.vid).unwrap() {
             GidRef::U64(_) => None,
-            GidRef::I64(_) => None,
-            GidRef::Str(v) => Some(v),
+            GidRef::Str(v) => Some(Cow::from(v)),
         }
     }
 
@@ -490,16 +520,20 @@ impl<'a> NodeStorageOps<'a> for &'a DiskOwnedNode {
     }
 
     #[inline]
-    fn id(self) -> u64 {
+    fn id(self) -> GidRef<'a> {
         self.as_ref().id()
     }
 
-    fn name(self) -> Option<&'a str> {
+    fn name(self) -> Option<Cow<'a, str>> {
         self.as_ref().name()
     }
 
     fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef> {
         self.as_ref().find_edge(dst, layer_ids)
+    }
+
+    fn prop(self, prop_id: usize) -> Option<Prop> {
+        self.as_ref().prop(prop_id)
     }
 }
 

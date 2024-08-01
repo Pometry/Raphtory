@@ -17,7 +17,7 @@ mod cypher {
     use arrow::util::pretty::print_batches;
     use clap::Parser;
     use futures::{stream, StreamExt};
-    use raphtory::disk_graph::graph_impl::{DiskGraph, ParquetLayerCols};
+    use raphtory::disk_graph::{graph_impl::ParquetLayerCols, DiskGraphStorage};
     use raphtory_cypher::{run_cypher, run_cypher_to_streams, run_sql};
     use serde::{de::DeserializeOwned, Deserialize};
 
@@ -72,6 +72,10 @@ mod cypher {
         /// Node properties to load
         #[arg(short, long)]
         node_props: Option<String>,
+
+        /// Node properties to load
+        #[arg(short, long)]
+        node_type_col: Option<String>,
 
         /// Edge list parquet files to load as layers
         #[arg(short='l', last = true, value_parser = parse_key_val::<String, ArgLayer>)]
@@ -134,7 +138,7 @@ mod cypher {
         match args {
             Args::Query(args) => {
                 let graph =
-                    DiskGraph::load_from_dir(&args.graph_dir).expect("Failed to load graph");
+                    DiskGraphStorage::load_from_dir(&args.graph_dir).expect("Failed to load graph");
 
                 let now = std::time::Instant::now();
 
@@ -183,7 +187,7 @@ mod cypher {
                         }
                     })
                     .collect();
-                DiskGraph::load_from_parquets(
+                DiskGraphStorage::load_from_parquets(
                     args.graph_dir.as_str(),
                     layer_parquet_cols,
                     args.node_props.as_deref(),
@@ -192,6 +196,7 @@ mod cypher {
                     args.read_chunk_size,
                     args.concurrent_files,
                     args.num_threads,
+                    args.node_type_col.as_deref(),
                 )
                 .expect("Failed to load graph");
             }

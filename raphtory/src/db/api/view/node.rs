@@ -2,7 +2,7 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
         storage::timeindex::AsTime,
-        ArcStr, Direction,
+        Direction,
     },
     db::api::{
         properties::{internal::PropertiesOps, Properties},
@@ -16,6 +16,7 @@ use crate::{
     prelude::{EdgeViewOps, GraphViewOps, LayerOps},
 };
 use chrono::{DateTime, Utc};
+use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 
 pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     type BaseGraph: GraphViewOps<'graph>;
@@ -29,7 +30,10 @@ pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
         + 'graph;
     type Edges: EdgeViewOps<'graph, Graph = Self::Graph, BaseGraph = Self::BaseGraph> + 'graph;
 
-    fn map<O: 'graph, F: Fn(&GraphStorage, &Self::Graph, VID) -> O + Send + Sync + Clone + 'graph>(
+    fn map<
+        O: Clone + Send + Sync + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> O + Send + Sync + Clone + 'graph,
+    >(
         &self,
         op: F,
     ) -> Self::ValueType<O>;
@@ -66,7 +70,7 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     type Edges: EdgeViewOps<'graph, Graph = Self::Graph, BaseGraph = Self::BaseGraph> + 'graph;
 
     /// Get the numeric id of the node
-    fn id(&self) -> Self::ValueType<u64>;
+    fn id(&self) -> Self::ValueType<GID>;
 
     /// Get the name of this node if a user has set one otherwise it returns the ID.
     ///
@@ -91,7 +95,7 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     /// Gets the history of the node (time that the node was added and times when changes were made to the node)
     fn history(&self) -> Self::ValueType<Vec<i64>>;
 
-    /// Gets the history of the node (time that the node was added and times when changes were made to the node) as DateTime<Utc> objects if parseable
+    /// Gets the history of the node (time that the node was added and times when changes were made to the node) as `DateTime<Utc>` objects if parseable
     fn history_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>>;
 
     /// Get a view of the temporal properties of this node.
@@ -174,9 +178,10 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     type Edges = V::Edges;
 
     #[inline]
-    fn id(&self) -> Self::ValueType<u64> {
-        self.map(|cg, _g, v| cg.node(v).id())
+    fn id(&self) -> Self::ValueType<GID> {
+        self.map(|cg, _g, v| cg.node_entry(v).id().into())
     }
+
     #[inline]
     fn name(&self) -> Self::ValueType<String> {
         self.map(|_cg, g, v| g.node_name(v))

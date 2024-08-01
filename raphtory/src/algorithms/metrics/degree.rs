@@ -43,7 +43,8 @@
 //! print!("Average degree: {:?}", average_degree(&windowed_graph));
 //! ```
 //!
-use crate::db::api::view::*;
+use crate::{db::api::view::*, prelude::*};
+use rayon::prelude::*;
 
 /// The maximum degree of any node in the graph
 pub fn max_degree<'graph, G: GraphViewOps<'graph>>(graph: &G) -> usize {
@@ -80,9 +81,14 @@ pub fn average_degree<'graph, G: GraphViewOps<'graph>>(graph: &'graph G) -> f64 
     let (deg_sum, count) = graph
         .nodes()
         .degree()
-        .fold((0usize, 0usize), |(deg_sum, count), deg| {
+        .par_values()
+        .fold_with((0usize, 0usize), |(deg_sum, count), deg| {
             (deg_sum + deg, count + 1)
-        });
+        })
+        .reduce_with(|(deg_sum1, count1), (deg_sum2, count2)| {
+            (deg_sum1 + deg_sum2, count1 + count2)
+        })
+        .unwrap_or((0, 1));
 
     deg_sum as f64 / count as f64
 }

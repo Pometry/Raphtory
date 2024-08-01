@@ -5,9 +5,14 @@ use crate::{
     },
     core::{
         entities::{properties::props::PropMapper, VID},
+        storage::timeindex::TimeIndexOps,
+        utils::iter::GenLockedIter,
         PropType,
     },
-    db::api::{storage::tprop_storage_ops::TPropOps, view::internal::CoreGraphOps},
+    db::api::{
+        storage::{nodes::node_storage_ops::NodeStorageOps, tprop_storage_ops::TPropOps},
+        view::internal::CoreGraphOps,
+    },
     prelude::{Graph, Prop, PropUnwrap},
 };
 use itertools::Itertools;
@@ -20,17 +25,17 @@ use std::path::Path;
 pub fn make_node_properties_from_graph(
     graph: &Graph,
     graph_dir: impl AsRef<Path>,
-) -> Result<Option<Properties<VID>>, RAError> {
+) -> Result<Properties<VID>, RAError> {
     let graph_dir = graph_dir.as_ref();
     let n = graph.unfiltered_num_nodes();
 
     let temporal_meta = graph.node_meta().temporal_prop_meta();
     let constant_meta = graph.node_meta().const_prop_meta();
     if temporal_meta.is_empty() && constant_meta.is_empty() {
-        return Ok(None);
+        return Ok(Properties::default());
     }
 
-    let nodes = graph.0.inner().storage.nodes.read_lock();
+    let gs = graph.core_graph();
 
     let temporal_prop_keys = temporal_meta
         .get_keys()
@@ -46,29 +51,23 @@ pub fn make_node_properties_from_graph(
 
     let builder = NodePropsBuilder::new(n, graph_dir)
         .with_timestamps(|vid| {
-            let node = nodes.get(VID(vid.0));
-            let ts: Vec<_> = node
-                .props
-                .iter()
-                .flat_map(|props| {
-                    props
-                        .temporal_props
-                        .filled_values()
-                        .map(|tprop| tprop.iter().map(|(t, _)| t))
-                })
-                .kmerge()
-                .dedup()
-                .collect();
-            ts
+            let node = gs.node_entry(vid);
+            let additions = node.additions();
+            additions.iter_t().collect()
         })
         .with_temporal_props(temporal_prop_keys, |prop_id, prop_key, ts, offsets| {
             let prop_type = temporal_meta.get_dtype(prop_id).unwrap();
             let col = arrow_array_from_props(
                 (0..n).flat_map(|vid| {
                     let ts = node_ts(VID(vid), offsets, ts);
-                    let node = nodes.get(VID(vid));
-                    ts.iter()
-                        .map(move |t| node.temporal_property(prop_id).and_then(|prop| prop.at(t)))
+                    let node = gs.node_entry(VID(vid));
+                    let iter =
+                        GenLockedIter::from(node, |node| Box::new(node.tprop(prop_id).iter_t()));
+                    iter.merge_join_by(ts, |(t2, _), &t1| t2.cmp(t1))
+                        .map(|result| match result {
+                            itertools::EitherOrBoth::Both((_, t_prop), _) => Some(t_prop),
+                            _ => None,
+                        })
                 }),
                 prop_type,
             );
@@ -81,8 +80,8 @@ pub fn make_node_properties_from_graph(
             let prop_type = constant_meta.get_dtype(prop_id).unwrap();
             let col = arrow_array_from_props(
                 (0..n).map(|vid| {
-                    let node = nodes.get(VID(vid));
-                    node.const_prop(prop_id).cloned()
+                    let node = gs.node_entry(VID(vid));
+                    node.prop(prop_id)
                 }),
                 prop_type,
             );
@@ -91,7 +90,7 @@ pub fn make_node_properties_from_graph(
                 (Field::new(prop_key, dtype, true), col)
             })
         });
-    let props = builder.build().map(Some)?;
+    let props = builder.build()?;
     Ok(props)
 }
 

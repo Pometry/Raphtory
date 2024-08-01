@@ -4,7 +4,6 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef, VID},
         utils::errors::GraphError,
-        ArcStr,
     },
     db::{
         api::{
@@ -34,14 +33,16 @@ use crate::{
     },
 };
 use chrono::{DateTime, Utc};
+use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{
     fmt,
+    fmt::Debug,
     hash::{Hash, Hasher},
     sync::Arc,
 };
 
 /// View of a Node in a Graph
-#[derive(Clone, Copy)]
+#[derive(Copy, Clone)]
 pub struct NodeView<G, GH = G> {
     pub base_graph: G,
     pub graph: GH,
@@ -56,21 +57,28 @@ impl<G1: CoreGraphOps, G1H, G2: CoreGraphOps, G2H> PartialEq<NodeView<G2, G2H>>
     }
 }
 
+impl<'a, G: Clone, GH: Clone> NodeView<&'a G, &'a GH> {
+    pub fn cloned(&self) -> NodeView<G, GH> {
+        NodeView {
+            base_graph: self.base_graph.clone(),
+            graph: self.graph.clone(),
+            node: self.node,
+        }
+    }
+}
+
 impl<G, GH> AsNodeRef for NodeView<G, GH> {
     fn as_node_ref(&self) -> NodeRef {
         NodeRef::Internal(self.node)
     }
 }
 
-impl<'graph, G, GH: GraphViewOps<'graph>> fmt::Debug for NodeView<G, GH> {
+impl<'graph, G, GH: GraphViewOps<'graph> + Debug> fmt::Debug for NodeView<G, GH> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "NodeView {{ graph: {}{}, node: {} }}",
-            self.graph.count_nodes(),
-            self.graph.count_edges(),
-            self.node.0
-        )
+        f.debug_struct("NodeView")
+            .field("node", &self.node)
+            .field("graph", &self.graph)
+            .finish()
     }
 }
 
@@ -273,7 +281,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
         op: F,
     ) -> Self::ValueType<O> {
         let cg = self.graph.core_graph();
-        op(&cg, &self.graph, self.node)
+        op(cg, &self.graph, self.node)
     }
 
     fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>> {
@@ -291,7 +299,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
         let node = self.node;
         let edges = Arc::new(move || {
             let cg = graph.core_graph();
-            op(&cg, &graph, node).into_dyn_boxed()
+            op(cg, &graph, node).into_dyn_boxed()
         });
         let base_graph = self.base_graph.clone();
         let graph = self.graph.clone();
@@ -313,7 +321,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
         let node = self.node;
         PathFromNode::new(self.base_graph.clone(), move || {
             let cg = graph.core_graph();
-            op(&cg, &graph, node).into_dyn_boxed()
+            op(cg, &graph, node).into_dyn_boxed()
         })
     }
 }
@@ -374,7 +382,8 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
 
 #[cfg(test)]
 mod node_test {
-    use crate::{core::ArcStr, prelude::*, test_utils::test_graph};
+    use crate::{prelude::*, test_utils::test_graph};
+    use raphtory_api::core::storage::arc_str::ArcStr;
     use std::collections::HashMap;
 
     #[test]

@@ -104,6 +104,9 @@ pub mod search;
 #[cfg(feature = "vectors")]
 pub mod vectors;
 
+#[cfg(feature = "io")]
+pub mod io;
+
 pub mod prelude {
     pub const NO_PROPS: [(&str, Prop); 0] = [];
     pub use crate::{
@@ -111,6 +114,7 @@ pub mod prelude {
         db::{
             api::{
                 mutation::{AdditionOps, DeletionOps, ImportOps, PropertyAdditionOps},
+                state::{AsOrderedNodeStateOps, NodeStateOps, OrderedNodeStateOps},
                 view::{
                     EdgeViewOps, GraphViewOps, Layer, LayerOps, NodeViewOps, ResetFilter, TimeOps,
                 },
@@ -118,18 +122,21 @@ pub mod prelude {
             graph::graph::Graph,
         },
     };
+    pub use raphtory_api::core::{entities::GID, input::input_node::InputNode};
 }
 
 // Upgrade this version number every time you make a breaking change to Graph structure.
-pub const BINCODE_VERSION: u32 = 1u32;
-
+pub const BINCODE_VERSION: u32 = 3u32;
 #[cfg(feature = "storage")]
 pub use polars_arrow as arrow2;
 
+#[cfg(feature = "proto")]
+mod serialise {
+    include!(concat!(env!("OUT_DIR"), "/serialise.rs"));
+}
+
 #[cfg(test)]
 mod test_utils {
-    #[cfg(feature = "storage")]
-    use crate::disk_graph::graph_impl::DiskGraph;
     use crate::prelude::Graph;
     #[cfg(feature = "storage")]
     use tempfile::TempDir;
@@ -147,9 +154,12 @@ mod test_utils {
         };
     }
     #[cfg(feature = "storage")]
-    pub(crate) fn test_disk_graph(graph: &Graph, test: impl FnOnce(&DiskGraph)) {
+    pub(crate) fn test_disk_graph(graph: &Graph, test: impl FnOnce(&Graph)) {
         let test_dir = TempDir::new().unwrap();
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
+        let disk_graph = graph
+            .persist_as_disk_graph(test_dir.path())
+            .unwrap()
+            .into_graph();
         test(&disk_graph)
     }
 }

@@ -15,7 +15,7 @@ homepage.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-raphtory-api = { path = "../raphtory-api", version = "0.9.1" }
+raphtory-api = { path = "../raphtory-api", version = "0.10.0" }
 bincode = { workspace = true }
 chrono = { workspace = true }
 itertools = { workspace = true }
@@ -67,8 +67,6 @@ polars-arrow = { workspace = true, optional = true }
 polars-parquet = { workspace = true, optional = true }
 polars-utils = { workspace = true, optional = true }
 kdam = { workspace = true, optional = true }
-
-# disk storage optional dependencies
 memmap2 = { workspace = true, optional = true }
 ahash = { workspace = true, optional = true }
 tempfile = { workspace = true, optional = true }
@@ -76,6 +74,10 @@ bytemuck = { workspace = true, optional = true }
 rpds = { workspace = true, optional = true }
 thread_local = { workspace = true, optional = true }
 pometry-storage = { workspace = true, optional = true }
+
+prost = { workspace = true, optional = true}
+prost-types = { workspace = true, optional = true}
+bytes = { workspace = true, optional = true}
 
 [dev-dependencies]
 csv = { workspace = true }
@@ -89,6 +91,9 @@ dotenv = { workspace = true }            # for vector testing
 streaming-stats = { workspace = true }
 proptest = { workspace = true }
 
+[build-dependencies]
+prost-build = { workspace = true, optional = true}
+
 [features]
 default = []
 # Enables the graph loader io module
@@ -101,27 +106,34 @@ io = [
     "dep:reqwest",
     "dep:tokio",
 ]
-# Enables generating the pyo3 python bindings
-python = [
-    "io",
-    "dep:pyo3",
-    "dep:num",
-    "dep:display-error-chain",
-    "dep:polars-arrow",
-    "polars-arrow?/compute",
-    "dep:kdam",
-    "dep:rpds",
-]
+
 # search
 search = ["dep:tantivy"]
 # vectors
 vectors = ["dep:futures-util", "dep:async-trait", "dep:async-openai"]
+
+# Enables generating the pyo3 python bindings
+python = [
+    "io",
+    "arrow",
+    "search",
+    "vectors",
+    "proto",
+    "dep:pyo3",
+    "dep:num",
+    "dep:display-error-chain",
+    "polars-arrow?/compute",
+    "raphtory-api/python",
+    "dep:rpds",
+    "dep:kdam",
+    "kdam?/notebook"
+]
+
 # storage
 storage = [
+    "arrow",
     "pometry-storage",
-    "dep:polars-arrow",
     "dep:polars-utils",
-    "dep:polars-parquet",
     "dep:memmap2",
     "dep:ahash",
     "dep:tempfile",
@@ -130,5 +142,17 @@ storage = [
     "dep:thread_local",
     "polars-arrow?/io_ipc",
     "polars-arrow?/arrow_rs",
+]
+arrow = [
+    "dep:polars-arrow",
+    "dep:polars-parquet",
     "polars-parquet?/compression",
+]
+
+proto = [
+    "dep:prost",
+    "dep:prost-types",
+    "dep:bytes",
+    "dep:prost-build",
+    "dep:memmap2",
 ]

@@ -1,7 +1,7 @@
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
     core::{
-        entities::nodes::input_node::InputNode,
+        entities::nodes::node_ref::AsNodeRef,
         state::{
             accumulator_id::accumulators::{hash_set, min, or},
             compute_state::ComputeStateVec,
@@ -20,6 +20,7 @@ use crate::{
 };
 use itertools::Itertools;
 use num_traits::Zero;
+use raphtory_api::core::entities::VID;
 use std::{collections::HashMap, ops::Add};
 
 #[derive(Eq, Hash, PartialEq, Clone, Debug, Default)]
@@ -66,7 +67,7 @@ impl Zero for TaintMessage {
 /// * An AlgorithmResult object containing the mapping from node ID to a vector of tuples containing the time at which
 /// the node was tainted and the ID of the node that tainted it
 ///
-pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: InputNode>(
+pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: AsNodeRef>(
     g: &G,
     threads: Option<usize>,
     max_hops: usize,
@@ -76,11 +77,16 @@ pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: InputNode>(
 ) -> AlgorithmResult<G, Vec<(i64, String)>, Vec<(i64, String)>> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
-    let infected_nodes = seed_nodes.into_iter().map(|n| n.id()).collect_vec();
+    let infected_nodes = seed_nodes
+        .into_iter()
+        .filter_map(|n| g.node(n))
+        .map(|n| n.node)
+        .collect_vec();
     let stop_nodes = stop_nodes
         .unwrap_or_default()
         .into_iter()
-        .map(|n| n.id())
+        .filter_map(|n| g.node(n))
+        .map(|n| n.node)
         .collect_vec();
 
     let taint_status = or(0);
@@ -95,12 +101,12 @@ pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: InputNode>(
     let earliest_taint_time = min::<i64>(3);
     ctx.agg(earliest_taint_time);
 
-    let tainted_nodes = hash_set::<u64>(4);
+    let tainted_nodes = hash_set::<VID>(4);
     ctx.global_agg(tainted_nodes);
 
     let step1 = ATask::new(move |evv: &mut EvalNodeView<G, ()>| {
-        if infected_nodes.contains(&evv.id()) {
-            evv.global_update(&tainted_nodes, evv.id());
+        if infected_nodes.contains(&evv.node) {
+            evv.global_update(&tainted_nodes, evv.node);
             evv.update(&taint_status, true);
             evv.update(&earliest_taint_time, start_time);
             evv.update(
@@ -133,7 +139,7 @@ pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: InputNode>(
         // println!("v = {}, msgs = {:?}, taint_history = {:?}", evv.global_id(), msgs, evv.read(&taint_history));
 
         if !msgs.is_empty() {
-            evv.global_update(&tainted_nodes, evv.id());
+            evv.global_update(&tainted_nodes, evv.node);
 
             if !evv.read(&taint_status) {
                 evv.update(&taint_status, true);
@@ -144,7 +150,7 @@ pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: InputNode>(
 
             // println!("v = {}, taint_history = {:?}", evv.global_id(), evv.read(&taint_history));
 
-            if stop_nodes.is_empty() || !stop_nodes.contains(&evv.id()) {
+            if stop_nodes.is_empty() || !stop_nodes.contains(&evv.node) {
                 let earliest = evv.read(&earliest_taint_time);
                 for eev in evv.window(earliest, i64::MAX).out_edges() {
                     let dst = eev.dst();
@@ -229,7 +235,7 @@ mod generic_taint_tests {
         graph
     }
 
-    fn test_generic_taint<T: InputNode, G: StaticGraphViewOps>(
+    fn test_generic_taint<T: AsNodeRef, G: StaticGraphViewOps>(
         graph: &G,
         iter_count: usize,
         start_time: i64,

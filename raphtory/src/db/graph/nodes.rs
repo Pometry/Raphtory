@@ -3,6 +3,7 @@ use crate::{
     db::{
         api::{
             properties::Properties,
+            state::LazyNodeState,
             storage::storage_ops::GraphStorage,
             view::{
                 internal::{OneHopFilter, Static},
@@ -74,18 +75,18 @@ where
 
     #[inline]
     pub(crate) fn iter_refs(&self) -> impl Iterator<Item = VID> + 'graph {
-        let g = self.graph.core_graph();
-        let base_graph = self.base_graph.clone();
+        let g = self.graph.core_graph().lock();
         let node_types_filter = self.node_types_filter.clone();
-        g.into_nodes_iter(self.graph.clone()).filter(move |v| {
-            let node_type_id = base_graph.node_type_id(*v);
-            node_types_filter
-                .as_ref()
-                .map_or(true, |filter| filter[node_type_id])
-        })
+        g.into_nodes_iter(self.graph.clone(), node_types_filter)
     }
 
-    pub fn iter(&self) -> BoxedLIter<'graph, NodeView<G, GH>> {
+    pub fn iter(&self) -> impl Iterator<Item = NodeView<&G, &GH>> + '_ {
+        let cg = self.graph.core_graph().lock();
+        cg.into_nodes_iter(&self.graph, self.node_types_filter.clone())
+            .map(|v| NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, v))
+    }
+
+    pub fn iter_owned(&self) -> BoxedLIter<'graph, NodeView<G, GH>> {
         let base_graph = self.base_graph.clone();
         let g = self.graph.clone();
         self.iter_refs()
@@ -94,17 +95,18 @@ where
     }
 
     pub fn par_iter(&self) -> impl ParallelIterator<Item = NodeView<&G, &GH>> + '_ {
-        let cg = self.graph.core_graph();
+        let cg = self.graph.core_graph().lock();
         let node_types_filter = self.node_types_filter.clone();
-        let base_graph = self.base_graph.clone();
-        cg.into_nodes_par(&self.graph)
-            .filter(move |v| {
-                let node_type_id = base_graph.node_type_id(*v);
-                node_types_filter
-                    .as_ref()
-                    .map_or(true, |filter| filter[node_type_id])
-            })
+        cg.into_nodes_par(&self.graph, node_types_filter)
             .map(|v| NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, v))
+    }
+
+    pub fn into_par_iter(self) -> impl ParallelIterator<Item = NodeView<G, GH>> + 'graph {
+        let cg = self.graph.core_graph().lock();
+        cg.into_nodes_par(self.graph.clone(), self.node_types_filter)
+            .map(move |n| {
+                NodeView::new_one_hop_filtered(self.base_graph.clone(), self.graph.clone(), n)
+            })
     }
 
     /// Returns the number of nodes in the graph.
@@ -140,7 +142,7 @@ where
     }
 
     pub fn collect(&self) -> Vec<NodeView<G, GH>> {
-        self.iter().collect()
+        self.iter_owned().collect()
     }
 
     pub fn get_const_prop_id(&self, prop_name: &str) -> Option<usize> {
@@ -159,18 +161,21 @@ where
 {
     type BaseGraph = G;
     type Graph = GH;
-    type ValueType<T: 'graph> = BoxedLIter<'graph, T>;
+    type ValueType<T: 'graph> = LazyNodeState<'graph, T, G, GH>;
     type PropType = NodeView<GH, GH>;
     type PathType = PathFromGraph<'graph, G, G>;
     type Edges = NestedEdges<'graph, G, GH>;
 
-    fn map<O: 'graph, F: Fn(&GraphStorage, &Self::Graph, VID) -> O + Send + Sync + 'graph>(
+    fn map<
+        O: Clone + Send + Sync + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> O + Send + Sync + 'graph,
+    >(
         &self,
         op: F,
     ) -> Self::ValueType<O> {
         let g = self.graph.clone();
-        let cg = g.core_graph();
-        Box::new(self.iter_refs().map(move |v| op(&cg, &g, v)))
+        let bg = self.base_graph.clone();
+        LazyNodeState::new(bg, g, self.node_types_filter.clone(), op)
     }
 
     fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>> {
@@ -190,7 +195,7 @@ where
         let nodes = Arc::new(move || nodes.iter_refs().into_dyn_boxed());
         let edges = Arc::new(move |node: VID| {
             let cg = graph.core_graph();
-            op(&cg, &graph, node).into_dyn_boxed()
+            op(cg, &graph, node).into_dyn_boxed()
         });
         let graph = self.graph.clone();
         NestedEdges {
@@ -213,7 +218,7 @@ where
         let nodes = Arc::new(move || nodes.iter_refs().into_dyn_boxed());
         PathFromGraph::new(self.base_graph.clone(), nodes, move |v| {
             let cg = graph.core_graph();
-            op(&cg, &graph, v).into_dyn_boxed()
+            op(cg, &graph, v).into_dyn_boxed()
         })
     }
 }
@@ -258,6 +263,6 @@ where
     type IntoIter = BoxedLIter<'graph, Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
-        Box::new(self.iter())
+        Box::new(self.iter_owned())
     }
 }

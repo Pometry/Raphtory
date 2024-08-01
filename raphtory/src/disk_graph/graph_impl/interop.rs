@@ -23,12 +23,30 @@ use raphtory_api::core::{
 };
 
 impl GraphLike<TimeIndexEntry> for Graph {
-    fn external_ids(&self) -> Vec<u64> {
+    fn external_ids(&self) -> Vec<GID> {
         self.nodes().id().collect()
     }
 
     fn node_names(&self) -> impl Iterator<Item = String> {
-        self.nodes().name()
+        self.nodes().name().into_iter()
+    }
+
+    fn node_type_ids(&self) -> Option<impl Iterator<Item = usize>> {
+        if self.core_graph().node_meta().node_type_meta().len() <= 1 {
+            None
+        } else {
+            let core_nodes = self.core_nodes();
+            Some((0..core_nodes.len()).map(move |i| core_nodes.node_entry(VID(i)).node_type_id()))
+        }
+    }
+
+    fn node_types(&self) -> Option<impl Iterator<Item = String>> {
+        let meta = self.core_graph().node_meta().node_type_meta();
+        if meta.len() <= 1 {
+            None
+        } else {
+            Some(meta.get_keys().into_iter().map(|s| s.to_string()))
+        }
     }
 
     fn layer_names(&self) -> Vec<String> {

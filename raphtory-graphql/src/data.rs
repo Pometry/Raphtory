@@ -9,7 +9,7 @@ use async_graphql::Error;
 use dynamic_graphql::Result;
 use moka::sync::Cache;
 #[cfg(feature = "storage")]
-use raphtory::disk_graph::graph_impl::DiskGraph;
+use raphtory::disk_graph::DiskGraphStorage;
 use raphtory::{
     core::utils::errors::GraphError, db::api::view::MaterializedGraph, search::IndexedGraph,
 };
@@ -121,21 +121,17 @@ fn load_disk_graph_from_path(
     target_path: &Path,
     overwrite: bool,
 ) -> Result<Option<PathBuf>> {
-    let (_, graph) = load_disk_graph(path_on_server)?;
-    let graph_dir = &graph
-        .into_disk_graph()
-        .ok_or_else(|| Error::new("Failed to convert graph"))?
-        .graph_dir;
+    let _ = load_disk_graph(path_on_server)?;
     if target_path.exists() {
         if overwrite {
             fs::remove_dir_all(&target_path)?;
-            copy_dir_recursive(graph_dir, &target_path)?;
+            copy_dir_recursive(path_on_server, &target_path)?;
             println!("Disk Graph loaded = {}", target_path.display());
         } else {
             return Err(GraphError::GraphNameAlreadyExists(target_path.to_path_buf()).into());
         }
     } else {
-        copy_dir_recursive(graph_dir, &target_path)?;
+        copy_dir_recursive(path_on_server, &target_path)?;
         println!("Disk Graph loaded = {}", target_path.display());
     }
     Ok(Some(target_path.to_path_buf()))
@@ -312,8 +308,8 @@ pub(crate) fn load_bincode_graph(path: &Path) -> Result<(String, MaterializedGra
 
 #[cfg(feature = "storage")]
 fn load_disk_graph(path: &Path) -> Result<(String, MaterializedGraph)> {
-    let disk_graph = DiskGraph::load_from_dir(path)?;
-    let graph: MaterializedGraph = disk_graph.into();
+    let disk_graph = DiskGraphStorage::load_from_dir(path)?;
+    let graph: MaterializedGraph = disk_graph.into_graph().into(); // TODO: We currently have no way to identify disk graphs as MaterializedGraphs
     let graph_name = get_graph_name(path)?;
     Ok((graph_name, graph))
 }
@@ -326,15 +322,26 @@ fn _load_disk_graph(_path: &Path) -> Result<(String, MaterializedGraph)> {
 
 #[cfg(test)]
 mod data_tests {
-    use crate::data::{get_graph_from_path, get_graph_paths, load_graph_from_path};
-    #[cfg(feature = "storage")]
-    use raphtory::disk_graph::graph_impl::DiskGraph;
-    use raphtory::prelude::{AdditionOps, Graph, GraphViewOps};
+    use crate::{
+        data::{
+            get_graph_from_path, get_graph_paths, load_graph_from_path, save_graphs_to_work_dir,
+            Data,
+        },
+        server_config::AppConfigBuilder,
+    };
+    use raphtory::{
+        db::api::view::MaterializedGraph,
+        disk_graph::DiskGraphStorage,
+        prelude::{PropertyAdditionOps, *},
+    };
     use std::{
+        collections::HashMap,
         fs,
         fs::File,
         io,
         path::{Path, PathBuf},
+        thread,
+        time::Duration,
     };
 
     fn get_maybe_relative_path(work_dir: &Path, path: PathBuf) -> Option<String> {
@@ -484,12 +491,17 @@ mod data_tests {
             .unwrap();
 
         let graph_dir = tmp_graph_dir.path().join("test_dg");
-        let _ = DiskGraph::from_graph(&graph, &graph_dir).unwrap();
+        let _ = DiskGraphStorage::from_graph(&graph, &graph_dir).unwrap();
 
-        let res = load_graph_from_path(tmp_work_dir.path(), &graph_dir, &None, true).unwrap();
+        let res = load_graph_from_path(tmp_work_dir.path(), &graph_dir, &None, true)
+            .unwrap()
+            .display()
+            .to_string();
         assert_eq!(res, "test_dg");
 
-        let graph = DiskGraph::load_from_dir(tmp_work_dir.path().join("test_dg")).unwrap();
+        let graph = DiskGraphStorage::load_from_dir(tmp_work_dir.path().join("test_dg"))
+            .unwrap()
+            .into_graph();
         assert_eq!(graph.count_edges(), 2);
     }
 
@@ -557,11 +569,11 @@ mod data_tests {
             .add_edge(0, 1, 3, [("name", "test_e2")], None)
             .unwrap();
         let graph_path = tmp_graph_dir.path().join("test_dg");
-        let _ = DiskGraph::from_graph(&graph, &graph_path).unwrap();
+        let _ = DiskGraphStorage::from_graph(&graph, &graph_path).unwrap();
 
         let res = get_graph_from_path(&graph_path).unwrap();
         assert_eq!(res.0, "test_dg");
-        assert_eq!(res.1.graph.into_disk_graph().unwrap().count_edges(), 2);
+        assert_eq!(res.1.graph.into_events().unwrap().count_edges(), 2);
 
         // Dir path doesn't exists
         let res = get_graph_from_path(&tmp_graph_dir.path().join("test_dg1"));
@@ -595,7 +607,10 @@ mod data_tests {
             .unwrap();
 
         let graph_path2 = tmp_graph_dir.path().join("test_dg");
-        let graph2 = DiskGraph::from_graph(&graph, &graph_path2).unwrap().into();
+        let graph2 = DiskGraphStorage::from_graph(&graph, &graph_path2)
+            .unwrap()
+            .into_graph()
+            .into();
 
         let graph: MaterializedGraph = graph.into();
         let graphs = HashMap::from([
@@ -627,7 +642,7 @@ mod data_tests {
         graph.save_to_file(&graph_path1).unwrap();
 
         let graph_path2 = tmp_graph_dir.path().join("test_dg");
-        let _ = DiskGraph::from_graph(&graph, &graph_path2).unwrap();
+        let _ = DiskGraphStorage::from_graph(&graph, &graph_path2).unwrap();
 
         let graph_path3 = tmp_graph_dir.path().join("test_g2");
         graph.save_to_file(&graph_path3).unwrap();

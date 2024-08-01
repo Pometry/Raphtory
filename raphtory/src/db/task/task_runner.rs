@@ -225,7 +225,8 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         let pool = num_threads.map(custom_pool).unwrap_or_else(|| POOL.clone());
 
         let num_nodes = self.ctx.graph().unfiltered_num_nodes();
-        let storage = self.ctx.graph().core_graph();
+        let graph = self.ctx.graph();
+        let storage = graph.core_graph();
         let morcel_size = num_nodes.min(16_000);
         let num_chunks = if morcel_size == 0 {
             1
@@ -251,7 +252,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
             global_state,
             cur_local_state,
             &prev_local_state,
-            &storage,
+            storage,
         );
 
         // To allow the init step to cache stuff we will copy everything from cur_local_state to prev_local_state
@@ -266,7 +267,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                 global_state,
                 cur_local_state,
                 &prev_local_state,
-                &storage,
+                storage,
             );
 
             // copy and reset the state from the step that just ended

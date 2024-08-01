@@ -1,3 +1,7 @@
+use std::borrow::Borrow;
+
+use raphtory_api::core::storage::arc_str::OptionAsStr;
+
 use crate::{
     core::{
         entities::LayerIds,
@@ -5,21 +9,18 @@ use crate::{
             GraphError,
             GraphError::{EdgeExistsError, NodeExistsError},
         },
-        OptionAsStr,
     },
     db::{
         api::{
             mutation::internal::{
                 InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
             },
-            storage::nodes::node_storage_ops::NodeStorageOps,
-            view::{internal::InternalMaterialize, StaticGraphViewOps},
+            view::{internal::InternalMaterialize, IntoDynamic, StaticGraphViewOps},
         },
         graph::{edge::EdgeView, node::NodeView},
     },
     prelude::{AdditionOps, EdgeViewOps, GraphViewOps, NodeViewOps},
 };
-use std::borrow::Borrow;
 
 use super::time_from_input;
 
@@ -128,8 +129,7 @@ impl<
             return Err(NodeExistsError(node.id()));
         }
 
-        let node_internal =
-            self.resolve_node(node.id(), node.graph.core_node_entry(node.node).name());
+        let node_internal = self.resolve_node(node.id())?;
         let node_internal_type_id = self
             .resolve_node_type(node_internal, node.node_type().as_str())
             .unwrap_or(0usize);
@@ -189,7 +189,7 @@ impl<
         // make sure we preserve all layers even if they are empty
         // skip default layer
         for layer in edge.graph.unique_layers().skip(1) {
-            self.resolve_layer(Some(&layer));
+            self.resolve_layer(Some(&layer))?;
         }
         if !force && self.has_edge(edge.src().name(), edge.dst().name()) {
             return Err(EdgeExistsError(edge.src().id(), edge.dst().id()));
@@ -218,9 +218,9 @@ impl<
             if self.include_deletions() {
                 for t in edge.graph.edge_deletion_history(edge.edge, &layer_ids) {
                     let ti = time_from_input(self, t)?;
-                    let src_id = self.resolve_node(edge.src().id(), Some(&edge.src().name()));
-                    let dst_id = self.resolve_node(edge.dst().id(), Some(&edge.dst().name()));
-                    let layer = self.resolve_layer(layer_name);
+                    let src_id = self.resolve_node(edge.src().id())?;
+                    let dst_id = self.resolve_node(edge.dst().id())?;
+                    let layer = self.resolve_layer(layer_name)?;
                     self.internal_delete_edge(ti, src_id, dst_id, layer)?;
                 }
             }

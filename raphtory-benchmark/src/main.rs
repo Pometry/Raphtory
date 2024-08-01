@@ -1,4 +1,3 @@
-use chrono::DateTime;
 use clap::{ArgAction, Parser};
 use csv::StringRecord;
 use flate2::read::GzDecoder;
@@ -6,7 +5,8 @@ use raphtory::{
     algorithms::{
         centrality::pagerank::unweighted_page_rank, components::weakly_connected_components,
     },
-    graph_loader::{fetch_file, source::csv_loader::CsvLoader},
+    graph_loader::fetch_file,
+    io::csv_loader::CsvLoader,
     prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, NO_PROPS},
 };
 use std::{
@@ -17,10 +17,10 @@ use std::{
 };
 
 #[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None )]
+#[command(author, version, about, long_about = None)]
 struct Args {
     /// Set if the file has a header, default is False
-    #[arg(long, action=ArgAction::SetTrue)]
+    #[arg(long, action = ArgAction::SetTrue)]
     header: bool,
 
     /// Delimiter of the csv file
@@ -44,12 +44,16 @@ struct Args {
     time_column: i32,
 
     /// Download default files
-    #[arg(long, action=ArgAction::SetTrue)]
+    #[arg(long, action = ArgAction::SetTrue)]
     download: bool,
 
     /// Debug to print more info to the screen
-    #[arg(long, action=ArgAction::SetTrue)]
+    #[arg(long, action = ArgAction::SetTrue)]
     debug: bool,
+
+    /// Set the number of locks for the node and edge storage
+    #[arg(long)]
+    num_shards: Option<usize>,
 }
 
 fn main() {
@@ -85,6 +89,7 @@ fn main() {
     let to_column = args.to_column;
     let time_column = args.time_column;
     let download = args.download;
+    let num_shards = args.num_shards;
 
     if download {
         let url = "https://osf.io/download/nbq6h/";
@@ -139,38 +144,35 @@ fn main() {
     println!("Running setup...");
     let mut now = Instant::now();
     // Iterate over the CSV records
-    let g = {
-        let g = Graph::new();
-        CsvLoader::new(file_path)
-            .set_header(header)
-            .set_delimiter(&delimiter)
-            .load_rec_into_graph(&g, |generic_loader: StringRecord, g: &Graph| {
-                let src_id = generic_loader
-                    .get(from_column)
-                    .map(|s| s.to_owned())
-                    .unwrap();
-                let dst_id = generic_loader.get(to_column).map(|s| s.to_owned()).unwrap();
-                let mut edge_time = DateTime::from_timestamp(1, 0).unwrap().naive_utc();
-                if time_column != -1 {
-                    edge_time = DateTime::from_timestamp_millis(
-                        generic_loader
-                            .get(time_column as usize)
-                            .unwrap()
-                            .parse()
-                            .unwrap(),
-                    )
-                    .unwrap()
-                    .naive_utc();
-                }
-                if debug {
-                    println!("Adding edge {} -> {} at time {}", src_id, dst_id, edge_time);
-                }
-                g.add_edge(edge_time, src_id, dst_id, NO_PROPS, None)
-                    .expect("Failed to add edge");
-            })
-            .expect("Failed to load graph from CSV data files");
-        g
+    let g = match num_shards {
+        Some(num_shards) => {
+            println!("Constructing graph with {num_shards} shards.");
+            Graph::new_with_shards(num_shards)
+        }
+        None => Graph::new(),
     };
+    CsvLoader::new(file_path)
+        .set_header(header)
+        .set_delimiter(&delimiter)
+        .load_rec_into_graph(&g, |generic_loader: StringRecord, g: &Graph| {
+            let src_id = generic_loader.get(from_column).unwrap();
+            let dst_id = generic_loader.get(to_column).unwrap();
+            let edge_time = if time_column != -1 {
+                generic_loader
+                    .get(time_column as usize)
+                    .unwrap()
+                    .parse()
+                    .unwrap()
+            } else {
+                1i64
+            };
+            if debug {
+                println!("Adding edge {} -> {} at time {}", src_id, dst_id, edge_time);
+            }
+            g.add_edge(edge_time, src_id, dst_id, NO_PROPS, None)
+                .expect("Failed to add edge");
+        })
+        .expect("Failed to load graph from CSV data files");
     println!("Setup took {} seconds", now.elapsed().as_secs_f64());
 
     if debug {
@@ -188,11 +190,8 @@ fn main() {
 
     // Out neighbours of all nodes with time
     now = Instant::now();
-    let _out_neighbours = g
-        .nodes()
-        .iter()
-        .map(|v| v.out_neighbours())
-        .collect::<Vec<_>>();
+    let nodes = &g.nodes();
+    let _out_neighbours = nodes.iter().map(|v| v.out_neighbours()).collect::<Vec<_>>();
     println!("Out neighbours: {} seconds", now.elapsed().as_secs_f64());
 
     // page rank with time

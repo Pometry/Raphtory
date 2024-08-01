@@ -624,7 +624,7 @@ def test_load_from_pandas_with_types():
         assert g.layers(["layer 3"]).edges.src.id.collect() == [3]
         with pytest.raises(
             Exception,
-            match=re.escape("Invalid layer test_layer."),
+            match=re.escape("Invalid layer: test_layer. Valid layers: _default, layer 1, layer 2, layer 3, layer 4, layer 5"),
         ):
             g.layers(["test_layer"])
 

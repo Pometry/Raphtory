@@ -1,13 +1,16 @@
+use std::borrow::Cow;
+
 use crate::{
     core::{
         entities::{
             edges::edge_ref::EdgeRef, nodes::node_store::NodeStore, properties::tprop::TProp,
-            LayerIds, VID,
+            GidRef, LayerIds, VID,
         },
         storage::ArcEntry,
-        Direction, OptionAsStr,
+        Direction,
     },
     db::api::{storage::tprop_storage_ops::TPropOps, view::internal::NodeAdditions},
+    prelude::Prop,
 };
 use itertools::Itertools;
 
@@ -18,6 +21,8 @@ pub trait NodeStorageOps<'a>: Sized {
 
     fn tprop(self, prop_id: usize) -> impl TPropOps<'a>;
 
+    fn prop(self, prop_id: usize) -> Option<Prop>;
+
     fn edges_iter(self, layers: &'a LayerIds, dir: Direction)
         -> impl Iterator<Item = EdgeRef> + 'a;
 
@@ -25,9 +30,9 @@ pub trait NodeStorageOps<'a>: Sized {
 
     fn vid(self) -> VID;
 
-    fn id(self) -> u64;
+    fn id(self) -> GidRef<'a>;
 
-    fn name(self) -> Option<&'a str>;
+    fn name(self) -> Option<Cow<'a, str>>;
 
     fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef>;
 }
@@ -43,6 +48,10 @@ impl<'a> NodeStorageOps<'a> for &'a NodeStore {
 
     fn tprop(self, prop_id: usize) -> impl TPropOps<'a> {
         self.temporal_property(prop_id).unwrap_or(&TProp::Empty)
+    }
+
+    fn prop(self, prop_id: usize) -> Option<Prop> {
+        self.constant_property(prop_id).cloned()
     }
 
     fn edges_iter(
@@ -61,12 +70,12 @@ impl<'a> NodeStorageOps<'a> for &'a NodeStore {
         self.vid
     }
 
-    fn id(self) -> u64 {
-        self.global_id
+    fn id(self) -> GidRef<'a> {
+        (&self.global_id).into()
     }
 
-    fn name(self) -> Option<&'a str> {
-        self.name.as_str()
+    fn name(self) -> Option<Cow<'a, str>> {
+        self.global_id.as_str().map(Cow::from)
     }
 
     fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef> {

@@ -1,7 +1,6 @@
 use itertools::Itertools;
 use num_integer::average_floor;
 extern crate num_integer;
-
 use crate::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
@@ -23,8 +22,8 @@ pub fn temporal_bipartite_projection<G: StaticGraphViewOps>(
     pivot_type: String,
 ) -> Graph {
     let new_graph = Graph::new();
-    let nodes = graph
-        .nodes()
+    let nodes = graph.nodes();
+    let nodes = nodes
         .iter()
         .filter(|v| v.node_type().unwrap() == pivot_type);
     for v in nodes {
@@ -62,8 +61,6 @@ fn populate_edges<G: StaticGraphViewOps, V: AsNodeRef>(g: &G, new_graph: &Graph,
             }
             to_process.push(nb.clone());
         }
-    } else {
-        return;
     }
 }
 

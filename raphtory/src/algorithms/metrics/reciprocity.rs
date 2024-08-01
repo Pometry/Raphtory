@@ -73,15 +73,21 @@ fn get_reciprocal_edge_count<
 >(
     v: &EvalNodeView<'graph, '_, G, (), GH, CS>,
 ) -> (usize, usize, usize) {
-    let id = v.id();
-    let out_neighbours: HashSet<u64> = v.out_neighbours().id().filter(|x| *x != id).collect();
+    let id = v.node;
+    let out_neighbours: HashSet<_> = v
+        .out_neighbours()
+        .iter()
+        .filter_map(|x| (x.node != id).then_some(x.node))
+        .collect();
 
-    let in_neighbours = v.in_neighbours().id().filter(|x| *x != id).count();
+    let in_neighbours: HashSet<_> = v
+        .in_neighbours()
+        .iter()
+        .filter_map(|x| (x.node != id).then_some(x.node))
+        .collect();
 
-    let out_inter_in = out_neighbours
-        .intersection(&v.in_neighbours().id().filter(|x| *x != id).collect())
-        .count();
-    (out_neighbours.len(), in_neighbours, out_inter_in)
+    let out_inter_in = out_neighbours.intersection(&in_neighbours).count();
+    (out_neighbours.len(), in_neighbours.len(), out_inter_in)
 }
 
 /// returns the global reciprocity of the entire graph

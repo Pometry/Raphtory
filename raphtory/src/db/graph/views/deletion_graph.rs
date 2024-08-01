@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, graph::tgraph::InternalGraph, LayerIds, VID},
+        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexIntoOps, TimeIndexOps},
         utils::errors::GraphError,
         Prop,
@@ -12,6 +12,7 @@ use crate::{
             storage::{
                 edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
                 nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+                storage_ops::GraphStorage,
                 tprop_storage_ops::TPropOps,
             },
             view::{internal::*, BoxedIter, IntoDynBoxed},
@@ -29,7 +30,6 @@ use std::{
     iter,
     ops::Range,
     path::Path,
-    sync::Arc,
 };
 
 /// A graph view where an edge remains active from the time it is added until it is explicitly marked as deleted.
@@ -38,13 +38,13 @@ use std::{
 /// The deletion only has an effect on the exploded edge view that are returned. An edge is included in a windowed view of the graph if
 /// it is considered active at any point in the window.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct PersistentGraph(pub Arc<InternalGraph>);
+pub struct PersistentGraph(pub GraphStorage);
 
 impl Static for PersistentGraph {}
 
-impl From<InternalGraph> for PersistentGraph {
-    fn from(value: InternalGraph) -> Self {
-        Self(Arc::new(value))
+impl From<GraphStorage> for PersistentGraph {
+    fn from(value: GraphStorage) -> Self {
+        Self(value)
     }
 }
 
@@ -115,11 +115,11 @@ impl Default for PersistentGraph {
 
 impl PersistentGraph {
     pub fn new() -> Self {
-        Self(Arc::new(InternalGraph::default()))
+        Self(GraphStorage::default())
     }
 
-    pub fn from_internal_graph(internal_graph: Arc<InternalGraph>) -> Self {
-        Self(internal_graph)
+    pub fn from_internal_graph(internal_graph: &GraphStorage) -> Self {
+        Self(internal_graph.clone())
     }
 
     /// Save a graph to a directory
@@ -168,7 +168,7 @@ impl PersistentGraph {
 
     /// Get event graph
     pub fn event_graph(&self) -> Graph {
-        Graph::from_internal_graph(self.0.clone())
+        Graph::from_internal_graph(&self.0)
     }
 }
 
@@ -179,7 +179,7 @@ impl<'graph, G: GraphViewOps<'graph>> PartialEq<G> for PersistentGraph {
 }
 
 impl Base for PersistentGraph {
-    type Base = InternalGraph;
+    type Base = GraphStorage;
     #[inline(always)]
     fn base(&self) -> &Self::Base {
         &self.0
@@ -187,8 +187,8 @@ impl Base for PersistentGraph {
 }
 
 impl InternalMaterialize for PersistentGraph {
-    fn new_base_graph(&self, graph: InternalGraph) -> MaterializedGraph {
-        MaterializedGraph::PersistentGraph(PersistentGraph(Arc::new(graph)))
+    fn new_base_graph(&self, graph: GraphStorage) -> MaterializedGraph {
+        MaterializedGraph::PersistentGraph(PersistentGraph(graph))
     }
 
     fn include_deletions(&self) -> bool {
@@ -240,17 +240,22 @@ impl TimeSemantics for PersistentGraph {
     }
 
     fn earliest_time_window(&self, start: i64, end: i64) -> Option<i64> {
-        self.0.earliest_time_window(start, end)
+        self.earliest_time_global()
+            .map(|t| t.max(start))
+            .filter(|&t| t < end)
     }
 
     fn latest_time_window(&self, start: i64, end: i64) -> Option<i64> {
-        self.0.latest_time_window(start, end)
+        self.latest_time_global()
+            .map(|t| t.min(end.saturating_sub(1)))
+            .filter(|&t| t > start)
     }
 
     fn node_earliest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
         let v = self.core_node_entry(v);
-        if v.additions().first_t()? <= start {
-            Some(v.additions().range_t(start..end).first_t().unwrap_or(start))
+        let additions = v.additions();
+        if additions.first_t()? <= start {
+            Some(additions.range_t(start..end).first_t().unwrap_or(start))
         } else {
             None
         }
@@ -684,12 +689,15 @@ mod test_deletions {
         db::{
             api::view::time::internal::InternalTimeOps,
             graph::{
-                edge::EdgeView, graph::assert_graph_equal, views::deletion_graph::PersistentGraph,
+                edge::EdgeView,
+                graph::assert_graph_equal,
+                views::deletion_graph::{PersistentGraph, TimeSemantics},
             },
         },
         prelude::*,
     };
     use itertools::Itertools;
+    use raphtory_api::core::entities::GID;
 
     #[test]
     fn test_nodes() {
@@ -741,11 +749,14 @@ mod test_deletions {
             .unwrap();
         g.delete_edge(10, 0, 1, None).unwrap();
 
-        assert_eq!(g.edges().id().collect::<Vec<_>>(), vec![(0, 1)]);
+        assert_eq!(
+            g.edges().id().collect::<Vec<_>>(),
+            vec![(GID::U64(0), GID::U64(1))]
+        );
 
         assert_eq!(
             g.window(1, 2).edges().id().collect::<Vec<_>>(),
-            vec![(0, 1)]
+            vec![(GID::U64(0), GID::U64(1))]
         );
 
         assert_eq!(g.window(1, 2).count_edges(), 1);
@@ -845,6 +856,44 @@ mod test_deletions {
             .into_persistent()
             .unwrap();
         assert_graph_equal(&gm, &g.window(3, 5))
+    }
+
+    #[test]
+    fn test_materialize_window_earliest_time() {
+        let g = PersistentGraph::new();
+        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        g.delete_edge(10, 1, 2, None).unwrap();
+
+        let ltg = g.latest_time_global();
+        assert_eq!(ltg, Some(10));
+
+        let wg = g.window(3, 5);
+
+        let e = wg.edge(1, 2).unwrap();
+        assert_eq!(e.earliest_time(), Some(3));
+        assert_eq!(e.latest_time(), Some(4));
+        let n1 = wg.node(1).unwrap();
+        assert_eq!(n1.earliest_time(), Some(3));
+        assert_eq!(n1.latest_time(), Some(4));
+        let n2 = wg.node(2).unwrap();
+        assert_eq!(n2.earliest_time(), Some(3));
+        assert_eq!(n2.latest_time(), Some(4));
+
+        let actual_lt = wg.latest_time();
+        assert_eq!(actual_lt, Some(4));
+
+        let actual_et = wg.earliest_time();
+        assert_eq!(actual_et, Some(3));
+
+        let gm = g
+            .window(3, 5)
+            .materialize()
+            .unwrap()
+            .into_persistent()
+            .unwrap();
+
+        let expected_et = gm.earliest_time();
+        assert_eq!(actual_et, expected_et);
     }
 
     #[test]
@@ -1227,9 +1276,15 @@ mod test_deletions {
         pg.add_edge(0, 0, 1, [("added", Prop::I64(0))], None)
             .unwrap();
         pg.delete_edge(10, 0, 1, None).unwrap();
-        assert_eq!(pg.edges().id().collect::<Vec<_>>(), vec![(0, 1)]);
+        assert_eq!(
+            pg.edges().id().collect::<Vec<_>>(),
+            vec![(GID::U64(0), GID::U64(1))]
+        );
 
         let g = pg.event_graph();
-        assert_eq!(g.edges().id().collect::<Vec<_>>(), vec![(0, 1)]);
+        assert_eq!(
+            g.edges().id().collect::<Vec<_>>(),
+            vec![(GID::U64(0), GID::U64(1))]
+        );
     }
 }

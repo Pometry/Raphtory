@@ -1,5 +1,10 @@
+use std::borrow::Cow;
+
+use raphtory_api::core::entities::GidRef;
+
 #[cfg(feature = "storage")]
 use crate::db::api::storage::variants::storage_variants::StorageVariants;
+
 #[cfg(feature = "storage")]
 use crate::disk_graph::storage_interface::node::DiskNode;
 use crate::{
@@ -11,6 +16,7 @@ use crate::{
         storage::{nodes::node_storage_ops::NodeStorageOps, tprop_storage_ops::TPropOps},
         view::internal::NodeAdditions,
     },
+    prelude::Prop,
 };
 
 #[derive(Copy, Clone, Debug)]
@@ -91,15 +97,19 @@ impl<'a> NodeStorageOps<'a> for NodeStorageRef<'a> {
         for_all!(self, node => node.vid())
     }
 
-    fn id(self) -> u64 {
+    fn id(self) -> GidRef<'a> {
         for_all!(self, node => node.id())
     }
 
-    fn name(self) -> Option<&'a str> {
+    fn name(self) -> Option<Cow<'a, str>> {
         for_all!(self, node => node.name())
     }
 
     fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef> {
         for_all!(self, node => NodeStorageOps::find_edge(node, dst, layer_ids))
+    }
+
+    fn prop(self, prop_id: usize) -> Option<Prop> {
+        for_all!(self, node => node.prop(prop_id))
     }
 }

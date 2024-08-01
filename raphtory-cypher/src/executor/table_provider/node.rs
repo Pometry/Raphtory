@@ -1,5 +1,7 @@
-use std::{any::Any, fmt::Formatter, sync::Arc};
-
+use crate::{
+    arrow2::{self, array::to_data, datatypes::ArrowDataType},
+    executor::ExecError,
+};
 use arrow::datatypes::UInt64Type;
 use arrow_array::{make_array, Array, PrimitiveArray};
 use arrow_buffer::ScalarBuffer;
@@ -19,33 +21,30 @@ use datafusion::{
     },
 };
 use futures::Stream;
-use pometry_storage::properties::Properties;
-
+use pometry_storage::properties::ConstProps;
 use raphtory::{
     core::entities::VID,
-    disk_graph::{graph_impl::DiskGraph, prelude::*},
+    disk_graph::{prelude::*, DiskGraphStorage},
 };
-
-use crate::{
-    arrow2::{self, array::to_data, datatypes::ArrowDataType},
-    executor::ExecError,
-};
+use std::{any::Any, fmt::Formatter, sync::Arc};
 
 pub struct NodeTableProvider {
-    graph: DiskGraph,
+    graph: DiskGraphStorage,
     schema: SchemaRef,
     num_partitions: usize,
     chunk_size: usize,
 }
 
 impl NodeTableProvider {
-    pub fn new(g: DiskGraph) -> Result<Self, ExecError> {
+    pub fn new(g: DiskGraphStorage) -> Result<Self, ExecError> {
         let graph = g.as_ref();
         let (num_partitions, chunk_size) = graph
             .node_properties()
+            .const_props
+            .as_ref()
             .map(|properties| {
-                let num_partitions = properties.const_props.props().num_chunks();
-                let chunk_size = properties.const_props.props().chunk_size();
+                let num_partitions = properties.props().num_chunks();
+                let chunk_size = properties.props().chunk_size();
                 (num_partitions, chunk_size)
             })
             .unwrap_or_else(|| {
@@ -54,7 +53,10 @@ impl NodeTableProvider {
             });
 
         let name_dt = graph.global_ordering().data_type();
-        let schema = lift_arrow_schema(name_dt.clone(), graph.node_properties())?;
+        let schema = lift_arrow_schema(
+            name_dt.clone(),
+            graph.node_properties().const_props.as_ref(),
+        )?;
 
         Ok(Self {
             graph: g,
@@ -67,7 +69,7 @@ impl NodeTableProvider {
 
 pub fn lift_arrow_schema(
     gid_dt: ArrowDataType,
-    properties: Option<&Properties<VID>>,
+    properties: Option<&ConstProps<VID>>,
 ) -> Result<SchemaRef, ExecError> {
     let mut fields = vec![];
 
@@ -79,7 +81,7 @@ pub fn lift_arrow_schema(
 
     fields.push(arrow2::datatypes::Field::new("gid", gid_dt, false));
     if let Some(properties) = properties {
-        fields.extend_from_slice(properties.const_props.prop_dtypes());
+        fields.extend_from_slice(properties.prop_dtypes());
     }
 
     let dt: DataType = ArrowDataType::Struct(fields).into();
@@ -132,7 +134,7 @@ impl TableProvider for NodeTableProvider {
 }
 
 async fn produce_record_batch(
-    g: DiskGraph,
+    g: DiskGraphStorage,
     schema: SchemaRef,
     chunk_id: usize,
     chunk_size: usize,
@@ -141,9 +143,11 @@ async fn produce_record_batch(
     let graph = g.as_ref();
     let properties = graph
         .node_properties()
+        .const_props
+        .as_ref()
         .ok_or_else(|| DataFusionError::Execution("Failed to find node properties".to_string()))?;
 
-    let const_props = properties.const_props.props();
+    let const_props = properties.props();
 
     let chunk = const_props.chunk(chunk_id);
 
@@ -182,7 +186,7 @@ async fn produce_record_batch(
 }
 
 struct NodeScanExecPlan {
-    graph: DiskGraph,
+    graph: DiskGraphStorage,
     schema: SchemaRef,
     num_partitions: usize,
     chunk_size: usize,

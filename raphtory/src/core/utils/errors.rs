@@ -1,4 +1,7 @@
-use crate::core::{utils::time::error::ParseTimeError, ArcStr, Prop, PropType};
+use crate::core::{utils::time::error::ParseTimeError, Prop, PropType};
+#[cfg(feature = "arrow")]
+use polars_arrow::legacy::error;
+use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 use std::path::PathBuf;
 #[cfg(feature = "search")]
 use tantivy;
@@ -7,6 +10,9 @@ use tantivy::query::QueryParserError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum GraphError {
+    #[cfg(feature = "arrow")]
+    #[error("Arrow error: {0}")]
+    Arrow(#[from] error::PolarsError),
     #[error("Invalid path: {0:?}")]
     InvalidPath(PathBuf),
     #[error("Graph error occurred")]
@@ -49,11 +55,11 @@ pub enum GraphError {
         source: ParseTimeError,
     },
 
-    #[error("Node already exists with ID {0}")]
-    NodeExistsError(u64),
+    #[error("Node already exists with ID {0:?}")]
+    NodeExistsError(GID),
 
-    #[error("Edge already exists for nodes {0} {1}")]
-    EdgeExistsError(u64, u64),
+    #[error("Edge already exists for nodes {0:?} {1:?}")]
+    EdgeExistsError(GID, GID),
 
     #[error("No Node with ID {0}")]
     NodeIdError(u64),
@@ -72,8 +78,11 @@ pub enum GraphError {
     // wasm
     #[error("Node is not String or Number")]
     NodeIdNotStringOrNumber,
-    #[error("Invalid layer {0}.")]
-    InvalidLayer(String),
+    #[error("Invalid layer: {invalid_layer}. Valid layers: {valid_layers}")]
+    InvalidLayer {
+        invalid_layer: String,
+        valid_layers: String,
+    },
     #[error("Layer {layer} does not exist for edge ({src}, {dst})")]
     InvalidEdgeLayer {
         layer: String,
@@ -95,11 +104,11 @@ pub enum GraphError {
         source: std::io::Error,
     },
 
-    #[cfg(feature = "python")]
+    #[cfg(feature = "arrow")]
     #[error("Failed to load graph: {0}")]
     LoadFailure(String),
 
-    #[cfg(feature = "python")]
+    #[cfg(feature = "arrow")]
     #[error(
         "Failed to load graph as the following columns are not present within the dataframe: {0}"
     )]
@@ -129,6 +138,30 @@ pub enum GraphError {
 
     #[error("The time function is only available once an edge has been exploded via .explode(). You may want to retrieve the history for this edge via .history(), or the earliest/latest time via earliest_time or latest_time")]
     TimeAPIError,
+
+    #[error("Illegal set error {0}")]
+    IllegalSet(String),
+
+    #[cfg(feature = "proto")]
+    #[error("Protobuf encode error{0}")]
+    DecodeError(#[from] prost::DecodeError),
+
+    #[cfg(feature = "proto")]
+    #[error("Protobuf decode error{0}")]
+    EncodeError(#[from] prost::EncodeError),
+
+    #[error("Immutable graph is .. immutable!")]
+    AttemptToMutateImmutableGraph,
+}
+
+impl GraphError {
+    pub fn invalid_layer(invalid_layer: String, valid_layers: Vec<String>) -> Self {
+        let valid_layers = valid_layers.join(", ");
+        GraphError::InvalidLayer {
+            invalid_layer,
+            valid_layers,
+        }
+    }
 }
 
 #[derive(thiserror::Error, Debug, PartialEq)]
@@ -149,4 +182,6 @@ pub enum MutateGraphError {
     NoLayersError,
     #[error("Cannot add properties to edge view with more than one layer")]
     AmbiguousLayersError,
+    #[error("Invalid Node id {0:?}")]
+    InvalidNodeId(GID),
 }

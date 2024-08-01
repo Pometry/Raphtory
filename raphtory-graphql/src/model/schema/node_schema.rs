@@ -35,7 +35,7 @@ impl NodeSchema {
             None => false,
         };
 
-        let filtered_nodes = self.graph.nodes().iter().filter(filter_type);
+        let filtered_nodes = self.graph.nodes().iter_owned().filter(filter_type);
 
         let schema: SchemaAggregate = filtered_nodes
             .map(collect_node_schema)

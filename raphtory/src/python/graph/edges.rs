@@ -1,5 +1,5 @@
 use crate::{
-    core::{utils::errors::GraphError, ArcStr, Prop},
+    core::{utils::errors::GraphError, Prop},
     db::{
         api::view::{
             internal::CoreGraphOps, BoxedIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
@@ -15,12 +15,12 @@ use crate::{
         graph::properties::{PyNestedPropsIterable, PyPropsList},
         types::{
             repr::{iterator_repr, Repr},
-            wrappers::iterators::{
-                ArcStringIterable, ArcStringVecIterable, BoolIterable, I64Iterable, I64VecIterable,
-                NestedArcStringIterable, NestedArcStringVecIterable, NestedBoolIterable,
-                NestedI64VecIterable, NestedOptionI64Iterable, NestedU64U64Iterable,
-                NestedUtcDateTimeIterable, NestedVecUtcDateTimeIterable, OptionI64Iterable,
-                OptionUtcDateTimeIterable, OptionVecUtcDateTimeIterable, U64U64Iterable,
+            wrappers::iterables::{
+                ArcStringIterable, ArcStringVecIterable, BoolIterable, GIDGIDIterable, I64Iterable,
+                I64VecIterable, NestedArcStringIterable, NestedArcStringVecIterable,
+                NestedBoolIterable, NestedGIDGIDIterable, NestedI64VecIterable,
+                NestedOptionI64Iterable, NestedUtcDateTimeIterable, NestedVecUtcDateTimeIterable,
+                OptionI64Iterable, OptionUtcDateTimeIterable, OptionVecUtcDateTimeIterable,
             },
         },
         utils::{
@@ -34,6 +34,7 @@ use pyo3::{
     prelude::PyModule, pyclass, pymethods, types::PyDict, IntoPy, PyObject, PyResult, Python,
     ToPyObject,
 };
+use raphtory_api::core::storage::arc_str::ArcStr;
 use rayon::{iter::IntoParallelIterator, prelude::*};
 use std::collections::HashMap;
 
@@ -164,7 +165,7 @@ impl PyEdges {
 
     /// Returns all ids of the edges.
     #[getter]
-    fn id(&self) -> U64U64Iterable {
+    fn id(&self) -> GIDGIDIterable {
         let edges = self.edges.clone();
         (move || edges.id()).into()
     }
@@ -478,7 +479,7 @@ impl PyNestedEdges {
 
     /// Returns all ids of the edges.
     #[getter]
-    fn id(&self) -> NestedU64U64Iterable {
+    fn id(&self) -> NestedGIDGIDIterable {
         let edges = self.edges.clone();
         (move || edges.id()).into()
     }

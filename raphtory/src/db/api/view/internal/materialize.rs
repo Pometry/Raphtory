@@ -2,17 +2,16 @@ use crate::{
     core::{
         entities::{
             edges::edge_ref::EdgeRef,
-            graph::tgraph::InternalGraph,
-            nodes::node_ref::NodeRef,
+            nodes::node_ref::{AsNodeRef, NodeRef},
             properties::{graph_meta::GraphMeta, props::Meta, tprop::TProp},
-            LayerIds, EID, ELID, VID,
+            LayerIds, EID, ELID, GID, VID,
         },
         storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
         utils::errors::{
             GraphError,
             GraphError::{EventGraphDeletionsNotSupported, ImmutableDiskGraph},
         },
-        ArcStr, PropType,
+        PropType,
     },
     db::{
         api::{
@@ -37,16 +36,15 @@ use crate::{
         },
         graph::{graph::Graph, views::deletion_graph::PersistentGraph},
     },
+    disk_graph::DiskGraphStorage,
     prelude::*,
     BINCODE_VERSION,
 };
 use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
+use raphtory_api::core::storage::arc_str::ArcStr;
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
 use std::{fs, io, path::Path};
-
-#[cfg(feature = "storage")]
-use crate::disk_graph::graph_impl::DiskGraph;
 
 #[enum_dispatch(CoreGraphOps)]
 #[enum_dispatch(InternalLayerOps)]
@@ -64,8 +62,6 @@ use crate::disk_graph::graph_impl::DiskGraph;
 pub enum MaterializedGraph {
     EventGraph(Graph),
     PersistentGraph(PersistentGraph),
-    #[cfg(feature = "storage")]
-    DiskEventGraph(DiskGraph),
 }
 
 fn version_deserialize<'de, D>(deserializer: D) -> Result<u32, D::Error>
@@ -92,30 +88,23 @@ struct VersionedGraph<T> {
 impl Static for MaterializedGraph {}
 
 impl MaterializedGraph {
+    pub fn storage(&self) -> &GraphStorage {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.core_graph(),
+            MaterializedGraph::PersistentGraph(g) => g.core_graph(),
+        }
+    }
+
     pub fn into_events(self) -> Option<Graph> {
         match self {
             MaterializedGraph::EventGraph(g) => Some(g),
             MaterializedGraph::PersistentGraph(_) => None,
-            #[cfg(feature = "storage")]
-            MaterializedGraph::DiskEventGraph(_) => None,
         }
     }
     pub fn into_persistent(self) -> Option<PersistentGraph> {
         match self {
             MaterializedGraph::EventGraph(_) => None,
             MaterializedGraph::PersistentGraph(g) => Some(g),
-            #[cfg(feature = "storage")]
-            MaterializedGraph::DiskEventGraph(_) => None,
-        }
-    }
-
-    #[cfg(feature = "storage")]
-    pub fn into_disk_graph(self) -> Option<DiskGraph> {
-        match self {
-            MaterializedGraph::EventGraph(_) => None,
-            MaterializedGraph::PersistentGraph(_) => None,
-            #[cfg(feature = "storage")]
-            MaterializedGraph::DiskEventGraph(g) => Some(g),
         }
     }
 
@@ -150,12 +139,6 @@ impl MaterializedGraph {
         match self {
             MaterializedGraph::EventGraph(g) => g.save_to_file(&path)?,
             MaterializedGraph::PersistentGraph(g) => g.save_to_file(&path)?,
-            #[cfg(feature = "storage")]
-            MaterializedGraph::DiskEventGraph(g) => {
-                let graph_dir = &g.graph_dir;
-                println!("Disk Graph saved to directory= {}", graph_dir.display());
-                copy_dir_recursive(graph_dir, path)?;
-            }
         };
 
         Ok(())
@@ -191,15 +174,13 @@ impl InternalDeletionOps for MaterializedGraph {
         match self {
             MaterializedGraph::EventGraph(_) => Err(EventGraphDeletionsNotSupported),
             MaterializedGraph::PersistentGraph(g) => g.internal_delete_edge(t, src, dst, layer),
-            #[cfg(feature = "storage")]
-            MaterializedGraph::DiskEventGraph(_) => Err(ImmutableDiskGraph),
         }
     }
 }
 
 #[enum_dispatch]
 pub trait InternalMaterialize {
-    fn new_base_graph(&self, graph: InternalGraph) -> MaterializedGraph;
+    fn new_base_graph(&self, graph: GraphStorage) -> MaterializedGraph;
 
     fn include_deletions(&self) -> bool;
 }
@@ -210,7 +191,7 @@ impl<G: InheritMaterialize> InternalMaterialize for G
 where
     G::Base: InternalMaterialize,
 {
-    fn new_base_graph(&self, graph: InternalGraph) -> MaterializedGraph {
+    fn new_base_graph(&self, graph: GraphStorage) -> MaterializedGraph {
         self.base().new_base_graph(graph)
     }
 
@@ -241,6 +222,8 @@ pub fn copy_dir_recursive(source_dir: &Path, target_dir: &Path) -> io::Result<()
 
 #[cfg(test)]
 mod test_materialised_graph_dispatch {
+    use raphtory_api::core::entities::GID;
+
     use crate::{
         core::entities::LayerIds,
         db::api::view::internal::{
@@ -293,6 +276,6 @@ mod test_materialised_graph_dispatch {
         let mg = g.materialize().unwrap();
 
         let v = mg.add_node(0, 1, NO_PROPS, None).unwrap();
-        assert_eq!(v.id(), 1)
+        assert_eq!(v.id(), GID::U64(1))
     }
 }

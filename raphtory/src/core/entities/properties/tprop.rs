@@ -1,7 +1,7 @@
 use crate::{
     core::{
         entities::properties::tcell::TCell, storage::timeindex::TimeIndexEntry,
-        utils::errors::GraphError, ArcStr, DocumentInput, Prop, PropType,
+        utils::errors::GraphError, DocumentInput, Prop, PropType,
     },
     db::{
         api::storage::tprop_storage_ops::TPropOps,
@@ -9,6 +9,7 @@ use crate::{
     },
 };
 use chrono::{DateTime, NaiveDateTime, Utc};
+use raphtory_api::core::storage::arc_str::ArcStr;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, iter, ops::Range, sync::Arc};
 
@@ -313,7 +314,7 @@ impl TProp {
 }
 
 impl<'a> TPropOps<'a> for &'a TProp {
-    fn last_before(self, t: i64) -> Option<(TimeIndexEntry, Prop)> {
+    fn last_before(&self, t: i64) -> Option<(TimeIndexEntry, Prop)> {
         match self {
             TProp::Empty => None,
             TProp::Str(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::Str(v.clone()))),

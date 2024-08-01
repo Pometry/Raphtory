@@ -1,23 +1,17 @@
+use super::{edge_entry::EdgeStorageEntry, unlocked::UnlockedEdges};
+#[cfg(feature = "storage")]
+use crate::disk_graph::storage_interface::{edges::DiskEdges, edges_ref::DiskEdgesRef};
 use crate::{
-    core::{
-        entities::{edges::edge_store::EdgeStore, LayerIds, EID},
-        storage::ReadLockedStorage,
+    core::{entities::LayerIds, storage::raw_edges::LockedEdges},
+    db::api::storage::{
+        edges::edge_storage_ops::EdgeStorageOps, variants::storage_variants3::StorageVariants,
     },
-    db::api::storage::edges::edge_ref::EdgeStorageRef,
 };
-
-#[cfg(feature = "storage")]
-use crate::disk_graph::storage_interface::edges_ref::DiskEdgesRef;
-
-use crate::db::api::storage::edges::edge_storage_ops::EdgeStorageOps;
-#[cfg(feature = "storage")]
-use crate::disk_graph::storage_interface::edges::DiskEdges;
-use either::Either;
 use rayon::iter::ParallelIterator;
 use std::sync::Arc;
 
 pub enum EdgesStorage {
-    Mem(Arc<ReadLockedStorage<EdgeStore, EID>>),
+    Mem(Arc<LockedEdges>),
     #[cfg(feature = "storage")]
     Disk(DiskEdges),
 }
@@ -33,69 +27,90 @@ impl EdgesStorage {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Debug)]
 pub enum EdgesStorageRef<'a> {
-    Mem(&'a ReadLockedStorage<EdgeStore, EID>),
+    Mem(&'a LockedEdges),
+    Unlocked(UnlockedEdges<'a>),
     #[cfg(feature = "storage")]
     Disk(DiskEdgesRef<'a>),
 }
 
 impl<'a> EdgesStorageRef<'a> {
     #[cfg(feature = "storage")]
-    pub fn iter(self, layers: LayerIds) -> impl Iterator<Item = EdgeStorageRef<'a>> {
+    pub fn iter(self, layers: LayerIds) -> impl Iterator<Item = EdgeStorageEntry<'a>> {
         match self {
-            EdgesStorageRef::Mem(storage) => Either::Left(
+            EdgesStorageRef::Mem(storage) => StorageVariants::Mem(
                 storage
                     .iter()
                     .filter(move |e| e.has_layer(&layers))
-                    .map(EdgeStorageRef::Mem),
+                    .map(EdgeStorageEntry::Mem),
+            ),
+            EdgesStorageRef::Unlocked(edges) => StorageVariants::Unlocked(
+                edges
+                    .iter()
+                    .filter(move |e| e.has_layer(&layers))
+                    .map(EdgeStorageEntry::Unlocked),
             ),
             EdgesStorageRef::Disk(storage) => {
-                Either::Right(storage.iter(layers).map(EdgeStorageRef::Disk))
+                StorageVariants::Disk(storage.iter(layers).map(EdgeStorageEntry::Disk))
             }
         }
     }
 
     #[cfg(not(feature = "storage"))]
-    pub fn iter(self, layers: LayerIds) -> impl Iterator<Item = EdgeStorageRef<'a>> {
+    pub fn iter(self, layers: LayerIds) -> impl Iterator<Item = EdgeStorageEntry<'a>> {
         match self {
-            EdgesStorageRef::Mem(storage) => {
-                Either::<_, std::iter::Empty<EdgeStorageRef<'a>>>::Left(
-                    storage
-                        .iter()
-                        .filter(move |e| e.has_layer(&layers))
-                        .map(EdgeStorageRef::Mem),
-                )
-            }
+            EdgesStorageRef::Mem(storage) => StorageVariants::Mem(
+                storage
+                    .iter()
+                    .filter(move |e| e.has_layer(&layers))
+                    .map(EdgeStorageEntry::Mem),
+            ),
+            EdgesStorageRef::Unlocked(edges) => StorageVariants::Unlocked(
+                edges
+                    .iter()
+                    .filter(move |e| e.as_mem_edge().has_layer(&layers))
+                    .map(EdgeStorageEntry::Unlocked),
+            ),
         }
     }
 
     #[cfg(feature = "storage")]
-    pub fn par_iter(self, layers: LayerIds) -> impl ParallelIterator<Item = EdgeStorageRef<'a>> {
+    pub fn par_iter(self, layers: LayerIds) -> impl ParallelIterator<Item = EdgeStorageEntry<'a>> {
         match self {
-            EdgesStorageRef::Mem(storage) => Either::Left(
+            EdgesStorageRef::Mem(storage) => StorageVariants::Mem(
                 storage
                     .par_iter()
                     .filter(move |e| e.has_layer(&layers))
-                    .map(EdgeStorageRef::Mem),
+                    .map(EdgeStorageEntry::Mem),
+            ),
+            EdgesStorageRef::Unlocked(edges) => StorageVariants::Unlocked(
+                edges
+                    .par_iter()
+                    .filter(move |e| e.has_layer(&layers))
+                    .map(EdgeStorageEntry::Unlocked),
             ),
             EdgesStorageRef::Disk(storage) => {
-                Either::Right(storage.par_iter(layers).map(EdgeStorageRef::Disk))
+                StorageVariants::Disk(storage.par_iter(layers).map(EdgeStorageEntry::Disk))
             }
         }
     }
 
     #[cfg(not(feature = "storage"))]
-    pub fn par_iter(self, layers: LayerIds) -> impl ParallelIterator<Item = EdgeStorageRef<'a>> {
+    pub fn par_iter(self, layers: LayerIds) -> impl ParallelIterator<Item = EdgeStorageEntry<'a>> {
         match self {
-            EdgesStorageRef::Mem(storage) => {
-                Either::<_, rayon::iter::Empty<EdgeStorageRef<'a>>>::Left(
-                    storage
-                        .par_iter()
-                        .filter(move |e| e.has_layer(&layers))
-                        .map(EdgeStorageRef::Mem),
-                )
-            }
+            EdgesStorageRef::Mem(storage) => StorageVariants::Mem(
+                storage
+                    .par_iter()
+                    .filter(move |e| e.has_layer(&layers))
+                    .map(EdgeStorageEntry::Mem),
+            ),
+            EdgesStorageRef::Unlocked(edges) => StorageVariants::Unlocked(
+                edges
+                    .par_iter()
+                    .filter(move |e| e.as_mem_edge().has_layer(&layers))
+                    .map(EdgeStorageEntry::Unlocked),
+            ),
         }
     }
 
@@ -106,6 +121,14 @@ impl<'a> EdgesStorageRef<'a> {
                 LayerIds::None => 0,
                 LayerIds::All => storage.len(),
                 _ => storage.par_iter().filter(|e| e.has_layer(layers)).count(),
+            },
+            EdgesStorageRef::Unlocked(edges) => match layers {
+                LayerIds::None => 0,
+                LayerIds::All => edges.len(),
+                _ => edges
+                    .par_iter()
+                    .filter(|e| e.as_mem_edge().has_layer(layers))
+                    .count(),
             },
             #[cfg(feature = "storage")]
             EdgesStorageRef::Disk(storage) => storage.count(layers),

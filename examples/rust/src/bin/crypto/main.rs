@@ -5,7 +5,7 @@ use raphtory::{
         pathing::temporal_reachability::temporally_reachable_nodes,
     },
     db::api::view::*,
-    graph_loader::example::stable_coins::stable_coin_graph,
+    graph_loader::stable_coins::stable_coin_graph,
 };
 use std::{env, time::Instant};
 

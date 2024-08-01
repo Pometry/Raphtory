@@ -1,6 +1,6 @@
 use crate::{
     core::utils::{errors::GraphError, time::error::ParseTimeError},
-    graph_loader::source::csv_loader::CsvErr,
+    io::csv_loader::CsvErr,
 };
 use pyo3::{exceptions::PyException, PyErr};
 use std::error::Error;

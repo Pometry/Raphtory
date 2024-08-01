@@ -3,7 +3,7 @@ use crate::{
         api::view::StaticGraphViewOps,
         graph::{edge::EdgeView, node::NodeView},
     },
-    prelude::NodeViewOps,
+    prelude::{GraphViewOps, NodeViewOps},
 };
 use itertools::{chain, Itertools};
 use std::{collections::HashSet, fmt::Display};
@@ -20,7 +20,7 @@ pub trait GraphEntity: Sized {
         D: Display;
 }
 
-impl<G: StaticGraphViewOps> GraphEntity for NodeView<G> {
+impl<'graph, G: GraphViewOps<'graph>> GraphEntity for NodeView<G> {
     fn generate_property_list<F, D>(
         &self,
         time_fmt: &F,

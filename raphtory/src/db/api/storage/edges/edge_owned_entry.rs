@@ -1,14 +1,17 @@
+use std::ops::Range;
+
+use rayon::iter::ParallelIterator;
+
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+
 #[cfg(feature = "storage")]
 use crate::db::api::storage::variants::storage_variants::StorageVariants;
 #[cfg(feature = "storage")]
 use crate::disk_graph::storage_interface::edge::DiskOwnedEdge;
 use crate::{
     core::{
-        entities::{
-            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-            LayerIds, VID,
-        },
-        storage::ArcEntry,
+        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
+        storage::raw_edges::EdgeArcGuard,
     },
     db::api::storage::{
         edges::{
@@ -18,13 +21,10 @@ use crate::{
         tprop_storage_ops::TPropOps,
     },
 };
-use raphtory_api::core::storage::timeindex::TimeIndexEntry;
-use rayon::iter::ParallelIterator;
-use std::ops::Range;
 
 #[derive(Debug, Clone)]
 pub enum EdgeOwnedEntry {
-    Mem(ArcEntry<EdgeStore>),
+    Mem(EdgeArcGuard),
     #[cfg(feature = "storage")]
     Disk(DiskOwnedEdge),
 }
@@ -51,7 +51,7 @@ macro_rules! for_all_variants {
 impl EdgeOwnedEntry {
     pub fn as_ref(&self) -> EdgeStorageRef {
         match self {
-            EdgeOwnedEntry::Mem(entry) => EdgeStorageRef::Mem(entry),
+            EdgeOwnedEntry::Mem(entry) => EdgeStorageRef::Mem(entry.as_mem_edge()),
             #[cfg(feature = "storage")]
             EdgeOwnedEntry::Disk(entry) => EdgeStorageRef::Disk(entry.as_ref()),
         }

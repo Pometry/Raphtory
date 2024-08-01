@@ -1,5 +1,5 @@
 use crate::{
-    core::{ArcStr, Prop},
+    core::Prop,
     prelude::{EdgeViewOps, GraphViewOps, NodeViewOps, PropUnwrap},
     python::graph::views::graph_view::PyGraphView,
 };
@@ -9,6 +9,7 @@ use pyo3::{
     types::{PyDict, PyList, PyTuple},
     IntoPy, PyObject, PyResult, Python, ToPyObject,
 };
+use raphtory_api::core::storage::arc_str::ArcStr;
 use std::collections::HashMap;
 
 #[pymethods]

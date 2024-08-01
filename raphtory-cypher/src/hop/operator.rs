@@ -5,7 +5,7 @@ use datafusion::{
     logical_expr::{Expr, LogicalPlan, TableScan, UserDefinedLogicalNodeCore},
 };
 
-use raphtory::{core::Direction, disk_graph::graph_impl::DiskGraph};
+use raphtory::{core::Direction, disk_graph::DiskGraphStorage};
 
 #[derive(Debug, PartialEq, Hash, Eq)]
 pub struct HopPlan {
@@ -22,17 +22,17 @@ pub struct HopPlan {
 
 #[derive(Clone)]
 struct GraphHolder {
-    pub graph: DiskGraph,
+    pub graph: DiskGraphStorage,
 }
 
 impl GraphHolder {
-    pub fn new(graph: DiskGraph) -> Self {
+    pub fn new(graph: DiskGraphStorage) -> Self {
         GraphHolder { graph }
     }
 }
 
-impl AsRef<DiskGraph> for GraphHolder {
-    fn as_ref(&self) -> &DiskGraph {
+impl AsRef<DiskGraphStorage> for GraphHolder {
+    fn as_ref(&self) -> &DiskGraphStorage {
         &self.graph
     }
 }
@@ -59,12 +59,12 @@ impl std::fmt::Debug for GraphHolder {
 }
 
 impl HopPlan {
-    pub fn graph(&self) -> DiskGraph {
+    pub fn graph(&self) -> DiskGraphStorage {
         self.graph.as_ref().clone()
     }
 
     pub fn from_table_scans(
-        graph: DiskGraph,
+        graph: DiskGraphStorage,
         dir: Direction,
         schema: DFSchemaRef,
         left: &LogicalPlan,

@@ -14,7 +14,7 @@ default-members = ["raphtory"]
 resolver = "2"
 
 [workspace.package]
-version = "0.9.1"
+version = "0.10.0"
 documentation = "https://raphtory.readthedocs.io/en/latest/"
 repository = "https://github.com/Raphtory/raphtory/"
 license = "GPL-3.0"
@@ -24,6 +24,9 @@ keywords = ["graph", "temporal-graph", "temporal"]
 authors = ["Pometry"]
 rust-version = "1.77"
 edition = "2021"
+
+[profile.dev]
+split-debuginfo = "unpacked"
 
 [profile.release-with-debug]
 inherits = "release"
@@ -84,7 +87,7 @@ display-error-chain = "0.2.0"
 polars-arrow = "0.39.2"
 polars-parquet = "0.39.2"
 polars-utils = "0.39.2"
-kdam = { version = "0.5.1", features = ["notebook"] }
+kdam = { version = "0.5.1" }
 pretty_assertions = "1.4.0"
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
@@ -114,7 +117,6 @@ wasm-bindgen = "0.2.91"
 serde-wasm-bindgen = "0.6.4"
 js-sys = "0.3.68"
 console_error_panic_hook = "0.1.7"
-wee_alloc = "0.4.5"
 wasm-bindgen-test = "0.3.41"
 memmap2 = { version = "0.9.4" }
 ahash = { version = "0.8.3", features = ["serde"] }
@@ -127,6 +129,11 @@ ouroboros = "0.18.3"
 url = "2.2"
 base64-compat = { package = "base64-compat", version = "1.0.0" }
 time = "0.3.36"
+
+prost = "0.12"
+prost-types = "0.12"
+bytes = "1.6.0"
+prost-build = "0.12"
 
 lazy_static = "1.4.0"
 pest = "2.7.8"

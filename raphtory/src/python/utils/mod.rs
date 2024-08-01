@@ -4,7 +4,7 @@
 //! These functions are not part of the public API and are not exported to the Python module.
 use crate::{
     core::{
-        entities::nodes::{input_node::InputNode, node_ref::NodeRef},
+        entities::{nodes::node_ref::NodeRef, GidRef},
         storage::timeindex::AsTime,
         utils::time::{error::ParseTimeError, Interval, IntoTime, TryIntoTime},
     },
@@ -17,6 +17,7 @@ use std::{future::Future, thread};
 
 pub mod errors;
 pub(crate) mod export;
+mod module_helpers;
 
 /// Extract a `NodeRef` from a Python object.
 /// The object can be a `str`, `u64` or `PyNode`.
@@ -32,9 +33,9 @@ pub(crate) mod export;
 impl<'source> FromPyObject<'source> for NodeRef<'source> {
     fn extract(vref: &'source PyAny) -> PyResult<Self> {
         if let Ok(s) = vref.extract::<&'source str>() {
-            Ok(NodeRef::ExternalStr(s))
+            Ok(NodeRef::External(GidRef::Str(s)))
         } else if let Ok(gid) = vref.extract::<u64>() {
-            Ok(NodeRef::External(gid))
+            Ok(NodeRef::External(GidRef::U64(gid)))
         } else if let Ok(v) = vref.extract::<PyNode>() {
             Ok(NodeRef::Internal(v.node.node))
         } else {
@@ -136,58 +137,6 @@ impl TryFrom<PyInterval> for Interval {
     type Error = ParseTimeError;
     fn try_from(value: PyInterval) -> Result<Self, Self::Error> {
         value.interval
-    }
-}
-
-/// A trait for nodes that can be used as input for the graph.
-/// This allows us to add nodes with different types of ids, either strings or ints.
-#[derive(Clone, Debug)]
-pub struct PyInputNode {
-    id: u64,
-    name: Option<String>,
-}
-
-impl<'source> FromPyObject<'source> for PyInputNode {
-    fn extract(id: &'source PyAny) -> PyResult<Self> {
-        match id.extract::<String>() {
-            Ok(string) => Ok(PyInputNode::new(string)),
-            Err(_) => {
-                let msg = "IDs need to be strings or an unsigned integers";
-                let number = id.extract::<u64>().map_err(|_| PyTypeError::new_err(msg))?;
-                Ok(PyInputNode::new(number))
-            }
-        }
-    }
-}
-
-/// Implementation for nodes that can be used as input for the graph.
-/// This allows us to add nodes with different types of ids, either strings or ints.
-impl PyInputNode {
-    pub(crate) fn new<T>(node: T) -> PyInputNode
-    where
-        T: InputNode,
-    {
-        PyInputNode {
-            id: node.id(),
-            name: node.id_str().map(|s| s.into()),
-        }
-    }
-}
-
-/// Implementation for nodes that can be used as input for the graph.
-/// This allows us to add nodes with different types of ids, either strings or ints.
-impl InputNode for PyInputNode {
-    /// Returns the id of the node.
-    fn id(&self) -> u64 {
-        self.id
-    }
-
-    /// Returns the name property of the node.
-    fn id_str(&self) -> Option<&str> {
-        match &self.name {
-            Some(n) => Some(n),
-            None => None,
-        }
     }
 }
 

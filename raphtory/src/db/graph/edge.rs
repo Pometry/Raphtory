@@ -12,7 +12,6 @@ use crate::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         storage::timeindex::AsTime,
         utils::{errors::GraphError, time::IntoTime},
-        ArcStr,
     },
     db::{
         api::{
@@ -34,6 +33,7 @@ use crate::{
     },
     prelude::*,
 };
+use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{
     fmt::{Debug, Formatter},
     sync::Arc,
@@ -117,7 +117,9 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<
     type BaseGraph = G;
     type Graph = GH;
 
-    type ValueType<T> =T where T: 'graph;
+    type ValueType<T> = T
+    where
+        T: 'graph;
     type PropType = Self;
     type Nodes = NodeView<G, G>;
     type Exploded = Edges<'graph, G, GH>;
@@ -162,6 +164,10 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<
 }
 
 impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> EdgeView<G, G> {
+    fn get_valid_layers(graph: &G) -> Vec<String> {
+        graph.unique_layers().map(|l| l.0.to_string()).collect()
+    }
+
     fn resolve_layer(&self, layer: Option<&str>, create: bool) -> Result<usize, GraphError> {
         match layer {
             Some(name) => match self.edge.layer() {
@@ -169,14 +175,22 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
                     .graph
                     .get_layer_id(name)
                     .filter(|id| id == l_id)
-                    .ok_or_else(|| GraphError::InvalidLayer(name.to_owned())),
+                    .ok_or_else(|| {
+                        GraphError::invalid_layer(
+                            name.to_owned(),
+                            Self::get_valid_layers(&self.graph),
+                        )
+                    }),
                 None => {
                     if create {
-                        Ok(self.graph.resolve_layer(layer))
+                        self.graph.resolve_layer(layer)
                     } else {
                         self.graph
                             .get_layer_id(name)
-                            .ok_or(GraphError::InvalidLayer(name.to_owned()))
+                            .ok_or(GraphError::invalid_layer(
+                                name.to_owned(),
+                                Self::get_valid_layers(&self.graph),
+                            ))
                     }
                 }
             },
@@ -367,7 +381,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperti
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Debug for EdgeView<G, GH> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "EdgeView({}, {})", self.src().id(), self.dst().id())
+        write!(f, "EdgeView({:?}, {:?})", self.src().id(), self.dst().id())
     }
 }
 
@@ -402,13 +416,9 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'gr
 
 #[cfg(test)]
 mod test_edge {
-    use crate::{
-        core::{ArcStr, IntoPropMap},
-        prelude::*,
-        test_storage,
-        test_utils::test_graph,
-    };
+    use crate::{core::IntoPropMap, prelude::*, test_storage, test_utils::test_graph};
     use itertools::Itertools;
+    use raphtory_api::core::storage::arc_str::ArcStr;
     use std::collections::HashMap;
 
     #[test]

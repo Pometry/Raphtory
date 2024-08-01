@@ -1,3 +1,4 @@
 pub mod document;
-pub(crate) mod iterators;
-pub(crate) mod prop;
+pub mod iterables;
+pub mod iterators;
+pub mod prop;

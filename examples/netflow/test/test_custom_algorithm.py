@@ -1,5 +1,5 @@
-from raphtory import Graph
-from netflow_algorithm import netflow_one_path_node
+from raphtory_netflow import Graph
+from raphtory_netflow.algorithms import netflow_one_path_node
 from pytest import raises
 
 
