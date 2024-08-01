@@ -72,7 +72,7 @@ pub fn load_edges_from_parquet<
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
 >(
     graph: &G,
-    parquet_path: &Path,
+    parquet_path: impl AsRef<Path>,
     src: &str,
     dst: &str,
     time: &str,
@@ -82,6 +82,7 @@ pub fn load_edges_from_parquet<
     layer: Option<&str>,
     layer_in_df: Option<bool>,
 ) -> Result<(), GraphError> {
+    let parquet_path = parquet_path.as_ref();
     let mut cols_to_check = vec![src, dst, time];
     cols_to_check.extend(properties.as_ref().unwrap_or(&Vec::new()));
     cols_to_check.extend(const_properties.as_ref().unwrap_or(&Vec::new()));
