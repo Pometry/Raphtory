@@ -392,7 +392,7 @@ mod data_tests {
 
         for &file_name in &file_paths {
             let file_path = dir_path.join(file_name);
-            fs::File::create(file_path)?;
+            File::create(file_path)?;
         }
 
         Ok(())

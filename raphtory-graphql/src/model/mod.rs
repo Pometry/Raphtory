@@ -16,7 +16,7 @@ use dynamic_graphql::{
 use itertools::Itertools;
 use raphtory::{
     core::{utils::errors::GraphError, Prop},
-    db::api::view::MaterializedGraph,
+    db::api::{storage::storage_ops::GraphStorage, view::MaterializedGraph},
     prelude::{GraphViewOps, ImportOps, NodeViewOps, PropertyAdditionOps},
 };
 use raphtory_api::core::storage::arc_str::ArcStr;
@@ -150,7 +150,7 @@ impl Mut {
         let graph = data.get_graph(&path)?;
 
         #[cfg(feature = "storage")]
-        if graph.clone().graph.into_disk_graph().is_some() {
+        if let GraphStorage::Disk(_) = graph.core_graph() {
             return Err(GqlGraphError::ImmutableDiskGraph.into());
         }
 
@@ -187,20 +187,14 @@ impl Mut {
 
         let graph = data.get_graph(path)?;
 
-        // FIXME: This check is strange as the subgraph is not mutated below
-        // #[cfg(feature = "storage")]
-        // if graph.clone().graph.into_disk_graph().is_some() {
-        //     return Err(GqlGraphError::ImmutableDiskGraph.into());
-        // }
+        #[cfg(feature = "storage")]
+        if let GraphStorage::Disk(g) = graph.core_graph() {
+            return Err(GqlGraphError::ImmutableDiskGraph.into());
+        }
 
         if new_full_path.ne(&full_path) {
             let timestamp: i64 = Utc::now().timestamp();
-
-            let new_graph = graph
-                .subgraph(graph.nodes().name().collect_vec())
-                .materialize()?;
-
-            new_graph.update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
+            let new_graph = graph.materialize()?;
             new_graph.update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
             create_dirs_if_not_present(&new_full_path)?;
             new_graph.save_to_file(&new_full_path)?;

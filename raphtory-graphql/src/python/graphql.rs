@@ -570,6 +570,20 @@ impl PyRunningRaphtoryServer {
     pub(crate) fn stop(&mut self, py: Python) -> PyResult<()> {
         self.stop_server(py)
     }
+
+    fn __enter__(slf: Py<Self>) -> Py<Self> {
+        slf
+    }
+
+    fn __exit__(
+        &mut self,
+        py: Python,
+        _exc_type: PyObject,
+        _exc_val: PyObject,
+        _exc_tb: PyObject,
+    ) -> PyResult<()> {
+        self.stop_server(py)
+    }
 }
 
 fn is_online(url: &String) -> bool {
