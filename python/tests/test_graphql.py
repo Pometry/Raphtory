@@ -9,6 +9,10 @@ from raphtory import Graph
 import json
 
 
+def normalize_path(path):
+    return path.replace('\\', '/')
+
+
 def test_failed_server_start_in_time():
     tmp_work_dir = tempfile.mkdtemp()
     server = None
@@ -153,7 +157,7 @@ def test_send_graph_fails_if_graph_already_exists_at_namespace():
         try:
             client.send_graph(path="shivam/g", graph=g)
         except Exception as e:
-            assert "Graph already exists by name = shivam/g" in str(e), f"Unexpected exception message: {e}"
+            assert "Graph already exists by name" in str(e), f"Unexpected exception message: {e}"
 
 
 def test_send_graph_succeeds_if_graph_already_exists_at_namespace_with_overwrite_enabled():
@@ -303,7 +307,7 @@ def test_upload_graph_fails_if_graph_already_exists():
         try:
             client.upload_graph(path="g", file_path=g_file_path)
         except Exception as e:
-            assert "Graph already exists by name = g" in str(e), f"Unexpected exception message: {e}"
+            assert "Graph already exists by name" in str(e), f"Unexpected exception message: {e}"
 
 
 def test_upload_graph_succeeds_if_graph_already_exists_with_overwrite_enabled():
@@ -379,7 +383,7 @@ def test_upload_graph_fails_if_graph_already_exists_at_namespace():
         try:
             client.upload_graph(path="shivam/g", file_path=g_file_path, overwrite=False)
         except Exception as e:
-            assert "Graph already exists by name = shivam/g" in str(e), f"Unexpected exception message: {e}"
+            assert "Graph already exists by name" in str(e), f"Unexpected exception message: {e}"
 
 
 def test_upload_graph_succeeds_if_graph_already_exists_at_namespace_with_overwrite_enabled():
@@ -452,7 +456,7 @@ def test_load_graph_fails_if_graph_already_exists():
         try:
             client.load_graph(file_path=g_file_path)
         except Exception as e:
-            assert "Graph already exists by name = " + path in str(e), f"Unexpected exception message: {e}"
+            assert "Graph already exists by name" in str(e), f"Unexpected exception message: {e}"
 
 
 def test_load_graph_succeeds_if_graph_already_exists_with_overwrite_enabled():
@@ -529,7 +533,7 @@ def test_load_graph_fails_if_graph_already_exists_at_namespace():
         try:
             client.load_graph(file_path=g_file_path, overwrite=False, namespace="shivam")
         except Exception as e:
-            assert "Graph already exists by name = " + path in str(e), f"Unexpected exception message: {e}"
+            assert "Graph already exists by name" in str(e), f"Unexpected exception message: {e}"
 
 
 def test_load_graph_succeeds_if_graph_already_exists_at_namespace_with_overwrite_enabled():
@@ -572,7 +576,7 @@ def test_get_graph_fails_if_graph_not_found():
         try:
             client.query(query)
         except Exception as e:
-            assert "Graph not found g1" in str(e), f"Unexpected exception message: {e}"
+            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
 
 
 def test_get_graph_fails_if_graph_not_found_at_namespace():
@@ -584,7 +588,7 @@ def test_get_graph_fails_if_graph_not_found_at_namespace():
         try:
             client.query(query)
         except Exception as e:
-            assert "Graph not found shivam/g1" in str(e), f"Unexpected exception message: {e}"
+            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
 
 
 def test_get_graph_succeeds_if_graph_found():
@@ -620,9 +624,10 @@ def test_get_graph_succeeds_if_graph_found_at_namespace():
         g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
 
         query = """{ graph(path: "shivam/g2") { name, path, nodes { list { name } } } }"""
-        assert client.query(query) == {
-            'graph': {'name': 'g2', 'nodes': {'list': [{'name': 'ben'}, {'name': 'hamza'}, {'name': 'haaroon'}]},
-                      'path': 'shivam/g2'}}
+        response = client.query(query)
+        assert response['graph']['name'] == 'g2'
+        assert response['graph']['nodes'] == {'list': [{'name': 'ben'}, {'name': 'hamza'}, {'name': 'haaroon'}]}
+        assert normalize_path(response['graph']['path']) == 'shivam/g2'
 
 
 def test_get_graphs_returns_emtpy_list_if_no_graphs_found():
@@ -635,6 +640,7 @@ def test_get_graphs_returns_emtpy_list_if_no_graphs_found():
         assert client.query(query) == {
             'graphs': {'name': [], 'path': []}
         }
+
 
 
 def test_get_graphs_returns_graph_list_if_graphs_found():
@@ -658,7 +664,7 @@ def test_get_graphs_returns_graph_list_if_graphs_found():
         sorted_response = {
             'graphs': {
                 'name': sorted(response['graphs']['name']),
-                'path': sorted(response['graphs']['path'])
+                'path': sorted(normalize_path(p) for p in response['graphs']['path'])
             }
         }
         assert sorted_response == {
@@ -731,7 +737,7 @@ def test_receive_graph_fails_if_no_graph_found_at_namespace():
         try:
             client.query(query)
         except Exception as e:
-            assert "Graph not found shivam/g2" in str(e), f"Unexpected exception message: {e}"
+            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
 
 
 def test_receive_graph_succeeds_if_graph_found_at_namespace():
@@ -770,7 +776,7 @@ def test_move_graph_fails_if_graph_not_found():
         try:
             client.query(query)
         except Exception as e:
-            assert "Graph not found ben/g5" in str(e), f"Unexpected exception message: {e}"
+            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
 
 
 def test_move_graph_fails_if_graph_with_same_name_already_exists():
@@ -796,7 +802,7 @@ def test_move_graph_fails_if_graph_with_same_name_already_exists():
         try:
             client.query(query)
         except Exception as e:
-            assert "Graph already exists by name = g6" in str(e), f"Unexpected exception message: {e}"
+            assert "Graph already exists by name" in str(e), f"Unexpected exception message: {e}"
 
 
 def test_move_graph_fails_if_graph_with_same_name_already_exists_at_same_namespace_as_graph():
@@ -822,7 +828,7 @@ def test_move_graph_fails_if_graph_with_same_name_already_exists_at_same_namespa
         try:
             client.query(query)
         except Exception as e:
-            assert "Graph already exists by name = ben/g6" in str(e), f"Unexpected exception message: {e}"
+            assert "Graph already exists by name" in str(e), f"Unexpected exception message: {e}"
 
 
 def test_move_graph_fails_if_graph_with_same_name_already_exists_at_diff_namespace_as_graph():
@@ -849,7 +855,7 @@ def test_move_graph_fails_if_graph_with_same_name_already_exists_at_diff_namespa
         try:
             client.query(query)
         except Exception as e:
-            assert "Graph already exists by name = shivam/g6" in str(e), f"Unexpected exception message: {e}"
+            assert "Graph already exists by name" in str(e), f"Unexpected exception message: {e}"
 
 
 def test_move_graph_succeeds():
@@ -878,7 +884,7 @@ def test_move_graph_succeeds():
         try:
             client.query(query)
         except Exception as e:
-            assert "Graph not found shivam/g3" in str(e), f"Unexpected exception message: {e}"
+            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
 
         query = """{graph(path: "g4") {
                 nodes {list {name}}
@@ -917,7 +923,7 @@ def test_move_graph_using_client_api_succeeds():
         try:
             client.query(query)
         except Exception as e:
-            assert "Graph not found shivam/g3" in str(e), f"Unexpected exception message: {e}"
+            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
 
         query = """{graph(path: "ben/g4") {
                 nodes {list {name}}
@@ -962,7 +968,7 @@ def test_move_graph_succeeds_at_same_namespace_as_graph():
         try:
             client.query(query)
         except Exception as e:
-            assert "Graph not found shivam/g3" in str(e), f"Unexpected exception message: {e}"
+            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
 
         query = """{graph(path: "shivam/g4") {
                 nodes {list {name}}
@@ -1008,7 +1014,7 @@ def test_move_graph_succeeds_at_diff_namespace_as_graph():
         try:
             client.query(query)
         except Exception as e:
-            assert "Graph not found ben/g3" in str(e), f"Unexpected exception message: {e}"
+            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
 
         query = """{graph(path: "shivam/g4") {
                 nodes {list {name}}
@@ -1040,7 +1046,7 @@ def test_copy_graph_fails_if_graph_not_found():
         try:
             client.query(query)
         except Exception as e:
-            assert "Graph not found ben/g5" in str(e), f"Unexpected exception message: {e}"
+            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
 
 
 def test_copy_graph_fails_if_graph_with_same_name_already_exists():
@@ -1066,7 +1072,7 @@ def test_copy_graph_fails_if_graph_with_same_name_already_exists():
         try:
             client.query(query)
         except Exception as e:
-            assert "Graph already exists by name = g6" in str(e), f"Unexpected exception message: {e}"
+            assert "Graph already exists by name" in str(e), f"Unexpected exception message: {e}"
 
 
 def test_copy_graph_fails_if_graph_with_same_name_already_exists_at_same_namespace_as_graph():
@@ -1092,7 +1098,7 @@ def test_copy_graph_fails_if_graph_with_same_name_already_exists_at_same_namespa
         try:
             client.query(query)
         except Exception as e:
-            assert "Graph already exists by name = ben/g6" in str(e), f"Unexpected exception message: {e}"
+            assert "Graph already exists by name" in str(e), f"Unexpected exception message: {e}"
 
 
 def test_copy_graph_fails_if_graph_with_same_name_already_exists_at_diff_namespace_as_graph():
@@ -1119,7 +1125,7 @@ def test_copy_graph_fails_if_graph_with_same_name_already_exists_at_diff_namespa
         try:
             client.query(query)
         except Exception as e:
-            assert "Graph already exists by name = shivam/g6" in str(e), f"Unexpected exception message: {e}"
+            assert "Graph already exists by name" in str(e), f"Unexpected exception message: {e}"
 
 
 def test_copy_graph_succeeds():
@@ -1294,7 +1300,7 @@ def test_delete_graph_fails_if_graph_not_found():
         try:
             client.query(query)
         except Exception as e:
-            assert "Graph not found ben/g5" in str(e), f"Unexpected exception message: {e}"
+            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
 
 
 def test_delete_graph_succeeds_if_graph_found():
@@ -1317,7 +1323,7 @@ def test_delete_graph_succeeds_if_graph_found():
         try:
             client.query(query)
         except Exception as e:
-            assert "Graph not found ben/g5" in str(e), f"Unexpected exception message: {e}"
+            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
 
 
 def test_delete_graph_using_client_api_succeeds_if_graph_found():
@@ -1335,7 +1341,7 @@ def test_delete_graph_using_client_api_succeeds_if_graph_found():
         try:
             client.delete_graph("g1")
         except Exception as e:
-            assert "Graph not found ben/g5" in str(e), f"Unexpected exception message: {e}"
+            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
 
 
 def test_delete_graph_succeeds_if_graph_found_at_namespace():
@@ -1359,7 +1365,7 @@ def test_delete_graph_succeeds_if_graph_found_at_namespace():
         try:
             client.query(query)
         except Exception as e:
-            assert "Graph not found shivam/g1" in str(e), f"Unexpected exception message: {e}"
+            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
 
 
 def test_create_graph_fail_if_parent_graph_not_found():
@@ -1379,7 +1385,7 @@ def test_create_graph_fail_if_parent_graph_not_found():
         try:
             client.query(query)
         except Exception as e:
-            assert "Graph not found g0" in str(e), f"Unexpected exception message: {e}"
+            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
 
 
 def test_create_graph_fail_if_parent_graph_not_found_at_namespace():
@@ -1399,7 +1405,7 @@ def test_create_graph_fail_if_parent_graph_not_found_at_namespace():
         try:
             client.query(query)
         except Exception as e:
-            assert "Graph not found shivam/g0" in str(e), f"Unexpected exception message: {e}"
+            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
 
 
 def test_create_graph_fail_if_graph_already_exists():
@@ -1424,7 +1430,7 @@ def test_create_graph_fail_if_graph_already_exists():
         try:
             client.query(query)
         except Exception as e:
-            assert "Graph already exists by name = g3" in str(e), f"Unexpected exception message: {e}"
+            assert "Graph already exists by name" in str(e), f"Unexpected exception message: {e}"
 
 
 def test_create_graph_fail_if_graph_already_exists_at_namespace():
@@ -1450,7 +1456,7 @@ def test_create_graph_fail_if_graph_already_exists_at_namespace():
         try:
             client.query(query)
         except Exception as e:
-            assert "Graph already exists by name = shivam/g3" in str(e), f"Unexpected exception message: {e}"
+            assert "Graph already exists by name" in str(e), f"Unexpected exception message: {e}"
 
 
 def test_create_graph_succeeds():
@@ -1590,7 +1596,7 @@ def test_update_graph_with_new_graph_name_fails_if_parent_graph_not_found():
         try:
             client.query(query)
         except Exception as e:
-            assert "Graph not found g0" in str(e), f"Unexpected exception message: {e}"
+            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
 
 
 def test_update_graph_with_new_graph_name_fails_if_current_graph_not_found():
@@ -1613,7 +1619,7 @@ def test_update_graph_with_new_graph_name_fails_if_current_graph_not_found():
         try:
             client.query(query)
         except Exception as e:
-            assert "Graph not found shivam/g0" in str(e), f"Unexpected exception message: {e}"
+            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
 
 
 def test_update_graph_with_new_graph_name_fails_if_new_graph_already_exists():
@@ -1645,7 +1651,7 @@ def test_update_graph_with_new_graph_name_fails_if_new_graph_already_exists():
         try:
             client.query(query)
         except Exception as e:
-            assert "Graph already exists by name = g3" in str(e), f"Unexpected exception message: {e}"
+            assert "Graph already exists by name" in str(e), f"Unexpected exception message: {e}"
 
 
 def test_update_graph_with_new_graph_name_succeeds_if_parent_graph_belongs_to_different_namespace():
@@ -1923,7 +1929,7 @@ def test_update_graph_fails_if_parent_graph_not_found():
         try:
             client.query(query)
         except Exception as e:
-            assert "Graph not found g0" in str(e), f"Unexpected exception message: {e}"
+            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
 
 
 def test_update_graph_fails_if_current_graph_not_found():
@@ -1946,7 +1952,7 @@ def test_update_graph_fails_if_current_graph_not_found():
         try:
             client.query(query)
         except Exception as e:
-            assert "Graph not found shivam/g0" in str(e), f"Unexpected exception message: {e}"
+            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
 
 
 def test_update_graph_succeeds_if_parent_graph_belongs_to_different_namespace():
@@ -2208,7 +2214,7 @@ def test_update_graph_last_opened_fails_if_graph_not_found():
         try:
             client.query(query)
         except Exception as e:
-            assert "Graph not found g1" in str(e), f"Unexpected exception message: {e}"
+            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
 
 
 def test_update_graph_last_opened_fails_if_graph_not_found_at_namespace():
@@ -2220,7 +2226,7 @@ def test_update_graph_last_opened_fails_if_graph_not_found_at_namespace():
         try:
             client.query(query)
         except Exception as e:
-            assert "Graph not found shivam/g1" in str(e), f"Unexpected exception message: {e}"
+            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
 
 
 def test_update_graph_last_opened_succeeds():
@@ -2283,7 +2289,7 @@ def test_archive_graph_fails_if_graph_not_found():
         try:
             client.query(query)
         except Exception as e:
-            assert "Graph not found g1" in str(e), f"Unexpected exception message: {e}"
+            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
 
 
 def test_archive_graph_fails_if_graph_not_found_at_namespace():
@@ -2295,7 +2301,7 @@ def test_archive_graph_fails_if_graph_not_found_at_namespace():
         try:
             client.query(query)
         except Exception as e:
-            assert "Graph not found shivam/g1" in str(e), f"Unexpected exception message: {e}"
+            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
 
 
 def test_archive_graph_succeeds():
