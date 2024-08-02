@@ -643,8 +643,9 @@ mod data_tests {
 
         save_graphs_to_work_dir(&tmp_work_dir.path(), &graphs).unwrap();
 
-        let graphs = list_top_level_files_and_dirs(&tmp_work_dir.path()).unwrap();
-        assert_eq!(graphs, vec!["test_g", "test_dg"]);
+        let mut graphs = list_top_level_files_and_dirs(&tmp_work_dir.path()).unwrap();
+        graphs.sort();
+        assert_eq!(graphs, vec!["test_dg", "test_g"]);
     }
 
     #[test]
@@ -734,17 +735,19 @@ mod data_tests {
 
         assert_eq!(get_maybe_relative_path(work_dir, g0_path), None);
         assert_eq!(get_maybe_relative_path(work_dir, g1_path), None);
+        let expected = Path::new("shivam/investigations/2024-12-22");
         assert_eq!(
             get_maybe_relative_path(work_dir, g2_path),
-            Some("shivam/investigations/2024-12-22".to_string())
+            Some(expected.display().to_string())
         );
+        let expected = Path::new("shivam/investigations");
         assert_eq!(
             get_maybe_relative_path(work_dir, g3_path),
-            Some("shivam/investigations".to_string())
+            Some(expected.display().to_string())
         );
         assert_eq!(
             get_maybe_relative_path(work_dir, g4_path),
-            Some("shivam/investigations".to_string())
+            Some(expected.display().to_string())
         );
     }
 }
