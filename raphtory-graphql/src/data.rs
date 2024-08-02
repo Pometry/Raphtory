@@ -11,7 +11,12 @@ use moka::sync::Cache;
 #[cfg(feature = "storage")]
 use raphtory::disk_graph::DiskGraphStorage;
 use raphtory::{
-    core::utils::errors::GraphError, db::api::view::MaterializedGraph, search::IndexedGraph,
+    core::utils::errors::GraphError,
+    db::api::{
+        storage::storage_ops::GraphStorage,
+        view::{internal::CoreGraphOps, MaterializedGraph},
+    },
+    search::IndexedGraph,
 };
 use std::{
     collections::HashMap,
@@ -295,7 +300,12 @@ pub(crate) fn save_graphs_to_work_dir(
 ) -> Result<()> {
     for (name, graph) in graphs.into_iter() {
         let full_path = construct_graph_full_path(&work_dir, Path::new(name))?;
-        graph.save_to_path(&full_path)?;
+        if let GraphStorage::Disk(dg) = graph.core_graph() {
+            let disk_graph_path = dg.graph_dir();
+            copy_dir_recursive(disk_graph_path, &full_path)?;
+        } else {
+            graph.save_to_path(&full_path)?;
+        }
     }
     Ok(())
 }
@@ -607,8 +617,7 @@ mod data_tests {
             .add_edge(0, 1, 3, [("name", "test_e2")], None)
             .unwrap();
 
-        let graph_path2 = tmp_graph_dir.path().join("test_dg");
-        let graph2 = DiskGraphStorage::from_graph(&graph, &graph_path2)
+        let graph2 = DiskGraphStorage::from_graph(&graph, &tmp_graph_dir.path().join("test_dg"))
             .unwrap()
             .into_graph()
             .into();
@@ -619,9 +628,9 @@ mod data_tests {
             ("test_dg".to_string(), graph2),
         ]);
 
-        save_graphs_to_work_dir(tmp_graph_dir.path(), &graphs).unwrap();
+        save_graphs_to_work_dir(&tmp_work_dir.path(), &graphs).unwrap();
 
-        let graphs = list_top_level_files_and_dirs(tmp_graph_dir.path()).unwrap();
+        let graphs = list_top_level_files_and_dirs(&tmp_work_dir.path()).unwrap();
         assert_eq!(graphs, vec!["test_g", "test_dg"]);
     }
 
