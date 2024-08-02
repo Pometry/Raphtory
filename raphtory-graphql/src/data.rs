@@ -735,12 +735,14 @@ mod data_tests {
 
         assert_eq!(get_maybe_relative_path(work_dir, g0_path), None);
         assert_eq!(get_maybe_relative_path(work_dir, g1_path), None);
-        let expected = Path::new("shivam/investigations/2024-12-22");
+        let expected = Path::new("shivam")
+            .join("investigations")
+            .join("2024-12-22");
         assert_eq!(
             get_maybe_relative_path(work_dir, g2_path),
             Some(expected.display().to_string())
         );
-        let expected = Path::new("shivam/investigations");
+        let expected = Path::new("shivam").join("investigations");
         assert_eq!(
             get_maybe_relative_path(work_dir, g3_path),
             Some(expected.display().to_string())
