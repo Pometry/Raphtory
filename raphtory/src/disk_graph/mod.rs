@@ -92,11 +92,10 @@ impl AsRef<TemporalGraph> for DiskGraphStorage {
 }
 
 impl DiskGraphStorage {
-    
     pub fn inner(&self) -> &Arc<TemporalGraph> {
-        &self.inner    
+        &self.inner
     }
-    
+
     pub fn graph_dir(&self) -> &Path {
         self.inner.graph_dir()
     }
