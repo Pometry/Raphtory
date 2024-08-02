@@ -302,6 +302,7 @@ pub(crate) fn save_graphs_to_work_dir(
         let full_path = construct_graph_full_path(&work_dir, Path::new(name))?;
         if let GraphStorage::Disk(dg) = graph.core_graph() {
             let disk_graph_path = dg.graph_dir();
+            #[cfg(feature = "storage")]
             copy_dir_recursive(disk_graph_path, &full_path)?;
         } else {
             graph.save_to_path(&full_path)?;
