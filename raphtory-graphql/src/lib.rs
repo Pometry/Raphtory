@@ -35,7 +35,7 @@ mod graphql_test {
     use serde_json::json;
     use std::{
         collections::{HashMap, HashSet},
-        path::Path,
+        path::{Path, PathBuf},
     };
     use tempfile::{tempdir, TempDir};
 
@@ -1063,21 +1063,16 @@ mod graphql_test {
         graph.add_edge(22, 5, 6, NO_PROPS, Some("a")).unwrap();
         graph.add_edge(22, 3, 6, NO_PROPS, Some("a")).unwrap();
 
-        let tmp_graph_dir = TempDir::new().unwrap();
-        let disk_graph = DiskGraphStorage::from_graph(&graph, tmp_graph_dir.path())
-            .unwrap()
-            .into_graph();
-        let graph = disk_graph.into();
-        let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_work_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_work_dir.path(), &graphs).unwrap();
+        let tmp_work_dir = tmp_work_dir.path();
+        let _ = DiskGraphStorage::from_graph(&graph, &tmp_work_dir.join("graph")).unwrap();
 
-        let data = Data::new(tmp_work_dir.path(), &AppConfig::default());
+        let data = Data::new(&tmp_work_dir, &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let req = r#"
         {
-          graph(name: "graph") {
+          graph(path: "graph") {
             nodes {
               list {
                 name
@@ -1122,7 +1117,7 @@ mod graphql_test {
 
         let req = &format!(
             r#"mutation {{
-              updateGraphLastOpened(graphName: "{}")
+              updateGraphLastOpened(path: "{}")
             }}"#,
             "graph"
         );
