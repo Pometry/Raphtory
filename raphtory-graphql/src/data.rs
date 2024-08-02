@@ -515,8 +515,12 @@ mod data_tests {
 
         let res = load_graph_from_path(tmp_work_dir.path(), &graph_dir, &None, true)
             .unwrap()
-            .display()
-            .to_string();
+            .file_name()
+            .unwrap()
+            .to_os_string()
+            .into_string()
+            .expect("File name is not valid UTF-8");
+
         assert_eq!(res, "test_dg");
 
         let graph = DiskGraphStorage::load_from_dir(tmp_work_dir.path().join("test_dg"))
