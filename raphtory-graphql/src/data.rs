@@ -300,11 +300,18 @@ pub(crate) fn save_graphs_to_work_dir(
 ) -> Result<()> {
     for (name, graph) in graphs.into_iter() {
         let full_path = construct_graph_full_path(&work_dir, Path::new(name))?;
+
+        #[cfg(feature = "storage")]
         if let GraphStorage::Disk(dg) = graph.core_graph() {
             let disk_graph_path = dg.graph_dir();
             #[cfg(feature = "storage")]
             copy_dir_recursive(disk_graph_path, &full_path)?;
         } else {
+            graph.save_to_path(&full_path)?;
+        }
+
+        #[cfg(not(feature = "storage"))]
+        {
             graph.save_to_path(&full_path)?;
         }
     }
