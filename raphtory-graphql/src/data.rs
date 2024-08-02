@@ -16,6 +16,7 @@ use raphtory::{
         storage::storage_ops::GraphStorage,
         view::{internal::CoreGraphOps, MaterializedGraph},
     },
+    prelude::GraphViewOps,
     search::IndexedGraph,
 };
 use std::{
@@ -645,7 +646,6 @@ mod data_tests {
     #[test]
     #[cfg(feature = "storage")]
     fn test_eviction() {
-        let tmp_graph_dir = tempfile::tempdir().unwrap();
         let tmp_work_dir = tempfile::tempdir().unwrap();
 
         let graph = Graph::new();
@@ -656,14 +656,13 @@ mod data_tests {
             .add_edge(0, 1, 3, [("name", "test_e2")], None)
             .unwrap();
 
-        let graph_path1 = tmp_graph_dir.path().join("test_g");
-        graph.save_to_file(&graph_path1).unwrap();
-
-        let graph_path2 = tmp_graph_dir.path().join("test_dg");
-        let _ = DiskGraphStorage::from_graph(&graph, &graph_path2).unwrap();
-
-        let graph_path3 = tmp_graph_dir.path().join("test_g2");
-        graph.save_to_file(&graph_path3).unwrap();
+        graph
+            .save_to_file(&tmp_work_dir.path().join("test_g"))
+            .unwrap();
+        let _ = DiskGraphStorage::from_graph(&graph, &tmp_work_dir.path().join("test_dg")).unwrap();
+        graph
+            .save_to_file(&tmp_work_dir.path().join("test_g2"))
+            .unwrap();
 
         let configs = AppConfigBuilder::new()
             .with_cache_capacity(1)
