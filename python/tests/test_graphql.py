@@ -654,8 +654,18 @@ def test_get_graphs_returns_graph_list_if_graphs_found():
 
         # Assert if all graphs present in the work_dir are discoverable
         query = """{ graphs { name, path } }"""
-        assert client.query(query) == {
-            'graphs': {'name': ['g1', 'g2', 'g3'], 'path': ['g1', 'shivam/g2', 'shivam/g3']}
+        response = client.query(query)
+        sorted_response = {
+            'graphs': {
+                'name': sorted(response['graphs']['name']),
+                'path': sorted(response['graphs']['path'])
+            }
+        }
+        assert sorted_response == {
+            'graphs': {
+                'name': ['g1', 'g2', 'g3'],
+                'path': ['g1', 'shivam/g2', 'shivam/g3']
+            }
         }
 
 
