@@ -8,7 +8,10 @@ use std::{
     task::{Context, Poll},
 };
 
-use crate::arrow2::{offset::Offset, types::NativeType};
+use crate::{
+    arrow2::{offset::Offset, types::NativeType},
+    executor::table_provider::plan_properties,
+};
 // use disk_graph::compute::take_record_batch;
 use arrow_array::{
     builder::{
@@ -26,11 +29,7 @@ use datafusion::{
     error::DataFusionError,
     execution::{RecordBatchStream, TaskContext},
     physical_plan::{
-        DisplayAs,
-        DisplayFormatType,
-        Distribution,
-        ExecutionPlan, //ExecutionPlanProperties,
-        // PlanProperties,
+        DisplayAs, DisplayFormatType, Distribution, ExecutionPlan, PlanProperties,
         SendableRecordBatchStream,
     },
 };
@@ -60,7 +59,7 @@ pub struct HopExec {
     right_schema: DFSchemaRef,
 
     output_schema: SchemaRef,
-
+    props: PlanProperties,
     right_proj: Option<Vec<usize>>,
 }
 
@@ -85,7 +84,11 @@ impl HopExec {
 
         let input_col = find_last_input_col(hop, &input);
 
-        let out_schema: Schema = hop.out_schema.as_ref().into();
+        let out_schema: Arc<Schema> = Arc::new(hop.out_schema.as_ref().into());
+        let props = plan_properties(
+            out_schema.clone(),
+            input.properties().output_partitioning().partition_count(),
+        );
 
         Self {
             graph,
@@ -95,8 +98,8 @@ impl HopExec {
             right_schema: hop.right_schema.clone(),
             layers: hop.right_layers.clone(),
 
-            output_schema: Arc::new(out_schema),
-
+            output_schema: out_schema,
+            props,
             right_proj: hop.right_proj.clone(),
         }
     }
@@ -110,21 +113,22 @@ impl DisplayAs for HopExec {
 
 #[async_trait]
 impl ExecutionPlan for HopExec {
+    fn name(&self) -> &str {
+        "HopExec"
+    }
+
     /// Return a reference to Any that can be used for downcasting
     fn as_any(&self) -> &dyn Any {
         self
     }
 
+    fn properties(&self) -> &PlanProperties {
+        &self.props
+    }
+
     fn schema(&self) -> SchemaRef {
         self.output_schema.clone()
     }
-    fn output_partitioning(&self) -> Partitioning {
-        self.input.output_partitioning()
-    }
-    fn output_ordering(&self) -> Option<&[datafusion::physical_expr::PhysicalSortExpr]> {
-        self.input.output_ordering()
-    }
-
     fn required_input_distribution(&self) -> Vec<Distribution> {
         vec![Distribution::UnspecifiedDistribution]
     }
@@ -133,8 +137,8 @@ impl ExecutionPlan for HopExec {
         vec![true]
     }
 
-    fn children(&self) -> Vec<Arc<dyn ExecutionPlan>> {
-        vec![self.input.clone()]
+    fn children(&self) -> Vec<&Arc<dyn ExecutionPlan>> {
+        vec![&self.input]
     }
 
     fn with_new_children(
@@ -149,6 +153,7 @@ impl ExecutionPlan for HopExec {
             layers: self.layers.clone(),
             right_schema: self.right_schema.clone(),
             output_schema: self.output_schema.clone(),
+            props: self.props.clone(),
             right_proj: self.right_proj.clone(),
         }))
     }

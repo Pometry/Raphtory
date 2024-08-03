@@ -22,7 +22,7 @@ use datafusion::{
     physical_expr::PhysicalSortExpr,
     physical_plan::{
         metrics::MetricsSet, stream::RecordBatchStreamAdapter, DisplayAs, DisplayFormatType,
-        ExecutionPlan,
+        ExecutionPlan, PlanProperties,
     },
     physical_planner::create_physical_sort_expr,
 };
@@ -31,6 +31,8 @@ use pometry_storage::prelude::*;
 use raphtory::disk_graph::DiskGraphStorage;
 
 use crate::executor::{arrow2_to_arrow_buf, ExecError};
+
+use super::plan_properties;
 
 // use super::plan_properties;
 
@@ -146,11 +148,10 @@ impl TableProvider for EdgeListTableProvider {
         _limit: Option<usize>,
     ) -> Result<Arc<dyn ExecutionPlan>, DataFusionError> {
         let schema = projection
-            .as_ref()
-            .map(|proj| Arc::new(self.schema().project(proj).expect("failed projection")))
-            .unwrap_or_else(|| self.schema().clone());
+            .map(|proj| self.schema().project(proj).map(Arc::new))
+            .unwrap_or_else(|| Ok( self.schema().clone() ))?;
 
-        // let plan_properties = plan_properties(schema.clone(), self.num_partitions);
+        let plan_properties = plan_properties(schema.clone(), self.num_partitions);
         Ok(Arc::new(EdgeListExecPlan {
             layer_id: self.layer_id,
             layer_name: self.layer_name.clone(),
@@ -159,7 +160,7 @@ impl TableProvider for EdgeListTableProvider {
             num_partitions: self.num_partitions,
             row_count: self.row_count,
             sorted_by: self.sorted_by.clone(),
-            // props: plan_properties,
+            props: plan_properties,
             projection: projection.map(|proj| Arc::from(proj.as_slice())),
         }))
     }
@@ -173,7 +174,7 @@ struct EdgeListExecPlan {
     num_partitions: usize,
     row_count: usize,
     sorted_by: Vec<PhysicalSortExpr>,
-    // props: PlanProperties,
+    props: PlanProperties,
     projection: Option<Arc<[usize]>>,
 }
 
@@ -349,20 +350,24 @@ impl DisplayAs for EdgeListExecPlan {
 
 #[async_trait]
 impl ExecutionPlan for EdgeListExecPlan {
+    fn name(&self) -> &str {
+        "EdgeListExecPlan"
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }
 
-    // fn properties(&self) -> &PlanProperties {
-    //     &self.props
-    // }
+    fn properties(&self) -> &PlanProperties {
+        &self.props
+    }
 
-    fn output_partitioning(&self) -> datafusion::physical_expr::Partitioning {
-        datafusion::physical_expr::Partitioning::UnknownPartitioning(self.num_partitions)
-    }
-    fn output_ordering(&self) -> Option<&[datafusion::physical_expr::PhysicalSortExpr]> {
-        Some(&self.sorted_by)
-    }
+    // fn output_partitioning(&self) -> datafusion::physical_expr::Partitioning {
+    //     datafusion::physical_expr::Partitioning::UnknownPartitioning(self.num_partitions)
+    // }
+    // fn output_ordering(&self) -> Option<&[datafusion::physical_expr::PhysicalSortExpr]> {
+    //     Some(&self.sorted_by)
+    // }
 
     fn schema(&self) -> SchemaRef {
         self.schema.clone()
@@ -372,7 +377,7 @@ impl ExecutionPlan for EdgeListExecPlan {
         vec![true; self.children().len()]
     }
 
-    fn children(&self) -> Vec<Arc<dyn ExecutionPlan>> {
+    fn children(&self) -> Vec<&Arc<dyn ExecutionPlan>> {
         vec![]
     }
 
@@ -388,7 +393,7 @@ impl ExecutionPlan for EdgeListExecPlan {
         target_partitions: usize,
         _config: &ConfigOptions,
     ) -> Result<Option<Arc<dyn ExecutionPlan>>, DataFusionError> {
-        // let plan_properties = plan_properties(self.schema.clone(), target_partitions);
+        let plan_properties = plan_properties(self.schema.clone(), target_partitions);
         Ok(Some(Arc::new(EdgeListExecPlan {
             layer_id: self.layer_id,
             layer_name: self.layer_name.clone(),
@@ -397,7 +402,7 @@ impl ExecutionPlan for EdgeListExecPlan {
             num_partitions: target_partitions,
             row_count: self.row_count,
             sorted_by: self.sorted_by.clone(),
-            // props: plan_properties,
+            props: plan_properties,
             projection: self.projection.clone(),
         })))
     }

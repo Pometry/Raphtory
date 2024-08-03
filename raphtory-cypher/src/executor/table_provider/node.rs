@@ -17,7 +17,7 @@ use datafusion::{
     logical_expr::Expr,
     physical_plan::{
         metrics::MetricsSet, stream::RecordBatchStreamAdapter, DisplayAs, DisplayFormatType,
-        ExecutionPlan,
+        ExecutionPlan, PlanProperties,
     },
 };
 use futures::Stream;
@@ -27,6 +27,8 @@ use raphtory::{
     disk_graph::{prelude::*, DiskGraphStorage},
 };
 use std::{any::Any, fmt::Formatter, sync::Arc};
+
+use super::plan_properties;
 
 pub struct NodeTableProvider {
     graph: DiskGraphStorage,
@@ -116,18 +118,17 @@ impl TableProvider for NodeTableProvider {
         _limit: Option<usize>,
     ) -> Result<Arc<dyn ExecutionPlan>, DataFusionError> {
         let schema = projection
-            .as_ref()
-            .map(|proj| Arc::new(self.schema().project(proj).expect("failed projection")))
-            .unwrap_or_else(|| self.schema().clone());
+            .map(|proj| self.schema().project(proj).map(Arc::new))
+            .unwrap_or_else(|| Ok(self.schema().clone()))?;
 
-        // let plan_properties = plan_properties(self.schema.clone(), self.num_partitions);
+        let plan_properties = plan_properties(self.schema.clone(), self.num_partitions);
 
         Ok(Arc::new(NodeScanExecPlan {
             graph: self.graph.clone(),
             schema,
             num_partitions: self.num_partitions,
             chunk_size: self.chunk_size,
-            // props: plan_properties,
+            props: plan_properties,
             projection: projection.map(|proj| Arc::from(proj.as_slice())),
         }))
     }
@@ -190,7 +191,7 @@ struct NodeScanExecPlan {
     schema: SchemaRef,
     num_partitions: usize,
     chunk_size: usize,
-    // props: PlanProperties,
+    props: PlanProperties,
     projection: Option<Arc<[usize]>>,
 }
 
@@ -231,19 +232,17 @@ impl DisplayAs for NodeScanExecPlan {
 
 #[async_trait]
 impl ExecutionPlan for NodeScanExecPlan {
+
+    fn name(&self) -> &str {
+        "NodeScanExecPlan"
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }
 
-    // fn properties(&self) -> &PlanProperties {
-    //     &self.props
-    // }
-
-    fn output_partitioning(&self) -> datafusion::physical_expr::Partitioning {
-        datafusion::physical_expr::Partitioning::UnknownPartitioning(self.num_partitions)
-    }
-    fn output_ordering(&self) -> Option<&[datafusion::physical_expr::PhysicalSortExpr]> {
-        None
+    fn properties(&self) -> &PlanProperties {
+        &self.props
     }
 
     fn schema(&self) -> SchemaRef {
@@ -254,7 +253,7 @@ impl ExecutionPlan for NodeScanExecPlan {
         vec![true; self.children().len()]
     }
 
-    fn children(&self) -> Vec<Arc<dyn ExecutionPlan>> {
+    fn children(&self) -> Vec<&Arc<dyn ExecutionPlan>> {
         vec![]
     }
 
