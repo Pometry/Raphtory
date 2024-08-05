@@ -44,6 +44,12 @@ impl From<VID> for usize {
 )]
 pub struct EID(pub usize);
 
+impl EID {
+    pub fn as_u64(self) -> u64 {
+        self.0 as u64
+    }
+}
+
 impl From<EID> for usize {
     fn from(id: EID) -> Self {
         id.0

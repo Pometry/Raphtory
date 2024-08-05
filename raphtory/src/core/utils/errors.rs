@@ -141,6 +141,10 @@ pub enum GraphError {
     #[error("Protobuf decode error{0}")]
     EncodeError(#[from] prost::EncodeError),
 
+    #[cfg(feature = "proto")]
+    #[error("Failed to deserialise graph: {0}")]
+    DeserialisationError(String),
+
     #[error("Immutable graph is .. immutable!")]
     AttemptToMutateImmutableGraph,
 }

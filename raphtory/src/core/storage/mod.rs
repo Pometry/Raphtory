@@ -1,23 +1,9 @@
-#![allow(unused)]
-
-pub(crate) mod iter;
-pub mod lazy_vec;
-pub mod locked_view;
-pub mod raw_edges;
-pub mod sorted_vec_map;
-pub mod timeindex;
-
-use self::iter::Iter;
 use lock_api;
-use locked_view::LockedView;
-use ouroboros::self_referencing;
 use parking_lot::{RwLock, RwLockReadGuard};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
-    array,
     fmt::Debug,
-    iter::FusedIterator,
     marker::PhantomData,
     ops::{Deref, DerefMut},
     sync::{
@@ -25,6 +11,13 @@ use std::{
         Arc,
     },
 };
+
+pub(crate) mod iter;
+pub mod lazy_vec;
+pub mod locked_view;
+pub mod raw_edges;
+pub mod sorted_vec_map;
+pub mod timeindex;
 
 type ArcRwLockReadGuard<T> = lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, T>;
 
@@ -132,30 +125,25 @@ where
     where
         T: Send + Sync + 'static,
     {
-        self.locks
-            .into_iter()
-            .enumerate()
-            .flat_map(|(bucket, data)| {
-                (0..data.len()).map(move |offset| ArcEntry {
-                    guard: data.clone(),
-                    i: offset,
-                })
+        self.locks.into_iter().flat_map(|data| {
+            (0..data.len()).map(move |offset| ArcEntry {
+                guard: data.clone(),
+                i: offset,
             })
+        })
     }
 
+    #[allow(unused)]
     pub(crate) fn into_par_iter(self) -> impl ParallelIterator<Item = ArcEntry<T>>
     where
         T: Send + Sync + 'static,
     {
-        self.locks
-            .into_par_iter()
-            .enumerate()
-            .flat_map(|(bucket, data)| {
-                (0..data.len()).into_par_iter().map(move |offset| ArcEntry {
-                    guard: data.clone(),
-                    i: offset,
-                })
+        self.locks.into_par_iter().flat_map(|data| {
+            (0..data.len()).into_par_iter().map(move |offset| ArcEntry {
+                guard: data.clone(),
+                i: offset,
             })
+        })
     }
 }
 
@@ -213,6 +201,17 @@ where
         f(index, &mut value);
         vec[offset] = value;
         index
+    }
+
+    pub fn set(&self, index: Index, value: T) {
+        let index = index.into();
+        self.len.fetch_max(index + 1, Ordering::Relaxed);
+        let (bucket, offset) = self.resolve(index);
+        let mut vec = self.data[bucket].data.write();
+        if offset >= vec.len() {
+            vec.resize_with(offset + 1, || Default::default());
+        }
+        vec[offset] = value;
     }
 
     #[inline]

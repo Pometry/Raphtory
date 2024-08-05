@@ -48,7 +48,7 @@ pub(crate) type FxDashSet<K> = DashSet<K, BuildHasherDefault<FxHasher>>;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TemporalGraph {
     // mapping between logical and physical ids
-    logical_to_physical: Mapping,
+    pub(crate) logical_to_physical: Mapping,
     string_pool: FxDashSet<ArcStr>,
 
     pub(crate) storage: GraphStorage,
@@ -442,7 +442,7 @@ impl TemporalGraph {
         Ok(())
     }
 
-    fn link_nodes<F: FnOnce(&mut EdgeWGuard) -> Result<(), GraphError>>(
+    pub(crate) fn link_nodes<F: FnOnce(&mut EdgeWGuard) -> Result<(), GraphError>>(
         &self,
         src_id: VID,
         dst_id: VID,

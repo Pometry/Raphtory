@@ -9,77 +9,98 @@ enum GraphType {
 
 message Graph {
   GraphType graph_type = 1;
-  repeated GraphUpdate updates = 2;
+  repeated NewMeta metas = 2;
+  repeated NewNode nodes = 3;
+  repeated NewEdge edges = 4;
+  repeated GraphUpdate updates = 5;
 }
 
-message GraphUpdate {
-  oneof update {
-    NewNode new_node = 1;
-    NewNodeCProp new_node_cprop = 2;
-    UpdateNodeCProps update_node_cprops = 3;
-    NewNodeTProp new_node_tprop = 4;
-    UpdateNodeTProps update_node_tprops = 5;
-
-    NewGraphCProp new_graph_cprop = 6;
-    UpdateGraphCProps update_graph_cprops = 7;
-    NewGraphTProp new_graph_tprop = 8;
-    UpdateGraphTProps update_graph_tprops = 9;
-
-    NewLayer new_layer = 10;
-
-    NewEdge new_edge = 11;
-    DelEdge del_edge = 12;
-    NewEdgeCProp new_edge_cprop = 13;
-    UpdateEdgeCProps update_edge_cprops = 14;
-    NewEdgeTProp new_edge_tprop = 15;
-    UpdateEdgeTProps update_edge_tprops = 16;
+message NewMeta {
+  oneof meta {
+    NewNodeType new_node_type = 2;
+    NewNodeCProp new_node_cprop = 3;
+    NewNodeTProp new_node_tprop = 5;
+    NewGraphCProp new_graph_cprop = 7;
+    NewGraphTProp new_graph_tprop = 9;
+    NewLayer new_layer = 11;
+    NewEdgeCProp new_edge_cprop = 14;
+    NewEdgeTProp new_edge_tprop = 16;
   }
 
-  message NewNode {
-    oneof gid {
-      string gid_str = 1;
-      uint64 gid_u64 = 2;
-    };
-    optional uint64 type_id = 3;
+  message NewNodeType {
+    string name = 1;
+    uint64 id = 2;
   }
 
   message NewGraphCProp {
     string name = 1;
-    PropType.PropType p_type = 2;
+    uint64 id = 2;
   }
 
   message NewGraphTProp {
     string name = 1;
-    PropType.PropType p_type = 2;
+    uint64 id = 2;
+    PropType.PropType p_type = 3;
+
   }
 
   message NewNodeCProp {
     string name = 1;
-    PropType.PropType p_type = 2;
+    uint64 id = 2;
+    PropType.PropType p_type = 3;
   }
 
   message NewNodeTProp {
     string name = 1;
-    PropType.PropType p_type = 2;
+    uint64 id = 2;
+    PropType.PropType p_type = 3;
   }
 
   message NewEdgeCProp {
     string name = 1;
-    PropType.PropType p_type = 2;
+    uint64 id = 2;
+    PropType.PropType p_type = 3;
   }
 
   message NewEdgeTProp {
     string name = 1;
-    PropType.PropType p_type = 2;
+    uint64 id = 2;
+    PropType.PropType p_type = 3;
   }
 
   message NewLayer {
     string name = 1;
+    uint64 id = 2;
   }
+}
 
-  message NewEdge{
-    uint64 src = 1;
-    uint64 dst = 2;
+message NewNode {
+  oneof gid {
+    string gid_str = 1;
+    uint64 gid_u64 = 2;
+  };
+  uint64 vid = 3;
+  uint64 type_id = 4;
+}
+
+message NewEdge{
+  uint64 src = 1;
+  uint64 dst = 2;
+  uint64 eid = 3;
+}
+
+message GraphUpdate {
+  oneof update {
+    UpdateNodeCProps update_node_cprops = 1;
+    UpdateNodeTProps update_node_tprops = 2;
+
+    UpdateGraphCProps update_graph_cprops = 3;
+    UpdateGraphTProps update_graph_tprops = 4;
+
+    DelEdge del_edge = 5;
+    UpdateEdgeLayers update_edge_layers = 6;
+    UpdateEdgeCProps update_edge_cprops = 7;
+    UpdateEdgeTProps update_edge_tprops = 8;
   }
 
   message UpdateNodeTProps {
@@ -100,6 +121,11 @@ message GraphUpdate {
     uint64 secondary = 3;
     uint64 layer_id = 4;
     repeated PropPair properties = 5;
+  }
+
+  message UpdateEdgeLayers {
+    uint64 eid = 1;
+    uint64 layer_id = 2;
   }
 
   message DelEdge{
@@ -128,11 +154,6 @@ message GraphUpdate {
   message PropPair {
     uint64 key = 1;
     Prop value = 2;
-  }
-
-  message PropKey {
-    string name = 1;
-    PropType.PropType p_type = 2;
   }
 }
 

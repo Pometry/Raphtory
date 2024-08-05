@@ -8,7 +8,7 @@ use raphtory_api::core::storage::{
     arc_str::ArcStr, dict_mapper::DictMapper, locked_vec::ArcReadLockedVec, FxDashMap,
 };
 use serde::{Deserialize, Serialize};
-use std::ops::DerefMut;
+use std::ops::{Deref, DerefMut};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GraphMeta {
@@ -34,7 +34,7 @@ impl GraphMeta {
     }
 
     #[inline]
-    pub fn temporal_prop_meta(&self) -> &DictMapper {
+    pub fn temporal_prop_meta(&self) -> &PropMapper {
         &self.temporal_mapper
     }
 
@@ -145,5 +145,17 @@ impl GraphMeta {
 
     pub(crate) fn temporal_ids(&self) -> impl Iterator<Item = usize> {
         0..self.temporal_mapper.len()
+    }
+
+    pub(crate) fn const_props(&self) -> impl Iterator<Item = (usize, Prop)> + '_ {
+        self.constant
+            .iter()
+            .filter_map(|kv| kv.value().as_ref().map(|v| (*kv.key(), v.clone())))
+    }
+
+    pub(crate) fn temporal_props(
+        &self,
+    ) -> impl Iterator<Item = (usize, impl Deref<Target = TProp> + '_)> + '_ {
+        (0..self.temporal_mapper.len()).filter_map(|id| self.temporal.get(&id).map(|v| (id, v)))
     }
 }
