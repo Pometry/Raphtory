@@ -2535,3 +2535,35 @@ def test_graph_properties_query():
             json_ra["graph"]["nodes"]["list"][0]["properties"]["temporal"]["values"],
             key=lambda x: x["key"],
         )
+
+
+def test_load_graph_from_path():
+    tmp_graph_dir = tempfile.mkdtemp()
+
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+    g_file_path = os.path.join(tmp_graph_dir, "g")
+    g.save_to_file(g_file_path)
+
+    tmp_work_dir = tempfile.mkdtemp()
+    with RaphtoryServer(tmp_work_dir).start() as server:
+        client = server.get_client()
+        normalized_path = normalize_path(g_file_path)
+        query = f"""mutation {{
+          loadGraphFromPath(
+            pathOnServer: "{normalized_path}",
+            overwrite: false
+          )
+        }}"""
+        res = client.query(query)
+        print(res)
+
+        query = """{graph(path: "g") {nodes {list {name}}}}"""
+        assert client.query(query) == {
+            "graph": {
+                "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
+            }
+        }
+
