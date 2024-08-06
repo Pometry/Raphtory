@@ -365,22 +365,22 @@ impl Mut {
         Ok(true)
     }
 
-    /// Load graph from path
-    ///
-    /// Returns::
-    ///   list of names for newly added graphs
-    async fn load_graph_from_path<'a>(
-        ctx: &Context<'a>,
-        path_on_server: String,
-        namespace: &Option<String>,
-        overwrite: bool,
-    ) -> Result<String> {
-        let path_on_server = Path::new(&path_on_server);
-        let data = ctx.data_unchecked::<Data>();
-        let new_path = load_graph_from_path(&data.work_dir, path_on_server, namespace, overwrite)?;
-        data.graphs.remove(&new_path.to_path_buf());
-        Ok(new_path.display().to_string())
-    }
+    // /// Load graph from path
+    // ///
+    // /// Returns::
+    // ///   list of names for newly added graphs
+    // async fn load_graph_from_path<'a>(
+    //     ctx: &Context<'a>,
+    //     path_on_server: String,
+    //     namespace: &Option<String>,
+    //     overwrite: bool,
+    // ) -> Result<String> {
+    //     let path_on_server = Path::new(&path_on_server);
+    //     let data = ctx.data_unchecked::<Data>();
+    //     let new_path = load_graph_from_path(&data.work_dir, path_on_server, namespace, overwrite)?;
+    //     data.graphs.remove(&new_path.to_path_buf());
+    //     Ok(new_path.display().to_string())
+    // }
 
     /// Use GQL multipart upload to send new graphs to server
     ///

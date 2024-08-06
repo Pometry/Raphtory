@@ -828,47 +828,47 @@ impl PyRaphtoryClient {
         })
     }
 
-    /// Load graph from a path `path` on the server.
-    ///
-    /// Arguments:
-    ///   * `file_path`: the path to load the graph from.
-    ///   * `overwrite`: overwrite existing graph (defaults to False)
-    ///   * `namespace`: the namespace of the graph (defaults to None)
-    ///
-    /// Returns:
-    ///    The `data` field from the graphQL response after executing the mutation.
-    #[pyo3(signature = (file_path, overwrite = false, namespace = None))]
-    fn load_graph(
-        &self,
-        py: Python,
-        file_path: String,
-        overwrite: bool,
-        namespace: Option<String>,
-    ) -> PyResult<HashMap<String, PyObject>> {
-        let query = r#"
-            mutation LoadGraph($pathOnServer: String!, $overwrite: Boolean!, $namespace: String) {
-                loadGraphFromPath(pathOnServer: $pathOnServer, overwrite: $overwrite, namespace: $namespace)
-            }
-        "#
-            .to_owned();
-        let variables = [
-            ("pathOnServer".to_owned(), json!(file_path)),
-            ("overwrite".to_owned(), json!(overwrite)),
-            ("namespace".to_owned(), json!(namespace)),
-        ];
-
-        let data = self.query_with_json_variables(query.clone(), variables.into())?;
-
-        match data.get("loadGraphFromPath") {
-            Some(JsonValue::String(name)) => {
-                println!("Loaded graph: '{name}'");
-                translate_map_to_python(py, data)
-            }
-            _ => Err(PyException::new_err(format!(
-                "Error while reading server response for query:\n\t{query}\nGot data:\n\t'{data:?}'"
-            ))),
-        }
-    }
+    // /// Load graph from a path `path` on the server.
+    // ///
+    // /// Arguments:
+    // ///   * `file_path`: the path to load the graph from.
+    // ///   * `overwrite`: overwrite existing graph (defaults to False)
+    // ///   * `namespace`: the namespace of the graph (defaults to None)
+    // ///
+    // /// Returns:
+    // ///    The `data` field from the graphQL response after executing the mutation.
+    // #[pyo3(signature = (file_path, overwrite = false, namespace = None))]
+    // fn load_graph(
+    //     &self,
+    //     py: Python,
+    //     file_path: String,
+    //     overwrite: bool,
+    //     namespace: Option<String>,
+    // ) -> PyResult<HashMap<String, PyObject>> {
+    //     let query = r#"
+    //         mutation LoadGraph($pathOnServer: String!, $overwrite: Boolean!, $namespace: String) {
+    //             loadGraphFromPath(pathOnServer: $pathOnServer, overwrite: $overwrite, namespace: $namespace)
+    //         }
+    //     "#
+    //         .to_owned();
+    //     let variables = [
+    //         ("pathOnServer".to_owned(), json!(file_path)),
+    //         ("overwrite".to_owned(), json!(overwrite)),
+    //         ("namespace".to_owned(), json!(namespace)),
+    //     ];
+    //
+    //     let data = self.query_with_json_variables(query.clone(), variables.into())?;
+    //
+    //     match data.get("loadGraphFromPath") {
+    //         Some(JsonValue::String(name)) => {
+    //             println!("Loaded graph: '{name}'");
+    //             translate_map_to_python(py, data)
+    //         }
+    //         _ => Err(PyException::new_err(format!(
+    //             "Error while reading server response for query:\n\t{query}\nGot data:\n\t'{data:?}'"
+    //         ))),
+    //     }
+    // }
 
     /// Copy graph from a path `path` on the server to a `new_path` on the server
     ///
