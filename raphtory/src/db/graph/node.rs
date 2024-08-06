@@ -27,10 +27,7 @@ use crate::{
 
 use crate::{
     core::{entities::nodes::node_ref::AsNodeRef, storage::timeindex::AsTime},
-    db::{
-        api::storage::{nodes::node_storage_ops::NodeStorageOps, storage_ops::GraphStorage},
-        graph::edges::Edges,
-    },
+    db::{api::storage::storage_ops::GraphStorage, graph::edges::Edges},
 };
 use chrono::{DateTime, Utc};
 use raphtory_api::core::storage::arc_str::ArcStr;

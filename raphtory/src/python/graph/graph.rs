@@ -198,7 +198,7 @@ impl PyGraph {
 
         let disk_graph = Graph::persist_as_disk_graph(&self.graph, graph_dir)?;
         let storage = GraphStorage::Disk(Arc::new(disk_graph));
-        let graph = Graph::from_internal_graph(&storage);
+        let graph = Graph::from_internal_graph(storage);
 
         Python::with_gil(|py| {
             Ok(Py::new(

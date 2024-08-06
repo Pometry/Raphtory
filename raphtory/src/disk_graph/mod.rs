@@ -143,11 +143,11 @@ impl DiskGraphStorage {
     }
 
     pub fn into_graph(self) -> Graph {
-        Graph::from_internal_graph(&storage_ops::GraphStorage::Disk(Arc::new(self)))
+        Graph::from_internal_graph(storage_ops::GraphStorage::Disk(Arc::new(self)))
     }
 
     pub fn into_persistent_graph(self) -> PersistentGraph {
-        PersistentGraph::from_internal_graph(&storage_ops::GraphStorage::Disk(Arc::new(self)))
+        PersistentGraph::from_internal_graph(storage_ops::GraphStorage::Disk(Arc::new(self)))
     }
 
     pub(crate) fn core_temporal_edge_prop_ids(

@@ -4,7 +4,7 @@ pub mod into_indexed;
 
 use std::{collections::HashSet, ops::Deref, path::Path, sync::Arc};
 
-use raphtory_api::core::storage::arc_str::{ArcStr, OptionAsStr};
+use raphtory_api::core::storage::arc_str::ArcStr;
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
 use tantivy::{
     collector::TopDocs,

@@ -7,17 +7,14 @@ use crate::{
                 tgraph_storage::GraphStorage,
                 timer::{MaxCounter, MinCounter, TimeCounterTrait},
             },
-            nodes::{
-                node_ref::{AsNodeRef, NodeRef},
-                node_store::NodeStore,
-            },
+            nodes::{node_ref::NodeRef, node_store::NodeStore},
             properties::{graph_meta::GraphMeta, props::Meta},
             LayerIds, EID, VID,
         },
         storage::{
             raw_edges::EdgeWGuard,
             timeindex::{AsTime, TimeIndexEntry},
-            EntryMut, PairEntryMut,
+            PairEntryMut,
         },
         utils::errors::GraphError,
         Direction, Prop,
@@ -25,7 +22,6 @@ use crate::{
     db::api::{storage::edges::edge_storage_ops::EdgeStorageOps, view::Layer},
 };
 use dashmap::DashSet;
-use either::Either;
 use itertools::Itertools;
 use raphtory_api::core::{
     entities::{edges::edge_ref::EdgeRef, GidRef},

@@ -22,7 +22,7 @@ use crate::{
         },
         graph::views::deletion_graph::PersistentGraph,
     },
-    prelude::{Graph, PropertyAdditionOps},
+    prelude::Graph,
     serialise,
     serialise::{
         graph_update::*, new_meta::*, new_node, new_node::Gid, prop,
@@ -38,7 +38,6 @@ use raphtory_api::core::{
         arc_str::ArcStr,
         timeindex::{AsTime, TimeIndexEntry},
     },
-    Direction,
 };
 use rayon::prelude::*;
 use std::{borrow::Borrow, fs::File, io::Write, iter, path::Path, sync::Arc};

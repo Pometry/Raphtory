@@ -15,9 +15,7 @@ use crate::{
         utils::errors::GraphError,
         PropType,
     },
-    db::api::{
-        mutation::internal::InternalAdditionOps, storage::edges::edge_storage_ops::EdgeStorageOps,
-    },
+    db::api::mutation::internal::InternalAdditionOps,
     prelude::Prop,
 };
 
