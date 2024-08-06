@@ -11,6 +11,9 @@ use crate::{
     },
     db::{
         api::{
+            mutation::internal::{
+                InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
+            },
             storage::{
                 edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
                 storage_ops::GraphStorage, tprop_storage_ops::TPropOps,
@@ -19,7 +22,7 @@ use crate::{
         },
         graph::views::deletion_graph::PersistentGraph,
     },
-    prelude::Graph,
+    prelude::{Graph, PropertyAdditionOps},
     serialise,
     serialise::{
         graph_update::*, new_meta::*, new_node, new_node::Gid, prop,
@@ -270,14 +273,6 @@ impl GraphUpdate {
         Self::new(Update::UpdateEdgeCprops(inner))
     }
 
-    fn update_edge_layers(eid: EID, layer_id: usize) -> Self {
-        let inner = UpdateEdgeLayers {
-            eid: eid.as_u64(),
-            layer_id: layer_id as u64,
-        };
-        Self::new(Update::UpdateEdgeLayers(inner))
-    }
-
     fn del_edge(eid: EID, layer_id: usize, time: TimeIndexEntry) -> Self {
         let inner = DelEdge {
             eid: eid.as_u64(),
@@ -429,11 +424,6 @@ impl serialise::Graph {
             .push(GraphUpdate::update_edge_cprops(eid, layer_id, properties));
     }
 
-    fn update_edge_layers(&mut self, eid: EID, layer_id: usize) {
-        self.updates
-            .push(GraphUpdate::update_edge_layers(eid, layer_id))
-    }
-
     fn del_edge(&mut self, eid: EID, layer_id: usize, time: TimeIndexEntry) {
         self.updates
             .push(GraphUpdate::del_edge(eid, layer_id, time))
@@ -535,6 +525,13 @@ impl StableEncoder for GraphStorage {
             {
                 graph.update_node_tprops(node.vid(), t, group.map(|(_, v)| v));
             }
+            for t in node.additions().iter() {
+                graph.update_node_tprops(
+                    node.vid(),
+                    TimeIndexEntry::start(t),
+                    iter::empty::<(usize, Prop)>(),
+                );
+            }
             graph.update_node_cprops(
                 node.vid(),
                 (0..n_const_meta.len()).flat_map(|i| node.prop(i).map(|v| (i, v))),
@@ -569,7 +566,6 @@ impl StableEncoder for GraphStorage {
             let edge = edge.as_ref();
             graph.new_edge(edge.src(), edge.dst(), eid);
             for layer_id in 0..storage.unfiltered_num_layers() {
-                graph.update_edge_layers(eid, layer_id);
                 for (t, props) in
                     zip_tprop_updates!((0..e_temporal_meta.len())
                         .map(|i| (i, edge.temporal_prop_layer(layer_id, i))))
@@ -613,6 +609,7 @@ impl StableEncoder for PersistentGraph {
 
 impl StableDecode for TemporalGraph {
     fn decode_from_proto(graph: &serialise::Graph) -> Result<Self, GraphError> {
+        println!("proto: {graph:?}");
         let storage = Self::default();
         graph.metas.par_iter().for_each(|meta| {
             if let Some(meta) = meta.meta.as_ref() {
@@ -694,79 +691,50 @@ impl StableDecode for TemporalGraph {
             if let Some(update) = update.update.as_ref() {
                 match update {
                     Update::UpdateNodeCprops(props) => {
-                        let mut node = storage.storage.get_node_mut(VID(props.id as usize));
-                        for pair in props.properties.iter() {
-                            let (prop_id, prop_value) = as_prop(pair)?;
-                            node.update_constant_prop(prop_id, prop_value)?;
-                        }
+                        storage.internal_update_constant_node_properties(
+                            VID(props.id as usize),
+                            collect_props(&props.properties)?,
+                        )?;
                     }
                     Update::UpdateNodeTprops(props) => {
-                        let mut node = storage.storage.get_node_mut(VID(props.id as usize));
                         let time = TimeIndexEntry(props.time, props.secondary as usize);
-                        for pair in props.properties.iter() {
-                            let (prop_id, prop_value) = as_prop(pair)?;
-                            node.add_prop(time, prop_id, prop_value)?;
-                        }
+                        let node = VID(props.id as usize);
+                        let props = collect_props(&props.properties)?;
+                        storage.internal_add_node(time, node, props)?;
                     }
                     Update::UpdateGraphCprops(props) => {
-                        for pair in props.properties.iter() {
-                            let (prop_id, prop_value) = as_prop(pair)?;
-                            storage
-                                .graph_meta
-                                .update_constant_prop(prop_id, prop_value)?;
-                        }
+                        storage.internal_update_constant_properties(collect_props(
+                            &props.properties,
+                        )?)?;
                     }
                     Update::UpdateGraphTprops(props) => {
                         let time = TimeIndexEntry(props.time, props.secondary as usize);
-                        for pair in props.properties.iter() {
-                            let (prop_id, prop_value) = as_prop(pair)?;
-                            storage.graph_meta.add_prop(time, prop_id, prop_value)?;
-                        }
+                        storage.internal_add_properties(time, collect_props(&props.properties)?)?;
                     }
                     Update::DelEdge(del_edge) => {
                         let time = TimeIndexEntry(del_edge.time, del_edge.secondary as usize);
-                        let mut edge = storage.storage.get_edge_mut(EID(del_edge.eid as usize));
-                        edge.deletions_mut(del_edge.layer_id as usize).insert(time);
-                    }
-                    Update::UpdateEdgeLayers(UpdateEdgeLayers { eid, layer_id }) => {
-                        let eid = EID(*eid as usize);
-                        let layer_id = *layer_id as usize;
-                        let edge = storage.storage.edge_entry(eid);
-                        let mem_edge = edge.as_mem_edge();
-                        let src = mem_edge.src();
-                        let dst = mem_edge.dst();
-                        drop(edge);
-                        storage.storage.get_node_mut(src).add_edge(
-                            dst,
-                            Direction::OUT,
-                            layer_id,
-                            eid,
-                        );
-                        storage.storage.get_node_mut(dst).add_edge(
-                            src,
-                            Direction::IN,
-                            layer_id,
-                            eid,
-                        );
+                        storage.internal_delete_existing_edge(
+                            time,
+                            EID(del_edge.eid as usize),
+                            del_edge.layer_id as usize,
+                        )?;
                     }
                     Update::UpdateEdgeCprops(props) => {
-                        let mut edge = storage.storage.get_edge_mut(EID(props.eid as usize));
-                        let layer = edge.layer_mut(props.layer_id as usize);
-                        for pair in props.properties.iter() {
-                            let (prop_id, prop_value) = as_prop(pair)?;
-                            layer.update_constant_prop(prop_id, prop_value)?;
-                        }
+                        storage.internal_update_constant_edge_properties(
+                            EID(props.eid as usize),
+                            props.layer_id as usize,
+                            collect_props(&props.properties)?,
+                        )?;
                     }
                     Update::UpdateEdgeTprops(props) => {
-                        let mut edge = storage.storage.get_edge_mut(EID(props.eid as usize));
                         let time = TimeIndexEntry(props.time, props.secondary as usize);
-                        let layer_id = props.layer_id as usize;
-                        edge.additions_mut(layer_id).insert(time);
-                        let layer = edge.layer_mut(layer_id);
-                        for pair in props.properties.iter() {
-                            let (prop_id, prop_value) = as_prop(pair)?;
-                            layer.add_prop(time, prop_id, prop_value)?;
-                        }
+                        let eid = EID(props.eid as usize);
+                        storage.internal_add_edge_update(
+                            time,
+                            eid,
+                            collect_props(&props.properties)?,
+                            props.layer_id as usize,
+                        )?;
                     }
                 }
             }
@@ -909,6 +877,12 @@ fn collect_proto_props(
     iter.into_iter()
         .map(|(key, value)| PropPair::new(key, value.borrow()))
         .collect()
+}
+
+fn collect_props<'a>(
+    iter: impl IntoIterator<Item = &'a PropPair>,
+) -> Result<Vec<(usize, Prop)>, GraphError> {
+    iter.into_iter().map(as_prop).collect()
 }
 
 fn as_proto_prop(prop: &Prop) -> serialise::Prop {
@@ -1098,6 +1072,7 @@ mod proto_test {
             .unwrap();
         g1.stable_serialise(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
+        println!("edges: {:?}", g2.edges().collect());
         assert_graph_equal(&g1, &g2);
     }
 
@@ -1172,6 +1147,24 @@ mod proto_test {
             .expect("Failed to get edge")
             .layers("a")
             .unwrap();
+        println!("{:?}", edge.properties().constant().iter().collect_vec());
+
+        for (new, old) in edge.properties().constant().iter().zip(props.iter()) {
+            assert_eq!(new.0, old.0);
+            assert_eq!(new.1, old.1);
+        }
+
+        assert_eq!(
+            edge.properties()
+                .constant()
+                .iter()
+                .map(|(s, v)| (s.to_string(), v))
+                .collect_vec(),
+            props
+                .iter()
+                .map(|(s, v)| (s.to_string(), v.clone()))
+                .collect_vec()
+        );
 
         assert!(props.into_iter().all(|(name, expected)| {
             edge.properties()

@@ -340,7 +340,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
     }
 
     pub fn set_node_type(&self, new_type: &str) -> Result<(), GraphError> {
-        let res = self.graph.resolve_node_type(self.node, Some(new_type));
+        let res = self.graph.update_node_type(self.node, new_type);
         if res.is_ok() {
             Ok(())
         } else {
@@ -370,13 +370,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
             |name, dtype| self.graph.resolve_node_property(name, dtype, false),
             |prop| self.graph.process_prop_value(prop),
         )?;
-        let node_internal_type_id = self
-            .graph
-            .core_node_entry(self.node)
-            .as_ref()
-            .node_type_id();
-        self.graph
-            .internal_add_node(t, self.node, properties, node_internal_type_id)
+        self.graph.internal_add_node(t, self.node, properties)
     }
 }
 

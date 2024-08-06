@@ -121,6 +121,7 @@ where
         self.locks.par_iter().flat_map(|v| v.par_iter())
     }
 
+    #[allow(unused)]
     pub(crate) fn into_iter(self) -> impl Iterator<Item = ArcEntry<T>> + Send
     where
         T: Send + Sync + 'static,
@@ -192,7 +193,7 @@ where
     }
 
     pub fn push<F: Fn(usize, &mut T)>(&self, mut value: T, f: F) -> usize {
-        let index = self.len.fetch_add(1, Ordering::SeqCst);
+        let index = self.len.fetch_add(1, Ordering::Relaxed);
         let (bucket, offset) = self.resolve(index);
         let mut vec = self.data[bucket].data.write();
         if offset >= vec.len() {
@@ -332,10 +333,23 @@ pub enum PairEntryMut<'a, T: 'static> {
 }
 
 impl<'a, T: 'static> PairEntryMut<'a, T> {
+    pub(crate) fn get_i(&self) -> &T {
+        match self {
+            PairEntryMut::Same { i, guard, .. } => &guard[*i],
+            PairEntryMut::Different { i, guard1, .. } => &guard1[*i],
+        }
+    }
     pub(crate) fn get_mut_i(&mut self) -> &mut T {
         match self {
             PairEntryMut::Same { i, guard, .. } => &mut guard[*i],
             PairEntryMut::Different { i, guard1, .. } => &mut guard1[*i],
+        }
+    }
+
+    pub(crate) fn get_j(&self) -> &T {
+        match self {
+            PairEntryMut::Same { j, guard, .. } => &guard[*j],
+            PairEntryMut::Different { j, guard2, .. } => &guard2[*j],
         }
     }
 
@@ -368,9 +382,10 @@ impl<'a, T> DerefMut for EntryMut<'a, T> {
 
 #[cfg(test)]
 mod test {
-    use rayon::prelude::{IntoParallelIterator, ParallelIterator};
-
     use super::RawStorage;
+    use pretty_assertions::assert_eq;
+    use quickcheck_macros::quickcheck;
+    use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 
     #[test]
     fn add_5_values_to_storage() {
@@ -422,9 +437,6 @@ mod test {
             assert_eq!(*entry, i.to_string());
         }
     }
-
-    use pretty_assertions::assert_eq;
-    use quickcheck_macros::quickcheck;
 
     #[quickcheck]
     fn concurrent_push(v: Vec<usize>) -> bool {

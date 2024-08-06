@@ -41,7 +41,7 @@ impl<G: InternalPropertyAdditionOps + InternalAdditionOps> PropertyAdditionOps f
             |name, dtype| self.resolve_graph_property(name, dtype, true),
             |prop| self.process_prop_value(prop),
         )?;
-        self.internal_add_static_properties(properties)
+        self.internal_add_constant_properties(properties)
     }
 
     fn update_constant_properties<PI: CollectProperties>(
@@ -52,6 +52,6 @@ impl<G: InternalPropertyAdditionOps + InternalAdditionOps> PropertyAdditionOps f
             |name, dtype| self.resolve_graph_property(name, dtype, true),
             |prop| self.process_prop_value(prop),
         )?;
-        self.internal_update_static_properties(properties)
+        self.internal_update_constant_properties(properties)
     }
 }

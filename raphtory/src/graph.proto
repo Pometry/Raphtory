@@ -98,9 +98,8 @@ message GraphUpdate {
     UpdateGraphTProps update_graph_tprops = 4;
 
     DelEdge del_edge = 5;
-    UpdateEdgeLayers update_edge_layers = 6;
-    UpdateEdgeCProps update_edge_cprops = 7;
-    UpdateEdgeTProps update_edge_tprops = 8;
+    UpdateEdgeCProps update_edge_cprops = 6;
+    UpdateEdgeTProps update_edge_tprops = 7;
   }
 
   message UpdateNodeTProps {
@@ -121,11 +120,6 @@ message GraphUpdate {
     uint64 secondary = 3;
     uint64 layer_id = 4;
     repeated PropPair properties = 5;
-  }
-
-  message UpdateEdgeLayers {
-    uint64 eid = 1;
-    uint64 layer_id = 2;
   }
 
   message DelEdge{

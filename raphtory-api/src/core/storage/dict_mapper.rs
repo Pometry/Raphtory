@@ -36,12 +36,13 @@ impl DictMapper {
     /// Explicitly set the id for a key (useful for initialising the map in parallel)
     pub fn set_id(&self, name: impl Into<ArcStr>, id: usize) {
         let arc_name = name.into();
-        self.map.insert(arc_name.clone(), id);
+        let map_entry = self.map.entry(arc_name.clone());
         let mut keys = self.reverse_map.write();
         if keys.len() <= id {
-            keys.resize(id + 1, "".into())
+            keys.resize(id + 1, Default::default())
         }
         keys[id] = arc_name;
+        map_entry.insert(id);
     }
 
     pub fn has_name(&self, id: usize) -> bool {

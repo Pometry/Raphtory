@@ -1,3 +1,4 @@
+use super::logical_to_physical::Mapping;
 use crate::{
     core::{
         entities::{
@@ -16,12 +17,12 @@ use crate::{
         storage::{
             raw_edges::EdgeWGuard,
             timeindex::{AsTime, TimeIndexEntry},
-            EntryMut,
+            EntryMut, PairEntryMut,
         },
         utils::errors::GraphError,
         Direction, Prop,
     },
-    db::api::view::Layer,
+    db::api::{storage::edges::edge_storage_ops::EdgeStorageOps, view::Layer},
 };
 use dashmap::DashSet;
 use either::Either;
@@ -40,8 +41,6 @@ use std::{
     iter,
     sync::{atomic::AtomicUsize, Arc},
 };
-
-use super::logical_to_physical::Mapping;
 
 pub(crate) type FxDashSet<K> = DashSet<K, BuildHasherDefault<FxHasher>>;
 
@@ -310,136 +309,50 @@ impl TemporalGraph {
     }
 
     #[inline]
-    fn update_time(&self, time: TimeIndexEntry) {
+    pub(crate) fn update_time(&self, time: TimeIndexEntry) {
         let t = time.t();
         self.earliest_time.update(t);
         self.latest_time.update(t);
     }
 
-    /// return local id for node, initialising storage if node does not exist yet
-    pub(crate) fn resolve_node<V: AsNodeRef>(&self, n: V) -> Result<VID, GraphError> {
-        match n.as_gid_ref() {
-            Either::Left(id) => {
-                let ref_mut = self.logical_to_physical.get_or_init(id, || {
-                    let node_store = NodeStore::empty(id.into());
-                    self.storage.push_node(node_store)
-                })?;
-                Ok(ref_mut)
-            }
-            Either::Right(vid) => Ok(vid),
-        }
-    }
-
-    pub(crate) fn resolve_node_type(
+    pub(crate) fn link_nodes_inner(
         &self,
-        v_id: VID,
-        node_type: Option<&str>,
-    ) -> Result<usize, GraphError> {
-        let mut node = self.storage.get_node_mut(v_id);
-        match node_type {
-            None => Ok(node.node_type),
-            Some(node_type) => {
-                if node_type == "_default" {
-                    return Err(GraphError::NodeTypeError(
-                        "_default type is not allowed to be used on nodes"
-                            .parse()
-                            .unwrap(),
-                    ));
-                }
-                match node.node_type {
-                    0 => {
-                        let node_type_id = self.node_meta.get_or_create_node_type_id(node_type);
-                        node.update_node_type(node_type_id);
-                        Ok(node_type_id)
-                    }
-                    _ => {
-                        let new_node_type_id =
-                            self.node_meta.get_node_type_id(node_type).unwrap_or(0);
-                        if node.node_type != new_node_type_id {
-                            return Err(GraphError::NodeTypeError(
-                                "Node already has a non-default type".parse().unwrap(),
-                            ));
-                        }
-                        // Returns the original node type to prevent type being changed
-                        Ok(node.node_type)
-                    }
-                }
-            }
-        }
-    }
-
-    #[inline]
-    pub(crate) fn add_node_no_props(
-        &self,
-        time: TimeIndexEntry,
-        v_id: VID,
-        node_type_id: usize,
-    ) -> EntryMut<NodeStore> {
-        self.update_time(time);
-        // get the node and update the time index
-        let mut node = self.storage.get_node_mut(v_id);
-        node.update_time(time);
-        node.update_node_type(node_type_id);
-        node
-    }
-
-    pub(crate) fn add_node_internal(
-        &self,
-        time: TimeIndexEntry,
-        v_id: VID,
-        props: Vec<(usize, Prop)>,
-        node_type_id: usize,
-    ) -> Result<(), GraphError> {
-        let mut node = self.add_node_no_props(time, v_id, node_type_id);
-        for (id, prop) in props {
-            node.add_prop(time, id, prop)?;
-        }
-        Ok(())
-    }
-
-    pub(crate) fn add_constant_properties(
-        &self,
-        props: Vec<(usize, Prop)>,
-    ) -> Result<(), GraphError> {
-        for (id, prop) in props {
-            self.graph_meta.add_constant_prop(id, prop)?;
-        }
-        Ok(())
-    }
-
-    pub(crate) fn update_constant_properties(
-        &self,
-        props: Vec<(usize, Prop)>,
-    ) -> Result<(), GraphError> {
-        for (id, prop) in props {
-            self.graph_meta.update_constant_prop(id, prop)?;
-        }
-        Ok(())
-    }
-
-    pub(crate) fn add_properties(
-        &self,
+        node_pair: &mut PairEntryMut<NodeStore>,
+        edge: &mut EdgeWGuard,
         t: TimeIndexEntry,
-        props: Vec<(usize, Prop)>,
-    ) -> Result<(), GraphError> {
-        for (prop_id, prop) in props {
-            self.graph_meta.add_prop(t, prop_id, prop)?;
-        }
-        Ok(())
-    }
-
-    pub(crate) fn delete_edge(
-        &self,
-        t: TimeIndexEntry,
-        src_id: VID,
-        dst_id: VID,
         layer: usize,
+        edge_fn: impl FnOnce(&mut EdgeWGuard) -> Result<(), GraphError>,
     ) -> Result<(), GraphError> {
-        self.link_nodes(src_id, dst_id, t, layer, |new_edge| {
-            new_edge.deletions_mut(layer).insert(t);
-            Ok(())
-        })?;
+        edge_fn(edge)?;
+        self.update_time(t);
+        let src_id = node_pair.get_i().vid;
+        let dst_id = node_pair.get_j().vid;
+        let edge_id = edge.edge_store().eid;
+        let src = node_pair.get_mut_i();
+        src.add_edge(dst_id, Direction::OUT, layer, edge_id);
+        src.update_time(t);
+        let dst = node_pair.get_mut_j();
+        dst.add_edge(src_id, Direction::IN, layer, edge_id);
+        dst.update_time(t);
         Ok(())
+    }
+
+    pub(crate) fn link_edge(
+        &self,
+        eid: EID,
+        t: TimeIndexEntry,
+        layer: usize,
+        edge_fn: impl FnOnce(&mut EdgeWGuard) -> Result<(), GraphError>,
+    ) -> Result<(), GraphError> {
+        let (src, dst) = {
+            let edge_r = self.storage.edges.get_edge(eid);
+            let edge_r = edge_r.as_mem_edge();
+            (edge_r.src(), edge_r.dst())
+        };
+        // need to get the node pair first to avoid deadlocks with link_nodes
+        let mut node_pair = self.storage.pair_node_mut(src, dst);
+        let mut edge_w = self.storage.edges.get_edge_mut(eid);
+        self.link_nodes_inner(&mut node_pair, &mut edge_w, t, layer, edge_fn)
     }
 
     pub(crate) fn link_nodes<F: FnOnce(&mut EdgeWGuard) -> Result<(), GraphError>>(
@@ -451,50 +364,13 @@ impl TemporalGraph {
         edge_fn: F,
     ) -> Result<EID, GraphError> {
         let mut node_pair = self.storage.pair_node_mut(src_id, dst_id);
-        self.update_time(t);
-        let src = node_pair.get_mut_i();
-
-        let edge_id = match src.find_edge_eid(dst_id, &LayerIds::All) {
-            Some(edge_id) => {
-                let mut edge = self.storage.get_edge_mut(edge_id);
-                edge_fn(&mut edge)?;
-                edge_id
-            }
-            None => {
-                let mut edge = self.storage.push_edge(EdgeStore::new(src_id, dst_id));
-                let eid = edge.edge_store().eid;
-                edge_fn(&mut edge)?;
-                eid
-            }
+        let src = node_pair.get_i();
+        let mut edge = match src.find_edge_eid(dst_id, &LayerIds::All) {
+            Some(edge_id) => self.storage.get_edge_mut(edge_id),
+            None => self.storage.push_edge(EdgeStore::new(src_id, dst_id)),
         };
-
-        src.add_edge(dst_id, Direction::OUT, layer, edge_id);
-        src.update_time(t);
-        let dst = node_pair.get_mut_j();
-        dst.add_edge(src_id, Direction::IN, layer, edge_id);
-        dst.update_time(t);
-        Ok(edge_id)
-    }
-
-    pub(crate) fn add_edge_internal(
-        &self,
-        t: TimeIndexEntry,
-        src_id: VID,
-        dst_id: VID,
-        props: Vec<(usize, Prop)>,
-        layer: usize,
-    ) -> Result<EID, GraphError> {
-        // get the entries for the src and dst nodes
-        self.link_nodes(src_id, dst_id, t, layer, move |edge| {
-            edge.additions_mut(layer).insert(t);
-            if !props.is_empty() {
-                let edge_layer = edge.layer_mut(layer);
-                for (prop_id, prop_value) in props {
-                    edge_layer.add_prop(t, prop_id, prop_value)?;
-                }
-            }
-            Ok(())
-        })
+        self.link_nodes_inner(&mut node_pair, &mut edge, t, layer, edge_fn)?;
+        Ok(edge.edge_store().eid)
     }
 
     pub(crate) fn resolve_node_ref(&self, v: NodeRef) -> Option<VID> {

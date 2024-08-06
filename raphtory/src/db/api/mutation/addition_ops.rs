@@ -114,8 +114,10 @@ impl<G: InternalAdditionOps + StaticGraphViewOps> AdditionOps for G {
         )?;
         let ti = time_from_input(self, t)?;
         let v_id = self.resolve_node(v)?;
-        let type_id = self.resolve_node_type(v_id, node_type)?;
-        self.internal_add_node(ti, v_id, properties, type_id)?;
+        if let Some(node_type) = node_type {
+            self.update_node_type(v_id, node_type)?;
+        }
+        self.internal_add_node(ti, v_id, properties)?;
         Ok(NodeView::new_internal(self.clone(), v_id))
     }
 
