@@ -958,6 +958,7 @@ fn as_proto_prop(prop: &Prop) -> serialise::Prop {
 mod proto_test {
     use chrono::{DateTime, NaiveDateTime};
 
+    use super::*;
     use crate::{
         core::DocumentInput,
         db::{
@@ -965,9 +966,8 @@ mod proto_test {
             graph::graph::assert_graph_equal,
         },
         prelude::*,
+        serialise::GraphType,
     };
-
-    use super::*;
 
     #[test]
     fn node_no_props() {
@@ -1226,6 +1226,43 @@ mod proto_test {
                     assert_eq!(t, expected_t as i64);
                 }
             });
+    }
+
+    #[test]
+    fn manually_test_append() {
+        let mut graph1 = serialise::Graph::default();
+        graph1.set_graph_type(GraphType::Event);
+        graph1.new_node(GidRef::Str("1"), VID(0), 0);
+        graph1.new_node(GidRef::Str("2"), VID(1), 0);
+        graph1.new_edge(VID(0), VID(1), EID(0));
+        graph1.update_edge_tprops(
+            EID(0),
+            TimeIndexEntry::start(1),
+            0,
+            iter::empty::<(usize, Prop)>(),
+        );
+        let mut bytes1 = graph1.encode_to_vec();
+
+        let mut graph2 = serialise::Graph::default();
+        graph2.new_node(GidRef::Str("3"), VID(2), 0);
+        graph2.new_edge(VID(0), VID(2), EID(1));
+        graph2.update_edge_tprops(
+            EID(1),
+            TimeIndexEntry::start(2),
+            0,
+            iter::empty::<(usize, Prop)>(),
+        );
+        bytes1.extend(graph2.encode_to_vec());
+
+        let graph = Graph::decode_from_bytes(&bytes1).unwrap();
+        assert_eq!(graph.nodes().name().collect_vec(), ["1", "2", "3"]);
+        assert_eq!(
+            graph.edges().id().collect_vec(),
+            [
+                (GID::Str("1".to_string()), GID::Str("2".to_string())),
+                (GID::Str("1".to_string()), GID::Str("3".to_string()))
+            ]
+        )
     }
 
     fn write_props_to_vec(props: &mut Vec<(&str, Prop)>) {
