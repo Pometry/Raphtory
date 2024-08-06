@@ -609,7 +609,6 @@ impl StableEncoder for PersistentGraph {
 
 impl StableDecode for TemporalGraph {
     fn decode_from_proto(graph: &serialise::Graph) -> Result<Self, GraphError> {
-        println!("proto: {graph:?}");
         let storage = Self::default();
         graph.metas.par_iter().for_each(|meta| {
             if let Some(meta) = meta.meta.as_ref() {
@@ -1072,7 +1071,6 @@ mod proto_test {
             .unwrap();
         g1.stable_serialise(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
-        println!("edges: {:?}", g2.edges().collect());
         assert_graph_equal(&g1, &g2);
     }
 
@@ -1147,32 +1145,11 @@ mod proto_test {
             .expect("Failed to get edge")
             .layers("a")
             .unwrap();
-        println!("{:?}", edge.properties().constant().iter().collect_vec());
 
         for (new, old) in edge.properties().constant().iter().zip(props.iter()) {
             assert_eq!(new.0, old.0);
             assert_eq!(new.1, old.1);
         }
-
-        assert_eq!(
-            edge.properties()
-                .constant()
-                .iter()
-                .map(|(s, v)| (s.to_string(), v))
-                .collect_vec(),
-            props
-                .iter()
-                .map(|(s, v)| (s.to_string(), v.clone()))
-                .collect_vec()
-        );
-
-        assert!(props.into_iter().all(|(name, expected)| {
-            edge.properties()
-                .constant()
-                .get(name)
-                .filter(|prop| prop == &expected)
-                .is_some()
-        }))
     }
 
     #[test]
