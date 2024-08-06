@@ -720,10 +720,8 @@ def test_receive_graph_using_client_api_succeeds_if_graph_found():
         g.save_to_file(os.path.join(work_dir, "g1"))
 
         received_graph = client.receive_graph("g1")
+        g = Graph.from_bincode(received_graph)
 
-        decoded_bytes = base64.b64decode(received_graph)
-
-        g = Graph.from_bincode(decoded_bytes)
         assert g.nodes.name == ["ben", "hamza", "haaroon"]
 
 

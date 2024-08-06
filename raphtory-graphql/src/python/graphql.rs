@@ -11,13 +11,14 @@ use async_graphql::{
     dynamic::{Field, FieldFuture, FieldValue, InputValue, Object, TypeRef, ValueAccessor},
     Value as GraphqlValue,
 };
+use base64::{engine::general_purpose, Engine as _};
 use crossbeam_channel::Sender as CrossbeamSender;
 use dynamic_graphql::internal::{Registry, TypeName};
 use itertools::intersperse;
 use pyo3::{
     exceptions::{PyAttributeError, PyException, PyTypeError, PyValueError},
     prelude::*,
-    types::{IntoPyDict, PyDict, PyFunction, PyList},
+    types::{IntoPyDict, PyBytes, PyDict, PyFunction, PyList},
 };
 use raphtory::{
     db::api::view::MaterializedGraph,
@@ -960,7 +961,7 @@ impl PyRaphtoryClient {
     ///
     /// Returns:
     ///    Graph as string
-    fn receive_graph(&self, path: String) -> PyResult<String> {
+    fn receive_graph(&self, py: Python, path: String) -> PyResult<Py<PyBytes>> {
         let query = r#"
             query ReceiveGraph($path: String!) {
                 receiveGraph(path: $path)
@@ -969,7 +970,12 @@ impl PyRaphtoryClient {
         let variables = [("path".to_owned(), json!(path))];
         let data = self.query_with_json_variables(query.clone(), variables.into())?;
         match data.get("receiveGraph") {
-            Some(JsonValue::String(graph)) => Ok(graph.clone()),
+            Some(JsonValue::String(graph)) => {
+                let decoded_bytes = general_purpose::STANDARD
+                    .decode(graph.clone())
+                    .map_err(|err| PyException::new_err(format!("Base64 decode error: {}", err)))?;
+                Ok(PyBytes::new(py, &decoded_bytes).into())
+            }
             _ => Err(PyException::new_err(format!(
                 "Error while reading server response for query:\n\t{query}\nGot data:\n\t'{data:?}'"
             ))),
