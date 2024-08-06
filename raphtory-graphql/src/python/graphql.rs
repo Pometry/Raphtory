@@ -367,18 +367,14 @@ impl PyRaphtoryServer {
     ///
     /// Arguments:
     ///   * `port`: the port to use (defaults to 1736).
-    ///   * `enable_tracing`: enable tracing (defaults to False).
-    ///   * `enable_auth`: enable authentication (defaults to False).
     ///   * `timeout_in_milliseconds`: wait for server to be online (defaults to 5000). The server is stopped if not online within timeout_in_milliseconds but manages to come online as soon as timeout_in_milliseconds finishes!
     #[pyo3(
-        signature = (port = 1736, enable_tracing = false, enable_auth = false, timeout_in_milliseconds = None)
+        signature = (port = 1736, timeout_in_milliseconds = None)
     )]
     pub fn start(
         slf: PyRefMut<Self>,
         py: Python,
         port: u16,
-        enable_tracing: bool,
-        enable_auth: bool,
         timeout_in_milliseconds: Option<u64>,
     ) -> PyResult<PyRunningRaphtoryServer> {
         let (sender, receiver) = crossbeam_channel::bounded::<BridgeCommand>(1);
@@ -392,7 +388,7 @@ impl PyRaphtoryServer {
                 .build()
                 .unwrap()
                 .block_on(async move {
-                    let handler = server.start_with_port(port, enable_tracing, enable_auth);
+                    let handler = server.start_with_port(port);
                     let running_server = handler.await?;
                     let tokio_sender = running_server._get_sender().clone();
                     tokio::task::spawn_blocking(move || {
@@ -431,17 +427,10 @@ impl PyRaphtoryServer {
     /// Arguments:
     ///   * `port`: the port to use (defaults to 1736).
     #[pyo3(
-        signature = (port = 1736, enable_tracing = false, enable_auth = false)
+        signature = (port = 1736)
     )]
-    pub fn run(
-        slf: PyRefMut<Self>,
-        py: Python,
-        port: u16,
-        enable_tracing: bool,
-        enable_auth: bool,
-    ) -> PyResult<()> {
-        let mut server =
-            Self::start(slf, py, port, enable_tracing, enable_auth, Some(180000))?.server_handler;
+    pub fn run(slf: PyRefMut<Self>, py: Python, port: u16) -> PyResult<()> {
+        let mut server = Self::start(slf, py, port, Some(180000))?.server_handler;
         py.allow_threads(|| wait_server(&mut server))
     }
 }

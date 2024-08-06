@@ -185,22 +185,12 @@ impl RaphtoryServer {
     }
 
     /// Start the server on the default port and return a handle to it.
-    pub async fn start(
-        self,
-        enable_tracing: bool,
-        enable_auth: bool,
-    ) -> IoResult<RunningRaphtoryServer> {
-        self.start_with_port(1736, enable_tracing, enable_auth)
-            .await
+    pub async fn start(self) -> IoResult<RunningRaphtoryServer> {
+        self.start_with_port(1736).await
     }
 
     /// Start the server on the port `port` and return a handle to it.
-    pub async fn start_with_port(
-        self,
-        port: u16,
-        enable_tracing: bool,
-        enable_auth: bool,
-    ) -> IoResult<RunningRaphtoryServer> {
+    pub async fn start_with_port(self, port: u16) -> IoResult<RunningRaphtoryServer> {
         fn configure_logger(configs: &LoggingConfig) {
             let log_level = &configs.log_level;
             let filter = EnvFilter::new(log_level);
@@ -229,13 +219,7 @@ impl RaphtoryServer {
 
         // it is important that this runs after algorithms have been pushed to PLUGIN_ALGOS static variable
 
-        let app: CorsEndpoint<CookieJarManagerEndpoint<Route>> = if enable_auth {
-            println!("Generating endpoint with auth");
-            self.generate_microsoft_endpoint_with_auth(enable_tracing, port)
-                .await?
-        } else {
-            self.generate_endpoint(enable_tracing).await?
-        };
+        let app: CorsEndpoint<CookieJarManagerEndpoint<Route>> = self.generate_endpoint().await?;
 
         let (signal_sender, signal_receiver) = mpsc::channel(1);
 
@@ -250,18 +234,10 @@ impl RaphtoryServer {
         })
     }
 
-    async fn generate_endpoint(
-        self,
-        enable_tracing: bool,
-    ) -> IoResult<CorsEndpoint<CookieJarManagerEndpoint<Route>>> {
+    async fn generate_endpoint(self) -> IoResult<CorsEndpoint<CookieJarManagerEndpoint<Route>>> {
         let schema_builder = App::create_schema();
         let schema_builder = schema_builder.data(self.data);
-        let schema = if enable_tracing {
-            let schema_builder = schema_builder.extension(ApolloTracing);
-            schema_builder.finish().unwrap()
-        } else {
-            schema_builder.finish().unwrap()
-        };
+        let schema = schema_builder.finish().unwrap();
 
         let app = Route::new()
             .at("/", get(graphql_playground).post(GraphQL::new(schema)))
@@ -370,20 +346,13 @@ impl RaphtoryServer {
     }
 
     /// Run the server on the default port until completion.
-    pub async fn run(self, enable_tracing: bool) -> IoResult<()> {
-        self.start(enable_tracing, false).await?.wait().await
-    }
-
-    pub async fn run_with_auth(self, enable_tracing: bool) -> IoResult<()> {
-        self.start(enable_tracing, true).await?.wait().await
+    pub async fn run(self) -> IoResult<()> {
+        self.start().await?.wait().await
     }
 
     /// Run the server on the port `port` until completion.
     pub async fn run_with_port(self, port: u16, enable_tracing: bool) -> IoResult<()> {
-        self.start_with_port(port, enable_tracing, false)
-            .await?
-            .wait()
-            .await
+        self.start_with_port(port).await?.wait().await
     }
 }
 
@@ -456,7 +425,7 @@ mod server_tests {
         let tmp_dir = tempfile::tempdir().unwrap();
         let server = RaphtoryServer::new(tmp_dir.path().to_path_buf(), None, None).unwrap();
         println!("Calling start at time {}", Local::now());
-        let handler = server.start_with_port(0, false, false);
+        let handler = server.start_with_port(0);
         sleep(Duration::from_secs(1)).await;
         println!("Calling stop at time {}", Local::now());
         handler.await.unwrap().stop().await

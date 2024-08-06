@@ -2565,4 +2565,4 @@ def test_graph_properties_query():
 #                 "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
 #             }
 #         }
-# 
+#
