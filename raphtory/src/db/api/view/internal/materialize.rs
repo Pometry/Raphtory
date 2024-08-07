@@ -196,26 +196,6 @@ where
     }
 }
 
-pub fn copy_dir_recursive(source_dir: &Path, target_dir: &Path) -> io::Result<()> {
-    if !target_dir.exists() {
-        fs::create_dir_all(target_dir)?;
-    }
-
-    for entry in fs::read_dir(source_dir)? {
-        let entry = entry?;
-        let entry_path = entry.path();
-        let target_path = target_dir.join(entry.file_name());
-
-        if entry_path.is_dir() {
-            copy_dir_recursive(&entry_path, &target_path)?;
-        } else {
-            fs::copy(&entry_path, &target_path)?;
-        }
-    }
-
-    Ok(())
-}
-
 #[cfg(test)]
 mod test_materialised_graph_dispatch {
     use raphtory_api::core::entities::GID;
