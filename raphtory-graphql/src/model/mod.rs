@@ -461,7 +461,7 @@ pub(crate) fn construct_graph_full_path(
     let path_str = path
         .to_str()
         .ok_or(GraphError::InvalidPath(path.to_path_buf()))?;
-    if path_str.contains("//") {
+    if path_str.contains("//") || (path_str.contains('/') && path_str.contains('\\')) {
         return Err(GraphError::InvalidPath(path.to_path_buf()));
     }
     for comp in path.components() {

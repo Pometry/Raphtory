@@ -3,6 +3,8 @@ import os
 import tempfile
 import time
 
+import pytest
+
 from raphtory.graphql import RaphtoryServer, RaphtoryClient
 from raphtory import graph_loader
 from raphtory import Graph
@@ -17,9 +19,9 @@ def test_failed_server_start_in_time():
     tmp_work_dir = tempfile.mkdtemp()
     server = None
     try:
-        server = RaphtoryServer(tmp_work_dir).start(timeout_ms=1)
-    except Exception as e:
-        assert str(e) == "Failed to start server in 1 milliseconds"
+        with pytest.raises(Exception) as excinfo:
+            server = RaphtoryServer(tmp_work_dir).start(timeout_ms=1)
+        assert str(excinfo.value) == "Failed to start server in 1 milliseconds"
     finally:
         if server:
             server.stop()
@@ -95,11 +97,9 @@ def test_send_graph_fails_if_graph_already_exists():
 
     with RaphtoryServer(tmp_work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
-
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.send_graph(path="g", graph=g)
-        except Exception as e:
-            assert "Graph already exists by name = g" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph already exists by name = g" in str(excinfo.value)
 
 
 def test_send_graph_succeeds_if_graph_already_exists_with_overwrite_enabled():
@@ -153,11 +153,9 @@ def test_send_graph_fails_if_graph_already_exists_at_namespace():
 
     with RaphtoryServer(tmp_work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
-
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.send_graph(path="shivam/g", graph=g)
-        except Exception as e:
-            assert "Graph already exists by name" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph already exists by name" in str(excinfo.value)
 
 
 def test_send_graph_succeeds_if_graph_already_exists_at_namespace_with_overwrite_enabled():
@@ -237,34 +235,29 @@ def test_namespaces():
         assert_graph_fetch(path)
 
         path = "../shivam/g"
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
-        except Exception as e:
-            assert "Invalid path" in str(e), f"Unexpected exception message: {e}"
+        assert "Invalid path" in str(excinfo.value)
 
         path = "./shivam/../investigation/g"
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
-        except Exception as e:
-            assert "Invalid path" in str(e), f"Unexpected exception message: {e}"
+        assert "Invalid path" in str(excinfo.value)
 
         path = "//shivam/investigation/g"
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
-        except Exception as e:
-            assert "Invalid path" in str(e), f"Unexpected exception message: {e}"
+        assert "Invalid path" in str(excinfo.value)
 
         path = "shivam/investigation//2024-12-12/g"
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
-        except Exception as e:
-            assert "Invalid path" in str(e), f"Unexpected exception message: {e}"
+        assert "Invalid path" in str(excinfo.value)
 
-        path = "shivam/investigation\2024-12-12"
-        try:
+        path = "shivam/investigation\\2024-12-12"
+        with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
-        except Exception as e:
-            assert "Invalid path" in str(e), f"Unexpected exception message: {e}"
+        assert "Invalid path" in str(excinfo.value)
 
 
 # Test upload graph
@@ -303,11 +296,9 @@ def test_upload_graph_fails_if_graph_already_exists():
     g.save_to_file(os.path.join(tmp_work_dir, "g"))
     with RaphtoryServer(tmp_work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
-
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.upload_graph(path="g", file_path=g_file_path)
-        except Exception as e:
-            assert "Graph already exists by name" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph already exists by name" in str(excinfo.value)
 
 
 def test_upload_graph_succeeds_if_graph_already_exists_with_overwrite_enabled():
@@ -379,11 +370,9 @@ def test_upload_graph_fails_if_graph_already_exists_at_namespace():
     g.save_to_file(os.path.join(tmp_work_dir, "shivam", "g"))
     with RaphtoryServer(tmp_work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
-
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.upload_graph(path="shivam/g", file_path=g_file_path, overwrite=False)
-        except Exception as e:
-            assert "Graph already exists by name" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph already exists by name" in str(excinfo.value)
 
 
 def test_upload_graph_succeeds_if_graph_already_exists_at_namespace_with_overwrite_enabled():
@@ -573,10 +562,9 @@ def test_get_graph_fails_if_graph_not_found():
         client = server.get_client()
 
         query = """{ graph(path: "g1") { name, path, nodes { list { name } } } }"""
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.query(query)
-        except Exception as e:
-            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph not found" in str(excinfo.value)
 
 
 def test_get_graph_fails_if_graph_not_found_at_namespace():
@@ -585,10 +573,9 @@ def test_get_graph_fails_if_graph_not_found_at_namespace():
         client = server.get_client()
 
         query = """{ graph(path: "shivam/g1") { name, path, nodes { list { name } } } }"""
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.query(query)
-        except Exception as e:
-            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph not found" in str(excinfo.value)
 
 
 def test_get_graph_succeeds_if_graph_found():
@@ -680,10 +667,9 @@ def test_receive_graph_fails_if_no_graph_found():
         client = server.get_client()
 
         query = """{ receiveGraph(path: "g2") }"""
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.query(query)
-        except Exception as e:
-            assert "Graph not found g2" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph not found" in str(excinfo.value)
 
 
 def test_receive_graph_succeeds_if_graph_found():
@@ -731,10 +717,9 @@ def test_receive_graph_fails_if_no_graph_found_at_namespace():
         client = server.get_client()
 
         query = """{ receiveGraph(path: "shivam/g2") }"""
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.query(query)
-        except Exception as e:
-            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph not found" in str(excinfo.value)
 
 
 def test_receive_graph_succeeds_if_graph_found_at_namespace():
@@ -770,10 +755,9 @@ def test_move_graph_fails_if_graph_not_found():
             newPath: "g6",
           )
         }"""
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.query(query)
-        except Exception as e:
-            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph not found" in str(excinfo.value)
 
 
 def test_move_graph_fails_if_graph_with_same_name_already_exists():
@@ -796,10 +780,9 @@ def test_move_graph_fails_if_graph_with_same_name_already_exists():
             newPath: "g6",
           )
         }"""
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.query(query)
-        except Exception as e:
-            assert "Graph already exists by name" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph already exists by name" in str(excinfo.value)
 
 
 def test_move_graph_fails_if_graph_with_same_name_already_exists_at_same_namespace_as_graph():
@@ -822,10 +805,9 @@ def test_move_graph_fails_if_graph_with_same_name_already_exists_at_same_namespa
             newPath: "ben/g6",
           )
         }"""
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.query(query)
-        except Exception as e:
-            assert "Graph already exists by name" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph already exists by name" in str(excinfo.value)
 
 
 def test_move_graph_fails_if_graph_with_same_name_already_exists_at_diff_namespace_as_graph():
@@ -849,10 +831,9 @@ def test_move_graph_fails_if_graph_with_same_name_already_exists_at_diff_namespa
             newPath: "shivam/g6",
           )
         }"""
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.query(query)
-        except Exception as e:
-            assert "Graph already exists by name" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph already exists by name" in str(excinfo.value)
 
 
 def test_move_graph_succeeds():
@@ -878,10 +859,9 @@ def test_move_graph_succeeds():
         client.query(query)
 
         query = """{graph(path: "shivam/g3") {nodes {list {name}}}}"""
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.query(query)
-        except Exception as e:
-            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph not found" in str(excinfo.value)
 
         query = """{graph(path: "g4") {
                 nodes {list {name}}
@@ -916,10 +896,9 @@ def test_move_graph_using_client_api_succeeds():
         client.move_graph("shivam/g3", "ben/g4")
 
         query = """{graph(path: "shivam/g3") {nodes {list {name}}}}"""
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.query(query)
-        except Exception as e:
-            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph not found" in str(excinfo.value)
 
         query = """{graph(path: "ben/g4") {
                 nodes {list {name}}
@@ -961,10 +940,9 @@ def test_move_graph_succeeds_at_same_namespace_as_graph():
         client.query(query)
 
         query = """{graph(path: "shivam/g3") {nodes {list {name}}}}"""
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.query(query)
-        except Exception as e:
-            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph not found" in str(excinfo.value)
 
         query = """{graph(path: "shivam/g4") {
                 nodes {list {name}}
@@ -1007,10 +985,9 @@ def test_move_graph_succeeds_at_diff_namespace_as_graph():
         client.query(query)
 
         query = """{graph(path: "ben/g3") {nodes {list {name}}}}"""
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.query(query)
-        except Exception as e:
-            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph not found" in str(excinfo.value)
 
         query = """{graph(path: "shivam/g4") {
                 nodes {list {name}}
@@ -1039,10 +1016,9 @@ def test_copy_graph_fails_if_graph_not_found():
             newPath: "g6",
           )
         }"""
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.query(query)
-        except Exception as e:
-            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph not found" in str(excinfo.value)
 
 
 def test_copy_graph_fails_if_graph_with_same_name_already_exists():
@@ -1065,10 +1041,9 @@ def test_copy_graph_fails_if_graph_with_same_name_already_exists():
             newPath: "g6",
           )
         }"""
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.query(query)
-        except Exception as e:
-            assert "Graph already exists by name" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph already exists by name" in str(excinfo.value)
 
 
 def test_copy_graph_fails_if_graph_with_same_name_already_exists_at_same_namespace_as_graph():
@@ -1091,10 +1066,9 @@ def test_copy_graph_fails_if_graph_with_same_name_already_exists_at_same_namespa
             newPath: "ben/g6",
           )
         }"""
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.query(query)
-        except Exception as e:
-            assert "Graph already exists by name" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph already exists by name" in str(excinfo.value)
 
 
 def test_copy_graph_fails_if_graph_with_same_name_already_exists_at_diff_namespace_as_graph():
@@ -1118,10 +1092,9 @@ def test_copy_graph_fails_if_graph_with_same_name_already_exists_at_diff_namespa
             newPath: "shivam/g6",
           )
         }"""
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.query(query)
-        except Exception as e:
-            assert "Graph already exists by name" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph already exists by name" in str(excinfo.value)
 
 
 def test_copy_graph_succeeds():
@@ -1291,10 +1264,9 @@ def test_delete_graph_fails_if_graph_not_found():
             path: "ben/g5",
           )
         }"""
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.query(query)
-        except Exception as e:
-            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph not found" in str(excinfo.value)
 
 
 def test_delete_graph_succeeds_if_graph_found():
@@ -1314,10 +1286,12 @@ def test_delete_graph_succeeds_if_graph_found():
             path: "g1",
           )
         }"""
-        try:
+        client.query(query)
+
+        query = """{graph(path: "g1") {nodes {list {name}}}}"""
+        with pytest.raises(Exception) as excinfo:
             client.query(query)
-        except Exception as e:
-            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph not found" in str(excinfo.value)
 
 
 def test_delete_graph_using_client_api_succeeds_if_graph_found():
@@ -1331,11 +1305,12 @@ def test_delete_graph_using_client_api_succeeds_if_graph_found():
         g.add_edge(3, "ben", "haaroon")
 
         g.save_to_file(os.path.join(work_dir, "g1"))
+        client.delete_graph("g1")
 
-        try:
-            client.delete_graph("g1")
-        except Exception as e:
-            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
+        query = """{graph(path: "g1") {nodes {list {name}}}}"""
+        with pytest.raises(Exception) as excinfo:
+            client.query(query)
+        assert "Graph not found" in str(excinfo.value)
 
 
 def test_delete_graph_succeeds_if_graph_found_at_namespace():
@@ -1356,10 +1331,11 @@ def test_delete_graph_succeeds_if_graph_found_at_namespace():
             path: "shivam/g1",
           )
         }"""
-        try:
+        client.query(query)
+        query = """{graph(path: "g1") {nodes {list {name}}}}"""
+        with pytest.raises(Exception) as excinfo:
             client.query(query)
-        except Exception as e:
-            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph not found" in str(excinfo.value)
 
 
 def test_create_graph_fail_if_parent_graph_not_found():
@@ -1375,11 +1351,9 @@ def test_create_graph_fail_if_parent_graph_not_found():
               graphNodes: ["ben"]
             )
         }"""
-
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.query(query)
-        except Exception as e:
-            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph not found" in str(excinfo.value)
 
 
 def test_create_graph_fail_if_parent_graph_not_found_at_namespace():
@@ -1395,11 +1369,9 @@ def test_create_graph_fail_if_parent_graph_not_found_at_namespace():
               graphNodes: ["ben"]
             )
         }"""
-
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.query(query)
-        except Exception as e:
-            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph not found" in str(excinfo.value)
 
 
 def test_create_graph_fail_if_graph_already_exists():
@@ -1420,11 +1392,9 @@ def test_create_graph_fail_if_graph_already_exists():
               graphNodes: ["ben"]
             )
         }"""
-
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.query(query)
-        except Exception as e:
-            assert "Graph already exists by name" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph already exists by name" in str(excinfo.value)
 
 
 def test_create_graph_fail_if_graph_already_exists_at_namespace():
@@ -1446,11 +1416,9 @@ def test_create_graph_fail_if_graph_already_exists_at_namespace():
               graphNodes: ["ben"]
             )
         }"""
-
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.query(query)
-        except Exception as e:
-            assert "Graph already exists by name" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph already exists by name" in str(excinfo.value)
 
 
 def test_create_graph_succeeds():
@@ -1586,11 +1554,9 @@ def test_update_graph_with_new_graph_name_fails_if_parent_graph_not_found():
               graphNodes: ["ben"]
             )
         }"""
-
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.query(query)
-        except Exception as e:
-            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph not found" in str(excinfo.value)
 
 
 def test_update_graph_with_new_graph_name_fails_if_current_graph_not_found():
@@ -1609,11 +1575,9 @@ def test_update_graph_with_new_graph_name_fails_if_current_graph_not_found():
               graphNodes: ["ben"]
             )
         }"""
-
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.query(query)
-        except Exception as e:
-            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph not found" in str(excinfo.value)
 
 
 def test_update_graph_with_new_graph_name_fails_if_new_graph_already_exists():
@@ -1635,17 +1599,15 @@ def test_update_graph_with_new_graph_name_fails_if_new_graph_already_exists():
             updateGraph(
               parentGraphPath: "g1",
               graphPath: "shivam/g2",
-              newGraphPath: "g3",
+              newGraphPath: "shivam/g3",
               props: "{{ \\"target\\": 6 : }}",
               isArchive: 0,
               graphNodes: ["ben"]
             )
         }"""
-
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.query(query)
-        except Exception as e:
-            assert "Graph already exists by name" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph already exists by name" in str(excinfo.value)
 
 
 def test_update_graph_with_new_graph_name_succeeds_if_parent_graph_belongs_to_different_namespace():
@@ -1919,11 +1881,9 @@ def test_update_graph_fails_if_parent_graph_not_found():
               graphNodes: ["ben"]
             )
         }"""
-
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.query(query)
-        except Exception as e:
-            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph not found" in str(excinfo.value)
 
 
 def test_update_graph_fails_if_current_graph_not_found():
@@ -1942,11 +1902,9 @@ def test_update_graph_fails_if_current_graph_not_found():
               graphNodes: ["ben"]
             )
         }"""
-
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.query(query)
-        except Exception as e:
-            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph not found" in str(excinfo.value)
 
 
 def test_update_graph_succeeds_if_parent_graph_belongs_to_different_namespace():
@@ -2205,10 +2163,9 @@ def test_update_graph_last_opened_fails_if_graph_not_found():
         client = server.get_client()
 
         query = """mutation { updateGraphLastOpened(path: "g1") }"""
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.query(query)
-        except Exception as e:
-            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph not found" in str(excinfo.value)
 
 
 def test_update_graph_last_opened_fails_if_graph_not_found_at_namespace():
@@ -2217,10 +2174,9 @@ def test_update_graph_last_opened_fails_if_graph_not_found_at_namespace():
         client = server.get_client()
 
         query = """mutation { updateGraphLastOpened(path: "shivam/g1") }"""
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.query(query)
-        except Exception as e:
-            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph not found" in str(excinfo.value)
 
 
 def test_update_graph_last_opened_succeeds():
@@ -2280,10 +2236,9 @@ def test_archive_graph_fails_if_graph_not_found():
         client = server.get_client()
 
         query = """mutation { archiveGraph(path: "g1", isArchive: 0) }"""
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.query(query)
-        except Exception as e:
-            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph not found" in str(excinfo.value)
 
 
 def test_archive_graph_fails_if_graph_not_found_at_namespace():
@@ -2292,10 +2247,9 @@ def test_archive_graph_fails_if_graph_not_found_at_namespace():
         client = server.get_client()
 
         query = """mutation { archiveGraph(path: "shivam/g1", isArchive: 0) }"""
-        try:
+        with pytest.raises(Exception) as excinfo:
             client.query(query)
-        except Exception as e:
-            assert "Graph not found" in str(e), f"Unexpected exception message: {e}"
+        assert "Graph not found" in str(excinfo.value)
 
 
 def test_archive_graph_succeeds():
