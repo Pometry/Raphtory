@@ -1,10 +1,6 @@
 #![allow(dead_code)]
 
 use crate::{
-    azure_auth::{
-        common::{auth_callback, get_jwks, login, logout, verify, AppState},
-        token_middleware::TokenMiddleware,
-    },
     data::Data,
     model::{
         algorithms::{algorithm::Algorithm, algorithm_entry_point::AlgorithmEntryPoint},
@@ -13,11 +9,8 @@ use crate::{
     observability::tracing::create_tracer_from_env,
     routes::{graphql_playground, health},
 };
-use async_graphql::extensions::ApolloTracing;
 use async_graphql_poem::GraphQL;
-use dotenv::dotenv;
 use itertools::Itertools;
-use oauth2::{basic::BasicClient, AuthUrl, ClientId, ClientSecret, RedirectUrl, TokenUrl};
 use poem::{
     get,
     listener::TcpListener,
@@ -39,10 +32,9 @@ use crate::{
 };
 use config::ConfigError;
 use std::{
-    collections::HashMap,
     fs,
     path::{Path, PathBuf},
-    sync::{Arc, Mutex},
+    sync::Arc,
 };
 use thiserror::Error;
 use tokio::{

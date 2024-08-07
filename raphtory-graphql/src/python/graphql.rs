@@ -18,7 +18,7 @@ use itertools::intersperse;
 use pyo3::{
     exceptions::{PyAttributeError, PyException, PyTypeError, PyValueError},
     prelude::*,
-    types::{IntoPyDict, PyBytes, PyDict, PyFunction, PyList},
+    types::{IntoPyDict, PyDict, PyFunction, PyList},
 };
 use raphtory::{
     db::api::view::MaterializedGraph,
@@ -686,13 +686,7 @@ impl PyRaphtoryClient {
     /// Returns:
     ///    The `data` field from the graphQL response after executing the mutation.
     #[pyo3(signature = (path, graph, overwrite = false))]
-    fn send_graph(
-        &self,
-        py: Python,
-        path: String,
-        graph: MaterializedGraph,
-        overwrite: bool,
-    ) -> PyResult<()> {
+    fn send_graph(&self, path: String, graph: MaterializedGraph, overwrite: bool) -> PyResult<()> {
         let encoded_graph = encode_graph(graph)?;
 
         let query = r#"
@@ -957,7 +951,7 @@ impl PyRaphtoryClient {
     ///
     /// Returns:
     ///    Graph as string
-    fn receive_graph(&self, py: Python, path: String) -> PyResult<MaterializedGraph> {
+    fn receive_graph(&self, path: String) -> PyResult<MaterializedGraph> {
         let query = r#"
             query ReceiveGraph($path: String!) {
                 receiveGraph(path: $path)

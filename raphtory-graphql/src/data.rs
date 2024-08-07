@@ -11,13 +11,7 @@ use moka::sync::Cache;
 #[cfg(feature = "storage")]
 use raphtory::disk_graph::DiskGraphStorage;
 use raphtory::{
-    core::utils::errors::GraphError,
-    db::api::{
-        storage::storage_ops::GraphStorage,
-        view::{internal::CoreGraphOps, MaterializedGraph},
-    },
-    prelude::GraphViewOps,
-    search::IndexedGraph,
+    core::utils::errors::GraphError, db::api::view::MaterializedGraph, search::IndexedGraph,
 };
 use std::{
     collections::HashMap,
@@ -143,6 +137,7 @@ fn load_disk_graph_from_path(
     Ok(Some(target_path.to_path_buf()))
 }
 
+#[allow(dead_code)]
 #[cfg(not(feature = "storage"))]
 fn load_disk_graph_from_path(
     _path_on_server: &Path,
@@ -152,6 +147,7 @@ fn load_disk_graph_from_path(
     Ok(None)
 }
 
+#[allow(dead_code)]
 pub fn load_graph_from_path(
     work_dir: &Path,
     path_on_server: &Path,
@@ -189,6 +185,7 @@ pub fn load_graph_from_path(
     }
 }
 
+#[allow(dead_code)]
 fn get_target_path(work_dir: &Path, path: &Path, namespace: &Option<String>) -> Result<PathBuf> {
     let graph_name = get_graph_name(path)?;
     let target_dir = if let Some(namespace) = namespace {

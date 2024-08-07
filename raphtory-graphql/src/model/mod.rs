@@ -1,5 +1,5 @@
 use crate::{
-    data::{get_graph_name, load_graph_from_path, Data},
+    data::{get_graph_name, Data},
     model::{
         algorithms::global_plugins::GlobalPlugins,
         graph::{graph::GqlGraph, graphs::GqlGraphs, vectorised_graph::GqlVectorisedGraph},
@@ -16,11 +16,8 @@ use dynamic_graphql::{
 use itertools::Itertools;
 use raphtory::{
     core::{utils::errors::GraphError, Prop},
-    db::api::{
-        storage::storage_ops::GraphStorage,
-        view::{internal::core_ops::CoreGraphOps, MaterializedGraph},
-    },
-    prelude::{GraphViewOps, ImportOps, NodeViewOps, PropertyAdditionOps},
+    db::api::view::MaterializedGraph,
+    prelude::{GraphViewOps, ImportOps, PropertyAdditionOps},
 };
 use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{

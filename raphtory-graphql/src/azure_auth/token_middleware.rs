@@ -12,6 +12,7 @@ pub struct TokenMiddleware {
 }
 
 impl TokenMiddleware {
+    #[allow(dead_code)]
     pub fn new(app_state: Arc<AppState>) -> Self {
         TokenMiddleware { app_state }
     }
