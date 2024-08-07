@@ -890,7 +890,7 @@ impl PyRaphtoryClient {
             _ => Err(PyException::new_err(format!(
                 "Error while reading server response for query:\n\t{query}\nGot data:\n\t'{data:?}'"
             ))),
-        };
+        }?;
         Ok(())
     }
 
