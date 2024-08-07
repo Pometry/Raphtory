@@ -957,7 +957,7 @@ impl PyRaphtoryClient {
     ///
     /// Returns:
     ///    Graph as string
-    fn receive_graph(&self, py: Python, path: String) -> PyResult<Py<PyBytes>> {
+    fn receive_graph(&self, py: Python, path: String) -> PyResult<MaterializedGraph> {
         let query = r#"
             query ReceiveGraph($path: String!) {
                 receiveGraph(path: $path)
@@ -970,7 +970,8 @@ impl PyRaphtoryClient {
                 let decoded_bytes = general_purpose::STANDARD
                     .decode(graph.clone())
                     .map_err(|err| PyException::new_err(format!("Base64 decode error: {}", err)))?;
-                Ok(PyBytes::new(py, &decoded_bytes).into())
+                let mat_graph = MaterializedGraph::from_bincode(&decoded_bytes)?;
+                Ok(mat_graph)
             }
             _ => Err(PyException::new_err(format!(
                 "Error while reading server response for query:\n\t{query}\nGot data:\n\t'{data:?}'"

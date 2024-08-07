@@ -704,11 +704,8 @@ def test_receive_graph_using_client_api_succeeds_if_graph_found():
         g.add_edge(3, "ben", "haaroon")
 
         g.save_to_file(os.path.join(work_dir, "g1"))
-
         received_graph = client.receive_graph("g1")
-        g = Graph.from_bincode(received_graph)
-
-        assert g.nodes.name == ["ben", "hamza", "haaroon"]
+        assert received_graph.nodes.name == ["ben", "hamza", "haaroon"]
 
 
 def test_receive_graph_fails_if_no_graph_found_at_namespace():
