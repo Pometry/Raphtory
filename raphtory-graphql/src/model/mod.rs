@@ -190,7 +190,7 @@ impl Mut {
         let graph = data.get_graph(path)?;
 
         #[cfg(feature = "storage")]
-        if let GraphStorage::Disk(g) = graph.core_graph() {
+        if let GraphStorage::Disk(_) = graph.core_graph() {
             return Err(GqlGraphError::ImmutableDiskGraph.into());
         }
 

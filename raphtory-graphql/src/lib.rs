@@ -32,11 +32,8 @@ mod graphql_test {
         prelude::*,
     };
     use serde_json::json;
-    use std::{
-        collections::{HashMap, HashSet},
-        path::{Path, PathBuf},
-    };
-    use tempfile::{tempdir, TempDir};
+    use std::collections::{HashMap, HashSet};
+    use tempfile::tempdir;
 
     #[tokio::test]
     async fn search_for_gandalf_query() {
@@ -226,47 +223,6 @@ mod graphql_test {
         let tmp_dir = tempdir().unwrap();
         save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
 
-        let data = Data::new(tmp_dir.path(), &AppConfig::default());
-        let schema = App::create_schema().data(data).finish().unwrap();
-
-        let prop_has_key_filter = r#"
-        {
-          graph(name: "graph") {
-            properties {
-              temporal {
-                values {
-                  unique
-                }
-              }
-            }
-            node(name: "3") {
-              properties {
-                temporal {
-                  values {
-                    unique
-                  }
-                }
-              }
-            }
-            edge(
-              src: "1",
-              dst: "2"
-            ) {
-              properties{
-                temporal{
-                  values{
-                    unique
-                  }
-                }
-              }
-            }
-          }
-        }
-        "#;
-
-        let req = Request::new(prop_has_key_filter);
-        let res = schema.execute(req).await;
-        // let data = res.data.into_json().unwrap();
         let expected = json!({
             "graph": {
               "properties": {

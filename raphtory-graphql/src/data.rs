@@ -11,7 +11,12 @@ use moka::sync::Cache;
 #[cfg(feature = "storage")]
 use raphtory::disk_graph::DiskGraphStorage;
 use raphtory::{
-    core::utils::errors::GraphError, db::api::view::MaterializedGraph, search::IndexedGraph,
+    core::utils::errors::GraphError,
+    db::api::{
+        storage::storage_ops::GraphStorage,
+        view::{internal::CoreGraphOps, MaterializedGraph},
+    },
+    search::IndexedGraph,
 };
 use std::{
     collections::HashMap,
@@ -580,7 +585,6 @@ mod data_tests {
     #[cfg(feature = "storage")]
     fn test_get_disk_graph_from_path() {
         let tmp_graph_dir = tempfile::tempdir().unwrap();
-        let tmp_work_dir = tempfile::tempdir().unwrap();
 
         let graph = Graph::new();
         graph
