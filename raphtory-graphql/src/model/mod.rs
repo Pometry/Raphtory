@@ -16,7 +16,10 @@ use dynamic_graphql::{
 use itertools::Itertools;
 use raphtory::{
     core::{utils::errors::GraphError, Prop},
-    db::api::view::MaterializedGraph,
+    db::api::{
+        storage::storage_ops::GraphStorage,
+        view::{internal::CoreGraphOps, MaterializedGraph},
+    },
     prelude::{GraphViewOps, ImportOps, PropertyAdditionOps},
 };
 use raphtory_api::core::storage::arc_str::ArcStr;
