@@ -869,7 +869,7 @@ impl PyRaphtoryClient {
     /// Returns:
     ///    Copy status as boolean
     #[pyo3(signature = (path, new_path))]
-    fn copy_graph(&self, path: String, new_path: String) -> PyResult<bool> {
+    fn copy_graph(&self, path: String, new_path: String) -> PyResult<()> {
         let query = r#"
             mutation CopyGraph($path: String!, $newPath: String!) {
               copyGraph(
@@ -890,7 +890,8 @@ impl PyRaphtoryClient {
             _ => Err(PyException::new_err(format!(
                 "Error while reading server response for query:\n\t{query}\nGot data:\n\t'{data:?}'"
             ))),
-        }
+        };
+        Ok(())
     }
 
     /// Move graph from a path `path` on the server to a `new_path` on the server
@@ -902,7 +903,7 @@ impl PyRaphtoryClient {
     /// Returns:
     ///    Move status as boolean
     #[pyo3(signature = (path, new_path))]
-    fn move_graph(&self, path: String, new_path: String) -> PyResult<bool> {
+    fn move_graph(&self, path: String, new_path: String) -> PyResult<()> {
         let query = r#"
             mutation MoveGraph($path: String!, $newPath: String!) {
               moveGraph(
@@ -923,7 +924,8 @@ impl PyRaphtoryClient {
             _ => Err(PyException::new_err(format!(
                 "Error while reading server response for query:\n\t{query}\nGot data:\n\t'{data:?}'"
             ))),
-        }
+        }?;
+        Ok(())
     }
 
     /// Delete graph from a path `path` on the server
@@ -934,7 +936,7 @@ impl PyRaphtoryClient {
     /// Returns:
     ///    Delete status as boolean
     #[pyo3(signature = (path))]
-    fn delete_graph(&self, path: String) -> PyResult<bool> {
+    fn delete_graph(&self, path: String) -> PyResult<()> {
         let query = r#"
             mutation DeleteGraph($path: String!) {
               deleteGraph(
@@ -951,7 +953,8 @@ impl PyRaphtoryClient {
             _ => Err(PyException::new_err(format!(
                 "Error while reading server response for query:\n\t{query}\nGot data:\n\t'{data:?}'"
             ))),
-        }
+        }?;
+        Ok(())
     }
 
     /// Receive graph from a path `path` on the server

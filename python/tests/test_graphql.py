@@ -913,8 +913,7 @@ def test_move_graph_using_client_api_succeeds():
         client = RaphtoryClient("http://localhost:1736")
 
         # Assert if rename graph succeeds and old graph is deleted
-        res = client.move_graph("shivam/g3", "ben/g4")
-        assert res
+        client.move_graph("shivam/g3", "ben/g4")
 
         query = """{graph(path: "shivam/g3") {nodes {list {name}}}}"""
         try:
@@ -1179,9 +1178,7 @@ def test_copy_graph_using_client_api_succeeds():
         client = RaphtoryClient("http://localhost:1736")
 
         # Assert if copy graph succeeds and old graph is retained
-        res = client.copy_graph("shivam/g3", "ben/g4")
-
-        assert res
+        client.copy_graph("shivam/g3", "ben/g4")
 
         query = """{graph(path: "shivam/g3") { nodes {list {name}} }}"""
         result = client.query(query)
