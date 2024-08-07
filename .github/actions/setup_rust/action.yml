@@ -1,0 +1,17 @@
+name: "setup_rust"
+description: "Setup rust based on version in Cargo.toml"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Get minimum rust version
+      id: rust-version
+      shell: bash
+      run: |
+        version=$(cargo metadata --no-deps --quiet --format-version=1 | python -c "import json, sys; print(json.load(sys.stdin)['packages'][0]['rust_version'])")
+        echo $version
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+    - name: Setup rust
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ steps.rust-version.version }}

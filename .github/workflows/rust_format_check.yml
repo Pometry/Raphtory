@@ -10,9 +10,6 @@ on:
         default: true
         required: false
         description: "Fail the workflow if any code is not formatted"
-    outputs:
-      version: $${ rust-format-check.outputs.version }}
-      type: string
 
 jobs:
   rust-format-check:
@@ -31,9 +28,3 @@ jobs:
           else
               cargo +nightly fmt --all -- --check || true
           fi
-      - id: version
-        name: Get minimum rust version
-        run: |
-          version=$(cargo metadata --no-deps --quiet --format-version=1 | python -c "import json, sys; print(json.load(sys.stdin)['packages'][0]['rust_version'])")
-          echo $version
-          echo "version=$version" >> "$GITHUB_OUTPUT"
