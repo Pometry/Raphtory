@@ -11,7 +11,11 @@ runs:
         version=$(cargo metadata --no-deps --quiet --format-version=1 | python -c "import json, sys; print(json.load(sys.stdin)['packages'][0]['rust_version'])")
         echo $version
         echo "version=$version" >> "$GITHUB_OUTPUT"
+    - name: test version output
+      shell: bash
+      run: |
+        echo ${{ steps.rust-version.outputs.version }}
     - name: Setup rust
       uses: dtolnay/rust-toolchain@master
       with:
-        toolchain: ${{ steps.rust-version.version }}
+        toolchain: ${{ steps.rust-version.outputs.version }}
