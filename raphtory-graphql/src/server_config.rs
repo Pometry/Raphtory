@@ -51,7 +51,7 @@ impl Default for AuthConfig {
 pub struct AppConfig {
     pub logging: LoggingConfig,
     pub cache: CacheConfig,
-    pub auth: AuthConfig,
+    // pub auth: AuthConfig,
 }
 
 impl Default for AppConfig {
@@ -59,7 +59,7 @@ impl Default for AppConfig {
         Self {
             logging: LoggingConfig::default(),
             cache: CacheConfig::default(),
-            auth: AuthConfig::default(),
+            // auth: AuthConfig::default(),
         }
     }
 }
@@ -67,7 +67,7 @@ impl Default for AppConfig {
 pub struct AppConfigBuilder {
     logging: LoggingConfig,
     cache: CacheConfig,
-    auth: AuthConfig,
+    // auth: AuthConfig,
 }
 
 impl AppConfigBuilder {
@@ -75,7 +75,7 @@ impl AppConfigBuilder {
         Self {
             logging: LoggingConfig::default(),
             cache: CacheConfig::default(),
-            auth: AuthConfig::default(),
+            // auth: AuthConfig::default(),
         }
     }
 
@@ -83,7 +83,7 @@ impl AppConfigBuilder {
         Self {
             logging: config.logging,
             cache: config.cache,
-            auth: config.auth,
+            // auth: config.auth,
         }
     }
 
@@ -102,26 +102,26 @@ impl AppConfigBuilder {
         self
     }
 
-    pub fn with_auth_client_id(mut self, client_id: String) -> Self {
-        self.auth.client_id = Some(client_id);
-        self
-    }
-
-    pub fn with_auth_client_secret(mut self, client_secret: String) -> Self {
-        self.auth.client_secret = Some(client_secret);
-        self
-    }
-
-    pub fn with_auth_tenant_id(mut self, tenant_id: String) -> Self {
-        self.auth.tenant_id = Some(tenant_id);
-        self
-    }
+    // pub fn with_auth_client_id(mut self, client_id: String) -> Self {
+    //     self.auth.client_id = Some(client_id);
+    //     self
+    // }
+    //
+    // pub fn with_auth_client_secret(mut self, client_secret: String) -> Self {
+    //     self.auth.client_secret = Some(client_secret);
+    //     self
+    // }
+    //
+    // pub fn with_auth_tenant_id(mut self, tenant_id: String) -> Self {
+    //     self.auth.tenant_id = Some(tenant_id);
+    //     self
+    // }
 
     pub fn build(self) -> AppConfig {
         AppConfig {
             logging: self.logging,
             cache: self.cache,
-            auth: self.auth,
+            // auth: self.auth,
         }
     }
 }
@@ -156,15 +156,15 @@ pub fn load_config(
     if let Some(cache_tti_seconds) = settings.get::<u64>("cache.tti_seconds").ok() {
         app_config_builder = app_config_builder.with_cache_tti_seconds(cache_tti_seconds);
     }
-    if let Some(client_id) = settings.get::<String>("auth.client_id").ok() {
-        app_config_builder = app_config_builder.with_auth_client_id(client_id);
-    }
-    if let Some(client_secret) = settings.get::<String>("auth.client_secret").ok() {
-        app_config_builder = app_config_builder.with_auth_client_secret(client_secret);
-    }
-    if let Some(tenant_id) = settings.get::<String>("auth.tenant_id").ok() {
-        app_config_builder = app_config_builder.with_auth_tenant_id(tenant_id);
-    }
+    // if let Some(client_id) = settings.get::<String>("auth.client_id").ok() {
+    //     app_config_builder = app_config_builder.with_auth_client_id(client_id);
+    // }
+    // if let Some(client_secret) = settings.get::<String>("auth.client_secret").ok() {
+    //     app_config_builder = app_config_builder.with_auth_client_secret(client_secret);
+    // }
+    // if let Some(tenant_id) = settings.get::<String>("auth.tenant_id").ok() {
+    //     app_config_builder = app_config_builder.with_auth_tenant_id(tenant_id);
+    // }
 
     Ok(app_config_builder.build())
 }
@@ -214,9 +214,9 @@ mod tests {
     #[test]
     fn test_load_config_with_custom_auth() {
         let app_config = AppConfigBuilder::new()
-            .with_auth_client_id("custom_client_id".to_string())
-            .with_auth_client_secret("custom_client_secret".to_string())
-            .with_auth_tenant_id("custom_tenant_id".to_string())
+            // .with_auth_client_id("custom_client_id".to_string())
+            // .with_auth_client_secret("custom_client_secret".to_string())
+            // .with_auth_tenant_id("custom_tenant_id".to_string())
             .build();
 
         let result = load_config(Some(app_config.clone()), None);

@@ -225,15 +225,12 @@ impl PyRaphtoryServer {
 impl PyRaphtoryServer {
     #[new]
     #[pyo3(
-        signature = (work_dir, cache_capacity = None, cache_tti_seconds = None, client_id = None, client_secret = None, tenant_id = None, log_level = None, config_path = None)
+        signature = (work_dir, cache_capacity = None, cache_tti_seconds = None, log_level = None, config_path = None)
     )]
     fn py_new(
         work_dir: PathBuf,
         cache_capacity: Option<u64>,
         cache_tti_seconds: Option<u64>,
-        client_id: Option<String>,
-        client_secret: Option<String>,
-        tenant_id: Option<String>,
         log_level: Option<String>,
         config_path: Option<PathBuf>,
     ) -> PyResult<Self> {
@@ -246,15 +243,6 @@ impl PyRaphtoryServer {
         }
         if let Some(cache_tti_seconds) = cache_tti_seconds {
             app_config_builder = app_config_builder.with_cache_tti_seconds(cache_tti_seconds);
-        }
-        if let Some(client_id) = client_id {
-            app_config_builder = app_config_builder.with_auth_client_id(client_id);
-        }
-        if let Some(client_secret) = client_secret {
-            app_config_builder = app_config_builder.with_auth_client_secret(client_secret);
-        }
-        if let Some(tenant_id) = tenant_id {
-            app_config_builder = app_config_builder.with_auth_tenant_id(tenant_id);
         }
         let app_config = Some(app_config_builder.build());
 
