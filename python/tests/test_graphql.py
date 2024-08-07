@@ -17,7 +17,7 @@ def test_failed_server_start_in_time():
     tmp_work_dir = tempfile.mkdtemp()
     server = None
     try:
-        server = RaphtoryServer(tmp_work_dir).start(timeout_in_milliseconds=1)
+        server = RaphtoryServer(tmp_work_dir).start(timeout_ms=1)
     except Exception as e:
         assert str(e) == "Failed to start server in 1 milliseconds"
     finally:
@@ -27,7 +27,7 @@ def test_failed_server_start_in_time():
 
 def test_successful_server_start_in_time():
     tmp_work_dir = tempfile.mkdtemp()
-    server = RaphtoryServer(tmp_work_dir).start(timeout_in_milliseconds=3000)
+    server = RaphtoryServer(tmp_work_dir).start(timeout_ms=3000)
     client = server.get_client()
     assert client.is_server_online()
     server.stop()

@@ -356,15 +356,15 @@ impl PyRaphtoryServer {
     ///
     /// Arguments:
     ///   * `port`: the port to use (defaults to 1736).
-    ///   * `timeout_in_milliseconds`: wait for server to be online (defaults to 5000). The server is stopped if not online within timeout_in_milliseconds but manages to come online as soon as timeout_in_milliseconds finishes!
+    ///   * `timeout_ms`: wait for server to be online (defaults to 5000). The server is stopped if not online within timeout_ms but manages to come online as soon as timeout_ms finishes!
     #[pyo3(
-        signature = (port = 1736, timeout_in_milliseconds = None)
+        signature = (port = 1736, timeout_ms = None)
     )]
     pub fn start(
         slf: PyRefMut<Self>,
         py: Python,
         port: u16,
-        timeout_in_milliseconds: Option<u64>,
+        timeout_ms: Option<u64>,
     ) -> PyResult<PyRunningRaphtoryServer> {
         let (sender, receiver) = crossbeam_channel::bounded::<BridgeCommand>(1);
         let server = take_server_ownership(slf)?;
@@ -398,7 +398,7 @@ impl PyRaphtoryServer {
         if let Some(server_handler) = &server.server_handler {
             match PyRunningRaphtoryServer::wait_for_server_online(
                 &server_handler.client.url,
-                timeout_in_milliseconds,
+                timeout_ms,
             ) {
                 Ok(_) => return Ok(server),
                 Err(e) => {
@@ -416,10 +416,15 @@ impl PyRaphtoryServer {
     /// Arguments:
     ///   * `port`: the port to use (defaults to 1736).
     #[pyo3(
-        signature = (port = 1736)
+        signature = (port = 1736, timeout_ms = Some(180000))
     )]
-    pub fn run(slf: PyRefMut<Self>, py: Python, port: u16) -> PyResult<()> {
-        let mut server = Self::start(slf, py, port, Some(180000))?.server_handler;
+    pub fn run(
+        slf: PyRefMut<Self>,
+        py: Python,
+        port: u16,
+        timeout_ms: Option<u64>,
+    ) -> PyResult<()> {
+        let mut server = Self::start(slf, py, port, timeout_ms)?.server_handler;
         py.allow_threads(|| wait_server(&mut server))
     }
 }
@@ -507,8 +512,8 @@ impl PyRunningRaphtoryServer {
         }
     }
 
-    fn wait_for_server_online(url: &String, timeout_in_milliseconds: Option<u64>) -> PyResult<()> {
-        let millis = timeout_in_milliseconds.unwrap_or(5000);
+    fn wait_for_server_online(url: &String, timeout_ms: Option<u64>) -> PyResult<()> {
+        let millis = timeout_ms.unwrap_or(5000);
         let num_intervals = millis / WAIT_CHECK_INTERVAL_MILLIS;
 
         for _ in 0..num_intervals {
