@@ -692,7 +692,7 @@ impl PyRaphtoryClient {
         path: String,
         graph: MaterializedGraph,
         overwrite: bool,
-    ) -> PyResult<HashMap<String, PyObject>> {
+    ) -> PyResult<()> {
         let encoded_graph = encode_graph(graph)?;
 
         let query = r#"
@@ -712,7 +712,7 @@ impl PyRaphtoryClient {
         match data.get("sendGraph") {
             Some(JsonValue::String(name)) => {
                 println!("Sent graph '{name}' to the server");
-                translate_map_to_python(py, data)
+                Ok(())
             }
             _ => Err(PyException::new_err(format!(
                 "Error Sending Graph. Got response {:?}",
