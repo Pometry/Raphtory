@@ -6,6 +6,9 @@ on:
         type: boolean
         default: false
         required: false
+      version:
+        type: string
+        required: true
 # DO NOT CHANGE NAME OF WORKFLOW, USED IN OTHER WORKFLOWS KEEP "Rust Tests"
 jobs:
   rust-test-no-storage:
@@ -29,13 +32,10 @@ jobs:
           xcode-version: latest-stable
       - uses: actions/checkout@v3
         name: Checkout
-      - uses: actions-rs/toolchain@v1
-        name: Setup Rust
+      - uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
-          toolchain: 1.77.0
-          override: true
-          components: rustfmt, clippy
+          toolchain: ${{ inputs.version }}
+        name: Setup Rust
       - name: Free up space (ubuntu)
         if: "contains(matrix.os, 'ubuntu')"
         run: |
@@ -46,7 +46,7 @@ jobs:
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}        
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: webfactory/ssh-agent@v0.7.0
         name: Load pometry-storage key
         with:
@@ -86,7 +86,7 @@ jobs:
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}        
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: Swatinem/rust-cache@v2
         name: Cargo cache
         with:

@@ -1,7 +1,7 @@
 # this workflow checks out the code, and installs nightly build of cargo and runs a cargo +nightly fmt --all -- --check and fails workflow if any code is not formatted
 #
 
-name: Rust format check
+name: Rust format check and version info
 on:
   workflow_call:
     inputs:
@@ -10,19 +10,30 @@ on:
         default: true
         required: false
         description: "Fail the workflow if any code is not formatted"
+    outputs:
+      version: $${ rust-format-check.outputs.version }}
+      type: string
 
 jobs:
-    rust-format-check:
-      runs-on: ubuntu-latest
-      steps:
-        - uses: actions/checkout@v4
-        - name: Setup rust
-          run: |
-            rustup toolchain install nightly --allow-downgrade -c rustfmt
-        - name: Run rust format check
-          run: |
-            if [ ${{ inputs.fail_if_not_formatted }} == true ]; then
-                cargo +nightly fmt --all -- --check
-            else
-                cargo +nightly fmt --all -- --check || true
-            fi
+  rust-format-check:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup nightly rust
+        run: |
+          rustup toolchain install nightly --allow-downgrade -c rustfmt
+      - name: Run rust format check
+        run: |
+          if [ ${{ inputs.fail_if_not_formatted }} == true ]; then
+              cargo +nightly fmt --all -- --check
+          else
+              cargo +nightly fmt --all -- --check || true
+          fi
+      - id: version
+        name: Get minimum rust version
+        run: |
+          version=$(cargo metadata --no-deps --quiet --format-version=1 | python -c "import json, sys; print(json.load(sys.stdin)['packages'][0]['rust_version'])")
+          echo $version
+          echo "version=$version" >> "$GITHUB_OUTPUT"

@@ -15,6 +15,9 @@ jobs:
   call-test-rust-workflow-in-local-repo:
     name: Run Rust tests
     uses: ./.github/workflows/test_rust_workflow.yml
+    with:
+      version:
+        ${{needs.rust-format-check.output.version}}
     secrets: inherit
     needs: rust-format-check
   call-test-rust-storage-workflow-in-local-repo:
