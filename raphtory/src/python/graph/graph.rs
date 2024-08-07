@@ -185,9 +185,9 @@ impl PyGraph {
         )
     }
 
-    fn __reduce__(&self) -> PyResult<(PyGraphEncoder, (Vec<u8>,))> {
+    fn __reduce__(&self) -> (PyGraphEncoder, (Vec<u8>,)) {
         let state = self.graph.encode_to_vec();
-        Ok((PyGraphEncoder::Graph, (state,)))
+        (PyGraphEncoder::Graph, (state,))
     }
 
     #[cfg(feature = "storage")]

@@ -6,9 +6,6 @@ on:
         type: boolean
         default: false
         required: false
-      version:
-        type: string
-        required: true
 # DO NOT CHANGE NAME OF WORKFLOW, USED IN OTHER WORKFLOWS KEEP "Rust Tests"
 jobs:
   rust-test-no-storage:

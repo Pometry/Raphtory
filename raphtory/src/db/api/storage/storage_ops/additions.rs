@@ -30,7 +30,7 @@ impl InternalAdditionOps for TemporalGraph {
             .unwrap_or(0))
     }
 
-    fn update_node_type(&self, v_id: VID, node_type: &str) -> Result<(), GraphError> {
+    fn set_node_type(&self, v_id: VID, node_type: &str) -> Result<(), GraphError> {
         let mut node = self.storage.get_node_mut(v_id);
         if node_type == "_default" {
             return Err(GraphError::NodeTypeError(
@@ -169,9 +169,9 @@ impl InternalAdditionOps for GraphStorage {
         }
     }
 
-    fn update_node_type(&self, v_id: VID, node_type: &str) -> Result<(), GraphError> {
+    fn set_node_type(&self, v_id: VID, node_type: &str) -> Result<(), GraphError> {
         match self {
-            GraphStorage::Unlocked(storage) => storage.update_node_type(v_id, node_type),
+            GraphStorage::Unlocked(storage) => storage.set_node_type(v_id, node_type),
             _ => Err(GraphError::AttemptToMutateImmutableGraph),
         }
     }

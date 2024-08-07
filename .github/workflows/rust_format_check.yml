@@ -1,7 +1,7 @@
 # this workflow checks out the code, and installs nightly build of cargo and runs a cargo +nightly fmt --all -- --check and fails workflow if any code is not formatted
 #
 
-name: Rust format check and version info
+name: Rust format check
 on:
   workflow_call:
     inputs:

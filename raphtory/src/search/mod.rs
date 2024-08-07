@@ -770,8 +770,8 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
     }
 
     #[inline]
-    fn update_node_type(&self, v_id: VID, node_type: &str) -> Result<(), GraphError> {
-        self.graph.update_node_type(v_id, node_type)?;
+    fn set_node_type(&self, v_id: VID, node_type: &str) -> Result<(), GraphError> {
+        self.graph.set_node_type(v_id, node_type)?;
         let node_type_field = self.node_index.schema().get_field(fields::NODE_TYPE)?;
         let mut document = TantivyDocument::new();
         document.add_text(node_type_field, node_type);

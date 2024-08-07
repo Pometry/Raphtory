@@ -128,7 +128,7 @@ impl<
 
         let node_internal = self.resolve_node(node.id())?;
         if let Some(node_type) = node.node_type().as_str() {
-            self.update_node_type(node_internal, node_type)?;
+            self.set_node_type(node_internal, node_type)?;
         }
 
         for h in node.history() {
