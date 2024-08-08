@@ -731,7 +731,7 @@ impl PyRaphtoryClient {
         path: String,
         file_path: String,
         overwrite: bool,
-    ) -> PyResult<HashMap<String, PyObject>> {
+    ) -> PyResult<()> {
         let rt = Runtime::new().unwrap();
         rt.block_on(async {
             let client = Client::new();
@@ -784,12 +784,8 @@ impl PyRaphtoryClient {
             })?;
 
             match data.remove("data") {
-                Some(JsonValue::Object(data)) => {
-                    let mut result_map = HashMap::new();
-                    for (key, value) in data {
-                        result_map.insert(key, translate_to_python(py, value)?);
-                    }
-                    Ok(result_map)
+                Some(JsonValue::Object(_)) => {
+                    Ok(())
                 }
                 _ => match data.remove("errors") {
                     Some(JsonValue::Array(errors)) => Err(PyException::new_err(format!(
