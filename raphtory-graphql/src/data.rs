@@ -1,7 +1,5 @@
 use crate::{
-    model::{
-        algorithms::global_plugins::GlobalPlugins, construct_graph_full_path,
-    },
+    model::{algorithms::global_plugins::GlobalPlugins, construct_graph_full_path},
     server_config::AppConfig,
 };
 use moka::sync::Cache;
@@ -11,10 +9,9 @@ use raphtory::{
 use std::{
     collections::HashMap,
     fs,
-    path::{Path, PathBuf},
+    path::{Path, PathBuf, StripPrefixError},
+    sync::Arc,
 };
-use std::path::StripPrefixError;
-use std::sync::Arc;
 use walkdir::WalkDir;
 
 #[cfg(feature = "storage")]
@@ -44,14 +41,16 @@ impl Data {
         }
     }
 
-    pub fn get_graph(&self, path: &Path) -> Result<IndexedGraph<MaterializedGraph>,Arc<GraphError>> {
+    pub fn get_graph(
+        &self,
+        path: &Path,
+    ) -> Result<IndexedGraph<MaterializedGraph>, Arc<GraphError>> {
         let full_path = construct_graph_full_path(&self.work_dir, path)?;
         if !full_path.exists() {
             return Err(GraphError::GraphNotFound(path.to_path_buf()).into());
         } else {
-
             self.graphs.try_get_with(path.to_path_buf(), || {
-                get_graph_from_path(&full_path).map(|(_,graph)|graph)
+                get_graph_from_path(&full_path).map(|(_, graph)| graph)
             })
         }
     }
@@ -63,10 +62,8 @@ impl Data {
             let (name, _) = get_graph_from_path(&path)?;
             names.push(name);
             match get_relative_path(&self.work_dir, &path) {
-                Ok(p) => {paths.push(p)}
-                Err(_) => {
-                    return Err(GraphError::InvalidPath(path))
-                } //Possibly just ignore but log?
+                Ok(p) => paths.push(p),
+                Err(_) => return Err(GraphError::InvalidPath(path)), //Possibly just ignore but log?
             }
         }
         Ok((names, paths))
@@ -96,7 +93,7 @@ impl Data {
 }
 
 #[cfg(feature = "storage")]
-fn copy_dir_recursive(source_dir: &Path, target_dir: &Path) -> Result<(),GraphError> {
+fn copy_dir_recursive(source_dir: &Path, target_dir: &Path) -> Result<(), GraphError> {
     if !target_dir.exists() {
         fs::create_dir_all(target_dir)?;
     }
@@ -116,13 +113,12 @@ fn copy_dir_recursive(source_dir: &Path, target_dir: &Path) -> Result<(),GraphEr
     Ok(())
 }
 
-
 #[cfg(feature = "storage")]
 fn load_disk_graph_from_path(
     path_on_server: &Path,
     target_path: &Path,
     overwrite: bool,
-) -> Result<Option<PathBuf>,GraphError> {
+) -> Result<Option<PathBuf>, GraphError> {
     let _ = load_disk_graph(path_on_server)?;
     if target_path.exists() {
         if overwrite {
@@ -145,7 +141,7 @@ fn load_disk_graph_from_path(
     _path_on_server: &Path,
     _target_path: &Path,
     _overwrite: bool,
-) -> Result<Option<PathBuf>,GraphError> {
+) -> Result<Option<PathBuf>, GraphError> {
     Ok(None)
 }
 
@@ -190,9 +186,12 @@ fn load_disk_graph_from_path(
 //         Ok(target_path)
 //     }
 // }
-
 #[allow(dead_code)]
-fn get_target_path(work_dir: &Path, path: &Path, namespace: &Option<String>) -> Result<PathBuf,GraphError> {
+fn get_target_path(
+    work_dir: &Path,
+    path: &Path,
+    namespace: &Option<String>,
+) -> Result<PathBuf, GraphError> {
     let graph_name = get_graph_name(path)?;
     let target_dir = if let Some(namespace) = namespace {
         construct_graph_full_path(&work_dir, &Path::new(namespace).join(graph_name))?
@@ -218,7 +217,9 @@ fn get_disk_graph_from_path(
     Ok(None)
 }
 
-fn get_graph_from_path(path: &Path) -> Result<(String, IndexedGraph<MaterializedGraph>), GraphError> {
+fn get_graph_from_path(
+    path: &Path,
+) -> Result<(String, IndexedGraph<MaterializedGraph>), GraphError> {
     if !path.exists() {
         return Err(GraphError::InvalidPath(path.to_path_buf()).into());
     }
@@ -238,7 +239,7 @@ fn get_graph_from_path(path: &Path) -> Result<(String, IndexedGraph<Materialized
 // We are loading all the graphs in the work dir for vectorized APIs
 pub(crate) fn get_graphs_from_work_dir(
     work_dir: &Path,
-) -> Result<HashMap<String, IndexedGraph<MaterializedGraph>>,GraphError> {
+) -> Result<HashMap<String, IndexedGraph<MaterializedGraph>>, GraphError> {
     let mut graphs = HashMap::new();
     for path in get_graph_paths(work_dir) {
         let (name, graph) = get_graph_from_path(&path)?;
@@ -247,7 +248,7 @@ pub(crate) fn get_graphs_from_work_dir(
     Ok(graphs)
 }
 
-fn get_relative_path(work_dir: &Path, path: &PathBuf) -> Result<PathBuf,StripPrefixError> {
+fn get_relative_path(work_dir: &Path, path: &PathBuf) -> Result<PathBuf, StripPrefixError> {
     Ok(path.strip_prefix(work_dir)?.to_path_buf())
 }
 
@@ -290,21 +291,21 @@ fn is_disk_graph_dir(path: &Path) -> bool {
     has_disk_graph_files
 }
 
-pub(crate) fn get_graph_name(path: &Path) -> Result<String,GraphError> {
+pub(crate) fn get_graph_name(path: &Path) -> Result<String, GraphError> {
     path.file_name()
         .and_then(|os_str| os_str.to_str())
         .map(|str_slice| str_slice.to_string())
         .ok_or(GraphError::InvalidPath(path.to_path_buf()))
 }
 
-pub(crate) fn load_bincode_graph(path: &Path) -> Result<(String, MaterializedGraph),GraphError> {
+pub(crate) fn load_bincode_graph(path: &Path) -> Result<(String, MaterializedGraph), GraphError> {
     let graph = MaterializedGraph::load_from_file(path, false)?;
     let name = get_graph_name(path)?;
     Ok((name, graph))
 }
 
 #[cfg(feature = "storage")]
-fn load_disk_graph(path: &Path) -> Result<(String, MaterializedGraph),GraphError> {
+fn load_disk_graph(path: &Path) -> Result<(String, MaterializedGraph), GraphError> {
     let disk_graph = DiskGraphStorage::load_from_dir(path)?;
     let graph: MaterializedGraph = disk_graph.into_graph().into(); // TODO: We currently have no way to identify disk graphs as MaterializedGraphs
     let graph_name = get_graph_name(path)?;
@@ -313,7 +314,7 @@ fn load_disk_graph(path: &Path) -> Result<(String, MaterializedGraph),GraphError
 
 #[allow(unused_variables)]
 #[cfg(not(feature = "storage"))]
-fn _load_disk_graph(_path: &Path) -> Result<(String, MaterializedGraph),GraphError> {
+fn _load_disk_graph(_path: &Path) -> Result<(String, MaterializedGraph), GraphError> {
     unimplemented!("Storage feature not enabled, cannot load from disk graph")
 }
 
@@ -337,6 +338,7 @@ pub(crate) mod data_tests {
         data::{copy_dir_recursive, Data},
         server_config::AppConfigBuilder,
     };
+    use raphtory::core::utils::errors::GraphError;
     #[cfg(feature = "storage")]
     use raphtory::{
         db::api::storage::storage_ops::GraphStorage, db::api::view::internal::CoreGraphOps,
@@ -344,7 +346,6 @@ pub(crate) mod data_tests {
     };
     #[cfg(feature = "storage")]
     use std::{thread, time::Duration};
-    use raphtory::core::utils::errors::GraphError;
 
     pub(crate) fn save_graphs_to_work_dir(
         work_dir: &Path,
