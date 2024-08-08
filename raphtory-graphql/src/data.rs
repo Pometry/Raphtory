@@ -1,12 +1,9 @@
 use crate::{
     model::{
         algorithms::global_plugins::GlobalPlugins, construct_graph_full_path,
-        create_dirs_if_not_present,
     },
     server_config::AppConfig,
 };
-use async_graphql::Error;
-use dynamic_graphql::Result;
 use moka::sync::Cache;
 use raphtory::{
     core::utils::errors::GraphError, db::api::view::MaterializedGraph, search::IndexedGraph,
@@ -16,6 +13,8 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
+use std::path::StripPrefixError;
+use std::sync::Arc;
 use walkdir::WalkDir;
 
 #[cfg(feature = "storage")]
@@ -45,30 +44,31 @@ impl Data {
         }
     }
 
-    pub fn get_graph(&self, path: &Path) -> Result<IndexedGraph<MaterializedGraph>> {
+    pub fn get_graph(&self, path: &Path) -> Result<IndexedGraph<MaterializedGraph>,Arc<GraphError>> {
         let full_path = construct_graph_full_path(&self.work_dir, path)?;
         if !full_path.exists() {
             return Err(GraphError::GraphNotFound(path.to_path_buf()).into());
         } else {
-            match self.graphs.get(&path.to_path_buf()) {
-                Some(graph) => Ok(graph.clone()),
-                None => {
-                    let (_, graph) = get_graph_from_path(&full_path)?;
-                    Ok(self.graphs.get_with(path.to_path_buf(), || graph))
-                }
-            }
+
+            self.graphs.try_get_with(path.to_path_buf(), || {
+                get_graph_from_path(&full_path).map(|(_,graph)|graph)
+            })
         }
     }
 
-    pub fn get_graph_names_paths(&self) -> Result<(Vec<String>, Vec<PathBuf>)> {
+    pub fn get_graph_names_paths(&self) -> Result<(Vec<String>, Vec<PathBuf>), GraphError> {
         let mut names = vec![];
         let mut paths = vec![];
         for path in get_graph_paths(&self.work_dir) {
             let (name, _) = get_graph_from_path(&path)?;
             names.push(name);
-            paths.push(get_relative_path(&self.work_dir, path)?);
+            match get_relative_path(&self.work_dir, &path) {
+                Ok(p) => {paths.push(p)}
+                Err(_) => {
+                    return Err(GraphError::InvalidPath(path))
+                } //Possibly just ignore but log?
+            }
         }
-
         Ok((names, paths))
     }
 
@@ -96,7 +96,7 @@ impl Data {
 }
 
 #[cfg(feature = "storage")]
-fn copy_dir_recursive(source_dir: &Path, target_dir: &Path) -> Result<()> {
+fn copy_dir_recursive(source_dir: &Path, target_dir: &Path) -> Result<(),GraphError> {
     if !target_dir.exists() {
         fs::create_dir_all(target_dir)?;
     }
@@ -116,12 +116,13 @@ fn copy_dir_recursive(source_dir: &Path, target_dir: &Path) -> Result<()> {
     Ok(())
 }
 
+
 #[cfg(feature = "storage")]
 fn load_disk_graph_from_path(
     path_on_server: &Path,
     target_path: &Path,
     overwrite: bool,
-) -> Result<Option<PathBuf>> {
+) -> Result<Option<PathBuf>,GraphError> {
     let _ = load_disk_graph(path_on_server)?;
     if target_path.exists() {
         if overwrite {
@@ -144,50 +145,54 @@ fn load_disk_graph_from_path(
     _path_on_server: &Path,
     _target_path: &Path,
     _overwrite: bool,
-) -> Result<Option<PathBuf>> {
+) -> Result<Option<PathBuf>,GraphError> {
     Ok(None)
 }
 
+//TODO When this function is bought back to life can we:
+//Change namespace to a path to allow renaming on copy
+//We can remove the is_disk_graph_dir  is this is being checked elsewhere
+// The internal load_disk_graph_from_path can also have the Option removed from the result
 #[allow(dead_code)]
-pub fn load_graph_from_path(
-    work_dir: &Path,
-    path_on_server: &Path,
-    namespace: &Option<String>,
-    overwrite: bool,
-) -> Result<PathBuf> {
-    if !path_on_server.exists() {
-        return Err(GraphError::InvalidPath(path_on_server.to_path_buf()).into());
-    }
-    println!("Loading graph from {}", path_on_server.display());
-    let target_path = get_target_path(work_dir, path_on_server, namespace)?;
-    if path_on_server.is_dir() {
-        if is_disk_graph_dir(&path_on_server) {
-            load_disk_graph_from_path(&path_on_server, &target_path, overwrite)?
-                .ok_or(GraphError::DiskGraphNotFound.into())
-        } else {
-            Err(GraphError::InvalidPath(path_on_server.to_path_buf()).into())
-        }
-    } else {
-        let (_, graph) = load_bincode_graph(&path_on_server)?;
-        if target_path.exists() {
-            if overwrite {
-                fs::remove_file(&target_path)?;
-                graph.save_to_file(&target_path)?;
-                println!("Graph loaded = {}", target_path.display());
-            } else {
-                return Err(GraphError::GraphNameAlreadyExists(target_path.to_path_buf()).into());
-            }
-        } else {
-            create_dirs_if_not_present(&target_path)?;
-            graph.save_to_file(&target_path)?;
-            println!("Graph loaded = {}", target_path.display());
-        }
-        Ok(target_path)
-    }
-}
+// pub fn load_graph_from_path(
+//     work_dir: &Path,
+//     path_on_server: &Path,
+//     namespace: &Option<String>,
+//     overwrite: bool,
+// ) -> Result<PathBuf,GraphError> {
+//     if !path_on_server.exists() {
+//         return Err(GraphError::InvalidPath(path_on_server.to_path_buf()).into());
+//     }
+//     println!("Loading graph from {}", path_on_server.display());
+//     let target_path = get_target_path(work_dir, path_on_server, namespace)?;
+//     if path_on_server.is_dir() {
+//         if is_disk_graph_dir(&path_on_server) {
+//             load_disk_graph_from_path(&path_on_server, &target_path, overwrite)?
+//                 .ok_or(GraphError::DiskGraphNotFound.into())
+//         } else {
+//             Err(GraphError::InvalidPath(path_on_server.to_path_buf()).into())
+//         }
+//     } else {
+//         let (_, graph) = load_bincode_graph(&path_on_server)?;
+//         if target_path.exists() {
+//             if overwrite {
+//                 fs::remove_file(&target_path)?;
+//                 graph.save_to_file(&target_path)?;
+//                 println!("Graph loaded = {}", target_path.display());
+//             } else {
+//                 return Err(GraphError::GraphNameAlreadyExists(target_path.to_path_buf()).into());
+//             }
+//         } else {
+//             create_dirs_if_not_present(&target_path)?;
+//             graph.save_to_file(&target_path)?;
+//             println!("Graph loaded = {}", target_path.display());
+//         }
+//         Ok(target_path)
+//     }
+// }
 
 #[allow(dead_code)]
-fn get_target_path(work_dir: &Path, path: &Path, namespace: &Option<String>) -> Result<PathBuf> {
+fn get_target_path(work_dir: &Path, path: &Path, namespace: &Option<String>) -> Result<PathBuf,GraphError> {
     let graph_name = get_graph_name(path)?;
     let target_dir = if let Some(namespace) = namespace {
         construct_graph_full_path(&work_dir, &Path::new(namespace).join(graph_name))?
@@ -200,7 +205,7 @@ fn get_target_path(work_dir: &Path, path: &Path, namespace: &Option<String>) -> 
 #[cfg(feature = "storage")]
 fn get_disk_graph_from_path(
     path: &Path,
-) -> Result<Option<(String, IndexedGraph<MaterializedGraph>)>, Error> {
+) -> Result<Option<(String, IndexedGraph<MaterializedGraph>)>, GraphError> {
     let (name, graph) = load_disk_graph(path)?;
     println!("Disk Graph loaded = {}", path.display());
     Ok(Some((name, IndexedGraph::from_graph(&graph.into())?)))
@@ -209,11 +214,11 @@ fn get_disk_graph_from_path(
 #[cfg(not(feature = "storage"))]
 fn get_disk_graph_from_path(
     _path: &Path,
-) -> Result<Option<(String, IndexedGraph<MaterializedGraph>)>, Error> {
+) -> Result<Option<(String, IndexedGraph<MaterializedGraph>)>, GraphError> {
     Ok(None)
 }
 
-fn get_graph_from_path(path: &Path) -> Result<(String, IndexedGraph<MaterializedGraph>), Error> {
+fn get_graph_from_path(path: &Path) -> Result<(String, IndexedGraph<MaterializedGraph>), GraphError> {
     if !path.exists() {
         return Err(GraphError::InvalidPath(path.to_path_buf()).into());
     }
@@ -233,7 +238,7 @@ fn get_graph_from_path(path: &Path) -> Result<(String, IndexedGraph<Materialized
 // We are loading all the graphs in the work dir for vectorized APIs
 pub(crate) fn get_graphs_from_work_dir(
     work_dir: &Path,
-) -> Result<HashMap<String, IndexedGraph<MaterializedGraph>>> {
+) -> Result<HashMap<String, IndexedGraph<MaterializedGraph>>,GraphError> {
     let mut graphs = HashMap::new();
     for path in get_graph_paths(work_dir) {
         let (name, graph) = get_graph_from_path(&path)?;
@@ -242,7 +247,7 @@ pub(crate) fn get_graphs_from_work_dir(
     Ok(graphs)
 }
 
-fn get_relative_path(work_dir: &Path, path: PathBuf) -> Result<PathBuf> {
+fn get_relative_path(work_dir: &Path, path: &PathBuf) -> Result<PathBuf,StripPrefixError> {
     Ok(path.strip_prefix(work_dir)?.to_path_buf())
 }
 
@@ -285,21 +290,21 @@ fn is_disk_graph_dir(path: &Path) -> bool {
     has_disk_graph_files
 }
 
-pub(crate) fn get_graph_name(path: &Path) -> Result<String, &'static str> {
+pub(crate) fn get_graph_name(path: &Path) -> Result<String,GraphError> {
     path.file_name()
         .and_then(|os_str| os_str.to_str())
         .map(|str_slice| str_slice.to_string())
-        .ok_or("No file name found in the path or invalid UTF-8")
+        .ok_or(GraphError::InvalidPath(path.to_path_buf()))
 }
 
-pub(crate) fn load_bincode_graph(path: &Path) -> Result<(String, MaterializedGraph)> {
+pub(crate) fn load_bincode_graph(path: &Path) -> Result<(String, MaterializedGraph),GraphError> {
     let graph = MaterializedGraph::load_from_file(path, false)?;
     let name = get_graph_name(path)?;
     Ok((name, graph))
 }
 
 #[cfg(feature = "storage")]
-fn load_disk_graph(path: &Path) -> Result<(String, MaterializedGraph)> {
+fn load_disk_graph(path: &Path) -> Result<(String, MaterializedGraph),GraphError> {
     let disk_graph = DiskGraphStorage::load_from_dir(path)?;
     let graph: MaterializedGraph = disk_graph.into_graph().into(); // TODO: We currently have no way to identify disk graphs as MaterializedGraphs
     let graph_name = get_graph_name(path)?;
@@ -308,7 +313,7 @@ fn load_disk_graph(path: &Path) -> Result<(String, MaterializedGraph)> {
 
 #[allow(unused_variables)]
 #[cfg(not(feature = "storage"))]
-fn _load_disk_graph(_path: &Path) -> Result<(String, MaterializedGraph)> {
+fn _load_disk_graph(_path: &Path) -> Result<(String, MaterializedGraph),GraphError> {
     unimplemented!("Storage feature not enabled, cannot load from disk graph")
 }
 
@@ -318,7 +323,6 @@ pub(crate) mod data_tests {
         data::{get_graph_from_path, get_graph_paths, load_graph_from_path},
         model::construct_graph_full_path,
     };
-    use dynamic_graphql::Result;
     use raphtory::{db::api::view::MaterializedGraph, prelude::*};
     use std::{
         collections::HashMap,
@@ -340,11 +344,12 @@ pub(crate) mod data_tests {
     };
     #[cfg(feature = "storage")]
     use std::{thread, time::Duration};
+    use raphtory::core::utils::errors::GraphError;
 
     pub(crate) fn save_graphs_to_work_dir(
         work_dir: &Path,
         graphs: &HashMap<String, MaterializedGraph>,
-    ) -> Result<()> {
+    ) -> Result<(), GraphError> {
         for (name, graph) in graphs.into_iter() {
             let full_path = construct_graph_full_path(&work_dir, Path::new(name))?;
 
@@ -603,7 +608,7 @@ pub(crate) mod data_tests {
         let res = get_graph_from_path(&tmp_graph_dir.path().join("test_dg1"));
         assert!(res.is_err());
         if let Err(err) = res {
-            assert!(err.message.contains("Invalid path"));
+            assert!(err.to_string().contains("Invalid path"));
         }
 
         // Dir path exists but is not a disk graph path
@@ -611,7 +616,7 @@ pub(crate) mod data_tests {
         let res = get_graph_from_path(&tmp_graph_dir.path());
         assert!(res.is_err());
         if let Err(err) = res {
-            assert!(err.message.contains("Invalid path"));
+            assert!(err.to_string().contains("Invalid path"));
         }
     }
 

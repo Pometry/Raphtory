@@ -472,7 +472,7 @@ pub(crate) fn construct_graph_full_path(
     Ok(full_path)
 }
 
-pub(crate) fn create_dirs_if_not_present(path: &Path) -> Result<()> {
+pub(crate) fn create_dirs_if_not_present(path: &Path) -> Result<(),GraphError> {
     if let Some(parent) = path.parent() {
         if !parent.exists() {
             fs::create_dir_all(parent)?;
