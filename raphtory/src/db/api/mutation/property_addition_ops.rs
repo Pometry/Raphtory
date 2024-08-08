@@ -30,7 +30,7 @@ impl<G: InternalPropertyAdditionOps + InternalAdditionOps> PropertyAdditionOps f
     ) -> Result<(), GraphError> {
         let ti = time_from_input(self, t)?;
         let properties: Vec<_> = props.collect_properties(
-            |name, _| self.resolve_graph_property(name, false),
+            |name, dtype| self.resolve_graph_property(name, dtype, false),
             |prop| self.process_prop_value(prop),
         )?;
         self.internal_add_properties(ti, properties)
@@ -38,10 +38,10 @@ impl<G: InternalPropertyAdditionOps + InternalAdditionOps> PropertyAdditionOps f
 
     fn add_constant_properties<PI: CollectProperties>(&self, props: PI) -> Result<(), GraphError> {
         let properties: Vec<_> = props.collect_properties(
-            |name, _| self.resolve_graph_property(name, true),
+            |name, dtype| self.resolve_graph_property(name, dtype, true),
             |prop| self.process_prop_value(prop),
         )?;
-        self.internal_add_static_properties(properties)
+        self.internal_add_constant_properties(properties)
     }
 
     fn update_constant_properties<PI: CollectProperties>(
@@ -49,9 +49,9 @@ impl<G: InternalPropertyAdditionOps + InternalAdditionOps> PropertyAdditionOps f
         props: PI,
     ) -> Result<(), GraphError> {
         let properties: Vec<_> = props.collect_properties(
-            |name, _| self.resolve_graph_property(name, true),
+            |name, dtype| self.resolve_graph_property(name, dtype, true),
             |prop| self.process_prop_value(prop),
         )?;
-        self.internal_update_static_properties(properties)
+        self.internal_update_constant_properties(properties)
     }
 }

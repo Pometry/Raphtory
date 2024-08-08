@@ -1,23 +1,9 @@
-#![allow(unused)]
-
-pub(crate) mod iter;
-pub mod lazy_vec;
-pub mod locked_view;
-pub mod raw_edges;
-pub mod sorted_vec_map;
-pub mod timeindex;
-
-use self::iter::Iter;
 use lock_api;
-use locked_view::LockedView;
-use ouroboros::self_referencing;
 use parking_lot::{RwLock, RwLockReadGuard};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
-    array,
     fmt::Debug,
-    iter::FusedIterator,
     marker::PhantomData,
     ops::{Deref, DerefMut},
     sync::{
@@ -25,6 +11,13 @@ use std::{
         Arc,
     },
 };
+
+pub(crate) mod iter;
+pub mod lazy_vec;
+pub mod locked_view;
+pub mod raw_edges;
+pub mod sorted_vec_map;
+pub mod timeindex;
 
 type ArcRwLockReadGuard<T> = lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, T>;
 
@@ -128,34 +121,30 @@ where
         self.locks.par_iter().flat_map(|v| v.par_iter())
     }
 
+    #[allow(unused)]
     pub(crate) fn into_iter(self) -> impl Iterator<Item = ArcEntry<T>> + Send
     where
         T: Send + Sync + 'static,
     {
-        self.locks
-            .into_iter()
-            .enumerate()
-            .flat_map(|(bucket, data)| {
-                (0..data.len()).map(move |offset| ArcEntry {
-                    guard: data.clone(),
-                    i: offset,
-                })
+        self.locks.into_iter().flat_map(|data| {
+            (0..data.len()).map(move |offset| ArcEntry {
+                guard: data.clone(),
+                i: offset,
             })
+        })
     }
 
+    #[allow(unused)]
     pub(crate) fn into_par_iter(self) -> impl ParallelIterator<Item = ArcEntry<T>>
     where
         T: Send + Sync + 'static,
     {
-        self.locks
-            .into_par_iter()
-            .enumerate()
-            .flat_map(|(bucket, data)| {
-                (0..data.len()).into_par_iter().map(move |offset| ArcEntry {
-                    guard: data.clone(),
-                    i: offset,
-                })
+        self.locks.into_par_iter().flat_map(|data| {
+            (0..data.len()).into_par_iter().map(move |offset| ArcEntry {
+                guard: data.clone(),
+                i: offset,
             })
+        })
     }
 }
 
@@ -204,7 +193,7 @@ where
     }
 
     pub fn push<F: Fn(usize, &mut T)>(&self, mut value: T, f: F) -> usize {
-        let index = self.len.fetch_add(1, Ordering::SeqCst);
+        let index = self.len.fetch_add(1, Ordering::Relaxed);
         let (bucket, offset) = self.resolve(index);
         let mut vec = self.data[bucket].data.write();
         if offset >= vec.len() {
@@ -213,6 +202,17 @@ where
         f(index, &mut value);
         vec[offset] = value;
         index
+    }
+
+    pub fn set(&self, index: Index, value: T) {
+        let index = index.into();
+        self.len.fetch_max(index + 1, Ordering::Relaxed);
+        let (bucket, offset) = self.resolve(index);
+        let mut vec = self.data[bucket].data.write();
+        if offset >= vec.len() {
+            vec.resize_with(offset + 1, || Default::default());
+        }
+        vec[offset] = value;
     }
 
     #[inline]
@@ -333,10 +333,23 @@ pub enum PairEntryMut<'a, T: 'static> {
 }
 
 impl<'a, T: 'static> PairEntryMut<'a, T> {
+    pub(crate) fn get_i(&self) -> &T {
+        match self {
+            PairEntryMut::Same { i, guard, .. } => &guard[*i],
+            PairEntryMut::Different { i, guard1, .. } => &guard1[*i],
+        }
+    }
     pub(crate) fn get_mut_i(&mut self) -> &mut T {
         match self {
             PairEntryMut::Same { i, guard, .. } => &mut guard[*i],
             PairEntryMut::Different { i, guard1, .. } => &mut guard1[*i],
+        }
+    }
+
+    pub(crate) fn get_j(&self) -> &T {
+        match self {
+            PairEntryMut::Same { j, guard, .. } => &guard[*j],
+            PairEntryMut::Different { j, guard2, .. } => &guard2[*j],
         }
     }
 
@@ -369,9 +382,10 @@ impl<'a, T> DerefMut for EntryMut<'a, T> {
 
 #[cfg(test)]
 mod test {
-    use rayon::prelude::{IntoParallelIterator, ParallelIterator};
-
     use super::RawStorage;
+    use pretty_assertions::assert_eq;
+    use quickcheck_macros::quickcheck;
+    use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 
     #[test]
     fn add_5_values_to_storage() {
@@ -423,9 +437,6 @@ mod test {
             assert_eq!(*entry, i.to_string());
         }
     }
-
-    use pretty_assertions::assert_eq;
-    use quickcheck_macros::quickcheck;
 
     #[quickcheck]
     fn concurrent_push(v: Vec<usize>) -> bool {

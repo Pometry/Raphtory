@@ -11,11 +11,7 @@ use crate::{
             internal::{CoreGraphOps, DynamicGraph, IntoDynamic, MaterializedGraph},
             serialise::{StableDecode, StableEncoder},
         },
-        graph::{
-            edge::EdgeView,
-            node::NodeView,
-            views::{deletion_graph::PersistentGraph, node_subgraph::NodeSubgraph},
-        },
+        graph::{edge::EdgeView, node::NodeView, views::node_subgraph::NodeSubgraph},
     },
     io::parquet_loaders::*,
     prelude::*,
@@ -27,10 +23,7 @@ use crate::{
         utils::PyTime,
     },
 };
-use pyo3::{
-    prelude::*,
-    types::{PyBytes, PyTuple},
-};
+use pyo3::{prelude::*, types::PyBytes};
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 use std::{
     collections::HashMap,
@@ -122,53 +115,20 @@ impl PyGraph {
 }
 
 #[pyclass(module = "raphtory")]
-pub enum PyGraphEncoder {
-    Graph,
-    PersistentGraph,
-}
+pub struct PyGraphEncoder;
 
 #[pymethods]
 impl PyGraphEncoder {
     #[new]
-    pub fn new() -> Self {
-        PyGraphEncoder::Graph
+    fn new() -> Self {
+        PyGraphEncoder
     }
 
-    pub fn __call__(&self, bytes: Vec<u8>) -> PyResult<PyObject> {
-        Python::with_gil(|py| match self {
-            PyGraphEncoder::Graph => {
-                let g = Graph::decode_from_bytes(&bytes)?;
-                Ok(g.into_py(py))
-            }
-            PyGraphEncoder::PersistentGraph => {
-                let g = PersistentGraph::decode_from_bytes(&bytes)?;
-                Ok(g.into_py(py))
-            }
-        })
+    fn __call__(&self, bytes: Vec<u8>) -> Result<MaterializedGraph, GraphError> {
+        MaterializedGraph::decode_from_bytes(&bytes)
     }
-
-    pub fn __setstate__(&mut self, state: &PyBytes) -> PyResult<()> {
-        match state.as_bytes() {
-            [0] => *self = PyGraphEncoder::Graph,
-            [1] => *self = PyGraphEncoder::PersistentGraph,
-            _ => {
-                return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                    "Invalid state".to_string(),
-                ))
-            }
-        }
-        Ok(())
-    }
-    pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<&'py PyBytes> {
-        match self {
-            PyGraphEncoder::Graph => Ok(PyBytes::new(py, &[0])),
-            PyGraphEncoder::PersistentGraph => Ok(PyBytes::new(py, &[1])),
-        }
-    }
-
-    pub fn __getnewargs__<'a>(&self, py: Python<'a>) -> PyResult<&'a PyTuple> {
-        Ok(PyTuple::empty(py))
-    }
+    fn __setstate__(&mut self) {}
+    fn __getstate__(&self) {}
 }
 
 /// A temporal graph.
@@ -185,9 +145,9 @@ impl PyGraph {
         )
     }
 
-    fn __reduce__(&self) -> PyResult<(PyGraphEncoder, (Vec<u8>,))> {
-        let state = self.graph.encode_to_vec()?;
-        Ok((PyGraphEncoder::Graph, (state,)))
+    fn __reduce__(&self) -> (PyGraphEncoder, (Vec<u8>,)) {
+        let state = self.graph.encode_to_vec();
+        (PyGraphEncoder, (state,))
     }
 
     #[cfg(feature = "storage")]
@@ -198,7 +158,7 @@ impl PyGraph {
 
         let disk_graph = Graph::persist_as_disk_graph(&self.graph, graph_dir)?;
         let storage = GraphStorage::Disk(Arc::new(disk_graph));
-        let graph = Graph::from_internal_graph(&storage);
+        let graph = Graph::from_internal_graph(storage);
 
         Python::with_gil(|py| {
             Ok(Py::new(

@@ -35,7 +35,7 @@ mod test {
         )
         .unwrap();
 
-        let g = Graph::from_internal_graph(&g);
+        let g = Graph::from_internal_graph(g);
         let first = g
             .node(v1)
             .and_then(|n| n.layers(["btc", "eth"]).ok())

@@ -1,52 +1,76 @@
-use std::{fs::File, io::Write, path::Path, sync::Arc};
-
-use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike};
-use prost::{decode_length_delimiter, encode_length_delimiter, Message};
-use raphtory_api::core::{
-    entities::{GID, VID},
-    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
-};
-
+use super::MaterializedGraph;
 use crate::{
     core::{
-        entities::{properties::props::PropMapper, LayerIds},
+        entities::{
+            edges::edge_store::EdgeStore, graph::tgraph::TemporalGraph,
+            nodes::node_store::NodeStore,
+        },
+        storage::timeindex::TimeIndexOps,
         utils::errors::GraphError,
-        DocumentInput, Lifespan, PropType,
+        DocumentInput, Lifespan, Prop, PropType,
     },
     db::{
         api::{
             mutation::internal::{
                 InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
             },
-            storage::nodes::node_storage_ops::NodeStorageOps,
+            storage::{
+                edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
+                storage_ops::GraphStorage, tprop_storage_ops::TPropOps,
+            },
+            view::internal::CoreGraphOps,
         },
         graph::views::deletion_graph::PersistentGraph,
     },
-    prelude::*,
+    prelude::Graph,
+    serialise,
     serialise::{
-        self, gid, lifespan, prop,
-        properties_meta::{self, PropName},
-        AddEdge, AddNode, DelEdge, Dict, Gid, GraphConstProps, NdTime, PropPair,
-        UpdateEdgeConstProps,
+        graph_update::*, new_meta::*, new_node, new_node::Gid, prop,
+        prop_type::PropType as SPropType, GraphUpdate, NewEdge, NewMeta, NewNode,
     },
 };
+use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike};
+use itertools::Itertools;
+use prost::Message;
+use raphtory_api::core::{
+    entities::{GidRef, EID, ELID, VID},
+    storage::{
+        arc_str::ArcStr,
+        timeindex::{AsTime, TimeIndexEntry},
+    },
+};
+use rayon::prelude::*;
+use std::{borrow::Borrow, fs::File, io::Write, iter, path::Path, sync::Arc};
 
-use super::GraphViewOps;
+macro_rules! zip_tprop_updates {
+    ($iter:expr) => {
+        &$iter
+            .map(|(key, values)| values.iter().map(move |(t, v)| (t, (key, v))))
+            .kmerge_by(|(left_t, _), (right_t, _)| left_t <= right_t)
+            .group_by(|(t, _)| *t)
+    };
+}
 
 pub trait StableEncoder {
-    fn encode_to_vec(&self) -> Result<Vec<u8>, GraphError>;
+    fn encode_to_proto(&self) -> serialise::Graph;
+    fn encode_to_vec(&self) -> Vec<u8> {
+        self.encode_to_proto().encode_to_vec()
+    }
 
     fn stable_serialise(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
         let mut file = File::create(path)?;
-        let bytes = self.encode_to_vec()?;
+        let bytes = self.encode_to_vec();
         file.write_all(&bytes)?;
-
         Ok(())
     }
 }
 
-pub trait StableDecode: Default {
-    fn decode_from_bytes(bytes: &[u8]) -> Result<Self, GraphError>;
+pub trait StableDecode: Sized {
+    fn decode_from_proto(graph: &serialise::Graph) -> Result<Self, GraphError>;
+    fn decode_from_bytes(bytes: &[u8]) -> Result<Self, GraphError> {
+        let graph = serialise::Graph::decode(bytes)?;
+        Self::decode_from_proto(&graph)
+    }
     fn decode(path: impl AsRef<Path>) -> Result<Self, GraphError> {
         let file = File::open(path)?;
         let buf = unsafe { memmap2::MmapOptions::new().map(&file)? };
@@ -55,538 +79,724 @@ pub trait StableDecode: Default {
     }
 }
 
-fn as_proto_prop_type(p_type: &PropType) -> properties_meta::PropType {
+fn as_proto_prop_type(p_type: &PropType) -> SPropType {
     match p_type {
-        PropType::Str => properties_meta::PropType::Str,
-        PropType::U8 => properties_meta::PropType::U8,
-        PropType::U16 => properties_meta::PropType::U16,
-        PropType::U32 => properties_meta::PropType::U32,
-        PropType::I32 => properties_meta::PropType::I32,
-        PropType::I64 => properties_meta::PropType::I64,
-        PropType::U64 => properties_meta::PropType::U64,
-        PropType::F32 => properties_meta::PropType::F32,
-        PropType::F64 => properties_meta::PropType::F64,
-        PropType::Bool => properties_meta::PropType::Bool,
-        PropType::List => properties_meta::PropType::List,
-        PropType::Map => properties_meta::PropType::Map,
-        PropType::NDTime => properties_meta::PropType::NdTime,
-        PropType::DTime => properties_meta::PropType::DTime,
-        PropType::Graph => properties_meta::PropType::Graph,
-        PropType::PersistentGraph => properties_meta::PropType::PersistentGraph,
-        PropType::Document => properties_meta::PropType::Document,
+        PropType::Str => SPropType::Str,
+        PropType::U8 => SPropType::U8,
+        PropType::U16 => SPropType::U16,
+        PropType::U32 => SPropType::U32,
+        PropType::I32 => SPropType::I32,
+        PropType::I64 => SPropType::I64,
+        PropType::U64 => SPropType::U64,
+        PropType::F32 => SPropType::F32,
+        PropType::F64 => SPropType::F64,
+        PropType::Bool => SPropType::Bool,
+        PropType::List => SPropType::List,
+        PropType::Map => SPropType::Map,
+        PropType::NDTime => SPropType::NdTime,
+        PropType::DTime => SPropType::DTime,
+        PropType::Graph => SPropType::Graph,
+        PropType::PersistentGraph => SPropType::PersistentGraph,
+        PropType::Document => SPropType::Document,
         _ => unimplemented!("Empty prop types not supported!"),
     }
 }
 
-fn as_prop_type(p_type: properties_meta::PropType) -> PropType {
+fn as_prop_type(p_type: SPropType) -> PropType {
     match p_type {
-        properties_meta::PropType::Str => PropType::Str,
-        properties_meta::PropType::U8 => PropType::U8,
-        properties_meta::PropType::U16 => PropType::U16,
-        properties_meta::PropType::U32 => PropType::U32,
-        properties_meta::PropType::I32 => PropType::I32,
-        properties_meta::PropType::I64 => PropType::I64,
-        properties_meta::PropType::U64 => PropType::U64,
-        properties_meta::PropType::F32 => PropType::F32,
-        properties_meta::PropType::F64 => PropType::F64,
-        properties_meta::PropType::Bool => PropType::Bool,
-        properties_meta::PropType::List => PropType::List,
-        properties_meta::PropType::Map => PropType::Map,
-        properties_meta::PropType::NdTime => PropType::NDTime,
-        properties_meta::PropType::DTime => PropType::DTime,
-        properties_meta::PropType::Graph => PropType::Graph,
-        properties_meta::PropType::PersistentGraph => PropType::PersistentGraph,
-        properties_meta::PropType::Document => PropType::Document,
+        SPropType::Str => PropType::Str,
+        SPropType::U8 => PropType::U8,
+        SPropType::U16 => PropType::U16,
+        SPropType::U32 => PropType::U32,
+        SPropType::I32 => PropType::I32,
+        SPropType::I64 => PropType::I64,
+        SPropType::U64 => PropType::U64,
+        SPropType::F32 => PropType::F32,
+        SPropType::F64 => PropType::F64,
+        SPropType::Bool => PropType::Bool,
+        SPropType::List => PropType::List,
+        SPropType::Map => PropType::Map,
+        SPropType::NdTime => PropType::NDTime,
+        SPropType::DTime => PropType::DTime,
+        SPropType::Graph => PropType::Graph,
+        SPropType::PersistentGraph => PropType::PersistentGraph,
+        SPropType::Document => PropType::Document,
     }
 }
 
-fn collect_prop_names<'a>(
-    names: impl Iterator<Item = &'a ArcStr>,
-    prop_mapper: &'a PropMapper,
-) -> Vec<PropName> {
-    names
-        .enumerate()
-        .map(|(prop_id, name)| {
-            let prop_type = prop_mapper
-                .get_dtype(prop_id)
-                .expect("Failed to get prop type");
-            PropName {
-                name: name.to_string(),
-                p_type: as_proto_prop_type(&prop_type).into(),
-            }
-        })
-        .collect()
+impl NewMeta {
+    fn new(new_meta: Meta) -> Self {
+        Self {
+            meta: Some(new_meta),
+        }
+    }
+
+    fn new_graph_cprop(key: &str, id: usize) -> Self {
+        let inner = NewGraphCProp {
+            name: key.to_string(),
+            id: id as u64,
+        };
+        Self::new(Meta::NewGraphCprop(inner))
+    }
+
+    fn new_graph_tprop(key: &str, id: usize, dtype: &PropType) -> Self {
+        let mut inner = NewGraphTProp::default();
+        inner.name = key.to_string();
+        inner.id = id as u64;
+        inner.set_p_type(as_proto_prop_type(dtype));
+        Self::new(Meta::NewGraphTprop(inner))
+    }
+
+    fn new_node_cprop(key: &str, id: usize, dtype: &PropType) -> Self {
+        let mut inner = NewNodeCProp::default();
+        inner.name = key.to_string();
+        inner.id = id as u64;
+        inner.set_p_type(as_proto_prop_type(dtype));
+        Self::new(Meta::NewNodeCprop(inner))
+    }
+
+    fn new_node_tprop(key: &str, id: usize, dtype: &PropType) -> Self {
+        let mut inner = NewNodeTProp::default();
+        inner.name = key.to_string();
+        inner.id = id as u64;
+        inner.set_p_type(as_proto_prop_type(dtype));
+        Self::new(Meta::NewNodeTprop(inner))
+    }
+
+    fn new_edge_cprop(key: &str, id: usize, dtype: &PropType) -> Self {
+        let mut inner = NewEdgeCProp::default();
+        inner.name = key.to_string();
+        inner.id = id as u64;
+        inner.set_p_type(as_proto_prop_type(dtype));
+        Self::new(Meta::NewEdgeCprop(inner))
+    }
+
+    fn new_edge_tprop(key: &str, id: usize, dtype: &PropType) -> Self {
+        let mut inner = NewEdgeTProp::default();
+        inner.name = key.to_string();
+        inner.id = id as u64;
+        inner.set_p_type(as_proto_prop_type(dtype));
+        Self::new(Meta::NewEdgeTprop(inner))
+    }
+
+    fn new_layer(layer: &str, id: usize) -> Self {
+        let mut inner = NewLayer::default();
+        inner.name = layer.to_string();
+        inner.id = id as u64;
+        Self::new(Meta::NewLayer(inner))
+    }
+
+    fn new_node_type(node_type: &str, id: usize) -> Self {
+        let mut inner = NewNodeType::default();
+        inner.name = node_type.to_string();
+        inner.id = id as u64;
+        Self::new(Meta::NewNodeType(inner))
+    }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> StableEncoder for G {
-    fn encode_to_vec(&self) -> Result<Vec<u8>, GraphError> {
-        let mut graph = serialise::GraphMeta::default();
+impl GraphUpdate {
+    fn new(update: Update) -> Self {
+        Self {
+            update: Some(update),
+        }
+    }
 
-        // const graph properties
-        let (names, properties): (Vec<_>, Vec<_>) = self
-            .const_prop_ids()
-            .filter_map(|id| {
-                let prop = self.get_const_prop(id)?;
-                let prop_name = self.get_const_prop_name(id);
-                Some((
-                    prop_name.to_string(),
-                    PropPair {
-                        key: id as u64,
-                        value: Some(as_proto_prop(&prop).expect("Failed to convert prop")),
-                    },
-                ))
+    fn update_graph_cprops(values: impl Iterator<Item = (usize, impl Borrow<Prop>)>) -> Self {
+        let inner = UpdateGraphCProps::new(values);
+        Self::new(Update::UpdateGraphCprops(inner))
+    }
+
+    fn update_graph_tprops(
+        time: TimeIndexEntry,
+        values: impl IntoIterator<Item = (usize, impl Borrow<Prop>)>,
+    ) -> Self {
+        let inner = UpdateGraphTProps::new(time, values);
+        Self::new(Update::UpdateGraphTprops(inner))
+    }
+
+    fn update_node_cprops(
+        node_id: VID,
+        properties: impl Iterator<Item = (usize, impl Borrow<Prop>)>,
+    ) -> Self {
+        let properties = collect_proto_props(properties);
+        let inner = UpdateNodeCProps {
+            id: node_id.as_u64(),
+            properties,
+        };
+        Self::new(Update::UpdateNodeCprops(inner))
+    }
+
+    fn update_node_tprops(
+        node_id: VID,
+        time: TimeIndexEntry,
+        properties: impl Iterator<Item = (usize, impl Borrow<Prop>)>,
+    ) -> Self {
+        let properties = collect_proto_props(properties);
+        let inner = UpdateNodeTProps {
+            id: node_id.as_u64(),
+            time: time.t(),
+            secondary: time.i() as u64,
+            properties,
+        };
+        Self::new(Update::UpdateNodeTprops(inner))
+    }
+
+    fn update_edge_tprops(
+        eid: EID,
+        time: TimeIndexEntry,
+        layer_id: usize,
+        properties: impl Iterator<Item = (usize, impl Borrow<Prop>)>,
+    ) -> Self {
+        let properties = collect_proto_props(properties);
+        let inner = UpdateEdgeTProps {
+            eid: eid.0 as u64,
+            time: time.t(),
+            secondary: time.i() as u64,
+            layer_id: layer_id as u64,
+            properties,
+        };
+        Self::new(Update::UpdateEdgeTprops(inner))
+    }
+
+    fn update_edge_cprops(
+        eid: EID,
+        layer_id: usize,
+        properties: impl Iterator<Item = (usize, impl Borrow<Prop>)>,
+    ) -> Self {
+        let properties = collect_proto_props(properties);
+        let inner = UpdateEdgeCProps {
+            eid: eid.0 as u64,
+            layer_id: layer_id as u64,
+            properties,
+        };
+        Self::new(Update::UpdateEdgeCprops(inner))
+    }
+
+    fn del_edge(eid: EID, layer_id: usize, time: TimeIndexEntry) -> Self {
+        let inner = DelEdge {
+            eid: eid.as_u64(),
+            time: time.t(),
+            secondary: time.i() as u64,
+            layer_id: layer_id as u64,
+        };
+        Self::new(Update::DelEdge(inner))
+    }
+}
+
+impl UpdateGraphCProps {
+    fn new(values: impl Iterator<Item = (usize, impl Borrow<Prop>)>) -> Self {
+        let properties = collect_proto_props(values);
+        UpdateGraphCProps { properties }
+    }
+}
+
+impl UpdateGraphTProps {
+    fn new(
+        time: TimeIndexEntry,
+        values: impl IntoIterator<Item = (usize, impl Borrow<Prop>)>,
+    ) -> Self {
+        let properties = collect_proto_props(values);
+        UpdateGraphTProps {
+            time: time.t(),
+            secondary: time.i() as u64,
+            properties,
+        }
+    }
+}
+
+impl PropPair {
+    fn new(key: usize, value: &Prop) -> Self {
+        PropPair {
+            key: key as u64,
+            value: Some(as_proto_prop(value)),
+        }
+    }
+}
+
+impl serialise::Graph {
+    fn new_edge(&mut self, src: VID, dst: VID, eid: EID) {
+        let edge = NewEdge {
+            src: src.as_u64(),
+            dst: dst.as_u64(),
+            eid: eid.as_u64(),
+        };
+        self.edges.push(edge);
+    }
+
+    fn new_node(&mut self, gid: GidRef, vid: VID, type_id: usize) {
+        let type_id = type_id as u64;
+        let gid = match gid {
+            GidRef::U64(id) => new_node::Gid::GidU64(id),
+            GidRef::Str(name) => new_node::Gid::GidStr(name.to_string()),
+        };
+        let node = NewNode {
+            type_id,
+            gid: Some(gid),
+            vid: vid.as_u64(),
+        };
+        self.nodes.push(node);
+    }
+
+    fn new_graph_cprop(&mut self, key: &str, id: usize) {
+        self.metas.push(NewMeta::new_graph_cprop(key, id));
+    }
+
+    fn new_graph_tprop(&mut self, key: &str, id: usize, dtype: &PropType) {
+        self.metas.push(NewMeta::new_graph_tprop(key, id, dtype));
+    }
+
+    fn new_node_cprop(&mut self, key: &str, id: usize, dtype: &PropType) {
+        self.metas.push(NewMeta::new_node_cprop(key, id, dtype));
+    }
+
+    fn new_node_tprop(&mut self, key: &str, id: usize, dtype: &PropType) {
+        self.metas.push(NewMeta::new_node_tprop(key, id, dtype));
+    }
+
+    fn new_edge_cprop(&mut self, key: &str, id: usize, dtype: &PropType) {
+        self.metas.push(NewMeta::new_edge_cprop(key, id, dtype));
+    }
+
+    fn new_edge_tprop(&mut self, key: &str, id: usize, dtype: &PropType) {
+        self.metas.push(NewMeta::new_edge_tprop(key, id, dtype))
+    }
+
+    fn new_layer(&mut self, layer: &str, id: usize) {
+        self.metas.push(NewMeta::new_layer(layer, id));
+    }
+
+    fn new_node_type(&mut self, node_type: &str, id: usize) {
+        self.metas.push(NewMeta::new_node_type(node_type, id));
+    }
+
+    fn update_graph_cprops(&mut self, values: impl Iterator<Item = (usize, impl Borrow<Prop>)>) {
+        self.updates.push(GraphUpdate::update_graph_cprops(values));
+    }
+
+    fn update_graph_tprops(
+        &mut self,
+        time: TimeIndexEntry,
+        values: impl IntoIterator<Item = (usize, impl Borrow<Prop>)>,
+    ) {
+        self.updates
+            .push(GraphUpdate::update_graph_tprops(time, values));
+    }
+
+    fn update_node_cprops(
+        &mut self,
+        node_id: VID,
+        properties: impl Iterator<Item = (usize, impl Borrow<Prop>)>,
+    ) {
+        self.updates
+            .push(GraphUpdate::update_node_cprops(node_id, properties));
+    }
+
+    fn update_node_tprops(
+        &mut self,
+        node_id: VID,
+        time: TimeIndexEntry,
+        properties: impl Iterator<Item = (usize, impl Borrow<Prop>)>,
+    ) {
+        self.updates
+            .push(GraphUpdate::update_node_tprops(node_id, time, properties));
+    }
+
+    fn update_edge_tprops(
+        &mut self,
+        eid: EID,
+        time: TimeIndexEntry,
+        layer_id: usize,
+        properties: impl Iterator<Item = (usize, impl Borrow<Prop>)>,
+    ) {
+        self.updates.push(GraphUpdate::update_edge_tprops(
+            eid, time, layer_id, properties,
+        ));
+    }
+
+    fn update_edge_cprops(
+        &mut self,
+        eid: EID,
+        layer_id: usize,
+        properties: impl Iterator<Item = (usize, impl Borrow<Prop>)>,
+    ) {
+        self.updates
+            .push(GraphUpdate::update_edge_cprops(eid, layer_id, properties));
+    }
+
+    fn del_edge(&mut self, eid: EID, layer_id: usize, time: TimeIndexEntry) {
+        self.updates
+            .push(GraphUpdate::del_edge(eid, layer_id, time))
+    }
+}
+
+impl StableEncoder for GraphStorage {
+    fn encode_to_proto(&self) -> serialise::Graph {
+        #[cfg(feature = "storage")]
+        if let GraphStorage::Disk(storage) = self {
+            assert!(
+                storage.inner.layers().len() <= 1,
+                "Disk based storage not supported right now because it doesn't have aligned edges"
+            );
+        }
+
+        let storage = self.lock();
+        let mut graph = serialise::Graph::default();
+
+        // Graph Properties
+        let graph_meta = storage.graph_meta();
+        for (id, key) in graph_meta.const_prop_meta().get_keys().iter().enumerate() {
+            graph.new_graph_cprop(key, id);
+        }
+        graph.update_graph_cprops(graph_meta.const_props());
+
+        for (id, (key, dtype)) in graph_meta
+            .temporal_prop_meta()
+            .get_keys()
+            .iter()
+            .zip(graph_meta.temporal_prop_meta().dtypes().iter())
+            .enumerate()
+        {
+            graph.new_graph_tprop(key, id, dtype);
+        }
+        for (t, group) in &graph_meta
+            .temporal_props()
+            .map(|(key, values)| {
+                values
+                    .iter()
+                    .map(move |(t, v)| (t, (key, v)))
+                    .collect::<Vec<_>>()
             })
-            .unzip();
+            .kmerge_by(|(left_t, _), (right_t, _)| left_t <= right_t)
+            .group_by(|(t, _)| *t)
+        {
+            graph.update_graph_tprops(t, group.map(|(_, v)| v));
+        }
 
-        graph.const_properties = Some(GraphConstProps { names, properties });
+        // Layers
+        for (id, layer) in storage
+            .edge_meta()
+            .layer_meta()
+            .get_keys()
+            .iter()
+            .enumerate()
+        {
+            graph.new_layer(layer, id);
+        }
 
-        // temporal graph properties
-        let prop_names = self
-            .temporal_prop_keys()
-            .into_iter()
-            .map(|n| n.to_string())
-            .collect::<Vec<_>>();
+        // Node Types
+        for (id, node_type) in storage
+            .node_meta()
+            .node_type_meta()
+            .get_keys()
+            .iter()
+            .enumerate()
+        {
+            graph.new_node_type(node_type, id);
+        }
 
-        let (ts, props): (Vec<_>, Vec<_>) = self
-            .temporal_prop_ids()
-            .flat_map(|id| {
-                let prop_t = self.temporal_history(id);
-                let props = self.temporal_values(id);
-                props.into_iter().zip(prop_t).map(move |(prop, t)| {
-                    let prop = as_proto_prop(&prop).expect("Failed to convert prop");
-                    (
-                        t,
-                        PropPair {
-                            key: id as u64,
-                            value: Some(prop),
-                        },
-                    )
-                })
-            })
-            .unzip();
+        // Node Properties
+        let n_const_meta = self.node_meta().const_prop_meta();
+        for (id, (key, dtype)) in n_const_meta
+            .get_keys()
+            .iter()
+            .zip(n_const_meta.dtypes().iter())
+            .enumerate()
+        {
+            graph.new_node_cprop(key, id, dtype);
+        }
+        let n_temporal_meta = self.node_meta().temporal_prop_meta();
+        for (id, (key, dtype)) in n_temporal_meta
+            .get_keys()
+            .iter()
+            .zip(n_temporal_meta.dtypes().iter())
+            .enumerate()
+        {
+            graph.new_node_tprop(key, id, dtype);
+        }
 
-        graph.temp_properties = Some(serialise::GraphTempProps {
-            names: prop_names,
-            times: ts,
-            properties: props,
-        });
+        // Nodes
+        let nodes = storage.nodes();
+        for node_id in 0..nodes.len() {
+            let node = nodes.node(VID(node_id));
+            graph.new_node(node.id(), node.vid(), node.node_type_id());
+            for (t, group) in
+                zip_tprop_updates!((0..n_temporal_meta.len()).map(|id| (id, node.tprop(id))))
+            {
+                graph.update_node_tprops(node.vid(), t, group.map(|(_, v)| v));
+            }
+            for t in node.additions().iter() {
+                graph.update_node_tprops(
+                    node.vid(),
+                    TimeIndexEntry::start(t),
+                    iter::empty::<(usize, Prop)>(),
+                );
+            }
+            graph.update_node_cprops(
+                node.vid(),
+                (0..n_const_meta.len()).flat_map(|i| node.prop(i).map(|v| (i, v))),
+            );
+        }
 
-        graph.layers = self
-            .unique_layers()
-            .map(|l_name| l_name.to_string())
-            .collect();
-        graph.node_types = self
-            .get_all_node_types()
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
+        // Edge Properties
+        let e_const_meta = self.edge_meta().const_prop_meta();
+        for (id, (key, dtype)) in e_const_meta
+            .get_keys()
+            .iter()
+            .zip(e_const_meta.dtypes().iter())
+            .enumerate()
+        {
+            graph.new_edge_cprop(key, id, dtype);
+        }
+        let e_temporal_meta = self.edge_meta().temporal_prop_meta();
+        for (id, (key, dtype)) in e_temporal_meta
+            .get_keys()
+            .iter()
+            .zip(e_temporal_meta.dtypes().iter())
+            .enumerate()
+        {
+            graph.new_edge_tprop(key, id, dtype);
+        }
 
-        let n_const_meta = &self.node_meta().const_prop_meta();
-        let n_temporal_meta = &self.node_meta().temporal_prop_meta();
-        let e_const_meta = &self.edge_meta().const_prop_meta();
-        let e_temporal_meta = &self.edge_meta().temporal_prop_meta();
-
-        graph.meta = Some(serialise::PropertiesMeta {
-            nodes: Some(properties_meta::PropNames {
-                constant: collect_prop_names(n_const_meta.get_keys().iter(), n_const_meta),
-                temporal: collect_prop_names(n_temporal_meta.get_keys().iter(), n_temporal_meta),
-            }),
-            edges: Some(properties_meta::PropNames {
-                constant: collect_prop_names(e_const_meta.get_keys().iter(), e_const_meta),
-                temporal: collect_prop_names(e_temporal_meta.get_keys().iter(), e_temporal_meta),
-            }),
-        });
-
-        graph.nodes = self
-            .nodes()
-            .into_iter()
-            .map(|n| {
-                let gid = n.id();
-                let vid = n.node;
-                let proto_gid = match gid {
-                    GID::U64(g) => Gid {
-                        gid: Some(gid::Gid::GidU64(g)),
-                    },
-                    GID::Str(g) => Gid {
-                        gid: Some(gid::Gid::GidStr(g.to_string())),
-                    },
-                };
-                serialise::Node {
-                    gid: Some(proto_gid),
-                    vid: vid.0 as u64,
+        // Edges
+        let edges = storage.edges();
+        for eid in 0..edges.len() {
+            let eid = EID(eid);
+            let edge = edges.edge(ELID::new(eid, Some(0))); // This works for DiskStorage as long as it has a single layer
+            let edge = edge.as_ref();
+            graph.new_edge(edge.src(), edge.dst(), eid);
+            for layer_id in 0..storage.unfiltered_num_layers() {
+                for (t, props) in
+                    zip_tprop_updates!((0..e_temporal_meta.len())
+                        .map(|i| (i, edge.temporal_prop_layer(layer_id, i))))
+                {
+                    graph.update_edge_tprops(eid, t, layer_id, props.map(|(_, v)| v));
                 }
-            })
-            .collect::<Vec<_>>();
-
-        let mut bytes = vec![];
-
-        graph.encode_length_delimited(&mut bytes)?;
-
-        let mut add_nodes = vec![];
-        let mut const_nodes_props = vec![];
-
-        for v in self.nodes().iter() {
-            let type_id = Some(v.node_type_id() as u64);
-            let id = v.node.0 as u64;
-
-            for time in v.history() {
-                add_nodes.push(AddNode {
-                    id,
-                    properties: None,
-                    type_id,
-                    time,
-                });
-            }
-
-            for (prop_name, prop_view) in v.properties().temporal().iter() {
-                for (time, prop) in prop_view.iter() {
-                    let key = self
-                        .node_meta()
-                        .temporal_prop_meta()
-                        .get_id(&prop_name)
-                        .unwrap();
-                    add_nodes.push(AddNode {
-                        id,
-                        properties: Some(as_prop_pair(key as u64, &prop)?),
-                        type_id,
-                        time,
-                    });
+                for t in edge.additions(layer_id).iter() {
+                    graph.update_edge_tprops(eid, t, layer_id, iter::empty::<(usize, Prop)>());
                 }
-            }
-
-            for (prop_name, prop) in v.properties().constant() {
-                let key = self
-                    .node_meta()
-                    .const_prop_meta()
-                    .get_id(&prop_name)
-                    .unwrap();
-                const_nodes_props.push(serialise::UpdateNodeConstProps {
-                    id,
-                    properties: Some(as_prop_pair(key as u64, &prop)?),
-                });
+                for t in edge.deletions(layer_id).iter() {
+                    graph.del_edge(eid, layer_id, t);
+                }
+                graph.update_edge_cprops(
+                    eid,
+                    layer_id,
+                    (0..e_const_meta.len()).filter_map(|i| {
+                        edge.constant_prop_layer(layer_id, i).map(|prop| (i, prop))
+                    }),
+                );
             }
         }
+        graph
+    }
+}
 
-        encode_length_delimiter(add_nodes.len(), &mut bytes)?;
-        for add_node in add_nodes {
-            add_node.encode_length_delimited(&mut bytes)?;
-        }
+impl StableEncoder for Graph {
+    fn encode_to_proto(&self) -> serialise::Graph {
+        let mut graph = self.core_graph().encode_to_proto();
+        graph.set_graph_type(serialise::GraphType::Event);
+        graph
+    }
+}
 
-        encode_length_delimiter(const_nodes_props.len(), &mut bytes)?;
-        for const_node_props in const_nodes_props {
-            const_node_props.encode_length_delimited(&mut bytes)?;
-        }
+impl StableEncoder for PersistentGraph {
+    fn encode_to_proto(&self) -> serialise::Graph {
+        let mut graph = self.core_graph().encode_to_proto();
+        graph.set_graph_type(serialise::GraphType::Persistent);
+        graph
+    }
+}
 
-        let mut const_edges_props = vec![];
-        let mut edges = vec![];
-        let mut del_edges = vec![];
-
-        for e in self.edges() {
-            let src = e.src().node.0 as u64;
-            let dst = e.dst().node.0 as u64;
-            // FIXME: this needs to be verified
-            for ee in e.explode_layers() {
-                let layer_id = *ee.edge.layer().expect("exploded layers");
-
-                for (prop_name, prop) in ee.properties().constant() {
-                    let key = self
-                        .edge_meta()
+impl StableDecode for TemporalGraph {
+    fn decode_from_proto(graph: &serialise::Graph) -> Result<Self, GraphError> {
+        let storage = Self::default();
+        graph.metas.par_iter().for_each(|meta| {
+            if let Some(meta) = meta.meta.as_ref() {
+                match meta {
+                    Meta::NewNodeType(node_type) => {
+                        storage
+                            .node_meta
+                            .node_type_meta()
+                            .set_id(node_type.name.as_str(), node_type.id as usize);
+                    }
+                    Meta::NewNodeCprop(node_cprop) => {
+                        storage.node_meta.const_prop_meta().set_id_and_dtype(
+                            node_cprop.name.as_str(),
+                            node_cprop.id as usize,
+                            as_prop_type(node_cprop.p_type()),
+                        )
+                    }
+                    Meta::NewNodeTprop(node_tprop) => {
+                        storage.node_meta.temporal_prop_meta().set_id_and_dtype(
+                            node_tprop.name.as_str(),
+                            node_tprop.id as usize,
+                            as_prop_type(node_tprop.p_type()),
+                        )
+                    }
+                    Meta::NewGraphCprop(graph_cprop) => storage
+                        .graph_meta
                         .const_prop_meta()
-                        .get_id(&prop_name)
-                        .unwrap();
-                    const_edges_props.push(serialise::UpdateEdgeConstProps {
-                        src,
-                        dst,
-                        layer_id: layer_id as u64,
-                        properties: Some(as_prop_pair(key as u64, &prop)?),
-                    });
-                }
-
-                for ee in ee.explode() {
-                    edges.push(AddEdge {
-                        src,
-                        dst,
-                        properties: None,
-                        time: ee.time().expect("exploded edge"),
-                        layer_id: Some(layer_id as u64),
-                    });
-
-                    for (prop_name, prop_view) in ee.properties().temporal() {
-                        for (time, prop) in prop_view.iter() {
-                            let key = self
-                                .edge_meta()
-                                .temporal_prop_meta()
-                                .get_id(&prop_name)
-                                .unwrap();
-                            edges.push(AddEdge {
-                                src,
-                                dst,
-                                properties: Some(as_prop_pair(key as u64, &prop)?),
-                                time,
-                                layer_id: Some(layer_id as u64),
-                            });
-                        }
+                        .set_id(graph_cprop.name.as_str(), graph_cprop.id as usize),
+                    Meta::NewGraphTprop(graph_tprop) => {
+                        storage.graph_meta.temporal_prop_meta().set_id_and_dtype(
+                            graph_tprop.name.as_str(),
+                            graph_tprop.id as usize,
+                            as_prop_type(graph_tprop.p_type()),
+                        )
                     }
-
-                    for time in ee.deletions() {
-                        del_edges.push(DelEdge {
-                            src,
-                            dst,
-                            time,
-                            layer_id: Some(layer_id as u64),
-                        });
+                    Meta::NewLayer(new_layer) => storage
+                        .edge_meta
+                        .layer_meta()
+                        .set_id(new_layer.name.as_str(), new_layer.id as usize),
+                    Meta::NewEdgeCprop(edge_cprop) => {
+                        storage.edge_meta.const_prop_meta().set_id_and_dtype(
+                            edge_cprop.name.as_str(),
+                            edge_cprop.id as usize,
+                            as_prop_type(edge_cprop.p_type()),
+                        )
+                    }
+                    Meta::NewEdgeTprop(edge_tprop) => {
+                        storage.edge_meta.temporal_prop_meta().set_id_and_dtype(
+                            edge_tprop.name.as_str(),
+                            edge_tprop.id as usize,
+                            as_prop_type(edge_tprop.p_type()),
+                        )
                     }
                 }
             }
-        }
-
-        encode_length_delimiter(edges.len(), &mut bytes)?;
-        for edge in edges {
-            edge.encode_length_delimited(&mut bytes)?;
-        }
-
-        encode_length_delimiter(del_edges.len(), &mut bytes)?;
-        for del_edge in del_edges {
-            del_edge.encode_length_delimited(&mut bytes)?;
-        }
-
-        encode_length_delimiter(const_edges_props.len(), &mut bytes)?;
-        for const_edge_props in const_edges_props {
-            const_edge_props.encode_length_delimited(&mut bytes)?;
-        }
-
-        Ok(bytes)
+        });
+        graph.nodes.par_iter().try_for_each(|node| {
+            let gid = match node.gid.as_ref().unwrap() {
+                Gid::GidStr(name) => GidRef::Str(name),
+                Gid::GidU64(gid) => GidRef::U64(*gid),
+            };
+            let vid = VID(node.vid as usize);
+            storage.logical_to_physical.get_or_init(gid, || vid)?;
+            let mut node_store = NodeStore::empty(gid.to_owned());
+            node_store.vid = vid;
+            node_store.node_type = node.type_id as usize;
+            storage.storage.nodes.set(vid, node_store);
+            Ok::<(), GraphError>(())
+        })?;
+        graph.edges.par_iter().for_each(|edge| {
+            let eid = EID(edge.eid as usize);
+            let src = VID(edge.src as usize);
+            let dst = VID(edge.dst as usize);
+            let mut edge = EdgeStore::new(src, dst);
+            edge.eid = eid;
+            storage.storage.edges.set(edge);
+        });
+        graph.updates.par_iter().try_for_each(|update| {
+            if let Some(update) = update.update.as_ref() {
+                match update {
+                    Update::UpdateNodeCprops(props) => {
+                        storage.internal_update_constant_node_properties(
+                            VID(props.id as usize),
+                            collect_props(&props.properties)?,
+                        )?;
+                    }
+                    Update::UpdateNodeTprops(props) => {
+                        let time = TimeIndexEntry(props.time, props.secondary as usize);
+                        let node = VID(props.id as usize);
+                        let props = collect_props(&props.properties)?;
+                        storage.internal_add_node(time, node, props)?;
+                    }
+                    Update::UpdateGraphCprops(props) => {
+                        storage.internal_update_constant_properties(collect_props(
+                            &props.properties,
+                        )?)?;
+                    }
+                    Update::UpdateGraphTprops(props) => {
+                        let time = TimeIndexEntry(props.time, props.secondary as usize);
+                        storage.internal_add_properties(time, collect_props(&props.properties)?)?;
+                    }
+                    Update::DelEdge(del_edge) => {
+                        let time = TimeIndexEntry(del_edge.time, del_edge.secondary as usize);
+                        storage.internal_delete_existing_edge(
+                            time,
+                            EID(del_edge.eid as usize),
+                            del_edge.layer_id as usize,
+                        )?;
+                    }
+                    Update::UpdateEdgeCprops(props) => {
+                        storage.internal_update_constant_edge_properties(
+                            EID(props.eid as usize),
+                            props.layer_id as usize,
+                            collect_props(&props.properties)?,
+                        )?;
+                    }
+                    Update::UpdateEdgeTprops(props) => {
+                        let time = TimeIndexEntry(props.time, props.secondary as usize);
+                        let eid = EID(props.eid as usize);
+                        storage.internal_add_edge_update(
+                            time,
+                            eid,
+                            collect_props(&props.properties)?,
+                            props.layer_id as usize,
+                        )?;
+                    }
+                }
+            }
+            Ok::<_, GraphError>(())
+        })?;
+        Ok(storage)
     }
 }
 
-impl<
-        'graph,
-        G: InternalAdditionOps
-            + GraphViewOps<'graph>
-            + InternalPropertyAdditionOps
-            + InternalDeletionOps
-            + Default,
-    > StableDecode for G
-{
-    fn decode_from_bytes(mut buf: &[u8]) -> Result<Self, GraphError> {
-        let graph = G::default();
-        let g = serialise::GraphMeta::decode_length_delimited(&mut buf)
-            .expect("Failed to decode graph");
+impl StableDecode for GraphStorage {
+    fn decode_from_proto(graph: &serialise::Graph) -> Result<Self, GraphError> {
+        Ok(GraphStorage::Unlocked(Arc::new(
+            TemporalGraph::decode_from_proto(graph)?,
+        )))
+    }
+}
 
-        // constant graph properties
-        if let Some(meta) = g.const_properties.as_ref() {
-            for (name, prop_pair) in meta.names.iter().zip(meta.properties.iter()) {
-                let id = graph.graph_meta().resolve_property(name, true);
-                assert_eq!(id, prop_pair.key as usize);
-
-                let prop = prop_pair.value.as_ref().and_then(|p| p.value.as_ref());
-                let prop = graph.process_prop_value(as_prop_value(prop));
-                graph.graph_meta().add_constant_prop(id, prop)?;
+impl StableDecode for MaterializedGraph {
+    fn decode_from_proto(graph: &serialise::Graph) -> Result<Self, GraphError> {
+        let storage = GraphStorage::decode_from_proto(graph)?;
+        let graph = match graph.graph_type() {
+            serialise::GraphType::Event => Self::EventGraph(Graph::from_internal_graph(storage)),
+            serialise::GraphType::Persistent => {
+                Self::PersistentGraph(PersistentGraph::from_internal_graph(storage))
             }
-        }
-
-        if let Some(meta) = g.temp_properties.as_ref() {
-            for name in meta.names.iter() {
-                graph.graph_meta().resolve_property(name, false);
-            }
-
-            for (time, prop_pair) in meta.times.iter().zip(meta.properties.iter()) {
-                let id = prop_pair.key as usize;
-                let prop = prop_pair.value.as_ref().and_then(|p| p.value.as_ref());
-                let prop = graph.process_prop_value(as_prop_value(prop));
-                graph
-                    .graph_meta()
-                    .add_prop(TimeIndexEntry::from(*time), id, prop)?;
-            }
-        }
-
-        // align the nodes
-        for node in g.nodes {
-            let gid = from_proto_gid(node.gid.and_then(|gid| gid.gid).expect("Missing GID"));
-            let l_vid = graph.resolve_node(gid)?;
-            assert_eq!(l_vid, VID(node.vid as usize));
-        }
-
-        // align the node types
-        for (type_id, type_name) in g.node_types.iter().enumerate() {
-            let n_id = graph.node_meta().get_or_create_node_type_id(type_name);
-            assert_eq!(n_id, type_id);
-        }
-
-        // alight the edge layers
-        for (layer_id, layer) in g.layers.iter().enumerate() {
-            let l_id = graph.resolve_layer(Some(layer))?;
-            assert_eq!(l_id, layer_id);
-        }
-
-        // align the node properties
-        if let Some(meta) = g.meta.as_ref().and_then(|m| m.nodes.as_ref()) {
-            for PropName { name, p_type } in &meta.constant {
-                let p_type = properties_meta::PropType::try_from(*p_type).unwrap();
-                graph
-                    .node_meta()
-                    .resolve_prop_id(&name, as_prop_type(p_type), true)?;
-            }
-
-            for PropName { name, p_type } in &meta.temporal {
-                let p_type = properties_meta::PropType::try_from(*p_type).unwrap();
-                graph
-                    .node_meta()
-                    .resolve_prop_id(&name, as_prop_type(p_type), false)?;
-            }
-        }
-
-        // align the edge properties
-
-        if let Some(meta) = g.meta.as_ref().and_then(|m| m.edges.as_ref()) {
-            for PropName { name, p_type } in &meta.constant {
-                let p_type = properties_meta::PropType::try_from(*p_type).unwrap();
-                graph
-                    .edge_meta()
-                    .resolve_prop_id(&name, as_prop_type(p_type), true)?;
-            }
-
-            for PropName { name, p_type } in &meta.temporal {
-                let p_type = properties_meta::PropType::try_from(*p_type).unwrap();
-                graph
-                    .edge_meta()
-                    .resolve_prop_id(&name, as_prop_type(p_type), false)?;
-            }
-        }
-
-        let nodes_len = decode_length_delimiter(&mut buf)?;
-
-        for node_res in (0..nodes_len).map(|_| AddNode::decode_length_delimited(&mut buf)) {
-            let AddNode {
-                id,
-                properties,
-                time,
-                type_id,
-            } = node_res?;
-            let v = VID(id as usize);
-            let props = properties
-                .as_ref()
-                .map(|p| as_prop(p))
-                .map(|(id, prop)| (id, graph.process_prop_value(prop)))
-                .into_iter()
-                .collect();
-            graph.internal_add_node(
-                TimeIndexEntry::from(time),
-                v,
-                props,
-                type_id.map(|id| id as usize).unwrap(),
-            )?;
-        }
-
-        let const_nodes_len = decode_length_delimiter(&mut buf)?;
-
-        for update_node_const_props in (0..const_nodes_len)
-            .map(|_| serialise::UpdateNodeConstProps::decode_length_delimited(&mut buf))
-        {
-            let update_node_const_props = update_node_const_props?;
-            let vid = VID(update_node_const_props.id as usize);
-            let props = update_node_const_props
-                .properties
-                .iter()
-                .map(|prop| as_prop(prop))
-                .map(|(id, prop)| (id, graph.process_prop_value(prop)))
-                .collect();
-            graph.internal_update_constant_node_properties(vid, props)?;
-        }
-
-        let edges_len = decode_length_delimiter(&mut buf)?;
-
-        for add_edge in (0..edges_len).map(|_| AddEdge::decode_length_delimited(&mut buf)) {
-            let AddEdge {
-                src,
-                dst,
-                properties,
-                time,
-                layer_id,
-            } = add_edge?;
-            let src = VID(src as usize);
-            let dst = VID(dst as usize);
-            let props = properties
-                .as_ref()
-                .map(|p| as_prop(p))
-                .map(|(id, prop)| (id, graph.process_prop_value(prop)))
-                .into_iter()
-                .collect();
-            graph.internal_add_edge(
-                TimeIndexEntry::from(time),
-                src,
-                dst,
-                props,
-                layer_id.map(|id| id as usize).unwrap(),
-            )?;
-        }
-
-        let del_edges_len = decode_length_delimiter(&mut buf)?;
-
-        for del_edge in (0..del_edges_len).map(|_| DelEdge::decode_length_delimited(&mut buf)) {
-            let DelEdge {
-                src,
-                dst,
-                time,
-                layer_id,
-            } = del_edge?;
-            let src = VID(src as usize);
-            let dst = VID(dst as usize);
-            graph.internal_delete_edge(
-                TimeIndexEntry::from(time),
-                src,
-                dst,
-                layer_id.map(|id| id as usize).unwrap(),
-            )?;
-        }
-
-        let const_edges_len = decode_length_delimiter(&mut buf)?;
-
-        for update_edge in (0..const_edges_len)
-            .map(|_| serialise::UpdateEdgeConstProps::decode_length_delimited(&mut buf))
-        {
-            let UpdateEdgeConstProps {
-                src,
-                dst,
-                properties,
-                layer_id,
-            } = update_edge?;
-            let src = VID(src as usize);
-            let dst = VID(dst as usize);
-            let eid = graph
-                .core_node_entry(src)
-                .find_edge(dst, &LayerIds::All)
-                .map(|e| e.pid())
-                .unwrap();
-            let props = properties
-                .iter()
-                .map(|prop| as_prop(prop))
-                .map(|(id, prop)| (id, graph.process_prop_value(prop)))
-                .collect();
-            graph.internal_update_constant_edge_properties(eid, layer_id as usize, props)?;
-        }
-
+        };
         Ok(graph)
     }
 }
 
-fn from_proto_gid(gid: gid::Gid) -> GID {
-    match gid {
-        gid::Gid::GidU64(n) => GID::U64(n),
-        gid::Gid::GidStr(s) => GID::Str(s),
+impl StableDecode for Graph {
+    fn decode_from_proto(graph: &serialise::Graph) -> Result<Self, GraphError> {
+        match graph.graph_type() {
+            serialise::GraphType::Event => {
+                let storage = GraphStorage::decode_from_proto(graph)?;
+                Ok(Graph::from_internal_graph(storage))
+            }
+            serialise::GraphType::Persistent => Err(GraphError::GraphLoadError),
+        }
     }
 }
 
-fn as_prop(prop_pair: &PropPair) -> (usize, Prop) {
+impl StableDecode for PersistentGraph {
+    fn decode_from_proto(graph: &serialise::Graph) -> Result<Self, GraphError> {
+        match graph.graph_type() {
+            serialise::GraphType::Event => Err(GraphError::GraphLoadError),
+            serialise::GraphType::Persistent => {
+                let storage = GraphStorage::decode_from_proto(graph)?;
+                Ok(PersistentGraph::from_internal_graph(storage))
+            }
+        }
+    }
+}
+
+fn as_prop(prop_pair: &PropPair) -> Result<(usize, Prop), GraphError> {
     let PropPair { key, value } = prop_pair;
     let value = value.as_ref().expect("Missing prop value");
     let value = value.value.as_ref();
-    let value = as_prop_value(value);
+    let value = as_prop_value(value)?;
 
-    (*key as usize, value)
+    Ok((*key as usize, value))
 }
 
-fn as_prop_value(value: Option<&prop::Value>) -> Prop {
+fn as_prop_value(value: Option<&prop::Value>) -> Result<Prop, GraphError> {
     let value = match value.expect("Missing prop value") {
         prop::Value::BoolValue(b) => Prop::Bool(*b),
         prop::Value::U8(u) => Prop::U8((*u).try_into().unwrap()),
@@ -603,16 +813,16 @@ fn as_prop_value(value: Option<&prop::Value>) -> Prop {
                 .properties
                 .iter()
                 .map(|prop| as_prop_value(prop.value.as_ref()))
-                .collect(),
+                .collect::<Result<Vec<_>, _>>()?,
         )),
         prop::Value::Map(dict) => Prop::Map(Arc::new(
             dict.map
                 .iter()
-                .map(|(k, v)| (ArcStr::from(k.as_str()), as_prop_value(v.value.as_ref())))
-                .collect(),
+                .map(|(k, v)| Ok((ArcStr::from(k.as_str()), as_prop_value(v.value.as_ref())?)))
+                .collect::<Result<_, GraphError>>()?,
         )),
-        serialise::prop::Value::NdTime(ndt) => {
-            let NdTime {
+        prop::Value::NdTime(ndt) => {
+            let prop::NdTime {
                 year,
                 month,
                 day,
@@ -633,28 +843,22 @@ fn as_prop_value(value: Option<&prop::Value>) -> Prop {
             );
             Prop::NDTime(ndt)
         }
-        serialise::prop::Value::DTime(dt) => {
-            Prop::DTime(DateTime::parse_from_rfc3339(dt).unwrap().into())
+        prop::Value::DTime(dt) => Prop::DTime(DateTime::parse_from_rfc3339(dt).unwrap().into()),
+        prop::Value::Graph(graph_proto) => Prop::Graph(Graph::decode_from_proto(graph_proto)?),
+        prop::Value::PersistentGraph(graph_proto) => {
+            Prop::PersistentGraph(PersistentGraph::decode_from_proto(graph_proto)?)
         }
-        serialise::prop::Value::Graph(graph_bytes) => {
-            let g = Graph::decode_from_bytes(&graph_bytes).expect("Failed to decode graph");
-            Prop::Graph(g)
-        }
-        serialise::prop::Value::PersistentGraph(graph_bytes) => {
-            let g =
-                PersistentGraph::decode_from_bytes(&graph_bytes).expect("Failed to decode graph");
-            Prop::PersistentGraph(g)
-        }
-        serialise::prop::Value::DocumentInput(doc) => Prop::Document(DocumentInput {
+        prop::Value::DocumentInput(doc) => Prop::Document(DocumentInput {
             content: doc.content.clone(),
             life: doc
                 .life
                 .as_ref()
                 .map(|l| match l.l_type {
-                    Some(lifespan::LType::Interval(lifespan::Interval { start, end })) => {
-                        Lifespan::Interval { start, end }
-                    }
-                    Some(lifespan::LType::Event(lifespan::Event { time })) => {
+                    Some(prop::lifespan::LType::Interval(prop::lifespan::Interval {
+                        start,
+                        end,
+                    })) => Lifespan::Interval { start, end },
+                    Some(prop::lifespan::LType::Event(prop::lifespan::Event { time })) => {
                         Lifespan::Event { time }
                     }
                     None => Lifespan::Inherited,
@@ -662,17 +866,24 @@ fn as_prop_value(value: Option<&prop::Value>) -> Prop {
                 .unwrap_or(Lifespan::Inherited),
         }),
     };
-    value
+    Ok(value)
 }
 
-fn as_prop_pair(key: u64, prop: &Prop) -> Result<PropPair, GraphError> {
-    Ok(PropPair {
-        key,
-        value: Some(as_proto_prop(prop)?),
-    })
+fn collect_proto_props(
+    iter: impl IntoIterator<Item = (usize, impl Borrow<Prop>)>,
+) -> Vec<PropPair> {
+    iter.into_iter()
+        .map(|(key, value)| PropPair::new(key, value.borrow()))
+        .collect()
 }
 
-fn as_proto_prop(prop: &Prop) -> Result<serialise::Prop, GraphError> {
+fn collect_props<'a>(
+    iter: impl IntoIterator<Item = &'a PropPair>,
+) -> Result<Vec<(usize, Prop)>, GraphError> {
+    iter.into_iter().map(as_prop).collect()
+}
+
+fn as_proto_prop(prop: &Prop) -> serialise::Prop {
     let value: prop::Value = match prop {
         Prop::Bool(b) => prop::Value::BoolValue(*b),
         Prop::U8(u) => prop::Value::U8((*u).into()),
@@ -685,15 +896,15 @@ fn as_proto_prop(prop: &Prop) -> Result<serialise::Prop, GraphError> {
         Prop::F64(f) => prop::Value::F64(*f),
         Prop::Str(s) => prop::Value::Str(s.to_string()),
         Prop::List(list) => {
-            let properties = list.iter().map(as_proto_prop).collect::<Result<_, _>>()?;
-            prop::Value::Prop(serialise::Props { properties })
+            let properties = list.iter().map(as_proto_prop).collect();
+            prop::Value::Prop(prop::Props { properties })
         }
         Prop::Map(map) => {
             let map = map
                 .iter()
-                .map(|(k, v)| as_proto_prop(v).map(|v| (k.to_string(), v)))
-                .collect::<Result<_, _>>()?;
-            prop::Value::Map(Dict { map })
+                .map(|(k, v)| (k.to_string(), as_proto_prop(v)))
+                .collect();
+            prop::Value::Map(prop::Dict { map })
         }
         Prop::NDTime(ndt) => {
             let (year, month, day) = (ndt.date().year(), ndt.date().month(), ndt.date().day());
@@ -704,7 +915,7 @@ fn as_proto_prop(prop: &Prop) -> Result<serialise::Prop, GraphError> {
                 ndt.time().nanosecond(),
             );
 
-            let proto_ndt = NdTime {
+            let proto_ndt = prop::NdTime {
                 year: year as u32,
                 month: month as u32,
                 day: day as u32,
@@ -718,36 +929,36 @@ fn as_proto_prop(prop: &Prop) -> Result<serialise::Prop, GraphError> {
         Prop::DTime(dt) => {
             prop::Value::DTime(dt.to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true))
         }
-        Prop::Graph(g) => {
-            let bytes = g.encode_to_vec()?;
-            prop::Value::Graph(bytes)
-        }
-        Prop::PersistentGraph(g) => {
-            let bytes = g.encode_to_vec()?;
-            prop::Value::PersistentGraph(bytes)
-        }
+        Prop::Graph(g) => prop::Value::Graph(g.encode_to_proto()),
+        Prop::PersistentGraph(g) => prop::Value::PersistentGraph(g.encode_to_proto()),
         Prop::Document(doc) => {
             let life = match doc.life {
                 Lifespan::Interval { start, end } => {
-                    Some(lifespan::LType::Interval(lifespan::Interval { start, end }))
+                    Some(prop::lifespan::LType::Interval(prop::lifespan::Interval {
+                        start,
+                        end,
+                    }))
                 }
-                Lifespan::Event { time } => Some(lifespan::LType::Event(lifespan::Event { time })),
+                Lifespan::Event { time } => {
+                    Some(prop::lifespan::LType::Event(prop::lifespan::Event { time }))
+                }
                 Lifespan::Inherited => None,
             };
-            prop::Value::DocumentInput(serialise::DocumentInput {
+            prop::Value::DocumentInput(prop::DocumentInput {
                 content: doc.content.clone(),
-                life: Some(serialise::Lifespan { l_type: life }),
+                life: Some(prop::Lifespan { l_type: life }),
             })
         }
     };
 
-    Ok(serialise::Prop { value: Some(value) })
+    serialise::Prop { value: Some(value) }
 }
 
 #[cfg(test)]
 mod proto_test {
     use chrono::{DateTime, NaiveDateTime};
 
+    use super::*;
     use crate::{
         core::DocumentInput,
         db::{
@@ -755,9 +966,8 @@ mod proto_test {
             graph::graph::assert_graph_equal,
         },
         prelude::*,
+        serialise::GraphType,
     };
-
-    use super::*;
 
     #[test]
     fn node_no_props() {
@@ -935,13 +1145,10 @@ mod proto_test {
             .layers("a")
             .unwrap();
 
-        assert!(props.into_iter().all(|(name, expected)| {
-            edge.properties()
-                .constant()
-                .get(name)
-                .filter(|prop| prop == &expected)
-                .is_some()
-        }))
+        for (new, old) in edge.properties().constant().iter().zip(props.iter()) {
+            assert_eq!(new.0, old.0);
+            assert_eq!(new.1, old.1);
+        }
     }
 
     #[test]
@@ -1019,6 +1226,43 @@ mod proto_test {
                     assert_eq!(t, expected_t as i64);
                 }
             });
+    }
+
+    #[test]
+    fn manually_test_append() {
+        let mut graph1 = serialise::Graph::default();
+        graph1.set_graph_type(GraphType::Event);
+        graph1.new_node(GidRef::Str("1"), VID(0), 0);
+        graph1.new_node(GidRef::Str("2"), VID(1), 0);
+        graph1.new_edge(VID(0), VID(1), EID(0));
+        graph1.update_edge_tprops(
+            EID(0),
+            TimeIndexEntry::start(1),
+            0,
+            iter::empty::<(usize, Prop)>(),
+        );
+        let mut bytes1 = graph1.encode_to_vec();
+
+        let mut graph2 = serialise::Graph::default();
+        graph2.new_node(GidRef::Str("3"), VID(2), 0);
+        graph2.new_edge(VID(0), VID(2), EID(1));
+        graph2.update_edge_tprops(
+            EID(1),
+            TimeIndexEntry::start(2),
+            0,
+            iter::empty::<(usize, Prop)>(),
+        );
+        bytes1.extend(graph2.encode_to_vec());
+
+        let graph = Graph::decode_from_bytes(&bytes1).unwrap();
+        assert_eq!(graph.nodes().name().collect_vec(), ["1", "2", "3"]);
+        assert_eq!(
+            graph.edges().id().collect_vec(),
+            [
+                (GID::Str("1".to_string()), GID::Str("2".to_string())),
+                (GID::Str("1".to_string()), GID::Str("3".to_string()))
+            ]
+        )
     }
 
     fn write_props_to_vec(props: &mut Vec<(&str, Prop)>) {

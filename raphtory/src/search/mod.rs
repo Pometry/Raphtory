@@ -4,7 +4,7 @@ pub mod into_indexed;
 
 use std::{collections::HashSet, ops::Deref, path::Path, sync::Arc};
 
-use raphtory_api::core::storage::arc_str::{ArcStr, OptionAsStr};
+use raphtory_api::core::storage::arc_str::ArcStr;
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
 use tantivy::{
     collector::TopDocs,
@@ -770,8 +770,17 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
     }
 
     #[inline]
-    fn resolve_node_type(&self, v_id: VID, node_type: Option<&str>) -> Result<usize, GraphError> {
-        self.graph.resolve_node_type(v_id, node_type)
+    fn set_node_type(&self, v_id: VID, node_type: &str) -> Result<(), GraphError> {
+        self.graph.set_node_type(v_id, node_type)?;
+        let node_type_field = self.node_index.schema().get_field(fields::NODE_TYPE)?;
+        let mut document = TantivyDocument::new();
+        document.add_text(node_type_field, node_type);
+        let node_id_field = self.node_index.schema().get_field(fields::VERTEX_ID)?;
+        document.add_u64(node_id_field, v_id.as_u64());
+        let mut writer = self.node_index.writer(50_000_000)?;
+        writer.add_document(document)?;
+        writer.commit()?;
+        Ok(())
     }
 
     #[inline]
@@ -780,8 +789,13 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
     }
 
     #[inline]
-    fn resolve_graph_property(&self, prop: &str, is_static: bool) -> Result<usize, GraphError> {
-        self.graph.resolve_graph_property(prop, is_static)
+    fn resolve_graph_property(
+        &self,
+        prop: &str,
+        dtype: PropType,
+        is_static: bool,
+    ) -> Result<usize, GraphError> {
+        self.graph.resolve_graph_property(prop, dtype, is_static)
     }
 
     #[inline]
@@ -814,7 +828,6 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
         t: TimeIndexEntry,
         v: VID,
         props: Vec<(usize, Prop)>,
-        node_type_id: usize,
     ) -> Result<(), GraphError> {
         let mut document = TantivyDocument::new();
         // add time to the document
@@ -834,23 +847,11 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
                 }
             }
         }
-        // add the node type to the document
-        let node_type_field = self.node_index.schema().get_field(fields::NODE_TYPE)?;
-        let node_type = self
-            .graph
-            .node_meta()
-            .get_node_type_name_by_id(node_type_id);
-        document.add_text(node_type_field, node_type.as_str().unwrap_or(""));
 
         // add the node id to the document
-        self.graph.internal_add_node(t, v, props, node_type_id)?;
         // get the field from the index
         let node_id = self.node_index.schema().get_field(fields::VERTEX_ID)?;
-        let node_id_rev = self.node_index.schema().get_field(fields::VERTEX_ID_REV)?;
-        let index_v_id: u64 = Into::<usize>::into(v) as u64;
-
-        document.add_u64(node_id, index_v_id);
-        document.add_u64(node_id_rev, u64::MAX - index_v_id);
+        document.add_u64(node_id, v.as_u64());
 
         let mut writer = self.node_index.writer(50_000_000)?;
 
@@ -869,6 +870,16 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
         _props: Vec<(usize, Prop)>,
         _layer: usize,
     ) -> Result<EID, GraphError> {
+        todo!()
+    }
+
+    fn internal_add_edge_update(
+        &self,
+        _t: TimeIndexEntry,
+        _edge: EID,
+        _props: Vec<(usize, Prop)>,
+        _layer: usize,
+    ) -> Result<(), GraphError> {
         todo!()
     }
 }

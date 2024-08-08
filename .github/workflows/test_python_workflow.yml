@@ -40,17 +40,12 @@ jobs:
         if: "contains(matrix.os, 'macOS')"
         with:
           xcode-version: latest-stable
-      - uses: actions-rs/toolchain@v1
+      - uses: ./.github/actions/setup_rust
         name: Setup Rust
-        with:
-          profile: minimal
-          toolchain: 1.77.0
-          override: true
-          components: rustfmt, clippy
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}        
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: webfactory/ssh-agent@v0.7.0
         name: Load raphtory-disk_graph key
         with:

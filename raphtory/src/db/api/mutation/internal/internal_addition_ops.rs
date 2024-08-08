@@ -17,13 +17,18 @@ pub trait InternalAdditionOps {
     /// map layer name to id and allocate a new layer if needed
     fn resolve_layer(&self, layer: Option<&str>) -> Result<usize, GraphError>;
 
-    fn resolve_node_type(&self, v_id: VID, node_type: Option<&str>) -> Result<usize, GraphError>;
+    fn set_node_type(&self, v_id: VID, node_type: &str) -> Result<(), GraphError>;
 
     /// map external node id to internal id, allocating a new empty node if needed
     fn resolve_node<V: AsNodeRef>(&self, id: V) -> Result<VID, GraphError>;
 
     /// map property key to internal id, allocating new property if needed
-    fn resolve_graph_property(&self, prop: &str, is_static: bool) -> Result<usize, GraphError>;
+    fn resolve_graph_property(
+        &self,
+        prop: &str,
+        dtype: PropType,
+        is_static: bool,
+    ) -> Result<usize, GraphError>;
 
     /// map property key to internal id, allocating new property if needed and checking property type.
     /// returns `None` if the type does not match
@@ -49,7 +54,6 @@ pub trait InternalAdditionOps {
         t: TimeIndexEntry,
         v: VID,
         props: Vec<(usize, Prop)>,
-        node_type_id: usize,
     ) -> Result<(), GraphError>;
 
     /// add edge update
@@ -61,6 +65,15 @@ pub trait InternalAdditionOps {
         props: Vec<(usize, Prop)>,
         layer: usize,
     ) -> Result<EID, GraphError>;
+
+    /// add update for an existing edge
+    fn internal_add_edge_update(
+        &self,
+        t: TimeIndexEntry,
+        edge: EID,
+        props: Vec<(usize, Prop)>,
+        layer: usize,
+    ) -> Result<(), GraphError>;
 }
 
 pub trait InheritAdditionOps: Base {}
@@ -93,8 +106,8 @@ impl<G: DelegateAdditionOps> InternalAdditionOps for G {
     }
 
     #[inline]
-    fn resolve_node_type(&self, v_id: VID, node_type: Option<&str>) -> Result<usize, GraphError> {
-        self.graph().resolve_node_type(v_id, node_type)
+    fn set_node_type(&self, v_id: VID, node_type: &str) -> Result<(), GraphError> {
+        self.graph().set_node_type(v_id, node_type)
     }
 
     #[inline]
@@ -103,8 +116,13 @@ impl<G: DelegateAdditionOps> InternalAdditionOps for G {
     }
 
     #[inline]
-    fn resolve_graph_property(&self, prop: &str, is_static: bool) -> Result<usize, GraphError> {
-        self.graph().resolve_graph_property(prop, is_static)
+    fn resolve_graph_property(
+        &self,
+        prop: &str,
+        dtype: PropType,
+        is_static: bool,
+    ) -> Result<usize, GraphError> {
+        self.graph().resolve_graph_property(prop, dtype, is_static)
     }
 
     #[inline]
@@ -138,9 +156,8 @@ impl<G: DelegateAdditionOps> InternalAdditionOps for G {
         t: TimeIndexEntry,
         v: VID,
         props: Vec<(usize, Prop)>,
-        node_type_id: usize,
     ) -> Result<(), GraphError> {
-        self.graph().internal_add_node(t, v, props, node_type_id)
+        self.graph().internal_add_node(t, v, props)
     }
 
     #[inline(always)]
@@ -153,5 +170,16 @@ impl<G: DelegateAdditionOps> InternalAdditionOps for G {
         layer: usize,
     ) -> Result<EID, GraphError> {
         self.graph().internal_add_edge(t, src, dst, props, layer)
+    }
+
+    #[inline(always)]
+    fn internal_add_edge_update(
+        &self,
+        t: TimeIndexEntry,
+        edge: EID,
+        props: Vec<(usize, Prop)>,
+        layer: usize,
+    ) -> Result<(), GraphError> {
+        self.graph().internal_add_edge_update(t, edge, props, layer)
     }
 }

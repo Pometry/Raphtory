@@ -53,7 +53,7 @@ mod test {
 
     fn make_simple_graph(graph_dir: impl AsRef<Path>, edges: &[(u64, u64, i64, f64)]) -> Graph {
         let storage = DiskGraphStorage::make_simple_graph(graph_dir, edges, 1000, 1000);
-        Graph::from_internal_graph(&GraphStorage::Disk(Arc::new(storage)))
+        Graph::from_internal_graph(GraphStorage::Disk(Arc::new(storage)))
     }
 
     fn check_graph_counts(edges: &[(u64, u64, Time, f64)], g: &impl StaticGraphViewOps) {

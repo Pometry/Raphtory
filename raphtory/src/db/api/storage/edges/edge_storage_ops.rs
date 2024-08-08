@@ -13,7 +13,11 @@ use crate::{
 use pometry_storage::timestamps::TimeStamps;
 
 use crate::{
-    core::{entities::properties::tprop::TProp, storage::raw_edges::EdgeShard},
+    core::{
+        entities::properties::{props::Props, tprop::TProp},
+        storage::raw_edges::EdgeShard,
+        Prop,
+    },
     db::api::storage::{tprop_storage_ops::TPropOps, variants::layer_variants::LayerVariants},
 };
 use raphtory_api::core::{entities::EID, storage::timeindex::TimeIndexEntry};
@@ -232,6 +236,8 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
         self.layer_ids_par_iter(layer_ids)
             .map(move |id| (id, self.temporal_prop_layer(id, prop_id)))
     }
+
+    fn constant_prop_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop>;
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -247,6 +253,13 @@ impl<'a> MemEdge<'a> {
 
     pub fn edge_store(&self) -> &EdgeStore {
         self.edges.edge_store(self.offset)
+    }
+
+    #[inline]
+    pub fn props(&self, layer_id: usize) -> Option<&Props> {
+        self.edges
+            .props(self.offset, layer_id)
+            .and_then(|el| el.props())
     }
 
     pub fn eid(self) -> EID {
@@ -378,5 +391,10 @@ impl<'a> EdgeStorageOps<'a> for MemEdge<'a> {
     fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> impl TPropOps<'a> + 'a {
         self.temporal_prop_layer_inner(layer_id, prop_id)
             .unwrap_or(&TProp::Empty)
+    }
+
+    fn constant_prop_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
+        self.props(layer_id)
+            .and_then(|props| props.const_prop(prop_id).cloned())
     }
 }

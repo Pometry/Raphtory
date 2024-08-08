@@ -12,17 +12,17 @@ on:
         description: "Fail the workflow if any code is not formatted"
 
 jobs:
-    rust-format-check:
-      runs-on: ubuntu-latest
-      steps:
-        - uses: actions/checkout@v4
-        - name: Setup rust
-          run: |
-            rustup toolchain install nightly --allow-downgrade -c rustfmt
-        - name: Run rust format check
-          run: |
-            if [ ${{ inputs.fail_if_not_formatted }} == true ]; then
-                cargo +nightly fmt --all -- --check
-            else
-                cargo +nightly fmt --all -- --check || true
-            fi
+  rust-format-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup nightly rust
+        run: |
+          rustup toolchain install nightly --allow-downgrade -c rustfmt
+      - name: Run rust format check
+        run: |
+          if [ ${{ inputs.fail_if_not_formatted }} == true ]; then
+              cargo +nightly fmt --all -- --check
+          else
+              cargo +nightly fmt --all -- --check || true
+          fi

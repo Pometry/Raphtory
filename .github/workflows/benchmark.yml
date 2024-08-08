@@ -23,12 +23,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         name: Checkout
-      - name: Update Rust
-        run: rustup update
+      - uses: ./.github/actions/setup_rust
+        name: Setup Rust
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}        
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2
         with:
@@ -37,13 +37,6 @@ jobs:
         name: Load raphtory-disk_graph key
         with:
           ssh-private-key: ${{ secrets.RA_SSH_PRIVATE_KEY }}
-      - uses: actions-rs/toolchain@v1
-        name: Setup Rust
-        with:
-          profile: minimal
-          toolchain: 1.77.0
-          override: true
-          components: rustfmt, clippy
       - name: Run benchmark (Unix)
         run: |
           set -o pipefail

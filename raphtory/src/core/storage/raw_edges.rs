@@ -94,7 +94,7 @@ impl Default for EdgesStorage {
 
 impl EdgesStorage {
     pub fn new() -> Self {
-        let mut shards = (0..SHARD_SIZE).map(|_| {
+        let shards = (0..SHARD_SIZE).map(|_| {
             Arc::new(RwLock::new(EdgeShard {
                 edge_ids: vec![],
                 props: Vec::with_capacity(0),
@@ -135,7 +135,7 @@ impl EdgesStorage {
         resolve(index, self.shards.len())
     }
 
-    fn push(&self, mut value: EdgeStore) -> (EID, EdgeWGuard) {
+    fn push(&self, value: EdgeStore) -> (EID, EdgeWGuard) {
         let index = self.len.fetch_add(1, atomic::Ordering::Relaxed);
         let (bucket, offset) = self.resolve(index);
         let mut shard = self.shards[bucket].write();
@@ -145,6 +145,14 @@ impl EdgesStorage {
             i: offset,
         };
         (index.into(), guard)
+    }
+
+    pub(crate) fn set(&self, value: EdgeStore) {
+        let EID(index) = value.eid;
+        self.len.fetch_max(index + 1, atomic::Ordering::Relaxed);
+        let (bucket, offset) = self.resolve(index);
+        let mut shard = self.shards[bucket].write();
+        shard.insert(offset, value);
     }
 
     pub fn get_edge_mut(&self, eid: EID) -> EdgeWGuard {
@@ -285,12 +293,6 @@ pub struct LockedEdges {
 }
 
 impl LockedEdges {
-    pub fn get(&self, eid: EID) -> &EdgeShard {
-        let (bucket, offset) = resolve(eid.into(), self.shards.len());
-        let shard = &self.shards[bucket];
-        shard
-    }
-
     pub fn get_mem(&self, eid: EID) -> MemEdge {
         let (bucket, offset) = resolve(eid.into(), self.shards.len());
         MemEdge::new(&self.shards[bucket], offset)

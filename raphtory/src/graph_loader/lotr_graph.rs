@@ -8,11 +8,11 @@
 //! - time: The time of the interaction (in page)
 //!
 //! ## Dataset statistics
-//! * Number of nodes (subreddits) 139
-//! * Number of edges (hyperlink between subreddits) 701
+//! * Number of nodes (characters) 139
+//! * Number of edges (interactions) 701
 //!
 //! Example:
-//! ```rust
+//! ```rust,no_run
 //! use raphtory::graph_loader::lotr_graph::lotr_graph;
 //! use raphtory::prelude::*;
 //!

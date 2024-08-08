@@ -16,6 +16,7 @@
 //! ```
 //!
 
+use super::views::deletion_graph::PersistentGraph;
 use crate::{
     core::{entities::graph::tgraph::TemporalGraph, utils::errors::GraphError},
     db::api::{
@@ -33,8 +34,6 @@ use std::{
     path::Path,
     sync::Arc,
 };
-
-use super::views::deletion_graph::PersistentGraph;
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -193,9 +192,9 @@ impl Graph {
         }
     }
 
-    pub(crate) fn from_internal_graph(internal_graph: &GraphStorage) -> Self {
+    pub(crate) fn from_internal_graph(internal_graph: GraphStorage) -> Self {
         Self {
-            inner: internal_graph.clone(),
+            inner: internal_graph,
         }
     }
 
@@ -227,7 +226,7 @@ impl Graph {
 
     /// Get persistent graph
     pub fn persistent_graph(&self) -> PersistentGraph {
-        PersistentGraph::from_internal_graph(&self.inner)
+        PersistentGraph::from_internal_graph(self.inner.clone())
     }
 }
 

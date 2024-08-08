@@ -88,7 +88,7 @@ impl<
         let t = time_from_input(&self.graph, t)?;
         let layer = self.resolve_layer(layer, true)?;
         self.graph
-            .internal_delete_edge(t, self.edge.src(), self.edge.dst(), layer)
+            .internal_delete_existing_edge(t, self.edge.pid(), layer)
     }
 }
 
@@ -271,7 +271,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
         )?;
 
         self.graph
-            .internal_add_edge(t, self.edge.src(), self.edge.dst(), properties, layer_id)?;
+            .internal_add_edge_update(t, self.edge.pid(), properties, layer_id)?;
         Ok(())
     }
 }
