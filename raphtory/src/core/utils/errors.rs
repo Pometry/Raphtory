@@ -2,6 +2,7 @@ use crate::core::{utils::time::error::ParseTimeError, Prop, PropType};
 #[cfg(feature = "arrow")]
 use polars_arrow::legacy::error;
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
+use std::path::PathBuf;
 #[cfg(feature = "search")]
 use tantivy;
 #[cfg(feature = "search")]
@@ -12,12 +13,20 @@ pub enum GraphError {
     #[cfg(feature = "arrow")]
     #[error("Arrow error: {0}")]
     Arrow(#[from] error::PolarsError),
-    #[error("Invalid path = {0}")]
-    InvalidPath(String),
+    #[error("Invalid path: {0:?}")]
+    InvalidPath(PathBuf),
     #[error("Graph error occurred")]
     UnsupportedDataType,
-    #[error("Graph already exists by name = {name}")]
-    GraphNameAlreadyExists { name: String },
+    #[error("Disk graph not found")]
+    DiskGraphNotFound,
+    #[error("Disk Graph is immutable")]
+    ImmutableDiskGraph,
+    #[error("Event Graph doesn't support deletions")]
+    EventGraphDeletionsNotSupported,
+    #[error("Graph not found {0}")]
+    GraphNotFound(PathBuf),
+    #[error("Graph already exists by name = {0}")]
+    GraphNameAlreadyExists(PathBuf),
     #[error("Immutable graph reference already exists. You can access mutable graph apis only exclusively.")]
     IllegalGraphAccess,
     #[error("Incorrect property given.")]
@@ -120,7 +129,7 @@ pub enum GraphError {
     },
 
     #[error(
-        "Failed to load the graph as the bincode version {0} is different to installed version {1}"
+        "Failed to load the graph as the bincode version {0} is different to supported version {1}"
     )]
     BincodeVersionError(u32, u32),
 

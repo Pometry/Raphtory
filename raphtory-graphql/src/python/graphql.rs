@@ -1,17 +1,17 @@
-#![allow(non_local_definitions)]
-
-use async_graphql::{
-    dynamic::{Field, FieldFuture, FieldValue, InputValue, Object, TypeRef, ValueAccessor},
-    Value as GraphqlValue,
-};
-
 use crate::{
     model::algorithms::{
         algorithm_entry_point::AlgorithmEntryPoint, document::GqlDocument,
         global_plugins::GlobalPlugins, vector_algorithms::VectorAlgorithms,
     },
-    url_encode_graph, RaphtoryServer,
+    server_config::*,
+    url_encode::url_encode_graph,
+    RaphtoryServer,
 };
+use async_graphql::{
+    dynamic::{Field, FieldFuture, FieldValue, InputValue, Object, TypeRef, ValueAccessor},
+    Value as GraphqlValue,
+};
+use base64::{engine::general_purpose, Engine as _};
 use crossbeam_channel::Sender as CrossbeamSender;
 use dynamic_graphql::internal::{Registry, TypeName};
 use itertools::intersperse;
@@ -35,16 +35,18 @@ use raphtory::{
         EmbeddingFunction,
     },
 };
-use reqwest::Client;
+use reqwest::{multipart, multipart::Part, Client};
 use serde_json::{json, Map, Number, Value as JsonValue};
 use std::{
     collections::HashMap,
-    path::PathBuf,
+    fs::File,
+    io::Read,
+    path::{Path, PathBuf},
     thread,
     thread::{sleep, JoinHandle},
     time::Duration,
 };
-use tokio::{self, io::Result as IoResult};
+use tokio::{self, io::Result as IoResult, runtime::Runtime};
 
 /// A class for accessing graphs hosted in a Raphtory GraphQL server and running global search for
 /// graph documents
@@ -96,7 +98,7 @@ impl PyGlobalPlugins {
             let graph = match &doc {
                 Document::Graph { name, .. } => {
                     vectorised_graphs.get(name).unwrap()
-                },
+                }
                 _ => panic!("search_graph_documents_with_scores returned a document that is not from a graph"),
             };
             (into_py_document(doc, graph, py), score)
@@ -141,7 +143,7 @@ impl PyRaphtoryServer {
                     &PathBuf::from(cache),
                     Some(template),
                 )
-                .await;
+                .await?;
             Ok(Self::new(new_server))
         })
     }
@@ -222,20 +224,29 @@ impl PyRaphtoryServer {
 #[pymethods]
 impl PyRaphtoryServer {
     #[new]
-    #[pyo3(signature = (graphs=None, graph_dir=None))]
+    #[pyo3(
+        signature = (work_dir, cache_capacity = None, cache_tti_seconds = None, log_level = None, config_path = None)
+    )]
     fn py_new(
-        graphs: Option<HashMap<String, MaterializedGraph>>,
-        graph_dir: Option<&str>,
+        work_dir: PathBuf,
+        cache_capacity: Option<u64>,
+        cache_tti_seconds: Option<u64>,
+        log_level: Option<String>,
+        config_path: Option<PathBuf>,
     ) -> PyResult<Self> {
-        let server = match (graphs, graph_dir) {
-            (Some(graphs), Some(dir)) => Ok(RaphtoryServer::from_map_and_directory(graphs, dir)),
-            (Some(graphs), None) => Ok(RaphtoryServer::from_map(graphs)),
-            (None, Some(dir)) => Ok(RaphtoryServer::from_directory(dir)),
-            (None, None) => Err(PyValueError::new_err(
-                "You need to specify at least `graphs` or `graph_dir`",
-            )),
-        }?;
+        let mut app_config_builder = AppConfigBuilder::new();
+        if let Some(log_level) = log_level {
+            app_config_builder = app_config_builder.with_log_level(log_level);
+        }
+        if let Some(cache_capacity) = cache_capacity {
+            app_config_builder = app_config_builder.with_cache_capacity(cache_capacity);
+        }
+        if let Some(cache_tti_seconds) = cache_tti_seconds {
+            app_config_builder = app_config_builder.with_cache_tti_seconds(cache_tti_seconds);
+        }
+        let app_config = Some(app_config_builder.build());
 
+        let server = RaphtoryServer::new(work_dir, app_config, config_path)?;
         Ok(PyRaphtoryServer::new(server))
     }
 
@@ -345,13 +356,15 @@ impl PyRaphtoryServer {
     ///
     /// Arguments:
     ///   * `port`: the port to use (defaults to 1736).
-    #[pyo3(signature = (port = 1736, log_level="INFO".to_string(),enable_tracing=false,enable_auth=false))]
+    ///   * `timeout_ms`: wait for server to be online (defaults to 5000). The server is stopped if not online within timeout_ms but manages to come online as soon as timeout_ms finishes!
+    #[pyo3(
+        signature = (port = 1736, timeout_ms = None)
+    )]
     pub fn start(
         slf: PyRefMut<Self>,
+        py: Python,
         port: u16,
-        log_level: String,
-        enable_tracing: bool,
-        enable_auth: bool,
+        timeout_ms: Option<u64>,
     ) -> PyResult<PyRunningRaphtoryServer> {
         let (sender, receiver) = crossbeam_channel::bounded::<BridgeCommand>(1);
         let server = take_server_ownership(slf)?;
@@ -364,9 +377,8 @@ impl PyRaphtoryServer {
                 .build()
                 .unwrap()
                 .block_on(async move {
-                    let handler =
-                        server.start_with_port(port, &log_level, enable_tracing, enable_auth);
-                    let running_server = handler.await;
+                    let handler = server.start_with_port(port);
+                    let running_server = handler.await?;
                     let tokio_sender = running_server._get_sender().clone();
                     tokio::task::spawn_blocking(move || {
                         match receiver.recv().expect("Failed to wait for cancellation") {
@@ -382,24 +394,37 @@ impl PyRaphtoryServer {
                 })
         });
 
-        Ok(PyRunningRaphtoryServer::new(join_handle, sender, port))
+        let mut server = PyRunningRaphtoryServer::new(join_handle, sender, port);
+        if let Some(server_handler) = &server.server_handler {
+            match PyRunningRaphtoryServer::wait_for_server_online(
+                &server_handler.client.url,
+                timeout_ms,
+            ) {
+                Ok(_) => return Ok(server),
+                Err(e) => {
+                    PyRunningRaphtoryServer::stop_server(&mut server, py)?;
+                    Err(e)
+                }
+            }
+        } else {
+            Err(PyException::new_err("Failed to start server"))
+        }
     }
 
     /// Run the server until completion.
     ///
     /// Arguments:
     ///   * `port`: the port to use (defaults to 1736).
-    #[pyo3(signature = (port = 1736, log_level="INFO".to_string(),enable_tracing=false,enable_auth=false))]
+    #[pyo3(
+        signature = (port = 1736, timeout_ms = Some(180000))
+    )]
     pub fn run(
         slf: PyRefMut<Self>,
         py: Python,
         port: u16,
-        log_level: String,
-        enable_tracing: bool,
-        enable_auth: bool,
+        timeout_ms: Option<u64>,
     ) -> PyResult<()> {
-        let mut server =
-            Self::start(slf, port, log_level, enable_tracing, enable_auth)?.server_handler;
+        let mut server = Self::start(slf, py, port, timeout_ms)?.server_handler;
         py.allow_threads(|| wait_server(&mut server))
     }
 }
@@ -417,7 +442,7 @@ fn adapt_graphql_value(value: &ValueAccessor, py: Python) -> PyObject {
         }
         GraphqlValue::String(value) => value.to_object(py),
         GraphqlValue::Boolean(value) => value.to_object(py),
-        value => panic!("graphql input value {value} has an unsuported type"),
+        value => panic!("graphql input value {value} has an unsupported type"),
     }
 }
 
@@ -486,93 +511,75 @@ impl PyRunningRaphtoryServer {
             None => Err(PyException::new_err(RUNNING_SERVER_CONSUMED_MSG)),
         }
     }
-}
 
-#[pymethods]
-impl PyRunningRaphtoryServer {
-    /// Stop the server.
-    pub fn stop(&self) -> PyResult<()> {
-        self.apply_if_alive(|handler| {
+    fn wait_for_server_online(url: &String, timeout_ms: Option<u64>) -> PyResult<()> {
+        let millis = timeout_ms.unwrap_or(5000);
+        let num_intervals = millis / WAIT_CHECK_INTERVAL_MILLIS;
+
+        for _ in 0..num_intervals {
+            if is_online(url) {
+                return Ok(());
+            } else {
+                sleep(Duration::from_millis(WAIT_CHECK_INTERVAL_MILLIS))
+            }
+        }
+
+        Err(PyException::new_err(format!(
+            "Failed to start server in {} milliseconds",
+            millis
+        )))
+    }
+
+    fn stop_server(&mut self, py: Python) -> PyResult<()> {
+        Self::apply_if_alive(self, |handler| {
             handler
                 .sender
                 .send(BridgeCommand::StopServer)
                 .expect("Failed when sending cancellation signal");
             Ok(())
-        })
-    }
-
-    /// Wait until server completion.
-    pub fn wait(mut slf: PyRefMut<Self>, py: Python) -> PyResult<()> {
-        let server = &mut slf.server_handler;
+        })?;
+        let server = &mut self.server_handler;
         py.allow_threads(|| wait_server(server))
     }
+}
 
-    /// Wait for the server to be online.
-    ///
-    /// Arguments:
-    ///   * `timeout_millis`: the timeout in milliseconds (default 5000).
-    fn wait_for_online(&self, timeout_millis: Option<u64>) -> PyResult<()> {
-        self.apply_if_alive(|handler| handler.client.wait_for_online(timeout_millis))
+#[pymethods]
+impl PyRunningRaphtoryServer {
+    pub(crate) fn get_client(&self) -> PyResult<PyRaphtoryClient> {
+        self.apply_if_alive(|handler| Ok(handler.client.clone()))
     }
 
-    /// Make a graphQL query against the server.
-    ///
-    /// Arguments:
-    ///   * `query`: the query to make.
-    ///   * `variables`: a dict of variables present on the query and their values.
-    ///
-    /// Returns:
-    ///    The `data` field from the graphQL response.
-    fn query(
-        &self,
+    /// Stop the server and wait for it to finish
+    pub(crate) fn stop(&mut self, py: Python) -> PyResult<()> {
+        self.stop_server(py)
+    }
+
+    fn __enter__(slf: Py<Self>) -> Py<Self> {
+        slf
+    }
+
+    fn __exit__(
+        &mut self,
         py: Python,
-        query: String,
-        variables: Option<HashMap<String, PyObject>>,
-    ) -> PyResult<HashMap<String, PyObject>> {
-        self.apply_if_alive(|handler| handler.client.query(py, query, variables))
+        _exc_type: PyObject,
+        _exc_val: PyObject,
+        _exc_tb: PyObject,
+    ) -> PyResult<()> {
+        self.stop_server(py)
     }
+}
 
-    /// Send a graph to the server.
-    ///
-    /// Arguments:
-    ///   * `name`: the name of the graph sent.
-    ///   * `graph`: the graph to send.
-    ///
-    /// Returns:
-    ///    The `data` field from the graphQL response after executing the mutation.
-    fn send_graph(
-        &self,
-        py: Python,
-        name: String,
-        graph: MaterializedGraph,
-    ) -> PyResult<HashMap<String, PyObject>> {
-        self.apply_if_alive(|handler| handler.client.send_graph(py, name, graph))
-    }
-
-    /// Set the server to load all the graphs from its path `path`.
-    ///
-    /// Arguments:
-    ///   * `path`: the path to load the graphs from.
-    ///   * `overwrite`: whether or not to overwrite existing graphs (defaults to False)
-    ///
-    /// Returns:
-    ///    The `data` field from the graphQL response after executing the mutation.
-    #[pyo3(signature=(path, overwrite = false))]
-    fn load_graphs_from_path(
-        &self,
-        py: Python,
-        path: String,
-        overwrite: bool,
-    ) -> PyResult<HashMap<String, PyObject>> {
-        self.apply_if_alive(|handler| handler.client.load_graphs_from_path(py, path, overwrite))
-    }
+fn is_online(url: &String) -> bool {
+    reqwest::blocking::get(url)
+        .map(|response| response.status().as_u16() == 200)
+        .unwrap_or(false)
 }
 
 /// A client for handling GraphQL operations in the context of Raphtory.
 #[derive(Clone)]
 #[pyclass(name = "RaphtoryClient")]
 pub struct PyRaphtoryClient {
-    url: String,
+    pub(crate) url: String,
 }
 
 impl PyRaphtoryClient {
@@ -586,7 +593,6 @@ impl PyRaphtoryClient {
             client.send_graphql_query(query, variables).await
         })?;
         let mut graphql_result = graphql_result;
-
         match graphql_result.remove("data") {
             Some(JsonValue::Object(data)) => Ok(data.into_iter().collect()),
             _ => match graphql_result.remove("errors") {
@@ -626,37 +632,6 @@ impl PyRaphtoryClient {
             .map_err(|err| adapt_err_value(&err))
             .map(|json| (request_body, json))
     }
-
-    fn generic_load_graphs(
-        &self,
-        py: Python,
-        load_function: &str,
-        path: String,
-    ) -> PyResult<HashMap<String, PyObject>> {
-        let query =
-            format!("mutation LoadGraphs($path: String!) {{ {load_function}(path: $path) }}");
-        let variables = [("path".to_owned(), json!(path))];
-
-        let data = self.query_with_json_variables(query.clone(), variables.into())?;
-
-        match data.get(load_function) {
-            Some(JsonValue::Array(loads)) => {
-                let num_graphs = loads.len();
-                println!("Loaded {num_graphs} graph(s)");
-                translate_map_to_python(py, data)
-            }
-            _ => Err(PyException::new_err(format!(
-                "Error while reading server response for query:\n\t{query}\nGot data:\n\t'{data:?}'"
-            ))),
-        }
-    }
-
-    fn is_online(&self) -> bool {
-        match reqwest::blocking::get(&self.url) {
-            Ok(response) => response.status().as_u16() == 200,
-            _ => false,
-        }
-    }
 }
 
 const WAIT_CHECK_INTERVAL_MILLIS: u64 = 200;
@@ -668,32 +643,12 @@ impl PyRaphtoryClient {
         Self { url }
     }
 
-    /// Wait for the server to be online.
+    /// Check if the server is online.
     ///
-    /// Arguments:
-    ///   * `millis`: the minimum number of milliseconds to wait (default 5000).
-    fn wait_for_online(&self, millis: Option<u64>) -> PyResult<()> {
-        let millis = millis.unwrap_or(5000);
-        let num_intervals = millis / WAIT_CHECK_INTERVAL_MILLIS;
-
-        let mut online = false;
-        for _ in 0..num_intervals {
-            if self.is_online() {
-                online = true;
-                break;
-            } else {
-                sleep(Duration::from_millis(WAIT_CHECK_INTERVAL_MILLIS))
-            }
-        }
-
-        if online {
-            Ok(())
-        } else {
-            Err(PyException::new_err(format!(
-                "Failed to connect to the server after {} milliseconds",
-                millis
-            )))
-        }
+    /// Returns:
+    ///    Returns true if server is online otherwise false.
+    fn is_server_online(&self) -> PyResult<bool> {
+        Ok(is_online(&self.url))
     }
 
     /// Make a graphQL query against the server.
@@ -721,31 +676,29 @@ impl PyRaphtoryClient {
         translate_map_to_python(py, data)
     }
 
-    /// Send a graph to the server.
+    /// Send a graph to the server
     ///
     /// Arguments:
-    ///   * `name`: the name of the graph sent.
-    ///   * `graph`: the graph to send.
+    ///   * `path`: the path of the graph
+    ///   * `graph`: the graph to send
+    ///   * `overwrite`: overwrite existing graph (defaults to False)
     ///
     /// Returns:
     ///    The `data` field from the graphQL response after executing the mutation.
-    fn send_graph(
-        &self,
-        py: Python,
-        name: String,
-        graph: MaterializedGraph,
-    ) -> PyResult<HashMap<String, PyObject>> {
+    #[pyo3(signature = (path, graph, overwrite = false))]
+    fn send_graph(&self, path: String, graph: MaterializedGraph, overwrite: bool) -> PyResult<()> {
         let encoded_graph = encode_graph(graph)?;
 
         let query = r#"
-            mutation SendGraph($name: String!, $graph: String!) {
-                sendGraph(name: $name, graph: $graph)
+            mutation SendGraph($path: String!, $graph: String!, $overwrite: Boolean!) {
+                sendGraph(path: $path, graph: $graph, overwrite: $overwrite)
             }
         "#
         .to_owned();
         let variables = [
-            ("name".to_owned(), json!(name)),
+            ("path".to_owned(), json!(path)),
             ("graph".to_owned(), json!(encoded_graph)),
+            ("overwrite".to_owned(), json!(overwrite)),
         ];
 
         let data = self.query_with_json_variables(query, variables.into())?;
@@ -753,7 +706,7 @@ impl PyRaphtoryClient {
         match data.get("sendGraph") {
             Some(JsonValue::String(name)) => {
                 println!("Sent graph '{name}' to the server");
-                translate_map_to_python(py, data)
+                Ok(())
             }
             _ => Err(PyException::new_err(format!(
                 "Error Sending Graph. Got response {:?}",
@@ -762,25 +715,257 @@ impl PyRaphtoryClient {
         }
     }
 
-    /// Set the server to load all the graphs from its path `path`.
+    /// Upload graph file from a path `file_path` on the client
     ///
     /// Arguments:
-    ///   * `path`: the path to load the graphs from.
-    ///   * `overwrite`: whether or not to overwrite existing graphs (defaults to False)
+    ///   * `path`: the name of the graph
+    ///   * `file_path`: the path of the graph on the client
+    ///   * `overwrite`: overwrite existing graph (defaults to False)
     ///
     /// Returns:
     ///    The `data` field from the graphQL response after executing the mutation.
-    #[pyo3(signature=(path, overwrite = false))]
-    fn load_graphs_from_path(
+    #[pyo3(signature = (path, file_path, overwrite = false))]
+    fn upload_graph(
         &self,
         py: Python,
         path: String,
+        file_path: String,
         overwrite: bool,
-    ) -> PyResult<HashMap<String, PyObject>> {
-        if overwrite {
-            self.generic_load_graphs(py, "loadGraphsFromPath", path)
-        } else {
-            self.generic_load_graphs(py, "loadNewGraphsFromPath", path)
+    ) -> PyResult<()> {
+        let rt = Runtime::new().unwrap();
+        rt.block_on(async {
+            let client = Client::new();
+
+            let mut file = File::open(Path::new(&file_path)).map_err(|err| adapt_err_value(&err))?;
+
+            let mut buffer = Vec::new();
+            file.read_to_end(&mut buffer).map_err(|err| adapt_err_value(&err))?;
+
+            let variables = format!(
+                r#""path": "{}", "overwrite": {}, "graph": null"#,
+                path, overwrite
+            );
+
+            let operations = format!(
+                r#"{{
+            "query": "mutation UploadGraph($path: String!, $graph: Upload!, $overwrite: Boolean!) {{ uploadGraph(path: $path, graph: $graph, overwrite: $overwrite) }}",
+            "variables": {{ {} }}
+        }}"#,
+                variables
+            );
+
+            let form = multipart::Form::new()
+                .text("operations", operations)
+                .text("map", r#"{"0": ["variables.graph"]}"#)
+                .part("0", Part::bytes(buffer).file_name(file_path.clone()));
+
+            let response = client
+                .post(&self.url)
+                .multipart(form)
+                .send()
+                .await
+                .map_err(|err| adapt_err_value(&err))?;
+
+            let status = response.status();
+            let text = response.text().await.map_err(|err| adapt_err_value(&err))?;
+
+            if !status.is_success() {
+                return Err(PyException::new_err(format!(
+                    "Error Uploading Graph. Status: {}. Response: {}",
+                    status, text
+                )));
+            }
+
+            let mut data: HashMap<String, JsonValue> = serde_json::from_str(&text).map_err(|err| {
+                PyException::new_err(format!(
+                    "Failed to parse JSON response: {}. Response text: {}",
+                    err, text
+                ))
+            })?;
+
+            match data.remove("data") {
+                Some(JsonValue::Object(_)) => {
+                    Ok(())
+                }
+                _ => match data.remove("errors") {
+                    Some(JsonValue::Array(errors)) => Err(PyException::new_err(format!(
+                        "Error Uploading Graph. Got errors:\n\t{:#?}",
+                        errors
+                    ))),
+                    _ => Err(PyException::new_err(format!(
+                        "Error Uploading Graph. Unexpected response: {}",
+                        text
+                    ))),
+                },
+            }
+        })
+    }
+
+    // /// Load graph from a path `path` on the server.
+    // ///
+    // /// Arguments:
+    // ///   * `file_path`: the path to load the graph from.
+    // ///   * `overwrite`: overwrite existing graph (defaults to False)
+    // ///   * `namespace`: the namespace of the graph (defaults to None)
+    // ///
+    // /// Returns:
+    // ///    The `data` field from the graphQL response after executing the mutation.
+    // #[pyo3(signature = (file_path, overwrite = false, namespace = None))]
+    // fn load_graph(
+    //     &self,
+    //     py: Python,
+    //     file_path: String,
+    //     overwrite: bool,
+    //     namespace: Option<String>,
+    // ) -> PyResult<HashMap<String, PyObject>> {
+    //     let query = r#"
+    //         mutation LoadGraph($pathOnServer: String!, $overwrite: Boolean!, $namespace: String) {
+    //             loadGraphFromPath(pathOnServer: $pathOnServer, overwrite: $overwrite, namespace: $namespace)
+    //         }
+    //     "#
+    //         .to_owned();
+    //     let variables = [
+    //         ("pathOnServer".to_owned(), json!(file_path)),
+    //         ("overwrite".to_owned(), json!(overwrite)),
+    //         ("namespace".to_owned(), json!(namespace)),
+    //     ];
+    //
+    //     let data = self.query_with_json_variables(query.clone(), variables.into())?;
+    //
+    //     match data.get("loadGraphFromPath") {
+    //         Some(JsonValue::String(name)) => {
+    //             println!("Loaded graph: '{name}'");
+    //             translate_map_to_python(py, data)
+    //         }
+    //         _ => Err(PyException::new_err(format!(
+    //             "Error while reading server response for query:\n\t{query}\nGot data:\n\t'{data:?}'"
+    //         ))),
+    //     }
+    // }
+
+    /// Copy graph from a path `path` on the server to a `new_path` on the server
+    ///
+    /// Arguments:
+    ///   * `path`: the path of the graph to be copied
+    ///   * `new_path`: the new path of the copied graph
+    ///
+    /// Returns:
+    ///    Copy status as boolean
+    #[pyo3(signature = (path, new_path))]
+    fn copy_graph(&self, path: String, new_path: String) -> PyResult<()> {
+        let query = r#"
+            mutation CopyGraph($path: String!, $newPath: String!) {
+              copyGraph(
+                path: $path,
+                newPath: $newPath,
+              )
+            }"#
+        .to_owned();
+
+        let variables = [
+            ("path".to_owned(), json!(path)),
+            ("newPath".to_owned(), json!(new_path)),
+        ];
+
+        let data = self.query_with_json_variables(query.clone(), variables.into())?;
+        match data.get("copyGraph") {
+            Some(JsonValue::Bool(res)) => Ok((*res).clone()),
+            _ => Err(PyException::new_err(format!(
+                "Error while reading server response for query:\n\t{query}\nGot data:\n\t'{data:?}'"
+            ))),
+        }?;
+        Ok(())
+    }
+
+    /// Move graph from a path `path` on the server to a `new_path` on the server
+    ///
+    /// Arguments:
+    ///   * `path`: the path of the graph to be moved
+    ///   * `new_path`: the new path of the moved graph
+    ///
+    /// Returns:
+    ///    Move status as boolean
+    #[pyo3(signature = (path, new_path))]
+    fn move_graph(&self, path: String, new_path: String) -> PyResult<()> {
+        let query = r#"
+            mutation MoveGraph($path: String!, $newPath: String!) {
+              moveGraph(
+                path: $path,
+                newPath: $newPath,
+              )
+            }"#
+        .to_owned();
+
+        let variables = [
+            ("path".to_owned(), json!(path)),
+            ("newPath".to_owned(), json!(new_path)),
+        ];
+
+        let data = self.query_with_json_variables(query.clone(), variables.into())?;
+        match data.get("moveGraph") {
+            Some(JsonValue::Bool(res)) => Ok((*res).clone()),
+            _ => Err(PyException::new_err(format!(
+                "Error while reading server response for query:\n\t{query}\nGot data:\n\t'{data:?}'"
+            ))),
+        }?;
+        Ok(())
+    }
+
+    /// Delete graph from a path `path` on the server
+    ///
+    /// Arguments:
+    ///   * `path`: the path of the graph to be deleted
+    ///
+    /// Returns:
+    ///    Delete status as boolean
+    #[pyo3(signature = (path))]
+    fn delete_graph(&self, path: String) -> PyResult<()> {
+        let query = r#"
+            mutation DeleteGraph($path: String!) {
+              deleteGraph(
+                path: $path,
+              )
+            }"#
+        .to_owned();
+
+        let variables = [("path".to_owned(), json!(path))];
+
+        let data = self.query_with_json_variables(query.clone(), variables.into())?;
+        match data.get("deleteGraph") {
+            Some(JsonValue::Bool(res)) => Ok((*res).clone()),
+            _ => Err(PyException::new_err(format!(
+                "Error while reading server response for query:\n\t{query}\nGot data:\n\t'{data:?}'"
+            ))),
+        }?;
+        Ok(())
+    }
+
+    /// Receive graph from a path `path` on the server
+    ///
+    /// Arguments:
+    ///   * `path`: the path of the graph to be received
+    ///
+    /// Returns:
+    ///    Graph as string
+    fn receive_graph(&self, path: String) -> PyResult<MaterializedGraph> {
+        let query = r#"
+            query ReceiveGraph($path: String!) {
+                receiveGraph(path: $path)
+            }"#
+        .to_owned();
+        let variables = [("path".to_owned(), json!(path))];
+        let data = self.query_with_json_variables(query.clone(), variables.into())?;
+        match data.get("receiveGraph") {
+            Some(JsonValue::String(graph)) => {
+                let decoded_bytes = general_purpose::STANDARD
+                    .decode(graph.clone())
+                    .map_err(|err| PyException::new_err(format!("Base64 decode error: {}", err)))?;
+                let mat_graph = MaterializedGraph::from_bincode(&decoded_bytes)?;
+                Ok(mat_graph)
+            }
+            _ => Err(PyException::new_err(format!(
+                "Error while reading server response for query:\n\t{query}\nGot data:\n\t'{data:?}'"
+            ))),
         }
     }
 }

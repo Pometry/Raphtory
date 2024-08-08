@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 mod core_deletion_ops;
-mod core_ops;
+pub mod core_ops;
 mod edge_filter_ops;
 mod filter_ops;
 mod inherit;

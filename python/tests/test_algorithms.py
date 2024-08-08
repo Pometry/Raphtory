@@ -192,7 +192,6 @@ def test_algo_result():
     expected_result = pd.DataFrame({"Key": [1], "Value": [1]})
     row_with_one = df[df["Key"] == 1]
     row_with_one.reset_index(inplace=True, drop=True)
-    print(row_with_one)
     assert row_with_one.equals(expected_result)
     # Algo Str u64
     actual = algorithms.weakly_connected_components(g)

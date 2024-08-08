@@ -280,16 +280,10 @@ impl PyPersistentGraph {
     ///     nodes (List(Node))- A vector of PyNode objects representing the nodes to be imported.
     ///     force (boolean) - An optional boolean flag indicating whether to force the import of the nodes.
     ///
-    /// Returns:
-    ///     Result<List(NodeView<Graph, Graph>), GraphError> - A Result object which is Ok if the nodes were successfully imported, and Err otherwise.
     #[pyo3(signature = (nodes, force = false))]
-    pub fn import_nodes(
-        &self,
-        nodes: Vec<PyNode>,
-        force: bool,
-    ) -> Result<Vec<NodeView<PersistentGraph, PersistentGraph>>, GraphError> {
-        let nodeviews = nodes.iter().map(|node| &node.node).collect();
-        self.graph.import_nodes(nodeviews, force)
+    pub fn import_nodes(&self, nodes: Vec<PyNode>, force: bool) -> Result<(), GraphError> {
+        let node_views = nodes.iter().map(|node| &node.node);
+        self.graph.import_nodes(node_views, force)
     }
 
     /// Import a single edge into the graph.
@@ -323,16 +317,10 @@ impl PyPersistentGraph {
     ///     edges (List(edges)) - A vector of PyEdge objects representing the edges to be imported.
     ///     force (boolean) - An optional boolean flag indicating whether to force the import of the edges.
     ///
-    /// Returns:
-    ///     Result<List(EdgeView<Graph, Graph>), GraphError> - A Result object which is Ok if the edges were successfully imported, and Err otherwise.
     #[pyo3(signature = (edges, force = false))]
-    pub fn import_edges(
-        &self,
-        edges: Vec<PyEdge>,
-        force: bool,
-    ) -> Result<Vec<EdgeView<PersistentGraph, PersistentGraph>>, GraphError> {
-        let edgeviews = edges.iter().map(|edge| &edge.edge).collect();
-        self.graph.import_edges(edgeviews, force)
+    pub fn import_edges(&self, edges: Vec<PyEdge>, force: bool) -> Result<(), GraphError> {
+        let edge_views = edges.iter().map(|edge| &edge.edge);
+        self.graph.import_edges(edge_views, force)
     }
 
     //******  Saving And Loading  ******//
@@ -376,6 +364,13 @@ impl PyPersistentGraph {
     pub fn bincode<'py>(&'py self, py: Python<'py>) -> Result<&'py PyBytes, GraphError> {
         let bytes = MaterializedGraph::from(self.graph.clone()).bincode()?;
         Ok(PyBytes::new(py, &bytes))
+    }
+
+    /// Creates a graph from a bincode encoded graph
+    #[staticmethod]
+    fn from_bincode(bytes: &[u8]) -> Result<Option<PersistentGraph>, GraphError> {
+        let graph = MaterializedGraph::from_bincode(bytes)?;
+        Ok(graph.into_persistent())
     }
 
     /// Get event graph

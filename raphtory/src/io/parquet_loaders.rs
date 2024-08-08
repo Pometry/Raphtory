@@ -298,7 +298,7 @@ fn get_parquet_file_paths(parquet_path: &Path) -> Result<Vec<PathBuf>, GraphErro
             }
         }
     } else {
-        return Err(GraphError::InvalidPath(parquet_path.display().to_string()));
+        return Err(GraphError::InvalidPath(parquet_path.to_path_buf()));
     }
 
     Ok(parquet_files)

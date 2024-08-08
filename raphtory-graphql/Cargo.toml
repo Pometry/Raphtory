@@ -50,6 +50,7 @@ url = { workspace = true }
 base64-compat = { workspace = true }
 time = { workspace = true }
 reqwest = { workspace = true }
+moka = { workspace = true }
 
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
@@ -60,4 +61,4 @@ tempfile = { workspace = true }
 
 [features]
 storage = ["raphtory/storage"]
-python = ["dep:pyo3"]
+python = ["dep:pyo3", "raphtory/python"]
