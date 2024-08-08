@@ -234,6 +234,7 @@ pub async fn verify(data: Data<&AppState>, jar: &CookieJar) -> Json<serde_json::
     }
 }
 
+#[allow(dead_code)]
 pub async fn get_jwks() -> Result<Jwks, Box<dyn Error>> {
     let authority = env::var("AUTHORITY").expect("AUTHORITY not set");
     let jwks_url = format!("{}/discovery/v2.0/keys", authority);

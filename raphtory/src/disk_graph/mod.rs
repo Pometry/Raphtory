@@ -4,19 +4,6 @@ use std::{
     sync::Arc,
 };
 
-use polars_arrow::{
-    array::{PrimitiveArray, StructArray},
-    datatypes::{ArrowDataType as DataType, Field},
-};
-use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-
-use pometry_storage::{
-    disk_hmap::DiskHashMap, graph::TemporalGraph, graph_fragment::TempColGraphFragment,
-    load::ExternalEdgeList, merge::merge_graph::merge_graphs, RAError,
-};
-use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
-
 use crate::{
     core::{
         entities::{
@@ -29,6 +16,17 @@ use crate::{
     disk_graph::graph_impl::{prop_conversion::make_node_properties_from_graph, ParquetLayerCols},
     prelude::{Graph, Layer},
 };
+use polars_arrow::{
+    array::{PrimitiveArray, StructArray},
+    datatypes::{ArrowDataType as DataType, Field},
+};
+use pometry_storage::{
+    disk_hmap::DiskHashMap, graph::TemporalGraph, graph_fragment::TempColGraphFragment,
+    load::ExternalEdgeList, merge::merge_graph::merge_graphs, RAError,
+};
+use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 pub mod graph_impl;
 pub mod storage_interface;
@@ -86,6 +84,7 @@ impl Display for DiskGraphStorage {
         )
     }
 }
+
 impl AsRef<TemporalGraph> for DiskGraphStorage {
     fn as_ref(&self) -> &TemporalGraph {
         &self.inner
@@ -93,6 +92,10 @@ impl AsRef<TemporalGraph> for DiskGraphStorage {
 }
 
 impl DiskGraphStorage {
+    pub fn inner(&self) -> &Arc<TemporalGraph> {
+        &self.inner
+    }
+
     pub fn graph_dir(&self) -> &Path {
         self.inner.graph_dir()
     }

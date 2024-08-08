@@ -7,12 +7,14 @@ use crate::{
             LayerIds, EID, ELID, GID, VID,
         },
         storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
-        utils::errors::GraphError,
+        utils::errors::{GraphError, GraphError::EventGraphDeletionsNotSupported},
         PropType,
     },
     db::{
         api::{
-            mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
+            mutation::internal::{
+                InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
+            },
             properties::internal::{
                 ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
@@ -38,7 +40,7 @@ use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
 use raphtory_api::core::storage::arc_str::ArcStr;
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
-use std::path::Path;
+use std::{fs, io, path::Path};
 
 #[enum_dispatch(CoreGraphOps)]
 #[enum_dispatch(InternalLayerOps)]
@@ -125,13 +127,22 @@ impl MaterializedGraph {
     }
 
     pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), GraphError> {
-        let f = std::fs::File::create(path)?;
-        let mut writer = std::io::BufWriter::new(f);
+        let f = fs::File::create(path)?;
+        let mut writer = io::BufWriter::new(f);
         let versioned_data = VersionedGraph {
             version: BINCODE_VERSION,
             graph: self.clone(),
         };
         Ok(bincode::serialize_into(&mut writer, &versioned_data)?)
+    }
+
+    pub fn save_to_path(&self, path: &Path) -> Result<(), GraphError> {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.save_to_file(&path)?,
+            MaterializedGraph::PersistentGraph(g) => g.save_to_file(&path)?,
+        };
+
+        Ok(())
     }
 
     pub fn bincode(&self) -> Result<Vec<u8>, GraphError> {
@@ -150,6 +161,21 @@ impl MaterializedGraph {
         }
         let g: VersionedGraph<MaterializedGraph> = bincode::deserialize(b)?;
         Ok(g.graph)
+    }
+}
+
+impl InternalDeletionOps for MaterializedGraph {
+    fn internal_delete_edge(
+        &self,
+        t: TimeIndexEntry,
+        src: VID,
+        dst: VID,
+        layer: usize,
+    ) -> Result<(), GraphError> {
+        match self {
+            MaterializedGraph::EventGraph(_) => Err(EventGraphDeletionsNotSupported),
+            MaterializedGraph::PersistentGraph(g) => g.internal_delete_edge(t, src, dst, layer),
+        }
     }
 }
 
