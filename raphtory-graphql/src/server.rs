@@ -125,7 +125,7 @@ impl RaphtoryServer {
 
         graphs.write().extend(
             get_graphs_from_work_dir(work_dir)
-                .map_err(|err| ServerError::CacheError(err.message))?,
+                .map_err(|err| ServerError::CacheError(err.to_string()))?,
         );
 
         let template = template
