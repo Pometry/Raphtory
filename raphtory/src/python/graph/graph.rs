@@ -128,7 +128,7 @@ impl PyGraphEncoder {
         MaterializedGraph::decode_from_bytes(&bytes)
     }
     fn __setstate__(&mut self) {}
-    fn __getstate__<'py>(&self) {}
+    fn __getstate__(&self) {}
 }
 
 /// A temporal graph.
