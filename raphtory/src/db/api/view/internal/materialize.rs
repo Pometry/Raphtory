@@ -177,6 +177,18 @@ impl InternalDeletionOps for MaterializedGraph {
             MaterializedGraph::PersistentGraph(g) => g.internal_delete_edge(t, src, dst, layer),
         }
     }
+
+    fn internal_delete_existing_edge(
+        &self,
+        t: TimeIndexEntry,
+        eid: EID,
+        layer: usize,
+    ) -> Result<(), GraphError> {
+        match self {
+            MaterializedGraph::EventGraph(_) => Err(EventGraphDeletionsNotSupported),
+            MaterializedGraph::PersistentGraph(g) => g.internal_delete_existing_edge(t, eid, layer),
+        }
+    }
 }
 
 #[enum_dispatch]

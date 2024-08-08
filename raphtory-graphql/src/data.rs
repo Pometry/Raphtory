@@ -8,15 +8,8 @@ use crate::{
 use async_graphql::Error;
 use dynamic_graphql::Result;
 use moka::sync::Cache;
-#[cfg(feature = "storage")]
-use raphtory::disk_graph::DiskGraphStorage;
 use raphtory::{
-    core::utils::errors::GraphError,
-    db::api::{
-        storage::storage_ops::GraphStorage,
-        view::{internal::CoreGraphOps, MaterializedGraph},
-    },
-    search::IndexedGraph,
+    core::utils::errors::GraphError, db::api::view::MaterializedGraph, search::IndexedGraph,
 };
 use std::{
     collections::HashMap,
@@ -24,6 +17,9 @@ use std::{
     path::{Path, PathBuf},
 };
 use walkdir::WalkDir;
+
+#[cfg(feature = "storage")]
+use raphtory::disk_graph::DiskGraphStorage;
 
 pub struct Data {
     pub(crate) work_dir: PathBuf,
@@ -296,31 +292,6 @@ pub(crate) fn get_graph_name(path: &Path) -> Result<String, &'static str> {
         .ok_or("No file name found in the path or invalid UTF-8")
 }
 
-#[cfg(test)]
-pub(crate) fn save_graphs_to_work_dir(
-    work_dir: &Path,
-    graphs: &HashMap<String, MaterializedGraph>,
-) -> Result<()> {
-    for (name, graph) in graphs.into_iter() {
-        let full_path = construct_graph_full_path(&work_dir, Path::new(name))?;
-
-        #[cfg(feature = "storage")]
-        if let GraphStorage::Disk(dg) = graph.core_graph() {
-            let disk_graph_path = dg.graph_dir();
-            #[cfg(feature = "storage")]
-            copy_dir_recursive(disk_graph_path, &full_path)?;
-        } else {
-            graph.save_to_path(&full_path)?;
-        }
-
-        #[cfg(not(feature = "storage"))]
-        {
-            graph.save_to_path(&full_path)?;
-        }
-    }
-    Ok(())
-}
-
 pub(crate) fn load_bincode_graph(path: &Path) -> Result<(String, MaterializedGraph)> {
     let graph = MaterializedGraph::load_from_file(path, false)?;
     let name = get_graph_name(path)?;
@@ -342,29 +313,57 @@ fn _load_disk_graph(_path: &Path) -> Result<(String, MaterializedGraph)> {
 }
 
 #[cfg(test)]
-mod data_tests {
+pub(crate) mod data_tests {
     use crate::{
-        data::{
-            get_graph_from_path, get_graph_paths, load_graph_from_path, save_graphs_to_work_dir,
-            Data,
-        },
-        server_config::AppConfigBuilder,
+        data::{get_graph_from_path, get_graph_paths, load_graph_from_path},
+        model::construct_graph_full_path,
     };
-    #[cfg(feature = "storage")]
-    use raphtory::disk_graph::DiskGraphStorage;
-    use raphtory::{
-        db::api::view::MaterializedGraph,
-        prelude::{PropertyAdditionOps, *},
-    };
+    use dynamic_graphql::Result;
+    use raphtory::{db::api::view::MaterializedGraph, prelude::*};
     use std::{
         collections::HashMap,
         fs,
         fs::File,
         io,
         path::{Path, PathBuf},
-        thread,
-        time::Duration,
     };
+
+    #[cfg(feature = "storage")]
+    use crate::{
+        data::{copy_dir_recursive, Data},
+        server_config::AppConfigBuilder,
+    };
+    #[cfg(feature = "storage")]
+    use raphtory::{
+        db::api::storage::storage_ops::GraphStorage, db::api::view::internal::CoreGraphOps,
+        disk_graph::DiskGraphStorage,
+    };
+    #[cfg(feature = "storage")]
+    use std::{thread, time::Duration};
+
+    pub(crate) fn save_graphs_to_work_dir(
+        work_dir: &Path,
+        graphs: &HashMap<String, MaterializedGraph>,
+    ) -> Result<()> {
+        for (name, graph) in graphs.into_iter() {
+            let full_path = construct_graph_full_path(&work_dir, Path::new(name))?;
+
+            #[cfg(feature = "storage")]
+            if let GraphStorage::Disk(dg) = graph.core_graph() {
+                let disk_graph_path = dg.graph_dir();
+                #[cfg(feature = "storage")]
+                copy_dir_recursive(disk_graph_path, &full_path)?;
+            } else {
+                graph.save_to_path(&full_path)?;
+            }
+
+            #[cfg(not(feature = "storage"))]
+            {
+                graph.save_to_path(&full_path)?;
+            }
+        }
+        Ok(())
+    }
 
     fn get_maybe_relative_path(work_dir: &Path, path: PathBuf) -> Option<String> {
         let relative_path = match path.strip_prefix(work_dir) {
