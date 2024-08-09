@@ -58,6 +58,8 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install nextest
         uses: taiki-e/install-action@nextest
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
       - name: Activate pometry-storage in Cargo.toml
         run: make pull-storage
       - name: Run all Tests (disk_graph)
@@ -66,28 +68,8 @@ jobs:
           TEMPDIR: ${{ runner.temp }}
         run: |
           cargo nextest run --all --no-default-features --features "storage"
-      - name: Run Tests (features=io)
+      - name: Check features combinations
         env:
           RUSTFLAGS: -Awarnings
         run: |
-          cargo check -p raphtory --no-default-features --features "io"
-      - name: Run Tests (features=python)
-        env:
-          RUSTFLAGS: -Awarnings
-        run: |
-          cargo check -p raphtory --no-default-features --features "python"
-      - name: Run Tests (features=search)
-        env:
-          RUSTFLAGS: -Awarnings
-        run: |
-          cargo check -p raphtory --no-default-features --features "search"
-      - name: Run Tests (features=vectors)
-        env:
-          RUSTFLAGS: -Awarnings
-        run: |
-          cargo check -p raphtory --no-default-features --features "vectors"
-      - name: Run Tests (features=storage)
-        env:
-          RUSTFLAGS: -Awarnings
-        run: |
-          cargo check -p raphtory --no-default-features --features "storage"
+          cargo hack check --workspace --all-targets --feature-powerset --depth 2  --skip extension-module,default
