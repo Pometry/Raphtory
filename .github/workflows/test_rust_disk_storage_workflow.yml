@@ -62,11 +62,11 @@ jobs:
         uses: taiki-e/install-action@cargo-hack
       - name: Activate pometry-storage in Cargo.toml
         run: make pull-storage
-      - name: Check features combinations
+      - name: Check all features
         env:
           RUSTFLAGS: -Awarnings
         run: |
-          cargo hack check --workspace --all-targets --feature-powerset --depth 2  --skip extension-module,default
+          cargo hack check --workspace --all-targets --each-feature  --skip extension-module,default
       - name: Run all Tests (disk_graph)
         env:
           RUSTFLAGS: -Awarnings ${{ matrix.flags }}
