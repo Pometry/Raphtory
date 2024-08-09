@@ -183,7 +183,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
                     }),
                 None => {
                     if create {
-                        self.graph.resolve_layer(layer)
+                        Ok(*self.graph.resolve_layer(layer)?)
                     } else {
                         self.graph
                             .get_layer_id(name)
@@ -228,7 +228,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
             });
         }
         let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
-            self.graph.resolve_edge_property(name, dtype, true)
+            Ok(*self.graph.resolve_edge_property(name, dtype, true)?)
         })?;
 
         self.graph.internal_add_constant_edge_properties(
@@ -245,7 +245,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
     ) -> Result<(), GraphError> {
         let input_layer_id = self.resolve_layer(layer, false)?;
         let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
-            self.graph.resolve_edge_property(name, dtype, true)
+            Ok(*self.graph.resolve_edge_property(name, dtype, true)?)
         })?;
 
         self.graph.internal_update_constant_edge_properties(
@@ -264,7 +264,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
         let t = time_from_input(&self.graph, time)?;
         let layer_id = self.resolve_layer(layer, true)?;
         let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
-            self.graph.resolve_edge_property(name, dtype, false)
+            Ok(*self.graph.resolve_edge_property(name, dtype, false)?)
         })?;
 
         self.graph

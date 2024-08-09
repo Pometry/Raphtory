@@ -256,7 +256,7 @@ impl DiskGraphStorage {
                 let resolved_id = edge_meta
                     .resolve_prop_id(prop_name, data_type.into(), false)
                     .expect("Arrow data types should without failing");
-                if id != resolved_id {
+                if resolved_id != id {
                     println!("Warning: Layers with different edge properties are not supported by the high-level apis on top of the disk_graph graph yet, edge properties will not be available to high-level apis");
                     edge_meta = Meta::new();
                     break;

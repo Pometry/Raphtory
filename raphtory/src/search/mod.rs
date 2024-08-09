@@ -4,14 +4,6 @@ pub mod into_indexed;
 
 use std::{collections::HashSet, ops::Deref, path::Path, sync::Arc};
 
-use raphtory_api::core::storage::arc_str::ArcStr;
-use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
-use tantivy::{
-    collector::TopDocs,
-    schema::{Field, Schema, SchemaBuilder, Value, FAST, INDEXED, STORED, TEXT},
-    Index, IndexReader, IndexSettings, IndexWriter, TantivyDocument, TantivyError,
-};
-
 use crate::{
     core::{
         entities::{
@@ -34,6 +26,13 @@ use crate::{
         graph::{edge::EdgeView, node::NodeView},
     },
     prelude::*,
+};
+use raphtory_api::core::storage::{arc_str::ArcStr, dict_mapper::MaybeNew};
+use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
+use tantivy::{
+    collector::TopDocs,
+    schema::{Field, Schema, SchemaBuilder, Value, FAST, INDEXED, STORED, TEXT},
+    Index, IndexReader, IndexSettings, IndexWriter, TantivyDocument, TantivyError,
 };
 
 #[derive(Clone)]
@@ -765,16 +764,21 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
         self.graph.next_event_id()
     }
     #[inline]
-    fn resolve_layer(&self, layer: Option<&str>) -> Result<usize, GraphError> {
+    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, GraphError> {
         self.graph.resolve_layer(layer)
     }
 
+    fn resolve_node_type(&self, node_type: &str) -> Result<MaybeNew<usize>, GraphError> {
+        self.graph.resolve_node_type(node_type)
+    }
+
     #[inline]
-    fn set_node_type(&self, v_id: VID, node_type: &str) -> Result<(), GraphError> {
+    fn set_node_type(&self, v_id: VID, node_type: usize) -> Result<(), GraphError> {
         self.graph.set_node_type(v_id, node_type)?;
+        let node_type_name = self.graph.node_meta().node_type_meta().get_name(node_type);
         let node_type_field = self.node_index.schema().get_field(fields::NODE_TYPE)?;
         let mut document = TantivyDocument::new();
-        document.add_text(node_type_field, node_type);
+        document.add_text(node_type_field, node_type_name);
         let node_id_field = self.node_index.schema().get_field(fields::VERTEX_ID)?;
         document.add_u64(node_id_field, v_id.as_u64());
         let mut writer = self.node_index.writer(50_000_000)?;
@@ -784,7 +788,7 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
     }
 
     #[inline]
-    fn resolve_node<V: AsNodeRef>(&self, n: V) -> Result<VID, GraphError> {
+    fn resolve_node<V: AsNodeRef>(&self, n: V) -> Result<MaybeNew<VID>, GraphError> {
         self.graph.resolve_node(n)
     }
 
@@ -794,7 +798,7 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
         prop: &str,
         dtype: PropType,
         is_static: bool,
-    ) -> Result<usize, GraphError> {
+    ) -> Result<MaybeNew<usize>, GraphError> {
         self.graph.resolve_graph_property(prop, dtype, is_static)
     }
 
@@ -804,7 +808,7 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
         prop: &str,
         dtype: PropType,
         is_static: bool,
-    ) -> Result<usize, GraphError> {
+    ) -> Result<MaybeNew<usize>, GraphError> {
         self.graph.resolve_node_property(prop, dtype, is_static)
     }
 
@@ -814,7 +818,7 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
         prop: &str,
         dtype: PropType,
         is_static: bool,
-    ) -> Result<usize, GraphError> {
+    ) -> Result<MaybeNew<usize>, GraphError> {
         self.graph.resolve_edge_property(prop, dtype, is_static)
     }
 

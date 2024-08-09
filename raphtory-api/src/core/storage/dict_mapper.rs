@@ -1,7 +1,8 @@
 use crate::core::storage::{arc_str::ArcStr, locked_vec::ArcReadLockedVec, FxDashMap};
+use dashmap::mapref::entry::Entry;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
-use std::{borrow::Borrow, hash::Hash, sync::Arc};
+use std::{borrow::Borrow, hash::Hash, ops::Deref, sync::Arc};
 
 #[derive(Serialize, Deserialize, Default, Debug)]
 pub struct DictMapper {
@@ -9,24 +10,72 @@ pub struct DictMapper {
     reverse_map: Arc<RwLock<Vec<ArcStr>>>, //FIXME: a boxcar vector would be a great fit if it was serializable...
 }
 
+#[derive(Copy, Clone, Debug)]
+pub enum MaybeNew<Index> {
+    New(Index),
+    Existing(Index),
+}
+
+impl<Index, T> PartialEq<T> for MaybeNew<Index>
+where
+    Index: PartialEq,
+    T: Borrow<Index>,
+{
+    fn eq(&self, other: &T) -> bool {
+        self.deref() == other.borrow()
+    }
+}
+impl<Index> Deref for MaybeNew<Index> {
+    type Target = Index;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        match self {
+            MaybeNew::New(index) => index,
+            MaybeNew::Existing(index) => index,
+        }
+    }
+}
+
+impl<Index> Borrow<Index> for MaybeNew<Index> {
+    #[inline]
+    fn borrow(&self) -> &Index {
+        self.deref()
+    }
+}
+
+impl<Index> MaybeNew<Index> {
+    #[inline]
+    pub fn id(self) -> Index {
+        match self {
+            Self::New(index) => index,
+            Self::Existing(index) => index,
+        }
+    }
+}
+
 impl DictMapper {
-    pub fn get_or_create_id<Q, T>(&self, name: &Q) -> usize
+    pub fn get_or_create_id<Q, T>(&self, name: &Q) -> MaybeNew<usize>
     where
         Q: Hash + Eq + ?Sized + ToOwned<Owned = T> + Borrow<str>,
         T: Into<ArcStr>,
     {
         if let Some(existing_id) = self.map.get(name.borrow()) {
-            return *existing_id;
+            return MaybeNew::Existing(*existing_id);
         }
 
         let name = name.to_owned().into();
-        let new_id = self.map.entry(name.clone()).or_insert_with(|| {
-            let mut reverse = self.reverse_map.write();
-            let id = reverse.len();
-            reverse.push(name);
-            id
-        });
-        *new_id
+        let new_id = match self.map.entry(name.clone()) {
+            Entry::Occupied(entry) => MaybeNew::Existing(*entry.get()),
+            Entry::Vacant(entry) => {
+                let mut reverse = self.reverse_map.write();
+                let id = reverse.len();
+                reverse.push(name);
+                entry.insert(id);
+                MaybeNew::New(id)
+            }
+        };
+        new_id
     }
 
     pub fn get_id(&self, name: &str) -> Option<usize> {
@@ -88,11 +137,11 @@ mod test {
     #[test]
     fn test_dict_mapper() {
         let mapper = DictMapper::default();
-        assert_eq!(mapper.get_or_create_id("test"), 0);
-        assert_eq!(mapper.get_or_create_id("test"), 0);
-        assert_eq!(mapper.get_or_create_id("test2"), 1);
-        assert_eq!(mapper.get_or_create_id("test2"), 1);
-        assert_eq!(mapper.get_or_create_id("test"), 0);
+        assert_eq!(mapper.get_or_create_id("test"), 0usize);
+        assert_eq!(mapper.get_or_create_id("test").id(), 0);
+        assert_eq!(mapper.get_or_create_id("test2").id(), 1);
+        assert_eq!(mapper.get_or_create_id("test2").id(), 1);
+        assert_eq!(mapper.get_or_create_id("test").id(), 0);
     }
 
     #[quickcheck]
@@ -110,7 +159,7 @@ mod test {
                 write_s.shuffle(&mut rng);
                 for s in write_s {
                     let id = mapper.get_or_create_id(s.as_str());
-                    ids.insert(s, id);
+                    ids.insert(s, *id);
                 }
                 ids
             })
@@ -147,7 +196,7 @@ mod test {
 
         let mut actual = vec!["test", "test2", "test3", "test4", "test5"]
             .into_iter()
-            .map(|name| mapper.get_or_create_id(name))
+            .map(|name| mapper.get_or_create_id(name).id())
             .collect::<Vec<_>>();
         actual.sort();
 

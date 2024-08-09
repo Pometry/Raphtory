@@ -8,6 +8,7 @@ use crate::{
     db::api::view::internal::Base,
 };
 use enum_dispatch::enum_dispatch;
+use raphtory_api::core::storage::dict_mapper::MaybeNew;
 
 #[enum_dispatch]
 pub trait InternalAdditionOps {
@@ -15,12 +16,14 @@ pub trait InternalAdditionOps {
     fn next_event_id(&self) -> Result<usize, GraphError>;
 
     /// map layer name to id and allocate a new layer if needed
-    fn resolve_layer(&self, layer: Option<&str>) -> Result<usize, GraphError>;
+    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, GraphError>;
 
-    fn set_node_type(&self, v_id: VID, node_type: &str) -> Result<(), GraphError>;
+    fn resolve_node_type(&self, node_type: &str) -> Result<MaybeNew<usize>, GraphError>;
+
+    fn set_node_type(&self, v_id: VID, node_type: usize) -> Result<(), GraphError>;
 
     /// map external node id to internal id, allocating a new empty node if needed
-    fn resolve_node<V: AsNodeRef>(&self, id: V) -> Result<VID, GraphError>;
+    fn resolve_node<V: AsNodeRef>(&self, id: V) -> Result<MaybeNew<VID>, GraphError>;
 
     /// map property key to internal id, allocating new property if needed
     fn resolve_graph_property(
@@ -28,7 +31,7 @@ pub trait InternalAdditionOps {
         prop: &str,
         dtype: PropType,
         is_static: bool,
-    ) -> Result<usize, GraphError>;
+    ) -> Result<MaybeNew<usize>, GraphError>;
 
     /// map property key to internal id, allocating new property if needed and checking property type.
     /// returns `None` if the type does not match
@@ -37,14 +40,14 @@ pub trait InternalAdditionOps {
         prop: &str,
         dtype: PropType,
         is_static: bool,
-    ) -> Result<usize, GraphError>;
+    ) -> Result<MaybeNew<usize>, GraphError>;
 
     fn resolve_edge_property(
         &self,
         prop: &str,
         dtype: PropType,
         is_static: bool,
-    ) -> Result<usize, GraphError>;
+    ) -> Result<MaybeNew<usize>, GraphError>;
 
     /// add node update
     fn internal_add_node(
@@ -99,17 +102,22 @@ impl<G: DelegateAdditionOps> InternalAdditionOps for G {
     }
 
     #[inline]
-    fn resolve_layer(&self, layer: Option<&str>) -> Result<usize, GraphError> {
+    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, GraphError> {
         self.graph().resolve_layer(layer)
     }
 
     #[inline]
-    fn set_node_type(&self, v_id: VID, node_type: &str) -> Result<(), GraphError> {
+    fn resolve_node_type(&self, node_type: &str) -> Result<MaybeNew<usize>, GraphError> {
+        self.graph().resolve_node_type(node_type)
+    }
+
+    #[inline]
+    fn set_node_type(&self, v_id: VID, node_type: usize) -> Result<(), GraphError> {
         self.graph().set_node_type(v_id, node_type)
     }
 
     #[inline]
-    fn resolve_node<V: AsNodeRef>(&self, n: V) -> Result<VID, GraphError> {
+    fn resolve_node<V: AsNodeRef>(&self, n: V) -> Result<MaybeNew<VID>, GraphError> {
         self.graph().resolve_node(n)
     }
 
@@ -119,7 +127,7 @@ impl<G: DelegateAdditionOps> InternalAdditionOps for G {
         prop: &str,
         dtype: PropType,
         is_static: bool,
-    ) -> Result<usize, GraphError> {
+    ) -> Result<MaybeNew<usize>, GraphError> {
         self.graph().resolve_graph_property(prop, dtype, is_static)
     }
 
@@ -129,7 +137,7 @@ impl<G: DelegateAdditionOps> InternalAdditionOps for G {
         prop: &str,
         dtype: PropType,
         is_static: bool,
-    ) -> Result<usize, GraphError> {
+    ) -> Result<MaybeNew<usize>, GraphError> {
         self.graph().resolve_node_property(prop, dtype, is_static)
     }
 
@@ -139,7 +147,7 @@ impl<G: DelegateAdditionOps> InternalAdditionOps for G {
         prop: &str,
         dtype: PropType,
         is_static: bool,
-    ) -> Result<usize, GraphError> {
+    ) -> Result<MaybeNew<usize>, GraphError> {
         self.graph().resolve_edge_property(prop, dtype, is_static)
     }
 

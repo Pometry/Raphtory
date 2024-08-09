@@ -42,6 +42,8 @@ use raphtory_api::core::{
 use rayon::prelude::*;
 use std::{borrow::Borrow, fs::File, io::Write, iter, path::Path, sync::Arc};
 
+pub use serialise::Graph as ProtoGraph;
+
 macro_rules! zip_tprop_updates {
     ($iter:expr) => {
         &$iter

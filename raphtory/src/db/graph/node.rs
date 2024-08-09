@@ -329,13 +329,14 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
         props: C,
     ) -> Result<(), GraphError> {
         let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
-            self.graph.resolve_node_property(name, dtype, true)
+            Ok(*self.graph.resolve_node_property(name, dtype, true)?)
         })?;
         self.graph
             .internal_add_constant_node_properties(self.node, properties)
     }
 
     pub fn set_node_type(&self, new_type: &str) -> Result<(), GraphError> {
+        let new_type = *self.graph.resolve_node_type(new_type)?;
         self.graph.set_node_type(self.node, new_type)
     }
 
@@ -344,7 +345,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
         props: C,
     ) -> Result<(), GraphError> {
         let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
-            self.graph.resolve_node_property(name, dtype, true)
+            Ok(*self.graph.resolve_node_property(name, dtype, true)?)
         })?;
         self.graph
             .internal_update_constant_node_properties(self.node, properties)
@@ -357,7 +358,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
     ) -> Result<(), GraphError> {
         let t = time_from_input(&self.graph, time)?;
         let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
-            self.graph.resolve_node_property(name, dtype, false)
+            Ok(*self.graph.resolve_node_property(name, dtype, false)?)
         })?;
         self.graph.internal_add_node(t, self.node, properties)
     }

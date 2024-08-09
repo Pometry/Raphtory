@@ -1,10 +1,3 @@
-use either::Either;
-use raphtory_api::core::{
-    entities::{EID, VID},
-    storage::timeindex::TimeIndexEntry,
-};
-use std::sync::atomic::Ordering;
-
 use super::GraphStorage;
 use crate::{
     core::{
@@ -18,31 +11,39 @@ use crate::{
     db::api::mutation::internal::InternalAdditionOps,
     prelude::Prop,
 };
+use either::Either;
+use raphtory_api::core::{
+    entities::{EID, VID},
+    storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
+};
+use std::sync::atomic::Ordering;
 
 impl InternalAdditionOps for TemporalGraph {
     fn next_event_id(&self) -> Result<usize, GraphError> {
         Ok(self.event_counter.fetch_add(1, Ordering::Relaxed))
     }
 
-    fn resolve_layer(&self, layer: Option<&str>) -> Result<usize, GraphError> {
+    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, GraphError> {
         Ok(layer
             .map(|name| self.edge_meta.get_or_create_layer_id(name))
-            .unwrap_or(0))
+            .unwrap_or(MaybeNew::Existing(0)))
     }
 
-    fn set_node_type(&self, v_id: VID, node_type: &str) -> Result<(), GraphError> {
-        let mut node = self.storage.get_node_mut(v_id);
+    fn resolve_node_type(&self, node_type: &str) -> Result<MaybeNew<usize>, GraphError> {
         if node_type == "_default" {
             return Err(GraphError::NodeTypeError(
                 "_default type is not allowed to be used on nodes".to_string(),
             ));
         }
+        Ok(self.node_meta.get_or_create_node_type_id(node_type))
+    }
+
+    fn set_node_type(&self, v_id: VID, node_type_id: usize) -> Result<(), GraphError> {
+        let mut node = self.storage.get_node_mut(v_id);
         if node.node_type == 0 {
-            let node_type_id = self.node_meta.get_or_create_node_type_id(node_type);
             node.update_node_type(node_type_id);
         } else {
-            let new_node_type_id = self.node_meta.get_node_type_id(node_type).unwrap_or(0);
-            if node.node_type != new_node_type_id {
+            if node.node_type != node_type_id {
                 return Err(GraphError::NodeTypeError(
                     "Node already has a non-default type".to_string(),
                 ));
@@ -51,7 +52,7 @@ impl InternalAdditionOps for TemporalGraph {
         Ok(())
     }
 
-    fn resolve_node<V: AsNodeRef>(&self, n: V) -> Result<VID, GraphError> {
+    fn resolve_node<V: AsNodeRef>(&self, n: V) -> Result<MaybeNew<VID>, GraphError> {
         match n.as_gid_ref() {
             Either::Left(id) => {
                 let ref_mut = self.logical_to_physical.get_or_init(id, || {
@@ -60,7 +61,7 @@ impl InternalAdditionOps for TemporalGraph {
                 })?;
                 Ok(ref_mut)
             }
-            Either::Right(vid) => Ok(vid),
+            Either::Right(vid) => Ok(MaybeNew::Existing(vid)),
         }
     }
 
@@ -69,7 +70,7 @@ impl InternalAdditionOps for TemporalGraph {
         prop: &str,
         dtype: PropType,
         is_static: bool,
-    ) -> Result<usize, GraphError> {
+    ) -> Result<MaybeNew<usize>, GraphError> {
         self.graph_meta.resolve_property(prop, dtype, is_static)
     }
 
@@ -78,7 +79,7 @@ impl InternalAdditionOps for TemporalGraph {
         prop: &str,
         dtype: PropType,
         is_static: bool,
-    ) -> Result<usize, GraphError> {
+    ) -> Result<MaybeNew<usize>, GraphError> {
         self.node_meta.resolve_prop_id(prop, dtype, is_static)
     }
 
@@ -87,7 +88,7 @@ impl InternalAdditionOps for TemporalGraph {
         prop: &str,
         dtype: PropType,
         is_static: bool,
-    ) -> Result<usize, GraphError> {
+    ) -> Result<MaybeNew<usize>, GraphError> {
         self.edge_meta.resolve_prop_id(prop, dtype, is_static)
     }
 
@@ -158,21 +159,28 @@ impl InternalAdditionOps for GraphStorage {
         }
     }
 
-    fn resolve_layer(&self, layer: Option<&str>) -> Result<usize, GraphError> {
+    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, GraphError> {
         match self {
             GraphStorage::Unlocked(storage) => storage.resolve_layer(layer),
             _ => Err(GraphError::AttemptToMutateImmutableGraph),
         }
     }
 
-    fn set_node_type(&self, v_id: VID, node_type: &str) -> Result<(), GraphError> {
+    fn resolve_node_type(&self, node_type: &str) -> Result<MaybeNew<usize>, GraphError> {
+        match self {
+            GraphStorage::Unlocked(storage) => storage.resolve_node_type(node_type),
+            _ => Err(GraphError::AttemptToMutateImmutableGraph),
+        }
+    }
+
+    fn set_node_type(&self, v_id: VID, node_type: usize) -> Result<(), GraphError> {
         match self {
             GraphStorage::Unlocked(storage) => storage.set_node_type(v_id, node_type),
             _ => Err(GraphError::AttemptToMutateImmutableGraph),
         }
     }
 
-    fn resolve_node<V: AsNodeRef>(&self, n: V) -> Result<VID, GraphError> {
+    fn resolve_node<V: AsNodeRef>(&self, n: V) -> Result<MaybeNew<VID>, GraphError> {
         match self {
             GraphStorage::Unlocked(storage) => storage.resolve_node(n),
             _ => Err(GraphError::AttemptToMutateImmutableGraph),
@@ -184,7 +192,7 @@ impl InternalAdditionOps for GraphStorage {
         prop: &str,
         dtype: PropType,
         is_static: bool,
-    ) -> Result<usize, GraphError> {
+    ) -> Result<MaybeNew<usize>, GraphError> {
         match self {
             GraphStorage::Unlocked(storage) => {
                 storage.resolve_graph_property(prop, dtype, is_static)
@@ -198,7 +206,7 @@ impl InternalAdditionOps for GraphStorage {
         prop: &str,
         dtype: PropType,
         is_static: bool,
-    ) -> Result<usize, GraphError> {
+    ) -> Result<MaybeNew<usize>, GraphError> {
         match self {
             GraphStorage::Unlocked(storage) => {
                 storage.resolve_node_property(prop, dtype, is_static)
@@ -212,7 +220,7 @@ impl InternalAdditionOps for GraphStorage {
         prop: &str,
         dtype: PropType,
         is_static: bool,
-    ) -> Result<usize, GraphError> {
+    ) -> Result<MaybeNew<usize>, GraphError> {
         match self {
             GraphStorage::Unlocked(storage) => {
                 storage.resolve_edge_property(prop, dtype, is_static)

@@ -129,8 +129,9 @@ impl<
             return Err(NodeExistsError(node.id()));
         }
 
-        let node_internal = self.resolve_node(node.id())?;
+        let node_internal = self.resolve_node(node.id())?.id();
         if let Some(node_type) = node.node_type().as_str() {
+            let node_type = self.resolve_node_type(node_type)?.id();
             self.set_node_type(node_internal, node_type)?;
         }
 
@@ -154,7 +155,7 @@ impl<
             let new_prop_id = self.resolve_node_property(&name, dtype, false)?;
             for (h, prop) in prop_view.iter() {
                 let t = time_from_input(self, h)?;
-                self.internal_add_node(t, node_internal, vec![(new_prop_id, prop)])?;
+                self.internal_add_node(t, node_internal, vec![(*new_prop_id, prop)])?;
             }
         }
         self.node(node.id())
@@ -212,9 +213,9 @@ impl<
             if self.include_deletions() {
                 for t in edge.graph.edge_deletion_history(edge.edge, &layer_ids) {
                     let ti = time_from_input(self, t)?;
-                    let src_id = self.resolve_node(edge.src().id())?;
-                    let dst_id = self.resolve_node(edge.dst().id())?;
-                    let layer = self.resolve_layer(layer_name)?;
+                    let src_id = *self.resolve_node(edge.src().id())?;
+                    let dst_id = *self.resolve_node(edge.dst().id())?;
+                    let layer = *self.resolve_layer(layer_name)?;
                     self.internal_delete_edge(ti, src_id, dst_id, layer)?;
                 }
             }

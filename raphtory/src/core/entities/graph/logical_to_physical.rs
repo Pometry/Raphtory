@@ -1,12 +1,12 @@
+use crate::core::utils::errors::{GraphError, MutateGraphError};
+use dashmap::mapref::entry::Entry;
 use once_cell::sync::OnceCell;
-
 use raphtory_api::core::{
     entities::{GidRef, VID},
-    storage::FxDashMap,
+    storage::{dict_mapper::MaybeNew, FxDashMap},
 };
 use serde::{Deserialize, Deserializer, Serialize};
-
-use crate::core::utils::errors::{GraphError, MutateGraphError};
+use std::hash::Hash;
 
 #[derive(Debug, Deserialize, Serialize)]
 enum Map {
@@ -52,13 +52,13 @@ impl Mapping {
         &self,
         gid: GidRef,
         f_init: impl FnOnce() -> VID,
-    ) -> Result<VID, GraphError> {
+    ) -> Result<MaybeNew<VID>, GraphError> {
         let map = self.map.get_or_init(|| match &gid {
             GidRef::U64(_) => Map::U64(FxDashMap::default()),
             GidRef::Str(_) => Map::Str(FxDashMap::default()),
         });
         let vid = match gid {
-            GidRef::U64(id) => map.as_u64().map(|m| *(m.entry(id).or_insert_with(f_init))),
+            GidRef::U64(id) => map.as_u64().map(|m| get_or_new(m, id, f_init)),
             GidRef::Str(id) => map.as_str().map(|m| optim_get_or_insert(m, id, f_init)),
         };
         vid.ok_or(GraphError::FailedToMutateGraph {
@@ -77,10 +77,31 @@ impl Mapping {
     }
 }
 
-fn optim_get_or_insert(m: &FxDashMap<String, VID>, id: &str, f_init: impl FnOnce() -> VID) -> VID {
+#[inline]
+fn optim_get_or_insert(
+    m: &FxDashMap<String, VID>,
+    id: &str,
+    f_init: impl FnOnce() -> VID,
+) -> MaybeNew<VID> {
     m.get(id)
-        .map(|vid| *vid)
-        .unwrap_or_else(|| *(m.entry(id.to_owned()).or_insert_with(f_init)))
+        .map(|vid| MaybeNew::Existing(*vid))
+        .unwrap_or_else(|| get_or_new(m, id.to_owned(), f_init))
+}
+
+#[inline]
+fn get_or_new<K: Eq + Hash>(
+    m: &FxDashMap<K, VID>,
+    id: K,
+    f_init: impl FnOnce() -> VID,
+) -> MaybeNew<VID> {
+    match m.entry(id) {
+        Entry::Occupied(entry) => MaybeNew::Existing(*entry.get()),
+        Entry::Vacant(entry) => {
+            let id = f_init();
+            entry.insert(id);
+            MaybeNew::New(id)
+        }
+    }
 }
 
 impl<'de> Deserialize<'de> for Mapping {

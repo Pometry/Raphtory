@@ -107,6 +107,9 @@ pub mod vectors;
 #[cfg(feature = "io")]
 pub mod io;
 
+#[cfg(feature = "proto")]
+pub mod cache;
+
 pub mod prelude {
     pub const NO_PROPS: [(&str, Prop); 0] = [];
     pub use crate::{
