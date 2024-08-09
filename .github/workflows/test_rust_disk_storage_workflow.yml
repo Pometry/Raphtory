@@ -62,15 +62,16 @@ jobs:
         uses: taiki-e/install-action@cargo-hack
       - name: Activate pometry-storage in Cargo.toml
         run: make pull-storage
-      - name: Check all features
-        env:
-          RUSTFLAGS: -Awarnings
-        run: |
-          cargo hack check --workspace --all-targets --each-feature  --skip extension-module,default
       - name: Run all Tests (disk_graph)
         env:
           RUSTFLAGS: -Awarnings ${{ matrix.flags }}
           TEMPDIR: ${{ runner.temp }}
         run: |
           cargo nextest run --all --no-default-features --features "storage"
+      - name: Check all features
+        env:
+          RUSTFLAGS: -Awarnings
+        run: |
+          cargo hack check --workspace --all-targets --each-feature  --skip extension-module,default
+
 
