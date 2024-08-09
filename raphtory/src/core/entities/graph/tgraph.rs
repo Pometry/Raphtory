@@ -98,6 +98,13 @@ impl TemporalGraph {
         }
     }
 
+    pub(crate) fn process_prop_value(&self, prop: Prop) -> Prop {
+        match prop {
+            Prop::Str(value) => Prop::Str(self.resolve_str(value)),
+            _ => prop,
+        }
+    }
+
     fn get_valid_layers(edge_meta: &Arc<Meta>) -> Vec<String> {
         edge_meta
             .layer_meta()
@@ -382,7 +389,7 @@ impl TemporalGraph {
 
     /// Checks if the same string value already exists and returns a pointer to the same existing value if it exists,
     /// otherwise adds the string to the pool.
-    pub(crate) fn resolve_str(&self, value: ArcStr) -> ArcStr {
+    fn resolve_str(&self, value: ArcStr) -> ArcStr {
         match self.string_pool.get(&value) {
             Some(value) => value.clone(),
             None => {
