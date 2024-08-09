@@ -12,7 +12,6 @@ use std::{
     },
 };
 
-pub(crate) mod iter;
 pub mod lazy_vec;
 pub mod locked_view;
 pub mod raw_edges;

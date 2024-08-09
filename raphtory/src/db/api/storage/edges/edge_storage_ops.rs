@@ -2,27 +2,26 @@ use crate::{
     core::{
         entities::{
             edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
+            properties::{props::Props, tprop::TProp},
             LayerIds, VID,
         },
-        storage::timeindex::{TimeIndex, TimeIndexIntoOps, TimeIndexOps, TimeIndexWindow},
-    },
-    db::api::view::IntoDynBoxed,
-};
-
-#[cfg(feature = "storage")]
-use pometry_storage::timestamps::TimeStamps;
-
-use crate::{
-    core::{
-        entities::properties::{props::Props, tprop::TProp},
-        storage::raw_edges::EdgeShard,
+        storage::{
+            raw_edges::EdgeShard,
+            timeindex::{TimeIndex, TimeIndexIntoOps, TimeIndexOps, TimeIndexWindow},
+        },
         Prop,
     },
-    db::api::storage::{tprop_storage_ops::TPropOps, variants::layer_variants::LayerVariants},
+    db::api::{
+        storage::{tprop_storage_ops::TPropOps, variants::layer_variants::LayerVariants},
+        view::IntoDynBoxed,
+    },
 };
 use raphtory_api::core::{entities::EID, storage::timeindex::TimeIndexEntry};
 use rayon::prelude::*;
 use std::ops::Range;
+
+#[cfg(feature = "storage")]
+use pometry_storage::timestamps::TimeStamps;
 
 pub enum TimeIndexRef<'a> {
     Ref(&'a TimeIndex<TimeIndexEntry>),

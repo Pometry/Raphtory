@@ -91,13 +91,6 @@ impl InternalAdditionOps for TemporalGraph {
         self.edge_meta.resolve_prop_id(prop, dtype, is_static)
     }
 
-    fn process_prop_value(&self, prop: Prop) -> Prop {
-        match prop {
-            Prop::Str(value) => Prop::Str(self.resolve_str(value)),
-            _ => prop,
-        }
-    }
-
     fn internal_add_node(
         &self,
         t: TimeIndexEntry,
@@ -109,6 +102,7 @@ impl InternalAdditionOps for TemporalGraph {
         let mut node = self.storage.get_node_mut(v);
         node.update_time(t);
         for (id, prop) in props {
+            let prop = self.process_prop_value(prop);
             node.add_prop(t, id, prop)?;
         }
         Ok(())
@@ -126,8 +120,9 @@ impl InternalAdditionOps for TemporalGraph {
             edge.additions_mut(layer).insert(t);
             if !props.is_empty() {
                 let edge_layer = edge.layer_mut(layer);
-                for (prop_id, prop_value) in props {
-                    edge_layer.add_prop(t, prop_id, prop_value)?;
+                for (prop_id, prop) in props {
+                    let prop = self.process_prop_value(prop);
+                    edge_layer.add_prop(t, prop_id, prop)?;
                 }
             }
             Ok(())
@@ -145,8 +140,9 @@ impl InternalAdditionOps for TemporalGraph {
             edge.additions_mut(layer).insert(t);
             if !props.is_empty() {
                 let edge_layer = edge.layer_mut(layer);
-                for (prop_id, prop_value) in props {
-                    edge_layer.add_prop(t, prop_id, prop_value)?;
+                for (prop_id, prop) in props {
+                    let prop = self.process_prop_value(prop);
+                    edge_layer.add_prop(t, prop_id, prop)?;
                 }
             }
             Ok(())
@@ -222,13 +218,6 @@ impl InternalAdditionOps for GraphStorage {
                 storage.resolve_edge_property(prop, dtype, is_static)
             }
             _ => Err(GraphError::AttemptToMutateImmutableGraph),
-        }
-    }
-
-    fn process_prop_value(&self, prop: Prop) -> Prop {
-        match self {
-            GraphStorage::Unlocked(storage) => storage.process_prop_value(prop),
-            _ => prop,
         }
     }
 

@@ -1265,6 +1265,47 @@ mod proto_test {
         )
     }
 
+    #[test]
+    fn test_string_interning() {
+        let g = Graph::new();
+        let n = g.add_node(0, 1, [("test", "test")], None).unwrap();
+
+        n.add_updates(1, [("test", "test")]).unwrap();
+        n.add_updates(2, [("test", "test")]).unwrap();
+
+        let values = n
+            .properties()
+            .temporal()
+            .get("test")
+            .unwrap()
+            .values()
+            .into_iter()
+            .map(|v| v.unwrap_str())
+            .collect_vec();
+        assert_eq!(values, ["test", "test", "test"]);
+        for w in values.windows(2) {
+            assert_eq!(w[0].as_ptr(), w[1].as_ptr());
+        }
+
+        let proto = g.encode_to_proto();
+        let g2 = Graph::decode_from_proto(&proto).unwrap();
+        let values = g2
+            .node(1)
+            .unwrap()
+            .properties()
+            .temporal()
+            .get("test")
+            .unwrap()
+            .values()
+            .into_iter()
+            .map(|v| v.unwrap_str())
+            .collect_vec();
+        assert_eq!(values, ["test", "test", "test"]);
+        for w in values.windows(2) {
+            assert_eq!(w[0].as_ptr(), w[1].as_ptr());
+        }
+    }
+
     fn write_props_to_vec(props: &mut Vec<(&str, Prop)>) {
         props.push(("name", Prop::Str("Alice".into())));
         props.push(("age", Prop::U32(47)));

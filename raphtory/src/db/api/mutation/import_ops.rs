@@ -153,9 +153,8 @@ impl<
                 .unwrap();
             let new_prop_id = self.resolve_node_property(&name, dtype, false)?;
             for (h, prop) in prop_view.iter() {
-                let new_prop = self.process_prop_value(prop);
                 let t = time_from_input(self, h)?;
-                self.internal_add_node(t, node_internal, vec![(new_prop_id, new_prop)])?;
+                self.internal_add_node(t, node_internal, vec![(new_prop_id, prop)])?;
             }
         }
         self.node(node.id())
