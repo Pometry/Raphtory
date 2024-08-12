@@ -55,18 +55,17 @@ impl Data {
         }
     }
 
-    pub fn get_graph_names_paths(&self) -> Result<(Vec<String>, Vec<PathBuf>), GraphError> {
-        let mut names = vec![];
+    pub fn get_graph_names_paths(&self) -> Result<(Vec<PathBuf>), GraphError> {
         let mut paths = vec![];
         for path in get_graph_paths(&self.work_dir) {
+            //TODO don't load the graphs here
             let (name, _) = get_graph_from_path(&path)?;
-            names.push(name);
             match get_relative_path(&self.work_dir, &path) {
                 Ok(p) => paths.push(p),
                 Err(_) => return Err(GraphError::InvalidPath(path)), //Possibly just ignore but log?
             }
         }
-        Ok((names, paths))
+        Ok(paths)
     }
 
     // TODO: use this for loading both regular and vectorised graphs
@@ -133,72 +132,6 @@ fn load_disk_graph_from_path(
         println!("Disk Graph loaded = {}", target_path.display());
     }
     Ok(Some(target_path.to_path_buf()))
-}
-
-#[allow(dead_code)]
-#[cfg(not(feature = "storage"))]
-fn load_disk_graph_from_path(
-    _path_on_server: &Path,
-    _target_path: &Path,
-    _overwrite: bool,
-) -> Result<Option<PathBuf>, GraphError> {
-    Ok(None)
-}
-
-//TODO When this function is bought back to life can we:
-//Change namespace to a path to allow renaming on copy
-//We can remove the is_disk_graph_dir  is this is being checked elsewhere
-// The internal load_disk_graph_from_path can also have the Option removed from the result
-#[allow(dead_code)]
-// pub fn load_graph_from_path(
-//     work_dir: &Path,
-//     path_on_server: &Path,
-//     namespace: &Option<String>,
-//     overwrite: bool,
-// ) -> Result<PathBuf,GraphError> {
-//     if !path_on_server.exists() {
-//         return Err(GraphError::InvalidPath(path_on_server.to_path_buf()).into());
-//     }
-//     println!("Loading graph from {}", path_on_server.display());
-//     let target_path = get_target_path(work_dir, path_on_server, namespace)?;
-//     if path_on_server.is_dir() {
-//         if is_disk_graph_dir(&path_on_server) {
-//             load_disk_graph_from_path(&path_on_server, &target_path, overwrite)?
-//                 .ok_or(GraphError::DiskGraphNotFound.into())
-//         } else {
-//             Err(GraphError::InvalidPath(path_on_server.to_path_buf()).into())
-//         }
-//     } else {
-//         let (_, graph) = load_bincode_graph(&path_on_server)?;
-//         if target_path.exists() {
-//             if overwrite {
-//                 fs::remove_file(&target_path)?;
-//                 graph.save_to_file(&target_path)?;
-//                 println!("Graph loaded = {}", target_path.display());
-//             } else {
-//                 return Err(GraphError::GraphNameAlreadyExists(target_path.to_path_buf()).into());
-//             }
-//         } else {
-//             create_dirs_if_not_present(&target_path)?;
-//             graph.save_to_file(&target_path)?;
-//             println!("Graph loaded = {}", target_path.display());
-//         }
-//         Ok(target_path)
-//     }
-// }
-#[allow(dead_code)]
-fn get_target_path(
-    work_dir: &Path,
-    path: &Path,
-    namespace: &Option<String>,
-) -> Result<PathBuf, GraphError> {
-    let graph_name = get_graph_name(path)?;
-    let target_dir = if let Some(namespace) = namespace {
-        construct_graph_full_path(&work_dir, &Path::new(namespace).join(graph_name))?
-    } else {
-        construct_graph_full_path(&work_dir, Path::new(&graph_name))?
-    };
-    Ok(target_dir)
 }
 
 #[cfg(feature = "storage")]
@@ -292,10 +225,10 @@ fn is_disk_graph_dir(path: &Path) -> bool {
 }
 
 pub(crate) fn get_graph_name(path: &Path) -> Result<String, GraphError> {
-    path.file_name()
-        .and_then(|os_str| os_str.to_str())
-        .map(|str_slice| str_slice.to_string())
-        .ok_or(GraphError::InvalidPath(path.to_path_buf()))
+    let stem = path
+        .file_stem().ok_or(GraphError::InvalidPath(path.to_path_buf()))?;
+    stem.to_str().map(|str| str.to_string()).ok_or(GraphError::InvalidPath(path.to_path_buf()))
+
 }
 
 pub(crate) fn load_bincode_graph(path: &Path) -> Result<(String, MaterializedGraph), GraphError> {
@@ -321,7 +254,7 @@ fn _load_disk_graph(_path: &Path) -> Result<(String, MaterializedGraph), GraphEr
 #[cfg(test)]
 pub(crate) mod data_tests {
     use crate::{
-        data::{get_graph_from_path, get_graph_paths, load_graph_from_path},
+        data::{get_graph_from_path, get_graph_paths},
         model::construct_graph_full_path,
     };
     use raphtory::{db::api::view::MaterializedGraph, prelude::*};
@@ -389,25 +322,6 @@ pub(crate) mod data_tests {
         }
     }
 
-    #[allow(dead_code)]
-    fn list_top_level_files_and_dirs(path: &Path) -> io::Result<Vec<String>> {
-        let mut entries_vec = Vec::new();
-        let entries = fs::read_dir(path)?;
-
-        for entry in entries {
-            let entry = entry?;
-            let entry_path = entry.path();
-
-            if let Some(file_name) = entry_path.file_name() {
-                if let Some(file_str) = file_name.to_str() {
-                    entries_vec.push(file_str.to_string());
-                }
-            }
-        }
-
-        Ok(entries_vec)
-    }
-
     // This function creates files that mimic disk graph for tests
     fn create_ipc_files_in_dir(dir_path: &Path) -> io::Result<()> {
         if !dir_path.exists() {
@@ -422,168 +336,6 @@ pub(crate) mod data_tests {
         }
 
         Ok(())
-    }
-
-    #[test]
-    #[cfg(not(feature = "storage"))]
-    fn test_load_graph_from_path() {
-        let tmp_graph_dir = tempfile::tempdir().unwrap();
-        let tmp_work_dir = tempfile::tempdir().unwrap();
-
-        let graph = Graph::new();
-        graph
-            .add_edge(0, 1, 2, [("name", "test_e1")], None)
-            .unwrap();
-        graph
-            .add_edge(0, 1, 3, [("name", "test_e2")], None)
-            .unwrap();
-        let graph_path = tmp_graph_dir.path().join("test_g");
-        graph.save_to_file(&graph_path).unwrap();
-
-        let res = load_graph_from_path(tmp_work_dir.path(), &graph_path, &None, true).unwrap();
-        assert_eq!(res, tmp_work_dir.path().join("test_g"));
-
-        let graph = Graph::load_from_file(tmp_work_dir.path().join("test_g"), false).unwrap();
-        assert_eq!(graph.count_edges(), 2);
-
-        // Test directory path doesn't exist
-        let result = std::panic::catch_unwind(|| {
-            load_graph_from_path(
-                tmp_work_dir.path(),
-                &tmp_graph_dir.path().join("test_dg1"),
-                &None,
-                true,
-            )
-            .unwrap();
-        });
-
-        // Assert that it panicked with the expected message
-        assert!(result.is_err());
-        if let Err(err) = result {
-            let panic_message = err
-                .downcast_ref::<String>()
-                .expect("Expected a String panic message");
-            assert!(
-                panic_message.contains("Invalid path:"),
-                "Unexpected panic message: {}",
-                panic_message
-            );
-            assert!(
-                panic_message.contains("test_dg1"),
-                "Unexpected panic message: {}",
-                panic_message
-            );
-        }
-
-        // Dir path exists but is not a disk graph path
-        let result = std::panic::catch_unwind(|| {
-            load_graph_from_path(tmp_work_dir.path(), &tmp_graph_dir.path(), &None, true).unwrap();
-        });
-
-        // Assert that it panicked with the expected message
-        assert!(result.is_err());
-        if let Err(err) = result {
-            let panic_message = err
-                .downcast_ref::<String>()
-                .expect("Expected a String panic message");
-            assert!(
-                panic_message.contains("Invalid path:"),
-                "Unexpected panic message: {}",
-                panic_message
-            );
-        }
-
-        // Dir path exists and is a disk graph path but storage feature is disabled
-        let graph_path = tmp_graph_dir.path().join("test_dg");
-        create_ipc_files_in_dir(&graph_path).unwrap();
-        let res = load_graph_from_path(tmp_work_dir.path(), &graph_path, &None, true);
-        assert!(res.is_err());
-        if let Err(err) = res {
-            assert!(err.message.contains("Disk graph not found"));
-        }
-    }
-
-    #[test]
-    #[cfg(feature = "storage")]
-    fn test_load_disk_graph_from_path() {
-        let tmp_graph_dir = tempfile::tempdir().unwrap();
-        let tmp_work_dir = tempfile::tempdir().unwrap();
-
-        let graph = Graph::new();
-        graph
-            .add_edge(0, 1, 2, [("name", "test_e1")], None)
-            .unwrap();
-        graph
-            .add_edge(0, 1, 3, [("name", "test_e2")], None)
-            .unwrap();
-
-        let graph_dir = tmp_graph_dir.path().join("test_dg");
-        let _ = DiskGraphStorage::from_graph(&graph, &graph_dir).unwrap();
-
-        let res = load_graph_from_path(tmp_work_dir.path(), &graph_dir, &None, true)
-            .unwrap()
-            .file_name()
-            .unwrap()
-            .to_os_string()
-            .into_string()
-            .expect("File name is not valid UTF-8");
-
-        assert_eq!(res, "test_dg");
-
-        let graph = DiskGraphStorage::load_from_dir(tmp_work_dir.path().join("test_dg"))
-            .unwrap()
-            .into_graph();
-        assert_eq!(graph.count_edges(), 2);
-    }
-
-    #[test]
-    #[cfg(not(feature = "storage"))]
-    fn test_get_graph_from_path() {
-        let tmp_graph_dir = tempfile::tempdir().unwrap();
-
-        let graph = Graph::new();
-        graph
-            .add_edge(0, 1, 2, [("name", "test_e1")], None)
-            .unwrap();
-        graph
-            .add_edge(0, 1, 3, [("name", "test_e2")], None)
-            .unwrap();
-        let graph_path = tmp_graph_dir.path().join("test_g1");
-        graph.save_to_file(&graph_path).unwrap();
-
-        let res = get_graph_from_path(&graph_path).unwrap();
-        assert_eq!(res.0, "test_g1");
-        assert_eq!(res.1.graph.into_events().unwrap().count_edges(), 2);
-
-        let res = get_graph_from_path(&tmp_graph_dir.path().join("test_g2"));
-        assert!(res.is_err());
-        if let Err(err) = res {
-            assert!(err.message.contains("Invalid path"));
-        }
-
-        // Dir path doesn't exists
-        let res = get_graph_from_path(&tmp_graph_dir.path().join("test_dg1"));
-        assert!(res.is_err());
-        if let Err(err) = res {
-            assert!(err.message.contains("Invalid path"));
-        }
-
-        // Dir path exists but is not a disk graph path
-        let tmp_graph_dir = tempfile::tempdir().unwrap();
-        let res = get_graph_from_path(&tmp_graph_dir.path());
-        assert!(res.is_err());
-        if let Err(err) = res {
-            assert!(err.message.contains("Invalid path"));
-        }
-
-        // Dir path exists and is a disk graph path but storage feature is disabled
-        let graph_path = tmp_graph_dir.path().join("test_dg");
-        create_ipc_files_in_dir(&graph_path).unwrap();
-        let res = get_graph_from_path(&graph_path);
-        assert!(res.is_err());
-        if let Err(err) = res {
-            assert!(err.message.contains("Disk graph not found"));
-        }
     }
 
     #[test]
@@ -619,6 +371,24 @@ pub(crate) mod data_tests {
         if let Err(err) = res {
             assert!(err.to_string().contains("Invalid path"));
         }
+    }
+
+    fn list_top_level_files_and_dirs(path: &Path) -> io::Result<Vec<String>> {
+        let mut entries_vec = Vec::new();
+        let entries = fs::read_dir(path)?;
+
+        for entry in entries {
+            let entry = entry?;
+            let entry_path = entry.path();
+
+            if let Some(file_name) = entry_path.file_name() {
+                if let Some(file_str) = file_name.to_str() {
+                    entries_vec.push(file_str.to_string());
+                }
+            }
+        }
+
+        Ok(entries_vec)
     }
 
     #[test]
@@ -759,3 +529,233 @@ pub(crate) mod data_tests {
         );
     }
 }
+
+//TODO When this function is bought back to life can we:
+//Change namespace to a path to allow renaming on copy
+//We can remove the is_disk_graph_dir  is this is being checked elsewhere
+// The internal load_disk_graph_from_path can also have the Option removed from the result
+//#[allow(dead_code)]
+// pub fn load_graph_from_path(
+//     work_dir: &Path,
+//     path_on_server: &Path,
+//     namespace: &Option<String>,
+//     overwrite: bool,
+// ) -> Result<PathBuf,GraphError> {
+//     if !path_on_server.exists() {
+//         return Err(GraphError::InvalidPath(path_on_server.to_path_buf()).into());
+//     }
+//     println!("Loading graph from {}", path_on_server.display());
+//     let target_path = get_target_path(work_dir, path_on_server, namespace)?;
+//     if path_on_server.is_dir() {
+//         if is_disk_graph_dir(&path_on_server) {
+//             load_disk_graph_from_path(&path_on_server, &target_path, overwrite)?
+//                 .ok_or(GraphError::DiskGraphNotFound.into())
+//         } else {
+//             Err(GraphError::InvalidPath(path_on_server.to_path_buf()).into())
+//         }
+//     } else {
+//         let (_, graph) = load_bincode_graph(&path_on_server)?;
+//         if target_path.exists() {
+//             if overwrite {
+//                 fs::remove_file(&target_path)?;
+//                 graph.save_to_file(&target_path)?;
+//                 println!("Graph loaded = {}", target_path.display());
+//             } else {
+//                 return Err(GraphError::GraphNameAlreadyExists(target_path.to_path_buf()).into());
+//             }
+//         } else {
+//             create_dirs_if_not_present(&target_path)?;
+//             graph.save_to_file(&target_path)?;
+//             println!("Graph loaded = {}", target_path.display());
+//         }
+//         Ok(target_path)
+//     }
+// }
+
+//#[allow(dead_code)]
+// fn get_target_path(
+//     work_dir: &Path,
+//     path: &Path,
+//     namespace: &Option<String>,
+// ) -> Result<PathBuf, GraphError> {
+//     let graph_name = get_graph_name(path)?;
+//     let target_dir = if let Some(namespace) = namespace {
+//         construct_graph_full_path(&work_dir, &Path::new(namespace).join(graph_name))?
+//     } else {
+//         construct_graph_full_path(&work_dir, Path::new(&graph_name))?
+//     };
+//     Ok(target_dir)
+// }
+
+// #[allow(dead_code)]
+// #[cfg(not(feature = "storage"))]
+// fn load_disk_graph_from_path(
+//     _path_on_server: &Path,
+//     _target_path: &Path,
+//     _overwrite: bool,
+// ) -> Result<Option<PathBuf>, GraphError> {
+//     Ok(None)
+// }
+
+// #[test]
+// #[cfg(feature = "storage")]
+// fn test_load_disk_graph_from_path() {
+//     let tmp_graph_dir = tempfile::tempdir().unwrap();
+//     let tmp_work_dir = tempfile::tempdir().unwrap();
+//
+//     let graph = Graph::new();
+//     graph
+//         .add_edge(0, 1, 2, [("name", "test_e1")], None)
+//         .unwrap();
+//     graph
+//         .add_edge(0, 1, 3, [("name", "test_e2")], None)
+//         .unwrap();
+//
+//     let graph_dir = tmp_graph_dir.path().join("test_dg");
+//     let _ = DiskGraphStorage::from_graph(&graph, &graph_dir).unwrap();
+//
+//     let res = load_graph_from_path(tmp_work_dir.path(), &graph_dir, &None, true)
+//         .unwrap()
+//         .file_name()
+//         .unwrap()
+//         .to_os_string()
+//         .into_string()
+//         .expect("File name is not valid UTF-8");
+//
+//     assert_eq!(res, "test_dg");
+//
+//     let graph = DiskGraphStorage::load_from_dir(tmp_work_dir.path().join("test_dg"))
+//         .unwrap()
+//         .into_graph();
+//     assert_eq!(graph.count_edges(), 2);
+// }
+
+//#[test]
+//     #[cfg(not(feature = "storage"))]
+//     fn test_load_graph_from_path() {
+//         let tmp_graph_dir = tempfile::tempdir().unwrap();
+//         let tmp_work_dir = tempfile::tempdir().unwrap();
+//
+//         let graph = Graph::new();
+//         graph
+//             .add_edge(0, 1, 2, [("name", "test_e1")], None)
+//             .unwrap();
+//         graph
+//             .add_edge(0, 1, 3, [("name", "test_e2")], None)
+//             .unwrap();
+//         let graph_path = tmp_graph_dir.path().join("test_g");
+//         graph.save_to_file(&graph_path).unwrap();
+//
+//         let res = load_graph_from_path(tmp_work_dir.path(), &graph_path, &None, true).unwrap();
+//         assert_eq!(res, tmp_work_dir.path().join("test_g"));
+//
+//         let graph = Graph::load_from_file(tmp_work_dir.path().join("test_g"), false).unwrap();
+//         assert_eq!(graph.count_edges(), 2);
+//
+//         // Test directory path doesn't exist
+//         let result = std::panic::catch_unwind(|| {
+//             load_graph_from_path(
+//                 tmp_work_dir.path(),
+//                 &tmp_graph_dir.path().join("test_dg1"),
+//                 &None,
+//                 true,
+//             )
+//             .unwrap();
+//         });
+//
+//         // Assert that it panicked with the expected message
+//         assert!(result.is_err());
+//         if let Err(err) = result {
+//             let panic_message = err
+//                 .downcast_ref::<String>()
+//                 .expect("Expected a String panic message");
+//             assert!(
+//                 panic_message.contains("Invalid path:"),
+//                 "Unexpected panic message: {}",
+//                 panic_message
+//             );
+//             assert!(
+//                 panic_message.contains("test_dg1"),
+//                 "Unexpected panic message: {}",
+//                 panic_message
+//             );
+//         }
+//
+//         // Dir path exists but is not a disk graph path
+//         let result = std::panic::catch_unwind(|| {
+//             load_graph_from_path(tmp_work_dir.path(), &tmp_graph_dir.path(), &None, true).unwrap();
+//         });
+//
+//         // Assert that it panicked with the expected message
+//         assert!(result.is_err());
+//         if let Err(err) = result {
+//             let panic_message = err
+//                 .downcast_ref::<String>()
+//                 .expect("Expected a String panic message");
+//             assert!(
+//                 panic_message.contains("Invalid path:"),
+//                 "Unexpected panic message: {}",
+//                 panic_message
+//             );
+//         }
+//
+//         // Dir path exists and is a disk graph path but storage feature is disabled
+//         let graph_path = tmp_graph_dir.path().join("test_dg");
+//         create_ipc_files_in_dir(&graph_path).unwrap();
+//         let res = load_graph_from_path(tmp_work_dir.path(), &graph_path, &None, true);
+//         assert!(res.is_err());
+//         if let Err(err) = res {
+//             assert!(err.message.contains("Disk graph not found"));
+//         }
+//     }
+//
+//
+//     #[test]
+//     #[cfg(not(feature = "storage"))]
+//     fn test_get_graph_from_path() {
+//         let tmp_graph_dir = tempfile::tempdir().unwrap();
+//
+//         let graph = Graph::new();
+//         graph
+//             .add_edge(0, 1, 2, [("name", "test_e1")], None)
+//             .unwrap();
+//         graph
+//             .add_edge(0, 1, 3, [("name", "test_e2")], None)
+//             .unwrap();
+//         let graph_path = tmp_graph_dir.path().join("test_g1");
+//         graph.save_to_file(&graph_path).unwrap();
+//
+//         let res = get_graph_from_path(&graph_path).unwrap();
+//         assert_eq!(res.0, "test_g1");
+//         assert_eq!(res.1.graph.into_events().unwrap().count_edges(), 2);
+//
+//         let res = get_graph_from_path(&tmp_graph_dir.path().join("test_g2"));
+//         assert!(res.is_err());
+//         if let Err(err) = res {
+//             assert!(err.message.contains("Invalid path"));
+//         }
+//
+//         // Dir path doesn't exists
+//         let res = get_graph_from_path(&tmp_graph_dir.path().join("test_dg1"));
+//         assert!(res.is_err());
+//         if let Err(err) = res {
+//             assert!(err.message.contains("Invalid path"));
+//         }
+//
+//         // Dir path exists but is not a disk graph path
+//         let tmp_graph_dir = tempfile::tempdir().unwrap();
+//         let res = get_graph_from_path(&tmp_graph_dir.path());
+//         assert!(res.is_err());
+//         if let Err(err) = res {
+//             assert!(err.message.contains("Invalid path"));
+//         }
+//
+//         // Dir path exists and is a disk graph path but storage feature is disabled
+//         let graph_path = tmp_graph_dir.path().join("test_dg");
+//         create_ipc_files_in_dir(&graph_path).unwrap();
+//         let res = get_graph_from_path(&graph_path);
+//         assert!(res.is_err());
+//         if let Err(err) = res {
+//             assert!(err.message.contains("Disk graph not found"));
+//         }
+//     }

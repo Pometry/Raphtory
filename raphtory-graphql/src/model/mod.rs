@@ -1,5 +1,5 @@
 use crate::{
-    data::{get_graph_name, Data},
+    data::Data,
     model::{
         algorithms::global_plugins::GlobalPlugins,
         graph::{graph::GqlGraph, graphs::GqlGraphs, vectorised_graph::GqlVectorisedGraph},
@@ -72,11 +72,10 @@ impl QueryRoot {
     /// Returns a graph
     async fn graph<'a>(ctx: &Context<'a>, path: String) -> Result<GqlGraph> {
         let path = Path::new(&path);
-        let name = get_graph_name(path)?;
         let data = ctx.data_unchecked::<Data>();
         Ok(data
             .get_graph(path)
-            .map(|g| GqlGraph::new(name, path.to_path_buf(), g))?)
+            .map(|g| GqlGraph::new(path.to_path_buf(), g))?)
     }
 
     async fn vectorised_graph<'a>(ctx: &Context<'a>, path: String) -> Option<GqlVectorisedGraph> {
@@ -92,8 +91,8 @@ impl QueryRoot {
 
     async fn graphs<'a>(ctx: &Context<'a>) -> Result<GqlGraphs> {
         let data = ctx.data_unchecked::<Data>();
-        let (names, paths) = data.get_graph_names_paths()?;
-        Ok(GqlGraphs::new(names, paths))
+        let paths= data.get_graph_names_paths()?;
+        Ok(GqlGraphs::new(paths))
     }
 
     async fn plugins<'a>(ctx: &Context<'a>) -> GlobalPlugins {
