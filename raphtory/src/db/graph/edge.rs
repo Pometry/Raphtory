@@ -227,10 +227,9 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
                 dst: self.dst().name(),
             });
         }
-        let properties: Vec<(usize, Prop)> = props.collect_properties(
-            |name, dtype| self.graph.resolve_edge_property(name, dtype, true),
-            |prop| self.graph.process_prop_value(prop),
-        )?;
+        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
+            self.graph.resolve_edge_property(name, dtype, true)
+        })?;
 
         self.graph.internal_add_constant_edge_properties(
             self.edge.pid(),
@@ -245,10 +244,9 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
         let input_layer_id = self.resolve_layer(layer, false)?;
-        let properties: Vec<(usize, Prop)> = props.collect_properties(
-            |name, dtype| self.graph.resolve_edge_property(name, dtype, true),
-            |prop| self.graph.process_prop_value(prop),
-        )?;
+        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
+            self.graph.resolve_edge_property(name, dtype, true)
+        })?;
 
         self.graph.internal_update_constant_edge_properties(
             self.edge.pid(),
@@ -265,10 +263,9 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
     ) -> Result<(), GraphError> {
         let t = time_from_input(&self.graph, time)?;
         let layer_id = self.resolve_layer(layer, true)?;
-        let properties: Vec<(usize, Prop)> = props.collect_properties(
-            |name, dtype| self.graph.resolve_edge_property(name, dtype, false),
-            |prop| self.graph.process_prop_value(prop),
-        )?;
+        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
+            self.graph.resolve_edge_property(name, dtype, false)
+        })?;
 
         self.graph
             .internal_add_edge_update(t, self.edge.pid(), properties, layer_id)?;
