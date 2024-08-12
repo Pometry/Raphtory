@@ -313,7 +313,8 @@ impl GqlGraph {
             .file_stem()
             .map(|stem| {
                 stem.to_str()
-                    .map(|str| str.to_string()).unwrap_or(self.path.display().to_string())
+                    .map(|str| str.to_string())
+                    .unwrap_or(self.path.display().to_string())
             })
             .unwrap_or(self.path.display().to_string())
     }

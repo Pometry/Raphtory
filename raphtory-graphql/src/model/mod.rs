@@ -91,7 +91,7 @@ impl QueryRoot {
 
     async fn graphs<'a>(ctx: &Context<'a>) -> Result<GqlGraphs> {
         let data = ctx.data_unchecked::<Data>();
-        let paths= data.get_graph_names_paths()?;
+        let paths = data.get_graph_names_paths()?;
         Ok(GqlGraphs::new(paths))
     }
 

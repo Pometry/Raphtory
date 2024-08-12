@@ -1,8 +1,8 @@
+use crate::data::get_graph_name;
 use async_graphql::parser::Error;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use std::path::PathBuf;
-use crate::data::get_graph_name;
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlGraphs {
@@ -17,8 +17,11 @@ impl GqlGraphs {
 
 #[ResolvedObjectFields]
 impl GqlGraphs {
-    async fn name(&self) -> Vec<String>{
-        self.paths.iter().filter_map(|path| get_graph_name(path).ok()).collect()
+    async fn name(&self) -> Vec<String> {
+        self.paths
+            .iter()
+            .filter_map(|path| get_graph_name(path).ok())
+            .collect()
     }
 
     async fn path(&self) -> Result<Vec<String>, Error> {
