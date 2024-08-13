@@ -27,7 +27,7 @@ use std::{
     fmt::{Display, Formatter},
     fs,
     io::Read,
-    path::{Path, PathBuf},
+    path::Path,
 };
 
 pub mod algorithms;
@@ -121,7 +121,7 @@ impl Mut {
         let path = Path::new(&path);
         let data = ctx.data_unchecked::<Data>();
 
-        let full_path = construct_graph_full_path(&data.work_dir, path)?;
+        let full_path = data.construct_graph_full_path(path)?;
         if !full_path.exists() {
             return Err(GraphError::GraphNotFound(path.to_path_buf()).into());
         }
@@ -138,11 +138,11 @@ impl Mut {
         let new_path = Path::new(&new_path);
         let data = ctx.data_unchecked::<Data>();
 
-        let full_path = construct_graph_full_path(&data.work_dir, path)?;
+        let full_path = data.construct_graph_full_path(path)?;
         if !full_path.exists() {
             return Err(GraphError::GraphNotFound(path.to_path_buf()).into());
         }
-        let new_full_path = construct_graph_full_path(&data.work_dir, new_path)?;
+        let new_full_path = data.construct_graph_full_path(new_path)?;
         if new_full_path.exists() {
             return Err(GraphError::GraphNameAlreadyExists(new_path.to_path_buf()).into());
         }
@@ -176,11 +176,11 @@ impl Mut {
         let new_path = Path::new(&new_path);
         let data = ctx.data_unchecked::<Data>();
 
-        let full_path = construct_graph_full_path(&data.work_dir, path)?;
+        let full_path = data.construct_graph_full_path(path)?;
         if !full_path.exists() {
             return Err(GraphError::GraphNotFound(path.to_path_buf()).into());
         }
-        let new_full_path = construct_graph_full_path(&data.work_dir, new_path)?;
+        let new_full_path = data.construct_graph_full_path(new_path)?;
         if new_full_path.exists() {
             return Err(GraphError::GraphNameAlreadyExists(new_path.to_path_buf()).into());
         }
@@ -217,7 +217,7 @@ impl Mut {
 
         graph.update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
 
-        let full_path = construct_graph_full_path(&data.work_dir, path)?;
+        let full_path = data.construct_graph_full_path(path)?;
         graph.save_to_file(full_path)?;
         data.graphs.insert(path.to_path_buf(), graph);
 
@@ -236,11 +236,11 @@ impl Mut {
         let new_graph_path = Path::new(&new_graph_path);
         let data = ctx.data_unchecked::<Data>();
 
-        let parent_graph_full_path = construct_graph_full_path(&data.work_dir, parent_graph_path)?;
+        let parent_graph_full_path = data.construct_graph_full_path(parent_graph_path)?;
         if !parent_graph_full_path.exists() {
             return Err(GraphError::GraphNotFound(parent_graph_path.to_path_buf()).into());
         }
-        let new_graph_full_path = construct_graph_full_path(&data.work_dir, new_graph_path)?;
+        let new_graph_full_path = data.construct_graph_full_path(new_graph_path)?;
         if new_graph_full_path.exists() {
             return Err(GraphError::GraphNameAlreadyExists(new_graph_path.to_path_buf()).into());
         }
@@ -283,18 +283,18 @@ impl Mut {
         let new_graph_path = Path::new(&new_graph_path);
         let data = ctx.data_unchecked::<Data>();
 
-        let parent_graph_full_path = construct_graph_full_path(&data.work_dir, parent_graph_path)?;
+        let parent_graph_full_path = data.construct_graph_full_path(parent_graph_path)?;
         if !parent_graph_full_path.exists() {
             return Err(GraphError::GraphNotFound(parent_graph_path.to_path_buf()).into());
         }
 
         // Saving an existing graph
-        let graph_full_path = construct_graph_full_path(&data.work_dir, graph_path)?;
+        let graph_full_path = data.construct_graph_full_path(graph_path)?;
         if !graph_full_path.exists() {
             return Err(GraphError::GraphNotFound(graph_path.to_path_buf()).into());
         }
 
-        let new_graph_full_path = construct_graph_full_path(&data.work_dir, new_graph_path)?;
+        let new_graph_full_path = data.construct_graph_full_path(new_graph_path)?;
         if graph_path != new_graph_path {
             // Save as
             if new_graph_full_path.exists() {
@@ -393,7 +393,7 @@ impl Mut {
         let path = Path::new(&path);
         let data = ctx.data_unchecked::<Data>();
 
-        let full_path = construct_graph_full_path(&data.work_dir, path)?;
+        let full_path = data.construct_graph_full_path(path)?;
         if full_path.exists() && !overwrite {
             return Err(GraphError::GraphNameAlreadyExists(path.to_path_buf()).into());
         }
@@ -420,7 +420,7 @@ impl Mut {
     ) -> Result<String> {
         let path = Path::new(&path);
         let data = ctx.data_unchecked::<Data>();
-        let full_path = construct_graph_full_path(&data.work_dir, path)?;
+        let full_path = data.construct_graph_full_path(path)?;
         if full_path.exists() && !overwrite {
             return Err(GraphError::GraphNameAlreadyExists(path.to_path_buf()).into());
         }
@@ -442,33 +442,13 @@ impl Mut {
 
         graph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
 
-        let full_path = construct_graph_full_path(&data.work_dir, path)?;
+        let full_path = data.construct_graph_full_path(path)?;
         graph.save_to_file(full_path)?;
 
         data.graphs.insert(path.to_path_buf(), graph);
 
         Ok(true)
     }
-}
-
-pub(crate) fn construct_graph_full_path(
-    work_dir: &Path,
-    path: &Path,
-) -> Result<PathBuf, GraphError> {
-    let mut full_path = work_dir.to_path_buf();
-    let path_str = path
-        .to_str()
-        .ok_or(GraphError::InvalidPath(path.to_path_buf()))?;
-    if path_str.contains("//") || (path_str.contains('/') && path_str.contains('\\')) {
-        return Err(GraphError::InvalidPath(path.to_path_buf()));
-    }
-    for comp in path.components() {
-        if matches!(comp, std::path::Component::ParentDir) {
-            return Err(GraphError::InvalidPath(path.to_path_buf()));
-        }
-    }
-    full_path = full_path.join(path);
-    Ok(full_path)
 }
 
 pub(crate) fn create_dirs_if_not_present(path: &Path) -> Result<(), GraphError> {

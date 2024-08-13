@@ -18,10 +18,7 @@ impl GqlGraphs {
 #[ResolvedObjectFields]
 impl GqlGraphs {
     async fn name(&self) -> Vec<String> {
-        self.paths
-            .iter()
-            .filter_map(|path| get_graph_name(path).ok())
-            .collect()
+        self.paths.iter().map(|path| get_graph_name(path)).collect()
     }
 
     async fn path(&self) -> Result<Vec<String>, Error> {

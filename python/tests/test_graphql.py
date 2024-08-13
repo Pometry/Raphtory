@@ -216,13 +216,13 @@ def test_namespaces():
         assert os.path.exists(expected_path)
         assert_graph_fetch(path)
 
-        path = "./shivam/investigation/g"
+        path = "shivam/investigation/g"
         client.send_graph(path=path, graph=g, overwrite=True)
         expected_path = os.path.join(tmp_work_dir, path)
         assert os.path.exists(expected_path)
         assert_graph_fetch(path)
 
-        path = "./shivam/investigation/2024/12/12/g"
+        path = "shivam/investigation/2024/12/12/g"
         client.send_graph(path=path, graph=g, overwrite=True)
         expected_path = os.path.join(tmp_work_dir, path)
         assert os.path.exists(expected_path)
@@ -239,7 +239,7 @@ def test_namespaces():
             client.send_graph(path=path, graph=g, overwrite=True)
         assert "Invalid path" in str(excinfo.value)
 
-        path = "./shivam/../investigation/g"
+        path = "shivam/../../../../investigation/g"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
         assert "Invalid path" in str(excinfo.value)
@@ -255,6 +255,18 @@ def test_namespaces():
         assert "Invalid path" in str(excinfo.value)
 
         path = "shivam/investigation\\2024-12-12"
+        with pytest.raises(Exception) as excinfo:
+            client.send_graph(path=path, graph=g, overwrite=True)
+        assert "Invalid path" in str(excinfo.value)
+
+        #Test if we can escape through a symlink
+        tmp_dir2 = tempfile.mkdtemp()
+        nested_dir = os.path.join(tmp_work_dir, "shivam", "graphs")
+        os.makedirs(nested_dir)
+        symlink_path = os.path.join(nested_dir, "not_a_symlink_i_promise")
+        os.symlink(tmp_dir2, symlink_path)
+
+        path = "shivam/graphs/not_a_symlink_i_promise/escaped"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
         assert "Invalid path" in str(excinfo.value)

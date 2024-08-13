@@ -1,7 +1,12 @@
-use crate::model::{
-    algorithms::graph_algorithms::GraphAlgorithms,
-    graph::{edge::Edge, edges::GqlEdges, node::Node, nodes::GqlNodes, property::GqlProperties},
-    schema::graph_schema::GraphSchema,
+use crate::{
+    data::get_graph_name,
+    model::{
+        algorithms::graph_algorithms::GraphAlgorithms,
+        graph::{
+            edge::Edge, edges::GqlEdges, node::Node, nodes::GqlNodes, property::GqlProperties,
+        },
+        schema::graph_schema::GraphSchema,
+    },
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
@@ -309,14 +314,7 @@ impl GqlGraph {
     ////////////////////////
 
     async fn name(&self) -> String {
-        self.path
-            .file_stem()
-            .map(|stem| {
-                stem.to_str()
-                    .map(|str| str.to_string())
-                    .unwrap_or(self.path.display().to_string())
-            })
-            .unwrap_or(self.path.display().to_string())
+        get_graph_name(&self.path)
     }
 
     async fn path(&self) -> String {
