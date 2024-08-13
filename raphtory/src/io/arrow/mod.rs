@@ -5,7 +5,7 @@ mod prop_handler;
 #[cfg(test)]
 mod test {
     use crate::{
-        io::arrow::{dataframe::DFView, df_loaders::*},
+        io::arrow::{dataframe::DFChunk, df_loaders::*},
         prelude::*,
     };
     use polars_arrow::array::{PrimitiveArray, Utf8Array};
@@ -13,7 +13,7 @@ mod test {
 
     #[test]
     fn load_edges_from_pretend_df() {
-        let df = DFView {
+        let df = DFChunk {
             names: vec!["src", "dst", "time", "prop1", "prop2"]
                 .iter()
                 .map(|s| s.to_string())
@@ -103,7 +103,7 @@ mod test {
 
     #[test]
     fn load_nodes_from_pretend_df() {
-        let df = DFView {
+        let df = DFChunk {
             names: vec!["id", "name", "time", "node_type"]
                 .iter()
                 .map(|s| s.to_string())
