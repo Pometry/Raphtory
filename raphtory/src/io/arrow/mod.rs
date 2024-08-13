@@ -5,12 +5,14 @@ mod prop_handler;
 #[cfg(test)]
 mod test {
     use crate::{
-        io::arrow::{dataframe::DFChunk, df_loaders::*},
+        io::arrow::{
+            dataframe::{DFChunk, DFView},
+            df_loaders::*,
+        },
         prelude::*,
     };
     use polars_arrow::array::{PrimitiveArray, Utf8Array};
     use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
-    use crate::io::arrow::dataframe::DFView;
 
     #[test]
     fn load_edges_from_pretend_df() {
@@ -27,7 +29,7 @@ mod test {
                         Box::new(PrimitiveArray::<i64>::from(vec![Some(1)])),
                         Box::new(PrimitiveArray::<f64>::from(vec![Some(1.0)])),
                         Box::new(Utf8Array::<i32>::from(vec![Some("a")])),
-                    ]
+                    ],
                 }),
                 Ok(DFChunk {
                     chunk: vec![
@@ -38,7 +40,8 @@ mod test {
                         Box::new(Utf8Array::<i32>::from(vec![Some("b"), Some("c")])),
                     ],
                 }),
-            ].into_iter(),
+            ]
+            .into_iter(),
         };
         let graph = Graph::new();
         let layer: Option<&str> = None;
@@ -56,7 +59,7 @@ mod test {
             layer_in_df,
             &graph,
         )
-            .expect("failed to load edges from pretend df");
+        .expect("failed to load edges from pretend df");
 
         let actual = graph
             .edges()
@@ -120,7 +123,7 @@ mod test {
                         Box::new(Utf8Array::<i32>::from(vec![Some("a")])),
                         Box::new(PrimitiveArray::<i64>::from(vec![Some(1)])),
                         Box::new(Utf8Array::<i32>::from(vec![Some("atype")])),
-                    ]
+                    ],
                 }),
                 Ok(DFChunk {
                     chunk: vec![
@@ -130,7 +133,8 @@ mod test {
                         Box::new(Utf8Array::<i32>::from(vec![Some("btype")])),
                     ],
                 }),
-            ].into_iter(),
+            ]
+            .into_iter(),
         };
         let graph = Graph::new();
 
@@ -145,7 +149,7 @@ mod test {
             false,
             &graph,
         )
-            .expect("failed to load nodes from pretend df");
+        .expect("failed to load nodes from pretend df");
 
         let actual = graph
             .nodes()

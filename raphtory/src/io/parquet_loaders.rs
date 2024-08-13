@@ -8,9 +8,7 @@ use crate::{
     prelude::DeletionOps,
 };
 use itertools::Itertools;
-use polars_arrow::{
-    datatypes::{ArrowDataType as DataType, ArrowSchema, Field},
-};
+use polars_arrow::datatypes::{ArrowDataType as DataType, ArrowSchema, Field};
 use polars_parquet::{
     read,
     read::{read_metadata, FileMetaData, FileReader},
@@ -18,9 +16,9 @@ use polars_parquet::{
 use std::{
     collections::HashMap,
     fs,
+    fs::File,
     path::{Path, PathBuf},
 };
-use std::fs::File;
 
 pub fn load_nodes_from_parquet<
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
@@ -58,7 +56,7 @@ pub fn load_nodes_from_parquet<
             node_type_in_df.unwrap_or(true),
             graph,
         )
-            .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
     }
 
     Ok(())
@@ -105,7 +103,7 @@ pub fn load_edges_from_parquet<
             layer_in_df.unwrap_or(true),
             graph,
         )
-            .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
     }
 
     Ok(())
@@ -136,7 +134,7 @@ pub fn load_node_props_from_parquet<
             shared_const_properties,
             graph,
         )
-            .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
     }
 
     Ok(())
@@ -177,7 +175,7 @@ pub fn load_edge_props_from_parquet<
             layer_in_df.unwrap_or(true),
             graph.core_graph(),
         )
-            .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
     }
 
     Ok(())
@@ -214,7 +212,7 @@ pub fn load_edges_deletions_from_parquet<
             layer_in_df.unwrap_or(true),
             graph,
         )
-            .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
     }
     Ok(())
 }
@@ -222,7 +220,7 @@ pub fn load_edges_deletions_from_parquet<
 pub(crate) fn process_parquet_file_to_df(
     parquet_file_path: &Path,
     col_names: &[&str],
-) -> Result<DFView<impl Iterator<Item=Result<DFChunk, GraphError>>>, GraphError> {
+) -> Result<DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>, GraphError> {
     let (names, chunks) = read_parquet_file(parquet_file_path, col_names)?;
 
     let names: Vec<String> = names
@@ -235,25 +233,18 @@ pub(crate) fn process_parquet_file_to_df(
             .map(|r| DFChunk {
                 chunk: r.into_iter().map(|boxed| boxed.clone()).collect_vec(),
             })
-            .map_err(|e| GraphError::LoadFailure(format!("Failed to process Parquet file: {:?}", e)))
+            .map_err(|e| {
+                GraphError::LoadFailure(format!("Failed to process Parquet file: {:?}", e))
+            })
     });
 
-    Ok(DFView {
-        names,
-        chunks,
-    })
+    Ok(DFView { names, chunks })
 }
 
 fn read_parquet_file(
     path: impl AsRef<Path>,
     col_names: &[&str],
-) -> Result<
-    (
-        Vec<String>,
-        FileReader<File>,
-    ),
-    GraphError,
-> {
+) -> Result<(Vec<String>, FileReader<File>), GraphError> {
     let read_schema = |metadata: &FileMetaData| -> Result<ArrowSchema, GraphError> {
         let schema = read::infer_schema(metadata)?;
         let fields = schema
@@ -341,9 +332,8 @@ mod test {
         let chunks: Vec<Result<DFChunk, GraphError>> = df.chunks.collect_vec();
         let chunks: Result<Vec<DFChunk>, GraphError> = chunks.into_iter().collect();
         let chunks: Vec<DFChunk> = chunks.unwrap();
-        let actual_chunks: Vec<Vec<Box<dyn Array>>> = chunks.into_iter().map(|c: DFChunk| {
-            c.chunk
-        }).collect_vec();
+        let actual_chunks: Vec<Vec<Box<dyn Array>>> =
+            chunks.into_iter().map(|c: DFChunk| c.chunk).collect_vec();
 
         assert_eq!(actual_names, expected_names);
         assert_eq!(actual_chunks, expected_chunks);

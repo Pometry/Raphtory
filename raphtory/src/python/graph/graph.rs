@@ -661,7 +661,7 @@ impl PyGraph {
             node_type_in_df,
             properties.as_ref().map(|props| props.as_ref()),
             const_properties.as_ref().map(|props| props.as_ref()),
-            shared_const_properties.as_ref()
+            shared_const_properties.as_ref(),
         )
     }
 
@@ -701,7 +701,7 @@ impl PyGraph {
             node_type_in_df,
             properties.as_ref().map(|props| props.as_ref()),
             const_properties.as_ref().map(|props| props.as_ref()),
-            shared_const_properties.as_ref()
+            shared_const_properties.as_ref(),
         )
     }
 
@@ -816,7 +816,7 @@ impl PyGraph {
             df,
             id,
             const_properties.as_ref().map(|props| props.as_ref()),
-            shared_const_properties.as_ref()
+            shared_const_properties.as_ref(),
         )
     }
 

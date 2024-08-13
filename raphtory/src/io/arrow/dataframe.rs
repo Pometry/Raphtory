@@ -17,7 +17,7 @@ pub(crate) struct DFView<I> {
 
 impl<I, E> DFView<I>
 where
-    I: Iterator<Item=Result<DFChunk, E>>,
+    I: Iterator<Item = Result<DFChunk, E>>,
 {
     pub(crate) fn new(names: Vec<String>, chunks: I) -> Self {
         Self { names, chunks }
@@ -36,7 +36,9 @@ where
     }
 
     pub(crate) fn get_index(&self, name: &str) -> Result<usize, GraphError> {
-        self.names.iter().position(|n| n == name)
+        self.names
+            .iter()
+            .position(|n| n == name)
             .ok_or_else(|| GraphError::ColumnDoesNotExist(name.to_string()))
     }
 }
@@ -54,23 +56,21 @@ impl DFChunk {
     pub(crate) fn iter_col<T: NativeType>(
         &self,
         idx: usize,
-    ) -> Option<impl Iterator<Item=Option<&T>> + '_> {
+    ) -> Option<impl Iterator<Item = Option<&T>> + '_> {
         let col_arr = (&self.chunk)[idx]
             .as_any()
             .downcast_ref::<PrimitiveArray<T>>()?;
         Some(col_arr.iter())
     }
 
-    pub fn utf8<O: Offset>(&self, idx: usize) -> Option<impl Iterator<Item=Option<&str>> + '_> {
+    pub fn utf8<O: Offset>(&self, idx: usize) -> Option<impl Iterator<Item = Option<&str>> + '_> {
         // test that it's actually a utf8 array
-        let col_arr = (&self.chunk)[idx]
-            .as_any()
-            .downcast_ref::<Utf8Array<O>>()?;
+        let col_arr = (&self.chunk)[idx].as_any().downcast_ref::<Utf8Array<O>>()?;
 
         Some(col_arr.iter())
     }
 
-    pub fn time_iter_col(&self, idx: usize) -> Option<impl Iterator<Item=Option<i64>> + '_> {
+    pub fn time_iter_col(&self, idx: usize) -> Option<impl Iterator<Item = Option<i64>> + '_> {
         let col_arr = (&self.chunk)[idx]
             .as_any()
             .downcast_ref::<PrimitiveArray<i64>>()?;
@@ -81,8 +81,12 @@ impl DFChunk {
                 &DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".to_string())),
                 CastOptions::default(),
             )
-                .unwrap();
-            array.as_any().downcast_ref::<PrimitiveArray<i64>>().unwrap().clone()
+            .unwrap();
+            array
+                .as_any()
+                .downcast_ref::<PrimitiveArray<i64>>()
+                .unwrap()
+                .clone()
         } else {
             col_arr.clone()
         };

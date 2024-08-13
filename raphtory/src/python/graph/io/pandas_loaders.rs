@@ -42,10 +42,10 @@ pub fn load_nodes_from_pandas(
             node_type_in_df.unwrap_or(true),
             graph,
         )
-            .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
+        .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
         Ok::<(), PyErr>(())
     })
-        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+    .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
     Ok(())
 }
 
@@ -94,10 +94,10 @@ pub fn load_edges_from_pandas(
             layer_in_df.unwrap_or(true),
             graph,
         )
-            .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
+        .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
         Ok::<(), PyErr>(())
     })
-        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+    .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
     Ok(())
 }
 
@@ -128,10 +128,10 @@ pub fn load_node_props_from_pandas(
             shared_const_properties,
             graph,
         )
-            .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
+        .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
         Ok::<(), PyErr>(())
     })
-        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+    .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
     Ok(())
 }
 
@@ -173,10 +173,10 @@ pub fn load_edge_props_from_pandas(
             layer_in_df.unwrap_or(true),
             graph,
         )
-            .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
+        .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
         Ok::<(), PyErr>(())
     })
-        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+    .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
     Ok(())
 }
 
@@ -217,10 +217,10 @@ pub fn load_edges_deletions_from_pandas(
             layer_in_df.unwrap_or(true),
             graph.core_graph(),
         )
-            .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
+        .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
         Ok::<(), PyErr>(())
     })
-        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+    .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
     Ok(())
 }
 
@@ -228,7 +228,7 @@ pub(crate) fn process_pandas_py_df<'a>(
     df: &'a PyAny,
     py: Python<'a>,
     col_names: Vec<&str>,
-) -> PyResult<DFView<impl Iterator<Item=Result<DFChunk, GraphError>> + 'a>> {
+) -> PyResult<DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + 'a>> {
     is_jupyter(py);
     py.import("pandas")?;
     let module = py.import("pyarrow")?;
@@ -259,18 +259,18 @@ pub(crate) fn process_pandas_py_df<'a>(
     } else {
         vec![]
     }
-        .into_iter()
-        .filter(|x| col_names.contains(&x.as_str()))
-        .collect();
+    .into_iter()
+    .filter(|x| col_names.contains(&x.as_str()))
+    .collect();
 
     let names_len = names.len();
     let chunks = rb.into_iter().map(move |rb| {
         let chunk = (0..names_len)
             .map(|i| {
-                let array = rb.call_method1("column", (i,))
+                let array = rb
+                    .call_method1("column", (i,))
                     .map_err(|e| GraphError::from(e))?;
-                let arr = array_to_rust(array)
-                    .map_err(|e| GraphError::from(e))?;
+                let arr = array_to_rust(array).map_err(|e| GraphError::from(e))?;
                 Ok::<Box<dyn Array>, GraphError>(arr)
             })
             .collect::<Result<Vec<_>, GraphError>>()?;
@@ -278,10 +278,7 @@ pub(crate) fn process_pandas_py_df<'a>(
         Ok(DFChunk { chunk })
     });
 
-    Ok(DFView {
-        names,
-        chunks,
-    })
+    Ok(DFView { names, chunks })
 }
 
 pub fn array_to_rust(obj: &PyAny) -> PyResult<ArrayRef> {

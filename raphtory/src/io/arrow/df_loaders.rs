@@ -4,13 +4,15 @@ use crate::{
         mutation::{internal::*, AdditionOps},
         view::StaticGraphViewOps,
     },
-    io::arrow::{dataframe::DFChunk, prop_handler::*},
+    io::arrow::{
+        dataframe::{DFChunk, DFView},
+        prop_handler::*,
+    },
     prelude::*,
 };
 #[cfg(feature = "python")]
 use kdam::tqdm;
 use std::{collections::HashMap, iter};
-use crate::io::arrow::dataframe::DFView;
 
 #[cfg(feature = "python")]
 macro_rules! maybe_tqdm {
@@ -36,7 +38,7 @@ pub(crate) fn load_nodes_from_df<
     'a,
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
 >(
-    df_view: DFView<impl Iterator<Item=Result<DFChunk, GraphError>>>,
+    df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     node_id: &str,
     time: &str,
     properties: Option<&[&str]>,
@@ -49,10 +51,19 @@ pub(crate) fn load_nodes_from_df<
     let properties = properties.unwrap_or(&[]);
     let const_properties = const_properties.unwrap_or(&[]);
 
-    let properties_indices = properties.iter().map(|name| df_view.get_index(name)).collect::<Result<Vec<_>, GraphError>>()?;
-    let const_properties_indices = const_properties.iter().map(|name| df_view.get_index(name)).collect::<Result<Vec<_>, GraphError>>()?;
+    let properties_indices = properties
+        .iter()
+        .map(|name| df_view.get_index(name))
+        .collect::<Result<Vec<_>, GraphError>>()?;
+    let const_properties_indices = const_properties
+        .iter()
+        .map(|name| df_view.get_index(name))
+        .collect::<Result<Vec<_>, GraphError>>()?;
 
-    let node_type_index = node_type.filter(|_| node_type_in_df).map(|node_type| df_view.get_index(node_type)).transpose()?;
+    let node_type_index = node_type
+        .filter(|_| node_type_in_df)
+        .map(|node_type| df_view.get_index(node_type))
+        .transpose()?;
     let node_id_index = df_view.get_index(node_id)?;
     let time_index = df_view.get_index(time)?;
 
@@ -62,29 +73,31 @@ pub(crate) fn load_nodes_from_df<
         let prop_iter = combine_properties(properties, &properties_indices, &df)?;
         let const_prop_iter = combine_properties(const_properties, &const_properties_indices, &df)?;
 
-        let node_type: Box<dyn Iterator<Item=Option<&str>>> = match node_type {
-            Some(node_type) => {
-                match node_type_index {
-                    Some(index) => {
-                        let iter_res: Result<Box<dyn Iterator<Item=Option<&str>>>, GraphError> =
-                            if let Some(node_types) = df.utf8::<i32>(index) {
-                                Ok(Box::new(node_types))
-                            } else if let Some(node_types) = df.utf8::<i64>(index) {
-                                Ok(Box::new(node_types))
-                            } else {
-                                Err(GraphError::LoadFailure(
-                                    "Unable to convert / find node_type column in dataframe.".to_string(),
-                                ))
-                            };
-                        iter_res?
-                    }
-                    None => Box::new(iter::repeat(Some(node_type)))
+        let node_type: Box<dyn Iterator<Item = Option<&str>>> = match node_type {
+            Some(node_type) => match node_type_index {
+                Some(index) => {
+                    let iter_res: Result<Box<dyn Iterator<Item = Option<&str>>>, GraphError> =
+                        if let Some(node_types) = df.utf8::<i32>(index) {
+                            Ok(Box::new(node_types))
+                        } else if let Some(node_types) = df.utf8::<i64>(index) {
+                            Ok(Box::new(node_types))
+                        } else {
+                            Err(GraphError::LoadFailure(
+                                "Unable to convert / find node_type column in dataframe."
+                                    .to_string(),
+                            ))
+                        };
+                    iter_res?
                 }
-            }
+                None => Box::new(iter::repeat(Some(node_type))),
+            },
             None => Box::new(iter::repeat(None)),
         };
 
-        if let (Some(node_id), Some(time)) = (df.iter_col::<u64>(node_id_index), df.time_iter_col(time_index)) {
+        if let (Some(node_id), Some(time)) = (
+            df.iter_col::<u64>(node_id_index),
+            df.time_iter_col(time_index),
+        ) {
             let iter = node_id
                 .map(|i| i.copied())
                 .zip(time)
@@ -98,9 +111,10 @@ pub(crate) fn load_nodes_from_df<
                 const_prop_iter,
                 shared_const_properties,
             )?;
-        } else if let (Some(node_id), Some(time)) =
-            (df.iter_col::<i64>(node_id_index), df.time_iter_col(time_index))
-        {
+        } else if let (Some(node_id), Some(time)) = (
+            df.iter_col::<i64>(node_id_index),
+            df.time_iter_col(time_index),
+        ) {
             let iter = node_id.map(i64_opt_into_u64_opt).zip(time);
             let iter = iter
                 .zip(node_type)
@@ -114,17 +128,19 @@ pub(crate) fn load_nodes_from_df<
                 const_prop_iter,
                 shared_const_properties,
             )?;
-        } else if let (Some(node_id), Some(time)) = (df.utf8::<i32>(node_id_index), df.time_iter_col(time_index)) {
+        } else if let (Some(node_id), Some(time)) =
+            (df.utf8::<i32>(node_id_index), df.time_iter_col(time_index))
+        {
             let iter = node_id.into_iter().zip(time);
             let iter = iter
                 .zip(node_type)
                 .map(|((node_id, time), n_t)| (node_id, time, n_t));
 
             let iter = maybe_tqdm!(
-            iter.zip(prop_iter).zip(const_prop_iter),
-            size,
-            "Loading nodes"
-        );
+                iter.zip(prop_iter).zip(const_prop_iter),
+                size,
+                "Loading nodes"
+            );
 
             for (((node_id, time, n_t), props), const_props) in iter {
                 if let (Some(node_id), Some(time), n_t) = (node_id, time, n_t) {
@@ -136,17 +152,19 @@ pub(crate) fn load_nodes_from_df<
                     }
                 }
             }
-        } else if let (Some(node_id), Some(time)) = (df.utf8::<i64>(node_id_index), df.time_iter_col(time_index)) {
+        } else if let (Some(node_id), Some(time)) =
+            (df.utf8::<i64>(node_id_index), df.time_iter_col(time_index))
+        {
             let iter = node_id.into_iter().zip(time);
             let iter = iter
                 .zip(node_type)
                 .map(|((node_id, time), n_t)| (node_id, time, n_t));
 
             let iter = maybe_tqdm!(
-            iter.zip(prop_iter).zip(const_prop_iter),
-            size,
-            "Loading nodes"
-        );
+                iter.zip(prop_iter).zip(const_prop_iter),
+                size,
+                "Loading nodes"
+            );
 
             for (((node_id, time, n_t), props), const_props) in iter {
                 let actual_type = extract_out_default_type(n_t);
@@ -180,7 +198,7 @@ pub(crate) fn load_edges_from_df<
     'a,
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
 >(
-    df_view: DFView<impl Iterator<Item=Result<DFChunk, GraphError>>>,
+    df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     size: usize,
     src: &str,
     dst: &str,
@@ -195,13 +213,22 @@ pub(crate) fn load_edges_from_df<
     let properties = properties.unwrap_or(&[]);
     let const_properties = const_properties.unwrap_or(&[]);
 
-    let properties_indices = properties.iter().map(|name| df_view.get_index(name)).collect::<Result<Vec<_>, GraphError>>()?;
-    let const_properties_indices = const_properties.iter().map(|name| df_view.get_index(name)).collect::<Result<Vec<_>, GraphError>>()?;
+    let properties_indices = properties
+        .iter()
+        .map(|name| df_view.get_index(name))
+        .collect::<Result<Vec<_>, GraphError>>()?;
+    let const_properties_indices = const_properties
+        .iter()
+        .map(|name| df_view.get_index(name))
+        .collect::<Result<Vec<_>, GraphError>>()?;
 
     let src_index = df_view.get_index(src)?;
     let dst_index = df_view.get_index(dst)?;
     let time_index = df_view.get_index(time)?;
-    let layer_index = layer.filter(|_| layer_in_df).map(|layer| df_view.get_index(layer.as_ref())).transpose()?;
+    let layer_index = layer
+        .filter(|_| layer_in_df)
+        .map(|layer| df_view.get_index(layer.as_ref()))
+        .transpose()?;
 
     for chunk in df_view.chunks {
         let df = chunk?;
@@ -254,10 +281,10 @@ pub(crate) fn load_edges_from_df<
             let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
 
             let iter = maybe_tqdm!(
-            triplets.zip(prop_iter).zip(const_prop_iter).zip(layer),
-            size,
-            "Loading edges"
-        );
+                triplets.zip(prop_iter).zip(const_prop_iter).zip(layer),
+                size,
+                "Loading edges"
+            );
 
             for (((((src, dst), time), props), const_props), layer) in iter {
                 if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
@@ -275,10 +302,10 @@ pub(crate) fn load_edges_from_df<
         ) {
             let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
             let iter = maybe_tqdm!(
-            triplets.zip(prop_iter).zip(const_prop_iter).zip(layer),
-            size,
-            "Loading edges"
-        );
+                triplets.zip(prop_iter).zip(const_prop_iter).zip(layer),
+                size,
+                "Loading edges"
+            );
 
             for (((((src, dst), time), props), const_props), layer) in iter {
                 if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
@@ -303,7 +330,7 @@ pub(crate) fn load_edges_deletions_from_df<
     'a,
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + DeletionOps,
 >(
-    df_view: DFView<impl Iterator<Item=Result<DFChunk, GraphError>>>,
+    df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     size: usize,
     src: &str,
     dst: &str,
@@ -315,7 +342,10 @@ pub(crate) fn load_edges_deletions_from_df<
     let src_index = df_view.get_index(src)?;
     let dst_index = df_view.get_index(dst)?;
     let time_index = df_view.get_index(time)?;
-    let layer_index = layer.filter(|_| layer_in_df).map(|layer| df_view.get_index(layer.as_ref())).transpose()?;
+    let layer_index = layer
+        .filter(|_| layer_in_df)
+        .map(|layer| df_view.get_index(layer.as_ref()))
+        .transpose()?;
 
     for chunk in df_view.chunks {
         let df = chunk?;
@@ -396,7 +426,7 @@ pub(crate) fn load_node_props_from_df<
     'a,
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
 >(
-    df_view: DFView<impl Iterator<Item=Result<DFChunk, GraphError>>>,
+    df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     size: usize,
     node_id: &str,
     const_properties: Option<&[&str]>,
@@ -404,7 +434,10 @@ pub(crate) fn load_node_props_from_df<
     graph: &G,
 ) -> Result<(), GraphError> {
     let const_properties = const_properties.unwrap_or(&[]);
-    let const_properties_indices = const_properties.iter().map(|name| df_view.get_index(name)).collect::<Result<Vec<_>, GraphError>>()?;
+    let const_properties_indices = const_properties
+        .iter()
+        .map(|name| df_view.get_index(name))
+        .collect::<Result<Vec<_>, GraphError>>()?;
     let node_id_index = df_view.get_index(node_id)?;
 
     for chunk in df_view.chunks {
@@ -484,7 +517,7 @@ pub(crate) fn load_edges_props_from_df<
     'a,
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
 >(
-    df_view: DFView<impl Iterator<Item=Result<DFChunk, GraphError>>>,
+    df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     size: usize,
     src: &str,
     dst: &str,
@@ -495,24 +528,32 @@ pub(crate) fn load_edges_props_from_df<
     graph: &G,
 ) -> Result<(), GraphError> {
     let const_properties = const_properties.unwrap_or(&[]);
-    let const_properties_indices = const_properties.iter().map(|name| df_view.get_index(name)).collect::<Result<Vec<_>, GraphError>>()?;
+    let const_properties_indices = const_properties
+        .iter()
+        .map(|name| df_view.get_index(name))
+        .collect::<Result<Vec<_>, GraphError>>()?;
     let src_index = df_view.get_index(src)?;
     let dst_index = df_view.get_index(dst)?;
-    let layer_index = layer.filter(|_| layer_in_df).map(|layer| df_view.get_index(layer.as_ref())).transpose()?;
-    
+    let layer_index = layer
+        .filter(|_| layer_in_df)
+        .map(|layer| df_view.get_index(layer.as_ref()))
+        .transpose()?;
+
     for chunk in df_view.chunks {
         let df = chunk?;
         let const_prop_iter = combine_properties(const_properties, &const_properties_indices, &df)?;
 
         let layer = lift_layer(layer, layer_index, &df);
 
-        if let (Some(src), Some(dst)) = (df.iter_col::<u64>(src_index), df.iter_col::<u64>(dst_index)) {
+        if let (Some(src), Some(dst)) =
+            (df.iter_col::<u64>(src_index), df.iter_col::<u64>(dst_index))
+        {
             let triplets = src.map(|i| i.copied()).zip(dst.map(|i| i.copied()));
             let iter = maybe_tqdm!(
-            triplets.zip(const_prop_iter).zip(layer),
-            size,
-            "Loading edge properties"
-        );
+                triplets.zip(const_prop_iter).zip(layer),
+                size,
+                "Loading edge properties"
+            );
 
             for (((src, dst), const_props), layer) in iter {
                 if let (Some(src), Some(dst)) = (src, dst) {
@@ -525,15 +566,17 @@ pub(crate) fn load_edges_props_from_df<
                     }
                 }
             }
-        } else if let (Some(src), Some(dst)) = (df.iter_col::<i64>(src_index), df.iter_col::<i64>(dst_index)) {
+        } else if let (Some(src), Some(dst)) =
+            (df.iter_col::<i64>(src_index), df.iter_col::<i64>(dst_index))
+        {
             let triplets = src
                 .map(i64_opt_into_u64_opt)
                 .zip(dst.map(i64_opt_into_u64_opt));
             let iter = maybe_tqdm!(
-            triplets.zip(const_prop_iter).zip(layer),
-            size,
-            "Loading edge properties"
-        );
+                triplets.zip(const_prop_iter).zip(layer),
+                size,
+                "Loading edge properties"
+            );
 
             for (((src, dst), const_props), layer) in iter {
                 if let (Some(src), Some(dst)) = (src, dst) {
@@ -546,13 +589,15 @@ pub(crate) fn load_edges_props_from_df<
                     }
                 }
             }
-        } else if let (Some(src), Some(dst)) = (df.utf8::<i32>(src_index), df.utf8::<i32>(dst_index)) {
+        } else if let (Some(src), Some(dst)) =
+            (df.utf8::<i32>(src_index), df.utf8::<i32>(dst_index))
+        {
             let triplets = src.into_iter().zip(dst.into_iter());
             let iter = maybe_tqdm!(
-            triplets.zip(const_prop_iter).zip(layer),
-            size,
-            "Loading edge properties"
-        );
+                triplets.zip(const_prop_iter).zip(layer),
+                size,
+                "Loading edge properties"
+            );
 
             for (((src, dst), const_props), layer) in iter {
                 if let (Some(src), Some(dst)) = (src, dst) {
@@ -568,13 +613,15 @@ pub(crate) fn load_edges_props_from_df<
                     }
                 }
             }
-        } else if let (Some(src), Some(dst)) = (df.utf8::<i64>(src_index), df.utf8::<i64>(dst_index)) {
+        } else if let (Some(src), Some(dst)) =
+            (df.utf8::<i64>(src_index), df.utf8::<i64>(dst_index))
+        {
             let triplets = src.into_iter().zip(dst.into_iter());
             let iter = maybe_tqdm!(
-            triplets.zip(const_prop_iter).zip(layer),
-            size,
-            "Loading edge properties"
-        );
+                triplets.zip(const_prop_iter).zip(layer),
+                size,
+                "Loading edge properties"
+            );
 
             for (((src, dst), const_props), layer) in iter {
                 if let (Some(src), Some(dst)) = (src, dst) {
@@ -607,9 +654,9 @@ fn i64_opt_into_u64_opt(x: Option<&i64>) -> Option<u64> {
 fn load_edges_from_num_iter<
     'a,
     S: AsRef<str>,
-    I: Iterator<Item=((Option<u64>, Option<u64>), Option<i64>)>,
-    PI: Iterator<Item=Vec<(S, Prop)>>,
-    IL: Iterator<Item=Option<String>>,
+    I: Iterator<Item = ((Option<u64>, Option<u64>), Option<i64>)>,
+    PI: Iterator<Item = Vec<(S, Prop)>>,
+    IL: Iterator<Item = Option<String>>,
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
 >(
     graph: &G,
@@ -640,8 +687,8 @@ fn load_edges_from_num_iter<
 fn load_nodes_from_num_iter<
     'a,
     S: AsRef<str>,
-    I: Iterator<Item=(Option<u64>, Option<i64>, Option<&'a str>)>,
-    PI: Iterator<Item=Vec<(S, Prop)>>,
+    I: Iterator<Item = (Option<u64>, Option<i64>, Option<&'a str>)>,
+    PI: Iterator<Item = Vec<(S, Prop)>>,
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
 >(
     graph: &G,

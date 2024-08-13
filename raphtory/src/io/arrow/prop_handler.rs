@@ -11,24 +11,24 @@ use crate::{
 };
 
 pub struct PropIter<'a> {
-    inner: Vec<Box<dyn Iterator<Item=Option<(&'a str, Prop)>> + 'a>>,
+    inner: Vec<Box<dyn Iterator<Item = Option<(&'a str, Prop)>> + 'a>>,
 }
 
 impl<'a> Iterator for PropIter<'a> {
     type Item = Vec<(&'a str, Prop)>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.inner.iter_mut().map(|v| {
-            v.next()
-        }).filter_map(|r| {
-            match r {
+        self.inner
+            .iter_mut()
+            .map(|v| v.next())
+            .filter_map(|r| match r {
                 Some(r1) => match r1 {
                     Some(r2) => Some(Some(r2)),
-                    None => None
+                    None => None,
                 },
-                None => Some(None)
-            }
-        }).collect()
+                None => Some(None),
+            })
+            .collect()
     }
 }
 
@@ -41,10 +41,10 @@ pub(crate) fn combine_properties<'a>(
         is_data_type_supported(df.chunk[*idx].data_type())?;
     }
     let zipped = props.iter().zip(indices.iter());
-    let iter = zipped.map(|(name, idx)| {
-        lift_property(*idx, name, df)
-    });
-    Ok(PropIter { inner: iter.collect() })
+    let iter = zipped.map(|(name, idx)| lift_property(*idx, name, df));
+    Ok(PropIter {
+        inner: iter.collect(),
+    })
 }
 
 fn arr_as_prop(arr: Box<dyn Array>) -> Prop {
@@ -144,7 +144,7 @@ pub(crate) fn lift_property<'a: 'b, 'b>(
     idx: usize,
     name: &'a str,
     df: &'b DFChunk,
-) -> Box<dyn Iterator<Item=Option<(&'b str, Prop)>> + 'b> {
+) -> Box<dyn Iterator<Item = Option<(&'b str, Prop)>> + 'b> {
     let arr = &df.chunk[idx];
     let r = match arr.data_type() {
         DataType::Boolean => {
@@ -209,64 +209,59 @@ pub(crate) fn lift_property<'a: 'b, 'b>(
                 Some(_) => match timeunit {
                     TimeUnit::Second => {
                         println!("Timestamp(Second, Some({:?})); ", timezone);
-                        let r: Box<dyn Iterator<Item=Option<(&'b str, Prop)>> + 'b> =
+                        let r: Box<dyn Iterator<Item = Option<(&'b str, Prop)>> + 'b> =
                             Box::new(arr.iter().map(move |val| {
                                 val.map(|v| {
-                                        (
-                                            name,
-                                            Prop::DTime(
-                                                DateTime::<Utc>::from_timestamp(*v, 0)
-                                                    .expect("DateTime conversion failed"),
-                                            ),
-                                        )
-                                    })
+                                    (
+                                        name,
+                                        Prop::DTime(
+                                            DateTime::<Utc>::from_timestamp(*v, 0)
+                                                .expect("DateTime conversion failed"),
+                                        ),
+                                    )
+                                })
                             }));
                         r
                     }
                     TimeUnit::Millisecond => {
                         println!("Timestamp(Millisecond, Some({:?})); ", timezone);
-                        let r: Box<dyn Iterator<Item=Option<(&'b str, Prop)>> + 'b> =
+                        let r: Box<dyn Iterator<Item = Option<(&'b str, Prop)>> + 'b> =
                             Box::new(arr.iter().map(move |val| {
                                 val.map(|v| {
-                                        (
-                                            name,
-                                            Prop::DTime(
-                                                DateTime::<Utc>::from_timestamp_millis(*v)
-                                                    .expect("DateTime conversion failed"),
-                                            ),
-                                        )
-                                    })
+                                    (
+                                        name,
+                                        Prop::DTime(
+                                            DateTime::<Utc>::from_timestamp_millis(*v)
+                                                .expect("DateTime conversion failed"),
+                                        ),
+                                    )
+                                })
                             }));
                         r
                     }
                     TimeUnit::Microsecond => {
                         println!("Timestamp(Microsecond, Some({:?})); ", timezone);
-                        let r: Box<dyn Iterator<Item=Option<(&'b str, Prop)>> + 'b> =
+                        let r: Box<dyn Iterator<Item = Option<(&'b str, Prop)>> + 'b> =
                             Box::new(arr.iter().map(move |val| {
                                 val.map(|v| {
-                                        (
-                                            name,
-                                            Prop::DTime(
-                                                DateTime::<Utc>::from_timestamp_micros(*v)
-                                                    .expect("DateTime conversion failed"),
-                                            ),
-                                        )
-                                    })
+                                    (
+                                        name,
+                                        Prop::DTime(
+                                            DateTime::<Utc>::from_timestamp_micros(*v)
+                                                .expect("DateTime conversion failed"),
+                                        ),
+                                    )
+                                })
                             }));
                         r
                     }
                     TimeUnit::Nanosecond => {
                         println!("Timestamp(Nanosecond, Some({:?})); ", timezone);
-                        let r: Box<dyn Iterator<Item=Option<(&'b str, Prop)>> + 'b> =
+                        let r: Box<dyn Iterator<Item = Option<(&'b str, Prop)>> + 'b> =
                             Box::new(arr.iter().map(move |val| {
                                 val.map(|v| {
-                                        (
-                                            name,
-                                            Prop::DTime(DateTime::<Utc>::from_timestamp_nanos(
-                                                *v,
-                                            )),
-                                        )
-                                    })
+                                    (name, Prop::DTime(DateTime::<Utc>::from_timestamp_nanos(*v)))
+                                })
                             }));
                         r
                     }
@@ -274,67 +269,67 @@ pub(crate) fn lift_property<'a: 'b, 'b>(
                 None => match timeunit {
                     TimeUnit::Second => {
                         println!("Timestamp(Second, None); ");
-                        let r: Box<dyn Iterator<Item=Option<(&'b str, Prop)>> + 'b> =
+                        let r: Box<dyn Iterator<Item = Option<(&'b str, Prop)>> + 'b> =
                             Box::new(arr.iter().map(move |val| {
                                 val.map(|v| {
-                                        (
-                                            name,
-                                            Prop::NDTime(
-                                                DateTime::from_timestamp(*v, 0)
-                                                    .expect("DateTime conversion failed")
-                                                    .naive_utc(),
-                                            ),
-                                        )
-                                    })
+                                    (
+                                        name,
+                                        Prop::NDTime(
+                                            DateTime::from_timestamp(*v, 0)
+                                                .expect("DateTime conversion failed")
+                                                .naive_utc(),
+                                        ),
+                                    )
+                                })
                             }));
                         r
                     }
                     TimeUnit::Millisecond => {
                         println!("Timestamp(Millisecond, None); ");
-                        let r: Box<dyn Iterator<Item=Option<(&'b str, Prop)>> + 'b> =
+                        let r: Box<dyn Iterator<Item = Option<(&'b str, Prop)>> + 'b> =
                             Box::new(arr.iter().map(move |val| {
                                 val.map(|v| {
-                                        (
-                                            name,
-                                            Prop::NDTime(
-                                                DateTime::from_timestamp_millis(*v)
-                                                    .expect("DateTime conversion failed")
-                                                    .naive_utc(),
-                                            ),
-                                        )
-                                    })
+                                    (
+                                        name,
+                                        Prop::NDTime(
+                                            DateTime::from_timestamp_millis(*v)
+                                                .expect("DateTime conversion failed")
+                                                .naive_utc(),
+                                        ),
+                                    )
+                                })
                             }));
                         r
                     }
                     TimeUnit::Microsecond => {
                         println!("Timestamp(Microsecond, None); ");
-                        let r: Box<dyn Iterator<Item=Option<(&'b str, Prop)>> + 'b> =
+                        let r: Box<dyn Iterator<Item = Option<(&'b str, Prop)>> + 'b> =
                             Box::new(arr.iter().map(move |val| {
                                 val.map(|v| {
-                                        (
-                                            name,
-                                            Prop::NDTime(
-                                                DateTime::from_timestamp_micros(*v)
-                                                    .expect("DateTime conversion failed")
-                                                    .naive_utc(),
-                                            ),
-                                        )
-                                    })
+                                    (
+                                        name,
+                                        Prop::NDTime(
+                                            DateTime::from_timestamp_micros(*v)
+                                                .expect("DateTime conversion failed")
+                                                .naive_utc(),
+                                        ),
+                                    )
+                                })
                             }));
                         r
                     }
                     TimeUnit::Nanosecond => {
                         println!("Timestamp(Nanosecond, None); ");
-                        let r: Box<dyn Iterator<Item=Option<(&'b str, Prop)>> + 'b> =
+                        let r: Box<dyn Iterator<Item = Option<(&'b str, Prop)>> + 'b> =
                             Box::new(arr.iter().map(move |val| {
                                 val.map(|v| {
-                                        (
-                                            name,
-                                            Prop::NDTime(
-                                                DateTime::from_timestamp_nanos(*v).naive_utc(),
-                                            ),
-                                        )
-                                    })
+                                    (
+                                        name,
+                                        Prop::NDTime(
+                                            DateTime::from_timestamp_nanos(*v).naive_utc(),
+                                        ),
+                                    )
+                                })
                             }));
                         r
                     }
@@ -351,7 +346,7 @@ pub(crate) fn lift_layer<'a>(
     layer: Option<&str>,
     layer_index: Option<usize>,
     df: &'a DFChunk,
-) -> Box<dyn Iterator<Item=Option<String>> + 'a> {
+) -> Box<dyn Iterator<Item = Option<String>> + 'a> {
     if let Some(layer) = layer {
         match layer_index {
             Some(index) => {
@@ -363,27 +358,23 @@ pub(crate) fn lift_layer<'a>(
                     Box::new(std::iter::repeat(None))
                 }
             }
-            None => Box::new(std::iter::repeat(Some(layer.to_string())))
+            None => Box::new(std::iter::repeat(Some(layer.to_string()))),
         }
     } else {
         Box::new(std::iter::repeat(None))
     }
 }
 
-fn iter_as_prop<'a, T: Into<Prop> + 'a, I: Iterator<Item=Option<T>> + 'a>(
+fn iter_as_prop<'a, T: Into<Prop> + 'a, I: Iterator<Item = Option<T>> + 'a>(
     name: &'a str,
     is: I,
-) -> Box<dyn Iterator<Item=Option<(&'a str, Prop)>> + 'a> {
-    Box::new(is.map(move |val| {
-        val.map(|v| (name, v.into()))
-    }))
+) -> Box<dyn Iterator<Item = Option<(&'a str, Prop)>> + 'a> {
+    Box::new(is.map(move |val| val.map(|v| (name, v.into()))))
 }
 
-fn iter_as_arr_prop<'a, I: Iterator<Item=Option<Box<dyn Array>>> + 'a>(
+fn iter_as_arr_prop<'a, I: Iterator<Item = Option<Box<dyn Array>>> + 'a>(
     name: &'a str,
     is: I,
-) -> Box<dyn Iterator<Item=Option<(&'a str, Prop)>> + 'a> {
-    Box::new(is.map(move |val| {
-        val.map(|v| (name, arr_as_prop(v)))
-    }))
+) -> Box<dyn Iterator<Item = Option<(&'a str, Prop)>> + 'a> {
+    Box::new(is.map(move |val| val.map(|v| (name, arr_as_prop(v)))))
 }
