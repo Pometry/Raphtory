@@ -41,6 +41,7 @@ where
     }
 }
 
+#[derive(Clone)]
 pub(crate) struct DFChunk {
     pub(crate) chunk: Vec<Box<dyn Array>>,
 }

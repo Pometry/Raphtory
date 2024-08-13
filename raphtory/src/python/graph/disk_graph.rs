@@ -241,9 +241,18 @@ impl PyDiskGraph {
         let src_index = df_view.get_index(src)?;
         let dst_index = df_view.get_index(dst)?;
         let time_index = df_view.get_index(time)?;
-        let chunk_size = usize::MAX;
-        
-        let edge_lists = df_view.chunks.map_ok(|df| {
+
+        let mut chunks_iter = df_view.chunks.peekable();
+        let chunk_size = if let Some(result) = chunks_iter.peek() {
+            match result {
+                Ok(df) => df.chunk.len(),
+                Err(e) => return Err(GraphError::LoadFailure(format!("Failed to load graph {e:?}"))),
+            }
+        } else {
+            return Err(GraphError::LoadFailure("No chunks available".to_string()));
+        };
+
+        let edge_lists = chunks_iter.map_ok(|df| {
             let fields = df.chunk
                 .iter()
                 .zip(df_view.names.iter())

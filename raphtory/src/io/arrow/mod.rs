@@ -10,48 +10,53 @@ mod test {
     };
     use polars_arrow::array::{PrimitiveArray, Utf8Array};
     use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
+    use crate::io::arrow::dataframe::DFView;
 
     #[test]
     fn load_edges_from_pretend_df() {
-        let df = DFChunk {
+        let df = DFView {
             names: vec!["src", "dst", "time", "prop1", "prop2"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
-            arrays: vec![
-                vec![
-                    Box::new(PrimitiveArray::<u64>::from(vec![Some(1)])),
-                    Box::new(PrimitiveArray::<u64>::from(vec![Some(2)])),
-                    Box::new(PrimitiveArray::<i64>::from(vec![Some(1)])),
-                    Box::new(PrimitiveArray::<f64>::from(vec![Some(1.0)])),
-                    Box::new(Utf8Array::<i32>::from(vec![Some("a")])),
-                ],
-                vec![
-                    Box::new(PrimitiveArray::<u64>::from(vec![Some(2), Some(3)])),
-                    Box::new(PrimitiveArray::<u64>::from(vec![Some(3), Some(4)])),
-                    Box::new(PrimitiveArray::<i64>::from(vec![Some(2), Some(3)])),
-                    Box::new(PrimitiveArray::<f64>::from(vec![Some(2.0), Some(3.0)])),
-                    Box::new(Utf8Array::<i32>::from(vec![Some("b"), Some("c")])),
-                ],
-            ],
+            chunks: vec![
+                Ok(DFChunk {
+                    chunk: vec![
+                        Box::new(PrimitiveArray::<u64>::from(vec![Some(1)])),
+                        Box::new(PrimitiveArray::<u64>::from(vec![Some(2)])),
+                        Box::new(PrimitiveArray::<i64>::from(vec![Some(1)])),
+                        Box::new(PrimitiveArray::<f64>::from(vec![Some(1.0)])),
+                        Box::new(Utf8Array::<i32>::from(vec![Some("a")])),
+                    ]
+                }),
+                Ok(DFChunk {
+                    chunk: vec![
+                        Box::new(PrimitiveArray::<u64>::from(vec![Some(2), Some(3)])),
+                        Box::new(PrimitiveArray::<u64>::from(vec![Some(3), Some(4)])),
+                        Box::new(PrimitiveArray::<i64>::from(vec![Some(2), Some(3)])),
+                        Box::new(PrimitiveArray::<f64>::from(vec![Some(2.0), Some(3.0)])),
+                        Box::new(Utf8Array::<i32>::from(vec![Some("b"), Some("c")])),
+                    ],
+                }),
+            ].into_iter(),
         };
         let graph = Graph::new();
         let layer: Option<&str> = None;
         let layer_in_df: bool = true;
         load_edges_from_df(
-            &df,
+            df,
             5,
             "src",
             "dst",
             "time",
-            Some(vec!["prop1", "prop2"]),
+            Some(&*vec!["prop1", "prop2"]),
             None,
             None,
             layer,
             layer_in_df,
             &graph,
         )
-        .expect("failed to load edges from pretend df");
+            .expect("failed to load edges from pretend df");
 
         let actual = graph
             .edges()
@@ -103,41 +108,44 @@ mod test {
 
     #[test]
     fn load_nodes_from_pretend_df() {
-        let df = DFChunk {
+        let df = DFView {
             names: vec!["id", "name", "time", "node_type"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
-            arrays: vec![
-                vec![
-                    Box::new(PrimitiveArray::<u64>::from(vec![Some(1)])),
-                    Box::new(Utf8Array::<i32>::from(vec![Some("a")])),
-                    Box::new(PrimitiveArray::<i64>::from(vec![Some(1)])),
-                    Box::new(Utf8Array::<i32>::from(vec![Some("atype")])),
-                ],
-                vec![
-                    Box::new(PrimitiveArray::<u64>::from(vec![Some(2)])),
-                    Box::new(Utf8Array::<i32>::from(vec![Some("b")])),
-                    Box::new(PrimitiveArray::<i64>::from(vec![Some(2)])),
-                    Box::new(Utf8Array::<i32>::from(vec![Some("btype")])),
-                ],
-            ],
+            chunks: vec![
+                Ok(DFChunk {
+                    chunk: vec![
+                        Box::new(PrimitiveArray::<u64>::from(vec![Some(1)])),
+                        Box::new(Utf8Array::<i32>::from(vec![Some("a")])),
+                        Box::new(PrimitiveArray::<i64>::from(vec![Some(1)])),
+                        Box::new(Utf8Array::<i32>::from(vec![Some("atype")])),
+                    ]
+                }),
+                Ok(DFChunk {
+                    chunk: vec![
+                        Box::new(PrimitiveArray::<u64>::from(vec![Some(2)])),
+                        Box::new(Utf8Array::<i32>::from(vec![Some("b")])),
+                        Box::new(PrimitiveArray::<i64>::from(vec![Some(2)])),
+                        Box::new(Utf8Array::<i32>::from(vec![Some("btype")])),
+                    ],
+                }),
+            ].into_iter(),
         };
         let graph = Graph::new();
 
         load_nodes_from_df(
-            &df,
-            3,
+            df,
             "id",
             "time",
-            Some(vec!["name"]),
+            Some(&*vec!["name"]),
             None,
             None,
             Some("node_type"),
             false,
             &graph,
         )
-        .expect("failed to load nodes from pretend df");
+            .expect("failed to load nodes from pretend df");
 
         let actual = graph
             .nodes()
