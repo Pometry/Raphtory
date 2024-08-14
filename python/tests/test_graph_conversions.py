@@ -24,9 +24,9 @@ def build_graph():
 
     return Graph.load_from_pandas(
         edge_df=edges_df,
+        edge_time="timestamp",
         edge_src="source",
         edge_dst="destination",
-        edge_time="timestamp",
         edge_properties=["data_size_MB"],
         edge_layer="transaction_type",
         edge_const_properties=["is_encrypted"],
@@ -49,9 +49,9 @@ def build_graph_without_datetime_type():
 
     return Graph.load_from_pandas(
         edge_df=edges_df,
+        edge_time="timestamp",
         edge_src="source",
         edge_dst="destination",
-        edge_time="timestamp",
         edge_properties=["data_size_MB"],
         edge_layer="transaction_type",
         edge_const_properties=["is_encrypted"],

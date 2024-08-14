@@ -52,9 +52,9 @@ pub fn load_nodes_from_pandas(
 pub fn load_edges_from_pandas(
     graph: &GraphStorage,
     df: &PyAny,
+    time: &str,
     src: &str,
     dst: &str,
-    time: &str,
     properties: Option<&[&str]>,
     const_properties: Option<&[&str]>,
     shared_const_properties: Option<&HashMap<String, Prop>>,
@@ -84,9 +84,9 @@ pub fn load_edges_from_pandas(
         load_edges_from_df(
             df_view,
             size,
+            time,
             src,
             dst,
-            time,
             properties,
             const_properties,
             shared_const_properties,
@@ -183,9 +183,9 @@ pub fn load_edge_props_from_pandas(
 pub fn load_edges_deletions_from_pandas(
     graph: &GraphStorage,
     df: &PyAny,
+    time: &str,
     src: &str,
     dst: &str,
-    time: &str,
     layer: Option<&str>,
     layer_in_df: Option<bool>,
 ) -> Result<(), GraphError> {
@@ -210,9 +210,9 @@ pub fn load_edges_deletions_from_pandas(
         load_edges_deletions_from_df(
             df_view,
             size,
+            time,
             src,
             dst,
-            time,
             layer,
             layer_in_df.unwrap_or(true),
             graph.core_graph(),

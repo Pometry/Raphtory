@@ -19,9 +19,9 @@ def test_load_from_pandas():
 
     df = pd.DataFrame(
         {
+            "time": [1, 2, 3, 4, 5],
             "src": [1, 2, 3, 4, 5],
             "dst": [2, 3, 4, 5, 6],
-            "time": [1, 2, 3, 4, 5],
             "weight": [1.0, 2.0, 3.0, 4.0, 5.0],
             "marbles": ["red", "blue", "green", "yellow", "purple"],
         }
@@ -46,11 +46,11 @@ def test_load_from_pandas():
         assert g.nodes.id.collect() == expected_nodes
         assert edges == expected_edges
 
-    g = Graph.load_from_pandas(df, "src", "dst", "time", ["weight", "marbles"])
+    g = Graph.load_from_pandas(df, "time", "src", "dst", ["weight", "marbles"])
     assertions(g)
 
     g = PersistentGraph.load_from_pandas(
-        df, "src", "dst", "time", ["weight", "marbles"]
+        df, "time", "src", "dst", ["weight", "marbles"]
     )
     assertions(g)
 
@@ -77,12 +77,12 @@ def test_load_from_pandas_with_invalid_data():
 
     # Use pytest.raises to expect an exception
     with pytest.raises(Exception) as exc_info:
-        g = Graph.load_from_pandas(df, "src", "dst", "time", ["weight", "marbles"])
+        g = Graph.load_from_pandas(df, "time", "src", "dst", ["weight", "marbles"])
     assertions(exc_info)
 
     with pytest.raises(Exception) as exc_info:
         g = PersistentGraph.load_from_pandas(
-            df, "src", "dst", "time", ["weight", "marbles"]
+            df, "time", "src", "dst", ["weight", "marbles"]
         )
     assertions(exc_info)
 
@@ -149,12 +149,12 @@ def test_load_from_pandas_into_existing_graph():
 
     g = Graph()
     g.load_nodes_from_pandas(nodes_df, "id", "time", "node_type", properties=["name"])
-    g.load_edges_from_pandas(edges_df, "src", "dst", "time", ["weight", "marbles"])
+    g.load_edges_from_pandas(edges_df, "time", "src", "dst", ["weight", "marbles"])
     assertions(g)
 
     g = PersistentGraph()
     g.load_nodes_from_pandas(nodes_df, "id", "time", "node_type", properties=["name"])
-    g.load_edges_from_pandas(edges_df, "src", "dst", "time", ["weight", "marbles"])
+    g.load_edges_from_pandas(edges_df, "time", "src", "dst", ["weight", "marbles"])
     assertions(g)
 
 
@@ -212,9 +212,9 @@ def test_load_from_pandas_nodes():
 
     g = Graph.load_from_pandas(
         edges_df,
+        edge_time="time",
         edge_src="src",
         edge_dst="dst",
-        edge_time="time",
         edge_properties=["weight", "marbles"],
         node_df=nodes_df,
         node_id="id",
@@ -226,9 +226,9 @@ def test_load_from_pandas_nodes():
 
     g = PersistentGraph.load_from_pandas(
         edges_df,
+        edge_time="time",
         edge_src="src",
         edge_dst="dst",
-        edge_time="time",
         edge_properties=["weight", "marbles"],
         node_df=nodes_df,
         node_id="id",
@@ -375,9 +375,9 @@ def test_load_from_pandas_with_types():
     g = Graph()
     g.load_edges_from_pandas(
         edges_df,
+        "time",
         "src",
         "dst",
-        "time",
         properties=["weight", "marbles"],
         const_properties=["marbles_const"],
         shared_const_properties={"type": "Edge", "tag": "test_tag"},
@@ -389,9 +389,9 @@ def test_load_from_pandas_with_types():
     g = PersistentGraph()
     g.load_edges_from_pandas(
         edges_df,
+        "time",
         "src",
         "dst",
-        "time",
         properties=["weight", "marbles"],
         const_properties=["marbles_const"],
         shared_const_properties={"type": "Edge", "tag": "test_tag"},
@@ -416,13 +416,13 @@ def test_load_from_pandas_with_types():
 
     g = Graph()
     g.load_edges_from_pandas(
-        edges_df, "src", "dst", "time", ["weight", "marbles"], layer="layers"
+        edges_df, "time", "src", "dst", ["weight", "marbles"], layer="layers"
     )
     assertions4(g)
 
     g = PersistentGraph()
     g.load_edges_from_pandas(
-        edges_df, "src", "dst", "time", ["weight", "marbles"], layer="layers"
+        edges_df, "time", "src", "dst", ["weight", "marbles"], layer="layers"
     )
     assertions4(g)
 
@@ -439,9 +439,9 @@ def test_load_from_pandas_with_types():
 
     g = Graph.load_from_pandas(
         edges_df,
+        "time",
         "src",
         "dst",
-        "time",
         edge_layer="test_layer",
         layer_in_df=False,
         node_df=nodes_df,
@@ -454,9 +454,9 @@ def test_load_from_pandas_with_types():
 
     g = PersistentGraph.load_from_pandas(
         edges_df,
+        "time",
         "src",
         "dst",
-        "time",
         edge_layer="test_layer",
         layer_in_df=False,
         node_df=nodes_df,
@@ -491,9 +491,9 @@ def test_load_from_pandas_with_types():
 
     g = Graph.load_from_pandas(
         edges_df,
+        "time",
         "src",
         "dst",
-        "time",
         edge_layer="layers",
         node_df=nodes_df,
         node_id="id",
@@ -505,9 +505,9 @@ def test_load_from_pandas_with_types():
 
     g = PersistentGraph.load_from_pandas(
         edges_df,
+        "time",
         "src",
         "dst",
-        "time",
         edge_layer="layers",
         node_df=nodes_df,
         node_id="id",
@@ -537,9 +537,9 @@ def test_load_from_pandas_with_types():
 
     g = Graph.load_from_pandas(
         edges_df,
+        edge_time="time",
         edge_src="src",
         edge_dst="dst",
-        edge_time="time",
         edge_properties=["weight", "marbles"],
         node_df=nodes_df,
         node_id="id",
@@ -583,9 +583,9 @@ def test_load_from_pandas_with_types():
 
     g = PersistentGraph.load_from_pandas(
         edges_df,
+        edge_time="time",
         edge_src="src",
         edge_dst="dst",
-        edge_time="time",
         edge_properties=["weight", "marbles"],
         node_df=nodes_df,
         node_id="id",
@@ -631,9 +631,9 @@ def test_load_from_pandas_with_types():
     g = Graph()
     g.load_edges_from_pandas(
         edges_df,
+        "time",
         "src",
         "dst",
-        "time",
         ["weight", "marbles"],
         const_properties=["marbles_const"],
         shared_const_properties={"type": "Edge", "tag": "test_tag"},
@@ -645,9 +645,9 @@ def test_load_from_pandas_with_types():
     g = PersistentGraph()
     g.load_edges_from_pandas(
         edges_df,
+        "time",
         "src",
         "dst",
-        "time",
         ["weight", "marbles"],
         const_properties=["marbles_const"],
         shared_const_properties={"type": "Edge", "tag": "test_tag"},
@@ -684,9 +684,9 @@ def test_missing_columns():
     ):
         g = Graph.load_from_pandas(
             edges_df,
+            edge_time="not_time",
             edge_src="not_src",
             edge_dst="not_dst",
-            edge_time="not_time",
         )
 
     with pytest.raises(
@@ -697,9 +697,9 @@ def test_missing_columns():
     ):
         g = PersistentGraph.load_from_pandas(
             edges_df,
+            edge_time="not_time",
             edge_src="not_src",
             edge_dst="not_dst",
-            edge_time="not_time",
         )
 
     with pytest.raises(
@@ -710,9 +710,9 @@ def test_missing_columns():
     ):
         g = Graph.load_from_pandas(
             edges_df,
+            edge_time="time",
             edge_src="src",
             edge_dst="dst",
-            edge_time="time",
             edge_properties=["not_weight", "marbles"],
             edge_const_properties=["bleep_bloop"],
             node_df=nodes_df,
@@ -729,9 +729,9 @@ def test_missing_columns():
     ):
         g = PersistentGraph.load_from_pandas(
             edges_df,
+            edge_time="time",
             edge_src="src",
             edge_dst="dst",
-            edge_time="time",
             edge_properties=["not_weight", "marbles"],
             edge_const_properties=["bleep_bloop"],
             node_df=nodes_df,
@@ -748,9 +748,9 @@ def test_missing_columns():
     ):
         g = Graph.load_from_pandas(
             edges_df,
+            edge_time="time",
             edge_src="src",
             edge_dst="dst",
-            edge_time="time",
             edge_properties=["weight", "marbles"],
             node_df=nodes_df,
             node_id="not_id",
@@ -766,9 +766,9 @@ def test_missing_columns():
     ):
         g = PersistentGraph.load_from_pandas(
             edges_df,
+            edge_time="time",
             edge_src="src",
             edge_dst="dst",
-            edge_time="time",
             edge_properties=["weight", "marbles"],
             node_df=nodes_df,
             node_id="not_id",
@@ -838,12 +838,12 @@ def test_none_columns_edges():
     with pytest.raises(
         Exception, match=re.escape("Ensure these contain no NaN, Null or None values.")
     ):
-        Graph.load_from_pandas(edges_df, "src", "dst", "time")
+        Graph.load_from_pandas(edges_df, "time", "src", "dst")
 
     with pytest.raises(
         Exception, match=re.escape("Ensure these contain no NaN, Null or None values.")
     ):
-        PersistentGraph.load_from_pandas(edges_df, "src", "dst", "time")
+        PersistentGraph.load_from_pandas(edges_df, "time", "src", "dst")
 
     edges_df = pd.DataFrame(
         {"src": [1, 2, 3, 4, 5], "dst": [2, 3, 4, None, 6], "time": [1, 2, 3, 4, 5]}
@@ -851,11 +851,11 @@ def test_none_columns_edges():
     with pytest.raises(
         Exception, match=re.escape("Ensure these contain no NaN, Null or None values.")
     ):
-        Graph.load_from_pandas(edges_df, "src", "dst", "time")
+        Graph.load_from_pandas(edges_df, "time", "src", "dst")
     with pytest.raises(
         Exception, match=re.escape("Ensure these contain no NaN, Null or None values.")
     ):
-        PersistentGraph.load_from_pandas(edges_df, "src", "dst", "time")
+        PersistentGraph.load_from_pandas(edges_df, "time", "src", "dst")
 
     edges_df = pd.DataFrame(
         {"src": [1, 2, 3, 4, 5], "dst": [2, 3, 4, 5, 6], "time": [1, 2, None, 4, 5]}
@@ -863,11 +863,11 @@ def test_none_columns_edges():
     with pytest.raises(
         Exception, match=re.escape("Ensure these contain no NaN, Null or None values.")
     ):
-        Graph.load_from_pandas(edges_df, "src", "dst", "time")
+        Graph.load_from_pandas(edges_df, "time", "src", "dst")
     with pytest.raises(
         Exception, match=re.escape("Ensure these contain no NaN, Null or None values.")
     ):
-        PersistentGraph.load_from_pandas(edges_df, "src", "dst", "time")
+        PersistentGraph.load_from_pandas(edges_df, "time", "src", "dst")
 
 
 def test_loading_list_as_properties():
@@ -883,9 +883,9 @@ def test_loading_list_as_properties():
 
     g = Graph.load_from_pandas(
         df,
+        edge_time="time",
         edge_src="src",
         edge_dst="dst",
-        edge_time="time",
         edge_properties=["marbles"],
     )
 
@@ -929,9 +929,9 @@ def test_unparsable_props():
     ):
         Graph.load_from_pandas(
             edges_df,
+            edge_time="time",
             edge_src="src",
             edge_dst="dst",
-            edge_time="time",
             edge_properties=["weight"],
         )
     with pytest.raises(
@@ -942,9 +942,9 @@ def test_unparsable_props():
     ):
         PersistentGraph.load_from_pandas(
             edges_df,
+            edge_time="time",
             edge_src="src",
             edge_dst="dst",
-            edge_time="time",
             edge_properties=["weight"],
         )
 
@@ -1034,9 +1034,9 @@ def test_load_node_from_pandas_with_node_types():
     )
     nodes_assertions3(g)
 
-    g = Graph.load_from_pandas(edges_df, "src", "dst", "time")
+    g = Graph.load_from_pandas(edges_df, "time", "src", "dst")
     edges_assertions(g)
-    g = Graph.load_from_pandas(edges_df, "src", "dst", "time")
+    g = Graph.load_from_pandas(edges_df, "time", "src", "dst")
     edges_assertions(g)
 
 
@@ -1057,7 +1057,7 @@ def test_load_edge_deletions_from_pandas():
     )
 
     g = PersistentGraph()
-    g.load_edges_from_pandas(edges_df, "src", "dst", "time")
+    g.load_edges_from_pandas(edges_df, "time", "src", "dst")
     assert g.window(10, 12).edges.src.id.collect() == [1, 2, 3, 4, 5]
-    g.load_edges_deletions_from_pandas(edge_dels_df, "src", "dst", "time")
+    g.load_edges_deletions_from_pandas(edge_dels_df, "time", "src", "dst")
     assert g.window(10, 12).edges.src.id.collect() == [1, 2, 5]

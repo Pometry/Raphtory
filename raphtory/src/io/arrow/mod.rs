@@ -49,9 +49,9 @@ mod test {
         load_edges_from_df(
             df,
             5,
+            "time",
             "src",
             "dst",
-            "time",
             Some(&*vec!["prop1", "prop2"]),
             None,
             None,

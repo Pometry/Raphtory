@@ -214,9 +214,9 @@ impl DiskGraphStorage {
             chunk_size,
             t_props_chunk_size,
             graph_dir.as_ref(),
+            2,
             0,
             1,
-            2,
         )
         .expect("failed to create graph")
     }
@@ -306,9 +306,9 @@ impl DiskGraphStorage {
         chunk_size: usize,
         t_props_chunk_size: usize,
         graph_dir: impl AsRef<Path> + Sync,
+        time_col_idx: usize,
         src_col_idx: usize,
         dst_col_idx: usize,
-        time_col_idx: usize,
     ) -> Result<Self, RAError> {
         let inner = TemporalGraph::from_sorted_edge_list(
             graph_dir,

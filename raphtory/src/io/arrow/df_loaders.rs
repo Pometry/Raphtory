@@ -200,9 +200,9 @@ pub(crate) fn load_edges_from_df<
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     size: usize,
+    time: &str,
     src: &str,
     dst: &str,
-    time: &str,
     properties: Option<&[&str]>,
     const_properties: Option<&[&str]>,
     shared_const_properties: Option<&HashMap<String, Prop>>,
@@ -332,9 +332,9 @@ pub(crate) fn load_edges_deletions_from_df<
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     size: usize,
+    time: &str,
     src: &str,
     dst: &str,
-    time: &str,
     layer: Option<&str>,
     layer_in_df: bool,
     graph: &G,

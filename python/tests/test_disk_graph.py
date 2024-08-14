@@ -40,7 +40,7 @@ edges = pd.DataFrame(
 
 def test_counts():
     graph_dir = tempfile.TemporaryDirectory()
-    graph = DiskGraphStorage.load_from_pandas(graph_dir.name, edges, "src", "dst", "time")
+    graph = DiskGraphStorage.load_from_pandas(graph_dir.name, edges, "time", "src", "dst")
     graph = graph.to_events()
     assert graph.count_nodes() == 5
     assert graph.count_edges() == 20
