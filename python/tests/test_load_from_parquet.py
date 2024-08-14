@@ -238,8 +238,8 @@ def test_load_from_parquet_graphs(parquet_files):
     g.load_node_props_from_parquet(
         parquet_path=nodes_parquet_file_path,
         id="id",
-        const_properties=["type"],
-        shared_const_properties={"tag": "test_tag"},
+        constant_properties=["type"],
+        shared_constant_properties={"tag": "test_tag"},
     )
     assert_expected_node_property_tag(g)
     assert_expected_node_property_type(g)
@@ -248,8 +248,8 @@ def test_load_from_parquet_graphs(parquet_files):
         parquet_path=edges_parquet_file_path,
         src="src",
         dst="dst",
-        const_properties=["marbles_const"],
-        shared_const_properties={"tag": "test_tag"},
+        constant_properties=["marbles_const"],
+        shared_constant_properties={"tag": "test_tag"},
         layer="layers",
     )
     assert_expected_edge_properties(g)
@@ -262,7 +262,7 @@ def test_load_from_parquet_graphs(parquet_files):
         time="time",
         node_type="node_type",
         properties=["name"],
-        shared_const_properties={"tag": "test_tag"},
+        shared_constant_properties={"tag": "test_tag"},
     )
     assert_expected_node_types(g)
     assert_expected_node_property_tag(g)
@@ -274,8 +274,8 @@ def test_load_from_parquet_graphs(parquet_files):
         dst="dst",
         time="time",
         properties=["weight", "marbles"],
-        const_properties=["marbles_const"],
-        shared_const_properties={"type": "Edge", "tag": "test_tag"},
+        constant_properties=["marbles_const"],
+        shared_constant_properties={"type": "Edge", "tag": "test_tag"},
         layer="test_layer",
         layer_in_df=False,
     )
@@ -293,7 +293,7 @@ def test_load_from_parquet_graphs(parquet_files):
         node_id="id",
         node_time="time",
         node_properties=["name"],
-        node_shared_const_properties={"dept": "Sales"},
+        node_shared_constant_properties={"dept": "Sales"},
     )
     assert_expected_test_layer(g)
     assert_expected_node_property_dept(g)
@@ -308,7 +308,7 @@ def test_load_from_parquet_graphs(parquet_files):
         node_id="id",
         node_time="time",
         node_properties=["name"],
-        node_const_properties=["type"],
+        node_constant_properties=["type"],
     )
     assert_expected_node_property_type(g)
     assert_expected_layers(g)
@@ -355,8 +355,8 @@ def test_load_from_parquet_persistent_graphs(parquet_files):
     g.load_node_props_from_parquet(
         parquet_path=nodes_parquet_file_path,
         id="id",
-        const_properties=["type"],
-        shared_const_properties={"tag": "test_tag"},
+        constant_properties=["type"],
+        shared_constant_properties={"tag": "test_tag"},
     )
     assert_expected_node_property_tag(g)
     assert_expected_node_property_type(g)
@@ -365,8 +365,8 @@ def test_load_from_parquet_persistent_graphs(parquet_files):
         parquet_path=edges_parquet_file_path,
         src="src",
         dst="dst",
-        const_properties=["marbles_const"],
-        shared_const_properties={"tag": "test_tag"},
+        constant_properties=["marbles_const"],
+        shared_constant_properties={"tag": "test_tag"},
         layer="layers",
     )
     assert_expected_edge_properties(g)
@@ -379,7 +379,7 @@ def test_load_from_parquet_persistent_graphs(parquet_files):
         time="time",
         node_type="node_type",
         properties=["name"],
-        shared_const_properties={"tag": "test_tag"},
+        shared_constant_properties={"tag": "test_tag"},
     )
     assert_expected_node_types(g)
     assert_expected_node_property_tag(g)
@@ -391,8 +391,8 @@ def test_load_from_parquet_persistent_graphs(parquet_files):
         dst="dst",
         time="time",
         properties=["weight", "marbles"],
-        const_properties=["marbles_const"],
-        shared_const_properties={"type": "Edge", "tag": "test_tag"},
+        constant_properties=["marbles_const"],
+        shared_constant_properties={"type": "Edge", "tag": "test_tag"},
         layer="test_layer",
         layer_in_df=False,
     )
@@ -410,7 +410,7 @@ def test_load_from_parquet_persistent_graphs(parquet_files):
         node_id="id",
         node_time="time",
         node_properties=["name"],
-        node_shared_const_properties={"dept": "Sales"},
+        node_shared_constant_properties={"dept": "Sales"},
     )
     assert_expected_test_layer(g)
     assert_expected_node_property_dept(g)
@@ -425,7 +425,7 @@ def test_load_from_parquet_persistent_graphs(parquet_files):
         node_id="id",
         node_time="time",
         node_properties=["name"],
-        node_const_properties=["type"],
+        node_constant_properties=["type"],
     )
     assert_expected_node_property_type(g)
     assert_expected_layers(g)

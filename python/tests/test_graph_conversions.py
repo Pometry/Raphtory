@@ -29,14 +29,14 @@ def build_graph():
         edge_dst="destination",
         edge_properties=["data_size_MB"],
         edge_layer="transaction_type",
-        edge_const_properties=["is_encrypted"],
-        edge_shared_const_properties={"datasource": "data/network_traffic_edges.csv"},
+        edge_constant_properties=["is_encrypted"],
+        edge_shared_constant_properties={"datasource": "data/network_traffic_edges.csv"},
         node_df=nodes_df,
         node_id="server_id",
         node_time="timestamp",
         node_properties=["OS_version", "primary_function", "uptime_days"],
-        node_const_properties=["server_name", "hardware_type"],
-        node_shared_const_properties={"datasource": "data/network_traffic_edges.csv"},
+        node_constant_properties=["server_name", "hardware_type"],
+        node_shared_constant_properties={"datasource": "data/network_traffic_edges.csv"},
     )
 
 
@@ -54,14 +54,14 @@ def build_graph_without_datetime_type():
         edge_dst="destination",
         edge_properties=["data_size_MB"],
         edge_layer="transaction_type",
-        edge_const_properties=["is_encrypted"],
-        edge_shared_const_properties={"datasource": "data/network_traffic_edges.csv"},
+        edge_constant_properties=["is_encrypted"],
+        edge_shared_constant_properties={"datasource": "data/network_traffic_edges.csv"},
         node_df=nodes_df,
         node_id="server_id",
         node_time="timestamp",
         node_properties=["OS_version", "primary_function", "uptime_days"],
-        node_const_properties=["server_name", "hardware_type"],
-        node_shared_const_properties={"datasource": "data/network_traffic_edges.csv"},
+        node_constant_properties=["server_name", "hardware_type"],
+        node_shared_constant_properties={"datasource": "data/network_traffic_edges.csv"},
     )
 
 

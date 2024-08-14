@@ -30,12 +30,12 @@ pub fn load_nodes_from_parquet<
     node_type: Option<&str>,
     node_type_in_df: Option<bool>,
     properties: Option<&[&str]>,
-    const_properties: Option<&[&str]>,
+    constant_properties: Option<&[&str]>,
     shared_const_properties: Option<&HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![id, time];
     cols_to_check.extend(properties.unwrap_or(&Vec::new()));
-    cols_to_check.extend(const_properties.unwrap_or(&Vec::new()));
+    cols_to_check.extend(constant_properties.unwrap_or(&Vec::new()));
     if node_type_in_df.unwrap_or(true) {
         if let Some(ref node_type) = node_type {
             cols_to_check.push(node_type.as_ref());
@@ -50,7 +50,7 @@ pub fn load_nodes_from_parquet<
             id,
             time,
             properties,
-            const_properties,
+            constant_properties,
             shared_const_properties,
             node_type,
             node_type_in_df.unwrap_or(true),
@@ -71,7 +71,7 @@ pub fn load_edges_from_parquet<
     src: &str,
     dst: &str,
     properties: Option<&[&str]>,
-    const_properties: Option<&[&str]>,
+    constant_properties: Option<&[&str]>,
     shared_const_properties: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     layer_in_df: Option<bool>,
@@ -79,7 +79,7 @@ pub fn load_edges_from_parquet<
     let parquet_path = parquet_path.as_ref();
     let mut cols_to_check = vec![src, dst, time];
     cols_to_check.extend(properties.unwrap_or(&Vec::new()));
-    cols_to_check.extend(const_properties.unwrap_or(&Vec::new()));
+    cols_to_check.extend(constant_properties.unwrap_or(&Vec::new()));
     if layer_in_df.unwrap_or(false) {
         if let Some(ref layer) = layer {
             cols_to_check.push(layer.as_ref());
@@ -97,7 +97,7 @@ pub fn load_edges_from_parquet<
             src,
             dst,
             properties,
-            const_properties,
+            constant_properties,
             shared_const_properties,
             layer,
             layer_in_df.unwrap_or(true),
@@ -115,11 +115,11 @@ pub fn load_node_props_from_parquet<
     graph: &G,
     parquet_path: &Path,
     id: &str,
-    const_properties: Option<&[&str]>,
+    constant_properties: Option<&[&str]>,
     shared_const_properties: Option<&HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![id];
-    cols_to_check.extend(const_properties.unwrap_or(&Vec::new()));
+    cols_to_check.extend(constant_properties.unwrap_or(&Vec::new()));
     let size = cols_to_check.len();
 
     for path in get_parquet_file_paths(parquet_path)? {
@@ -130,7 +130,7 @@ pub fn load_node_props_from_parquet<
             df_view,
             size,
             id,
-            const_properties,
+            constant_properties,
             shared_const_properties,
             graph,
         )
@@ -147,7 +147,7 @@ pub fn load_edge_props_from_parquet<
     parquet_path: &Path,
     src: &str,
     dst: &str,
-    const_properties: Option<&[&str]>,
+    constant_properties: Option<&[&str]>,
     shared_const_properties: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     layer_in_df: Option<bool>,
@@ -158,7 +158,7 @@ pub fn load_edge_props_from_parquet<
             cols_to_check.push(layer.as_ref());
         }
     }
-    cols_to_check.extend(const_properties.unwrap_or(&Vec::new()));
+    cols_to_check.extend(constant_properties.unwrap_or(&Vec::new()));
     let size = cols_to_check.len();
 
     for path in get_parquet_file_paths(parquet_path)? {
@@ -169,7 +169,7 @@ pub fn load_edge_props_from_parquet<
             size,
             src,
             dst,
-            const_properties,
+            constant_properties,
             shared_const_properties,
             layer,
             layer_in_df.unwrap_or(true),

@@ -42,20 +42,20 @@ pub(crate) fn load_nodes_from_df<
     node_id: &str,
     time: &str,
     properties: Option<&[&str]>,
-    const_properties: Option<&[&str]>,
-    shared_const_properties: Option<&HashMap<String, Prop>>,
+    constant_properties: Option<&[&str]>,
+    shared_constant_properties: Option<&HashMap<String, Prop>>,
     node_type: Option<&str>,
     node_type_in_df: bool,
     graph: &G,
 ) -> Result<(), GraphError> {
     let properties = properties.unwrap_or(&[]);
-    let const_properties = const_properties.unwrap_or(&[]);
+    let constant_properties = constant_properties.unwrap_or(&[]);
 
     let properties_indices = properties
         .iter()
         .map(|name| df_view.get_index(name))
         .collect::<Result<Vec<_>, GraphError>>()?;
-    let const_properties_indices = const_properties
+    let constant_properties_indices = constant_properties
         .iter()
         .map(|name| df_view.get_index(name))
         .collect::<Result<Vec<_>, GraphError>>()?;
@@ -71,7 +71,8 @@ pub(crate) fn load_nodes_from_df<
         let df = chunk?;
         let size = df.get_inner_size();
         let prop_iter = combine_properties(properties, &properties_indices, &df)?;
-        let const_prop_iter = combine_properties(const_properties, &const_properties_indices, &df)?;
+        let const_prop_iter =
+            combine_properties(constant_properties, &constant_properties_indices, &df)?;
 
         let node_type: Box<dyn Iterator<Item = Option<&str>>> = match node_type {
             Some(node_type) => match node_type_index {
@@ -109,7 +110,7 @@ pub(crate) fn load_nodes_from_df<
                 iter,
                 prop_iter,
                 const_prop_iter,
-                shared_const_properties,
+                shared_constant_properties,
             )?;
         } else if let (Some(node_id), Some(time)) = (
             df.iter_col::<i64>(node_id_index),
@@ -126,7 +127,7 @@ pub(crate) fn load_nodes_from_df<
                 iter,
                 prop_iter,
                 const_prop_iter,
-                shared_const_properties,
+                shared_constant_properties,
             )?;
         } else if let (Some(node_id), Some(time)) =
             (df.utf8::<i32>(node_id_index), df.time_iter_col(time_index))
@@ -147,7 +148,7 @@ pub(crate) fn load_nodes_from_df<
                     let actual_type = extract_out_default_type(n_t);
                     let v = graph.add_node(time, node_id, props, actual_type)?;
                     v.add_constant_properties(const_props)?;
-                    if let Some(shared_const_props) = &shared_const_properties {
+                    if let Some(shared_const_props) = &shared_constant_properties {
                         v.add_constant_properties(shared_const_props.iter())?;
                     }
                 }
@@ -171,7 +172,7 @@ pub(crate) fn load_nodes_from_df<
                 if let (Some(node_id), Some(time), n_t) = (node_id, time, actual_type) {
                     let v = graph.add_node(time, node_id, props, n_t)?;
                     v.add_constant_properties(const_props)?;
-                    if let Some(shared_const_props) = shared_const_properties {
+                    if let Some(shared_const_props) = shared_constant_properties {
                         v.add_constant_properties(shared_const_props)?;
                     }
                 }
@@ -204,20 +205,20 @@ pub(crate) fn load_edges_from_df<
     src: &str,
     dst: &str,
     properties: Option<&[&str]>,
-    const_properties: Option<&[&str]>,
-    shared_const_properties: Option<&HashMap<String, Prop>>,
+    constant_properties: Option<&[&str]>,
+    shared_constant_properties: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     layer_in_df: bool,
     graph: &G,
 ) -> Result<(), GraphError> {
     let properties = properties.unwrap_or(&[]);
-    let const_properties = const_properties.unwrap_or(&[]);
+    let constant_properties = constant_properties.unwrap_or(&[]);
 
     let properties_indices = properties
         .iter()
         .map(|name| df_view.get_index(name))
         .collect::<Result<Vec<_>, GraphError>>()?;
-    let const_properties_indices = const_properties
+    let constant_properties_indices = constant_properties
         .iter()
         .map(|name| df_view.get_index(name))
         .collect::<Result<Vec<_>, GraphError>>()?;
@@ -233,7 +234,8 @@ pub(crate) fn load_edges_from_df<
     for chunk in df_view.chunks {
         let df = chunk?;
         let prop_iter = combine_properties(properties, &properties_indices, &df)?;
-        let const_prop_iter = combine_properties(const_properties, &const_properties_indices, &df)?;
+        let const_prop_iter =
+            combine_properties(constant_properties, &constant_properties_indices, &df)?;
 
         let layer = lift_layer(layer, layer_index, &df);
 
@@ -252,7 +254,7 @@ pub(crate) fn load_edges_from_df<
                 triplets,
                 prop_iter,
                 const_prop_iter,
-                shared_const_properties,
+                shared_constant_properties,
                 layer,
             )?;
         } else if let (Some(src), Some(dst), Some(time)) = (
@@ -270,7 +272,7 @@ pub(crate) fn load_edges_from_df<
                 triplets,
                 prop_iter,
                 const_prop_iter,
-                shared_const_properties,
+                shared_constant_properties,
                 layer,
             )?;
         } else if let (Some(src), Some(dst), Some(time)) = (
@@ -290,7 +292,7 @@ pub(crate) fn load_edges_from_df<
                 if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
                     let e = graph.add_edge(time, src, dst, props, layer.as_deref())?;
                     e.add_constant_properties(const_props, layer.as_deref())?;
-                    if let Some(shared_const_props) = &shared_const_properties {
+                    if let Some(shared_const_props) = &shared_constant_properties {
                         e.add_constant_properties(shared_const_props.iter(), layer.as_deref())?;
                     }
                 }
@@ -311,7 +313,7 @@ pub(crate) fn load_edges_from_df<
                 if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
                     let e = graph.add_edge(time, src, dst, props, layer.as_deref())?;
                     e.add_constant_properties(const_props, layer.as_deref())?;
-                    if let Some(shared_const_props) = &shared_const_properties {
+                    if let Some(shared_const_props) = &shared_constant_properties {
                         e.add_constant_properties(shared_const_props.iter(), layer.as_deref())?;
                     }
                 }
@@ -429,12 +431,12 @@ pub(crate) fn load_node_props_from_df<
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     size: usize,
     node_id: &str,
-    const_properties: Option<&[&str]>,
-    shared_const_properties: Option<&HashMap<String, Prop>>,
+    constant_properties: Option<&[&str]>,
+    shared_constant_properties: Option<&HashMap<String, Prop>>,
     graph: &G,
 ) -> Result<(), GraphError> {
-    let const_properties = const_properties.unwrap_or(&[]);
-    let const_properties_indices = const_properties
+    let constant_properties = constant_properties.unwrap_or(&[]);
+    let constant_properties_indices = constant_properties
         .iter()
         .map(|name| df_view.get_index(name))
         .collect::<Result<Vec<_>, GraphError>>()?;
@@ -442,7 +444,8 @@ pub(crate) fn load_node_props_from_df<
 
     for chunk in df_view.chunks {
         let df = chunk?;
-        let const_prop_iter = combine_properties(const_properties, &const_properties_indices, &df)?;
+        let const_prop_iter =
+            combine_properties(constant_properties, &constant_properties_indices, &df)?;
 
         if let Some(node_id) = df.iter_col::<u64>(node_id_index) {
             let iter = node_id.map(|i| i.copied());
@@ -454,7 +457,7 @@ pub(crate) fn load_node_props_from_df<
                         .node(node_id)
                         .ok_or(GraphError::NodeIdError(node_id))?;
                     v.add_constant_properties(const_props)?;
-                    if let Some(shared_const_props) = &shared_const_properties {
+                    if let Some(shared_const_props) = &shared_constant_properties {
                         v.add_constant_properties(shared_const_props.iter())?;
                     }
                 }
@@ -469,7 +472,7 @@ pub(crate) fn load_node_props_from_df<
                         .node(node_id)
                         .ok_or(GraphError::NodeIdError(node_id))?;
                     v.add_constant_properties(const_props)?;
-                    if let Some(shared_const_props) = &shared_const_properties {
+                    if let Some(shared_const_props) = &shared_constant_properties {
                         v.add_constant_properties(shared_const_props.iter())?;
                     }
                 }
@@ -484,7 +487,7 @@ pub(crate) fn load_node_props_from_df<
                         .node(node_id)
                         .ok_or_else(|| GraphError::NodeNameError(node_id.to_owned()))?;
                     v.add_constant_properties(const_props)?;
-                    if let Some(shared_const_props) = &shared_const_properties {
+                    if let Some(shared_const_props) = &shared_constant_properties {
                         v.add_constant_properties(shared_const_props.iter())?;
                     }
                 }
@@ -499,7 +502,7 @@ pub(crate) fn load_node_props_from_df<
                         .node(node_id)
                         .ok_or_else(|| GraphError::NodeNameError(node_id.to_owned()))?;
                     v.add_constant_properties(const_props)?;
-                    if let Some(shared_const_props) = &shared_const_properties {
+                    if let Some(shared_const_props) = &shared_constant_properties {
                         v.add_constant_properties(shared_const_props.iter())?;
                     }
                 }
@@ -521,14 +524,14 @@ pub(crate) fn load_edges_props_from_df<
     size: usize,
     src: &str,
     dst: &str,
-    const_properties: Option<&[&str]>,
-    shared_const_properties: Option<&HashMap<String, Prop>>,
+    constant_properties: Option<&[&str]>,
+    shared_constant_properties: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     layer_in_df: bool,
     graph: &G,
 ) -> Result<(), GraphError> {
-    let const_properties = const_properties.unwrap_or(&[]);
-    let const_properties_indices = const_properties
+    let constant_properties = constant_properties.unwrap_or(&[]);
+    let constant_properties_indices = constant_properties
         .iter()
         .map(|name| df_view.get_index(name))
         .collect::<Result<Vec<_>, GraphError>>()?;
@@ -541,7 +544,8 @@ pub(crate) fn load_edges_props_from_df<
 
     for chunk in df_view.chunks {
         let df = chunk?;
-        let const_prop_iter = combine_properties(const_properties, &const_properties_indices, &df)?;
+        let const_prop_iter =
+            combine_properties(constant_properties, &constant_properties_indices, &df)?;
 
         let layer = lift_layer(layer, layer_index, &df);
 
@@ -561,7 +565,7 @@ pub(crate) fn load_edges_props_from_df<
                         .edge(src, dst)
                         .ok_or(GraphError::EdgeIdError { src, dst })?;
                     e.add_constant_properties(const_props, layer.as_deref())?;
-                    if let Some(shared_const_props) = &shared_const_properties {
+                    if let Some(shared_const_props) = &shared_constant_properties {
                         e.add_constant_properties(shared_const_props.iter(), layer.as_deref())?;
                     }
                 }
@@ -584,7 +588,7 @@ pub(crate) fn load_edges_props_from_df<
                         .edge(src, dst)
                         .ok_or(GraphError::EdgeIdError { src, dst })?;
                     e.add_constant_properties(const_props, layer.as_deref())?;
-                    if let Some(shared_const_props) = &shared_const_properties {
+                    if let Some(shared_const_props) = &shared_constant_properties {
                         e.add_constant_properties(shared_const_props.iter(), layer.as_deref())?;
                     }
                 }
@@ -608,7 +612,7 @@ pub(crate) fn load_edges_props_from_df<
                             dst: dst.to_owned(),
                         })?;
                     e.add_constant_properties(const_props, layer.as_deref())?;
-                    if let Some(shared_const_props) = &shared_const_properties {
+                    if let Some(shared_const_props) = &shared_constant_properties {
                         e.add_constant_properties(shared_const_props.iter(), layer.as_deref())?;
                     }
                 }
@@ -632,7 +636,7 @@ pub(crate) fn load_edges_props_from_df<
                             dst: dst.to_owned(),
                         })?;
                     e.add_constant_properties(const_props, layer.as_deref())?;
-                    if let Some(shared_const_props) = &shared_const_properties {
+                    if let Some(shared_const_props) = &shared_constant_properties {
                         e.add_constant_properties(shared_const_props.iter(), layer.as_deref())?;
                     }
                 }
@@ -663,12 +667,12 @@ fn load_edges_from_num_iter<
     size: usize,
     edges: I,
     properties: PI,
-    const_properties: PI,
-    shared_const_properties: Option<&HashMap<String, Prop>>,
+    constant_properties: PI,
+    shared_constant_properties: Option<&HashMap<String, Prop>>,
     layer: IL,
 ) -> Result<(), GraphError> {
     let iter = maybe_tqdm!(
-        edges.zip(properties).zip(const_properties).zip(layer),
+        edges.zip(properties).zip(constant_properties).zip(layer),
         size,
         "Loading edges"
     );
@@ -676,7 +680,7 @@ fn load_edges_from_num_iter<
         if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
             let e = graph.add_edge(time, src, dst, edge_props, layer.as_deref())?;
             e.add_constant_properties(const_props, layer.as_deref())?;
-            if let Some(shared_const_props) = &shared_const_properties {
+            if let Some(shared_const_props) = &shared_constant_properties {
                 e.add_constant_properties(shared_const_props.iter(), layer.as_deref())?;
             }
         }
@@ -695,11 +699,11 @@ fn load_nodes_from_num_iter<
     size: usize,
     nodes: I,
     properties: PI,
-    const_properties: PI,
-    shared_const_properties: Option<&HashMap<String, Prop>>,
+    constant_properties: PI,
+    shared_constant_properties: Option<&HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
     let iter = maybe_tqdm!(
-        nodes.zip(properties).zip(const_properties),
+        nodes.zip(properties).zip(constant_properties),
         size,
         "Loading nodes"
     );
@@ -711,7 +715,7 @@ fn load_nodes_from_num_iter<
             let v = graph.add_node(t, v, props, actual_node_type)?;
             v.add_constant_properties(const_props)?;
 
-            if let Some(shared_const_props) = &shared_const_properties {
+            if let Some(shared_const_props) = &shared_constant_properties {
                 v.add_constant_properties(shared_const_props.iter())?;
             }
         }
