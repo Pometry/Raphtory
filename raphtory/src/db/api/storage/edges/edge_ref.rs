@@ -2,19 +2,21 @@ use std::ops::Range;
 
 use rayon::prelude::*;
 
+use super::edge_storage_ops::MemEdge;
 #[cfg(feature = "storage")]
 use crate::db::api::storage::variants::storage_variants::StorageVariants;
 #[cfg(feature = "storage")]
 use crate::disk_graph::storage_interface::edge::DiskEdge;
 use crate::{
-    core::entities::{edges::edge_ref::EdgeRef, LayerIds, EID, VID},
+    core::{
+        entities::{edges::edge_ref::EdgeRef, LayerIds, EID, VID},
+        Prop,
+    },
     db::api::storage::{
         edges::edge_storage_ops::{EdgeStorageOps, TimeIndexRef},
         tprop_storage_ops::TPropOps,
     },
 };
-
-use super::edge_storage_ops::MemEdge;
 
 macro_rules! for_all {
     ($value:expr, $pattern:pat => $result:expr) => {
@@ -155,5 +157,9 @@ impl<'a> EdgeStorageOps<'a> for EdgeStorageRef<'a> {
 
     fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> impl TPropOps<'a> + Sync + 'a {
         for_all_iter!(self, edge => edge.temporal_prop_layer(layer_id, prop_id))
+    }
+
+    fn constant_prop_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
+        for_all!(self, edge => edge.constant_prop_layer(layer_id, prop_id))
     }
 }

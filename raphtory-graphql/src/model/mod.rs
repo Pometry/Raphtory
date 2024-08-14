@@ -14,12 +14,11 @@ use dynamic_graphql::{
     Upload,
 };
 use itertools::Itertools;
+#[cfg(feature = "storage")]
+use raphtory::db::api::{storage::storage_ops::GraphStorage, view::internal::CoreGraphOps};
 use raphtory::{
     core::{utils::errors::GraphError, Prop},
-    db::api::{
-        storage::storage_ops::GraphStorage,
-        view::{internal::CoreGraphOps, MaterializedGraph},
-    },
+    db::api::view::MaterializedGraph,
     prelude::{GraphViewOps, ImportOps, PropertyAdditionOps},
 };
 use raphtory_api::core::storage::arc_str::ArcStr;

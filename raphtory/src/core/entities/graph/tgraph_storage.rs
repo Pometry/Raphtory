@@ -13,7 +13,7 @@ pub(crate) struct GraphStorage {
     // node storage with having (id, time_index, properties, adj list for each layer)
     pub(crate) nodes: storage::RawStorage<NodeStore, VID>,
 
-    edges: EdgesStorage,
+    pub(crate) edges: EdgesStorage,
 }
 
 impl GraphStorage {

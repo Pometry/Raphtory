@@ -27,10 +27,7 @@ use crate::{
 
 use crate::{
     core::{entities::nodes::node_ref::AsNodeRef, storage::timeindex::AsTime},
-    db::{
-        api::storage::{nodes::node_storage_ops::NodeStorageOps, storage_ops::GraphStorage},
-        graph::edges::Edges,
-    },
+    db::{api::storage::storage_ops::GraphStorage, graph::edges::Edges},
 };
 use chrono::{DateTime, Utc};
 use raphtory_api::core::storage::arc_str::ArcStr;
@@ -331,31 +328,24 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
         &self,
         props: C,
     ) -> Result<(), GraphError> {
-        let properties: Vec<(usize, Prop)> = props.collect_properties(
-            |name, dtype| self.graph.resolve_node_property(name, dtype, true),
-            |prop| self.graph.process_prop_value(prop),
-        )?;
+        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
+            self.graph.resolve_node_property(name, dtype, true)
+        })?;
         self.graph
             .internal_add_constant_node_properties(self.node, properties)
     }
 
     pub fn set_node_type(&self, new_type: &str) -> Result<(), GraphError> {
-        let res = self.graph.resolve_node_type(self.node, Some(new_type));
-        if res.is_ok() {
-            Ok(())
-        } else {
-            Err(res.err().unwrap())
-        }
+        self.graph.set_node_type(self.node, new_type)
     }
 
     pub fn update_constant_properties<C: CollectProperties>(
         &self,
         props: C,
     ) -> Result<(), GraphError> {
-        let properties: Vec<(usize, Prop)> = props.collect_properties(
-            |name, dtype| self.graph.resolve_node_property(name, dtype, true),
-            |prop| self.graph.process_prop_value(prop),
-        )?;
+        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
+            self.graph.resolve_node_property(name, dtype, true)
+        })?;
         self.graph
             .internal_update_constant_node_properties(self.node, properties)
     }
@@ -366,17 +356,10 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
         props: C,
     ) -> Result<(), GraphError> {
         let t = time_from_input(&self.graph, time)?;
-        let properties: Vec<(usize, Prop)> = props.collect_properties(
-            |name, dtype| self.graph.resolve_node_property(name, dtype, false),
-            |prop| self.graph.process_prop_value(prop),
-        )?;
-        let node_internal_type_id = self
-            .graph
-            .core_node_entry(self.node)
-            .as_ref()
-            .node_type_id();
-        self.graph
-            .internal_add_node(t, self.node, properties, node_internal_type_id)
+        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
+            self.graph.resolve_node_property(name, dtype, false)
+        })?;
+        self.graph.internal_add_node(t, self.node, properties)
     }
 }
 

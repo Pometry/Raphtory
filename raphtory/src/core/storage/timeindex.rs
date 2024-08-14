@@ -1,12 +1,6 @@
 use super::locked_view::LockedView;
-use crate::{
-    core::{entities::LayerIds, utils::time::error::ParseTimeError},
-    db::api::mutation::{internal::InternalAdditionOps, InputTime, TryIntoInputTime},
-};
-use chrono::{DateTime, NaiveDateTime, Utc};
+use crate::core::entities::LayerIds;
 use itertools::Itertools;
-use num_traits::Saturating;
-use raphtory_api::core::entities::VID;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -15,7 +9,7 @@ use std::{
     fmt::Debug,
     iter,
     marker::PhantomData,
-    ops::{Deref, Range},
+    ops::Range,
 };
 
 pub use raphtory_api::core::storage::timeindex::*;
@@ -68,6 +62,7 @@ impl<T: AsTime> TimeIndex<T> {
         }
     }
 
+    #[allow(unused)]
     pub(crate) fn contains(&self, w: Range<i64>) -> bool {
         match self {
             TimeIndex::Empty => false,
@@ -251,8 +246,8 @@ impl<'a, T: AsTime, Ops: TimeIndexOps<IndexType = T>, V: AsRef<Vec<Ops>> + Send 
             .as_ref()
             .iter()
             .enumerate()
-            .filter(|&(l, t)| self.layers.contains(&l))
-            .map(|(l, t)| t.range(w.clone()))
+            .filter(|&(l, _)| self.layers.contains(&l))
+            .map(|(_, t)| t.range(w.clone()))
             .collect_vec();
         LayeredTimeIndexWindow::new(timeindex)
     }
@@ -262,7 +257,7 @@ impl<'a, T: AsTime, Ops: TimeIndexOps<IndexType = T>, V: AsRef<Vec<Ops>> + Send 
             .as_ref()
             .iter()
             .enumerate()
-            .filter(|&(l, t)| self.layers.contains(&l))
+            .filter(|&(l, _)| self.layers.contains(&l))
             .flat_map(|(_, t)| t.first())
             .min()
     }
@@ -272,7 +267,7 @@ impl<'a, T: AsTime, Ops: TimeIndexOps<IndexType = T>, V: AsRef<Vec<Ops>> + Send 
             .as_ref()
             .iter()
             .enumerate()
-            .filter(|&(l, t)| self.layers.contains(&l))
+            .filter(|&(l, _)| self.layers.contains(&l))
             .flat_map(|(_, t)| t.last())
             .max()
     }

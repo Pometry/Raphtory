@@ -130,13 +130,13 @@ impl<
         }
 
         let node_internal = self.resolve_node(node.id())?;
-        let node_internal_type_id = self
-            .resolve_node_type(node_internal, node.node_type().as_str())
-            .unwrap_or(0usize);
+        if let Some(node_type) = node.node_type().as_str() {
+            self.set_node_type(node_internal, node_type)?;
+        }
 
         for h in node.history() {
             let t = time_from_input(self, h)?;
-            self.internal_add_node(t, node_internal, vec![], node_internal_type_id)?;
+            self.internal_add_node(t, node_internal, vec![])?;
         }
         for (name, prop_view) in node.properties().temporal().iter() {
             let old_prop_id = node
@@ -153,14 +153,8 @@ impl<
                 .unwrap();
             let new_prop_id = self.resolve_node_property(&name, dtype, false)?;
             for (h, prop) in prop_view.iter() {
-                let new_prop = self.process_prop_value(prop);
                 let t = time_from_input(self, h)?;
-                self.internal_add_node(
-                    t,
-                    node_internal,
-                    vec![(new_prop_id, new_prop)],
-                    node_internal_type_id,
-                )?;
+                self.internal_add_node(t, node_internal, vec![(new_prop_id, prop)])?;
             }
         }
         self.node(node.id())

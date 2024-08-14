@@ -15,7 +15,7 @@ pub mod python;
 #[cfg(test)]
 mod graphql_test {
     use crate::{
-        data::{save_graphs_to_work_dir, Data},
+        data::{data_tests::save_graphs_to_work_dir, Data},
         model::App,
         server_config::AppConfig,
         url_encode::{url_decode_graph, url_encode_graph},

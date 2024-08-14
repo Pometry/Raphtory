@@ -108,14 +108,14 @@ impl<G: InternalAdditionOps + StaticGraphViewOps> AdditionOps for G {
         props: PI,
         node_type: Option<&str>,
     ) -> Result<NodeView<G, G>, GraphError> {
-        let properties = props.collect_properties(
-            |name, dtype| self.resolve_node_property(name, dtype, false),
-            |prop| self.process_prop_value(prop),
-        )?;
+        let properties = props
+            .collect_properties(|name, dtype| self.resolve_node_property(name, dtype, false))?;
         let ti = time_from_input(self, t)?;
         let v_id = self.resolve_node(v)?;
-        let type_id = self.resolve_node_type(v_id, node_type)?;
-        self.internal_add_node(ti, v_id, properties, type_id)?;
+        if let Some(node_type) = node_type {
+            self.set_node_type(v_id, node_type)?;
+        }
+        self.internal_add_node(ti, v_id, properties)?;
         Ok(NodeView::new_internal(self.clone(), v_id))
     }
 
@@ -132,10 +132,8 @@ impl<G: InternalAdditionOps + StaticGraphViewOps> AdditionOps for G {
         let dst_id = self.resolve_node(dst)?;
         let layer_id = self.resolve_layer(layer)?;
 
-        let properties: Vec<(usize, Prop)> = props.collect_properties(
-            |name, dtype| self.resolve_edge_property(name, dtype, false),
-            |prop| self.process_prop_value(prop),
-        )?;
+        let properties: Vec<(usize, Prop)> = props
+            .collect_properties(|name, dtype| self.resolve_edge_property(name, dtype, false))?;
         let eid = self.internal_add_edge(ti, src_id, dst_id, properties, layer_id)?;
         Ok(EdgeView::new(
             self.clone(),

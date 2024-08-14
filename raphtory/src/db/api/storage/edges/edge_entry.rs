@@ -2,12 +2,14 @@ use std::ops::Range;
 
 use rayon::prelude::*;
 
+use super::edge_storage_ops::MemEdge;
 #[cfg(feature = "storage")]
 use crate::disk_graph::storage_interface::edge::DiskEdge;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         storage::raw_edges::EdgeRGuard,
+        Prop,
     },
     db::api::storage::{
         edges::{
@@ -17,8 +19,6 @@ use crate::{
         tprop_storage_ops::TPropOps,
     },
 };
-
-use super::edge_storage_ops::MemEdge;
 
 #[derive(Debug)]
 pub enum EdgeStorageEntry<'a> {
@@ -148,5 +148,9 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
         prop_id: usize,
     ) -> impl ParallelIterator<Item = (usize, impl TPropOps)> + 'a {
         self.as_ref().temporal_prop_par_iter(layer_ids, prop_id)
+    }
+
+    fn constant_prop_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
+        self.as_ref().constant_prop_layer(layer_id, prop_id)
     }
 }

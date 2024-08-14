@@ -12,6 +12,7 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         storage::raw_edges::EdgeArcGuard,
+        Prop,
     },
     db::api::storage::{
         edges::{
@@ -166,6 +167,10 @@ impl<'a> EdgeStorageOps<'a> for &'a EdgeOwnedEntry {
         prop_id: usize,
     ) -> impl ParallelIterator<Item = (usize, impl TPropOps<'a>)> + 'a {
         self.as_ref().temporal_prop_par_iter(layer_ids, prop_id)
+    }
+
+    fn constant_prop_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
+        self.as_ref().constant_prop_layer(layer_id, prop_id)
     }
 }
 
