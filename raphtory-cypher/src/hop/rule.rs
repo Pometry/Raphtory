@@ -4,11 +4,11 @@ use super::execution::HopExec;
 use crate::hop::operator::HopPlan;
 use async_trait::async_trait;
 use datafusion::{
-    common::Column,
+    common::{tree_node::Transformed, Column},
     error::DataFusionError,
     execution::context::{QueryPlanner, SessionState},
     logical_expr::{Expr, Extension, Join, LogicalPlan, UserDefinedLogicalNode},
-    optimizer::{optimize_children, optimizer::ApplyOrder, OptimizerConfig, OptimizerRule},
+    optimizer::{optimizer::ApplyOrder, OptimizerConfig, OptimizerRule},
     physical_plan::ExecutionPlan,
     physical_planner::{DefaultPhysicalPlanner, ExtensionPlanner, PhysicalPlanner},
 };
@@ -29,12 +29,12 @@ impl OptimizerRule for HopRule {
         Some(ApplyOrder::BottomUp)
     }
 
-    fn try_optimize(
+    fn rewrite(
         &self,
-        plan: &LogicalPlan,
-        config: &dyn OptimizerConfig,
-    ) -> Result<Option<LogicalPlan>, DataFusionError> {
-        if let LogicalPlan::Join(join) = plan {
+        plan: LogicalPlan,
+        _config: &dyn OptimizerConfig,
+    ) -> Result<Transformed<LogicalPlan>, DataFusionError> {
+        if let LogicalPlan::Join(join) = &plan {
             let Join {
                 right,
                 on,
@@ -44,7 +44,7 @@ impl OptimizerRule for HopRule {
             } = join;
 
             if on.len() != 1 {
-                return Ok(None); //optimize_children(self, plan, config);
+                return Ok(Transformed::no(plan)); 
             }
 
             let (hop_from_col, _hop_to_col, direction) = if let (
@@ -61,11 +61,11 @@ impl OptimizerRule for HopRule {
                     ("dst", "dst") => Direction::IN,
                     ("src", "src") => Direction::OUT,
                     ("src", "dst") => Direction::IN,
-                    _ => return Ok(None),
+                    _ => return Ok(Transformed::no(plan)),
                 };
                 (hop_from_col, hop_to_col, direction)
             } else {
-                return Ok(None);
+                return Ok(Transformed::no(plan));
             };
 
             // simplest form Any -> TableScan
@@ -82,11 +82,11 @@ impl OptimizerRule for HopRule {
                             on.clone(),
                         )),
                     });
-                    return Ok(Some(plan));
+                    return Ok(Transformed::yes(plan));
                 }
             }
         }
-        optimize_children(self, plan, config)
+        Ok(Transformed::no(plan))
     }
 
     fn name(&self) -> &str {

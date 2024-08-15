@@ -126,7 +126,7 @@ prost-build = "0.13.1"
 lazy_static = "1.4.0"
 pest = "2.7.8"
 pest_derive = "2.7.8"
-sqlparser = "0.43.1"
+sqlparser = "0.47"
 
 datafusion = { version = "40" }
 futures = "0.3"

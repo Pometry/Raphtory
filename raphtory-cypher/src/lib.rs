@@ -48,6 +48,7 @@ mod cypher {
         enable_hop_optim: bool,
     ) -> Result<DataFrame, ExecError> {
         let (ctx, plan) = prepare_plan(query, g, enable_hop_optim).await?;
+        println!("{}", plan.display_indent().to_string());
         let df = ctx.execute_logical_plan(plan).await?;
         Ok(df)
     }
@@ -116,7 +117,7 @@ mod cypher {
         ctx.refresh_catalogs().await?;
         let query = transpiler::to_sql(query, g);
 
-        // println!("SQL: {:?}", query.to_string());
+        println!("SQL: {:?}", query.to_string());
         // println!("SQL AST: {:?}", query);
         let plan = ctx
             .state()
@@ -176,6 +177,7 @@ mod cypher {
     #[cfg(test)]
     mod test {
         use arrow::compute::concat_batches;
+        use datafusion::physical_plan::coalesce_batches::CoalesceBatchesExec;
         use std::path::Path;
 
         // FIXME: actually assert the tests below
@@ -186,7 +188,7 @@ mod cypher {
 
         use raphtory::{disk_graph::DiskGraphStorage, prelude::*};
 
-        use crate::run_cypher;
+        use crate::{run_cypher, run_sql};
 
         lazy_static::lazy_static! {
             static ref EDGES: Vec<(u64, u64, i64, f64)> = vec![
@@ -614,7 +616,20 @@ mod cypher {
             let graph_dir = tempdir().unwrap();
             let graph = make_graph_with_node_props(graph_dir);
 
-            let df = run_cypher("match (a)-[e]->(b) return a.name, e, b.name", &graph, true)
+            // let df = run_sql("WITH e AS (SELECT * FROM _default), b AS (SELECT * FROM nodes) SELECT e.*, b.gid FROM e JOIN b ON e.dst = b.id", &graph).await.unwrap();
+            let df = run_cypher("match ()-[e]->(b) return e,b.gid", &graph, false)
+                .await
+                .unwrap();
+            let data = df.collect().await.unwrap();
+            print_batches(&data).unwrap();
+        }
+
+        #[tokio::test]
+        async fn select_node_names_from_edges_both() {
+            let graph_dir = tempdir().unwrap();
+            let graph = make_graph_with_node_props(graph_dir);
+
+            let df = run_cypher("match (a)-[e]->(b) return a.gid, e, b.gid", &graph, false)
                 .await
                 .unwrap();
             let data = df.collect().await.unwrap();

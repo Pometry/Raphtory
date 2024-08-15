@@ -3,9 +3,9 @@ use crate::{
     executor::ExecError,
 };
 use arrow::datatypes::UInt64Type;
-use arrow_array::{make_array, Array, PrimitiveArray};
+use arrow_array::{make_array, Array, LargeStringArray, PrimitiveArray};
 use arrow_buffer::ScalarBuffer;
-use arrow_schema::{DataType, Schema};
+use arrow_schema::{DataType, Field, Schema};
 use async_trait::async_trait;
 use datafusion::{
     arrow::{array::RecordBatch, datatypes::SchemaRef},
@@ -55,10 +55,15 @@ impl NodeTableProvider {
             });
 
         let name_dt = graph.global_ordering().data_type();
-        let schema = lift_arrow_schema(
-            name_dt.clone(),
-            graph.node_properties().const_props.as_ref(),
-        )?;
+        // let schema = lift_arrow_schema(
+        //     name_dt.clone(),
+        //     graph.node_properties().const_props.as_ref(),
+        // )?;
+
+        let schema = Arc::new(Schema::new(vec![
+            Field::new("id", DataType::UInt64, false),
+            Field::new("gid", DataType::UInt64, false),
+        ]));
 
         Ok(Self {
             graph: g,
@@ -160,7 +165,8 @@ async fn produce_record_batch(
         None,
     ));
 
-    let arr_gid = graph.global_ordering().sliced(start, end - start);
+    let length = ( end - start ).min(graph.global_ordering().len());
+    let arr_gid = graph.global_ordering().sliced(start, length);
     let gid_data = to_data(arr_gid.as_ref());
     let gid = make_array(gid_data);
 
@@ -232,7 +238,6 @@ impl DisplayAs for NodeScanExecPlan {
 
 #[async_trait]
 impl ExecutionPlan for NodeScanExecPlan {
-
     fn name(&self) -> &str {
         "NodeScanExecPlan"
     }
