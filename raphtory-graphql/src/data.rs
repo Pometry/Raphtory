@@ -291,7 +291,7 @@ pub(crate) fn load_bincode_graph(path: &Path) -> Result<MaterializedGraph, Graph
 #[cfg(feature = "storage")]
 fn load_disk_graph(path: &Path) -> Result<MaterializedGraph, GraphError> {
     let disk_graph =
-        DiskGraphStorage::load_from_dir(path).map_err(|e| GraphError::LoadFailure(e.to_string()));
+        DiskGraphStorage::load_from_dir(path).map_err(|e| GraphError::LoadFailure(e.to_string()))?;
     let graph: MaterializedGraph = disk_graph.into_graph().into(); // TODO: We currently have no way to identify disk graphs as MaterializedGraphs
     Ok(graph)
 }
