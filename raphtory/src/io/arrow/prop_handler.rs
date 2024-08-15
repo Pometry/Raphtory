@@ -359,7 +359,10 @@ pub(crate) fn lift_layer<'a>(
                 Ok(Box::new(std::iter::repeat(None)))
             }
         }
-        _ => Err(GraphError::WrongLayerArgs),
+        _ => Err(GraphError::WrongNumOfArgs(
+            "layer_name".to_string(),
+            "layer_col".to_string(),
+        )),
     }
 }
 

@@ -485,8 +485,8 @@ impl PyGraph {
     ///     node_properties (list): The column names for the node temporal properties (optional) Defaults to None.
     ///     node_constant_properties (list): The column names for the node constant properties (optional) Defaults to None.
     ///     node_shared_constant_properties (dict): A dictionary of constant properties that will be added to every node (optional) Defaults to None.
-    ///     node_type (str): the column name for the node type
-    ///     node_type_in_df (bool): whether the node type should be used to look up the values in a column of the df or if it should be used directly as the node type
+    ///     node_type (str): The node type (optional). Defaults to None.
+    ///     node_type_col (str): The node type col name in dataframe (optional) Defaults to None.
     ///
     /// Returns:
     ///      Graph: The loaded Graph object.
@@ -494,7 +494,7 @@ impl PyGraph {
     #[pyo3(
         signature = (edge_df, edge_time, edge_src, edge_dst, edge_properties = None, edge_constant_properties = None, edge_shared_constant_properties = None,
         layer_name = None, layer_col = None, node_df = None, node_id = None, node_time = None, node_properties = None,
-        node_constant_properties = None, node_shared_constant_properties = None, node_type = None, node_type_in_df = true)
+        node_constant_properties = None, node_shared_constant_properties = None, node_type = None, node_type_col = None)
     )]
     fn load_from_pandas(
         edge_df: &PyAny,
@@ -513,7 +513,7 @@ impl PyGraph {
         node_constant_properties: Option<Vec<&str>>,
         node_shared_constant_properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
-        node_type_in_df: Option<bool>,
+        node_type_col: Option<&str>,
     ) -> Result<Graph, GraphError> {
         let graph = Graph::new();
         if let (Some(node_df), Some(node_id), Some(node_time)) = (node_df, node_id, node_time) {
@@ -523,7 +523,7 @@ impl PyGraph {
                 node_id,
                 node_time,
                 node_type,
-                node_type_in_df,
+                node_type_col,
                 node_properties.as_ref().map(|props| props.as_ref()),
                 node_constant_properties
                     .as_ref()
@@ -566,8 +566,8 @@ impl PyGraph {
     ///     node_properties (list): The column names for the node temporal properties (optional) Defaults to None.
     ///     node_constant_properties (list): The column names for the node constant properties (optional) Defaults to None.
     ///     node_shared_constant_properties (dict): A dictionary of constant properties that will be added to every node (optional) Defaults to None.
-    ///     node_type (str): the column name for the node type
-    ///     node_type_in_df (bool): whether the node type should be used to look up the values in a column of the df or if it should be used directly as the node type
+    ///     node_type (str): The node type (optional). Defaults to None.
+    ///     node_type_col (str): The node type col name in dataframe (optional) Defaults to None.
     ///
     /// Returns:
     ///      Graph: The loaded Graph object.
@@ -575,7 +575,7 @@ impl PyGraph {
     #[pyo3(
         signature = (edge_parquet_path, edge_time, edge_src, edge_dst, edge_properties = None, edge_constant_properties = None, edge_shared_constant_properties = None,
         layer_name = None, layer_col = None, node_parquet_path = None, node_id = None, node_time = None, node_properties = None,
-        node_constant_properties = None, node_shared_constant_properties = None, node_type = None, node_type_in_df = true)
+        node_constant_properties = None, node_shared_constant_properties = None, node_type = None, node_type_col = None)
     )]
     fn load_from_parquet(
         edge_parquet_path: PathBuf,
@@ -594,7 +594,7 @@ impl PyGraph {
         node_constant_properties: Option<Vec<&str>>,
         node_shared_constant_properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
-        node_type_in_df: Option<bool>,
+        node_type_col: Option<&str>,
     ) -> Result<Graph, GraphError> {
         let graph = Graph::new();
 
@@ -607,7 +607,7 @@ impl PyGraph {
                 node_id,
                 node_time,
                 node_type,
-                node_type_in_df,
+                node_type_col,
                 node_properties.as_ref().map(|props| props.as_ref()),
                 node_constant_properties
                     .as_ref()
@@ -639,15 +639,15 @@ impl PyGraph {
     ///     df (pandas.DataFrame): The Pandas DataFrame containing the nodes.
     ///     id (str): The column name for the node IDs.
     ///     time (str): The column name for the timestamps.
-    ///     node_type (str): the column name for the node type
-    ///     node_type_in_df (bool): whether the node type should be used to look up the values in a column of the df or if it should be used directly as the node type
+    ///     node_type (str): The node type (optional). Defaults to None.
+    ///     node_type_col (str): The node type col name in dataframe (optional) Defaults to None.
     ///     properties (List<str>): List of node property column names. Defaults to None. (optional)
     ///     constant_properties (List<str>): List of constant node property column names. Defaults to None.  (optional)
     ///     shared_constant_properties (Dictionary/Hashmap of properties): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
     /// Returns:
     ///     Result<(), GraphError>: Result of the operation.
     #[pyo3(
-        signature = (df, id, time, node_type = None, node_type_in_df = true, properties = None, constant_properties = None, shared_constant_properties = None)
+        signature = (df, id, time, node_type = None, node_type_col = None, properties = None, constant_properties = None, shared_constant_properties = None)
     )]
     fn load_nodes_from_pandas(
         &self,
@@ -655,7 +655,7 @@ impl PyGraph {
         id: &str,
         time: &str,
         node_type: Option<&str>,
-        node_type_in_df: Option<bool>,
+        node_type_col: Option<&str>,
         properties: Option<Vec<&str>>,
         constant_properties: Option<Vec<&str>>,
         shared_constant_properties: Option<HashMap<String, Prop>>,
@@ -666,7 +666,7 @@ impl PyGraph {
             id,
             time,
             node_type,
-            node_type_in_df,
+            node_type_col,
             properties.as_ref().map(|props| props.as_ref()),
             constant_properties.as_ref().map(|props| props.as_ref()),
             shared_constant_properties.as_ref(),
@@ -679,15 +679,15 @@ impl PyGraph {
     ///     parquet_path (str): Parquet file or directory of Parquet files containing the nodes
     ///     id (str): The column name for the node IDs.
     ///     time (str): The column name for the timestamps.
-    ///     node_type (str): the column name for the node type
-    ///     node_type_in_df (bool): whether the node type should be used to look up the values in a column of the df or if it should be used directly as the node type
+    ///     node_type (str): The node type (optional). Defaults to None.
+    ///     node_type_col (str): The node type col name in dataframe (optional) Defaults to None.
     ///     properties (List<str>): List of node property column names. Defaults to None. (optional)
     ///     constant_properties (List<str>): List of constant node property column names. Defaults to None.  (optional)
     ///     shared_constant_properties (Dictionary/Hashmap of properties): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
     /// Returns:
     ///     Result<(), GraphError>: Result of the operation.
     #[pyo3(
-        signature = (parquet_path, id, time, node_type = None, node_type_in_df = true, properties = None, constant_properties = None, shared_constant_properties = None)
+        signature = (parquet_path, id, time, node_type = None, node_type_col = None, properties = None, constant_properties = None, shared_constant_properties = None)
     )]
     fn load_nodes_from_parquet(
         &self,
@@ -695,7 +695,7 @@ impl PyGraph {
         id: &str,
         time: &str,
         node_type: Option<&str>,
-        node_type_in_df: Option<bool>,
+        node_type_col: Option<&str>,
         properties: Option<Vec<&str>>,
         constant_properties: Option<Vec<&str>>,
         shared_constant_properties: Option<HashMap<String, Prop>>,
@@ -706,7 +706,7 @@ impl PyGraph {
             id,
             time,
             node_type,
-            node_type_in_df,
+            node_type_col,
             properties.as_ref().map(|props| props.as_ref()),
             constant_properties.as_ref().map(|props| props.as_ref()),
             shared_constant_properties.as_ref(),

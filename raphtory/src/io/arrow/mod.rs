@@ -146,7 +146,7 @@ mod test {
             None,
             None,
             Some("node_type"),
-            false,
+            None,
             &graph,
         )
         .expect("failed to load nodes from pretend df");

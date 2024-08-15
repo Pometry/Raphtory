@@ -14,7 +14,7 @@ pub fn load_nodes_from_pandas(
     id: &str,
     time: &str,
     node_type: Option<&str>,
-    node_type_in_df: Option<bool>,
+    node_type_col: Option<&str>,
     properties: Option<&[&str]>,
     constant_properties: Option<&[&str]>,
     shared_const_properties: Option<&HashMap<String, Prop>>,
@@ -23,10 +23,8 @@ pub fn load_nodes_from_pandas(
         let mut cols_to_check = vec![id, time];
         cols_to_check.extend(properties.unwrap_or(&Vec::new()));
         cols_to_check.extend(constant_properties.unwrap_or(&Vec::new()));
-        if node_type_in_df.unwrap_or(true) {
-            if let Some(ref node_type) = node_type {
-                cols_to_check.push(node_type.as_ref());
-            }
+        if let Some(ref node_type_col) = node_type_col {
+            cols_to_check.push(node_type_col.as_ref());
         }
 
         let df_view = process_pandas_py_df(df, py, cols_to_check.clone())?;
@@ -39,7 +37,7 @@ pub fn load_nodes_from_pandas(
             constant_properties,
             shared_const_properties,
             node_type,
-            node_type_in_df.unwrap_or(true),
+            node_type_col,
             graph,
         )
         .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;

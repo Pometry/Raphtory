@@ -298,7 +298,7 @@ def test_load_from_pandas_with_types():
         nodes_df,
         "id",
         "time",
-        "node_type",
+        node_type_col="node_type",
         properties=["name"],
         shared_constant_properties={"tag": "test_tag"},
     )
@@ -309,7 +309,7 @@ def test_load_from_pandas_with_types():
         nodes_df,
         "id",
         "time",
-        "node_type",
+        node_type_col="node_type",
         properties=["name"],
         shared_constant_properties={"tag": "test_tag"},
     )
@@ -330,7 +330,7 @@ def test_load_from_pandas_with_types():
         nodes_df,
         "id",
         "time",
-        "node_type",
+        node_type_col="node_type",
         properties=["name"],
         constant_properties=["type"],
     )
@@ -341,7 +341,7 @@ def test_load_from_pandas_with_types():
         nodes_df,
         "id",
         "time",
-        "node_type",
+        node_type_col="node_type",
         properties=["name"],
         constant_properties=["type"],
     )
@@ -997,34 +997,34 @@ def test_load_node_from_pandas_with_node_types():
 
     g = Graph()
     g.load_nodes_from_pandas(
-        nodes_df, "id", "time", node_type="node_type", node_type_in_df=False
+        nodes_df, "id", "time", node_type="node_type"
     )
     nodes_assertions2(g)
     g = PersistentGraph()
     g.load_nodes_from_pandas(
-        nodes_df, "id", "time", node_type="node_type", node_type_in_df=False
+        nodes_df, "id", "time", node_type="node_type"
     )
     nodes_assertions2(g)
 
     g = Graph()
     g.load_nodes_from_pandas(
-        nodes_df2, "id", "time", node_type="node_type", node_type_in_df=False
+        nodes_df2, "id", "time", node_type="node_type"
     )
     nodes_assertions2(g)
     g = PersistentGraph()
     g.load_nodes_from_pandas(
-        nodes_df2, "id", "time", node_type="node_type", node_type_in_df=False
+        nodes_df2, "id", "time", node_type="node_type"
     )
     nodes_assertions2(g)
 
     g = Graph()
     g.load_nodes_from_pandas(
-        nodes_df2, "id", "time", node_type="node_type", node_type_in_df=True
+        nodes_df2, "id", "time", node_type_col="node_type"
     )
     nodes_assertions3(g)
     g = PersistentGraph()
     g.load_nodes_from_pandas(
-        nodes_df2, "id", "time", node_type="node_type", node_type_in_df=True
+        nodes_df2, "id", "time", node_type_col="node_type"
     )
     nodes_assertions3(g)
 

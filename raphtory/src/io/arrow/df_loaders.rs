@@ -45,7 +45,7 @@ pub(crate) fn load_nodes_from_df<
     constant_properties: Option<&[&str]>,
     shared_constant_properties: Option<&HashMap<String, Prop>>,
     node_type: Option<&str>,
-    node_type_in_df: bool,
+    node_type_col: Option<&str>,
     graph: &G,
 ) -> Result<(), GraphError> {
     let properties = properties.unwrap_or(&[]);
@@ -60,10 +60,13 @@ pub(crate) fn load_nodes_from_df<
         .map(|name| df_view.get_index(name))
         .collect::<Result<Vec<_>, GraphError>>()?;
 
-    let node_type_index = node_type
-        .filter(|_| node_type_in_df)
-        .map(|node_type| df_view.get_index(node_type))
-        .transpose()?;
+    let node_type_index = if let Some(node_type_col) = node_type_col {
+        Some(df_view.get_index(node_type_col.as_ref()))
+    } else {
+        None
+    };
+    let node_type_index = node_type_index.transpose()?;
+
     let node_id_index = df_view.get_index(node_id)?;
     let time_index = df_view.get_index(time)?;
 
@@ -74,13 +77,15 @@ pub(crate) fn load_nodes_from_df<
         let const_prop_iter =
             combine_properties(constant_properties, &constant_properties_indices, &df)?;
 
-        let node_type: Box<dyn Iterator<Item = Option<&str>>> = match node_type {
-            Some(node_type) => match node_type_index {
-                Some(index) => {
+        let node_type: Result<Box<dyn Iterator<Item = Option<&str>>>, GraphError> =
+            match (node_type, node_type_index) {
+                (None, None) => Ok(Box::new(iter::repeat(None))),
+                (Some(node_type), None) => Ok(Box::new(iter::repeat(Some(node_type)))),
+                (None, Some(node_type_index)) => {
                     let iter_res: Result<Box<dyn Iterator<Item = Option<&str>>>, GraphError> =
-                        if let Some(node_types) = df.utf8::<i32>(index) {
+                        if let Some(node_types) = df.utf8::<i32>(node_type_index) {
                             Ok(Box::new(node_types))
-                        } else if let Some(node_types) = df.utf8::<i64>(index) {
+                        } else if let Some(node_types) = df.utf8::<i64>(node_type_index) {
                             Ok(Box::new(node_types))
                         } else {
                             Err(GraphError::LoadFailure(
@@ -88,12 +93,14 @@ pub(crate) fn load_nodes_from_df<
                                     .to_string(),
                             ))
                         };
-                    iter_res?
+                    iter_res
                 }
-                None => Box::new(iter::repeat(Some(node_type))),
-            },
-            None => Box::new(iter::repeat(None)),
-        };
+                _ => Err(GraphError::WrongNumOfArgs(
+                    "node_type".to_string(),
+                    "node_type_col".to_string(),
+                )),
+            };
+        let node_type = node_type?;
 
         if let (Some(node_id), Some(time)) = (
             df.iter_col::<u64>(node_id_index),

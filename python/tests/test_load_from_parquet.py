@@ -260,7 +260,7 @@ def test_load_from_parquet_graphs(parquet_files):
         parquet_path=nodes_parquet_file_path,
         id="id",
         time="time",
-        node_type="node_type",
+        node_type_col="node_type",
         properties=["name"],
         shared_constant_properties={"tag": "test_tag"},
     )
@@ -375,7 +375,7 @@ def test_load_from_parquet_persistent_graphs(parquet_files):
         parquet_path=nodes_parquet_file_path,
         id="id",
         time="time",
-        node_type="node_type",
+        node_type_col="node_type",
         properties=["name"],
         shared_constant_properties={"tag": "test_tag"},
     )

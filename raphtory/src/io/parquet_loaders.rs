@@ -28,7 +28,7 @@ pub fn load_nodes_from_parquet<
     id: &str,
     time: &str,
     node_type: Option<&str>,
-    node_type_in_df: Option<bool>,
+    node_type_col: Option<&str>,
     properties: Option<&[&str]>,
     constant_properties: Option<&[&str]>,
     shared_const_properties: Option<&HashMap<String, Prop>>,
@@ -36,10 +36,8 @@ pub fn load_nodes_from_parquet<
     let mut cols_to_check = vec![id, time];
     cols_to_check.extend(properties.unwrap_or(&Vec::new()));
     cols_to_check.extend(constant_properties.unwrap_or(&Vec::new()));
-    if node_type_in_df.unwrap_or(true) {
-        if let Some(ref node_type) = node_type {
-            cols_to_check.push(node_type.as_ref());
-        }
+    if let Some(ref node_type_col) = node_type_col {
+        cols_to_check.push(node_type_col.as_ref());
     }
 
     for path in get_parquet_file_paths(parquet_path)? {
@@ -53,7 +51,7 @@ pub fn load_nodes_from_parquet<
             constant_properties,
             shared_const_properties,
             node_type,
-            node_type_in_df.unwrap_or(true),
+            node_type_col,
             graph,
         )
         .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;

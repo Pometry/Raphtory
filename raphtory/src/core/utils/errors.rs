@@ -12,8 +12,8 @@ use tantivy::query::QueryParserError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum GraphError {
-    #[error("You cannot set ‘layer_name’ and ‘layer_col’ at the same time. Please pick one or the other.")]
-    WrongLayerArgs,
+    #[error("You cannot set ‘{0}’ and ‘{1}’ at the same time. Please pick one or the other.")]
+    WrongNumOfArgs(String, String),
     #[cfg(feature = "arrow")]
     #[error("Arrow error: {0}")]
     Arrow(#[from] error::PolarsError),
