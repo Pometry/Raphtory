@@ -328,10 +328,9 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
         &self,
         props: C,
     ) -> Result<(), GraphError> {
-        let properties: Vec<(usize, Prop)> = props.collect_properties(
-            |name, dtype| self.graph.resolve_node_property(name, dtype, true),
-            |prop| self.graph.process_prop_value(prop),
-        )?;
+        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
+            self.graph.resolve_node_property(name, dtype, true)
+        })?;
         self.graph
             .internal_add_constant_node_properties(self.node, properties)
     }
@@ -344,10 +343,9 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
         &self,
         props: C,
     ) -> Result<(), GraphError> {
-        let properties: Vec<(usize, Prop)> = props.collect_properties(
-            |name, dtype| self.graph.resolve_node_property(name, dtype, true),
-            |prop| self.graph.process_prop_value(prop),
-        )?;
+        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
+            self.graph.resolve_node_property(name, dtype, true)
+        })?;
         self.graph
             .internal_update_constant_node_properties(self.node, properties)
     }
@@ -358,10 +356,9 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
         props: C,
     ) -> Result<(), GraphError> {
         let t = time_from_input(&self.graph, time)?;
-        let properties: Vec<(usize, Prop)> = props.collect_properties(
-            |name, dtype| self.graph.resolve_node_property(name, dtype, false),
-            |prop| self.graph.process_prop_value(prop),
-        )?;
+        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
+            self.graph.resolve_node_property(name, dtype, false)
+        })?;
         self.graph.internal_add_node(t, self.node, properties)
     }
 }
