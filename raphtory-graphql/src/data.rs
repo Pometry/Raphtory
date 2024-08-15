@@ -118,27 +118,33 @@ impl Data {
         let clean_path = path.clean();
         let path_str = &path.display().to_string();
         if (*clean_path.display().to_string() != *path_str) || path_str.contains("\\") {
-            return Err(GraphError::InvalidPath(path.to_path_buf()));
+            return Err(GraphError::InvalidPath(clean_path.to_path_buf()));
         }
 
         //check if path is a directory (should be either a file or not exist)
         if clean_path.is_dir() {
-            return Err(GraphError::InvalidPath(path.to_path_buf()));
+            return Err(GraphError::InvalidPath(clean_path.to_path_buf()));
         }
         let mut full_path = self.work_dir.to_path_buf();
         // fail if any component is a Prefix (C://), tries to access root,
         // tries to access a parent dir or is a symlink which could break out of the working dir
         for component in clean_path.components() {
             match component {
-                Component::Prefix(_) => return Err(GraphError::InvalidPath(path.to_path_buf())),
-                Component::RootDir => return Err(GraphError::InvalidPath(path.to_path_buf())),
+                Component::Prefix(_) => {
+                    return Err(GraphError::InvalidPath(clean_path.to_path_buf()))
+                }
+                Component::RootDir => {
+                    return Err(GraphError::InvalidPath(clean_path.to_path_buf()))
+                }
                 Component::CurDir => {}
-                Component::ParentDir => return Err(GraphError::InvalidPath(path.to_path_buf())),
+                Component::ParentDir => {
+                    return Err(GraphError::InvalidPath(clean_path.to_path_buf()))
+                }
                 Component::Normal(component) => {
                     //check for symlinks
                     full_path.push(component);
                     if full_path.is_symlink() {
-                        return Err(GraphError::InvalidPath(path.to_path_buf()));
+                        return Err(GraphError::InvalidPath(clean_path.to_path_buf()));
                     }
                 }
             }
@@ -284,7 +290,8 @@ pub(crate) fn load_bincode_graph(path: &Path) -> Result<MaterializedGraph, Graph
 
 #[cfg(feature = "storage")]
 fn load_disk_graph(path: &Path) -> Result<MaterializedGraph, GraphError> {
-    let disk_graph = DiskGraphStorage::load_from_dir(path)?;
+    let disk_graph =
+        DiskGraphStorage::load_from_dir(path).map_err(|e| GraphError::LoadFailure(e.to_string()));
     let graph: MaterializedGraph = disk_graph.into_graph().into(); // TODO: We currently have no way to identify disk graphs as MaterializedGraphs
     Ok(graph)
 }
@@ -311,10 +318,7 @@ pub(crate) mod data_tests {
     };
 
     #[cfg(feature = "storage")]
-    use crate::{
-        data::{copy_dir_recursive, Data},
-        server_config::AppConfigBuilder,
-    };
+    use crate::data::copy_dir_recursive;
     use raphtory::core::utils::errors::GraphError;
     #[cfg(feature = "storage")]
     use raphtory::{
