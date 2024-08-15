@@ -108,14 +108,13 @@ impl<G: InternalAdditionOps + StaticGraphViewOps> AdditionOps for G {
         props: PI,
         node_type: Option<&str>,
     ) -> Result<NodeView<G, G>, GraphError> {
+        let ti = time_from_input(self, t)?;
         let properties = props.collect_properties(|name, dtype| {
             Ok(self.resolve_node_property(name, dtype, false)?.id())
         })?;
-        let ti = time_from_input(self, t)?;
-        let v_id = self.resolve_node(v)?.id();
+        let v_id = *self.resolve_node(v)?;
         if let Some(node_type) = node_type {
-            let node_type = self.resolve_node_type(node_type)?.id();
-            self.set_node_type(v_id, node_type)?;
+            self.resolve_node_type(v_id, node_type)?;
         }
         self.internal_add_node(ti, v_id, properties)?;
         Ok(NodeView::new_internal(self.clone(), v_id))

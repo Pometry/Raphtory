@@ -768,8 +768,18 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
         self.graph.resolve_layer(layer)
     }
 
-    fn resolve_node_type(&self, node_type: &str) -> Result<MaybeNew<usize>, GraphError> {
-        self.graph.resolve_node_type(node_type)
+    #[inline]
+    fn resolve_node_type(&self, vid: VID, node_type: &str) -> Result<MaybeNew<usize>, GraphError> {
+        let id = self.graph.resolve_node_type(vid, node_type)?;
+        let node_type_field = self.node_index.schema().get_field(fields::NODE_TYPE)?;
+        let mut document = TantivyDocument::new();
+        document.add_text(node_type_field, node_type);
+        let node_id_field = self.node_index.schema().get_field(fields::VERTEX_ID)?;
+        document.add_u64(node_id_field, vid.as_u64());
+        let mut writer = self.node_index.writer(50_000_000)?;
+        writer.add_document(document)?;
+        writer.commit()?;
+        Ok(id)
     }
 
     #[inline]

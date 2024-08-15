@@ -336,8 +336,8 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
     }
 
     pub fn set_node_type(&self, new_type: &str) -> Result<(), GraphError> {
-        let new_type = *self.graph.resolve_node_type(new_type)?;
-        self.graph.set_node_type(self.node, new_type)
+        self.graph.resolve_node_type(self.node, new_type)?;
+        Ok(())
     }
 
     pub fn update_constant_properties<C: CollectProperties>(

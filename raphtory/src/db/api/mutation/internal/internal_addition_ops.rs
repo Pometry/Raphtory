@@ -18,8 +18,10 @@ pub trait InternalAdditionOps {
     /// map layer name to id and allocate a new layer if needed
     fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, GraphError>;
 
-    fn resolve_node_type(&self, node_type: &str) -> Result<MaybeNew<usize>, GraphError>;
+    /// resolves and sets the node type
+    fn resolve_node_type(&self, vid: VID, node_type: &str) -> Result<MaybeNew<usize>, GraphError>;
 
+    /// set the node type based on internal type id
     fn set_node_type(&self, v_id: VID, node_type: usize) -> Result<(), GraphError>;
 
     /// map external node id to internal id, allocating a new empty node if needed
@@ -107,8 +109,8 @@ impl<G: DelegateAdditionOps> InternalAdditionOps for G {
     }
 
     #[inline]
-    fn resolve_node_type(&self, node_type: &str) -> Result<MaybeNew<usize>, GraphError> {
-        self.graph().resolve_node_type(node_type)
+    fn resolve_node_type(&self, vid: VID, node_type: &str) -> Result<MaybeNew<usize>, GraphError> {
+        self.graph().resolve_node_type(vid, node_type)
     }
 
     #[inline]

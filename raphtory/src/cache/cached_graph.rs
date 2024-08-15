@@ -36,7 +36,7 @@ impl<G: InternalAdditionOps, W> InternalAdditionOps for CachedGraph<G, W> {
         todo!()
     }
 
-    fn resolve_node_type(&self, node_type: &str) -> Result<MaybeNew<usize>, GraphError> {
+    fn resolve_node_type(&self, vid: VID, node_type: &str) -> Result<MaybeNew<usize>, GraphError> {
         todo!()
     }
 
