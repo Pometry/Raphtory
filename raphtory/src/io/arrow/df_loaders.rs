@@ -207,8 +207,8 @@ pub(crate) fn load_edges_from_df<
     properties: Option<&[&str]>,
     constant_properties: Option<&[&str]>,
     shared_constant_properties: Option<&HashMap<String, Prop>>,
-    layer: Option<&str>,
-    layer_in_df: bool,
+    layer_name: Option<&str>,
+    layer_col: Option<&str>,
     graph: &G,
 ) -> Result<(), GraphError> {
     let properties = properties.unwrap_or(&[]);
@@ -226,10 +226,12 @@ pub(crate) fn load_edges_from_df<
     let src_index = df_view.get_index(src)?;
     let dst_index = df_view.get_index(dst)?;
     let time_index = df_view.get_index(time)?;
-    let layer_index = layer
-        .filter(|_| layer_in_df)
-        .map(|layer| df_view.get_index(layer.as_ref()))
-        .transpose()?;
+    let layer_index = if let Some(layer_col) = layer_col {
+        Some(df_view.get_index(layer_col.as_ref()))
+    } else {
+        None
+    };
+    let layer_index = layer_index.transpose()?;
 
     for chunk in df_view.chunks {
         let df = chunk?;
@@ -237,7 +239,7 @@ pub(crate) fn load_edges_from_df<
         let const_prop_iter =
             combine_properties(constant_properties, &constant_properties_indices, &df)?;
 
-        let layer = lift_layer(layer, layer_index, &df);
+        let layer = lift_layer(layer_name, layer_index, &df)?;
 
         if let (Some(src), Some(dst), Some(time)) = (
             df.iter_col::<u64>(src_index),
@@ -337,21 +339,23 @@ pub(crate) fn load_edges_deletions_from_df<
     time: &str,
     src: &str,
     dst: &str,
-    layer: Option<&str>,
-    layer_in_df: bool,
+    layer_name: Option<&str>,
+    layer_col: Option<&str>,
     graph: &G,
 ) -> Result<(), GraphError> {
     let src_index = df_view.get_index(src)?;
     let dst_index = df_view.get_index(dst)?;
     let time_index = df_view.get_index(time)?;
-    let layer_index = layer
-        .filter(|_| layer_in_df)
-        .map(|layer| df_view.get_index(layer.as_ref()))
-        .transpose()?;
+    let layer_index = if let Some(layer_col) = layer_col {
+        Some(df_view.get_index(layer_col.as_ref()))
+    } else {
+        None
+    };
+    let layer_index = layer_index.transpose()?;
 
     for chunk in df_view.chunks {
         let df = chunk?;
-        let layer = lift_layer(layer, layer_index, &df);
+        let layer = lift_layer(layer_name, layer_index, &df)?;
 
         if let (Some(src), Some(dst), Some(time)) = (
             df.iter_col::<u64>(src_index),
@@ -526,8 +530,8 @@ pub(crate) fn load_edges_props_from_df<
     dst: &str,
     constant_properties: Option<&[&str]>,
     shared_constant_properties: Option<&HashMap<String, Prop>>,
-    layer: Option<&str>,
-    layer_in_df: bool,
+    layer_name: Option<&str>,
+    layer_col: Option<&str>,
     graph: &G,
 ) -> Result<(), GraphError> {
     let constant_properties = constant_properties.unwrap_or(&[]);
@@ -537,17 +541,19 @@ pub(crate) fn load_edges_props_from_df<
         .collect::<Result<Vec<_>, GraphError>>()?;
     let src_index = df_view.get_index(src)?;
     let dst_index = df_view.get_index(dst)?;
-    let layer_index = layer
-        .filter(|_| layer_in_df)
-        .map(|layer| df_view.get_index(layer.as_ref()))
-        .transpose()?;
+    let layer_index = if let Some(layer_col) = layer_col {
+        Some(df_view.get_index(layer_col.as_ref()))
+    } else {
+        None
+    };
+    let layer_index = layer_index.transpose()?;
 
     for chunk in df_view.chunks {
         let df = chunk?;
         let const_prop_iter =
             combine_properties(constant_properties, &constant_properties_indices, &df)?;
 
-        let layer = lift_layer(layer, layer_index, &df);
+        let layer = lift_layer(layer_name, layer_index, &df)?;
 
         if let (Some(src), Some(dst)) =
             (df.iter_col::<u64>(src_index), df.iter_col::<u64>(dst_index))

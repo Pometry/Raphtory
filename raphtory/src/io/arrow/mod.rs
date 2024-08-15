@@ -44,8 +44,8 @@ mod test {
             .into_iter(),
         };
         let graph = Graph::new();
-        let layer: Option<&str> = None;
-        let layer_in_df: bool = true;
+        let layer_name: Option<&str> = None;
+        let layer_col: Option<&str> = None;
         load_edges_from_df(
             df,
             5,
@@ -55,8 +55,8 @@ mod test {
             Some(&*vec!["prop1", "prop2"]),
             None,
             None,
-            layer,
-            layer_in_df,
+            layer_name,
+            layer_col,
             &graph,
         )
         .expect("failed to load edges from pretend df");

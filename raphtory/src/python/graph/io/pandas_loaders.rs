@@ -58,8 +58,8 @@ pub fn load_edges_from_pandas(
     properties: Option<&[&str]>,
     constant_properties: Option<&[&str]>,
     shared_const_properties: Option<&HashMap<String, Prop>>,
-    layer: Option<&str>,
-    layer_in_df: Option<bool>,
+    layer_name: Option<&str>,
+    layer_col: Option<&str>,
 ) -> Result<(), GraphError> {
     Python::with_gil(|py| {
         let size: usize = py
@@ -73,10 +73,8 @@ pub fn load_edges_from_pandas(
         let mut cols_to_check = vec![src, dst, time];
         cols_to_check.extend(properties.unwrap_or(&Vec::new()));
         cols_to_check.extend(constant_properties.unwrap_or(&Vec::new()));
-        if layer_in_df.unwrap_or(false) {
-            if let Some(ref layer) = layer {
-                cols_to_check.push(layer.as_ref());
-            }
+        if let Some(ref layer_col) = layer_col {
+            cols_to_check.push(layer_col.as_ref());
         }
 
         let df_view = process_pandas_py_df(df, py, cols_to_check.clone())?;
@@ -90,8 +88,8 @@ pub fn load_edges_from_pandas(
             properties,
             constant_properties,
             shared_const_properties,
-            layer,
-            layer_in_df.unwrap_or(true),
+            layer_name,
+            layer_col,
             graph,
         )
         .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
@@ -142,8 +140,8 @@ pub fn load_edge_props_from_pandas(
     dst: &str,
     constant_properties: Option<&[&str]>,
     shared_const_properties: Option<&HashMap<String, Prop>>,
-    layer: Option<&str>,
-    layer_in_df: Option<bool>,
+    layer_name: Option<&str>,
+    layer_col: Option<&str>,
 ) -> Result<(), GraphError> {
     Python::with_gil(|py| {
         let size: usize = py
@@ -154,10 +152,8 @@ pub fn load_edge_props_from_pandas(
             )?
             .extract()?;
         let mut cols_to_check = vec![src, dst];
-        if layer_in_df.unwrap_or(false) {
-            if let Some(ref layer) = layer {
-                cols_to_check.push(layer.as_ref());
-            }
+        if let Some(ref layer_col) = layer_col {
+            cols_to_check.push(layer_col.as_ref());
         }
         cols_to_check.extend(constant_properties.unwrap_or(&Vec::new()));
         let df_view = process_pandas_py_df(df, py, cols_to_check.clone())?;
@@ -169,8 +165,8 @@ pub fn load_edge_props_from_pandas(
             dst,
             constant_properties,
             shared_const_properties,
-            layer,
-            layer_in_df.unwrap_or(true),
+            layer_name,
+            layer_col,
             graph,
         )
         .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
@@ -186,8 +182,8 @@ pub fn load_edges_deletions_from_pandas(
     time: &str,
     src: &str,
     dst: &str,
-    layer: Option<&str>,
-    layer_in_df: Option<bool>,
+    layer_name: Option<&str>,
+    layer_col: Option<&str>,
 ) -> Result<(), GraphError> {
     Python::with_gil(|py| {
         let size: usize = py
@@ -199,10 +195,8 @@ pub fn load_edges_deletions_from_pandas(
             .extract()?;
 
         let mut cols_to_check = vec![src, dst, time];
-        if layer_in_df.unwrap_or(true) {
-            if let Some(ref layer) = layer {
-                cols_to_check.push(layer.as_ref());
-            }
+        if let Some(ref layer_col) = layer_col {
+            cols_to_check.push(layer_col.as_ref());
         }
 
         let df_view = process_pandas_py_df(df, py, cols_to_check.clone())?;
@@ -213,8 +207,8 @@ pub fn load_edges_deletions_from_pandas(
             time,
             src,
             dst,
-            layer,
-            layer_in_df.unwrap_or(true),
+            layer_name,
+            layer_col,
             graph.core_graph(),
         )
         .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;

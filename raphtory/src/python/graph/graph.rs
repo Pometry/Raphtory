@@ -477,8 +477,8 @@ impl PyGraph {
     ///     edge_properties (list): The column names for the temporal properties (optional) Defaults to None.
     ///     edge_constant_properties (list): The column names for the constant properties (optional) Defaults to None.
     ///     edge_shared_constant_properties (dict): A dictionary of constant properties that will be added to every edge (optional) Defaults to None.
-    ///     edge_layer (str): The edge layer name (optional) Defaults to None.
-    ///     layer_in_df (bool): Whether the layer name should be used to look up the values in a column of the edge_df or if it should be used directly as the layer for all edges (optional) defaults to True.
+    ///     layer_name (str): The edge layer name (optional) Defaults to None.
+    ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None.
     ///     node_df (pandas.DataFrame): The DataFrame containing the nodes (optional) Defaults to None.
     ///     node_id (str): The column name for the node ids (optional) Defaults to None.
     ///     node_time (str): The column name for the node timestamps (optional) Defaults to None.
@@ -493,7 +493,7 @@ impl PyGraph {
     #[staticmethod]
     #[pyo3(
         signature = (edge_df, edge_time, edge_src, edge_dst, edge_properties = None, edge_constant_properties = None, edge_shared_constant_properties = None,
-        edge_layer = None, layer_in_df = true, node_df = None, node_id = None, node_time = None, node_properties = None,
+        layer_name = None, layer_col = None, node_df = None, node_id = None, node_time = None, node_properties = None,
         node_constant_properties = None, node_shared_constant_properties = None, node_type = None, node_type_in_df = true)
     )]
     fn load_from_pandas(
@@ -504,8 +504,8 @@ impl PyGraph {
         edge_properties: Option<Vec<&str>>,
         edge_constant_properties: Option<Vec<&str>>,
         edge_shared_constant_properties: Option<HashMap<String, Prop>>,
-        edge_layer: Option<&str>,
-        layer_in_df: Option<bool>,
+        layer_name: Option<&str>,
+        layer_col: Option<&str>,
         node_df: Option<&PyAny>,
         node_id: Option<&str>,
         node_time: Option<&str>,
@@ -542,8 +542,8 @@ impl PyGraph {
                 .as_ref()
                 .map(|props| props.as_ref()),
             edge_shared_constant_properties.as_ref(),
-            edge_layer,
-            layer_in_df,
+            layer_name,
+            layer_col,
         )?;
         Ok(graph)
     }
@@ -558,8 +558,8 @@ impl PyGraph {
     ///     edge_properties (list): The column names for the temporal properties (optional) Defaults to None.
     ///     edge_constant_properties (list): The column names for the constant properties (optional) Defaults to None.
     ///     edge_shared_constant_properties (dict): A dictionary of constant properties that will be added to every edge (optional) Defaults to None.
-    ///     edge_layer (str): The edge layer name (optional) Defaults to None.
-    ///     layer_in_df (bool): Whether the layer name should be used to look up the values in a column of the edge_df or if it should be used directly as the layer for all edges (optional) defaults to True.
+    ///     layer_name (str): The edge layer name (optional) Defaults to None.
+    ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None.
     ///     node_parquet_path (str): Parquet file or directory of Parquet files containing the nodes (optional) Defaults to None.
     ///     node_id (str): The column name for the node ids (optional) Defaults to None.
     ///     node_time (str): The column name for the node timestamps (optional) Defaults to None.
@@ -574,7 +574,7 @@ impl PyGraph {
     #[staticmethod]
     #[pyo3(
         signature = (edge_parquet_path, edge_time, edge_src, edge_dst, edge_properties = None, edge_constant_properties = None, edge_shared_constant_properties = None,
-        edge_layer = None, layer_in_df = true, node_parquet_path = None, node_id = None, node_time = None, node_properties = None,
+        layer_name = None, layer_col = None, node_parquet_path = None, node_id = None, node_time = None, node_properties = None,
         node_constant_properties = None, node_shared_constant_properties = None, node_type = None, node_type_in_df = true)
     )]
     fn load_from_parquet(
@@ -585,8 +585,8 @@ impl PyGraph {
         edge_properties: Option<Vec<&str>>,
         edge_constant_properties: Option<Vec<&str>>,
         edge_shared_constant_properties: Option<HashMap<String, Prop>>,
-        edge_layer: Option<&str>,
-        layer_in_df: Option<bool>,
+        layer_name: Option<&str>,
+        layer_col: Option<&str>,
         node_parquet_path: Option<PathBuf>,
         node_id: Option<&str>,
         node_time: Option<&str>,
@@ -626,8 +626,8 @@ impl PyGraph {
                 .as_ref()
                 .map(|props| props.as_ref()),
             edge_shared_constant_properties.as_ref(),
-            edge_layer,
-            layer_in_df,
+            layer_name,
+            layer_col,
         )?;
 
         Ok(graph)
@@ -723,13 +723,13 @@ impl PyGraph {
     ///     properties (List<str>): List of edge property column names. Defaults to None. (optional)
     ///     constant_properties (List<str>): List of constant edge property column names. Defaults to None. (optional)
     ///     shared_constant_properties (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
-    ///     layer (str): The edge layer name (optional) Defaults to None.
-    ///     layer_in_df (bool): Whether the layer name should be used to look up the values in a column of the dateframe or if it should be used directly as the layer for all edges (optional) defaults to True.
+    ///     layer_name (str): The edge layer name (optional) Defaults to None.
+    ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None.
     ///
     /// Returns:
     ///     Result<(), GraphError>: Result of the operation.
     #[pyo3(
-        signature = (df, time, src, dst, properties = None, constant_properties = None, shared_constant_properties = None, layer = None, layer_in_df = true)
+        signature = (df, time, src, dst, properties = None, constant_properties = None, shared_constant_properties = None, layer_name = None, layer_col = None)
     )]
     fn load_edges_from_pandas(
         &self,
@@ -740,8 +740,8 @@ impl PyGraph {
         properties: Option<Vec<&str>>,
         constant_properties: Option<Vec<&str>>,
         shared_constant_properties: Option<HashMap<String, Prop>>,
-        layer: Option<&str>,
-        layer_in_df: Option<bool>,
+        layer_name: Option<&str>,
+        layer_col: Option<&str>,
     ) -> Result<(), GraphError> {
         load_edges_from_pandas(
             self.graph.core_graph(),
@@ -752,8 +752,8 @@ impl PyGraph {
             properties.as_ref().map(|props| props.as_ref()),
             constant_properties.as_ref().map(|props| props.as_ref()),
             shared_constant_properties.as_ref(),
-            layer,
-            layer_in_df,
+            layer_name,
+            layer_col,
         )
     }
 
@@ -767,13 +767,13 @@ impl PyGraph {
     ///     properties (List<str>): List of edge property column names. Defaults to None. (optional)
     ///     constant_properties (List<str>): List of constant edge property column names. Defaults to None. (optional)
     ///     shared_constant_properties (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
-    ///     layer (str): The edge layer name (optional) Defaults to None.
-    ///     layer_in_df (bool): Whether the layer name should be used to look up the values in a column of the dataframe or if it should be used directly as the layer for all edges (optional) defaults to True.
+    ///     layer_name (str): The edge layer name (optional) Defaults to None.
+    ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None.
     ///
     /// Returns:
     ///     Result<(), GraphError>: Result of the operation.
     #[pyo3(
-        signature = (parquet_path, time, src, dst, properties = None, constant_properties = None, shared_constant_properties = None, layer = None, layer_in_df = true)
+        signature = (parquet_path, time, src, dst, properties = None, constant_properties = None, shared_constant_properties = None, layer_name = None, layer_col = None)
     )]
     fn load_edges_from_parquet(
         &self,
@@ -784,8 +784,8 @@ impl PyGraph {
         properties: Option<Vec<&str>>,
         constant_properties: Option<Vec<&str>>,
         shared_constant_properties: Option<HashMap<String, Prop>>,
-        layer: Option<&str>,
-        layer_in_df: Option<bool>,
+        layer_name: Option<&str>,
+        layer_col: Option<&str>,
     ) -> Result<(), GraphError> {
         load_edges_from_parquet(
             &self.graph,
@@ -796,8 +796,8 @@ impl PyGraph {
             properties.as_ref().map(|props| props.as_ref()),
             constant_properties.as_ref().map(|props| props.as_ref()),
             shared_constant_properties.as_ref(),
-            layer,
-            layer_in_df,
+            layer_name,
+            layer_col,
         )
     }
 
@@ -863,13 +863,13 @@ impl PyGraph {
     ///     dst (str): The column name for the destination node.
     ///     constant_properties (List<str>): List of constant edge property column names. Defaults to None. (optional)
     ///     shared_constant_properties (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
-    ///     layer (str): Layer name. Defaults to None.  (optional)
-    ///     layer_in_df (bool): Whether the layer name should be used to look up the values in a column of the data frame or if it should be used directly as the layer for all edges (optional) defaults to True.
+    ///     layer_name (str): The edge layer name (optional) Defaults to None.
+    ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None.
     ///
     /// Returns:
     ///     Result<(), GraphError>: Result of the operation.
     #[pyo3(
-        signature = (df, src, dst, constant_properties = None, shared_constant_properties = None, layer = None, layer_in_df = true)
+        signature = (df, src, dst, constant_properties = None, shared_constant_properties = None, layer_name = None, layer_col = None)
     )]
     fn load_edge_props_from_pandas(
         &self,
@@ -878,8 +878,8 @@ impl PyGraph {
         dst: &str,
         constant_properties: Option<Vec<&str>>,
         shared_constant_properties: Option<HashMap<String, Prop>>,
-        layer: Option<&str>,
-        layer_in_df: Option<bool>,
+        layer_name: Option<&str>,
+        layer_col: Option<&str>,
     ) -> Result<(), GraphError> {
         load_edge_props_from_pandas(
             self.graph.core_graph(),
@@ -888,8 +888,8 @@ impl PyGraph {
             dst,
             constant_properties.as_ref().map(|props| props.as_ref()),
             shared_constant_properties.as_ref(),
-            layer,
-            layer_in_df,
+            layer_name,
+            layer_col,
         )
     }
 
@@ -901,13 +901,13 @@ impl PyGraph {
     ///     dst (str): The column name for the destination node.
     ///     constant_properties (List<str>): List of constant edge property column names. Defaults to None. (optional)
     ///     shared_constant_properties (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
-    ///     layer (str): Layer name. Defaults to None.  (optional)
-    ///     layer_in_df (bool): Whether the layer name should be used to look up the values in a column of the data frame or if it should be used directly as the layer for all edges (optional) defaults to True.
+    ///     layer_name (str): The edge layer name (optional) Defaults to None.
+    ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None.
     ///
     /// Returns:
     ///     Result<(), GraphError>: Result of the operation.
     #[pyo3(
-        signature = (parquet_path, src, dst, constant_properties = None, shared_constant_properties = None, layer = None, layer_in_df = true)
+        signature = (parquet_path, src, dst, constant_properties = None, shared_constant_properties = None, layer_name = None, layer_col = None)
     )]
     fn load_edge_props_from_parquet(
         &self,
@@ -916,8 +916,8 @@ impl PyGraph {
         dst: &str,
         constant_properties: Option<Vec<&str>>,
         shared_constant_properties: Option<HashMap<String, Prop>>,
-        layer: Option<&str>,
-        layer_in_df: Option<bool>,
+        layer_name: Option<&str>,
+        layer_col: Option<&str>,
     ) -> Result<(), GraphError> {
         load_edge_props_from_parquet(
             &self.graph,
@@ -926,8 +926,8 @@ impl PyGraph {
             dst,
             constant_properties.as_ref().map(|props| props.as_ref()),
             shared_constant_properties.as_ref(),
-            layer,
-            layer_in_df,
+            layer_name,
+            layer_col,
         )
     }
 }

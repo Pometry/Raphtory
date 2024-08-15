@@ -343,25 +343,23 @@ pub(crate) fn lift_property<'a: 'b, 'b>(
 }
 
 pub(crate) fn lift_layer<'a>(
-    layer: Option<&str>,
+    layer_name: Option<&str>,
     layer_index: Option<usize>,
     df: &'a DFChunk,
-) -> Box<dyn Iterator<Item = Option<String>> + 'a> {
-    if let Some(layer) = layer {
-        match layer_index {
-            Some(index) => {
-                if let Some(col) = df.utf8::<i32>(index) {
-                    Box::new(col.map(|v| v.map(|v| v.to_string())))
-                } else if let Some(col) = df.utf8::<i64>(index) {
-                    Box::new(col.map(|v| v.map(|v| v.to_string())))
-                } else {
-                    Box::new(std::iter::repeat(None))
-                }
+) -> Result<Box<dyn Iterator<Item = Option<String>> + 'a>, GraphError> {
+    match (layer_name, layer_index) {
+        (None, None) => Ok(Box::new(std::iter::repeat(None))),
+        (Some(layer_name), None) => Ok(Box::new(std::iter::repeat(Some(layer_name.to_string())))),
+        (None, Some(layer_index)) => {
+            if let Some(col) = df.utf8::<i32>(layer_index) {
+                Ok(Box::new(col.map(|v| v.map(|v| v.to_string()))))
+            } else if let Some(col) = df.utf8::<i64>(layer_index) {
+                Ok(Box::new(col.map(|v| v.map(|v| v.to_string()))))
+            } else {
+                Ok(Box::new(std::iter::repeat(None)))
             }
-            None => Box::new(std::iter::repeat(Some(layer.to_string()))),
         }
-    } else {
-        Box::new(std::iter::repeat(None))
+        _ => Err(GraphError::WrongLayerArgs),
     }
 }
 

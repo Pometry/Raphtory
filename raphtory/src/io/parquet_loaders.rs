@@ -73,17 +73,15 @@ pub fn load_edges_from_parquet<
     properties: Option<&[&str]>,
     constant_properties: Option<&[&str]>,
     shared_const_properties: Option<&HashMap<String, Prop>>,
-    layer: Option<&str>,
-    layer_in_df: Option<bool>,
+    layer_name: Option<&str>,
+    layer_col: Option<&str>,
 ) -> Result<(), GraphError> {
     let parquet_path = parquet_path.as_ref();
     let mut cols_to_check = vec![src, dst, time];
     cols_to_check.extend(properties.unwrap_or(&Vec::new()));
     cols_to_check.extend(constant_properties.unwrap_or(&Vec::new()));
-    if layer_in_df.unwrap_or(false) {
-        if let Some(ref layer) = layer {
-            cols_to_check.push(layer.as_ref());
-        }
+    if let Some(ref layer_col) = layer_col {
+        cols_to_check.push(layer_col.as_ref());
     }
 
     for path in get_parquet_file_paths(parquet_path)? {
@@ -99,8 +97,8 @@ pub fn load_edges_from_parquet<
             properties,
             constant_properties,
             shared_const_properties,
-            layer,
-            layer_in_df.unwrap_or(true),
+            layer_name,
+            layer_col,
             graph,
         )
         .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
@@ -149,14 +147,12 @@ pub fn load_edge_props_from_parquet<
     dst: &str,
     constant_properties: Option<&[&str]>,
     shared_const_properties: Option<&HashMap<String, Prop>>,
-    layer: Option<&str>,
-    layer_in_df: Option<bool>,
+    layer_name: Option<&str>,
+    layer_col: Option<&str>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![src, dst];
-    if layer_in_df.unwrap_or(false) {
-        if let Some(ref layer) = layer {
-            cols_to_check.push(layer.as_ref());
-        }
+    if let Some(ref layer_col) = layer_col {
+        cols_to_check.push(layer_col.as_ref());
     }
     cols_to_check.extend(constant_properties.unwrap_or(&Vec::new()));
     let size = cols_to_check.len();
@@ -171,8 +167,8 @@ pub fn load_edge_props_from_parquet<
             dst,
             constant_properties,
             shared_const_properties,
-            layer,
-            layer_in_df.unwrap_or(true),
+            layer_name,
+            layer_col,
             graph.core_graph(),
         )
         .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
@@ -189,30 +185,19 @@ pub fn load_edges_deletions_from_parquet<
     time: &str,
     src: &str,
     dst: &str,
-    layer: Option<&str>,
-    layer_in_df: Option<bool>,
+    layer_name: Option<&str>,
+    layer_col: Option<&str>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![src, dst, time];
-    if layer_in_df.unwrap_or(true) {
-        if let Some(ref layer) = layer {
-            cols_to_check.push(layer.as_ref());
-        }
+    if let Some(ref layer_col) = layer_col {
+        cols_to_check.push(layer_col.as_ref());
     }
     let size = cols_to_check.len();
     for path in get_parquet_file_paths(parquet_path)? {
         let df_view = process_parquet_file_to_df(path.as_path(), &cols_to_check)?;
         df_view.check_cols_exist(&cols_to_check)?;
-        load_edges_deletions_from_df(
-            df_view,
-            size,
-            time,
-            src,
-            dst,
-            layer,
-            layer_in_df.unwrap_or(true),
-            graph,
-        )
-        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+        load_edges_deletions_from_df(df_view, size, time, src, dst, layer_name, layer_col, graph)
+            .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
     }
     Ok(())
 }
