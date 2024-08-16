@@ -151,10 +151,6 @@ impl Data {
                 }
             }
         }
-        //check if path is a directory (should be either a file or not exist)
-        if full_path.is_dir() {
-            return Err(PathIsDirectory(full_path.to_path_buf()).into());
-        }
         return Ok(full_path);
     }
 
