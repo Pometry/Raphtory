@@ -28,6 +28,8 @@ pub enum InvalidPathReason {
     PathDoesNotExist(PathBuf),
     #[error("Could not parse Path: {0}")]
     PathNotParsable(PathBuf),
+    #[error("Path is not valid UTF8: {0}")]
+    PathNotUTF8(PathBuf),
     #[error("The give path is a directory, but should be a file or not exist: {0}")]
     PathIsDirectory(PathBuf),
 }

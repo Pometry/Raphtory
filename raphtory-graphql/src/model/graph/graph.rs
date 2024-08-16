@@ -11,7 +11,10 @@ use crate::{
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
-    core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
+    core::{
+        entities::nodes::node_ref::{AsNodeRef, NodeRef},
+        utils::errors::{GraphError, InvalidPathReason::PathNotParsable},
+    },
     db::{
         api::{
             properties::dyn_props::DynProperties,
@@ -313,12 +316,16 @@ impl GqlGraph {
     // GRAPHQL SPECIFIC ////
     ////////////////////////
 
-    async fn name(&self) -> String {
+    //These name/path functions basically can only fail
+    //if someone write non-utf characters as a filename
+    async fn name(&self) -> Result<String, GraphError> {
         get_graph_name(&self.path)
     }
-
-    async fn path(&self) -> String {
-        self.path.display().to_string()
+    async fn path(&self) -> Result<String, GraphError> {
+        self.path
+            .to_str()
+            .map(|s| s.to_string())
+            .ok_or(PathNotParsable(self.path.to_path_buf()).into())
     }
 
     async fn schema(&self) -> GraphSchema {
