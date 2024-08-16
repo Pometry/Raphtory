@@ -2,7 +2,7 @@ use crate::core::storage::{arc_str::ArcStr, locked_vec::ArcReadLockedVec, FxDash
 use dashmap::mapref::entry::Entry;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
-use std::{borrow::Borrow, hash::Hash, ops::Deref, sync::Arc};
+use std::{borrow::Borrow, hash::Hash, sync::Arc};
 
 #[derive(Serialize, Deserialize, Default, Debug)]
 pub struct DictMapper {
@@ -18,21 +18,45 @@ pub enum MaybeNew<Index> {
 
 impl<Index, T> PartialEq<T> for MaybeNew<Index>
 where
-    Index: PartialEq,
+    Index: PartialEq<Index>,
     T: Borrow<Index>,
 {
     fn eq(&self, other: &T) -> bool {
-        self.deref() == other.borrow()
+        other.borrow() == self.as_ref()
     }
 }
-impl<Index> Deref for MaybeNew<Index> {
-    type Target = Index;
 
+impl<Index> MaybeNew<Index> {
     #[inline]
-    fn deref(&self) -> &Self::Target {
+    pub fn inner(self) -> Index {
         match self {
-            MaybeNew::New(index) => index,
-            MaybeNew::Existing(index) => index,
+            MaybeNew::New(inner) => inner,
+            MaybeNew::Existing(inner) => inner,
+        }
+    }
+
+    pub fn map<R>(self, map_fn: impl FnOnce(Index) -> R) -> MaybeNew<R> {
+        match self {
+            MaybeNew::New(inner) => MaybeNew::New(map_fn(inner)),
+            MaybeNew::Existing(inner) => MaybeNew::Existing(map_fn(inner)),
+        }
+    }
+}
+
+impl<Index> AsRef<Index> for MaybeNew<Index> {
+    fn as_ref(&self) -> &Index {
+        match self {
+            MaybeNew::New(inner) => inner,
+            MaybeNew::Existing(inner) => inner,
+        }
+    }
+}
+
+impl<Index> AsMut<Index> for MaybeNew<Index> {
+    fn as_mut(&mut self) -> &mut Index {
+        match self {
+            MaybeNew::New(inner) => inner,
+            MaybeNew::Existing(inner) => inner,
         }
     }
 }
@@ -40,17 +64,7 @@ impl<Index> Deref for MaybeNew<Index> {
 impl<Index> Borrow<Index> for MaybeNew<Index> {
     #[inline]
     fn borrow(&self) -> &Index {
-        self.deref()
-    }
-}
-
-impl<Index> MaybeNew<Index> {
-    #[inline]
-    pub fn id(self) -> Index {
-        match self {
-            Self::New(index) => index,
-            Self::Existing(index) => index,
-        }
+        self.as_ref()
     }
 }
 
@@ -138,10 +152,10 @@ mod test {
     fn test_dict_mapper() {
         let mapper = DictMapper::default();
         assert_eq!(mapper.get_or_create_id("test"), 0usize);
-        assert_eq!(mapper.get_or_create_id("test").id(), 0);
-        assert_eq!(mapper.get_or_create_id("test2").id(), 1);
-        assert_eq!(mapper.get_or_create_id("test2").id(), 1);
-        assert_eq!(mapper.get_or_create_id("test").id(), 0);
+        assert_eq!(mapper.get_or_create_id("test").inner(), 0);
+        assert_eq!(mapper.get_or_create_id("test2").inner(), 1);
+        assert_eq!(mapper.get_or_create_id("test2").inner(), 1);
+        assert_eq!(mapper.get_or_create_id("test").inner(), 0);
     }
 
     #[quickcheck]
@@ -159,7 +173,7 @@ mod test {
                 write_s.shuffle(&mut rng);
                 for s in write_s {
                     let id = mapper.get_or_create_id(s.as_str());
-                    ids.insert(s, *id);
+                    ids.insert(s, id.inner());
                 }
                 ids
             })
@@ -196,7 +210,7 @@ mod test {
 
         let mut actual = vec!["test", "test2", "test3", "test4", "test5"]
             .into_iter()
-            .map(|name| mapper.get_or_create_id(name).id())
+            .map(|name| mapper.get_or_create_id(name).inner())
             .collect::<Vec<_>>();
         actual.sort();
 

@@ -216,6 +216,14 @@ impl GraphUpdate {
         Self::new(Update::UpdateGraphTprops(inner))
     }
 
+    fn update_node_type(node_id: VID, type_id: usize) -> Self {
+        let inner = UpdateNodeType {
+            id: node_id.as_u64(),
+            type_id: type_id as u64,
+        };
+        Self::new(Update::UpdateNodeType(inner))
+    }
+
     fn update_node_cprops(
         node_id: VID,
         properties: impl Iterator<Item = (usize, impl Borrow<Prop>)>,
@@ -316,7 +324,7 @@ impl PropPair {
 }
 
 impl serialise::Graph {
-    fn new_edge(&mut self, src: VID, dst: VID, eid: EID) {
+    pub fn new_edge(&mut self, src: VID, dst: VID, eid: EID) {
         let edge = NewEdge {
             src: src.as_u64(),
             dst: dst.as_u64(),
@@ -325,7 +333,7 @@ impl serialise::Graph {
         self.edges.push(edge);
     }
 
-    fn new_node(&mut self, gid: GidRef, vid: VID, type_id: usize) {
+    pub fn new_node(&mut self, gid: GidRef, vid: VID, type_id: usize) {
         let type_id = type_id as u64;
         let gid = match gid {
             GidRef::U64(id) => new_node::Gid::GidU64(id),
@@ -339,43 +347,46 @@ impl serialise::Graph {
         self.nodes.push(node);
     }
 
-    fn new_graph_cprop(&mut self, key: &str, id: usize) {
+    pub fn new_graph_cprop(&mut self, key: &str, id: usize) {
         self.metas.push(NewMeta::new_graph_cprop(key, id));
     }
 
-    fn new_graph_tprop(&mut self, key: &str, id: usize, dtype: &PropType) {
+    pub fn new_graph_tprop(&mut self, key: &str, id: usize, dtype: &PropType) {
         self.metas.push(NewMeta::new_graph_tprop(key, id, dtype));
     }
 
-    fn new_node_cprop(&mut self, key: &str, id: usize, dtype: &PropType) {
+    pub fn new_node_cprop(&mut self, key: &str, id: usize, dtype: &PropType) {
         self.metas.push(NewMeta::new_node_cprop(key, id, dtype));
     }
 
-    fn new_node_tprop(&mut self, key: &str, id: usize, dtype: &PropType) {
+    pub fn new_node_tprop(&mut self, key: &str, id: usize, dtype: &PropType) {
         self.metas.push(NewMeta::new_node_tprop(key, id, dtype));
     }
 
-    fn new_edge_cprop(&mut self, key: &str, id: usize, dtype: &PropType) {
+    pub fn new_edge_cprop(&mut self, key: &str, id: usize, dtype: &PropType) {
         self.metas.push(NewMeta::new_edge_cprop(key, id, dtype));
     }
 
-    fn new_edge_tprop(&mut self, key: &str, id: usize, dtype: &PropType) {
+    pub fn new_edge_tprop(&mut self, key: &str, id: usize, dtype: &PropType) {
         self.metas.push(NewMeta::new_edge_tprop(key, id, dtype))
     }
 
-    fn new_layer(&mut self, layer: &str, id: usize) {
+    pub fn new_layer(&mut self, layer: &str, id: usize) {
         self.metas.push(NewMeta::new_layer(layer, id));
     }
 
-    fn new_node_type(&mut self, node_type: &str, id: usize) {
+    pub fn new_node_type(&mut self, node_type: &str, id: usize) {
         self.metas.push(NewMeta::new_node_type(node_type, id));
     }
 
-    fn update_graph_cprops(&mut self, values: impl Iterator<Item = (usize, impl Borrow<Prop>)>) {
+    pub fn update_graph_cprops(
+        &mut self,
+        values: impl Iterator<Item = (usize, impl Borrow<Prop>)>,
+    ) {
         self.updates.push(GraphUpdate::update_graph_cprops(values));
     }
 
-    fn update_graph_tprops(
+    pub fn update_graph_tprops(
         &mut self,
         time: TimeIndexEntry,
         values: impl IntoIterator<Item = (usize, impl Borrow<Prop>)>,
@@ -384,7 +395,11 @@ impl serialise::Graph {
             .push(GraphUpdate::update_graph_tprops(time, values));
     }
 
-    fn update_node_cprops(
+    pub fn update_node_type(&mut self, node_id: VID, type_id: usize) {
+        self.updates
+            .push(GraphUpdate::update_node_type(node_id, type_id))
+    }
+    pub fn update_node_cprops(
         &mut self,
         node_id: VID,
         properties: impl Iterator<Item = (usize, impl Borrow<Prop>)>,
@@ -393,7 +408,7 @@ impl serialise::Graph {
             .push(GraphUpdate::update_node_cprops(node_id, properties));
     }
 
-    fn update_node_tprops(
+    pub fn update_node_tprops(
         &mut self,
         node_id: VID,
         time: TimeIndexEntry,
@@ -403,7 +418,7 @@ impl serialise::Graph {
             .push(GraphUpdate::update_node_tprops(node_id, time, properties));
     }
 
-    fn update_edge_tprops(
+    pub fn update_edge_tprops(
         &mut self,
         eid: EID,
         time: TimeIndexEntry,
@@ -415,7 +430,7 @@ impl serialise::Graph {
         ));
     }
 
-    fn update_edge_cprops(
+    pub fn update_edge_cprops(
         &mut self,
         eid: EID,
         layer_id: usize,
@@ -425,7 +440,7 @@ impl serialise::Graph {
             .push(GraphUpdate::update_edge_cprops(eid, layer_id, properties));
     }
 
-    fn del_edge(&mut self, eid: EID, layer_id: usize, time: TimeIndexEntry) {
+    pub fn del_edge(&mut self, eid: EID, layer_id: usize, time: TimeIndexEntry) {
         self.updates
             .push(GraphUpdate::del_edge(eid, layer_id, time))
     }
@@ -735,6 +750,11 @@ impl StableDecode for TemporalGraph {
                             collect_props(&props.properties)?,
                             props.layer_id as usize,
                         )?;
+                    }
+                    Update::UpdateNodeType(update) => {
+                        let id = VID(update.id as usize);
+                        let type_id = update.type_id as usize;
+                        storage.storage.get_node_mut(id).node_type = type_id;
                     }
                 }
             }

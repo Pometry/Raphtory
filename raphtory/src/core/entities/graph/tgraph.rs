@@ -26,7 +26,7 @@ use itertools::Itertools;
 use raphtory_api::core::{
     entities::{edges::edge_ref::EdgeRef, GidRef},
     input::input_node::InputNode,
-    storage::arc_str::ArcStr,
+    storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
 };
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
@@ -365,15 +365,15 @@ impl TemporalGraph {
         t: TimeIndexEntry,
         layer: usize,
         edge_fn: F,
-    ) -> Result<EID, GraphError> {
+    ) -> Result<MaybeNew<EID>, GraphError> {
         let mut node_pair = self.storage.pair_node_mut(src_id, dst_id);
         let src = node_pair.get_i();
         let mut edge = match src.find_edge_eid(dst_id, &LayerIds::All) {
-            Some(edge_id) => self.storage.get_edge_mut(edge_id),
-            None => self.storage.push_edge(EdgeStore::new(src_id, dst_id)),
+            Some(edge_id) => MaybeNew::Existing(self.storage.get_edge_mut(edge_id)),
+            None => MaybeNew::New(self.storage.push_edge(EdgeStore::new(src_id, dst_id))),
         };
-        self.link_nodes_inner(&mut node_pair, &mut edge, t, layer, edge_fn)?;
-        Ok(edge.edge_store().eid)
+        self.link_nodes_inner(&mut node_pair, edge.as_mut(), t, layer, edge_fn)?;
+        Ok(edge.map(|e| e.edge_store().eid))
     }
 
     pub(crate) fn resolve_node_ref(&self, v: NodeRef) -> Option<VID> {

@@ -29,45 +29,6 @@ impl InternalAdditionOps for TemporalGraph {
             .unwrap_or(MaybeNew::Existing(0)))
     }
 
-    fn resolve_node_type(&self, vid: VID, node_type: &str) -> Result<MaybeNew<usize>, GraphError> {
-        if node_type == "_default" {
-            return Err(GraphError::NodeTypeError(
-                "_default type is not allowed to be used on nodes".to_string(),
-            ));
-        }
-        let mut node = self.storage.get_node_mut(vid);
-        let id = if node.node_type == 0 {
-            let id = self.node_meta.get_or_create_node_type_id(node_type);
-            node.update_node_type(*id);
-            id
-        } else {
-            let id = self.node_meta.get_node_type_id(node_type).ok_or_else(|| {
-                GraphError::NodeTypeError("Node already has a non-default type".to_string())
-            })?;
-            if node.node_type != id {
-                return Err(GraphError::NodeTypeError(
-                    "Node already has a non-default type".to_string(),
-                ));
-            };
-            MaybeNew::Existing(id)
-        };
-        Ok(id)
-    }
-
-    fn set_node_type(&self, v_id: VID, node_type_id: usize) -> Result<(), GraphError> {
-        let mut node = self.storage.get_node_mut(v_id);
-        if node.node_type == 0 {
-            node.update_node_type(node_type_id);
-        } else {
-            if node.node_type != node_type_id {
-                return Err(GraphError::NodeTypeError(
-                    "Node already has a non-default type".to_string(),
-                ));
-            }
-        }
-        Ok(())
-    }
-
     fn resolve_node<V: AsNodeRef>(&self, n: V) -> Result<MaybeNew<VID>, GraphError> {
         match n.as_gid_ref() {
             Either::Left(id) => {
@@ -78,6 +39,37 @@ impl InternalAdditionOps for TemporalGraph {
                 Ok(ref_mut)
             }
             Either::Right(vid) => Ok(MaybeNew::Existing(vid)),
+        }
+    }
+
+    fn resolve_node_and_type<V: AsNodeRef>(
+        &self,
+        id: V,
+        node_type: &str,
+    ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, GraphError> {
+        if node_type == "_default" {
+            return Err(GraphError::NodeTypeError(
+                "_default type is not allowed to be used on nodes".to_string(),
+            ));
+        }
+        let vid = self.resolve_node(id)?;
+        let mut node_store = self.storage.get_node_mut(vid.inner());
+        if node_store.node_type == 0 {
+            let node_type_id = self.node_meta.get_or_create_node_type_id(node_type);
+            node_store.update_node_type(node_type_id.inner());
+            Ok(MaybeNew::New((vid, node_type_id)))
+        } else {
+            let node_type_id = self
+                .node_meta
+                .get_node_type_id(node_type)
+                .ok_or_else(|| GraphError::NodeTypeError("Cannot change node type".to_string()))?;
+            if node_type_id == node_store.node_type {
+                Ok(MaybeNew::Existing((vid, MaybeNew::Existing(node_type_id))))
+            } else {
+                Err(GraphError::NodeTypeError(
+                    "Cannot change node type".to_string(),
+                ))
+            }
         }
     }
 
@@ -132,7 +124,7 @@ impl InternalAdditionOps for TemporalGraph {
         dst: VID,
         props: Vec<(usize, Prop)>,
         layer: usize,
-    ) -> Result<EID, GraphError> {
+    ) -> Result<MaybeNew<EID>, GraphError> {
         self.link_nodes(src, dst, t, layer, move |edge| {
             edge.additions_mut(layer).insert(t);
             if !props.is_empty() {
@@ -182,23 +174,20 @@ impl InternalAdditionOps for GraphStorage {
         }
     }
 
-    fn resolve_node_type(&self, vid: VID, node_type: &str) -> Result<MaybeNew<usize>, GraphError> {
-        match self {
-            GraphStorage::Unlocked(storage) => storage.resolve_node_type(vid, node_type),
-            _ => Err(GraphError::AttemptToMutateImmutableGraph),
-        }
-    }
-
-    fn set_node_type(&self, v_id: VID, node_type: usize) -> Result<(), GraphError> {
-        match self {
-            GraphStorage::Unlocked(storage) => storage.set_node_type(v_id, node_type),
-            _ => Err(GraphError::AttemptToMutateImmutableGraph),
-        }
-    }
-
     fn resolve_node<V: AsNodeRef>(&self, n: V) -> Result<MaybeNew<VID>, GraphError> {
         match self {
             GraphStorage::Unlocked(storage) => storage.resolve_node(n),
+            _ => Err(GraphError::AttemptToMutateImmutableGraph),
+        }
+    }
+
+    fn resolve_node_and_type<V: AsNodeRef>(
+        &self,
+        id: V,
+        node_type: &str,
+    ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, GraphError> {
+        match self {
+            GraphStorage::Unlocked(storage) => storage.resolve_node_and_type(id, node_type),
             _ => Err(GraphError::AttemptToMutateImmutableGraph),
         }
     }
@@ -264,7 +253,7 @@ impl InternalAdditionOps for GraphStorage {
         dst: VID,
         props: Vec<(usize, Prop)>,
         layer: usize,
-    ) -> Result<EID, GraphError> {
+    ) -> Result<MaybeNew<EID>, GraphError> {
         match self {
             GraphStorage::Unlocked(storage) => storage.internal_add_edge(t, src, dst, props, layer),
             _ => Err(GraphError::AttemptToMutateImmutableGraph),

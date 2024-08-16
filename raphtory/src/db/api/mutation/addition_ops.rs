@@ -110,12 +110,15 @@ impl<G: InternalAdditionOps + StaticGraphViewOps> AdditionOps for G {
     ) -> Result<NodeView<G, G>, GraphError> {
         let ti = time_from_input(self, t)?;
         let properties = props.collect_properties(|name, dtype| {
-            Ok(self.resolve_node_property(name, dtype, false)?.id())
+            Ok(self.resolve_node_property(name, dtype, false)?.inner())
         })?;
-        let v_id = *self.resolve_node(v)?;
-        if let Some(node_type) = node_type {
-            self.resolve_node_type(v_id, node_type)?;
-        }
+        let v_id = match node_type {
+            None => self.resolve_node(v)?.inner(),
+            Some(node_type) => {
+                let (v_id, _) = self.resolve_node_and_type(v, node_type)?.inner();
+                v_id.inner()
+            }
+        };
         self.internal_add_node(ti, v_id, properties)?;
         Ok(NodeView::new_internal(self.clone(), v_id))
     }
@@ -129,14 +132,16 @@ impl<G: InternalAdditionOps + StaticGraphViewOps> AdditionOps for G {
         layer: Option<&str>,
     ) -> Result<EdgeView<G, G>, GraphError> {
         let ti = time_from_input(self, t)?;
-        let src_id = self.resolve_node(src)?.id();
-        let dst_id = self.resolve_node(dst)?.id();
-        let layer_id = self.resolve_layer(layer)?.id();
+        let src_id = self.resolve_node(src)?.inner();
+        let dst_id = self.resolve_node(dst)?.inner();
+        let layer_id = self.resolve_layer(layer)?.inner();
 
         let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
-            Ok(self.resolve_edge_property(name, dtype, false)?.id())
+            Ok(self.resolve_edge_property(name, dtype, false)?.inner())
         })?;
-        let eid = self.internal_add_edge(ti, src_id, dst_id, properties, layer_id)?;
+        let eid = self
+            .internal_add_edge(ti, src_id, dst_id, properties, layer_id)?
+            .inner();
         Ok(EdgeView::new(
             self.clone(),
             EdgeRef::new_outgoing(eid, src_id, dst_id).at_layer(layer_id),

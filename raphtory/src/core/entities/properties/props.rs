@@ -268,7 +268,7 @@ impl PropMapper {
         dtype: PropType,
     ) -> Result<MaybeNew<usize>, GraphError> {
         let wrapped_id = self.id_mapper.get_or_create_id(prop);
-        let id = wrapped_id.id();
+        let id = wrapped_id.inner();
         let dtype_read = self.dtypes.read_recursive();
         if let Some(old_type) = dtype_read.get(id) {
             if !matches!(old_type, PropType::Empty) {

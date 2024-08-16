@@ -14,14 +14,15 @@ mod test {
     #[test]
     fn test_neighbours_multiple_layers() {
         let g = GraphStorage::default();
-        let l_btc = *g.resolve_layer(Some("btc")).unwrap();
-        let l_eth = *g.resolve_layer(Some("eth")).unwrap();
-        let l_tether = *g.resolve_layer(Some("tether")).unwrap();
-        let v1 = *g.resolve_node(1).unwrap();
-        let v2 = *g.resolve_node(2).unwrap();
-        let tx_sent_id = *g
+        let l_btc = g.resolve_layer(Some("btc")).unwrap().inner();
+        let l_eth = g.resolve_layer(Some("eth")).unwrap().inner();
+        let l_tether = g.resolve_layer(Some("tether")).unwrap().inner();
+        let v1 = g.resolve_node(1).unwrap().inner();
+        let v2 = g.resolve_node(2).unwrap().inner();
+        let tx_sent_id = g
             .resolve_edge_property("tx_sent", PropType::I32, false)
-            .unwrap();
+            .unwrap()
+            .inner();
         g.internal_add_edge(1.into(), v1, v2, vec![(tx_sent_id, Prop::I32(10))], l_btc)
             .unwrap();
         g.internal_add_edge(1.into(), v1, v2, vec![(tx_sent_id, Prop::I32(20))], l_eth)

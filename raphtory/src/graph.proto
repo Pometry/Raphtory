@@ -100,6 +100,8 @@ message GraphUpdate {
     DelEdge del_edge = 5;
     UpdateEdgeCProps update_edge_cprops = 6;
     UpdateEdgeTProps update_edge_tprops = 7;
+
+    UpdateNodeType update_node_type = 8;
   }
 
   message UpdateNodeTProps {
@@ -112,6 +114,11 @@ message GraphUpdate {
   message UpdateNodeCProps {
     uint64 id = 1;
     repeated PropPair properties = 2;
+  }
+
+  message UpdateNodeType {
+    uint64 id = 1;
+    uint64 type_id = 2;
   }
 
   message UpdateEdgeTProps {

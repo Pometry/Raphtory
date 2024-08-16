@@ -769,37 +769,26 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
     }
 
     #[inline]
-    fn resolve_node_type(&self, vid: VID, node_type: &str) -> Result<MaybeNew<usize>, GraphError> {
-        let id = self.graph.resolve_node_type(vid, node_type)?;
-        let node_type_field = self.node_index.schema().get_field(fields::NODE_TYPE)?;
-        let mut document = TantivyDocument::new();
-        document.add_text(node_type_field, node_type);
-        let node_id_field = self.node_index.schema().get_field(fields::VERTEX_ID)?;
-        document.add_u64(node_id_field, vid.as_u64());
-        let mut writer = self.node_index.writer(50_000_000)?;
-        writer.add_document(document)?;
-        writer.commit()?;
-        Ok(id)
-    }
-
-    #[inline]
-    fn set_node_type(&self, v_id: VID, node_type: usize) -> Result<(), GraphError> {
-        self.graph.set_node_type(v_id, node_type)?;
-        let node_type_name = self.graph.node_meta().node_type_meta().get_name(node_type);
-        let node_type_field = self.node_index.schema().get_field(fields::NODE_TYPE)?;
-        let mut document = TantivyDocument::new();
-        document.add_text(node_type_field, node_type_name);
-        let node_id_field = self.node_index.schema().get_field(fields::VERTEX_ID)?;
-        document.add_u64(node_id_field, v_id.as_u64());
-        let mut writer = self.node_index.writer(50_000_000)?;
-        writer.add_document(document)?;
-        writer.commit()?;
-        Ok(())
-    }
-
-    #[inline]
     fn resolve_node<V: AsNodeRef>(&self, n: V) -> Result<MaybeNew<VID>, GraphError> {
         self.graph.resolve_node(n)
+    }
+
+    fn resolve_node_and_type<V: AsNodeRef>(
+        &self,
+        id: V,
+        node_type: &str,
+    ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, GraphError> {
+        let res = self.graph.resolve_node_and_type(id, node_type)?;
+        let (vid, _) = res.inner();
+        let mut document = TantivyDocument::new();
+        let node_type_field = self.node_index.schema().get_field(fields::NODE_TYPE)?;
+        document.add_text(node_type_field, node_type);
+        let node_id_field = self.node_index.schema().get_field(fields::VERTEX_ID)?;
+        document.add_u64(node_id_field, vid.inner().as_u64());
+        let mut writer = self.node_index.writer(50_000_000)?;
+        writer.add_document(document)?;
+        writer.commit()?;
+        Ok(res)
     }
 
     #[inline]
@@ -878,7 +867,7 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
         _dst: VID,
         _props: Vec<(usize, Prop)>,
         _layer: usize,
-    ) -> Result<EID, GraphError> {
+    ) -> Result<MaybeNew<EID>, GraphError> {
         todo!()
     }
 
