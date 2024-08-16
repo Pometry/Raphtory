@@ -254,7 +254,7 @@ def test_namespaces():
             client.send_graph(path=path, graph=g, overwrite=True)
         assert "Invalid path" in str(excinfo.value)
 
-        path = "shivam/investigation\\2024-12-12"
+        path = r"shivam/investigation\2024-12-12"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
         assert "Invalid path" in str(excinfo.value)

@@ -9,12 +9,39 @@ use tantivy;
 use tantivy::query::QueryParserError;
 
 #[derive(thiserror::Error, Debug)]
+pub enum InvalidPathReason {
+    #[error("Backslash not allowed in path: {0}")]
+    BackslashError(PathBuf),
+    #[error("Double forward slashes are not allowed in path: {0}")]
+    DoubleForwardSlash(PathBuf),
+    #[error("Only relative paths are allowed to be used within the working_dir: {0}")]
+    RootNotAllowed(PathBuf),
+    #[error("References to the current dir are not allowed within the path: {0}")]
+    CurDirNotAllowed(PathBuf),
+    #[error("References to the parent dir are not allowed within the path: {0}")]
+    ParentDirNotAllowed(PathBuf),
+    #[error("A component of the given path was a symlink: {0}")]
+    SymlinkNotAllowed(PathBuf),
+    #[error("Could not strip working_dir prefix when getting relative path: {0}")]
+    StripPrefixError(PathBuf),
+    #[error("The give path does not exist: {0}")]
+    PathDoesNotExist(PathBuf),
+    #[error("Could not parse Path: {0}")]
+    PathNotParsable(PathBuf),
+    #[error("The give path is a directory, but should be a file or not exist: {0}")]
+    PathIsDirectory(PathBuf),
+}
+
+#[derive(thiserror::Error, Debug)]
 pub enum GraphError {
     #[cfg(feature = "arrow")]
     #[error("Arrow error: {0}")]
     Arrow(#[from] error::PolarsError),
-    #[error("Invalid path: {0:?}")]
-    InvalidPath(PathBuf),
+    #[error("Invalid path: {source:?}")]
+    InvalidPath {
+        #[from]
+        source: InvalidPathReason,
+    },
     #[error("Graph error occurred")]
     UnsupportedDataType,
     #[error("Disk graph not found")]

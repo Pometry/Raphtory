@@ -129,7 +129,6 @@ ouroboros = "0.18.3"
 url = "2.2"
 base64-compat = { package = "base64-compat", version = "1.0.0" }
 time = "0.3.36"
-clean-path = "0.2.1"
 
 prost = "0.12"
 prost-types = "0.12"

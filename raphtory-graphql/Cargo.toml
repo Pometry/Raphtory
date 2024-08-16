@@ -51,7 +51,6 @@ base64-compat = { workspace = true }
 time = { workspace = true }
 reqwest = { workspace = true }
 moka = { workspace = true }
-clean-path = {workspace = true}
 
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }

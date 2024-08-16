@@ -1,8 +1,17 @@
 use crate::{model::algorithms::global_plugins::GlobalPlugins, server_config::AppConfig};
-use clean_path::Clean;
 use moka::sync::Cache;
+#[cfg(feature = "storage")]
+use raphtory::disk_graph::DiskGraphStorage;
 use raphtory::{
-    core::utils::errors::GraphError, db::api::view::MaterializedGraph, search::IndexedGraph,
+    core::utils::errors::{
+        GraphError, InvalidPathReason,
+        InvalidPathReason::{
+            BackslashError, CurDirNotAllowed, DoubleForwardSlash, ParentDirNotAllowed,
+            PathDoesNotExist, PathIsDirectory, PathNotParsable, RootNotAllowed, SymlinkNotAllowed,
+        },
+    },
+    db::api::view::MaterializedGraph,
+    search::IndexedGraph,
 };
 use std::{
     collections::HashMap,
@@ -11,9 +20,6 @@ use std::{
     sync::Arc,
 };
 use walkdir::WalkDir;
-
-#[cfg(feature = "storage")]
-use raphtory::disk_graph::DiskGraphStorage;
 
 pub struct Data {
     pub(crate) work_dir: PathBuf,
@@ -59,7 +65,7 @@ impl Data {
             let _ = get_graph_from_path(&path)?;
             match self.get_relative_path(&path) {
                 Ok(p) => paths.push(p),
-                Err(_) => return Err(GraphError::InvalidPath(path)), //Possibly just ignore but log?
+                Err(_) => return Err(GraphError::from(InvalidPathReason::StripPrefixError(path))), //Possibly just ignore but log?
             }
         }
         Ok(paths)
@@ -73,7 +79,7 @@ impl Data {
             let graph = get_graph_from_path(&path)?;
             graphs.insert(
                 self.get_relative_path(&path)
-                    .map_err(|_| GraphError::InvalidPath(path))?
+                    .map_err(|_| GraphError::from(InvalidPathReason::StripPrefixError(path)))?
                     .display()
                     .to_string(),
                 graph,
@@ -113,45 +119,41 @@ impl Data {
 
     pub fn construct_graph_full_path(&self, path: &Path) -> Result<PathBuf, GraphError> {
         // check for errors in the path
-        //has to be strings as paths can be eq but not the same i.e. a//b and a/b
         //additionally ban any backslash
-        let clean_path = path.clean();
-        let path_str = &path.display().to_string();
-        if (*clean_path.display().to_string() != *path_str) || path_str.contains("\\") {
-            return Err(GraphError::InvalidPath(clean_path.to_path_buf()));
+        let path_str = match path.to_str() {
+            None => {
+                return Err(PathNotParsable(path.to_path_buf()).into());
+            }
+            Some(str) => str,
+        };
+        if path_str.contains(r"\") {
+            return Err(BackslashError(path.to_path_buf()).into());
+        }
+        if path_str.contains(r"//") {
+            return Err(DoubleForwardSlash(path.to_path_buf()).into());
         }
 
-        //check if path is a directory (should be either a file or not exist)
-        if clean_path.is_dir() {
-            return Err(GraphError::InvalidPath(clean_path.to_path_buf()));
-        }
         let mut full_path = self.work_dir.to_path_buf();
         // fail if any component is a Prefix (C://), tries to access root,
         // tries to access a parent dir or is a symlink which could break out of the working dir
-        for component in clean_path.components() {
+        for component in path.components() {
             match component {
-                Component::Prefix(_) => {
-                    return Err(GraphError::InvalidPath(clean_path.to_path_buf()))
-                }
-                Component::RootDir => {
-                    return Err(GraphError::InvalidPath(clean_path.to_path_buf()))
-                }
-                Component::CurDir => {}
-                Component::ParentDir => {
-                    return Err(GraphError::InvalidPath(clean_path.to_path_buf()))
-                }
+                Component::Prefix(_) => return Err(RootNotAllowed(path.to_path_buf()).into()),
+                Component::RootDir => return Err(RootNotAllowed(path.to_path_buf()).into()),
+                Component::CurDir => return Err(CurDirNotAllowed(path.to_path_buf()).into()),
+                Component::ParentDir => return Err(ParentDirNotAllowed(path.to_path_buf()).into()),
                 Component::Normal(component) => {
                     //check for symlinks
                     full_path.push(component);
                     if full_path.is_symlink() {
-                        return Err(GraphError::InvalidPath(clean_path.to_path_buf()));
+                        return Err(SymlinkNotAllowed(path.to_path_buf()).into());
                     }
                 }
             }
         }
         //check if path is a directory (should be either a file or not exist)
         if full_path.is_dir() {
-            return Err(GraphError::InvalidPath(full_path.to_path_buf()));
+            return Err(PathIsDirectory(full_path.to_path_buf()).into());
         }
         return Ok(full_path);
     }
@@ -240,13 +242,13 @@ fn get_disk_graph_from_path(
 
 fn get_graph_from_path(path: &Path) -> Result<IndexedGraph<MaterializedGraph>, GraphError> {
     if !path.exists() {
-        return Err(GraphError::InvalidPath(path.to_path_buf()).into());
+        return Err(PathDoesNotExist(path.to_path_buf()).into());
     }
     if path.is_dir() {
         if is_disk_graph_dir(path) {
             get_disk_graph_from_path(path)?.ok_or(GraphError::DiskGraphNotFound.into())
         } else {
-            return Err(GraphError::InvalidPath(path.to_path_buf()).into());
+            return Err(PathIsDirectory(path.to_path_buf()).into());
         }
     } else {
         let graph = load_bincode_graph(path)?;
