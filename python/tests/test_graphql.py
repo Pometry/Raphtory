@@ -237,27 +237,32 @@ def test_namespaces():
         path = "../shivam/g"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
-        assert "Invalid path" in str(excinfo.value)
+        assert "References to the parent dir are not allowed within the path:" in str(excinfo.value)
+
+        path = "./shivam/g"
+        with pytest.raises(Exception) as excinfo:
+            client.send_graph(path=path, graph=g, overwrite=True)
+        assert "References to the current dir are not allowed within the path" in str(excinfo.value)
 
         path = "shivam/../../../../investigation/g"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
-        assert "Invalid path" in str(excinfo.value)
+        assert "References to the parent dir are not allowed within the path:" in str(excinfo.value)
 
         path = "//shivam/investigation/g"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
-        assert "Invalid path" in str(excinfo.value)
+        assert "Double forward slashes are not allowed in path" in str(excinfo.value)
 
         path = "shivam/investigation//2024-12-12/g"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
-        assert "Invalid path" in str(excinfo.value)
+        assert "Double forward slashes are not allowed in path" in str(excinfo.value)
 
         path = r"shivam/investigation\2024-12-12"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
-        assert "Invalid path" in str(excinfo.value)
+        assert "Backslash not allowed in path" in str(excinfo.value)
 
         #Test if we can escape through a symlink
         tmp_dir2 = tempfile.mkdtemp()
@@ -269,7 +274,7 @@ def test_namespaces():
         path = "shivam/graphs/not_a_symlink_i_promise/escaped"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
-        assert "Invalid path" in str(excinfo.value)
+        assert "A component of the given path was a symlink" in str(excinfo.value)
 
 
 # Test upload graph
@@ -416,157 +421,6 @@ def test_upload_graph_succeeds_if_graph_already_exists_at_namespace_with_overwri
                 "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}, {"name": "shivam"}]}
             }
         }
-
-
-# def test_load_graph_succeeds_if_no_graph_found_with_same_name():
-#     g = Graph()
-#     g.add_edge(1, "ben", "hamza")
-#     g.add_edge(2, "haaroon", "hamza")
-#     g.add_edge(3, "ben", "haaroon")
-#     tmp_dir = tempfile.mkdtemp()
-#     g_file_path = tmp_dir + "/g"
-#     g.save_to_file(g_file_path)
-#
-#     tmp_work_dir = tempfile.mkdtemp()
-#     with RaphtoryServer(tmp_work_dir).start():
-#         client = RaphtoryClient("http://localhost:1736")
-#         client.load_graph(file_path=g_file_path, overwrite=False)
-#
-#         query = """{graph(path: "g") {nodes {list {name}}}}"""
-#         assert client.query(query) == {
-#             "graph": {
-#                 "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
-#             }
-#         }
-
-
-# def test_load_graph_fails_if_graph_already_exists():
-#     g = Graph()
-#     g.add_edge(1, "ben", "hamza")
-#     g.add_edge(2, "haaroon", "hamza")
-#     g.add_edge(3, "ben", "haaroon")
-#     tmp_dir = tempfile.mkdtemp()
-#     g_file_path = tmp_dir + "/g"
-#     g.save_to_file(g_file_path)
-#
-#     tmp_work_dir = tempfile.mkdtemp()
-#     path = os.path.join(tmp_work_dir, "g")
-#     g.save_to_file(path)
-#     with RaphtoryServer(tmp_work_dir).start():
-#         client = RaphtoryClient("http://localhost:1736")
-#         try:
-#             client.load_graph(file_path=g_file_path)
-#         except Exception as e:
-#             assert "Graph already exists by name" in str(e), f"Unexpected exception message: {e}"
-
-
-# def test_load_graph_succeeds_if_graph_already_exists_with_overwrite_enabled():
-#     g = Graph()
-#     g.add_edge(1, "ben", "hamza")
-#     g.add_edge(2, "haaroon", "hamza")
-#     g.add_edge(3, "ben", "haaroon")
-#     tmp_dir = tempfile.mkdtemp()
-#     g_file_path = tmp_dir + "/g"
-#     g.save_to_file(g_file_path)
-#
-#     tmp_work_dir = tempfile.mkdtemp()
-#     with RaphtoryServer(tmp_work_dir).start():
-#         client = RaphtoryClient("http://localhost:1736")
-#
-#         g = Graph()
-#         g.add_edge(1, "ben", "hamza")
-#         g.add_edge(2, "haaroon", "hamza")
-#         g.add_edge(3, "ben", "haaroon")
-#         g.add_edge(4, "ben", "shivam")
-#         tmp_dir = tempfile.mkdtemp()
-#         g_file_path = tmp_dir + "/g"
-#         g.save_to_file(g_file_path)
-#
-#         client.load_graph(file_path=g_file_path, overwrite=True)
-#
-#         query = """{graph(path: "g") {nodes {list {name}}}}"""
-#         assert client.query(query) == {
-#             "graph": {
-#                 "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}, {"name": "shivam"}]}
-#             }
-#         }
-
-
-# Test load graph at namespace
-# def test_load_graph_succeeds_if_no_graph_found_with_same_name_at_namespace():
-#     g = Graph()
-#     g.add_edge(1, "ben", "hamza")
-#     g.add_edge(2, "haaroon", "hamza")
-#     g.add_edge(3, "ben", "haaroon")
-#     tmp_dir = tempfile.mkdtemp()
-#     g_file_path = tmp_dir + "/g"
-#     g.save_to_file(g_file_path)
-#
-#     tmp_work_dir = tempfile.mkdtemp()
-#     with RaphtoryServer(tmp_work_dir).start():
-#         client = RaphtoryClient("http://localhost:1736")
-#         client.load_graph(file_path=g_file_path, overwrite=False, namespace="shivam")
-#
-#         query = """{graph(path: "shivam/g") {nodes {list {name}}}}"""
-#         assert client.query(query) == {
-#             "graph": {
-#                 "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
-#             }
-#         }
-
-
-# def test_load_graph_fails_if_graph_already_exists_at_namespace():
-#     g = Graph()
-#     g.add_edge(1, "ben", "hamza")
-#     g.add_edge(2, "haaroon", "hamza")
-#     g.add_edge(3, "ben", "haaroon")
-#     tmp_dir = tempfile.mkdtemp()
-#     g_file_path = tmp_dir + "/g"
-#     g.save_to_file(g_file_path)
-#
-#     tmp_work_dir = tempfile.mkdtemp()
-#     os.makedirs(os.path.join(tmp_work_dir, "shivam"), exist_ok=True)
-#     path = os.path.join(tmp_work_dir, "shivam", "g")
-#     g.save_to_file(path)
-#     with RaphtoryServer(tmp_work_dir).start():
-#         client = RaphtoryClient("http://localhost:1736")
-#
-#         try:
-#             client.load_graph(file_path=g_file_path, overwrite=False, namespace="shivam")
-#         except Exception as e:
-#             assert "Graph already exists by name" in str(e), f"Unexpected exception message: {e}"
-
-
-# def test_load_graph_succeeds_if_graph_already_exists_at_namespace_with_overwrite_enabled():
-#     tmp_work_dir = tempfile.mkdtemp()
-#     g = Graph()
-#     g.add_edge(1, "ben", "hamza")
-#     g.add_edge(2, "haaroon", "hamza")
-#     g.add_edge(3, "ben", "haaroon")
-#     os.makedirs(os.path.join(tmp_work_dir, "shivam"), exist_ok=True)
-#     g.save_to_file(os.path.join(tmp_work_dir, "shivam", "g"))
-#
-#     with RaphtoryServer(tmp_work_dir).start():
-#         client = RaphtoryClient("http://localhost:1736")
-#
-#         g = Graph()
-#         g.add_edge(1, "ben", "hamza")
-#         g.add_edge(2, "haaroon", "hamza")
-#         g.add_edge(3, "ben", "haaroon")
-#         g.add_edge(4, "ben", "shivam")
-#         tmp_dir = tempfile.mkdtemp()
-#         g_file_path = tmp_dir + "/g"
-#         g.save_to_file(g_file_path)
-#
-#         client.load_graph(file_path=g_file_path, overwrite=True, namespace="shivam")
-#
-#         query = """{graph(path: "shivam/g") {nodes {list {name}}}}"""
-#         assert client.query(query) == {
-#             "graph": {
-#                 "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}, {"name": "shivam"}]}
-#             }
-#         }
-
 
 def test_get_graph_fails_if_graph_not_found():
     work_dir = tempfile.mkdtemp()
@@ -2493,34 +2347,39 @@ def test_graph_properties_query():
             key=lambda x: x["key"],
         )
 
-
-# def test_load_graph_from_path():
-#     tmp_graph_dir = tempfile.mkdtemp()
-#
-#     g = Graph()
-#     g.add_edge(1, "ben", "hamza")
-#     g.add_edge(2, "haaroon", "hamza")
-#     g.add_edge(3, "ben", "haaroon")
-#     g_file_path = os.path.join(tmp_graph_dir, "g")
-#     g.save_to_file(g_file_path)
-#
+# def test_disk_graph_name():
+#     import pandas as pd
+#     from raphtory import DiskGraphStorage
+#     edges = pd.DataFrame(
+#         {
+#             "src": [1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5],
+#             "dst": [2, 3, 4, 5, 1, 3, 4, 5, 1, 2, 4, 5, 1, 2, 3, 5, 1, 2, 3, 4],
+#             "time": [
+#                 10,
+#                 20,
+#                 30,
+#                 40,
+#                 50,
+#                 60,
+#                 70,
+#                 80,
+#                 90,
+#                 100,
+#                 110,
+#                 120,
+#                 130,
+#                 140,
+#                 150,
+#                 160,
+#                 170,
+#                 180,
+#                 190,
+#                 200,
+#             ],
+#         }
+#     ).sort_values(["src", "dst", "time"])
+#     g= DiskGraphStorage.load_from_pandas(dir, edges, "src", "dst", "time")
 #     tmp_work_dir = tempfile.mkdtemp()
 #     with RaphtoryServer(tmp_work_dir).start() as server:
 #         client = server.get_client()
-#         normalized_path = normalize_path(g_file_path)
-#         query = f"""mutation {{
-#           loadGraphFromPath(
-#             pathOnServer: "{normalized_path}",
-#             overwrite: false
-#           )
-#         }}"""
-#         res = client.query(query)
-#         print(res)
-#
-#         query = """{graph(path: "g") {nodes {list {name}}}}"""
-#         assert client.query(query) == {
-#             "graph": {
-#                 "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
-#             }
-#         }
-#
+#         client.upload_graph(path="g", graph=g)
