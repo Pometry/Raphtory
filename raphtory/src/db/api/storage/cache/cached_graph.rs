@@ -8,10 +8,11 @@ use raphtory_api::core::{
     entities::{GidRef, EID, VID},
     storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
 };
-use std::{fs::File, io, io::Write, mem, ops::DerefMut};
+use std::{fmt::Debug, fs::File, io, io::Write, mem, ops::DerefMut};
 
+#[derive(Debug)]
 pub struct GraphWriter {
-    writer: Mutex<Box<dyn Write + Send>>,
+    writer: Mutex<File>,
     proto_delta: Mutex<ProtoGraph>,
 }
 

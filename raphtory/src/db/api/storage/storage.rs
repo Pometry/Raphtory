@@ -1,6 +1,9 @@
 use crate::{
     core::{
-        entities::nodes::node_ref::{AsNodeRef, NodeRef},
+        entities::{
+            graph::tgraph::TemporalGraph,
+            nodes::node_ref::{AsNodeRef, NodeRef},
+        },
         utils::errors::GraphError,
         Prop, PropType,
     },
@@ -19,10 +22,24 @@ use raphtory_api::core::{
     entities::{EID, VID},
     storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
 };
+use serde::{Deserialize, Serialize};
+use std::{
+    fmt::{Display, Formatter},
+    sync::Arc,
+};
 
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Storage {
     graph: GraphStorage,
+    #[cfg(feature = "proto")]
+    #[serde(skip)]
     cache: Option<GraphWriter>,
+}
+
+impl Display for Storage {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(&self.graph, f)
+    }
 }
 
 impl Base for Storage {
@@ -35,12 +52,28 @@ impl Base for Storage {
 }
 
 impl Storage {
+    pub(crate) fn new(num_locks: usize) -> Self {
+        Self {
+            graph: GraphStorage::Unlocked(Arc::new(TemporalGraph::new(num_locks))),
+            cache: None,
+        }
+    }
+
+    pub(crate) fn from_inner(graph: GraphStorage) -> Self {
+        Self { graph, cache: None }
+    }
+
+    #[cfg(feature = "proto")]
     #[inline]
     fn if_cache(&self, map_fn: impl FnOnce(&GraphWriter)) {
         if let Some(cache) = self.cache.as_ref() {
             map_fn(cache)
         }
     }
+
+    #[cfg(not(feature = "proto"))]
+    #[inline]
+    fn if_cache(&self, map_fn: impl FnOnce(&GraphWriter)) {}
 }
 impl InheritViewOps for Storage {}
 

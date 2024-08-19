@@ -9,11 +9,14 @@ use crate::{
         api::{
             mutation::internal::InheritMutationOps,
             properties::internal::InheritPropertiesOps,
-            storage::graph::{
-                edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-                nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-                storage_ops::GraphStorage,
-                tprop_storage_ops::TPropOps,
+            storage::{
+                graph::{
+                    edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+                    nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+                    storage_ops::GraphStorage,
+                    tprop_storage_ops::TPropOps,
+                },
+                storage::Storage,
             },
             view::{internal::*, BoxedIter, IntoDynBoxed},
         },
@@ -28,8 +31,9 @@ use std::{
     cmp::min,
     fmt::{Display, Formatter},
     iter,
-    ops::Range,
+    ops::{Deref, Range},
     path::Path,
+    sync::Arc,
 };
 
 /// A graph view where an edge remains active from the time it is added until it is explicitly marked as deleted.
@@ -37,14 +41,14 @@ use std::{
 /// Note that the graph will give you access to all edges that were added at any point in time, even those that are marked as deleted.
 /// The deletion only has an effect on the exploded edge view that are returned. An edge is included in a windowed view of the graph if
 /// it is considered active at any point in the window.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct PersistentGraph(pub GraphStorage);
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+pub struct PersistentGraph(Arc<Storage>);
 
 impl Static for PersistentGraph {}
 
 impl From<GraphStorage> for PersistentGraph {
     fn from(value: GraphStorage) -> Self {
-        Self(value)
+        Self(Arc::new(Storage::from_inner(value)))
     }
 }
 
@@ -107,19 +111,17 @@ fn edge_alive_at_start(e: EdgeStorageRef, t: i64, layer_ids: &LayerIds) -> bool 
         .any(|(_, additions, deletions)| alive_at(&additions, &deletions, t))
 }
 
-impl Default for PersistentGraph {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl PersistentGraph {
     pub fn new() -> Self {
-        Self(GraphStorage::default())
+        Self::default()
+    }
+
+    pub fn from_storage(storage: Arc<Storage>) -> Self {
+        Self(storage)
     }
 
     pub fn from_internal_graph(internal_graph: GraphStorage) -> Self {
-        Self(internal_graph)
+        Self(Arc::new(Storage::from_inner(internal_graph)))
     }
 
     /// Save a graph to a directory
@@ -168,7 +170,7 @@ impl PersistentGraph {
 
     /// Get event graph
     pub fn event_graph(&self) -> Graph {
-        Graph::from_internal_graph(self.0.clone())
+        Graph::from_storage(self.0.clone())
     }
 }
 
@@ -182,7 +184,7 @@ impl Base for PersistentGraph {
     type Base = GraphStorage;
     #[inline(always)]
     fn base(&self) -> &Self::Base {
-        &self.0
+        self.0.deref().base()
     }
 }
 

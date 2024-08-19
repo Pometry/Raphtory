@@ -18,10 +18,10 @@
 
 use super::views::deletion_graph::PersistentGraph;
 use crate::{
-    core::{entities::graph::tgraph::TemporalGraph, utils::errors::GraphError},
+    core::utils::errors::GraphError,
     db::api::{
         mutation::internal::InheritMutationOps,
-        storage::graph::storage_ops::GraphStorage,
+        storage::{graph::storage_ops::GraphStorage, storage::Storage},
         view::internal::{Base, InheritViewOps, MaterializedGraph, Static},
     },
     prelude::*,
@@ -31,6 +31,7 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Display, Formatter},
+    ops::Deref,
     path::Path,
     sync::Arc,
 };
@@ -38,7 +39,7 @@ use std::{
 #[repr(transparent)]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Graph {
-    inner: GraphStorage,
+    inner: Arc<Storage>,
 }
 
 impl Static for Graph {}
@@ -154,7 +155,7 @@ impl Base for Graph {
 
     #[inline(always)]
     fn base(&self) -> &Self::Base {
-        &self.inner
+        self.inner.deref().base()
     }
 }
 
@@ -177,7 +178,7 @@ impl Graph {
     /// ```
     pub fn new() -> Self {
         Self {
-            inner: GraphStorage::Unlocked(Arc::new(TemporalGraph::default())),
+            inner: Arc::new(Storage::default()),
         }
     }
 
@@ -188,14 +189,17 @@ impl Graph {
     /// A raphtory graph
     pub fn new_with_shards(num_shards: usize) -> Self {
         Self {
-            inner: GraphStorage::Unlocked(Arc::new(TemporalGraph::new(num_shards))),
+            inner: Arc::new(Storage::new(num_shards)),
         }
     }
 
-    pub(crate) fn from_internal_graph(internal_graph: GraphStorage) -> Self {
-        Self {
-            inner: internal_graph,
-        }
+    pub(crate) fn from_storage(inner: Arc<Storage>) -> Self {
+        Self { inner }
+    }
+
+    pub(crate) fn from_internal_graph(graph_storage: GraphStorage) -> Self {
+        let inner = Arc::new(Storage::from_inner(graph_storage));
+        Self { inner }
     }
 
     /// Load a graph from a directory
@@ -226,7 +230,7 @@ impl Graph {
 
     /// Get persistent graph
     pub fn persistent_graph(&self) -> PersistentGraph {
-        PersistentGraph::from_internal_graph(self.inner.clone())
+        PersistentGraph::from_storage(self.inner.clone())
     }
 }
 

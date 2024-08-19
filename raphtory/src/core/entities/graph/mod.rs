@@ -5,17 +5,11 @@ pub(crate) mod timer;
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        core::PropType,
-        db::api::{
-            mutation::internal::InternalAdditionOps, storage::graph::storage_ops::GraphStorage,
-        },
-        prelude::*,
-    };
+    use crate::{core::PropType, db::api::mutation::internal::InternalAdditionOps, prelude::*};
 
     #[test]
     fn test_neighbours_multiple_layers() {
-        let g = GraphStorage::default();
+        let g = Graph::default();
         let l_btc = g.resolve_layer(Some("btc")).unwrap().inner();
         let l_eth = g.resolve_layer(Some("eth")).unwrap().inner();
         let l_tether = g.resolve_layer(Some("tether")).unwrap().inner();
@@ -32,7 +26,6 @@ mod test {
         g.internal_add_edge(1.into(), v1, v2, &[(tx_sent_id, Prop::I32(70))], l_tether)
             .unwrap();
 
-        let g = Graph::from_internal_graph(g);
         let first = g
             .node(v1)
             .and_then(|n| n.layers(["btc", "eth"]).ok())

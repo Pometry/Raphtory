@@ -556,7 +556,7 @@ impl PyPersistentGraph {
         shared_const_properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
         load_nodes_from_pandas(
-            &self.graph.0,
+            self.graph.core_graph(),
             df,
             id,
             time,
@@ -635,7 +635,7 @@ impl PyPersistentGraph {
         layer_in_df: Option<bool>,
     ) -> Result<(), GraphError> {
         load_edges_from_pandas(
-            &self.graph.0,
+            self.graph.core_graph(),
             df,
             src,
             dst,
@@ -712,7 +712,15 @@ impl PyPersistentGraph {
         layer: Option<&str>,
         layer_in_df: Option<bool>,
     ) -> Result<(), GraphError> {
-        load_edges_deletions_from_pandas(&self.graph.0, df, src, dst, time, layer, layer_in_df)
+        load_edges_deletions_from_pandas(
+            self.graph.core_graph(),
+            df,
+            src,
+            dst,
+            time,
+            layer,
+            layer_in_df,
+        )
     }
 
     /// Load edges deletions from a Parquet file into the graph.
@@ -767,7 +775,7 @@ impl PyPersistentGraph {
         shared_const_properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
         load_node_props_from_pandas(
-            &self.graph.0,
+            self.graph.core_graph(),
             df,
             id,
             const_properties,
@@ -827,7 +835,7 @@ impl PyPersistentGraph {
         layer_in_df: Option<bool>,
     ) -> Result<(), GraphError> {
         load_edge_props_from_pandas(
-            &self.graph.0,
+            self.graph.core_graph(),
             df,
             src,
             dst,
