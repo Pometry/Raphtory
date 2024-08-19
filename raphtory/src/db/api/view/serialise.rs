@@ -23,8 +23,8 @@ use crate::{
         graph::views::deletion_graph::PersistentGraph,
     },
     prelude::Graph,
-    serialise,
-    serialise::{
+    proto,
+    proto::{
         graph_update::*, new_meta::*, new_node, new_node::Gid, prop,
         prop_type::PropType as SPropType, GraphUpdate, NewEdge, NewMeta, NewNode,
     },
@@ -42,7 +42,7 @@ use raphtory_api::core::{
 use rayon::prelude::*;
 use std::{borrow::Borrow, fs::File, io::Write, iter, path::Path, sync::Arc};
 
-pub use serialise::Graph as ProtoGraph;
+pub use proto::Graph as ProtoGraph;
 
 macro_rules! zip_tprop_updates {
     ($iter:expr) => {
@@ -54,7 +54,7 @@ macro_rules! zip_tprop_updates {
 }
 
 pub trait StableEncoder {
-    fn encode_to_proto(&self) -> serialise::Graph;
+    fn encode_to_proto(&self) -> proto::Graph;
     fn encode_to_vec(&self) -> Vec<u8> {
         self.encode_to_proto().encode_to_vec()
     }
@@ -68,9 +68,9 @@ pub trait StableEncoder {
 }
 
 pub trait StableDecode: Sized {
-    fn decode_from_proto(graph: &serialise::Graph) -> Result<Self, GraphError>;
+    fn decode_from_proto(graph: &proto::Graph) -> Result<Self, GraphError>;
     fn decode_from_bytes(bytes: &[u8]) -> Result<Self, GraphError> {
-        let graph = serialise::Graph::decode(bytes)?;
+        let graph = proto::Graph::decode(bytes)?;
         Self::decode_from_proto(&graph)
     }
     fn decode(path: impl AsRef<Path>) -> Result<Self, GraphError> {
@@ -323,7 +323,7 @@ impl PropPair {
     }
 }
 
-impl serialise::Graph {
+impl proto::Graph {
     pub fn new_edge(&mut self, src: VID, dst: VID, eid: EID) {
         let edge = NewEdge {
             src: src.as_u64(),
@@ -447,7 +447,7 @@ impl serialise::Graph {
 }
 
 impl StableEncoder for GraphStorage {
-    fn encode_to_proto(&self) -> serialise::Graph {
+    fn encode_to_proto(&self) -> proto::Graph {
         #[cfg(feature = "storage")]
         if let GraphStorage::Disk(storage) = self {
             assert!(
@@ -457,7 +457,7 @@ impl StableEncoder for GraphStorage {
         }
 
         let storage = self.lock();
-        let mut graph = serialise::Graph::default();
+        let mut graph = proto::Graph::default();
 
         // Graph Properties
         let graph_meta = storage.graph_meta();
@@ -608,23 +608,23 @@ impl StableEncoder for GraphStorage {
 }
 
 impl StableEncoder for Graph {
-    fn encode_to_proto(&self) -> serialise::Graph {
+    fn encode_to_proto(&self) -> proto::Graph {
         let mut graph = self.core_graph().encode_to_proto();
-        graph.set_graph_type(serialise::GraphType::Event);
+        graph.set_graph_type(proto::GraphType::Event);
         graph
     }
 }
 
 impl StableEncoder for PersistentGraph {
-    fn encode_to_proto(&self) -> serialise::Graph {
+    fn encode_to_proto(&self) -> proto::Graph {
         let mut graph = self.core_graph().encode_to_proto();
-        graph.set_graph_type(serialise::GraphType::Persistent);
+        graph.set_graph_type(proto::GraphType::Persistent);
         graph
     }
 }
 
 impl StableDecode for TemporalGraph {
-    fn decode_from_proto(graph: &serialise::Graph) -> Result<Self, GraphError> {
+    fn decode_from_proto(graph: &proto::Graph) -> Result<Self, GraphError> {
         let storage = Self::default();
         graph.metas.par_iter().for_each(|meta| {
             if let Some(meta) = meta.meta.as_ref() {
@@ -766,7 +766,7 @@ impl StableDecode for TemporalGraph {
 }
 
 impl StableDecode for GraphStorage {
-    fn decode_from_proto(graph: &serialise::Graph) -> Result<Self, GraphError> {
+    fn decode_from_proto(graph: &proto::Graph) -> Result<Self, GraphError> {
         Ok(GraphStorage::Unlocked(Arc::new(
             TemporalGraph::decode_from_proto(graph)?,
         )))
@@ -774,11 +774,11 @@ impl StableDecode for GraphStorage {
 }
 
 impl StableDecode for MaterializedGraph {
-    fn decode_from_proto(graph: &serialise::Graph) -> Result<Self, GraphError> {
+    fn decode_from_proto(graph: &proto::Graph) -> Result<Self, GraphError> {
         let storage = GraphStorage::decode_from_proto(graph)?;
         let graph = match graph.graph_type() {
-            serialise::GraphType::Event => Self::EventGraph(Graph::from_internal_graph(storage)),
-            serialise::GraphType::Persistent => {
+            proto::GraphType::Event => Self::EventGraph(Graph::from_internal_graph(storage)),
+            proto::GraphType::Persistent => {
                 Self::PersistentGraph(PersistentGraph::from_internal_graph(storage))
             }
         };
@@ -787,22 +787,22 @@ impl StableDecode for MaterializedGraph {
 }
 
 impl StableDecode for Graph {
-    fn decode_from_proto(graph: &serialise::Graph) -> Result<Self, GraphError> {
+    fn decode_from_proto(graph: &proto::Graph) -> Result<Self, GraphError> {
         match graph.graph_type() {
-            serialise::GraphType::Event => {
+            proto::GraphType::Event => {
                 let storage = GraphStorage::decode_from_proto(graph)?;
                 Ok(Graph::from_internal_graph(storage))
             }
-            serialise::GraphType::Persistent => Err(GraphError::GraphLoadError),
+            proto::GraphType::Persistent => Err(GraphError::GraphLoadError),
         }
     }
 }
 
 impl StableDecode for PersistentGraph {
-    fn decode_from_proto(graph: &serialise::Graph) -> Result<Self, GraphError> {
+    fn decode_from_proto(graph: &proto::Graph) -> Result<Self, GraphError> {
         match graph.graph_type() {
-            serialise::GraphType::Event => Err(GraphError::GraphLoadError),
-            serialise::GraphType::Persistent => {
+            proto::GraphType::Event => Err(GraphError::GraphLoadError),
+            proto::GraphType::Persistent => {
                 let storage = GraphStorage::decode_from_proto(graph)?;
                 Ok(PersistentGraph::from_internal_graph(storage))
             }
@@ -906,7 +906,7 @@ fn collect_props<'a>(
     iter.into_iter().map(as_prop).collect()
 }
 
-fn as_proto_prop(prop: &Prop) -> serialise::Prop {
+fn as_proto_prop(prop: &Prop) -> proto::Prop {
     let value: prop::Value = match prop {
         Prop::Bool(b) => prop::Value::BoolValue(*b),
         Prop::U8(u) => prop::Value::U8((*u).into()),
@@ -974,7 +974,7 @@ fn as_proto_prop(prop: &Prop) -> serialise::Prop {
         }
     };
 
-    serialise::Prop { value: Some(value) }
+    proto::Prop { value: Some(value) }
 }
 
 #[cfg(test)]
@@ -989,7 +989,7 @@ mod proto_test {
             graph::graph::assert_graph_equal,
         },
         prelude::*,
-        serialise::GraphType,
+        proto::GraphType,
     };
 
     #[test]
@@ -1253,7 +1253,7 @@ mod proto_test {
 
     #[test]
     fn manually_test_append() {
-        let mut graph1 = serialise::Graph::default();
+        let mut graph1 = proto::Graph::default();
         graph1.set_graph_type(GraphType::Event);
         graph1.new_node(GidRef::Str("1"), VID(0), 0);
         graph1.new_node(GidRef::Str("2"), VID(1), 0);
@@ -1266,7 +1266,7 @@ mod proto_test {
         );
         let mut bytes1 = graph1.encode_to_vec();
 
-        let mut graph2 = serialise::Graph::default();
+        let mut graph2 = proto::Graph::default();
         graph2.new_node(GidRef::Str("3"), VID(2), 0);
         graph2.new_edge(VID(0), VID(2), EID(1));
         graph2.update_edge_tprops(

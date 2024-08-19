@@ -82,7 +82,7 @@
 //! raphtory is created by [Pometry](https://pometry.com).
 //! We are always looking for contributors to help us improve the library.
 //! If you are interested in contributing, please see
-//! our [Github repository](https://github.com/Raphtory/raphtory)
+//! our [GitHub repository](https://github.com/Raphtory/raphtory)
 pub mod algorithms;
 pub mod core;
 pub mod db;
@@ -131,7 +131,7 @@ pub const BINCODE_VERSION: u32 = 3u32;
 pub use polars_arrow as arrow2;
 
 #[cfg(feature = "proto")]
-mod serialise {
+mod proto {
     include!(concat!(env!("OUT_DIR"), "/serialise.rs"));
 }
 
