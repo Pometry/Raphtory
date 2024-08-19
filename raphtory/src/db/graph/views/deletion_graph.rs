@@ -18,7 +18,11 @@ use crate::{
                 },
                 storage::Storage,
             },
-            view::{internal::*, BoxedIter, IntoDynBoxed},
+            view::{
+                internal::*,
+                serialise::{StableDecode, StableEncoder},
+                BoxedIter, IntoDynBoxed,
+            },
         },
         graph::graph::graph_equal,
     },
@@ -122,6 +126,23 @@ impl PersistentGraph {
 
     pub fn from_internal_graph(internal_graph: GraphStorage) -> Self {
         Self(Arc::new(Storage::from_inner(internal_graph)))
+    }
+
+    /// Load graph from file and append future updates to the same file
+    #[cfg(feature = "proto")]
+    pub fn load_cached(path: impl AsRef<Path>) -> Result<Self, GraphError> {
+        let graph = Self::decode(path.as_ref())?;
+        graph.0.init_cache(path)?;
+        Ok(graph)
+    }
+
+    /// Write graph to file and append future updates to the same file.
+    ///
+    /// If the file already exists, it's contents are overwritten
+    #[cfg(feature = "proto")]
+    pub fn cache(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
+        self.stable_serialise(path.as_ref())?;
+        self.0.init_cache(path)
     }
 
     /// Save a graph to a directory

@@ -17,6 +17,12 @@ pub struct GraphWriter {
 }
 
 impl GraphWriter {
+    pub fn new(file: File) -> Self {
+        Self {
+            writer: Mutex::new(file),
+            proto_delta: Default::default(),
+        }
+    }
     pub fn write(&self) -> Result<(), io::Error> {
         let proto = mem::take(self.proto_delta.lock().deref_mut());
         let bytes = proto.encode_to_vec();

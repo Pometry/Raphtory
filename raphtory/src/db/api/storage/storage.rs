@@ -18,6 +18,7 @@ use crate::{
         view::{Base, InheritViewOps},
     },
 };
+use once_cell::sync::OnceCell;
 use raphtory_api::core::{
     entities::{EID, VID},
     storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
@@ -25,6 +26,8 @@ use raphtory_api::core::{
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Display, Formatter},
+    fs::OpenOptions,
+    path::Path,
     sync::Arc,
 };
 
@@ -33,7 +36,7 @@ pub struct Storage {
     graph: GraphStorage,
     #[cfg(feature = "proto")]
     #[serde(skip)]
-    cache: Option<GraphWriter>,
+    cache: OnceCell<GraphWriter>,
 }
 
 impl Display for Storage {
@@ -55,18 +58,32 @@ impl Storage {
     pub(crate) fn new(num_locks: usize) -> Self {
         Self {
             graph: GraphStorage::Unlocked(Arc::new(TemporalGraph::new(num_locks))),
-            cache: None,
+            cache: OnceCell::new(),
         }
     }
 
     pub(crate) fn from_inner(graph: GraphStorage) -> Self {
-        Self { graph, cache: None }
+        Self {
+            graph,
+            cache: OnceCell::new(),
+        }
+    }
+
+    /// Initialise the cache by pointing it at a proto file.
+    /// Future updates will be appended to the cache.
+    #[cfg(feature = "proto")]
+    pub(crate) fn init_cache(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
+        self.cache.get_or_try_init(|| {
+            let file = OpenOptions::new().append(true).open(path)?;
+            Ok::<_, GraphError>(GraphWriter::new(file))
+        })?;
+        Ok(())
     }
 
     #[cfg(feature = "proto")]
     #[inline]
     fn if_cache(&self, map_fn: impl FnOnce(&GraphWriter)) {
-        if let Some(cache) = self.cache.as_ref() {
+        if let Some(cache) = self.cache.get() {
             map_fn(cache)
         }
     }
