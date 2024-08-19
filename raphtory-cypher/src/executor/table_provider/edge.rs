@@ -55,7 +55,7 @@ impl EdgeListTableProvider {
 
         let schema = lift_nested_arrow_schema(&g, layer_id)?;
 
-        let num_partitions = 2;//std::thread::available_parallelism()?.get();
+        let num_partitions = 2; //std::thread::available_parallelism()?.get();
 
         let row_count = graph
             .as_ref()
@@ -149,7 +149,7 @@ impl TableProvider for EdgeListTableProvider {
     ) -> Result<Arc<dyn ExecutionPlan>, DataFusionError> {
         let schema = projection
             .map(|proj| self.schema().project(proj).map(Arc::new))
-            .unwrap_or_else(|| Ok( self.schema().clone() ))?;
+            .unwrap_or_else(|| Ok(self.schema().clone()))?;
 
         let plan_properties = plan_properties(schema.clone(), self.num_partitions);
         Ok(Arc::new(EdgeListExecPlan {

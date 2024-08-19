@@ -44,7 +44,7 @@ impl OptimizerRule for HopRule {
             } = join;
 
             if on.len() != 1 {
-                return Ok(Transformed::no(plan)); 
+                return Ok(Transformed::no(plan));
             }
 
             let (hop_from_col, _hop_to_col, direction) = if let (

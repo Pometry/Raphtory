@@ -48,7 +48,6 @@ mod cypher {
         enable_hop_optim: bool,
     ) -> Result<DataFrame, ExecError> {
         let (ctx, plan) = prepare_plan(query, g, enable_hop_optim).await?;
-        println!("{}", plan.display_indent().to_string());
         let df = ctx.execute_logical_plan(plan).await?;
         Ok(df)
     }
@@ -58,7 +57,6 @@ mod cypher {
         g: &DiskGraphStorage,
         enable_hop_optim: bool,
     ) -> Result<(SessionContext, LogicalPlan), ExecError> {
-        // println!("Running query: {:?}", query);
         let query = super::parser::parse_cypher(query)?;
 
         let config = SessionConfig::from_env()?.with_information_schema(true);
@@ -117,8 +115,6 @@ mod cypher {
         ctx.refresh_catalogs().await?;
         let query = transpiler::to_sql(query, g);
 
-        println!("SQL: {:?}", query.to_string());
-        // println!("SQL AST: {:?}", query);
         let plan = ctx
             .state()
             .statement_to_plan(datafusion::sql::parser::Statement::Statement(Box::new(
@@ -129,7 +125,6 @@ mod cypher {
         opts.verify_plan(&plan)?;
 
         let plan = ctx.state().optimize(&plan)?;
-        // println!("PLAN! {:?}", plan);
         Ok((ctx, plan))
     }
 
@@ -152,11 +147,6 @@ mod cypher {
 
         let node_table_provider = NodeTableProvider::new(graph.clone())?;
         ctx.register_table("nodes", Arc::new(node_table_provider))?;
-
-        // let state = ctx.state();
-        // let dialect = state.config().options().sql_parser.dialect.as_str();
-        // let sql_ast = ctx.state().sql_to_statement(query, dialect)?;
-        // println!("SQL AST: {:?}", sql_ast);
 
         let df = ctx.sql(query).await?;
         Ok(df)
