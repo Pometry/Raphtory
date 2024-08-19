@@ -19,7 +19,7 @@ use crate::{
         document_template::{DefaultTemplate, DocumentTemplate},
         graph_entity::GraphEntity,
         vectorisable::Vectorisable,
-        vectorised_graph::DynamicVectorisedGraph,
+        vectorised_graph::{DynamicVectorSelection, DynamicVectorisedGraph},
         Document, Embedding, EmbeddingFunction,
     },
 };
@@ -35,7 +35,7 @@ use std::{path::PathBuf, sync::Arc};
 
 pub type PyWindow = Option<(PyTime, PyTime)>;
 
-pub fn translate_py_window(window: PyWindow) -> Option<(i64, i64)> {
+pub fn translate_window(window: PyWindow) -> Option<(i64, i64)> {
     window.map(|(start, end)| (start.into_time(), end.into_time()))
 }
 
@@ -101,35 +101,37 @@ pub fn generate_property_list(
 
 impl PyDocument {
     pub fn extract_rust_document(&self, py: Python) -> Result<Document, String> {
-        match &self.entity {
-            None => Err("Document entity cannot be None".to_owned()),
-            Some(entity) => {
-                let node = entity.extract::<PyNode>(py);
-                let edge = entity.extract::<PyEdge>(py);
-                let graph = entity.extract::<PyGraphView>(py);
-                if let Ok(node) = node {
-                    Ok(Document::Node {
-                        name: node.name(),
-                        content: self.content.clone(),
-                        life: self.life,
-                    })
-                } else if let Ok(edge) = edge {
-                    Ok(Document::Edge {
-                        src: edge.edge.src().name(),
-                        dst: edge.edge.dst().name(),
-                        content: self.content.clone(),
-                        life: self.life,
-                    })
-                } else if let Ok(graph) = graph {
-                    Ok(Document::Graph {
-                        name: graph.graph.properties().get("name").unwrap().to_string(),
-                        content: self.content.clone(),
-                        life: self.life,
-                    })
-                } else {
-                    Err("document entity is not a node nor an edge nor a graph".to_owned())
-                }
+        if let (Some(entity), Some(embedding)) = (&self.entity, &self.embedding) {
+            let node = entity.extract::<PyNode>(py);
+            let edge = entity.extract::<PyEdge>(py);
+            let graph = entity.extract::<PyGraphView>(py);
+            if let Ok(node) = node {
+                Ok(Document::Node {
+                    name: node.name(),
+                    content: self.content.clone(),
+                    embedding: embedding.clone(),
+                    life: self.life,
+                })
+            } else if let Ok(edge) = edge {
+                Ok(Document::Edge {
+                    src: edge.edge.src().name(),
+                    dst: edge.edge.dst().name(),
+                    content: self.content.clone(),
+                    embedding: embedding.clone(),
+                    life: self.life,
+                })
+            } else if let Ok(graph) = graph {
+                Ok(Document::Graph {
+                    name: graph.graph.properties().get("name").unwrap().to_string(),
+                    content: self.content.clone(),
+                    embedding: embedding.clone(),
+                    life: self.life,
+                })
+            } else {
+                Err("document entity is not a node nor an edge nor a graph".to_owned())
             }
+        } else {
+            Err("Document entity and embedding have to be defined".to_owned())
         }
     }
 }
@@ -140,14 +142,21 @@ pub fn into_py_document(
     py: Python,
 ) -> PyDocument {
     match document {
-        Document::Graph { content, life, .. } => PyDocument {
+        Document::Graph {
+            content,
+            life,
+            embedding,
+            ..
+        } => PyDocument {
             content,
             entity: Some(graph.source_graph.clone().into_py(py)),
+            embedding: Some(embedding),
             life,
         },
         Document::Node {
             name,
             content,
+            embedding,
             life,
         } => {
             let node = graph.source_graph.node(name).unwrap();
@@ -155,6 +164,7 @@ pub fn into_py_document(
             PyDocument {
                 content,
                 entity: Some(node.into_py(py)),
+                embedding: Some(embedding),
                 life,
             }
         }
@@ -162,6 +172,7 @@ pub fn into_py_document(
             src,
             dst,
             content,
+            embedding,
             life,
         } => {
             let edge = graph.source_graph.edge(src, dst).unwrap();
@@ -169,6 +180,7 @@ pub fn into_py_document(
             PyDocument {
                 content,
                 entity: Some(edge.into_py(py)),
+                embedding: Some(embedding),
                 life,
             }
         }
@@ -344,6 +356,12 @@ impl IntoPy<PyObject> for DynamicVectorisedGraph {
     }
 }
 
+impl IntoPy<PyObject> for DynamicVectorSelection {
+    fn into_py(self, py: Python) -> PyObject {
+        Py::new(py, PyVectorSelection(self)).unwrap().into_py(py)
+    }
+}
+
 /// A vectorised graph, containing a set of documents positioned in the graph space and a selection
 /// over those documents
 #[pymethods]
@@ -353,6 +371,152 @@ impl PyVectorisedGraph {
         self.0.save_embeddings(file.into());
     }
 
+    fn empty_selection(&self) -> DynamicVectorSelection {
+        self.0.empty_selection()
+    }
+
+    pub fn search(&self, query: PyQuery, limit: usize, window: PyWindow) -> DynamicVectorSelection {
+        let embedding = compute_embedding(&self.0, query);
+        self.0.search(&embedding, limit, translate_window(window))
+    }
+
+    pub fn search_nodes(
+        &self,
+        query: PyQuery,
+        limit: usize,
+        window: PyWindow,
+    ) -> DynamicVectorSelection {
+        let embedding = compute_embedding(&self.0, query);
+        self.0
+            .search_nodes(&embedding, limit, translate_window(window))
+    }
+
+    pub fn search_edges(
+        &self,
+        query: PyQuery,
+        limit: usize,
+        window: PyWindow,
+    ) -> DynamicVectorSelection {
+        let embedding = compute_embedding(&self.0, query);
+        self.0
+            .search_edges(&embedding, limit, translate_window(window))
+    }
+
+    // /// Add all the documents from `nodes` and `edges` to the current selection
+    // ///
+    // /// Documents added by this call are assumed to have a score of 0.
+    // ///
+    // /// Args:
+    // ///   nodes (list): a list of the node ids or nodes to add
+    // ///   edges (list):  a list of the edge ids or edges to add
+    // ///
+    // /// Returns:
+    // ///   A new vectorised graph containing the updated selection
+    // fn append(
+    //     &self,
+    //     nodes: Vec<NodeRef>,
+    //     edges: Vec<(NodeRef, NodeRef)>,
+    // ) -> DynamicVectorisedGraph {
+    //     self.0.append(nodes, edges)
+    // }
+
+    // /// Add all the documents from `nodes` to the current selection
+    // ///
+    // /// Documents added by this call are assumed to have a score of 0.
+    // ///
+    // /// Args:
+    // ///   nodes (list): a list of the node ids or nodes to add
+    // ///
+    // /// Returns:
+    // ///   A new vectorised graph containing the updated selection
+    // fn append_nodes(&self, nodes: Vec<NodeRef>) -> DynamicVectorisedGraph {
+    //     self.append(nodes, vec![])
+    // }
+
+    // /// Add all the documents from `edges` to the current selection
+    // ///
+    // /// Documents added by this call are assumed to have a score of 0.
+    // ///
+    // /// Args:
+    // ///   edges (list):  a list of the edge ids or edges to add
+    // ///
+    // /// Returns:
+    // ///   A new vectorised graph containing the updated selection
+    // fn append_edges(&self, edges: Vec<(NodeRef, NodeRef)>) -> DynamicVectorisedGraph {
+    //     self.append(vec![], edges)
+    // }
+
+    // /// Add the top `limit` documents to the current selection using `query`
+    // ///
+    // /// Args:
+    // ///   query (str or list): the text or the embedding to score against
+    // ///   limit (int): the maximum number of new documents to add
+    // ///   window ((int | str, int | str)): the window where documents need to belong to in order to be considered
+    // ///
+    // /// Returns:
+    // ///   A new vectorised graph containing the updated selection
+    // #[pyo3(signature = (query, limit, window=None))]
+    // fn append_by_similarity(
+    //     &self,
+    //     query: PyQuery,
+    //     limit: usize,
+    //     window: PyWindow,
+    // ) -> DynamicVectorisedGraph {
+    //     let embedding = compute_embedding(&self.0, query);
+    //     self.0
+    //         .append_by_similarity(&embedding, limit, translate_py_window(window))
+    // }
+
+    // /// Add the top `limit` node documents to the current selection using `query`
+    // ///
+    // /// Args:
+    // ///   query (str or list): the text or the embedding to score against
+    // ///   limit (int): the maximum number of new documents to add
+    // ///   window ((int | str, int | str)): the window where documents need to belong to in order to be considered
+    // ///
+    // /// Returns:
+    // ///   A new vectorised graph containing the updated selection
+    // #[pyo3(signature = (query, limit, window=None))]
+    // fn append_nodes_by_similarity(
+    //     &self,
+    //     query: PyQuery,
+    //     limit: usize,
+    //     window: PyWindow,
+    // ) -> DynamicVectorisedGraph {
+    //     let embedding = compute_embedding(&self.0, query);
+    //     self.0
+    //         .append_nodes_by_similarity(&embedding, limit, translate_py_window(window))
+    // }
+
+    // /// Add the top `limit` edge documents to the current selection using `query`
+    // ///
+    // /// Args:
+    // ///   query (str or list): the text or the embedding to score against
+    // ///   limit (int): the maximum number of new documents to add
+    // ///   window ((int | str, int | str)): the window where documents need to belong to in order to be considered
+    // ///
+    // /// Returns:
+    // ///   A new vectorised graph containing the updated selection
+    // #[pyo3(signature = (query, limit, window=None))]
+    // fn append_edges_by_similarity(
+    //     &self,
+    //     query: PyQuery,
+    //     limit: usize,
+    //     window: PyWindow,
+    // ) -> DynamicVectorisedGraph {
+    //     let embedding = compute_embedding(&self.0, query);
+    //     self.0
+    //         .append_edges_by_similarity(&embedding, limit, translate_py_window(window))
+    // }
+}
+
+#[pyclass(name = "VectorSelection")]
+pub struct PyVectorSelection(DynamicVectorSelection);
+
+/// A vectorised graph, containing a set of documents positioned in the graph space and a selection
+/// over those documents
+#[pymethods]
+impl PyVectorSelection {
     /// Return the nodes present in the current selection
     fn nodes(&self) -> Vec<PyNode> {
         self.0
@@ -384,115 +548,8 @@ impl PyVectorisedGraph {
     fn get_documents_with_scores(&self, py: Python) -> Vec<(PyDocument, f32)> {
         let docs = self.0.get_documents_with_scores();
         docs.into_iter()
-            .map(|(doc, score)| (into_py_document(doc, &self.0, py), score))
+            .map(|(doc, score)| (into_py_document(doc, &self.0.graph, py), score))
             .collect()
-    }
-
-    /// Add all the documents from `nodes` and `edges` to the current selection
-    ///
-    /// Documents added by this call are assumed to have a score of 0.
-    ///
-    /// Args:
-    ///   nodes (list): a list of the node ids or nodes to add
-    ///   edges (list):  a list of the edge ids or edges to add
-    ///
-    /// Returns:
-    ///   A new vectorised graph containing the updated selection
-    fn append(
-        &self,
-        nodes: Vec<NodeRef>,
-        edges: Vec<(NodeRef, NodeRef)>,
-    ) -> DynamicVectorisedGraph {
-        self.0.append(nodes, edges)
-    }
-
-    /// Add all the documents from `nodes` to the current selection
-    ///
-    /// Documents added by this call are assumed to have a score of 0.
-    ///
-    /// Args:
-    ///   nodes (list): a list of the node ids or nodes to add
-    ///
-    /// Returns:
-    ///   A new vectorised graph containing the updated selection
-    fn append_nodes(&self, nodes: Vec<NodeRef>) -> DynamicVectorisedGraph {
-        self.append(nodes, vec![])
-    }
-
-    /// Add all the documents from `edges` to the current selection
-    ///
-    /// Documents added by this call are assumed to have a score of 0.
-    ///
-    /// Args:
-    ///   edges (list):  a list of the edge ids or edges to add
-    ///
-    /// Returns:
-    ///   A new vectorised graph containing the updated selection
-    fn append_edges(&self, edges: Vec<(NodeRef, NodeRef)>) -> DynamicVectorisedGraph {
-        self.append(vec![], edges)
-    }
-
-    /// Add the top `limit` documents to the current selection using `query`
-    ///
-    /// Args:
-    ///   query (str or list): the text or the embedding to score against
-    ///   limit (int): the maximum number of new documents to add
-    ///   window ((int | str, int | str)): the window where documents need to belong to in order to be considered
-    ///
-    /// Returns:
-    ///   A new vectorised graph containing the updated selection
-    #[pyo3(signature = (query, limit, window=None))]
-    fn append_by_similarity(
-        &self,
-        query: PyQuery,
-        limit: usize,
-        window: PyWindow,
-    ) -> DynamicVectorisedGraph {
-        let embedding = compute_embedding(&self.0, query);
-        self.0
-            .append_by_similarity(&embedding, limit, translate_py_window(window))
-    }
-
-    /// Add the top `limit` node documents to the current selection using `query`
-    ///
-    /// Args:
-    ///   query (str or list): the text or the embedding to score against
-    ///   limit (int): the maximum number of new documents to add
-    ///   window ((int | str, int | str)): the window where documents need to belong to in order to be considered
-    ///
-    /// Returns:
-    ///   A new vectorised graph containing the updated selection
-    #[pyo3(signature = (query, limit, window=None))]
-    fn append_nodes_by_similarity(
-        &self,
-        query: PyQuery,
-        limit: usize,
-        window: PyWindow,
-    ) -> DynamicVectorisedGraph {
-        let embedding = compute_embedding(&self.0, query);
-        self.0
-            .append_nodes_by_similarity(&embedding, limit, translate_py_window(window))
-    }
-
-    /// Add the top `limit` edge documents to the current selection using `query`
-    ///
-    /// Args:
-    ///   query (str or list): the text or the embedding to score against
-    ///   limit (int): the maximum number of new documents to add
-    ///   window ((int | str, int | str)): the window where documents need to belong to in order to be considered
-    ///
-    /// Returns:
-    ///   A new vectorised graph containing the updated selection
-    #[pyo3(signature = (query, limit, window=None))]
-    fn append_edges_by_similarity(
-        &self,
-        query: PyQuery,
-        limit: usize,
-        window: PyWindow,
-    ) -> DynamicVectorisedGraph {
-        let embedding = compute_embedding(&self.0, query);
-        self.0
-            .append_edges_by_similarity(&embedding, limit, translate_py_window(window))
     }
 
     /// Add all the documents `hops` hops away to the selection
@@ -509,8 +566,8 @@ impl PyVectorisedGraph {
     /// Returns:
     ///   A new vectorised graph containing the updated selection
     #[pyo3(signature = (hops, window=None))]
-    fn expand(&self, hops: usize, window: PyWindow) -> DynamicVectorisedGraph {
-        self.0.expand(hops, translate_py_window(window))
+    fn expand(mut self_: PyRefMut<'_, Self>, hops: usize, window: PyWindow) {
+        self_.0.expand(hops, translate_window(window))
     }
 
     /// Add the top `limit` adjacent documents with higher score for `query` to the selection
@@ -532,14 +589,15 @@ impl PyVectorisedGraph {
     ///   A new vectorised graph containing the updated selection
     #[pyo3(signature = (query, limit, window=None))]
     fn expand_by_similarity(
-        &self,
+        mut self_: PyRefMut<'_, Self>,
         query: PyQuery,
         limit: usize,
         window: PyWindow,
-    ) -> DynamicVectorisedGraph {
-        let embedding = compute_embedding(&self.0, query);
-        self.0
-            .expand_by_similarity(&embedding, limit, translate_py_window(window))
+    ) {
+        let embedding = compute_embedding(&self_.0.graph, query);
+        self_
+            .0
+            .expand_by_similarity(&embedding, limit, translate_window(window))
     }
 
     /// Add the top `limit` adjacent node documents with higher score for `query` to the selection
@@ -555,14 +613,15 @@ impl PyVectorisedGraph {
     ///   A new vectorised graph containing the updated selection
     #[pyo3(signature = (query, limit, window=None))]
     fn expand_nodes_by_similarity(
-        &self,
+        mut self_: PyRefMut<'_, Self>,
         query: PyQuery,
         limit: usize,
         window: PyWindow,
-    ) -> DynamicVectorisedGraph {
-        let embedding = compute_embedding(&self.0, query);
-        self.0
-            .expand_nodes_by_similarity(&embedding, limit, translate_py_window(window))
+    ) {
+        let embedding = compute_embedding(&self_.0.graph, query);
+        self_
+            .0
+            .expand_nodes_by_similarity(&embedding, limit, translate_window(window))
     }
 
     /// Add the top `limit` adjacent edge documents with higher score for `query` to the selection
@@ -578,14 +637,15 @@ impl PyVectorisedGraph {
     ///   A new vectorised graph containing the updated selection
     #[pyo3(signature = (query, limit, window=None))]
     fn expand_edges_by_similarity(
-        &self,
+        mut self_: PyRefMut<'_, Self>,
         query: PyQuery,
         limit: usize,
         window: PyWindow,
-    ) -> DynamicVectorisedGraph {
-        let embedding = compute_embedding(&self.0, query);
-        self.0
-            .expand_edges_by_similarity(&embedding, limit, translate_py_window(window))
+    ) {
+        let embedding = compute_embedding(&self_.0.graph, query);
+        self_
+            .0
+            .expand_edges_by_similarity(&embedding, limit, translate_window(window))
     }
 }
 

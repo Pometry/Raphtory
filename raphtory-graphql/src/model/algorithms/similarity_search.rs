@@ -40,9 +40,7 @@ impl<'a> Algorithm<'a, VectorAlgorithms> for SimilaritySearch {
             let embedding = openai_embedding(vec![query.clone()]).await.remove(0);
             println!("running similarity search for {query}");
 
-            let documents = graph
-                .append_by_similarity(&embedding, limit, None)
-                .get_documents();
+            let documents = graph.search(&embedding, limit, None).get_documents();
 
             let gql_documents = documents
                 .into_iter()

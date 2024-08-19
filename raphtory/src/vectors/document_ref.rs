@@ -105,6 +105,7 @@ impl DocumentRef {
                     .nth(self.index)
                     .unwrap()
                     .content,
+                embedding: self.embedding.clone(),
                 life: self.life,
             },
             EntityId::Node { id } => Document::Node {
@@ -114,6 +115,7 @@ impl DocumentRef {
                     .nth(self.index)
                     .unwrap()
                     .content,
+                embedding: self.embedding.clone(),
                 life: self.life,
             },
             EntityId::Edge { src, dst } => Document::Edge {
@@ -124,6 +126,7 @@ impl DocumentRef {
                     .nth(self.index)
                     .unwrap()
                     .content,
+                embedding: self.embedding.clone(),
                 life: self.life,
             },
         }

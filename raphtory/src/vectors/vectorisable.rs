@@ -32,7 +32,7 @@ pub trait Vectorisable<G: StaticGraphViewOps> {
     ///   * cache - the file to be used as a cache to avoid calling the embedding function
     ///   * overwrite_cache - whether or not to overwrite the cache if there are new embeddings
     ///   * verbose - whether or not to print logs reporting the progress
-    ///   
+    ///
     /// # Returns:
     ///   A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
     async fn vectorise(
@@ -51,7 +51,7 @@ pub trait Vectorisable<G: StaticGraphViewOps> {
     ///   * overwrite_cache - whether or not to overwrite the cache if there are new embeddings
     ///   * template - the template to use to translate entities into documents
     ///   * verbose - whether or not to print logs reporting the progress
-    ///   
+    ///
     /// # Returns:
     ///   A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
     async fn vectorise_with_template<T: DocumentTemplate<G>>(
@@ -152,7 +152,6 @@ impl<G: StaticGraphViewOps + IntoDynamic> Vectorisable<G> for G {
             graph_refs.into(),
             node_refs.into(),
             edge_refs.into(),
-            vec![],
         )
     }
 }

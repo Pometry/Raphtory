@@ -151,7 +151,6 @@ impl VectorisedGraphStorage {
             Arc::new(graph_documents),
             Arc::new(node_documents),
             Arc::new(edge_documents),
-            vec![],
         ))
     }
 

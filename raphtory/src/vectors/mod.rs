@@ -22,17 +22,20 @@ pub enum Document {
     Graph {
         name: String,
         content: String,
+        embedding: Embedding,
         life: Lifespan,
     },
     Node {
         name: String,
         content: String,
+        embedding: Embedding,
         life: Lifespan,
     },
     Edge {
         src: String,
         dst: String,
         content: String,
+        embedding: Embedding,
         life: Lifespan,
     },
 }
