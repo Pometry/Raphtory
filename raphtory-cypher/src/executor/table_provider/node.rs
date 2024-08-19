@@ -3,9 +3,9 @@ use crate::{
     executor::ExecError,
 };
 use arrow::datatypes::UInt64Type;
-use arrow_array::{make_array, Array, LargeStringArray, PrimitiveArray};
+use arrow_array::{make_array, Array, PrimitiveArray};
 use arrow_buffer::ScalarBuffer;
-use arrow_schema::{DataType, Field, Schema};
+use arrow_schema::{DataType, Schema};
 use async_trait::async_trait;
 use datafusion::{
     arrow::{array::RecordBatch, datatypes::SchemaRef},
@@ -30,6 +30,7 @@ use std::{any::Any, fmt::Formatter, sync::Arc};
 
 use super::plan_properties;
 
+// FIXME: review this file, some of the assuptions and mapping between partitions and chunk sizes are not correct
 pub struct NodeTableProvider {
     graph: DiskGraphStorage,
     schema: SchemaRef,
@@ -55,15 +56,10 @@ impl NodeTableProvider {
             });
 
         let name_dt = graph.global_ordering().data_type();
-        // let schema = lift_arrow_schema(
-        //     name_dt.clone(),
-        //     graph.node_properties().const_props.as_ref(),
-        // )?;
-
-        let schema = Arc::new(Schema::new(vec![
-            Field::new("id", DataType::UInt64, false),
-            Field::new("gid", DataType::UInt64, false),
-        ]));
+        let schema = lift_arrow_schema(
+            name_dt.clone(),
+            graph.node_properties().const_props.as_ref(),
+        )?;
 
         Ok(Self {
             graph: g,
@@ -126,7 +122,7 @@ impl TableProvider for NodeTableProvider {
             .map(|proj| self.schema().project(proj).map(Arc::new))
             .unwrap_or_else(|| Ok(self.schema().clone()))?;
 
-        let plan_properties = plan_properties(self.schema.clone(), self.num_partitions);
+        let plan_properties = plan_properties(schema.clone(), self.num_partitions);
 
         Ok(Arc::new(NodeScanExecPlan {
             graph: self.graph.clone(),
@@ -160,12 +156,14 @@ async fn produce_record_batch(
     let start = chunk_id * chunk_size;
     let end = (chunk_id + 1) * chunk_size;
 
+    let n = chunk.values()[0].len();
+    let iter = (start as u64..end as u64).take(n);
     let id = Arc::new(PrimitiveArray::<UInt64Type>::new(
-        ScalarBuffer::from_iter((start as u64..end as u64).take(chunk.values()[0].len())),
+        ScalarBuffer::from_iter(iter),
         None,
     ));
 
-    let length = ( end - start ).min(graph.global_ordering().len());
+    let length = (end - start).min(graph.global_ordering().len());
     let arr_gid = graph.global_ordering().sliced(start, length);
     let gid_data = to_data(arr_gid.as_ref());
     let gid = make_array(gid_data);

@@ -304,7 +304,7 @@ fn produce_record_batch(
                 RecordBatch::try_new(schema.clone(), columns)
                     .map_err(|arrow_err| DataFusionError::ArrowError(arrow_err, None))
             }
-        }).inspect(|rb| println!("{rb:?}") );
+        });
 
     Box::new(iter)
 }
@@ -362,13 +362,6 @@ impl ExecutionPlan for EdgeListExecPlan {
         &self.props
     }
 
-    // fn output_partitioning(&self) -> datafusion::physical_expr::Partitioning {
-    //     datafusion::physical_expr::Partitioning::UnknownPartitioning(self.num_partitions)
-    // }
-    // fn output_ordering(&self) -> Option<&[datafusion::physical_expr::PhysicalSortExpr]> {
-    //     Some(&self.sorted_by)
-    // }
-
     fn schema(&self) -> SchemaRef {
         self.schema.clone()
     }
@@ -393,19 +386,18 @@ impl ExecutionPlan for EdgeListExecPlan {
         target_partitions: usize,
         _config: &ConfigOptions,
     ) -> Result<Option<Arc<dyn ExecutionPlan>>, DataFusionError> {
-        // let plan_properties = plan_properties(self.schema.clone(), target_partitions);
-        // Ok(Some(Arc::new(EdgeListExecPlan {
-        //     layer_id: self.layer_id,
-        //     layer_name: self.layer_name.clone(),
-        //     graph: self.graph.clone(),
-        //     schema: self.schema.clone(),
-        //     num_partitions: target_partitions,
-        //     row_count: self.row_count,
-        //     sorted_by: self.sorted_by.clone(),
-        //     props: plan_properties,
-        //     projection: self.projection.clone(),
-        // })))
-        Ok(None)
+        let plan_properties = plan_properties(self.schema.clone(), target_partitions);
+        Ok(Some(Arc::new(EdgeListExecPlan {
+            layer_id: self.layer_id,
+            layer_name: self.layer_name.clone(),
+            graph: self.graph.clone(),
+            schema: self.schema.clone(),
+            num_partitions: target_partitions,
+            row_count: self.row_count,
+            sorted_by: self.sorted_by.clone(),
+            props: plan_properties,
+            projection: self.projection.clone(),
+        })))
     }
 
     fn execute(
