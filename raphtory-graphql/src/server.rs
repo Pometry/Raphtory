@@ -26,10 +26,7 @@ use raphtory::{
     },
 };
 
-use crate::{
-    data::get_graphs_from_work_dir,
-    server_config::{load_config, AppConfig, LoggingConfig},
-};
+use crate::server_config::{load_config, AppConfig, LoggingConfig};
 use config::ConfigError;
 use std::{
     fs,
@@ -119,13 +116,13 @@ impl RaphtoryServer {
         F: EmbeddingFunction + Clone + 'static,
         T: DocumentTemplate<DynamicGraph> + 'static,
     {
-        let work_dir = Path::new(&self.data.work_dir);
         let graphs = &self.data.global_plugins.graphs;
         let stores = &self.data.global_plugins.vectorised_graphs;
 
         graphs.write().extend(
-            get_graphs_from_work_dir(work_dir)
-                .map_err(|err| ServerError::CacheError(err.message))?,
+            self.data
+                .get_graphs_from_work_dir()
+                .map_err(|err| ServerError::CacheError(err.to_string()))?,
         );
 
         let template = template
