@@ -339,7 +339,6 @@ pub(crate) mod data_tests {
         db::api::storage::storage_ops::GraphStorage, db::api::view::internal::CoreGraphOps,
         disk_graph::DiskGraphStorage,
     };
-    use std::{ffi::OsString, os::unix::ffi::OsStringExt};
     #[cfg(feature = "storage")]
     use std::{thread, time::Duration};
 
@@ -534,6 +533,7 @@ pub(crate) mod data_tests {
     #[cfg(any(target_os = "macos", target_os = "linux"))]
     #[test]
     fn test_invalid_utf8_failure() {
+        use std::{ffi::OsString, os::unix::ffi::OsStringExt};
         let invalid_bytes = vec![0xFF, 0xFE, b'/', b'p', b'a', b't', b'h'];
         let string = OsString::from_vec(invalid_bytes);
         let invalid_path = Path::new(&string);
