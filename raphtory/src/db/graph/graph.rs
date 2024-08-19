@@ -22,12 +22,10 @@ use crate::{
     db::api::{
         mutation::internal::InheritMutationOps,
         storage::{graph::storage_ops::GraphStorage, storage::Storage},
-        view::{
-            internal::{Base, InheritViewOps, MaterializedGraph, Static},
-            serialise::{StableDecode, StableEncoder},
-        },
+        view::internal::{Base, InheritViewOps, MaterializedGraph, Static},
     },
     prelude::*,
+    serialise::serialise::{StableDecode, StableEncoder},
 };
 use core::panic;
 use rayon::prelude::*;

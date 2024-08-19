@@ -11,12 +11,10 @@ use crate::{
         mutation::internal::{
             InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
         },
-        storage::{
-            cache::cached_graph::GraphWriter,
-            graph::{nodes::node_storage_ops::NodeStorageOps, storage_ops::GraphStorage},
-        },
+        storage::graph::{nodes::node_storage_ops::NodeStorageOps, storage_ops::GraphStorage},
         view::{Base, InheritViewOps},
     },
+    serialise::incremental::GraphWriter,
 };
 use once_cell::sync::OnceCell;
 use raphtory_api::core::{

@@ -7,10 +7,7 @@ use crate::{
     algorithms::components::LargestConnectedComponent,
     core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError},
     db::{
-        api::view::{
-            internal::{CoreGraphOps, DynamicGraph, IntoDynamic, MaterializedGraph},
-            serialise::{StableDecode, StableEncoder},
-        },
+        api::view::internal::{CoreGraphOps, DynamicGraph, IntoDynamic, MaterializedGraph},
         graph::{edge::EdgeView, node::NodeView, views::node_subgraph::NodeSubgraph},
     },
     io::parquet_loaders::*,
@@ -22,6 +19,7 @@ use crate::{
         },
         utils::PyTime,
     },
+    serialise::serialise::{StableDecode, StableEncoder},
 };
 use pyo3::{prelude::*, types::PyBytes};
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};

@@ -1,6 +1,6 @@
 use crate::{
     core::{Prop, PropType},
-    db::api::view::serialise::ProtoGraph,
+    serialise::ProtoGraph,
 };
 use parking_lot::Mutex;
 use prost::Message;

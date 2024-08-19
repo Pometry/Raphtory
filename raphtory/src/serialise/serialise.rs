@@ -1,4 +1,3 @@
-use super::MaterializedGraph;
 use crate::{
     core::{
         entities::{
@@ -18,15 +17,17 @@ use crate::{
                 edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
                 storage_ops::GraphStorage, tprop_storage_ops::TPropOps,
             },
-            view::internal::CoreGraphOps,
+            view::{internal::CoreGraphOps, MaterializedGraph},
         },
         graph::views::deletion_graph::PersistentGraph,
     },
     prelude::Graph,
-    proto,
-    proto::{
-        graph_update::*, new_meta::*, new_node, new_node::Gid, prop,
-        prop_type::PropType as SPropType, GraphUpdate, NewEdge, NewMeta, NewNode,
+    serialise::{
+        proto,
+        proto::{
+            graph_update::*, new_meta::*, new_node, new_node::Gid, prop,
+            prop_type::PropType as SPropType, GraphUpdate, NewEdge, NewMeta, NewNode,
+        },
     },
 };
 use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike};
@@ -41,8 +42,6 @@ use raphtory_api::core::{
 };
 use rayon::prelude::*;
 use std::{borrow::Borrow, fs::File, io::Write, iter, path::Path, sync::Arc};
-
-pub use proto::Graph as ProtoGraph;
 
 macro_rules! zip_tprop_updates {
     ($iter:expr) => {
@@ -989,7 +988,7 @@ mod proto_test {
             graph::graph::assert_graph_equal,
         },
         prelude::*,
-        proto::GraphType,
+        serialise::proto::GraphType,
     };
 
     #[test]

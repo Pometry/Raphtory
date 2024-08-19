@@ -18,15 +18,12 @@ use crate::{
                 },
                 storage::Storage,
             },
-            view::{
-                internal::*,
-                serialise::{StableDecode, StableEncoder},
-                BoxedIter, IntoDynBoxed,
-            },
+            view::{internal::*, BoxedIter, IntoDynBoxed},
         },
         graph::graph::graph_equal,
     },
     prelude::*,
+    serialise::serialise::{StableDecode, StableEncoder},
 };
 use itertools::Itertools;
 use rayon::prelude::*;
