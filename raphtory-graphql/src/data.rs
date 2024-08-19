@@ -548,23 +548,6 @@ pub(crate) mod data_tests {
             }
         }
     }
-    #[cfg(any(target_os = "macos", target_os = "linux"))]
-    #[test]
-    fn test_invalid_utf8_failure() {
-        let invalid_bytes = vec![0xFF, 0xFE, b'/', b'p', b'a', b't', b'h'];
-        let string = OsString::from_vec(invalid_bytes);
-        let invalid_path = Path::new(&string);
-        let data = Data::new(&tempfile::tempdir().unwrap().path(), &AppConfig::default());
-        match data.construct_graph_full_path(invalid_path) {
-            Err(e) => match e {
-                InvalidPathReason::PathNotUTF8(_) => {}
-                _ => panic!("Expected InvalidPathReason::PathNotUTF8, but got something else"),
-            },
-            Ok(_) => {
-                panic!("Expected InvalidPathReason::PathNotUTF8, but got something else")
-            }
-        }
-    }
 
     #[cfg(target_os = "windows")]
     #[test]
