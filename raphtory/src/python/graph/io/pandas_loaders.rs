@@ -1,6 +1,6 @@
 use crate::{
     core::{utils::errors::GraphError, Prop},
-    db::api::{storage::storage_ops::GraphStorage, view::internal::CoreGraphOps},
+    db::api::{storage::graph::storage_ops::GraphStorage, view::internal::CoreGraphOps},
     io::arrow::{dataframe::*, df_loaders::*},
     python::graph::io::*,
 };

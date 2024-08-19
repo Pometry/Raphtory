@@ -1,9 +1,8 @@
+use super::GraphStorage;
 use crate::{
     core::entities::LayerIds,
-    db::api::{storage::edges::edge_ref::EdgeStorageRef, view::internal::EdgeFilterOps},
+    db::api::{storage::graph::edges::edge_ref::EdgeStorageRef, view::internal::EdgeFilterOps},
 };
-
-use super::GraphStorage;
 
 impl EdgeFilterOps for GraphStorage {
     fn edges_filtered(&self) -> bool {

@@ -5,7 +5,7 @@ use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::AsTime};
 use crate::{
     db::api::{
         properties::internal::{TemporalPropertiesOps, TemporalPropertyViewOps},
-        storage::tprop_storage_ops::TPropOps,
+        storage::graph::tprop_storage_ops::TPropOps,
     },
     prelude::Prop,
 };

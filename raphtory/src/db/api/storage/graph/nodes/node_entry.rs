@@ -10,7 +10,7 @@ use crate::{
         Direction,
     },
     db::api::{
-        storage::{
+        storage::graph::{
             nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
             tprop_storage_ops::TPropOps,
             variants::storage_variants3::StorageVariants,

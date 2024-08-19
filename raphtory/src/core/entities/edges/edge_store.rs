@@ -13,7 +13,7 @@ use crate::{
         Prop,
     },
     db::api::{
-        storage::edges::edge_storage_ops::{EdgeStorageIntoOps, EdgeStorageOps},
+        storage::graph::edges::edge_storage_ops::{EdgeStorageIntoOps, EdgeStorageOps},
         view::IntoDynBoxed,
     },
 };

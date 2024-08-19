@@ -138,7 +138,7 @@ impl<
 
         for h in node.history() {
             let t = time_from_input(self, h)?;
-            self.internal_add_node(t, node_internal, vec![])?;
+            self.internal_add_node(t, node_internal, &[])?;
         }
         for (name, prop_view) in node.properties().temporal().iter() {
             let old_prop_id = node
@@ -156,7 +156,7 @@ impl<
             let new_prop_id = self.resolve_node_property(&name, dtype, false)?.inner();
             for (h, prop) in prop_view.iter() {
                 let t = time_from_input(self, h)?;
-                self.internal_add_node(t, node_internal, vec![(new_prop_id, prop)])?;
+                self.internal_add_node(t, node_internal, &[(new_prop_id, prop)])?;
             }
         }
         self.node(node.id())

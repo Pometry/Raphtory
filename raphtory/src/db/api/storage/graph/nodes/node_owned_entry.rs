@@ -10,7 +10,7 @@ use crate::{
         storage::ArcEntry,
         Direction,
     },
-    db::api::storage::nodes::node_storage_ops::NodeStorageIntoOps,
+    db::api::storage::graph::nodes::node_storage_ops::NodeStorageIntoOps,
 };
 
 pub enum NodeOwnedEntry {

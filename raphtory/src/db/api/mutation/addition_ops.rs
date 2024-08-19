@@ -119,7 +119,7 @@ impl<G: InternalAdditionOps + StaticGraphViewOps> AdditionOps for G {
                 v_id.inner()
             }
         };
-        self.internal_add_node(ti, v_id, properties)?;
+        self.internal_add_node(ti, v_id, &properties)?;
         Ok(NodeView::new_internal(self.clone(), v_id))
     }
 
@@ -140,7 +140,7 @@ impl<G: InternalAdditionOps + StaticGraphViewOps> AdditionOps for G {
             Ok(self.resolve_edge_property(name, dtype, false)?.inner())
         })?;
         let eid = self
-            .internal_add_edge(ti, src_id, dst_id, properties, layer_id)?
+            .internal_add_edge(ti, src_id, dst_id, &properties, layer_id)?
             .inner();
         Ok(EdgeView::new(
             self.clone(),

@@ -13,7 +13,7 @@ use crate::{
         Prop,
     },
     db::api::{
-        storage::{
+        storage::graph::{
             edges::{
                 edge_entry::EdgeStorageEntry, edge_owned_entry::EdgeOwnedEntry, edges::EdgesStorage,
             },

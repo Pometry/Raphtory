@@ -1,6 +1,6 @@
 use crate::core::{entities::properties::tprop::TProp, storage::timeindex::AsTime, Prop};
 #[cfg(feature = "storage")]
-use crate::db::api::storage::variants::storage_variants::StorageVariants;
+use crate::db::api::storage::graph::variants::storage_variants::StorageVariants;
 #[cfg(feature = "storage")]
 use pometry_storage::tprops::DiskTProp;
 use raphtory_api::core::storage::timeindex::TimeIndexEntry;

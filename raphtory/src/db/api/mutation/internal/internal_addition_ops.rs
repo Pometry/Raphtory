@@ -57,7 +57,7 @@ pub trait InternalAdditionOps {
         &self,
         t: TimeIndexEntry,
         v: VID,
-        props: Vec<(usize, Prop)>,
+        props: &[(usize, Prop)],
     ) -> Result<(), GraphError>;
 
     /// add edge update
@@ -66,7 +66,7 @@ pub trait InternalAdditionOps {
         t: TimeIndexEntry,
         src: VID,
         dst: VID,
-        props: Vec<(usize, Prop)>,
+        props: &[(usize, Prop)],
         layer: usize,
     ) -> Result<MaybeNew<EID>, GraphError>;
 
@@ -75,7 +75,7 @@ pub trait InternalAdditionOps {
         &self,
         t: TimeIndexEntry,
         edge: EID,
-        props: Vec<(usize, Prop)>,
+        props: &[(usize, Prop)],
         layer: usize,
     ) -> Result<(), GraphError>;
 }
@@ -158,7 +158,7 @@ impl<G: DelegateAdditionOps> InternalAdditionOps for G {
         &self,
         t: TimeIndexEntry,
         v: VID,
-        props: Vec<(usize, Prop)>,
+        props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         self.graph().internal_add_node(t, v, props)
     }
@@ -169,7 +169,7 @@ impl<G: DelegateAdditionOps> InternalAdditionOps for G {
         t: TimeIndexEntry,
         src: VID,
         dst: VID,
-        props: Vec<(usize, Prop)>,
+        props: &[(usize, Prop)],
         layer: usize,
     ) -> Result<MaybeNew<EID>, GraphError> {
         self.graph().internal_add_edge(t, src, dst, props, layer)
@@ -180,7 +180,7 @@ impl<G: DelegateAdditionOps> InternalAdditionOps for G {
         &self,
         t: TimeIndexEntry,
         edge: EID,
-        props: Vec<(usize, Prop)>,
+        props: &[(usize, Prop)],
         layer: usize,
     ) -> Result<(), GraphError> {
         self.graph().internal_add_edge_update(t, edge, props, layer)

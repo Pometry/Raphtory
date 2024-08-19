@@ -21,7 +21,7 @@ use crate::{
     core::{entities::graph::tgraph::TemporalGraph, utils::errors::GraphError},
     db::api::{
         mutation::internal::InheritMutationOps,
-        storage::storage_ops::GraphStorage,
+        storage::graph::storage_ops::GraphStorage,
         view::internal::{Base, InheritViewOps, MaterializedGraph, Static},
     },
     prelude::*,

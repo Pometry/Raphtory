@@ -1,9 +1,8 @@
+use super::GraphStorage;
 use crate::{
     core::entities::LayerIds,
-    db::api::{storage::nodes::node_ref::NodeStorageRef, view::internal::NodeFilterOps},
+    db::api::{storage::graph::nodes::node_ref::NodeStorageRef, view::internal::NodeFilterOps},
 };
-
-use super::GraphStorage;
 
 impl NodeFilterOps for GraphStorage {
     #[inline]

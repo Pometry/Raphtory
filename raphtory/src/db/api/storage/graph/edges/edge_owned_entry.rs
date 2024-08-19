@@ -1,46 +1,63 @@
-use std::ops::Range;
-
-use rayon::prelude::*;
-
-use super::edge_storage_ops::MemEdge;
-#[cfg(feature = "storage")]
-use crate::disk_graph::storage_interface::edge::DiskEdge;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
-        storage::raw_edges::EdgeRGuard,
+        storage::raw_edges::EdgeArcGuard,
         Prop,
     },
-    db::api::storage::{
+    db::api::storage::graph::{
         edges::{
             edge_ref::EdgeStorageRef,
-            edge_storage_ops::{EdgeStorageOps, TimeIndexRef},
+            edge_storage_ops::{EdgeStorageIntoOps, EdgeStorageOps, TimeIndexRef},
         },
         tprop_storage_ops::TPropOps,
     },
 };
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+use rayon::iter::ParallelIterator;
+use std::ops::Range;
 
-#[derive(Debug)]
-pub enum EdgeStorageEntry<'a> {
-    Mem(MemEdge<'a>),
-    Unlocked(EdgeRGuard<'a>),
+#[cfg(feature = "storage")]
+use crate::db::api::storage::graph::variants::storage_variants::StorageVariants;
+#[cfg(feature = "storage")]
+use crate::disk_graph::storage_interface::edge::DiskOwnedEdge;
+
+#[derive(Debug, Clone)]
+pub enum EdgeOwnedEntry {
+    Mem(EdgeArcGuard),
     #[cfg(feature = "storage")]
-    Disk(DiskEdge<'a>),
+    Disk(DiskOwnedEdge),
 }
 
-impl<'a> EdgeStorageEntry<'a> {
-    #[inline]
+#[cfg(feature = "storage")]
+macro_rules! for_all_variants {
+    ($value:expr, $pattern:pat => $result:expr) => {
+        match $value {
+            EdgeOwnedEntry::Mem($pattern) => StorageVariants::Mem($result),
+            EdgeOwnedEntry::Disk($pattern) => StorageVariants::Disk($result),
+        }
+    };
+}
+
+#[cfg(not(feature = "storage"))]
+macro_rules! for_all_variants {
+    ($value:expr, $pattern:pat => $result:expr) => {
+        match $value {
+            EdgeOwnedEntry::Mem($pattern) => $result,
+        }
+    };
+}
+
+impl EdgeOwnedEntry {
     pub fn as_ref(&self) -> EdgeStorageRef {
         match self {
-            EdgeStorageEntry::Mem(edge) => EdgeStorageRef::Mem(*edge),
-            EdgeStorageEntry::Unlocked(edge) => EdgeStorageRef::Mem(edge.as_mem_edge()),
+            EdgeOwnedEntry::Mem(entry) => EdgeStorageRef::Mem(entry.as_mem_edge()),
             #[cfg(feature = "storage")]
-            EdgeStorageEntry::Disk(edge) => EdgeStorageRef::Disk(*edge),
+            EdgeOwnedEntry::Disk(entry) => EdgeStorageRef::Disk(entry.as_ref()),
         }
     }
 }
 
-impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
+impl<'a> EdgeStorageOps<'a> for &'a EdgeOwnedEntry {
     fn in_ref(self) -> EdgeRef {
         self.as_ref().in_ref()
     }
@@ -138,7 +155,7 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
         self,
         layer_ids: &'a LayerIds,
         prop_id: usize,
-    ) -> impl Iterator<Item = (usize, impl TPropOps)> + 'a {
+    ) -> impl Iterator<Item = (usize, impl TPropOps<'a>)> + 'a {
         self.as_ref().temporal_prop_iter(layer_ids, prop_id)
     }
 
@@ -146,11 +163,38 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
         self,
         layer_ids: &'a LayerIds,
         prop_id: usize,
-    ) -> impl ParallelIterator<Item = (usize, impl TPropOps)> + 'a {
+    ) -> impl ParallelIterator<Item = (usize, impl TPropOps<'a>)> + 'a {
         self.as_ref().temporal_prop_par_iter(layer_ids, prop_id)
     }
 
     fn constant_prop_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
         self.as_ref().constant_prop_layer(layer_id, prop_id)
+    }
+}
+
+impl EdgeStorageIntoOps for EdgeOwnedEntry {
+    fn into_layers(
+        self,
+        layer_ids: LayerIds,
+        eref: EdgeRef,
+    ) -> impl Iterator<Item = EdgeRef> + Send {
+        for_all_variants!(self, edge => edge.into_layers(layer_ids, eref))
+    }
+
+    fn into_exploded(
+        self,
+        layer_ids: LayerIds,
+        eref: EdgeRef,
+    ) -> impl Iterator<Item = EdgeRef> + Send {
+        for_all_variants!(self, edge => edge.into_exploded(layer_ids, eref))
+    }
+
+    fn into_exploded_window(
+        self,
+        layer_ids: LayerIds,
+        w: Range<TimeIndexEntry>,
+        eref: EdgeRef,
+    ) -> impl Iterator<Item = EdgeRef> + Send {
+        for_all_variants!(self, edge => edge.into_exploded_window(layer_ids, w, eref))
     }
 }

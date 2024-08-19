@@ -18,7 +18,7 @@ use crate::{
             properties::internal::{
                 ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
-            storage::{
+            storage::graph::{
                 edges::{
                     edge_entry::EdgeStorageEntry, edge_owned_entry::EdgeOwnedEntry,
                     edge_ref::EdgeStorageRef, edges::EdgesStorage,
@@ -171,7 +171,7 @@ impl InternalDeletionOps for MaterializedGraph {
         src: VID,
         dst: VID,
         layer: usize,
-    ) -> Result<(), GraphError> {
+    ) -> Result<MaybeNew<EID>, GraphError> {
         match self {
             MaterializedGraph::EventGraph(_) => Err(EventGraphDeletionsNotSupported),
             MaterializedGraph::PersistentGraph(g) => g.internal_delete_edge(t, src, dst, layer),

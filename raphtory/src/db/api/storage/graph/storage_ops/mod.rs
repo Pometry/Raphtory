@@ -1,5 +1,9 @@
-#[cfg(feature = "storage")]
-use crate::disk_graph::{storage_interface::edge::DiskOwnedEdge, DiskGraphStorage};
+use super::{
+    edges::{
+        edge_entry::EdgeStorageEntry, edge_owned_entry::EdgeOwnedEntry, unlocked::UnlockedEdges,
+    },
+    nodes::node_entry::NodeStorageEntry,
+};
 use crate::{
     core::{
         entities::{
@@ -12,7 +16,7 @@ use crate::{
         Direction,
     },
     db::api::{
-        storage::{
+        storage::graph::{
             edges::{
                 edge_ref::EdgeStorageRef,
                 edge_storage_ops::EdgeStorageOps,
@@ -39,21 +43,18 @@ use std::{iter, sync::Arc};
 
 #[cfg(feature = "storage")]
 use crate::{
-    db::api::storage::variants::storage_variants::StorageVariants,
-    disk_graph::storage_interface::{
-        edges::DiskEdges,
-        edges_ref::DiskEdgesRef,
-        node::{DiskNode, DiskOwnedNode},
-        nodes::DiskNodesOwned,
-        nodes_ref::DiskNodesRef,
+    db::api::storage::graph::variants::storage_variants::StorageVariants,
+    disk_graph::{
+        storage_interface::{
+            edge::DiskOwnedEdge,
+            edges::DiskEdges,
+            edges_ref::DiskEdgesRef,
+            node::{DiskNode, DiskOwnedNode},
+            nodes::DiskNodesOwned,
+            nodes_ref::DiskNodesRef,
+        },
+        DiskGraphStorage,
     },
-};
-
-use super::{
-    edges::{
-        edge_entry::EdgeStorageEntry, edge_owned_entry::EdgeOwnedEntry, unlocked::UnlockedEdges,
-    },
-    nodes::node_entry::NodeStorageEntry,
 };
 
 pub mod additions;

@@ -1,6 +1,6 @@
 use crate::{
     core::entities::LayerIds,
-    db::api::{storage::edges::edge_ref::EdgeStorageRef, view::internal::Base},
+    db::api::{storage::graph::edges::edge_ref::EdgeStorageRef, view::internal::Base},
 };
 use enum_dispatch::enum_dispatch;
 

@@ -152,9 +152,8 @@ impl PyGraph {
 
     #[cfg(feature = "storage")]
     pub fn to_disk_graph(&self, graph_dir: String) -> PyResult<Py<Self>> {
+        use crate::db::api::storage::graph::storage_ops::GraphStorage;
         use std::sync::Arc;
-
-        use crate::db::api::storage::storage_ops::GraphStorage;
 
         let disk_graph = Graph::persist_as_disk_graph(&self.graph, graph_dir)?;
         let storage = GraphStorage::Disk(Arc::new(disk_graph));

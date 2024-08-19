@@ -104,7 +104,7 @@ impl InternalAdditionOps for TemporalGraph {
         &self,
         t: TimeIndexEntry,
         v: VID,
-        props: Vec<(usize, Prop)>,
+        props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         self.update_time(t);
         // get the node and update the time index
@@ -112,7 +112,7 @@ impl InternalAdditionOps for TemporalGraph {
         node.update_time(t);
         for (id, prop) in props {
             let prop = self.process_prop_value(prop);
-            node.add_prop(t, id, prop)?;
+            node.add_prop(t, *id, prop)?;
         }
         Ok(())
     }
@@ -122,7 +122,7 @@ impl InternalAdditionOps for TemporalGraph {
         t: TimeIndexEntry,
         src: VID,
         dst: VID,
-        props: Vec<(usize, Prop)>,
+        props: &[(usize, Prop)],
         layer: usize,
     ) -> Result<MaybeNew<EID>, GraphError> {
         self.link_nodes(src, dst, t, layer, move |edge| {
@@ -131,7 +131,7 @@ impl InternalAdditionOps for TemporalGraph {
                 let edge_layer = edge.layer_mut(layer);
                 for (prop_id, prop) in props {
                     let prop = self.process_prop_value(prop);
-                    edge_layer.add_prop(t, prop_id, prop)?;
+                    edge_layer.add_prop(t, *prop_id, prop)?;
                 }
             }
             Ok(())
@@ -142,7 +142,7 @@ impl InternalAdditionOps for TemporalGraph {
         &self,
         t: TimeIndexEntry,
         edge: EID,
-        props: Vec<(usize, Prop)>,
+        props: &[(usize, Prop)],
         layer: usize,
     ) -> Result<(), GraphError> {
         self.link_edge(edge, t, layer, |edge| {
@@ -151,7 +151,7 @@ impl InternalAdditionOps for TemporalGraph {
                 let edge_layer = edge.layer_mut(layer);
                 for (prop_id, prop) in props {
                     let prop = self.process_prop_value(prop);
-                    edge_layer.add_prop(t, prop_id, prop)?;
+                    edge_layer.add_prop(t, *prop_id, prop)?;
                 }
             }
             Ok(())
@@ -238,7 +238,7 @@ impl InternalAdditionOps for GraphStorage {
         &self,
         t: TimeIndexEntry,
         v: VID,
-        props: Vec<(usize, Prop)>,
+        props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         match self {
             GraphStorage::Unlocked(storage) => storage.internal_add_node(t, v, props),
@@ -251,7 +251,7 @@ impl InternalAdditionOps for GraphStorage {
         t: TimeIndexEntry,
         src: VID,
         dst: VID,
-        props: Vec<(usize, Prop)>,
+        props: &[(usize, Prop)],
         layer: usize,
     ) -> Result<MaybeNew<EID>, GraphError> {
         match self {
@@ -264,7 +264,7 @@ impl InternalAdditionOps for GraphStorage {
         &self,
         t: TimeIndexEntry,
         edge: EID,
-        props: Vec<(usize, Prop)>,
+        props: &[(usize, Prop)],
         layer: usize,
     ) -> Result<(), GraphError> {
         match self {

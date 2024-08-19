@@ -5,7 +5,7 @@ use crate::{
 };
 use raphtory_api::core::{
     entities::{EID, VID},
-    storage::timeindex::TimeIndexEntry,
+    storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
 };
 
 impl InternalDeletionOps for TemporalGraph {
@@ -15,12 +15,11 @@ impl InternalDeletionOps for TemporalGraph {
         src: VID,
         dst: VID,
         layer: usize,
-    ) -> Result<(), GraphError> {
+    ) -> Result<MaybeNew<EID>, GraphError> {
         self.link_nodes(src, dst, t, layer, |new_edge| {
             new_edge.deletions_mut(layer).insert(t);
             Ok(())
-        })?;
-        Ok(())
+        })
     }
 
     fn internal_delete_existing_edge(
@@ -44,7 +43,7 @@ impl InternalDeletionOps for GraphStorage {
         src: VID,
         dst: VID,
         layer: usize,
-    ) -> Result<(), GraphError> {
+    ) -> Result<MaybeNew<EID>, GraphError> {
         match self {
             GraphStorage::Unlocked(storage) => storage.internal_delete_edge(t, src, dst, layer),
             _ => Err(GraphError::AttemptToMutateImmutableGraph),

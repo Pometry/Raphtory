@@ -1,23 +1,21 @@
-use std::borrow::Cow;
-
-use raphtory_api::core::entities::GidRef;
-
-#[cfg(feature = "storage")]
-use crate::db::api::storage::variants::storage_variants::StorageVariants;
-
-#[cfg(feature = "storage")]
-use crate::disk_graph::storage_interface::node::DiskNode;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, nodes::node_store::NodeStore, LayerIds, VID},
         Direction,
     },
     db::api::{
-        storage::{nodes::node_storage_ops::NodeStorageOps, tprop_storage_ops::TPropOps},
+        storage::graph::{nodes::node_storage_ops::NodeStorageOps, tprop_storage_ops::TPropOps},
         view::internal::NodeAdditions,
     },
     prelude::Prop,
 };
+use raphtory_api::core::entities::GidRef;
+use std::borrow::Cow;
+
+#[cfg(feature = "storage")]
+use crate::db::api::storage::graph::variants::storage_variants::StorageVariants;
+#[cfg(feature = "storage")]
+use crate::disk_graph::storage_interface::node::DiskNode;
 
 #[derive(Copy, Clone, Debug)]
 pub enum NodeStorageRef<'a> {

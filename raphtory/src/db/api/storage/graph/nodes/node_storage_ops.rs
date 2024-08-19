@@ -9,7 +9,7 @@ use crate::{
         storage::ArcEntry,
         Direction,
     },
-    db::api::{storage::tprop_storage_ops::TPropOps, view::internal::NodeAdditions},
+    db::api::{storage::graph::tprop_storage_ops::TPropOps, view::internal::NodeAdditions},
     prelude::Prop,
 };
 use itertools::Itertools;

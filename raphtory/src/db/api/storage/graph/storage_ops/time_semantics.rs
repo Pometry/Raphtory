@@ -13,7 +13,7 @@ use crate::{
         storage::timeindex::{TimeIndexIntoOps, TimeIndexOps},
     },
     db::api::{
-        storage::{
+        storage::graph::{
             edges::{
                 edge_ref::EdgeStorageRef,
                 edge_storage_ops::{EdgeStorageIntoOps, EdgeStorageOps},

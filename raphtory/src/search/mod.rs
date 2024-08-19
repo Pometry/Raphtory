@@ -17,7 +17,7 @@ use crate::{
     db::{
         api::{
             mutation::internal::{InheritPropertyAdditionOps, InternalAdditionOps},
-            storage::edges::edge_storage_ops::EdgeStorageOps,
+            storage::graph::edges::edge_storage_ops::EdgeStorageOps,
             view::{
                 internal::{DynamicGraph, InheritViewOps, IntoDynamic, Static},
                 Base, MaterializedGraph, StaticGraphViewOps,
@@ -825,7 +825,7 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
         &self,
         t: TimeIndexEntry,
         v: VID,
-        props: Vec<(usize, Prop)>,
+        props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         let mut document = TantivyDocument::new();
         // add time to the document
@@ -865,7 +865,7 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
         _t: TimeIndexEntry,
         _src: VID,
         _dst: VID,
-        _props: Vec<(usize, Prop)>,
+        _props: &[(usize, Prop)],
         _layer: usize,
     ) -> Result<MaybeNew<EID>, GraphError> {
         todo!()
@@ -875,7 +875,7 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
         &self,
         _t: TimeIndexEntry,
         _edge: EID,
-        _props: Vec<(usize, Prop)>,
+        _props: &[(usize, Prop)],
         _layer: usize,
     ) -> Result<(), GraphError> {
         todo!()

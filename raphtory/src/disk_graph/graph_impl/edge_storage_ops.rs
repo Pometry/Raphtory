@@ -4,7 +4,7 @@ use crate::{
         storage::timeindex::{TimeIndex, TimeIndexOps},
         Prop,
     },
-    db::api::storage::{
+    db::api::storage::graph::{
         edges::edge_storage_ops::{EdgeStorageOps, TimeIndexRef},
         tprop_storage_ops::TPropOps,
     },

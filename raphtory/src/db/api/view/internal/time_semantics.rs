@@ -4,7 +4,7 @@ use crate::{
         Prop,
     },
     db::api::{
-        storage::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
+        storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
         view::{internal::Base, BoxedIter, MaterializedGraph},
     },
 };

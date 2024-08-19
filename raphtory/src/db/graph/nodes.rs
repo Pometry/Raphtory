@@ -4,7 +4,7 @@ use crate::{
         api::{
             properties::Properties,
             state::LazyNodeState,
-            storage::storage_ops::GraphStorage,
+            storage::graph::storage_ops::GraphStorage,
             view::{
                 internal::{OneHopFilter, Static},
                 BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,

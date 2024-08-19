@@ -7,7 +7,9 @@ pub(crate) mod timer;
 mod test {
     use crate::{
         core::PropType,
-        db::api::{mutation::internal::InternalAdditionOps, storage::storage_ops::GraphStorage},
+        db::api::{
+            mutation::internal::InternalAdditionOps, storage::graph::storage_ops::GraphStorage,
+        },
         prelude::*,
     };
 
@@ -23,18 +25,12 @@ mod test {
             .resolve_edge_property("tx_sent", PropType::I32, false)
             .unwrap()
             .inner();
-        g.internal_add_edge(1.into(), v1, v2, vec![(tx_sent_id, Prop::I32(10))], l_btc)
+        g.internal_add_edge(1.into(), v1, v2, &[(tx_sent_id, Prop::I32(10))], l_btc)
             .unwrap();
-        g.internal_add_edge(1.into(), v1, v2, vec![(tx_sent_id, Prop::I32(20))], l_eth)
+        g.internal_add_edge(1.into(), v1, v2, &[(tx_sent_id, Prop::I32(20))], l_eth)
             .unwrap();
-        g.internal_add_edge(
-            1.into(),
-            v1,
-            v2,
-            vec![(tx_sent_id, Prop::I32(70))],
-            l_tether,
-        )
-        .unwrap();
+        g.internal_add_edge(1.into(), v1, v2, &[(tx_sent_id, Prop::I32(70))], l_tether)
+            .unwrap();
 
         let g = Graph::from_internal_graph(g);
         let first = g

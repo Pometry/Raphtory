@@ -1,15 +1,15 @@
-#[cfg(feature = "storage")]
-use crate::disk_graph::storage_interface::nodes::DiskNodesOwned;
+use super::node_ref::NodeStorageRef;
 use crate::{
     core::{
         entities::{nodes::node_store::NodeStore, VID},
         storage::ReadLockedStorage,
     },
-    db::api::storage::nodes::nodes_ref::NodesStorageEntry,
+    db::api::storage::graph::nodes::nodes_ref::NodesStorageEntry,
 };
 use std::sync::Arc;
 
-use super::node_ref::NodeStorageRef;
+#[cfg(feature = "storage")]
+use crate::disk_graph::storage_interface::nodes::DiskNodesOwned;
 
 pub enum NodesStorage {
     Mem(Arc<ReadLockedStorage<NodeStore, VID>>),

@@ -14,7 +14,7 @@ use crate::{
             mutation::internal::{
                 InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
             },
-            storage::{
+            storage::graph::{
                 edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
                 storage_ops::GraphStorage, tprop_storage_ops::TPropOps,
             },
@@ -708,23 +708,24 @@ impl StableDecode for TemporalGraph {
                     Update::UpdateNodeCprops(props) => {
                         storage.internal_update_constant_node_properties(
                             VID(props.id as usize),
-                            collect_props(&props.properties)?,
+                            &collect_props(&props.properties)?,
                         )?;
                     }
                     Update::UpdateNodeTprops(props) => {
                         let time = TimeIndexEntry(props.time, props.secondary as usize);
                         let node = VID(props.id as usize);
                         let props = collect_props(&props.properties)?;
-                        storage.internal_add_node(time, node, props)?;
+                        storage.internal_add_node(time, node, &props)?;
                     }
                     Update::UpdateGraphCprops(props) => {
-                        storage.internal_update_constant_properties(collect_props(
+                        storage.internal_update_constant_properties(&collect_props(
                             &props.properties,
                         )?)?;
                     }
                     Update::UpdateGraphTprops(props) => {
                         let time = TimeIndexEntry(props.time, props.secondary as usize);
-                        storage.internal_add_properties(time, collect_props(&props.properties)?)?;
+                        storage
+                            .internal_add_properties(time, &collect_props(&props.properties)?)?;
                     }
                     Update::DelEdge(del_edge) => {
                         let time = TimeIndexEntry(del_edge.time, del_edge.secondary as usize);
@@ -738,7 +739,7 @@ impl StableDecode for TemporalGraph {
                         storage.internal_update_constant_edge_properties(
                             EID(props.eid as usize),
                             props.layer_id as usize,
-                            collect_props(&props.properties)?,
+                            &collect_props(&props.properties)?,
                         )?;
                     }
                     Update::UpdateEdgeTprops(props) => {
@@ -747,7 +748,7 @@ impl StableDecode for TemporalGraph {
                         storage.internal_add_edge_update(
                             time,
                             eid,
-                            collect_props(&props.properties)?,
+                            &collect_props(&props.properties)?,
                             props.layer_id as usize,
                         )?;
                     }

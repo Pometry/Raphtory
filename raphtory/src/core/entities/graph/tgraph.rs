@@ -19,7 +19,7 @@ use crate::{
         utils::errors::GraphError,
         Direction, Prop,
     },
-    db::api::{storage::edges::edge_storage_ops::EdgeStorageOps, view::Layer},
+    db::api::{storage::graph::edges::edge_storage_ops::EdgeStorageOps, view::Layer},
 };
 use dashmap::DashSet;
 use itertools::Itertools;
@@ -98,10 +98,10 @@ impl TemporalGraph {
         }
     }
 
-    pub(crate) fn process_prop_value(&self, prop: Prop) -> Prop {
+    pub(crate) fn process_prop_value(&self, prop: &Prop) -> Prop {
         match prop {
             Prop::Str(value) => Prop::Str(self.resolve_str(value)),
-            _ => prop,
+            _ => prop.clone(),
         }
     }
 
@@ -372,7 +372,7 @@ impl TemporalGraph {
             Some(edge_id) => MaybeNew::Existing(self.storage.get_edge_mut(edge_id)),
             None => MaybeNew::New(self.storage.push_edge(EdgeStore::new(src_id, dst_id))),
         };
-        self.link_nodes_inner(&mut node_pair, edge.as_mut(), t, layer, edge_fn)?;
+        self.link_nodes_inner(&mut node_pair, edge.as_mut().inner(), t, layer, edge_fn)?;
         Ok(edge.map(|e| e.edge_store().eid))
     }
 
@@ -389,18 +389,15 @@ impl TemporalGraph {
 
     /// Checks if the same string value already exists and returns a pointer to the same existing value if it exists,
     /// otherwise adds the string to the pool.
-    fn resolve_str(&self, value: ArcStr) -> ArcStr {
-        match self.string_pool.get(&value) {
+    fn resolve_str(&self, value: &ArcStr) -> ArcStr {
+        match self.string_pool.get(value) {
             Some(value) => value.clone(),
             None => {
-                if self.string_pool.insert(value.clone()) {
-                    value
-                } else {
-                    self.string_pool
-                        .get(&value)
-                        .expect("value exists due to insert above returning false")
-                        .clone()
-                }
+                self.string_pool.insert(value.clone());
+                self.string_pool
+                    .get(value)
+                    .expect("value should exist as inserted above")
+                    .clone()
             }
         }
     }

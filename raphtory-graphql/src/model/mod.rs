@@ -15,7 +15,7 @@ use dynamic_graphql::{
 };
 use itertools::Itertools;
 #[cfg(feature = "storage")]
-use raphtory::db::api::{storage::storage_ops::GraphStorage, view::internal::CoreGraphOps};
+use raphtory::db::api::{storage::graph::storage_ops::GraphStorage, view::internal::CoreGraphOps};
 use raphtory::{
     core::{utils::errors::GraphError, Prop},
     db::api::view::MaterializedGraph,

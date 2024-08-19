@@ -12,7 +12,7 @@ use crate::{
         },
         utils::errors::GraphError,
     },
-    db::{api::storage::storage_ops, graph::views::deletion_graph::PersistentGraph},
+    db::{api::storage::graph::storage_ops, graph::views::deletion_graph::PersistentGraph},
     disk_graph::graph_impl::{prop_conversion::make_node_properties_from_graph, ParquetLayerCols},
     prelude::{Graph, Layer},
 };

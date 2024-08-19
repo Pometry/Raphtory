@@ -1,6 +1,4 @@
-pub mod edges;
-pub mod locked;
-pub mod nodes;
-pub mod storage_ops;
-pub mod tprop_storage_ops;
-pub mod variants;
+#[cfg(feature = "proto")]
+pub mod cache;
+pub mod graph;
+mod storage;

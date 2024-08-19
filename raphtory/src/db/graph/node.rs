@@ -27,7 +27,7 @@ use crate::{
 
 use crate::{
     core::{entities::nodes::node_ref::AsNodeRef, storage::timeindex::AsTime},
-    db::{api::storage::storage_ops::GraphStorage, graph::edges::Edges},
+    db::{api::storage::graph::storage_ops::GraphStorage, graph::edges::Edges},
 };
 use chrono::{DateTime, Utc};
 use raphtory_api::core::storage::arc_str::ArcStr;
@@ -332,7 +332,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
             Ok(self.graph.resolve_node_property(name, dtype, true)?.inner())
         })?;
         self.graph
-            .internal_add_constant_node_properties(self.node, properties)
+            .internal_add_constant_node_properties(self.node, &properties)
     }
 
     pub fn set_node_type(&self, new_type: &str) -> Result<(), GraphError> {
@@ -348,7 +348,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
             Ok(self.graph.resolve_node_property(name, dtype, true)?.inner())
         })?;
         self.graph
-            .internal_update_constant_node_properties(self.node, properties)
+            .internal_update_constant_node_properties(self.node, &properties)
     }
 
     pub fn add_updates<C: CollectProperties, T: TryIntoInputTime>(
@@ -363,7 +363,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
                 .resolve_node_property(name, dtype, false)?
                 .inner())
         })?;
-        self.graph.internal_add_node(t, self.node, properties)
+        self.graph.internal_add_node(t, self.node, &properties)
     }
 }
 

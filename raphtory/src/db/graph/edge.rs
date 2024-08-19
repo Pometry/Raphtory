@@ -23,7 +23,7 @@ use crate::{
                 internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
                 Properties,
             },
-            storage::edges::edge_storage_ops::EdgeStorageOps,
+            storage::graph::edges::edge_storage_ops::EdgeStorageOps,
             view::{
                 internal::{OneHopFilter, Static},
                 BaseEdgeViewOps, IntoDynBoxed, StaticGraphViewOps,
@@ -234,7 +234,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
         self.graph.internal_add_constant_edge_properties(
             self.edge.pid(),
             input_layer_id,
-            properties,
+            &properties,
         )
     }
 
@@ -251,7 +251,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
         self.graph.internal_update_constant_edge_properties(
             self.edge.pid(),
             input_layer_id,
-            properties,
+            &properties,
         )
     }
 
@@ -271,7 +271,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
         })?;
 
         self.graph
-            .internal_add_edge_update(t, self.edge.pid(), properties, layer_id)?;
+            .internal_add_edge_update(t, self.edge.pid(), &properties, layer_id)?;
         Ok(())
     }
 }

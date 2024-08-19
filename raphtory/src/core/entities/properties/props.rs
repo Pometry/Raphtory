@@ -8,7 +8,7 @@ use crate::{
         utils::errors::GraphError,
         Prop, PropType,
     },
-    db::api::storage::tprop_storage_ops::TPropOps,
+    db::api::storage::graph::tprop_storage_ops::TPropOps,
 };
 use parking_lot::RwLock;
 use raphtory_api::core::storage::{

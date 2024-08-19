@@ -12,7 +12,7 @@ use crate::{
         Prop,
     },
     db::api::{
-        storage::{tprop_storage_ops::TPropOps, variants::layer_variants::LayerVariants},
+        storage::graph::{tprop_storage_ops::TPropOps, variants::layer_variants::LayerVariants},
         view::IntoDynBoxed,
     },
 };

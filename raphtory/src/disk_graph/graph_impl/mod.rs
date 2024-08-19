@@ -44,7 +44,7 @@ mod test {
     use pometry_storage::{graph::TemporalGraph, properties::Properties};
 
     use crate::{
-        db::api::{storage::storage_ops::GraphStorage, view::StaticGraphViewOps},
+        db::api::{storage::graph::storage_ops::GraphStorage, view::StaticGraphViewOps},
         disk_graph::Time,
         prelude::*,
     };

@@ -2,7 +2,11 @@ use crate::core::storage::{arc_str::ArcStr, locked_vec::ArcReadLockedVec, FxDash
 use dashmap::mapref::entry::Entry;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
-use std::{borrow::Borrow, hash::Hash, sync::Arc};
+use std::{
+    borrow::{Borrow, BorrowMut},
+    hash::Hash,
+    sync::Arc,
+};
 
 #[derive(Serialize, Deserialize, Default, Debug)]
 pub struct DictMapper {
@@ -22,7 +26,7 @@ where
     T: Borrow<Index>,
 {
     fn eq(&self, other: &T) -> bool {
-        other.borrow() == self.as_ref()
+        other.borrow() == self.borrow()
     }
 }
 
@@ -35,28 +39,35 @@ impl<Index> MaybeNew<Index> {
         }
     }
 
+    #[inline]
     pub fn map<R>(self, map_fn: impl FnOnce(Index) -> R) -> MaybeNew<R> {
         match self {
             MaybeNew::New(inner) => MaybeNew::New(map_fn(inner)),
             MaybeNew::Existing(inner) => MaybeNew::Existing(map_fn(inner)),
         }
     }
-}
 
-impl<Index> AsRef<Index> for MaybeNew<Index> {
-    fn as_ref(&self) -> &Index {
+    #[inline]
+    pub fn as_ref(&self) -> MaybeNew<&Index> {
         match self {
-            MaybeNew::New(inner) => inner,
-            MaybeNew::Existing(inner) => inner,
+            MaybeNew::New(inner) => MaybeNew::New(inner),
+            MaybeNew::Existing(inner) => MaybeNew::Existing(inner),
         }
     }
-}
 
-impl<Index> AsMut<Index> for MaybeNew<Index> {
-    fn as_mut(&mut self) -> &mut Index {
+    #[inline]
+    pub fn as_mut(&mut self) -> MaybeNew<&mut Index> {
         match self {
-            MaybeNew::New(inner) => inner,
-            MaybeNew::Existing(inner) => inner,
+            MaybeNew::New(inner) => MaybeNew::New(inner),
+            MaybeNew::Existing(inner) => MaybeNew::Existing(inner),
+        }
+    }
+
+    #[inline]
+    pub fn if_new<R>(self, map_fn: impl FnOnce(Index) -> R) -> Option<R> {
+        match self {
+            MaybeNew::New(inner) => Some(map_fn(inner)),
+            MaybeNew::Existing(_) => None,
         }
     }
 }
@@ -64,7 +75,14 @@ impl<Index> AsMut<Index> for MaybeNew<Index> {
 impl<Index> Borrow<Index> for MaybeNew<Index> {
     #[inline]
     fn borrow(&self) -> &Index {
-        self.as_ref()
+        self.as_ref().inner()
+    }
+}
+
+impl<Index> BorrowMut<Index> for MaybeNew<Index> {
+    #[inline]
+    fn borrow_mut(&mut self) -> &mut Index {
+        self.as_mut().inner()
     }
 }
 

@@ -1,18 +1,17 @@
-#[cfg(feature = "storage")]
-use crate::db::api::storage::variants::storage_variants3::StorageVariants;
-#[cfg(feature = "storage")]
-use crate::disk_graph::storage_interface::nodes_ref::DiskNodesRef;
-
-#[cfg(not(feature = "storage"))]
-use either::Either;
-
+use super::node_ref::NodeStorageRef;
 use crate::core::{
     entities::{nodes::node_store::NodeStore, VID},
     storage::ReadLockedStorage,
 };
 use rayon::iter::ParallelIterator;
 
-use super::node_ref::NodeStorageRef;
+#[cfg(feature = "storage")]
+use crate::db::api::storage::graph::variants::storage_variants3::StorageVariants;
+#[cfg(feature = "storage")]
+use crate::disk_graph::storage_interface::nodes_ref::DiskNodesRef;
+
+#[cfg(not(feature = "storage"))]
+use either::Either;
 
 #[derive(Debug)]
 pub enum NodesStorageEntry<'a> {

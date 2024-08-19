@@ -3,7 +3,7 @@ use crate::{
     db::{
         api::{
             state::{NodeState, NodeStateOps},
-            storage::{nodes::node_storage_ops::NodeStorageOps, storage_ops::GraphStorage},
+            storage::graph::{nodes::node_storage_ops::NodeStorageOps, storage_ops::GraphStorage},
             view::{internal::NodeList, IntoDynBoxed},
         },
         graph::node::NodeView,

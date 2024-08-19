@@ -336,7 +336,7 @@ pub(crate) mod data_tests {
     use raphtory::core::utils::errors::{GraphError, InvalidPathReason};
     #[cfg(feature = "storage")]
     use raphtory::{
-        db::api::storage::storage_ops::GraphStorage, db::api::view::internal::CoreGraphOps,
+        db::api::storage::graph::storage_ops::GraphStorage, db::api::view::internal::CoreGraphOps,
         disk_graph::DiskGraphStorage,
     };
     #[cfg(feature = "storage")]
