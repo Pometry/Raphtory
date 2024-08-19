@@ -1,6 +1,11 @@
 use crate::{
-    core::{Prop, PropType},
-    serialise::ProtoGraph,
+    core::{utils::errors::GraphError, Prop, PropType},
+    db::{api::storage::storage::Storage, graph::views::deletion_graph::PersistentGraph},
+    prelude::Graph,
+    serialise::{
+        serialise::{GraphCache, StableDecode, StableEncoder},
+        ProtoGraph,
+    },
 };
 use parking_lot::Mutex;
 use prost::Message;
@@ -8,7 +13,14 @@ use raphtory_api::core::{
     entities::{GidRef, EID, VID},
     storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
 };
-use std::{fmt::Debug, fs::File, io, io::Write, mem, ops::DerefMut};
+use std::{
+    fmt::Debug,
+    fs::{File, OpenOptions},
+    io::Write,
+    mem,
+    ops::DerefMut,
+    path::Path,
+};
 
 #[derive(Debug)]
 pub struct GraphWriter {
@@ -23,7 +35,7 @@ impl GraphWriter {
             proto_delta: Default::default(),
         }
     }
-    pub fn write(&self) -> Result<(), io::Error> {
+    pub fn write(&self) -> Result<(), GraphError> {
         let proto = mem::take(self.proto_delta.lock().deref_mut());
         let bytes = proto.encode_to_vec();
         self.writer.lock().write_all(&bytes)?;
@@ -165,5 +177,66 @@ impl GraphWriter {
 
     pub fn delete_edge(&self, edge: EID, t: TimeIndexEntry, layer: usize) {
         self.proto_delta.lock().del_edge(edge, layer, t)
+    }
+}
+
+trait Cache {
+    /// Initialise the cache by pointing it at a proto file.
+    /// Future updates will be appended to the cache.
+    fn init_cache(&self, path: impl AsRef<Path>) -> Result<(), GraphError>;
+
+    /// Get the cache writer if it is initialised.
+    fn get_cache(&self) -> Option<&GraphWriter>;
+}
+
+impl Cache for Storage {
+    fn init_cache(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
+        self.cache.get_or_try_init(|| {
+            let file = OpenOptions::new().append(true).open(path)?;
+            Ok::<_, GraphError>(GraphWriter::new(file))
+        })?;
+        Ok(())
+    }
+
+    fn get_cache(&self) -> Option<&GraphWriter> {
+        self.cache.get()
+    }
+}
+
+impl Cache for Graph {
+    fn init_cache(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
+        self.inner.init_cache(path)
+    }
+
+    fn get_cache(&self) -> Option<&GraphWriter> {
+        self.inner.get_cache()
+    }
+}
+
+impl Cache for PersistentGraph {
+    fn init_cache(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
+        self.0.init_cache(path)
+    }
+
+    fn get_cache(&self) -> Option<&GraphWriter> {
+        self.0.get_cache()
+    }
+}
+
+impl<G: Cache + StableDecode + StableEncoder> GraphCache for G {
+    fn cache(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
+        self.stable_serialise(path.as_ref())?;
+        self.init_cache(path)
+    }
+
+    fn write_updates(&self) -> Result<(), GraphError> {
+        let cache = self.get_cache().ok_or(GraphError::CacheNotInnitialised)?;
+        cache.write()
+    }
+
+    fn load_cached(path: impl AsRef<Path>) -> Result<Self, GraphError> {
+        let graph = Self::decode(path.as_ref())?;
+        graph.init_cache(path)?;
+        Ok(graph)
     }
 }

@@ -80,6 +80,19 @@ pub trait StableDecode: Sized {
     }
 }
 
+pub trait GraphCache: Sized {
+    /// Write graph to file and append future updates to the same file.
+    ///
+    /// If the file already exists, it's contents are overwritten
+    fn cache(&self, path: impl AsRef<Path>) -> Result<(), GraphError>;
+
+    /// Persist the new updates by appending them to the cache file.
+    fn write_updates(&self) -> Result<(), GraphError>;
+
+    /// Load graph from file and append future updates to the same file
+    fn load_cached(path: impl AsRef<Path>) -> Result<Self, GraphError>;
+}
+
 fn as_proto_prop_type(p_type: &PropType) -> SPropType {
     match p_type {
         PropType::Str => SPropType::Str,

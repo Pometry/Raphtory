@@ -25,7 +25,6 @@ use crate::{
         view::internal::{Base, InheritViewOps, MaterializedGraph, Static},
     },
     prelude::*,
-    serialise::serialise::{StableDecode, StableEncoder},
 };
 use core::panic;
 use rayon::prelude::*;
@@ -40,7 +39,7 @@ use std::{
 #[repr(transparent)]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Graph {
-    inner: Arc<Storage>,
+    pub(crate) inner: Arc<Storage>,
 }
 
 impl Static for Graph {}
@@ -181,23 +180,6 @@ impl Graph {
         Self {
             inner: Arc::new(Storage::default()),
         }
-    }
-
-    /// Load graph from file and append future updates to the same file
-    #[cfg(feature = "proto")]
-    pub fn load_cached(path: impl AsRef<Path>) -> Result<Self, GraphError> {
-        let graph = Self::decode(path.as_ref())?;
-        graph.inner.init_cache(path)?;
-        Ok(graph)
-    }
-
-    /// Write graph to file and append future updates to the same file.
-    ///
-    /// If the file already exists, it's contents are overwritten
-    #[cfg(feature = "proto")]
-    pub fn cache(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
-        self.stable_serialise(path.as_ref())?;
-        self.inner.init_cache(path)
     }
 
     /// Create a new graph with specified number of shards

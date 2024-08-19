@@ -19,7 +19,7 @@ use crate::{
         },
         utils::PyTime,
     },
-    serialise::serialise::{StableDecode, StableEncoder},
+    serialise::{StableDecode, StableEncoder},
 };
 use pyo3::{prelude::*, types::PyBytes};
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};

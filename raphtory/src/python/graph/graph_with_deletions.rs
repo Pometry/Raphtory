@@ -32,7 +32,7 @@ use super::{
     graph::{PyGraph, PyGraphEncoder},
     io::pandas_loaders::*,
 };
-use crate::{io::parquet_loaders::*, serialise::serialise::StableEncoder};
+use crate::{io::parquet_loaders::*, serialise::StableEncoder};
 
 /// A temporal graph that allows edges and nodes to be deleted.
 #[derive(Clone)]

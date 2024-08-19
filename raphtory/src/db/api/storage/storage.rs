@@ -14,7 +14,6 @@ use crate::{
         storage::graph::{nodes::node_storage_ops::NodeStorageOps, storage_ops::GraphStorage},
         view::{Base, InheritViewOps},
     },
-    serialise::incremental::GraphWriter,
 };
 use once_cell::sync::OnceCell;
 use raphtory_api::core::{
@@ -24,17 +23,18 @@ use raphtory_api::core::{
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Display, Formatter},
-    fs::OpenOptions,
-    path::Path,
     sync::Arc,
 };
+
+#[cfg(feature = "proto")]
+use crate::serialise::incremental::GraphWriter;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Storage {
     graph: GraphStorage,
     #[cfg(feature = "proto")]
     #[serde(skip)]
-    cache: OnceCell<GraphWriter>,
+    pub(crate) cache: OnceCell<GraphWriter>,
 }
 
 impl Display for Storage {
@@ -56,6 +56,7 @@ impl Storage {
     pub(crate) fn new(num_locks: usize) -> Self {
         Self {
             graph: GraphStorage::Unlocked(Arc::new(TemporalGraph::new(num_locks))),
+            #[cfg(feature = "proto")]
             cache: OnceCell::new(),
         }
     }
@@ -63,19 +64,9 @@ impl Storage {
     pub(crate) fn from_inner(graph: GraphStorage) -> Self {
         Self {
             graph,
+            #[cfg(feature = "proto")]
             cache: OnceCell::new(),
         }
-    }
-
-    /// Initialise the cache by pointing it at a proto file.
-    /// Future updates will be appended to the cache.
-    #[cfg(feature = "proto")]
-    pub(crate) fn init_cache(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
-        self.cache.get_or_try_init(|| {
-            let file = OpenOptions::new().append(true).open(path)?;
-            Ok::<_, GraphError>(GraphWriter::new(file))
-        })?;
-        Ok(())
     }
 
     #[cfg(feature = "proto")]
@@ -85,10 +76,6 @@ impl Storage {
             map_fn(cache)
         }
     }
-
-    #[cfg(not(feature = "proto"))]
-    #[inline]
-    fn if_cache(&self, map_fn: impl FnOnce(&GraphWriter)) {}
 }
 impl InheritViewOps for Storage {}
 
@@ -100,7 +87,10 @@ impl InternalAdditionOps for Storage {
 
     fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, GraphError> {
         let id = self.graph.resolve_layer(layer)?;
+
+        #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.resolve_layer(layer, id));
+
         Ok(id)
     }
 
@@ -109,7 +99,10 @@ impl InternalAdditionOps for Storage {
             NodeRef::Internal(id) => Ok(MaybeNew::Existing(id)),
             NodeRef::External(gid) => {
                 let id = self.graph.resolve_node(gid)?;
+
+                #[cfg(feature = "proto")]
                 self.if_cache(|cache| cache.resolve_node(id, gid));
+
                 Ok(id)
             }
         }
@@ -121,11 +114,14 @@ impl InternalAdditionOps for Storage {
         node_type: &str,
     ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, GraphError> {
         let node_and_type = self.graph.resolve_node_and_type(id, node_type)?;
+
+        #[cfg(feature = "proto")]
         self.if_cache(|cache| {
             let (vid, _) = node_and_type.inner();
             let node_entry = self.graph.node_entry(vid.inner());
             cache.resolve_node_and_type(node_and_type, node_type, node_entry.id())
         });
+
         Ok(node_and_type)
     }
 
@@ -136,7 +132,10 @@ impl InternalAdditionOps for Storage {
         is_static: bool,
     ) -> Result<MaybeNew<usize>, GraphError> {
         let id = self.graph.resolve_graph_property(prop, dtype, is_static)?;
+
+        #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.resolve_graph_property(prop, id, dtype, is_static));
+
         Ok(id)
     }
 
@@ -147,7 +146,10 @@ impl InternalAdditionOps for Storage {
         is_static: bool,
     ) -> Result<MaybeNew<usize>, GraphError> {
         let id = self.graph.resolve_node_property(prop, dtype, is_static)?;
+
+        #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.resolve_node_property(prop, id, dtype, is_static));
+
         Ok(id)
     }
 
@@ -158,7 +160,10 @@ impl InternalAdditionOps for Storage {
         is_static: bool,
     ) -> Result<MaybeNew<usize>, GraphError> {
         let id = self.graph.resolve_edge_property(prop, dtype, is_static)?;
+
+        #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.resolve_edge_property(prop, id, dtype, is_static));
+
         Ok(id)
     }
 
@@ -169,7 +174,10 @@ impl InternalAdditionOps for Storage {
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         self.graph.internal_add_node(t, v, props)?;
+
+        #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.add_node_update(t, v, props));
+
         Ok(())
     }
 
@@ -182,10 +190,13 @@ impl InternalAdditionOps for Storage {
         layer: usize,
     ) -> Result<MaybeNew<EID>, GraphError> {
         let id = self.graph.internal_add_edge(t, src, dst, props, layer)?;
+
+        #[cfg(feature = "proto")]
         self.if_cache(|cache| {
             cache.resolve_edge(id, src, dst);
             cache.add_edge_update(t, id.inner(), props, layer);
         });
+
         Ok(id)
     }
 
@@ -197,7 +208,10 @@ impl InternalAdditionOps for Storage {
         layer: usize,
     ) -> Result<(), GraphError> {
         self.graph.internal_add_edge_update(t, edge, props, layer)?;
+
+        #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.add_edge_update(t, edge, props, layer));
+
         Ok(())
     }
 }
@@ -209,13 +223,19 @@ impl InternalPropertyAdditionOps for Storage {
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         self.graph.internal_add_properties(t, props)?;
+
+        #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.add_graph_tprops(t, props));
+
         Ok(())
     }
 
     fn internal_add_constant_properties(&self, props: &[(usize, Prop)]) -> Result<(), GraphError> {
         self.graph.internal_add_constant_properties(props)?;
+
+        #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.add_graph_cprops(props));
+
         Ok(())
     }
 
@@ -224,7 +244,10 @@ impl InternalPropertyAdditionOps for Storage {
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         self.graph.internal_update_constant_properties(props)?;
+
+        #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.add_graph_cprops(props));
+
         Ok(())
     }
 
@@ -235,7 +258,10 @@ impl InternalPropertyAdditionOps for Storage {
     ) -> Result<(), GraphError> {
         self.graph
             .internal_add_constant_node_properties(vid, props)?;
+
+        #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.add_node_cprops(vid, props));
+
         Ok(())
     }
 
@@ -246,7 +272,10 @@ impl InternalPropertyAdditionOps for Storage {
     ) -> Result<(), GraphError> {
         self.graph
             .internal_update_constant_node_properties(vid, props)?;
+
+        #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.add_node_cprops(vid, props));
+
         Ok(())
     }
 
@@ -258,7 +287,10 @@ impl InternalPropertyAdditionOps for Storage {
     ) -> Result<(), GraphError> {
         self.graph
             .internal_add_constant_edge_properties(eid, layer, props)?;
+
+        #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.add_edge_cprops(eid, layer, props));
+
         Ok(())
     }
 
@@ -270,7 +302,10 @@ impl InternalPropertyAdditionOps for Storage {
     ) -> Result<(), GraphError> {
         self.graph
             .internal_update_constant_edge_properties(eid, layer, props)?;
+
+        #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.add_edge_cprops(eid, layer, props));
+
         Ok(())
     }
 }
@@ -284,10 +319,13 @@ impl InternalDeletionOps for Storage {
         layer: usize,
     ) -> Result<MaybeNew<EID>, GraphError> {
         let eid = self.graph.internal_delete_edge(t, src, dst, layer)?;
+
+        #[cfg(feature = "proto")]
         self.if_cache(|cache| {
             cache.resolve_edge(eid, src, dst);
             cache.delete_edge(eid.inner(), t, layer);
         });
+
         Ok(eid)
     }
 
@@ -298,7 +336,10 @@ impl InternalDeletionOps for Storage {
         layer: usize,
     ) -> Result<(), GraphError> {
         self.graph.internal_delete_existing_edge(t, eid, layer)?;
+
+        #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.delete_edge(eid, t, layer));
+
         Ok(())
     }
 }

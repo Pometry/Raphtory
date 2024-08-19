@@ -183,6 +183,10 @@ pub enum GraphError {
     #[error("Failed to deserialise graph: {0}")]
     DeserialisationError(String),
 
+    #[cfg(feature = "proto")]
+    #[error("Cache is not initialised")]
+    CacheNotInnitialised,
+
     #[error("Immutable graph is .. immutable!")]
     AttemptToMutateImmutableGraph,
 }
