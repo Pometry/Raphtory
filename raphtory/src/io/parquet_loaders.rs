@@ -1,5 +1,8 @@
 use crate::{
-    core::{utils::errors::GraphError, Prop},
+    core::{
+        utils::errors::{GraphError, InvalidPathReason::PathDoesNotExist},
+        Prop,
+    },
     db::api::{
         mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
         view::StaticGraphViewOps,
@@ -292,7 +295,9 @@ fn get_parquet_file_paths(parquet_path: &Path) -> Result<Vec<PathBuf>, GraphErro
             }
         }
     } else {
-        return Err(GraphError::InvalidPath(parquet_path.to_path_buf()));
+        return Err(GraphError::from(PathDoesNotExist(
+            parquet_path.to_path_buf(),
+        )));
     }
 
     Ok(parquet_files)
