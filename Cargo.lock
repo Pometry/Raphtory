@@ -4628,6 +4628,7 @@ dependencies = [
  "futures-util",
  "itertools 0.12.1",
  "jsonwebtoken",
+ "kdam",
  "moka",
  "oauth2",
  "once_cell",

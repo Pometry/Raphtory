@@ -5,7 +5,11 @@ use crate::{
     python::graph::io::*,
 };
 use polars_arrow::{array::Array, ffi};
-use pyo3::{ffi::Py_uintptr_t, prelude::*, types::IntoPyDict};
+use pyo3::{
+    ffi::Py_uintptr_t,
+    prelude::*,
+    types::{IntoPyDict, PyDict},
+};
 use std::collections::HashMap;
 
 pub fn load_nodes_from_pandas(
@@ -15,34 +19,24 @@ pub fn load_nodes_from_pandas(
     time: &str,
     node_type: Option<&str>,
     node_type_in_df: Option<bool>,
-    properties: Option<Vec<&str>>,
-    const_properties: Option<Vec<&str>>,
-    shared_const_properties: Option<HashMap<String, Prop>>,
+    properties: Option<&[&str]>,
+    const_properties: Option<&[&str]>,
+    shared_const_properties: Option<&HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
     Python::with_gil(|py| {
-        let size: usize = py
-            .eval(
-                "index.__len__()",
-                Some([("index", df.getattr("index")?)].into_py_dict(py)),
-                None,
-            )?
-            .extract()?;
-
         let mut cols_to_check = vec![id, time];
-        cols_to_check.extend(properties.as_ref().unwrap_or(&Vec::new()));
-        cols_to_check.extend(const_properties.as_ref().unwrap_or(&Vec::new()));
+        cols_to_check.extend(properties.unwrap_or(&Vec::new()));
+        cols_to_check.extend(const_properties.unwrap_or(&Vec::new()));
         if node_type_in_df.unwrap_or(true) {
             if let Some(ref node_type) = node_type {
                 cols_to_check.push(node_type.as_ref());
             }
         }
 
-        let df = process_pandas_py_df(df, py, cols_to_check.clone())?;
-        df.check_cols_exist(&cols_to_check)?;
-
+        let df_view = process_pandas_py_df(df, py, cols_to_check.clone())?;
+        df_view.check_cols_exist(&cols_to_check)?;
         load_nodes_from_df(
-            &df,
-            size,
+            df_view,
             id,
             time,
             properties,
@@ -65,36 +59,26 @@ pub fn load_edges_from_pandas(
     src: &str,
     dst: &str,
     time: &str,
-    properties: Option<Vec<&str>>,
-    const_properties: Option<Vec<&str>>,
-    shared_const_properties: Option<HashMap<String, Prop>>,
+    properties: Option<&[&str]>,
+    const_properties: Option<&[&str]>,
+    shared_const_properties: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     layer_in_df: Option<bool>,
 ) -> Result<(), GraphError> {
     Python::with_gil(|py| {
-        let size: usize = py
-            .eval(
-                "index.__len__()",
-                Some([("index", df.getattr("index")?)].into_py_dict(py)),
-                None,
-            )?
-            .extract()?;
-
         let mut cols_to_check = vec![src, dst, time];
-        cols_to_check.extend(properties.as_ref().unwrap_or(&Vec::new()));
-        cols_to_check.extend(const_properties.as_ref().unwrap_or(&Vec::new()));
+        cols_to_check.extend(properties.unwrap_or(&Vec::new()));
+        cols_to_check.extend(const_properties.unwrap_or(&Vec::new()));
         if layer_in_df.unwrap_or(false) {
             if let Some(ref layer) = layer {
                 cols_to_check.push(layer.as_ref());
             }
         }
 
-        let df = process_pandas_py_df(df, py, cols_to_check.clone())?;
-
-        df.check_cols_exist(&cols_to_check)?;
+        let df_view = process_pandas_py_df(df, py, cols_to_check.clone())?;
+        df_view.check_cols_exist(&cols_to_check)?;
         load_edges_from_df(
-            &df,
-            size,
+            df_view,
             src,
             dst,
             time,
@@ -106,7 +90,6 @@ pub fn load_edges_from_pandas(
             graph,
         )
         .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
-
         Ok::<(), PyErr>(())
     })
     .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
@@ -117,32 +100,22 @@ pub fn load_node_props_from_pandas(
     graph: &GraphStorage,
     df: &PyAny,
     id: &str,
-    const_properties: Option<Vec<&str>>,
-    shared_const_properties: Option<HashMap<String, Prop>>,
+    const_properties: Option<&[&str]>,
+    shared_const_properties: Option<&HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
     Python::with_gil(|py| {
-        let size: usize = py
-            .eval(
-                "index.__len__()",
-                Some([("index", df.getattr("index")?)].into_py_dict(py)),
-                None,
-            )?
-            .extract()?;
         let mut cols_to_check = vec![id];
-        cols_to_check.extend(const_properties.as_ref().unwrap_or(&Vec::new()));
-        let df = process_pandas_py_df(df, py, cols_to_check.clone())?;
-        df.check_cols_exist(&cols_to_check)?;
-
+        cols_to_check.extend(const_properties.unwrap_or(&Vec::new()));
+        let df_view = process_pandas_py_df(df, py, cols_to_check.clone())?;
+        df_view.check_cols_exist(&cols_to_check)?;
         load_node_props_from_df(
-            &df,
-            size,
+            df_view,
             id,
             const_properties,
             shared_const_properties,
             graph,
         )
         .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
-
         Ok::<(), PyErr>(())
     })
     .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
@@ -154,31 +127,23 @@ pub fn load_edge_props_from_pandas(
     df: &PyAny,
     src: &str,
     dst: &str,
-    const_properties: Option<Vec<&str>>,
-    shared_const_properties: Option<HashMap<String, Prop>>,
+    const_properties: Option<&[&str]>,
+    shared_const_properties: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     layer_in_df: Option<bool>,
 ) -> Result<(), GraphError> {
     Python::with_gil(|py| {
-        let size: usize = py
-            .eval(
-                "index.__len__()",
-                Some([("index", df.getattr("index")?)].into_py_dict(py)),
-                None,
-            )?
-            .extract()?;
         let mut cols_to_check = vec![src, dst];
         if layer_in_df.unwrap_or(false) {
             if let Some(ref layer) = layer {
                 cols_to_check.push(layer.as_ref());
             }
         }
-        cols_to_check.extend(const_properties.as_ref().unwrap_or(&Vec::new()));
-        let df = process_pandas_py_df(df, py, cols_to_check.clone())?;
-        df.check_cols_exist(&cols_to_check)?;
+        cols_to_check.extend(const_properties.unwrap_or(&Vec::new()));
+        let df_view = process_pandas_py_df(df, py, cols_to_check.clone())?;
+        df_view.check_cols_exist(&cols_to_check)?;
         load_edges_props_from_df(
-            &df,
-            size,
+            df_view,
             src,
             dst,
             const_properties,
@@ -188,7 +153,6 @@ pub fn load_edge_props_from_pandas(
             graph,
         )
         .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
-        df.check_cols_exist(&cols_to_check)?;
         Ok::<(), PyErr>(())
     })
     .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
@@ -205,14 +169,6 @@ pub fn load_edges_deletions_from_pandas(
     layer_in_df: Option<bool>,
 ) -> Result<(), GraphError> {
     Python::with_gil(|py| {
-        let size: usize = py
-            .eval(
-                "index.__len__()",
-                Some([("index", df.getattr("index")?)].into_py_dict(py)),
-                None,
-            )?
-            .extract()?;
-
         let mut cols_to_check = vec![src, dst, time];
         if layer_in_df.unwrap_or(true) {
             if let Some(ref layer) = layer {
@@ -220,12 +176,10 @@ pub fn load_edges_deletions_from_pandas(
             }
         }
 
-        let df = process_pandas_py_df(df, py, cols_to_check.clone())?;
-        df.check_cols_exist(&cols_to_check)?;
-
+        let df_view = process_pandas_py_df(df, py, cols_to_check.clone())?;
+        df_view.check_cols_exist(&cols_to_check)?;
         load_edges_deletions_from_df(
-            &df,
-            size,
+            df_view,
             src,
             dst,
             time,
@@ -234,18 +188,17 @@ pub fn load_edges_deletions_from_pandas(
             graph.core_graph(),
         )
         .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
-
         Ok::<(), PyErr>(())
     })
     .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
     Ok(())
 }
 
-pub(crate) fn process_pandas_py_df(
-    df: &PyAny,
-    py: Python,
+pub(crate) fn process_pandas_py_df<'a>(
+    df: &'a PyAny,
+    py: Python<'a>,
     col_names: Vec<&str>,
-) -> PyResult<DFView> {
+) -> PyResult<DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + 'a>> {
     is_jupyter(py);
     py.import("pandas")?;
     let module = py.import("pyarrow")?;
@@ -268,8 +221,11 @@ pub(crate) fn process_pandas_py_df(
     let _df_columns: Vec<String> = dropped_df.getattr("columns")?.extract()?;
 
     let table = pa_table.call_method("from_pandas", (dropped_df,), None)?;
-
-    let rb = table.call_method0("to_batches")?.extract::<Vec<&PyAny>>()?;
+    let kwargs = PyDict::new(py);
+    kwargs.set_item("max_chunksize", 100000)?;
+    let rb = table
+        .call_method("to_batches", (), Some(kwargs))?
+        .extract::<Vec<&PyAny>>()?;
     let names: Vec<String> = if let Some(batch0) = rb.get(0) {
         let schema = batch0.getattr("schema")?;
         schema.getattr("names")?.extract::<Vec<String>>()?
@@ -280,21 +236,33 @@ pub(crate) fn process_pandas_py_df(
     .filter(|x| col_names.contains(&x.as_str()))
     .collect();
 
-    let arrays = rb
-        .iter()
-        .map(|rb| {
-            (0..names.len())
-                .map(|i| {
-                    let array = rb.call_method1("column", (i,))?;
-                    let arr = array_to_rust(array)?;
-                    Ok::<Box<dyn Array>, PyErr>(arr)
-                })
-                .collect::<Result<Vec<_>, PyErr>>()
-        })
-        .collect::<Result<Vec<_>, PyErr>>()?;
+    let names_len = names.len();
+    let chunks = rb.into_iter().map(move |rb| {
+        let chunk = (0..names_len)
+            .map(|i| {
+                let array = rb
+                    .call_method1("column", (i,))
+                    .map_err(|e| GraphError::from(e))?;
+                let arr = array_to_rust(array).map_err(|e| GraphError::from(e))?;
+                Ok::<Box<dyn Array>, GraphError>(arr)
+            })
+            .collect::<Result<Vec<_>, GraphError>>()?;
 
-    let df = DFView { names, arrays };
-    Ok(df)
+        Ok(DFChunk { chunk })
+    });
+    let num_rows: usize = py
+        .eval(
+            "index.__len__()",
+            Some([("index", df.getattr("index")?)].into_py_dict(py)),
+            None,
+        )?
+        .extract()?;
+
+    Ok(DFView {
+        names,
+        chunks,
+        num_rows,
+    })
 }
 
 pub fn array_to_rust(obj: &PyAny) -> PyResult<ArrayRef> {

@@ -3,6 +3,8 @@ use crate::core::{utils::time::error::ParseTimeError, Prop, PropType};
 use polars_arrow::legacy::error;
 #[cfg(feature = "storage")]
 use pometry_storage::RAError;
+#[cfg(feature = "python")]
+use pyo3::PyErr;
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 use std::path::PathBuf;
 #[cfg(feature = "search")]
@@ -195,6 +197,12 @@ pub enum GraphError {
 
     #[error("Immutable graph is .. immutable!")]
     AttemptToMutateImmutableGraph,
+
+    #[cfg(feature = "python")]
+    #[error("Python error occurred: {0}")]
+    PythonError(#[from] PyErr),
+    #[error("An error with Tdqm occurred")]
+    TqdmError,
 }
 
 impl GraphError {

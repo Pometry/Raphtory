@@ -41,6 +41,8 @@ quad-rand = { workspace = true }
 serde_json = { workspace = true }
 ouroboros = { workspace = true }
 either = { workspace = true }
+kdam = { workspace = true}
+
 
 # io optional dependencies
 csv = { workspace = true, optional = true }
@@ -66,7 +68,6 @@ display-error-chain = { workspace = true, optional = true }
 polars-arrow = { workspace = true, optional = true }
 polars-parquet = { workspace = true, optional = true }
 polars-utils = { workspace = true, optional = true }
-kdam = { workspace = true, optional = true }
 memmap2 = { workspace = true, optional = true }
 ahash = { workspace = true, optional = true }
 tempfile = { workspace = true, optional = true }
@@ -126,8 +127,7 @@ python = [
     "polars-arrow?/compute",
     "raphtory-api/python",
     "dep:rpds",
-    "dep:kdam",
-    "kdam?/notebook"
+    "kdam/notebook"
 ]
 
 # storage
