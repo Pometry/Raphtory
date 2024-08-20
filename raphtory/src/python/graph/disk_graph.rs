@@ -6,12 +6,10 @@ use crate::{
     },
     core::utils::errors::GraphError,
     db::graph::views::deletion_graph::PersistentGraph,
-    disk_graph::{graph_impl::ParquetLayerCols, DiskGraphError, DiskGraphStorage},
+    disk_graph::{graph_impl::ParquetLayerCols, DiskGraphStorage},
     io::arrow::dataframe::DFView,
     prelude::Graph,
-    python::{
-        graph::graph::PyGraph, types::repr::StructReprBuilder, utils::errors::adapt_err_value,
-    },
+    python::{graph::graph::PyGraph, types::repr::StructReprBuilder},
 };
 use itertools::Itertools;
 /// A columnar temporal graph.
@@ -20,12 +18,6 @@ use pyo3::{
     types::{PyDict, PyList, PyString},
 };
 use std::path::Path;
-
-impl From<DiskGraphError> for PyErr {
-    fn from(value: DiskGraphError) -> Self {
-        adapt_err_value(&value)
-    }
-}
 
 #[derive(Clone)]
 #[pyclass(name = "DiskGraphStorage")]
@@ -117,10 +109,7 @@ impl<'a> FromPyObject<'a> for ParquetLayerColsList<'a> {
 #[pymethods]
 impl PyGraph {
     /// save graph in disk_graph format and memory map the result
-    pub fn persist_as_disk_graph(
-        &self,
-        graph_dir: &str,
-    ) -> Result<DiskGraphStorage, DiskGraphError> {
+    pub fn persist_as_disk_graph(&self, graph_dir: &str) -> Result<DiskGraphStorage, GraphError> {
         self.graph.persist_as_disk_graph(graph_dir)
     }
 }
@@ -211,7 +200,7 @@ impl PyDiskGraph {
         &self,
         other: &Self,
         graph_dir: &str,
-    ) -> Result<DiskGraphStorage, DiskGraphError> {
+    ) -> Result<DiskGraphStorage, GraphError> {
         self.graph.merge_by_sorted_gids(&other.graph, graph_dir)
     }
 

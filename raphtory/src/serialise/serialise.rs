@@ -635,6 +635,15 @@ impl StableEncode for PersistentGraph {
     }
 }
 
+impl StableEncode for MaterializedGraph {
+    fn encode_to_proto(&self) -> proto::Graph {
+        match self {
+            MaterializedGraph::EventGraph(graph) => graph.encode_to_proto(),
+            MaterializedGraph::PersistentGraph(graph) => graph.encode_to_proto(),
+        }
+    }
+}
+
 impl StableDecode for TemporalGraph {
     fn decode_from_proto(graph: &proto::Graph) -> Result<Self, GraphError> {
         let storage = Self::default();

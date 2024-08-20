@@ -40,7 +40,6 @@ use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
 use raphtory_api::core::storage::{arc_str::ArcStr, dict_mapper::MaybeNew};
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
-use std::{fs, io, path::Path};
 
 #[enum_dispatch(CoreGraphOps)]
 #[enum_dispatch(InternalLayerOps)]
@@ -107,60 +106,6 @@ impl MaterializedGraph {
             MaterializedGraph::EventGraph(_) => None,
             MaterializedGraph::PersistentGraph(g) => Some(g),
         }
-    }
-
-    pub fn load_from_file<P: AsRef<Path>>(path: P, force: bool) -> Result<Self, GraphError> {
-        let f = std::fs::File::open(path)?;
-        let mut reader = std::io::BufReader::new(f);
-        if force {
-            let _: String = bincode::deserialize_from(&mut reader)?;
-            let data: Self = bincode::deserialize_from(&mut reader)?;
-            Ok(data)
-        } else {
-            let version: u32 = bincode::deserialize_from(&mut reader)?;
-            if version != BINCODE_VERSION {
-                return Err(GraphError::BincodeVersionError(version, BINCODE_VERSION));
-            }
-            let data: Self = bincode::deserialize_from(&mut reader)?;
-            Ok(data)
-        }
-    }
-
-    pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), GraphError> {
-        let f = fs::File::create(path)?;
-        let mut writer = io::BufWriter::new(f);
-        let versioned_data = VersionedGraph {
-            version: BINCODE_VERSION,
-            graph: self.clone(),
-        };
-        Ok(bincode::serialize_into(&mut writer, &versioned_data)?)
-    }
-
-    pub fn save_to_path(&self, path: &Path) -> Result<(), GraphError> {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.save_to_file(&path)?,
-            MaterializedGraph::PersistentGraph(g) => g.save_to_file(&path)?,
-        };
-
-        Ok(())
-    }
-
-    pub fn bincode(&self) -> Result<Vec<u8>, GraphError> {
-        let versioned_data = VersionedGraph {
-            version: BINCODE_VERSION,
-            graph: self.clone(),
-        };
-        let encoded = bincode::serialize(&versioned_data)?;
-        Ok(encoded)
-    }
-
-    pub fn from_bincode(b: &[u8]) -> Result<Self, GraphError> {
-        let version: u32 = bincode::deserialize(b)?;
-        if version != BINCODE_VERSION {
-            return Err(GraphError::BincodeVersionError(version, BINCODE_VERSION));
-        }
-        let g: VersionedGraph<MaterializedGraph> = bincode::deserialize(b)?;
-        Ok(g.graph)
     }
 }
 

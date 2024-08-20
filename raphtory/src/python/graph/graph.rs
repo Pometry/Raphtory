@@ -21,7 +21,7 @@ use crate::{
     },
     serialise::{StableDecode, StableEncode},
 };
-use pyo3::{prelude::*, types::PyBytes};
+use pyo3::prelude::*;
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 use std::{
     collections::HashMap,
@@ -36,7 +36,7 @@ pub struct PyGraph {
     pub graph: Graph,
 }
 
-impl_cache!(PyGraph, graph: Graph, "Graph");
+impl_serialise!(PyGraph, graph: Graph, "Graph");
 
 impl Debug for PyGraph {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -151,7 +151,7 @@ impl PyGraph {
     }
 
     #[cfg(feature = "storage")]
-    pub fn to_disk_graph(&self, graph_dir: String) -> Result<Graph, DiskGraphError> {
+    pub fn to_disk_graph(&self, graph_dir: String) -> Result<Graph, GraphError> {
         use crate::db::api::storage::graph::storage_ops::GraphStorage;
         use std::sync::Arc;
 
@@ -359,19 +359,6 @@ impl PyGraph {
     /// A list of node types
     pub fn get_all_node_types(&self) -> Vec<ArcStr> {
         self.graph.get_all_node_types()
-    }
-
-    /// Get bincode encoded graph
-    pub fn bincode<'py>(&'py self, py: Python<'py>) -> Result<&'py PyBytes, GraphError> {
-        let bytes = MaterializedGraph::from(self.graph.clone()).bincode()?;
-        Ok(PyBytes::new(py, &bytes))
-    }
-
-    /// Creates a graph from a bincode encoded graph
-    #[staticmethod]
-    fn from_bincode(bytes: &[u8]) -> Result<Option<Graph>, GraphError> {
-        let graph = MaterializedGraph::from_bincode(bytes)?;
-        Ok(graph.into_events())
     }
 
     /// Gives the large connected component of a graph.

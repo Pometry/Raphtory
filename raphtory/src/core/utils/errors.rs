@@ -1,6 +1,7 @@
 use crate::core::{utils::time::error::ParseTimeError, Prop, PropType};
 #[cfg(feature = "arrow")]
 use polars_arrow::legacy::error;
+use pometry_storage::RAError;
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 use std::path::PathBuf;
 #[cfg(feature = "search")]
@@ -142,6 +143,10 @@ pub enum GraphError {
         "Failed to load graph as the following columns are not present within the dataframe: {0}"
     )]
     ColumnDoesNotExist(String),
+
+    #[cfg(feature = "storage")]
+    #[error("Raphtory Arrow Error: {0}")]
+    DiskGraphError(#[from] RAError),
 
     #[cfg(feature = "search")]
     #[error("Index operation failed")]

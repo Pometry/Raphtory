@@ -10,7 +10,7 @@ use crate::{
     db::{
         api::{
             mutation::{AdditionOps, PropertyAdditionOps},
-            view::internal::{CoreGraphOps, MaterializedGraph},
+            view::internal::CoreGraphOps,
         },
         graph::{edge::EdgeView, node::NodeView, views::deletion_graph::PersistentGraph},
     },
@@ -20,7 +20,7 @@ use crate::{
         utils::PyTime,
     },
 };
-use pyo3::{prelude::*, types::PyBytes};
+use pyo3::prelude::*;
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 use std::{
     collections::HashMap,
@@ -41,7 +41,7 @@ pub struct PyPersistentGraph {
     pub(crate) graph: PersistentGraph,
 }
 
-impl_cache!(PyPersistentGraph, graph: PersistentGraph, "PersistentGraph");
+impl_serialise!(PyPersistentGraph, graph: PersistentGraph, "PersistentGraph");
 
 impl Debug for PyPersistentGraph {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -332,19 +332,6 @@ impl PyPersistentGraph {
     /// A list of node types
     pub fn get_all_node_types(&self) -> Vec<ArcStr> {
         self.graph.get_all_node_types()
-    }
-
-    /// Get bincode encoded graph
-    pub fn bincode<'py>(&'py self, py: Python<'py>) -> Result<&'py PyBytes, GraphError> {
-        let bytes = MaterializedGraph::from(self.graph.clone()).bincode()?;
-        Ok(PyBytes::new(py, &bytes))
-    }
-
-    /// Creates a graph from a bincode encoded graph
-    #[staticmethod]
-    fn from_bincode(bytes: &[u8]) -> Result<Option<PersistentGraph>, GraphError> {
-        let graph = MaterializedGraph::from_bincode(bytes)?;
-        Ok(graph.into_persistent())
     }
 
     /// Get event graph

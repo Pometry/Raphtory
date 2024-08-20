@@ -4,14 +4,13 @@ use crate::{
         global_plugins::GlobalPlugins, vector_algorithms::VectorAlgorithms,
     },
     server_config::*,
-    url_encode::url_encode_graph,
+    url_encode::{url_decode_graph, url_encode_graph},
     RaphtoryServer,
 };
 use async_graphql::{
     dynamic::{Field, FieldFuture, FieldValue, InputValue, Object, TypeRef, ValueAccessor},
     Value as GraphqlValue,
 };
-use base64::{engine::general_purpose, Engine as _};
 use crossbeam_channel::Sender as CrossbeamSender;
 use dynamic_graphql::internal::{Registry, TypeName};
 use itertools::intersperse;
@@ -951,10 +950,7 @@ impl PyRaphtoryClient {
         let data = self.query_with_json_variables(query.clone(), variables.into())?;
         match data.get("receiveGraph") {
             Some(JsonValue::String(graph)) => {
-                let decoded_bytes = general_purpose::STANDARD
-                    .decode(graph.clone())
-                    .map_err(|err| PyException::new_err(format!("Base64 decode error: {}", err)))?;
-                let mat_graph = MaterializedGraph::from_bincode(&decoded_bytes)?;
+                let mat_graph = url_decode_graph(graph)?;
                 Ok(mat_graph)
             }
             _ => Err(PyException::new_err(format!(

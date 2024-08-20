@@ -2,7 +2,7 @@
 
 pub mod into_indexed;
 
-use std::{collections::HashSet, ops::Deref, path::Path, sync::Arc};
+use std::{collections::HashSet, ops::Deref, sync::Arc};
 
 use crate::{
     core::{
@@ -20,7 +20,7 @@ use crate::{
             storage::graph::edges::edge_storage_ops::EdgeStorageOps,
             view::{
                 internal::{DynamicGraph, InheritViewOps, IntoDynamic, Static},
-                Base, MaterializedGraph, StaticGraphViewOps,
+                Base, StaticGraphViewOps,
             },
         },
         graph::{edge::EdgeView, node::NodeView},
@@ -89,12 +89,6 @@ impl<G: GraphViewOps<'static> + IntoDynamic> IndexedGraph<G> {
             reader: self.reader,
             edge_reader: self.edge_reader,
         }
-    }
-}
-
-impl IndexedGraph<MaterializedGraph> {
-    pub fn save_to_file(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
-        self.graph.save_to_file(path)
     }
 }
 
@@ -920,7 +914,7 @@ mod test {
     #[test]
     #[ignore = "this test is for experiments with the jira graph"]
     fn load_jira_graph() -> Result<(), GraphError> {
-        let graph = Graph::load_from_file("/tmp/graphs/jira", false).expect("failed to load graph");
+        let graph = Graph::decode("/tmp/graphs/jira").expect("failed to load graph");
         assert!(graph.count_nodes() > 0);
 
         let now = SystemTime::now();

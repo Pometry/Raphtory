@@ -2,7 +2,6 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexIntoOps, TimeIndexOps},
-        utils::errors::GraphError,
         Prop,
     },
     db::{
@@ -32,7 +31,6 @@ use std::{
     fmt::{Display, Formatter},
     iter,
     ops::{Deref, Range},
-    path::Path,
     sync::Arc,
 };
 
@@ -122,50 +120,6 @@ impl PersistentGraph {
 
     pub fn from_internal_graph(internal_graph: GraphStorage) -> Self {
         Self(Arc::new(Storage::from_inner(internal_graph)))
-    }
-
-    /// Save a graph to a directory
-    ///
-    /// # Arguments
-    ///
-    /// * `path` - The path to the directory
-    ///
-    /// Returns:
-    ///
-    /// A raphtory graph
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use std::fs::File;
-    /// use raphtory::prelude::*;
-    /// let g = Graph::new();
-    /// g.add_node(1, 1, NO_PROPS, None).unwrap();
-    /// g.save_to_file("path_str").expect("failed to save file");
-    /// ```
-    pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), GraphError> {
-        MaterializedGraph::from(self.clone()).save_to_file(path)
-    }
-
-    /// Load a graph from a directory
-    ///
-    /// # Arguments
-    ///
-    /// * `path` - The path to the directory
-    ///
-    /// Returns:
-    ///
-    /// A raphtory graph
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use raphtory::prelude::*;
-    /// let g = Graph::load_from_file("path/to/graph", false);
-    /// ```
-    pub fn load_from_file<P: AsRef<Path>>(path: P, force: bool) -> Result<Self, GraphError> {
-        let g = MaterializedGraph::load_from_file(path, force)?;
-        g.into_persistent().ok_or(GraphError::GraphLoadError)
     }
 
     /// Get event graph

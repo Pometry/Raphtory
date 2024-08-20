@@ -18,11 +18,10 @@
 
 use super::views::deletion_graph::PersistentGraph;
 use crate::{
-    core::utils::errors::GraphError,
     db::api::{
         mutation::internal::InheritMutationOps,
         storage::{graph::storage_ops::GraphStorage, storage::Storage},
-        view::internal::{Base, InheritViewOps, MaterializedGraph, Static},
+        view::internal::{Base, InheritViewOps, Static},
     },
     prelude::*,
 };
@@ -32,7 +31,6 @@ use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Display, Formatter},
     ops::Deref,
-    path::Path,
     sync::Arc,
 };
 
@@ -202,32 +200,6 @@ impl Graph {
         Self { inner }
     }
 
-    /// Load a graph from a directory
-    ///
-    /// # Arguments
-    ///
-    /// * `path` - The path to the directory
-    ///
-    /// Returns:
-    ///
-    /// A raphtory graph
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use raphtory::prelude::Graph;
-    /// let g = Graph::load_from_file("path/to/graph", false);
-    /// ```
-    pub fn load_from_file<P: AsRef<Path>>(path: P, force: bool) -> Result<Self, GraphError> {
-        let g = MaterializedGraph::load_from_file(path, force)?;
-        g.into_events().ok_or(GraphError::GraphLoadError)
-    }
-
-    /// Save a graph to a directory
-    pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), GraphError> {
-        MaterializedGraph::from(self.clone()).save_to_file(path)
-    }
-
     /// Get persistent graph
     pub fn persistent_graph(&self) -> PersistentGraph {
         PersistentGraph::from_storage(self.inner.clone())
@@ -240,7 +212,10 @@ mod db_tests {
     use crate::{
         algorithms::components::weakly_connected_components,
         core::{
-            utils::time::{error::ParseTimeError, TryIntoTime},
+            utils::{
+                errors::GraphError,
+                time::{error::ParseTimeError, TryIntoTime},
+            },
             Prop,
         },
         db::{
@@ -574,10 +549,10 @@ mod db_tests {
         let tmp_raphtory_path: TempDir = TempDir::new().expect("Failed to create tempdir");
 
         let graph_path = format!("{}/graph.bin", tmp_raphtory_path.path().display());
-        g.save_to_file(&graph_path).expect("Failed to save graph");
+        g.encode(&graph_path).expect("Failed to save graph");
 
         // Load from files
-        let g2 = Graph::load_from_file(&graph_path, false).expect("Failed to load graph");
+        let g2 = Graph::decode(&graph_path).expect("Failed to load graph");
 
         assert_eq!(g, g2);
 
@@ -2335,7 +2310,9 @@ mod db_tests {
         g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
         let dir = tempfile::tempdir().unwrap();
         let file_path = dir.path().join("abcd11");
-        g.save_to_file(file_path).unwrap();
+        g.encode(&file_path).unwrap();
+        let gg = Graph::decode(file_path).unwrap();
+        assert_graph_equal(&g, &gg);
     }
 
     #[test]

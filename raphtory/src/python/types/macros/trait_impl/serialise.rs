@@ -5,7 +5,7 @@
 /// * field: The name of the struct field holding the rust struct implementing `Cache`
 /// * base_type: The rust type of `field`
 /// * name: The name of the object that appears in the docstring
-macro_rules! impl_cache {
+macro_rules! impl_serialise {
     ($obj:ty, $field:ident: $base_type:ty, $name:literal) => {
         #[pyo3::pymethods]
         impl $obj {
@@ -48,7 +48,7 @@ macro_rules! impl_cache {
             /// Returns:
             #[doc = concat!("   ", $name)]
             #[staticmethod]
-            pub fn load_from_file(path: &str) -> Result<$base_type, GraphError> {
+            fn load_from_file(path: &str) -> Result<$base_type, GraphError> {
                 <$base_type as $crate::serialise::StableDecode>::decode(path)
             }
 
@@ -56,8 +56,29 @@ macro_rules! impl_cache {
             ///
             /// Arguments:
             ///  path (str): The path to the file.
-            pub fn save_to_file(&self, path: &str) -> Result<(), GraphError> {
+            fn save_to_file(&self, path: &str) -> Result<(), GraphError> {
                 $crate::serialise::StableEncode::encode(&self.$field, path)
+            }
+
+            #[doc = concat!(" Load ", $name, " from serialised bytes.")]
+            ///
+            /// Arguments:
+            ///   bytes (Bytes): The serialised bytes to decode
+            ///
+            /// Returns:
+            #[doc = concat!("   ", $name)]
+            #[staticmethod]
+            fn deserialise(bytes: &[u8]) -> Result<$base_type, GraphError> {
+                <$base_type as $crate::serialise::StableDecode>::decode_from_bytes(bytes)
+            }
+
+            #[doc = concat!(" Serialise ", $name, " to bytes.")]
+            ///
+            /// Returns:
+            ///   Bytes
+            fn serialise<'py>(&self, py: Python<'py>) -> &'py pyo3::types::PyBytes {
+                let bytes = $crate::serialise::StableEncode::encode_to_vec(&self.$field);
+                pyo3::types::PyBytes::new(py, &bytes)
             }
         }
     };

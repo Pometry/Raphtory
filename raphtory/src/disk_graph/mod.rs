@@ -37,12 +37,6 @@ pub mod prelude {
     pub use pometry_storage::chunked_array::array_ops::*;
 }
 
-#[derive(thiserror::Error, Debug)]
-pub enum DiskGraphError {
-    #[error("Raphtory Arrow Error: {0}")]
-    RAError(#[from] RAError),
-}
-
 #[derive(Clone, Debug)]
 pub struct DiskGraphStorage {
     pub(crate) inner: Arc<TemporalGraph>,
@@ -227,7 +221,7 @@ impl DiskGraphStorage {
         &self,
         other: &DiskGraphStorage,
         new_graph_dir: impl AsRef<Path>,
-    ) -> Result<DiskGraphStorage, DiskGraphError> {
+    ) -> Result<DiskGraphStorage, GraphError> {
         let graph_dir = new_graph_dir.as_ref();
         let inner = merge_graphs(graph_dir, &self.inner, &other.inner)?;
         Ok(DiskGraphStorage::new(inner))
@@ -294,7 +288,7 @@ impl DiskGraphStorage {
         }
     }
 
-    pub fn from_graph(graph: &Graph, graph_dir: impl AsRef<Path>) -> Result<Self, DiskGraphError> {
+    pub fn from_graph(graph: &Graph, graph_dir: impl AsRef<Path>) -> Result<Self, GraphError> {
         let inner_graph = TemporalGraph::from_graph(graph, graph_dir.as_ref(), || {
             make_node_properties_from_graph(graph, graph_dir.as_ref())
         })?;

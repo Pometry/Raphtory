@@ -35,10 +35,10 @@ pub fn stable_coin_graph(path: Option<String>, subset: bool) -> Graph {
         unzip_file(zip_str,dir_str).expect("Failed to unzip stable coin data from https://snap.stanford.edu/data/ERC20-stablecoins.zip");
     }
 
-    fn restore_from_bincode(encoded_data_dir: &PathBuf) -> Option<Graph> {
-        if encoded_data_dir.exists() {
+    fn restore_from_file(encoded_data_file: &PathBuf) -> Option<Graph> {
+        if encoded_data_file.exists() {
             let now = Instant::now();
-            let g = Graph::load_from_file(encoded_data_dir.as_path(), false)
+            let g = Graph::decode(encoded_data_file.as_path())
                 .map_err(|err| {
                     println!(
                         "Restoring from bincode failed with error: {}! Reloading file!",
@@ -49,7 +49,7 @@ pub fn stable_coin_graph(path: Option<String>, subset: bool) -> Graph {
 
             println!(
                 "Loaded graph from encoded data files {} with {} nodes, {} edges which took {} seconds",
-                encoded_data_dir.to_str().unwrap(),
+                encoded_data_file.to_str().unwrap(),
                 g.count_nodes(),
                 g.count_edges(),
                 now.elapsed().as_secs()
@@ -62,7 +62,7 @@ pub fn stable_coin_graph(path: Option<String>, subset: bool) -> Graph {
     }
 
     let encoded_data_dir = data_dir.join("graphdb.bincode");
-    let g = restore_from_bincode(&encoded_data_dir).unwrap_or_else(|| {
+    let g = restore_from_file(&encoded_data_dir).unwrap_or_else(|| {
         let g = Graph::new();
         let now = Instant::now();
 
@@ -106,8 +106,7 @@ pub fn stable_coin_graph(path: Option<String>, subset: bool) -> Graph {
             now.elapsed().as_secs()
         );
 
-        g.save_to_file(encoded_data_dir)
-            .expect("Failed to save graph");
+        g.encode(encoded_data_dir).expect("Failed to save graph");
 
         g
     });

@@ -1,5 +1,6 @@
 import base64
 import os
+import pickle
 import tempfile
 import time
 
@@ -264,7 +265,7 @@ def test_namespaces():
             client.send_graph(path=path, graph=g, overwrite=True)
         assert "Backslash not allowed in path" in str(excinfo.value)
 
-        #Test if we can escape through a symlink
+        # Test if we can escape through a symlink
         tmp_dir2 = tempfile.mkdtemp()
         nested_dir = os.path.join(tmp_work_dir, "shivam", "graphs")
         os.makedirs(nested_dir)
@@ -422,6 +423,7 @@ def test_upload_graph_succeeds_if_graph_already_exists_at_namespace_with_overwri
             }
         }
 
+
 def test_get_graph_fails_if_graph_not_found():
     work_dir = tempfile.mkdtemp()
     with RaphtoryServer(work_dir).start() as server:
@@ -554,8 +556,7 @@ def test_receive_graph_succeeds_if_graph_found():
         received_graph = client.query(query)['receiveGraph']
 
         decoded_bytes = base64.b64decode(received_graph)
-
-        g = Graph.from_bincode(decoded_bytes)
+        g = Graph.deserialise(decoded_bytes);
         assert g.nodes.name == ["ben", "hamza", "haaroon"]
 
 
@@ -603,7 +604,7 @@ def test_receive_graph_succeeds_if_graph_found_at_namespace():
 
         decoded_bytes = base64.b64decode(received_graph)
 
-        g = Graph.from_bincode(decoded_bytes)
+        g = Graph.deserialise(decoded_bytes)
         assert g.nodes.name == ["ben", "hamza", "haaroon"]
 
 
@@ -1263,11 +1264,11 @@ def test_create_graph_fail_if_graph_already_exists():
 def test_create_graph_fail_if_graph_already_exists_at_namespace():
     work_dir = tempfile.mkdtemp()
     os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
-    
+
     g = Graph()
     g.save_to_file(os.path.join(work_dir, "g0"))
     g.save_to_file(os.path.join(work_dir, "shivam", "g3"))
-    
+
     with RaphtoryServer(work_dir).start() as server:
         client = server.get_client()
         query = """mutation {

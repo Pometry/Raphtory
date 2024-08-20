@@ -1,9 +1,6 @@
 use std::path::Path;
 
-use crate::{
-    disk_graph::{DiskGraphError, DiskGraphStorage},
-    prelude::Graph,
-};
+use crate::{core::utils::errors::GraphError, disk_graph::DiskGraphStorage, prelude::Graph};
 
 mod edge_storage_ops;
 mod interop;
@@ -24,7 +21,7 @@ impl Graph {
     pub fn persist_as_disk_graph(
         &self,
         graph_dir: impl AsRef<Path>,
-    ) -> Result<DiskGraphStorage, DiskGraphError> {
+    ) -> Result<DiskGraphStorage, GraphError> {
         DiskGraphStorage::from_graph(self, graph_dir)
     }
 }
