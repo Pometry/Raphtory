@@ -156,7 +156,7 @@ impl PyDiskGraph {
 
             let df_view = process_pandas_py_df(edge_df, py, df_columns)?;
             df_view.check_cols_exist(&cols_to_check)?;
-            let graph = Self::from_pandas(graph_dir, df_view,time_col, src_col, dst_col)?;
+            let graph = Self::from_pandas(graph_dir, df_view, time_col, src_col, dst_col)?;
 
             Ok::<_, GraphError>(graph)
         });

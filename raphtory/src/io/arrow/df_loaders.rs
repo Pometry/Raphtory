@@ -68,7 +68,6 @@ pub(crate) fn load_nodes_from_df<
     let time_index = df_view.get_index(time)?;
     let mut pb = build_progress_bar("Loading nodes".to_string(), df_view.num_rows)?;
 
-
     for chunk in df_view.chunks {
         let df = chunk?;
         let prop_iter = combine_properties(properties, &properties_indices, &df)?;
@@ -337,7 +336,6 @@ pub(crate) fn load_edges_deletions_from_df<
     let layer_index = layer_index.transpose()?;
     let mut pb = build_progress_bar("Loading edge deletions".to_string(), df_view.num_rows)?;
 
-
     for chunk in df_view.chunks {
         let df = chunk?;
         let layer = lift_layer(layer_name, layer_index, &df)?;
@@ -428,10 +426,10 @@ pub(crate) fn load_node_props_from_df<
     let node_id_index = df_view.get_index(node_id)?;
     let mut pb = build_progress_bar("Loading node properties".to_string(), df_view.num_rows)?;
 
-
     for chunk in df_view.chunks {
         let df = chunk?;
-        let const_prop_iter = combine_properties(constant_properties, &constant_properties_indices, &df)?;
+        let const_prop_iter =
+            combine_properties(constant_properties, &constant_properties_indices, &df)?;
 
         if let Some(node_id) = df.iter_col::<u64>(node_id_index) {
             let iter = node_id.map(|i| i.copied());
