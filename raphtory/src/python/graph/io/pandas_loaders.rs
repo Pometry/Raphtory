@@ -5,9 +5,12 @@ use crate::{
     python::graph::io::*,
 };
 use polars_arrow::{array::Array, ffi};
-use pyo3::{ffi::Py_uintptr_t, prelude::*, types::IntoPyDict};
+use pyo3::{
+    ffi::Py_uintptr_t,
+    prelude::*,
+    types::{IntoPyDict, PyDict},
+};
 use std::collections::HashMap;
-use pyo3::types::PyDict;
 
 pub fn load_nodes_from_pandas(
     graph: &GraphStorage,
@@ -220,7 +223,9 @@ pub(crate) fn process_pandas_py_df<'a>(
     let table = pa_table.call_method("from_pandas", (dropped_df,), None)?;
     let kwargs = PyDict::new(py);
     kwargs.set_item("max_chunksize", 100000)?;
-    let rb = table.call_method("to_batches", (), Some(kwargs))?.extract::<Vec<&PyAny>>()?;
+    let rb = table
+        .call_method("to_batches", (), Some(kwargs))?
+        .extract::<Vec<&PyAny>>()?;
     let names: Vec<String> = if let Some(batch0) = rb.get(0) {
         let schema = batch0.getattr("schema")?;
         schema.getattr("names")?.extract::<Vec<String>>()?
@@ -253,7 +258,11 @@ pub(crate) fn process_pandas_py_df<'a>(
         )?
         .extract()?;
 
-    Ok(DFView { names, chunks,num_rows })
+    Ok(DFView {
+        names,
+        chunks,
+        num_rows,
+    })
 }
 
 pub fn array_to_rust(obj: &PyAny) -> PyResult<ArrayRef> {

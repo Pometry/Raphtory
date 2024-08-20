@@ -213,7 +213,7 @@ pub(crate) fn process_parquet_file_to_df(
     parquet_file_path: &Path,
     col_names: &[&str],
 ) -> Result<DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>, GraphError> {
-    let (names, chunks,num_rows) = read_parquet_file(parquet_file_path, col_names)?;
+    let (names, chunks, num_rows) = read_parquet_file(parquet_file_path, col_names)?;
 
     let names: Vec<String> = names
         .into_iter()
@@ -230,14 +230,18 @@ pub(crate) fn process_parquet_file_to_df(
             })
     });
 
-    Ok(DFView { names, chunks,num_rows })
+    Ok(DFView {
+        names,
+        chunks,
+        num_rows,
+    })
 }
 
 fn read_parquet_file(
     path: impl AsRef<Path>,
     col_names: &[&str],
-) -> Result<(Vec<String>, FileReader<File>,usize), GraphError> {
-    let read_schema = |metadata: &FileMetaData| -> Result<(ArrowSchema,usize), GraphError> {
+) -> Result<(Vec<String>, FileReader<File>, usize), GraphError> {
+    let read_schema = |metadata: &FileMetaData| -> Result<(ArrowSchema, usize), GraphError> {
         let schema = read::infer_schema(metadata)?;
         let fields = schema
             .fields
@@ -255,20 +259,23 @@ fn read_parquet_file(
             })
             .collect::<Vec<_>>();
 
-        Ok((ArrowSchema::from(fields).with_metadata(schema.metadata),metadata.num_rows))
+        Ok((
+            ArrowSchema::from(fields).with_metadata(schema.metadata),
+            metadata.num_rows,
+        ))
     };
 
     let mut file = std::fs::File::open(&path)?;
     let metadata = read_metadata(&mut file)?;
     let row_groups = metadata.clone().row_groups;
-    let (schema,num_rows) = read_schema(&metadata)?;
+    let (schema, num_rows) = read_schema(&metadata)?;
 
     // Although fields are already filtered by col_names, we need names in the order as it appears
     // in the schema to create PretendDF
     let names = schema.fields.iter().map(|f| f.name.clone()).collect_vec();
 
     let reader = FileReader::new(file, row_groups, schema, None, None, None);
-    Ok((names, reader,num_rows))
+    Ok((names, reader, num_rows))
 }
 
 fn get_parquet_file_paths(parquet_path: &Path) -> Result<Vec<PathBuf>, GraphError> {

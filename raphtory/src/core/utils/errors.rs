@@ -163,7 +163,7 @@ pub enum GraphError {
     #[error("Python error occurred: {0}")]
     PythonError(#[from] PyErr),
     #[error("An error with Tdqm occurred")]
-    TqdmError
+    TqdmError,
 }
 
 impl GraphError {

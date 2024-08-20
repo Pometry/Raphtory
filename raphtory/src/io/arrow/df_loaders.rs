@@ -11,14 +11,17 @@ use crate::{
     prelude::*,
 };
 
-use std::{collections::HashMap, iter};
 use kdam::{Bar, BarBuilder, BarExt};
+use std::{collections::HashMap, iter};
 
-fn build_progress_bar(des:String,num_rows:usize) -> Result<Bar,GraphError>{
+fn build_progress_bar(des: String, num_rows: usize) -> Result<Bar, GraphError> {
     BarBuilder::default()
         .desc(des)
         .animation(kdam::Animation::FillUp)
-        .total(num_rows).unit_scale(true).build().map_err(|_|GraphError::TqdmError)
+        .total(num_rows)
+        .unit_scale(true)
+        .build()
+        .map_err(|_| GraphError::TqdmError)
 }
 fn extract_out_default_type(n_t: Option<&str>) -> Option<&str> {
     if n_t == Some("_default") {
@@ -131,7 +134,9 @@ pub(crate) fn load_nodes_from_df<
                 .zip(node_type)
                 .map(|((node_id, time), n_t)| (node_id, time, n_t));
 
-            for (((node_id, time, n_t), props), const_props) in iter.zip(prop_iter).zip(const_prop_iter) {
+            for (((node_id, time, n_t), props), const_props) in
+                iter.zip(prop_iter).zip(const_prop_iter)
+            {
                 if let (Some(node_id), Some(time), n_t) = (node_id, time, n_t) {
                     let actual_type = extract_out_default_type(n_t);
                     let v = graph.add_node(time, node_id, props, actual_type)?;
@@ -150,7 +155,9 @@ pub(crate) fn load_nodes_from_df<
                 .zip(node_type)
                 .map(|((node_id, time), n_t)| (node_id, time, n_t));
 
-            for (((node_id, time, n_t), props), const_props) in iter.zip(prop_iter).zip(const_prop_iter) {
+            for (((node_id, time, n_t), props), const_props) in
+                iter.zip(prop_iter).zip(const_prop_iter)
+            {
                 let actual_type = extract_out_default_type(n_t);
                 if let (Some(node_id), Some(time), n_t) = (node_id, time, actual_type) {
                     let v = graph.add_node(time, node_id, props, n_t)?;
@@ -257,7 +264,9 @@ pub(crate) fn load_edges_from_df<
         ) {
             let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
 
-            for (((((src, dst), time), props), const_props), layer) in triplets.zip(prop_iter).zip(const_prop_iter).zip(layer) {
+            for (((((src, dst), time), props), const_props), layer) in
+                triplets.zip(prop_iter).zip(const_prop_iter).zip(layer)
+            {
                 if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
                     let e = graph.add_edge(time, src, dst, props, layer.as_deref())?;
                     e.add_constant_properties(const_props, layer.as_deref())?;
@@ -273,7 +282,9 @@ pub(crate) fn load_edges_from_df<
             df.time_iter_col(time_index),
         ) {
             let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
-            for (((((src, dst), time), props), const_props), layer) in triplets.zip(prop_iter).zip(const_prop_iter).zip(layer) {
+            for (((((src, dst), time), props), const_props), layer) in
+                triplets.zip(prop_iter).zip(const_prop_iter).zip(layer)
+            {
                 if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
                     let e = graph.add_edge(time, src, dst, props, layer.as_deref())?;
                     e.add_constant_properties(const_props, layer.as_deref())?;
@@ -312,7 +323,7 @@ pub(crate) fn load_edges_deletions_from_df<
         .filter(|_| layer_in_df)
         .map(|layer| df_view.get_index(layer.as_ref()))
         .transpose()?;
-    
+
     let mut pb = build_progress_bar("Loading edge deletions".to_string(), df_view.num_rows)?;
 
     for chunk in df_view.chunks {
@@ -328,7 +339,7 @@ pub(crate) fn load_edges_deletions_from_df<
                 .map(|i| i.copied())
                 .zip(dst.map(|i| i.copied()))
                 .zip(time);
-            
+
             for (((src, dst), time), layer) in triplets.zip(layer) {
                 if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
                     graph.delete_edge(time, src, dst, layer.as_deref())?;
@@ -344,7 +355,7 @@ pub(crate) fn load_edges_deletions_from_df<
                 .map(i64_opt_into_u64_opt)
                 .zip(dst.map(i64_opt_into_u64_opt))
                 .zip(time);
-            
+
             for (((src, dst), time), layer) in triplets.zip(layer) {
                 if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
                     graph.delete_edge(time, src, dst, layer.as_deref())?;
@@ -612,7 +623,9 @@ fn load_edges_from_num_iter<
     shared_const_properties: Option<&HashMap<String, Prop>>,
     layer: IL,
 ) -> Result<(), GraphError> {
-    for (((((src, dst), time), edge_props), const_props), layer) in  edges.zip(properties).zip(const_properties).zip(layer) {
+    for (((((src, dst), time), edge_props), const_props), layer) in
+        edges.zip(properties).zip(const_properties).zip(layer)
+    {
         if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
             let e = graph.add_edge(time, src, dst, edge_props, layer.as_deref())?;
             e.add_constant_properties(const_props, layer.as_deref())?;
@@ -639,7 +652,9 @@ fn load_nodes_from_num_iter<
     const_properties: PI,
     shared_const_properties: Option<&HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
-    for (((node, time, node_type), props), const_props) in nodes.zip(properties).zip(const_properties) {
+    for (((node, time, node_type), props), const_props) in
+        nodes.zip(properties).zip(const_properties)
+    {
         if let (Some(v), Some(t), n_t, props, const_props) =
             (node, time, node_type, props, const_props)
         {
