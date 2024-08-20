@@ -7,6 +7,7 @@ use crate::{
 use polars_arrow::{array::Array, ffi};
 use pyo3::{ffi::Py_uintptr_t, prelude::*, types::IntoPyDict};
 use std::collections::HashMap;
+use pyo3::types::PyDict;
 
 pub fn load_nodes_from_pandas(
     graph: &GraphStorage,
@@ -62,14 +63,6 @@ pub fn load_edges_from_pandas(
     layer_in_df: Option<bool>,
 ) -> Result<(), GraphError> {
     Python::with_gil(|py| {
-        let size: usize = py
-            .eval(
-                "index.__len__()",
-                Some([("index", df.getattr("index")?)].into_py_dict(py)),
-                None,
-            )?
-            .extract()?;
-
         let mut cols_to_check = vec![src, dst, time];
         cols_to_check.extend(properties.unwrap_or(&Vec::new()));
         cols_to_check.extend(const_properties.unwrap_or(&Vec::new()));
@@ -83,7 +76,6 @@ pub fn load_edges_from_pandas(
         df_view.check_cols_exist(&cols_to_check)?;
         load_edges_from_df(
             df_view,
-            size,
             src,
             dst,
             time,
@@ -109,20 +101,12 @@ pub fn load_node_props_from_pandas(
     shared_const_properties: Option<&HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
     Python::with_gil(|py| {
-        let size: usize = py
-            .eval(
-                "index.__len__()",
-                Some([("index", df.getattr("index")?)].into_py_dict(py)),
-                None,
-            )?
-            .extract()?;
         let mut cols_to_check = vec![id];
         cols_to_check.extend(const_properties.unwrap_or(&Vec::new()));
         let df_view = process_pandas_py_df(df, py, cols_to_check.clone())?;
         df_view.check_cols_exist(&cols_to_check)?;
         load_node_props_from_df(
             df_view,
-            size,
             id,
             const_properties,
             shared_const_properties,
@@ -146,13 +130,6 @@ pub fn load_edge_props_from_pandas(
     layer_in_df: Option<bool>,
 ) -> Result<(), GraphError> {
     Python::with_gil(|py| {
-        let size: usize = py
-            .eval(
-                "index.__len__()",
-                Some([("index", df.getattr("index")?)].into_py_dict(py)),
-                None,
-            )?
-            .extract()?;
         let mut cols_to_check = vec![src, dst];
         if layer_in_df.unwrap_or(false) {
             if let Some(ref layer) = layer {
@@ -164,7 +141,6 @@ pub fn load_edge_props_from_pandas(
         df_view.check_cols_exist(&cols_to_check)?;
         load_edges_props_from_df(
             df_view,
-            size,
             src,
             dst,
             const_properties,
@@ -190,14 +166,6 @@ pub fn load_edges_deletions_from_pandas(
     layer_in_df: Option<bool>,
 ) -> Result<(), GraphError> {
     Python::with_gil(|py| {
-        let size: usize = py
-            .eval(
-                "index.__len__()",
-                Some([("index", df.getattr("index")?)].into_py_dict(py)),
-                None,
-            )?
-            .extract()?;
-
         let mut cols_to_check = vec![src, dst, time];
         if layer_in_df.unwrap_or(true) {
             if let Some(ref layer) = layer {
@@ -209,7 +177,6 @@ pub fn load_edges_deletions_from_pandas(
         df_view.check_cols_exist(&cols_to_check)?;
         load_edges_deletions_from_df(
             df_view,
-            size,
             src,
             dst,
             time,
@@ -251,8 +218,9 @@ pub(crate) fn process_pandas_py_df<'a>(
     let _df_columns: Vec<String> = dropped_df.getattr("columns")?.extract()?;
 
     let table = pa_table.call_method("from_pandas", (dropped_df,), None)?;
-
-    let rb = table.call_method0("to_batches")?.extract::<Vec<&PyAny>>()?;
+    let kwargs = PyDict::new(py);
+    kwargs.set_item("max_chunksize", 100000)?;
+    let rb = table.call_method("to_batches", (), Some(kwargs))?.extract::<Vec<&PyAny>>()?;
     let names: Vec<String> = if let Some(batch0) = rb.get(0) {
         let schema = batch0.getattr("schema")?;
         schema.getattr("names")?.extract::<Vec<String>>()?
@@ -277,8 +245,16 @@ pub(crate) fn process_pandas_py_df<'a>(
 
         Ok(DFChunk { chunk })
     });
+    println!("Chunks: {}",chunks.len());
+    let num_rows: usize = py
+        .eval(
+            "index.__len__()",
+            Some([("index", df.getattr("index")?)].into_py_dict(py)),
+            None,
+        )?
+        .extract()?;
 
-    Ok(DFView { names, chunks })
+    Ok(DFView { names, chunks,num_rows })
 }
 
 pub fn array_to_rust(obj: &PyAny) -> PyResult<ArrayRef> {

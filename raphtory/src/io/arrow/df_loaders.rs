@@ -13,6 +13,7 @@ use crate::{
 #[cfg(feature = "python")]
 use kdam::tqdm;
 use std::{collections::HashMap, iter};
+use rayon::iter::ParallelBridge;
 
 #[cfg(feature = "python")]
 macro_rules! maybe_tqdm {
@@ -199,7 +200,6 @@ pub(crate) fn load_edges_from_df<
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
-    size: usize,
     src: &str,
     dst: &str,
     time: &str,
@@ -248,7 +248,7 @@ pub(crate) fn load_edges_from_df<
                 .zip(time);
             load_edges_from_num_iter(
                 graph,
-                size,
+                df_view.num_rows,
                 triplets,
                 prop_iter,
                 const_prop_iter,
@@ -266,7 +266,7 @@ pub(crate) fn load_edges_from_df<
                 .zip(time);
             load_edges_from_num_iter(
                 graph,
-                size,
+                df_view.num_rows,
                 triplets,
                 prop_iter,
                 const_prop_iter,
@@ -282,7 +282,7 @@ pub(crate) fn load_edges_from_df<
 
             let iter = maybe_tqdm!(
                 triplets.zip(prop_iter).zip(const_prop_iter).zip(layer),
-                size,
+                df_view.num_rows,
                 "Loading edges"
             );
 
@@ -303,7 +303,7 @@ pub(crate) fn load_edges_from_df<
             let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
             let iter = maybe_tqdm!(
                 triplets.zip(prop_iter).zip(const_prop_iter).zip(layer),
-                size,
+                df_view.num_rows,
                 "Loading edges"
             );
 
@@ -331,7 +331,6 @@ pub(crate) fn load_edges_deletions_from_df<
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + DeletionOps,
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
-    size: usize,
     src: &str,
     dst: &str,
     time: &str,
@@ -361,7 +360,7 @@ pub(crate) fn load_edges_deletions_from_df<
                 .zip(dst.map(|i| i.copied()))
                 .zip(time);
 
-            let iter = maybe_tqdm!(triplets.zip(layer), size, "Loading edges");
+            let iter = maybe_tqdm!(triplets.zip(layer), df_view.num_rows, "Loading edges");
 
             for (((src, dst), time), layer) in iter {
                 if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
@@ -378,7 +377,7 @@ pub(crate) fn load_edges_deletions_from_df<
                 .zip(dst.map(i64_opt_into_u64_opt))
                 .zip(time);
 
-            let iter = maybe_tqdm!(triplets.zip(layer), size, "Loading edges");
+            let iter = maybe_tqdm!(triplets.zip(layer), df_view.num_rows, "Loading edges");
 
             for (((src, dst), time), layer) in iter {
                 if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
@@ -391,7 +390,7 @@ pub(crate) fn load_edges_deletions_from_df<
             df.time_iter_col(time_index),
         ) {
             let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
-            let iter = maybe_tqdm!(triplets.zip(layer), size, "Loading edges");
+            let iter = maybe_tqdm!(triplets.zip(layer), df_view.num_rows, "Loading edges");
 
             for (((src, dst), time), layer) in iter {
                 if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
@@ -404,7 +403,7 @@ pub(crate) fn load_edges_deletions_from_df<
             df.time_iter_col(time_index),
         ) {
             let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
-            let iter = maybe_tqdm!(triplets.zip(layer), size, "Loading edges");
+            let iter = maybe_tqdm!(triplets.zip(layer), df_view.num_rows, "Loading edges");
 
             for (((src, dst), time), layer) in iter {
                 if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
@@ -427,7 +426,6 @@ pub(crate) fn load_node_props_from_df<
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
-    size: usize,
     node_id: &str,
     const_properties: Option<&[&str]>,
     shared_const_properties: Option<&HashMap<String, Prop>>,
@@ -446,7 +444,7 @@ pub(crate) fn load_node_props_from_df<
 
         if let Some(node_id) = df.iter_col::<u64>(node_id_index) {
             let iter = node_id.map(|i| i.copied());
-            let iter = maybe_tqdm!(iter.zip(const_prop_iter), size, "Loading node properties");
+            let iter = maybe_tqdm!(iter.zip(const_prop_iter), df_view.num_rows, "Loading node properties");
 
             for (node_id, const_props) in iter {
                 if let Some(node_id) = node_id {
@@ -461,7 +459,7 @@ pub(crate) fn load_node_props_from_df<
             }
         } else if let Some(node_id) = df.iter_col::<i64>(node_id_index) {
             let iter = node_id.map(i64_opt_into_u64_opt);
-            let iter = maybe_tqdm!(iter.zip(const_prop_iter), size, "Loading node properties");
+            let iter = maybe_tqdm!(iter.zip(const_prop_iter), df_view.num_rows, "Loading node properties");
 
             for (node_id, const_props) in iter {
                 if let Some(node_id) = node_id {
@@ -476,7 +474,7 @@ pub(crate) fn load_node_props_from_df<
             }
         } else if let Some(node_id) = df.utf8::<i32>(node_id_index) {
             let iter = node_id.into_iter();
-            let iter = maybe_tqdm!(iter.zip(const_prop_iter), size, "Loading node properties");
+            let iter = maybe_tqdm!(iter.zip(const_prop_iter), df_view.num_rows, "Loading node properties");
 
             for (node_id, const_props) in iter {
                 if let Some(node_id) = node_id {
@@ -491,7 +489,7 @@ pub(crate) fn load_node_props_from_df<
             }
         } else if let Some(node_id) = df.utf8::<i64>(node_id_index) {
             let iter = node_id.into_iter();
-            let iter = maybe_tqdm!(iter.zip(const_prop_iter), size, "Loading node properties");
+            let iter = maybe_tqdm!(iter.zip(const_prop_iter), df_view.num_rows, "Loading node properties");
 
             for (node_id, const_props) in iter {
                 if let Some(node_id) = node_id {
@@ -518,7 +516,6 @@ pub(crate) fn load_edges_props_from_df<
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
-    size: usize,
     src: &str,
     dst: &str,
     const_properties: Option<&[&str]>,
@@ -551,7 +548,7 @@ pub(crate) fn load_edges_props_from_df<
             let triplets = src.map(|i| i.copied()).zip(dst.map(|i| i.copied()));
             let iter = maybe_tqdm!(
                 triplets.zip(const_prop_iter).zip(layer),
-                size,
+                df_view.num_rows,
                 "Loading edge properties"
             );
 
@@ -574,7 +571,7 @@ pub(crate) fn load_edges_props_from_df<
                 .zip(dst.map(i64_opt_into_u64_opt));
             let iter = maybe_tqdm!(
                 triplets.zip(const_prop_iter).zip(layer),
-                size,
+                df_view.num_rows,
                 "Loading edge properties"
             );
 
@@ -595,7 +592,7 @@ pub(crate) fn load_edges_props_from_df<
             let triplets = src.into_iter().zip(dst.into_iter());
             let iter = maybe_tqdm!(
                 triplets.zip(const_prop_iter).zip(layer),
-                size,
+                df_view.num_rows,
                 "Loading edge properties"
             );
 
@@ -619,7 +616,7 @@ pub(crate) fn load_edges_props_from_df<
             let triplets = src.into_iter().zip(dst.into_iter());
             let iter = maybe_tqdm!(
                 triplets.zip(const_prop_iter).zip(layer),
-                size,
+                df_view.num_rows,
                 "Loading edge properties"
             );
 
@@ -660,7 +657,7 @@ fn load_edges_from_num_iter<
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
 >(
     graph: &G,
-    size: usize,
+    num_rows: usize,
     edges: I,
     properties: PI,
     const_properties: PI,
@@ -669,7 +666,7 @@ fn load_edges_from_num_iter<
 ) -> Result<(), GraphError> {
     let iter = maybe_tqdm!(
         edges.zip(properties).zip(const_properties).zip(layer),
-        size,
+        num_rows,
         "Loading edges"
     );
     for (((((src, dst), time), edge_props), const_props), layer) in iter {
@@ -692,7 +689,7 @@ fn load_nodes_from_num_iter<
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
 >(
     graph: &G,
-    size: usize,
+    num_rows: usize,
     nodes: I,
     properties: PI,
     const_properties: PI,
@@ -700,7 +697,7 @@ fn load_nodes_from_num_iter<
 ) -> Result<(), GraphError> {
     let iter = maybe_tqdm!(
         nodes.zip(properties).zip(const_properties),
-        size,
+        num_rows,
         "Loading nodes"
     );
     for (((node, time, node_type), props), const_props) in iter {
