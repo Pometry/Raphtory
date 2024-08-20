@@ -52,13 +52,13 @@ macro_rules! zip_tprop_updates {
     };
 }
 
-pub trait StableEncoder {
+pub trait StableEncode {
     fn encode_to_proto(&self) -> proto::Graph;
     fn encode_to_vec(&self) -> Vec<u8> {
         self.encode_to_proto().encode_to_vec()
     }
 
-    fn stable_serialise(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
+    fn encode(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
         let mut file = File::create(path)?;
         let bytes = self.encode_to_vec();
         file.write_all(&bytes)?;
@@ -80,7 +80,7 @@ pub trait StableDecode: Sized {
     }
 }
 
-pub trait GraphCache: Sized {
+pub trait Cache: Sized {
     /// Write graph to file and append future updates to the same file.
     ///
     /// If the file already exists, it's contents are overwritten
@@ -458,7 +458,7 @@ impl proto::Graph {
     }
 }
 
-impl StableEncoder for GraphStorage {
+impl StableEncode for GraphStorage {
     fn encode_to_proto(&self) -> proto::Graph {
         #[cfg(feature = "storage")]
         if let GraphStorage::Disk(storage) = self {
@@ -619,7 +619,7 @@ impl StableEncoder for GraphStorage {
     }
 }
 
-impl StableEncoder for Graph {
+impl StableEncode for Graph {
     fn encode_to_proto(&self) -> proto::Graph {
         let mut graph = self.core_graph().encode_to_proto();
         graph.set_graph_type(proto::GraphType::Event);
@@ -627,7 +627,7 @@ impl StableEncoder for Graph {
     }
 }
 
-impl StableEncoder for PersistentGraph {
+impl StableEncode for PersistentGraph {
     fn encode_to_proto(&self) -> proto::Graph {
         let mut graph = self.core_graph().encode_to_proto();
         graph.set_graph_type(proto::GraphType::Persistent);
@@ -1009,7 +1009,7 @@ mod proto_test {
         let temp_file = tempfile::NamedTempFile::new().unwrap();
         let g1 = Graph::new();
         g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
-        g1.stable_serialise(&temp_file).unwrap();
+        g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
     }
@@ -1021,7 +1021,7 @@ mod proto_test {
         g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
         g1.add_node(2, "Bob", [("age", Prop::U32(47))], None)
             .unwrap();
-        g1.stable_serialise(&temp_file).unwrap();
+        g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
     }
@@ -1038,7 +1038,7 @@ mod proto_test {
         n1.update_constant_properties([("name", Prop::Str("Bob".into()))])
             .expect("Failed to update constant properties");
 
-        g1.stable_serialise(&temp_file).unwrap();
+        g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
     }
@@ -1050,7 +1050,7 @@ mod proto_test {
         g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
         g1.add_node(2, "Bob", NO_PROPS, None).unwrap();
         g1.add_edge(3, "Alice", "Bob", NO_PROPS, None).unwrap();
-        g1.stable_serialise(&temp_file).unwrap();
+        g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
     }
@@ -1061,7 +1061,7 @@ mod proto_test {
         let g1 = Graph::new().persistent_graph();
         g1.add_edge(3, "Alice", "Bob", NO_PROPS, None).unwrap();
         g1.delete_edge(19, "Alice", "Bob", None).unwrap();
-        g1.stable_serialise(&temp_file).unwrap();
+        g1.encode(&temp_file).unwrap();
         let g2 = PersistentGraph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
 
@@ -1078,7 +1078,7 @@ mod proto_test {
         g1.add_node(2, "Bob", NO_PROPS, None).unwrap();
         g1.add_edge(3, "Alice", "Bob", [("kind", "friends")], None)
             .unwrap();
-        g1.stable_serialise(&temp_file).unwrap();
+        g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
     }
@@ -1090,7 +1090,7 @@ mod proto_test {
         let e1 = g1.add_edge(3, "Alice", "Bob", NO_PROPS, None).unwrap();
         e1.update_constant_properties([("friends", true)], None)
             .expect("Failed to update constant properties");
-        g1.stable_serialise(&temp_file).unwrap();
+        g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
     }
@@ -1103,7 +1103,7 @@ mod proto_test {
             .unwrap();
         g1.add_edge(7, "Bob", "Charlie", [("friends", false)], Some("two"))
             .unwrap();
-        g1.stable_serialise(&temp_file).unwrap();
+        g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
     }
@@ -1116,7 +1116,7 @@ mod proto_test {
         let temp_file = tempfile::NamedTempFile::new().unwrap();
         let g1 = Graph::new();
         g1.add_node(1, "Alice", props.clone(), None).unwrap();
-        g1.stable_serialise(&temp_file).unwrap();
+        g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
 
@@ -1142,7 +1142,7 @@ mod proto_test {
         let temp_file = tempfile::NamedTempFile::new().unwrap();
         let g1 = Graph::new();
         g1.add_edge(1, "Alice", "Bob", props.clone(), None).unwrap();
-        g1.stable_serialise(&temp_file).unwrap();
+        g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
 
@@ -1170,7 +1170,7 @@ mod proto_test {
         let e = g1.add_edge(1, "Alice", "Bob", NO_PROPS, Some("a")).unwrap();
         e.update_constant_properties(props.clone(), Some("a"))
             .expect("Failed to update constant properties");
-        g1.stable_serialise(&temp_file).unwrap();
+        g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
 
@@ -1196,7 +1196,7 @@ mod proto_test {
         let n = g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
         n.update_constant_properties(props.clone())
             .expect("Failed to update constant properties");
-        g1.stable_serialise(&temp_file).unwrap();
+        g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
 
@@ -1221,7 +1221,7 @@ mod proto_test {
             .expect("Failed to add constant properties");
 
         let temp_file = tempfile::NamedTempFile::new().unwrap();
-        g1.stable_serialise(&temp_file).unwrap();
+        g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
 
@@ -1243,7 +1243,7 @@ mod proto_test {
         }
 
         let temp_file = tempfile::NamedTempFile::new().unwrap();
-        g1.stable_serialise(&temp_file).unwrap();
+        g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
 

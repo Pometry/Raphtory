@@ -128,7 +128,7 @@ pub mod prelude {
     pub use raphtory_api::core::{entities::GID, input::input_node::InputNode};
 
     #[cfg(feature = "proto")]
-    pub use crate::serialise::{GraphCache, StableDecode, StableEncoder};
+    pub use crate::serialise::{Cache, StableDecode, StableEncode};
 }
 
 // Upgrade this version number every time you make a breaking change to Graph structure.

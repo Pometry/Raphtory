@@ -25,14 +25,14 @@ use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 
 use super::{
     graph::{PyGraph, PyGraphEncoder},
     io::pandas_loaders::*,
 };
-use crate::{io::parquet_loaders::*, serialise::StableEncoder};
+use crate::{io::parquet_loaders::*, serialise::StableEncode};
 
 /// A temporal graph that allows edges and nodes to be deleted.
 #[derive(Clone)]
@@ -40,6 +40,8 @@ use crate::{io::parquet_loaders::*, serialise::StableEncoder};
 pub struct PyPersistentGraph {
     pub(crate) graph: PersistentGraph,
 }
+
+impl_cache!(PyPersistentGraph, graph: PersistentGraph, "PersistentGraph");
 
 impl Debug for PyPersistentGraph {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -323,31 +325,6 @@ impl PyPersistentGraph {
     //******  Saving And Loading  ******//
 
     // Alternative constructors are tricky, see: https://gist.github.com/redshiftzero/648e4feeff3843ffd9924f13625f839c
-
-    /// Loads a graph from the given path.
-    ///
-    /// Arguments:
-    ///   path (str): The path to the graph.
-    ///
-    /// Returns:
-    ///  Graph: The loaded graph.
-    #[staticmethod]
-    #[pyo3(signature = (path, force = false))]
-    pub fn load_from_file(path: &str, force: bool) -> Result<PersistentGraph, GraphError> {
-        let file_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), path].iter().collect();
-        PersistentGraph::load_from_file(file_path, force)
-    }
-
-    /// Saves the graph to the given path.
-    ///
-    /// Arguments:
-    ///  path (str): The path to the graph.
-    ///
-    /// Returns:
-    /// None
-    pub fn save_to_file(&self, path: &str) -> Result<(), GraphError> {
-        self.graph.save_to_file(Path::new(path))
-    }
 
     /// Returns all the node types in the graph.
     ///

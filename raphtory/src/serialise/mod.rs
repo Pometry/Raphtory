@@ -6,4 +6,4 @@ mod proto {
 }
 
 pub use proto::Graph as ProtoGraph;
-pub use serialise::{GraphCache, StableDecode, StableEncoder};
+pub use serialise::{Cache, StableDecode, StableEncode};

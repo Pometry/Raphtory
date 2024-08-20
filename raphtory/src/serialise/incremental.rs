@@ -3,7 +3,7 @@ use crate::{
     db::{api::storage::storage::Storage, graph::views::deletion_graph::PersistentGraph},
     prelude::Graph,
     serialise::{
-        serialise::{GraphCache, StableDecode, StableEncoder},
+        serialise::{Cache, StableDecode, StableEncode},
         ProtoGraph,
     },
 };
@@ -180,7 +180,7 @@ impl GraphWriter {
     }
 }
 
-trait Cache {
+trait InternalCache {
     /// Initialise the cache by pointing it at a proto file.
     /// Future updates will be appended to the cache.
     fn init_cache(&self, path: impl AsRef<Path>) -> Result<(), GraphError>;
@@ -189,7 +189,7 @@ trait Cache {
     fn get_cache(&self) -> Option<&GraphWriter>;
 }
 
-impl Cache for Storage {
+impl InternalCache for Storage {
     fn init_cache(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
         self.cache.get_or_try_init(|| {
             let file = OpenOptions::new().append(true).open(path)?;
@@ -203,7 +203,7 @@ impl Cache for Storage {
     }
 }
 
-impl Cache for Graph {
+impl InternalCache for Graph {
     fn init_cache(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
         self.inner.init_cache(path)
     }
@@ -213,7 +213,7 @@ impl Cache for Graph {
     }
 }
 
-impl Cache for PersistentGraph {
+impl InternalCache for PersistentGraph {
     fn init_cache(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
         self.0.init_cache(path)
     }
@@ -223,9 +223,9 @@ impl Cache for PersistentGraph {
     }
 }
 
-impl<G: Cache + StableDecode + StableEncoder> GraphCache for G {
+impl<G: InternalCache + StableDecode + StableEncode> Cache for G {
     fn cache(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
-        self.stable_serialise(path.as_ref())?;
+        self.encode(path.as_ref())?;
         self.init_cache(path)
     }
 
