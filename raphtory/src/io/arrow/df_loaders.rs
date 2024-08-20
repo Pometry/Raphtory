@@ -39,8 +39,8 @@ pub(crate) fn load_nodes_from_df<
     node_id: &str,
     time: &str,
     properties: Option<&[&str]>,
-    const_properties: Option<&[&str]>,
-    shared_const_properties: Option<&HashMap<String, Prop>>,
+    constant_properties: Option<&[&str]>,
+    shared_constant_properties: Option<&HashMap<String, Prop>>,
     node_type: Option<&str>,
     node_type_col: Option<&str>,
     graph: &G,
@@ -71,7 +71,6 @@ pub(crate) fn load_nodes_from_df<
 
     for chunk in df_view.chunks {
         let df = chunk?;
-        let size = df.get_inner_size();
         let prop_iter = combine_properties(properties, &properties_indices, &df)?;
         let const_prop_iter =
             combine_properties(constant_properties, &constant_properties_indices, &df)?;
@@ -640,7 +639,7 @@ fn load_edges_from_num_iter<
     layer: IL,
 ) -> Result<(), GraphError> {
     for (((((src, dst), time), edge_props), const_props), layer) in
-        edges.zip(properties).zip(const_properties).zip(layer)
+        edges.zip(properties).zip(constant_properties).zip(layer)
     {
         if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
             let e = graph.add_edge(time, src, dst, edge_props, layer.as_deref())?;
@@ -669,7 +668,7 @@ fn load_nodes_from_num_iter<
     shared_constant_properties: Option<&HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
     for (((node, time, node_type), props), const_props) in
-        nodes.zip(properties).zip(const_properties)
+        nodes.zip(properties).zip(constant_properties)
     {
         if let (Some(v), Some(t), n_t, props, const_props) =
             (node, time, node_type, props, const_props)

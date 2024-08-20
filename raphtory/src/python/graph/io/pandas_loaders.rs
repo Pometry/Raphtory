@@ -75,7 +75,6 @@ pub fn load_edges_from_pandas(
         df_view.check_cols_exist(&cols_to_check)?;
         load_edges_from_df(
             df_view,
-            size,
             time,
             src,
             dst,
