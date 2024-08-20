@@ -34,7 +34,7 @@ pub fn load_nodes_from_parquet<
     node_type_col: Option<&str>,
     properties: Option<&[&str]>,
     constant_properties: Option<&[&str]>,
-    shared_const_properties: Option<&HashMap<String, Prop>>,
+    shared_constant_properties: Option<&HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![id, time];
     cols_to_check.extend(properties.unwrap_or(&Vec::new()));
@@ -52,7 +52,7 @@ pub fn load_nodes_from_parquet<
             time,
             properties,
             constant_properties,
-            shared_const_properties,
+            shared_constant_properties,
             node_type,
             node_type_col,
             graph,
