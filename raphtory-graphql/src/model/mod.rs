@@ -7,7 +7,6 @@ use crate::{
     url_encode::{url_decode_graph, url_encode_graph},
 };
 use async_graphql::Context;
-use base64::Engine;
 use chrono::Utc;
 use dynamic_graphql::{
     App, Mutation, MutationFields, MutationRoot, ResolvedObject, ResolvedObjectFields, Result,

@@ -1,6 +1,7 @@
 use crate::core::{utils::time::error::ParseTimeError, Prop, PropType};
 #[cfg(feature = "arrow")]
 use polars_arrow::legacy::error;
+#[cfg(feature = "storage")]
 use pometry_storage::RAError;
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 use std::path::PathBuf;
