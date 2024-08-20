@@ -73,7 +73,7 @@ pub fn load_edges_from_parquet<
     dst: &str,
     properties: Option<&[&str]>,
     constant_properties: Option<&[&str]>,
-    shared_const_properties: Option<&HashMap<String, Prop>>,
+    shared_constant_properties: Option<&HashMap<String, Prop>>,
     layer_name: Option<&str>,
     layer_col: Option<&str>,
 ) -> Result<(), GraphError> {
@@ -95,7 +95,7 @@ pub fn load_edges_from_parquet<
             dst,
             properties,
             constant_properties,
-            shared_const_properties,
+            shared_constant_properties,
             layer_name,
             layer_col,
             graph,
