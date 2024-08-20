@@ -1,6 +1,8 @@
 // search goes here
 
 pub mod into_indexed;
+#[cfg(feature = "proto")]
+mod serialise;
 
 use crate::{
     core::{
@@ -24,14 +26,10 @@ use crate::{
         graph::{edge::EdgeView, node::NodeView},
     },
     prelude::*,
-    serialise::{
-        incremental::{GraphWriter, InternalCache},
-        ProtoGraph,
-    },
 };
 use raphtory_api::core::storage::{arc_str::ArcStr, dict_mapper::MaybeNew};
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
-use std::{collections::HashSet, ops::Deref, path::Path, sync::Arc};
+use std::{collections::HashSet, ops::Deref, sync::Arc};
 use tantivy::{
     collector::TopDocs,
     schema::{Field, Schema, SchemaBuilder, Value, FAST, INDEXED, STORED, TEXT},
@@ -45,30 +43,6 @@ pub struct IndexedGraph<G> {
     pub(crate) edge_index: Arc<Index>,
     pub(crate) reader: IndexReader,
     pub(crate) edge_reader: IndexReader,
-}
-
-impl<G: StableEncode> StableEncode for IndexedGraph<G> {
-    fn encode_to_proto(&self) -> ProtoGraph {
-        self.graph.encode_to_proto()
-    }
-}
-
-impl<'graph, G: StableDecode + GraphViewOps<'graph>> StableDecode for IndexedGraph<G> {
-    fn decode_from_proto(graph: &ProtoGraph) -> Result<Self, GraphError> {
-        let inner = G::decode_from_proto(graph)?;
-        let indexed = Self::from_graph(&inner)?;
-        Ok(indexed)
-    }
-}
-
-impl<G: InternalCache> InternalCache for IndexedGraph<G> {
-    fn init_cache(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
-        self.graph.init_cache(path)
-    }
-
-    fn get_cache(&self) -> Option<&GraphWriter> {
-        self.graph.get_cache()
-    }
 }
 
 impl<G> Base for IndexedGraph<G> {
