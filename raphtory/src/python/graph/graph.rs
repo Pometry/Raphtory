@@ -451,9 +451,11 @@ impl PyGraph {
     /// Returns:
     ///      Graph: The loaded Graph object.
     #[staticmethod]
-    #[pyo3(signature = (edge_df, edge_src, edge_dst, edge_time, edge_properties = None, edge_const_properties = None, edge_shared_const_properties = None,
-    edge_layer = None, layer_in_df = true, node_df = None, node_id = None, node_time = None, node_properties = None,
-    node_const_properties = None, node_shared_const_properties = None, node_type = None, node_type_in_df = true))]
+    #[pyo3(
+        signature = (edge_df, edge_src, edge_dst, edge_time, edge_properties = None, edge_const_properties = None, edge_shared_const_properties = None,
+        edge_layer = None, layer_in_df = true, node_df = None, node_id = None, node_time = None, node_properties = None,
+        node_const_properties = None, node_shared_const_properties = None, node_type = None, node_type_in_df = true)
+    )]
     fn load_from_pandas(
         edge_df: &PyAny,
         edge_src: &str,
@@ -473,33 +475,33 @@ impl PyGraph {
         node_type: Option<&str>,
         node_type_in_df: Option<bool>,
     ) -> Result<Graph, GraphError> {
-        let graph = PyGraph {
-            graph: Graph::new(),
-        };
+        let graph = Graph::new();
         if let (Some(node_df), Some(node_id), Some(node_time)) = (node_df, node_id, node_time) {
-            graph.load_nodes_from_pandas(
+            load_nodes_from_pandas(
+                &graph.core_graph(),
                 node_df,
                 node_id,
                 node_time,
                 node_type,
                 node_type_in_df,
-                node_properties,
-                node_const_properties,
-                node_shared_const_properties,
+                node_properties.as_ref().map(|props| props.as_ref()),
+                node_const_properties.as_ref().map(|props| props.as_ref()),
+                node_shared_const_properties.as_ref(),
             )?;
         }
-        graph.load_edges_from_pandas(
+        load_edges_from_pandas(
+            &graph.core_graph(),
             edge_df,
             edge_src,
             edge_dst,
             edge_time,
-            edge_properties,
-            edge_const_properties,
-            edge_shared_const_properties,
+            edge_properties.as_ref().map(|props| props.as_ref()),
+            edge_const_properties.as_ref().map(|props| props.as_ref()),
+            edge_shared_const_properties.as_ref(),
             edge_layer,
             layer_in_df,
         )?;
-        Ok(graph.graph)
+        Ok(graph)
     }
 
     /// Load a graph from Parquet file.
@@ -526,9 +528,11 @@ impl PyGraph {
     /// Returns:
     ///      Graph: The loaded Graph object.
     #[staticmethod]
-    #[pyo3(signature = (edge_parquet_path, edge_src, edge_dst, edge_time, edge_properties = None, edge_const_properties = None, edge_shared_const_properties = None,
-    edge_layer = None, layer_in_df = true, node_parquet_path = None, node_id = None, node_time = None, node_properties = None,
-    node_const_properties = None, node_shared_const_properties = None, node_type = None, node_type_in_df = true))]
+    #[pyo3(
+        signature = (edge_parquet_path, edge_src, edge_dst, edge_time, edge_properties = None, edge_const_properties = None, edge_shared_const_properties = None,
+        edge_layer = None, layer_in_df = true, node_parquet_path = None, node_id = None, node_time = None, node_properties = None,
+        node_const_properties = None, node_shared_const_properties = None, node_type = None, node_type_in_df = true)
+    )]
     fn load_from_parquet(
         edge_parquet_path: PathBuf,
         edge_src: &str,
@@ -548,35 +552,37 @@ impl PyGraph {
         node_type: Option<&str>,
         node_type_in_df: Option<bool>,
     ) -> Result<Graph, GraphError> {
-        let graph = PyGraph {
-            graph: Graph::new(),
-        };
+        let graph = Graph::new();
+
         if let (Some(node_parquet_path), Some(node_id), Some(node_time)) =
             (node_parquet_path, node_id, node_time)
         {
-            graph.load_nodes_from_parquet(
-                node_parquet_path,
+            load_nodes_from_parquet(
+                &graph,
+                &node_parquet_path,
                 node_id,
                 node_time,
                 node_type,
                 node_type_in_df,
-                node_properties,
-                node_const_properties,
-                node_shared_const_properties,
+                node_properties.as_ref().map(|props| props.as_ref()),
+                node_const_properties.as_ref().map(|props| props.as_ref()),
+                node_shared_const_properties.as_ref(),
             )?;
         }
-        graph.load_edges_from_parquet(
+        load_edges_from_parquet(
+            &graph,
             edge_parquet_path,
             edge_src,
             edge_dst,
             edge_time,
-            edge_properties,
-            edge_const_properties,
-            edge_shared_const_properties,
+            edge_properties.as_ref().map(|props| props.as_ref()),
+            edge_const_properties.as_ref().map(|props| props.as_ref()),
+            edge_shared_const_properties.as_ref(),
             edge_layer,
             layer_in_df,
         )?;
-        Ok(graph.graph)
+
+        Ok(graph)
     }
 
     /// Load nodes from a Pandas DataFrame into the graph.
@@ -592,7 +598,9 @@ impl PyGraph {
     ///     shared_const_properties (Dictionary/Hashmap of properties): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
     /// Returns:
     ///     Result<(), GraphError>: Result of the operation.
-    #[pyo3(signature = (df, id, time, node_type = None, node_type_in_df = true, properties = None, const_properties = None, shared_const_properties = None))]
+    #[pyo3(
+        signature = (df, id, time, node_type = None, node_type_in_df = true, properties = None, const_properties = None, shared_const_properties = None)
+    )]
     fn load_nodes_from_pandas(
         &self,
         df: &PyAny,
@@ -611,9 +619,9 @@ impl PyGraph {
             time,
             node_type,
             node_type_in_df,
-            properties,
-            const_properties,
-            shared_const_properties,
+            properties.as_ref().map(|props| props.as_ref()),
+            const_properties.as_ref().map(|props| props.as_ref()),
+            shared_const_properties.as_ref(),
         )
     }
 
@@ -630,7 +638,9 @@ impl PyGraph {
     ///     shared_const_properties (Dictionary/Hashmap of properties): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
     /// Returns:
     ///     Result<(), GraphError>: Result of the operation.
-    #[pyo3(signature = (parquet_path, id, time, node_type = None, node_type_in_df = true, properties = None, const_properties = None, shared_const_properties = None))]
+    #[pyo3(
+        signature = (parquet_path, id, time, node_type = None, node_type_in_df = true, properties = None, const_properties = None, shared_const_properties = None)
+    )]
     fn load_nodes_from_parquet(
         &self,
         parquet_path: PathBuf,
@@ -649,9 +659,9 @@ impl PyGraph {
             time,
             node_type,
             node_type_in_df,
-            properties,
-            const_properties,
-            shared_const_properties,
+            properties.as_ref().map(|props| props.as_ref()),
+            const_properties.as_ref().map(|props| props.as_ref()),
+            shared_const_properties.as_ref(),
         )
     }
 
@@ -670,7 +680,9 @@ impl PyGraph {
     ///
     /// Returns:
     ///     Result<(), GraphError>: Result of the operation.
-    #[pyo3(signature = (df, src, dst, time, properties = None, const_properties = None, shared_const_properties = None, layer = None, layer_in_df = true))]
+    #[pyo3(
+        signature = (df, src, dst, time, properties = None, const_properties = None, shared_const_properties = None, layer = None, layer_in_df = true)
+    )]
     fn load_edges_from_pandas(
         &self,
         df: &PyAny,
@@ -689,9 +701,9 @@ impl PyGraph {
             src,
             dst,
             time,
-            properties,
-            const_properties,
-            shared_const_properties,
+            properties.as_ref().map(|props| props.as_ref()),
+            const_properties.as_ref().map(|props| props.as_ref()),
+            shared_const_properties.as_ref(),
             layer,
             layer_in_df,
         )
@@ -712,7 +724,9 @@ impl PyGraph {
     ///
     /// Returns:
     ///     Result<(), GraphError>: Result of the operation.
-    #[pyo3(signature = (parquet_path, src, dst, time, properties = None, const_properties = None, shared_const_properties = None, layer = None, layer_in_df = true))]
+    #[pyo3(
+        signature = (parquet_path, src, dst, time, properties = None, const_properties = None, shared_const_properties = None, layer = None, layer_in_df = true)
+    )]
     fn load_edges_from_parquet(
         &self,
         parquet_path: PathBuf,
@@ -731,9 +745,9 @@ impl PyGraph {
             src,
             dst,
             time,
-            properties,
-            const_properties,
-            shared_const_properties,
+            properties.as_ref().map(|props| props.as_ref()),
+            const_properties.as_ref().map(|props| props.as_ref()),
+            shared_const_properties.as_ref(),
             layer,
             layer_in_df,
         )
@@ -761,8 +775,8 @@ impl PyGraph {
             self.graph.core_graph(),
             df,
             id,
-            const_properties,
-            shared_const_properties,
+            const_properties.as_ref().map(|props| props.as_ref()),
+            shared_const_properties.as_ref(),
         )
     }
 
@@ -788,8 +802,8 @@ impl PyGraph {
             &self.graph,
             parquet_path.as_path(),
             id,
-            const_properties,
-            shared_const_properties,
+            const_properties.as_ref().map(|props| props.as_ref()),
+            shared_const_properties.as_ref(),
         )
     }
 
@@ -806,7 +820,9 @@ impl PyGraph {
     ///
     /// Returns:
     ///     Result<(), GraphError>: Result of the operation.
-    #[pyo3(signature = (df, src, dst, const_properties = None, shared_const_properties = None, layer = None, layer_in_df = true))]
+    #[pyo3(
+        signature = (df, src, dst, const_properties = None, shared_const_properties = None, layer = None, layer_in_df = true)
+    )]
     fn load_edge_props_from_pandas(
         &self,
         df: &PyAny,
@@ -822,8 +838,8 @@ impl PyGraph {
             df,
             src,
             dst,
-            const_properties,
-            shared_const_properties,
+            const_properties.as_ref().map(|props| props.as_ref()),
+            shared_const_properties.as_ref(),
             layer,
             layer_in_df,
         )
@@ -842,7 +858,9 @@ impl PyGraph {
     ///
     /// Returns:
     ///     Result<(), GraphError>: Result of the operation.
-    #[pyo3(signature = (parquet_path, src, dst, const_properties = None, shared_const_properties = None, layer = None, layer_in_df = true))]
+    #[pyo3(
+        signature = (parquet_path, src, dst, const_properties = None, shared_const_properties = None, layer = None, layer_in_df = true)
+    )]
     fn load_edge_props_from_parquet(
         &self,
         parquet_path: PathBuf,
@@ -858,8 +876,8 @@ impl PyGraph {
             parquet_path.as_path(),
             src,
             dst,
-            const_properties,
-            shared_const_properties,
+            const_properties.as_ref().map(|props| props.as_ref()),
+            shared_const_properties.as_ref(),
             layer,
             layer_in_df,
         )

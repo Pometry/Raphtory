@@ -1,4 +1,4 @@
-from raphtory import PyDirection, DiskGraphStorage
+from raphtory import DiskGraphStorage
 from raphtory import algorithms
 import pandas as pd
 import tempfile
@@ -35,17 +35,13 @@ edges = pd.DataFrame(
 ).sort_values(["src", "dst", "time"])
 
 
-def create_graph(edges, dir):
-    return DiskGraphStorage.load_from_pandas(dir, edges, "src", "dst", "time")
-
-
 # in every test use with to create a temporary directory that will be deleted automatically
 # after the with block ends
 
-
 def test_counts():
-    dir = tempfile.TemporaryDirectory()
-    graph = create_graph(edges, dir.name).to_events()
+    graph_dir = tempfile.TemporaryDirectory()
+    graph = DiskGraphStorage.load_from_pandas(graph_dir.name, edges, "src", "dst", "time")
+    graph = graph.to_events()
     assert graph.count_nodes() == 5
     assert graph.count_edges() == 20
 
@@ -139,6 +135,7 @@ def test_disk_graph():
         "Page Rank", algorithms.pagerank, g.layer("netflow"), 100, print_result=False
     )
     assert len(list(actual.get_all_with_names())) == 1624
+
 
 def test_disk_graph_type_filter():
     curr_dir = os.path.dirname(os.path.abspath(__file__))

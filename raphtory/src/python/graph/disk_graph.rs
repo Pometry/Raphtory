@@ -7,7 +7,7 @@ use crate::{
     core::utils::errors::GraphError,
     db::graph::views::deletion_graph::PersistentGraph,
     disk_graph::{graph_impl::ParquetLayerCols, DiskGraphError, DiskGraphStorage},
-    io::arrow::dataframe::DFView,
+    io::arrow::dataframe::{DFChunk, DFView},
     prelude::Graph,
     python::{
         graph::graph::PyGraph, types::repr::StructReprBuilder, utils::errors::adapt_err_value,
@@ -148,18 +148,17 @@ impl PyDiskGraph {
         dst_col: &str,
         time_col: &str,
     ) -> Result<DiskGraphStorage, GraphError> {
-        let graph: Result<DiskGraphStorage, PyErr> = Python::with_gil(|py| {
+        let graph: Result<DiskGraphStorage, GraphError> = Python::with_gil(|py| {
             let cols_to_check = vec![src_col, dst_col, time_col];
 
             let df_columns: Vec<String> = edge_df.getattr("columns")?.extract()?;
             let df_columns: Vec<&str> = df_columns.iter().map(|x| x.as_str()).collect();
 
-            let df = process_pandas_py_df(edge_df, py, df_columns)?;
+            let df_view = process_pandas_py_df(edge_df, py, df_columns)?;
+            df_view.check_cols_exist(&cols_to_check)?;
+            let graph = Self::from_pandas(graph_dir, df_view, src_col, dst_col, time_col)?;
 
-            df.check_cols_exist(&cols_to_check)?;
-            let graph = Self::from_pandas(graph_dir, df, src_col, dst_col, time_col)?;
-
-            Ok::<_, PyErr>(graph)
+            Ok::<_, GraphError>(graph)
         });
 
         graph.map_err(|e| {
@@ -177,7 +176,9 @@ impl PyDiskGraph {
     }
 
     #[staticmethod]
-    #[pyo3(signature = (graph_dir, layer_parquet_cols, node_properties, chunk_size, t_props_chunk_size, read_chunk_size, concurrent_files, num_threads, node_type_col))]
+    #[pyo3(
+        signature = (graph_dir, layer_parquet_cols, node_properties, chunk_size, t_props_chunk_size, read_chunk_size, concurrent_files, num_threads, node_type_col)
+    )]
     fn load_from_parquets(
         graph_dir: &str,
         layer_parquet_cols: ParquetLayerColsList,
@@ -231,49 +232,52 @@ impl PyDiskGraph {
 impl PyDiskGraph {
     fn from_pandas(
         graph_dir: &str,
-        df: DFView,
+        df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
         src: &str,
         dst: &str,
         time: &str,
     ) -> Result<DiskGraphStorage, GraphError> {
-        let src_col_idx = df.names.iter().position(|x| x == src).unwrap();
-        let dst_col_idx = df.names.iter().position(|x| x == dst).unwrap();
-        let time_col_idx = df.names.iter().position(|x| x == time).unwrap();
+        let src_index = df_view.get_index(src)?;
+        let dst_index = df_view.get_index(dst)?;
+        let time_index = df_view.get_index(time)?;
 
-        let chunk_size = df
-            .arrays
-            .first()
-            .map(|arr| arr.len())
-            .ok_or_else(|| GraphError::LoadFailure("Empty pandas dataframe".to_owned()))?;
+        let mut chunks_iter = df_view.chunks.peekable();
+        let chunk_size = if let Some(result) = chunks_iter.peek() {
+            match result {
+                Ok(df) => df.chunk.len(),
+                Err(e) => {
+                    return Err(GraphError::LoadFailure(format!(
+                        "Failed to load graph {e:?}"
+                    )))
+                }
+            }
+        } else {
+            return Err(GraphError::LoadFailure("No chunks available".to_string()));
+        };
 
-        let t_props_chunk_size = chunk_size;
-
-        let names = df.names.clone();
-
-        let edge_lists = df
-            .arrays
-            .into_iter()
-            .map(|arr| {
-                let fields = arr
+        let edge_lists = chunks_iter
+            .map_ok(|df| {
+                let fields = df
+                    .chunk
                     .iter()
-                    .zip(names.iter())
+                    .zip(df_view.names.iter())
                     .map(|(arr, col_name)| {
                         Field::new(col_name, arr.data_type().clone(), arr.null_count() > 0)
                     })
                     .collect_vec();
-                let s_array = StructArray::new(DataType::Struct(fields), arr, None);
+                let s_array = StructArray::new(DataType::Struct(fields), df.chunk, None);
                 s_array
             })
-            .collect::<Vec<_>>();
+            .collect::<Result<Vec<_>, GraphError>>()?;
 
         DiskGraphStorage::load_from_edge_lists(
             &edge_lists,
             chunk_size,
-            t_props_chunk_size,
+            chunk_size,
             graph_dir,
-            src_col_idx,
-            dst_col_idx,
-            time_col_idx,
+            src_index,
+            dst_index,
+            time_index,
         )
         .map_err(|err| GraphError::LoadFailure(format!("Failed to load graph {err:?}")))
     }

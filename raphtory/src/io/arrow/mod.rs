@@ -5,7 +5,10 @@ mod prop_handler;
 #[cfg(test)]
 mod test {
     use crate::{
-        io::arrow::{dataframe::DFView, df_loaders::*},
+        io::arrow::{
+            dataframe::{DFChunk, DFView},
+            df_loaders::*,
+        },
         prelude::*,
     };
     use polars_arrow::array::{PrimitiveArray, Utf8Array};
@@ -18,33 +21,38 @@ mod test {
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
-            arrays: vec![
-                vec![
-                    Box::new(PrimitiveArray::<u64>::from(vec![Some(1)])),
-                    Box::new(PrimitiveArray::<u64>::from(vec![Some(2)])),
-                    Box::new(PrimitiveArray::<i64>::from(vec![Some(1)])),
-                    Box::new(PrimitiveArray::<f64>::from(vec![Some(1.0)])),
-                    Box::new(Utf8Array::<i32>::from(vec![Some("a")])),
-                ],
-                vec![
-                    Box::new(PrimitiveArray::<u64>::from(vec![Some(2), Some(3)])),
-                    Box::new(PrimitiveArray::<u64>::from(vec![Some(3), Some(4)])),
-                    Box::new(PrimitiveArray::<i64>::from(vec![Some(2), Some(3)])),
-                    Box::new(PrimitiveArray::<f64>::from(vec![Some(2.0), Some(3.0)])),
-                    Box::new(Utf8Array::<i32>::from(vec![Some("b"), Some("c")])),
-                ],
-            ],
+            chunks: vec![
+                Ok(DFChunk {
+                    chunk: vec![
+                        Box::new(PrimitiveArray::<u64>::from(vec![Some(1)])),
+                        Box::new(PrimitiveArray::<u64>::from(vec![Some(2)])),
+                        Box::new(PrimitiveArray::<i64>::from(vec![Some(1)])),
+                        Box::new(PrimitiveArray::<f64>::from(vec![Some(1.0)])),
+                        Box::new(Utf8Array::<i32>::from(vec![Some("a")])),
+                    ],
+                }),
+                Ok(DFChunk {
+                    chunk: vec![
+                        Box::new(PrimitiveArray::<u64>::from(vec![Some(2), Some(3)])),
+                        Box::new(PrimitiveArray::<u64>::from(vec![Some(3), Some(4)])),
+                        Box::new(PrimitiveArray::<i64>::from(vec![Some(2), Some(3)])),
+                        Box::new(PrimitiveArray::<f64>::from(vec![Some(2.0), Some(3.0)])),
+                        Box::new(Utf8Array::<i32>::from(vec![Some("b"), Some("c")])),
+                    ],
+                }),
+            ]
+            .into_iter(),
+            num_rows: 3,
         };
         let graph = Graph::new();
         let layer: Option<&str> = None;
         let layer_in_df: bool = true;
         load_edges_from_df(
-            &df,
-            5,
+            df,
             "src",
             "dst",
             "time",
-            Some(vec!["prop1", "prop2"]),
+            Some(&*vec!["prop1", "prop2"]),
             None,
             None,
             layer,
@@ -108,29 +116,34 @@ mod test {
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
-            arrays: vec![
-                vec![
-                    Box::new(PrimitiveArray::<u64>::from(vec![Some(1)])),
-                    Box::new(Utf8Array::<i32>::from(vec![Some("a")])),
-                    Box::new(PrimitiveArray::<i64>::from(vec![Some(1)])),
-                    Box::new(Utf8Array::<i32>::from(vec![Some("atype")])),
-                ],
-                vec![
-                    Box::new(PrimitiveArray::<u64>::from(vec![Some(2)])),
-                    Box::new(Utf8Array::<i32>::from(vec![Some("b")])),
-                    Box::new(PrimitiveArray::<i64>::from(vec![Some(2)])),
-                    Box::new(Utf8Array::<i32>::from(vec![Some("btype")])),
-                ],
-            ],
+            chunks: vec![
+                Ok(DFChunk {
+                    chunk: vec![
+                        Box::new(PrimitiveArray::<u64>::from(vec![Some(1)])),
+                        Box::new(Utf8Array::<i32>::from(vec![Some("a")])),
+                        Box::new(PrimitiveArray::<i64>::from(vec![Some(1)])),
+                        Box::new(Utf8Array::<i32>::from(vec![Some("atype")])),
+                    ],
+                }),
+                Ok(DFChunk {
+                    chunk: vec![
+                        Box::new(PrimitiveArray::<u64>::from(vec![Some(2)])),
+                        Box::new(Utf8Array::<i32>::from(vec![Some("b")])),
+                        Box::new(PrimitiveArray::<i64>::from(vec![Some(2)])),
+                        Box::new(Utf8Array::<i32>::from(vec![Some("btype")])),
+                    ],
+                }),
+            ]
+            .into_iter(),
+            num_rows: 2,
         };
         let graph = Graph::new();
 
         load_nodes_from_df(
-            &df,
-            3,
+            df,
             "id",
             "time",
-            Some(vec!["name"]),
+            Some(&*vec!["name"]),
             None,
             None,
             Some("node_type"),

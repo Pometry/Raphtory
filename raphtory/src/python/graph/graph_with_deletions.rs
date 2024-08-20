@@ -562,9 +562,9 @@ impl PyPersistentGraph {
             time,
             node_type,
             node_type_in_df,
-            properties,
-            const_properties,
-            shared_const_properties,
+            properties.as_ref().map(|props| props.as_ref()),
+            const_properties.as_ref().map(|props| props.as_ref()),
+            shared_const_properties.as_ref(),
         )
     }
 
@@ -600,9 +600,9 @@ impl PyPersistentGraph {
             time,
             node_type,
             node_type_in_df,
-            properties,
-            const_properties,
-            shared_const_properties,
+            properties.as_ref().map(|props| props.as_ref()),
+            const_properties.as_ref().map(|props| props.as_ref()),
+            shared_const_properties.as_ref(),
         )
     }
 
@@ -640,9 +640,9 @@ impl PyPersistentGraph {
             src,
             dst,
             time,
-            properties,
-            const_properties,
-            shared_const_properties,
+            properties.as_ref().map(|props| props.as_ref()),
+            const_properties.as_ref().map(|props| props.as_ref()),
+            shared_const_properties.as_ref(),
             layer,
             layer_in_df,
         )
@@ -682,9 +682,9 @@ impl PyPersistentGraph {
             src,
             dst,
             time,
-            properties,
-            const_properties,
-            shared_const_properties,
+            properties.as_ref().map(|props| props.as_ref()),
+            const_properties.as_ref().map(|props| props.as_ref()),
+            shared_const_properties.as_ref(),
             layer,
             layer_in_df,
         )
@@ -770,8 +770,8 @@ impl PyPersistentGraph {
             &self.graph.0,
             df,
             id,
-            const_properties,
-            shared_const_properties,
+            const_properties.as_ref().map(|props| props.as_ref()),
+            shared_const_properties.as_ref(),
         )
     }
 
@@ -797,8 +797,8 @@ impl PyPersistentGraph {
             &self.graph,
             parquet_path.as_path(),
             id,
-            const_properties,
-            shared_const_properties,
+            const_properties.as_ref().map(|props| props.as_ref()),
+            shared_const_properties.as_ref(),
         )
     }
 
@@ -831,8 +831,8 @@ impl PyPersistentGraph {
             df,
             src,
             dst,
-            const_properties,
-            shared_const_properties,
+            const_properties.as_ref().map(|props| props.as_ref()),
+            shared_const_properties.as_ref(),
             layer,
             layer_in_df,
         )
@@ -867,8 +867,8 @@ impl PyPersistentGraph {
             parquet_path.as_path(),
             src,
             dst,
-            const_properties,
-            shared_const_properties,
+            const_properties.as_ref().map(|props| props.as_ref()),
+            shared_const_properties.as_ref(),
             layer,
             layer_in_df,
         )
