@@ -1,5 +1,4 @@
 use crate::data::get_graph_name;
-use async_graphql::parser::Error;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use std::path::PathBuf;
