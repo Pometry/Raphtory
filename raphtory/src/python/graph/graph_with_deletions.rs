@@ -105,9 +105,9 @@ impl PyPersistentGraph {
         )
     }
 
-    fn __reduce__(&self) -> PyResult<(PyGraphEncoder, (Vec<u8>,))> {
-        let state = self.graph.encode_to_vec()?;
-        Ok((PyGraphEncoder::PersistentGraph, (state,)))
+    fn __reduce__(&self) -> (PyGraphEncoder, (Vec<u8>,)) {
+        let state = self.graph.encode_to_vec();
+        (PyGraphEncoder, (state,))
     }
 
     /// Adds a new node with the given id and properties to the graph.

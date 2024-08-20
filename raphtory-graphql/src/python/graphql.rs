@@ -725,13 +725,7 @@ impl PyRaphtoryClient {
     /// Returns:
     ///    The `data` field from the graphQL response after executing the mutation.
     #[pyo3(signature = (path, file_path, overwrite = false))]
-    fn upload_graph(
-        &self,
-        py: Python,
-        path: String,
-        file_path: String,
-        overwrite: bool,
-    ) -> PyResult<()> {
+    fn upload_graph(&self, path: String, file_path: String, overwrite: bool) -> PyResult<()> {
         let rt = Runtime::new().unwrap();
         rt.block_on(async {
             let client = Client::new();

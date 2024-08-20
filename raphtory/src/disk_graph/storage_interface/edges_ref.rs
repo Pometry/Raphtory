@@ -92,4 +92,8 @@ impl<'a> DiskEdgesRef<'a> {
                 .sum(),
         }
     }
+
+    pub fn len(&self) -> usize {
+        self.count(&LayerIds::All)
+    }
 }

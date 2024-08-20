@@ -11,7 +11,7 @@ use crate::{
     db::api::view::*,
     python::graph::node::PyNode,
 };
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
 use pyo3::{exceptions::PyTypeError, prelude::*, types::PyDateTime};
 use std::{future::Future, thread};
 
@@ -69,16 +69,19 @@ impl<'source> FromPyObject<'source> for PyTime {
             return Ok(PyTime::new(parsing_result));
         }
         if let Ok(number) = time.extract::<i64>() {
-            return Ok(PyTime::new(number.try_into_time()?));
+            return Ok(PyTime::new(number.into_time()));
         }
-        if let Ok(parsed_datetime) = time.extract::<DateTime<Utc>>() {
-            return Ok(PyTime::new(parsed_datetime.try_into_time()?));
+        if let Ok(parsed_datetime) = time.extract::<DateTime<FixedOffset>>() {
+            return Ok(PyTime::new(parsed_datetime.into_time()));
+        }
+        if let Ok(parsed_datetime) = time.extract::<NaiveDateTime>() {
+            // Important, this is needed to ensure that naive DateTime objects are treated as UTC and not local time
+            return Ok(PyTime::new(parsed_datetime.into_time()));
         }
         if let Ok(py_datetime) = time.extract::<&PyDateTime>() {
             let time = (py_datetime.call_method0("timestamp")?.extract::<f64>()? * 1000.0) as i64;
             return Ok(PyTime::new(time));
         }
-
         let message = format!("time '{time}' must be a str, datetime or an integer");
         Err(PyTypeError::new_err(message))
     }

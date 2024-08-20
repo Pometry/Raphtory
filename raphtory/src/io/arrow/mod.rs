@@ -42,13 +42,13 @@ mod test {
                 }),
             ]
             .into_iter(),
+            num_rows: 3,
         };
         let graph = Graph::new();
         let layer_name: Option<&str> = None;
         let layer_col: Option<&str> = None;
         load_edges_from_df(
             df,
-            5,
             "time",
             "src",
             "dst",
@@ -135,6 +135,7 @@ mod test {
                 }),
             ]
             .into_iter(),
+            num_rows: 2,
         };
         let graph = Graph::new();
 

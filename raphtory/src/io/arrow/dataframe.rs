@@ -13,14 +13,19 @@ use itertools::Itertools;
 pub(crate) struct DFView<I> {
     pub names: Vec<String>,
     pub(crate) chunks: I,
+    pub num_rows: usize,
 }
 
 impl<I, E> DFView<I>
 where
     I: Iterator<Item = Result<DFChunk, E>>,
 {
-    pub(crate) fn new(names: Vec<String>, chunks: I) -> Self {
-        Self { names, chunks }
+    pub(crate) fn new(names: Vec<String>, chunks: I, num_rows: usize) -> Self {
+        Self {
+            names,
+            chunks,
+            num_rows,
+        }
     }
 
     pub fn check_cols_exist(&self, cols: &[&str]) -> Result<(), GraphError> {
@@ -49,10 +54,6 @@ pub(crate) struct DFChunk {
 }
 
 impl DFChunk {
-    pub(crate) fn get_inner_size(&self) -> usize {
-        self.chunk.first().map(|arr| arr.len()).unwrap_or(0)
-    }
-
     pub(crate) fn iter_col<T: NativeType>(
         &self,
         idx: usize,

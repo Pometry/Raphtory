@@ -50,13 +50,8 @@ jobs:
       - run: |
           git config --global user.email "Haaroon@users.noreply.github.com"
           git config --global user.name "Haaroon"
-      - name: "Set up Rust toolchain"
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: 1.77.0
-          override: true
-          components: rustfmt, clippy
+      - uses: ./.github/actions/setup_rust
+        name: Setup Rust
       - name: "Install cargo release"
         uses: actions-rs/cargo@v1
         with:

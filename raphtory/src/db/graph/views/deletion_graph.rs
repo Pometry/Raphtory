@@ -118,8 +118,8 @@ impl PersistentGraph {
         Self(GraphStorage::default())
     }
 
-    pub fn from_internal_graph(internal_graph: &GraphStorage) -> Self {
-        Self(internal_graph.clone())
+    pub fn from_internal_graph(internal_graph: GraphStorage) -> Self {
+        Self(internal_graph)
     }
 
     /// Save a graph to a directory
@@ -168,7 +168,7 @@ impl PersistentGraph {
 
     /// Get event graph
     pub fn event_graph(&self) -> Graph {
-        Graph::from_internal_graph(&self.0)
+        Graph::from_internal_graph(self.0.clone())
     }
 }
 
@@ -187,8 +187,8 @@ impl Base for PersistentGraph {
 }
 
 impl InternalMaterialize for PersistentGraph {
-    fn new_base_graph(&self, graph: GraphStorage) -> MaterializedGraph {
-        MaterializedGraph::PersistentGraph(PersistentGraph(graph))
+    fn graph_type(&self) -> GraphType {
+        GraphType::PersistentGraph
     }
 
     fn include_deletions(&self) -> bool {

@@ -8,7 +8,7 @@ use std::{
     sync::Arc,
 };
 
-#[derive(Clone, Debug, Eq, Ord, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, Ord, Hash, Default, Serialize, Deserialize)]
 pub struct ArcStr(pub Arc<str>);
 
 impl Display for ArcStr {

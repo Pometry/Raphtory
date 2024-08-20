@@ -12,7 +12,6 @@ use chrono::{DateTime, NaiveDateTime, Utc};
 use raphtory_api::core::storage::arc_str::ArcStr;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, iter, ops::Range, sync::Arc};
-
 // TODO TProp struct could be replaced with Option<TCell<Prop>>, with the only issue (or advantage) that then the type can change?
 
 #[derive(Debug, Default, PartialEq, Clone, Serialize, Deserialize)]

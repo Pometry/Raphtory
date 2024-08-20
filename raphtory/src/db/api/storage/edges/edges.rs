@@ -7,6 +7,7 @@ use crate::{
         edges::edge_storage_ops::EdgeStorageOps, variants::storage_variants3::StorageVariants,
     },
 };
+use raphtory_api::core::entities::ELID;
 use rayon::iter::ParallelIterator;
 use std::sync::Arc;
 
@@ -27,7 +28,7 @@ impl EdgesStorage {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum EdgesStorageRef<'a> {
     Mem(&'a LockedEdges),
     Unlocked(UnlockedEdges<'a>),
@@ -132,6 +133,34 @@ impl<'a> EdgesStorageRef<'a> {
             },
             #[cfg(feature = "storage")]
             EdgesStorageRef::Disk(storage) => storage.count(layers),
+        }
+    }
+
+    #[inline]
+    pub fn edge(self, edge: ELID) -> EdgeStorageEntry<'a> {
+        match self {
+            EdgesStorageRef::Mem(storage) => EdgeStorageEntry::Mem(storage.get_mem(edge.pid())),
+            EdgesStorageRef::Unlocked(storage) => {
+                EdgeStorageEntry::Unlocked(storage.0.edge_entry(edge.pid()))
+            }
+            #[cfg(feature = "storage")]
+            EdgesStorageRef::Disk(storage) => EdgeStorageEntry::Disk(
+                storage.edge(
+                    edge.pid(),
+                    edge.layer()
+                        .expect("DiskGraph edges should always have layer set currently"),
+                ),
+            ),
+        }
+    }
+
+    #[inline]
+    pub fn len(&self) -> usize {
+        match self {
+            EdgesStorageRef::Mem(storage) => storage.len(),
+            EdgesStorageRef::Unlocked(storage) => storage.len(),
+            #[cfg(feature = "storage")]
+            EdgesStorageRef::Disk(storage) => storage.len(),
         }
     }
 }

@@ -1,5 +1,8 @@
 use crate::{
-    core::{utils::errors::GraphError, Prop},
+    core::{
+        utils::errors::{GraphError, InvalidPathReason::PathDoesNotExist},
+        Prop,
+    },
     db::api::{
         mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
         view::StaticGraphViewOps,
@@ -85,10 +88,8 @@ pub fn load_edges_from_parquet<
     for path in get_parquet_file_paths(parquet_path)? {
         let df_view = process_parquet_file_to_df(path.as_path(), &cols_to_check)?;
         df_view.check_cols_exist(&cols_to_check)?;
-        let size = cols_to_check.len();
         load_edges_from_df(
             df_view,
-            size,
             time,
             src,
             dst,
@@ -116,7 +117,6 @@ pub fn load_node_props_from_parquet<
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![id];
     cols_to_check.extend(constant_properties.unwrap_or(&Vec::new()));
-    let size = cols_to_check.len();
 
     for path in get_parquet_file_paths(parquet_path)? {
         let df_view = process_parquet_file_to_df(path.as_path(), &cols_to_check)?;
@@ -124,7 +124,6 @@ pub fn load_node_props_from_parquet<
 
         load_node_props_from_df(
             df_view,
-            size,
             id,
             constant_properties,
             shared_const_properties,
@@ -153,14 +152,12 @@ pub fn load_edge_props_from_parquet<
         cols_to_check.push(layer_col.as_ref());
     }
     cols_to_check.extend(constant_properties.unwrap_or(&Vec::new()));
-    let size = cols_to_check.len();
 
     for path in get_parquet_file_paths(parquet_path)? {
         let df_view = process_parquet_file_to_df(path.as_path(), &cols_to_check)?;
         df_view.check_cols_exist(&cols_to_check)?;
         load_edges_props_from_df(
             df_view,
-            size,
             src,
             dst,
             constant_properties,
@@ -190,11 +187,11 @@ pub fn load_edges_deletions_from_parquet<
     if let Some(ref layer_col) = layer_col {
         cols_to_check.push(layer_col.as_ref());
     }
-    let size = cols_to_check.len();
+
     for path in get_parquet_file_paths(parquet_path)? {
         let df_view = process_parquet_file_to_df(path.as_path(), &cols_to_check)?;
         df_view.check_cols_exist(&cols_to_check)?;
-        load_edges_deletions_from_df(df_view, size, time, src, dst, layer_name, layer_col, graph)
+        load_edges_deletions_from_df(df_view, time, src, dst, layer_name, layer_col, graph)
             .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
     }
     Ok(())
@@ -204,7 +201,7 @@ pub(crate) fn process_parquet_file_to_df(
     parquet_file_path: &Path,
     col_names: &[&str],
 ) -> Result<DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>, GraphError> {
-    let (names, chunks) = read_parquet_file(parquet_file_path, col_names)?;
+    let (names, chunks, num_rows) = read_parquet_file(parquet_file_path, col_names)?;
 
     let names: Vec<String> = names
         .into_iter()
@@ -221,14 +218,18 @@ pub(crate) fn process_parquet_file_to_df(
             })
     });
 
-    Ok(DFView { names, chunks })
+    Ok(DFView {
+        names,
+        chunks,
+        num_rows,
+    })
 }
 
 fn read_parquet_file(
     path: impl AsRef<Path>,
     col_names: &[&str],
-) -> Result<(Vec<String>, FileReader<File>), GraphError> {
-    let read_schema = |metadata: &FileMetaData| -> Result<ArrowSchema, GraphError> {
+) -> Result<(Vec<String>, FileReader<File>, usize), GraphError> {
+    let read_schema = |metadata: &FileMetaData| -> Result<(ArrowSchema, usize), GraphError> {
         let schema = read::infer_schema(metadata)?;
         let fields = schema
             .fields
@@ -246,20 +247,23 @@ fn read_parquet_file(
             })
             .collect::<Vec<_>>();
 
-        Ok(ArrowSchema::from(fields).with_metadata(schema.metadata))
+        Ok((
+            ArrowSchema::from(fields).with_metadata(schema.metadata),
+            metadata.num_rows,
+        ))
     };
 
     let mut file = std::fs::File::open(&path)?;
     let metadata = read_metadata(&mut file)?;
     let row_groups = metadata.clone().row_groups;
-    let schema = read_schema(&metadata)?;
+    let (schema, num_rows) = read_schema(&metadata)?;
 
     // Although fields are already filtered by col_names, we need names in the order as it appears
     // in the schema to create PretendDF
     let names = schema.fields.iter().map(|f| f.name.clone()).collect_vec();
 
     let reader = FileReader::new(file, row_groups, schema, None, None, None);
-    Ok((names, reader))
+    Ok((names, reader, num_rows))
 }
 
 fn get_parquet_file_paths(parquet_path: &Path) -> Result<Vec<PathBuf>, GraphError> {
@@ -275,7 +279,9 @@ fn get_parquet_file_paths(parquet_path: &Path) -> Result<Vec<PathBuf>, GraphErro
             }
         }
     } else {
-        return Err(GraphError::InvalidPath(parquet_path.to_path_buf()));
+        return Err(GraphError::from(PathDoesNotExist(
+            parquet_path.to_path_buf(),
+        )));
     }
 
     Ok(parquet_files)
