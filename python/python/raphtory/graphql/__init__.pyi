@@ -41,16 +41,47 @@ class RaphtoryClient:
     def __init__(self, url):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
-    def load_graphs_from_path(self, path, overwrite=False):
+    def copy_graph(self, path, new_path):
         """
-        Set the server to load all the graphs from its path `path`.
+        Copy graph from a path `path` on the server to a `new_path` on the server
 
         Arguments:
-          * `path`: the path to load the graphs from.
-          * `overwrite`: whether or not to overwrite existing graphs (defaults to False)
+          * `path`: the path of the graph to be copied
+          * `new_path`: the new path of the copied graph
 
         Returns:
-           The `data` field from the graphQL response after executing the mutation.
+           Copy status as boolean
+        """
+
+    def delete_graph(self, path):
+        """
+        Delete graph from a path `path` on the server
+
+        Arguments:
+          * `path`: the path of the graph to be deleted
+
+        Returns:
+           Delete status as boolean
+        """
+
+    def is_server_online(self):
+        """
+        Check if the server is online.
+
+        Returns:
+           Returns true if server is online otherwise false.
+        """
+
+    def move_graph(self, path, new_path):
+        """
+        Move graph from a path `path` on the server to a `new_path` on the server
+
+        Arguments:
+          * `path`: the path of the graph to be moved
+          * `new_path`: the new path of the moved graph
+
+        Returns:
+           Move status as boolean
         """
 
     def query(self, query, variables=None):
@@ -65,33 +96,50 @@ class RaphtoryClient:
            The `data` field from the graphQL response.
         """
 
-    def send_graph(self, name, graph):
+    def receive_graph(self, path):
         """
-        Send a graph to the server.
+        Receive graph from a path `path` on the server
 
         Arguments:
-          * `name`: the name of the graph sent.
-          * `graph`: the graph to send.
+          * `path`: the path of the graph to be received
+
+        Returns:
+           Graph as string
+        """
+
+    def send_graph(self, path, graph, overwrite=False):
+        """
+        Send a graph to the server
+
+        Arguments:
+          * `path`: the path of the graph
+          * `graph`: the graph to send
+          * `overwrite`: overwrite existing graph (defaults to False)
 
         Returns:
            The `data` field from the graphQL response after executing the mutation.
         """
 
-    def wait_for_online(self, millis=None):
+    def upload_graph(self, path, file_path, overwrite=False):
         """
-        Wait for the server to be online.
+        Upload graph file from a path `file_path` on the client
 
         Arguments:
-          * `millis`: the minimum number of milliseconds to wait (default 5000).
+          * `path`: the name of the graph
+          * `file_path`: the path of the graph on the client
+          * `overwrite`: overwrite existing graph (defaults to False)
+
+        Returns:
+           The `data` field from the graphQL response after executing the mutation.
         """
 
 class RaphtoryServer:
     """A class for defining and running a Raphtory GraphQL server"""
 
-    def __init__(self, graphs=None, graph_dir=None):
+    def __init__(self, work_dir, cache_capacity=None, cache_tti_seconds=None, log_level=None, config_path=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
-    def run(self, port=1736, log_level=..., enable_tracing=False, enable_auth=False):
+    def run(self, port=1736, timeout_ms=...):
         """
         Run the server until completion.
 
@@ -99,12 +147,13 @@ class RaphtoryServer:
           * `port`: the port to use (defaults to 1736).
         """
 
-    def start(self, port=1736, log_level=..., enable_tracing=False, enable_auth=False):
+    def start(self, port=1736, timeout_ms=None):
         """
         Start the server and return a handle to it.
 
         Arguments:
           * `port`: the port to use (defaults to 1736).
+          * `timeout_ms`: wait for server to be online (defaults to 5000). The server is stopped if not online within timeout_ms but manages to come online as soon as timeout_ms finishes!
         """
 
     def with_document_search_function(self, name, input, function):
@@ -169,52 +218,8 @@ class RunningRaphtoryServer:
     def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
-    def load_graphs_from_path(self, path, overwrite=False):
-        """
-        Set the server to load all the graphs from its path `path`.
-
-        Arguments:
-          * `path`: the path to load the graphs from.
-          * `overwrite`: whether or not to overwrite existing graphs (defaults to False)
-
-        Returns:
-           The `data` field from the graphQL response after executing the mutation.
-        """
-
-    def query(self, query, variables=None):
-        """
-        Make a graphQL query against the server.
-
-        Arguments:
-          * `query`: the query to make.
-          * `variables`: a dict of variables present on the query and their values.
-
-        Returns:
-           The `data` field from the graphQL response.
-        """
-
-    def send_graph(self, name, graph):
-        """
-        Send a graph to the server.
-
-        Arguments:
-          * `name`: the name of the graph sent.
-          * `graph`: the graph to send.
-
-        Returns:
-           The `data` field from the graphQL response after executing the mutation.
-        """
+    def get_client(self):
+        ...
 
     def stop(self):
-        """Stop the server."""
-
-    def wait(self):
-        """Wait until server completion."""
-
-    def wait_for_online(self, timeout_millis=None):
-        """
-        Wait for the server to be online.
-
-        Arguments:
-          * `timeout_millis`: the timeout in milliseconds (default 5000).
-        """
+        """Stop the server and wait for it to finish"""
