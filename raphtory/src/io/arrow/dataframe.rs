@@ -50,10 +50,6 @@ pub(crate) struct DFChunk {
 }
 
 impl DFChunk {
-    pub(crate) fn get_inner_size(&self) -> usize {
-        self.chunk.first().map(|arr| arr.len()).unwrap_or(0)
-    }
-
     pub(crate) fn iter_col<T: NativeType>(
         &self,
         idx: usize,

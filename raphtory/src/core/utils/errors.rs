@@ -162,6 +162,8 @@ pub enum GraphError {
     #[cfg(feature = "python")]
     #[error("Python error occurred: {0}")]
     PythonError(#[from] PyErr),
+    #[error("An error with Tdqm occurred")]
+    TqdmError
 }
 
 impl GraphError {

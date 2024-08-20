@@ -245,7 +245,6 @@ pub(crate) fn process_pandas_py_df<'a>(
 
         Ok(DFChunk { chunk })
     });
-    println!("Chunks: {}",chunks.len());
     let num_rows: usize = py
         .eval(
             "index.__len__()",
