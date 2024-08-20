@@ -530,6 +530,7 @@ mod db_tests {
     }
 
     #[test]
+    #[cfg(feature = "proto")]
     fn graph_save_to_load_from_file() {
         let vs = vec![
             (1, 1, 2),
@@ -2305,6 +2306,7 @@ mod db_tests {
     }
 
     #[test]
+    #[cfg(feature = "proto")]
     fn save_load_serial() {
         let g = Graph::new();
         g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();

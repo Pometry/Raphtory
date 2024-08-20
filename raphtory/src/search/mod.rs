@@ -912,6 +912,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(feature = "proto")]
     #[ignore = "this test is for experiments with the jira graph"]
     fn load_jira_graph() -> Result<(), GraphError> {
         let graph = Graph::decode("/tmp/graphs/jira").expect("failed to load graph");

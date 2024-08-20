@@ -75,9 +75,9 @@ rpds = { workspace = true, optional = true }
 thread_local = { workspace = true, optional = true }
 pometry-storage = { workspace = true, optional = true }
 
-prost = { workspace = true, optional = true}
-prost-types = { workspace = true, optional = true}
-bytes = { workspace = true, optional = true}
+prost = { workspace = true, optional = true }
+prost-types = { workspace = true, optional = true }
+bytes = { workspace = true, optional = true }
 
 [dev-dependencies]
 csv = { workspace = true }
@@ -92,7 +92,7 @@ streaming-stats = { workspace = true }
 proptest = { workspace = true }
 
 [build-dependencies]
-prost-build = { workspace = true, optional = true}
+prost-build = { workspace = true, optional = true }
 
 [features]
 default = []
@@ -105,6 +105,7 @@ io = [
     "dep:csv",
     "dep:reqwest",
     "dep:tokio",
+    "proto",
 ]
 
 # search
