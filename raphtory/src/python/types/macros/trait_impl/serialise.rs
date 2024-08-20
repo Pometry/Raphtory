@@ -17,12 +17,12 @@ macro_rules! impl_serialise {
             /// Arguments:
             ///     path (str): The path to the cache file
             fn cache(&self, path: &str) -> Result<(), GraphError> {
-                $crate::serialise::Cache::cache(&self.$field, path)
+                $crate::serialise::CacheOps::cache(&self.$field, path)
             }
 
             /// Persist the new updates by appending them to the cache file.
             fn write_updates(&self) -> Result<(), GraphError> {
-                $crate::serialise::Cache::write_updates(&self.$field)
+                $crate::serialise::CacheOps::write_updates(&self.$field)
             }
 
             #[doc = concat!(" Load ", $name, " from a file and initialise it as a cache file.")]
@@ -37,7 +37,7 @@ macro_rules! impl_serialise {
             #[doc = concat!("   ", $name)]
             #[staticmethod]
             fn load_cached(path: &str) -> Result<$base_type, GraphError> {
-                <$base_type as $crate::serialise::Cache>::load_cached(path)
+                <$base_type as $crate::serialise::CacheOps>::load_cached(path)
             }
 
             #[doc = concat!(" Load ", $name, " from a file.")]

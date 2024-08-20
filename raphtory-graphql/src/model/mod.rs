@@ -18,14 +18,15 @@ use raphtory::db::api::{storage::graph::storage_ops::GraphStorage, view::interna
 use raphtory::{
     core::{utils::errors::GraphError, Prop},
     db::api::view::MaterializedGraph,
-    prelude::{GraphViewOps, ImportOps, PropertyAdditionOps, StableDecode, StableEncode},
+    prelude::*,
 };
 use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{
     error::Error,
     fmt::{Display, Formatter},
     fs,
-    io::Read,
+    fs::File,
+    io::copy,
     path::Path,
     sync::Arc,
 };
@@ -218,9 +219,7 @@ impl Mut {
 
         graph.update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
 
-        let full_path = data.construct_graph_full_path(path)?;
-        graph.graph.encode(full_path)?;
-        data.graphs.insert(path.to_path_buf(), graph);
+        graph.write_updates()?;
 
         Ok(true)
     }
@@ -262,7 +261,7 @@ impl Mut {
         new_subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
 
         create_dirs_if_not_present(&new_graph_full_path)?;
-        new_subgraph.encode(new_graph_full_path)?;
+        new_subgraph.cache(new_graph_full_path)?;
 
         data.graphs
             .insert(new_graph_path.to_path_buf(), new_subgraph.into());
@@ -355,7 +354,7 @@ impl Mut {
         new_subgraph.update_constant_properties([("uiProps", Prop::Str(props.into()))])?;
         new_subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
 
-        new_subgraph.encode(new_graph_full_path)?;
+        new_subgraph.cache(new_graph_full_path)?;
 
         data.graphs.remove(&graph_path.to_path_buf());
         data.graphs
@@ -399,12 +398,11 @@ impl Mut {
             return Err(GraphError::GraphNameAlreadyExists(path.to_path_buf()).into());
         }
 
-        let mut buffer = Vec::new();
-        let mut buff_read = graph.value(ctx)?.content;
-        buff_read.read_to_end(&mut buffer)?;
-        let g: MaterializedGraph = MaterializedGraph::decode_from_bytes(&buffer)?;
+        let mut in_file = graph.value(ctx)?.content;
         create_dirs_if_not_present(&full_path)?;
-        g.encode(&full_path)?;
+        let mut out_file = File::create(&full_path)?;
+        copy(&mut in_file, &mut out_file)?;
+        let g = MaterializedGraph::load_cached(&full_path)?;
         data.graphs.insert(path.to_path_buf(), g.into());
         Ok(path.display().to_string())
     }
@@ -427,7 +425,7 @@ impl Mut {
         }
         let g: MaterializedGraph = url_decode_graph(graph)?;
         create_dirs_if_not_present(&full_path)?;
-        g.encode(&full_path)?;
+        g.cache(&full_path)?;
         data.graphs.insert(path.to_path_buf(), g.into());
         Ok(path.display().to_string())
     }
@@ -442,12 +440,7 @@ impl Mut {
         }
 
         graph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
-
-        let full_path = data.construct_graph_full_path(path)?;
-        graph.graph.encode(full_path)?;
-
-        data.graphs.insert(path.to_path_buf(), graph);
-
+        graph.write_updates()?;
         Ok(true)
     }
 }

@@ -80,7 +80,7 @@ pub trait StableDecode: Sized {
     }
 }
 
-pub trait Cache: Sized {
+pub trait CacheOps: Sized {
     /// Write graph to file and append future updates to the same file.
     ///
     /// If the file already exists, it's contents are overwritten
@@ -1010,7 +1010,7 @@ mod proto_test {
             graph::graph::assert_graph_equal,
         },
         prelude::*,
-        serialise::proto::GraphType,
+        serialise::{proto::GraphType, ProtoGraph},
     };
 
     #[test]
@@ -1348,6 +1348,14 @@ mod proto_test {
         for w in values.windows(2) {
             assert_eq!(w[0].as_ptr(), w[1].as_ptr());
         }
+    }
+
+    // we rely on this to make sure writing no updates does not actually write anything to file
+    #[test]
+    fn empty_proto_is_empty_bytes() {
+        let proto = ProtoGraph::default();
+        let bytes = proto.encode_to_vec();
+        assert!(bytes.is_empty())
     }
 
     fn write_props_to_vec(props: &mut Vec<(&str, Prop)>) {

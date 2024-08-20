@@ -1,9 +1,12 @@
 use crate::{
     core::{utils::errors::GraphError, Prop, PropType},
-    db::{api::storage::storage::Storage, graph::views::deletion_graph::PersistentGraph},
+    db::{
+        api::{storage::storage::Storage, view::MaterializedGraph},
+        graph::views::deletion_graph::PersistentGraph,
+    },
     prelude::Graph,
     serialise::{
-        serialise::{Cache, StableDecode, StableEncode},
+        serialise::{CacheOps, StableDecode, StableEncode},
         ProtoGraph,
     },
 };
@@ -38,7 +41,9 @@ impl GraphWriter {
     pub fn write(&self) -> Result<(), GraphError> {
         let proto = mem::take(self.proto_delta.lock().deref_mut());
         let bytes = proto.encode_to_vec();
-        self.writer.lock().write_all(&bytes)?;
+        if !bytes.is_empty() {
+            self.writer.lock().write_all(&bytes)?;
+        }
         Ok(())
     }
 
@@ -180,7 +185,7 @@ impl GraphWriter {
     }
 }
 
-trait InternalCache {
+pub(crate) trait InternalCache {
     /// Initialise the cache by pointing it at a proto file.
     /// Future updates will be appended to the cache.
     fn init_cache(&self, path: impl AsRef<Path>) -> Result<(), GraphError>;
@@ -223,7 +228,23 @@ impl InternalCache for PersistentGraph {
     }
 }
 
-impl<G: InternalCache + StableDecode + StableEncode> Cache for G {
+impl InternalCache for MaterializedGraph {
+    fn init_cache(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.init_cache(path),
+            MaterializedGraph::PersistentGraph(g) => g.init_cache(path),
+        }
+    }
+
+    fn get_cache(&self) -> Option<&GraphWriter> {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.get_cache(),
+            MaterializedGraph::PersistentGraph(g) => g.get_cache(),
+        }
+    }
+}
+
+impl<G: InternalCache + StableDecode + StableEncode> CacheOps for G {
     fn cache(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
         self.encode(path.as_ref())?;
         self.init_cache(path)

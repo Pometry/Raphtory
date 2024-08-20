@@ -12,7 +12,7 @@ use raphtory::{
         },
     },
     db::api::view::MaterializedGraph,
-    prelude::StableDecode,
+    prelude::*,
     search::IndexedGraph,
 };
 use std::{
@@ -33,9 +33,14 @@ impl Data {
     pub fn new(work_dir: &Path, configs: &AppConfig) -> Self {
         let cache_configs = &configs.cache;
 
-        let graphs_cache_builder = Cache::builder()
+        let graphs_cache_builder = Cache::<_, IndexedGraph<MaterializedGraph>>::builder()
             .max_capacity(cache_configs.capacity)
             .time_to_idle(std::time::Duration::from_secs(cache_configs.tti_seconds))
+            .eviction_listener(|_, value, _| {
+                value
+                    .write_updates()
+                    .unwrap_or_else(|err| println!("Write on eviction failed: {err:?}"))
+            })
             .build();
 
         let graphs_cache: Cache<PathBuf, IndexedGraph<MaterializedGraph>> = graphs_cache_builder;
@@ -251,7 +256,7 @@ fn get_graph_from_path(path: &Path) -> Result<IndexedGraph<MaterializedGraph>, G
             return Err(PathIsDirectory(path.to_path_buf()).into());
         }
     } else {
-        let graph = MaterializedGraph::decode(path)?;
+        let graph = MaterializedGraph::load_cached(path)?;
         println!("Graph loaded = {}", path.display());
         Ok(IndexedGraph::from_graph(&graph)?)
     }
