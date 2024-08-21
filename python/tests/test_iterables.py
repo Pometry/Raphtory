@@ -148,7 +148,7 @@ def test_propiterable():
     assert sorted(total) == [2, 17, 18, 35, 38]
 
     total = dict(zip(g.nodes.id, g.nodes.out_edges.properties.get("value_dec").sum()))
-    assert total == {'1': 32, '2': 5, '3': 3, '4': 15, '5': None}
+    assert total == {"1": 32, "2": 5, "3": 3, "4": 15, "5": None}
 
     total = g.nodes.out_edges.properties.get("value_dec").sum().sum()
     assert total == 55

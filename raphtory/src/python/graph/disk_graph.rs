@@ -129,13 +129,13 @@ impl PyDiskGraph {
     }
 
     #[staticmethod]
-    #[pyo3(signature = (graph_dir, edge_df, src_col, dst_col, time_col))]
+    #[pyo3(signature = (graph_dir, edge_df, time_col, src_col, dst_col))]
     pub fn load_from_pandas(
         graph_dir: &str,
         edge_df: &PyAny,
+        time_col: &str,
         src_col: &str,
         dst_col: &str,
-        time_col: &str,
     ) -> Result<DiskGraphStorage, GraphError> {
         let graph: Result<DiskGraphStorage, GraphError> = Python::with_gil(|py| {
             let cols_to_check = vec![src_col, dst_col, time_col];
@@ -145,7 +145,7 @@ impl PyDiskGraph {
 
             let df_view = process_pandas_py_df(edge_df, py, df_columns)?;
             df_view.check_cols_exist(&cols_to_check)?;
-            let graph = Self::from_pandas(graph_dir, df_view, src_col, dst_col, time_col)?;
+            let graph = Self::from_pandas(graph_dir, df_view, time_col, src_col, dst_col)?;
 
             Ok::<_, GraphError>(graph)
         });
@@ -222,9 +222,9 @@ impl PyDiskGraph {
     fn from_pandas(
         graph_dir: &str,
         df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
+        time: &str,
         src: &str,
         dst: &str,
-        time: &str,
     ) -> Result<DiskGraphStorage, GraphError> {
         let src_index = df_view.get_index(src)?;
         let dst_index = df_view.get_index(dst)?;
@@ -264,9 +264,9 @@ impl PyDiskGraph {
             chunk_size,
             chunk_size,
             graph_dir,
+            time_index,
             src_index,
             dst_index,
-            time_index,
         )
         .map_err(|err| GraphError::LoadFailure(format!("Failed to load graph {err:?}")))
     }
