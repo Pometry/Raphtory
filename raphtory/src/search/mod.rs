@@ -845,14 +845,11 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
         // get the field from the index
         let node_id = self.node_index.schema().get_field(fields::VERTEX_ID)?;
         document.add_u64(node_id, v.as_u64());
-
         let mut writer = self.node_index.writer(50_000_000)?;
-
         writer.add_document(document)?;
-
         writer.commit()?;
 
-        Ok(())
+        self.graph.internal_add_node(t, v, props)
     }
 
     fn internal_add_edge(
