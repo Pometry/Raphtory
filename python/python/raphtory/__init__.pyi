@@ -1649,7 +1649,7 @@ class Graph:
         edge_label=None,
         colour_nodes_by_type=False,
         notebook=False,
-        **kwargs
+        **kwargs,
     ):
         """
         Draw a graph with PyVis.
@@ -4143,7 +4143,7 @@ class PersistentGraph:
         edge_label=None,
         colour_nodes_by_type=False,
         notebook=False,
-        **kwargs
+        **kwargs,
     ):
         """
         Draw a graph with PyVis.
