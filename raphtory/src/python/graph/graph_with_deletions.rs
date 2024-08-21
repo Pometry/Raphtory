@@ -563,7 +563,7 @@ impl PyPersistentGraph {
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(signature = (df, time, src, dst, layer = None, layer_col = None))]
-    fn load_edges_deletions_from_pandas(
+    fn load_edge_deletions_from_pandas(
         &self,
         df: &PyAny,
         time: &str,
@@ -572,7 +572,7 @@ impl PyPersistentGraph {
         layer: Option<&str>,
         layer_col: Option<&str>,
     ) -> Result<(), GraphError> {
-        load_edges_deletions_from_pandas(&self.graph.0, df, time, src, dst, layer, layer_col)
+        load_edge_deletions_from_pandas(&self.graph.0, df, time, src, dst, layer, layer_col)
     }
 
     /// Load edges deletions from a Parquet file into the graph.
@@ -590,7 +590,7 @@ impl PyPersistentGraph {
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(signature = (parquet_path, time, src, dst, layer = None, layer_col = None))]
-    fn load_edges_deletions_from_parquet(
+    fn load_edge_deletions_from_parquet(
         &self,
         parquet_path: PathBuf,
         time: &str,
@@ -599,7 +599,7 @@ impl PyPersistentGraph {
         layer: Option<&str>,
         layer_col: Option<&str>,
     ) -> Result<(), GraphError> {
-        load_edges_deletions_from_parquet(
+        load_edge_deletions_from_parquet(
             &self.graph,
             parquet_path.as_path(),
             time,

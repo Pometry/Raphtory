@@ -160,7 +160,7 @@ pub fn load_edge_props_from_pandas(
     Ok(())
 }
 
-pub fn load_edges_deletions_from_pandas(
+pub fn load_edge_deletions_from_pandas(
     graph: &GraphStorage,
     df: &PyAny,
     time: &str,
@@ -177,7 +177,7 @@ pub fn load_edges_deletions_from_pandas(
 
         let df_view = process_pandas_py_df(df, py, cols_to_check.clone())?;
         df_view.check_cols_exist(&cols_to_check)?;
-        load_edges_deletions_from_df(
+        load_edge_deletions_from_df(
             df_view,
             time,
             src,

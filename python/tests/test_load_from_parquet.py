@@ -1,10 +1,10 @@
 import os
 import re
-import tempfile
-
 import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
+import tempfile
+import pandas as pd
 
 from raphtory import Graph, PersistentGraph
 
@@ -32,7 +32,7 @@ def parquet_files():
             "Person 5",
             "Person 6",
         ],
-        "node_type": ["p", "p", "p", "p", "p", "p"],
+        "node_type": ["p1", "p2", "p3", "p4", "p5", "p6"],
     }
 
     table = pa.table(data)
@@ -109,12 +109,12 @@ def assert_expected_edges(g):
 
 def assert_expected_node_types(g):
     assert g.nodes.node_type == [
-        "p",
-        "p",
-        "p",
-        "p",
-        "p",
-        "p",
+        "p1",
+        "p2",
+        "p3",
+        "p4",
+        "p5",
+        "p6",
     ]
 
 
@@ -490,10 +490,337 @@ def test_load_from_parquet_persistent_graphs(parquet_files):
         dst="dst",
     )
     assert g.window(10, 12).edges.src.id.collect() == [1, 2, 3, 4, 5]
-    g.load_edges_deletions_from_parquet(
+    g.load_edge_deletions_from_parquet(
         parquet_path=edges_deletions_parquet_file_path,
         time="time",
         src="src",
         dst="dst",
     )
     assert g.window(10, 12).edges.src.id.collect() == [1, 2, 5]
+
+
+def test_edge_both_option_failures_parquet(parquet_files):
+    (
+        nodes_parquet_file_path,
+        edges_parquet_file_path,
+        edges_deletions_parquet_file_path,
+    ) = parquet_files
+    # CHECK ALL EDGE FUNCTIONS ON GRAPH FAIL WITH BOTH LAYER AND LAYER_COL
+    g = Graph()
+    with pytest.raises(
+        Exception,
+        match=r"Failed to load graph: Failed to load graph WrongNumOfArgs\(\"layer_name\", \"layer_col\"\)",
+    ):
+        g.load_edges_from_parquet(
+            edges_parquet_file_path,
+            "time",
+            "src",
+            "dst",
+            layer="blah",
+            layer_col="marbles",
+        )
+
+    with pytest.raises(
+        Exception,
+        match=r"Failed to load graph: Failed to load graph WrongNumOfArgs\(\"layer_name\", \"layer_col\"\)",
+    ):
+        g.load_edge_props_from_parquet(
+            edges_parquet_file_path, "src", "dst", layer="blah", layer_col="marbles"
+        )
+
+    # CHECK IF JUST LAYER WORKS
+    g = Graph()
+    g.load_edges_from_parquet(
+        edges_parquet_file_path, "time", "src", "dst", layer="blah"
+    )
+    assert g.edges.layer_names.collect() == [
+        ["blah"],
+        ["blah"],
+        ["blah"],
+        ["blah"],
+        ["blah"],
+    ]
+    assert g.unique_layers == ["_default", "blah"]
+
+    g = Graph()
+    g.load_edges_from_parquet(
+        edges_parquet_file_path, "time", "src", "dst", layer="blah"
+    )
+    g.load_edge_props_from_parquet(
+        edges_parquet_file_path,
+        "src",
+        "dst",
+        layer="blah",
+        constant_properties=["marbles"],
+    )
+    assert g.edges.layer_names.collect() == [
+        ["blah"],
+        ["blah"],
+        ["blah"],
+        ["blah"],
+        ["blah"],
+    ]
+    assert g.unique_layers == ["_default", "blah"]
+    assert g.layer("blah").edges.properties.get("marbles") == [
+        "red",
+        "blue",
+        "green",
+        "yellow",
+        "purple",
+    ]
+
+    # CHECK IF JUST LAYER_COL WORKS
+    g = Graph()
+    g.load_edges_from_parquet(
+        edges_parquet_file_path, "time", "src", "dst", layer_col="marbles"
+    )
+    assert g.edges.layer_names.collect() == [
+        ["red"],
+        ["blue"],
+        ["green"],
+        ["yellow"],
+        ["purple"],
+    ]
+    assert g.unique_layers == ["_default", "red", "blue", "green", "yellow", "purple"]
+
+    g = Graph()
+    g.load_edges_from_parquet(
+        edges_parquet_file_path, "time", "src", "dst", layer_col="marbles"
+    )
+    g.load_edge_props_from_parquet(
+        edges_parquet_file_path,
+        "src",
+        "dst",
+        layer_col="marbles",
+        constant_properties=["marbles"],
+    )
+    assert g.edges.layer_names.collect() == [
+        ["red"],
+        ["blue"],
+        ["green"],
+        ["yellow"],
+        ["purple"],
+    ]
+    assert g.unique_layers == ["_default", "red", "blue", "green", "yellow", "purple"]
+    assert g.edges.properties.get("marbles").collect() == [
+        {"red": "red"},
+        {"blue": "blue"},
+        {"green": "green"},
+        {"yellow": "yellow"},
+        {"purple": "purple"},
+    ]
+
+    g = PersistentGraph()
+    with pytest.raises(
+        Exception,
+        match=r"Failed to load graph: Failed to load graph WrongNumOfArgs\(\"layer_name\", \"layer_col\"\)",
+    ):
+        g.load_edges_from_parquet(
+            edges_parquet_file_path,
+            "time",
+            "src",
+            "dst",
+            layer="blah",
+            layer_col="marbles",
+        )
+
+    with pytest.raises(
+        Exception,
+        match=r"Failed to load graph: Failed to load graph WrongNumOfArgs\(\"layer_name\", \"layer_col\"\)",
+    ):
+        g.load_edge_props_from_parquet(
+            edges_parquet_file_path, "src", "dst", layer="blah", layer_col="marbles"
+        )
+
+    with pytest.raises(
+        Exception,
+        match=r"Failed to load graph: Failed to load graph WrongNumOfArgs\(\"layer_name\", \"layer_col\"\)",
+    ):
+        g.load_edge_deletions_from_parquet(
+            edges_parquet_file_path,
+            "time",
+            "src",
+            "dst",
+            layer="blah",
+            layer_col="marbles",
+        )
+
+    # CHECK IF JUST LAYER WORKS
+    g = PersistentGraph()
+    g.load_edges_from_parquet(
+        edges_parquet_file_path, "time", "src", "dst", layer="blah"
+    )
+    assert g.edges.layer_names.collect() == [
+        ["blah"],
+        ["blah"],
+        ["blah"],
+        ["blah"],
+        ["blah"],
+    ]
+    assert g.unique_layers == ["_default", "blah"]
+
+    g = PersistentGraph()
+    g.load_edges_from_parquet(
+        edges_parquet_file_path, "time", "src", "dst", layer="blah"
+    )
+    g.load_edge_props_from_parquet(
+        edges_parquet_file_path,
+        "src",
+        "dst",
+        layer="blah",
+        constant_properties=["marbles"],
+    )
+    assert g.edges.layer_names.collect() == [
+        ["blah"],
+        ["blah"],
+        ["blah"],
+        ["blah"],
+        ["blah"],
+    ]
+    assert g.unique_layers == ["_default", "blah"]
+    assert g.layer("blah").edges.properties.get("marbles") == [
+        "red",
+        "blue",
+        "green",
+        "yellow",
+        "purple",
+    ]
+
+    g = PersistentGraph()
+    g.load_edge_deletions_from_parquet(
+        edges_parquet_file_path, "time", "src", "dst", layer="blah"
+    )
+    assert g.edges.layer_names.collect() == [
+        ["blah"],
+        ["blah"],
+        ["blah"],
+        ["blah"],
+        ["blah"],
+    ]
+    assert g.unique_layers == ["_default", "blah"]
+
+    # CHECK IF JUST LAYER_COL WORKS
+    g = PersistentGraph()
+    g.load_edges_from_parquet(
+        edges_parquet_file_path, "time", "src", "dst", layer_col="marbles"
+    )
+    assert g.edges.layer_names.collect() == [
+        ["red"],
+        ["blue"],
+        ["green"],
+        ["yellow"],
+        ["purple"],
+    ]
+    assert g.unique_layers == ["_default", "red", "blue", "green", "yellow", "purple"]
+
+    g = PersistentGraph()
+    g.load_edges_from_parquet(
+        edges_parquet_file_path, "time", "src", "dst", layer_col="marbles"
+    )
+    g.load_edge_props_from_parquet(
+        edges_parquet_file_path,
+        "src",
+        "dst",
+        layer_col="marbles",
+        constant_properties=["marbles"],
+    )
+    assert g.edges.layer_names.collect() == [
+        ["red"],
+        ["blue"],
+        ["green"],
+        ["yellow"],
+        ["purple"],
+    ]
+    assert g.unique_layers == ["_default", "red", "blue", "green", "yellow", "purple"]
+    assert g.edges.properties.get("marbles").collect() == [
+        {"red": "red"},
+        {"blue": "blue"},
+        {"green": "green"},
+        {"yellow": "yellow"},
+        {"purple": "purple"},
+    ]
+
+    g = PersistentGraph()
+    g.load_edge_deletions_from_parquet(
+        edges_parquet_file_path, "time", "src", "dst", layer_col="marbles"
+    )
+    assert g.edges.layer_names.collect() == [
+        ["red"],
+        ["blue"],
+        ["green"],
+        ["yellow"],
+        ["purple"],
+    ]
+    assert g.unique_layers == ["_default", "red", "blue", "green", "yellow", "purple"]
+
+
+def test_node_both_option_failures_parquet(parquet_files):
+    (
+        nodes_parquet_file_path,
+        edges_parquet_file_path,
+        edges_deletions_parquet_file_path,
+    ) = parquet_files
+
+    # CHECK ALL NODE FUNCTIONS ON GRAPH FAIL WITH BOTH NODE_TYPE AND NODE_TYPE_COL
+    with pytest.raises(
+        Exception,
+        match=r"Failed to load graph: Failed to load graph WrongNumOfArgs\(\"node_type\", \"node_type_col\"\)",
+    ):
+        g = Graph()
+        g.load_nodes_from_parquet(
+            nodes_parquet_file_path,
+            "time",
+            "id",
+            node_type="node_type",
+            node_type_col="node_type",
+        )
+
+    with pytest.raises(
+        Exception,
+        match=r"Failed to load graph: Failed to load graph WrongNumOfArgs\(\"node_type\", \"node_type_col\"\)",
+    ):
+        g = Graph()
+        g.load_node_props_from_parquet(
+            nodes_parquet_file_path,
+            "id",
+            node_type="node_type",
+            node_type_col="node_type",
+        )
+
+    # CHECK IF JUST NODE_TYPE WORKS
+    g = Graph()
+    g.load_nodes_from_parquet(
+        nodes_parquet_file_path, "time", "id", node_type="node_type"
+    )
+    assert g.nodes.node_type.collect() == [
+        "node_type",
+        "node_type",
+        "node_type",
+        "node_type",
+        "node_type",
+        "node_type",
+    ]
+    g = Graph()
+    g.load_nodes_from_parquet(nodes_parquet_file_path, "time", "id")
+    g.load_node_props_from_parquet(nodes_parquet_file_path, "id", node_type="node_type")
+    assert g.nodes.node_type.collect() == [
+        "node_type",
+        "node_type",
+        "node_type",
+        "node_type",
+        "node_type",
+        "node_type",
+    ]
+
+    # CHECK IF JUST NODE_TYPE_COL WORKS
+    g = Graph()
+    g.load_nodes_from_parquet(
+        nodes_parquet_file_path, "time", "id", node_type_col="node_type"
+    )
+    assert g.nodes.node_type.collect() == ["p1", "p2", "p3", "p4", "p5", "p6"]
+    g = Graph()
+    g.load_nodes_from_parquet(nodes_parquet_file_path, "time", "id")
+    g.load_node_props_from_parquet(
+        nodes_parquet_file_path, "id", node_type_col="node_type"
+    )
+    assert g.nodes.node_type.collect() == ["p1", "p2", "p3", "p4", "p5", "p6"]

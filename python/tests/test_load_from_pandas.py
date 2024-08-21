@@ -557,9 +557,7 @@ def test_load_from_pandas_with_types():
         properties=["weight", "marbles"],
         layer_col="layers",
     )
-    g.load_nodes_from_pandas(
-        df=nodes_df, time="time", id="id", properties=["name"]
-    )
+    g.load_nodes_from_pandas(df=nodes_df, time="time", id="id", properties=["name"])
     g.load_node_props_from_pandas(
         nodes_df,
         "id",
@@ -604,9 +602,7 @@ def test_load_from_pandas_with_types():
         properties=["weight", "marbles"],
         layer_col="layers",
     )
-    g.load_nodes_from_pandas(
-        df=nodes_df, time="time", id="id", properties=["name"]
-    )
+    g.load_nodes_from_pandas(df=nodes_df, time="time", id="id", properties=["name"])
     g.load_node_props_from_pandas(
         nodes_df,
         "id",
@@ -1063,5 +1059,276 @@ def test_load_edge_deletions_from_pandas():
     g = PersistentGraph()
     g.load_edges_from_pandas(edges_df, "time", "src", "dst")
     assert g.window(10, 12).edges.src.id.collect() == [1, 2, 3, 4, 5]
-    g.load_edges_deletions_from_pandas(edge_dels_df, "time", "src", "dst")
+    g.load_edge_deletions_from_pandas(edge_dels_df, "time", "src", "dst")
     assert g.window(10, 12).edges.src.id.collect() == [1, 2, 5]
+
+
+def test_edge_both_option_failures_pandas():
+    edges_df = pd.DataFrame(
+        {
+            "src": [1, 2, 3, 4, 5],
+            "dst": [2, 3, 4, 5, 6],
+            "time": [1, 2, 3, 4, 5],
+            "weight": [1.0, 2.0, 3.0, 4.0, 5.0],
+            "marbles": ["red", "blue", "green", "yellow", "purple"],
+        }
+    )
+    # CHECK ALL EDGE FUNCTIONS ON GRAPH FAIL WITH BOTH LAYER AND LAYER_COL
+    g = Graph()
+    with pytest.raises(
+        Exception,
+        match=r"GraphLoadException\('WrongNumOfArgs\(\"layer_name\", \"layer_col\"\)'\)",
+    ):
+        g.load_edges_from_pandas(
+            edges_df, "time", "src", "dst", layer="blah", layer_col="marbles"
+        )
+
+    with pytest.raises(
+        Exception,
+        match=r"GraphLoadException\('WrongNumOfArgs\(\"layer_name\", \"layer_col\"\)'\)",
+    ):
+        g.load_edge_props_from_pandas(
+            edges_df, "src", "dst", layer="blah", layer_col="marbles"
+        )
+
+    # CHECK IF JUST LAYER WORKS
+    g = Graph()
+    g.load_edges_from_pandas(edges_df, "time", "src", "dst", layer="blah")
+    assert g.edges.layer_names.collect() == [
+        ["blah"],
+        ["blah"],
+        ["blah"],
+        ["blah"],
+        ["blah"],
+    ]
+    assert g.unique_layers == ["_default", "blah"]
+
+    g = Graph()
+    g.load_edges_from_pandas(edges_df, "time", "src", "dst", layer="blah")
+    g.load_edge_props_from_pandas(
+        edges_df, "src", "dst", layer="blah", constant_properties=["marbles"]
+    )
+    assert g.edges.layer_names.collect() == [
+        ["blah"],
+        ["blah"],
+        ["blah"],
+        ["blah"],
+        ["blah"],
+    ]
+    assert g.unique_layers == ["_default", "blah"]
+    assert g.layer("blah").edges.properties.get("marbles") == [
+        "red",
+        "blue",
+        "green",
+        "yellow",
+        "purple",
+    ]
+
+    # CHECK IF JUST LAYER_COL WORKS
+    g = Graph()
+    g.load_edges_from_pandas(edges_df, "time", "src", "dst", layer_col="marbles")
+    assert g.edges.layer_names.collect() == [
+        ["red"],
+        ["blue"],
+        ["green"],
+        ["yellow"],
+        ["purple"],
+    ]
+    assert g.unique_layers == ["_default", "red", "blue", "green", "yellow", "purple"]
+
+    g = Graph()
+    g.load_edges_from_pandas(edges_df, "time", "src", "dst", layer_col="marbles")
+    g.load_edge_props_from_pandas(
+        edges_df, "src", "dst", layer_col="marbles", constant_properties=["marbles"]
+    )
+    assert g.edges.layer_names.collect() == [
+        ["red"],
+        ["blue"],
+        ["green"],
+        ["yellow"],
+        ["purple"],
+    ]
+    assert g.unique_layers == ["_default", "red", "blue", "green", "yellow", "purple"]
+    assert g.edges.properties.get("marbles").collect() == [
+        {"red": "red"},
+        {"blue": "blue"},
+        {"green": "green"},
+        {"yellow": "yellow"},
+        {"purple": "purple"},
+    ]
+
+    g = PersistentGraph()
+    with pytest.raises(
+        Exception,
+        match=r"GraphLoadException\('WrongNumOfArgs\(\"layer_name\", \"layer_col\"\)'\)",
+    ):
+        g.load_edges_from_pandas(
+            edges_df, "time", "src", "dst", layer="blah", layer_col="marbles"
+        )
+
+    with pytest.raises(
+        Exception,
+        match=r"GraphLoadException\('WrongNumOfArgs\(\"layer_name\", \"layer_col\"\)'\)",
+    ):
+        g.load_edge_props_from_pandas(
+            edges_df, "src", "dst", layer="blah", layer_col="marbles"
+        )
+
+    with pytest.raises(
+        Exception,
+        match=r"GraphLoadException\('WrongNumOfArgs\(\"layer_name\", \"layer_col\"\)'\)",
+    ):
+        g.load_edge_deletions_from_pandas(
+            edges_df, "time", "src", "dst", layer="blah", layer_col="marbles"
+        )
+
+    # CHECK IF JUST LAYER WORKS
+    g = PersistentGraph()
+    g.load_edges_from_pandas(edges_df, "time", "src", "dst", layer="blah")
+    assert g.edges.layer_names.collect() == [
+        ["blah"],
+        ["blah"],
+        ["blah"],
+        ["blah"],
+        ["blah"],
+    ]
+    assert g.unique_layers == ["_default", "blah"]
+
+    g = PersistentGraph()
+    g.load_edges_from_pandas(edges_df, "time", "src", "dst", layer="blah")
+    g.load_edge_props_from_pandas(
+        edges_df, "src", "dst", layer="blah", constant_properties=["marbles"]
+    )
+    assert g.edges.layer_names.collect() == [
+        ["blah"],
+        ["blah"],
+        ["blah"],
+        ["blah"],
+        ["blah"],
+    ]
+    assert g.unique_layers == ["_default", "blah"]
+    assert g.layer("blah").edges.properties.get("marbles") == [
+        "red",
+        "blue",
+        "green",
+        "yellow",
+        "purple",
+    ]
+
+    g = PersistentGraph()
+    g.load_edge_deletions_from_pandas(edges_df, "time", "src", "dst", layer="blah")
+    assert g.edges.layer_names.collect() == [
+        ["blah"],
+        ["blah"],
+        ["blah"],
+        ["blah"],
+        ["blah"],
+    ]
+    assert g.unique_layers == ["_default", "blah"]
+
+    # CHECK IF JUST LAYER_COL WORKS
+    g = PersistentGraph()
+    g.load_edges_from_pandas(edges_df, "time", "src", "dst", layer_col="marbles")
+    assert g.edges.layer_names.collect() == [
+        ["red"],
+        ["blue"],
+        ["green"],
+        ["yellow"],
+        ["purple"],
+    ]
+    assert g.unique_layers == ["_default", "red", "blue", "green", "yellow", "purple"]
+
+    g = PersistentGraph()
+    g.load_edges_from_pandas(edges_df, "time", "src", "dst", layer_col="marbles")
+    g.load_edge_props_from_pandas(
+        edges_df, "src", "dst", layer_col="marbles", constant_properties=["marbles"]
+    )
+    assert g.edges.layer_names.collect() == [
+        ["red"],
+        ["blue"],
+        ["green"],
+        ["yellow"],
+        ["purple"],
+    ]
+    assert g.unique_layers == ["_default", "red", "blue", "green", "yellow", "purple"]
+    assert g.edges.properties.get("marbles").collect() == [
+        {"red": "red"},
+        {"blue": "blue"},
+        {"green": "green"},
+        {"yellow": "yellow"},
+        {"purple": "purple"},
+    ]
+
+    g = PersistentGraph()
+    g.load_edge_deletions_from_pandas(
+        edges_df, "time", "src", "dst", layer_col="marbles"
+    )
+    assert g.edges.layer_names.collect() == [
+        ["red"],
+        ["blue"],
+        ["green"],
+        ["yellow"],
+        ["purple"],
+    ]
+    assert g.unique_layers == ["_default", "red", "blue", "green", "yellow", "purple"]
+
+
+def test_node_both_option_failures_pandas():
+    nodes_df = pd.DataFrame(
+        {
+            "id": [1, 2, 3, 4, 5, 6],
+            "name": ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank"],
+            "time": [1, 2, 3, 4, 5, 6],
+            "node_type": ["P1", "P2", "P3", "P4", "P5", "P6"],
+        }
+    )
+    # CHECK ALL NODE FUNCTIONS ON GRAPH FAIL WITH BOTH NODE_TYPE AND NODE_TYPE_COL
+    with pytest.raises(
+        Exception,
+        match=r"GraphLoadException\('WrongNumOfArgs\(\"node_type\", \"node_type_col\"\)'\)",
+    ):
+        g = Graph()
+        g.load_nodes_from_pandas(
+            nodes_df, "time", "id", node_type="node_type", node_type_col="node_type"
+        )
+
+    with pytest.raises(
+        Exception,
+        match=r"GraphLoadException\('WrongNumOfArgs\(\"node_type\", \"node_type_col\"\)'\)",
+    ):
+        g = Graph()
+        g.load_node_props_from_pandas(
+            nodes_df, "id", node_type="node_type", node_type_col="node_type"
+        )
+
+    # CHECK IF JUST NODE_TYPE WORKS
+    g = Graph()
+    g.load_nodes_from_pandas(nodes_df, "time", "id", node_type="node_type")
+    assert g.nodes.node_type.collect() == [
+        "node_type",
+        "node_type",
+        "node_type",
+        "node_type",
+        "node_type",
+        "node_type",
+    ]
+    g = Graph()
+    g.load_nodes_from_pandas(nodes_df, "time", "id")
+    g.load_node_props_from_pandas(nodes_df, "id", node_type="node_type")
+    assert g.nodes.node_type.collect() == [
+        "node_type",
+        "node_type",
+        "node_type",
+        "node_type",
+        "node_type",
+        "node_type",
+    ]
+
+    # CHECK IF JUST NODE_TYPE_COL WORKS
+    g = Graph()
+    g.load_nodes_from_pandas(nodes_df, "time", "id", node_type_col="node_type")
+    assert g.nodes.node_type.collect() == ["P1", "P2", "P3", "P4", "P5", "P6"]
+    g = Graph()
+    g.load_nodes_from_pandas(nodes_df, "time", "id")
+    g.load_node_props_from_pandas(nodes_df, "id", node_type_col="node_type")
+    assert g.nodes.node_type.collect() == ["P1", "P2", "P3", "P4", "P5", "P6"]

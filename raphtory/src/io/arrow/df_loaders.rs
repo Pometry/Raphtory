@@ -313,7 +313,7 @@ pub(crate) fn load_edges_from_df<
     Ok(())
 }
 
-pub(crate) fn load_edges_deletions_from_df<
+pub(crate) fn load_edge_deletions_from_df<
     'a,
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + DeletionOps,
 >(

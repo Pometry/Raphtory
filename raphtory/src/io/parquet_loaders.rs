@@ -179,7 +179,7 @@ pub fn load_edge_props_from_parquet<
     Ok(())
 }
 
-pub fn load_edges_deletions_from_parquet<
+pub fn load_edge_deletions_from_parquet<
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + DeletionOps,
 >(
     graph: &G,
@@ -198,7 +198,7 @@ pub fn load_edges_deletions_from_parquet<
     for path in get_parquet_file_paths(parquet_path)? {
         let df_view = process_parquet_file_to_df(path.as_path(), &cols_to_check)?;
         df_view.check_cols_exist(&cols_to_check)?;
-        load_edges_deletions_from_df(df_view, time, src, dst, layer, layer_col, graph)
+        load_edge_deletions_from_df(df_view, time, src, dst, layer, layer_col, graph)
             .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
     }
     Ok(())
@@ -305,10 +305,10 @@ mod test {
         let parquet_file_path =
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources/test/test_data.parquet");
 
-        let col_names: &[&str] = &["src", "dst","time", "weight", "marbles"];
+        let col_names: &[&str] = &["src", "dst", "time", "weight", "marbles"];
         let df = process_parquet_file_to_df(parquet_file_path.as_path(), col_names).unwrap();
 
-        let expected_names: Vec<String> = vec!["src", "dst","time", "weight", "marbles"]
+        let expected_names: Vec<String> = vec!["src", "dst", "time", "weight", "marbles"]
             .iter()
             .map(|s| s.to_string())
             .collect();
