@@ -1350,6 +1350,52 @@ mod proto_test {
         }
     }
 
+    #[test]
+    fn test_incremental_writing() {
+        let g = Graph::new();
+        let mut props = vec![];
+        write_props_to_vec(&mut props);
+        let temp_cache_file = tempfile::NamedTempFile::new().unwrap();
+
+        g.cache(temp_cache_file.path()).unwrap();
+
+        for t in 0..props.len() {
+            g.add_properties(t as i64, (&props[t..t + 1]).to_vec())
+                .expect("Failed to add constant properties");
+        }
+        g.write_updates().unwrap();
+
+        g.add_constant_properties(props.clone())
+            .expect("Failed to add constant properties");
+        g.write_updates().unwrap();
+
+        let n = g.add_node(1, "Alice", NO_PROPS, None).unwrap();
+        n.update_constant_properties(props.clone())
+            .expect("Failed to update constant properties");
+        g.write_updates().unwrap();
+
+        let e = g.add_edge(1, "Alice", "Bob", NO_PROPS, Some("a")).unwrap();
+        e.update_constant_properties(props.clone(), Some("a"))
+            .expect("Failed to update constant properties");
+        g.write_updates().unwrap();
+
+        g.add_edge(2, "Alice", "Bob", props.clone(), None).unwrap();
+        g.add_node(1, "Charlie", props.clone(), None).unwrap();
+        g.write_updates().unwrap();
+
+        g.add_edge(7, "Alice", "Bob", NO_PROPS, Some("one"))
+            .unwrap();
+        g.add_edge(7, "Bob", "Charlie", [("friends", false)], Some("two"))
+            .unwrap();
+        g.write_updates().unwrap();
+        println!("{g:?}");
+
+        let g2 = Graph::decode(temp_cache_file.path()).unwrap();
+        println!("{g2:?}");
+
+        assert_graph_equal(&g, &g2);
+    }
+
     // we rely on this to make sure writing no updates does not actually write anything to file
     #[test]
     fn empty_proto_is_empty_bytes() {
