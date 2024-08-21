@@ -55,7 +55,7 @@ impl EdgeListTableProvider {
 
         let schema = lift_nested_arrow_schema(&g, layer_id)?;
 
-        let num_partitions = 2; //std::thread::available_parallelism()?.get();
+        let num_partitions = std::thread::available_parallelism()?.get();
 
         let row_count = graph
             .as_ref()
