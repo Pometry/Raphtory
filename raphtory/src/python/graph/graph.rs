@@ -7,10 +7,7 @@ use crate::{
     algorithms::components::LargestConnectedComponent,
     core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError},
     db::{
-        api::view::{
-            internal::{CoreGraphOps, DynamicGraph, IntoDynamic, MaterializedGraph},
-            serialise::{StableDecode, StableEncoder},
-        },
+        api::view::internal::{CoreGraphOps, DynamicGraph, IntoDynamic, MaterializedGraph},
         graph::{edge::EdgeView, node::NodeView, views::node_subgraph::NodeSubgraph},
     },
     io::parquet_loaders::*,
@@ -22,13 +19,14 @@ use crate::{
         },
         utils::PyTime,
     },
+    serialise::{StableDecode, StableEncode},
 };
-use pyo3::{prelude::*, types::PyBytes};
+use pyo3::prelude::*;
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 
 /// A temporal graph.
@@ -37,6 +35,8 @@ use std::{
 pub struct PyGraph {
     pub graph: Graph,
 }
+
+impl_serialise!(PyGraph, graph: Graph, "Graph");
 
 impl Debug for PyGraph {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -151,26 +151,14 @@ impl PyGraph {
     }
 
     #[cfg(feature = "storage")]
-    pub fn to_disk_graph(&self, graph_dir: String) -> PyResult<Py<Self>> {
+    pub fn to_disk_graph(&self, graph_dir: String) -> Result<Graph, GraphError> {
+        use crate::db::api::storage::graph::storage_ops::GraphStorage;
         use std::sync::Arc;
-
-        use crate::db::api::storage::storage_ops::GraphStorage;
 
         let disk_graph = Graph::persist_as_disk_graph(&self.graph, graph_dir)?;
         let storage = GraphStorage::Disk(Arc::new(disk_graph));
         let graph = Graph::from_internal_graph(storage);
-
-        Python::with_gil(|py| {
-            Ok(Py::new(
-                py,
-                (
-                    Self {
-                        graph: graph.clone(),
-                    },
-                    PyGraphView::from(graph.clone()),
-                ),
-            )?)
-        })
+        Ok(graph)
     }
 
     /// Adds a new node with the given id and properties to the graph.
@@ -365,49 +353,12 @@ impl PyGraph {
 
     // Alternative constructors are tricky, see: https://gist.github.com/redshiftzero/648e4feeff3843ffd9924f13625f839c
 
-    /// Loads a graph from the given path.
-    ///
-    /// Arguments:
-    ///   path (str): The path to the graph.
-    ///
-    /// Returns:
-    ///  Graph: The loaded graph.
-    #[staticmethod]
-    #[pyo3(signature = (path, force = false))]
-    pub fn load_from_file(path: &str, force: bool) -> Result<Graph, GraphError> {
-        Graph::load_from_file(path, force)
-    }
-
-    /// Saves the graph to the given path.
-    ///
-    /// Arguments:
-    ///  path (str): The path to the graph.
-    ///
-    /// Returns:
-    /// None
-    pub fn save_to_file(&self, path: &str) -> Result<(), GraphError> {
-        self.graph.save_to_file(Path::new(path))
-    }
-
     /// Returns all the node types in the graph.
     ///
     /// Returns:
     /// A list of node types
     pub fn get_all_node_types(&self) -> Vec<ArcStr> {
         self.graph.get_all_node_types()
-    }
-
-    /// Get bincode encoded graph
-    pub fn bincode<'py>(&'py self, py: Python<'py>) -> Result<&'py PyBytes, GraphError> {
-        let bytes = MaterializedGraph::from(self.graph.clone()).bincode()?;
-        Ok(PyBytes::new(py, &bytes))
-    }
-
-    /// Creates a graph from a bincode encoded graph
-    #[staticmethod]
-    fn from_bincode(bytes: &[u8]) -> Result<Option<Graph>, GraphError> {
-        let graph = MaterializedGraph::from_bincode(bytes)?;
-        Ok(graph.into_events())
     }
 
     /// Gives the large connected component of a graph.

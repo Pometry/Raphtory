@@ -6,7 +6,7 @@ use crate::{
     },
     db::api::{
         properties::{internal::PropertiesOps, Properties},
-        storage::{nodes::node_storage_ops::NodeStorageOps, storage_ops::GraphStorage},
+        storage::graph::{nodes::node_storage_ops::NodeStorageOps, storage_ops::GraphStorage},
         view::{
             internal::{CoreGraphOps, OneHopFilter, TimeSemantics},
             reset_filter::ResetFilter,

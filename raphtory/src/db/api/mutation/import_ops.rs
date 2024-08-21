@@ -128,15 +128,17 @@ impl<
         if !force && self.node(node.id()).is_some() {
             return Err(NodeExistsError(node.id()));
         }
-
-        let node_internal = self.resolve_node(node.id())?;
-        if let Some(node_type) = node.node_type().as_str() {
-            self.set_node_type(node_internal, node_type)?;
-        }
+        let node_internal = match node.node_type().as_str() {
+            None => self.resolve_node(node.id())?.inner(),
+            Some(node_type) => {
+                let (node_internal, _) = self.resolve_node_and_type(node.id(), node_type)?.inner();
+                node_internal.inner()
+            }
+        };
 
         for h in node.history() {
             let t = time_from_input(self, h)?;
-            self.internal_add_node(t, node_internal, vec![])?;
+            self.internal_add_node(t, node_internal, &[])?;
         }
         for (name, prop_view) in node.properties().temporal().iter() {
             let old_prop_id = node
@@ -151,10 +153,10 @@ impl<
                 .temporal_prop_meta()
                 .get_dtype(old_prop_id)
                 .unwrap();
-            let new_prop_id = self.resolve_node_property(&name, dtype, false)?;
+            let new_prop_id = self.resolve_node_property(&name, dtype, false)?.inner();
             for (h, prop) in prop_view.iter() {
                 let t = time_from_input(self, h)?;
-                self.internal_add_node(t, node_internal, vec![(new_prop_id, prop)])?;
+                self.internal_add_node(t, node_internal, &[(new_prop_id, prop)])?;
             }
         }
         self.node(node.id())
@@ -212,9 +214,9 @@ impl<
             if self.include_deletions() {
                 for t in edge.graph.edge_deletion_history(edge.edge, &layer_ids) {
                     let ti = time_from_input(self, t)?;
-                    let src_id = self.resolve_node(edge.src().id())?;
-                    let dst_id = self.resolve_node(edge.dst().id())?;
-                    let layer = self.resolve_layer(layer_name)?;
+                    let src_id = self.resolve_node(edge.src().id())?.inner();
+                    let dst_id = self.resolve_node(edge.dst().id())?.inner();
+                    let layer = self.resolve_layer(layer_name)?.inner();
                     self.internal_delete_edge(ti, src_id, dst_id, layer)?;
                 }
             }

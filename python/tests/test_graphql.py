@@ -1,5 +1,6 @@
 import base64
 import os
+import pickle
 import tempfile
 import time
 
@@ -609,8 +610,7 @@ def test_receive_graph_succeeds_if_graph_found():
         received_graph = client.query(query)["receiveGraph"]
 
         decoded_bytes = base64.b64decode(received_graph)
-
-        g = Graph.from_bincode(decoded_bytes)
+        g = Graph.deserialise(decoded_bytes);
         assert g.nodes.name == ["ben", "hamza", "haaroon"]
 
 
@@ -658,7 +658,7 @@ def test_receive_graph_succeeds_if_graph_found_at_namespace():
 
         decoded_bytes = base64.b64decode(received_graph)
 
-        g = Graph.from_bincode(decoded_bytes)
+        g = Graph.deserialise(decoded_bytes)
         assert g.nodes.name == ["ben", "hamza", "haaroon"]
 
 

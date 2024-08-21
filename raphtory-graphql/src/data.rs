@@ -12,6 +12,7 @@ use raphtory::{
         },
     },
     db::api::view::MaterializedGraph,
+    prelude::*,
     search::IndexedGraph,
 };
 use std::{
@@ -32,9 +33,14 @@ impl Data {
     pub fn new(work_dir: &Path, configs: &AppConfig) -> Self {
         let cache_configs = &configs.cache;
 
-        let graphs_cache_builder = Cache::builder()
+        let graphs_cache_builder = Cache::<_, IndexedGraph<MaterializedGraph>>::builder()
             .max_capacity(cache_configs.capacity)
             .time_to_idle(std::time::Duration::from_secs(cache_configs.tti_seconds))
+            .eviction_listener(|_, value, _| {
+                value
+                    .write_updates()
+                    .unwrap_or_else(|err| println!("Write on eviction failed: {err:?}"))
+            })
             .build();
 
         let graphs_cache: Cache<PathBuf, IndexedGraph<MaterializedGraph>> = graphs_cache_builder;
@@ -250,9 +256,9 @@ fn get_graph_from_path(path: &Path) -> Result<IndexedGraph<MaterializedGraph>, G
             return Err(PathIsDirectory(path.to_path_buf()).into());
         }
     } else {
-        let graph = load_bincode_graph(path)?;
+        let graph = MaterializedGraph::load_cached(path)?;
         println!("Graph loaded = {}", path.display());
-        Ok(IndexedGraph::from_graph(&graph.into())?)
+        Ok(IndexedGraph::from_graph(&graph)?)
     }
 }
 
@@ -297,11 +303,6 @@ pub(crate) fn get_graph_name(path: &Path) -> Result<String, GraphError> {
     } //should not happen, but means we always get a name
 }
 
-pub(crate) fn load_bincode_graph(path: &Path) -> Result<MaterializedGraph, GraphError> {
-    let graph = MaterializedGraph::load_from_file(path, false)?;
-    Ok(graph)
-}
-
 #[cfg(feature = "storage")]
 fn load_disk_graph(path: &Path) -> Result<MaterializedGraph, GraphError> {
     let disk_graph = DiskGraphStorage::load_from_dir(path)
@@ -336,7 +337,7 @@ pub(crate) mod data_tests {
     use raphtory::core::utils::errors::{GraphError, InvalidPathReason};
     #[cfg(feature = "storage")]
     use raphtory::{
-        db::api::storage::storage_ops::GraphStorage, db::api::view::internal::CoreGraphOps,
+        db::api::storage::graph::storage_ops::GraphStorage, db::api::view::internal::CoreGraphOps,
         disk_graph::DiskGraphStorage,
     };
     #[cfg(feature = "storage")]
@@ -390,12 +391,12 @@ pub(crate) mod data_tests {
                 #[cfg(feature = "storage")]
                 copy_dir_recursive(disk_graph_path, &full_path)?;
             } else {
-                graph.save_to_path(&full_path)?;
+                graph.encode(&full_path)?;
             }
 
             #[cfg(not(feature = "storage"))]
             {
-                graph.save_to_path(&full_path)?;
+                graph.encode(&full_path)?;
             }
         }
         Ok(())
@@ -499,13 +500,9 @@ pub(crate) mod data_tests {
             .add_edge(0, 1, 3, [("name", "test_e2")], None)
             .unwrap();
 
-        graph
-            .save_to_file(&tmp_work_dir.path().join("test_g"))
-            .unwrap();
+        graph.encode(&tmp_work_dir.path().join("test_g")).unwrap();
         let _ = DiskGraphStorage::from_graph(&graph, &tmp_work_dir.path().join("test_dg")).unwrap();
-        graph
-            .save_to_file(&tmp_work_dir.path().join("test_g2"))
-            .unwrap();
+        graph.encode(&tmp_work_dir.path().join("test_g2")).unwrap();
 
         let configs = AppConfigBuilder::new()
             .with_cache_capacity(1)

@@ -18,7 +18,7 @@ use crate::{
         edges::edge_store::{EdgeDataLike, EdgeLayer, EdgeStore},
         LayerIds,
     },
-    db::api::storage::edges::edge_storage_ops::{EdgeStorageOps, MemEdge},
+    db::api::storage::graph::edges::edge_storage_ops::{EdgeStorageOps, MemEdge},
 };
 
 use super::{resolve, timeindex::TimeIndex};

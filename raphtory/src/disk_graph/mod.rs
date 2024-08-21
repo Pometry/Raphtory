@@ -12,7 +12,7 @@ use crate::{
         },
         utils::errors::GraphError,
     },
-    db::{api::storage::storage_ops, graph::views::deletion_graph::PersistentGraph},
+    db::{api::storage::graph::storage_ops, graph::views::deletion_graph::PersistentGraph},
     disk_graph::graph_impl::{prop_conversion::make_node_properties_from_graph, ParquetLayerCols},
     prelude::{Graph, Layer},
 };
@@ -35,12 +35,6 @@ pub type Time = i64;
 
 pub mod prelude {
     pub use pometry_storage::chunked_array::array_ops::*;
-}
-
-#[derive(thiserror::Error, Debug)]
-pub enum DiskGraphError {
-    #[error("Raphtory Arrow Error: {0}")]
-    RAError(#[from] RAError),
 }
 
 #[derive(Clone, Debug)]
@@ -227,7 +221,7 @@ impl DiskGraphStorage {
         &self,
         other: &DiskGraphStorage,
         new_graph_dir: impl AsRef<Path>,
-    ) -> Result<DiskGraphStorage, DiskGraphError> {
+    ) -> Result<DiskGraphStorage, GraphError> {
         let graph_dir = new_graph_dir.as_ref();
         let inner = merge_graphs(graph_dir, &self.inner, &other.inner)?;
         Ok(DiskGraphStorage::new(inner))
@@ -256,7 +250,7 @@ impl DiskGraphStorage {
                 let resolved_id = edge_meta
                     .resolve_prop_id(prop_name, data_type.into(), false)
                     .expect("Arrow data types should without failing");
-                if id != resolved_id {
+                if resolved_id != id {
                     println!("Warning: Layers with different edge properties are not supported by the high-level apis on top of the disk_graph graph yet, edge properties will not be available to high-level apis");
                     edge_meta = Meta::new();
                     break;
@@ -294,7 +288,7 @@ impl DiskGraphStorage {
         }
     }
 
-    pub fn from_graph(graph: &Graph, graph_dir: impl AsRef<Path>) -> Result<Self, DiskGraphError> {
+    pub fn from_graph(graph: &Graph, graph_dir: impl AsRef<Path>) -> Result<Self, GraphError> {
         let inner_graph = TemporalGraph::from_graph(graph, graph_dir.as_ref(), || {
             make_node_properties_from_graph(graph, graph_dir.as_ref())
         })?;

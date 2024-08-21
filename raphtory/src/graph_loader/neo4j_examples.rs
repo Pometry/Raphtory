@@ -37,7 +37,7 @@ fn load_movies(row: Row, graph: &rap::Graph) {
             actor_name,
             film_title,
             NO_PROPS,
-            Some(relation_type.as_str()),
+            Some(relation_type),
         )
         .unwrap();
 }

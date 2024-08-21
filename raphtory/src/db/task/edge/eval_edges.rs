@@ -6,7 +6,7 @@ use crate::{
     db::{
         api::{
             properties::Properties,
-            storage::storage_ops::GraphStorage,
+            storage::graph::storage_ops::GraphStorage,
             view::{internal::OneHopFilter, BaseEdgeViewOps, BoxedLIter},
         },
         graph::edges::Edges,

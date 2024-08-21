@@ -4,10 +4,9 @@ use crate::{
         algorithms::global_plugins::GlobalPlugins,
         graph::{graph::GqlGraph, graphs::GqlGraphs, vectorised_graph::GqlVectorisedGraph},
     },
-    url_encode::url_decode_graph,
+    url_encode::{url_decode_graph, url_encode_graph},
 };
 use async_graphql::Context;
-use base64::{engine::general_purpose::STANDARD, Engine};
 use chrono::Utc;
 use dynamic_graphql::{
     App, Mutation, MutationFields, MutationRoot, ResolvedObject, ResolvedObjectFields, Result,
@@ -15,19 +14,21 @@ use dynamic_graphql::{
 };
 use itertools::Itertools;
 #[cfg(feature = "storage")]
-use raphtory::db::api::{storage::storage_ops::GraphStorage, view::internal::CoreGraphOps};
+use raphtory::db::api::{storage::graph::storage_ops::GraphStorage, view::internal::CoreGraphOps};
 use raphtory::{
     core::{utils::errors::GraphError, Prop},
     db::api::view::MaterializedGraph,
-    prelude::{GraphViewOps, ImportOps, PropertyAdditionOps},
+    prelude::*,
 };
 use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{
     error::Error,
     fmt::{Display, Formatter},
     fs,
-    io::Read,
+    fs::File,
+    io::copy,
     path::Path,
+    sync::Arc,
 };
 
 pub mod algorithms;
@@ -100,11 +101,12 @@ impl QueryRoot {
         data.global_plugins.clone()
     }
 
-    async fn receive_graph<'a>(ctx: &Context<'a>, path: String) -> Result<String> {
-        let path = Path::new(&path);
+    async fn receive_graph<'a>(ctx: &Context<'a>, path: String) -> Result<String, Arc<GraphError>> {
+        let path = path.as_ref();
         let data = ctx.data_unchecked::<Data>();
-        let g = data.get_graph(path)?.materialize()?;
-        Ok(STANDARD.encode(g.bincode()?))
+        let g = data.get_graph(path)?.graph.clone();
+        let res = url_encode_graph(g)?;
+        Ok(res)
     }
 }
 
@@ -160,7 +162,7 @@ impl Mut {
             graph.update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
             graph.update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
             create_dirs_if_not_present(&new_full_path)?;
-            graph.save_to_file(&new_full_path)?;
+            graph.graph.encode(&new_full_path)?;
 
             delete_graph(&full_path)?;
             data.graphs.remove(&path.to_path_buf());
@@ -197,7 +199,7 @@ impl Mut {
             let new_graph = graph.materialize()?;
             new_graph.update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
             create_dirs_if_not_present(&new_full_path)?;
-            new_graph.save_to_file(&new_full_path)?;
+            new_graph.encode(&new_full_path)?;
         }
 
         Ok(true)
@@ -217,9 +219,7 @@ impl Mut {
 
         graph.update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
 
-        let full_path = data.construct_graph_full_path(path)?;
-        graph.save_to_file(full_path)?;
-        data.graphs.insert(path.to_path_buf(), graph);
+        graph.write_updates()?;
 
         Ok(true)
     }
@@ -261,7 +261,7 @@ impl Mut {
         new_subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
 
         create_dirs_if_not_present(&new_graph_full_path)?;
-        new_subgraph.save_to_file(new_graph_full_path)?;
+        new_subgraph.cache(new_graph_full_path)?;
 
         data.graphs
             .insert(new_graph_path.to_path_buf(), new_subgraph.into());
@@ -354,7 +354,7 @@ impl Mut {
         new_subgraph.update_constant_properties([("uiProps", Prop::Str(props.into()))])?;
         new_subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
 
-        new_subgraph.save_to_file(new_graph_full_path)?;
+        new_subgraph.cache(new_graph_full_path)?;
 
         data.graphs.remove(&graph_path.to_path_buf());
         data.graphs
@@ -398,12 +398,11 @@ impl Mut {
             return Err(GraphError::GraphNameAlreadyExists(path.to_path_buf()).into());
         }
 
-        let mut buffer = Vec::new();
-        let mut buff_read = graph.value(ctx)?.content;
-        buff_read.read_to_end(&mut buffer)?;
-        let g: MaterializedGraph = MaterializedGraph::from_bincode(&buffer)?;
+        let mut in_file = graph.value(ctx)?.content;
         create_dirs_if_not_present(&full_path)?;
-        g.save_to_file(&full_path)?;
+        let mut out_file = File::create(&full_path)?;
+        copy(&mut in_file, &mut out_file)?;
+        let g = MaterializedGraph::load_cached(&full_path)?;
         data.graphs.insert(path.to_path_buf(), g.into());
         Ok(path.display().to_string())
     }
@@ -411,7 +410,7 @@ impl Mut {
     /// Send graph bincode as base64 encoded string
     ///
     /// Returns::
-    ///    name of the new graph
+    ///    path of the new graph
     async fn send_graph<'a>(
         ctx: &Context<'a>,
         path: String,
@@ -426,7 +425,7 @@ impl Mut {
         }
         let g: MaterializedGraph = url_decode_graph(graph)?;
         create_dirs_if_not_present(&full_path)?;
-        g.save_to_file(&full_path)?;
+        g.cache(&full_path)?;
         data.graphs.insert(path.to_path_buf(), g.into());
         Ok(path.display().to_string())
     }
@@ -441,12 +440,7 @@ impl Mut {
         }
 
         graph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
-
-        let full_path = data.construct_graph_full_path(path)?;
-        graph.save_to_file(full_path)?;
-
-        data.graphs.insert(path.to_path_buf(), graph);
-
+        graph.write_updates()?;
         Ok(true)
     }
 }
