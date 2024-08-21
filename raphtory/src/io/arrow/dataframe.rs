@@ -20,14 +20,6 @@ impl<I, E> DFView<I>
 where
     I: Iterator<Item = Result<DFChunk, E>>,
 {
-    pub(crate) fn new(names: Vec<String>, chunks: I, num_rows: usize) -> Self {
-        Self {
-            names,
-            chunks,
-            num_rows,
-        }
-    }
-
     pub fn check_cols_exist(&self, cols: &[&str]) -> Result<(), GraphError> {
         let non_cols: Vec<&&str> = cols
             .iter()
