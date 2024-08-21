@@ -30,7 +30,6 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Display, Formatter},
-    ops::Deref,
     sync::Arc,
 };
 
@@ -149,11 +148,11 @@ where
 }
 
 impl Base for Graph {
-    type Base = GraphStorage;
+    type Base = Storage;
 
     #[inline(always)]
     fn base(&self) -> &Self::Base {
-        self.inner.deref().base()
+        &self.inner
     }
 }
 

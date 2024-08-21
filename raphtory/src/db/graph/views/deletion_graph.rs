@@ -135,10 +135,10 @@ impl<'graph, G: GraphViewOps<'graph>> PartialEq<G> for PersistentGraph {
 }
 
 impl Base for PersistentGraph {
-    type Base = GraphStorage;
+    type Base = Storage;
     #[inline(always)]
     fn base(&self) -> &Self::Base {
-        self.0.deref().base()
+        &self.0
     }
 }
 
