@@ -1,5 +1,6 @@
 use crate::db::graph::graph as rap;
 use neo4rs::*;
+
 /// A struct that defines the Neo4J loader with configurable options.
 pub struct Neo4JConnection {
     // The created graph object given the arguments
@@ -23,21 +24,13 @@ impl Neo4JConnection {
         Ok(Self { neo_graph: graph })
     }
 
-    pub async fn run(&self, query: Query) -> Result<()> {
-        self.neo_graph.run(query).await
-    }
-
-    pub async fn execute(&self, query: Query) -> Result<RowStream> {
-        self.neo_graph.execute(query).await
-    }
-
     pub async fn load_query_into_graph(
         &self,
         g: &rap::Graph,
         query: Query,
         loader: fn(Row, &rap::Graph),
     ) -> Result<()> {
-        let mut result = self.neo_graph.execute(query).await.unwrap();
+        let mut result = self.neo_graph.execute(query).await?;
 
         while let Ok(Some(row)) = result.next().await {
             loader(row, g);
@@ -87,7 +80,7 @@ mod neo_loader_test {
                 actor_name,
                 film_title,
                 NO_PROPS,
-                Some(relation_type.as_str()),
+                Some(relation_type),
             )
             .unwrap();
     }
@@ -128,11 +121,13 @@ mod neo_loader_test {
         .await
         .unwrap();
 
-        neo.run(query("CREATE (p:Person {id: $id})").param("id", 3))
+        neo.neo_graph
+            .run(query("CREATE (p:Person {id: $id})").param("id", 3))
             .await
             .unwrap();
 
         let mut result = neo
+            .neo_graph
             .execute(query("MATCH (p:Person {id: $id}) RETURN p").param("id", 3))
             .await
             .unwrap();
