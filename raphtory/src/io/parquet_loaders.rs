@@ -28,21 +28,19 @@ pub fn load_nodes_from_parquet<
 >(
     graph: &G,
     parquet_path: &Path,
-    id: &str,
     time: &str,
+    id: &str,
     node_type: Option<&str>,
-    node_type_in_df: Option<bool>,
+    node_type_col: Option<&str>,
     properties: Option<&[&str]>,
-    const_properties: Option<&[&str]>,
-    shared_const_properties: Option<&HashMap<String, Prop>>,
+    constant_properties: Option<&[&str]>,
+    shared_constant_properties: Option<&HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![id, time];
     cols_to_check.extend(properties.unwrap_or(&Vec::new()));
-    cols_to_check.extend(const_properties.unwrap_or(&Vec::new()));
-    if node_type_in_df.unwrap_or(true) {
-        if let Some(ref node_type) = node_type {
-            cols_to_check.push(node_type.as_ref());
-        }
+    cols_to_check.extend(constant_properties.unwrap_or(&Vec::new()));
+    if let Some(ref node_type_col) = node_type_col {
+        cols_to_check.push(node_type_col.as_ref());
     }
 
     for path in get_parquet_file_paths(parquet_path)? {
@@ -50,13 +48,13 @@ pub fn load_nodes_from_parquet<
         df_view.check_cols_exist(&cols_to_check)?;
         load_nodes_from_df(
             df_view,
-            id,
             time,
+            id,
             properties,
-            const_properties,
-            shared_const_properties,
+            constant_properties,
+            shared_constant_properties,
             node_type,
-            node_type_in_df.unwrap_or(true),
+            node_type_col,
             graph,
         )
         .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
@@ -70,23 +68,21 @@ pub fn load_edges_from_parquet<
 >(
     graph: &G,
     parquet_path: impl AsRef<Path>,
+    time: &str,
     src: &str,
     dst: &str,
-    time: &str,
     properties: Option<&[&str]>,
-    const_properties: Option<&[&str]>,
-    shared_const_properties: Option<&HashMap<String, Prop>>,
+    constant_properties: Option<&[&str]>,
+    shared_constant_properties: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
-    layer_in_df: Option<bool>,
+    layer_col: Option<&str>,
 ) -> Result<(), GraphError> {
     let parquet_path = parquet_path.as_ref();
     let mut cols_to_check = vec![src, dst, time];
     cols_to_check.extend(properties.unwrap_or(&Vec::new()));
-    cols_to_check.extend(const_properties.unwrap_or(&Vec::new()));
-    if layer_in_df.unwrap_or(false) {
-        if let Some(ref layer) = layer {
-            cols_to_check.push(layer.as_ref());
-        }
+    cols_to_check.extend(constant_properties.unwrap_or(&Vec::new()));
+    if let Some(ref layer_col) = layer_col {
+        cols_to_check.push(layer_col.as_ref());
     }
 
     for path in get_parquet_file_paths(parquet_path)? {
@@ -94,14 +90,14 @@ pub fn load_edges_from_parquet<
         df_view.check_cols_exist(&cols_to_check)?;
         load_edges_from_df(
             df_view,
+            time,
             src,
             dst,
-            time,
             properties,
-            const_properties,
-            shared_const_properties,
+            constant_properties,
+            shared_constant_properties,
             layer,
-            layer_in_df.unwrap_or(true),
+            layer_col,
             graph,
         )
         .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
@@ -116,11 +112,16 @@ pub fn load_node_props_from_parquet<
     graph: &G,
     parquet_path: &Path,
     id: &str,
-    const_properties: Option<&[&str]>,
-    shared_const_properties: Option<&HashMap<String, Prop>>,
+    node_type: Option<&str>,
+    node_type_col: Option<&str>,
+    constant_properties: Option<&[&str]>,
+    shared_constant_properties: Option<&HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![id];
-    cols_to_check.extend(const_properties.unwrap_or(&Vec::new()));
+    cols_to_check.extend(constant_properties.unwrap_or(&Vec::new()));
+    if let Some(ref node_type_col) = node_type_col {
+        cols_to_check.push(node_type_col.as_ref());
+    }
 
     for path in get_parquet_file_paths(parquet_path)? {
         let df_view = process_parquet_file_to_df(path.as_path(), &cols_to_check)?;
@@ -129,8 +130,10 @@ pub fn load_node_props_from_parquet<
         load_node_props_from_df(
             df_view,
             id,
-            const_properties,
-            shared_const_properties,
+            node_type,
+            node_type_col,
+            constant_properties,
+            shared_constant_properties,
             graph,
         )
         .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
@@ -146,18 +149,16 @@ pub fn load_edge_props_from_parquet<
     parquet_path: &Path,
     src: &str,
     dst: &str,
-    const_properties: Option<&[&str]>,
+    constant_properties: Option<&[&str]>,
     shared_const_properties: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
-    layer_in_df: Option<bool>,
+    layer_col: Option<&str>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![src, dst];
-    if layer_in_df.unwrap_or(false) {
-        if let Some(ref layer) = layer {
-            cols_to_check.push(layer.as_ref());
-        }
+    if let Some(ref layer_col) = layer_col {
+        cols_to_check.push(layer_col.as_ref());
     }
-    cols_to_check.extend(const_properties.unwrap_or(&Vec::new()));
+    cols_to_check.extend(constant_properties.unwrap_or(&Vec::new()));
 
     for path in get_parquet_file_paths(parquet_path)? {
         let df_view = process_parquet_file_to_df(path.as_path(), &cols_to_check)?;
@@ -166,10 +167,10 @@ pub fn load_edge_props_from_parquet<
             df_view,
             src,
             dst,
-            const_properties,
+            constant_properties,
             shared_const_properties,
             layer,
-            layer_in_df.unwrap_or(true),
+            layer_col,
             graph.core_graph(),
         )
         .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
@@ -178,36 +179,27 @@ pub fn load_edge_props_from_parquet<
     Ok(())
 }
 
-pub fn load_edges_deletions_from_parquet<
+pub fn load_edge_deletions_from_parquet<
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + DeletionOps,
 >(
     graph: &G,
     parquet_path: &Path,
+    time: &str,
     src: &str,
     dst: &str,
-    time: &str,
     layer: Option<&str>,
-    layer_in_df: Option<bool>,
+    layer_col: Option<&str>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![src, dst, time];
-    if layer_in_df.unwrap_or(true) {
-        if let Some(ref layer) = layer {
-            cols_to_check.push(layer.as_ref());
-        }
+    if let Some(ref layer_col) = layer_col {
+        cols_to_check.push(layer_col.as_ref());
     }
+
     for path in get_parquet_file_paths(parquet_path)? {
         let df_view = process_parquet_file_to_df(path.as_path(), &cols_to_check)?;
         df_view.check_cols_exist(&cols_to_check)?;
-        load_edges_deletions_from_df(
-            df_view,
-            src,
-            dst,
-            time,
-            layer,
-            layer_in_df.unwrap_or(true),
-            graph,
-        )
-        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+        load_edge_deletions_from_df(df_view, time, src, dst, layer, layer_col, graph)
+            .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
     }
     Ok(())
 }

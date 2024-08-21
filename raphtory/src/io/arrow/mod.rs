@@ -45,18 +45,18 @@ mod test {
             num_rows: 3,
         };
         let graph = Graph::new();
-        let layer: Option<&str> = None;
-        let layer_in_df: bool = true;
+        let layer_name: Option<&str> = None;
+        let layer_col: Option<&str> = None;
         load_edges_from_df(
             df,
+            "time",
             "src",
             "dst",
-            "time",
             Some(&*vec!["prop1", "prop2"]),
             None,
             None,
-            layer,
-            layer_in_df,
+            layer_name,
+            layer_col,
             &graph,
         )
         .expect("failed to load edges from pretend df");
@@ -141,13 +141,13 @@ mod test {
 
         load_nodes_from_df(
             df,
-            "id",
             "time",
+            "id",
             Some(&*vec!["name"]),
             None,
             None,
             Some("node_type"),
-            false,
+            None,
             &graph,
         )
         .expect("failed to load nodes from pretend df");
