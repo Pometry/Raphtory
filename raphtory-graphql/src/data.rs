@@ -1,4 +1,7 @@
-use crate::{model::algorithms::global_plugins::GlobalPlugins, server_config::AppConfig};
+use crate::{
+    model::{algorithms::global_plugins::GlobalPlugins, GqlGraphType},
+    server_config::AppConfig,
+};
 use moka::sync::Cache;
 #[cfg(feature = "storage")]
 use raphtory::disk_graph::DiskGraphStorage;
@@ -11,13 +14,15 @@ use raphtory::{
             SymlinkNotAllowed,
         },
     },
-    db::api::view::MaterializedGraph,
+    db::{api::view::MaterializedGraph, graph::views::deletion_graph::PersistentGraph},
     prelude::*,
     search::IndexedGraph,
 };
 use std::{
     collections::HashMap,
     fs,
+    fs::File,
+    io::Write,
     path::{Component, Path, PathBuf, StripPrefixError},
     sync::Arc,
 };
@@ -65,6 +70,20 @@ impl Data {
             self.graphs
                 .try_get_with(path.to_path_buf(), || get_graph_from_path(&full_path))
         }
+    }
+
+    pub fn new_graph(&self, path: &Path, graph_type: GqlGraphType) -> Result<(), GraphError> {
+        let full_path = self.construct_graph_full_path(path)?;
+        let mut cache = File::create_new(full_path)?;
+        match graph_type {
+            GqlGraphType::Persistent => {
+                cache.write_all(&PersistentGraph::new().encode_to_vec())?;
+            }
+            GqlGraphType::Event => {
+                cache.write_all(&Graph::new().encode_to_vec())?;
+            }
+        }
+        Ok(())
     }
 
     pub fn get_graph_names_paths(&self) -> Result<Vec<PathBuf>, GraphError> {
