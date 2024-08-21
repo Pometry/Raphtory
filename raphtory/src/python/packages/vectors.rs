@@ -371,15 +371,36 @@ impl PyVectorisedGraph {
         self.0.save_embeddings(file.into());
     }
 
+    /// Return an empty selection of documents
     fn empty_selection(&self) -> DynamicVectorSelection {
         self.0.empty_selection()
     }
 
+    /// Select the top `limit` documents using `query`
+    ///
+    /// Args:
+    ///   query (str or list): the text or the embedding to score against
+    ///   limit (int): the maximum number of documents to select
+    ///   window ((int | str, int | str)): the window where documents need to belong to in order to be considered
+    ///
+    /// Returns:
+    ///   A selection containing the documents
+    #[pyo3(signature = (query, limit, window=None))]
     pub fn search(&self, query: PyQuery, limit: usize, window: PyWindow) -> DynamicVectorSelection {
         let embedding = compute_embedding(&self.0, query);
         self.0.search(&embedding, limit, translate_window(window))
     }
 
+    /// Select the top `limit` node documents using `query`
+    ///
+    /// Args:
+    ///   query (str or list): the text or the embedding to score against
+    ///   limit (int): the maximum number of new documents to select
+    ///   window ((int | str, int | str)): the window where documents need to belong to in order to be considered
+    ///
+    /// Returns:
+    ///   A selection containing the documents
+    #[pyo3(signature = (query, limit, window=None))]
     pub fn search_nodes(
         &self,
         query: PyQuery,
@@ -391,6 +412,16 @@ impl PyVectorisedGraph {
             .search_nodes(&embedding, limit, translate_window(window))
     }
 
+    /// Select the top `limit` edge documents using `query`
+    ///
+    /// Args:
+    ///   query (str or list): the text or the embedding to score against
+    ///   limit (int): the maximum number of new documents to select
+    ///   window ((int | str, int | str)): the window where documents need to belong to in order to be considered
+    ///
+    /// Returns:
+    ///   A selection containing the documents
+    #[pyo3(signature = (query, limit, window=None))]
     pub fn search_edges(
         &self,
         query: PyQuery,
