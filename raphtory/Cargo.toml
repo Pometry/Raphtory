@@ -16,7 +16,6 @@ homepage.workspace = true
 
 [dependencies]
 raphtory-api = { path = "../raphtory-api", version = "0.10.0" }
-bincode = { workspace = true }
 chrono = { workspace = true }
 itertools = { workspace = true }
 num-traits = { workspace = true }
@@ -31,7 +30,6 @@ rustc-hash = { workspace = true }
 serde = { workspace = true }
 sorted_vector_map = { workspace = true }
 thiserror = { workspace = true }
-twox-hash = { workspace = true }
 lock_api = { workspace = true }
 dashmap = { workspace = true }
 enum_dispatch = { workspace = true }
@@ -41,7 +39,7 @@ quad-rand = { workspace = true }
 serde_json = { workspace = true }
 ouroboros = { workspace = true }
 either = { workspace = true }
-kdam = { workspace = true}
+kdam = { workspace = true }
 
 
 # io optional dependencies
@@ -60,6 +58,7 @@ tantivy = { workspace = true, optional = true }
 futures-util = { workspace = true, optional = true }
 async-trait = { workspace = true, optional = true }
 async-openai = { workspace = true, optional = true }
+bincode = { workspace = true, optional = true }
 
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
@@ -67,18 +66,12 @@ num = { workspace = true, optional = true }
 display-error-chain = { workspace = true, optional = true }
 polars-arrow = { workspace = true, optional = true }
 polars-parquet = { workspace = true, optional = true }
-polars-utils = { workspace = true, optional = true }
 memmap2 = { workspace = true, optional = true }
-ahash = { workspace = true, optional = true }
 tempfile = { workspace = true, optional = true }
-bytemuck = { workspace = true, optional = true }
-rpds = { workspace = true, optional = true }
-thread_local = { workspace = true, optional = true }
 pometry-storage = { workspace = true, optional = true }
 
 prost = { workspace = true, optional = true }
 prost-types = { workspace = true, optional = true }
-bytes = { workspace = true, optional = true }
 
 [dev-dependencies]
 csv = { workspace = true }
@@ -86,7 +79,6 @@ pretty_assertions = { workspace = true }
 quickcheck = { workspace = true }
 quickcheck_macros = { workspace = true }
 tempfile = { workspace = true }
-tempdir = { workspace = true }
 tokio = { workspace = true }             # for vector testing
 dotenv = { workspace = true }            # for vector testing
 streaming-stats = { workspace = true }
@@ -112,7 +104,7 @@ io = [
 # search
 search = ["dep:tantivy"]
 # vectors
-vectors = ["dep:futures-util", "dep:async-trait", "dep:async-openai"]
+vectors = ["dep:futures-util", "dep:async-trait", "dep:async-openai", "dep:bincode"]
 
 # Enables generating the pyo3 python bindings
 python = [
@@ -126,7 +118,6 @@ python = [
     "dep:display-error-chain",
     "polars-arrow?/compute",
     "raphtory-api/python",
-    "dep:rpds",
     "kdam/notebook"
 ]
 
@@ -134,13 +125,8 @@ python = [
 storage = [
     "arrow",
     "pometry-storage",
-    "dep:polars-utils",
     "dep:memmap2",
-    "dep:ahash",
     "dep:tempfile",
-    "dep:bytemuck",
-    "dep:rpds",
-    "dep:thread_local",
     "polars-arrow?/io_ipc",
     "polars-arrow?/arrow_rs",
 ]
@@ -153,7 +139,6 @@ arrow = [
 proto = [
     "dep:prost",
     "dep:prost-types",
-    "dep:bytes",
     "dep:prost-build",
     "dep:memmap2",
 ]
