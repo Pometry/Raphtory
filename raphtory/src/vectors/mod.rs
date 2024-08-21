@@ -10,6 +10,7 @@ mod entity_id;
 pub mod graph_entity;
 mod similarity_search_utils;
 pub mod splitting;
+pub mod vector_selection;
 pub mod vectorisable;
 pub mod vectorised_cluster;
 pub mod vectorised_graph;

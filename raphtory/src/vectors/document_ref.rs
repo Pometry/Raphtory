@@ -56,7 +56,7 @@ impl DocumentRef {
 
     // TODO: review -> does window really need to be an Option
     /// This function expects a graph with a window that matches the one provided in `window`
-    pub fn exists_on_window<G>(&self, graph: Option<&G>, window: Option<(i64, i64)>) -> bool
+    pub fn exists_on_window<G>(&self, graph: Option<&G>, window: &Option<(i64, i64)>) -> bool
     where
         G: StaticGraphViewOps,
     {
