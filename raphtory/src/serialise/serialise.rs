@@ -48,7 +48,7 @@ macro_rules! zip_tprop_updates {
         &$iter
             .map(|(key, values)| values.iter().map(move |(t, v)| (t, (key, v))))
             .kmerge_by(|(left_t, _), (right_t, _)| left_t <= right_t)
-            .group_by(|(t, _)| *t)
+            .chunk_by(|(t, _)| *t)
     };
 }
 
@@ -496,7 +496,7 @@ impl StableEncode for GraphStorage {
                     .collect::<Vec<_>>()
             })
             .kmerge_by(|(left_t, _), (right_t, _)| left_t <= right_t)
-            .group_by(|(t, _)| *t)
+            .chunk_by(|(t, _)| *t)
         {
             graph.update_graph_tprops(t, group.map(|(_, v)| v));
         }

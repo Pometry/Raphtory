@@ -41,12 +41,12 @@ async-graphql = { version = "7.0.5", features = ["dynamic-schema"] }
 bincode = "1.3.3"
 async-graphql-poem = "7.0.5"
 dynamic-graphql = "0.9.0"
-reqwest = { version = "0.11.22", default-features = false, features = ["rustls-tls"] }
+reqwest = { version = "0.12.7", default-features = false, features = ["rustls-tls", "multipart", "json"] }
 serde = { version = "1.0.197", features = ["derive", "rc"] }
 serde_json = "1.0.114"
 pyo3 = { version = "0.20.0", features = ["multiple-pymethods", "chrono"] }
 pyo3-build-config = "0.20.0"
-itertools = "0.12.1"
+itertools = "0.13.0"
 rand = "0.8.5"
 rayon = "1.8.1"
 sorted_vector_map = "0.1.0"
@@ -65,10 +65,10 @@ regex = "1.10.3"
 num-traits = "0.2.18"
 num-integer = "0.1"
 rand_distr = "0.4.3"
-rustc-hash = "1.1.0"
+rustc-hash = "2.0.0"
 twox-hash = "1.6.3"
 lock_api = { version = "0.4.11", features = ["arc_lock", "serde"] }
-dashmap = { version = "5.5.3", features = ["serde"] }
+dashmap = { version = "6.0.1", features = ["serde"] }
 enum_dispatch = "0.3.12"
 glam = "0.25.0"
 quad-rand = "0.2.1"
@@ -93,7 +93,7 @@ streaming-stats = "0.2.3"
 proptest = "1.4.0"
 criterion = "0.5.1"
 crossbeam-channel = "0.5.11"
-base64 = "0.21.7"
+base64 = "0.22.1"
 poem = { version = "3.0.1", features = ["cookie"] }
 opentelemetry = "0.21.0"
 opentelemetry_sdk = { version = "0.21.0", features = ["rt-tokio"] }
@@ -119,9 +119,9 @@ ouroboros = "0.18.3"
 url = "2.2"
 base64-compat = { package = "base64-compat", version = "1.0.0" }
 
-prost = "0.12"
-prost-types = "0.12"
-prost-build = "0.12"
+prost = "0.13.1"
+prost-types = "0.13.1"
+prost-build = "0.13.1"
 
 lazy_static = "1.4.0"
 pest = "2.7.8"
