@@ -28,8 +28,8 @@ pub fn load_nodes_from_parquet<
 >(
     graph: &G,
     parquet_path: &Path,
-    id: &str,
     time: &str,
+    id: &str,
     node_type: Option<&str>,
     node_type_col: Option<&str>,
     properties: Option<&[&str]>,
@@ -48,8 +48,8 @@ pub fn load_nodes_from_parquet<
         df_view.check_cols_exist(&cols_to_check)?;
         load_nodes_from_df(
             df_view,
-            id,
             time,
+            id,
             properties,
             constant_properties,
             shared_constant_properties,
@@ -74,7 +74,7 @@ pub fn load_edges_from_parquet<
     properties: Option<&[&str]>,
     constant_properties: Option<&[&str]>,
     shared_constant_properties: Option<&HashMap<String, Prop>>,
-    layer_name: Option<&str>,
+    layer: Option<&str>,
     layer_col: Option<&str>,
 ) -> Result<(), GraphError> {
     let parquet_path = parquet_path.as_ref();
@@ -96,7 +96,7 @@ pub fn load_edges_from_parquet<
             properties,
             constant_properties,
             shared_constant_properties,
-            layer_name,
+            layer,
             layer_col,
             graph,
         )
@@ -112,11 +112,16 @@ pub fn load_node_props_from_parquet<
     graph: &G,
     parquet_path: &Path,
     id: &str,
+    node_type: Option<&str>,
+    node_type_col: Option<&str>,
     constant_properties: Option<&[&str]>,
-    shared_const_properties: Option<&HashMap<String, Prop>>,
+    shared_constant_properties: Option<&HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![id];
     cols_to_check.extend(constant_properties.unwrap_or(&Vec::new()));
+    if let Some(ref node_type_col) = node_type_col {
+        cols_to_check.push(node_type_col.as_ref());
+    }
 
     for path in get_parquet_file_paths(parquet_path)? {
         let df_view = process_parquet_file_to_df(path.as_path(), &cols_to_check)?;
@@ -125,8 +130,10 @@ pub fn load_node_props_from_parquet<
         load_node_props_from_df(
             df_view,
             id,
+            node_type,
+            node_type_col,
             constant_properties,
-            shared_const_properties,
+            shared_constant_properties,
             graph,
         )
         .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
@@ -144,7 +151,7 @@ pub fn load_edge_props_from_parquet<
     dst: &str,
     constant_properties: Option<&[&str]>,
     shared_const_properties: Option<&HashMap<String, Prop>>,
-    layer_name: Option<&str>,
+    layer: Option<&str>,
     layer_col: Option<&str>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![src, dst];
@@ -162,7 +169,7 @@ pub fn load_edge_props_from_parquet<
             dst,
             constant_properties,
             shared_const_properties,
-            layer_name,
+            layer,
             layer_col,
             graph.core_graph(),
         )
@@ -180,7 +187,7 @@ pub fn load_edges_deletions_from_parquet<
     time: &str,
     src: &str,
     dst: &str,
-    layer_name: Option<&str>,
+    layer: Option<&str>,
     layer_col: Option<&str>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![src, dst, time];
@@ -191,7 +198,7 @@ pub fn load_edges_deletions_from_parquet<
     for path in get_parquet_file_paths(parquet_path)? {
         let df_view = process_parquet_file_to_df(path.as_path(), &cols_to_check)?;
         df_view.check_cols_exist(&cols_to_check)?;
-        load_edges_deletions_from_df(df_view, time, src, dst, layer_name, layer_col, graph)
+        load_edges_deletions_from_df(df_view, time, src, dst, layer, layer_col, graph)
             .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
     }
     Ok(())
@@ -298,10 +305,10 @@ mod test {
         let parquet_file_path =
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources/test/test_data.parquet");
 
-        let col_names: &[&str] = &["src", "dst", "time", "weight", "marbles"];
+        let col_names: &[&str] = &["time", "src", "dst", "weight", "marbles"];
         let df = process_parquet_file_to_df(parquet_file_path.as_path(), col_names).unwrap();
 
-        let expected_names: Vec<String> = vec!["src", "dst", "time", "weight", "marbles"]
+        let expected_names: Vec<String> = vec!["time", "src", "dst", "weight", "marbles"]
             .iter()
             .map(|s| s.to_string())
             .collect();

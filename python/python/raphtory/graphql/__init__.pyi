@@ -15,10 +15,8 @@ class GraphqlGraphs:
 
     def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
-
     def get(self, name):
         """Return the `VectorisedGraph` with name `name` or `None` if it doesn't exist"""
-
     def search_graph_documents(self, query, limit, window):
         """
         Return the top documents with the smallest cosine distance to `query`
@@ -31,7 +29,6 @@ class GraphqlGraphs:
         # Returns
           A list of documents
         """
-
     def search_graph_documents_with_scores(self, query, limit, window):
         """Same as `search_graph_documents` but it also returns the scores alongside the documents"""
 
@@ -40,7 +37,6 @@ class RaphtoryClient:
 
     def __init__(self, url):
         """Initialize self.  See help(type(self)) for accurate signature."""
-
     def load_graphs_from_path(self, path, overwrite=False):
         """
         Set the server to load all the graphs from its path `path`.
@@ -52,7 +48,6 @@ class RaphtoryClient:
         Returns:
            The `data` field from the graphQL response after executing the mutation.
         """
-
     def query(self, query, variables=None):
         """
         Make a graphQL query against the server.
@@ -64,7 +59,6 @@ class RaphtoryClient:
         Returns:
            The `data` field from the graphQL response.
         """
-
     def send_graph(self, name, graph):
         """
         Send a graph to the server.
@@ -76,7 +70,6 @@ class RaphtoryClient:
         Returns:
            The `data` field from the graphQL response after executing the mutation.
         """
-
     def wait_for_online(self, millis=None):
         """
         Wait for the server to be online.
@@ -90,7 +83,6 @@ class RaphtoryServer:
 
     def __init__(self, graphs=None, graph_dir=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
-
     def run(self, port=1736, log_level=..., enable_tracing=False, enable_auth=False):
         """
         Run the server until completion.
@@ -98,7 +90,6 @@ class RaphtoryServer:
         Arguments:
           * `port`: the port to use (defaults to 1736).
         """
-
     def start(self, port=1736, log_level=..., enable_tracing=False, enable_auth=False):
         """
         Start the server and return a handle to it.
@@ -106,7 +97,6 @@ class RaphtoryServer:
         Arguments:
           * `port`: the port to use (defaults to 1736).
         """
-
     def with_document_search_function(self, name, input, function):
         """
         Register a function in the GraphQL schema for document search over a graph.
@@ -124,7 +114,6 @@ class RaphtoryServer:
         Returns:
            A new server object containing the vectorised graphs.
         """
-
     def with_global_search_function(self, name, input, function):
         """
         Register a function in the GraphQL schema for document search among all the graphs.
@@ -142,8 +131,15 @@ class RaphtoryServer:
         Returns:
            A new server object containing the vectorised graphs.
         """
-
-    def with_vectorised(self, cache, graph_names=None, embedding=None, graph_document=None, node_document=None, edge_document=None):
+    def with_vectorised(
+        self,
+        cache,
+        graph_names=None,
+        embedding=None,
+        graph_document=None,
+        node_document=None,
+        edge_document=None,
+    ):
         """
         Vectorise a subset of the graphs of the server.
 
@@ -168,7 +164,6 @@ class RunningRaphtoryServer:
 
     def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
-
     def load_graphs_from_path(self, path, overwrite=False):
         """
         Set the server to load all the graphs from its path `path`.
@@ -180,7 +175,6 @@ class RunningRaphtoryServer:
         Returns:
            The `data` field from the graphQL response after executing the mutation.
         """
-
     def query(self, query, variables=None):
         """
         Make a graphQL query against the server.
@@ -192,7 +186,6 @@ class RunningRaphtoryServer:
         Returns:
            The `data` field from the graphQL response.
         """
-
     def send_graph(self, name, graph):
         """
         Send a graph to the server.
@@ -204,13 +197,10 @@ class RunningRaphtoryServer:
         Returns:
            The `data` field from the graphQL response after executing the mutation.
         """
-
     def stop(self):
         """Stop the server."""
-
     def wait(self):
         """Wait until server completion."""
-
     def wait_for_online(self, timeout_millis=None):
         """
         Wait for the server to be online.

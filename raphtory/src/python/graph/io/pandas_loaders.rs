@@ -15,13 +15,13 @@ use std::collections::HashMap;
 pub fn load_nodes_from_pandas(
     graph: &GraphStorage,
     df: &PyAny,
-    id: &str,
     time: &str,
+    id: &str,
     node_type: Option<&str>,
     node_type_col: Option<&str>,
     properties: Option<&[&str]>,
     constant_properties: Option<&[&str]>,
-    shared_const_properties: Option<&HashMap<String, Prop>>,
+    shared_constant_properties: Option<&HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
     Python::with_gil(|py| {
         let mut cols_to_check = vec![id, time];
@@ -35,11 +35,11 @@ pub fn load_nodes_from_pandas(
         df_view.check_cols_exist(&cols_to_check)?;
         load_nodes_from_df(
             df_view,
-            id,
             time,
+            id,
             properties,
             constant_properties,
-            shared_const_properties,
+            shared_constant_properties,
             node_type,
             node_type_col,
             graph,
@@ -59,8 +59,8 @@ pub fn load_edges_from_pandas(
     dst: &str,
     properties: Option<&[&str]>,
     constant_properties: Option<&[&str]>,
-    shared_const_properties: Option<&HashMap<String, Prop>>,
-    layer_name: Option<&str>,
+    shared_constant_properties: Option<&HashMap<String, Prop>>,
+    layer: Option<&str>,
     layer_col: Option<&str>,
 ) -> Result<(), GraphError> {
     Python::with_gil(|py| {
@@ -80,8 +80,8 @@ pub fn load_edges_from_pandas(
             dst,
             properties,
             constant_properties,
-            shared_const_properties,
-            layer_name,
+            shared_constant_properties,
+            layer,
             layer_col,
             graph,
         )
@@ -96,19 +96,26 @@ pub fn load_node_props_from_pandas(
     graph: &GraphStorage,
     df: &PyAny,
     id: &str,
+    node_type: Option<&str>,
+    node_type_col: Option<&str>,
     constant_properties: Option<&[&str]>,
-    shared_const_properties: Option<&HashMap<String, Prop>>,
+    shared_constant_properties: Option<&HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
     Python::with_gil(|py| {
         let mut cols_to_check = vec![id];
         cols_to_check.extend(constant_properties.unwrap_or(&Vec::new()));
+        if let Some(ref node_type_col) = node_type_col {
+            cols_to_check.push(node_type_col.as_ref());
+        }
         let df_view = process_pandas_py_df(df, py, cols_to_check.clone())?;
         df_view.check_cols_exist(&cols_to_check)?;
         load_node_props_from_df(
             df_view,
             id,
+            node_type,
+            node_type_col,
             constant_properties,
-            shared_const_properties,
+            shared_constant_properties,
             graph,
         )
         .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
@@ -124,8 +131,8 @@ pub fn load_edge_props_from_pandas(
     src: &str,
     dst: &str,
     constant_properties: Option<&[&str]>,
-    shared_const_properties: Option<&HashMap<String, Prop>>,
-    layer_name: Option<&str>,
+    shared_constant_properties: Option<&HashMap<String, Prop>>,
+    layer: Option<&str>,
     layer_col: Option<&str>,
 ) -> Result<(), GraphError> {
     Python::with_gil(|py| {
@@ -141,8 +148,8 @@ pub fn load_edge_props_from_pandas(
             src,
             dst,
             constant_properties,
-            shared_const_properties,
-            layer_name,
+            shared_constant_properties,
+            layer,
             layer_col,
             graph,
         )
@@ -159,7 +166,7 @@ pub fn load_edges_deletions_from_pandas(
     time: &str,
     src: &str,
     dst: &str,
-    layer_name: Option<&str>,
+    layer: Option<&str>,
     layer_col: Option<&str>,
 ) -> Result<(), GraphError> {
     Python::with_gil(|py| {
@@ -175,7 +182,7 @@ pub fn load_edges_deletions_from_pandas(
             time,
             src,
             dst,
-            layer_name,
+            layer,
             layer_col,
             graph.core_graph(),
         )

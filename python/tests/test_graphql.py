@@ -12,7 +12,7 @@ import json
 
 
 def normalize_path(path):
-    return path.replace('\\', '/')
+    return path.replace("\\", "/")
 
 
 def test_failed_server_start_in_time():
@@ -50,7 +50,9 @@ def test_server_start_on_default_port():
         query = """{graph(path: "g") {nodes {list {name}}}}"""
         assert client.query(query) == {
             "graph": {
-                "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
+                "nodes": {
+                    "list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]
+                }
             }
         }
 
@@ -69,7 +71,9 @@ def test_server_start_on_custom_port():
         query = """{graph(path: "g") {nodes {list {name}}}}"""
         assert client.query(query) == {
             "graph": {
-                "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
+                "nodes": {
+                    "list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]
+                }
             }
         }
 
@@ -124,7 +128,14 @@ def test_send_graph_succeeds_if_graph_already_exists_with_overwrite_enabled():
         query = """{graph(path: "g") {nodes {list {name}}}}"""
         assert client.query(query) == {
             "graph": {
-                "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}, {"name": "shivam"}]}
+                "nodes": {
+                    "list": [
+                        {"name": "ben"},
+                        {"name": "hamza"},
+                        {"name": "haaroon"},
+                        {"name": "shivam"},
+                    ]
+                }
             }
         }
 
@@ -181,7 +192,14 @@ def test_send_graph_succeeds_if_graph_already_exists_at_namespace_with_overwrite
         query = """{graph(path: "shivam/g") {nodes {list {name}}}}"""
         assert client.query(query) == {
             "graph": {
-                "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}, {"name": "shivam"}]}
+                "nodes": {
+                    "list": [
+                        {"name": "ben"},
+                        {"name": "hamza"},
+                        {"name": "haaroon"},
+                        {"name": "shivam"},
+                    ]
+                }
             }
         }
 
@@ -191,7 +209,9 @@ def test_namespaces():
         query = f"""{{ graph(path: "{path}") {{ nodes {{ list {{ name }} }} }} }}"""
         assert client.query(query) == {
             "graph": {
-                "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
+                "nodes": {
+                    "list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]
+                }
             }
         }
 
@@ -237,17 +257,23 @@ def test_namespaces():
         path = "../shivam/g"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
-        assert "References to the parent dir are not allowed within the path:" in str(excinfo.value)
+        assert "References to the parent dir are not allowed within the path:" in str(
+            excinfo.value
+        )
 
         path = "./shivam/g"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
-        assert "References to the current dir are not allowed within the path" in str(excinfo.value)
+        assert "References to the current dir are not allowed within the path" in str(
+            excinfo.value
+        )
 
         path = "shivam/../../../../investigation/g"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
-        assert "References to the parent dir are not allowed within the path:" in str(excinfo.value)
+        assert "References to the parent dir are not allowed within the path:" in str(
+            excinfo.value
+        )
 
         path = "//shivam/investigation/g"
         with pytest.raises(Exception) as excinfo:
@@ -264,7 +290,7 @@ def test_namespaces():
             client.send_graph(path=path, graph=g, overwrite=True)
         assert "Backslash not allowed in path" in str(excinfo.value)
 
-        #Test if we can escape through a symlink
+        # Test if we can escape through a symlink
         tmp_dir2 = tempfile.mkdtemp()
         nested_dir = os.path.join(tmp_work_dir, "shivam", "graphs")
         os.makedirs(nested_dir)
@@ -295,7 +321,9 @@ def test_upload_graph_succeeds_if_no_graph_found_with_same_name():
         query = """{graph(path: "g") {nodes {list {name}}}}"""
         assert client.query(query) == {
             "graph": {
-                "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
+                "nodes": {
+                    "list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]
+                }
             }
         }
 
@@ -345,7 +373,14 @@ def test_upload_graph_succeeds_if_graph_already_exists_with_overwrite_enabled():
         query = """{graph(path: "g") {nodes {list {name}}}}"""
         assert client.query(query) == {
             "graph": {
-                "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}, {"name": "shivam"}]}
+                "nodes": {
+                    "list": [
+                        {"name": "ben"},
+                        {"name": "hamza"},
+                        {"name": "haaroon"},
+                        {"name": "shivam"},
+                    ]
+                }
             }
         }
 
@@ -368,7 +403,9 @@ def test_upload_graph_succeeds_if_no_graph_found_with_same_name_at_namespace():
         query = """{graph(path: "shivam/g") {nodes {list {name}}}}"""
         assert client.query(query) == {
             "graph": {
-                "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
+                "nodes": {
+                    "list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]
+                }
             }
         }
 
@@ -418,9 +455,17 @@ def test_upload_graph_succeeds_if_graph_already_exists_at_namespace_with_overwri
         query = """{graph(path: "shivam/g") {nodes {list {name}}}}"""
         assert client.query(query) == {
             "graph": {
-                "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}, {"name": "shivam"}]}
+                "nodes": {
+                    "list": [
+                        {"name": "ben"},
+                        {"name": "hamza"},
+                        {"name": "haaroon"},
+                        {"name": "shivam"},
+                    ]
+                }
             }
         }
+
 
 def test_get_graph_fails_if_graph_not_found():
     work_dir = tempfile.mkdtemp()
@@ -438,7 +483,9 @@ def test_get_graph_fails_if_graph_not_found_at_namespace():
     with RaphtoryServer(work_dir).start() as server:
         client = server.get_client()
 
-        query = """{ graph(path: "shivam/g1") { name, path, nodes { list { name } } } }"""
+        query = (
+            """{ graph(path: "shivam/g1") { name, path, nodes { list { name } } } }"""
+        )
         with pytest.raises(Exception) as excinfo:
             client.query(query)
         assert "Graph not found" in str(excinfo.value)
@@ -459,8 +506,14 @@ def test_get_graph_succeeds_if_graph_found():
 
         query = """{ graph(path: "g1") { name, path, nodes { list { name } } } }"""
         assert client.query(query) == {
-            'graph': {'name': 'g1', 'nodes': {'list': [{'name': 'ben'}, {'name': 'hamza'}, {'name': 'haaroon'}]},
-                      'path': 'g1'}}
+            "graph": {
+                "name": "g1",
+                "nodes": {
+                    "list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]
+                },
+                "path": "g1",
+            }
+        }
 
 
 def test_get_graph_succeeds_if_graph_found_at_namespace():
@@ -476,11 +529,15 @@ def test_get_graph_succeeds_if_graph_found_at_namespace():
         os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
         g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
 
-        query = """{ graph(path: "shivam/g2") { name, path, nodes { list { name } } } }"""
+        query = (
+            """{ graph(path: "shivam/g2") { name, path, nodes { list { name } } } }"""
+        )
         response = client.query(query)
-        assert response['graph']['name'] == 'g2'
-        assert response['graph']['nodes'] == {'list': [{'name': 'ben'}, {'name': 'hamza'}, {'name': 'haaroon'}]}
-        assert normalize_path(response['graph']['path']) == 'shivam/g2'
+        assert response["graph"]["name"] == "g2"
+        assert response["graph"]["nodes"] == {
+            "list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]
+        }
+        assert normalize_path(response["graph"]["path"]) == "shivam/g2"
 
 
 def test_get_graphs_returns_emtpy_list_if_no_graphs_found():
@@ -490,9 +547,7 @@ def test_get_graphs_returns_emtpy_list_if_no_graphs_found():
 
         # Assert if no graphs are discoverable
         query = """{ graphs { name, path } }"""
-        assert client.query(query) == {
-            'graphs': {'name': [], 'path': []}
-        }
+        assert client.query(query) == {"graphs": {"name": [], "path": []}}
 
 
 def test_get_graphs_returns_graph_list_if_graphs_found():
@@ -514,15 +569,15 @@ def test_get_graphs_returns_graph_list_if_graphs_found():
         query = """{ graphs { name, path } }"""
         response = client.query(query)
         sorted_response = {
-            'graphs': {
-                'name': sorted(response['graphs']['name']),
-                'path': sorted(normalize_path(p) for p in response['graphs']['path'])
+            "graphs": {
+                "name": sorted(response["graphs"]["name"]),
+                "path": sorted(normalize_path(p) for p in response["graphs"]["path"]),
             }
         }
         assert sorted_response == {
-            'graphs': {
-                'name': ['g1', 'g2', 'g3'],
-                'path': ['g1', 'shivam/g2', 'shivam/g3']
+            "graphs": {
+                "name": ["g1", "g2", "g3"],
+                "path": ["g1", "shivam/g2", "shivam/g3"],
             }
         }
 
@@ -551,7 +606,7 @@ def test_receive_graph_succeeds_if_graph_found():
         g.save_to_file(os.path.join(work_dir, "g1"))
 
         query = """{ receiveGraph(path: "g1") }"""
-        received_graph = client.query(query)['receiveGraph']
+        received_graph = client.query(query)["receiveGraph"]
 
         decoded_bytes = base64.b64decode(received_graph)
 
@@ -599,7 +654,7 @@ def test_receive_graph_succeeds_if_graph_found_at_namespace():
         g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
 
         query = """{ receiveGraph(path: "shivam/g2") }"""
-        received_graph = client.query(query)['receiveGraph']
+        received_graph = client.query(query)["receiveGraph"]
 
         decoded_bytes = base64.b64decode(received_graph)
 
@@ -737,9 +792,18 @@ def test_move_graph_succeeds():
             }}"""
 
         result = client.query(query)
-        assert result['graph']['nodes']['list'] == [{'name': 'ben'}, {"name": "hamza"}, {'name': 'haaroon'}]
-        assert result['graph']['properties']['constant']['lastUpdated']['value'] is not None
-        assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
+        assert result["graph"]["nodes"]["list"] == [
+            {"name": "ben"},
+            {"name": "hamza"},
+            {"name": "haaroon"},
+        ]
+        assert (
+            result["graph"]["properties"]["constant"]["lastUpdated"]["value"]
+            is not None
+        )
+        assert (
+            result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
+        )
 
 
 def test_move_graph_using_client_api_succeeds():
@@ -774,9 +838,18 @@ def test_move_graph_using_client_api_succeeds():
             }}"""
 
         result = client.query(query)
-        assert result['graph']['nodes']['list'] == [{'name': 'ben'}, {"name": "hamza"}, {'name': 'haaroon'}]
-        assert result['graph']['properties']['constant']['lastUpdated']['value'] is not None
-        assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
+        assert result["graph"]["nodes"]["list"] == [
+            {"name": "ben"},
+            {"name": "hamza"},
+            {"name": "haaroon"},
+        ]
+        assert (
+            result["graph"]["properties"]["constant"]["lastUpdated"]["value"]
+            is not None
+        )
+        assert (
+            result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
+        )
 
 
 def test_move_graph_succeeds_at_same_namespace_as_graph():
@@ -818,9 +891,18 @@ def test_move_graph_succeeds_at_same_namespace_as_graph():
             }}"""
 
         result = client.query(query)
-        assert result['graph']['nodes']['list'] == [{'name': 'ben'}, {"name": "hamza"}, {'name': 'haaroon'}]
-        assert result['graph']['properties']['constant']['lastUpdated']['value'] is not None
-        assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
+        assert result["graph"]["nodes"]["list"] == [
+            {"name": "ben"},
+            {"name": "hamza"},
+            {"name": "haaroon"},
+        ]
+        assert (
+            result["graph"]["properties"]["constant"]["lastUpdated"]["value"]
+            is not None
+        )
+        assert (
+            result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
+        )
 
 
 def test_move_graph_succeeds_at_diff_namespace_as_graph():
@@ -863,9 +945,18 @@ def test_move_graph_succeeds_at_diff_namespace_as_graph():
             }}"""
 
         result = client.query(query)
-        assert result['graph']['nodes']['list'] == [{'name': 'ben'}, {"name": "hamza"}, {'name': 'haaroon'}]
-        assert result['graph']['properties']['constant']['lastUpdated']['value'] is not None
-        assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
+        assert result["graph"]["nodes"]["list"] == [
+            {"name": "ben"},
+            {"name": "hamza"},
+            {"name": "haaroon"},
+        ]
+        assert (
+            result["graph"]["properties"]["constant"]["lastUpdated"]["value"]
+            is not None
+        )
+        assert (
+            result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
+        )
 
 
 def test_copy_graph_fails_if_graph_not_found():
@@ -984,7 +1075,11 @@ def test_copy_graph_succeeds():
 
         query = """{graph(path: "shivam/g3") { nodes {list {name}} }}"""
         result = client.query(query)
-        assert result['graph']['nodes']['list'] == [{'name': 'ben'}, {"name": "hamza"}, {'name': 'haaroon'}]
+        assert result["graph"]["nodes"]["list"] == [
+            {"name": "ben"},
+            {"name": "hamza"},
+            {"name": "haaroon"},
+        ]
 
         query = """{graph(path: "g4") {
                 nodes {list {name}}
@@ -996,8 +1091,14 @@ def test_copy_graph_succeeds():
             }}"""
 
         result = client.query(query)
-        assert result['graph']['nodes']['list'] == [{'name': 'ben'}, {"name": "hamza"}, {'name': 'haaroon'}]
-        assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
+        assert result["graph"]["nodes"]["list"] == [
+            {"name": "ben"},
+            {"name": "hamza"},
+            {"name": "haaroon"},
+        ]
+        assert (
+            result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
+        )
 
 
 def test_copy_graph_using_client_api_succeeds():
@@ -1018,7 +1119,11 @@ def test_copy_graph_using_client_api_succeeds():
 
         query = """{graph(path: "shivam/g3") { nodes {list {name}} }}"""
         result = client.query(query)
-        assert result['graph']['nodes']['list'] == [{'name': 'ben'}, {"name": "hamza"}, {'name': 'haaroon'}]
+        assert result["graph"]["nodes"]["list"] == [
+            {"name": "ben"},
+            {"name": "hamza"},
+            {"name": "haaroon"},
+        ]
 
         query = """{graph(path: "ben/g4") {
                 nodes {list {name}}
@@ -1030,8 +1135,14 @@ def test_copy_graph_using_client_api_succeeds():
             }}"""
 
         result = client.query(query)
-        assert result['graph']['nodes']['list'] == [{'name': 'ben'}, {"name": "hamza"}, {'name': 'haaroon'}]
-        assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
+        assert result["graph"]["nodes"]["list"] == [
+            {"name": "ben"},
+            {"name": "hamza"},
+            {"name": "haaroon"},
+        ]
+        assert (
+            result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
+        )
 
 
 def test_copy_graph_succeeds_at_same_namespace_as_graph():
@@ -1059,7 +1170,11 @@ def test_copy_graph_succeeds_at_same_namespace_as_graph():
 
         query = """{graph(path: "shivam/g3") { nodes {list {name}} }}"""
         result = client.query(query)
-        assert result['graph']['nodes']['list'] == [{'name': 'ben'}, {"name": "hamza"}, {'name': 'haaroon'}]
+        assert result["graph"]["nodes"]["list"] == [
+            {"name": "ben"},
+            {"name": "hamza"},
+            {"name": "haaroon"},
+        ]
 
         query = """{graph(path: "shivam/g4") {
                 nodes {list {name}}
@@ -1071,8 +1186,14 @@ def test_copy_graph_succeeds_at_same_namespace_as_graph():
             }}"""
 
         result = client.query(query)
-        assert result['graph']['nodes']['list'] == [{'name': 'ben'}, {"name": "hamza"}, {'name': 'haaroon'}]
-        assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
+        assert result["graph"]["nodes"]["list"] == [
+            {"name": "ben"},
+            {"name": "hamza"},
+            {"name": "haaroon"},
+        ]
+        assert (
+            result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
+        )
 
 
 def test_copy_graph_succeeds_at_diff_namespace_as_graph():
@@ -1101,7 +1222,11 @@ def test_copy_graph_succeeds_at_diff_namespace_as_graph():
 
         query = """{graph(path: "ben/g3") { nodes {list {name}} }}"""
         result = client.query(query)
-        assert result['graph']['nodes']['list'] == [{'name': 'ben'}, {"name": "hamza"}, {'name': 'haaroon'}]
+        assert result["graph"]["nodes"]["list"] == [
+            {"name": "ben"},
+            {"name": "hamza"},
+            {"name": "haaroon"},
+        ]
 
         query = """{graph(path: "shivam/g4") {
                 nodes {list {name}}
@@ -1113,8 +1238,14 @@ def test_copy_graph_succeeds_at_diff_namespace_as_graph():
             }}"""
 
         result = client.query(query)
-        assert result['graph']['nodes']['list'] == [{'name': 'ben'}, {"name": "hamza"}, {'name': 'haaroon'}]
-        assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
+        assert result["graph"]["nodes"]["list"] == [
+            {"name": "ben"},
+            {"name": "hamza"},
+            {"name": "haaroon"},
+        ]
+        assert (
+            result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
+        )
 
 
 def test_delete_graph_fails_if_graph_not_found():
@@ -1263,11 +1394,11 @@ def test_create_graph_fail_if_graph_already_exists():
 def test_create_graph_fail_if_graph_already_exists_at_namespace():
     work_dir = tempfile.mkdtemp()
     os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
-    
+
     g = Graph()
     g.save_to_file(os.path.join(work_dir, "g0"))
     g.save_to_file(os.path.join(work_dir, "shivam", "g3"))
-    
+
     with RaphtoryServer(work_dir).start() as server:
         client = server.get_client()
         query = """mutation {
@@ -1331,16 +1462,35 @@ def test_create_graph_succeeds():
         }"""
 
         result = client.query(query)
-        assert result['graph']['nodes']['list'] == [
-            {'name': 'ben', 'properties': {'temporal': {'get': {'values': ['engineering']}}}},
-            {'name': 'hamza', 'properties': {'temporal': {'get': {'values': ['director']}}}}
+        assert result["graph"]["nodes"]["list"] == [
+            {
+                "name": "ben",
+                "properties": {"temporal": {"get": {"values": ["engineering"]}}},
+            },
+            {
+                "name": "hamza",
+                "properties": {"temporal": {"get": {"values": ["director"]}}},
+            },
         ]
-        assert result['graph']['edges']['list'] == [{'properties': {'temporal': {'get': {'values': ['1']}}}}]
-        assert result['graph']['properties']['constant']['creationTime']['value'] is not None
-        assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
-        assert result['graph']['properties']['constant']['lastUpdated']['value'] is not None
-        assert result['graph']['properties']['constant']['uiProps']['value'] == '{ "target": 6 : }'
-        assert result['graph']['properties']['constant']['isArchive']['value'] == 1
+        assert result["graph"]["edges"]["list"] == [
+            {"properties": {"temporal": {"get": {"values": ["1"]}}}}
+        ]
+        assert (
+            result["graph"]["properties"]["constant"]["creationTime"]["value"]
+            is not None
+        )
+        assert (
+            result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
+        )
+        assert (
+            result["graph"]["properties"]["constant"]["lastUpdated"]["value"]
+            is not None
+        )
+        assert (
+            result["graph"]["properties"]["constant"]["uiProps"]["value"]
+            == '{ "target": 6 : }'
+        )
+        assert result["graph"]["properties"]["constant"]["isArchive"]["value"] == 1
 
 
 def test_create_graph_succeeds_at_namespace():
@@ -1390,16 +1540,35 @@ def test_create_graph_succeeds_at_namespace():
         }"""
 
         result = client.query(query)
-        assert result['graph']['nodes']['list'] == [
-            {'name': 'ben', 'properties': {'temporal': {'get': {'values': ['engineering']}}}},
-            {'name': 'hamza', 'properties': {'temporal': {'get': {'values': ['director']}}}}
+        assert result["graph"]["nodes"]["list"] == [
+            {
+                "name": "ben",
+                "properties": {"temporal": {"get": {"values": ["engineering"]}}},
+            },
+            {
+                "name": "hamza",
+                "properties": {"temporal": {"get": {"values": ["director"]}}},
+            },
         ]
-        assert result['graph']['edges']['list'] == [{'properties': {'temporal': {'get': {'values': ['1']}}}}]
-        assert result['graph']['properties']['constant']['creationTime']['value'] is not None
-        assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
-        assert result['graph']['properties']['constant']['lastUpdated']['value'] is not None
-        assert result['graph']['properties']['constant']['uiProps']['value'] == '{ "target": 6 : }'
-        assert result['graph']['properties']['constant']['isArchive']['value'] == 1
+        assert result["graph"]["edges"]["list"] == [
+            {"properties": {"temporal": {"get": {"values": ["1"]}}}}
+        ]
+        assert (
+            result["graph"]["properties"]["constant"]["creationTime"]["value"]
+            is not None
+        )
+        assert (
+            result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
+        )
+        assert (
+            result["graph"]["properties"]["constant"]["lastUpdated"]["value"]
+            is not None
+        )
+        assert (
+            result["graph"]["properties"]["constant"]["uiProps"]["value"]
+            == '{ "target": 6 : }'
+        )
+        assert result["graph"]["properties"]["constant"]["isArchive"]["value"] == 1
 
 
 # Update Graph with new graph name tests (save as new graph name)
@@ -1523,16 +1692,35 @@ def test_update_graph_with_new_graph_name_succeeds_if_parent_graph_belongs_to_di
         }"""
 
         result = client.query(query)
-        assert result['graph']['nodes']['list'] == [
-            {'name': 'ben', 'properties': {'temporal': {'get': {'values': ['engineering']}}}},
-            {'name': 'hamza', 'properties': {'temporal': {'get': {'values': ['director']}}}}
+        assert result["graph"]["nodes"]["list"] == [
+            {
+                "name": "ben",
+                "properties": {"temporal": {"get": {"values": ["engineering"]}}},
+            },
+            {
+                "name": "hamza",
+                "properties": {"temporal": {"get": {"values": ["director"]}}},
+            },
         ]
-        assert result['graph']['edges']['list'] == [{'properties': {'temporal': {'get': {'values': ['1']}}}}]
-        assert result['graph']['properties']['constant']['creationTime']['value'] is not None
-        assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
-        assert result['graph']['properties']['constant']['lastUpdated']['value'] is not None
-        assert result['graph']['properties']['constant']['uiProps']['value'] == '{ "target": 6 : }'
-        assert result['graph']['properties']['constant']['isArchive']['value'] == 1
+        assert result["graph"]["edges"]["list"] == [
+            {"properties": {"temporal": {"get": {"values": ["1"]}}}}
+        ]
+        assert (
+            result["graph"]["properties"]["constant"]["creationTime"]["value"]
+            is not None
+        )
+        assert (
+            result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
+        )
+        assert (
+            result["graph"]["properties"]["constant"]["lastUpdated"]["value"]
+            is not None
+        )
+        assert (
+            result["graph"]["properties"]["constant"]["uiProps"]["value"]
+            == '{ "target": 6 : }'
+        )
+        assert result["graph"]["properties"]["constant"]["isArchive"]["value"] == 1
 
 
 def test_update_graph_with_new_graph_name_succeeds_if_parent_graph_belongs_to_same_namespace():
@@ -1584,16 +1772,35 @@ def test_update_graph_with_new_graph_name_succeeds_if_parent_graph_belongs_to_sa
             }
         }"""
         result = client.query(query)
-        assert result['graph']['nodes']['list'] == [
-            {'name': 'ben', 'properties': {'temporal': {'get': {'values': ['engineering']}}}},
-            {'name': 'hamza', 'properties': {'temporal': {'get': {'values': ['director']}}}}
+        assert result["graph"]["nodes"]["list"] == [
+            {
+                "name": "ben",
+                "properties": {"temporal": {"get": {"values": ["engineering"]}}},
+            },
+            {
+                "name": "hamza",
+                "properties": {"temporal": {"get": {"values": ["director"]}}},
+            },
         ]
-        assert result['graph']['edges']['list'] == [{'properties': {'temporal': {'get': {'values': ['1']}}}}]
-        assert result['graph']['properties']['constant']['creationTime']['value'] is not None
-        assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
-        assert result['graph']['properties']['constant']['lastUpdated']['value'] is not None
-        assert result['graph']['properties']['constant']['uiProps']['value'] == '{ "target": 6 : }'
-        assert result['graph']['properties']['constant']['isArchive']['value'] == 1
+        assert result["graph"]["edges"]["list"] == [
+            {"properties": {"temporal": {"get": {"values": ["1"]}}}}
+        ]
+        assert (
+            result["graph"]["properties"]["constant"]["creationTime"]["value"]
+            is not None
+        )
+        assert (
+            result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
+        )
+        assert (
+            result["graph"]["properties"]["constant"]["lastUpdated"]["value"]
+            is not None
+        )
+        assert (
+            result["graph"]["properties"]["constant"]["uiProps"]["value"]
+            == '{ "target": 6 : }'
+        )
+        assert result["graph"]["properties"]["constant"]["isArchive"]["value"] == 1
 
 
 def test_update_graph_with_new_graph_name_succeeds_with_new_node_from_parent_graph_added_to_new_graph():
@@ -1655,16 +1862,33 @@ def test_update_graph_with_new_graph_name_succeeds_with_new_node_from_parent_gra
         }"""
 
         result = client.query(query)
-        assert result['graph']['nodes']['list'] == [
-            {'name': 'ben', 'properties': {'temporal': {'get': {'values': ['engineering']}}}},
-            {'name': 'shivam', 'properties': {'temporal': {'get': {'values': ['engineering']}}}}
+        assert result["graph"]["nodes"]["list"] == [
+            {
+                "name": "ben",
+                "properties": {"temporal": {"get": {"values": ["engineering"]}}},
+            },
+            {
+                "name": "shivam",
+                "properties": {"temporal": {"get": {"values": ["engineering"]}}},
+            },
         ]
-        assert result['graph']['edges']['list'] == []
-        assert result['graph']['properties']['constant']['creationTime']['value'] is not None
-        assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
-        assert result['graph']['properties']['constant']['lastUpdated']['value'] is not None
-        assert result['graph']['properties']['constant']['uiProps']['value'] == '{ "target": 6 : }'
-        assert result['graph']['properties']['constant']['isArchive']['value'] == 1
+        assert result["graph"]["edges"]["list"] == []
+        assert (
+            result["graph"]["properties"]["constant"]["creationTime"]["value"]
+            is not None
+        )
+        assert (
+            result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
+        )
+        assert (
+            result["graph"]["properties"]["constant"]["lastUpdated"]["value"]
+            is not None
+        )
+        assert (
+            result["graph"]["properties"]["constant"]["uiProps"]["value"]
+            == '{ "target": 6 : }'
+        )
+        assert result["graph"]["properties"]["constant"]["isArchive"]["value"] == 1
 
 
 def test_update_graph_with_new_graph_name_succeeds_with_new_node_removed_from_new_graph():
@@ -1717,16 +1941,35 @@ def test_update_graph_with_new_graph_name_succeeds_with_new_node_removed_from_ne
         }"""
 
         result = client.query(query)
-        assert result['graph']['nodes']['list'] == [
-            {'name': 'ben', 'properties': {'temporal': {'get': {'values': ['engineering']}}}},
-            {'name': 'hamza', 'properties': {'temporal': {'get': {'values': ['director']}}}}
+        assert result["graph"]["nodes"]["list"] == [
+            {
+                "name": "ben",
+                "properties": {"temporal": {"get": {"values": ["engineering"]}}},
+            },
+            {
+                "name": "hamza",
+                "properties": {"temporal": {"get": {"values": ["director"]}}},
+            },
         ]
-        assert result['graph']['edges']['list'] == [{'properties': {'temporal': {'get': {'values': ['1']}}}}]
-        assert result['graph']['properties']['constant']['creationTime']['value'] is not None
-        assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
-        assert result['graph']['properties']['constant']['lastUpdated']['value'] is not None
-        assert result['graph']['properties']['constant']['uiProps']['value'] == '{ "target": 6 : }'
-        assert result['graph']['properties']['constant']['isArchive']['value'] == 1
+        assert result["graph"]["edges"]["list"] == [
+            {"properties": {"temporal": {"get": {"values": ["1"]}}}}
+        ]
+        assert (
+            result["graph"]["properties"]["constant"]["creationTime"]["value"]
+            is not None
+        )
+        assert (
+            result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
+        )
+        assert (
+            result["graph"]["properties"]["constant"]["lastUpdated"]["value"]
+            is not None
+        )
+        assert (
+            result["graph"]["properties"]["constant"]["uiProps"]["value"]
+            == '{ "target": 6 : }'
+        )
+        assert result["graph"]["properties"]["constant"]["isArchive"]["value"] == 1
 
 
 # Update Graph tests (save graph as same graph name)
@@ -1820,15 +2063,31 @@ def test_update_graph_succeeds_if_parent_graph_belongs_to_different_namespace():
         }"""
 
         result = client.query(query)
-        assert result['graph']['nodes']['list'] == [
-            {'name': 'ben', 'properties': {'temporal': {'get': {'values': ['engineering']}}}},
-            {'name': 'hamza', 'properties': {'temporal': {'get': {'values': ['director']}}}}
+        assert result["graph"]["nodes"]["list"] == [
+            {
+                "name": "ben",
+                "properties": {"temporal": {"get": {"values": ["engineering"]}}},
+            },
+            {
+                "name": "hamza",
+                "properties": {"temporal": {"get": {"values": ["director"]}}},
+            },
         ]
-        assert result['graph']['edges']['list'] == [{'properties': {'temporal': {'get': {'values': ['1']}}}}]
-        assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
-        assert result['graph']['properties']['constant']['lastUpdated']['value'] is not None
-        assert result['graph']['properties']['constant']['uiProps']['value'] == '{ "target": 6 : }'
-        assert result['graph']['properties']['constant']['isArchive']['value'] == 1
+        assert result["graph"]["edges"]["list"] == [
+            {"properties": {"temporal": {"get": {"values": ["1"]}}}}
+        ]
+        assert (
+            result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
+        )
+        assert (
+            result["graph"]["properties"]["constant"]["lastUpdated"]["value"]
+            is not None
+        )
+        assert (
+            result["graph"]["properties"]["constant"]["uiProps"]["value"]
+            == '{ "target": 6 : }'
+        )
+        assert result["graph"]["properties"]["constant"]["isArchive"]["value"] == 1
 
 
 def test_update_graph_succeeds_if_parent_graph_belongs_to_same_namespace():
@@ -1880,15 +2139,31 @@ def test_update_graph_succeeds_if_parent_graph_belongs_to_same_namespace():
             }
         }"""
         result = client.query(query)
-        assert result['graph']['nodes']['list'] == [
-            {'name': 'ben', 'properties': {'temporal': {'get': {'values': ['engineering']}}}},
-            {'name': 'hamza', 'properties': {'temporal': {'get': {'values': ['director']}}}}
+        assert result["graph"]["nodes"]["list"] == [
+            {
+                "name": "ben",
+                "properties": {"temporal": {"get": {"values": ["engineering"]}}},
+            },
+            {
+                "name": "hamza",
+                "properties": {"temporal": {"get": {"values": ["director"]}}},
+            },
         ]
-        assert result['graph']['edges']['list'] == [{'properties': {'temporal': {'get': {'values': ['1']}}}}]
-        assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
-        assert result['graph']['properties']['constant']['lastUpdated']['value'] is not None
-        assert result['graph']['properties']['constant']['uiProps']['value'] == '{ "target": 6 : }'
-        assert result['graph']['properties']['constant']['isArchive']['value'] == 1
+        assert result["graph"]["edges"]["list"] == [
+            {"properties": {"temporal": {"get": {"values": ["1"]}}}}
+        ]
+        assert (
+            result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
+        )
+        assert (
+            result["graph"]["properties"]["constant"]["lastUpdated"]["value"]
+            is not None
+        )
+        assert (
+            result["graph"]["properties"]["constant"]["uiProps"]["value"]
+            == '{ "target": 6 : }'
+        )
+        assert result["graph"]["properties"]["constant"]["isArchive"]["value"] == 1
 
 
 def test_update_graph_succeeds_with_new_node_from_parent_graph_added_to_new_graph():
@@ -1949,15 +2224,29 @@ def test_update_graph_succeeds_with_new_node_from_parent_graph_added_to_new_grap
         }"""
 
         result = client.query(query)
-        assert result['graph']['nodes']['list'] == [
-            {'name': 'ben', 'properties': {'temporal': {'get': {'values': ['engineering']}}}},
-            {'name': 'shivam', 'properties': {'temporal': {'get': {'values': ['engineering']}}}}
+        assert result["graph"]["nodes"]["list"] == [
+            {
+                "name": "ben",
+                "properties": {"temporal": {"get": {"values": ["engineering"]}}},
+            },
+            {
+                "name": "shivam",
+                "properties": {"temporal": {"get": {"values": ["engineering"]}}},
+            },
         ]
-        assert result['graph']['edges']['list'] == []
-        assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
-        assert result['graph']['properties']['constant']['lastUpdated']['value'] is not None
-        assert result['graph']['properties']['constant']['uiProps']['value'] == '{ "target": 6 : }'
-        assert result['graph']['properties']['constant']['isArchive']['value'] == 1
+        assert result["graph"]["edges"]["list"] == []
+        assert (
+            result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
+        )
+        assert (
+            result["graph"]["properties"]["constant"]["lastUpdated"]["value"]
+            is not None
+        )
+        assert (
+            result["graph"]["properties"]["constant"]["uiProps"]["value"]
+            == '{ "target": 6 : }'
+        )
+        assert result["graph"]["properties"]["constant"]["isArchive"]["value"] == 1
 
 
 def test_update_graph_succeeds_with_new_node_removed_from_new_graph():
@@ -2010,14 +2299,25 @@ def test_update_graph_succeeds_with_new_node_removed_from_new_graph():
         }"""
 
         result = client.query(query)
-        assert result['graph']['nodes']['list'] == [
-            {'name': 'ben', 'properties': {'temporal': {'get': {'values': ['engineering']}}}},
+        assert result["graph"]["nodes"]["list"] == [
+            {
+                "name": "ben",
+                "properties": {"temporal": {"get": {"values": ["engineering"]}}},
+            },
         ]
-        assert result['graph']['edges']['list'] == []
-        assert result['graph']['properties']['constant']['lastOpened']['value'] is not None
-        assert result['graph']['properties']['constant']['lastUpdated']['value'] is not None
-        assert result['graph']['properties']['constant']['uiProps']['value'] == '{ "target": 6 : }'
-        assert result['graph']['properties']['constant']['isArchive']['value'] == 1
+        assert result["graph"]["edges"]["list"] == []
+        assert (
+            result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
+        )
+        assert (
+            result["graph"]["properties"]["constant"]["lastUpdated"]["value"]
+            is not None
+        )
+        assert (
+            result["graph"]["properties"]["constant"]["uiProps"]["value"]
+            == '{ "target": 6 : }'
+        )
+        assert result["graph"]["properties"]["constant"]["isArchive"]["value"] == 1
 
 
 def test_update_graph_last_opened_fails_if_graph_not_found():
@@ -2059,12 +2359,18 @@ def test_update_graph_last_opened_succeeds():
 
         query_last_opened = """{ graph(path: "g1") { properties { constant { get(key: "lastOpened") { value } } } } }"""
         mutate_last_opened = """mutation { updateGraphLastOpened(path: "g1") }"""
-        assert client.query(query_last_opened) == {'graph': {'properties': {'constant': {'get': None}}}}
-        assert client.query(mutate_last_opened) == {'updateGraphLastOpened': True}
-        updated_last_opened1 = client.query(query_last_opened)['graph']['properties']['constant']['get']['value']
+        assert client.query(query_last_opened) == {
+            "graph": {"properties": {"constant": {"get": None}}}
+        }
+        assert client.query(mutate_last_opened) == {"updateGraphLastOpened": True}
+        updated_last_opened1 = client.query(query_last_opened)["graph"]["properties"][
+            "constant"
+        ]["get"]["value"]
         time.sleep(1)
-        assert client.query(mutate_last_opened) == {'updateGraphLastOpened': True}
-        updated_last_opened2 = client.query(query_last_opened)['graph']['properties']['constant']['get']['value']
+        assert client.query(mutate_last_opened) == {"updateGraphLastOpened": True}
+        updated_last_opened2 = client.query(query_last_opened)["graph"]["properties"][
+            "constant"
+        ]["get"]["value"]
         assert updated_last_opened2 > updated_last_opened1
 
 
@@ -2084,12 +2390,18 @@ def test_update_graph_last_opened_succeeds_at_namespace():
 
         query_last_opened = """{ graph(path: "shivam/g2") { properties { constant { get(key: "lastOpened") { value } } } } }"""
         mutate_last_opened = """mutation { updateGraphLastOpened(path: "shivam/g2") }"""
-        assert client.query(query_last_opened) == {'graph': {'properties': {'constant': {'get': None}}}}
-        assert client.query(mutate_last_opened) == {'updateGraphLastOpened': True}
-        updated_last_opened1 = client.query(query_last_opened)['graph']['properties']['constant']['get']['value']
+        assert client.query(query_last_opened) == {
+            "graph": {"properties": {"constant": {"get": None}}}
+        }
+        assert client.query(mutate_last_opened) == {"updateGraphLastOpened": True}
+        updated_last_opened1 = client.query(query_last_opened)["graph"]["properties"][
+            "constant"
+        ]["get"]["value"]
         time.sleep(1)
-        assert client.query(mutate_last_opened) == {'updateGraphLastOpened': True}
-        updated_last_opened2 = client.query(query_last_opened)['graph']['properties']['constant']['get']['value']
+        assert client.query(mutate_last_opened) == {"updateGraphLastOpened": True}
+        updated_last_opened2 = client.query(query_last_opened)["graph"]["properties"][
+            "constant"
+        ]["get"]["value"]
         assert updated_last_opened2 > updated_last_opened1
 
 
@@ -2130,13 +2442,25 @@ def test_archive_graph_succeeds():
         g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
 
         query_is_archive = """{ graph(path: "g1") { properties { constant { get(key: "isArchive") { value } } } } }"""
-        assert client.query(query_is_archive) == {'graph': {'properties': {'constant': {'get': None}}}}
+        assert client.query(query_is_archive) == {
+            "graph": {"properties": {"constant": {"get": None}}}
+        }
         update_archive_graph = """mutation { archiveGraph(path: "g1", isArchive: 0) }"""
         assert client.query(update_archive_graph) == {"archiveGraph": True}
-        assert client.query(query_is_archive)['graph']['properties']['constant']['get']['value'] == 0
+        assert (
+            client.query(query_is_archive)["graph"]["properties"]["constant"]["get"][
+                "value"
+            ]
+            == 0
+        )
         update_archive_graph = """mutation { archiveGraph(path: "g1", isArchive: 1) }"""
         assert client.query(update_archive_graph) == {"archiveGraph": True}
-        assert client.query(query_is_archive)['graph']['properties']['constant']['get']['value'] == 1
+        assert (
+            client.query(query_is_archive)["graph"]["properties"]["constant"]["get"][
+                "value"
+            ]
+            == 1
+        )
 
 
 def test_archive_graph_succeeds_at_namespace():
@@ -2154,13 +2478,29 @@ def test_archive_graph_succeeds_at_namespace():
         g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
 
         query_is_archive = """{ graph(path: "shivam/g2") { properties { constant { get(key: "isArchive") { value } } } } }"""
-        assert client.query(query_is_archive) == {'graph': {'properties': {'constant': {'get': None}}}}
-        update_archive_graph = """mutation { archiveGraph(path: "shivam/g2", isArchive: 0) }"""
+        assert client.query(query_is_archive) == {
+            "graph": {"properties": {"constant": {"get": None}}}
+        }
+        update_archive_graph = (
+            """mutation { archiveGraph(path: "shivam/g2", isArchive: 0) }"""
+        )
         assert client.query(update_archive_graph) == {"archiveGraph": True}
-        assert client.query(query_is_archive)['graph']['properties']['constant']['get']['value'] == 0
-        update_archive_graph = """mutation { archiveGraph(path: "shivam/g2", isArchive: 1) }"""
+        assert (
+            client.query(query_is_archive)["graph"]["properties"]["constant"]["get"][
+                "value"
+            ]
+            == 0
+        )
+        update_archive_graph = (
+            """mutation { archiveGraph(path: "shivam/g2", isArchive: 1) }"""
+        )
         assert client.query(update_archive_graph) == {"archiveGraph": True}
-        assert client.query(query_is_archive)['graph']['properties']['constant']['get']['value'] == 1
+        assert (
+            client.query(query_is_archive)["graph"]["properties"]["constant"]["get"][
+                "value"
+            ]
+            == 1
+        )
 
 
 def test_graph_windows_and_layers_query():
@@ -2346,6 +2686,7 @@ def test_graph_properties_query():
             json_ra["graph"]["nodes"]["list"][0]["properties"]["temporal"]["values"],
             key=lambda x: x["key"],
         )
+
 
 # def test_disk_graph_name():
 #     import pandas as pd

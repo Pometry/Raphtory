@@ -68,7 +68,9 @@ def betweenness_centrality(g, k=None, normalized=True):
         AlgorithmResult[float]: Returns an `AlgorithmResult` containing the betweenness centrality of each node.
     """
 
-def cohesive_fruchterman_reingold(graph, iterations=100, scale=1.0, node_start_size=1.0, cooloff_factor=0.95, dt=0.1):
+def cohesive_fruchterman_reingold(
+    graph, iterations=100, scale=1.0, node_start_size=1.0, cooloff_factor=0.95, dt=0.1
+):
     """Cohesive version of `fruchterman_reingold` that adds virtual edges between isolated nodes"""
 
 def degree_centrality(g, threads=None):
@@ -85,7 +87,9 @@ def degree_centrality(g, threads=None):
         AlgorithmResult<String, OrderedFloat<f64>>: A result containing a mapping of node names to the computed sum of their associated degree centrality.
     """
 
-def dijkstra_single_source_shortest_paths(g, source, targets, direction=..., weight=...):
+def dijkstra_single_source_shortest_paths(
+    g, source, targets, direction=..., weight=...
+):
     """
     Finds the shortest paths from a single source to multiple targets in a graph.
 
@@ -115,7 +119,9 @@ def directed_graph_density(g):
         float : Directed graph density of G.
     """
 
-def fruchterman_reingold(graph, iterations=100, scale=1.0, node_start_size=1.0, cooloff_factor=0.95, dt=0.1):
+def fruchterman_reingold(
+    graph, iterations=100, scale=1.0, node_start_size=1.0, cooloff_factor=0.95, dt=0.1
+):
     """
     Fruchterman Reingold layout algorithm
 
@@ -446,7 +452,15 @@ def strongly_connected_components(g):
         Vec<Vec<u64>> : List of strongly connected nodes identified by ids
     """
 
-def temporal_SEIR(graph, seeds, infection_prob, initial_infection, recovery_rate=None, incubation_rate=None, rng_seed=None):
+def temporal_SEIR(
+    graph,
+    seeds,
+    infection_prob,
+    initial_infection,
+    recovery_rate=None,
+    incubation_rate=None,
+    rng_seed=None,
+):
     """
     Simulate an SEIR dynamic on the network
 
@@ -470,7 +484,7 @@ def temporal_SEIR(graph, seeds, infection_prob, initial_infection, recovery_rate
 
     Returns:
         AlgorithmResult[Infected]: Returns an `Infected` object for each infected node with attributes
-    
+
         `infected`: the time stamp of the infection event
 
         `active`: the time stamp at which the node actively starts spreading the infection (i.e., the end of the incubation period)

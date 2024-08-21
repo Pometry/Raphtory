@@ -141,8 +141,8 @@ mod test {
 
         load_nodes_from_df(
             df,
-            "id",
             "time",
+            "id",
             Some(&*vec!["name"]),
             None,
             None,

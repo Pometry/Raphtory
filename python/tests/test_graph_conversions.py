@@ -21,23 +21,26 @@ def build_graph():
     nodes_df["timestamp"] = pd.to_datetime(nodes_df["timestamp"]).astype(
         "datetime64[ms, UTC]"
     )
-
-    return Graph.load_from_pandas(
-        edge_df=edges_df,
-        edge_time="timestamp",
-        edge_src="source",
-        edge_dst="destination",
-        edge_properties=["data_size_MB"],
+    g = Graph()
+    g.load_edges_from_pandas(
+        edges_df,
+        time="timestamp",
+        src="source",
+        dst="destination",
+        properties=["data_size_MB"],
         layer_col="transaction_type",
-        edge_constant_properties=["is_encrypted"],
-        edge_shared_constant_properties={"datasource": "data/network_traffic_edges.csv"},
-        node_df=nodes_df,
-        node_id="server_id",
-        node_time="timestamp",
-        node_properties=["OS_version", "primary_function", "uptime_days"],
-        node_constant_properties=["server_name", "hardware_type"],
-        node_shared_constant_properties={"datasource": "data/network_traffic_edges.csv"},
+        constant_properties=["is_encrypted"],
+        shared_constant_properties={"datasource": "data/network_traffic_edges.csv"},
     )
+    g.load_nodes_from_pandas(
+        df=nodes_df,
+        id="server_id",
+        time="timestamp",
+        properties=["OS_version", "primary_function", "uptime_days"],
+        constant_properties=["server_name", "hardware_type"],
+        shared_constant_properties={"datasource": "data/network_traffic_edges.csv"},
+    )
+    return g
 
 
 def build_graph_without_datetime_type():
@@ -47,22 +50,26 @@ def build_graph_without_datetime_type():
     nodes_df = pd.read_csv(base_dir / "data/network_traffic_nodes.csv")
     nodes_df["timestamp"] = pd.to_datetime(nodes_df["timestamp"])
 
-    return Graph.load_from_pandas(
-        edge_df=edges_df,
-        edge_time="timestamp",
-        edge_src="source",
-        edge_dst="destination",
-        edge_properties=["data_size_MB"],
+    g = Graph()
+    g.load_edges_from_pandas(
+        edges_df,
+        time="timestamp",
+        src="source",
+        dst="destination",
+        properties=["data_size_MB"],
         layer_col="transaction_type",
-        edge_constant_properties=["is_encrypted"],
-        edge_shared_constant_properties={"datasource": "data/network_traffic_edges.csv"},
-        node_df=nodes_df,
-        node_id="server_id",
-        node_time="timestamp",
-        node_properties=["OS_version", "primary_function", "uptime_days"],
-        node_constant_properties=["server_name", "hardware_type"],
-        node_shared_constant_properties={"datasource": "data/network_traffic_edges.csv"},
+        constant_properties=["is_encrypted"],
+        shared_constant_properties={"datasource": "data/network_traffic_edges.csv"},
     )
+    g.load_nodes_from_pandas(
+        df=nodes_df,
+        id="server_id",
+        time="timestamp",
+        properties=["OS_version", "primary_function", "uptime_days"],
+        constant_properties=["server_name", "hardware_type"],
+        shared_constant_properties={"datasource": "data/network_traffic_edges.csv"},
+    )
+    return g
 
 
 def test_graph_timestamp_list_properties():
@@ -125,35 +132,35 @@ def test_py_vis():
         [
             {
                 "color": "#97c2fc",
-                "id": 'ServerA',
+                "id": "ServerA",
                 "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
                 "label": "ServerA",
                 "shape": "dot",
             },
             {
                 "color": "#97c2fc",
-                "id": 'ServerB',
+                "id": "ServerB",
                 "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
                 "label": "ServerB",
                 "shape": "dot",
             },
             {
                 "color": "#97c2fc",
-                "id": 'ServerC',
+                "id": "ServerC",
                 "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
                 "label": "ServerC",
                 "shape": "dot",
             },
             {
                 "color": "#97c2fc",
-                "id": 'ServerD',
+                "id": "ServerD",
                 "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
                 "label": "ServerD",
                 "shape": "dot",
             },
             {
                 "color": "#97c2fc",
-                "id": 'ServerE',
+                "id": "ServerE",
                 "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
                 "label": "ServerE",
                 "shape": "dot",
@@ -168,63 +175,63 @@ def test_py_vis():
                 "arrowStrikethrough": False,
                 "arrows": "to",
                 "color": "#000000",
-                "from": 'ServerA',
+                "from": "ServerA",
                 "title": "",
-                "to": 'ServerB',
+                "to": "ServerB",
                 "value": 0.0,
             },
             {
                 "arrowStrikethrough": False,
                 "arrows": "to",
                 "color": "#000000",
-                "from": 'ServerA',
+                "from": "ServerA",
                 "title": "",
-                "to": 'ServerC',
+                "to": "ServerC",
                 "value": 0.0,
             },
             {
                 "arrowStrikethrough": False,
                 "arrows": "to",
                 "color": "#000000",
-                "from": 'ServerB',
+                "from": "ServerB",
                 "title": "",
-                "to": 'ServerD',
+                "to": "ServerD",
                 "value": 0.0,
             },
             {
                 "arrowStrikethrough": False,
                 "arrows": "to",
                 "color": "#000000",
-                "from": 'ServerC',
+                "from": "ServerC",
                 "title": "",
-                "to": 'ServerA',
+                "to": "ServerA",
                 "value": 0.0,
             },
             {
                 "arrowStrikethrough": False,
                 "arrows": "to",
                 "color": "#000000",
-                "from": 'ServerD',
+                "from": "ServerD",
                 "title": "",
-                "to": 'ServerC',
+                "to": "ServerC",
                 "value": 0.0,
             },
             {
                 "arrowStrikethrough": False,
                 "arrows": "to",
                 "color": "#000000",
-                "from": 'ServerD',
+                "from": "ServerD",
                 "title": "",
-                "to": 'ServerE',
+                "to": "ServerE",
                 "value": 0.0,
             },
             {
                 "arrowStrikethrough": False,
                 "arrows": "to",
                 "color": "#000000",
-                "from": 'ServerE',
+                "from": "ServerE",
                 "title": "",
-                "to": 'ServerB',
+                "to": "ServerB",
                 "value": 0.0,
             },
         ],

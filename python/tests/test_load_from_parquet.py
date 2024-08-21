@@ -14,7 +14,9 @@ def parquet_files():
     dirname = tempfile.TemporaryDirectory()
     nodes_parquet_file_path = os.path.join(dirname.name, "parquet", "nodes.parquet")
     edges_parquet_file_path = os.path.join(dirname.name, "parquet", "edges.parquet")
-    edge_deletions_parquet_file_path = os.path.join(dirname.name, "parquet", "edges_deletions.parquet")
+    edge_deletions_parquet_file_path = os.path.join(
+        dirname.name, "parquet", "edges_deletions.parquet"
+    )
 
     os.makedirs(os.path.dirname(nodes_parquet_file_path), exist_ok=True)
 
@@ -22,7 +24,14 @@ def parquet_files():
         "id": [1, 2, 3, 4, 5, 6],
         "name": ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank"],
         "time": [1, 2, 3, 4, 5, 6],
-        "type": ["Person 1", "Person 2", "Person 3", "Person 4", "Person 5", "Person 6"],
+        "type": [
+            "Person 1",
+            "Person 2",
+            "Person 3",
+            "Person 4",
+            "Person 5",
+            "Person 6",
+        ],
         "node_type": ["p", "p", "p", "p", "p", "p"],
     }
 
@@ -52,7 +61,11 @@ def parquet_files():
 
     table = pa.table(data)
     pq.write_table(table, edge_deletions_parquet_file_path)
-    print("""Created edges_deletions.parquet at loc = {}""".format(edge_deletions_parquet_file_path))
+    print(
+        """Created edges_deletions.parquet at loc = {}""".format(
+            edge_deletions_parquet_file_path
+        )
+    )
 
     yield nodes_parquet_file_path, edges_parquet_file_path, edge_deletions_parquet_file_path
 
@@ -139,13 +152,13 @@ def assert_expected_node_property_dept(g):
 
 
 def assert_expected_edge_properties(g):
-    assert g.layers(
-        ["layer 1", "layer 2", "layer 3"]
-    ).edges.properties.constant.get("marbles_const").collect() == [
-               {"layer 1": "red"},
-               {"layer 2": "blue"},
-               {"layer 3": "green"},
-           ]
+    assert g.layers(["layer 1", "layer 2", "layer 3"]).edges.properties.constant.get(
+        "marbles_const"
+    ).collect() == [
+        {"layer 1": "red"},
+        {"layer 2": "blue"},
+        {"layer 3": "green"},
+    ]
     assert g.edges.properties.constant.get("tag").collect() == [
         {"layer 1": "test_tag"},
         {"layer 2": "test_tag"},
@@ -180,14 +193,31 @@ def assert_expected_edge_properties_test_layer(g):
 
 
 def assert_expected_layers(g):
-    assert g.unique_layers == ["_default", "layer 1", "layer 2", "layer 3", "layer 4", "layer 5"]
+    assert g.unique_layers == [
+        "_default",
+        "layer 1",
+        "layer 2",
+        "layer 3",
+        "layer 4",
+        "layer 5",
+    ]
     assert g.layers(["layer 1"]).edges.src.id.collect() == [1]
     assert g.layers(["layer 1", "layer 2"]).edges.src.id.collect() == [1, 2]
-    assert g.layers(["layer 1", "layer 2", "layer 3"]).edges.src.id.collect() == [1, 2, 3]
-    assert g.layers(["layer 1", "layer 4", "layer 5"]).edges.src.id.collect() == [1, 4, 5]
+    assert g.layers(["layer 1", "layer 2", "layer 3"]).edges.src.id.collect() == [
+        1,
+        2,
+        3,
+    ]
+    assert g.layers(["layer 1", "layer 4", "layer 5"]).edges.src.id.collect() == [
+        1,
+        4,
+        5,
+    ]
     with pytest.raises(
-            Exception,
-            match=re.escape("Invalid layer: test_layer. Valid layers: _default, layer 1, layer 2, layer 3, layer 4, layer 5"),
+        Exception,
+        match=re.escape(
+            "Invalid layer: test_layer. Valid layers: _default, layer 1, layer 2, layer 3, layer 4, layer 5"
+        ),
     ):
         g.layers(["test_layer"])
 
@@ -198,19 +228,26 @@ def assert_expected_test_layer(g):
 
 
 def test_load_from_parquet_graphs(parquet_files):
-    nodes_parquet_file_path, edges_parquet_file_path, edges_deletions_parquet_file_path = parquet_files
+    (
+        nodes_parquet_file_path,
+        edges_parquet_file_path,
+        edges_deletions_parquet_file_path,
+    ) = parquet_files
 
-    g = Graph.load_from_parquet(
-        edge_parquet_path=edges_parquet_file_path,
-        edge_src="src",
-        edge_dst="dst",
-        edge_time="time",
-        edge_properties=["weight", "marbles"],
-        node_parquet_path=nodes_parquet_file_path,
-        node_id="id",
-        node_time="time",
-        node_properties=["name"],
-        node_type="node_type",
+    g = Graph()
+    g.load_edges_from_parquet(
+        parquet_path=edges_parquet_file_path,
+        time="time",
+        src="src",
+        dst="dst",
+        properties=["weight", "marbles"],
+    )
+    g.load_nodes_from_parquet(
+        parquet_path=nodes_parquet_file_path,
+        time="time",
+        id="id",
+        properties=["name"],
+        node_type_col="node_type",
     )
     assert_expected_nodes(g)
     assert_expected_edges(g)
@@ -218,10 +255,10 @@ def test_load_from_parquet_graphs(parquet_files):
     g = Graph()
     g.load_nodes_from_parquet(
         parquet_path=nodes_parquet_file_path,
-        id="id",
         time="time",
-        node_type="node_type",
-        properties=["name"]
+        id="id",
+        node_type_col="node_type",
+        properties=["name"],
     )
     g.load_edges_from_parquet(
         parquet_path=edges_parquet_file_path,
@@ -229,7 +266,7 @@ def test_load_from_parquet_graphs(parquet_files):
         dst="dst",
         time="time",
         properties=["weight", "marbles"],
-        layer_col="layers"
+        layer_col="layers",
     )
     assert_expected_nodes(g)
     assert_expected_edges(g)
@@ -276,56 +313,69 @@ def test_load_from_parquet_graphs(parquet_files):
         properties=["weight", "marbles"],
         constant_properties=["marbles_const"],
         shared_constant_properties={"type": "Edge", "tag": "test_tag"},
-        layer_name="test_layer",
+        layer="test_layer",
     )
     assert_expected_edge_properties_test_layer(g)
     assert_expected_test_layer(g)
 
-    g = Graph.load_from_parquet(
-        edge_parquet_path=edges_parquet_file_path,
-        edge_src="src",
-        edge_dst="dst",
-        edge_time="time",
-        layer_name="test_layer",
-        node_parquet_path=nodes_parquet_file_path,
-        node_id="id",
-        node_time="time",
-        node_properties=["name"],
-        node_shared_constant_properties={"dept": "Sales"},
+    g = Graph()
+    g.load_edges_from_parquet(
+        parquet_path=edges_parquet_file_path,
+        time="time",
+        src="src",
+        dst="dst",
+        layer="test_layer",
+    )
+    g.load_nodes_from_parquet(
+        parquet_path=nodes_parquet_file_path,
+        time="time",
+        id="id",
+        properties=["name"],
+        shared_constant_properties={"dept": "Sales"},
     )
     assert_expected_test_layer(g)
     assert_expected_node_property_dept(g)
 
-    g = Graph.load_from_parquet(
-        edge_parquet_path=edges_parquet_file_path,
-        edge_src="src",
-        edge_dst="dst",
-        edge_time="time",
+    g = Graph()
+    g.load_edges_from_parquet(
+        parquet_path=edges_parquet_file_path,
+        src="src",
+        dst="dst",
+        time="time",
         layer_col="layers",
-        node_parquet_path=nodes_parquet_file_path,
-        node_id="id",
-        node_time="time",
-        node_properties=["name"],
-        node_constant_properties=["type"],
+    )
+    g.load_nodes_from_parquet(
+        parquet_path=nodes_parquet_file_path,
+        time="time",
+        id="id",
+        properties=["name"],
+        constant_properties=["type"],
     )
     assert_expected_node_property_type(g)
     assert_expected_layers(g)
 
 
 def test_load_from_parquet_persistent_graphs(parquet_files):
-    nodes_parquet_file_path, edges_parquet_file_path, edges_deletions_parquet_file_path = parquet_files
+    (
+        nodes_parquet_file_path,
+        edges_parquet_file_path,
+        edges_deletions_parquet_file_path,
+    ) = parquet_files
 
-    g = PersistentGraph.load_from_parquet(
-        edge_parquet_path=edges_parquet_file_path,
-        edge_src="src",
-        edge_dst="dst",
-        edge_time="time",
-        edge_properties=["weight", "marbles"],
-        node_parquet_path=nodes_parquet_file_path,
-        node_id="id",
-        node_time="time",
-        node_properties=["name"],
-        node_type="node_type",
+    g = PersistentGraph()
+    g.load_edges_from_parquet(
+        parquet_path=edges_parquet_file_path,
+        src="src",
+        dst="dst",
+        time="time",
+        properties=["weight", "marbles"],
+    )
+    g.load_nodes_from_parquet(
+        parquet_path=nodes_parquet_file_path,
+        time="time",
+        id="id",
+        properties=["name"],
+        node_type_col="node_type",
     )
     assert_expected_nodes(g)
     assert_expected_edges(g)
@@ -336,7 +386,7 @@ def test_load_from_parquet_persistent_graphs(parquet_files):
         id="id",
         time="time",
         node_type="node_type",
-        properties=["name"]
+        properties=["name"],
     )
     g.load_edges_from_parquet(
         parquet_path=edges_parquet_file_path,
@@ -344,7 +394,7 @@ def test_load_from_parquet_persistent_graphs(parquet_files):
         dst="dst",
         time="time",
         properties=["weight", "marbles"],
-        layer_col="layers"
+        layer_col="layers",
     )
     assert_expected_nodes(g)
     assert_expected_edges(g)
@@ -373,8 +423,8 @@ def test_load_from_parquet_persistent_graphs(parquet_files):
     g = PersistentGraph()
     g.load_nodes_from_parquet(
         parquet_path=nodes_parquet_file_path,
-        id="id",
         time="time",
+        id="id",
         node_type_col="node_type",
         properties=["name"],
         shared_constant_properties={"tag": "test_tag"},
@@ -385,46 +435,34 @@ def test_load_from_parquet_persistent_graphs(parquet_files):
     g = PersistentGraph()
     g.load_edges_from_parquet(
         parquet_path=edges_parquet_file_path,
+        time="time",
         src="src",
         dst="dst",
-        time="time",
         properties=["weight", "marbles"],
         constant_properties=["marbles_const"],
         shared_constant_properties={"type": "Edge", "tag": "test_tag"},
-        layer_name="test_layer",
+        layer="test_layer",
     )
     assert_expected_edge_properties_test_layer(g)
     assert_expected_test_layer(g)
 
-    g = Graph.load_from_parquet(
-        edge_parquet_path=edges_parquet_file_path,
-        edge_src="src",
-        edge_dst="dst",
-        edge_time="time",
-        layer_name="test_layer",
-        node_parquet_path=nodes_parquet_file_path,
-        node_id="id",
-        node_time="time",
-        node_properties=["name"],
-        node_shared_constant_properties={"dept": "Sales"},
+    g = Graph()
+    g.load_edges_from_parquet(
+        parquet_path=edges_parquet_file_path,
+        src="src",
+        dst="dst",
+        time="time",
+        layer="test_layer",
+    )
+    g.load_nodes_from_parquet(
+        parquet_path=nodes_parquet_file_path,
+        time="time",
+        id="id",
+        properties=["name"],
+        shared_constant_properties={"dept": "Sales"},
     )
     assert_expected_test_layer(g)
     assert_expected_node_property_dept(g)
-
-    g = PersistentGraph.load_from_parquet(
-        edge_parquet_path=edges_parquet_file_path,
-        edge_src="src",
-        edge_dst="dst",
-        edge_time="time",
-        layer_col="layers",
-        node_parquet_path=nodes_parquet_file_path,
-        node_id="id",
-        node_time="time",
-        node_properties=["name"],
-        node_constant_properties=["type"],
-    )
-    assert_expected_node_property_type(g)
-    assert_expected_layers(g)
 
     g = PersistentGraph()
     g.load_edges_from_parquet(
@@ -432,13 +470,30 @@ def test_load_from_parquet_persistent_graphs(parquet_files):
         src="src",
         dst="dst",
         time="time",
+        layer_col="layers",
+    )
+    g.load_nodes_from_parquet(
+        parquet_path=nodes_parquet_file_path,
+        time="time",
+        id="id",
+        properties=["name"],
+        constant_properties=["type"],
+    )
+    assert_expected_node_property_type(g)
+    assert_expected_layers(g)
+
+    g = PersistentGraph()
+    g.load_edges_from_parquet(
+        parquet_path=edges_parquet_file_path,
+        time="time",
+        src="src",
+        dst="dst",
     )
     assert g.window(10, 12).edges.src.id.collect() == [1, 2, 3, 4, 5]
     g.load_edges_deletions_from_parquet(
         parquet_path=edges_deletions_parquet_file_path,
+        time="time",
         src="src",
         dst="dst",
-        time="time"
     )
     assert g.window(10, 12).edges.src.id.collect() == [1, 2, 5]
-
