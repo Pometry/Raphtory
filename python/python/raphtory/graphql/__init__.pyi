@@ -37,7 +37,6 @@ class RaphtoryClient:
 
     def __init__(self, url):
         """Initialize self.  See help(type(self)) for accurate signature."""
-
     def copy_graph(self, path, new_path):
         """
         Copy graph from a path `path` on the server to a `new_path` on the server
@@ -49,7 +48,6 @@ class RaphtoryClient:
         Returns:
            Copy status as boolean
         """
-
     def delete_graph(self, path):
         """
         Delete graph from a path `path` on the server
@@ -60,7 +58,6 @@ class RaphtoryClient:
         Returns:
            Delete status as boolean
         """
-
     def is_server_online(self):
         """
         Check if the server is online.
@@ -68,7 +65,6 @@ class RaphtoryClient:
         Returns:
            Returns true if server is online otherwise false.
         """
-
     def move_graph(self, path, new_path):
         """
         Move graph from a path `path` on the server to a `new_path` on the server
@@ -91,7 +87,6 @@ class RaphtoryClient:
         Returns:
            The `data` field from the graphQL response.
         """
-
     def receive_graph(self, path):
         """
         Receive graph from a path `path` on the server
@@ -102,7 +97,6 @@ class RaphtoryClient:
         Returns:
            Graph as string
         """
-
     def send_graph(self, path, graph, overwrite=False):
         """
         Send a graph to the server
@@ -115,7 +109,6 @@ class RaphtoryClient:
         Returns:
            The `data` field from the graphQL response after executing the mutation.
         """
-
     def upload_graph(self, path, file_path, overwrite=False):
         """
         Upload graph file from a path `file_path` on the client
@@ -132,9 +125,15 @@ class RaphtoryClient:
 class RaphtoryServer:
     """A class for defining and running a Raphtory GraphQL server"""
 
-    def __init__(self, work_dir, cache_capacity=None, cache_tti_seconds=None, log_level=None, config_path=None):
+    def __init__(
+        self,
+        work_dir,
+        cache_capacity=None,
+        cache_tti_seconds=None,
+        log_level=None,
+        config_path=None,
+    ):
         """Initialize self.  See help(type(self)) for accurate signature."""
-
     def run(self, port=1736, timeout_ms=...):
         """
         Run the server until completion.
@@ -142,7 +141,6 @@ class RaphtoryServer:
         Arguments:
           * `port`: the port to use (defaults to 1736).
         """
-
     def start(self, port=1736, timeout_ms=None):
         """
         Start the server and return a handle to it.
@@ -218,9 +216,6 @@ class RunningRaphtoryServer:
 
     def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
-
-    def get_client(self):
-        ...
-
+    def get_client(self): ...
     def stop(self):
         """Stop the server and wait for it to finish"""

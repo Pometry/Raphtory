@@ -610,7 +610,7 @@ def test_receive_graph_succeeds_if_graph_found():
         received_graph = client.query(query)["receiveGraph"]
 
         decoded_bytes = base64.b64decode(received_graph)
-        g = Graph.deserialise(decoded_bytes);
+        g = Graph.deserialise(decoded_bytes)
         assert g.nodes.name == ["ben", "hamza", "haaroon"]
 
 

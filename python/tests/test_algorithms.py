@@ -258,7 +258,11 @@ def test_temporal_reachability():
     actual = algorithms.temporally_reachable_nodes(g, 20, 11, [1, 2], [4, 5])
     expected = {
         "1": [(11, "start")],
-        "2": [(11, "1"), (11, "start"), (12, "1"), ],
+        "2": [
+            (11, "1"),
+            (11, "start"),
+            (12, "1"),
+        ],
         "3": [],
         "4": [(12, "2")],
         "5": [(13, "2")],
@@ -321,12 +325,12 @@ def test_single_source_shortest_path():
         "4": ["1", "4"],
     }
     assert (
-                   res_two.get_all_with_names()
-                   == {"1": ["1"], "2": ["1", "2"], "3": ["1", "2", "3"], "4": ["1", "4"]}
-           ) or (
-                   res_two.get_all_with_names()
-                   == {"1": ["1"], "3": ["1", "4", "3"], "2": ["1", "2"], "4": ["1", "4"]}
-           )
+        res_two.get_all_with_names()
+        == {"1": ["1"], "2": ["1", "2"], "3": ["1", "2", "3"], "4": ["1", "4"]}
+    ) or (
+        res_two.get_all_with_names()
+        == {"1": ["1"], "3": ["1", "4", "3"], "2": ["1", "2"], "4": ["1", "4"]}
+    )
 
 
 def test_dijsktra_shortest_paths():

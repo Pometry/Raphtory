@@ -73,6 +73,7 @@ def cohesive_fruchterman_reingold(
 ):
     """Cohesive version of `fruchterman_reingold` that adds virtual edges between isolated nodes"""
 
+def connected_components(g): ...
 def degree_centrality(g, threads=None):
     """
     Computes the degree centrality of all nodes in the graph. The values are normalized
