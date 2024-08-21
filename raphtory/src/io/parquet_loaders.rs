@@ -305,10 +305,10 @@ mod test {
         let parquet_file_path =
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources/test/test_data.parquet");
 
-        let col_names: &[&str] = &["time", "src", "dst", "weight", "marbles"];
+        let col_names: &[&str] = &["src", "dst","time", "weight", "marbles"];
         let df = process_parquet_file_to_df(parquet_file_path.as_path(), col_names).unwrap();
 
-        let expected_names: Vec<String> = vec!["time", "src", "dst", "weight", "marbles"]
+        let expected_names: Vec<String> = vec!["src", "dst","time", "weight", "marbles"]
             .iter()
             .map(|s| s.to_string())
             .collect();
