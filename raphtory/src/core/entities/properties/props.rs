@@ -8,11 +8,13 @@ use crate::{
         utils::errors::GraphError,
         Prop, PropType,
     },
-    db::api::storage::tprop_storage_ops::TPropOps,
+    db::api::storage::graph::tprop_storage_ops::TPropOps,
 };
 use parking_lot::RwLock;
 use raphtory_api::core::storage::{
-    arc_str::ArcStr, dict_mapper::DictMapper, locked_vec::ArcReadLockedVec,
+    arc_str::ArcStr,
+    dict_mapper::{DictMapper, MaybeNew},
+    locked_vec::ArcReadLockedVec,
 };
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, hash::Hash, ops::Deref, sync::Arc};
@@ -153,7 +155,7 @@ impl Meta {
         prop: &str,
         dtype: PropType,
         is_static: bool,
-    ) -> Result<usize, GraphError> {
+    ) -> Result<MaybeNew<usize>, GraphError> {
         if is_static {
             self.meta_prop_constant
                 .get_or_create_and_validate(prop, dtype)
@@ -173,7 +175,7 @@ impl Meta {
     }
 
     #[inline]
-    pub fn get_or_create_layer_id(&self, name: &str) -> usize {
+    pub fn get_or_create_layer_id(&self, name: &str) -> MaybeNew<usize> {
         self.meta_layer.get_or_create_id(name)
     }
 
@@ -183,7 +185,7 @@ impl Meta {
     }
 
     #[inline]
-    pub fn get_or_create_node_type_id(&self, node_type: &str) -> usize {
+    pub fn get_or_create_node_type_id(&self, node_type: &str) -> MaybeNew<usize> {
         self.meta_node_type.get_or_create_id(node_type)
     }
 
@@ -264,13 +266,14 @@ impl PropMapper {
         &self,
         prop: &str,
         dtype: PropType,
-    ) -> Result<usize, GraphError> {
-        let id = self.id_mapper.get_or_create_id(prop);
+    ) -> Result<MaybeNew<usize>, GraphError> {
+        let wrapped_id = self.id_mapper.get_or_create_id(prop);
+        let id = wrapped_id.inner();
         let dtype_read = self.dtypes.read_recursive();
         if let Some(old_type) = dtype_read.get(id) {
             if !matches!(old_type, PropType::Empty) {
                 return if *old_type == dtype {
-                    Ok(id)
+                    Ok(wrapped_id)
                 } else {
                     Err(GraphError::PropertyTypeError {
                         name: prop.to_owned(),
@@ -287,11 +290,11 @@ impl PropMapper {
                 if matches!(old_type, PropType::Empty) {
                     // vector already resized but this id is not filled yet, set the dtype and return id
                     dtype_write[id] = dtype;
-                    Ok(id)
+                    Ok(wrapped_id)
                 } else {
                     // already filled because a different thread won the race for this id, check the type matches
                     if old_type == dtype {
-                        Ok(id)
+                        Ok(wrapped_id)
                     } else {
                         Err(GraphError::PropertyTypeError {
                             name: prop.to_owned(),
@@ -305,7 +308,7 @@ impl PropMapper {
                 // vector not resized yet, resize it and set the dtype and return id
                 dtype_write.resize(id + 1, PropType::Empty);
                 dtype_write[id] = dtype;
-                Ok(id)
+                Ok(wrapped_id)
             }
         }
     }

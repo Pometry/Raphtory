@@ -72,6 +72,12 @@ impl AsNodeRef for GID {
     }
 }
 
+impl<'a> AsNodeRef for GidRef<'a> {
+    fn as_node_ref(&self) -> NodeRef {
+        NodeRef::External(*self)
+    }
+}
+
 impl<'a> NodeRef<'a> {
     /// Makes a new node reference from an internal `VID`.
     /// Values are unchecked and the node is assumed to exist so use with caution!

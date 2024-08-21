@@ -4,7 +4,7 @@ use crate::{
         utils::errors::GraphError, DocumentInput, Prop, PropType,
     },
     db::{
-        api::storage::tprop_storage_ops::TPropOps,
+        api::storage::graph::tprop_storage_ops::TPropOps,
         graph::{graph::Graph, views::deletion_graph::PersistentGraph},
     },
 };

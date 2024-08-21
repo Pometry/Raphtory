@@ -4,7 +4,7 @@ use crate::{
         state::compute_state::{ComputeState, ComputeStateVec},
     },
     db::{
-        api::storage::storage_ops::GraphStorage,
+        api::storage::graph::storage_ops::GraphStorage,
         task::{
             edge::eval_edge::EvalEdgeView,
             node::{eval_node::EvalNodeView, eval_node_state::EVState},

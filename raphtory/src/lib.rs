@@ -82,7 +82,7 @@
 //! raphtory is created by [Pometry](https://pometry.com).
 //! We are always looking for contributors to help us improve the library.
 //! If you are interested in contributing, please see
-//! our [Github repository](https://github.com/Raphtory/raphtory)
+//! our [GitHub repository](https://github.com/Raphtory/raphtory)
 pub mod algorithms;
 pub mod core;
 pub mod db;
@@ -107,6 +107,9 @@ pub mod vectors;
 #[cfg(feature = "io")]
 pub mod io;
 
+#[cfg(feature = "proto")]
+pub mod serialise;
+
 pub mod prelude {
     pub const NO_PROPS: [(&str, Prop); 0] = [];
     pub use crate::{
@@ -123,17 +126,13 @@ pub mod prelude {
         },
     };
     pub use raphtory_api::core::{entities::GID, input::input_node::InputNode};
+
+    #[cfg(feature = "proto")]
+    pub use crate::serialise::{CacheOps, StableDecode, StableEncode};
 }
 
-// Upgrade this version number every time you make a breaking change to Graph structure.
-pub const BINCODE_VERSION: u32 = 3u32;
 #[cfg(feature = "storage")]
 pub use polars_arrow as arrow2;
-
-#[cfg(feature = "proto")]
-mod serialise {
-    include!(concat!(env!("OUT_DIR"), "/serialise.rs"));
-}
 
 #[cfg(test)]
 mod test_utils {

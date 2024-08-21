@@ -6,7 +6,7 @@ use crate::{
     core::{entities::LayerIds, utils::errors::GraphError},
     db::api::{
         properties::internal::InheritPropertiesOps,
-        storage::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+        storage::graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
         view::{
             internal::{
                 Base, EdgeFilterOps, Immutable, InheritCoreOps, InheritListOps, InheritMaterialize,

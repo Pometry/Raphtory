@@ -42,10 +42,6 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: webfactory/ssh-agent@v0.7.0
-        name: Load pometry-storage key
-        with:
-          ssh-private-key: ${{ secrets.RA_SSH_PRIVATE_KEY }}
       - name: Rust version
         run: rustc --version --verbose
       - uses: Swatinem/rust-cache@v2
@@ -81,10 +77,6 @@ jobs:
         name: Cargo cache
         with:
           cache-all-crates: true
-      - uses: webfactory/ssh-agent@v0.9.0
-        name: Load raphtory-disk_graph key
-        with:
-          ssh-private-key: ${{ secrets.RA_SSH_PRIVATE_KEY }}
       - name: Set up Python
         uses: actions/setup-python@v4
         with:

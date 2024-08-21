@@ -10,10 +10,7 @@ use crate::{
     db::{
         api::{
             mutation::{AdditionOps, PropertyAdditionOps},
-            view::{
-                internal::{CoreGraphOps, MaterializedGraph},
-                serialise::StableEncoder,
-            },
+            view::internal::CoreGraphOps,
         },
         graph::{edge::EdgeView, node::NodeView, views::deletion_graph::PersistentGraph},
     },
@@ -23,19 +20,19 @@ use crate::{
         utils::PyTime,
     },
 };
-use pyo3::{prelude::*, types::PyBytes};
+use pyo3::prelude::*;
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 
 use super::{
     graph::{PyGraph, PyGraphEncoder},
     io::pandas_loaders::*,
 };
-use crate::io::parquet_loaders::*;
+use crate::{io::parquet_loaders::*, serialise::StableEncode};
 
 /// A temporal graph that allows edges and nodes to be deleted.
 #[derive(Clone)]
@@ -43,6 +40,8 @@ use crate::io::parquet_loaders::*;
 pub struct PyPersistentGraph {
     pub(crate) graph: PersistentGraph,
 }
+
+impl_serialise!(PyPersistentGraph, graph: PersistentGraph, "PersistentGraph");
 
 impl Debug for PyPersistentGraph {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -327,50 +326,12 @@ impl PyPersistentGraph {
 
     // Alternative constructors are tricky, see: https://gist.github.com/redshiftzero/648e4feeff3843ffd9924f13625f839c
 
-    /// Loads a graph from the given path.
-    ///
-    /// Arguments:
-    ///   path (str): The path to the graph.
-    ///
-    /// Returns:
-    ///  Graph: The loaded graph.
-    #[staticmethod]
-    #[pyo3(signature = (path, force = false))]
-    pub fn load_from_file(path: &str, force: bool) -> Result<PersistentGraph, GraphError> {
-        let file_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), path].iter().collect();
-        PersistentGraph::load_from_file(file_path, force)
-    }
-
-    /// Saves the graph to the given path.
-    ///
-    /// Arguments:
-    ///  path (str): The path to the graph.
-    ///
-    /// Returns:
-    /// None
-    pub fn save_to_file(&self, path: &str) -> Result<(), GraphError> {
-        self.graph.save_to_file(Path::new(path))
-    }
-
     /// Returns all the node types in the graph.
     ///
     /// Returns:
     /// A list of node types
     pub fn get_all_node_types(&self) -> Vec<ArcStr> {
         self.graph.get_all_node_types()
-    }
-
-    /// Get bincode encoded graph
-    pub fn bincode<'py>(&'py self, py: Python<'py>) -> Result<&'py PyBytes, GraphError> {
-        let bytes = MaterializedGraph::from(self.graph.clone()).bincode()?;
-        Ok(PyBytes::new(py, &bytes))
-    }
-
-    /// Creates a graph from a bincode encoded graph
-    #[staticmethod]
-    fn from_bincode(bytes: &[u8]) -> Result<Option<PersistentGraph>, GraphError> {
-        let graph = MaterializedGraph::from_bincode(bytes)?;
-        Ok(graph.into_persistent())
     }
 
     /// Get event graph
@@ -556,7 +517,7 @@ impl PyPersistentGraph {
         shared_const_properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
         load_nodes_from_pandas(
-            &self.graph.0,
+            self.graph.core_graph(),
             df,
             id,
             time,
@@ -635,7 +596,7 @@ impl PyPersistentGraph {
         layer_in_df: Option<bool>,
     ) -> Result<(), GraphError> {
         load_edges_from_pandas(
-            &self.graph.0,
+            self.graph.core_graph(),
             df,
             src,
             dst,
@@ -712,7 +673,15 @@ impl PyPersistentGraph {
         layer: Option<&str>,
         layer_in_df: Option<bool>,
     ) -> Result<(), GraphError> {
-        load_edges_deletions_from_pandas(&self.graph.0, df, src, dst, time, layer, layer_in_df)
+        load_edges_deletions_from_pandas(
+            self.graph.core_graph(),
+            df,
+            src,
+            dst,
+            time,
+            layer,
+            layer_in_df,
+        )
     }
 
     /// Load edges deletions from a Parquet file into the graph.
@@ -767,7 +736,7 @@ impl PyPersistentGraph {
         shared_const_properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
         load_node_props_from_pandas(
-            &self.graph.0,
+            self.graph.core_graph(),
             df,
             id,
             const_properties.as_ref().map(|props| props.as_ref()),
@@ -827,7 +796,7 @@ impl PyPersistentGraph {
         layer_in_df: Option<bool>,
     ) -> Result<(), GraphError> {
         load_edge_props_from_pandas(
-            &self.graph.0,
+            self.graph.core_graph(),
             df,
             src,
             dst,

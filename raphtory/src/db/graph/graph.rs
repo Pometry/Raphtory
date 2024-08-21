@@ -18,11 +18,10 @@
 
 use super::views::deletion_graph::PersistentGraph;
 use crate::{
-    core::{entities::graph::tgraph::TemporalGraph, utils::errors::GraphError},
     db::api::{
         mutation::internal::InheritMutationOps,
-        storage::storage_ops::GraphStorage,
-        view::internal::{Base, InheritViewOps, MaterializedGraph, Static},
+        storage::{graph::storage_ops::GraphStorage, storage::Storage},
+        view::internal::{Base, InheritViewOps, Static},
     },
     prelude::*,
 };
@@ -31,14 +30,13 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Display, Formatter},
-    path::Path,
     sync::Arc,
 };
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Graph {
-    inner: GraphStorage,
+    pub(crate) inner: Arc<Storage>,
 }
 
 impl Static for Graph {}
@@ -150,7 +148,7 @@ where
 }
 
 impl Base for Graph {
-    type Base = GraphStorage;
+    type Base = Storage;
 
     #[inline(always)]
     fn base(&self) -> &Self::Base {
@@ -177,7 +175,7 @@ impl Graph {
     /// ```
     pub fn new() -> Self {
         Self {
-            inner: GraphStorage::Unlocked(Arc::new(TemporalGraph::default())),
+            inner: Arc::new(Storage::default()),
         }
     }
 
@@ -188,45 +186,22 @@ impl Graph {
     /// A raphtory graph
     pub fn new_with_shards(num_shards: usize) -> Self {
         Self {
-            inner: GraphStorage::Unlocked(Arc::new(TemporalGraph::new(num_shards))),
+            inner: Arc::new(Storage::new(num_shards)),
         }
     }
 
-    pub(crate) fn from_internal_graph(internal_graph: GraphStorage) -> Self {
-        Self {
-            inner: internal_graph,
-        }
+    pub(crate) fn from_storage(inner: Arc<Storage>) -> Self {
+        Self { inner }
     }
 
-    /// Load a graph from a directory
-    ///
-    /// # Arguments
-    ///
-    /// * `path` - The path to the directory
-    ///
-    /// Returns:
-    ///
-    /// A raphtory graph
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use raphtory::prelude::Graph;
-    /// let g = Graph::load_from_file("path/to/graph", false);
-    /// ```
-    pub fn load_from_file<P: AsRef<Path>>(path: P, force: bool) -> Result<Self, GraphError> {
-        let g = MaterializedGraph::load_from_file(path, force)?;
-        g.into_events().ok_or(GraphError::GraphLoadError)
-    }
-
-    /// Save a graph to a directory
-    pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), GraphError> {
-        MaterializedGraph::from(self.clone()).save_to_file(path)
+    pub(crate) fn from_internal_graph(graph_storage: GraphStorage) -> Self {
+        let inner = Arc::new(Storage::from_inner(graph_storage));
+        Self { inner }
     }
 
     /// Get persistent graph
     pub fn persistent_graph(&self) -> PersistentGraph {
-        PersistentGraph::from_internal_graph(self.inner.clone())
+        PersistentGraph::from_storage(self.inner.clone())
     }
 }
 
@@ -236,7 +211,10 @@ mod db_tests {
     use crate::{
         algorithms::components::weakly_connected_components,
         core::{
-            utils::time::{error::ParseTimeError, TryIntoTime},
+            utils::{
+                errors::GraphError,
+                time::{error::ParseTimeError, TryIntoTime},
+            },
             Prop,
         },
         db::{
@@ -551,6 +529,7 @@ mod db_tests {
     }
 
     #[test]
+    #[cfg(feature = "proto")]
     fn graph_save_to_load_from_file() {
         let vs = vec![
             (1, 1, 2),
@@ -570,10 +549,10 @@ mod db_tests {
         let tmp_raphtory_path: TempDir = TempDir::new().expect("Failed to create tempdir");
 
         let graph_path = format!("{}/graph.bin", tmp_raphtory_path.path().display());
-        g.save_to_file(&graph_path).expect("Failed to save graph");
+        g.encode(&graph_path).expect("Failed to save graph");
 
         // Load from files
-        let g2 = Graph::load_from_file(&graph_path, false).expect("Failed to load graph");
+        let g2 = Graph::decode(&graph_path).expect("Failed to load graph");
 
         assert_eq!(g, g2);
 
@@ -2326,12 +2305,15 @@ mod db_tests {
     }
 
     #[test]
+    #[cfg(feature = "proto")]
     fn save_load_serial() {
         let g = Graph::new();
         g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
         let dir = tempfile::tempdir().unwrap();
         let file_path = dir.path().join("abcd11");
-        g.save_to_file(file_path).unwrap();
+        g.encode(&file_path).unwrap();
+        let gg = Graph::decode(file_path).unwrap();
+        assert_graph_equal(&g, &gg);
     }
 
     #[test]

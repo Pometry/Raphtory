@@ -2,7 +2,7 @@ use crate::{
     core::entities::{LayerIds, VID},
     db::api::{
         properties::internal::InheritPropertiesOps,
-        storage::{
+        storage::graph::{
             edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
             nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
         },

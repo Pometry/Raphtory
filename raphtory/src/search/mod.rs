@@ -1,16 +1,8 @@
 // search goes here
 
 pub mod into_indexed;
-
-use std::{collections::HashSet, ops::Deref, path::Path, sync::Arc};
-
-use raphtory_api::core::storage::arc_str::ArcStr;
-use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
-use tantivy::{
-    collector::TopDocs,
-    schema::{Field, Schema, SchemaBuilder, Value, FAST, INDEXED, STORED, TEXT},
-    Index, IndexReader, IndexSettings, IndexWriter, TantivyDocument, TantivyError,
-};
+#[cfg(feature = "proto")]
+mod serialise;
 
 use crate::{
     core::{
@@ -25,15 +17,23 @@ use crate::{
     db::{
         api::{
             mutation::internal::{InheritPropertyAdditionOps, InternalAdditionOps},
-            storage::edges::edge_storage_ops::EdgeStorageOps,
+            storage::graph::edges::edge_storage_ops::EdgeStorageOps,
             view::{
                 internal::{DynamicGraph, InheritViewOps, IntoDynamic, Static},
-                Base, MaterializedGraph, StaticGraphViewOps,
+                Base, StaticGraphViewOps,
             },
         },
         graph::{edge::EdgeView, node::NodeView},
     },
     prelude::*,
+};
+use raphtory_api::core::storage::{arc_str::ArcStr, dict_mapper::MaybeNew};
+use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
+use std::{collections::HashSet, ops::Deref, sync::Arc};
+use tantivy::{
+    collector::TopDocs,
+    schema::{Field, Schema, SchemaBuilder, Value, FAST, INDEXED, STORED, TEXT},
+    Index, IndexReader, IndexSettings, IndexWriter, TantivyDocument, TantivyError,
 };
 
 #[derive(Clone)]
@@ -90,12 +90,6 @@ impl<G: GraphViewOps<'static> + IntoDynamic> IndexedGraph<G> {
             reader: self.reader,
             edge_reader: self.edge_reader,
         }
-    }
-}
-
-impl IndexedGraph<MaterializedGraph> {
-    pub fn save_to_file(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
-        self.graph.save_to_file(path)
     }
 }
 
@@ -765,27 +759,31 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
         self.graph.next_event_id()
     }
     #[inline]
-    fn resolve_layer(&self, layer: Option<&str>) -> Result<usize, GraphError> {
+    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, GraphError> {
         self.graph.resolve_layer(layer)
     }
 
     #[inline]
-    fn set_node_type(&self, v_id: VID, node_type: &str) -> Result<(), GraphError> {
-        self.graph.set_node_type(v_id, node_type)?;
-        let node_type_field = self.node_index.schema().get_field(fields::NODE_TYPE)?;
+    fn resolve_node<V: AsNodeRef>(&self, n: V) -> Result<MaybeNew<VID>, GraphError> {
+        self.graph.resolve_node(n)
+    }
+
+    fn resolve_node_and_type<V: AsNodeRef>(
+        &self,
+        id: V,
+        node_type: &str,
+    ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, GraphError> {
+        let res = self.graph.resolve_node_and_type(id, node_type)?;
+        let (vid, _) = res.inner();
         let mut document = TantivyDocument::new();
+        let node_type_field = self.node_index.schema().get_field(fields::NODE_TYPE)?;
         document.add_text(node_type_field, node_type);
         let node_id_field = self.node_index.schema().get_field(fields::VERTEX_ID)?;
-        document.add_u64(node_id_field, v_id.as_u64());
+        document.add_u64(node_id_field, vid.inner().as_u64());
         let mut writer = self.node_index.writer(50_000_000)?;
         writer.add_document(document)?;
         writer.commit()?;
-        Ok(())
-    }
-
-    #[inline]
-    fn resolve_node<V: AsNodeRef>(&self, n: V) -> Result<VID, GraphError> {
-        self.graph.resolve_node(n)
+        Ok(res)
     }
 
     #[inline]
@@ -794,7 +792,7 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
         prop: &str,
         dtype: PropType,
         is_static: bool,
-    ) -> Result<usize, GraphError> {
+    ) -> Result<MaybeNew<usize>, GraphError> {
         self.graph.resolve_graph_property(prop, dtype, is_static)
     }
 
@@ -804,7 +802,7 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
         prop: &str,
         dtype: PropType,
         is_static: bool,
-    ) -> Result<usize, GraphError> {
+    ) -> Result<MaybeNew<usize>, GraphError> {
         self.graph.resolve_node_property(prop, dtype, is_static)
     }
 
@@ -814,7 +812,7 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
         prop: &str,
         dtype: PropType,
         is_static: bool,
-    ) -> Result<usize, GraphError> {
+    ) -> Result<MaybeNew<usize>, GraphError> {
         self.graph.resolve_edge_property(prop, dtype, is_static)
     }
 
@@ -822,7 +820,7 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
         &self,
         t: TimeIndexEntry,
         v: VID,
-        props: Vec<(usize, Prop)>,
+        props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         let mut document = TantivyDocument::new();
         // add time to the document
@@ -862,9 +860,9 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
         _t: TimeIndexEntry,
         _src: VID,
         _dst: VID,
-        _props: Vec<(usize, Prop)>,
+        _props: &[(usize, Prop)],
         _layer: usize,
-    ) -> Result<EID, GraphError> {
+    ) -> Result<MaybeNew<EID>, GraphError> {
         todo!()
     }
 
@@ -872,7 +870,7 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
         &self,
         _t: TimeIndexEntry,
         _edge: EID,
-        _props: Vec<(usize, Prop)>,
+        _props: &[(usize, Prop)],
         _layer: usize,
     ) -> Result<(), GraphError> {
         todo!()
@@ -915,9 +913,10 @@ mod test {
     }
 
     #[test]
+    #[cfg(feature = "proto")]
     #[ignore = "this test is for experiments with the jira graph"]
     fn load_jira_graph() -> Result<(), GraphError> {
-        let graph = Graph::load_from_file("/tmp/graphs/jira", false).expect("failed to load graph");
+        let graph = Graph::decode("/tmp/graphs/jira").expect("failed to load graph");
         assert!(graph.count_nodes() > 0);
 
         let now = SystemTime::now();

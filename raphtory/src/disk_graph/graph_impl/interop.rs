@@ -5,7 +5,7 @@ use crate::{
         Direction,
     },
     db::api::{
-        storage::{
+        storage::graph::{
             edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
             tprop_storage_ops::TPropOps,
         },

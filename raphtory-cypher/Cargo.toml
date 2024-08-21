@@ -42,7 +42,6 @@ itertools.workspace = true
 proptest.workspace = true
 pretty_assertions.workspace = true
 tempfile.workspace = true
-rand.workspace = true
 tokio.workspace = true
 clap.workspace = true
 

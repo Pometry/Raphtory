@@ -4,7 +4,7 @@ use crate::{
         Direction,
     },
     db::api::{
-        storage::{
+        storage::graph::{
             nodes::node_storage_ops::{NodeStorageIntoOps, NodeStorageOps},
             tprop_storage_ops::TPropOps,
             variants::{direction_variants::DirectionVariants, layer_variants::LayerVariants},

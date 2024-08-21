@@ -19,10 +19,11 @@ pub trait DeletionOps: InternalDeletionOps + InternalAdditionOps + Sized {
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
         let ti = time_from_input(self, t)?;
-        let src_id = self.resolve_node(src)?;
-        let dst_id = self.resolve_node(dst)?;
-        let layer = self.resolve_layer(layer)?;
-        self.internal_delete_edge(ti, src_id, dst_id, layer)
+        let src_id = self.resolve_node(src)?.inner();
+        let dst_id = self.resolve_node(dst)?.inner();
+        let layer = self.resolve_layer(layer)?.inner();
+        self.internal_delete_edge(ti, src_id, dst_id, layer)?;
+        Ok(())
     }
 
     fn delete_edge_with_custom_time_format<V: AsNodeRef>(

@@ -1,6 +1,8 @@
 use crate::core::{utils::time::error::ParseTimeError, Prop, PropType};
 #[cfg(feature = "arrow")]
 use polars_arrow::legacy::error;
+#[cfg(feature = "storage")]
+use pometry_storage::RAError;
 #[cfg(feature = "python")]
 use pyo3::PyErr;
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
@@ -120,12 +122,6 @@ pub enum GraphError {
         src: String,
         dst: String,
     },
-    #[error("Bincode operation failed")]
-    BinCodeError {
-        #[from]
-        source: Box<bincode::ErrorKind>,
-    },
-
     #[error("The loaded graph is of the wrong type. Did you mean Graph / PersistentGraph?")]
     GraphLoadError,
 
@@ -145,6 +141,10 @@ pub enum GraphError {
     )]
     ColumnDoesNotExist(String),
 
+    #[cfg(feature = "storage")]
+    #[error("Raphtory Arrow Error: {0}")]
+    DiskGraphError(#[from] RAError),
+
     #[cfg(feature = "search")]
     #[error("Index operation failed")]
     IndexError {
@@ -158,11 +158,6 @@ pub enum GraphError {
         #[from]
         source: QueryParserError,
     },
-
-    #[error(
-        "Failed to load the graph as the bincode version {0} is different to supported version {1}"
-    )]
-    BincodeVersionError(u32, u32),
 
     #[error("The layer_name function is only available once an edge has been exploded via .explode_layers() or .explode(). If you want to retrieve the layers for this edge you can use .layer_names")]
     LayerNameAPIError,
@@ -184,6 +179,10 @@ pub enum GraphError {
     #[cfg(feature = "proto")]
     #[error("Failed to deserialise graph: {0}")]
     DeserialisationError(String),
+
+    #[cfg(feature = "proto")]
+    #[error("Cache is not initialised")]
+    CacheNotInnitialised,
 
     #[error("Immutable graph is .. immutable!")]
     AttemptToMutateImmutableGraph,
