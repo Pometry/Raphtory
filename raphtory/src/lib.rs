@@ -131,8 +131,6 @@ pub mod prelude {
     pub use crate::serialise::{CacheOps, StableDecode, StableEncode};
 }
 
-// Upgrade this version number every time you make a breaking change to Graph structure.
-pub const BINCODE_VERSION: u32 = 3u32;
 #[cfg(feature = "storage")]
 pub use polars_arrow as arrow2;
 

@@ -34,12 +34,11 @@ use crate::{
         graph::{graph::Graph, views::deletion_graph::PersistentGraph},
     },
     prelude::*,
-    BINCODE_VERSION,
 };
 use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
 use raphtory_api::core::storage::{arc_str::ArcStr, dict_mapper::MaybeNew};
-use serde::{de::Error, Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 
 #[enum_dispatch(CoreGraphOps)]
 #[enum_dispatch(InternalLayerOps)]
@@ -62,27 +61,6 @@ pub enum MaterializedGraph {
 pub enum GraphType {
     EventGraph,
     PersistentGraph,
-}
-
-fn version_deserialize<'de, D>(deserializer: D) -> Result<u32, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let version = u32::deserialize(deserializer)?;
-    if version != BINCODE_VERSION {
-        return Err(Error::custom(GraphError::BincodeVersionError(
-            version,
-            BINCODE_VERSION,
-        )));
-    };
-    Ok(version)
-}
-
-#[derive(Serialize, Deserialize)]
-struct VersionedGraph<T> {
-    #[serde(deserialize_with = "version_deserialize")]
-    version: u32,
-    graph: T,
 }
 
 impl Static for MaterializedGraph {}

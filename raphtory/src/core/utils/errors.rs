@@ -122,12 +122,6 @@ pub enum GraphError {
         src: String,
         dst: String,
     },
-    #[error("Bincode operation failed")]
-    BinCodeError {
-        #[from]
-        source: Box<bincode::ErrorKind>,
-    },
-
     #[error("The loaded graph is of the wrong type. Did you mean Graph / PersistentGraph?")]
     GraphLoadError,
 
@@ -164,11 +158,6 @@ pub enum GraphError {
         #[from]
         source: QueryParserError,
     },
-
-    #[error(
-        "Failed to load the graph as the bincode version {0} is different to supported version {1}"
-    )]
-    BincodeVersionError(u32, u32),
 
     #[error("The layer_name function is only available once an edge has been exploded via .explode_layers() or .explode(). If you want to retrieve the layers for this edge you can use .layer_names")]
     LayerNameAPIError,
