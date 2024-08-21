@@ -552,6 +552,45 @@ impl PyVectorSelection {
             .collect()
     }
 
+    /// Add all the documents associated with the `nodes` to the current selection
+    ///
+    /// Documents added by this call are assumed to have a score of 0.
+    ///
+    /// Args:
+    ///   nodes (list): a list of the node ids or nodes to add
+    ///   edges (list):  a list of the edge ids or edges to add
+    ///
+    /// Returns:
+    ///   A new vectorised graph containing the updated selection
+    fn add_nodes(mut self_: PyRefMut<'_, Self>, nodes: Vec<NodeRef>) {
+        self_.0.add_nodes(nodes)
+    }
+
+    /// Add all the documents associated with the `edges` to the current selection
+    ///
+    /// Documents added by this call are assumed to have a score of 0.
+    ///
+    /// Args:
+    ///   nodes (list): a list of the node ids or nodes to add
+    ///   edges (list):  a list of the edge ids or edges to add
+    ///
+    /// Returns:
+    ///   A new vectorised graph containing the updated selection
+    fn add_edges(mut self_: PyRefMut<'_, Self>, edges: Vec<(NodeRef, NodeRef)>) {
+        self_.0.add_edges(edges)
+    }
+
+    // Add all the documents in `selection` to the current selection
+    ///
+    /// Args:
+    ///   selection: a selection to be added
+    ///
+    /// Returns:
+    ///   A new selection containing the join
+    pub fn join(&self, selection: &Self) -> DynamicVectorSelection {
+        self.0.join(&selection.0)
+    }
+
     /// Add all the documents `hops` hops away to the selection
     ///
     /// Two documents A and B are considered to be 1 hop away of each other if they are on the same

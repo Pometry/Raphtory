@@ -206,11 +206,11 @@ mod vector_tests {
             .vectorise(Box::new(fake_embedding), Some(cache), true, false)
             .await;
         let embedding: Embedding = fake_embedding(vec!["whatever".to_owned()]).await.remove(0);
-        let docs = vectors
-            .append_by_similarity(&embedding, 10, None)
-            .expand_by_similarity(&embedding, 10, None)
-            .expand(2, None)
-            .get_documents();
+
+        let mut selection = vectors.search(&embedding, 10, None);
+        selection.expand_by_similarity(&embedding, 10, None);
+        selection.expand(2, None);
+        let docs = selection.get_documents();
 
         assert!(docs.is_empty())
     }
@@ -296,10 +296,10 @@ age: 30"###;
             .await;
 
         let embedding = fake_embedding(vec!["whatever".to_owned()]).await.remove(0);
-        let docs = vectors
-            .append_by_similarity(&embedding, 1, None)
-            .expand_by_similarity(&embedding, 9, None)
-            .get_documents();
+
+        let mut selection = vectors.search(&embedding, 1, None);
+        selection.expand_by_similarity(&embedding, 9, None);
+        let docs = selection.get_documents();
         assert_eq!(docs.len(), 3);
         // all documents are present in the result
         for doc_content in FAKE_DOCUMENTS {
@@ -355,16 +355,14 @@ age: 30"###;
             .await;
 
         let embedding = fake_embedding(vec!["whatever".to_owned()]).await.remove(0);
-        let docs = vectors
-            .append_by_similarity(&embedding, 1, None)
-            .expand_by_similarity(&embedding, 9, None)
-            .get_documents();
+        let mut selection = vectors.search(&embedding, 1, None);
+        selection.expand_by_similarity(&embedding, 9, None);
+        let docs = selection.get_documents();
         assert_eq!(docs.len(), 2);
 
-        let docs = vectors
-            .append_by_similarity(&embedding, 1, Some((-10, 25)))
-            .expand_by_similarity(&embedding, 9, Some((-10, 25)))
-            .get_documents();
+        let mut selection = vectors.search(&embedding, 1, Some((-10, 25)));
+        selection.expand_by_similarity(&embedding, 9, Some((-10, 25)));
+        let docs = selection.get_documents();
         assert!(
             match &docs[..] {
                 [Document::Node { name, content, .. }] =>
@@ -374,10 +372,9 @@ age: 30"###;
             "{docs:?} has the wrong content"
         );
 
-        let docs = vectors
-            .append_by_similarity(&embedding, 1, Some((35, 100)))
-            .expand_by_similarity(&embedding, 9, Some((35, 100)))
-            .get_documents();
+        let mut selection = vectors.search(&embedding, 1, Some((35, 100)));
+        selection.expand_by_similarity(&embedding, 9, Some((35, 100)));
+        let docs = selection.get_documents();
         assert!(
             match &docs[..] {
                 [Document::Node { name, content, .. }] =>
@@ -439,18 +436,14 @@ age: 30"###;
         let embedding = openai_embedding(vec!["Find a magician".to_owned()])
             .await
             .remove(0);
-        let docs = vectors
-            .append_nodes_by_similarity(&embedding, 1, None)
-            .get_documents();
+        let docs = vectors.search_nodes(&embedding, 1, None).get_documents();
         // TODO: use the ids instead in all of these cases
         assert!(docs[0].content().contains("Gandalf is a wizard"));
 
         let embedding = openai_embedding(vec!["Find a young person".to_owned()])
             .await
             .remove(0);
-        let docs = vectors
-            .append_nodes_by_similarity(&embedding, 1, None)
-            .get_documents();
+        let docs = vectors.search_nodes(&embedding, 1, None).get_documents();
         assert!(docs[0].content().contains("Frodo is a hobbit")); // this fails when using gte-small
 
         // with window!
@@ -458,16 +451,15 @@ age: 30"###;
             .await
             .remove(0);
         let docs = vectors
-            .append_nodes_by_similarity(&embedding, 1, Some((1, 3)))
+            .search_nodes(&embedding, 1, Some((1, 3)))
             .get_documents();
         assert!(!docs[0].content().contains("Frodo is a hobbit")); // this fails when using gte-small
 
         let embedding = openai_embedding(vec!["Has anyone appeared with anyone else?".to_owned()])
             .await
             .remove(0);
-        let docs = vectors
-            .append_edges_by_similarity(&embedding, 1, None)
-            .get_documents();
+
+        let docs = vectors.search_edges(&embedding, 1, None).get_documents();
         assert!(docs[0].content().contains("Frodo appeared with Gandalf"));
     }
 }

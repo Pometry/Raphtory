@@ -1,5 +1,6 @@
 use crate::{
     // core::entities::nodes::node_ref::AsNodeRef,
+    core::entities::nodes::node_ref::AsNodeRef,
     db::{
         api::view::{DynamicGraph, StaticGraphViewOps},
         graph::{edge::EdgeView, node::NodeView},
@@ -221,6 +222,62 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorSelection<G, T> {
             .collect_vec()
     }
 
+    /// Add all the documents associated with the `nodes` to the current selection
+    ///
+    /// Documents added by this call are assumed to have a score of 0.
+    ///
+    /// # Arguments
+    ///   * nodes - a list of the node ids or nodes to add
+    pub fn add_nodes<V: AsNodeRef>(&mut self, nodes: Vec<V>) {
+        let node_docs = nodes
+            .into_iter()
+            .flat_map(|id| {
+                let node = self.graph.source_graph.node(id);
+                let opt =
+                    node.map(|node| self.graph.node_documents.get(&EntityId::from_node(&node)));
+                opt.flatten().unwrap_or(&self.graph.empty_vec)
+            })
+            .map(|doc| (doc.clone(), 0.0));
+        self.selected_docs = extend_selection(self.selected_docs.clone(), node_docs, usize::MAX);
+    }
+
+    /// Add all the documents associated with the `edges` to the current selection
+    ///
+    /// Documents added by this call are assumed to have a score of 0.
+    ///
+    /// # Arguments
+    ///   * edges - a list of the edge ids or edges to add
+    pub fn add_edges<V: AsNodeRef>(&mut self, edges: Vec<(V, V)>) {
+        let edge_docs = edges
+            .into_iter()
+            .flat_map(|(src, dst)| {
+                let edge = self.graph.source_graph.edge(src, dst);
+                let opt =
+                    edge.map(|edge| self.graph.edge_documents.get(&EntityId::from_edge(&edge)));
+                opt.flatten().unwrap_or(&self.graph.empty_vec)
+            })
+            .map(|doc| (doc.clone(), 0.0));
+        self.selected_docs = extend_selection(self.selected_docs.clone(), edge_docs, usize::MAX);
+    }
+
+    /// Add all the documents in `selection` to the current selection
+    ///
+    /// # Arguments
+    ///   * selection - a selection to be added
+    ///
+    /// # Returns
+    ///   A new selection containing the join
+    pub fn join(&self, selection: &Self) -> Self {
+        Self {
+            selected_docs: extend_selection(
+                self.selected_docs.clone(),
+                selection.selected_docs.clone().into_iter(),
+                usize::MAX,
+            ),
+            graph: self.graph.clone(),
+        }
+    }
+
     // /// Add all the documents from `nodes` and `edges` to the current selection
     // ///
     // /// Documents added by this call are assumed to have a score of 0.
@@ -332,9 +389,6 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorSelection<G, T> {
     /// # Arguments
     ///   * hops - the number of hops to carry out the expansion
     ///   * window - the window where documents need to belong to in order to be considered
-    ///
-    /// # Returns
-    ///   A new vectorised graph containing the updated selection
     pub fn expand(&mut self, hops: usize, window: Option<(i64, i64)>) {
         match window {
             None => self.expand_with_window(hops, window, &self.graph.source_graph.clone()),
@@ -375,9 +429,6 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorSelection<G, T> {
     /// # Arguments
     ///   * query - the text or the embedding to score against
     ///   * window - the window where documents need to belong to in order to be considered
-    ///
-    /// # Returns
-    ///   A new vectorised graph containing the updated selection
     pub fn expand_by_similarity(
         &mut self,
         query: &Embedding,
@@ -395,9 +446,6 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorSelection<G, T> {
     ///   * query - the text or the embedding to score against
     ///   * limit - the maximum number of new documents to add
     ///   * window - the window where documents need to belong to in order to be considered
-    ///
-    /// # Returns
-    ///   A new vectorised graph containing the updated selection
     pub fn expand_nodes_by_similarity(
         &mut self,
         query: &Embedding,
@@ -415,9 +463,6 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorSelection<G, T> {
     ///   * query - the text or the embedding to score against
     ///   * limit - the maximum number of new documents to add
     ///   * window - the window where documents need to belong to in order to be considered
-    ///
-    /// # Returns
-    ///   A new vectorised graph containing the updated selection
     pub fn expand_edges_by_similarity(
         &mut self,
         query: &Embedding,
