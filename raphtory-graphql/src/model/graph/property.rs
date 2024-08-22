@@ -1,7 +1,7 @@
 use async_graphql::{
-    registry::Registry, Error, InputType, InputValueResult, Name, Value as GqlValue,
+    Error, Name, Value as GqlValue,
 };
-use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue};
+use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue};
 use itertools::Itertools;
 use raphtory::{
     core::{IntoPropMap, Prop},
@@ -11,7 +11,7 @@ use raphtory::{
     },
 };
 use serde_json::Number;
-use std::{borrow::Cow, collections::HashMap};
+use std::collections::HashMap;
 
 #[derive(Clone, Debug, Scalar)]
 pub struct GqlPropValue(pub Prop);

@@ -16,7 +16,9 @@ use crate::{
     },
     db::{
         api::{
-            mutation::internal::{InheritPropertyAdditionOps, InternalAdditionOps},
+            mutation::internal::{
+                InheritPropertyAdditionOps, InternalAdditionOps, InternalDeletionOps,
+            },
             storage::graph::edges::edge_storage_ops::EdgeStorageOps,
             view::{
                 internal::{DynamicGraph, InheritViewOps, IntoDynamic, Static},
@@ -873,6 +875,29 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
         todo!()
     }
 }
+
+impl<G: InternalDeletionOps> InternalDeletionOps for IndexedGraph<G> {
+    fn internal_delete_edge(
+        &self,
+        t: TimeIndexEntry,
+        src: VID,
+        dst: VID,
+        layer: usize,
+    ) -> Result<MaybeNew<EID>, GraphError> {
+        self.graph.internal_delete_edge(t, src, dst, layer)
+    }
+
+    fn internal_delete_existing_edge(
+        &self,
+        t: TimeIndexEntry,
+        eid: EID,
+        layer: usize,
+    ) -> Result<(), GraphError> {
+        self.graph.internal_delete_existing_edge(t, eid, layer)
+    }
+}
+
+impl<G: DeletionOps> DeletionOps for IndexedGraph<G> {}
 
 #[cfg(test)]
 mod test {

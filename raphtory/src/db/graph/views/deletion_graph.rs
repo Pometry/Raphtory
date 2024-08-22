@@ -30,7 +30,7 @@ use std::{
     cmp::min,
     fmt::{Display, Formatter},
     iter,
-    ops::{Deref, Range},
+    ops::Range,
     sync::Arc,
 };
 
