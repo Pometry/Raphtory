@@ -43,7 +43,7 @@ impl GqlMutableGraph {
     async fn graph(&self) -> GqlGraph {
         GqlGraph::new(self.path.clone(), self.graph.clone())
     }
-    
+
     /// Get mutable existing node
     async fn node(&self, name: String) -> Option<GqlMutableNode> {
         self.graph.node(name).map(|n| n.into())

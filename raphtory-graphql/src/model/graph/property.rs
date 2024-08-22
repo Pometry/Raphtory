@@ -1,6 +1,4 @@
-use async_graphql::{
-    Error, Name, Value as GqlValue,
-};
+use async_graphql::{Error, Name, Value as GqlValue};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue};
 use itertools::Itertools;
 use raphtory::{
