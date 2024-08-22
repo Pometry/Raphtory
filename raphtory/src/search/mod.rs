@@ -862,7 +862,7 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
         props: &[(usize, Prop)],
         layer: usize,
     ) -> Result<MaybeNew<EID>, GraphError> {
-       self.graph.internal_add_edge(t, src, dst, props, layer)
+        self.graph.internal_add_edge(t, src, dst, props, layer)
     }
 
     fn internal_add_edge_update(
