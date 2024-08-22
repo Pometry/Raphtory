@@ -856,23 +856,23 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
 
     fn internal_add_edge(
         &self,
-        _t: TimeIndexEntry,
-        _src: VID,
-        _dst: VID,
-        _props: &[(usize, Prop)],
-        _layer: usize,
+        t: TimeIndexEntry,
+        src: VID,
+        dst: VID,
+        props: &[(usize, Prop)],
+        layer: usize,
     ) -> Result<MaybeNew<EID>, GraphError> {
-        todo!()
+       self.graph.internal_add_edge(t, src, dst, props, layer)
     }
 
     fn internal_add_edge_update(
         &self,
-        _t: TimeIndexEntry,
-        _edge: EID,
-        _props: &[(usize, Prop)],
-        _layer: usize,
+        t: TimeIndexEntry,
+        edge: EID,
+        props: &[(usize, Prop)],
+        layer: usize,
     ) -> Result<(), GraphError> {
-        todo!()
+        self.graph.internal_add_edge_update(t, edge, props, layer)
     }
 }
 
