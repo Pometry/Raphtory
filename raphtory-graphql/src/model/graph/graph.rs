@@ -1,5 +1,5 @@
 use crate::{
-    data::get_graph_name,
+    data::{get_graph_name, Data},
     model::{
         algorithms::graph_algorithms::GraphAlgorithms,
         graph::{
@@ -8,6 +8,7 @@ use crate::{
         schema::graph_schema::GraphSchema,
     },
 };
+use async_graphql::{Context, DataContext};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
@@ -25,7 +26,7 @@ use raphtory::{
     prelude::*,
     search::{into_indexed::DynamicIndexedGraph, IndexedGraph},
 };
-use std::{collections::HashSet, convert::Into, path::PathBuf};
+use std::{collections::HashSet, convert::Into, path::PathBuf, sync::Arc};
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlGraph {
@@ -361,5 +362,19 @@ impl GqlGraph {
             Some(intersection) => intersection.into_iter().map(|vv| vv.into()).collect(),
             None => vec![],
         }
+    }
+
+    /// Export all nodes and edges from this graph view to another existing graph
+    async fn export_to<'a>(
+        &'a self,
+        ctx: &Context<'a>,
+        path: String,
+    ) -> Result<bool, Arc<GraphError>> {
+        let data = ctx.data_unchecked::<Data>();
+        let other_g = data.get_graph(path.as_ref())?;
+        other_g.import_nodes(self.graph.nodes(), true)?;
+        other_g.import_edges(self.graph.edges(), true)?;
+        other_g.write_updates()?;
+        Ok(true)
     }
 }
