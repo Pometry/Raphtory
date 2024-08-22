@@ -19,9 +19,11 @@ use crate::{
             mutation::internal::{
                 InheritPropertyAdditionOps, InternalAdditionOps, InternalDeletionOps,
             },
-            storage::graph::edges::edge_storage_ops::EdgeStorageOps,
+            storage::graph::{
+                edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
+            },
             view::{
-                internal::{DynamicGraph, InheritViewOps, IntoDynamic, Static},
+                internal::{CoreGraphOps, DynamicGraph, InheritViewOps, IntoDynamic, Static},
                 Base, StaticGraphViewOps,
             },
         },
@@ -29,9 +31,15 @@ use crate::{
     },
     prelude::*,
 };
+use itertools::Itertools;
 use raphtory_api::core::storage::{arc_str::ArcStr, dict_mapper::MaybeNew};
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
-use std::{collections::HashSet, ops::Deref, sync::Arc};
+use serde_json::json;
+use std::{
+    collections::{HashMap, HashSet},
+    ops::Deref,
+    sync::Arc,
+};
 use tantivy::{
     collector::TopDocs,
     schema::{Field, Schema, SchemaBuilder, Value, FAST, INDEXED, STORED, TEXT},
@@ -66,7 +74,6 @@ impl<G: StaticGraphViewOps> InheritPropertyAdditionOps for IndexedGraph<G> {}
 pub(in crate::search) mod fields {
     pub const TIME: &str = "time";
     pub const VERTEX_ID: &str = "node_id";
-    pub const VERTEX_ID_REV: &str = "node_id_rev";
     pub const NAME: &str = "name";
     pub const NODE_TYPE: &str = "node_type";
     // edges
@@ -75,6 +82,8 @@ pub(in crate::search) mod fields {
     // pub const DEST_ID: &str = "dest_id";
     pub const DESTINATION: &str = "to";
     pub const EDGE_ID: &str = "edge_id";
+    pub const PROPS: &str = "props";
+    pub const LAYER: &str = "layer";
 }
 
 impl<'graph, G: GraphViewOps<'graph>> From<G> for IndexedGraph<G> {
@@ -95,11 +104,77 @@ impl<G: GraphViewOps<'static> + IntoDynamic> IndexedGraph<G> {
     }
 }
 
+fn index_props(
+    document: &mut TantivyDocument,
+    prop_field: Field,
+    props: impl Iterator<Item = (ArcStr, Prop)>,
+) {
+    let props = props
+        .map(|(key, value)| (key.to_string(), value.to_json().into()))
+        .collect();
+    document.add_object(prop_field, props);
+}
+
+#[derive(Copy, Clone)]
+struct EdgeSchema {
+    id: Field,
+    src: Field,
+    dst: Field,
+    time: Field,
+    props: Field,
+    layer: Field,
+}
+
+impl TryFrom<Schema> for EdgeSchema {
+    type Error = TantivyError;
+
+    fn try_from(value: Schema) -> Result<Self, Self::Error> {
+        let id = value.get_field(fields::EDGE_ID)?;
+        let src = value.get_field(fields::SOURCE)?;
+        let dst = value.get_field(fields::DESTINATION)?;
+        let time = value.get_field(fields::TIME)?;
+        let props = value.get_field(fields::PROPS)?;
+        let layer = value.get_field(fields::LAYER)?;
+        Ok(Self {
+            id,
+            src,
+            dst,
+            time,
+            props,
+            layer,
+        })
+    }
+}
+
+fn index_edge_update(
+    writer: impl Deref<Target = IndexWriter>,
+    schema: EdgeSchema,
+    eid: EID,
+    src: &str,
+    dst: &str,
+    layer: Option<&str>,
+    time: i64,
+    props: impl Iterator<Item = (ArcStr, Prop)>,
+) -> Result<(), GraphError> {
+    let mut document = TantivyDocument::new();
+    document.add_u64(schema.id, eid.as_u64());
+    document.add_text(schema.src, src);
+    document.add_text(schema.dst, dst);
+    if let Some(layer) = layer {
+        document.add_text(schema.layer, layer);
+    };
+    document.add_i64(schema.time, time);
+
+    index_props(&mut document, schema.props, props);
+    writer.add_document(document)?; // add the edge itself
+    Ok(())
+}
+
 impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
     pub fn graph(&self) -> &G {
         &self.graph
     }
-    fn new_node_schema_builder() -> SchemaBuilder {
+    fn node_schema() -> Schema {
         let mut schema = Schema::builder();
 
         // we first add GID time, ID and ID_REV
@@ -107,16 +182,15 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         schema.add_i64_field(fields::TIME, INDEXED | STORED);
         // ensure we add node_id as stored to get back the node id after the search
         schema.add_u64_field(fields::VERTEX_ID, FAST | STORED);
-        // reverse to sort by it
-        schema.add_u64_field(fields::VERTEX_ID_REV, FAST | STORED);
         // add name
         schema.add_text_field(fields::NAME, TEXT);
         // add node_type
         schema.add_text_field(fields::NODE_TYPE, TEXT);
-        schema
+        schema.add_json_field(fields::PROPS, TEXT);
+        schema.build()
     }
 
-    fn new_edge_schema_builder() -> SchemaBuilder {
+    fn edge_schema() -> Schema {
         let mut schema = Schema::builder();
         // we first add GID time, ID and ID_REV
         // ensure time is part of the index
@@ -125,229 +199,17 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         schema.add_text_field(fields::SOURCE, TEXT);
         schema.add_text_field(fields::DESTINATION, TEXT);
         schema.add_u64_field(fields::EDGE_ID, FAST | STORED);
-
-        schema
-    }
-
-    fn schema_from_props<S: AsRef<str>, I: IntoIterator<Item = (S, Prop)>>(props: I) -> Schema {
-        let mut schema = Self::new_node_schema_builder();
-
-        for (prop_name, prop) in props.into_iter() {
-            match prop {
-                Prop::Str(_) => {
-                    schema.add_text_field(prop_name.as_ref(), TEXT);
-                }
-                Prop::NDTime(_) => {
-                    schema.add_date_field(prop_name.as_ref(), INDEXED);
-                }
-                _ => todo!(),
-            }
-        }
-
+        schema.add_text_field(fields::LAYER, TEXT);
+        schema.add_json_field(fields::PROPS, TEXT);
         schema.build()
-    }
-
-    fn set_schema_field_from_prop(schema: &mut SchemaBuilder, prop: &str, prop_value: Prop) {
-        match prop_value {
-            Prop::Str(_) => {
-                schema.add_text_field(prop, TEXT);
-            }
-            Prop::NDTime(_) => {
-                schema.add_date_field(prop, INDEXED);
-            }
-            Prop::U8(_) => {
-                schema.add_u64_field(prop, INDEXED);
-            }
-            Prop::U16(_) => {
-                schema.add_u64_field(prop, INDEXED);
-            }
-            Prop::U64(_) => {
-                schema.add_u64_field(prop, INDEXED);
-            }
-            Prop::I64(_) => {
-                schema.add_i64_field(prop, INDEXED);
-            }
-            Prop::I32(_) => {
-                schema.add_i64_field(prop, INDEXED);
-            }
-            Prop::F64(_) => {
-                schema.add_f64_field(prop, INDEXED);
-            }
-            Prop::F32(_) => {
-                schema.add_f64_field(prop, INDEXED);
-            }
-            Prop::Bool(_) => {
-                schema.add_bool_field(prop, INDEXED);
-            }
-            _ => {
-                schema.add_text_field(prop, TEXT);
-            }
-        }
-    }
-
-    // we need to check every node for the properties and add them
-    // to the schem depending on the type of the property
-    //
-    fn schema_for_node(g: &G) -> Schema {
-        let mut schema = Self::new_node_schema_builder();
-
-        // TODO: load all these from the graph at some point in the future
-        let mut prop_names_set = g
-            .node_meta()
-            .temporal_prop_meta()
-            .get_keys()
-            .into_iter()
-            .chain(g.node_meta().const_prop_meta().get_keys().into_iter())
-            .collect::<HashSet<_>>();
-
-        for node in g.nodes() {
-            if prop_names_set.is_empty() {
-                break;
-            }
-            let mut found_props: HashSet<ArcStr> = HashSet::from([
-                fields::TIME.into(),
-                fields::VERTEX_ID.into(),
-                fields::VERTEX_ID_REV.into(),
-                fields::NAME.into(),
-                fields::NODE_TYPE.into(),
-            ]);
-            found_props.insert("name".into());
-
-            for prop in prop_names_set.iter() {
-                // load temporal props
-                if let Some(prop_value) = node
-                    .properties()
-                    .temporal()
-                    .get(prop)
-                    .and_then(|p| p.latest())
-                {
-                    if found_props.contains(prop) {
-                        continue;
-                    }
-                    Self::set_schema_field_from_prop(&mut schema, prop, prop_value);
-                    found_props.insert(prop.clone());
-                }
-                // load static props
-                if let Some(prop_value) = node.properties().constant().get(prop) {
-                    if !found_props.contains(prop) {
-                        Self::set_schema_field_from_prop(&mut schema, prop, prop_value);
-                        found_props.insert(prop.clone());
-                    }
-                }
-            }
-
-            for found_prop in found_props {
-                prop_names_set.remove(&found_prop);
-            }
-        }
-
-        schema.build()
-    }
-
-    // we need to check every node for the properties and add them
-    // to the schem depending on the type of the property
-    //
-    fn schema_for_edge(g: &G) -> Schema {
-        let mut schema = Self::new_edge_schema_builder();
-
-        // TODO: load all these from the graph at some point in the future
-        let mut prop_names_set = g
-            .edge_meta()
-            .temporal_prop_meta()
-            .get_keys()
-            .into_iter()
-            .chain(g.edge_meta().const_prop_meta().get_keys())
-            .collect::<HashSet<_>>();
-
-        for edge in g.edges() {
-            if prop_names_set.is_empty() {
-                break;
-            }
-            let mut found_props: HashSet<ArcStr> = HashSet::from([
-                fields::TIME.into(),
-                fields::SOURCE.into(),
-                fields::DESTINATION.into(),
-                fields::EDGE_ID.into(),
-            ]);
-
-            for prop in prop_names_set.iter() {
-                // load temporal props
-                if let Some(prop_value) = edge
-                    .properties()
-                    .temporal()
-                    .get(prop)
-                    .and_then(|p| p.latest())
-                {
-                    if found_props.contains(prop) {
-                        continue;
-                    }
-                    Self::set_schema_field_from_prop(&mut schema, prop, prop_value);
-                    found_props.insert(prop.clone());
-                }
-                // load static props
-                if let Some(prop_value) = edge.properties().constant().get(prop) {
-                    if !found_props.contains(prop) {
-                        Self::set_schema_field_from_prop(&mut schema, prop, prop_value);
-                        found_props.insert(prop.clone());
-                    }
-                }
-            }
-
-            for found_prop in found_props {
-                prop_names_set.remove(&found_prop);
-            }
-        }
-
-        schema.build()
-    }
-
-    fn index_prop_value(document: &mut TantivyDocument, prop_field: Field, prop_value: Prop) {
-        match prop_value {
-            Prop::Str(prop_text) => {
-                // add the property to the document
-                document.add_text(prop_field, prop_text);
-            }
-            Prop::NDTime(prop_time) => {
-                let time = tantivy::DateTime::from_timestamp_nanos(
-                    prop_time.and_utc().timestamp_nanos_opt().unwrap(),
-                );
-                document.add_date(prop_field, time);
-            }
-            Prop::U8(prop_u8) => {
-                document.add_u64(prop_field, u64::from(prop_u8));
-            }
-            Prop::U16(prop_u16) => {
-                document.add_u64(prop_field, u64::from(prop_u16));
-            }
-            Prop::U64(prop_u64) => {
-                document.add_u64(prop_field, prop_u64);
-            }
-            Prop::I64(prop_i64) => {
-                document.add_i64(prop_field, prop_i64);
-            }
-            Prop::I32(prop_i32) => {
-                document.add_i64(prop_field, i64::from(prop_i32));
-            }
-            Prop::F64(prop_f64) => {
-                document.add_f64(prop_field, prop_f64);
-            }
-            Prop::F32(prop_f32) => {
-                document.add_f64(prop_field, f64::from(prop_f32));
-            }
-            Prop::Bool(prop_bool) => {
-                document.add_bool(prop_field, prop_bool);
-            }
-            prop => document.add_text(prop_field, prop.to_string()),
-        }
     }
 
     fn index_nodes(g: &G) -> tantivy::Result<(Index, IndexReader)> {
-        let schema = Self::schema_for_node(g);
+        let schema = Self::node_schema();
         let (index, reader) = Self::new_index(schema.clone(), Self::default_node_index_settings());
 
         let time_field = schema.get_field(fields::TIME)?;
         let node_id_field = schema.get_field(fields::VERTEX_ID)?;
-        let node_id_rev_field = schema.get_field(fields::VERTEX_ID_REV)?;
 
         let writer = Arc::new(parking_lot::RwLock::new(index.writer(100_000_000)?));
 
@@ -365,7 +227,6 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
                             &writer_guard,
                             time_field,
                             node_id_field,
-                            node_id_rev_field,
                         )?;
                     }
                 }
@@ -399,17 +260,22 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         writer: &W,
         time_field: Field,
         node_id_field: Field,
-        node_id_rev_field: Field,
     ) -> tantivy::Result<()> {
         let node_id: u64 = usize::from(node.node) as u64;
 
         let mut document = TantivyDocument::new();
         // add the node_id
         document.add_u64(node_id_field, node_id);
-        document.add_u64(node_id_rev_field, u64::MAX - node_id);
-
         let name_field = schema.get_field("name")?;
         document.add_text(name_field, node.name());
+
+        let prop_updates = node
+            .properties()
+            .temporal()
+            .iter()
+            .map(|(key, values)| values.iter().map(move |(t, v)| (t, (key, v))))
+            .kmerge_by(|(left_t, _), (right_t, _)| left_t <= right_t)
+            .chunk_by(|(t, _)| *t);
 
         for (temp_prop_name, temp_prop_value) in node.properties().temporal() {
             let prop_field = schema.get_field(&temp_prop_name)?;
@@ -435,84 +301,58 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         Ok(())
     }
 
-    fn index_edge_view<W: Deref<Target = IndexWriter>>(
-        e_ref: EdgeView<G, G>,
-        schema: &Schema,
-        writer: &W,
-        time_field: Field,
-        source_field: Field,
-        destination_field: Field,
-        edge_id_field: Field,
-    ) -> tantivy::Result<()> {
-        let edge_ref = e_ref.edge;
-
-        let src = e_ref.src();
-        let dst = e_ref.dst();
+    fn index_edge_cprops(
+        &self,
+        writer: impl Deref<Target = IndexWriter>,
+        eid: EID,
+        src: &str,
+        dst: &str,
+        layer: Option<&str>,
+        props: impl Iterator<Item = (ArcStr, Prop)>,
+    ) -> Result<(), GraphError> {
+        let schema = self.edge_index.schema();
+        let edge_id_field = schema.get_field(fields::EDGE_ID)?;
+        let source_field = schema.get_field(fields::SOURCE)?;
+        let destination_field = schema.get_field(fields::DESTINATION)?;
+        let prop_field = schema.get_field(fields::PROPS)?;
+        let layer_field = schema.get_field(fields::LAYER)?;
 
         let mut document = TantivyDocument::new();
-        let edge_id: u64 = Into::<usize>::into(edge_ref.pid()) as u64;
-        document.add_u64(edge_id_field, edge_id);
-        document.add_text(source_field, src.name());
-        document.add_text(destination_field, dst.name());
+        document.add_u64(edge_id_field, eid.as_u64());
+        document.add_text(source_field, src);
+        document.add_text(destination_field, dst);
+        if let Some(layer) = layer {
+            document.add_text(layer_field, layer);
+        };
 
-        // add all time events
-        for e in e_ref.explode() {
-            if let Ok(t) = e.time() {
-                document.add_i64(time_field, t);
-            }
-        }
-
-        for (temp_prop_name, temp_prop_value) in e_ref.properties().temporal() {
-            let prop_field = schema.get_field(&temp_prop_name)?;
-            for (time, prop_value) in temp_prop_value {
-                // add time to the document
-                document.add_i64(time_field, time);
-                Self::index_prop_value(&mut document, prop_field, prop_value);
-            }
-        }
-
-        for (prop_name, prop_value) in e_ref.properties().constant() {
-            let prop_field = schema.get_field(&prop_name)?;
-            Self::index_prop_value(&mut document, prop_field, prop_value);
-        }
-
+        index_props(&mut document, prop_field, props);
         writer.add_document(document)?; // add the edge itself
         Ok(())
     }
 
     pub fn index_edges(g: &G) -> tantivy::Result<(Index, IndexReader)> {
-        let schema = Self::schema_for_edge(g);
-        let (index, reader) = Self::new_index(schema.clone(), Self::default_edge_index_settings());
+        let (index, reader) =
+            Self::new_index(Self::edge_schema(), Self::default_edge_index_settings());
+        let schema: EdgeSchema = index.schema().try_into()?;
+        let mut writer = index.writer(100_000_000)?;
+        let locked_g = g.core_graph().lock();
 
-        let time_field = schema.get_field(fields::TIME)?;
-        let source_field = schema.get_field(fields::SOURCE)?;
-        let destination_field = schema.get_field(fields::DESTINATION)?;
-        let edge_id_field = schema.get_field(fields::EDGE_ID)?;
-
-        let writer = Arc::new(parking_lot::RwLock::new(index.writer(100_000_000)?));
-
-        let locked_g = g.core_graph();
-
-        locked_g.edges_par(&g).try_for_each(|e_ref| {
-            let writer_lock = writer.clone();
-            {
-                let writer_guard = writer_lock.read();
-                let e_view = EdgeView::new(g.clone(), e_ref);
-                Self::index_edge_view(
-                    e_view,
-                    &schema,
-                    &writer_guard,
-                    time_field,
-                    source_field,
-                    destination_field,
-                    edge_id_field,
-                )?;
+        locked_g.edges_par(g).try_for_each(|e_ref| {
+            let edge = EdgeView::new(g, e_ref);
+            for e in edge.explode() {
+                let layer = e.layer_name()?;
+                let t_props = e
+                    .properties()
+                    .temporal()
+                    .iter()
+                    .map(|(key, values)| values.iter().map(move |(t, v)| (t, (key.clone(), v))))
+                    .kmerge_by(|(left_t, _), (right_t, _)| left_t <= right_t)
+                    .chunk_by(|(t, _)| *t);
+                index_edge_update()
             }
             Ok::<(), TantivyError>(())
         })?;
-
-        let mut writer_guard = writer.write();
-        writer_guard.commit()?;
+        writer.commit()?;
         reader.reload()?;
         Ok((index, reader))
     }
@@ -787,15 +627,16 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
         node_type: &str,
     ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, GraphError> {
         let res = self.graph.resolve_node_and_type(id, node_type)?;
-        let (vid, _) = res.inner();
-        let mut document = TantivyDocument::new();
-        let node_type_field = self.node_index.schema().get_field(fields::NODE_TYPE)?;
-        document.add_text(node_type_field, node_type);
-        let node_id_field = self.node_index.schema().get_field(fields::VERTEX_ID)?;
-        document.add_u64(node_id_field, vid.inner().as_u64());
-        let mut writer = self.node_index.writer(50_000_000)?;
-        writer.add_document(document)?;
-        writer.commit()?;
+        if let MaybeNew::New((vid, _)) = res {
+            let mut document = TantivyDocument::new();
+            let node_type_field = self.node_index.schema().get_field(fields::NODE_TYPE)?;
+            document.add_text(node_type_field, node_type);
+            let node_id_field = self.node_index.schema().get_field(fields::VERTEX_ID)?;
+            document.add_u64(node_id_field, vid.inner().as_u64());
+            let mut writer = self.node_index.writer(50_000_000)?;
+            writer.add_document(document)?;
+            writer.commit()?;
+        };
         Ok(res)
     }
 
@@ -873,7 +714,39 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
         props: &[(usize, Prop)],
         layer: usize,
     ) -> Result<MaybeNew<EID>, GraphError> {
-        self.graph.internal_add_edge(t, src, dst, props, layer)
+        let schema = self.edge_index.schema();
+        let eid = self.graph.internal_add_edge(t, src, dst, props, layer)?;
+        let edge_id_field = schema.get_field(fields::EDGE_ID)?;
+        let source_field = schema.get_field(fields::SOURCE)?;
+        let destination_field = schema.get_field(fields::DESTINATION)?;
+        let time_field = schema.get_field(fields::TIME)?;
+        let prop_field = schema.get_field(fields::PROPS)?;
+        let layer_field = schema.get_field(fields::LAYER)?;
+
+        let mut document = TantivyDocument::new();
+        document.add_u64(edge_id_field, eid.inner().as_u64());
+        document.add_text(source_field, self.core_node_entry(src).id());
+        document.add_text(destination_field, self.core_node_entry(dst).id());
+        document.add_text(
+            layer_field,
+            self.core_graph().edge_meta().get_layer_name_by_id(layer),
+        );
+        document.add_i64(time_field, t.t());
+
+        index_props(
+            &mut document,
+            prop_field,
+            props.iter().map(|(prop_id, prop_value)| {
+                (
+                    self.core_graph().edge_meta().get_prop_name(*prop_id, false),
+                    prop_value.clone(),
+                )
+            }),
+        );
+        let mut writer = self.node_index.writer(50_000_000)?;
+        writer.add_document(document)?; // add the edge itself
+        writer.commit()?;
+        Ok(eid)
     }
 
     fn internal_add_edge_update(
