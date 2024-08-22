@@ -3,7 +3,10 @@ use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     core::utils::errors::GraphError,
     db::{
-        api::view::MaterializedGraph,
+        api::{
+            mutation::{internal::InternalAdditionOps, time_from_input},
+            view::MaterializedGraph,
+        },
         graph::{edge::EdgeView, node::NodeView},
     },
     prelude::*,
@@ -16,6 +19,29 @@ use std::path::PathBuf;
 pub struct GqlPropInput {
     key: String,
     value: GqlPropValue,
+}
+
+#[derive(InputObject)]
+pub struct TPropInput {
+    time: i64,
+    props: Vec<GqlPropInput>,
+}
+
+#[derive(InputObject)]
+pub struct NodeAddition {
+    name: String,
+    node_type: Option<String>,
+    cprops: Vec<GqlPropInput>,
+    tprops: Vec<TPropInput>,
+}
+
+#[derive(InputObject)]
+pub struct EdgeAddition {
+    src: String,
+    dst: String,
+    layer: Option<String>,
+    cprops: Vec<GqlPropInput>,
+    tprops: Vec<TPropInput>,
 }
 
 #[derive(ResolvedObject)]
@@ -64,6 +90,27 @@ impl GqlMutableGraph {
         Ok(node.into())
     }
 
+    /// Add a batch of nodes
+    async fn add_nodes(&self, nodes: Vec<NodeAddition>) -> Result<bool, GraphError> {
+        for node in nodes {
+            let name = node.name.as_str();
+            let node_type = node.node_type.as_str();
+            for prop in node.tprops {
+                self.graph
+                    .add_node(prop.time, name, as_props(prop.props), node_type)?;
+            }
+            if !node.cprops.is_empty() {
+                let node_view = self
+                    .graph
+                    .node(name)
+                    .ok_or(GraphError::NodeNameError(node.name))?;
+                node_view.add_constant_properties(as_props(node.cprops))?;
+            }
+        }
+        self.graph.write_updates()?;
+        Ok(true)
+    }
+
     /// Get a mutable existing edge
     async fn edge(&self, src: String, dst: String) -> Option<GqlMutableEdge> {
         self.graph.edge(src, dst).map(|e| e.into())
@@ -83,6 +130,28 @@ impl GqlMutableGraph {
             .add_edge(time, src, dst, as_properties(properties.unwrap_or(vec![])), layer.as_str())?;
         self.graph.write_updates()?;
         Ok(edge.into())
+    }
+
+    /// Add a batch of edges
+    async fn add_edges(&self, edges: Vec<EdgeAddition>) -> Result<bool, GraphError> {
+        for edge in edges {
+            let src = edge.src.as_str();
+            let dst = edge.dst.as_str();
+            let layer = edge.layer.as_str();
+            for prop in edge.tprops {
+                self.graph
+                    .add_edge(prop.time, src, dst, as_props(prop.props), layer)?;
+            }
+            if !edge.cprops.is_empty() {
+                let edge_view = self.graph.edge(src, dst).ok_or(GraphError::EdgeNameError {
+                    src: edge.src,
+                    dst: edge.dst,
+                })?;
+                edge_view.add_constant_properties(as_props(edge.cprops), layer)?;
+            }
+        }
+        self.graph.write_updates()?;
+        Ok(true)
     }
 
     /// Mark an edge as deleted (creates the edge if it did not exist)
