@@ -18,8 +18,9 @@ use crate::{
     vectors::{
         document_template::{DefaultTemplate, DocumentTemplate},
         graph_entity::GraphEntity,
+        vector_selection::DynamicVectorSelection,
         vectorisable::Vectorisable,
-        vectorised_graph::{DynamicVectorSelection, DynamicVectorisedGraph},
+        vectorised_graph::DynamicVectorisedGraph,
         Document, Embedding, EmbeddingFunction,
     },
 };
@@ -386,9 +387,27 @@ impl PyVectorisedGraph {
     /// Returns:
     ///   A selection containing the documents
     #[pyo3(signature = (query, limit, window=None))]
-    pub fn search(&self, query: PyQuery, limit: usize, window: PyWindow) -> DynamicVectorSelection {
+    pub fn search_documents(
+        &self,
+        query: PyQuery,
+        limit: usize,
+        window: PyWindow,
+    ) -> DynamicVectorSelection {
         let embedding = compute_embedding(&self.0, query);
-        self.0.search(&embedding, limit, translate_window(window))
+        self.0
+            .search_documents(&embedding, limit, translate_window(window))
+    }
+
+    #[pyo3(signature = (query, limit, window=None))]
+    pub fn search_entities(
+        &self,
+        query: PyQuery,
+        limit: usize,
+        window: PyWindow,
+    ) -> DynamicVectorSelection {
+        let embedding = compute_embedding(&self.0, query);
+        self.0
+            .search_entities(&embedding, limit, translate_window(window))
     }
 
     /// Select the top `limit` node documents using `query`
@@ -658,7 +677,7 @@ impl PyVectorSelection {
     /// Returns:
     ///   A new vectorised graph containing the updated selection
     #[pyo3(signature = (query, limit, window=None))]
-    fn expand_by_similarity(
+    fn expand_documents_by_similarity(
         mut self_: PyRefMut<'_, Self>,
         query: PyQuery,
         limit: usize,
@@ -667,7 +686,20 @@ impl PyVectorSelection {
         let embedding = compute_embedding(&self_.0.graph, query);
         self_
             .0
-            .expand_by_similarity(&embedding, limit, translate_window(window))
+            .expand_documents_by_similarity(&embedding, limit, translate_window(window))
+    }
+
+    #[pyo3(signature = (query, limit, window=None))]
+    fn expand_entities_by_similarity(
+        mut self_: PyRefMut<'_, Self>,
+        query: PyQuery,
+        limit: usize,
+        window: PyWindow,
+    ) {
+        let embedding = compute_embedding(&self_.0.graph, query);
+        self_
+            .0
+            .expand_entities_by_similarity(&embedding, limit, translate_window(window))
     }
 
     /// Add the top `limit` adjacent node documents with higher score for `query` to the selection

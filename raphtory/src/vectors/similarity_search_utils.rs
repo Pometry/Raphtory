@@ -1,6 +1,8 @@
 use crate::vectors::{document_ref::DocumentRef, Embedding};
 use itertools::Itertools;
 
+use super::entity_id::EntityId;
+
 pub(crate) fn score_documents<'a, I>(
     query: &'a Embedding,
     documents: I,
@@ -18,12 +20,12 @@ where
 pub(crate) fn score_document_groups_by_highest<'a, I>(
     query: &'a Embedding,
     documents: I,
-) -> impl Iterator<Item = (&'a Vec<DocumentRef>, f32)> + 'a
+) -> impl Iterator<Item = ((EntityId, Vec<DocumentRef>), f32)> + 'a
 where
-    I: IntoIterator<Item = &'a Vec<DocumentRef>> + 'a,
+    I: IntoIterator<Item = (EntityId, Vec<DocumentRef>)> + 'a,
 {
     documents.into_iter().map(|group| {
-        let scores = group.iter().map(|doc| cosine(query, &doc.embedding));
+        let scores = group.1.iter().map(|doc| cosine(query, &doc.embedding));
         let highest_score = scores.max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
         (group, highest_score)
     })

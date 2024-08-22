@@ -11,10 +11,12 @@ use crate::{
         DocumentOps, Embedding, EmbeddingFunction,
     },
 };
-use itertools::chain;
+use itertools::{chain, Itertools};
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
-use super::vector_selection::VectorSelection;
+use super::{
+    similarity_search_utils::score_document_groups_by_highest, vector_selection::VectorSelection,
+};
 
 pub struct VectorisedGraph<G: StaticGraphViewOps, T: DocumentTemplate<G>> {
     pub(crate) source_graph: G,
@@ -80,7 +82,7 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         VectorSelection::new(self.clone())
     }
 
-    pub fn search(
+    pub fn search_documents(
         &self,
         query: &Embedding,
         limit: usize,
@@ -91,13 +93,25 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         VectorSelection::new_with_preselection(self.clone(), docs)
     }
 
+    pub fn search_entities(
+        &self,
+        query: &Embedding,
+        limit: usize,
+        window: Option<(i64, i64)>,
+    ) -> VectorSelection<G, T> {
+        let joined = chain!(self.node_documents.iter(), self.edge_documents.iter());
+        let docs = self.search_top_document_groups(joined, query, limit, window);
+        VectorSelection::new_with_preselection(self.clone(), docs)
+    }
+
     pub fn search_nodes(
         &self,
         query: &Embedding,
         limit: usize,
         window: Option<(i64, i64)>,
     ) -> VectorSelection<G, T> {
-        let docs = self.search_top_documents(self.node_documents.as_ref(), query, limit, window);
+        let docs =
+            self.search_top_document_groups(self.node_documents.as_ref(), query, limit, window);
         VectorSelection::new_with_preselection(self.clone(), docs)
     }
 
@@ -107,7 +121,8 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         limit: usize,
         window: Option<(i64, i64)>,
     ) -> VectorSelection<G, T> {
-        let docs = self.search_top_documents(self.edge_documents.as_ref(), query, limit, window);
+        let docs =
+            self.search_top_document_groups(self.edge_documents.as_ref(), query, limit, window);
         VectorSelection::new_with_preselection(self.clone(), docs)
     }
 
@@ -130,7 +145,7 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
             Some((start, end)) => {
                 let windowed_graph = self.source_graph.window(start, end);
                 let filtered = all_documents.filter(move |document| {
-                    document.exists_on_window(Some(&windowed_graph), window)
+                    document.exists_on_window(Some(&windowed_graph), &window)
                 });
                 Box::new(filtered)
             }
@@ -139,5 +154,45 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         let scored_docs = score_documents(query, window_docs.cloned()); // TODO: try to remove this clone
         let top_documents = find_top_k(scored_docs, limit);
         top_documents.collect()
+    }
+
+    fn search_top_document_groups<'a, I>(
+        &self,
+        document_groups: I,
+        query: &Embedding,
+        limit: usize,
+        window: Option<(i64, i64)>,
+    ) -> Vec<(DocumentRef, f32)>
+    where
+        I: IntoIterator<Item = (&'a EntityId, &'a Vec<DocumentRef>)> + 'a,
+    {
+        let window_docs: Box<dyn Iterator<Item = (EntityId, Vec<DocumentRef>)>> = match window {
+            None => Box::new(
+                document_groups
+                    .into_iter()
+                    .map(|(id, docs)| (id.clone(), docs.clone())),
+            ),
+            Some((start, end)) => {
+                let windowed_graph = self.source_graph.window(start, end);
+                let filtered = document_groups.into_iter().map(move |(entity_id, docs)| {
+                    let filtered_dcos = docs
+                        .iter()
+                        .filter(|doc| doc.exists_on_window(Some(&windowed_graph), &window))
+                        .cloned()
+                        .collect_vec();
+                    (entity_id.clone(), filtered_dcos)
+                });
+                Box::new(filtered)
+            }
+        };
+
+        let scored_docs = score_document_groups_by_highest(query, window_docs);
+
+        // let scored_docs = score_documents(query, window_docs.cloned()); // TODO: try to remove this clone
+        let top_documents = find_top_k(scored_docs, limit);
+
+        top_documents
+            .flat_map(|((_, docs), score)| docs.into_iter().map(move |doc| (doc, score)))
+            .collect()
     }
 }

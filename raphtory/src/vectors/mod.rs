@@ -208,8 +208,8 @@ mod vector_tests {
             .await;
         let embedding: Embedding = fake_embedding(vec!["whatever".to_owned()]).await.remove(0);
 
-        let mut selection = vectors.search(&embedding, 10, None);
-        selection.expand_by_similarity(&embedding, 10, None);
+        let mut selection = vectors.search_documents(&embedding, 10, None);
+        selection.expand_documents_by_similarity(&embedding, 10, None);
         selection.expand(2, None);
         let docs = selection.get_documents();
 
@@ -298,8 +298,8 @@ age: 30"###;
 
         let embedding = fake_embedding(vec!["whatever".to_owned()]).await.remove(0);
 
-        let mut selection = vectors.search(&embedding, 1, None);
-        selection.expand_by_similarity(&embedding, 9, None);
+        let mut selection = vectors.search_documents(&embedding, 1, None);
+        selection.expand_documents_by_similarity(&embedding, 9, None);
         let docs = selection.get_documents();
         assert_eq!(docs.len(), 3);
         // all documents are present in the result
@@ -356,13 +356,13 @@ age: 30"###;
             .await;
 
         let embedding = fake_embedding(vec!["whatever".to_owned()]).await.remove(0);
-        let mut selection = vectors.search(&embedding, 1, None);
-        selection.expand_by_similarity(&embedding, 9, None);
+        let mut selection = vectors.search_documents(&embedding, 1, None);
+        selection.expand_documents_by_similarity(&embedding, 9, None);
         let docs = selection.get_documents();
         assert_eq!(docs.len(), 2);
 
-        let mut selection = vectors.search(&embedding, 1, Some((-10, 25)));
-        selection.expand_by_similarity(&embedding, 9, Some((-10, 25)));
+        let mut selection = vectors.search_documents(&embedding, 1, Some((-10, 25)));
+        selection.expand_documents_by_similarity(&embedding, 9, Some((-10, 25)));
         let docs = selection.get_documents();
         assert!(
             match &docs[..] {
@@ -373,8 +373,8 @@ age: 30"###;
             "{docs:?} has the wrong content"
         );
 
-        let mut selection = vectors.search(&embedding, 1, Some((35, 100)));
-        selection.expand_by_similarity(&embedding, 9, Some((35, 100)));
+        let mut selection = vectors.search_documents(&embedding, 1, Some((35, 100)));
+        selection.expand_documents_by_similarity(&embedding, 9, Some((35, 100)));
         let docs = selection.get_documents();
         assert!(
             match &docs[..] {
