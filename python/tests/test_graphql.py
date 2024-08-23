@@ -28,6 +28,12 @@ def test_failed_server_start_in_time():
             server.stop()
 
 
+def test_wrong_url():
+    with pytest.raises(Exception) as excinfo:
+        client = RaphtoryClient("http://broken_url.com")
+    assert str(excinfo.value) == "Could not connect to the given server - no response"
+
+
 def test_successful_server_start_in_time():
     tmp_work_dir = tempfile.mkdtemp()
     server = GraphServer(tmp_work_dir).start(timeout_ms=3000)

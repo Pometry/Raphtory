@@ -1,5 +1,5 @@
 use crate::python::graphql::{
-    PyGlobalPlugins, PyRaphtoryClient, PyGraphServer, PyRunningGraphServer,
+    PyGlobalPlugins, PyGraphServer, PyRaphtoryClient, PyRunningGraphServer,
 };
 use pyo3::{prelude::PyModule, PyErr, Python};
 

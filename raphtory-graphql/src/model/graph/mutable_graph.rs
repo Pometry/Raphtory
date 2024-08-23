@@ -3,9 +3,7 @@ use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     core::utils::errors::GraphError,
     db::{
-        api::{
-            view::MaterializedGraph,
-        },
+        api::view::MaterializedGraph,
         graph::{edge::EdgeView, node::NodeView},
     },
     prelude::*,
@@ -82,9 +80,12 @@ impl GqlMutableGraph {
         properties: Option<Vec<GqlPropInput>>,
         node_type: Option<String>,
     ) -> Result<GqlMutableNode, GraphError> {
-        let node = self
-            .graph
-            .add_node(time, name, as_properties(properties.unwrap_or(vec![])), node_type.as_str())?;
+        let node = self.graph.add_node(
+            time,
+            name,
+            as_properties(properties.unwrap_or(vec![])),
+            node_type.as_str(),
+        )?;
         self.graph.write_updates()?;
         Ok(node.into())
     }
@@ -94,9 +95,13 @@ impl GqlMutableGraph {
         for node in nodes {
             let name = node.name.as_str();
             let node_type = node.node_type.as_str();
-            for prop in node.updates.unwrap_or(vec![]){
-                self.graph
-                    .add_node(prop.time, name, as_properties(prop.properties.unwrap_or(vec![])), node_type)?;
+            for prop in node.updates.unwrap_or(vec![]) {
+                self.graph.add_node(
+                    prop.time,
+                    name,
+                    as_properties(prop.properties.unwrap_or(vec![])),
+                    node_type,
+                )?;
             }
             let constant_props = node.constant_properties.unwrap_or(vec![]);
             if !constant_props.is_empty() {
@@ -125,9 +130,13 @@ impl GqlMutableGraph {
         properties: Option<Vec<GqlPropInput>>,
         layer: Option<String>,
     ) -> Result<GqlMutableEdge, GraphError> {
-        let edge = self
-            .graph
-            .add_edge(time, src, dst, as_properties(properties.unwrap_or(vec![])), layer.as_str())?;
+        let edge = self.graph.add_edge(
+            time,
+            src,
+            dst,
+            as_properties(properties.unwrap_or(vec![])),
+            layer.as_str(),
+        )?;
         self.graph.write_updates()?;
         Ok(edge.into())
     }
@@ -139,10 +148,15 @@ impl GqlMutableGraph {
             let dst = edge.dst.as_str();
             let layer = edge.layer.as_str();
             for prop in edge.updates.unwrap_or(vec![]) {
-                self.graph
-                    .add_edge(prop.time, src, dst, as_properties(prop.properties.unwrap_or(vec![])), layer)?;
+                self.graph.add_edge(
+                    prop.time,
+                    src,
+                    dst,
+                    as_properties(prop.properties.unwrap_or(vec![])),
+                    layer,
+                )?;
             }
-            let constant_props=edge.constant_properties.unwrap_or(vec![]);
+            let constant_props = edge.constant_properties.unwrap_or(vec![]);
             if !constant_props.is_empty() {
                 let edge_view = self.graph.edge(src, dst).ok_or(GraphError::EdgeNameError {
                     src: edge.src,
@@ -169,15 +183,23 @@ impl GqlMutableGraph {
     }
 
     /// Add temporal properties to graph
-    async fn add_properties(&self, t: i64, properties: Vec<GqlPropInput>) -> Result<bool, GraphError> {
+    async fn add_properties(
+        &self,
+        t: i64,
+        properties: Vec<GqlPropInput>,
+    ) -> Result<bool, GraphError> {
         self.graph.add_properties(t, as_properties(properties))?;
         self.graph.write_updates()?;
         Ok(true)
     }
 
     /// Add constant properties to graph (errors if the property already exists)
-    async fn add_constant_properties(&self, properties: Vec<GqlPropInput>) -> Result<bool, GraphError> {
-        self.graph.add_constant_properties(as_properties(properties))?;
+    async fn add_constant_properties(
+        &self,
+        properties: Vec<GqlPropInput>,
+    ) -> Result<bool, GraphError> {
+        self.graph
+            .add_constant_properties(as_properties(properties))?;
         self.graph.write_updates()?;
         Ok(true)
     }
@@ -187,7 +209,8 @@ impl GqlMutableGraph {
         &self,
         properties: Vec<GqlPropInput>,
     ) -> Result<bool, GraphError> {
-        self.graph.update_constant_properties(as_properties(properties))?;
+        self.graph
+            .update_constant_properties(as_properties(properties))?;
         self.graph.write_updates()?;
         Ok(true)
     }
@@ -217,8 +240,12 @@ impl GqlMutableNode {
     }
 
     /// Add constant properties to the node (errors if the property already exists)
-    async fn add_constant_properties(&self, properties: Vec<GqlPropInput>) -> Result<bool, GraphError> {
-        self.node.add_constant_properties(as_properties(properties))?;
+    async fn add_constant_properties(
+        &self,
+        properties: Vec<GqlPropInput>,
+    ) -> Result<bool, GraphError> {
+        self.node
+            .add_constant_properties(as_properties(properties))?;
         self.node.graph.write_updates()?;
         Ok(true)
     }
@@ -235,13 +262,18 @@ impl GqlMutableNode {
         &self,
         properties: Vec<GqlPropInput>,
     ) -> Result<bool, GraphError> {
-        self.node.update_constant_properties(as_properties(properties))?;
+        self.node
+            .update_constant_properties(as_properties(properties))?;
         self.node.graph.write_updates()?;
         Ok(true)
     }
 
     /// Add temporal property updates to the node
-    async fn add_updates(&self, time: i64, properties: Vec<GqlPropInput>) -> Result<bool, GraphError> {
+    async fn add_updates(
+        &self,
+        time: i64,
+        properties: Vec<GqlPropInput>,
+    ) -> Result<bool, GraphError> {
         self.node.add_updates(time, as_properties(properties))?;
         self.node.graph.write_updates()?;
         Ok(true)

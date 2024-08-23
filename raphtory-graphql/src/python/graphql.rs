@@ -15,6 +15,7 @@ use crossbeam_channel::Sender as CrossbeamSender;
 use dynamic_graphql::internal::{Registry, TypeName};
 use itertools::intersperse;
 use pyo3::{
+    exceptions,
     exceptions::{PyAttributeError, PyException, PyTypeError, PyValueError},
     prelude::*,
     types::{IntoPyDict, PyDict, PyFunction, PyList},
@@ -393,7 +394,7 @@ impl PyGraphServer {
                 })
         });
 
-        let mut server = PyRunningGraphServer::new(join_handle, sender, port);
+        let mut server = PyRunningGraphServer::new(join_handle, sender, port)?;
         if let Some(server_handler) = &server.server_handler {
             match PyRunningGraphServer::wait_for_server_online(
                 &server_handler.client.url,
@@ -490,15 +491,15 @@ impl PyRunningGraphServer {
         join_handle: JoinHandle<IoResult<()>>,
         sender: CrossbeamSender<BridgeCommand>,
         port: u16,
-    ) -> Self {
+    ) -> PyResult<Self> {
         let url = format!("http://localhost:{port}");
         let server_handler = Some(ServerHandler {
             join_handle,
             sender,
-            client: PyRaphtoryClient::new(url),
+            client: PyRaphtoryClient::new(url)?,
         });
 
-        PyRunningGraphServer { server_handler }
+        Ok(PyRunningGraphServer { server_handler })
     }
 
     fn apply_if_alive<O, F>(&self, function: F) -> PyResult<O>
@@ -638,8 +639,22 @@ const WAIT_CHECK_INTERVAL_MILLIS: u64 = 200;
 #[pymethods]
 impl PyRaphtoryClient {
     #[new]
-    fn new(url: String) -> Self {
-        Self { url }
+    fn new(url: String) -> PyResult<Self> {
+        match reqwest::blocking::get(url.clone()) {
+            Ok(response) => {
+                if response.status() == 200 {
+                    Ok(Self { url })
+                } else {
+                    Err(PyValueError::new_err(format!(
+                        "Could not connect to the given server - response {}",
+                        response.status()
+                    )))
+                }
+            }
+            Err(_) => Err(PyValueError::new_err(
+                "Could not connect to the given server - no response",
+            )),
+        }
     }
 
     /// Check if the server is online.

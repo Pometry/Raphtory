@@ -1,5 +1,5 @@
 use crate::{
-    model::{algorithms::global_plugins::GlobalPlugins, GqlGraphType},
+    model::{algorithms::global_plugins::GlobalPlugins, create_dirs_if_not_present, GqlGraphType},
     server_config::AppConfig,
 };
 use moka::sync::Cache;
@@ -27,7 +27,6 @@ use std::{
     sync::Arc,
 };
 use walkdir::WalkDir;
-use crate::model::create_dirs_if_not_present;
 
 pub struct Data {
     pub(crate) work_dir: PathBuf,
