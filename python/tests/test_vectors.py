@@ -168,38 +168,36 @@ def test_expansion():
     # TODO: add some expand_documents here
 
 
-# def test_windows():
-#     vg = create_graph()
+def test_windows():
+    vg = create_graph()
 
-#     selection1 = vg.append_nodes_by_similarity("node1", 1, (4, 5))
-#     docs = selection1.get_documents()
-#     contents = [doc.content for doc in docs]
-#     assert contents == ["node4"]
+    selection = vg.search_nodes("node1", 1, (4, 5))
+    assert [doc.content for doc in selection.get_documents()] == ["node4"]
 
-#     selection2 = selection1.append_nodes_by_similarity("node4", 1, (1, 2))
-#     docs = selection2.get_documents()
-#     contents = [doc.content for doc in docs]
-#     assert contents == ["node4", "node1"]
+    selection = vg.search_nodes("node4", 1, (1, 2))
+    assert [doc.content for doc in selection.get_documents()] == ["node1", "node1-extra"]
 
-#     selection3 = selection2.expand(10, (0, 3))
-#     docs = selection3.get_documents()
-#     contents = [doc.content for doc in docs]
-#     assert contents == ["node4", "node1", "edge1", "node2"]
+    selection.expand(10, (0, 3))
+    contents = [doc.content for doc in selection.get_documents()]
+    assert contents == ["node1", "node1-extra", "edge1", "edge1-extra", "node2"]
 
-#     selection4 = selection3.expand_by_similarity("edge2", 100, (0, 4))
-#     docs = selection4.get_documents()
-#     contents = [doc.content for doc in docs]
-#     assert contents == ["node4", "node1", "edge1", "node2", "edge2", "node3"]
+    selection.expand_documents_by_similarity("edge2", 100, (0, 4))
+    contents = [doc.content for doc in selection.get_documents()]
+    assert contents == ["node1", "node1-extra", "edge1", "edge1-extra", "node2", "edge2", "node3"]
 
-#     selection5 = selection4.expand_by_similarity("node1", 100, (20, 100))
-#     docs = selection5.get_documents()
-#     contents = [doc.content for doc in docs]
-#     assert contents == ["node4", "node1", "edge1", "node2", "edge2", "node3"]
+    # this should leave the selection unchanged
+    selection.expand_documents_by_similarity("node1", 100, (20, 100))
+    contents = [doc.content for doc in selection.get_documents()]
+    assert contents == ["node1", "node1-extra", "edge1", "edge1-extra", "node2", "edge2", "node3"]
 
-#     selection5 = selection4.expand(10, (4, 100))
-#     docs = selection5.get_documents()
-#     contents = [doc.content for doc in docs]
-#     assert contents == ["node4", "node1", "edge1", "node2", "edge2", "node3", "edge3"]
+    # this should also leave the selection unchanged
+    selection.expand_entities_by_similarity("node1", 100, (20, 100))
+    contents = [doc.content for doc in selection.get_documents()]
+    assert contents == ["node1", "node1-extra", "edge1", "edge1-extra", "node2", "edge2", "node3"]
+
+    selection.expand(10, (4, 100))
+    contents = [doc.content for doc in selection.get_documents()]
+    assert contents == ["node1", "node1-extra", "edge1", "edge1-extra", "node2", "edge2", "node3", "edge3", "node4"]
 
 
 def test_filtering_by_entity_type():

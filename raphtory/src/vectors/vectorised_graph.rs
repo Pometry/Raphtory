@@ -171,17 +171,21 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
                 document_groups
                     .into_iter()
                     .map(|(id, docs)| (id.clone(), docs.clone())),
+                // TODO: filter empty vectors here? what happens if the user inputs an empty list as the doc prop
             ),
             Some((start, end)) => {
                 let windowed_graph = self.source_graph.window(start, end);
-                let filtered = document_groups.into_iter().map(move |(entity_id, docs)| {
-                    let filtered_dcos = docs
-                        .iter()
-                        .filter(|doc| doc.exists_on_window(Some(&windowed_graph), &window))
-                        .cloned()
-                        .collect_vec();
-                    (entity_id.clone(), filtered_dcos)
-                });
+                let filtered = document_groups
+                    .into_iter()
+                    .map(move |(entity_id, docs)| {
+                        let filtered_dcos = docs
+                            .iter()
+                            .filter(|doc| doc.exists_on_window(Some(&windowed_graph), &window))
+                            .cloned()
+                            .collect_vec();
+                        (entity_id.clone(), filtered_dcos)
+                    })
+                    .filter(|(_, docs)| docs.len() > 0);
                 Box::new(filtered)
             }
         };
