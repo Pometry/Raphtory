@@ -1,4 +1,5 @@
 use crate::core::{utils::time::error::ParseTimeError, Prop, PropType};
+use polars_arrow::datatypes::ArrowDataType;
 #[cfg(feature = "arrow")]
 use polars_arrow::legacy::error;
 #[cfg(feature = "storage")]
@@ -39,6 +40,18 @@ pub enum InvalidPathReason {
 }
 
 #[derive(thiserror::Error, Debug)]
+pub enum DataTypeError {
+    #[error("Only str columns are supported for layers, got {0:?}")]
+    InvalidLayerType(ArrowDataType),
+    #[error("Only str columns are supported for node type, got {0:?}")]
+    InvalidNodeType(ArrowDataType),
+    #[error("{0:?} not supported as property type")]
+    InvalidPropertyType(ArrowDataType),
+    #[error("{0:?} not supported as node id type")]
+    InvalidNodeIdType(ArrowDataType),
+}
+
+#[derive(thiserror::Error, Debug)]
 pub enum GraphError {
     #[error("You cannot set ‘{0}’ and ‘{1}’ at the same time. Please pick one or the other.")]
     WrongNumOfArgs(String, String),
@@ -50,8 +63,11 @@ pub enum GraphError {
         #[from]
         source: InvalidPathReason,
     },
-    #[error("Graph error occurred")]
-    UnsupportedDataType,
+    #[error("{source}")]
+    UnsupportedDataType {
+        #[from]
+        source: DataTypeError,
+    },
     #[error("Disk graph not found")]
     DiskGraphNotFound,
     #[error("Disk Graph is immutable")]
@@ -96,20 +112,14 @@ pub enum GraphError {
     #[error("Edge already exists for nodes {0:?} {1:?}")]
     EdgeExistsError(GID, GID),
 
-    #[error("No Node with ID {0}")]
-    NodeIdError(u64),
-
-    #[error("No Node with name {0}")]
-    NodeNameError(String),
+    #[error("Node {0} does not exist")]
+    NodeMissingError(GID),
 
     #[error("Node Type Error {0}")]
     NodeTypeError(String),
 
     #[error("No Edge between {src} and {dst}")]
-    EdgeIdError { src: u64, dst: u64 },
-
-    #[error("No Edge between {src} and {dst}")]
-    EdgeNameError { src: String, dst: String },
+    EdgeMissingError { src: GID, dst: GID },
     // wasm
     #[error("Node is not String or Number")]
     NodeIdNotStringOrNumber,

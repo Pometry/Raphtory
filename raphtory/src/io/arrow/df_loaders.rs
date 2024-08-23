@@ -11,7 +11,12 @@ use crate::{
     prelude::*,
 };
 
+use crate::io::arrow::{
+    layer_col::{lift_layer_col, lift_node_type_col},
+    node_col::lift_node_col,
+};
 use kdam::{Bar, BarBuilder, BarExt};
+use rayon::prelude::*;
 use std::{collections::HashMap, iter};
 
 fn build_progress_bar(des: String, num_rows: usize) -> Result<Bar, GraphError> {
@@ -427,115 +432,55 @@ pub(crate) fn load_node_props_from_df<
         .collect::<Result<Vec<_>, GraphError>>()?;
     let node_id_index = df_view.get_index(node_id)?;
     let node_type_index = if let Some(node_type_col) = node_type_col {
-        Some(df_view.get_index(node_type_col.as_ref()))
+        Some(df_view.get_index(node_type_col.as_ref())?)
     } else {
         None
     };
-    let node_type_index = node_type_index.transpose()?;
+    let shared_constant_properties = match shared_constant_properties {
+        Some(props) => props
+            .iter()
+            .map(|(name, prop)| {
+                Ok((
+                    graph
+                        .resolve_node_property(name, prop.dtype(), true)?
+                        .inner(),
+                    prop.clone(),
+                ))
+            })
+            .collect::<Result<Vec<_>, GraphError>>()?,
+        None => vec![],
+    };
     let mut pb = build_progress_bar("Loading node properties".to_string(), df_view.num_rows)?;
     for chunk in df_view.chunks {
         let df = chunk?;
-        let const_prop_iter =
-            combine_properties(constant_properties, &constant_properties_indices, &df)?;
+        let const_props = combine_properties(
+            constant_properties,
+            &constant_properties_indices,
+            &df,
+            |name, dtype| Ok(graph.resolve_node_property(name, dtype, true)?.inner()),
+        )?;
+        let node_col = df.node_col(node_id_index)?;
+        let node_type_col = lift_node_type_col(node_type, node_type_index, &df)?;
 
-        let node_type: Result<Box<dyn Iterator<Item = Option<&str>>>, GraphError> =
-            match (node_type, node_type_index) {
-                (None, None) => Ok(Box::new(iter::repeat(None))),
-                (Some(node_type), None) => Ok(Box::new(iter::repeat(Some(node_type)))),
-                (None, Some(node_type_index)) => {
-                    let iter_res: Result<Box<dyn Iterator<Item = Option<&str>>>, GraphError> =
-                        if let Some(node_types) = df.utf8::<i32>(node_type_index) {
-                            Ok(Box::new(node_types))
-                        } else if let Some(node_types) = df.utf8::<i64>(node_type_index) {
-                            Ok(Box::new(node_types))
-                        } else {
-                            Err(GraphError::LoadFailure(
-                                "Unable to convert / find node_type column in dataframe."
-                                    .to_string(),
-                            ))
-                        };
-                    iter_res
-                }
-                _ => Err(GraphError::WrongNumOfArgs(
-                    "node_type".to_string(),
-                    "node_type_col".to_string(),
-                )),
-            };
-        let node_type = node_type?;
-
-        if let Some(node_id) = df.iter_col::<u64>(node_id_index) {
-            let iter = node_id.map(|i| i.copied());
-            for ((node_id, const_props), node_type) in iter.zip(const_prop_iter).zip(node_type) {
+        node_col
+            .par_iter()
+            .zip(node_type_col.par_iter())
+            .zip(const_props.par_rows())
+            .try_for_each(|((node_id, node_type), cprops)| {
                 if let Some(node_id) = node_id {
-                    let v = graph
+                    let node = graph
                         .node(node_id)
-                        .ok_or(GraphError::NodeIdError(node_id))?;
-                    v.add_constant_properties(const_props)?;
-                    if let Some(shared_const_props) = &shared_constant_properties {
-                        v.add_constant_properties(shared_const_props.iter())?;
-                    }
+                        .ok_or_else(|| GraphError::NodeMissingError(node_id.to_owned()))?;
                     if let Some(node_type) = node_type {
-                        v.set_node_type(node_type)?;
+                        node.set_node_type(node_type)?;
                     }
+                    let props = cprops
+                        .chain(shared_constant_properties.iter().cloned())
+                        .collect::<Vec<_>>();
+                    graph.internal_add_constant_node_properties(node.node, &props)?;
                 }
-                let _ = pb.update(1);
-            }
-        } else if let Some(node_id) = df.iter_col::<i64>(node_id_index) {
-            let iter = node_id.map(i64_opt_into_u64_opt);
-            for ((node_id, const_props), node_type) in iter.zip(const_prop_iter).zip(node_type) {
-                if let Some(node_id) = node_id {
-                    let v = graph
-                        .node(node_id)
-                        .ok_or(GraphError::NodeIdError(node_id))?;
-                    v.add_constant_properties(const_props)?;
-                    if let Some(shared_const_props) = &shared_constant_properties {
-                        v.add_constant_properties(shared_const_props.iter())?;
-                    }
-                    if let Some(node_type) = node_type {
-                        v.set_node_type(node_type)?;
-                    }
-                }
-                let _ = pb.update(1);
-            }
-        } else if let Some(node_id) = df.utf8::<i32>(node_id_index) {
-            let iter = node_id.into_iter();
-            for ((node_id, const_props), node_type) in iter.zip(const_prop_iter).zip(node_type) {
-                if let Some(node_id) = node_id {
-                    let v = graph
-                        .node(node_id)
-                        .ok_or_else(|| GraphError::NodeNameError(node_id.to_owned()))?;
-                    v.add_constant_properties(const_props)?;
-                    if let Some(shared_const_props) = &shared_constant_properties {
-                        v.add_constant_properties(shared_const_props.iter())?;
-                    }
-                    if let Some(node_type) = node_type {
-                        v.set_node_type(node_type)?;
-                    }
-                }
-                let _ = pb.update(1);
-            }
-        } else if let Some(node_id) = df.utf8::<i64>(node_id_index) {
-            let iter = node_id.into_iter();
-            for ((node_id, const_props), node_type) in iter.zip(const_prop_iter).zip(node_type) {
-                if let Some(node_id) = node_id {
-                    let v = graph
-                        .node(node_id)
-                        .ok_or_else(|| GraphError::NodeNameError(node_id.to_owned()))?;
-                    v.add_constant_properties(const_props)?;
-                    if let Some(shared_const_props) = &shared_constant_properties {
-                        v.add_constant_properties(shared_const_props.iter())?;
-                    }
-                    if let Some(node_type) = node_type {
-                        v.set_node_type(node_type)?;
-                    }
-                }
-                let _ = pb.update(1);
-            }
-        } else {
-            return Err(GraphError::LoadFailure(
-                "node id column must be either u64 or text, time column must be i64. Ensure these contain no NaN, Null or None values.".to_string(),
-            ));
-        };
+            })?;
+        let _ = pb.update(df.len());
     }
     Ok(())
 }
@@ -567,95 +512,68 @@ pub(crate) fn load_edges_props_from_df<
     };
     let layer_index = layer_index.transpose()?;
     let mut pb = build_progress_bar("Loading edge properties".to_string(), df_view.num_rows)?;
+    let shared_constant_properties = match shared_constant_properties {
+        None => {
+            vec![]
+        }
+        Some(props) => props
+            .iter()
+            .map(|(key, prop)| {
+                Ok((
+                    graph
+                        .resolve_edge_property(key, prop.dtype(), true)?
+                        .inner(),
+                    prop.clone(),
+                ))
+            })
+            .collect::<Result<Vec<_>, GraphError>>()?,
+    };
 
     for chunk in df_view.chunks {
         let df = chunk?;
-        let const_prop_iter =
-            combine_properties(constant_properties, &constant_properties_indices, &df)?;
+        let const_prop_iter = combine_properties(
+            constant_properties,
+            &constant_properties_indices,
+            &df,
+            |name, dtype| {
+                graph
+                    .resolve_edge_property(name, dtype, true)
+                    .map(|id| id.inner())
+            },
+        )?;
 
-        let layer = lift_layer(layer, layer_index, &df)?;
-
-        if let (Some(src), Some(dst)) =
-            (df.iter_col::<u64>(src_index), df.iter_col::<u64>(dst_index))
-        {
-            let triplets = src.map(|i| i.copied()).zip(dst.map(|i| i.copied()));
-
-            for (((src, dst), const_props), layer) in triplets.zip(const_prop_iter).zip(layer) {
-                if let (Some(src), Some(dst)) = (src, dst) {
-                    let e = graph
-                        .edge(src, dst)
-                        .ok_or(GraphError::EdgeIdError { src, dst })?;
-                    e.add_constant_properties(const_props, layer.as_deref())?;
-                    if let Some(shared_const_props) = &shared_constant_properties {
-                        e.add_constant_properties(shared_const_props.iter(), layer.as_deref())?;
+        let layer = lift_layer_col(layer, layer_index, &df)?;
+        let src_col = lift_node_col(src_index, &df)?;
+        let dst_col = lift_node_col(dst_index, &df)?;
+        src_col
+            .par_iter()
+            .zip(dst_col.par_iter())
+            .zip(layer.par_iter())
+            .zip(const_prop_iter.par_rows())
+            .try_for_each(|(((src, dst), layer), cprops)| {
+                if let Some(src) = src {
+                    if let Some(dst) = dst {
+                        let e =
+                            graph
+                                .edge(src, dst)
+                                .ok_or_else(|| GraphError::EdgeMissingError {
+                                    src: src.to_owned(),
+                                    dst: dst.to_owned(),
+                                })?;
+                        let layer_id = graph.resolve_layer(layer)?.inner();
+                        let props = cprops
+                            .chain(shared_constant_properties.iter().cloned())
+                            .collect::<Vec<_>>();
+                        graph.internal_add_constant_edge_properties(
+                            e.edge.pid(),
+                            layer_id,
+                            &props,
+                        )?;
                     }
                 }
-                let _ = pb.update(1);
-            }
-        } else if let (Some(src), Some(dst)) =
-            (df.iter_col::<i64>(src_index), df.iter_col::<i64>(dst_index))
-        {
-            let triplets = src
-                .map(i64_opt_into_u64_opt)
-                .zip(dst.map(i64_opt_into_u64_opt));
-
-            for (((src, dst), const_props), layer) in triplets.zip(const_prop_iter).zip(layer) {
-                if let (Some(src), Some(dst)) = (src, dst) {
-                    let e = graph
-                        .edge(src, dst)
-                        .ok_or(GraphError::EdgeIdError { src, dst })?;
-                    e.add_constant_properties(const_props, layer.as_deref())?;
-                    if let Some(shared_const_props) = &shared_constant_properties {
-                        e.add_constant_properties(shared_const_props.iter(), layer.as_deref())?;
-                    }
-                }
-                let _ = pb.update(1);
-            }
-        } else if let (Some(src), Some(dst)) =
-            (df.utf8::<i32>(src_index), df.utf8::<i32>(dst_index))
-        {
-            let triplets = src.into_iter().zip(dst.into_iter());
-            for (((src, dst), const_props), layer) in triplets.zip(const_prop_iter).zip(layer) {
-                if let (Some(src), Some(dst)) = (src, dst) {
-                    let e = graph
-                        .edge(src, dst)
-                        .ok_or_else(|| GraphError::EdgeNameError {
-                            src: src.to_owned(),
-                            dst: dst.to_owned(),
-                        })?;
-                    e.add_constant_properties(const_props, layer.as_deref())?;
-                    if let Some(shared_const_props) = &shared_constant_properties {
-                        e.add_constant_properties(shared_const_props.iter(), layer.as_deref())?;
-                    }
-                }
-                let _ = pb.update(1);
-            }
-        } else if let (Some(src), Some(dst)) =
-            (df.utf8::<i64>(src_index), df.utf8::<i64>(dst_index))
-        {
-            let triplets = src.into_iter().zip(dst.into_iter());
-
-            for (((src, dst), const_props), layer) in triplets.zip(const_prop_iter).zip(layer) {
-                if let (Some(src), Some(dst)) = (src, dst) {
-                    let e = graph
-                        .edge(src, dst)
-                        .ok_or_else(|| GraphError::EdgeNameError {
-                            src: src.to_owned(),
-                            dst: dst.to_owned(),
-                        })?;
-                    e.add_constant_properties(const_props, layer.as_deref())?;
-                    if let Some(shared_const_props) = &shared_constant_properties {
-                        e.add_constant_properties(shared_const_props.iter(), layer.as_deref())?;
-                    }
-                }
-                let _ = pb.update(1);
-            }
-        } else {
-            return Err(GraphError::LoadFailure(
-                "Source and Target columns must be either u64 or text, Time column must be i64. Ensure these contain no NaN, Null or None values."
-                    .to_string(),
-            ));
-        };
+                Ok::<(), GraphError>(())
+            })?;
+        let _ = pb.update(df.len());
     }
     Ok(())
 }

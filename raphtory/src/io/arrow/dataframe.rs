@@ -1,4 +1,4 @@
-use crate::core::utils::errors::GraphError;
+use crate::core::utils::errors::{DataTypeError, GraphError};
 
 use polars_arrow::{
     array::{Array, PrimitiveArray, Utf8Array},
@@ -8,6 +8,7 @@ use polars_arrow::{
     types::NativeType,
 };
 
+use crate::io::arrow::node_col::{lift_node_col, NodeCol};
 use itertools::Itertools;
 
 pub(crate) struct DFView<I> {
@@ -46,6 +47,14 @@ pub(crate) struct DFChunk {
 }
 
 impl DFChunk {
+    pub fn len(&self) -> usize {
+        self.chunk.first().map(|c| c.len()).unwrap_or(0)
+    }
+
+    pub fn node_col(&self, index: usize) -> Result<NodeCol, DataTypeError> {
+        lift_node_col(index, self)
+    }
+
     pub(crate) fn iter_col<T: NativeType>(
         &self,
         idx: usize,
