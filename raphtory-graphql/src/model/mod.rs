@@ -2,15 +2,18 @@ use crate::{
     data::Data,
     model::{
         algorithms::global_plugins::GlobalPlugins,
-        graph::{graph::GqlGraph, graphs::GqlGraphs, vectorised_graph::GqlVectorisedGraph},
+        graph::{
+            graph::GqlGraph, graphs::GqlGraphs, mutable_graph::GqlMutableGraph,
+            vectorised_graph::GqlVectorisedGraph,
+        },
     },
     url_encode::{url_decode_graph, url_encode_graph},
 };
 use async_graphql::Context;
 use chrono::Utc;
 use dynamic_graphql::{
-    App, Mutation, MutationFields, MutationRoot, ResolvedObject, ResolvedObjectFields, Result,
-    Upload,
+    App, Enum, Mutation, MutationFields, MutationRoot, ResolvedObject, ResolvedObjectFields,
+    Result, Upload,
 };
 use itertools::Itertools;
 #[cfg(feature = "storage")]
@@ -60,6 +63,12 @@ pub enum GqlGraphError {
     FailedToCreateDir(String),
 }
 
+#[derive(Enum)]
+pub enum GqlGraphType {
+    Persistent,
+    Event,
+}
+
 #[derive(ResolvedObject)]
 #[graphql(root)]
 pub(crate) struct QueryRoot;
@@ -77,6 +86,14 @@ impl QueryRoot {
         Ok(data
             .get_graph(path)
             .map(|g| GqlGraph::new(path.to_path_buf(), g))?)
+    }
+
+    async fn update_graph<'a>(ctx: &Context<'a>, path: String) -> Result<GqlMutableGraph> {
+        let data = ctx.data_unchecked::<Data>();
+        let graph = data
+            .get_graph(path.as_ref())
+            .map(|g| GqlMutableGraph::new(path, g))?;
+        Ok(graph)
     }
 
     async fn vectorised_graph<'a>(ctx: &Context<'a>, path: String) -> Option<GqlVectorisedGraph> {
@@ -130,6 +147,16 @@ impl Mut {
 
         delete_graph(&full_path)?;
         data.graphs.remove(&path.to_path_buf());
+        Ok(true)
+    }
+
+    async fn new_graph<'a>(
+        ctx: &Context<'a>,
+        path: String,
+        graph_type: GqlGraphType,
+    ) -> Result<bool> {
+        let data = ctx.data_unchecked::<Data>();
+        data.new_graph(path.as_ref(), graph_type)?;
         Ok(true)
     }
 

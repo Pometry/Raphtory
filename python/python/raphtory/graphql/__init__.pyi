@@ -7,6 +7,95 @@
 #                                                                             #
 ###############################################################################
 
+class GraphServer:
+    """A class for defining and running a Raphtory GraphQL server"""
+
+    def __init__(
+        self,
+        work_dir,
+        cache_capacity=None,
+        cache_tti_seconds=None,
+        log_level=None,
+        config_path=None,
+    ):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def run(self, port=1736, timeout_ms=...):
+        """
+        Run the server until completion.
+
+        Arguments:
+          * `port`: the port to use (defaults to 1736).
+        """
+    def start(self, port=1736, timeout_ms=None):
+        """
+        Start the server and return a handle to it.
+
+        Arguments:
+          * `port`: the port to use (defaults to 1736).
+          * `timeout_ms`: wait for server to be online (defaults to 5000). The server is stopped if not online within timeout_ms but manages to come online as soon as timeout_ms finishes!
+        """
+    def with_document_search_function(self, name, input, function):
+        """
+        Register a function in the GraphQL schema for document search over a graph.
+
+        The function needs to take a `VectorisedGraph` as the first argument followed by a
+        pre-defined set of keyword arguments. Supported types are `str`, `int`, and `float`.
+        They have to be specified using the `input` parameter as a dict where the keys are the
+        names of the parameters and the values are the types, expressed as strings.
+
+        Arguments:
+          * `name` (`str`): the name of the function in the GraphQL schema.
+          * `input` (`dict`): the keyword arguments expected by the function.
+          * `function` (`function`): the function to run.
+
+        Returns:
+           A new server object containing the vectorised graphs.
+        """
+    def with_global_search_function(self, name, input, function):
+        """
+        Register a function in the GraphQL schema for document search among all the graphs.
+
+        The function needs to take a `GraphqlGraphs` object as the first argument followed by a
+        pre-defined set of keyword arguments. Supported types are `str`, `int`, and `float`.
+        They have to be specified using the `input` parameter as a dict where the keys are the
+        names of the parameters and the values are the types, expressed as strings.
+
+        Arguments:
+          * `name` (`str`): the name of the function in the GraphQL schema.
+          * `input` (`dict`): the keyword arguments expected by the function.
+          * `function` (`function`): the function to run.
+
+        Returns:
+           A new server object containing the vectorised graphs.
+        """
+    def with_vectorised(
+        self,
+        cache,
+        graph_names=None,
+        embedding=None,
+        graph_document=None,
+        node_document=None,
+        edge_document=None,
+    ):
+        """
+        Vectorise a subset of the graphs of the server.
+
+        Note:
+          If no embedding function is provided, the server will attempt to use the OpenAI API
+          embedding model, which will only work if the env variable OPENAI_API_KEY is set
+          appropriately
+
+        Arguments:
+          * `graph_names`: the names of the graphs to vectorise. All by default.
+          * `cache`: the directory to use as cache for the embeddings.
+          * `embedding`: the embedding function to translate documents to embeddings.
+          * `node_document`: the property name to use as the source for the documents on nodes.
+          * `edge_document`: the property name to use as the source for the documents on edges.
+
+        Returns:
+           A new server object containing the vectorised graphs.
+        """
+
 class GraphqlGraphs:
     """
     A class for accessing graphs hosted in a Raphtory GraphQL server and running global search for
@@ -122,96 +211,7 @@ class RaphtoryClient:
            The `data` field from the graphQL response after executing the mutation.
         """
 
-class RaphtoryServer:
-    """A class for defining and running a Raphtory GraphQL server"""
-
-    def __init__(
-        self,
-        work_dir,
-        cache_capacity=None,
-        cache_tti_seconds=None,
-        log_level=None,
-        config_path=None,
-    ):
-        """Initialize self.  See help(type(self)) for accurate signature."""
-    def run(self, port=1736, timeout_ms=...):
-        """
-        Run the server until completion.
-
-        Arguments:
-          * `port`: the port to use (defaults to 1736).
-        """
-    def start(self, port=1736, timeout_ms=None):
-        """
-        Start the server and return a handle to it.
-
-        Arguments:
-          * `port`: the port to use (defaults to 1736).
-          * `timeout_ms`: wait for server to be online (defaults to 5000). The server is stopped if not online within timeout_ms but manages to come online as soon as timeout_ms finishes!
-        """
-    def with_document_search_function(self, name, input, function):
-        """
-        Register a function in the GraphQL schema for document search over a graph.
-
-        The function needs to take a `VectorisedGraph` as the first argument followed by a
-        pre-defined set of keyword arguments. Supported types are `str`, `int`, and `float`.
-        They have to be specified using the `input` parameter as a dict where the keys are the
-        names of the parameters and the values are the types, expressed as strings.
-
-        Arguments:
-          * `name` (`str`): the name of the function in the GraphQL schema.
-          * `input` (`dict`): the keyword arguments expected by the function.
-          * `function` (`function`): the function to run.
-
-        Returns:
-           A new server object containing the vectorised graphs.
-        """
-    def with_global_search_function(self, name, input, function):
-        """
-        Register a function in the GraphQL schema for document search among all the graphs.
-
-        The function needs to take a `GraphqlGraphs` object as the first argument followed by a
-        pre-defined set of keyword arguments. Supported types are `str`, `int`, and `float`.
-        They have to be specified using the `input` parameter as a dict where the keys are the
-        names of the parameters and the values are the types, expressed as strings.
-
-        Arguments:
-          * `name` (`str`): the name of the function in the GraphQL schema.
-          * `input` (`dict`): the keyword arguments expected by the function.
-          * `function` (`function`): the function to run.
-
-        Returns:
-           A new server object containing the vectorised graphs.
-        """
-    def with_vectorised(
-        self,
-        cache,
-        graph_names=None,
-        embedding=None,
-        graph_document=None,
-        node_document=None,
-        edge_document=None,
-    ):
-        """
-        Vectorise a subset of the graphs of the server.
-
-        Note:
-          If no embedding function is provided, the server will attempt to use the OpenAI API
-          embedding model, which will only work if the env variable OPENAI_API_KEY is set
-          appropriately
-
-        Arguments:
-          * `graph_names`: the names of the graphs to vectorise. All by default.
-          * `cache`: the directory to use as cache for the embeddings.
-          * `embedding`: the embedding function to translate documents to embeddings.
-          * `node_document`: the property name to use as the source for the documents on nodes.
-          * `edge_document`: the property name to use as the source for the documents on edges.
-
-        Returns:
-           A new server object containing the vectorised graphs.
-        """
-
-class RunningRaphtoryServer:
+class RunningGraphServer:
     """A Raphtory server handler that also enables querying the server"""
 
     def __init__(self):

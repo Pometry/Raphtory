@@ -208,14 +208,14 @@ impl PyPersistentGraph {
     ///   layer (str): The layer of the edge. (optional)
     ///
     /// Returns:
-    ///  None or a GraphError if the edge could not be deleted
+    ///  The deleted edge
     pub fn delete_edge(
         &self,
         timestamp: PyTime,
         src: GID,
         dst: GID,
         layer: Option<&str>,
-    ) -> Result<(), GraphError> {
+    ) -> Result<EdgeView<PersistentGraph>, GraphError> {
         self.graph.delete_edge(timestamp, src, dst, layer)
     }
 

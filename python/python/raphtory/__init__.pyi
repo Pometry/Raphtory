@@ -950,8 +950,16 @@ class Graph:
         Returns:
              A GraphView object.
         """
-    def bincode(self):
-        """Get bincode encoded graph"""
+    def cache(self, path):
+        """
+         Write Graph to cache file and initialise the cache.
+
+        Future updates are tracked. Use `write_updates` to persist them to the
+        cache file. If the file already exists its contents are overwritten.
+
+        Arguments:
+            path (str): The path to the cache file
+        """
     def count_edges(self):
         """
         Number of edges in the graph
@@ -978,6 +986,17 @@ class Graph:
          Return a view of GraphView containing only the default edge layer
         Returns:
              GraphView: The layered view
+        """
+    @staticmethod
+    def deserialise(bytes):
+        """
+         Load Graph from serialised bytes.
+
+        Arguments:
+          bytes (Bytes): The serialised bytes to decode
+
+        Returns:
+           Graph
         """
     @property
     def earliest_date_time(self):
@@ -1108,9 +1127,6 @@ class Graph:
         Returns:
            the nodes that match the properties name and value
         """
-    @staticmethod
-    def from_bincode(bytes):
-        """Creates a graph from a bincode encoded graph"""
     def get_all_node_types(self):
         """
         Returns all the node types in the graph.
@@ -1251,6 +1267,20 @@ class Graph:
         Returns:
              GraphView: The layered view
         """
+    @staticmethod
+    def load_cached(path):
+        """
+         Load Graph from a file and initialise it as a cache file.
+
+        Future updates are tracked. Use `write_updates` to persist them to the
+        cache file.
+
+        Arguments:
+          path (str): The path to the cache file
+
+        Returns:
+           Graph
+        """
     def load_edge_props_from_pandas(
         self,
         df,
@@ -1370,15 +1400,15 @@ class Graph:
             GraphError: If the operation fails.
         """
     @staticmethod
-    def load_from_file(path, force=False):
+    def load_from_file(path):
         """
-        Loads a graph from the given path.
+         Load Graph from a file.
 
         Arguments:
-          path (str): The path to the graph.
+          path (str): The path to the file.
 
         Returns:
-         Graph: The loaded graph.
+           Graph
         """
     def load_node_props_from_pandas(
         self,
@@ -1543,13 +1573,17 @@ class Graph:
         """
     def save_to_file(self, path):
         """
-        Saves the graph to the given path.
+         Saves the Graph to the given path.
 
         Arguments:
-         path (str): The path to the graph.
+         path (str): The path to the file.
+        """
+    def serialise(self):
+        """
+         Serialise Graph to bytes.
 
         Returns:
-        None
+          Bytes
         """
     def shrink_end(self, end):
         """
@@ -1736,6 +1770,8 @@ class Graph:
     @property
     def window_size(self):
         """Get the window size (difference between start and end) for this GraphView"""
+    def write_updates(self):
+        """Persist the new updates by appending them to the cache file."""
 
 class GraphIndex:
     """
@@ -3407,8 +3443,16 @@ class PersistentGraph:
         Returns:
              A GraphView object.
         """
-    def bincode(self):
-        """Get bincode encoded graph"""
+    def cache(self, path):
+        """
+         Write PersistentGraph to cache file and initialise the cache.
+
+        Future updates are tracked. Use `write_updates` to persist them to the
+        cache file. If the file already exists its contents are overwritten.
+
+        Arguments:
+            path (str): The path to the cache file
+        """
     def count_edges(self):
         """
         Number of edges in the graph
@@ -3447,7 +3491,18 @@ class PersistentGraph:
           layer (str): The layer of the edge. (optional)
 
         Returns:
-         None or a GraphError if the edge could not be deleted
+         The deleted edge
+        """
+    @staticmethod
+    def deserialise(bytes):
+        """
+         Load PersistentGraph from serialised bytes.
+
+        Arguments:
+          bytes (Bytes): The serialised bytes to decode
+
+        Returns:
+           PersistentGraph
         """
     @property
     def earliest_date_time(self):
@@ -3580,9 +3635,6 @@ class PersistentGraph:
         Returns:
            the nodes that match the properties name and value
         """
-    @staticmethod
-    def from_bincode(bytes):
-        """Creates a graph from a bincode encoded graph"""
     def get_all_node_types(self):
         """
         Returns all the node types in the graph.
@@ -3711,6 +3763,20 @@ class PersistentGraph:
 
         Returns:
              GraphView: The layered view
+        """
+    @staticmethod
+    def load_cached(path):
+        """
+         Load PersistentGraph from a file and initialise it as a cache file.
+
+        Future updates are tracked. Use `write_updates` to persist them to the
+        cache file.
+
+        Arguments:
+          path (str): The path to the cache file
+
+        Returns:
+           PersistentGraph
         """
     def load_edge_deletions_from_pandas(
         self, df, time, src, dst, layer=None, layer_col=None
@@ -3869,15 +3935,15 @@ class PersistentGraph:
             GraphError: If the operation fails.
         """
     @staticmethod
-    def load_from_file(path, force=False):
+    def load_from_file(path):
         """
-        Loads a graph from the given path.
+         Load PersistentGraph from a file.
 
         Arguments:
-          path (str): The path to the graph.
+          path (str): The path to the file.
 
         Returns:
-         Graph: The loaded graph.
+           PersistentGraph
         """
     def load_node_props_from_pandas(
         self,
@@ -4038,13 +4104,17 @@ class PersistentGraph:
         """
     def save_to_file(self, path):
         """
-        Saves the graph to the given path.
+         Saves the PersistentGraph to the given path.
 
         Arguments:
-         path (str): The path to the graph.
+         path (str): The path to the file.
+        """
+    def serialise(self):
+        """
+         Serialise PersistentGraph to bytes.
 
         Returns:
-        None
+          Bytes
         """
     def shrink_end(self, end):
         """
@@ -4230,6 +4300,8 @@ class PersistentGraph:
     @property
     def window_size(self):
         """Get the window size (difference between start and end) for this GraphView"""
+    def write_updates(self):
+        """Persist the new updates by appending them to the cache file."""
 
 class Properties:
     """A view of the properties of an entity"""

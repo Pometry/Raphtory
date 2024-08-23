@@ -5,7 +5,7 @@ use crate::{
     },
     server_config::*,
     url_encode::{url_decode_graph, url_encode_graph},
-    RaphtoryServer,
+    GraphServer,
 };
 use async_graphql::{
     dynamic::{Field, FieldFuture, FieldValue, InputValue, Object, TypeRef, ValueAccessor},
@@ -15,6 +15,7 @@ use crossbeam_channel::Sender as CrossbeamSender;
 use dynamic_graphql::internal::{Registry, TypeName};
 use itertools::intersperse;
 use pyo3::{
+    exceptions,
     exceptions::{PyAttributeError, PyException, PyTypeError, PyValueError},
     prelude::*,
     types::{IntoPyDict, PyDict, PyFunction, PyList},
@@ -115,11 +116,11 @@ impl PyGlobalPlugins {
 }
 
 /// A class for defining and running a Raphtory GraphQL server
-#[pyclass(name = "RaphtoryServer")]
-pub struct PyRaphtoryServer(Option<RaphtoryServer>);
+#[pyclass(name = "GraphServer")]
+pub struct PyGraphServer(Option<GraphServer>);
 
-impl PyRaphtoryServer {
-    fn new(server: RaphtoryServer) -> Self {
+impl PyGraphServer {
+    fn new(server: GraphServer) -> Self {
         Self(Some(server))
     }
 
@@ -221,7 +222,7 @@ impl PyRaphtoryServer {
 }
 
 #[pymethods]
-impl PyRaphtoryServer {
+impl PyGraphServer {
     #[new]
     #[pyo3(
         signature = (work_dir, cache_capacity = None, cache_tti_seconds = None, log_level = None, config_path = None)
@@ -245,8 +246,8 @@ impl PyRaphtoryServer {
         }
         let app_config = Some(app_config_builder.build());
 
-        let server = RaphtoryServer::new(work_dir, app_config, config_path)?;
-        Ok(PyRaphtoryServer::new(server))
+        let server = GraphServer::new(work_dir, app_config, config_path)?;
+        Ok(PyGraphServer::new(server))
     }
 
     /// Vectorise a subset of the graphs of the server.
@@ -322,7 +323,7 @@ impl PyRaphtoryServer {
     ) -> PyResult<Self> {
         let adapter =
             |entry_point: &VectorAlgorithms, py: Python| entry_point.graph.clone().into_py(py);
-        PyRaphtoryServer::with_generic_document_search_function(slf, name, input, function, adapter)
+        PyGraphServer::with_generic_document_search_function(slf, name, input, function, adapter)
     }
 
     /// Register a function in the GraphQL schema for document search among all the graphs.
@@ -348,7 +349,7 @@ impl PyRaphtoryServer {
         let adapter = |entry_point: &GlobalPlugins, py: Python| {
             PyGlobalPlugins(entry_point.clone()).into_py(py)
         };
-        PyRaphtoryServer::with_generic_document_search_function(slf, name, input, function, adapter)
+        PyGraphServer::with_generic_document_search_function(slf, name, input, function, adapter)
     }
 
     /// Start the server and return a handle to it.
@@ -364,7 +365,7 @@ impl PyRaphtoryServer {
         py: Python,
         port: u16,
         timeout_ms: Option<u64>,
-    ) -> PyResult<PyRunningRaphtoryServer> {
+    ) -> PyResult<PyRunningGraphServer> {
         let (sender, receiver) = crossbeam_channel::bounded::<BridgeCommand>(1);
         let server = take_server_ownership(slf)?;
 
@@ -393,15 +394,15 @@ impl PyRaphtoryServer {
                 })
         });
 
-        let mut server = PyRunningRaphtoryServer::new(join_handle, sender, port);
+        let mut server = PyRunningGraphServer::new(join_handle, sender, port)?;
         if let Some(server_handler) = &server.server_handler {
-            match PyRunningRaphtoryServer::wait_for_server_online(
+            match PyRunningGraphServer::wait_for_server_online(
                 &server_handler.client.url,
                 timeout_ms,
             ) {
                 Ok(_) => return Ok(server),
                 Err(e) => {
-                    PyRunningRaphtoryServer::stop_server(&mut server, py)?;
+                    PyRunningGraphServer::stop_server(&mut server, py)?;
                     Err(e)
                 }
             }
@@ -445,7 +446,7 @@ fn adapt_graphql_value(value: &ValueAccessor, py: Python) -> PyObject {
     }
 }
 
-fn take_server_ownership(mut server: PyRefMut<PyRaphtoryServer>) -> PyResult<RaphtoryServer> {
+fn take_server_ownership(mut server: PyRefMut<PyGraphServer>) -> PyResult<GraphServer> {
     let new_server = server.0.take().ok_or_else(|| {
         PyException::new_err(
             "Server object has already been used, please create another one from scratch",
@@ -469,8 +470,8 @@ const RUNNING_SERVER_CONSUMED_MSG: &str =
     "Running server object has already been used, please create another one from scratch";
 
 /// A Raphtory server handler that also enables querying the server
-#[pyclass(name = "RunningRaphtoryServer")]
-pub struct PyRunningRaphtoryServer {
+#[pyclass(name = "RunningGraphServer")]
+pub struct PyRunningGraphServer {
     server_handler: Option<ServerHandler>,
 }
 
@@ -485,20 +486,20 @@ struct ServerHandler {
     client: PyRaphtoryClient,
 }
 
-impl PyRunningRaphtoryServer {
+impl PyRunningGraphServer {
     fn new(
         join_handle: JoinHandle<IoResult<()>>,
         sender: CrossbeamSender<BridgeCommand>,
         port: u16,
-    ) -> Self {
+    ) -> PyResult<Self> {
         let url = format!("http://localhost:{port}");
         let server_handler = Some(ServerHandler {
             join_handle,
             sender,
-            client: PyRaphtoryClient::new(url),
+            client: PyRaphtoryClient::new(url)?,
         });
 
-        PyRunningRaphtoryServer { server_handler }
+        Ok(PyRunningGraphServer { server_handler })
     }
 
     fn apply_if_alive<O, F>(&self, function: F) -> PyResult<O>
@@ -543,7 +544,7 @@ impl PyRunningRaphtoryServer {
 }
 
 #[pymethods]
-impl PyRunningRaphtoryServer {
+impl PyRunningGraphServer {
     pub(crate) fn get_client(&self) -> PyResult<PyRaphtoryClient> {
         self.apply_if_alive(|handler| Ok(handler.client.clone()))
     }
@@ -638,8 +639,22 @@ const WAIT_CHECK_INTERVAL_MILLIS: u64 = 200;
 #[pymethods]
 impl PyRaphtoryClient {
     #[new]
-    fn new(url: String) -> Self {
-        Self { url }
+    fn new(url: String) -> PyResult<Self> {
+        match reqwest::blocking::get(url.clone()) {
+            Ok(response) => {
+                if response.status() == 200 {
+                    Ok(Self { url })
+                } else {
+                    Err(PyValueError::new_err(format!(
+                        "Could not connect to the given server - response {}",
+                        response.status()
+                    )))
+                }
+            }
+            Err(_) => Err(PyValueError::new_err(
+                "Could not connect to the given server - no response",
+            )),
+        }
     }
 
     /// Check if the server is online.

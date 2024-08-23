@@ -200,8 +200,6 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
 
     /// Add constant properties for the edge
     ///
-    /// Returns a person with the name given them
-    ///
     /// # Arguments
     ///
     /// * `props` - Property key-value pairs to add

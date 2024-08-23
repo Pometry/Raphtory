@@ -74,12 +74,12 @@ impl From<ServerError> for io::Error {
 }
 
 /// A struct for defining and running a Raphtory GraphQL server
-pub struct RaphtoryServer {
+pub struct GraphServer {
     data: Data,
     configs: AppConfig,
 }
 
-impl RaphtoryServer {
+impl GraphServer {
     pub fn new(
         work_dir: PathBuf,
         app_config: Option<AppConfig>,
@@ -174,12 +174,12 @@ impl RaphtoryServer {
     }
 
     /// Start the server on the default port and return a handle to it.
-    pub async fn start(self) -> IoResult<RunningRaphtoryServer> {
+    pub async fn start(self) -> IoResult<RunningGraphServer> {
         self.start_with_port(1736).await
     }
 
     /// Start the server on the port `port` and return a handle to it.
-    pub async fn start_with_port(self, port: u16) -> IoResult<RunningRaphtoryServer> {
+    pub async fn start_with_port(self, port: u16) -> IoResult<RunningGraphServer> {
         fn configure_logger(configs: &LoggingConfig) {
             let log_level = &configs.log_level;
             let filter = EnvFilter::new(log_level);
@@ -217,7 +217,7 @@ impl RaphtoryServer {
             .run_with_graceful_shutdown(app, server_termination(signal_receiver), None);
         let server_result = tokio::spawn(server_task);
 
-        Ok(RunningRaphtoryServer {
+        Ok(RunningGraphServer {
             signal_sender,
             server_result,
         })
@@ -346,12 +346,12 @@ impl RaphtoryServer {
 }
 
 /// A Raphtory server handler
-pub struct RunningRaphtoryServer {
+pub struct RunningGraphServer {
     signal_sender: Sender<()>,
     server_result: JoinHandle<IoResult<()>>,
 }
 
-impl RunningRaphtoryServer {
+impl RunningGraphServer {
     /// Stop the server.
     pub async fn stop(&self) {
         let _ignored = self.signal_sender.send(()).await;
@@ -405,14 +405,14 @@ async fn server_termination(mut internal_signal: Receiver<()>) {
 mod server_tests {
     extern crate chrono;
 
-    use crate::server::RaphtoryServer;
+    use crate::server::GraphServer;
     use chrono::prelude::*;
     use tokio::time::{sleep, Duration};
 
     #[tokio::test]
     async fn test_server_start_stop() {
         let tmp_dir = tempfile::tempdir().unwrap();
-        let server = RaphtoryServer::new(tmp_dir.path().to_path_buf(), None, None).unwrap();
+        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, None).unwrap();
         println!("Calling start at time {}", Local::now());
         let handler = server.start_with_port(0);
         sleep(Duration::from_secs(1)).await;

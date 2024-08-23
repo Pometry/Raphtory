@@ -16,7 +16,9 @@ use crate::{
     },
     db::{
         api::{
-            mutation::internal::{InheritPropertyAdditionOps, InternalAdditionOps},
+            mutation::internal::{
+                InheritPropertyAdditionOps, InternalAdditionOps, InternalDeletionOps,
+            },
             storage::graph::edges::edge_storage_ops::EdgeStorageOps,
             view::{
                 internal::{DynamicGraph, InheritViewOps, IntoDynamic, Static},
@@ -845,37 +847,57 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
         // get the field from the index
         let node_id = self.node_index.schema().get_field(fields::VERTEX_ID)?;
         document.add_u64(node_id, v.as_u64());
-
         let mut writer = self.node_index.writer(50_000_000)?;
-
         writer.add_document(document)?;
-
         writer.commit()?;
 
-        Ok(())
+        self.graph.internal_add_node(t, v, props)
     }
 
     fn internal_add_edge(
         &self,
-        _t: TimeIndexEntry,
-        _src: VID,
-        _dst: VID,
-        _props: &[(usize, Prop)],
-        _layer: usize,
+        t: TimeIndexEntry,
+        src: VID,
+        dst: VID,
+        props: &[(usize, Prop)],
+        layer: usize,
     ) -> Result<MaybeNew<EID>, GraphError> {
-        todo!()
+        self.graph.internal_add_edge(t, src, dst, props, layer)
     }
 
     fn internal_add_edge_update(
         &self,
-        _t: TimeIndexEntry,
-        _edge: EID,
-        _props: &[(usize, Prop)],
-        _layer: usize,
+        t: TimeIndexEntry,
+        edge: EID,
+        props: &[(usize, Prop)],
+        layer: usize,
     ) -> Result<(), GraphError> {
-        todo!()
+        self.graph.internal_add_edge_update(t, edge, props, layer)
     }
 }
+
+impl<G: InternalDeletionOps> InternalDeletionOps for IndexedGraph<G> {
+    fn internal_delete_edge(
+        &self,
+        t: TimeIndexEntry,
+        src: VID,
+        dst: VID,
+        layer: usize,
+    ) -> Result<MaybeNew<EID>, GraphError> {
+        self.graph.internal_delete_edge(t, src, dst, layer)
+    }
+
+    fn internal_delete_existing_edge(
+        &self,
+        t: TimeIndexEntry,
+        eid: EID,
+        layer: usize,
+    ) -> Result<(), GraphError> {
+        self.graph.internal_delete_existing_edge(t, eid, layer)
+    }
+}
+
+impl<G: DeletionOps> DeletionOps for IndexedGraph<G> {}
 
 #[cfg(test)]
 mod test {

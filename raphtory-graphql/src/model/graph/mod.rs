@@ -2,6 +2,7 @@ pub(crate) mod edge;
 mod edges;
 pub(crate) mod graph;
 pub(crate) mod graphs;
+pub(crate) mod mutable_graph;
 pub(crate) mod node;
 mod nodes;
 mod path_from_node;

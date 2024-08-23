@@ -114,6 +114,8 @@ impl InternalDeletionOps for MaterializedGraph {
     }
 }
 
+impl DeletionOps for MaterializedGraph {}
+
 #[enum_dispatch]
 pub trait InternalMaterialize {
     fn new_base_graph(&self, graph: GraphStorage) -> MaterializedGraph {
