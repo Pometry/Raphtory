@@ -510,10 +510,6 @@ impl PyVectorSelection {
     ///
     /// Args:
     ///   nodes (list): a list of the node ids or nodes to add
-    ///   edges (list):  a list of the edge ids or edges to add
-    ///
-    /// Returns:
-    ///   A new vectorised graph containing the updated selection
     fn add_nodes(mut self_: PyRefMut<'_, Self>, nodes: Vec<NodeRef>) {
         self_.0.add_nodes(nodes)
     }
@@ -523,16 +519,12 @@ impl PyVectorSelection {
     /// Documents added by this call are assumed to have a score of 0.
     ///
     /// Args:
-    ///   nodes (list): a list of the node ids or nodes to add
     ///   edges (list):  a list of the edge ids or edges to add
-    ///
-    /// Returns:
-    ///   A new vectorised graph containing the updated selection
     fn add_edges(mut self_: PyRefMut<'_, Self>, edges: Vec<(NodeRef, NodeRef)>) {
         self_.0.add_edges(edges)
     }
 
-    // Add all the documents in `selection` to the current selection
+    /// Add all the documents in `selection` to the current selection
     ///
     /// Args:
     ///   selection: a selection to be added
@@ -553,9 +545,6 @@ impl PyVectorSelection {
     /// Args:
     ///   hops (int): the number of hops to carry out the expansion
     ///   window ((int | str, int | str)): the window where documents need to belong to in order to be considered
-    ///
-    /// Returns:
-    ///   A new vectorised graph containing the updated selection
     #[pyo3(signature = (hops, window=None))]
     fn expand(mut self_: PyRefMut<'_, Self>, hops: usize, window: PyWindow) {
         self_.0.expand(hops, translate_window(window))
@@ -566,7 +555,7 @@ impl PyVectorSelection {
     /// The expansion algorithm is a loop with two steps on each iteration:
     ///   1. All the documents 1 hop away of some of the documents included on the selection (and
     /// not already selected) are marked as candidates.
-    ///  2. Those candidates are added to the selection in descending order according to the
+    ///   2. Those candidates are added to the selection in descending order according to the
     /// similarity score obtained against the `query`.
     ///
     /// This loops goes on until the current selection reaches a total of `limit`  documents or
@@ -575,9 +564,6 @@ impl PyVectorSelection {
     /// Args:
     ///   query (str or list): the text or the embedding to score against
     ///   window ((int | str, int | str)): the window where documents need to belong to in order to be considered
-    ///
-    /// Returns:
-    ///   A new vectorised graph containing the updated selection
     #[pyo3(signature = (query, limit, window=None))]
     fn expand_documents_by_similarity(
         mut self_: PyRefMut<'_, Self>,
@@ -591,6 +577,20 @@ impl PyVectorSelection {
             .expand_documents_by_similarity(&embedding, limit, translate_window(window))
     }
 
+    /// Add the top `limit` adjacent entities with higher score for `query` to the selection
+    ///
+    /// The expansion algorithm is a loop with two steps on each iteration:
+    ///   1. All the entities 1 hop away of some of the entities included on the selection (and
+    /// not already selected) are marked as candidates.
+    ///   2. Those candidates are added to the selection in descending order according to the
+    /// similarity score obtained against the `query`.
+    ///
+    /// This loops goes on until the number of new entities reaches a total of `limit`
+    /// entities or until no more documents are available
+    ///
+    /// Args:
+    ///   query (str or list): the text or the embedding to score against
+    ///   window ((int | str, int | str)): the window where documents need to belong to in order to be considered
     #[pyo3(signature = (query, limit, window=None))]
     fn expand_entities_by_similarity(
         mut self_: PyRefMut<'_, Self>,
@@ -604,17 +604,14 @@ impl PyVectorSelection {
             .expand_entities_by_similarity(&embedding, limit, translate_window(window))
     }
 
-    /// Add the top `limit` adjacent node documents with higher score for `query` to the selection
+    /// Add the top `limit` adjacent nodes with higher score for `query` to the selection
     ///
-    /// This function has the same behavior as expand_by_similarity but it only considers nodes.
+    /// This function has the same behavior as expand_entities_by_similarity but it only considers nodes.
     ///
     /// Args:
     ///   query (str or list): the text or the embedding to score against
-    ///   limit (int): the maximum number of new documents to add
+    ///   limit (int): the maximum number of new nodes to add
     ///   window ((int | str, int | str)): the window where documents need to belong to in order to be considered
-    ///
-    /// Returns:
-    ///   A new vectorised graph containing the updated selection
     #[pyo3(signature = (query, limit, window=None))]
     fn expand_nodes_by_similarity(
         mut self_: PyRefMut<'_, Self>,
@@ -628,17 +625,14 @@ impl PyVectorSelection {
             .expand_nodes_by_similarity(&embedding, limit, translate_window(window))
     }
 
-    /// Add the top `limit` adjacent edge documents with higher score for `query` to the selection
+    /// Add the top `limit` adjacent edges with higher score for `query` to the selection
     ///
-    /// This function has the same behavior as expand_by_similarity but it only considers edges.
+    /// This function has the same behavior as expand_entities_by_similarity but it only considers edges.
     ///
     /// Args:
     ///   query (str or list): the text or the embedding to score against
-    ///   limit (int): the maximum number of new documents to add
+    ///   limit (int): the maximum number of new edges to add
     ///   window ((int | str, int | str)): the window where documents need to belong to in order to be considered
-    ///
-    /// Returns:
-    ///   A new vectorised graph containing the updated selection
     #[pyo3(signature = (query, limit, window=None))]
     fn expand_edges_by_similarity(
         mut self_: PyRefMut<'_, Self>,

@@ -196,14 +196,14 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorSelection<G, T> {
     /// The expansion algorithm is a loop with two steps on each iteration:
     ///   1. All the documents 1 hop away of some of the documents included on the selection (and
     /// not already selected) are marked as candidates.
-    ///  2. Those candidates are added to the selection in descending order according to the
+    ///   2. Those candidates are added to the selection in descending order according to the
     /// similarity score obtained against the `query`.
     ///
-    /// This loops goes on until the current selection reaches a total of `limit`  documents or
-    /// until no more documents are available
+    /// This loops goes on until the number of new documents reaches a total of `limit`
+    /// documents or until no more documents are available
     ///
     /// # Arguments
-    ///   * query - the text or the embedding to score against
+    ///   * query - the embedding to score against
     ///   * window - the window where documents need to belong to in order to be considered
     pub fn expand_documents_by_similarity(
         &mut self,
@@ -214,6 +214,20 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorSelection<G, T> {
         self.expand_documents_by_similarity_with_path(query, limit, window, ExpansionPath::Both)
     }
 
+    /// Add the top `limit` adjacent entities with higher score for `query` to the selection
+    ///
+    /// The expansion algorithm is a loop with two steps on each iteration:
+    ///   1. All the entities 1 hop away of some of the entities included on the selection (and
+    /// not already selected) are marked as candidates.
+    ///   2. Those candidates are added to the selection in descending order according to the
+    /// similarity score obtained against the `query`.
+    ///
+    /// This loops goes on until the number of new entities reaches a total of `limit`
+    /// entities or until no more documents are available
+    ///
+    /// # Arguments
+    ///   * query - the embedding to score against
+    ///   * window - the window where documents need to belong to in order to be considered
     pub fn expand_entities_by_similarity(
         &mut self,
         query: &Embedding,
@@ -223,13 +237,13 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorSelection<G, T> {
         self.expand_entities_by_similarity_with_path(query, limit, window, ExpansionPath::Both)
     }
 
-    /// Add the top `limit` adjacent node documents with higher score for `query` to the selection
+    /// Add the top `limit` adjacent nodes with higher score for `query` to the selection
     ///
-    /// This function has the same behavior as expand_by_similarity but it only considers nodes.
+    /// This function has the same behavior as expand_entities_by_similarity but it only considers nodes.
     ///
     /// # Arguments
-    ///   * query - the text or the embedding to score against
-    ///   * limit - the maximum number of new documents to add
+    ///   * query - the embedding to score against
+    ///   * limit - the maximum number of new nodes to add
     ///   * window - the window where documents need to belong to in order to be considered
     pub fn expand_nodes_by_similarity(
         &mut self,
@@ -240,13 +254,13 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorSelection<G, T> {
         self.expand_entities_by_similarity_with_path(query, limit, window, ExpansionPath::Nodes)
     }
 
-    /// Add the top `limit` adjacent edge documents with higher score for `query` to the selection
+    /// Add the top `limit` adjacent edges with higher score for `query` to the selection
     ///
-    /// This function has the same behavior as expand_by_similarity but it only considers edges.
+    /// This function has the same behavior as expand_entities_by_similarity but it only considers edges.
     ///
     /// # Arguments
-    ///   * query - the text or the embedding to score against
-    ///   * limit - the maximum number of new documents to add
+    ///   * query - the embedding to score against
+    ///   * limit - the maximum number of new edges to add
     ///   * window - the window where documents need to belong to in order to be considered
     pub fn expand_edges_by_similarity(
         &mut self,
