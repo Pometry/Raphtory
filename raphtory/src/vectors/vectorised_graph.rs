@@ -78,10 +78,20 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         cache.dump_to_disk();
     }
 
+    /// Return an empty selection of documents
     pub fn empty_selection(&self) -> VectorSelection<G, T> {
         VectorSelection::new(self.clone())
     }
 
+    /// Search the top scoring documents according to `query` with no more than `limit` documents
+    ///
+    /// # Arguments
+    ///   * query - the embedding to score against
+    ///   * limit - the maximum number of documents to search
+    ///   * window - the window where documents need to belong to in order to be considered
+    ///
+    /// # Returns
+    ///   The vector selection resulting from the search
     pub fn search_documents(
         &self,
         query: &Embedding,
@@ -93,6 +103,15 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         VectorSelection::new_with_preselection(self.clone(), docs)
     }
 
+    /// Search the top scoring entities according to `query` with no more than `limit` entities
+    ///
+    /// # Arguments
+    ///   * query - the embedding to score against
+    ///   * limit - the maximum number of entities to search
+    ///   * window - the window where documents need to belong to in order to be considered
+    ///
+    /// # Returns
+    ///   The vector selection resulting from the search
     pub fn search_entities(
         &self,
         query: &Embedding,
@@ -104,6 +123,15 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         VectorSelection::new_with_preselection(self.clone(), docs)
     }
 
+    /// Search the top scoring nodes according to `query` with no more than `limit` nodes
+    ///
+    /// # Arguments
+    ///   * query - the embedding to score against
+    ///   * limit - the maximum number of nodes to search
+    ///   * window - the window where documents need to belong to in order to be considered
+    ///
+    /// # Returns
+    ///   The vector selection resulting from the search
     pub fn search_nodes(
         &self,
         query: &Embedding,
@@ -115,6 +143,15 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         VectorSelection::new_with_preselection(self.clone(), docs)
     }
 
+    /// Search the top scoring edges according to `query` with no more than `limit` edges
+    ///
+    /// # Arguments
+    ///   * query - the embedding to score against
+    ///   * limit - the maximum number of edges to search
+    ///   * window - the window where documents need to belong to in order to be considered
+    ///
+    /// # Returns
+    ///   The vector selection resulting from the search
     pub fn search_edges(
         &self,
         query: &Embedding,
