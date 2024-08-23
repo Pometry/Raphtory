@@ -49,6 +49,8 @@ pub enum DataTypeError {
     InvalidPropertyType(ArrowDataType),
     #[error("{0:?} not supported as node id type")]
     InvalidNodeIdType(ArrowDataType),
+    #[error("{0:?} not supported for time column")]
+    InvalidTimestamp(ArrowDataType),
 }
 
 #[derive(thiserror::Error, Debug)]

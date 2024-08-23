@@ -23,6 +23,10 @@ impl InternalAdditionOps for TemporalGraph {
         Ok(self.event_counter.fetch_add(1, Ordering::Relaxed))
     }
 
+    fn reserve_ids(&self, num_ids: usize) -> Result<usize, GraphError> {
+        Ok(self.event_counter.fetch_add(num_ids, Ordering::Relaxed))
+    }
+
     fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, GraphError> {
         Ok(layer
             .map(|name| self.edge_meta.get_or_create_layer_id(name))
@@ -163,6 +167,13 @@ impl InternalAdditionOps for GraphStorage {
     fn next_event_id(&self) -> Result<usize, GraphError> {
         match self {
             GraphStorage::Unlocked(storage) => storage.next_event_id(),
+            _ => Err(GraphError::AttemptToMutateImmutableGraph),
+        }
+    }
+
+    fn reserve_ids(&self, num_ids: usize) -> Result<usize, GraphError> {
+        match self {
+            GraphStorage::Unlocked(storage) => storage.reserve_ids(num_ids),
             _ => Err(GraphError::AttemptToMutateImmutableGraph),
         }
     }

@@ -14,6 +14,7 @@ use polars_arrow::{
     datatypes::{ArrowDataType as DataType, TimeUnit},
     offset::Offset,
 };
+use raphtory_api::core::storage::dict_mapper::MaybeNew;
 use rayon::prelude::*;
 
 struct PropCols {
@@ -44,7 +45,7 @@ pub(crate) fn combine_properties(
     props: &[&str],
     indices: &[usize],
     df: &DFChunk,
-    prop_id_resolver: impl Fn(&str, PropType) -> Result<usize, GraphError>,
+    prop_id_resolver: impl Fn(&str, PropType) -> Result<MaybeNew<usize>, GraphError>,
 ) -> Result<PropCols, GraphError> {
     let dtypes = indices
         .iter()
@@ -57,7 +58,7 @@ pub(crate) fn combine_properties(
     let prop_ids = props
         .iter()
         .zip(dtypes.into_iter())
-        .map(|(name, dtype)| prop_id_resolver(name, dtype))
+        .map(|(name, dtype)| Ok(prop_id_resolver(name, dtype)?.inner()))
         .collect::<Result<Vec<_>, _>>()?;
 
     Ok(PropCols { prop_ids, cols })

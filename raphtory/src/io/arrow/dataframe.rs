@@ -10,6 +10,8 @@ use polars_arrow::{
 
 use crate::io::arrow::node_col::{lift_node_col, NodeCol};
 use itertools::Itertools;
+use polars_arrow::array::StaticArray;
+use rayon::prelude::*;
 
 pub(crate) struct DFView<I> {
     pub names: Vec<String>,
@@ -41,6 +43,37 @@ where
     }
 }
 
+pub struct TimeCol(PrimitiveArray<i64>);
+
+impl TimeCol {
+    fn new(arr: &dyn Array) -> Result<Self, DataTypeError> {
+        let arr = arr
+            .as_any()
+            .downcast_ref::<PrimitiveArray<i64>>()
+            .ok_or_else(|| DataTypeError::InvalidTimestamp(arr.data_type().clone()))?;
+        let arr = if let DataType::Timestamp(_, _) = arr.data_type() {
+            let array = cast::cast(
+                arr,
+                &DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".to_string())),
+                CastOptions::default(),
+            )
+            .unwrap();
+            array
+                .as_any()
+                .downcast_ref::<PrimitiveArray<i64>>()
+                .unwrap()
+                .clone()
+        } else {
+            arr.clone()
+        };
+        Ok(arr)
+    }
+
+    pub fn par_iter(&self) -> impl IndexedParallelIterator<Item = Option<i64>> {
+        (0..self.0.len()).into_par_iter().map(|i| self.0.get(i))
+    }
+}
+
 #[derive(Clone)]
 pub(crate) struct DFChunk {
     pub(crate) chunk: Vec<Box<dyn Array>>,
@@ -53,6 +86,10 @@ impl DFChunk {
 
     pub fn node_col(&self, index: usize) -> Result<NodeCol, DataTypeError> {
         lift_node_col(index, self)
+    }
+
+    pub fn time_col(&self, index: usize) -> Result<TimeCol, DataTypeError> {
+        TimeCol::new(self.chunk[index].as_ref())
     }
 
     pub(crate) fn iter_col<T: NativeType>(
