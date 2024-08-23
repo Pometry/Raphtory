@@ -153,26 +153,33 @@ Below is a small example creating a graph, running a server hosting this data, a
 from raphtory import Graph
 from raphtory.graphql import GraphServer
 import pandas as pd
+import os
 
 # URL for lord of the rings data from our main tutorial
 url = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr-with-header.csv"
 df = pd.read_csv(url)
 
 # Load the lord of the rings graph from the dataframe
-graph = Graph.load_from_pandas(df,"src_id","dst_id","time")
+graph = Graph()
+graph.load_edges_from_pandas(df,"time","src_id","dst_id")
 
-#Create a dictionary of queryable graphs and start the graphql server with it. This returns a client we can query with
-client = GraphServer({"lotr_graph":graph}).start()
+#Create a working_dir for your server and save your graph into it 
+#You can save any number of graphs here or create them via the server ones its running
+os.makedirs("graphs/", exist_ok=True)
+graph.save_to_file("graphs/lotr_graph")
 
-#Wait until the server has started up
-client.wait_for_online()
+# Launch the server and get a client to it.
+server = GraphServer(work_dir="graphs/").start()
+client = server.get_client()
 
 #Run a basic query to get the names of the characters + their degree
 results = client.query("""{
-             graph(name: "lotr_graph") {
+             graph(path: "lotr_graph") {
                  nodes {
-                     name
-                     degree
+                    list{
+                        name
+                        degree
+                       }   
                     }
                  }
              }""")
