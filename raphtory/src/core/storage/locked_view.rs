@@ -1,18 +1,17 @@
 use dashmap::mapref::one::Ref;
 use parking_lot::{MappedRwLockReadGuard, RwLockReadGuard};
-use rustc_hash::FxHasher;
 use std::{
     borrow::Borrow,
     cmp::Ordering,
     fmt::{Debug, Formatter},
-    hash::{BuildHasherDefault, Hash, Hasher},
+    hash::{Hash, Hasher},
     ops::Deref,
 };
 
 pub enum LockedView<'a, T> {
     LockMapped(MappedRwLockReadGuard<'a, T>),
     Locked(RwLockReadGuard<'a, T>),
-    DashMap(Ref<'a, usize, T, BuildHasherDefault<FxHasher>>),
+    DashMap(Ref<'a, usize, T>),
 }
 
 impl<'a, T, O> AsRef<T> for LockedView<'a, O>
@@ -77,8 +76,8 @@ impl<'a, T> From<RwLockReadGuard<'a, T>> for LockedView<'a, T> {
     }
 }
 
-impl<'a, T> From<Ref<'a, usize, T, BuildHasherDefault<FxHasher>>> for LockedView<'a, T> {
-    fn from(value: Ref<'a, usize, T, BuildHasherDefault<FxHasher>>) -> Self {
+impl<'a, T> From<Ref<'a, usize, T>> for LockedView<'a, T> {
+    fn from(value: Ref<'a, usize, T>) -> Self {
         Self::DashMap(value)
     }
 }

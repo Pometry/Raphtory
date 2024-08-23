@@ -5,7 +5,10 @@ use crate::core::{
     Prop, PropType,
 };
 use raphtory_api::core::storage::{
-    arc_str::ArcStr, dict_mapper::DictMapper, locked_vec::ArcReadLockedVec, FxDashMap,
+    arc_str::ArcStr,
+    dict_mapper::{DictMapper, MaybeNew},
+    locked_vec::ArcReadLockedVec,
+    FxDashMap,
 };
 use serde::{Deserialize, Serialize};
 use std::ops::{Deref, DerefMut};
@@ -44,7 +47,7 @@ impl GraphMeta {
         name: &str,
         dtype: PropType,
         is_static: bool,
-    ) -> Result<usize, GraphError> {
+    ) -> Result<MaybeNew<usize>, GraphError> {
         if is_static {
             Ok(self.constant_mapper.get_or_create_id(name))
         } else {

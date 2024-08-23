@@ -13,7 +13,7 @@ use crate::{
         Prop,
     },
     db::api::{
-        storage::{
+        storage::graph::{
             edges::{
                 edge_entry::EdgeStorageEntry, edge_owned_entry::EdgeOwnedEntry, edges::EdgesStorage,
             },
@@ -27,11 +27,11 @@ use crate::{
     },
 };
 use enum_dispatch::enum_dispatch;
+use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 use std::{iter, ops::Range};
 
 #[cfg(feature = "storage")]
 use pometry_storage::timestamps::TimeStamps;
-use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 #[cfg(feature = "storage")]
 use rayon::prelude::*;
 

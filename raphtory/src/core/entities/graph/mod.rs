@@ -5,37 +5,27 @@ pub(crate) mod timer;
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        core::PropType,
-        db::api::{mutation::internal::InternalAdditionOps, storage::storage_ops::GraphStorage},
-        prelude::*,
-    };
+    use crate::{core::PropType, db::api::mutation::internal::InternalAdditionOps, prelude::*};
 
     #[test]
     fn test_neighbours_multiple_layers() {
-        let g = GraphStorage::default();
-        let l_btc = g.resolve_layer(Some("btc")).unwrap();
-        let l_eth = g.resolve_layer(Some("eth")).unwrap();
-        let l_tether = g.resolve_layer(Some("tether")).unwrap();
-        let v1 = g.resolve_node(1).unwrap();
-        let v2 = g.resolve_node(2).unwrap();
+        let g = Graph::default();
+        let l_btc = g.resolve_layer(Some("btc")).unwrap().inner();
+        let l_eth = g.resolve_layer(Some("eth")).unwrap().inner();
+        let l_tether = g.resolve_layer(Some("tether")).unwrap().inner();
+        let v1 = g.resolve_node(1).unwrap().inner();
+        let v2 = g.resolve_node(2).unwrap().inner();
         let tx_sent_id = g
             .resolve_edge_property("tx_sent", PropType::I32, false)
+            .unwrap()
+            .inner();
+        g.internal_add_edge(1.into(), v1, v2, &[(tx_sent_id, Prop::I32(10))], l_btc)
             .unwrap();
-        g.internal_add_edge(1.into(), v1, v2, vec![(tx_sent_id, Prop::I32(10))], l_btc)
+        g.internal_add_edge(1.into(), v1, v2, &[(tx_sent_id, Prop::I32(20))], l_eth)
             .unwrap();
-        g.internal_add_edge(1.into(), v1, v2, vec![(tx_sent_id, Prop::I32(20))], l_eth)
+        g.internal_add_edge(1.into(), v1, v2, &[(tx_sent_id, Prop::I32(70))], l_tether)
             .unwrap();
-        g.internal_add_edge(
-            1.into(),
-            v1,
-            v2,
-            vec![(tx_sent_id, Prop::I32(70))],
-            l_tether,
-        )
-        .unwrap();
 
-        let g = Graph::from_internal_graph(g);
         let first = g
             .node(v1)
             .and_then(|n| n.layers(["btc", "eth"]).ok())

@@ -191,10 +191,12 @@ pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: AsNodeRef>(
         None,
         |_, ess, _, _| {
             ess.finalize(&taint_history, |taint_history| {
-                taint_history
+                let mut hist = taint_history
                     .into_iter()
                     .map(|tmsg| (tmsg.event_time, tmsg.src_node))
-                    .collect_vec()
+                    .collect_vec();
+                hist.sort();
+                hist
             })
         },
         threads,

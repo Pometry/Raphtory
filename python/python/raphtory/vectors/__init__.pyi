@@ -8,27 +8,18 @@
 ###############################################################################
 
 class Document:
-
     def __init__(self, content, life=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
-
     @property
-    def content(self):
-        ...
-
+    def content(self): ...
     @property
-    def entity(self):
-        ...
-
+    def entity(self): ...
     @property
-    def life(self):
-        ...
+    def life(self): ...
 
 class VectorisedGraph:
-
     def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
-
     def append(self, nodes, edges):
         """
         Add all the documents from `nodes` and `edges` to the current selection
@@ -42,7 +33,6 @@ class VectorisedGraph:
         Returns:
           A new vectorised graph containing the updated selection
         """
-
     def append_by_similarity(self, query, limit, window=None):
         """
         Add the top `limit` documents to the current selection using `query`
@@ -55,7 +45,6 @@ class VectorisedGraph:
         Returns:
           A new vectorised graph containing the updated selection
         """
-
     def append_edges(self, edges):
         """
         Add all the documents from `edges` to the current selection
@@ -68,7 +57,6 @@ class VectorisedGraph:
         Returns:
           A new vectorised graph containing the updated selection
         """
-
     def append_edges_by_similarity(self, query, limit, window=None):
         """
         Add the top `limit` edge documents to the current selection using `query`
@@ -81,7 +69,6 @@ class VectorisedGraph:
         Returns:
           A new vectorised graph containing the updated selection
         """
-
     def append_nodes(self, nodes):
         """
         Add all the documents from `nodes` to the current selection
@@ -94,7 +81,6 @@ class VectorisedGraph:
         Returns:
           A new vectorised graph containing the updated selection
         """
-
     def append_nodes_by_similarity(self, query, limit, window=None):
         """
         Add the top `limit` node documents to the current selection using `query`
@@ -107,10 +93,8 @@ class VectorisedGraph:
         Returns:
           A new vectorised graph containing the updated selection
         """
-
     def edges(self):
         """Return the edges present in the current selection"""
-
     def expand(self, hops, window=None):
         """
         Add all the documents `hops` hops away to the selection
@@ -127,7 +111,6 @@ class VectorisedGraph:
         Returns:
           A new vectorised graph containing the updated selection
         """
-
     def expand_by_similarity(self, query, limit, window=None):
         """
         Add the top `limit` adjacent documents with higher score for `query` to the selection
@@ -148,7 +131,6 @@ class VectorisedGraph:
         Returns:
           A new vectorised graph containing the updated selection
         """
-
     def expand_edges_by_similarity(self, query, limit, window=None):
         """
         Add the top `limit` adjacent edge documents with higher score for `query` to the selection
@@ -163,7 +145,6 @@ class VectorisedGraph:
         Returns:
           A new vectorised graph containing the updated selection
         """
-
     def expand_nodes_by_similarity(self, query, limit, window=None):
         """
         Add the top `limit` adjacent node documents with higher score for `query` to the selection
@@ -178,18 +159,13 @@ class VectorisedGraph:
         Returns:
           A new vectorised graph containing the updated selection
         """
-
     def get_documents(self):
         """Return the documents present in the current selection"""
-
     def get_documents_with_scores(self):
         """Return the documents alongside their scores present in the current selection"""
-
     def nodes(self):
         """Return the nodes present in the current selection"""
-
     def save_embeddings(self, file):
         """Save the embeddings present in this graph to `file` so they can be further used in a call to `vectorise`"""
 
-def generate_property_list(entity, filter_out=..., force_static=...):
-    ...
+def generate_property_list(entity, filter_out=..., force_static=...): ...

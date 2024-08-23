@@ -2,7 +2,6 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexIntoOps, TimeIndexOps},
-        utils::errors::GraphError,
         Prop,
     },
     db::{
@@ -10,10 +9,13 @@ use crate::{
             mutation::internal::InheritMutationOps,
             properties::internal::InheritPropertiesOps,
             storage::{
-                edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-                nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-                storage_ops::GraphStorage,
-                tprop_storage_ops::TPropOps,
+                graph::{
+                    edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+                    nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+                    storage_ops::GraphStorage,
+                    tprop_storage_ops::TPropOps,
+                },
+                storage::Storage,
             },
             view::{internal::*, BoxedIter, IntoDynBoxed},
         },
@@ -29,7 +31,7 @@ use std::{
     fmt::{Display, Formatter},
     iter,
     ops::Range,
-    path::Path,
+    sync::Arc,
 };
 
 /// A graph view where an edge remains active from the time it is added until it is explicitly marked as deleted.
@@ -37,14 +39,14 @@ use std::{
 /// Note that the graph will give you access to all edges that were added at any point in time, even those that are marked as deleted.
 /// The deletion only has an effect on the exploded edge view that are returned. An edge is included in a windowed view of the graph if
 /// it is considered active at any point in the window.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct PersistentGraph(pub GraphStorage);
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+pub struct PersistentGraph(pub(crate) Arc<Storage>);
 
 impl Static for PersistentGraph {}
 
 impl From<GraphStorage> for PersistentGraph {
     fn from(value: GraphStorage) -> Self {
-        Self(value)
+        Self(Arc::new(Storage::from_inner(value)))
     }
 }
 
@@ -107,68 +109,22 @@ fn edge_alive_at_start(e: EdgeStorageRef, t: i64, layer_ids: &LayerIds) -> bool 
         .any(|(_, additions, deletions)| alive_at(&additions, &deletions, t))
 }
 
-impl Default for PersistentGraph {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl PersistentGraph {
     pub fn new() -> Self {
-        Self(GraphStorage::default())
+        Self::default()
+    }
+
+    pub fn from_storage(storage: Arc<Storage>) -> Self {
+        Self(storage)
     }
 
     pub fn from_internal_graph(internal_graph: GraphStorage) -> Self {
-        Self(internal_graph)
-    }
-
-    /// Save a graph to a directory
-    ///
-    /// # Arguments
-    ///
-    /// * `path` - The path to the directory
-    ///
-    /// Returns:
-    ///
-    /// A raphtory graph
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use std::fs::File;
-    /// use raphtory::prelude::*;
-    /// let g = Graph::new();
-    /// g.add_node(1, 1, NO_PROPS, None).unwrap();
-    /// g.save_to_file("path_str").expect("failed to save file");
-    /// ```
-    pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), GraphError> {
-        MaterializedGraph::from(self.clone()).save_to_file(path)
-    }
-
-    /// Load a graph from a directory
-    ///
-    /// # Arguments
-    ///
-    /// * `path` - The path to the directory
-    ///
-    /// Returns:
-    ///
-    /// A raphtory graph
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use raphtory::prelude::*;
-    /// let g = Graph::load_from_file("path/to/graph", false);
-    /// ```
-    pub fn load_from_file<P: AsRef<Path>>(path: P, force: bool) -> Result<Self, GraphError> {
-        let g = MaterializedGraph::load_from_file(path, force)?;
-        g.into_persistent().ok_or(GraphError::GraphLoadError)
+        Self(Arc::new(Storage::from_inner(internal_graph)))
     }
 
     /// Get event graph
     pub fn event_graph(&self) -> Graph {
-        Graph::from_internal_graph(self.0.clone())
+        Graph::from_storage(self.0.clone())
     }
 }
 
@@ -179,7 +135,7 @@ impl<'graph, G: GraphViewOps<'graph>> PartialEq<G> for PersistentGraph {
 }
 
 impl Base for PersistentGraph {
-    type Base = GraphStorage;
+    type Base = Storage;
     #[inline(always)]
     fn base(&self) -> &Self::Base {
         &self.0

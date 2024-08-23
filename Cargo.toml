@@ -14,7 +14,7 @@ default-members = ["raphtory"]
 resolver = "2"
 
 [workspace.package]
-version = "0.10.0"
+version = "0.11.0"
 documentation = "https://raphtory.readthedocs.io/en/latest/"
 repository = "https://github.com/Raphtory/raphtory/"
 license = "GPL-3.0"
@@ -38,18 +38,18 @@ pometry-storage = { version = ">=0.8.1", path = "pometry-storage" }
 #[private-storage]
 # pometry-storage = { path = "pometry-storage-private", package = "pometry-storage-private" }
 async-graphql = { version = "7.0.5", features = ["dynamic-schema"] }
+bincode = "1.3.3"
 async-graphql-poem = "7.0.5"
 dynamic-graphql = "0.9.0"
-reqwest = { version = "0.11.22", default-features = false, features = ["rustls-tls"] }
+reqwest = { version = "0.12.7", default-features = false, features = ["rustls-tls", "multipart", "json"] }
 serde = { version = "1.0.197", features = ["derive", "rc"] }
 serde_json = "1.0.114"
 pyo3 = { version = "0.20.0", features = ["multiple-pymethods", "chrono"] }
-pyo3-asyncio = { version = "0.20.0", features = ["tokio-runtime"] }
 pyo3-build-config = "0.20.0"
-itertools = "0.12.1"
+itertools = "0.13.0"
 rand = "0.8.5"
 rayon = "1.8.1"
-sorted_vector_map = "0.1.0"
+sorted_vector_map = "0.2.0"
 tokio = { version = "1.36.0", features = ["full"] }
 once_cell = "1.19.0"
 parking_lot = { version = "0.12.1", features = ["serde", "arc_lock", "send_guard"] }
@@ -58,30 +58,28 @@ chrono = { version = "0.4.38", features = ["serde"] }
 tempfile = "3.10.0"
 futures-util = "0.3.30"
 thiserror = "1.0.57"
-bincode = "1.3.3"
 dotenv = "0.15.0"
 csv = "1.3.0"
 flate2 = "1.0.28"
 regex = "1.10.3"
-genawaiter = "0.99.1"
 num-traits = "0.2.18"
 num-integer = "0.1"
 rand_distr = "0.4.3"
-rustc-hash = "1.1.0"
+rustc-hash = "2.0.0"
 twox-hash = "1.6.3"
 lock_api = { version = "0.4.11", features = ["arc_lock", "serde"] }
-dashmap = { version = "5.5.3", features = ["serde"] }
+dashmap = { version = "6.0.1", features = ["serde"] }
 enum_dispatch = "0.3.12"
-glam = "0.25.0"
+glam = "0.29.0"
 quad-rand = "0.2.1"
 zip = "2.1.3"
-neo4rs = "0.6.2"
+neo4rs = "0.8.0"
 bzip2 = "0.4.4"
 tantivy = "0.22"
 async-trait = "0.1.77"
-async-openai = "0.17.1"
+async-openai = "0.23.4"
 oauth2 = "4.0"
-jsonwebtoken = "8.0"
+jsonwebtoken = "9.3.0"
 num = "0.4.1"
 display-error-chain = "0.2.0"
 polars-arrow = "0.39.2"
@@ -91,28 +89,23 @@ kdam = { version = "0.5.1" }
 pretty_assertions = "1.4.0"
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
-tempdir = "0.3.7"
 streaming-stats = "0.2.3"
 proptest = "1.4.0"
 criterion = "0.5.1"
 crossbeam-channel = "0.5.11"
-base64 = "0.21.7"
-poem = "3.0.1"
-poem-openapi = "5.0.2"
-async-stream = "0.3.5"
-opentelemetry = "0.21.0"
-opentelemetry_sdk = { version = "0.21.0", features = ["rt-tokio"] }
-opentelemetry-jaeger = { version = "0.20.0", features = ["rt-tokio"] }
+base64 = "0.22.1"
+poem = { version = "3.0.1", features = ["cookie"] }
+opentelemetry = "0.23.0"
+opentelemetry_sdk = { version = "0.23.0", features = ["rt-tokio"] }
+opentelemetry-jaeger = { version = "0.22.0", features = ["rt-tokio"] }
 tracing = "0.1.37"
-tracing-opentelemetry = "0.22.0"
+tracing-opentelemetry = "0.24.0"
 tracing-subscriber = { version = "0.3.16", features = ["std", "env-filter"] }
 walkdir = "2"
 uuid = { version = "1.0", features = ["v4"] }
 config = "0.14.0"
 either = "=1.11.0"
-toml = "0.8.10"
 clap = { version = "4.3.11", features = ["derive"] }
-tar = "0.4.38"
 wasm-bindgen = "0.2.91"
 serde-wasm-bindgen = "0.6.4"
 js-sys = "0.3.68"
@@ -120,20 +113,15 @@ console_error_panic_hook = "0.1.7"
 wasm-bindgen-test = "0.3.41"
 memmap2 = { version = "0.9.4" }
 ahash = { version = "0.8.3", features = ["serde"] }
-xxhash-rust = "0.8.7"
 strum = { version = "0.26.1", features = ["derive"] }
 bytemuck = { version = "1.15.0" }
-rpds = { version = "1.1.0", features = ["serde"] }
-thread_local = "1.1.8"
 ouroboros = "0.18.3"
 url = "2.2"
 base64-compat = { package = "base64-compat", version = "1.0.0" }
-time = "0.3.36"
 
-prost = "0.12"
-prost-types = "0.12"
-bytes = "1.6.0"
-prost-build = "0.12"
+prost = "0.13.1"
+prost-types = "0.13.1"
+prost-build = "0.13.1"
 
 lazy_static = "1.4.0"
 pest = "2.7.8"
@@ -145,7 +133,6 @@ futures = "0.3"
 arrow = { version = "50" }
 arrow-buffer = { version = "50" }
 arrow-schema = { version = "50" }
-arrow-data = { version = "50" }
 arrow-array = { version = "50" }
 
 moka = { version = "0.12.7", features = ["sync"] }

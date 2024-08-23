@@ -4,7 +4,7 @@ use crate::{
         types::{NativeType, Offset},
     },
     core::storage::timeindex::TimeIndexIntoOps,
-    db::api::{storage::tprop_storage_ops::TPropOps, view::IntoDynBoxed},
+    db::api::{storage::graph::tprop_storage_ops::TPropOps, view::IntoDynBoxed},
     prelude::Prop,
 };
 use pometry_storage::{

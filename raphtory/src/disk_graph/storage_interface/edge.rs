@@ -3,7 +3,7 @@ use crate::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, EID, ELID},
         storage::timeindex::TimeIndexOps,
     },
-    db::api::storage::edges::edge_storage_ops::EdgeStorageIntoOps,
+    db::api::storage::graph::edges::edge_storage_ops::EdgeStorageIntoOps,
 };
 use pometry_storage::{edge::Edge, edges::Edges, graph::TemporalGraph, timestamps::TimeStamps};
 use raphtory_api::core::storage::timeindex::TimeIndexEntry;

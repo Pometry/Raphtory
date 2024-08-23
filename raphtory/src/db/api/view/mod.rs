@@ -6,8 +6,6 @@ pub mod internal;
 mod layer;
 pub(crate) mod node;
 mod reset_filter;
-#[cfg(feature = "proto")]
-pub mod serialise;
 pub(crate) mod time;
 
 pub(crate) use edge::BaseEdgeViewOps;

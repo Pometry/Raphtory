@@ -7,20 +7,16 @@ edition = "2021"
 
 [dependencies]
 criterion = { workspace = true }
-raphtory = { path = "../raphtory", features = ["io"], version = "0.10.0" }
-raphtory-api = { path = "../raphtory-api", version = "0.10.0" }
-raphtory-graphql = { path = "../raphtory-graphql", version = "0.10.0" }
+raphtory = { path = "../raphtory", features = ["io"], version = "0.11.0" }
+raphtory-api = { path = "../raphtory-api", version = "0.11.0" }
 pometry-storage.workspace = true
 sorted_vector_map = { workspace = true }
 rand = { workspace = true }
 rayon = { workspace = true }
-polars-arrow = { workspace = true }
 tempfile = { workspace = true }
-chrono = { workspace = true }
 clap = { workspace = true }
 csv = { workspace = true }
 flate2 = { workspace = true }
-tokio = { workspace = true }
 
 [[bench]]
 name = "tgraph_benchmarks"

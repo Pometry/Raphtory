@@ -14,7 +14,7 @@ use crate::{
         },
     },
     db::{
-        api::{storage::storage_ops::GraphStorage, view::StaticGraphViewOps},
+        api::{storage::graph::storage_ops::GraphStorage, view::StaticGraphViewOps},
         task::{
             eval_graph::EvalGraph,
             node::{eval_node::EvalNodeView, eval_node_state::EVState},

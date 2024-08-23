@@ -48,7 +48,7 @@ use crate::{
             properties::internal::{
                 InheritStaticPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
-            storage::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
+            storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
             view::{
                 internal::{
                     Base, EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps,

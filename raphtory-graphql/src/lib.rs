@@ -1,4 +1,4 @@
-pub use crate::server::RaphtoryServer;
+pub use crate::server::GraphServer;
 
 pub mod azure_auth;
 mod data;
@@ -666,7 +666,7 @@ mod graphql_test {
         g.add_node(0, 1, NO_PROPS, None).unwrap();
         let tmp_file = tempfile::NamedTempFile::new().unwrap();
         let path = tmp_file.path();
-        g.save_to_file(path).unwrap();
+        g.encode(path).unwrap();
         let file = std::fs::File::open(path).unwrap();
         let upload_val = UploadValue {
             filename: "test".into(),

@@ -1,6 +1,6 @@
 use crate::{
     core::entities::{LayerIds, EID},
-    db::api::storage::variants::layer_variants::LayerVariants,
+    db::api::storage::graph::variants::layer_variants::LayerVariants,
     disk_graph::storage_interface::edge::DiskEdge,
 };
 use pometry_storage::{graph::TemporalGraph, graph_fragment::TempColGraphFragment};

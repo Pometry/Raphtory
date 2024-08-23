@@ -258,7 +258,11 @@ def test_temporal_reachability():
     actual = algorithms.temporally_reachable_nodes(g, 20, 11, [1, 2], [4, 5])
     expected = {
         "1": [(11, "start")],
-        "2": [(11, "start"), (12, "1"), (11, "1")],
+        "2": [
+            (11, "1"),
+            (11, "start"),
+            (12, "1"),
+        ],
         "3": [],
         "4": [(12, "2")],
         "5": [(13, "2")],

@@ -312,7 +312,7 @@ mod cypher {
                 let edge_lists = vec![chunk];
 
                 let graph =
-                    DiskGraphStorage::load_from_edge_lists(&edge_lists, 20, 20, graph_dir, 0, 1, 2)
+                    DiskGraphStorage::load_from_edge_lists(&edge_lists, 20, 20, graph_dir, 2, 0, 1)
                         .unwrap();
 
                 let df = run_cypher("match ()-[e]->() RETURN *", &graph, true)

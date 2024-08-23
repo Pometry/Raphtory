@@ -7,106 +7,33 @@
 #                                                                             #
 ###############################################################################
 
-class GraphqlGraphs:
-    """
-    A class for accessing graphs hosted in a Raphtory GraphQL server and running global search for
-    graph documents
-    """
-
-    def __init__(self):
-        """Initialize self.  See help(type(self)) for accurate signature."""
-
-    def get(self, name):
-        """Return the `VectorisedGraph` with name `name` or `None` if it doesn't exist"""
-
-    def search_graph_documents(self, query, limit, window):
-        """
-        Return the top documents with the smallest cosine distance to `query`
-
-        # Arguments
-          * query - the text or the embedding to score against
-          * limit - the maximum number of documents to return
-          * window - the window where documents need to belong to in order to be considered
-
-        # Returns
-          A list of documents
-        """
-
-    def search_graph_documents_with_scores(self, query, limit, window):
-        """Same as `search_graph_documents` but it also returns the scores alongside the documents"""
-
-class RaphtoryClient:
-    """A client for handling GraphQL operations in the context of Raphtory."""
-
-    def __init__(self, url):
-        """Initialize self.  See help(type(self)) for accurate signature."""
-
-    def load_graphs_from_path(self, path, overwrite=False):
-        """
-        Set the server to load all the graphs from its path `path`.
-
-        Arguments:
-          * `path`: the path to load the graphs from.
-          * `overwrite`: whether or not to overwrite existing graphs (defaults to False)
-
-        Returns:
-           The `data` field from the graphQL response after executing the mutation.
-        """
-
-    def query(self, query, variables=None):
-        """
-        Make a graphQL query against the server.
-
-        Arguments:
-          * `query`: the query to make.
-          * `variables`: a dict of variables present on the query and their values.
-
-        Returns:
-           The `data` field from the graphQL response.
-        """
-
-    def send_graph(self, name, graph):
-        """
-        Send a graph to the server.
-
-        Arguments:
-          * `name`: the name of the graph sent.
-          * `graph`: the graph to send.
-
-        Returns:
-           The `data` field from the graphQL response after executing the mutation.
-        """
-
-    def wait_for_online(self, millis=None):
-        """
-        Wait for the server to be online.
-
-        Arguments:
-          * `millis`: the minimum number of milliseconds to wait (default 5000).
-        """
-
-class RaphtoryServer:
+class GraphServer:
     """A class for defining and running a Raphtory GraphQL server"""
 
-    def __init__(self, graphs=None, graph_dir=None):
+    def __init__(
+        self,
+        work_dir,
+        cache_capacity=None,
+        cache_tti_seconds=None,
+        log_level=None,
+        config_path=None,
+    ):
         """Initialize self.  See help(type(self)) for accurate signature."""
-
-    def run(self, port=1736, log_level=..., enable_tracing=False, enable_auth=False):
+    def run(self, port=1736, timeout_ms=...):
         """
         Run the server until completion.
 
         Arguments:
           * `port`: the port to use (defaults to 1736).
         """
-
-    def start(self, port=1736, log_level=..., enable_tracing=False, enable_auth=False):
+    def start(self, port=1736, timeout_ms=None):
         """
         Start the server and return a handle to it.
 
         Arguments:
           * `port`: the port to use (defaults to 1736).
+          * `timeout_ms`: wait for server to be online (defaults to 5000). The server is stopped if not online within timeout_ms but manages to come online as soon as timeout_ms finishes!
         """
-
     def with_document_search_function(self, name, input, function):
         """
         Register a function in the GraphQL schema for document search over a graph.
@@ -124,7 +51,6 @@ class RaphtoryServer:
         Returns:
            A new server object containing the vectorised graphs.
         """
-
     def with_global_search_function(self, name, input, function):
         """
         Register a function in the GraphQL schema for document search among all the graphs.
@@ -142,8 +68,15 @@ class RaphtoryServer:
         Returns:
            A new server object containing the vectorised graphs.
         """
-
-    def with_vectorised(self, cache, graph_names=None, embedding=None, graph_document=None, node_document=None, edge_document=None):
+    def with_vectorised(
+        self,
+        cache,
+        graph_names=None,
+        embedding=None,
+        graph_document=None,
+        node_document=None,
+        edge_document=None,
+    ):
         """
         Vectorise a subset of the graphs of the server.
 
@@ -163,24 +96,75 @@ class RaphtoryServer:
            A new server object containing the vectorised graphs.
         """
 
-class RunningRaphtoryServer:
-    """A Raphtory server handler that also enables querying the server"""
+class GraphqlGraphs:
+    """
+    A class for accessing graphs hosted in a Raphtory GraphQL server and running global search for
+    graph documents
+    """
 
     def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
-
-    def load_graphs_from_path(self, path, overwrite=False):
+    def get(self, name):
+        """Return the `VectorisedGraph` with name `name` or `None` if it doesn't exist"""
+    def search_graph_documents(self, query, limit, window):
         """
-        Set the server to load all the graphs from its path `path`.
+        Return the top documents with the smallest cosine distance to `query`
+
+        # Arguments
+          * query - the text or the embedding to score against
+          * limit - the maximum number of documents to return
+          * window - the window where documents need to belong to in order to be considered
+
+        # Returns
+          A list of documents
+        """
+    def search_graph_documents_with_scores(self, query, limit, window):
+        """Same as `search_graph_documents` but it also returns the scores alongside the documents"""
+
+class RaphtoryClient:
+    """A client for handling GraphQL operations in the context of Raphtory."""
+
+    def __init__(self, url):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def copy_graph(self, path, new_path):
+        """
+        Copy graph from a path `path` on the server to a `new_path` on the server
 
         Arguments:
-          * `path`: the path to load the graphs from.
-          * `overwrite`: whether or not to overwrite existing graphs (defaults to False)
+          * `path`: the path of the graph to be copied
+          * `new_path`: the new path of the copied graph
 
         Returns:
-           The `data` field from the graphQL response after executing the mutation.
+           Copy status as boolean
         """
+    def delete_graph(self, path):
+        """
+        Delete graph from a path `path` on the server
 
+        Arguments:
+          * `path`: the path of the graph to be deleted
+
+        Returns:
+           Delete status as boolean
+        """
+    def is_server_online(self):
+        """
+        Check if the server is online.
+
+        Returns:
+           Returns true if server is online otherwise false.
+        """
+    def move_graph(self, path, new_path):
+        """
+        Move graph from a path `path` on the server to a `new_path` on the server
+
+        Arguments:
+          * `path`: the path of the graph to be moved
+          * `new_path`: the new path of the moved graph
+
+        Returns:
+           Move status as boolean
+        """
     def query(self, query, variables=None):
         """
         Make a graphQL query against the server.
@@ -192,29 +176,46 @@ class RunningRaphtoryServer:
         Returns:
            The `data` field from the graphQL response.
         """
-
-    def send_graph(self, name, graph):
+    def receive_graph(self, path):
         """
-        Send a graph to the server.
+        Receive graph from a path `path` on the server
 
         Arguments:
-          * `name`: the name of the graph sent.
-          * `graph`: the graph to send.
+          * `path`: the path of the graph to be received
+
+        Returns:
+           Graph as string
+        """
+    def send_graph(self, path, graph, overwrite=False):
+        """
+        Send a graph to the server
+
+        Arguments:
+          * `path`: the path of the graph
+          * `graph`: the graph to send
+          * `overwrite`: overwrite existing graph (defaults to False)
+
+        Returns:
+           The `data` field from the graphQL response after executing the mutation.
+        """
+    def upload_graph(self, path, file_path, overwrite=False):
+        """
+        Upload graph file from a path `file_path` on the client
+
+        Arguments:
+          * `path`: the name of the graph
+          * `file_path`: the path of the graph on the client
+          * `overwrite`: overwrite existing graph (defaults to False)
 
         Returns:
            The `data` field from the graphQL response after executing the mutation.
         """
 
+class RunningGraphServer:
+    """A Raphtory server handler that also enables querying the server"""
+
+    def __init__(self):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def get_client(self): ...
     def stop(self):
-        """Stop the server."""
-
-    def wait(self):
-        """Wait until server completion."""
-
-    def wait_for_online(self, timeout_millis=None):
-        """
-        Wait for the server to be online.
-
-        Arguments:
-          * `timeout_millis`: the timeout in milliseconds (default 5000).
-        """
+        """Stop the server and wait for it to finish"""

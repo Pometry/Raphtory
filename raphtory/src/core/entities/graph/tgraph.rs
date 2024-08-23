@@ -19,14 +19,14 @@ use crate::{
         utils::errors::GraphError,
         Direction, Prop,
     },
-    db::api::{storage::edges::edge_storage_ops::EdgeStorageOps, view::Layer},
+    db::api::{storage::graph::edges::edge_storage_ops::EdgeStorageOps, view::Layer},
 };
 use dashmap::DashSet;
 use itertools::Itertools;
 use raphtory_api::core::{
     entities::{edges::edge_ref::EdgeRef, GidRef},
     input::input_node::InputNode,
-    storage::arc_str::ArcStr,
+    storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
 };
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
@@ -98,10 +98,10 @@ impl TemporalGraph {
         }
     }
 
-    pub(crate) fn process_prop_value(&self, prop: Prop) -> Prop {
+    pub(crate) fn process_prop_value(&self, prop: &Prop) -> Prop {
         match prop {
             Prop::Str(value) => Prop::Str(self.resolve_str(value)),
-            _ => prop,
+            _ => prop.clone(),
         }
     }
 
@@ -365,15 +365,15 @@ impl TemporalGraph {
         t: TimeIndexEntry,
         layer: usize,
         edge_fn: F,
-    ) -> Result<EID, GraphError> {
+    ) -> Result<MaybeNew<EID>, GraphError> {
         let mut node_pair = self.storage.pair_node_mut(src_id, dst_id);
         let src = node_pair.get_i();
         let mut edge = match src.find_edge_eid(dst_id, &LayerIds::All) {
-            Some(edge_id) => self.storage.get_edge_mut(edge_id),
-            None => self.storage.push_edge(EdgeStore::new(src_id, dst_id)),
+            Some(edge_id) => MaybeNew::Existing(self.storage.get_edge_mut(edge_id)),
+            None => MaybeNew::New(self.storage.push_edge(EdgeStore::new(src_id, dst_id))),
         };
-        self.link_nodes_inner(&mut node_pair, &mut edge, t, layer, edge_fn)?;
-        Ok(edge.edge_store().eid)
+        self.link_nodes_inner(&mut node_pair, edge.as_mut().inner(), t, layer, edge_fn)?;
+        Ok(edge.map(|e| e.edge_store().eid))
     }
 
     pub(crate) fn resolve_node_ref(&self, v: NodeRef) -> Option<VID> {
@@ -389,18 +389,15 @@ impl TemporalGraph {
 
     /// Checks if the same string value already exists and returns a pointer to the same existing value if it exists,
     /// otherwise adds the string to the pool.
-    fn resolve_str(&self, value: ArcStr) -> ArcStr {
-        match self.string_pool.get(&value) {
+    fn resolve_str(&self, value: &ArcStr) -> ArcStr {
+        match self.string_pool.get(value) {
             Some(value) => value.clone(),
             None => {
-                if self.string_pool.insert(value.clone()) {
-                    value
-                } else {
-                    self.string_pool
-                        .get(&value)
-                        .expect("value exists due to insert above returning false")
-                        .clone()
-                }
+                self.string_pool.insert(value.clone());
+                self.string_pool
+                    .get(value)
+                    .expect("value should exist as inserted above")
+                    .clone()
             }
         }
     }
