@@ -33,7 +33,7 @@ def floats_are_equals(float1: float, float2: float) -> bool:
 #
 #        edge1 (2d)
 #      ╭─────── node2
-#    node1 (2 docs)
+#    node1 (2d)
 #      ╰─────── node3  ───── node4
 #           edge2             edge3
 #
