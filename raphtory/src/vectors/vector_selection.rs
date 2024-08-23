@@ -8,8 +8,7 @@ use crate::{
         api::view::{DynamicGraph, StaticGraphViewOps},
         graph::{edge::EdgeView, node::NodeView},
     },
-    prelude::*,
-    prelude::{EdgeViewOps, NodeViewOps},
+    prelude::{EdgeViewOps, NodeViewOps, *},
 };
 
 use super::{
