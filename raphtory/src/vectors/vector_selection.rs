@@ -155,107 +155,6 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorSelection<G, T> {
         }
     }
 
-    // /// Add all the documents from `nodes` and `edges` to the current selection
-    // ///
-    // /// Documents added by this call are assumed to have a score of 0.
-    // ///
-    // /// # Arguments
-    // ///   * nodes - a list of the node ids or nodes to add
-    // ///   * edges - a list of the edge ids or edges to add
-    // ///
-    // /// # Returns
-    // ///   A new vectorised graph containing the updated selection
-    // pub fn append<V: AsNodeRef>(&mut self, nodes: Vec<V>, edges: Vec<(V, V)>) {
-    //     let node_docs = nodes.into_iter().flat_map(|id| {
-    //         let node = self.source_graph.node(id);
-    //         let opt = node.map(|node| self.node_documents.get(&EntityId::from_node(&node)));
-    //         opt.flatten().unwrap_or(&self.empty_vec)
-    //     });
-    //     let edge_docs = edges.into_iter().flat_map(|(src, dst)| {
-    //         let edge = self.source_graph.edge(src, dst);
-    //         let opt = edge.map(|edge| self.edge_documents.get(&EntityId::from_edge(&edge)));
-    //         opt.flatten().unwrap_or(&self.empty_vec)
-    //     });
-    //     let new_selected = chain!(node_docs, edge_docs).map(|doc| (doc.clone(), 0.0));
-    //     Self {
-    //         selected_docs: extend_selection(self.selected_docs.clone(), new_selected, usize::MAX),
-    //         ..self.clone()
-    //     }
-    // }
-
-    // /// Add all the documents for this graph to the current selection
-    // ///
-    // /// Documents added by this call are assumed to have a score of 0.
-    // ///
-    // /// # Returns
-    // ///   A new vectorised graph containing the updated selection
-    // pub fn append_graph_documents(&self) -> Self {
-    //     let graph_documents = self.graph_documents.iter().map(|doc| (doc.clone(), 0.0));
-    //     Self {
-    //         selected_docs: extend_selection(
-    //             self.selected_docs.clone(),
-    //             graph_documents,
-    //             usize::MAX,
-    //         ),
-    //         ..self.clone()
-    //     }
-    // }
-
-    // /// Add the top `limit` documents to the current selection using `query`
-    // ///
-    // /// # Arguments
-    // ///   * query - the text or the embedding to score against
-    // ///   * limit - the maximum number of new documents to add
-    // ///   * window - the window where documents need to belong to in order to be considered
-    // ///
-    // /// # Returns
-    // ///   A new vectorised graph containing the updated selection
-    // pub fn append_by_similarity(
-    //     &self,
-    //     query: &Embedding,
-    //     limit: usize,
-    //     window: Option<(i64, i64)>,
-    // ) -> Self {
-    //     let joined = chain!(self.node_documents.iter(), self.edge_documents.iter());
-    //     self.add_top_documents(joined, query, limit, window)
-    // }
-
-    // /// Add the top `limit` node documents to the current selection using `query`
-    // ///
-    // /// # Arguments
-    // ///   * query - the text or the embedding to score against
-    // ///   * limit - the maximum number of new documents to add
-    // ///   * window - the window where documents need to belong to in order to be considered
-    // ///
-    // /// # Returns
-    // ///   A new vectorised graph containing the updated selection
-    // pub fn append_nodes_by_similarity(
-    //     &self,
-    //     query: &Embedding,
-    //     limit: usize,
-    //     window: Option<(i64, i64)>,
-    // ) -> Self {
-    //     self.add_top_documents(self.node_documents.as_ref(), query, limit, window)
-    // }
-
-    // /// Add the top `limit` edge documents to the current selection using `query`
-    // ///
-    // /// # Arguments
-    // ///   * query - the text or the embedding to score against
-    // ///   * limit - the maximum number of new documents to add
-    // ///   * window - the window where documents need to belong to in order to be considered
-    // ///
-    // /// # Returns
-    // ///   A new vectorised graph containing the updated selection
-    // pub fn append_edges_by_similarity(
-    //     &self,
-    //     query: &Embedding,
-    //     limit: usize,
-    //     window: Option<(i64, i64)>,
-    // ) -> Self {
-    //     self.add_top_documents(self.edge_documents.as_ref(), query, limit, window)
-    // }
-
     /// Add all the documents `hops` hops away to the selection
     ///
     /// Two documents A and B are considered to be 1 hop away of each other if they are on the same
@@ -506,7 +405,6 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorSelection<G, T> {
             self.selected_docs =
                 self.extend_selection_with_groups(top_sorted_candidates, total_entity_limit);
 
-            // TODO: this is wrong in this case
             let new_remaining = total_entity_limit - self.get_selected_entity_len();
             if new_remaining == remaining {
                 break; // TODO: try to move this to the top condition
@@ -587,86 +485,6 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorSelection<G, T> {
             }
         }
     }
-
-    // // this might return the document used as input, uniqueness need to be check outside of this
-    // fn get_entity_context<'a, W: StaticGraphViewOps>(
-    //     &'a self,
-    //     document: &DocumentRef,
-    //     windowed_graph: &'a W,
-    //     window: Option<(i64, i64)>,
-    // ) -> Box<dyn Iterator<Item = Vec<&'a DocumentRef>> + '_> {
-    //     // TODO: try to turn the vec into an iter...?
-    //     match &document.entity_id {
-    //         EntityId::Graph { .. } => Box::new(std::iter::empty()),
-    //         EntityId::Node { id } => {
-    //             // let self_docs = self // TODO: bring back maybe?
-    //             //     .graph
-    //             //     .node_documents
-    //             //     .get(&document.entity_id)
-    //             //     .unwrap_or(&self.graph.empty_vec);
-    //             match windowed_graph.node(id) {
-    //                 None => Box::new(std::iter::empty()),
-    //                 Some(node) => {
-    //                     let edges = node.edges();
-    //                     let edge_doc_groups = edges.iter().map(move |edge| {
-    //                         let edge_id = EntityId::from_edge(&edge);
-    //                         let edge_docs = self
-    //                             .graph
-    //                             .edge_documents
-    //                             .get(&edge_id)
-    //                             .unwrap_or(&self.graph.empty_vec);
-
-    //                         let filtered_docs = edge_docs
-    //                             .iter()
-    //                             .filter(|doc| doc.exists_on_window(Some(windowed_graph), window));
-    //                         filtered_docs.collect_vec()
-    //                     });
-    //                     Box::new(edge_doc_groups.filter(|group| group.len() > 0))
-    //                 }
-    //             }
-    //         }
-    //         EntityId::Edge { src, dst } => {
-    //             // let self_docs = self
-    //             //     .graph
-    //             //     .edge_documents
-    //             //     .get(&document.entity_id)
-    //             //     .unwrap_or(&self.graph.empty_vec);
-    //             match windowed_graph.edge(src, dst) {
-    //                 None => Box::new(std::iter::empty()),
-    //                 Some(edge) => {
-    //                     // FIXME: some boilerplate across this and the Node pattern match
-    //                     let src_id = EntityId::from_node(&edge.src());
-    //                     let src_docs = self
-    //                         .graph
-    //                         .node_documents
-    //                         .get(&src_id)
-    //                         .unwrap_or(&self.graph.empty_vec);
-    //                     let filtered_src_docs = src_docs
-    //                         .iter()
-    //                         .filter(|doc| doc.exists_on_window(Some(windowed_graph), window))
-    //                         .collect_vec();
-
-    //                     let dst_id = EntityId::from_node(&edge.dst());
-    //                     let dst_docs = self
-    //                         .graph
-    //                         .node_documents
-    //                         .get(&dst_id)
-    //                         .unwrap_or(&self.graph.empty_vec);
-    //                     let filtered_dst_docs = dst_docs
-    //                         .iter()
-    //                         .filter(|doc| doc.exists_on_window(Some(windowed_graph), window))
-    //                         .collect_vec();
-
-    //                     Box::new(
-    //                         [filtered_src_docs, filtered_dst_docs]
-    //                             .into_iter()
-    //                             .filter(|group| group.len() > 0),
-    //                     )
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
 
     fn nodes_into_document_groups<'a, W: StaticGraphViewOps>(
         &'a self,
