@@ -27,6 +27,7 @@ use std::{
     sync::Arc,
 };
 use walkdir::WalkDir;
+use crate::model::create_dirs_if_not_present;
 
 pub struct Data {
     pub(crate) work_dir: PathBuf,
@@ -74,6 +75,10 @@ impl Data {
 
     pub fn new_graph(&self, path: &Path, graph_type: GqlGraphType) -> Result<(), GraphError> {
         let full_path = self.construct_graph_full_path(path)?;
+        if full_path.exists() {
+            return Err(GraphError::GraphNameAlreadyExists(path.to_path_buf()).into());
+        }
+        create_dirs_if_not_present(&full_path)?;
         let mut cache = File::create_new(full_path)?;
         match graph_type {
             GqlGraphType::Persistent => {

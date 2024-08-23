@@ -4,7 +4,6 @@ use raphtory::{
     core::utils::errors::GraphError,
     db::{
         api::{
-            mutation::{internal::InternalAdditionOps, time_from_input},
             view::MaterializedGraph,
         },
         graph::{edge::EdgeView, node::NodeView},
@@ -24,15 +23,15 @@ pub struct GqlPropInput {
 #[derive(InputObject)]
 pub struct TPropInput {
     time: i64,
-    props: Vec<GqlPropInput>,
+    properties: Option<Vec<GqlPropInput>>,
 }
 
 #[derive(InputObject)]
 pub struct NodeAddition {
     name: String,
     node_type: Option<String>,
-    cprops: Vec<GqlPropInput>,
-    tprops: Vec<TPropInput>,
+    constant_properties: Option<Vec<GqlPropInput>>,
+    updates: Option<Vec<TPropInput>>,
 }
 
 #[derive(InputObject)]
@@ -40,8 +39,8 @@ pub struct EdgeAddition {
     src: String,
     dst: String,
     layer: Option<String>,
-    cprops: Vec<GqlPropInput>,
-    tprops: Vec<TPropInput>,
+    constant_properties: Option<Vec<GqlPropInput>>,
+    updates: Option<Vec<TPropInput>>,
 }
 
 #[derive(ResolvedObject)]
@@ -95,16 +94,17 @@ impl GqlMutableGraph {
         for node in nodes {
             let name = node.name.as_str();
             let node_type = node.node_type.as_str();
-            for prop in node.tprops {
+            for prop in node.updates.unwrap_or(vec![]){
                 self.graph
-                    .add_node(prop.time, name, as_props(prop.props), node_type)?;
+                    .add_node(prop.time, name, as_properties(prop.properties.unwrap_or(vec![])), node_type)?;
             }
-            if !node.cprops.is_empty() {
+            let constant_props = node.constant_properties.unwrap_or(vec![]);
+            if !constant_props.is_empty() {
                 let node_view = self
                     .graph
                     .node(name)
                     .ok_or(GraphError::NodeNameError(node.name))?;
-                node_view.add_constant_properties(as_props(node.cprops))?;
+                node_view.add_constant_properties(as_properties(constant_props))?;
             }
         }
         self.graph.write_updates()?;
@@ -138,16 +138,17 @@ impl GqlMutableGraph {
             let src = edge.src.as_str();
             let dst = edge.dst.as_str();
             let layer = edge.layer.as_str();
-            for prop in edge.tprops {
+            for prop in edge.updates.unwrap_or(vec![]) {
                 self.graph
-                    .add_edge(prop.time, src, dst, as_props(prop.props), layer)?;
+                    .add_edge(prop.time, src, dst, as_properties(prop.properties.unwrap_or(vec![])), layer)?;
             }
-            if !edge.cprops.is_empty() {
+            let constant_props=edge.constant_properties.unwrap_or(vec![]);
+            if !constant_props.is_empty() {
                 let edge_view = self.graph.edge(src, dst).ok_or(GraphError::EdgeNameError {
                     src: edge.src,
                     dst: edge.dst,
                 })?;
-                edge_view.add_constant_properties(as_props(edge.cprops), layer)?;
+                edge_view.add_constant_properties(as_properties(constant_props), layer)?;
             }
         }
         self.graph.write_updates()?;

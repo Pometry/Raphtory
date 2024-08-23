@@ -6,7 +6,7 @@ import time
 
 import pytest
 
-from raphtory.graphql import RaphtoryServer, RaphtoryClient
+from raphtory.graphql import GraphServer, RaphtoryClient
 from raphtory import graph_loader
 from raphtory import Graph
 import json
@@ -21,7 +21,7 @@ def test_failed_server_start_in_time():
     server = None
     try:
         with pytest.raises(Exception) as excinfo:
-            server = RaphtoryServer(tmp_work_dir).start(timeout_ms=1)
+            server = GraphServer(tmp_work_dir).start(timeout_ms=1)
         assert str(excinfo.value) == "Failed to start server in 1 milliseconds"
     finally:
         if server:
@@ -30,7 +30,7 @@ def test_failed_server_start_in_time():
 
 def test_successful_server_start_in_time():
     tmp_work_dir = tempfile.mkdtemp()
-    server = RaphtoryServer(tmp_work_dir).start(timeout_ms=3000)
+    server = GraphServer(tmp_work_dir).start(timeout_ms=3000)
     client = server.get_client()
     assert client.is_server_online()
     server.stop()
@@ -44,7 +44,7 @@ def test_server_start_on_default_port():
     g.add_edge(3, "ben", "haaroon")
 
     tmp_work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(tmp_work_dir).start():
+    with GraphServer(tmp_work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
         client.send_graph(path="g", graph=g)
 
@@ -65,7 +65,7 @@ def test_server_start_on_custom_port():
     g.add_edge(3, "ben", "haaroon")
 
     tmp_work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(tmp_work_dir).start(port=1737):
+    with GraphServer(tmp_work_dir).start(port=1737):
         client = RaphtoryClient("http://localhost:1737")
         client.send_graph(path="g", graph=g)
 
@@ -86,7 +86,7 @@ def test_send_graph_succeeds_if_no_graph_found_with_same_name():
     g.add_edge(3, "ben", "haaroon")
 
     tmp_work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(tmp_work_dir).start():
+    with GraphServer(tmp_work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
         client.send_graph(path="g", graph=g)
 
@@ -100,7 +100,7 @@ def test_send_graph_fails_if_graph_already_exists():
     g.add_edge(3, "ben", "haaroon")
     g.save_to_file(os.path.join(tmp_work_dir, "g"))
 
-    with RaphtoryServer(tmp_work_dir).start():
+    with GraphServer(tmp_work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path="g", graph=g)
@@ -116,7 +116,7 @@ def test_send_graph_succeeds_if_graph_already_exists_with_overwrite_enabled():
     g.add_edge(3, "ben", "haaroon")
     g.save_to_file(os.path.join(tmp_work_dir, "g"))
 
-    with RaphtoryServer(tmp_work_dir).start():
+    with GraphServer(tmp_work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
 
         g = Graph()
@@ -148,7 +148,7 @@ def test_send_graph_succeeds_if_no_graph_found_with_same_name_at_namespace():
     g.add_edge(3, "ben", "haaroon")
 
     tmp_work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(tmp_work_dir).start():
+    with GraphServer(tmp_work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
         client.send_graph(path="shivam/g", graph=g)
 
@@ -163,7 +163,7 @@ def test_send_graph_fails_if_graph_already_exists_at_namespace():
     os.makedirs(os.path.join(tmp_work_dir, "shivam"), exist_ok=True)
     g.save_to_file(os.path.join(tmp_work_dir, "shivam", "g"))
 
-    with RaphtoryServer(tmp_work_dir).start():
+    with GraphServer(tmp_work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path="shivam/g", graph=g)
@@ -180,7 +180,7 @@ def test_send_graph_succeeds_if_graph_already_exists_at_namespace_with_overwrite
     os.makedirs(os.path.join(tmp_work_dir, "shivam"), exist_ok=True)
     g.save_to_file(os.path.join(tmp_work_dir, "shivam", "g"))
 
-    with RaphtoryServer(tmp_work_dir).start():
+    with GraphServer(tmp_work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
 
         g = Graph()
@@ -223,7 +223,7 @@ def test_namespaces():
 
     path = "g"
     tmp_work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(tmp_work_dir).start():
+    with GraphServer(tmp_work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
 
         # Default namespace, graph is saved in the work dir
@@ -315,7 +315,7 @@ def test_upload_graph_succeeds_if_no_graph_found_with_same_name():
     g.save_to_file(g_file_path)
 
     tmp_work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(tmp_work_dir).start():
+    with GraphServer(tmp_work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
         client.upload_graph(path="g", file_path=g_file_path, overwrite=False)
 
@@ -340,7 +340,7 @@ def test_upload_graph_fails_if_graph_already_exists():
 
     tmp_work_dir = tempfile.mkdtemp()
     g.save_to_file(os.path.join(tmp_work_dir, "g"))
-    with RaphtoryServer(tmp_work_dir).start():
+    with GraphServer(tmp_work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
         with pytest.raises(Exception) as excinfo:
             client.upload_graph(path="g", file_path=g_file_path)
@@ -357,7 +357,7 @@ def test_upload_graph_succeeds_if_graph_already_exists_with_overwrite_enabled():
     g.save_to_file(g_file_path)
 
     tmp_work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(tmp_work_dir).start():
+    with GraphServer(tmp_work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
 
         g = Graph()
@@ -397,7 +397,7 @@ def test_upload_graph_succeeds_if_no_graph_found_with_same_name_at_namespace():
     g.save_to_file(g_file_path)
 
     tmp_work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(tmp_work_dir).start():
+    with GraphServer(tmp_work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
         client.upload_graph(path="shivam/g", file_path=g_file_path, overwrite=False)
 
@@ -423,7 +423,7 @@ def test_upload_graph_fails_if_graph_already_exists_at_namespace():
     tmp_work_dir = tempfile.mkdtemp()
     os.makedirs(os.path.join(tmp_work_dir, "shivam"), exist_ok=True)
     g.save_to_file(os.path.join(tmp_work_dir, "shivam", "g"))
-    with RaphtoryServer(tmp_work_dir).start():
+    with GraphServer(tmp_work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
         with pytest.raises(Exception) as excinfo:
             client.upload_graph(path="shivam/g", file_path=g_file_path, overwrite=False)
@@ -439,7 +439,7 @@ def test_upload_graph_succeeds_if_graph_already_exists_at_namespace_with_overwri
     os.makedirs(os.path.join(tmp_work_dir, "shivam"), exist_ok=True)
     g.save_to_file(os.path.join(tmp_work_dir, "shivam", "g"))
 
-    with RaphtoryServer(tmp_work_dir).start():
+    with GraphServer(tmp_work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
 
         g = Graph()
@@ -470,7 +470,7 @@ def test_upload_graph_succeeds_if_graph_already_exists_at_namespace_with_overwri
 
 def test_get_graph_fails_if_graph_not_found():
     work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
 
         query = """{ graph(path: "g1") { name, path, nodes { list { name } } } }"""
@@ -481,7 +481,7 @@ def test_get_graph_fails_if_graph_not_found():
 
 def test_get_graph_fails_if_graph_not_found_at_namespace():
     work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
 
         query = (
@@ -494,7 +494,7 @@ def test_get_graph_fails_if_graph_not_found_at_namespace():
 
 def test_get_graph_succeeds_if_graph_found():
     work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
 
         g = Graph()
@@ -519,7 +519,7 @@ def test_get_graph_succeeds_if_graph_found():
 
 def test_get_graph_succeeds_if_graph_found_at_namespace():
     work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
 
         g = Graph()
@@ -543,7 +543,7 @@ def test_get_graph_succeeds_if_graph_found_at_namespace():
 
 def test_get_graphs_returns_emtpy_list_if_no_graphs_found():
     work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
 
         # Assert if no graphs are discoverable
@@ -553,7 +553,7 @@ def test_get_graphs_returns_emtpy_list_if_no_graphs_found():
 
 def test_get_graphs_returns_graph_list_if_graphs_found():
     work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
 
         g = Graph()
@@ -585,7 +585,7 @@ def test_get_graphs_returns_graph_list_if_graphs_found():
 
 def test_receive_graph_fails_if_no_graph_found():
     work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
 
         query = """{ receiveGraph(path: "g2") }"""
@@ -596,7 +596,7 @@ def test_receive_graph_fails_if_no_graph_found():
 
 def test_receive_graph_succeeds_if_graph_found():
     work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
 
         g = Graph()
@@ -616,7 +616,7 @@ def test_receive_graph_succeeds_if_graph_found():
 
 def test_receive_graph_using_client_api_succeeds_if_graph_found():
     work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
 
         g = Graph()
@@ -631,7 +631,7 @@ def test_receive_graph_using_client_api_succeeds_if_graph_found():
 
 def test_receive_graph_fails_if_no_graph_found_at_namespace():
     work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
 
         query = """{ receiveGraph(path: "shivam/g2") }"""
@@ -642,7 +642,7 @@ def test_receive_graph_fails_if_no_graph_found_at_namespace():
 
 def test_receive_graph_succeeds_if_graph_found_at_namespace():
     work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
 
         g = Graph()
@@ -664,7 +664,7 @@ def test_receive_graph_succeeds_if_graph_found_at_namespace():
 
 def test_move_graph_fails_if_graph_not_found():
     work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(work_dir).start():
+    with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
 
         query = """mutation {
@@ -689,7 +689,7 @@ def test_move_graph_fails_if_graph_with_same_name_already_exists():
     g.save_to_file(os.path.join(work_dir, "ben", "g5"))
     g.save_to_file(os.path.join(work_dir, "g6"))
 
-    with RaphtoryServer(work_dir).start():
+    with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
 
         query = """mutation {
@@ -714,7 +714,7 @@ def test_move_graph_fails_if_graph_with_same_name_already_exists_at_same_namespa
     g.save_to_file(os.path.join(work_dir, "ben", "g5"))
     g.save_to_file(os.path.join(work_dir, "ben", "g6"))
 
-    with RaphtoryServer(work_dir).start():
+    with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
 
         query = """mutation {
@@ -740,7 +740,7 @@ def test_move_graph_fails_if_graph_with_same_name_already_exists_at_diff_namespa
     g.save_to_file(os.path.join(work_dir, "ben", "g5"))
     g.save_to_file(os.path.join(work_dir, "shivam", "g6"))
 
-    with RaphtoryServer(work_dir).start():
+    with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
 
         query = """mutation {
@@ -764,7 +764,7 @@ def test_move_graph_succeeds():
     os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
     g.save_to_file(os.path.join(work_dir, "shivam", "g3"))
 
-    with RaphtoryServer(work_dir).start():
+    with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
 
         # Assert if rename graph succeeds and old graph is deleted
@@ -816,7 +816,7 @@ def test_move_graph_using_client_api_succeeds():
     os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
     g.save_to_file(os.path.join(work_dir, "shivam", "g3"))
 
-    with RaphtoryServer(work_dir).start():
+    with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
 
         # Assert if rename graph succeeds and old graph is deleted
@@ -863,7 +863,7 @@ def test_move_graph_succeeds_at_same_namespace_as_graph():
 
     g.save_to_file(os.path.join(work_dir, "shivam", "g3"))
 
-    with RaphtoryServer(work_dir).start():
+    with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
 
         # Assert if rename graph succeeds and old graph is deleted
@@ -917,7 +917,7 @@ def test_move_graph_succeeds_at_diff_namespace_as_graph():
 
     g.save_to_file(os.path.join(work_dir, "ben", "g3"))
 
-    with RaphtoryServer(work_dir).start():
+    with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
 
         # Assert if rename graph succeeds and old graph is deleted
@@ -961,7 +961,7 @@ def test_move_graph_succeeds_at_diff_namespace_as_graph():
 
 def test_copy_graph_fails_if_graph_not_found():
     work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(work_dir).start():
+    with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
 
         query = """mutation {
@@ -986,7 +986,7 @@ def test_copy_graph_fails_if_graph_with_same_name_already_exists():
     g.save_to_file(os.path.join(work_dir, "ben", "g5"))
     g.save_to_file(os.path.join(work_dir, "g6"))
 
-    with RaphtoryServer(work_dir).start():
+    with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
 
         query = """mutation {
@@ -1011,7 +1011,7 @@ def test_copy_graph_fails_if_graph_with_same_name_already_exists_at_same_namespa
     g.save_to_file(os.path.join(work_dir, "ben", "g5"))
     g.save_to_file(os.path.join(work_dir, "ben", "g6"))
 
-    with RaphtoryServer(work_dir).start():
+    with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
 
         query = """mutation {
@@ -1037,7 +1037,7 @@ def test_copy_graph_fails_if_graph_with_same_name_already_exists_at_diff_namespa
     g.save_to_file(os.path.join(work_dir, "ben", "g5"))
     g.save_to_file(os.path.join(work_dir, "shivam", "g6"))
 
-    with RaphtoryServer(work_dir).start():
+    with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
 
         query = """mutation {
@@ -1061,7 +1061,7 @@ def test_copy_graph_succeeds():
     os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
     g.save_to_file(os.path.join(work_dir, "shivam", "g3"))
 
-    with RaphtoryServer(work_dir).start():
+    with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
 
         # Assert if copy graph succeeds and old graph is retained
@@ -1111,7 +1111,7 @@ def test_copy_graph_using_client_api_succeeds():
     os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
     g.save_to_file(os.path.join(work_dir, "shivam", "g3"))
 
-    with RaphtoryServer(work_dir).start():
+    with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
 
         # Assert if copy graph succeeds and old graph is retained
@@ -1156,7 +1156,7 @@ def test_copy_graph_succeeds_at_same_namespace_as_graph():
 
     g.save_to_file(os.path.join(work_dir, "shivam", "g3"))
 
-    with RaphtoryServer(work_dir).start():
+    with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
 
         # Assert if rename graph succeeds and old graph is deleted
@@ -1208,7 +1208,7 @@ def test_copy_graph_succeeds_at_diff_namespace_as_graph():
 
     g.save_to_file(os.path.join(work_dir, "ben", "g3"))
 
-    with RaphtoryServer(work_dir).start():
+    with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
 
         # Assert if rename graph succeeds and old graph is deleted
@@ -1250,7 +1250,7 @@ def test_copy_graph_succeeds_at_diff_namespace_as_graph():
 
 def test_delete_graph_fails_if_graph_not_found():
     work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(work_dir).start():
+    with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
 
         query = """mutation {
@@ -1265,7 +1265,7 @@ def test_delete_graph_fails_if_graph_not_found():
 
 def test_delete_graph_succeeds_if_graph_found():
     work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(work_dir).start():
+    with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
 
         g = Graph()
@@ -1290,7 +1290,7 @@ def test_delete_graph_succeeds_if_graph_found():
 
 def test_delete_graph_using_client_api_succeeds_if_graph_found():
     work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(work_dir).start():
+    with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
 
         g = Graph()
@@ -1309,7 +1309,7 @@ def test_delete_graph_using_client_api_succeeds_if_graph_found():
 
 def test_delete_graph_succeeds_if_graph_found_at_namespace():
     work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(work_dir).start():
+    with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
 
         g = Graph()
@@ -1334,7 +1334,7 @@ def test_delete_graph_succeeds_if_graph_found_at_namespace():
 
 def test_create_graph_fail_if_parent_graph_not_found():
     work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
         query = """mutation {
             createGraph(
@@ -1352,7 +1352,7 @@ def test_create_graph_fail_if_parent_graph_not_found():
 
 def test_create_graph_fail_if_parent_graph_not_found_at_namespace():
     work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
         query = """mutation {
             createGraph(
@@ -1375,7 +1375,7 @@ def test_create_graph_fail_if_graph_already_exists():
     g.save_to_file(os.path.join(work_dir, "g0"))
     g.save_to_file(os.path.join(work_dir, "g3"))
 
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
         query = """mutation {
             createGraph(
@@ -1399,7 +1399,7 @@ def test_create_graph_fail_if_graph_already_exists_at_namespace():
     g.save_to_file(os.path.join(work_dir, "g0"))
     g.save_to_file(os.path.join(work_dir, "shivam", "g3"))
 
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
         query = """mutation {
             createGraph(
@@ -1428,7 +1428,7 @@ def test_create_graph_succeeds():
 
     g.save_to_file(os.path.join(work_dir, "g1"))
 
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
 
         query = """mutation {
@@ -1506,7 +1506,7 @@ def test_create_graph_succeeds_at_namespace():
 
     g.save_to_file(os.path.join(work_dir, "g1"))
 
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
 
         query = """mutation {
@@ -1574,7 +1574,7 @@ def test_create_graph_succeeds_at_namespace():
 # Update Graph with new graph name tests (save as new graph name)
 def test_update_graph_with_new_graph_name_fails_if_parent_graph_not_found():
     work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
         query = """mutation {
             updateGraph(
@@ -1595,7 +1595,7 @@ def test_update_graph_with_new_graph_name_fails_if_current_graph_not_found():
     g = Graph()
     work_dir = tempfile.mkdtemp()
     g.save_to_file(os.path.join(work_dir, "g1"))
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
         query = """mutation {
             updateGraph(
@@ -1624,7 +1624,7 @@ def test_update_graph_with_new_graph_name_fails_if_new_graph_already_exists():
     g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
     g.save_to_file(os.path.join(work_dir, "shivam", "g3"))
 
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
 
         query = """mutation {
@@ -1657,7 +1657,7 @@ def test_update_graph_with_new_graph_name_succeeds_if_parent_graph_belongs_to_di
     g.save_to_file(os.path.join(work_dir, "g1"))
     g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
 
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
 
         query = """mutation {
@@ -1738,7 +1738,7 @@ def test_update_graph_with_new_graph_name_succeeds_if_parent_graph_belongs_to_sa
     g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
     g.save_to_file(os.path.join(work_dir, "shivam", "g3"))
 
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
 
         query = """mutation {
@@ -1827,7 +1827,7 @@ def test_update_graph_with_new_graph_name_succeeds_with_new_node_from_parent_gra
     os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
     g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
 
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
 
         query = """mutation {
@@ -1906,7 +1906,7 @@ def test_update_graph_with_new_graph_name_succeeds_with_new_node_removed_from_ne
     g.save_to_file(os.path.join(work_dir, "g1"))
     g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
 
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
 
         query = """mutation {
@@ -1975,7 +1975,7 @@ def test_update_graph_with_new_graph_name_succeeds_with_new_node_removed_from_ne
 # Update Graph tests (save graph as same graph name)
 def test_update_graph_fails_if_parent_graph_not_found():
     work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
         query = """mutation {
             updateGraph(
@@ -1996,7 +1996,7 @@ def test_update_graph_fails_if_current_graph_not_found():
     g = Graph()
     work_dir = tempfile.mkdtemp()
     g.save_to_file(os.path.join(work_dir, "g1"))
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
         query = """mutation {
             updateGraph(
@@ -2028,7 +2028,7 @@ def test_update_graph_succeeds_if_parent_graph_belongs_to_different_namespace():
     g.save_to_file(os.path.join(work_dir, "g1"))
     g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
 
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
 
         query = """mutation {
@@ -2105,7 +2105,7 @@ def test_update_graph_succeeds_if_parent_graph_belongs_to_same_namespace():
     g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
     g.save_to_file(os.path.join(work_dir, "shivam", "g3"))
 
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
 
         query = """mutation {
@@ -2189,7 +2189,7 @@ def test_update_graph_succeeds_with_new_node_from_parent_graph_added_to_new_grap
     os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
     g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
 
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
 
         query = """mutation {
@@ -2264,7 +2264,7 @@ def test_update_graph_succeeds_with_new_node_removed_from_new_graph():
     g.save_to_file(os.path.join(work_dir, "g1"))
     g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
 
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
 
         query = """mutation {
@@ -2322,7 +2322,7 @@ def test_update_graph_succeeds_with_new_node_removed_from_new_graph():
 
 def test_update_graph_last_opened_fails_if_graph_not_found():
     work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
 
         query = """mutation { updateGraphLastOpened(path: "g1") }"""
@@ -2333,7 +2333,7 @@ def test_update_graph_last_opened_fails_if_graph_not_found():
 
 def test_update_graph_last_opened_fails_if_graph_not_found_at_namespace():
     work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
 
         query = """mutation { updateGraphLastOpened(path: "shivam/g1") }"""
@@ -2344,7 +2344,7 @@ def test_update_graph_last_opened_fails_if_graph_not_found_at_namespace():
 
 def test_update_graph_last_opened_succeeds():
     work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
 
         g = Graph()
@@ -2376,7 +2376,7 @@ def test_update_graph_last_opened_succeeds():
 
 def test_update_graph_last_opened_succeeds_at_namespace():
     work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
 
         g = Graph()
@@ -2407,7 +2407,7 @@ def test_update_graph_last_opened_succeeds_at_namespace():
 
 def test_archive_graph_fails_if_graph_not_found():
     work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
 
         query = """mutation { archiveGraph(path: "g1", isArchive: 0) }"""
@@ -2418,7 +2418,7 @@ def test_archive_graph_fails_if_graph_not_found():
 
 def test_archive_graph_fails_if_graph_not_found_at_namespace():
     work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
 
         query = """mutation { archiveGraph(path: "shivam/g1", isArchive: 0) }"""
@@ -2429,7 +2429,7 @@ def test_archive_graph_fails_if_graph_not_found_at_namespace():
 
 def test_archive_graph_succeeds():
     work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
 
         g = Graph()
@@ -2465,7 +2465,7 @@ def test_archive_graph_succeeds():
 
 def test_archive_graph_succeeds_at_namespace():
     work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(work_dir).start() as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
 
         g = Graph()
@@ -2512,7 +2512,7 @@ def test_graph_windows_and_layers_query():
     g2.add_edge(1, 2, 3, layer="layer2")
 
     tmp_work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(tmp_work_dir).start() as server:
+    with GraphServer(tmp_work_dir).start() as server:
         client = server.get_client()
         client.send_graph(path="lotr", graph=g1)
         client.send_graph(path="layers", graph=g2)
@@ -2610,7 +2610,7 @@ def test_graph_properties_query():
     n.add_constant_properties({"prop5": "val4"})
 
     tmp_work_dir = tempfile.mkdtemp()
-    with RaphtoryServer(tmp_work_dir).start() as server:
+    with GraphServer(tmp_work_dir).start() as server:
         client = server.get_client()
         client.send_graph(path="g", graph=g)
         q = """
@@ -2721,6 +2721,6 @@ def test_graph_properties_query():
 #     ).sort_values(["src", "dst", "time"])
 #     g= DiskGraphStorage.load_from_pandas(dir, edges, "src", "dst", "time")
 #     tmp_work_dir = tempfile.mkdtemp()
-#     with RaphtoryServer(tmp_work_dir).start() as server:
+#     with GraphServer(tmp_work_dir).start() as server:
 #         client = server.get_client()
 #         client.upload_graph(path="g", graph=g)

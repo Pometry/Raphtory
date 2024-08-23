@@ -151,7 +151,7 @@ Below is a small example creating a graph, running a server hosting this data, a
 
 ```python
 from raphtory import Graph
-from raphtory.graphql import RaphtoryServer
+from raphtory.graphql import GraphServer
 import pandas as pd
 
 # URL for lord of the rings data from our main tutorial
@@ -162,7 +162,7 @@ df = pd.read_csv(url)
 graph = Graph.load_from_pandas(df,"src_id","dst_id","time")
 
 #Create a dictionary of queryable graphs and start the graphql server with it. This returns a client we can query with
-client = RaphtoryServer({"lotr_graph":graph}).start()
+client = GraphServer({"lotr_graph":graph}).start()
 
 #Wait until the server has started up
 client.wait_for_online()

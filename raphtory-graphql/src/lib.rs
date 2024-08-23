@@ -1,4 +1,4 @@
-pub use crate::server::RaphtoryServer;
+pub use crate::server::GraphServer;
 
 pub mod azure_auth;
 mod data;
