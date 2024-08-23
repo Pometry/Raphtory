@@ -58,6 +58,7 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorSelection<G, T> {
     pub fn nodes(&self) -> Vec<NodeView<G>> {
         self.selected_docs
             .iter()
+            .unique_by(|(doc, _)| &doc.entity_id)
             .filter_map(|(doc, _)| match &doc.entity_id {
                 EntityId::Node { id } => self.graph.source_graph.node(id),
                 _ => None,
@@ -69,6 +70,7 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorSelection<G, T> {
     pub fn edges(&self) -> Vec<EdgeView<G>> {
         self.selected_docs
             .iter()
+            .unique_by(|(doc, _)| &doc.entity_id)
             .filter_map(|(doc, _)| match &doc.entity_id {
                 EntityId::Edge { src, dst } => self.graph.source_graph.edge(src, dst),
                 _ => None,
@@ -470,7 +472,7 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorSelection<G, T> {
     ) {
         let total_entity_limit = self.get_selected_entity_len() + limit;
 
-        while self.selected_docs.len() < total_entity_limit {
+        while self.get_selected_entity_len() < total_entity_limit {
             let remaining = total_entity_limit - self.get_selected_entity_len();
 
             let candidates: Box<dyn Iterator<Item = (EntityId, Vec<DocumentRef>)>> = match path {
@@ -512,12 +514,12 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorSelection<G, T> {
         }
     }
 
-    fn get_selected_entities(&self) -> HashSet<EntityId> {
+    fn get_selected_entity_id_set(&self) -> HashSet<EntityId> {
         HashSet::from_iter(self.selected_docs.iter().map(|doc| doc.0.entity_id.clone()))
     }
 
     fn get_selected_entity_len(&self) -> usize {
-        self.get_selected_entities().len()
+        self.get_selected_entity_id_set().len()
     }
 
     // this might return the document used as input, uniqueness need to be check outside of this
@@ -773,7 +775,7 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorSelection<G, T> {
     where
         I: IntoIterator<Item = ((EntityId, Vec<DocumentRef>), f32)>,
     {
-        let entity_set = self.get_selected_entities();
+        let entity_set = self.get_selected_entity_id_set();
         let entity_extension_size = total_entity_limit - self.get_selected_entity_len();
         let new_unique_entities = extension
             .into_iter()
