@@ -89,7 +89,7 @@ def test_search():
     edge_names_returned = [(edge.src.name, edge.dst.name) for edge in edges]
     assert edge_names_returned == [("node1", "node2")]
 
-    doc1_with_score, doc2_with_score = vg.search(
+    doc1_with_score, doc2_with_score = vg.search_entities(
         [1.0, 0.0, 0.0], 2
     ).get_documents_with_scores()
     doc1, score1 = doc1_with_score
@@ -99,7 +99,7 @@ def test_search():
     assert doc1.content == "node1"
     assert (doc2.entity.src.name, doc2.entity.dst.name) == ("node1", "node2")
 
-    docs = vg.search([0.0, 0.0, 1.1], 3).get_documents()
+    docs = vg.search_entities([0.0, 0.0, 1.1], 3).get_documents()
     doc_contents = [doc.content for doc in docs]
     assert doc_contents == ["node3", "edge3", "edge2"]
 
@@ -108,7 +108,7 @@ def test_search():
     # chained search
     node_selection = vg.search_nodes("node2", 1);
     edge_selection = vg.search_edges("node3", 1);
-    entity_selection = vg.search("node1", 4);
+    entity_selection = vg.search_entities("node1", 4);
     docs = node_selection.join(edge_selection).join(entity_selection).get_documents()[:4]
     contents = [doc.content for doc in docs]
     assert contents == ["node2", "edge3", "node1", "edge1"]
@@ -117,15 +117,15 @@ def test_search():
 def test_expansion():
     vg = create_graph()
 
-    selection = vg.search("node1", 1)
+    selection = vg.search_entities("node1", 1)
     selection.expand(2)
     assert len(selection.get_documents()) == 5
     assert len(selection.nodes()) == 3
     assert len(selection.edges()) == 2
 
-    selection = vg.search("node1", 1)
-    selection.expand_by_similarity("edge1", 1)
-    selection.expand_by_similarity("node2", 1)
+    selection = vg.search_entities("node1", 1)
+    selection.expand_entities_by_similarity("edge1", 1)
+    selection.expand_entities_by_similarity("node2", 1)
     assert len(selection.get_documents()) == 3
     nodes = selection.nodes()
     node_names_returned = [node.name for node in nodes]
@@ -135,11 +135,11 @@ def test_expansion():
     assert edge_names_returned == [("node1", "node2")]
 
     selection = vg.empty_selection()
-    selection.expand_by_similarity("node3", 10)
+    selection.expand_entities_by_similarity("node3", 10)
     assert len(selection.get_documents()) == 0
 
-    selection = vg.search("node1", 1)
-    selection.expand_by_similarity("node3", 10)
+    selection = vg.search_entities("node1", 1)
+    selection.expand_entities_by_similarity("node3", 10)
     assert len(selection.get_documents()) == 7
     assert len(selection.nodes()) == 4
     assert len(selection.edges()) == 3
