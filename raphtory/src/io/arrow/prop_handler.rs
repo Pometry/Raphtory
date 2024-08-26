@@ -190,8 +190,6 @@ fn is_data_type_supported(dt: &DataType) -> Result<(), GraphError> {
 
 trait PropCol: Send + Sync {
     fn get(&self, i: usize) -> Option<Prop>;
-
-    fn len(&self) -> usize;
 }
 
 impl<A> PropCol for A
@@ -203,11 +201,6 @@ where
     fn get(&self, i: usize) -> Option<Prop> {
         StaticArray::get(self, i).map(|v| v.into())
     }
-
-    #[inline]
-    fn len(&self) -> usize {
-        Array::len(self)
-    }
 }
 
 struct Wrap<A>(A);
@@ -215,10 +208,6 @@ struct Wrap<A>(A);
 impl PropCol for Wrap<Utf8Array<i32>> {
     fn get(&self, i: usize) -> Option<Prop> {
         self.0.get(i).map(Prop::str)
-    }
-
-    fn len(&self) -> usize {
-        self.0.len()
     }
 }
 
@@ -238,19 +227,11 @@ impl<O: Offset> PropCol for Wrap<ListArray<O>> {
             }
         }
     }
-
-    fn len(&self) -> usize {
-        self.0.len()
-    }
 }
 
 impl PropCol for Wrap<FixedSizeListArray> {
     fn get(&self, i: usize) -> Option<Prop> {
         self.0.get(i).map(arr_as_prop)
-    }
-
-    fn len(&self) -> usize {
-        self.0.len()
     }
 }
 
@@ -262,10 +243,6 @@ struct DTimeCol {
 impl PropCol for DTimeCol {
     fn get(&self, i: usize) -> Option<Prop> {
         StaticArray::get(&self.arr, i).map(self.map)
-    }
-
-    fn len(&self) -> usize {
-        self.arr.len()
     }
 }
 fn lift_property_col(arr: &dyn Array) -> Box<dyn PropCol> {
