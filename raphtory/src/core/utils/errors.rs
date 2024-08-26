@@ -38,6 +38,7 @@ pub enum InvalidPathReason {
     PathIsDirectory(PathBuf),
 }
 
+#[cfg(feature = "arrow")]
 #[derive(thiserror::Error, Debug)]
 pub enum DataTypeError {
     #[error("Only str columns are supported for layers, got {0:?}")]
@@ -64,6 +65,7 @@ pub enum GraphError {
         #[from]
         source: InvalidPathReason,
     },
+    #[cfg(feature = "arrow")]
     #[error("{source}")]
     UnsupportedDataType {
         #[from]

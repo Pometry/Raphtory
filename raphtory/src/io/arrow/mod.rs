@@ -84,7 +84,7 @@ mod test {
             .collect::<Vec<_>>();
 
         actual.sort_by(|(l_src, l_dst, l_t, ..), (r_src, r_dst, r_t, ..)| {
-            (l_src, l_dst, l_t).cmp((&(r_src, r_dst, r_t)))
+            (l_src, l_dst, l_t).cmp(&(r_src, r_dst, r_t))
         });
 
         assert_eq!(
