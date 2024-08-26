@@ -262,7 +262,7 @@ impl_node_state_num!(NodeStateUsize<usize>);
 impl_lazy_node_state_num!(LazyNodeStateU64<u64>);
 impl_node_state_num!(NodeStateU64<u64>);
 
-impl_node_state!(NodeStateGID<GID>);
+impl_node_state_ord!(NodeStateGID<GID>);
 impl_lazy_node_state_ord!(LazyNodeStateGID<GID>);
 
 impl_lazy_node_state_ord!(LazyNodeStateOptionI64<Option<i64>>);
