@@ -20,6 +20,7 @@ use rayon::prelude::*;
 pub struct PropCols {
     prop_ids: Vec<usize>,
     cols: Vec<Box<dyn PropCol>>,
+    len: usize,
 }
 
 impl PropCols {
@@ -31,7 +32,7 @@ impl PropCols {
     }
 
     pub fn len(&self) -> usize {
-        self.cols.first().map(|col| col.len()).unwrap_or(0)
+        self.len
     }
 
     pub fn par_rows(
@@ -61,7 +62,11 @@ pub(crate) fn combine_properties(
         .map(|(name, dtype)| Ok(prop_id_resolver(name, dtype)?.inner()))
         .collect::<Result<Vec<_>, GraphError>>()?;
 
-    Ok(PropCols { prop_ids, cols })
+    Ok(PropCols {
+        prop_ids,
+        cols,
+        len: df.len(),
+    })
 }
 
 fn arr_as_prop(arr: Box<dyn Array>) -> Prop {

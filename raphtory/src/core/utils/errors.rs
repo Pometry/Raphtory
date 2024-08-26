@@ -1,7 +1,6 @@
 use crate::core::{utils::time::error::ParseTimeError, Prop, PropType};
-use polars_arrow::datatypes::ArrowDataType;
 #[cfg(feature = "arrow")]
-use polars_arrow::legacy::error;
+use polars_arrow::{datatypes::ArrowDataType, legacy::error};
 #[cfg(feature = "storage")]
 use pometry_storage::RAError;
 #[cfg(feature = "python")]
