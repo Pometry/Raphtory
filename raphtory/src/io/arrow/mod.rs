@@ -63,7 +63,7 @@ mod test {
         )
         .expect("failed to load edges from pretend df");
 
-        let actual = graph
+        let mut actual = graph
             .edges()
             .iter()
             .map(|e| {
@@ -82,6 +82,10 @@ mod test {
                 )
             })
             .collect::<Vec<_>>();
+
+        actual.sort_by(|(l_src, l_dst, l_t, ..), (r_src, r_dst, r_t, ..)| {
+            (l_src, l_dst, l_t).cmp((&(r_src, r_dst, r_t)))
+        });
 
         assert_eq!(
             actual,
@@ -154,7 +158,7 @@ mod test {
         )
         .expect("failed to load nodes from pretend df");
 
-        let actual = graph
+        let mut actual = graph
             .nodes()
             .iter()
             .map(|v| {
@@ -169,6 +173,8 @@ mod test {
                 )
             })
             .collect::<Vec<_>>();
+
+        actual.sort_by(|(l_n, l_t, ..), (r_n, r_t, ..)| (l_n, l_t).cmp(&(r_n, r_t)));
 
         assert_eq!(
             actual,
