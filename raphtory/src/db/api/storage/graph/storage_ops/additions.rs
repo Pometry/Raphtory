@@ -23,7 +23,7 @@ impl InternalAdditionOps for TemporalGraph {
         Ok(self.event_counter.fetch_add(1, Ordering::Relaxed))
     }
 
-    fn reserve_ids(&self, num_ids: usize) -> Result<usize, GraphError> {
+    fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, GraphError> {
         Ok(self.event_counter.fetch_add(num_ids, Ordering::Relaxed))
     }
 
@@ -171,9 +171,9 @@ impl InternalAdditionOps for GraphStorage {
         }
     }
 
-    fn reserve_ids(&self, num_ids: usize) -> Result<usize, GraphError> {
+    fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, GraphError> {
         match self {
-            GraphStorage::Unlocked(storage) => storage.reserve_ids(num_ids),
+            GraphStorage::Unlocked(storage) => storage.reserve_event_ids(num_ids),
             _ => Err(GraphError::AttemptToMutateImmutableGraph),
         }
     }

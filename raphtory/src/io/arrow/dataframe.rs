@@ -1,16 +1,13 @@
-use crate::core::utils::errors::{DataTypeError, GraphError};
-
+use crate::{
+    core::utils::errors::{DataTypeError, GraphError},
+    io::arrow::node_col::{lift_node_col, NodeCol},
+};
+use itertools::Itertools;
 use polars_arrow::{
-    array::{Array, PrimitiveArray, Utf8Array},
+    array::{Array, PrimitiveArray, StaticArray},
     compute::cast::{self, CastOptions},
     datatypes::{ArrowDataType as DataType, TimeUnit},
-    offset::Offset,
-    types::NativeType,
 };
-
-use crate::io::arrow::node_col::{lift_node_col, NodeCol};
-use itertools::Itertools;
-use polars_arrow::array::StaticArray;
 use rayon::prelude::*;
 
 pub(crate) struct DFView<I> {
@@ -66,10 +63,10 @@ impl TimeCol {
         } else {
             arr.clone()
         };
-        Ok(arr)
+        Ok(Self(arr))
     }
 
-    pub fn par_iter(&self) -> impl IndexedParallelIterator<Item = Option<i64>> {
+    pub fn par_iter(&self) -> impl IndexedParallelIterator<Item = Option<i64>> + '_ {
         (0..self.0.len()).into_par_iter().map(|i| self.0.get(i))
     }
 }
@@ -90,46 +87,5 @@ impl DFChunk {
 
     pub fn time_col(&self, index: usize) -> Result<TimeCol, DataTypeError> {
         TimeCol::new(self.chunk[index].as_ref())
-    }
-
-    pub(crate) fn iter_col<T: NativeType>(
-        &self,
-        idx: usize,
-    ) -> Option<impl Iterator<Item = Option<&T>> + '_> {
-        let col_arr = (&self.chunk)[idx]
-            .as_any()
-            .downcast_ref::<PrimitiveArray<T>>()?;
-        Some(col_arr.iter())
-    }
-
-    pub fn utf8<O: Offset>(&self, idx: usize) -> Option<impl Iterator<Item = Option<&str>> + '_> {
-        // test that it's actually a utf8 array
-        let col_arr = (&self.chunk)[idx].as_any().downcast_ref::<Utf8Array<O>>()?;
-
-        Some(col_arr.iter())
-    }
-
-    pub fn time_iter_col(&self, idx: usize) -> Option<impl Iterator<Item = Option<i64>> + '_> {
-        let col_arr = (&self.chunk)[idx]
-            .as_any()
-            .downcast_ref::<PrimitiveArray<i64>>()?;
-
-        let arr = if let DataType::Timestamp(_, _) = col_arr.data_type() {
-            let array = cast::cast(
-                col_arr,
-                &DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".to_string())),
-                CastOptions::default(),
-            )
-            .unwrap();
-            array
-                .as_any()
-                .downcast_ref::<PrimitiveArray<i64>>()
-                .unwrap()
-                .clone()
-        } else {
-            col_arr.clone()
-        };
-
-        Some(arr.into_iter())
     }
 }

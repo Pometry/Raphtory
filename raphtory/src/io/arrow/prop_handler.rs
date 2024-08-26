@@ -17,7 +17,7 @@ use polars_arrow::{
 use raphtory_api::core::storage::dict_mapper::MaybeNew;
 use rayon::prelude::*;
 
-struct PropCols {
+pub struct PropCols {
     prop_ids: Vec<usize>,
     cols: Vec<Box<dyn PropCol>>,
 }
@@ -59,7 +59,7 @@ pub(crate) fn combine_properties(
         .iter()
         .zip(dtypes.into_iter())
         .map(|(name, dtype)| Ok(prop_id_resolver(name, dtype)?.inner()))
-        .collect::<Result<Vec<_>, _>>()?;
+        .collect::<Result<Vec<_>, GraphError>>()?;
 
     Ok(PropCols { prop_ids, cols })
 }

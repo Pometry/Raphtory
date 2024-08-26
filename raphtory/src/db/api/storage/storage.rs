@@ -86,8 +86,8 @@ impl InternalAdditionOps for Storage {
     }
 
     #[inline]
-    fn reserve_ids(&self, num_ids: usize) -> Result<usize, GraphError> {
-        self.graph.reserve_ids(num_ids)
+    fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, GraphError> {
+        self.graph.reserve_event_ids(num_ids)
     }
 
     fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, GraphError> {
