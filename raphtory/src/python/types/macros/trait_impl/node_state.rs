@@ -75,6 +75,10 @@ macro_rules! impl_node_state_ops {
                 self.__iter__()
             }
 
+            fn sorted_by_id(&self) -> NodeState<'static, $value, DynamicGraph> {
+                self.inner.sort_by_id()
+            }
+
             fn __repr__(&self) -> String {
                 self.inner.repr()
             }
