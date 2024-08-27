@@ -187,24 +187,36 @@ pub(crate) fn load_edges_from_df<
             |key, dtype| graph.resolve_edge_property(key, dtype, true),
         )?;
         let layer = lift_layer_col(layer, layer_index, &df)?;
-        let src_col = df.node_col(src_index)?;
-        let dst_col = df.node_col(dst_index)?;
+        let src_col = df
+            .node_col(src_index)?
+            .par_iter()
+            .map(|gid| {
+                graph
+                    .resolve_node(gid.ok_or(LoadError::MissingSrcError)?)
+                    .map(|id| id.inner())
+            })
+            .collect::<Result<Vec<_>, GraphError>>()?;
+        let dst_col = df
+            .node_col(dst_index)?
+            .par_iter()
+            .map(|gid| {
+                graph
+                    .resolve_node(gid.ok_or(LoadError::MissingDstError)?)
+                    .map(|id| id.inner())
+            })
+            .collect::<Result<Vec<_>, GraphError>>()?;
         let time_col = df.time_col(time_index)?;
         src_col
-            .par_iter()
-            .zip(dst_col.par_iter())
+            .into_par_iter()
+            .zip(dst_col.into_par_iter())
             .zip(time_col.par_iter())
             .zip(layer.par_iter())
             .zip(prop_cols.par_rows())
             .zip(const_prop_cols.par_rows())
             .enumerate()
             .try_for_each(|(idx, (((((src, dst), time), layer), t_props), c_props))| {
-                let src = src.ok_or(LoadError::MissingSrcError)?;
-                let dst = dst.ok_or(LoadError::MissingDstError)?;
                 let time = time.ok_or(LoadError::MissingTimeError)?;
                 let time_idx = TimeIndexEntry(time, start_idx + idx);
-                let src = graph.resolve_node(src)?.inner();
-                let dst = graph.resolve_node(dst)?.inner();
                 let layer = graph.resolve_layer(layer)?.inner();
                 let t_props: Vec<_> = t_props.collect();
                 let c_props: Vec<_> = c_props
