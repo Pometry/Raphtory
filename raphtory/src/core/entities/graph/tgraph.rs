@@ -321,16 +321,13 @@ impl TemporalGraph {
     pub(crate) fn link_nodes_inner(
         &self,
         node_pair: &mut PairEntryMut<NodeStore>,
-        edge: &mut EdgeWGuard,
+        edge_id: EID,
         t: TimeIndexEntry,
         layer: usize,
-        edge_fn: impl FnOnce(&mut EdgeWGuard) -> Result<(), GraphError>,
     ) -> Result<(), GraphError> {
-        edge_fn(edge)?;
         self.update_time(t);
         let src_id = node_pair.get_i().vid;
         let dst_id = node_pair.get_j().vid;
-        let edge_id = edge.edge_store().eid;
         let src = node_pair.get_mut_i();
         src.add_edge(dst_id, Direction::OUT, layer, edge_id);
         src.update_time(t);
@@ -353,9 +350,12 @@ impl TemporalGraph {
             (edge_r.src(), edge_r.dst())
         };
         // need to get the node pair first to avoid deadlocks with link_nodes
-        let mut node_pair = self.storage.pair_node_mut(src, dst);
+        {
+            let mut node_pair = self.storage.pair_node_mut(src, dst);
+            self.link_nodes_inner(&mut node_pair, eid, t, layer)?;
+        }
         let mut edge_w = self.storage.edges.get_edge_mut(eid);
-        self.link_nodes_inner(&mut node_pair, &mut edge_w, t, layer, edge_fn)
+        edge_fn(&mut edge_w)
     }
 
     pub(crate) fn link_nodes<F: FnOnce(&mut EdgeWGuard) -> Result<(), GraphError>>(
@@ -366,13 +366,23 @@ impl TemporalGraph {
         layer: usize,
         edge_fn: F,
     ) -> Result<MaybeNew<EID>, GraphError> {
-        let mut node_pair = self.storage.pair_node_mut(src_id, dst_id);
-        let src = node_pair.get_i();
-        let mut edge = match src.find_edge_eid(dst_id, &LayerIds::All) {
-            Some(edge_id) => MaybeNew::Existing(self.storage.get_edge_mut(edge_id)),
-            None => MaybeNew::New(self.storage.push_edge(EdgeStore::new(src_id, dst_id))),
+        let mut edge = {
+            let mut node_pair = self.storage.pair_node_mut(src_id, dst_id);
+            let src = node_pair.get_i();
+            let mut edge = match src.find_edge_eid(dst_id, &LayerIds::All) {
+                Some(edge_id) => MaybeNew::Existing(self.storage.get_edge_mut(edge_id)),
+                None => MaybeNew::New(self.storage.push_edge(EdgeStore::new(src_id, dst_id))),
+            };
+            self.link_nodes_inner(
+                &mut node_pair,
+                edge.as_ref().inner().edge_store().eid,
+                t,
+                layer,
+            )?;
+            edge
         };
-        self.link_nodes_inner(&mut node_pair, edge.as_mut().inner(), t, layer, edge_fn)?;
+        edge_fn(edge.as_mut().inner())?;
+
         Ok(edge.map(|e| e.edge_store().eid))
     }
 
