@@ -40,7 +40,7 @@ pub enum InvalidPathReason {
 
 #[cfg(feature = "arrow")]
 #[derive(thiserror::Error, Debug)]
-pub enum DataTypeError {
+pub enum LoadError {
     #[error("Only str columns are supported for layers, got {0:?}")]
     InvalidLayerType(ArrowDataType),
     #[error("Only str columns are supported for node type, got {0:?}")]
@@ -51,6 +51,14 @@ pub enum DataTypeError {
     InvalidNodeIdType(ArrowDataType),
     #[error("{0:?} not supported for time column")]
     InvalidTimestamp(ArrowDataType),
+    #[error("Missing value for src id")]
+    MissingSrcError,
+    #[error("Missing value for dst id")]
+    MissingDstError,
+    #[error("Missing value for node id")]
+    MissingNodeError,
+    #[error("Missing value for timestamp")]
+    MissingTimeError,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -67,9 +75,9 @@ pub enum GraphError {
     },
     #[cfg(feature = "arrow")]
     #[error("{source}")]
-    UnsupportedDataType {
+    LoadError {
         #[from]
-        source: DataTypeError,
+        source: LoadError,
     },
     #[error("Disk graph not found")]
     DiskGraphNotFound,

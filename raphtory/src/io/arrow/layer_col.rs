@@ -1,5 +1,5 @@
 use crate::{
-    core::utils::errors::{DataTypeError, GraphError},
+    core::utils::errors::{GraphError, LoadError},
     io::arrow::dataframe::DFChunk,
 };
 use polars_arrow::array::Utf8Array;
@@ -105,7 +105,7 @@ pub(crate) fn lift_layer_col<'a>(
             } else if let Some(col) = col.as_any().downcast_ref::<Utf8Array<i64>>() {
                 Ok(LayerCol::LargeUtf8 { col })
             } else {
-                Err(DataTypeError::InvalidLayerType(col.data_type().clone()).into())
+                Err(LoadError::InvalidLayerType(col.data_type().clone()).into())
             }
         }
         _ => Err(GraphError::WrongNumOfArgs(
@@ -132,7 +132,7 @@ pub(crate) fn lift_node_type_col<'a>(
             } else if let Some(col) = col.as_any().downcast_ref::<Utf8Array<i64>>() {
                 Ok(LayerCol::LargeUtf8 { col })
             } else {
-                Err(DataTypeError::InvalidNodeType(col.data_type().clone()).into())
+                Err(LoadError::InvalidNodeType(col.data_type().clone()).into())
             }
         }
         _ => Err(GraphError::WrongNumOfArgs(

@@ -1,5 +1,5 @@
 use crate::{
-    core::utils::errors::{DataTypeError, GraphError},
+    core::utils::errors::{GraphError, LoadError},
     io::arrow::node_col::{lift_node_col, NodeCol},
 };
 use itertools::Itertools;
@@ -43,11 +43,11 @@ where
 pub struct TimeCol(PrimitiveArray<i64>);
 
 impl TimeCol {
-    fn new(arr: &dyn Array) -> Result<Self, DataTypeError> {
+    fn new(arr: &dyn Array) -> Result<Self, LoadError> {
         let arr = arr
             .as_any()
             .downcast_ref::<PrimitiveArray<i64>>()
-            .ok_or_else(|| DataTypeError::InvalidTimestamp(arr.data_type().clone()))?;
+            .ok_or_else(|| LoadError::InvalidTimestamp(arr.data_type().clone()))?;
         let arr = if let DataType::Timestamp(_, _) = arr.data_type() {
             let array = cast::cast(
                 arr,
@@ -81,11 +81,11 @@ impl DFChunk {
         self.chunk.first().map(|c| c.len()).unwrap_or(0)
     }
 
-    pub fn node_col(&self, index: usize) -> Result<NodeCol, DataTypeError> {
+    pub fn node_col(&self, index: usize) -> Result<NodeCol, LoadError> {
         lift_node_col(index, self)
     }
 
-    pub fn time_col(&self, index: usize) -> Result<TimeCol, DataTypeError> {
+    pub fn time_col(&self, index: usize) -> Result<TimeCol, LoadError> {
         TimeCol::new(self.chunk[index].as_ref())
     }
 }

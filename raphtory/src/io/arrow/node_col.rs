@@ -1,4 +1,4 @@
-use crate::{core::utils::errors::DataTypeError, io::arrow::dataframe::DFChunk};
+use crate::{core::utils::errors::LoadError, io::arrow::dataframe::DFChunk};
 use polars_arrow::{
     array::{Array, PrimitiveArray, StaticArray, Utf8Array},
     datatypes::ArrowDataType,
@@ -78,7 +78,7 @@ impl<O: Offset> NodeColOps for Utf8Array<O> {
 pub struct NodeCol(Box<dyn NodeColOps>);
 
 impl<'a> TryFrom<&'a dyn Array> for NodeCol {
-    type Error = DataTypeError;
+    type Error = LoadError;
 
     fn try_from(value: &'a dyn Array) -> Result<Self, Self::Error> {
         match value.data_type() {
@@ -130,7 +130,7 @@ impl<'a> TryFrom<&'a dyn Array> for NodeCol {
                     .clone();
                 Ok(NodeCol(Box::new(col)))
             }
-            dtype => Err(DataTypeError::InvalidNodeIdType(dtype.clone())),
+            dtype => Err(LoadError::InvalidNodeIdType(dtype.clone())),
         }
     }
 }
@@ -141,6 +141,6 @@ impl NodeCol {
     }
 }
 
-pub fn lift_node_col(index: usize, df: &DFChunk) -> Result<NodeCol, DataTypeError> {
+pub fn lift_node_col(index: usize, df: &DFChunk) -> Result<NodeCol, LoadError> {
     (df.chunk[index].as_ref()).try_into()
 }

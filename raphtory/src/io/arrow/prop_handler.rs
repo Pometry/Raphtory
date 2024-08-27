@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        utils::errors::{DataTypeError, GraphError},
+        utils::errors::{GraphError, LoadError},
         IntoPropList, PropType,
     },
     io::arrow::dataframe::DFChunk,
@@ -162,7 +162,7 @@ fn data_type_as_prop_type(dt: &DataType) -> Result<PropType, GraphError> {
             None => Ok(PropType::NDTime),
             Some(_) => Ok(PropType::DTime),
         },
-        _ => Err(DataTypeError::InvalidPropertyType(dt.clone()).into()),
+        _ => Err(LoadError::InvalidPropertyType(dt.clone()).into()),
     }
 }
 
@@ -183,7 +183,7 @@ fn is_data_type_supported(dt: &DataType) -> Result<(), GraphError> {
         DataType::FixedSizeList(v, _) => is_data_type_supported(v.data_type())?,
         DataType::LargeList(v) => is_data_type_supported(v.data_type())?,
         DataType::Timestamp(_, _) => {}
-        _ => return Err(DataTypeError::InvalidPropertyType(dt.clone()).into()),
+        _ => return Err(LoadError::InvalidPropertyType(dt.clone()).into()),
     }
     Ok(())
 }
