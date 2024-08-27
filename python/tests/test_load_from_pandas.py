@@ -1065,9 +1065,9 @@ def test_load_edge_deletions_from_pandas():
 
     g = PersistentGraph()
     g.load_edges_from_pandas(edges_df, "time", "src", "dst")
-    assert g.window(10, 12).edges.src.id.collect() == [1, 2, 3, 4, 5]
+    assert set(g.window(10, 12).edges.id) == {(1, 2), (2, 3), (3, 4), (4, 5), (5, 6)}
     g.load_edge_deletions_from_pandas(edge_dels_df, "time", "src", "dst")
-    assert g.window(10, 12).edges.src.id.collect() == [1, 2, 5]
+    assert set(g.window(10, 12).edges.src.id) == {1, 2, 5}
 
 
 def test_edge_both_option_failures_pandas():
@@ -1141,7 +1141,7 @@ def test_edge_both_option_failures_pandas():
         (4, 5): ["yellow"],
         (5, 6): ["purple"],
     }
-    assert g.unique_layers == ["_default", "red", "blue", "green", "yellow", "purple"]
+    assert set(g.unique_layers) == {"_default", "red", "blue", "green", "yellow", "purple"}
 
     g = Graph()
     g.load_edges_from_pandas(edges_df, "time", "src", "dst", layer_col="marbles")
