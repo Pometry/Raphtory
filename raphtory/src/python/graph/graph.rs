@@ -169,7 +169,7 @@ impl PyGraph {
     ///    properties (dict): The properties of the node (optional).
     ///    node_type (str): The optional string which will be used as a node type
     /// Returns:
-    ///   None
+    ///   the added node (Node)
     #[pyo3(signature = (timestamp, id, properties = None, node_type = None))]
     pub fn add_node(
         &self,
@@ -236,7 +236,7 @@ impl PyGraph {
     ///    layer (str): The layer of the edge (optional).
     ///
     /// Returns:
-    ///   None
+    ///   returns the added Edge (Edge)
     #[pyo3(signature = (timestamp, src, dst, properties = None, layer = None))]
     pub fn add_edge(
         &self,

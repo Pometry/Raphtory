@@ -1,5 +1,4 @@
 pub use crate::server::GraphServer;
-
 pub mod azure_auth;
 mod data;
 pub mod model;
@@ -9,6 +8,7 @@ pub mod server;
 pub mod server_config;
 pub mod url_encode;
 
+// Pull in the Star Wars schema we registered in build.rs
 #[cfg(feature = "python")]
 pub mod python;
 
