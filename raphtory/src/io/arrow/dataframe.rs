@@ -69,6 +69,10 @@ impl TimeCol {
     pub fn par_iter(&self) -> impl IndexedParallelIterator<Item = Option<i64>> + '_ {
         (0..self.0.len()).into_par_iter().map(|i| self.0.get(i))
     }
+
+    pub fn get(&self, i: usize) -> Option<i64> {
+        self.0.get(i)
+    }
 }
 
 #[derive(Clone)]

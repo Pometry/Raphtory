@@ -16,6 +16,7 @@ use kdam::{Bar, BarBuilder, BarExt};
 use raphtory_api::core::storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry};
 use rayon::prelude::*;
 use std::collections::HashMap;
+use tantivy::HasLen;
 
 fn build_progress_bar(des: String, num_rows: usize) -> Result<Bar, GraphError> {
     BarBuilder::default()
@@ -123,7 +124,9 @@ pub(crate) fn load_nodes_from_df<
                 let c_props: Vec<_> = c_props
                     .chain(shared_constant_properties.iter().cloned())
                     .collect();
-                graph.internal_add_constant_node_properties(node_id, &c_props)?;
+                if !c_props.is_empty() {
+                    graph.internal_add_constant_node_properties(node_id, &c_props)?;
+                }
                 Ok::<(), GraphError>(())
             })?;
         let _ = pb.update(df.len());
@@ -187,45 +190,44 @@ pub(crate) fn load_edges_from_df<
             |key, dtype| graph.resolve_edge_property(key, dtype, true),
         )?;
         let layer = lift_layer_col(layer, layer_index, &df)?;
-        let src_col = df
+        let mut src_dst = df
             .node_col(src_index)?
             .par_iter()
-            .map(|gid| {
-                graph
-                    .resolve_node(gid.ok_or(LoadError::MissingSrcError)?)
-                    .map(|id| id.inner())
-            })
-            .collect::<Result<Vec<_>, GraphError>>()?;
-        let dst_col = df
-            .node_col(dst_index)?
-            .par_iter()
-            .map(|gid| {
-                graph
-                    .resolve_node(gid.ok_or(LoadError::MissingDstError)?)
-                    .map(|id| id.inner())
+            .zip(df.node_col(dst_index)?.par_iter())
+            .enumerate()
+            .map(|(idx, (src, dst))| {
+                let src = graph
+                    .resolve_node(src.ok_or(LoadError::MissingSrcError)?)?
+                    .inner();
+                let dst = graph
+                    .resolve_node(dst.ok_or(LoadError::MissingDstError)?)?
+                    .inner();
+                Ok((src, dst, idx))
             })
             .collect::<Result<Vec<_>, GraphError>>()?;
         let time_col = df.time_col(time_index)?;
-        src_col
-            .into_par_iter()
-            .zip(dst_col.into_par_iter())
-            .zip(time_col.par_iter())
-            .zip(layer.par_iter())
-            .zip(prop_cols.par_rows())
-            .zip(const_prop_cols.par_rows())
-            .enumerate()
-            .try_for_each(|(idx, (((((src, dst), time), layer), t_props), c_props))| {
-                let time = time.ok_or(LoadError::MissingTimeError)?;
-                let time_idx = TimeIndexEntry(time, start_idx + idx);
-                let layer = graph.resolve_layer(layer)?.inner();
-                let t_props: Vec<_> = t_props.collect();
-                let c_props: Vec<_> = c_props
-                    .chain(shared_constant_properties.iter().cloned())
-                    .collect();
-                let eid = graph
-                    .internal_add_edge(time_idx, src, dst, &t_props, layer)?
-                    .inner();
-                graph.internal_add_constant_edge_properties(eid, layer, &c_props)?;
+        src_dst.par_sort_by_key(|(src, dst, _)| *(src.min(dst)));
+        src_dst
+            .par_chunk_by(|(l_src, l_dst, _), (r_src, r_dst, _)| {
+                l_src.min(l_dst) == r_src.min(r_dst)
+            })
+            .try_for_each(|chunk| {
+                for (src, dst, row) in chunk {
+                    let time = time_col.get(*row).ok_or(LoadError::MissingTimeError)?;
+                    let time_idx = TimeIndexEntry(time, start_idx + row);
+                    let layer = graph.resolve_layer(layer.get(*row))?.inner();
+                    let t_props: Vec<_> = prop_cols.iter_row(*row).collect();
+                    let c_props: Vec<_> = const_prop_cols
+                        .iter_row(*row)
+                        .chain(shared_constant_properties.iter().cloned())
+                        .collect();
+                    let eid = graph
+                        .internal_add_edge(time_idx, *src, *dst, &t_props, layer)?
+                        .inner();
+                    if !c_props.is_empty() {
+                        graph.internal_add_constant_edge_properties(eid, layer, &c_props)?;
+                    }
+                }
                 Ok::<(), GraphError>(())
             })?;
         start_idx += df.len();
@@ -348,7 +350,9 @@ pub(crate) fn load_node_props_from_df<
                 let props = cprops
                     .chain(shared_constant_properties.iter().cloned())
                     .collect::<Vec<_>>();
-                graph.internal_add_constant_node_properties(node.node, &props)?;
+                if !props.is_empty() {
+                    graph.internal_add_constant_node_properties(node.node, &props)?;
+                }
                 Ok::<(), GraphError>(())
             })?;
         let _ = pb.update(df.len());
@@ -430,7 +434,9 @@ pub(crate) fn load_edges_props_from_df<
                 let props = cprops
                     .chain(shared_constant_properties.iter().cloned())
                     .collect::<Vec<_>>();
-                graph.internal_add_constant_edge_properties(e.edge.pid(), layer_id, &props)?;
+                if !props.is_empty() {
+                    graph.internal_add_constant_edge_properties(e.edge.pid(), layer_id, &props)?;
+                }
                 Ok::<(), GraphError>(())
             })?;
         let _ = pb.update(df.len());

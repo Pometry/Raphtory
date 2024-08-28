@@ -24,7 +24,7 @@ pub struct PropCols {
 }
 
 impl PropCols {
-    fn iter_row(&self, i: usize) -> impl Iterator<Item = (usize, Prop)> + '_ {
+    pub fn iter_row(&self, i: usize) -> impl Iterator<Item = (usize, Prop)> + '_ {
         self.prop_ids
             .iter()
             .zip(self.cols.iter())

@@ -369,7 +369,7 @@ impl TemporalGraph {
         let mut edge = {
             let mut node_pair = self.storage.pair_node_mut(src_id, dst_id);
             let src = node_pair.get_i();
-            let mut edge = match src.find_edge_eid(dst_id, &LayerIds::All) {
+            let edge = match src.find_edge_eid(dst_id, &LayerIds::All) {
                 Some(edge_id) => MaybeNew::Existing(self.storage.get_edge_mut(edge_id)),
                 None => MaybeNew::New(self.storage.push_edge(EdgeStore::new(src_id, dst_id))),
             };

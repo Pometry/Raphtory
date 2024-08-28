@@ -139,6 +139,10 @@ impl NodeCol {
     pub fn par_iter(&self) -> impl IndexedParallelIterator<Item = Option<GidRef<'_>>> + '_ {
         (0..self.0.len()).into_par_iter().map(|i| self.0.get(i))
     }
+
+    pub fn iter(&self) -> impl Iterator<Item = Option<GidRef<'_>>> + '_ {
+        (0..self.0.len()).map(|i| self.0.get(i))
+    }
 }
 
 pub fn lift_node_col(index: usize, df: &DFChunk) -> Result<NodeCol, LoadError> {
