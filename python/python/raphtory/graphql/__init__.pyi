@@ -10,7 +10,14 @@
 class GraphServer:
     """A class for defining and running a Raphtory GraphQL server"""
 
-    def __init__(self, work_dir, cache_capacity=None, cache_tti_seconds=None, log_level=None, config_path=None):
+    def __init__(
+        self,
+        work_dir,
+        cache_capacity=None,
+        cache_tti_seconds=None,
+        log_level=None,
+        config_path=None,
+    ):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
     def run(self, port=1736, timeout_ms=...):
@@ -66,7 +73,15 @@ class GraphServer:
            A new server object containing the vectorised graphs.
         """
 
-    def with_vectorised(self, cache, graph_names=None, embedding=None, graph_document=None, node_document=None, edge_document=None):
+    def with_vectorised(
+        self,
+        cache,
+        graph_names=None,
+        embedding=None,
+        graph_document=None,
+        node_document=None,
+        edge_document=None,
+    ):
         """
         Vectorise a subset of the graphs of the server.
 
@@ -231,8 +246,6 @@ class RunningGraphServer:
     def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
-    def get_client(self):
-        ...
-
+    def get_client(self): ...
     def stop(self):
         """Stop the server and wait for it to finish"""

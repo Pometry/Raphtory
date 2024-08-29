@@ -8,24 +8,17 @@
 ###############################################################################
 
 class Document:
-
     def __init__(self, content, life=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
     @property
-    def content(self):
-        ...
-
+    def content(self): ...
     @property
-    def entity(self):
-        ...
-
+    def entity(self): ...
     @property
-    def life(self):
-        ...
+    def life(self): ...
 
 class VectorisedGraph:
-
     def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
@@ -191,5 +184,4 @@ class VectorisedGraph:
     def save_embeddings(self, file):
         """Save the embeddings present in this graph to `file` so they can be further used in a call to `vectorise`"""
 
-def generate_property_list(entity, filter_out=..., force_static=...):
-    ...
+def generate_property_list(entity, filter_out=..., force_static=...): ...

@@ -350,6 +350,7 @@ impl PyMutableEdge {
     ///     properties (Optional[Dict[str, Prop]]): A dictionary of properties to update.
     ///         Each key is a string representing the property name, and each value is of type Prop representing the property value.
     ///         If None, no properties are updated.
+    ///     layer (str): The layer you want these properties to be added on to.
     ///
     /// Returns:
     ///     Result: A result object indicating success or failure. On failure, it contains a GraphError.
@@ -361,6 +362,18 @@ impl PyMutableEdge {
     ) -> Result<(), GraphError> {
         self.edge
             .add_updates(t, properties.unwrap_or_default(), layer)
+    }
+
+    /// Mark the edge as deleted at the specified time.
+    ///
+    /// Parameters:
+    ///     t (PyTime): The timestamp at which the deletion should be applied.
+    ///     layer (str): The layer you want the deletion applied to .
+    ///
+    /// Returns:
+    ///     Result: A result object indicating success or failure.
+    fn delete(&self, t: PyTime, layer: Option<&str>) -> Result<(), GraphError> {
+        self.edge.delete(t, layer)
     }
 
     /// Add constant properties to an edge in the graph.

@@ -1060,7 +1060,7 @@ def test_save_load_graph():
     g.add_edge(5, 12, 13, {"prop1": 1321, "prop2": 9.8, "prop3": "test"})
     g.add_edge(6, 13, 11, {"prop1": 645, "prop2": 9.8, "prop3": "test"})
 
-    graph_rel_path = "graph"
+    graph_rel_path = "../../../js-raphtory/src/graph"
     g.save_to_file(graph_rel_path)
 
     del g
@@ -2657,19 +2657,6 @@ def datadir(tmpdir, request):
         except Exception as e:
             raise e
     return tmpdir
-
-
-# def test_bincode_has_not_changed(datadir):
-#     try:
-#         bincode_path = datadir.join("graph.bincode")
-#         _ = Graph.load_from_file(str(bincode_path))
-#     except Exception as e:
-#         print(e)
-#         raise Exception(
-#             "This test has failed because you have updated core which has changed the bincode. Please can "
-#             "you increment the raphtory/src/lib.rs::BINCODE_VERSION in rust by 1. Then create an empty "
-#             "graph and overwrite this file python/resources/tests/test_graphdb/graph.bincode"
-#         )
 
 
 # def currently_broken_fuzzy_search(): #TODO: Fix fuzzy searching for properties

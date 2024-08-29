@@ -152,19 +152,19 @@ def test_create_graph_succeeds():
             {"properties": {"temporal": {"get": {"values": ["1"]}}}}
         ]
         assert (
-                result["graph"]["properties"]["constant"]["creationTime"]["value"]
-                is not None
+            result["graph"]["properties"]["constant"]["creationTime"]["value"]
+            is not None
         )
         assert (
-                result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
+            result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
         )
         assert (
-                result["graph"]["properties"]["constant"]["lastUpdated"]["value"]
-                is not None
+            result["graph"]["properties"]["constant"]["lastUpdated"]["value"]
+            is not None
         )
         assert (
-                result["graph"]["properties"]["constant"]["uiProps"]["value"]
-                == '{ "target": 6 : }'
+            result["graph"]["properties"]["constant"]["uiProps"]["value"]
+            == '{ "target": 6 : }'
         )
         assert result["graph"]["properties"]["constant"]["isArchive"]["value"] == 1
 
@@ -230,19 +230,19 @@ def test_create_graph_succeeds_at_namespace():
             {"properties": {"temporal": {"get": {"values": ["1"]}}}}
         ]
         assert (
-                result["graph"]["properties"]["constant"]["creationTime"]["value"]
-                is not None
+            result["graph"]["properties"]["constant"]["creationTime"]["value"]
+            is not None
         )
         assert (
-                result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
+            result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
         )
         assert (
-                result["graph"]["properties"]["constant"]["lastUpdated"]["value"]
-                is not None
+            result["graph"]["properties"]["constant"]["lastUpdated"]["value"]
+            is not None
         )
         assert (
-                result["graph"]["properties"]["constant"]["uiProps"]["value"]
-                == '{ "target": 6 : }'
+            result["graph"]["properties"]["constant"]["uiProps"]["value"]
+            == '{ "target": 6 : }'
         )
         assert result["graph"]["properties"]["constant"]["isArchive"]["value"] == 1
 
@@ -382,19 +382,19 @@ def test_update_graph_with_new_graph_name_succeeds_if_parent_graph_belongs_to_di
             {"properties": {"temporal": {"get": {"values": ["1"]}}}}
         ]
         assert (
-                result["graph"]["properties"]["constant"]["creationTime"]["value"]
-                is not None
+            result["graph"]["properties"]["constant"]["creationTime"]["value"]
+            is not None
         )
         assert (
-                result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
+            result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
         )
         assert (
-                result["graph"]["properties"]["constant"]["lastUpdated"]["value"]
-                is not None
+            result["graph"]["properties"]["constant"]["lastUpdated"]["value"]
+            is not None
         )
         assert (
-                result["graph"]["properties"]["constant"]["uiProps"]["value"]
-                == '{ "target": 6 : }'
+            result["graph"]["properties"]["constant"]["uiProps"]["value"]
+            == '{ "target": 6 : }'
         )
         assert result["graph"]["properties"]["constant"]["isArchive"]["value"] == 1
 
@@ -462,19 +462,19 @@ def test_update_graph_with_new_graph_name_succeeds_if_parent_graph_belongs_to_sa
             {"properties": {"temporal": {"get": {"values": ["1"]}}}}
         ]
         assert (
-                result["graph"]["properties"]["constant"]["creationTime"]["value"]
-                is not None
+            result["graph"]["properties"]["constant"]["creationTime"]["value"]
+            is not None
         )
         assert (
-                result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
+            result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
         )
         assert (
-                result["graph"]["properties"]["constant"]["lastUpdated"]["value"]
-                is not None
+            result["graph"]["properties"]["constant"]["lastUpdated"]["value"]
+            is not None
         )
         assert (
-                result["graph"]["properties"]["constant"]["uiProps"]["value"]
-                == '{ "target": 6 : }'
+            result["graph"]["properties"]["constant"]["uiProps"]["value"]
+            == '{ "target": 6 : }'
         )
         assert result["graph"]["properties"]["constant"]["isArchive"]["value"] == 1
 
@@ -550,19 +550,19 @@ def test_update_graph_with_new_graph_name_succeeds_with_new_node_from_parent_gra
         ]
         assert result["graph"]["edges"]["list"] == []
         assert (
-                result["graph"]["properties"]["constant"]["creationTime"]["value"]
-                is not None
+            result["graph"]["properties"]["constant"]["creationTime"]["value"]
+            is not None
         )
         assert (
-                result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
+            result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
         )
         assert (
-                result["graph"]["properties"]["constant"]["lastUpdated"]["value"]
-                is not None
+            result["graph"]["properties"]["constant"]["lastUpdated"]["value"]
+            is not None
         )
         assert (
-                result["graph"]["properties"]["constant"]["uiProps"]["value"]
-                == '{ "target": 6 : }'
+            result["graph"]["properties"]["constant"]["uiProps"]["value"]
+            == '{ "target": 6 : }'
         )
         assert result["graph"]["properties"]["constant"]["isArchive"]["value"] == 1
 
@@ -631,19 +631,19 @@ def test_update_graph_with_new_graph_name_succeeds_with_new_node_removed_from_ne
             {"properties": {"temporal": {"get": {"values": ["1"]}}}}
         ]
         assert (
-                result["graph"]["properties"]["constant"]["creationTime"]["value"]
-                is not None
+            result["graph"]["properties"]["constant"]["creationTime"]["value"]
+            is not None
         )
         assert (
-                result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
+            result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
         )
         assert (
-                result["graph"]["properties"]["constant"]["lastUpdated"]["value"]
-                is not None
+            result["graph"]["properties"]["constant"]["lastUpdated"]["value"]
+            is not None
         )
         assert (
-                result["graph"]["properties"]["constant"]["uiProps"]["value"]
-                == '{ "target": 6 : }'
+            result["graph"]["properties"]["constant"]["uiProps"]["value"]
+            == '{ "target": 6 : }'
         )
         assert result["graph"]["properties"]["constant"]["isArchive"]["value"] == 1
 
@@ -753,15 +753,15 @@ def test_update_graph_succeeds_if_parent_graph_belongs_to_different_namespace():
             {"properties": {"temporal": {"get": {"values": ["1"]}}}}
         ]
         assert (
-                result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
+            result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
         )
         assert (
-                result["graph"]["properties"]["constant"]["lastUpdated"]["value"]
-                is not None
+            result["graph"]["properties"]["constant"]["lastUpdated"]["value"]
+            is not None
         )
         assert (
-                result["graph"]["properties"]["constant"]["uiProps"]["value"]
-                == '{ "target": 6 : }'
+            result["graph"]["properties"]["constant"]["uiProps"]["value"]
+            == '{ "target": 6 : }'
         )
         assert result["graph"]["properties"]["constant"]["isArchive"]["value"] == 1
 
@@ -829,15 +829,15 @@ def test_update_graph_succeeds_if_parent_graph_belongs_to_same_namespace():
             {"properties": {"temporal": {"get": {"values": ["1"]}}}}
         ]
         assert (
-                result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
+            result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
         )
         assert (
-                result["graph"]["properties"]["constant"]["lastUpdated"]["value"]
-                is not None
+            result["graph"]["properties"]["constant"]["lastUpdated"]["value"]
+            is not None
         )
         assert (
-                result["graph"]["properties"]["constant"]["uiProps"]["value"]
-                == '{ "target": 6 : }'
+            result["graph"]["properties"]["constant"]["uiProps"]["value"]
+            == '{ "target": 6 : }'
         )
         assert result["graph"]["properties"]["constant"]["isArchive"]["value"] == 1
 
@@ -912,15 +912,15 @@ def test_update_graph_succeeds_with_new_node_from_parent_graph_added_to_new_grap
         ]
         assert result["graph"]["edges"]["list"] == []
         assert (
-                result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
+            result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
         )
         assert (
-                result["graph"]["properties"]["constant"]["lastUpdated"]["value"]
-                is not None
+            result["graph"]["properties"]["constant"]["lastUpdated"]["value"]
+            is not None
         )
         assert (
-                result["graph"]["properties"]["constant"]["uiProps"]["value"]
-                == '{ "target": 6 : }'
+            result["graph"]["properties"]["constant"]["uiProps"]["value"]
+            == '{ "target": 6 : }'
         )
         assert result["graph"]["properties"]["constant"]["isArchive"]["value"] == 1
 
@@ -983,15 +983,15 @@ def test_update_graph_succeeds_with_new_node_removed_from_new_graph():
         ]
         assert result["graph"]["edges"]["list"] == []
         assert (
-                result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
+            result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
         )
         assert (
-                result["graph"]["properties"]["constant"]["lastUpdated"]["value"]
-                is not None
+            result["graph"]["properties"]["constant"]["lastUpdated"]["value"]
+            is not None
         )
         assert (
-                result["graph"]["properties"]["constant"]["uiProps"]["value"]
-                == '{ "target": 6 : }'
+            result["graph"]["properties"]["constant"]["uiProps"]["value"]
+            == '{ "target": 6 : }'
         )
         assert result["graph"]["properties"]["constant"]["isArchive"]["value"] == 1
 
@@ -1124,18 +1124,18 @@ def test_archive_graph_succeeds():
         update_archive_graph = """mutation { archiveGraph(path: "g1", isArchive: 0) }"""
         assert client.query(update_archive_graph) == {"archiveGraph": True}
         assert (
-                client.query(query_is_archive)["graph"]["properties"]["constant"]["get"][
-                    "value"
-                ]
-                == 0
+            client.query(query_is_archive)["graph"]["properties"]["constant"]["get"][
+                "value"
+            ]
+            == 0
         )
         update_archive_graph = """mutation { archiveGraph(path: "g1", isArchive: 1) }"""
         assert client.query(update_archive_graph) == {"archiveGraph": True}
         assert (
-                client.query(query_is_archive)["graph"]["properties"]["constant"]["get"][
-                    "value"
-                ]
-                == 1
+            client.query(query_is_archive)["graph"]["properties"]["constant"]["get"][
+                "value"
+            ]
+            == 1
         )
 
 
@@ -1162,18 +1162,18 @@ def test_archive_graph_succeeds_at_namespace():
         )
         assert client.query(update_archive_graph) == {"archiveGraph": True}
         assert (
-                client.query(query_is_archive)["graph"]["properties"]["constant"]["get"][
-                    "value"
-                ]
-                == 0
+            client.query(query_is_archive)["graph"]["properties"]["constant"]["get"][
+                "value"
+            ]
+            == 0
         )
         update_archive_graph = (
             """mutation { archiveGraph(path: "shivam/g2", isArchive: 1) }"""
         )
         assert client.query(update_archive_graph) == {"archiveGraph": True}
         assert (
-                client.query(query_is_archive)["graph"]["properties"]["constant"]["get"][
-                    "value"
-                ]
-                == 1
+            client.query(query_is_archive)["graph"]["properties"]["constant"]["get"][
+                "value"
+            ]
+            == 1
         )

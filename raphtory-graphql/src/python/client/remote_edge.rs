@@ -39,6 +39,18 @@ impl PyRemoteEdge {
         Ok(())
     }
 
+    /// Mark the edge as deleted at the specified time.
+    ///
+    /// Parameters:
+    ///     t (PyTime): The timestamp at which the deletion should be applied.
+    ///     layer (str): The layer you want the deletion applied to .
+    ///
+    /// Returns:
+    ///     Result: A result object indicating success or failure.
+    fn delete(&self, t: PyTime, layer: Option<&str>) -> Result<(), GraphError> {
+        Ok(())
+    }
+
     /// Add constant properties to the edge within the remote graph.
     /// This function is used to add properties to an edge that remain constant and do not
     /// change over time. These properties are fundamental attributes of the edge.

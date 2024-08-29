@@ -85,8 +85,6 @@ def test_server_start_on_custom_port():
         }
 
 
-
-
 def test_namespaces():
     def assert_graph_fetch(path):
         query = f"""{{ graph(path: "{path}") {{ nodes {{ list {{ name }} }} }} }}"""

@@ -5,6 +5,7 @@ from raphtory import Graph
 from raphtory.graphql import GraphServer, RaphtoryClient
 import pytest
 
+
 # Test upload graph
 def test_upload_graph_succeeds_if_no_graph_found_with_same_name():
     g = Graph()

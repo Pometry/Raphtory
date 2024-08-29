@@ -145,7 +145,7 @@ def test_copy_graph_succeeds():
             {"name": "haaroon"},
         ]
         assert (
-                result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
+            result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
         )
 
 
@@ -189,7 +189,7 @@ def test_copy_graph_using_client_api_succeeds():
             {"name": "haaroon"},
         ]
         assert (
-                result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
+            result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
         )
 
 
@@ -240,7 +240,7 @@ def test_copy_graph_succeeds_at_same_namespace_as_graph():
             {"name": "haaroon"},
         ]
         assert (
-                result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
+            result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
         )
 
 
@@ -292,6 +292,5 @@ def test_copy_graph_succeeds_at_diff_namespace_as_graph():
             {"name": "haaroon"},
         ]
         assert (
-                result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
+            result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
         )
-

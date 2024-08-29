@@ -22,6 +22,7 @@ def test_new_graph_succeeds():
         query = """{graph(path: "test/path/g1") {nodes {list {name}}}}"""
         client.query(query)
 
+
 def test_new_graph_fails_if_graph_found():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir).start():
@@ -51,21 +52,19 @@ def test_client_new_graph_works():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
-        client.new_graph("path/to/event_graph","EVENT")
-        client.new_graph("path/to/persistent_graph","PERSISTENT")
+        client.new_graph("path/to/event_graph", "EVENT")
+        client.new_graph("path/to/persistent_graph", "PERSISTENT")
 
         query = """{graph(path: "path/to/event_graph") {nodes {list {name}}}}"""
         client.query(query)
         query = """{graph(path: "path/to/persistent_graph") {nodes {list {name}}}}"""
         client.query(query)
 
+
 def test_client_new_graph_broken_type():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
         with pytest.raises(Exception) as excinfo:
-            client.new_graph("path/to/event_graph","EVENdddT")
+            client.new_graph("path/to/event_graph", "EVENdddT")
         assert "Invalid value for argument" in str(excinfo.value)
-
-
-

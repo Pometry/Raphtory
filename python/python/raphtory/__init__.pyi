@@ -8,7 +8,6 @@
 ###############################################################################
 
 class AlgorithmResult:
-
     def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
@@ -165,36 +164,34 @@ class ConstProperties:
         """
 
 class DiskGraphStorage:
-
     def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
-    def graph_dir(self):
-        ...
-
+    def graph_dir(self): ...
     @staticmethod
-    def load_from_dir(graph_dir):
-        ...
-
+    def load_from_dir(graph_dir): ...
     @staticmethod
-    def load_from_pandas(graph_dir, edge_df, time_col, src_col, dst_col):
-        ...
-
+    def load_from_pandas(graph_dir, edge_df, time_col, src_col, dst_col): ...
     @staticmethod
-    def load_from_parquets(graph_dir, layer_parquet_cols, node_properties, chunk_size, t_props_chunk_size, read_chunk_size, concurrent_files, num_threads, node_type_col):
-        ...
-
+    def load_from_parquets(
+        graph_dir,
+        layer_parquet_cols,
+        node_properties,
+        chunk_size,
+        t_props_chunk_size,
+        read_chunk_size,
+        concurrent_files,
+        num_threads,
+        node_type_col,
+    ): ...
     def merge_by_sorted_gids(self, other, graph_dir):
         """
         Merge this graph with another `DiskGraph`. Note that both graphs should have nodes that are
         sorted by their global ids or the resulting graph will be nonsense!
         """
 
-    def to_events(self):
-        ...
-
-    def to_persistent(self):
-        ...
+    def to_events(self): ...
+    def to_persistent(self): ...
 
 class Edge:
     """
@@ -370,11 +367,9 @@ class Edge:
     def explode(self):
         """Explodes an edge and returns all instances it had been updated as seperate edges"""
 
-    def explode_layers(self):
-        ...
-
+    def explode_layers(self): ...
     def has_layer(self, name):
-        """ Check if Edge has the layer `"name"`"""
+        """Check if Edge has the layer `"name"`"""
 
     def history(self):
         """
@@ -577,7 +572,7 @@ class Edge:
 
     @property
     def window_size(self):
-        """ Get the window size (difference between start and end) for this Edge"""
+        """Get the window size (difference between start and end) for this Edge"""
 
 class Edges:
     """A list of edges that can be iterated over."""
@@ -761,11 +756,9 @@ class Edges:
     def explode(self):
         """Explodes an edge and returns all instances it had been updated as seperate edges"""
 
-    def explode_layers(self):
-        ...
-
+    def explode_layers(self): ...
     def has_layer(self, name):
-        """ Check if Edges has the layer `"name"`"""
+        """Check if Edges has the layer `"name"`"""
 
     def history(self):
         """
@@ -937,7 +930,9 @@ class Edges:
           Time of edge
         """
 
-    def to_df(self, include_property_history=True, convert_datetime=False, explode=False):
+    def to_df(
+        self, include_property_history=True, convert_datetime=False, explode=False
+    ):
         """
         Converts the graph's edges into a Pandas DataFrame.
 
@@ -983,7 +978,7 @@ class Edges:
 
     @property
     def window_size(self):
-        """ Get the window size (difference between start and end) for this Edges"""
+        """Get the window size (difference between start and end) for this Edges"""
 
 class Graph:
     """A temporal graph."""
@@ -1014,7 +1009,7 @@ class Graph:
            layer (str): The layer of the edge (optional).
 
         Returns:
-          None
+          returns the added Edge (Edge)
         """
 
     def add_node(self, timestamp, id, properties=None, node_type=None):
@@ -1027,7 +1022,7 @@ class Graph:
            properties (dict): The properties of the node (optional).
            node_type (str): The optional string which will be used as a node type
         Returns:
-          None
+          the added node (Node)
         """
 
     def add_property(self, timestamp, properties):
@@ -1293,7 +1288,7 @@ class Graph:
         """
 
     def has_layer(self, name):
-        """ Check if GraphView has the layer `"name"`"""
+        """Check if GraphView has the layer `"name"`"""
 
     def has_node(self, id):
         """
@@ -1441,7 +1436,16 @@ class Graph:
            Graph
         """
 
-    def load_edge_props_from_pandas(self, df, src, dst, constant_properties=None, shared_constant_properties=None, layer=None, layer_col=None):
+    def load_edge_props_from_pandas(
+        self,
+        df,
+        src,
+        dst,
+        constant_properties=None,
+        shared_constant_properties=None,
+        layer=None,
+        layer_col=None,
+    ):
         """
         Load edge properties from a Pandas DataFrame.
 
@@ -1461,7 +1465,16 @@ class Graph:
             GraphError: If the operation fails.
         """
 
-    def load_edge_props_from_parquet(self, parquet_path, src, dst, constant_properties=None, shared_constant_properties=None, layer=None, layer_col=None):
+    def load_edge_props_from_parquet(
+        self,
+        parquet_path,
+        src,
+        dst,
+        constant_properties=None,
+        shared_constant_properties=None,
+        layer=None,
+        layer_col=None,
+    ):
         """
         Load edge properties from parquet file
 
@@ -1481,7 +1494,18 @@ class Graph:
             GraphError: If the operation fails.
         """
 
-    def load_edges_from_pandas(self, df, time, src, dst, properties=None, constant_properties=None, shared_constant_properties=None, layer=None, layer_col=None):
+    def load_edges_from_pandas(
+        self,
+        df,
+        time,
+        src,
+        dst,
+        properties=None,
+        constant_properties=None,
+        shared_constant_properties=None,
+        layer=None,
+        layer_col=None,
+    ):
         """
         Load edges from a Pandas DataFrame into the graph.
 
@@ -1502,7 +1526,18 @@ class Graph:
             GraphError: If the operation fails.
         """
 
-    def load_edges_from_parquet(self, parquet_path, time, src, dst, properties=None, constant_properties=None, shared_constant_properties=None, layer=None, layer_col=None):
+    def load_edges_from_parquet(
+        self,
+        parquet_path,
+        time,
+        src,
+        dst,
+        properties=None,
+        constant_properties=None,
+        shared_constant_properties=None,
+        layer=None,
+        layer_col=None,
+    ):
         """
         Load edges from a Parquet file into the graph.
 
@@ -1535,7 +1570,15 @@ class Graph:
            Graph
         """
 
-    def load_node_props_from_pandas(self, df, id, node_type=None, node_type_col=None, constant_properties=None, shared_constant_properties=None):
+    def load_node_props_from_pandas(
+        self,
+        df,
+        id,
+        node_type=None,
+        node_type_col=None,
+        constant_properties=None,
+        shared_constant_properties=None,
+    ):
         """
         Load node properties from a Pandas DataFrame.
 
@@ -1554,7 +1597,15 @@ class Graph:
             GraphError: If the operation fails.
         """
 
-    def load_node_props_from_parquet(self, parquet_path, id, node_type=None, node_type_col=None, constant_properties=None, shared_constant_properties=None):
+    def load_node_props_from_parquet(
+        self,
+        parquet_path,
+        id,
+        node_type=None,
+        node_type_col=None,
+        constant_properties=None,
+        shared_constant_properties=None,
+    ):
         """
         Load node properties from a parquet file.
 
@@ -1573,7 +1624,17 @@ class Graph:
             GraphError: If the operation fails.
         """
 
-    def load_nodes_from_pandas(self, df, time, id, node_type=None, node_type_col=None, properties=None, constant_properties=None, shared_constant_properties=None):
+    def load_nodes_from_pandas(
+        self,
+        df,
+        time,
+        id,
+        node_type=None,
+        node_type_col=None,
+        properties=None,
+        constant_properties=None,
+        shared_constant_properties=None,
+    ):
         """
         Load nodes from a Pandas DataFrame into the graph.
 
@@ -1593,7 +1654,17 @@ class Graph:
             GraphError: If the operation fails.
         """
 
-    def load_nodes_from_parquet(self, parquet_path, time, id, node_type=None, node_type_col=None, properties=None, constant_properties=None, shared_constant_properties=None):
+    def load_nodes_from_parquet(
+        self,
+        parquet_path,
+        time,
+        id,
+        node_type=None,
+        node_type_col=None,
+        properties=None,
+        constant_properties=None,
+        shared_constant_properties=None,
+    ):
         """
         Load nodes from a Parquet file into the graph.
 
@@ -1756,10 +1827,15 @@ class Graph:
            GraphView - Returns the subgraph
         """
 
-    def to_disk_graph(self, graph_dir):
-        ...
-
-    def to_networkx(self, explode_edges=False, include_node_properties=True, include_edge_properties=True, include_update_history=True, include_property_history=True):
+    def to_disk_graph(self, graph_dir): ...
+    def to_networkx(
+        self,
+        explode_edges=False,
+        include_node_properties=True,
+        include_edge_properties=True,
+        include_update_history=True,
+        include_property_history=True,
+    ):
         """
         Returns a graph with NetworkX.
 
@@ -1778,7 +1854,18 @@ class Graph:
                 A Networkx MultiDiGraph.
         """
 
-    def to_pyvis(self, explode_edges=False, edge_color="#000000", shape=None, node_image=None, edge_weight=None, edge_label=None, colour_nodes_by_type=False, notebook=False, **kwargs):
+    def to_pyvis(
+        self,
+        explode_edges=False,
+        edge_color="#000000",
+        shape=None,
+        node_image=None,
+        edge_weight=None,
+        edge_label=None,
+        colour_nodes_by_type=False,
+        notebook=False,
+        **kwargs
+    ):
         """
         Draw a graph with PyVis.
         Pyvis is a required dependency. If you intend to use this function make sure that you install Pyvis
@@ -1830,7 +1917,16 @@ class Graph:
              GraphView: The layered view
         """
 
-    def vectorise(self, embedding, cache=None, overwrite_cache=False, graph_document=None, node_document=None, edge_document=None, verbose=False):
+    def vectorise(
+        self,
+        embedding,
+        cache=None,
+        overwrite_cache=False,
+        graph_document=None,
+        node_document=None,
+        edge_document=None,
+        verbose=False,
+    ):
         """
         Create a VectorisedGraph from the current graph
 
@@ -1860,7 +1956,7 @@ class Graph:
 
     @property
     def window_size(self):
-        """ Get the window size (difference between start and end) for this GraphView"""
+        """Get the window size (difference between start and end) for this GraphView"""
 
     def write_updates(self):
         """Persist the new updates by appending them to the cache file."""
@@ -1875,7 +1971,9 @@ class GraphIndex:
     def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
-    def fuzzy_search_edges(self, query, limit=25, offset=0, prefix=False, levenshtein_distance=0):
+    def fuzzy_search_edges(
+        self, query, limit=25, offset=0, prefix=False, levenshtein_distance=0
+    ):
         """
         Searches for edges which match the given query. This uses Tantivy's fuzzy search.
 
@@ -1890,7 +1988,9 @@ class GraphIndex:
            A list of edges which match the query. The list will be empty if no edges match the query.
         """
 
-    def fuzzy_search_nodes(self, query, limit=25, offset=0, prefix=False, levenshtein_distance=0):
+    def fuzzy_search_nodes(
+        self, query, limit=25, offset=0, prefix=False, levenshtein_distance=0
+    ):
         """
         Searches for nodes which match the given query. This uses Tantivy's fuzzy search.
         If you would like to better understand the query syntax, please visit our documentation at https://docs.raphtory.com
@@ -1933,7 +2033,6 @@ class GraphIndex:
         """
 
 class MutableEdge:
-
     def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
@@ -1963,6 +2062,7 @@ class MutableEdge:
             properties (Optional[Dict[str, Prop]]): A dictionary of properties to update.
                 Each key is a string representing the property name, and each value is of type Prop representing the property value.
                 If None, no properties are updated.
+            layer (str): The layer you want these properties to be added on to.
 
         Returns:
             Result: A result object indicating success or failure. On failure, it contains a GraphError.
@@ -2015,6 +2115,18 @@ class MutableEdge:
          Return a view of Edge containing only the default edge layer
         Returns:
              Edge: The layered view
+        """
+
+    def delete(self, t, layer=None):
+        """
+        Mark the edge as deleted at the specified time.
+
+        Parameters:
+            t (PyTime): The timestamp at which the deletion should be applied.
+            layer (str): The layer you want the deletion applied to .
+
+        Returns:
+            Result: A result object indicating success or failure.
         """
 
     def deletions(self):
@@ -2133,11 +2245,9 @@ class MutableEdge:
     def explode(self):
         """Explodes an edge and returns all instances it had been updated as seperate edges"""
 
-    def explode_layers(self):
-        ...
-
+    def explode_layers(self): ...
     def has_layer(self, name):
-        """ Check if Edge has the layer `"name"`"""
+        """Check if Edge has the layer `"name"`"""
 
     def history(self):
         """
@@ -2356,10 +2466,9 @@ class MutableEdge:
 
     @property
     def window_size(self):
-        """ Get the window size (difference between start and end) for this Edge"""
+        """Get the window size (difference between start and end) for this Edge"""
 
 class MutableNode:
-
     def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
@@ -2545,7 +2654,7 @@ class MutableNode:
         """
 
     def has_layer(self, name):
-        """ Check if Node has the layer `"name"`"""
+        """Check if Node has the layer `"name"`"""
 
     def history(self):
         """
@@ -2818,7 +2927,7 @@ class MutableNode:
 
     @property
     def window_size(self):
-        """ Get the window size (difference between start and end) for this Node"""
+        """Get the window size (difference between start and end) for this Node"""
 
 class Node:
     """A node (or node) in the graph."""
@@ -2978,7 +3087,7 @@ class Node:
         """
 
     def has_layer(self, name):
-        """ Check if Node has the layer `"name"`"""
+        """Check if Node has the layer `"name"`"""
 
     def history(self):
         """
@@ -3224,7 +3333,7 @@ class Node:
 
     @property
     def window_size(self):
-        """ Get the window size (difference between start and end) for this Node"""
+        """Get the window size (difference between start and end) for this Node"""
 
 class Nodes:
     """A list of nodes that can be iterated over."""
@@ -3387,7 +3496,7 @@ class Nodes:
         """
 
     def has_layer(self, name):
-        """ Check if Nodes has the layer `"name"`"""
+        """Check if Nodes has the layer `"name"`"""
 
     def history(self):
         """
@@ -3606,9 +3715,7 @@ class Nodes:
             If successful, this PyObject will be a Pandas DataFrame.
         """
 
-    def type_filter(self, node_types):
-        ...
-
+    def type_filter(self, node_types): ...
     def valid_layers(self, names):
         """
          Return a view of Nodes containing all layers `names`
@@ -3635,7 +3742,7 @@ class Nodes:
 
     @property
     def window_size(self):
-        """ Get the window size (difference between start and end) for this Nodes"""
+        """Get the window size (difference between start and end) for this Nodes"""
 
 class PersistentGraph:
     """A temporal graph that allows edges and nodes to be deleted."""
@@ -3963,7 +4070,7 @@ class PersistentGraph:
         """
 
     def has_layer(self, name):
-        """ Check if GraphView has the layer `"name"`"""
+        """Check if GraphView has the layer `"name"`"""
 
     def has_node(self, id):
         """
@@ -4099,7 +4206,9 @@ class PersistentGraph:
            PersistentGraph
         """
 
-    def load_edge_deletions_from_pandas(self, df, time, src, dst, layer=None, layer_col=None):
+    def load_edge_deletions_from_pandas(
+        self, df, time, src, dst, layer=None, layer_col=None
+    ):
         """
         Load edges deletions from a Pandas DataFrame into the graph.
 
@@ -4117,7 +4226,9 @@ class PersistentGraph:
             GraphError: If the operation fails.
         """
 
-    def load_edge_deletions_from_parquet(self, parquet_path, time, src, dst, layer=None, layer_col=None):
+    def load_edge_deletions_from_parquet(
+        self, parquet_path, time, src, dst, layer=None, layer_col=None
+    ):
         """
         Load edges deletions from a Parquet file into the graph.
 
@@ -4135,7 +4246,16 @@ class PersistentGraph:
             GraphError: If the operation fails.
         """
 
-    def load_edge_props_from_pandas(self, df, src, dst, constant_properties=None, shared_constant_properties=None, layer=None, layer_col=None):
+    def load_edge_props_from_pandas(
+        self,
+        df,
+        src,
+        dst,
+        constant_properties=None,
+        shared_constant_properties=None,
+        layer=None,
+        layer_col=None,
+    ):
         """
         Load edge properties from a Pandas DataFrame.
 
@@ -4155,7 +4275,16 @@ class PersistentGraph:
             GraphError: If the operation fails.
         """
 
-    def load_edge_props_from_parquet(self, parquet_path, src, dst, constant_properties=None, shared_constant_properties=None, layer=None, layer_col=None):
+    def load_edge_props_from_parquet(
+        self,
+        parquet_path,
+        src,
+        dst,
+        constant_properties=None,
+        shared_constant_properties=None,
+        layer=None,
+        layer_col=None,
+    ):
         """
         Load edge properties from parquet file
 
@@ -4175,7 +4304,18 @@ class PersistentGraph:
             GraphError: If the operation fails.
         """
 
-    def load_edges_from_pandas(self, df, time, src, dst, properties=None, constant_properties=None, shared_constant_properties=None, layer=None, layer_col=None):
+    def load_edges_from_pandas(
+        self,
+        df,
+        time,
+        src,
+        dst,
+        properties=None,
+        constant_properties=None,
+        shared_constant_properties=None,
+        layer=None,
+        layer_col=None,
+    ):
         """
         Load edges from a Pandas DataFrame into the graph.
 
@@ -4196,7 +4336,18 @@ class PersistentGraph:
             GraphError: If the operation fails.
         """
 
-    def load_edges_from_parquet(self, parquet_path, time, src, dst, properties=None, constant_properties=None, shared_constant_properties=None, layer=None, layer_col=None):
+    def load_edges_from_parquet(
+        self,
+        parquet_path,
+        time,
+        src,
+        dst,
+        properties=None,
+        constant_properties=None,
+        shared_constant_properties=None,
+        layer=None,
+        layer_col=None,
+    ):
         """
         Load edges from a Parquet file into the graph.
 
@@ -4229,7 +4380,15 @@ class PersistentGraph:
            PersistentGraph
         """
 
-    def load_node_props_from_pandas(self, df, id, node_type=None, node_type_col=None, constant_properties=None, shared_constant_properties=None):
+    def load_node_props_from_pandas(
+        self,
+        df,
+        id,
+        node_type=None,
+        node_type_col=None,
+        constant_properties=None,
+        shared_constant_properties=None,
+    ):
         """
         Load node properties from a Pandas DataFrame.
 
@@ -4248,7 +4407,15 @@ class PersistentGraph:
             GraphError: If the operation fails.
         """
 
-    def load_node_props_from_parquet(self, parquet_path, id, node_type=None, node_type_col=None, constant_properties=None, shared_constant_properties=None):
+    def load_node_props_from_parquet(
+        self,
+        parquet_path,
+        id,
+        node_type=None,
+        node_type_col=None,
+        constant_properties=None,
+        shared_constant_properties=None,
+    ):
         """
         Load node properties from a parquet file.
 
@@ -4267,7 +4434,17 @@ class PersistentGraph:
             GraphError: If the operation fails.
         """
 
-    def load_nodes_from_pandas(self, df, time, id, node_type=None, node_type_col=None, properties=None, constant_properties=None, shared_constant_properties=None):
+    def load_nodes_from_pandas(
+        self,
+        df,
+        time,
+        id,
+        node_type=None,
+        node_type_col=None,
+        properties=None,
+        constant_properties=None,
+        shared_constant_properties=None,
+    ):
         """
         Load nodes from a Pandas DataFrame into the graph.
 
@@ -4287,7 +4464,17 @@ class PersistentGraph:
             GraphError: If the operation fails.
         """
 
-    def load_nodes_from_parquet(self, parquet_path, time, id, node_type=None, node_type_col=None, properties=None, constant_properties=None, shared_constant_properties=None):
+    def load_nodes_from_parquet(
+        self,
+        parquet_path,
+        time,
+        id,
+        node_type=None,
+        node_type_col=None,
+        properties=None,
+        constant_properties=None,
+        shared_constant_properties=None,
+    ):
         """
         Load nodes from a Parquet file into the graph.
 
@@ -4444,7 +4631,14 @@ class PersistentGraph:
            GraphView - Returns the subgraph
         """
 
-    def to_networkx(self, explode_edges=False, include_node_properties=True, include_edge_properties=True, include_update_history=True, include_property_history=True):
+    def to_networkx(
+        self,
+        explode_edges=False,
+        include_node_properties=True,
+        include_edge_properties=True,
+        include_update_history=True,
+        include_property_history=True,
+    ):
         """
         Returns a graph with NetworkX.
 
@@ -4463,7 +4657,18 @@ class PersistentGraph:
                 A Networkx MultiDiGraph.
         """
 
-    def to_pyvis(self, explode_edges=False, edge_color="#000000", shape=None, node_image=None, edge_weight=None, edge_label=None, colour_nodes_by_type=False, notebook=False, **kwargs):
+    def to_pyvis(
+        self,
+        explode_edges=False,
+        edge_color="#000000",
+        shape=None,
+        node_image=None,
+        edge_weight=None,
+        edge_label=None,
+        colour_nodes_by_type=False,
+        notebook=False,
+        **kwargs
+    ):
         """
         Draw a graph with PyVis.
         Pyvis is a required dependency. If you intend to use this function make sure that you install Pyvis
@@ -4515,7 +4720,16 @@ class PersistentGraph:
              GraphView: The layered view
         """
 
-    def vectorise(self, embedding, cache=None, overwrite_cache=False, graph_document=None, node_document=None, edge_document=None, verbose=False):
+    def vectorise(
+        self,
+        embedding,
+        cache=None,
+        overwrite_cache=False,
+        graph_document=None,
+        node_document=None,
+        edge_document=None,
+        verbose=False,
+    ):
         """
         Create a VectorisedGraph from the current graph
 
@@ -4545,7 +4759,7 @@ class PersistentGraph:
 
     @property
     def window_size(self):
-        """ Get the window size (difference between start and end) for this GraphView"""
+        """Get the window size (difference between start and end) for this GraphView"""
 
     def write_updates(self):
         """Persist the new updates by appending them to the cache file."""
@@ -4595,11 +4809,9 @@ class PyDirection:
     def __init__(self, direction):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
-    def as_str(self):
-        ...
+    def as_str(self): ...
 
 class PyGraphEncoder:
-
     def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
@@ -4672,9 +4884,7 @@ class TemporalProp:
             (i64, Prop): A tuple containing the time and the minimum property value.
         """
 
-    def ordered_dedupe(self, latest_time):
-        ...
-
+    def ordered_dedupe(self, latest_time): ...
     def sum(self):
         """
         Compute the sum of all property values.
@@ -4683,9 +4893,7 @@ class TemporalProp:
             Prop: The sum of all property values.
         """
 
-    def unique(self):
-        ...
-
+    def unique(self): ...
     def value(self):
         """Get the latest value of the property"""
 

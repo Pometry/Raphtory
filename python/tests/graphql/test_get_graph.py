@@ -121,4 +121,3 @@ def test_get_graphs_returns_graph_list_if_graphs_found():
                 "path": ["g1", "shivam/g2", "shivam/g3"],
             }
         }
-
