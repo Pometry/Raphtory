@@ -206,10 +206,11 @@ pub(crate) fn load_edges_from_df<
             })
             .collect::<Result<Vec<_>, GraphError>>()?;
         let time_col = df.time_col(time_index)?;
-        src_dst.par_sort_by_key(|(src, dst, _)| *(src.min(dst)));
+        let num_shards = graph.num_shards()?;
+        src_dst.par_sort_by_key(|(src, dst, _)| src.min(dst).index() % num_shards);
         src_dst
             .par_chunk_by(|(l_src, l_dst, _), (r_src, r_dst, _)| {
-                l_src.min(l_dst) == r_src.min(r_dst)
+                l_src.min(l_dst).index() % num_shards == r_src.min(r_dst).index() % num_shards
             })
             .try_for_each(|chunk| {
                 for (src, dst, row) in chunk {
