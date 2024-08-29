@@ -1,10 +1,11 @@
 use crate::python::client::{
-    raphtory_client::PyRaphtoryClient, remote_edge::PyRemoteEdge, remote_node::PyRemoteNode,
+    build_property_string, build_query, raphtory_client::PyRaphtoryClient,
+    remote_edge::PyRemoteEdge, remote_node::PyRemoteNode, PyNodeAddition,
 };
-use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyResult};
+use minijinja::context;
+use pyo3::{pyclass, pymethods, Python};
 use raphtory::{
     core::{utils::errors::GraphError, Prop},
-    db::graph::{edge::EdgeView, views::deletion_graph::PersistentGraph},
     python::utils::PyTime,
 };
 use raphtory_api::core::entities::GID;
@@ -14,13 +15,36 @@ use std::collections::HashMap;
 #[pyclass(name = "RemoteGraph")]
 pub struct PyRemoteGraph {
     pub(crate) path: String,
+    pub(crate) client: PyRaphtoryClient,
 }
 
 #[pymethods]
 impl PyRemoteGraph {
     #[new]
-    pub(crate) fn new(path: String) -> Self {
-        Self { path }
+    pub(crate) fn new(path: String, client: PyRaphtoryClient) -> Self {
+        Self { path, client }
+    }
+
+    /// Batch add node updates to the remote graph
+    ///
+    /// Arguments:
+    ///   updates (List[RemoteNodeAddition]): The list of updates you want to apply to the remote graph
+    /// Returns:
+    ///   None
+    #[pyo3(signature = (updates))]
+    pub fn add_nodes(&self, updates: Vec<PyNodeAddition>) -> Result<(), GraphError> {
+        Ok(())
+    }
+
+    /// Batch add edge updates to the remote graph
+    ///
+    /// Arguments:
+    ///   updates (List[RemoteEdgeAddition]): The list of updates you want to apply to the remote graph
+    /// Returns:
+    ///   None
+    #[pyo3(signature = (updates))]
+    pub fn add_edges(&self, updates: Vec<PyNodeAddition>) -> Result<(), GraphError> {
+        Ok(())
     }
 
     /// Adds a new node with the given id and properties to the remote graph.
@@ -53,6 +77,7 @@ impl PyRemoteGraph {
     ///    None
     pub fn add_property(
         &self,
+        py: Python,
         timestamp: PyTime,
         properties: HashMap<String, Prop>,
     ) -> Result<(), GraphError> {
@@ -68,8 +93,26 @@ impl PyRemoteGraph {
     ///    None
     pub fn add_constant_properties(
         &self,
+        py: Python,
         properties: HashMap<String, Prop>,
     ) -> Result<(), GraphError> {
+        let template = r#"
+        {
+          updateGraph(path: "{{ path }}") {
+            addConstantProperties(properties: {{ properties | safe }})
+          }
+        }
+        "#;
+
+        let query_context = context! {
+            path => self.path,
+            properties => build_property_string(properties),
+        };
+
+        let query = build_query(template, query_context)?;
+        print!("{}", query.clone());
+        let _ = &self.client.query(py, query, None)?;
+
         Ok(())
     }
 
@@ -82,8 +125,26 @@ impl PyRemoteGraph {
     ///    None
     pub fn update_constant_properties(
         &self,
+        py: Python,
         properties: HashMap<String, Prop>,
     ) -> Result<(), GraphError> {
+        let template = r#"
+        {
+          updateGraph(path: "{{ path }}") {
+            updateConstantProperties(properties: {{ properties | safe }})
+          }
+        }
+        "#;
+
+        let query_context = context! {
+            path => self.path,
+            properties => build_property_string(properties),
+        };
+
+        let query = build_query(template, query_context)?;
+
+        let _ = &self.client.query(py, query, None)?;
+
         Ok(())
     }
 

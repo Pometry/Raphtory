@@ -127,6 +127,8 @@ lazy_static = "1.4.0"
 pest = "2.7.8"
 pest_derive = "2.7.8"
 sqlparser = "0.43.1"
+minijinja = "2.2.0"
+
 
 datafusion = { version = "36" }
 futures = "0.3"
@@ -134,6 +136,7 @@ arrow = { version = "50" }
 arrow-buffer = { version = "50" }
 arrow-schema = { version = "50" }
 arrow-array = { version = "50" }
+
 
 moka = { version = "0.12.7", features = ["sync"] }
 

@@ -1,5 +1,8 @@
 use crate::{
-    python::{encode_graph, server::is_online, translate_from_python, translate_map_to_python},
+    python::{
+        client::remote_graph::PyRemoteGraph, encode_graph, server::is_online,
+        translate_from_python, translate_map_to_python,
+    },
     url_encode::url_decode_graph,
 };
 use pyo3::{
@@ -23,7 +26,7 @@ pub struct PyRaphtoryClient {
 }
 
 impl PyRaphtoryClient {
-    fn query_with_json_variables(
+    pub(crate) fn query_with_json_variables(
         &self,
         query: String,
         variables: HashMap<String, JsonValue>,
@@ -111,7 +114,7 @@ impl PyRaphtoryClient {
     ///
     /// Returns:
     ///    The `data` field from the graphQL response.
-    fn query(
+    pub(crate) fn query(
         &self,
         py: Python,
         query: String,
@@ -400,5 +403,17 @@ impl PyRaphtoryClient {
             ))),
         }?;
         Ok(())
+    }
+
+    /// Get a RemoteGraph reference to a graph on the server at `path`
+    ///
+    /// Arguments:
+    ///   * `path`: the path of the graph to be created
+    ///
+    /// Returns:
+    ///    RemoteGraph
+    ///
+    fn remote_graph(&self, path: String) -> PyRemoteGraph {
+        PyRemoteGraph::new(path, self.clone())
     }
 }

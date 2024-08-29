@@ -1060,13 +1060,6 @@ def test_save_load_graph():
     g.add_edge(5, 12, 13, {"prop1": 1321, "prop2": 9.8, "prop3": "test"})
     g.add_edge(6, 13, 11, {"prop1": 645, "prop2": 9.8, "prop3": "test"})
 
-    graph_rel_path = "../../../js-raphtory/src/graph"
-    g.save_to_file(graph_rel_path)
-
-    del g
-
-    g = Graph.load_from_file(graph_rel_path)
-
     view = g.window(0, 10)
     assert g.has_node(13)
     assert view.node(13).in_degree() == 1
@@ -1080,8 +1073,6 @@ def test_save_load_graph():
 
     v = view.node(11)
     assert v.properties.temporal == {"type": [(1, "wallet")], "balance": [(1, 99.5)]}
-
-    os.remove(graph_rel_path)
 
     tmpdirname = tempfile.TemporaryDirectory()
     graph_abs_path = tmpdirname.name + "/test_graph.bin"

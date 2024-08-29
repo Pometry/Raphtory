@@ -214,6 +214,18 @@ class RaphtoryClient:
            Graph as string
         """
 
+    def remote_graph(self, path):
+        """
+        Get a RemoteGraph reference to a graph on the server at `path`
+
+        Arguments:
+          * `path`: the path of the graph to be created
+
+        Returns:
+           RemoteGraph
+
+        """
+
     def send_graph(self, path, graph, overwrite=False):
         """
         Send a graph to the server
@@ -239,6 +251,79 @@ class RaphtoryClient:
         Returns:
            The `data` field from the graphQL response after executing the mutation.
         """
+
+class RemoteEdgeAddition:
+    def __init__(self):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+
+class RemoteGraph:
+    def __init__(self, path, node):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+
+    def add_constant_properties(self, properties):
+        """
+        Add constant properties to a node in the remote graph.
+        This function is used to add properties to a node that remain constant and does not
+        change over time. These properties are fundamental attributes of the node.
+
+        Parameters:
+            properties (Dict[str, Prop]): A dictionary of properties to be added to the node.
+            Each key is a string representing the property name, and each value is of type Prop
+            representing the property value.
+
+        Returns:
+            Result: A result object indicating success or failure.
+        """
+
+    def add_updates(self, t, properties=None):
+        """
+        Add updates to a node in the remote graph at a specified time.
+        This function allows for the addition of property updates to a node within the graph. The updates are time-stamped, meaning they are applied at the specified time.
+
+        Parameters:
+            t (PyTime): The timestamp at which the updates should be applied.
+            properties (Optional[Dict[str, Prop]]): A dictionary of properties to update.
+                Each key is a string representing the property name, and each value is of type Prop representing the property value.
+                If None, no properties are updated.
+
+        Returns:
+            Result: A result object indicating success or failure.
+        """
+
+    def set_node_type(self, new_type):
+        """
+        Set the type on the node. This only works if the type has not been previously set, otherwise will
+        throw an error
+
+        Parameters:
+            new_type (str): The new type to be set
+
+        Returns:
+            Result: A result object indicating success or failure.
+        """
+
+    def update_constant_properties(self, properties):
+        """
+        Update constant properties of a node in the remote graph overwriting existing values.
+        This function is used to add properties to a node that remain constant and do not
+        change over time. These properties are fundamental attributes of the node.
+
+        Parameters:
+            properties (Dict[str, Prop]): A dictionary of properties to be added to the node.
+            Each key is a string representing the property name, and each value is of type Prop
+            representing the property value.
+
+        Returns:
+            Result: A result object indicating success or failure.
+        """
+
+class RemoteNodeAddition:
+    def __init__(self):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+
+class RemoteUpdate:
+    def __init__(self):
+        """Initialize self.  See help(type(self)) for accurate signature."""
 
 class RunningGraphServer:
     """A Raphtory server handler that also enables querying the server"""

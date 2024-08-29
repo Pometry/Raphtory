@@ -1,12 +1,8 @@
-use crate::{
-    model::GqlGraphType,
-    url_encode::{url_encode_graph, UrlDecodeError},
-};
+use crate::url_encode::{url_encode_graph, UrlDecodeError};
 use async_graphql::{dynamic::ValueAccessor, Value as GraphqlValue};
 use pyo3::{
     exceptions::{PyTypeError, PyValueError},
-    pyclass, pymethods,
-    types::{PyDict, PyType},
+    types::PyDict,
     IntoPy, PyErr, PyObject, PyResult, Python, ToPyObject,
 };
 use raphtory::{db::api::view::MaterializedGraph, python::utils::errors::adapt_err_value};

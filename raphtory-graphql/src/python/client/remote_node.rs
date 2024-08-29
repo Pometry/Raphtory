@@ -1,4 +1,4 @@
-use pyo3::{pyclass, pymethods, PyResult};
+use pyo3::{pyclass, pymethods};
 use raphtory::{
     core::{utils::errors::GraphError, Prop},
     python::utils::PyTime,
