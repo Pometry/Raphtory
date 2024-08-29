@@ -81,6 +81,11 @@ impl InheritViewOps for Storage {}
 
 impl InternalAdditionOps for Storage {
     #[inline]
+    fn num_shards(&self) -> Result<usize, GraphError> {
+        self.graph.num_shards()
+    }
+
+    #[inline]
     fn next_event_id(&self) -> Result<usize, GraphError> {
         self.graph.next_event_id()
     }

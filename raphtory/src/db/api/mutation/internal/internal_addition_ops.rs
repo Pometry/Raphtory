@@ -12,6 +12,7 @@ use raphtory_api::core::storage::dict_mapper::MaybeNew;
 
 #[enum_dispatch]
 pub trait InternalAdditionOps {
+    fn num_shards(&self) -> Result<usize, GraphError>;
     /// get the sequence id for the next event
     fn next_event_id(&self) -> Result<usize, GraphError>;
 
@@ -101,6 +102,11 @@ pub trait DelegateAdditionOps {
 }
 
 impl<G: DelegateAdditionOps> InternalAdditionOps for G {
+    #[inline]
+    fn num_shards(&self) -> Result<usize, GraphError> {
+        self.graph().num_shards()
+    }
+
     #[inline(always)]
     fn next_event_id(&self) -> Result<usize, GraphError> {
         self.graph().next_event_id()
