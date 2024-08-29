@@ -87,6 +87,10 @@ pub mod algorithms;
 pub mod core;
 pub mod db;
 pub mod graphgen;
+use jemallocator;
+
+#[global_allocator]
+static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
 #[cfg(feature = "storage")]
 pub mod disk_graph;
