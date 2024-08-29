@@ -1,18 +1,4 @@
-use std::{
-    ops::Deref,
-    sync::{
-        atomic::{self, AtomicUsize},
-        Arc,
-    },
-};
-
-use lock_api::ArcRwLockReadGuard;
-use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
-
-use raphtory_api::core::{entities::EID, storage::timeindex::TimeIndexEntry};
-
+use super::{resolve, timeindex::TimeIndex};
 use crate::{
     core::entities::{
         edges::edge_store::{EdgeDataLike, EdgeLayer, EdgeStore},
@@ -20,8 +6,18 @@ use crate::{
     },
     db::api::storage::graph::edges::edge_storage_ops::{EdgeStorageOps, MemEdge},
 };
-
-use super::{resolve, timeindex::TimeIndex};
+use lock_api::ArcRwLockReadGuard;
+use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use raphtory_api::core::{entities::EID, storage::timeindex::TimeIndexEntry};
+use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
+use std::{
+    ops::Deref,
+    sync::{
+        atomic::{self, AtomicUsize},
+        Arc,
+    },
+};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct EdgeShard {

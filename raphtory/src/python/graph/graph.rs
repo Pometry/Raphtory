@@ -135,8 +135,12 @@ impl PyGraphEncoder {
 #[pymethods]
 impl PyGraph {
     #[new]
-    pub fn py_new() -> (Self, PyGraphView) {
-        let graph = Graph::new();
+    #[pyo3(signature=(num_shards=None))]
+    pub fn py_new(num_shards: Option<usize>) -> (Self, PyGraphView) {
+        let graph = match num_shards {
+            None => Graph::new(),
+            Some(num_shards) => Graph::new_with_shards(num_shards),
+        };
         (
             Self {
                 graph: graph.clone(),
