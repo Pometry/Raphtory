@@ -31,6 +31,31 @@ pub struct EdgeShard {
     deletions: Vec<Vec<TimeIndex<TimeIndexEntry>>>,
 }
 
+#[must_use]
+pub struct UninitialisedEdge<'a> {
+    guard: RwLockWriteGuard<'a, EdgeShard>,
+    offset: usize,
+    value: EdgeStore,
+}
+
+impl<'a> UninitialisedEdge<'a> {
+    pub fn init(mut self) -> EdgeWGuard<'a> {
+        self.guard.insert(self.offset, self.value);
+        EdgeWGuard {
+            guard: self.guard,
+            i: self.offset,
+        }
+    }
+
+    pub fn value(&self) -> &EdgeStore {
+        &self.value
+    }
+
+    pub fn value_mut(&mut self) -> &mut EdgeStore {
+        &mut self.value
+    }
+}
+
 impl EdgeShard {
     pub fn insert(&mut self, index: usize, value: EdgeStore) {
         if index >= self.edge_ids.len() {
@@ -113,12 +138,6 @@ impl EdgesStorage {
         self.len.load(atomic::Ordering::SeqCst)
     }
 
-    pub(crate) fn push_edge(&self, edge: EdgeStore) -> EdgeWGuard {
-        let (eid, mut edge) = self.push(edge);
-        edge.edge_store_mut().eid = eid;
-        edge
-    }
-
     pub fn read_lock(&self) -> LockedEdges {
         LockedEdges {
             shards: self
@@ -135,24 +154,28 @@ impl EdgesStorage {
         resolve(index, self.shards.len())
     }
 
-    fn push(&self, value: EdgeStore) -> (EID, EdgeWGuard) {
+    pub(crate) fn push(&self, mut value: EdgeStore) -> UninitialisedEdge {
         let index = self.len.fetch_add(1, atomic::Ordering::Relaxed);
+        value.eid = EID(index);
         let (bucket, offset) = self.resolve(index);
-        let mut shard = self.shards[bucket].write();
-        shard.insert(offset, value);
-        let guard = EdgeWGuard {
-            guard: shard,
-            i: offset,
-        };
-        (index.into(), guard)
+        let guard = self.shards[bucket].write();
+        UninitialisedEdge {
+            guard,
+            offset,
+            value,
+        }
     }
 
-    pub(crate) fn set(&self, value: EdgeStore) {
+    pub(crate) fn set(&self, value: EdgeStore) -> UninitialisedEdge {
         let EID(index) = value.eid;
         self.len.fetch_max(index + 1, atomic::Ordering::Relaxed);
         let (bucket, offset) = self.resolve(index);
-        let mut shard = self.shards[bucket].write();
-        shard.insert(offset, value);
+        let guard = self.shards[bucket].write();
+        UninitialisedEdge {
+            guard,
+            offset,
+            value,
+        }
     }
 
     pub fn get_edge_mut(&self, eid: EID) -> EdgeWGuard {

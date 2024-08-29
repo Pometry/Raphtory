@@ -22,6 +22,7 @@ use crate::{
     db::api::{storage::graph::edges::edge_storage_ops::EdgeStorageOps, view::Layer},
 };
 use dashmap::DashSet;
+use either::Either;
 use itertools::Itertools;
 use raphtory_api::core::{
     entities::{edges::edge_ref::EdgeRef, GidRef},
@@ -366,24 +367,32 @@ impl TemporalGraph {
         layer: usize,
         edge_fn: F,
     ) -> Result<MaybeNew<EID>, GraphError> {
-        let mut edge = {
+        let edge = {
             let mut node_pair = self.storage.pair_node_mut(src_id, dst_id);
             let src = node_pair.get_i();
             let edge = match src.find_edge_eid(dst_id, &LayerIds::All) {
-                Some(edge_id) => MaybeNew::Existing(self.storage.get_edge_mut(edge_id)),
-                None => MaybeNew::New(self.storage.push_edge(EdgeStore::new(src_id, dst_id))),
+                Some(edge_id) => Either::Left(self.storage.get_edge_mut(edge_id)),
+                None => Either::Right(self.storage.push_edge(EdgeStore::new(src_id, dst_id))),
             };
-            self.link_nodes_inner(
-                &mut node_pair,
-                edge.as_ref().inner().edge_store().eid,
-                t,
-                layer,
-            )?;
+            let eid = match edge.as_ref() {
+                Either::Left(edge) => edge.edge_store().eid,
+                Either::Right(edge) => edge.value().eid,
+            };
+            self.link_nodes_inner(&mut node_pair, eid, t, layer)?;
             edge
         };
-        edge_fn(edge.as_mut().inner())?;
 
-        Ok(edge.map(|e| e.edge_store().eid))
+        match edge {
+            Either::Left(mut edge) => {
+                edge_fn(&mut edge)?;
+                Ok(MaybeNew::Existing(edge.edge_store().eid))
+            }
+            Either::Right(edge) => {
+                let mut edge = edge.init();
+                edge_fn(&mut edge)?;
+                Ok(MaybeNew::New(edge.edge_store().eid))
+            }
+        }
     }
 
     pub(crate) fn resolve_node_ref(&self, v: NodeRef) -> Option<VID> {

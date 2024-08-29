@@ -16,7 +16,6 @@ use kdam::{Bar, BarBuilder, BarExt};
 use raphtory_api::core::storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry};
 use rayon::prelude::*;
 use std::collections::HashMap;
-use tantivy::HasLen;
 
 fn build_progress_bar(des: String, num_rows: usize) -> Result<Bar, GraphError> {
     BarBuilder::default()
@@ -176,6 +175,7 @@ pub(crate) fn load_edges_from_df<
         })?;
 
     let mut pb = build_progress_bar("Loading edges".to_string(), df_view.num_rows)?;
+    let _ = pb.update(0);
     let mut start_idx = graph.reserve_event_ids(df_view.num_rows)?;
 
     for chunk in df_view.chunks {
