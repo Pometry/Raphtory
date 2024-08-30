@@ -63,11 +63,33 @@ impl PyRemoteGraph {
     #[pyo3(signature = (timestamp, id, properties = None, node_type = None))]
     pub fn add_node(
         &self,
+        py: Python,
         timestamp: PyTime,
         id: GID,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
     ) -> Result<PyRemoteNode, GraphError> {
+        let template = r#"
+        {
+            updateGraph(path: "{{ path }}") {
+                addNode(time: {{ time }}, name: "{{ name }}" {% if properties is not none %}, properties:  {{ properties | safe }} {% endif %}{% if node_type is not none %}, nodeType: "{{ node_type }}"{% endif %}) {
+                    success
+                }
+            }
+        }
+        "#;
+
+        let query_context = context! {
+            path => self.path,
+            time => timestamp.into_time(),
+            name => id.to_string(),
+            properties => properties.map(|p| build_property_string(p)),
+            node_type => node_type
+        };
+
+        let query = build_query(template, query_context)?;
+        let _ = &self.client.query(py, query, None)?;
+
         Ok(PyRemoteNode::new(self.path.clone(), id.to_string()))
     }
 

@@ -106,3 +106,29 @@ def test_add_properties():
         ]
 
         assert g.properties.temporal.get("prop_map").history() == timestamps
+
+
+def test_add_node():
+    work_dir = tempfile.mkdtemp()
+    with GraphServer(work_dir).start():
+        client = RaphtoryClient("http://localhost:1736")
+        client.new_graph("path/to/event_graph", "EVENT")
+        rg = client.remote_graph("path/to/event_graph")
+        props = make_props()
+        current_datetime = datetime.now(timezone.utc)
+        rg.add_node(current_datetime, "ben", properties=props, node_type="person")
+        rg.add_node(current_datetime, 1)  # This gets stringified on the server
+        rg.add_node(current_datetime, "hamza", node_type="person")
+        g = client.receive_graph("path/to/event_graph")
+        assert g.node("ben").node_type == "person"
+        for k, v in props.items():
+            if isinstance(v, dict):
+                for inner_k, inner_v in v.items():
+                    assert props["prop_map"][inner_k] == inner_v
+            elif isinstance(v, datetime):
+                actual = parser.parse(g.node("ben").properties.get(k))
+                assert v == actual
+            else:
+                assert g.node("ben").properties.get(k) == v
+        assert g.node("hamza").node_type == "person"
+        assert g.node("1") is not None
