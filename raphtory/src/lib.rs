@@ -89,6 +89,7 @@ pub mod db;
 pub mod graphgen;
 use snmalloc_rs;
 
+#[cfg(target_os = "macos")]
 #[global_allocator]
 static ALLOC: snmalloc_rs::SnMalloc = snmalloc_rs::SnMalloc;
 

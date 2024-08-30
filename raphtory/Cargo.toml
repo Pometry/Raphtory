@@ -120,7 +120,6 @@ python = [
     "polars-arrow?/compute",
     "raphtory-api/python",
     "kdam/notebook",
-    "snmalloc-rs/notls"
 ]
 
 # storage
