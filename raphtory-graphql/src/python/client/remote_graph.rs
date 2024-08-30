@@ -5,7 +5,10 @@ use crate::python::client::{
 use minijinja::context;
 use pyo3::{pyclass, pymethods, Python};
 use raphtory::{
-    core::{utils::errors::GraphError, Prop},
+    core::{
+        utils::{errors::GraphError, time::IntoTime},
+        Prop,
+    },
     python::utils::PyTime,
 };
 use raphtory_api::core::entities::GID;
@@ -56,6 +59,7 @@ impl PyRemoteGraph {
     ///    node_type (str): The optional string which will be used as a node type
     /// Returns:
     ///   the added node (RemoteNode)
+    ///
     #[pyo3(signature = (timestamp, id, properties = None, node_type = None))]
     pub fn add_node(
         &self,
@@ -81,6 +85,22 @@ impl PyRemoteGraph {
         timestamp: PyTime,
         properties: HashMap<String, Prop>,
     ) -> Result<(), GraphError> {
+        let template = r#"
+        {
+          updateGraph(path: "{{ path }}") {
+            addProperties(t: {{t}} properties: {{ properties | safe }})
+          }
+        }
+        "#;
+        let query_context = context! {
+            path => self.path,
+            t => timestamp.into_time(),
+            properties => build_property_string(properties),
+        };
+
+        let query = build_query(template, query_context)?;
+        let _ = &self.client.query(py, query, None)?;
+
         Ok(())
     }
 
@@ -110,7 +130,6 @@ impl PyRemoteGraph {
         };
 
         let query = build_query(template, query_context)?;
-        print!("{}", query.clone());
         let _ = &self.client.query(py, query, None)?;
 
         Ok(())

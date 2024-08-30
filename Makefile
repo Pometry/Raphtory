@@ -48,3 +48,8 @@ pull-storage: activate-storage
 
 stubs:
 	cd python && ./scripts/gen-stubs.py && mypy python/raphtory/**/*.pyi
+
+python-fmt:
+	cd python && black .
+
+push-prep: rust-fmt stubs python-fmt

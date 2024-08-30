@@ -1,7 +1,6 @@
 import tempfile
 
 import pytest
-
 from raphtory.graphql import GraphServer, RaphtoryClient
 from datetime import datetime, timezone
 from dateutil import parser
@@ -23,6 +22,7 @@ def make_props():
         },
         "prop_array": [1, 2, 3, 4, 5, 6],
         "prop_datetime": current_datetime,
+        "prop_gertime": current_datetime,
         "prop_naive_datetime": naive_datetime,
     }
 
@@ -74,3 +74,35 @@ def test_update_constant_properties():
         rg.update_constant_properties({"prop_float": 3.0})
         g = client.receive_graph("path/to/event_graph")
         assert g.properties.get("prop_float") == 3.0
+
+
+def test_add_properties():
+    work_dir = tempfile.mkdtemp()
+    with GraphServer(work_dir).start():
+        client = RaphtoryClient("http://localhost:1736")
+        client.new_graph("path/to/event_graph", "EVENT")
+        rg = client.remote_graph("path/to/event_graph")
+        props = make_props()
+        rg.add_property(1, props)
+        current_datetime = datetime.now(timezone.utc)
+        naive_datetime = datetime.now()
+        rg.add_property(current_datetime, props)
+        rg.add_property(naive_datetime, props)
+        g = client.receive_graph("path/to/event_graph")
+        for k, v in props.items():
+            if isinstance(v, dict):
+                for inner_k, inner_v in v.items():
+                    assert props["prop_map"][inner_k] == inner_v
+            elif isinstance(v, datetime):
+                actual = parser.parse(g.properties.get(k))
+                assert v == actual
+            else:
+                assert g.properties.get(k) == v
+        localized_datetime = naive_datetime.replace(tzinfo=timezone.utc)
+        timestamps = [
+            1,
+            int(current_datetime.timestamp() * 1000),
+            int(localized_datetime.timestamp() * 1000),
+        ]
+
+        assert g.properties.temporal.get("prop_map").history() == timestamps
