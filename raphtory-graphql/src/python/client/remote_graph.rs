@@ -28,6 +28,30 @@ impl PyRemoteGraph {
         Self { path, client }
     }
 
+    /// Gets a remote node with the specified id
+    ///
+    /// Arguments:
+    ///   id (str or int): the node id
+    ///
+    /// Returns:
+    ///   RemoteNode
+    pub fn node(&self, id: GID) -> PyRemoteNode {
+        PyRemoteNode::new(self.path.clone(), self.client.clone(), id.to_string())
+    }
+
+    /// Gets a remote edge with the specified source and destination nodes
+    ///
+    /// Arguments:
+    ///     src (str or int): the source node id
+    ///     dst (str or int): the destination node id
+    ///
+    /// Returns:
+    ///     RemoteEdge
+    #[pyo3(signature = (src, dst))]
+    pub fn edge(&self, src: GID, dst: GID) -> PyRemoteEdge {
+        PyRemoteEdge::new(self.path.clone(), src.to_string(), dst.to_string())
+    }
+
     /// Batch add node updates to the remote graph
     ///
     /// Arguments:
@@ -90,7 +114,11 @@ impl PyRemoteGraph {
         let query = build_query(template, query_context)?;
         let _ = &self.client.query(py, query, None)?;
 
-        Ok(PyRemoteNode::new(self.path.clone(), id.to_string()))
+        Ok(PyRemoteNode::new(
+            self.path.clone(),
+            self.client.clone(),
+            id.to_string(),
+        ))
     }
 
     /// Adds properties to the remote graph.

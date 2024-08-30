@@ -257,7 +257,7 @@ class RemoteEdgeAddition:
         """Initialize self.  See help(type(self)) for accurate signature."""
 
 class RemoteGraph:
-    def __init__(self, path, node):
+    def __init__(self, path, client, id):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
     def add_constant_properties(self, properties):

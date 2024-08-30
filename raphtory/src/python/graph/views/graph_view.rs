@@ -248,7 +248,6 @@ impl PyGraphView {
     /// Arguments:
     ///     src (str or int): the source node id
     ///     dst (str or int): the destination node id
-    ///     layer (str): the edge layer (optional)
     ///
     /// Returns:
     ///     the edge with the specified source and destination nodes, or None if the edge does not exist

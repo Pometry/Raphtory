@@ -1,6 +1,13 @@
-use pyo3::{pyclass, pymethods};
+use crate::python::client::{
+    build_property_string, build_query, raphtory_client::PyRaphtoryClient,
+};
+use minijinja::context;
+use pyo3::{pyclass, pymethods, Python};
 use raphtory::{
-    core::{utils::errors::GraphError, Prop},
+    core::{
+        utils::{errors::GraphError, time::IntoTime},
+        Prop,
+    },
     python::utils::PyTime,
 };
 use std::collections::HashMap;
@@ -9,14 +16,15 @@ use std::collections::HashMap;
 #[pyclass(name = "RemoteGraph")]
 pub struct PyRemoteNode {
     pub(crate) path: String,
-    pub(crate) node: String,
+    pub(crate) client: PyRaphtoryClient,
+    pub(crate) id: String,
 }
 
 #[pymethods]
 impl PyRemoteNode {
     #[new]
-    pub(crate) fn new(path: String, node: String) -> Self {
-        Self { path, node }
+    pub(crate) fn new(path: String, client: PyRaphtoryClient, id: String) -> Self {
+        Self { path, client, id }
     }
 
     /// Set the type on the node. This only works if the type has not been previously set, otherwise will
@@ -27,7 +35,25 @@ impl PyRemoteNode {
     ///
     /// Returns:
     ///     Result: A result object indicating success or failure.
-    pub fn set_node_type(&self, new_type: &str) -> Result<(), GraphError> {
+    pub fn set_node_type(&self, py: Python, new_type: &str) -> Result<(), GraphError> {
+        let template = r#"
+            {
+              updateGraph(path: "{{path}}") {
+                node(name: "{{name}}") {
+                  setNodeType(newType: "{{new_type}}")
+                }
+              }
+            }
+        "#;
+
+        let query_context = context! {
+            path => self.path,
+            name => self.id,
+            new_type => new_type
+        };
+
+        let query = build_query(template, query_context)?;
+        let _ = &self.client.query(py, query, None)?;
         Ok(())
     }
 
@@ -44,9 +70,30 @@ impl PyRemoteNode {
     ///     Result: A result object indicating success or failure.
     pub fn add_updates(
         &self,
+        py: Python,
         t: PyTime,
         properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
+        let template = r#"
+            {
+              updateGraph(path: "{{path}}") {
+                node(name: "{{name}}") {
+                  addUpdates(time: {{t}} {% if properties is not none %}, properties:  {{ properties | safe }} {% endif %})
+                }
+              }
+            }
+        "#;
+
+        let query_context = context! {
+            path => self.path,
+            name => self.id,
+            t => t.into_time(),
+            properties =>  properties.map(|p| build_property_string(p)),
+        };
+
+        let query = build_query(template, query_context)?;
+        let _ = &self.client.query(py, query, None)?;
+
         Ok(())
     }
 
@@ -63,8 +110,27 @@ impl PyRemoteNode {
     ///     Result: A result object indicating success or failure.
     pub fn add_constant_properties(
         &self,
+        py: Python,
         properties: HashMap<String, Prop>,
     ) -> Result<(), GraphError> {
+        let template = r#"
+            {
+              updateGraph(path: "{{path}}") {
+                node(name: "{{name}}") {
+                  addConstantProperties(properties: {{ properties | safe }} )
+                }
+              }
+            }
+        "#;
+
+        let query_context = context! {
+            path => self.path,
+            name => self.id,
+            properties =>  build_property_string(properties),
+        };
+
+        let query = build_query(template, query_context)?;
+        let _ = &self.client.query(py, query, None)?;
         Ok(())
     }
 
@@ -81,8 +147,27 @@ impl PyRemoteNode {
     ///     Result: A result object indicating success or failure.
     pub fn update_constant_properties(
         &self,
+        py: Python,
         properties: HashMap<String, Prop>,
     ) -> Result<(), GraphError> {
+        let template = r#"
+            {
+              updateGraph(path: "{{path}}") {
+                node(name: "{{name}}") {
+                  updateConstantProperties(properties: {{ properties | safe }} )
+                }
+              }
+            }
+        "#;
+
+        let query_context = context! {
+            path => self.path,
+            name => self.id,
+            properties =>  build_property_string(properties)
+        };
+
+        let query = build_query(template, query_context)?;
+        let _ = &self.client.query(py, query, None)?;
         Ok(())
     }
 }

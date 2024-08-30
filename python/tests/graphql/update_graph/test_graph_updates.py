@@ -1,9 +1,8 @@
 import tempfile
-
 import pytest
+from dateutil import parser
 from raphtory.graphql import GraphServer, RaphtoryClient
 from datetime import datetime, timezone
-from dateutil import parser
 
 
 def make_props():

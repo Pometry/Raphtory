@@ -272,9 +272,10 @@ impl GqlMutableNode {
     async fn add_updates(
         &self,
         time: i64,
-        properties: Vec<GqlPropInput>,
+        properties: Option<Vec<GqlPropInput>>,
     ) -> Result<bool, GraphError> {
-        self.node.add_updates(time, as_properties(properties))?;
+        self.node
+            .add_updates(time, as_properties(properties.unwrap_or(vec![])))?;
         self.node.graph.write_updates()?;
         Ok(true)
     }
