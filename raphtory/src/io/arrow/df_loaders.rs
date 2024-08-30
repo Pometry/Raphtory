@@ -190,47 +190,34 @@ pub(crate) fn load_edges_from_df<
             |key, dtype| graph.resolve_edge_property(key, dtype, true),
         )?;
         let layer = lift_layer_col(layer, layer_index, &df)?;
-        let mut src_dst = df
-            .node_col(src_index)?
-            .par_iter()
-            .zip(df.node_col(dst_index)?.par_iter())
-            .enumerate()
-            .map(|(idx, (src, dst))| {
-                let src = graph
-                    .resolve_node(src.ok_or(LoadError::MissingSrcError)?)?
-                    .inner();
-                let dst = graph
-                    .resolve_node(dst.ok_or(LoadError::MissingDstError)?)?
-                    .inner();
-                Ok((src, dst, idx))
-            })
-            .collect::<Result<Vec<_>, GraphError>>()?;
+        let src_col = df.node_col(src_index)?;
+        let dst_col = df.node_col(dst_index)?;
         let time_col = df.time_col(time_index)?;
-        let num_shards = graph.num_shards()?;
-        src_dst.par_sort_by_key(|(src, dst, _)| {
-            (src.index() % num_shards).min(dst.index() % num_shards)
-        });
-        src_dst
-            .par_chunk_by(|(l_src, l_dst, _), (r_src, r_dst, _)| {
-                (l_src.index() % num_shards).min(l_dst.index() % num_shards)
-                    == (r_src.index() % num_shards).min(r_dst.index() % num_shards)
-            })
-            .try_for_each(|chunk| {
-                for (src, dst, row) in chunk {
-                    let time = time_col.get(*row).ok_or(LoadError::MissingTimeError)?;
-                    let time_idx = TimeIndexEntry(time, start_idx + row);
-                    let layer = graph.resolve_layer(layer.get(*row))?.inner();
-                    let t_props: Vec<_> = prop_cols.iter_row(*row).collect();
-                    let c_props: Vec<_> = const_prop_cols
-                        .iter_row(*row)
-                        .chain(shared_constant_properties.iter().cloned())
-                        .collect();
-                    let eid = graph
-                        .internal_add_edge(time_idx, *src, *dst, &t_props, layer)?
-                        .inner();
-                    if !c_props.is_empty() {
-                        graph.internal_add_constant_edge_properties(eid, layer, &c_props)?;
-                    }
+        src_col
+            .par_iter()
+            .zip(dst_col.par_iter())
+            .zip(time_col.par_iter())
+            .zip(layer.par_iter())
+            .zip(prop_cols.par_rows())
+            .zip(const_prop_cols.par_rows())
+            .enumerate()
+            .try_for_each(|(idx, (((((src, dst), time), layer), t_props), c_props))| {
+                let src = src.ok_or(LoadError::MissingSrcError)?;
+                let dst = dst.ok_or(LoadError::MissingDstError)?;
+                let time = time.ok_or(LoadError::MissingTimeError)?;
+                let time_idx = TimeIndexEntry(time, start_idx + idx);
+                let src = graph.resolve_node(src)?.inner();
+                let dst = graph.resolve_node(dst)?.inner();
+                let layer = graph.resolve_layer(layer)?.inner();
+                let t_props: Vec<_> = t_props.collect();
+                let c_props: Vec<_> = c_props
+                    .chain(shared_constant_properties.iter().cloned())
+                    .collect();
+                let eid = graph
+                    .internal_add_edge(time_idx, src, dst, &t_props, layer)?
+                    .inner();
+                if !c_props.is_empty() {
+                    graph.internal_add_constant_edge_properties(eid, layer, &c_props)?;
                 }
                 Ok::<(), GraphError>(())
             })?;
