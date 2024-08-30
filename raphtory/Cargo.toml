@@ -119,7 +119,8 @@ python = [
     "dep:display-error-chain",
     "polars-arrow?/compute",
     "raphtory-api/python",
-    "kdam/notebook"
+    "kdam/notebook",
+    "snmalloc-rs/notls"
 ]
 
 # storage
