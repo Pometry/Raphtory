@@ -22,7 +22,7 @@ impl GraphStorage {
     pub(crate) fn new(num_locks: usize) -> Self {
         Self {
             nodes: storage::RawStorage::new(num_locks),
-            edges: EdgesStorage::new(),
+            edges: EdgesStorage::new(num_locks),
         }
     }
 

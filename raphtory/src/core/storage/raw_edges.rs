@@ -5,6 +5,7 @@ use crate::{
         LayerIds,
     },
     db::api::storage::graph::edges::edge_storage_ops::{EdgeStorageOps, MemEdge},
+    DEFAULT_NUM_SHARDS,
 };
 use lock_api::ArcRwLockReadGuard;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -88,8 +89,6 @@ impl EdgeShard {
     }
 }
 
-pub const SHARD_SIZE: usize = 64;
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EdgesStorage {
     shards: Arc<[Arc<RwLock<EdgeShard>>]>,
@@ -109,13 +108,13 @@ impl PartialEq for EdgesStorage {
 
 impl Default for EdgesStorage {
     fn default() -> Self {
-        Self::new()
+        Self::new(DEFAULT_NUM_SHARDS)
     }
 }
 
 impl EdgesStorage {
-    pub fn new() -> Self {
-        let shards = (0..SHARD_SIZE).map(|_| {
+    pub fn new(num_shards: usize) -> Self {
+        let shards = (0..num_shards).map(|_| {
             Arc::new(RwLock::new(EdgeShard {
                 edge_ids: vec![],
                 props: Vec::with_capacity(0),
