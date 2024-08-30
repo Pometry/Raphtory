@@ -203,12 +203,34 @@ impl PyRemoteGraph {
     #[pyo3(signature = (timestamp, src, dst, properties = None, layer = None))]
     pub fn add_edge(
         &self,
+        py: Python,
         timestamp: PyTime,
         src: GID,
         dst: GID,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
     ) -> Result<PyRemoteEdge, GraphError> {
+        let template = r#"
+        {
+            updateGraph(path: "{{ path }}") {
+                addEdge(time: {{ time }}, src: "{{ src }}", dst: "{{ dst }}" {% if properties is not none %}, properties:  {{ properties | safe }} {% endif %}{% if layer is not none %}, layer: "{{ layer }}"{% endif %}) {
+                    success
+                }
+            }
+        }
+        "#;
+
+        let query_context = context! {
+            path => self.path,
+            time => timestamp.into_time(),
+            src => src.to_string(),
+            dst => dst.to_string(),
+            properties => properties.map(|p| build_property_string(p)),
+            layer => layer
+        };
+
+        let query = build_query(template, query_context)?;
+        let _ = &self.client.query(py, query, None)?;
         Ok(PyRemoteEdge::new(
             self.path.clone(),
             src.to_string(),
@@ -228,11 +250,32 @@ impl PyRemoteGraph {
     ///  The deleted edge (RemoteEdge)
     pub fn delete_edge(
         &self,
+        py: Python,
         timestamp: PyTime,
         src: GID,
         dst: GID,
         layer: Option<&str>,
     ) -> Result<PyRemoteEdge, GraphError> {
+        let template = r#"
+        {
+            updateGraph(path: "{{ path }}") {
+                deleteEdge(time: {{ time }}, src: "{{ src }}", dst: "{{ dst }}" {% if layer is not none %}, layer: "{{ layer }}"{% endif %}) {
+                    success
+                }
+            }
+        }
+        "#;
+
+        let query_context = context! {
+            path => self.path,
+            time => timestamp.into_time(),
+            src => src.to_string(),
+            dst => dst.to_string(),
+            layer => layer
+        };
+
+        let query = build_query(template, query_context)?;
+        let _ = &self.client.query(py, query, None)?;
         Ok(PyRemoteEdge::new(
             self.path.clone(),
             src.to_string(),

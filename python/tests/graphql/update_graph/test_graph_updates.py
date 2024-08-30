@@ -132,3 +132,52 @@ def test_add_node():
                 assert g.node("ben").properties.get(k) == v
         assert g.node("hamza").node_type == "person"
         assert g.node("1") is not None
+
+
+def test_add_edge():
+    work_dir = tempfile.mkdtemp()
+    with GraphServer(work_dir).start():
+        client = RaphtoryClient("http://localhost:1736")
+        client.new_graph("path/to/event_graph", "EVENT")
+        rg = client.remote_graph("path/to/event_graph")
+        props = make_props()
+        rg.add_edge(1, "ben", "hamza", properties=props, layer="friends")
+        rg.add_edge(2, "ben", "hamza", layer="colleagues")
+        rg.add_edge(3, "ben", "lucas")
+        rg.add_edge(3, "shivam", "lucas", properties=props)
+
+        g = client.receive_graph("path/to/event_graph")
+        for k, v in props.items():
+            if isinstance(v, dict):
+                for inner_k, inner_v in v.items():
+                    assert props["prop_map"][inner_k] == inner_v
+            elif isinstance(v, datetime):
+                actual = parser.parse(g.edge("ben", "hamza").properties.get(k))
+                assert v == actual
+            else:
+                assert g.edge("ben", "hamza").properties.get(k) == v
+        assert g.unique_layers == ["_default", "friends", "colleagues"]
+        assert g.layer("friends").count_edges() == 1
+
+
+def test_delete_edge():
+    work_dir = tempfile.mkdtemp()
+    with GraphServer(work_dir).start():
+        client = RaphtoryClient("http://localhost:1736")
+        client.new_graph("path/to/event_graph", "EVENT")
+        rg = client.remote_graph("path/to/event_graph")
+
+        rg.add_edge(1, "ben", "hamza")
+        with pytest.raises(Exception) as excinfo:
+            rg.delete_edge(2, "ben", "hamza")
+        assert "Event Graph doesn't support deletions" in str(excinfo.value)
+
+        client.new_graph("path/to/persistent_graph", "PERSISTENT")
+        rg = client.remote_graph("path/to/persistent_graph")
+        rg.add_edge(1, "ben", "hamza")
+        rg.delete_edge(2, "ben", "hamza")
+        rg.add_edge(1, "ben", "lucas", layer="colleagues")
+        rg.delete_edge(2, "ben", "lucas", layer="colleagues")
+        g = client.receive_graph("path/to/persistent_graphgi")
+        assert g.edge("ben", "hamza").deletions() == [2]
+        assert g.edge("ben", "lucas").deletions() == [2]
