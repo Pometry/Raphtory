@@ -52,4 +52,4 @@ stubs:
 python-fmt:
 	cd python && black .
 
-push-prep: rust-fmt stubs python-fmt
+tidy: rust-fmt stubs python-fmt
