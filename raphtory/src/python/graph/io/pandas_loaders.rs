@@ -201,7 +201,7 @@ pub(crate) fn process_pandas_py_df<'a>(
 
     let table = pa_table.call_method("from_pandas", (dropped_df,), None)?;
     let kwargs = PyDict::new(py);
-    kwargs.set_item("max_chunksize", 100000)?;
+    kwargs.set_item("max_chunksize", 1000000)?;
     let rb = table
         .call_method("to_batches", (), Some(kwargs))?
         .extract::<Vec<&PyAny>>()?;
