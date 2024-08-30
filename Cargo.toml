@@ -39,7 +39,7 @@ pometry-storage = { version = ">=0.8.1", path = "pometry-storage" }
 # pometry-storage = { path = "pometry-storage-private", package = "pometry-storage-private" }
 async-graphql = { version = "7.0.5", features = ["dynamic-schema"] }
 bincode = "1.3.3"
-snmalloc-rs = "0.3.6"
+snmalloc-rs = { version = "0.3.6", features = ["local_dynamic_tls"] }
 async-graphql-poem = "7.0.5"
 dynamic-graphql = "0.9.0"
 reqwest = { version = "0.12.7", default-features = false, features = ["rustls-tls", "multipart", "json"] }
