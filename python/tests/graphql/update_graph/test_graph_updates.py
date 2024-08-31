@@ -177,6 +177,17 @@ def test_delete_edge():
         rg.delete_edge(2, "ben", "hamza")
         rg.add_edge(1, "ben", "lucas", layer="colleagues")
         rg.delete_edge(2, "ben", "lucas", layer="colleagues")
-        g = client.receive_graph("path/to/persistent_graphgi")
+        g = client.receive_graph("path/to/persistent_graph")
         assert g.edge("ben", "hamza").deletions() == [2]
         assert g.edge("ben", "lucas").deletions() == [2]
+
+
+# def test_add_nodes():
+#     work_dir = tempfile.mkdtemp()
+#
+#     with GraphServer(work_dir).start():
+#         client = RaphtoryClient("http://localhost:1736")
+#         client.new_graph("path/to/event_graph", "EVENT")
+#         rg = client.remote_graph("path/to/event_graph")
+#
+#         rg.add_nodes()

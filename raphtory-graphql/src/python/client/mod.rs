@@ -5,6 +5,7 @@ use raphtory::{
     python::utils::PyTime,
 };
 use raphtory_api::core::entities::GID;
+use serde::Serialize;
 use std::collections::HashMap;
 
 pub mod raphtory_client;
@@ -12,13 +13,13 @@ pub mod remote_edge;
 pub mod remote_graph;
 pub mod remote_node;
 
-#[derive(Clone)]
+#[derive(Clone, Serialize)]
 #[pyclass(name = "RemoteUpdate")]
 pub struct PyUpdate {
     time: PyTime,
     properties: Option<HashMap<String, Prop>>,
 }
-#[derive(Clone)]
+#[derive(Clone, Serialize)]
 #[pyclass(name = "RemoteNodeAddition")]
 pub struct PyNodeAddition {
     name: GID,

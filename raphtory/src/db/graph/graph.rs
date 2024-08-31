@@ -417,7 +417,7 @@ mod db_tests {
             .constant()
             .get("aprop")
             .unwrap()
-            .to_graphql_valid();
+            .to_json();
         let json_as_map = json_res.as_object().unwrap();
         assert_eq!(json_as_map.len(), 2);
         assert_eq!(json_as_map.get("LAYERA"), Some(&Value::Bool(false)));
@@ -437,7 +437,7 @@ mod db_tests {
             .constant()
             .get("bprop")
             .unwrap()
-            .to_graphql_valid();
+            .to_json();
         let list_res = json_res.as_object().unwrap().get("LAYERB").unwrap();
         assert_eq!(list_res.as_array().unwrap().len(), 3);
 
@@ -458,7 +458,7 @@ mod db_tests {
             .constant()
             .get("mymap")
             .unwrap()
-            .to_graphql_valid();
+            .to_json();
         let map_res = json_res.as_object().unwrap().get("LAYERC").unwrap();
         assert_eq!(map_res.as_object().unwrap().len(), 2);
     }

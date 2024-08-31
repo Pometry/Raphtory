@@ -358,11 +358,14 @@ impl GqlMutableEdge {
     async fn add_updates(
         &self,
         time: i64,
-        properties: Vec<GqlPropInput>,
+        properties: Option<Vec<GqlPropInput>>,
         layer: Option<String>,
     ) -> Result<bool, GraphError> {
-        self.edge
-            .add_updates(time, as_properties(properties), layer.as_str())?;
+        self.edge.add_updates(
+            time,
+            as_properties(properties.unwrap_or(vec![])),
+            layer.as_str(),
+        )?;
         self.edge.graph.write_updates()?;
         Ok(true)
     }

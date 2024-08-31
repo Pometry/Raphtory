@@ -49,7 +49,12 @@ impl PyRemoteGraph {
     ///     RemoteEdge
     #[pyo3(signature = (src, dst))]
     pub fn edge(&self, src: GID, dst: GID) -> PyRemoteEdge {
-        PyRemoteEdge::new(self.path.clone(), src.to_string(), dst.to_string())
+        PyRemoteEdge::new(
+            self.path.clone(),
+            self.client.clone(),
+            src.to_string(),
+            dst.to_string(),
+        )
     }
 
     /// Batch add node updates to the remote graph
@@ -59,7 +64,58 @@ impl PyRemoteGraph {
     /// Returns:
     ///   None
     #[pyo3(signature = (updates))]
-    pub fn add_nodes(&self, updates: Vec<PyNodeAddition>) -> Result<(), GraphError> {
+    pub fn add_nodes(&self, py: Python, updates: Vec<PyNodeAddition>) -> Result<(), GraphError> {
+        let template = r#"
+        {
+        updateGraph(path: "{{ path }}") {
+            addNodes(
+                nodes: [
+                    {% for node in nodes %}
+                    {
+                        name: "{{ node.name }}"
+                        updates: [
+                            {% for tprop in node.updates %}
+                            {
+                                time: {{ tprop.time }},
+                                properties: [
+                                    {% for prop in tprop.properties %}
+                                    {
+                                        key: "{{ prop.key }}",
+                                        value: {{ prop.value }}
+                                    }
+                                    {% if not loop.last %},{% endif %}
+                                    {% endfor %}
+                                ]
+                            }
+                            {% if not loop.last %},{% endif %}
+                            {% endfor %}
+                        ]
+                        constantProperties: [
+                            {% for cprop in node.constantProperties %}
+                            {
+                                key: "{{ cprop.key }}",
+                                value: {{ cprop.value }}
+                            }
+                            {% if not loop.last %},{% endif %}
+                            {% endfor %}
+                        ]
+                    }
+                    {% if not loop.last %},{% endif %}
+                    {% endfor %}
+                ]
+            )
+        }
+    }
+        "#;
+
+        let query_context = context! {
+            path => self.path,
+            nodes => updates
+        };
+
+        let query = build_query(template, query_context)?;
+        let _ = &self.client.query(py, query, None)?;
+
         Ok(())
     }
 
@@ -261,6 +317,7 @@ impl PyRemoteGraph {
         let _ = &self.client.query(py, query, None)?;
         Ok(PyRemoteEdge::new(
             self.path.clone(),
+            self.client.clone(),
             src.to_string(),
             dst.to_string(),
         ))
@@ -306,6 +363,7 @@ impl PyRemoteGraph {
         let _ = &self.client.query(py, query, None)?;
         Ok(PyRemoteEdge::new(
             self.path.clone(),
+            self.client.clone(),
             src.to_string(),
             dst.to_string(),
         ))
