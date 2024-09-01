@@ -15,15 +15,29 @@ def make_props():
         "prop_bool": True,
         "prop_map": {
             "prop_inner_string": "blah",
+            "prop_map": {
+                "prop_inner_string": "b",
+                "prop_inner_float": 6.0,
+                "prop_inner_int": 332,
+                "prop_inner_bool": True,
+            },
             "prop_inner_float": 2.0,
             "prop_inner_int": 2,
             "prop_inner_bool": True,
         },
         "prop_array": [1, 2, 3, 4, 5, 6],
         "prop_datetime": current_datetime,
-        "prop_gertime": current_datetime,
         "prop_naive_datetime": naive_datetime,
     }
+
+
+def helper_test_props(entity, props):
+    for k, v in props.items():
+        if isinstance(v, datetime):
+            actual = parser.parse(entity.properties.get(k))
+            assert v == actual
+        else:
+            assert entity.properties.get(k) == v
 
 
 def test_set_node_type():
@@ -53,15 +67,7 @@ def test_add_updates():
         node.add_updates(3)
         rg.node("ben").add_updates(4)
         g = client.receive_graph("path/to/event_graph")
-        for k, v in props.items():
-            if isinstance(v, dict):
-                for inner_k, inner_v in v.items():
-                    assert props["prop_map"][inner_k] == inner_v
-            elif isinstance(v, datetime):
-                actual = parser.parse(g.node("ben").properties.get(k))
-                assert v == actual
-            else:
-                assert g.node("ben").properties.get(k) == v
+        helper_test_props(g.node("ben"), props)
         assert g.node("ben").history() == [1, 2, 3, 4]
 
 
@@ -75,15 +81,7 @@ def test_add_constant_properties():
         node = rg.add_node(1, "ben")
         node.add_constant_properties(props)
         g = client.receive_graph("path/to/event_graph")
-        for k, v in props.items():
-            if isinstance(v, dict):
-                for inner_k, inner_v in v.items():
-                    assert props["prop_map"][inner_k] == inner_v
-            elif isinstance(v, datetime):
-                actual = parser.parse(g.node("ben").properties.get(k))
-                assert v == actual
-            else:
-                assert g.node("ben").properties.get(k) == v
+        helper_test_props(g.node("ben"), props)
 
         with pytest.raises(Exception) as excinfo:
             rg.node("ben").add_constant_properties({"prop_float": 3.0})
@@ -100,15 +98,7 @@ def test_update_constant_properties():
         node = rg.add_node(1, "ben")
         node.update_constant_properties(props)
         g = client.receive_graph("path/to/event_graph")
-        for k, v in props.items():
-            if isinstance(v, dict):
-                for inner_k, inner_v in v.items():
-                    assert props["prop_map"][inner_k] == inner_v
-            elif isinstance(v, datetime):
-                actual = parser.parse(g.node("ben").properties.get(k))
-                assert v == actual
-            else:
-                assert g.node("ben").properties.get(k) == v
+        helper_test_props(g.node("ben"), props)
 
         rg.node("ben").update_constant_properties({"prop_float": 3.0})
         g = client.receive_graph("path/to/event_graph")

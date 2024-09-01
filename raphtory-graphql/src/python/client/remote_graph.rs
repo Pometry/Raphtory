@@ -73,32 +73,39 @@ impl PyRemoteGraph {
                     {% for node in nodes %}
                     {
                         name: "{{ node.name }}"
+                        {% if node.node_type%}, nodeType: "{{ node.node_type }}"{% endif %}
+                        {% if node.updates%},
                         updates: [
                             {% for tprop in node.updates %}
                             {
                                 time: {{ tprop.time }},
+                                {% if tprop.properties%}
                                 properties: [
-                                    {% for prop in tprop.properties %}
+                                    {% for prop in tprop.properties%}
                                     {
                                         key: "{{ prop.key }}",
-                                        value: {{ prop.value }}
+                                        value:{{prop.value | safe}}
                                     }
                                     {% if not loop.last %},{% endif %}
                                     {% endfor %}
                                 ]
+                                {% endif %}
                             }
                             {% if not loop.last %},{% endif %}
                             {% endfor %}
                         ]
+                        {% endif %}
+                        {% if node.constant_properties%},
                         constantProperties: [
-                            {% for cprop in node.constantProperties %}
+                            {% for cprop in node.constant_properties %}
                             {
                                 key: "{{ cprop.key }}",
-                                value: {{ cprop.value }}
+                                value:{{ cprop.value }}
                             }
                             {% if not loop.last %},{% endif %}
                             {% endfor %}
                         ]
+                        {% endif %}
                     }
                     {% if not loop.last %},{% endif %}
                     {% endfor %}
@@ -114,6 +121,7 @@ impl PyRemoteGraph {
         };
 
         let query = build_query(template, query_context)?;
+        println!("{}", query);
         let _ = &self.client.query(py, query, None)?;
 
         Ok(())

@@ -54,7 +54,7 @@ impl PyRemoteEdge {
             {
               updateGraph(path: "{{path}}") {
                 edge(src: "{{src}}",dst: "{{dst}}") {
-                  addUpdates(time: {{t}} {% if properties is not none %}, properties:  {{ properties | safe }} {% endif %} {% if layer is not none %}, layer:  "{{layer}}" {% endif %})
+                  addUpdates(time: {{t}} {% if properties is not none %}, properties: {{ properties | safe }} {% endif %} {% if layer is not none %}, layer:  "{{layer}}" {% endif %})
                 }
               }
             }
@@ -70,6 +70,7 @@ impl PyRemoteEdge {
         };
 
         let query = build_query(template, query_context)?;
+        println!("{}", query);
         let _ = &self.client.query(py, query, None)?;
 
         Ok(())

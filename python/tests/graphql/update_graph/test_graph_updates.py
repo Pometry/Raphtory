@@ -15,15 +15,29 @@ def make_props():
         "prop_bool": True,
         "prop_map": {
             "prop_inner_string": "blah",
+            "prop_map": {
+                "prop_inner_string": "b",
+                "prop_inner_float": 6.0,
+                "prop_inner_int": 332,
+                "prop_inner_bool": True,
+            },
             "prop_inner_float": 2.0,
             "prop_inner_int": 2,
             "prop_inner_bool": True,
         },
         "prop_array": [1, 2, 3, 4, 5, 6],
         "prop_datetime": current_datetime,
-        "prop_gertime": current_datetime,
         "prop_naive_datetime": naive_datetime,
     }
+
+
+def helper_test_props(entity, props):
+    for k, v in props.items():
+        if isinstance(v, datetime):
+            actual = parser.parse(entity.properties.get(k))
+            assert v == actual
+        else:
+            assert entity.properties.get(k) == v
 
 
 def test_add_constant_properties():
@@ -35,15 +49,7 @@ def test_add_constant_properties():
         props = make_props()
         rg.add_constant_properties(props)
         g = client.receive_graph("path/to/event_graph")
-        for k, v in props.items():
-            if isinstance(v, dict):
-                for inner_k, inner_v in v.items():
-                    assert props["prop_map"][inner_k] == inner_v
-            elif isinstance(v, datetime):
-                actual = parser.parse(g.properties.get(k))
-                assert v == actual
-            else:
-                assert g.properties.get(k) == v
+        helper_test_props(g, props)
 
         with pytest.raises(Exception) as excinfo:
             rg.add_constant_properties({"prop_float": 3.0})
@@ -60,15 +66,7 @@ def test_update_constant_properties():
 
         rg.update_constant_properties(props)
         g = client.receive_graph("path/to/event_graph")
-        for k, v in props.items():
-            if isinstance(v, dict):
-                for inner_k, inner_v in v.items():
-                    assert props["prop_map"][inner_k] == inner_v
-            elif isinstance(v, datetime):
-                actual = parser.parse(g.properties.get(k))
-                assert v == actual
-            else:
-                assert g.properties.get(k) == v
+        helper_test_props(g, props)
 
         rg.update_constant_properties({"prop_float": 3.0})
         g = client.receive_graph("path/to/event_graph")
@@ -88,15 +86,8 @@ def test_add_properties():
         rg.add_property(current_datetime, props)
         rg.add_property(naive_datetime, props)
         g = client.receive_graph("path/to/event_graph")
-        for k, v in props.items():
-            if isinstance(v, dict):
-                for inner_k, inner_v in v.items():
-                    assert props["prop_map"][inner_k] == inner_v
-            elif isinstance(v, datetime):
-                actual = parser.parse(g.properties.get(k))
-                assert v == actual
-            else:
-                assert g.properties.get(k) == v
+        helper_test_props(g, props)
+
         localized_datetime = naive_datetime.replace(tzinfo=timezone.utc)
         timestamps = [
             1,
@@ -120,15 +111,8 @@ def test_add_node():
         rg.add_node(current_datetime, "hamza", node_type="person")
         g = client.receive_graph("path/to/event_graph")
         assert g.node("ben").node_type == "person"
-        for k, v in props.items():
-            if isinstance(v, dict):
-                for inner_k, inner_v in v.items():
-                    assert props["prop_map"][inner_k] == inner_v
-            elif isinstance(v, datetime):
-                actual = parser.parse(g.node("ben").properties.get(k))
-                assert v == actual
-            else:
-                assert g.node("ben").properties.get(k) == v
+        helper_test_props(g.node("ben"), props)
+
         assert g.node("hamza").node_type == "person"
         assert g.node("1") is not None
 
@@ -146,15 +130,8 @@ def test_add_edge():
         rg.add_edge(3, "shivam", "lucas", properties=props)
 
         g = client.receive_graph("path/to/event_graph")
-        for k, v in props.items():
-            if isinstance(v, dict):
-                for inner_k, inner_v in v.items():
-                    assert props["prop_map"][inner_k] == inner_v
-            elif isinstance(v, datetime):
-                actual = parser.parse(g.edge("ben", "hamza").properties.get(k))
-                assert v == actual
-            else:
-                assert g.edge("ben", "hamza").properties.get(k) == v
+        helper_test_props(g.edge("ben", "hamza"), props)
+
         assert g.unique_layers == ["_default", "friends", "colleagues"]
         assert g.layer("friends").count_edges() == 1
 
@@ -180,14 +157,3 @@ def test_delete_edge():
         g = client.receive_graph("path/to/persistent_graph")
         assert g.edge("ben", "hamza").deletions() == [2]
         assert g.edge("ben", "lucas").deletions() == [2]
-
-
-# def test_add_nodes():
-#     work_dir = tempfile.mkdtemp()
-#
-#     with GraphServer(work_dir).start():
-#         client = RaphtoryClient("http://localhost:1736")
-#         client.new_graph("path/to/event_graph", "EVENT")
-#         rg = client.remote_graph("path/to/event_graph")
-#
-#         rg.add_nodes()
