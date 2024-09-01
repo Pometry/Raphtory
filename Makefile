@@ -53,3 +53,9 @@ python-fmt:
 	cd python && black .
 
 tidy: rust-fmt stubs python-fmt
+
+build-python:
+	cd python && maturin develop -r --features storage
+
+python-docs:
+	cd docs && make html

@@ -1,5 +1,6 @@
+use crate::python::client::{raphtory_client::PyRaphtoryClient, remote_node::PyRemoteNode};
 use minijinja::{Environment, Value};
-use pyo3::pyclass;
+use pyo3::{pyclass, pymethods};
 use raphtory::{
     core::{utils::errors::GraphError, Prop},
     python::utils::PyTime,
@@ -19,6 +20,14 @@ pub struct PyUpdate {
     time: PyTime,
     properties: Option<HashMap<String, Prop>>,
 }
+
+#[pymethods]
+impl PyUpdate {
+    #[new]
+    pub(crate) fn new(time: PyTime, properties: Option<HashMap<String, Prop>>) -> Self {
+        Self { time, properties }
+    }
+}
 #[derive(Clone, Serialize)]
 #[pyclass(name = "RemoteNodeAddition")]
 pub struct PyNodeAddition {
@@ -27,6 +36,25 @@ pub struct PyNodeAddition {
     constant_properties: Option<HashMap<String, Prop>>,
     updates: Option<Vec<PyUpdate>>,
 }
+
+#[pymethods]
+impl PyNodeAddition {
+    #[new]
+    pub(crate) fn new(
+        name: GID,
+        node_type: Option<String>,
+        constant_properties: Option<HashMap<String, Prop>>,
+        updates: Option<Vec<PyUpdate>>,
+    ) -> Self {
+        Self {
+            name,
+            node_type,
+            constant_properties,
+            updates,
+        }
+    }
+}
+
 #[derive(Clone)]
 #[pyclass(name = "RemoteEdgeAddition")]
 pub struct PyEdgeAddition {
@@ -35,6 +63,26 @@ pub struct PyEdgeAddition {
     layer: Option<String>,
     constant_properties: Option<HashMap<String, Prop>>,
     updates: Option<Vec<PyUpdate>>,
+}
+
+#[pymethods]
+impl PyEdgeAddition {
+    #[new]
+    pub(crate) fn new(
+        src: GID,
+        dst: GID,
+        layer: Option<String>,
+        constant_properties: Option<HashMap<String, Prop>>,
+        updates: Option<Vec<PyUpdate>>,
+    ) -> Self {
+        Self {
+            src,
+            dst,
+            layer,
+            constant_properties,
+            updates,
+        }
+    }
 }
 
 pub(crate) fn build_property_string(properties: HashMap<String, Prop>) -> String {

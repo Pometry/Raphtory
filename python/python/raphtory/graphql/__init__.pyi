@@ -252,11 +252,198 @@ class RaphtoryClient:
            The `data` field from the graphQL response after executing the mutation.
         """
 
+class RemoteEdge:
+    def __init__(self, path, client, src, dst):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+
+    def add_constant_properties(self, properties, layer=None):
+        """
+        Add constant properties to the edge within the remote graph.
+        This function is used to add properties to an edge that remain constant and do not
+        change over time. These properties are fundamental attributes of the edge.
+
+        Parameters:
+            properties (Dict[str, Prop]): A dictionary of properties to be added to the edge.
+            Each key is a string representing the property name, and each value is of type Prop
+            representing the property value.
+            layer (str): The layer you want these properties to be added on to.
+
+        Returns:
+            Result: A result object indicating success or failure.
+        """
+
+    def add_updates(self, t, properties=None, layer=None):
+        """
+        Add updates to an edge in the remote graph at a specified time.
+        This function allows for the addition of property updates to an edge within the graph. The updates are time-stamped, meaning they are applied at the specified time.
+
+        Parameters:
+            t (PyTime): The timestamp at which the updates should be applied.
+            properties (Optional[Dict[str, Prop]]): A dictionary of properties to update.
+                Each key is a string representing the property name, and each value is of type Prop representing the property value.
+                If None, no properties are updated.
+
+        Returns:
+            Result: A result object indicating success or failure.
+        """
+
+    def delete(self, t, layer=None):
+        """
+        Mark the edge as deleted at the specified time.
+
+        Parameters:
+            t (PyTime): The timestamp at which the deletion should be applied.
+            layer (str): The layer you want the deletion applied to .
+
+        Returns:
+            Result: A result object indicating success or failure.
+        """
+
+    def update_constant_properties(self, properties, layer=None):
+        """
+        Update constant properties of an edge in the remote graph overwriting existing values.
+        This function is used to add properties to an edge that remains constant and does not
+        change over time. These properties are fundamental attributes of the edge.
+
+        Parameters:
+            properties (Dict[str, Prop]): A dictionary of properties to be added to the edge.
+            Each key is a string representing the property name, and each value is of type Prop
+            representing the property value.
+            layer (str): The layer you want these properties to be added on to.
+
+        Returns:
+            Result: A result object indicating success or failure.
+        """
+
 class RemoteEdgeAddition:
-    def __init__(self):
+    def __init__(self, src, dst, layer=None, constant_properties=None, updates=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
 class RemoteGraph:
+    def __init__(self, path, client):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+
+    def add_constant_properties(self, properties):
+        """
+        Adds static properties to the remote graph.
+
+        Arguments:
+            properties (dict): The static properties of the graph.
+
+        Returns:
+           None
+        """
+
+    def add_edge(self, timestamp, src, dst, properties=None, layer=None):
+        """
+        Adds a new edge with the given source and destination nodes and properties to the remote graph.
+
+        Arguments:
+           timestamp (int, str, or datetime(utc)): The timestamp of the edge.
+           src (str or int): The id of the source node.
+           dst (str or int): The id of the destination node.
+           properties (dict): The properties of the edge, as a dict of string and properties (optional).
+           layer (str): The layer of the edge (optional).
+
+        Returns:
+          The added edge (RemoteEdge)
+        """
+
+    def add_edges(self, updates):
+        """
+        Batch add edge updates to the remote graph
+
+        Arguments:
+          updates (List[RemoteEdgeAddition]): The list of updates you want to apply to the remote graph
+        Returns:
+          None
+        """
+
+    def add_node(self, timestamp, id, properties=None, node_type=None):
+        """
+        Adds a new node with the given id and properties to the remote graph.
+
+        Arguments:
+           timestamp (int, str, or datetime(utc)): The timestamp of the node.
+           id (str or int): The id of the node.
+           properties (dict): The properties of the node (optional).
+           node_type (str): The optional string which will be used as a node type
+        Returns:
+          the added node (RemoteNode)
+
+        """
+
+    def add_nodes(self, updates):
+        """
+        Batch add node updates to the remote graph
+
+        Arguments:
+          updates (List[RemoteNodeAddition]): The list of updates you want to apply to the remote graph
+        Returns:
+          None
+        """
+
+    def add_property(self, timestamp, properties):
+        """
+        Adds properties to the remote graph.
+
+        Arguments:
+           timestamp (int, str, or datetime(utc)): The timestamp of the temporal property.
+           properties (dict): The temporal properties of the graph.
+
+        Returns:
+           None
+        """
+
+    def delete_edge(self, timestamp, src, dst, layer=None):
+        """
+        Deletes an edge in the remote graph, given the timestamp, src and dst nodes and layer (optional)
+
+        Arguments:
+          timestamp (int): The timestamp of the edge.
+          src (str or int): The id of the source node.
+          dst (str or int): The id of the destination node.
+          layer (str): The layer of the edge. (optional)
+
+        Returns:
+         The deleted edge (RemoteEdge)
+        """
+
+    def edge(self, src, dst):
+        """
+        Gets a remote edge with the specified source and destination nodes
+
+        Arguments:
+            src (str or int): the source node id
+            dst (str or int): the destination node id
+
+        Returns:
+            RemoteEdge
+        """
+
+    def node(self, id):
+        """
+        Gets a remote node with the specified id
+
+        Arguments:
+          id (str or int): the node id
+
+        Returns:
+          RemoteNode
+        """
+
+    def update_constant_properties(self, properties):
+        """
+        Updates static properties on the remote graph.
+
+        Arguments:
+            properties (dict): The static properties of the graph.
+
+        Returns:
+           None
+        """
+
+class RemoteNode:
     def __init__(self, path, client, id):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
@@ -318,11 +505,11 @@ class RemoteGraph:
         """
 
 class RemoteNodeAddition:
-    def __init__(self):
+    def __init__(self, name, node_type=None, constant_properties=None, updates=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
 class RemoteUpdate:
-    def __init__(self):
+    def __init__(self, time, properties=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
 class RunningGraphServer:
