@@ -22,6 +22,12 @@ def make_props():
         "prop_bool": True,
         "prop_map": {
             "prop_inner_string": "blah",
+            "prop_map": {
+                "prop_inner_string": "b",
+                "prop_inner_float": 6.0,
+                "prop_inner_int": 332,
+                "prop_inner_bool": True,
+            },
             "prop_inner_float": 2.0,
             "prop_inner_int": 2,
             "prop_inner_bool": True,
@@ -30,6 +36,15 @@ def make_props():
         "prop_datetime": current_datetime,
         "prop_naive_datetime": naive_datetime,
     }
+
+
+def helper_test_props(entity, props):
+    for k, v in props.items():
+        if isinstance(v, datetime):
+            actual = parser.parse(entity.properties.get(k))
+            assert v == actual
+        else:
+            assert entity.properties.get(k) == v
 
 
 def make_props2():
@@ -89,8 +104,9 @@ def test_add_node():
         # Start with just updates
         node_updates.append(RemoteNodeAddition("lucas", updates=[RemoteUpdate(1)]))
         # add constant properties
+        lucas_props = make_props()
         node_updates.append(
-            RemoteNodeAddition("lucas", constant_properties=make_props())
+            RemoteNodeAddition("lucas", constant_properties=lucas_props)
         )
         # add node_type
         node_updates.append(RemoteNodeAddition("lucas", node_type="person"))
@@ -109,14 +125,5 @@ def test_add_node():
         assert ben.node_type == "person"
         assert hamza.history() == [1, 2]
         assert hamza.node_type is None
+        helper_test_props(lucas, lucas_props)
         assert lucas.node_type == "person"
-        props = make_props()
-        for k, v in props.items():
-            if isinstance(v, dict):
-                for inner_k, inner_v in v.items():
-                    assert props["prop_map"][inner_k] == inner_v
-            elif isinstance(v, datetime):
-                actual = parser.parse(lucas.properties.get(k))
-                assert v == actual
-            else:
-                assert lucas.properties.get(k) == v

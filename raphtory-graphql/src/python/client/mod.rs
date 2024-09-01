@@ -44,7 +44,7 @@ impl Serialize for PyUpdate {
                 .map(|(key, value)| {
                     json!({
                         "key": key,
-                        "value": to_graphql_batch_valid(value),
+                        "value": inner_collection(value),
                     })
                 })
                 .collect();
@@ -100,7 +100,7 @@ impl Serialize for PyNodeAddition {
                 .map(|(key, value)| {
                     json!({
                         "key": key,
-                        "value": to_graphql_batch_valid(value),
+                        "value": inner_collection(value),
                     })
                 })
                 .collect();
