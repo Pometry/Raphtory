@@ -276,7 +276,7 @@ impl Prop {
             Prop::Map(value) => {
                 let map: serde_json::Map<String, Value> = value
                     .iter()
-                    .map(|(k, v)| (k.to_string(), v.to_graphql_valid()))
+                    .map(|(k, v)| (k.to_string(), v.to_json()))
                     .collect();
                 Value::Object(map)
             }
