@@ -187,7 +187,7 @@ impl<
         for layer in edge.graph.unique_layers().skip(1) {
             self.resolve_layer(Some(&layer))?;
         }
-        if !force && self.has_edge(edge.src().name(), edge.dst().name()) {
+        if !force && self.has_edge(edge.src().id(), edge.dst().id()) {
             return Err(EdgeExistsError(edge.src().id(), edge.dst().id()));
         }
         // Add edges first so we definitely have all associated nodes (important in case of persistent edges)
@@ -204,8 +204,8 @@ impl<
             for ee in ee.explode() {
                 self.add_edge(
                     ee.time().expect("exploded edge"),
-                    ee.src().name(),
-                    ee.dst().name(),
+                    ee.src().id(),
+                    ee.dst().id(),
                     ee.properties().temporal().collect_properties(),
                     layer_name,
                 )?;
@@ -225,7 +225,7 @@ impl<
                 .expect("edge added")
                 .add_constant_properties(ee.properties().constant(), layer_name)?;
         }
-        Ok(self.edge(edge.src().name(), edge.dst().name()).unwrap())
+        Ok(self.edge(edge.src().id(), edge.dst().id()).unwrap())
     }
 
     fn import_edges<'a, GHH: GraphViewOps<'a>, GH: GraphViewOps<'a>>(
