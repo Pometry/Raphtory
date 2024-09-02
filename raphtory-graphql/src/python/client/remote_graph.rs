@@ -1,6 +1,6 @@
 use crate::python::client::{
     build_property_string, build_query, raphtory_client::PyRaphtoryClient,
-    remote_edge::PyRemoteEdge, remote_node::PyRemoteNode, PyNodeAddition,
+    remote_edge::PyRemoteEdge, remote_node::PyRemoteNode, PyEdgeAddition, PyNodeAddition,
 };
 use minijinja::context;
 use pyo3::{pyclass, pymethods, Python};
@@ -121,7 +121,6 @@ impl PyRemoteGraph {
         };
 
         let query = build_query(template, query_context)?;
-        println!("{}", query);
         let _ = &self.client.query(py, query, None)?;
 
         Ok(())
@@ -134,7 +133,66 @@ impl PyRemoteGraph {
     /// Returns:
     ///   None
     #[pyo3(signature = (updates))]
-    pub fn add_edges(&self, updates: Vec<PyNodeAddition>) -> Result<(), GraphError> {
+    pub fn add_edges(&self, py: Python, updates: Vec<PyEdgeAddition>) -> Result<(), GraphError> {
+        let template = r#"
+                {
+                updateGraph(path: "{{ path }}") {
+                    addEdges(
+                        edges: [
+                            {% for edge in edges %}
+                            {
+                                src: "{{ edge.src }}"
+                                dst: "{{ edge.dst }}"
+                                {% if edge.layer%}, layer: "{{ edge.layer }}"{% endif %}
+                                {% if edge.updates%},
+                                updates: [
+                                    {% for tprop in edge.updates %}
+                                    {
+                                        time: {{ tprop.time }},
+                                        {% if tprop.properties%}
+                                        properties: [
+                                            {% for prop in tprop.properties%}
+                                            {
+                                                key: "{{ prop.key }}",
+                                                value:{{prop.value | safe}}
+                                            }
+                                            {% if not loop.last %},{% endif %}
+                                            {% endfor %}
+                                        ]
+                                        {% endif %}
+                                    }
+                                    {% if not loop.last %},{% endif %}
+                                    {% endfor %}
+                                ]
+                                {% endif %}
+                                {% if edge.constant_properties%},
+                                constantProperties: [
+                                    {% for cprop in edge.constant_properties %}
+                                    {
+                                        key: "{{ cprop.key }}",
+                                        value:{{ cprop.value }}
+                                    }
+                                    {% if not loop.last %},{% endif %}
+                                    {% endfor %}
+                                ]
+                                {% endif %}
+                            }
+                            {% if not loop.last %},{% endif %}
+                            {% endfor %}
+                        ]
+                    )
+                }
+            }
+        "#;
+
+        let query_context = context! {
+            path => self.path,
+            edges => updates,
+        };
+
+        let query = build_query(template, query_context)?;
+        let _ = &self.client.query(py, query, None)?;
+
         Ok(())
     }
 

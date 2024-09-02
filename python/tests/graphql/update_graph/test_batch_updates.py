@@ -9,6 +9,7 @@ from raphtory.graphql import (
     RemoteGraph,
     RemoteUpdate,
     RemoteNodeAddition,
+    RemoteEdgeAddition,
 )
 
 
@@ -76,7 +77,7 @@ def create_updates(timestamps: List[int]):
         yield update
 
 
-def test_add_node():
+def test_add_nodes():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
@@ -127,3 +128,62 @@ def test_add_node():
         assert hamza.node_type is None
         helper_test_props(lucas, lucas_props)
         assert lucas.node_type == "person"
+
+
+def test_add_edges():
+    work_dir = tempfile.mkdtemp()
+    with GraphServer(work_dir).start():
+        client = RaphtoryClient("http://localhost:1736")
+        client.new_graph("path/to/event_graph", "EVENT")
+        rg: RemoteGraph = client.remote_graph("path/to/event_graph")
+        edge_updates = []
+
+        ben_hamza_updates = list(create_updates([1, 2, 3, 4]))
+        edge_updates.append(
+            RemoteEdgeAddition(
+                "ben",
+                "hamza",
+                layer="test",
+                constant_properties=make_props(),
+                updates=ben_hamza_updates,
+            )
+        )
+        # follow up with only timestamp updates
+        edge_updates.append(
+            RemoteEdgeAddition(
+                "ben", "hamza", layer=None, updates=[RemoteUpdate(5), RemoteUpdate(6)]
+            )
+        )
+        # follow up with nothing
+        edge_updates.append(RemoteEdgeAddition("ben", "hamza"))
+        # Start with just updates
+        edge_updates.append(
+            RemoteEdgeAddition(
+                "hamza", "lucas", updates=[RemoteUpdate(1), RemoteUpdate(2)]
+            )
+        )
+        # Start with just updates
+        edge_updates.append(
+            RemoteEdgeAddition("lucas", "hamza", updates=[RemoteUpdate(1)])
+        )
+        # add constant properties
+        lucas_props = make_props()
+        edge_updates.append(
+            RemoteEdgeAddition("lucas", "hamza", constant_properties=lucas_props)
+        )
+        rg.add_edges(edge_updates)
+        g = client.receive_graph("path/to/event_graph")
+        ben_hammza = g.edge("ben", "hamza")
+        hamza_lucas = g.edge("hamza", "lucas")
+        lucas_hamza = g.edge("lucas", "hamza")
+        assert ben_hammza.properties.temporal.get("prop_float").values() == [
+            2.0,
+            3.0,
+            2.0,
+            3.0,
+        ]
+        assert ben_hammza.history() == [1, 2, 3, 4, 5, 6]
+        assert ben_hammza.layer_names == ["_default", "test"]
+        assert hamza_lucas.history() == [1, 2]
+        assert hamza_lucas.layer_names == ["_default"]
+        helper_test_props(lucas_hamza.layer("_default"), lucas_props)

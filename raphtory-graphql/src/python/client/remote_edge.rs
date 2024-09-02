@@ -70,7 +70,6 @@ impl PyRemoteEdge {
         };
 
         let query = build_query(template, query_context)?;
-        println!("{}", query);
         let _ = &self.client.query(py, query, None)?;
 
         Ok(())

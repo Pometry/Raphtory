@@ -141,6 +141,49 @@ pub struct PyEdgeAddition {
     updates: Option<Vec<PyUpdate>>,
 }
 
+impl Serialize for PyEdgeAddition {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut count = 2;
+        if self.layer.is_some() {
+            count += 1;
+        }
+        if self.constant_properties.is_some() {
+            count += 1;
+        }
+        if self.updates.is_some() {
+            count += 1;
+        }
+        let mut state = serializer.serialize_struct("PyEdgeAddition", count)?;
+
+        state.serialize_field("src", &self.src.to_string())?;
+        state.serialize_field("dst", &self.dst.to_string())?;
+
+        if let Some(layer) = &self.layer {
+            state.serialize_field("layer", layer)?;
+        }
+
+        if let Some(ref constant_properties) = self.constant_properties {
+            let properties_list: Vec<serde_json::Value> = constant_properties
+                .iter()
+                .map(|(key, value)| {
+                    json!({
+                        "key": key,
+                        "value": inner_collection(value),
+                    })
+                })
+                .collect();
+            state.serialize_field("constant_properties", &properties_list)?;
+        }
+        if let Some(updates) = &self.updates {
+            state.serialize_field("updates", updates)?;
+        }
+        state.end()
+    }
+}
+
 #[pymethods]
 impl PyEdgeAddition {
     #[new]
@@ -229,54 +272,6 @@ fn to_graphql_valid(key: &String, value: &Prop) -> String {
         Prop::PersistentGraph(_) => "Persistent Graph cannot be converted to JSON".to_string(),
         Prop::Document(DocumentInput { content, .. }) => {
             "Document cannot be converted to JSON".to_string()
-        } // TODO: return Value::Object ??
-    }
-}
-
-fn to_graphql_batch_valid(prop: &Prop) -> serde_json::Value {
-    match prop {
-        Prop::Str(value) => {
-            serde_json::Value::String(format!("{}{}{}", "\"", value.to_string(), "\""))
-        }
-        Prop::U8(value) => serde_json::Value::Number((*value).into()),
-        Prop::U16(value) => serde_json::Value::Number((*value).into()),
-        Prop::I32(value) => serde_json::Value::Number((*value).into()),
-        Prop::I64(value) => serde_json::Value::Number((*value).into()),
-        Prop::U32(value) => serde_json::Value::Number((*value).into()),
-        Prop::U64(value) => serde_json::Value::Number((*value).into()),
-        Prop::F32(value) => {
-            serde_json::Value::Number(serde_json::Number::from_f64(*value as f64).unwrap())
-        }
-        Prop::F64(value) => {
-            serde_json::Value::Number(serde_json::Number::from_f64(*value).unwrap())
-        }
-        Prop::Bool(value) => serde_json::Value::Bool(*value),
-        Prop::List(value) => {
-            let vec: Vec<serde_json::Value> =
-                value.iter().map(|v| to_graphql_batch_valid(v)).collect();
-            serde_json::Value::Array(vec)
-        }
-        Prop::Map(value) => {
-            let properties_array: Vec<String> = value
-                .iter()
-                .map(|(k, v)| format!("{}:{}", k, to_graphql_batch_valid(v)))
-                .collect();
-            serde_json::Value::String(format!("{}{}{}", "{", properties_array.join(", "), "}"))
-        }
-        Prop::DTime(value) => {
-            serde_json::Value::String(format!("{}{}{}", "\"", value.to_string(), "\""))
-        }
-        Prop::NDTime(value) => {
-            serde_json::Value::String(format!("{}{}{}", "\"", value.to_string(), "\""))
-        }
-        Prop::Graph(_) => {
-            serde_json::Value::String("Graph cannot be converted to JSON".to_string())
-        }
-        Prop::PersistentGraph(_) => {
-            serde_json::Value::String("Persistent Graph cannot be converted to JSON".to_string())
-        }
-        Prop::Document(DocumentInput { content, .. }) => {
-            serde_json::Value::String(content.to_owned())
         } // TODO: return Value::Object ??
     }
 }
