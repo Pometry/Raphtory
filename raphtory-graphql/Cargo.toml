@@ -45,11 +45,10 @@ url = { workspace = true }
 base64-compat = { workspace = true }
 reqwest = { workspace = true }
 moka = { workspace = true }
-
-
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
 crossbeam-channel = { workspace = true }
+minijinja = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

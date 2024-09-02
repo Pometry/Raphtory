@@ -94,14 +94,21 @@ impl GqlMutableGraph {
     async fn add_nodes(&self, nodes: Vec<NodeAddition>) -> Result<bool, GraphError> {
         for node in nodes {
             let name = node.name.as_str();
-            let node_type = node.node_type.as_str();
+
             for prop in node.updates.unwrap_or(vec![]) {
                 self.graph.add_node(
                     prop.time,
                     name,
                     as_properties(prop.properties.unwrap_or(vec![])),
-                    node_type,
+                    None,
                 )?;
+            }
+            if let Some(node_type) = node.node_type.as_str() {
+                let node_view = self
+                    .graph
+                    .node(name)
+                    .ok_or(GraphError::NodeNameError(node.name.clone()))?;
+                node_view.set_node_type(node_type)?;
             }
             let constant_props = node.constant_properties.unwrap_or(vec![]);
             if !constant_props.is_empty() {
@@ -272,9 +279,10 @@ impl GqlMutableNode {
     async fn add_updates(
         &self,
         time: i64,
-        properties: Vec<GqlPropInput>,
+        properties: Option<Vec<GqlPropInput>>,
     ) -> Result<bool, GraphError> {
-        self.node.add_updates(time, as_properties(properties))?;
+        self.node
+            .add_updates(time, as_properties(properties.unwrap_or(vec![])))?;
         self.node.graph.write_updates()?;
         Ok(true)
     }
@@ -357,11 +365,14 @@ impl GqlMutableEdge {
     async fn add_updates(
         &self,
         time: i64,
-        properties: Vec<GqlPropInput>,
+        properties: Option<Vec<GqlPropInput>>,
         layer: Option<String>,
     ) -> Result<bool, GraphError> {
-        self.edge
-            .add_updates(time, as_properties(properties), layer.as_str())?;
+        self.edge.add_updates(
+            time,
+            as_properties(properties.unwrap_or(vec![])),
+            layer.as_str(),
+        )?;
         self.edge.graph.write_updates()?;
         Ok(true)
     }

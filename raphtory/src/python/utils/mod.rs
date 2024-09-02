@@ -13,6 +13,7 @@ use crate::{
 };
 use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
 use pyo3::{exceptions::PyTypeError, prelude::*, types::PyDateTime};
+use serde::Serialize;
 use std::{future::Future, thread};
 
 pub mod errors;
@@ -54,7 +55,7 @@ fn parse_email_timestamp(timestamp: &str) -> PyResult<i64> {
     })
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize)]
 pub struct PyTime {
     parsing_result: i64,
 }
