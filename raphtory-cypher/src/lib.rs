@@ -57,7 +57,6 @@ mod cypher {
         g: &DiskGraphStorage,
         enable_hop_optim: bool,
     ) -> Result<(SessionContext, LogicalPlan), ExecError> {
-        // println!("Running query: {:?}", query);
         let query = super::parser::parse_cypher(query)?;
 
         let config = SessionConfig::from_env()?.with_information_schema(true);
@@ -116,8 +115,6 @@ mod cypher {
         ctx.refresh_catalogs().await?;
         let query = transpiler::to_sql(query, g);
 
-        // println!("SQL: {:?}", query.to_string());
-        // println!("SQL AST: {:?}", query);
         let plan = ctx
             .state()
             .statement_to_plan(datafusion::sql::parser::Statement::Statement(Box::new(
@@ -128,7 +125,6 @@ mod cypher {
         opts.verify_plan(&plan)?;
 
         let plan = ctx.state().optimize(&plan)?;
-        // println!("PLAN! {:?}", plan);
         Ok((ctx, plan))
     }
 
@@ -152,11 +148,6 @@ mod cypher {
         let node_table_provider = NodeTableProvider::new(graph.clone())?;
         ctx.register_table("nodes", Arc::new(node_table_provider))?;
 
-        // let state = ctx.state();
-        // let dialect = state.config().options().sql_parser.dialect.as_str();
-        // let sql_ast = ctx.state().sql_to_statement(query, dialect)?;
-        // println!("SQL AST: {:?}", sql_ast);
-
         let df = ctx.sql(query).await?;
         Ok(df)
     }
@@ -176,6 +167,7 @@ mod cypher {
     #[cfg(test)]
     mod test {
         use arrow::compute::concat_batches;
+        use datafusion::physical_plan::coalesce_batches::CoalesceBatchesExec;
         use std::path::Path;
 
         // FIXME: actually assert the tests below
@@ -186,7 +178,7 @@ mod cypher {
 
         use raphtory::{disk_graph::DiskGraphStorage, prelude::*};
 
-        use crate::run_cypher;
+        use crate::{run_cypher, run_sql};
 
         lazy_static::lazy_static! {
             static ref EDGES: Vec<(u64, u64, i64, f64)> = vec![
@@ -614,7 +606,20 @@ mod cypher {
             let graph_dir = tempdir().unwrap();
             let graph = make_graph_with_node_props(graph_dir);
 
-            let df = run_cypher("match (a)-[e]->(b) return a.name, e, b.name", &graph, true)
+            // let df = run_sql("WITH e AS (SELECT * FROM _default), b AS (SELECT * FROM nodes) SELECT e.*, b.gid FROM e JOIN b ON e.dst = b.id", &graph).await.unwrap();
+            let df = run_cypher("match ()-[e]->(b) return e,b.gid", &graph, false)
+                .await
+                .unwrap();
+            let data = df.collect().await.unwrap();
+            print_batches(&data).unwrap();
+        }
+
+        #[tokio::test]
+        async fn select_node_names_from_edges_both() {
+            let graph_dir = tempdir().unwrap();
+            let graph = make_graph_with_node_props(graph_dir);
+
+            let df = run_cypher("match (a)-[e]->(b) return a.gid, e, b.gid", &graph, false)
                 .await
                 .unwrap();
             let data = df.collect().await.unwrap();
