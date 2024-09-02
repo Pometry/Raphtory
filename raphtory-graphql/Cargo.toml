@@ -13,8 +13,8 @@ readme.workspace = true
 homepage.workspace = true
 
 [dependencies]
-raphtory = { path = "../raphtory", version = "0.11.0", features = ['vectors', 'search', "io"] }
-raphtory-api = { path = "../raphtory-api", version = "0.11.0" }
+raphtory = { path = "../raphtory", version = "0.11.1", features = ['vectors', 'search', "io"] }
+raphtory-api = { path = "../raphtory-api", version = "0.11.1" }
 base64 = { workspace = true }
 thiserror = { workspace = true }
 itertools = { workspace = true }
