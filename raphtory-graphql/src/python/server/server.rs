@@ -174,14 +174,15 @@ impl PyGraphServer {
     ///   appropriately
     ///
     /// Arguments:
-    ///   * `graph_names`: the names of the graphs to vectorise. All by default.
-    ///   * `cache`: the directory to use as cache for the embeddings.
-    ///   * `embedding`: the embedding function to translate documents to embeddings.
-    ///   * `node_document`: the property name to use as the source for the documents on nodes.
-    ///   * `edge_document`: the property name to use as the source for the documents on edges.
+    ///   graph_names (List[str]): the names of the graphs to vectorise. All by default.
+    ///   cache (str):  the directory to use as cache for the embeddings.
+    ///   embedding (Function):  the embedding function to translate documents to embeddings.
+    ///   graph_document (String):  the property name to use as the source for the documents on graphs.
+    ///   node_document (String):  the property name to use as the source for the documents on nodes.
+    ///   edge_document (String):  the property name to use as the source for the documents on edges.
     ///
     /// Returns:
-    ///    A new server object containing the vectorised graphs.
+    ///    GraphServer: A new server object containing the vectorised graphs.
     fn with_vectorised(
         slf: PyRefMut<Self>,
         cache: String,
@@ -225,12 +226,12 @@ impl PyGraphServer {
     /// names of the parameters and the values are the types, expressed as strings.
     ///
     /// Arguments:
-    ///   * `name` (`str`): the name of the function in the GraphQL schema.
-    ///   * `input` (`dict`): the keyword arguments expected by the function.
-    ///   * `function` (`function`): the function to run.
+    ///   name (str): The name of the function in the GraphQL schema.
+    ///   input (dict): The keyword arguments expected by the function.
+    ///   function (Function): the function to run.
     ///
     /// Returns:
-    ///    A new server object containing the vectorised graphs.
+    ///    GraphServer: A new server object containing the vectorised graphs.
     pub fn with_document_search_function(
         slf: PyRefMut<Self>,
         name: String,
@@ -250,12 +251,12 @@ impl PyGraphServer {
     /// names of the parameters and the values are the types, expressed as strings.
     ///
     /// Arguments:
-    ///   * `name` (`str`): the name of the function in the GraphQL schema.
-    ///   * `input` (`dict`): the keyword arguments expected by the function.
-    ///   * `function` (`function`): the function to run.
+    ///   name (str): the name of the function in the GraphQL schema.
+    ///   input (dict):  the keyword arguments expected by the function.
+    ///   function (Function): the function to run.
     ///
     /// Returns:
-    ///    A new server object containing the vectorised graphs.
+    ///    GraphServer: A new server object containing the vectorised graphs.
     pub fn with_global_search_function(
         slf: PyRefMut<Self>,
         name: String,
@@ -271,8 +272,8 @@ impl PyGraphServer {
     /// Start the server and return a handle to it.
     ///
     /// Arguments:
-    ///   * `port`: the port to use (defaults to 1736).
-    ///   * `timeout_ms`: wait for server to be online (defaults to 5000). The server is stopped if not online within timeout_ms but manages to come online as soon as timeout_ms finishes!
+    ///   port (int):  the port to use (defaults to 1736).
+    ///   timeout_ms (int): wait for server to be online (defaults to 5000). The server is stopped if not online within timeout_ms but manages to come online as soon as timeout_ms finishes!
     #[pyo3(
         signature = (port = 1736, timeout_ms = None)
     )]
@@ -330,7 +331,7 @@ impl PyGraphServer {
     /// Run the server until completion.
     ///
     /// Arguments:
-    ///   * `port`: the port to use (defaults to 1736).
+    ///   port (int): The port to use (defaults to 1736).
     #[pyo3(
         signature = (port = 1736, timeout_ms = Some(180000))
     )]

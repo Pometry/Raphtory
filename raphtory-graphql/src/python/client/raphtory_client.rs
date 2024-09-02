@@ -39,9 +39,19 @@ impl PyRaphtoryClient {
         match graphql_result.remove("data") {
             Some(JsonValue::Object(data)) => Ok(data.into_iter().collect()),
             _ => match graphql_result.remove("errors") {
-                Some(JsonValue::Array(errors)) => Err(PyException::new_err(format!(
-                    "After sending query to the server:\n\t{graphql_query}\nGot the following errors:\n\t{errors:?}"
-                ))),
+                Some(JsonValue::Array(errors)) => {
+                    let formatted_errors = errors
+                        .iter()
+                        .map(|err| format!("{}", err))
+                        .collect::<Vec<_>>()
+                        .join("\n\t");
+
+                    Err(PyException::new_err(format!(
+                        "After sending query to the server:\n\t{}\nGot the following errors:\n\t{}",
+                        graphql_query.to_string(),
+                        formatted_errors
+                    )))
+                }
                 _ => Err(PyException::new_err(format!(
                     "Error while reading server response for query:\n\t{graphql_query}"
                 ))),

@@ -241,7 +241,7 @@ class Edge:
         Gets the datetime of an exploded edge.
 
         Returns:
-            (datetime) the datetime of an exploded edge
+            Datetime: the datetime of an exploded edge
         """
 
     def default_layer(self):
@@ -256,7 +256,7 @@ class Edge:
         Returns a list of timestamps of when an edge is deleted
 
         Returns:
-            A list of unix timestamps
+            List[int]: A list of unix timestamps
         """
 
     def deletions_data_time(self):
@@ -264,7 +264,7 @@ class Edge:
         Returns a list of timestamps of when an edge is deleted
 
         Returns:
-            A list of DateTime objects
+            List[Datetime]
         """
 
     @property
@@ -277,7 +277,7 @@ class Edge:
         Gets of earliest datetime of an edge.
 
         Returns:
-            the earliest datetime of an edge
+            Datetime: the earliest datetime of an edge
         """
 
     @property
@@ -286,7 +286,7 @@ class Edge:
         Gets the earliest time of an edge.
 
         Returns:
-            (int) The earliest time of an edge
+            int: The earliest time of an edge
         """
 
     @property
@@ -376,7 +376,7 @@ class Edge:
         Returns a list of timestamps of when an edge is added or change to an edge is made.
 
         Returns:
-            A list of unix timestamps.
+           List[int]:  A list of unix timestamps.
 
         """
 
@@ -385,7 +385,7 @@ class Edge:
         Returns a list of timestamps of when an edge is added or change to an edge is made.
 
         Returns:
-            A list of timestamps.
+            List[Datetime]
 
         """
 
@@ -394,13 +394,25 @@ class Edge:
         """The id of the edge."""
 
     def is_deleted(self):
-        """Check if the edge is currently deleted"""
+        """
+        Check if the edge is currently deleted
+        Returns:
+            bool
+        """
 
     def is_self_loop(self):
-        """Check if the edge is on the same node"""
+        """
+        Check if the edge is on the same node
+        Returns:
+            bool
+        """
 
     def is_valid(self):
-        """Check if the edge is currently valid (i.e., not deleted)"""
+        """
+        Check if the edge is currently valid (i.e., not deleted)
+        Returns:
+            bool
+        """
 
     @property
     def latest_date_time(self):
@@ -408,7 +420,7 @@ class Edge:
         Gets of latest datetime of an edge.
 
         Returns:
-            (datetime) the latest datetime of an edge
+            Datetime: the latest datetime of an edge
         """
 
     @property
@@ -417,7 +429,7 @@ class Edge:
         Gets the latest time of an edge.
 
         Returns:
-            (int) The latest time of an edge
+            int: The latest time of an edge
         """
 
     def layer(self, name):
@@ -435,7 +447,7 @@ class Edge:
         Gets the name of the layer this edge belongs to - assuming it only belongs to one layer
 
         Returns:
-            (List<str>) The name of the layer
+            str: The name of the layer
         """
 
     @property
@@ -444,7 +456,7 @@ class Edge:
         Gets the names of the layers this edge belongs to
 
         Returns:
-            (List<str>) The name of the layer
+            List[str]-  The name of the layer
         """
 
     def layers(self, names):
@@ -543,7 +555,7 @@ class Edge:
         Gets the time of an exploded edge.
 
         Returns:
-            (int) The time of an exploded edge
+            int: The time of an exploded edge
         """
 
     def valid_layers(self, names):
@@ -992,9 +1004,6 @@ class Graph:
 
         Arguments:
             properties (dict): The static properties of the graph.
-
-        Returns:
-           None
         """
 
     def add_edge(self, timestamp, src, dst, properties=None, layer=None):
@@ -1002,14 +1011,14 @@ class Graph:
         Adds a new edge with the given source and destination nodes and properties to the graph.
 
         Arguments:
-           timestamp (int, str, or datetime(utc)): The timestamp of the edge.
-           src (str or int): The id of the source node.
-           dst (str or int): The id of the destination node.
+           timestamp (int|str|Datetime): The timestamp of the edge.
+           src (str|int): The id of the source node.
+           dst (str|int): The id of the destination node.
            properties (dict): The properties of the edge, as a dict of string and properties (optional).
            layer (str): The layer of the edge (optional).
 
         Returns:
-          returns the added Edge (Edge)
+          Edge: The added edge
         """
 
     def add_node(self, timestamp, id, properties=None, node_type=None):
@@ -1017,12 +1026,12 @@ class Graph:
         Adds a new node with the given id and properties to the graph.
 
         Arguments:
-           timestamp (int, str, or datetime(utc)): The timestamp of the node.
-           id (str or int): The id of the node.
+           timestamp (int|str|Datetime): The timestamp of the node.
+           id (str|int): The id of the node.
            properties (dict): The properties of the node (optional).
            node_type (str): The optional string which will be used as a node type
         Returns:
-          the added node (Node)
+          Node: The added node
         """
 
     def add_property(self, timestamp, properties):
@@ -1030,11 +1039,8 @@ class Graph:
         Adds properties to the graph.
 
         Arguments:
-           timestamp (int, str, or datetime(utc)): The timestamp of the temporal property.
+           timestamp (int|str|Datetime): The timestamp of the temporal property.
            properties (dict): The temporal properties of the graph.
-
-        Returns:
-           None
         """
 
     def after(self, start):
@@ -1147,11 +1153,11 @@ class Graph:
         Gets the edge with the specified source and destination nodes
 
         Arguments:
-            src (str or int): the source node id
-            dst (str or int): the destination node id
+            src (str|int): the source node id
+            dst (str|int): the destination node id
 
         Returns:
-            the edge with the specified source and destination nodes, or None if the edge does not exist
+            Edge: the edge with the specified source and destination nodes, or None if the edge does not exist
         """
 
     @property
@@ -1272,7 +1278,7 @@ class Graph:
         Returns all the node types in the graph.
 
         Returns:
-        A list of node types
+        List[str]
         """
 
     def has_edge(self, src, dst):
@@ -1310,11 +1316,11 @@ class Graph:
 
         Arguments:
 
-            edge (Edge) - A PyEdge object representing the edge to be imported.
-            force (boolean) - An optional boolean flag indicating whether to force the import of the edge.
+            edge (Edge): A PyEdge object representing the edge to be imported.
+            force (boolean): An optional boolean flag indicating whether to force the import of the edge.
 
         Returns:
-            Result<EdgeView<Graph, Graph>, GraphError> - A Result object which is Ok if the edge was successfully imported, and Err otherwise.
+            Edge: A Result object which is Ok if the edge was successfully imported, and Err otherwise.
         """
 
     def import_edges(self, edges, force=False):
@@ -1326,9 +1332,8 @@ class Graph:
 
         Arguments:
 
-            edges (List(edges)) - A vector of PyEdge objects representing the edges to be imported.
-            force (boolean) - An optional boolean flag indicating whether to force the import of the edges.
-
+            edges (List[Edge]): A list of Edge objects representing the edges to be imported.
+            force (boolean): An optional boolean flag indicating whether to force the import of the edges.
         """
 
     def import_node(self, node, force=False):
@@ -1339,11 +1344,11 @@ class Graph:
         the function will force the import of the node even if it already exists in the graph.
 
         Arguments:
-            node (Node) - A PyNode object representing the node to be imported.
-            force (boolean) - An optional boolean flag indicating whether to force the import of the node.
+            node (Node): A Node object representing the node to be imported.
+            force (boolean): An optional boolean flag indicating whether to force the import of the node.
 
         Returns:
-            Result<NodeView<Graph, Graph>, GraphError> - A Result object which is Ok if the node was successfully imported, and Err otherwise.
+            Node: A Result object which is Ok if the node was successfully imported, and Err otherwise.
         """
 
     def import_nodes(self, nodes, force=False):
@@ -1355,8 +1360,8 @@ class Graph:
 
         Arguments:
 
-            nodes (List(Node))- A vector of PyNode objects representing the nodes to be imported.
-            force (boolean) - An optional boolean flag indicating whether to force the import of the nodes.
+            nodes (List[Node]): A vector of PyNode objects representing the nodes to be imported.
+            force (boolean): An optional boolean flag indicating whether to force the import of the nodes.
 
         """
 
@@ -1378,7 +1383,7 @@ class Graph:
         g.largest_connected_component()
 
         # Returns:
-        A raphtory graph, which essentially is a sub-graph of the graph `g`
+        Graph: sub-graph of the graph `g` containing the largest connected component
 
         """
 
@@ -1457,12 +1462,6 @@ class Graph:
             shared_constant_properties (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
             layer (str): The edge layer name (optional) Defaults to None.
             layer_col (str): The edge layer col name in dataframe (optional) Defaults to None.
-
-        Returns:
-            None: If the operation is successful.
-
-        Raises:
-            GraphError: If the operation fails.
         """
 
     def load_edge_props_from_parquet(
@@ -1486,12 +1485,6 @@ class Graph:
             shared_constant_properties (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
             layer (str): The edge layer name (optional) Defaults to None.
             layer_col (str): The edge layer col name in dataframe (optional) Defaults to None.
-
-        Returns:
-            None: If the operation is successful.
-
-        Raises:
-            GraphError: If the operation fails.
         """
 
     def load_edges_from_pandas(
@@ -1519,11 +1512,6 @@ class Graph:
             shared_constant_properties (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
             layer (str): A constant value to use as the layer for all edges (optional) Defaults to None. (cannot be used in combination with layer_col)
             layer_col (str): The edge layer col name in dataframe (optional) Defaults to None. (cannot be used in combination with layer)
-        Returns:
-            None: If the operation is successful.
-
-        Raises:
-            GraphError: If the operation fails.
         """
 
     def load_edges_from_parquet(
@@ -1551,11 +1539,6 @@ class Graph:
             shared_constant_properties (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
             layer (str): A constant value to use as the layer for all edges (optional) Defaults to None. (cannot be used in combination with layer_col)
             layer_col (str): The edge layer col name in dataframe (optional) Defaults to None. (cannot be used in combination with layer)
-        Returns:
-            None: If the operation is successful.
-
-        Raises:
-            GraphError: If the operation fails.
         """
 
     @staticmethod
@@ -1589,12 +1572,6 @@ class Graph:
             node_type_col (str): The node type col name in dataframe (optional) Defaults to None. (cannot be used in combination with node_type)
             constant_properties (List[str]): List of constant node property column names. Defaults to None. (optional)
             shared_constant_properties (dict): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
-
-        Returns:
-            None: If the operation is successful.
-
-        Raises:
-            GraphError: If the operation fails.
         """
 
     def load_node_props_from_parquet(
@@ -1616,12 +1593,6 @@ class Graph:
             node_type_col (str): The node type col name in dataframe (optional) Defaults to None. (cannot be used in combination with node_type)
             constant_properties (List[str]): List of constant node property column names. Defaults to None. (optional)
             shared_constant_properties (dict): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
-
-        Returns:
-            None: If the operation is successful.
-
-        Raises:
-            GraphError: If the operation fails.
         """
 
     def load_nodes_from_pandas(
@@ -1647,11 +1618,6 @@ class Graph:
             properties (List[str]): List of node property column names. Defaults to None. (optional)
             constant_properties (List[str]): List of constant node property column names. Defaults to None.  (optional)
             shared_constant_properties (dict): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
-        Returns:
-            None: If the operation is successful.
-
-        Raises:
-            GraphError: If the operation fails.
         """
 
     def load_nodes_from_parquet(
@@ -1677,11 +1643,6 @@ class Graph:
             properties (List[str]): List of node property column names. Defaults to None. (optional)
             constant_properties (List[str]): List of constant node property column names. Defaults to None.  (optional)
             shared_constant_properties (dict): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
-        Returns:
-            None: If the operation is successful.
-
-        Raises:
-            GraphError: If the operation fails.
         """
 
     def materialize(self):
@@ -1697,10 +1658,10 @@ class Graph:
         Gets the node with the specified id
 
         Arguments:
-          id (str or int): the node id
+          id (str|int): the node id
 
         Returns:
-          the node with the specified id, or None if the node does not exist
+          Node: the node with the specified id, or None if the node does not exist
         """
 
     @property
@@ -1901,8 +1862,6 @@ class Graph:
         Arguments:
             properties (dict): The static properties of the graph.
 
-        Returns:
-           None
         """
 
     def valid_layers(self, names):
@@ -2043,13 +2002,8 @@ class MutableEdge:
         change over time. These properties are fundamental attributes of the edge.
 
         Parameters:
-            properties (Dict[str, Prop]): A dictionary of properties to be added to the edge.
-            Each key is a string representing the property name, and each value is of type Prop
-            representing the property value.
+            properties (Dict[str, Property]): A dictionary of properties to be added to the edge.
             layer (str): The layer you want these properties to be added on to.
-
-        Returns:
-            Result: A result object indicating success or failure. On failure, it contains a GraphError.
         """
 
     def add_updates(self, t, properties=None, layer=None):
@@ -2058,14 +2012,9 @@ class MutableEdge:
         This function allows for the addition of property updates to an edge within the graph. The updates are time-stamped, meaning they are applied at the specified time.
 
         Parameters:
-            t (PyTime): The timestamp at which the updates should be applied.
-            properties (Optional[Dict[str, Prop]]): A dictionary of properties to update.
-                Each key is a string representing the property name, and each value is of type Prop representing the property value.
-                If None, no properties are updated.
+            t (int | str | DateTime): The timestamp at which the updates should be applied.
+            properties ([Dict[str, Prop]]): A dictionary of properties to update.
             layer (str): The layer you want these properties to be added on to.
-
-        Returns:
-            Result: A result object indicating success or failure. On failure, it contains a GraphError.
         """
 
     def after(self, start):
@@ -2107,7 +2056,7 @@ class MutableEdge:
         Gets the datetime of an exploded edge.
 
         Returns:
-            (datetime) the datetime of an exploded edge
+            Datetime: the datetime of an exploded edge
         """
 
     def default_layer(self):
@@ -2122,11 +2071,8 @@ class MutableEdge:
         Mark the edge as deleted at the specified time.
 
         Parameters:
-            t (PyTime): The timestamp at which the deletion should be applied.
+            t (int | str | DateTime): The timestamp at which the deletion should be applied.
             layer (str): The layer you want the deletion applied to .
-
-        Returns:
-            Result: A result object indicating success or failure.
         """
 
     def deletions(self):
@@ -2134,7 +2080,7 @@ class MutableEdge:
         Returns a list of timestamps of when an edge is deleted
 
         Returns:
-            A list of unix timestamps
+            List[int]: A list of unix timestamps
         """
 
     def deletions_data_time(self):
@@ -2142,7 +2088,7 @@ class MutableEdge:
         Returns a list of timestamps of when an edge is deleted
 
         Returns:
-            A list of DateTime objects
+            List[Datetime]
         """
 
     @property
@@ -2155,7 +2101,7 @@ class MutableEdge:
         Gets of earliest datetime of an edge.
 
         Returns:
-            the earliest datetime of an edge
+            Datetime: the earliest datetime of an edge
         """
 
     @property
@@ -2164,7 +2110,7 @@ class MutableEdge:
         Gets the earliest time of an edge.
 
         Returns:
-            (int) The earliest time of an edge
+            int: The earliest time of an edge
         """
 
     @property
@@ -2254,7 +2200,7 @@ class MutableEdge:
         Returns a list of timestamps of when an edge is added or change to an edge is made.
 
         Returns:
-            A list of unix timestamps.
+           List[int]:  A list of unix timestamps.
 
         """
 
@@ -2263,7 +2209,7 @@ class MutableEdge:
         Returns a list of timestamps of when an edge is added or change to an edge is made.
 
         Returns:
-            A list of timestamps.
+            List[Datetime]
 
         """
 
@@ -2272,13 +2218,25 @@ class MutableEdge:
         """The id of the edge."""
 
     def is_deleted(self):
-        """Check if the edge is currently deleted"""
+        """
+        Check if the edge is currently deleted
+        Returns:
+            bool
+        """
 
     def is_self_loop(self):
-        """Check if the edge is on the same node"""
+        """
+        Check if the edge is on the same node
+        Returns:
+            bool
+        """
 
     def is_valid(self):
-        """Check if the edge is currently valid (i.e., not deleted)"""
+        """
+        Check if the edge is currently valid (i.e., not deleted)
+        Returns:
+            bool
+        """
 
     @property
     def latest_date_time(self):
@@ -2286,7 +2244,7 @@ class MutableEdge:
         Gets of latest datetime of an edge.
 
         Returns:
-            (datetime) the latest datetime of an edge
+            Datetime: the latest datetime of an edge
         """
 
     @property
@@ -2295,7 +2253,7 @@ class MutableEdge:
         Gets the latest time of an edge.
 
         Returns:
-            (int) The latest time of an edge
+            int: The latest time of an edge
         """
 
     def layer(self, name):
@@ -2313,7 +2271,7 @@ class MutableEdge:
         Gets the name of the layer this edge belongs to - assuming it only belongs to one layer
 
         Returns:
-            (List<str>) The name of the layer
+            str: The name of the layer
         """
 
     @property
@@ -2322,7 +2280,7 @@ class MutableEdge:
         Gets the names of the layers this edge belongs to
 
         Returns:
-            (List<str>) The name of the layer
+            List[str]-  The name of the layer
         """
 
     def layers(self, names):
@@ -2421,7 +2379,7 @@ class MutableEdge:
         Gets the time of an exploded edge.
 
         Returns:
-            (int) The time of an exploded edge
+            int: The time of an exploded edge
         """
 
     def update_constant_properties(self, properties, layer=None):
@@ -2431,13 +2389,8 @@ class MutableEdge:
         change over time. These properties are fundamental attributes of the edge.
 
         Parameters:
-            properties (Dict[str, Prop]): A dictionary of properties to be added to the edge.
-            Each key is a string representing the property name, and each value is of type Prop
-            representing the property value.
+            properties (Dict[str, Property]): A dictionary of properties to be added to the edge.
             layer (str): The layer you want these properties to be added on to.
-
-        Returns:
-            Result: A result object indicating success or failure. On failure, it contains a GraphError.
         """
 
     def valid_layers(self, names):
@@ -2479,12 +2432,7 @@ class MutableNode:
         change over time. These properties are fundamental attributes of the node.
 
         Parameters:
-            properties (Dict[str, Prop]): A dictionary of properties to be added to the node.
-            Each key is a string representing the property name, and each value is of type Prop
-            representing the property value.
-
-        Returns:
-            Result: A result object indicating success or failure. On failure, it contains a GraphError.
+            properties (Dict[str, Prop]): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
         """
 
     def add_updates(self, t, properties=None):
@@ -2493,10 +2441,8 @@ class MutableNode:
         This function allows for the addition of property updates to a node within the graph. The updates are time-stamped, meaning they are applied at the specified time.
 
         Parameters:
-            t (PyTime): The timestamp at which the updates should be applied.
-            properties (Optional[Dict[str, Prop]]): A dictionary of properties to update.
-                Each key is a string representing the property name, and each value is of type Prop representing the property value.
-                If None, no properties are updated.
+            t (int | str | DateTime): The timestamp at which the updates should be applied.
+            properties (Dict[str, Prop]): A dictionary of properties to update. Each key is a string representing the property name, and each value is of type Prop representing the property value. If None, no properties are updated.
 
         Returns:
             Result: A result object indicating success or failure. On failure, it contains a GraphError.
@@ -2547,7 +2493,7 @@ class MutableNode:
         Get the degree of this node (i.e., the number of edges that are incident to it).
 
         Returns
-            The degree of this node.
+            int: The degree of this node.
         """
 
     @property
@@ -2556,7 +2502,7 @@ class MutableNode:
         Returns the earliest datetime that the node exists.
 
         Returns:
-            The earliest datetime that the node exists as an integer.
+            Datetime: The earliest datetime that the node exists as a Datetime.
         """
 
     @property
@@ -2565,7 +2511,7 @@ class MutableNode:
         Returns the earliest time that the node exists.
 
         Returns:
-            The earliest time that the node exists as an integer.
+            int: The earliest time that the node exists as an integer.
         """
 
     @property
@@ -2661,7 +2607,7 @@ class MutableNode:
         Returns the history of a node, including node additions and changes made to node.
 
         Returns:
-            A list of unix timestamps of the event history of node.
+            List[int]: A list of unix timestamps of the event history of node.
         """
 
     def history_date_time(self):
@@ -2669,7 +2615,7 @@ class MutableNode:
         Returns the history of a node, including node additions and changes made to node.
 
         Returns:
-            A list of timestamps of the event history of node.
+            List[Datetime]: A list of timestamps of the event history of node.
 
         """
 
@@ -2680,7 +2626,7 @@ class MutableNode:
         This is a unique identifier for the node.
 
         Returns:
-           The id of the node as an integer.
+           (str|int): The id of the node.
         """
 
     def in_degree(self):
@@ -2688,7 +2634,7 @@ class MutableNode:
         Get the in-degree of this node (i.e., the number of edges that are incident to it from other nodes).
 
         Returns:
-           The in-degree of this node.
+           int: The in-degree of this node.
         """
 
     @property
@@ -2720,7 +2666,7 @@ class MutableNode:
            None
 
         Returns:
-            The latest datetime that the node exists as an integer.
+            Datetime: The latest datetime that the node exists as a Datetime.
         """
 
     @property
@@ -2729,7 +2675,7 @@ class MutableNode:
         Returns the latest time that the node exists.
 
         Returns:
-            The latest time that the node exists as an integer.
+           int:  The latest time that the node exists as an integer.
         """
 
     def layer(self, name):
@@ -2759,7 +2705,7 @@ class MutableNode:
         Returns the name of the node.
 
         Returns:
-            The name of the node as a string.
+            str: The id of the node as a string.
         """
 
     @property
@@ -2781,7 +2727,7 @@ class MutableNode:
         Get the out-degree of this node (i.e., the number of edges that are incident to it from this node).
 
         Returns:
-          The out-degree of this node.
+          int: The out-degree of this node.
         """
 
     @property
@@ -2810,7 +2756,7 @@ class MutableNode:
         The properties of the node
 
         Returns:
-            A list of properties.
+            Properties: A list of properties.
         """
 
     def rolling(self, window, step=None):
@@ -2834,9 +2780,6 @@ class MutableNode:
 
         Parameters:
             new_type (str): The new type to be set
-
-        Returns:
-            Result: A result object indicating success or failure. On failure, it contains a GraphError.
         """
 
     def shrink_end(self, end):
@@ -2893,12 +2836,7 @@ class MutableNode:
         change over time. These properties are fundamental attributes of the node.
 
         Parameters:
-            properties (Dict[str, Prop]): A dictionary of properties to be added to the node.
-            Each key is a string representing the property name, and each value is of type Prop
-            representing the property value.
-
-        Returns:
-            Result: A result object indicating success or failure. On failure, it contains a GraphError.
+            properties (Dict[str, Prop]): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
         """
 
     def valid_layers(self, names):
@@ -2980,7 +2918,7 @@ class Node:
         Get the degree of this node (i.e., the number of edges that are incident to it).
 
         Returns
-            The degree of this node.
+            int: The degree of this node.
         """
 
     @property
@@ -2989,7 +2927,7 @@ class Node:
         Returns the earliest datetime that the node exists.
 
         Returns:
-            The earliest datetime that the node exists as an integer.
+            Datetime: The earliest datetime that the node exists as a Datetime.
         """
 
     @property
@@ -2998,7 +2936,7 @@ class Node:
         Returns the earliest time that the node exists.
 
         Returns:
-            The earliest time that the node exists as an integer.
+            int: The earliest time that the node exists as an integer.
         """
 
     @property
@@ -3094,7 +3032,7 @@ class Node:
         Returns the history of a node, including node additions and changes made to node.
 
         Returns:
-            A list of unix timestamps of the event history of node.
+            List[int]: A list of unix timestamps of the event history of node.
         """
 
     def history_date_time(self):
@@ -3102,7 +3040,7 @@ class Node:
         Returns the history of a node, including node additions and changes made to node.
 
         Returns:
-            A list of timestamps of the event history of node.
+            List[Datetime]: A list of timestamps of the event history of node.
 
         """
 
@@ -3113,7 +3051,7 @@ class Node:
         This is a unique identifier for the node.
 
         Returns:
-           The id of the node as an integer.
+           (str|int): The id of the node.
         """
 
     def in_degree(self):
@@ -3121,7 +3059,7 @@ class Node:
         Get the in-degree of this node (i.e., the number of edges that are incident to it from other nodes).
 
         Returns:
-           The in-degree of this node.
+           int: The in-degree of this node.
         """
 
     @property
@@ -3153,7 +3091,7 @@ class Node:
            None
 
         Returns:
-            The latest datetime that the node exists as an integer.
+            Datetime: The latest datetime that the node exists as a Datetime.
         """
 
     @property
@@ -3162,7 +3100,7 @@ class Node:
         Returns the latest time that the node exists.
 
         Returns:
-            The latest time that the node exists as an integer.
+           int:  The latest time that the node exists as an integer.
         """
 
     def layer(self, name):
@@ -3192,7 +3130,7 @@ class Node:
         Returns the name of the node.
 
         Returns:
-            The name of the node as a string.
+            str: The id of the node as a string.
         """
 
     @property
@@ -3214,7 +3152,7 @@ class Node:
         Get the out-degree of this node (i.e., the number of edges that are incident to it from this node).
 
         Returns:
-          The out-degree of this node.
+          int: The out-degree of this node.
         """
 
     @property
@@ -3243,7 +3181,7 @@ class Node:
         The properties of the node
 
         Returns:
-            A list of properties.
+            Properties: A list of properties.
         """
 
     def rolling(self, window, step=None):
