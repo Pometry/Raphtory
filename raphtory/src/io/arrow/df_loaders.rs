@@ -240,17 +240,21 @@ pub(crate) fn load_edges_from_df<
         let eid_col_shared = atomic_usize_from_mut_slice(cast_slice_mut(&mut eid_col_resolved));
         let g = write_locked_graph.graph;
         let next_edge_id = || g.storage.edges.next_id();
+        let update_time = |time| g.update_time(time);
         write_locked_graph
             .nodes
             .par_iter_mut()
             .for_each(|mut shard| {
-                for (row, ((src, dst), layer)) in src_col_resolved
+                for (row, (((src, dst), time), layer)) in src_col_resolved
                     .iter()
                     .zip(dst_col_resolved.iter())
+                    .zip(time_col.iter())
                     .zip(layer_col_resolved.iter())
                     .enumerate()
                 {
                     if let Some(src_node) = shard.get_mut(*src) {
+                        update_time(TimeIndexEntry(time, start_idx + row));
+                        src_node.update_time(TimeIndexEntry(time, start_idx + row));
                         let EID(eid) = match src_node.find_edge_eid(*dst, &LayerIds::All) {
                             None => {
                                 let eid = next_edge_id();
@@ -269,13 +273,16 @@ pub(crate) fn load_edges_from_df<
             .nodes
             .par_iter_mut()
             .for_each(|mut shard| {
-                for (((src, dst), eid), layer) in src_col_resolved
+                for (row, ((((src, dst), eid), time), layer)) in src_col_resolved
                     .iter()
                     .zip(dst_col_resolved.iter())
                     .zip(eid_col_resolved.iter())
+                    .zip(time_col.iter())
                     .zip(layer_col_resolved.iter())
+                    .enumerate()
                 {
                     if let Some(node) = shard.get_mut(*dst) {
+                        node.update_time(TimeIndexEntry(time, row + start_idx));
                         node.add_edge(*src, Direction::IN, *layer, *eid)
                     }
                 }
