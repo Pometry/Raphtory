@@ -39,3 +39,20 @@ def test_import_into_graph():
     gg.import_edges([e_a_b, e_c_d])
     assert len(gg.nodes) == 4
     assert len(gg.edges) == 2
+
+
+def test_import_with_int():
+    g = Graph()
+    g.add_node(1, 1)
+    g.add_node(1, 2)
+    g.add_node(1, 3)
+    g.add_edge(1, 4, 5)
+    g.add_edge(1, 6, 7)
+    g.add_edge(1, 8, 9)
+    g2 = Graph()
+    g2.import_edge(g.edge(4, 5))
+    g2.import_edges([g.edge(6, 7), g.edge(8, 9)])
+    assert g2.count_edges() == 3
+    g2.import_node(g.node(1))
+    g2.import_nodes([g.node(2), g.node(3)])
+    assert g2.count_nodes() == g.count_nodes()

@@ -168,12 +168,12 @@ impl PyGraph {
     /// Adds a new node with the given id and properties to the graph.
     ///
     /// Arguments:
-    ///    timestamp (int, str, or datetime(utc)): The timestamp of the node.
-    ///    id (str or int): The id of the node.
+    ///    timestamp (int|str|Datetime): The timestamp of the node.
+    ///    id (str|int): The id of the node.
     ///    properties (dict): The properties of the node (optional).
     ///    node_type (str): The optional string which will be used as a node type
     /// Returns:
-    ///   None
+    ///   Node: The added node
     #[pyo3(signature = (timestamp, id, properties = None, node_type = None))]
     pub fn add_node(
         &self,
@@ -189,11 +189,8 @@ impl PyGraph {
     /// Adds properties to the graph.
     ///
     /// Arguments:
-    ///    timestamp (int, str, or datetime(utc)): The timestamp of the temporal property.
+    ///    timestamp (int|str|Datetime): The timestamp of the temporal property.
     ///    properties (dict): The temporal properties of the graph.
-    ///
-    /// Returns:
-    ///    None
     pub fn add_property(
         &self,
         timestamp: PyTime,
@@ -206,9 +203,6 @@ impl PyGraph {
     ///
     /// Arguments:
     ///     properties (dict): The static properties of the graph.
-    ///
-    /// Returns:
-    ///    None
     pub fn add_constant_properties(
         &self,
         properties: HashMap<String, Prop>,
@@ -221,8 +215,6 @@ impl PyGraph {
     /// Arguments:
     ///     properties (dict): The static properties of the graph.
     ///
-    /// Returns:
-    ///    None
     pub fn update_constant_properties(
         &self,
         properties: HashMap<String, Prop>,
@@ -233,14 +225,14 @@ impl PyGraph {
     /// Adds a new edge with the given source and destination nodes and properties to the graph.
     ///
     /// Arguments:
-    ///    timestamp (int, str, or datetime(utc)): The timestamp of the edge.
-    ///    src (str or int): The id of the source node.
-    ///    dst (str or int): The id of the destination node.
+    ///    timestamp (int|str|Datetime): The timestamp of the edge.
+    ///    src (str|int): The id of the source node.
+    ///    dst (str|int): The id of the destination node.
     ///    properties (dict): The properties of the edge, as a dict of string and properties (optional).
     ///    layer (str): The layer of the edge (optional).
     ///
     /// Returns:
-    ///   None
+    ///   Edge: The added edge
     #[pyo3(signature = (timestamp, src, dst, properties = None, layer = None))]
     pub fn add_edge(
         &self,
@@ -260,11 +252,11 @@ impl PyGraph {
     /// the function will force the import of the node even if it already exists in the graph.
     ///
     /// Arguments:
-    ///     node (Node) - A PyNode object representing the node to be imported.
-    ///     force (boolean) - An optional boolean flag indicating whether to force the import of the node.
+    ///     node (Node): A Node object representing the node to be imported.
+    ///     force (boolean): An optional boolean flag indicating whether to force the import of the node.
     ///
     /// Returns:
-    ///     Result<NodeView<Graph, Graph>, GraphError> - A Result object which is Ok if the node was successfully imported, and Err otherwise.
+    ///     Node: A Result object which is Ok if the node was successfully imported, and Err otherwise.
     #[pyo3(signature = (node, force = false))]
     pub fn import_node(
         &self,
@@ -281,8 +273,8 @@ impl PyGraph {
     ///
     /// Arguments:
     ///
-    ///     nodes (List(Node))- A vector of PyNode objects representing the nodes to be imported.
-    ///     force (boolean) - An optional boolean flag indicating whether to force the import of the nodes.
+    ///     nodes (List[Node]): A vector of PyNode objects representing the nodes to be imported.
+    ///     force (boolean): An optional boolean flag indicating whether to force the import of the nodes.
     ///
     #[pyo3(signature = (nodes, force = false))]
     pub fn import_nodes(&self, nodes: Vec<PyNode>, force: bool) -> Result<(), GraphError> {
@@ -297,11 +289,11 @@ impl PyGraph {
     ///
     /// Arguments:
     ///
-    ///     edge (Edge) - A PyEdge object representing the edge to be imported.
-    ///     force (boolean) - An optional boolean flag indicating whether to force the import of the edge.
+    ///     edge (Edge): A PyEdge object representing the edge to be imported.
+    ///     force (boolean): An optional boolean flag indicating whether to force the import of the edge.
     ///
     /// Returns:
-    ///     Result<EdgeView<Graph, Graph>, GraphError> - A Result object which is Ok if the edge was successfully imported, and Err otherwise.
+    ///     Edge: A Result object which is Ok if the edge was successfully imported, and Err otherwise.
     #[pyo3(signature = (edge, force = false))]
     pub fn import_edge(
         &self,
@@ -318,9 +310,8 @@ impl PyGraph {
     ///
     /// Arguments:
     ///
-    ///     edges (List(edges)) - A vector of PyEdge objects representing the edges to be imported.
-    ///     force (boolean) - An optional boolean flag indicating whether to force the import of the edges.
-    ///
+    ///     edges (List[Edge]): A list of Edge objects representing the edges to be imported.
+    ///     force (boolean): An optional boolean flag indicating whether to force the import of the edges.
     #[pyo3(signature = (edges, force = false))]
     pub fn import_edges(&self, edges: Vec<PyEdge>, force: bool) -> Result<(), GraphError> {
         let edge_views = edges.iter().map(|edge| &edge.edge);
@@ -331,10 +322,10 @@ impl PyGraph {
     /// Gets the node with the specified id
     ///
     /// Arguments:
-    ///   id (str or int): the node id
+    ///   id (str|int): the node id
     ///
     /// Returns:
-    ///   the node with the specified id, or None if the node does not exist
+    ///   Node: the node with the specified id, or None if the node does not exist
     pub fn node(&self, id: NodeRef) -> Option<NodeView<Graph>> {
         self.graph.node(id)
     }
@@ -343,11 +334,11 @@ impl PyGraph {
     /// Gets the edge with the specified source and destination nodes
     ///
     /// Arguments:
-    ///     src (str or int): the source node id
-    ///     dst (str or int): the destination node id
+    ///     src (str|int): the source node id
+    ///     dst (str|int): the destination node id
     ///
     /// Returns:
-    ///     the edge with the specified source and destination nodes, or None if the edge does not exist
+    ///     Edge: the edge with the specified source and destination nodes, or None if the edge does not exist
     #[pyo3(signature = (src, dst))]
     pub fn edge(&self, src: NodeRef, dst: NodeRef) -> Option<EdgeView<Graph, Graph>> {
         self.graph.edge(src, dst)
@@ -360,7 +351,7 @@ impl PyGraph {
     /// Returns all the node types in the graph.
     ///
     /// Returns:
-    /// A list of node types
+    /// List[str]
     pub fn get_all_node_types(&self) -> Vec<ArcStr> {
         self.graph.get_all_node_types()
     }
@@ -371,7 +362,7 @@ impl PyGraph {
     /// g.largest_connected_component()
     ///
     /// # Returns:
-    /// A raphtory graph, which essentially is a sub-graph of the graph `g`
+    /// Graph: sub-graph of the graph `g` containing the largest connected component
     ///
     pub fn largest_connected_component(&self) -> NodeSubgraph<Graph> {
         self.graph.largest_connected_component()
@@ -393,11 +384,6 @@ impl PyGraph {
     ///     properties (List[str]): List of node property column names. Defaults to None. (optional)
     ///     constant_properties (List[str]): List of constant node property column names. Defaults to None.  (optional)
     ///     shared_constant_properties (dict): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
-    /// Returns:
-    ///     None: If the operation is successful.
-    ///
-    /// Raises:
-    ///     GraphError: If the operation fails.
     #[pyo3(
         signature = (df,time, id, node_type = None, node_type_col = None, properties = None, constant_properties = None, shared_constant_properties = None)
     )]
@@ -436,11 +422,6 @@ impl PyGraph {
     ///     properties (List[str]): List of node property column names. Defaults to None. (optional)
     ///     constant_properties (List[str]): List of constant node property column names. Defaults to None.  (optional)
     ///     shared_constant_properties (dict): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
-    /// Returns:
-    ///     None: If the operation is successful.
-    ///
-    /// Raises:
-    ///     GraphError: If the operation fails.
     #[pyo3(
         signature = (parquet_path, time, id, node_type = None, node_type_col = None, properties = None, constant_properties = None, shared_constant_properties = None)
     )]
@@ -480,11 +461,6 @@ impl PyGraph {
     ///     shared_constant_properties (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
     ///     layer (str): A constant value to use as the layer for all edges (optional) Defaults to None. (cannot be used in combination with layer_col)
     ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None. (cannot be used in combination with layer)
-    /// Returns:
-    ///     None: If the operation is successful.
-    ///
-    /// Raises:
-    ///     GraphError: If the operation fails.
     #[pyo3(
         signature = (df, time, src, dst, properties = None, constant_properties = None, shared_constant_properties = None, layer = None, layer_col = None)
     )]
@@ -526,11 +502,6 @@ impl PyGraph {
     ///     shared_constant_properties (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
     ///     layer (str): A constant value to use as the layer for all edges (optional) Defaults to None. (cannot be used in combination with layer_col)
     ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None. (cannot be used in combination with layer)
-    /// Returns:
-    ///     None: If the operation is successful.
-    ///
-    /// Raises:
-    ///     GraphError: If the operation fails.
     #[pyo3(
         signature = (parquet_path, time, src, dst, properties = None, constant_properties = None, shared_constant_properties = None, layer = None, layer_col = None)
     )]
@@ -569,12 +540,6 @@ impl PyGraph {
     ///     node_type_col (str): The node type col name in dataframe (optional) Defaults to None. (cannot be used in combination with node_type)
     ///     constant_properties (List[str]): List of constant node property column names. Defaults to None. (optional)
     ///     shared_constant_properties (dict): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
-    ///
-    /// Returns:
-    ///     None: If the operation is successful.
-    ///
-    /// Raises:
-    ///     GraphError: If the operation fails.
     #[pyo3(signature = (df, id, node_type=None, node_type_col=None, constant_properties = None, shared_constant_properties = None))]
     fn load_node_props_from_pandas(
         &self,
@@ -605,12 +570,6 @@ impl PyGraph {
     ///     node_type_col (str): The node type col name in dataframe (optional) Defaults to None. (cannot be used in combination with node_type)
     ///     constant_properties (List[str]): List of constant node property column names. Defaults to None. (optional)
     ///     shared_constant_properties (dict): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
-    ///
-    /// Returns:
-    ///     None: If the operation is successful.
-    ///
-    /// Raises:
-    ///     GraphError: If the operation fails.
     #[pyo3(signature = (parquet_path, id, node_type=None,node_type_col=None, constant_properties = None, shared_constant_properties = None))]
     fn load_node_props_from_parquet(
         &self,
@@ -642,12 +601,6 @@ impl PyGraph {
     ///     shared_constant_properties (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
     ///     layer (str): The edge layer name (optional) Defaults to None.
     ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None.
-    ///
-    /// Returns:
-    ///     None: If the operation is successful.
-    ///
-    /// Raises:
-    ///     GraphError: If the operation fails.
     #[pyo3(
         signature = (df, src, dst, constant_properties = None, shared_constant_properties = None, layer = None, layer_col = None)
     )]
@@ -683,12 +636,6 @@ impl PyGraph {
     ///     shared_constant_properties (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
     ///     layer (str): The edge layer name (optional) Defaults to None.
     ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None.
-    ///
-    /// Returns:
-    ///     None: If the operation is successful.
-    ///
-    /// Raises:
-    ///     GraphError: If the operation fails.
     #[pyo3(
         signature = (parquet_path, src, dst, constant_properties = None, shared_constant_properties = None, layer = None, layer_col = None)
     )]

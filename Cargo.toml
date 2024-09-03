@@ -14,7 +14,7 @@ default-members = ["raphtory"]
 resolver = "2"
 
 [workspace.package]
-version = "0.11.0"
+version = "0.11.1"
 documentation = "https://raphtory.readthedocs.io/en/latest/"
 repository = "https://github.com/Raphtory/raphtory/"
 license = "GPL-3.0"
@@ -127,21 +127,17 @@ prost-build = "0.13.1"
 lazy_static = "1.4.0"
 pest = "2.7.8"
 pest_derive = "2.7.8"
-sqlparser = "0.43.1"
+minijinja = "2.2.0"
+sqlparser = "0.47"
 
-datafusion = { version = "36" }
+
+datafusion = { version = "40" }
 futures = "0.3"
-arrow = { version = "50" }
-arrow-buffer = { version = "50" }
-arrow-schema = { version = "50" }
-arrow-array = { version = "50" }
+arrow = { version = "52" }
+arrow-buffer = { version = "52" }
+arrow-schema = { version = "52" }
+arrow-data = { version = "52" }
+arrow-array = { version = "52" }
+
 
 moka = { version = "0.12.7", features = ["sync"] }
-
-# Make sure that transitive dependencies stick to disk_graph 50
-[patch.crates-io]
-arrow = { git = "https://github.com/apache/arrow-rs.git", tag = "50.0.0" }
-arrow-buffer = { git = "https://github.com/apache/arrow-rs.git", tag = "50.0.0" }
-arrow-schema = { git = "https://github.com/apache/arrow-rs.git", tag = "50.0.0" }
-arrow-data = { git = "https://github.com/apache/arrow-rs.git", tag = "50.0.0" }
-arrow-array = { git = "https://github.com/apache/arrow-rs.git", tag = "50.0.0" }

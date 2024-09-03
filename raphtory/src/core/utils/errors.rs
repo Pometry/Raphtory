@@ -215,6 +215,10 @@ pub enum GraphError {
     PythonError(#[from] PyErr),
     #[error("An error with Tdqm occurred")]
     TqdmError,
+    #[error("An error when parsing Jinja query templates: {0}")]
+    JinjaError(String),
+    #[error("An error when parsing the data to json")]
+    SerdeError,
 }
 
 impl GraphError {

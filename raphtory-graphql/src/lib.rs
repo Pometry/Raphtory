@@ -1,5 +1,4 @@
 pub use crate::server::GraphServer;
-
 pub mod azure_auth;
 mod data;
 pub mod model;
