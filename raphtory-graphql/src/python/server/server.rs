@@ -313,10 +313,8 @@ impl PyGraphServer {
 
         let mut server = PyRunningGraphServer::new(join_handle, sender, port)?;
         if let Some(server_handler) = &server.server_handler {
-            match PyRunningGraphServer::wait_for_server_online(
-                &server_handler.client.url,
-                timeout_ms,
-            ) {
+            let url = format!("http://localhost:{port}");
+            match PyRunningGraphServer::wait_for_server_online(&url, timeout_ms) {
                 Ok(_) => return Ok(server),
                 Err(e) => {
                     PyRunningGraphServer::stop_server(&mut server, py)?;

@@ -102,9 +102,10 @@ impl PyRaphtoryClient {
                     )))
                 }
             }
-            Err(_) => Err(PyValueError::new_err(
-                "Could not connect to the given server - no response",
-            )),
+            Err(e) => Err(PyValueError::new_err(format!(
+                "Could not connect to the given server - no response --{}",
+                e.to_string()
+            ))),
         }
     }
 

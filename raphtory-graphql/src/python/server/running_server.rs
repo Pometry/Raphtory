@@ -20,7 +20,7 @@ pub struct PyRunningGraphServer {
 pub(crate) struct ServerHandler {
     pub(crate) join_handle: JoinHandle<IoResult<()>>,
     sender: CrossbeamSender<BridgeCommand>,
-    pub(crate) client: PyRaphtoryClient,
+    port: u16,
 }
 
 impl PyRunningGraphServer {
@@ -29,13 +29,11 @@ impl PyRunningGraphServer {
         sender: CrossbeamSender<BridgeCommand>,
         port: u16,
     ) -> PyResult<Self> {
-        let url = format!("http://localhost:{port}");
         let server_handler = Some(ServerHandler {
             join_handle,
             sender,
-            client: PyRaphtoryClient::new(url)?,
+            port,
         });
-
         Ok(PyRunningGraphServer { server_handler })
     }
 
@@ -83,7 +81,11 @@ impl PyRunningGraphServer {
 #[pymethods]
 impl PyRunningGraphServer {
     pub(crate) fn get_client(&self) -> PyResult<PyRaphtoryClient> {
-        self.apply_if_alive(|handler| Ok(handler.client.clone()))
+        self.apply_if_alive(|handler| {
+            let port = handler.port;
+            let url = format!("http://localhost:{port}");
+            Ok(PyRaphtoryClient::new(url)?)
+        })
     }
 
     /// Stop the server and wait for it to finish
