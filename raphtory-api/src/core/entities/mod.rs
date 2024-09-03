@@ -1,5 +1,6 @@
 use self::edges::edge_ref::EdgeRef;
 use super::input::input_node::parse_u64_strict;
+use bytemuck::{Pod, Zeroable};
 use num_traits::ToPrimitive;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -12,9 +13,15 @@ pub mod edges;
 // the only reason this is public is because the physical ids of the nodes don't move
 #[repr(transparent)]
 #[derive(
-    Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Default,
+    Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Pod, Zeroable,
 )]
 pub struct VID(pub usize);
+
+impl Default for VID {
+    fn default() -> Self {
+        VID(usize::MAX)
+    }
+}
 
 impl VID {
     pub fn index(&self) -> usize {
@@ -40,9 +47,15 @@ impl From<VID> for usize {
 
 #[repr(transparent)]
 #[derive(
-    Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Default,
+    Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Pod, Zeroable,
 )]
 pub struct EID(pub usize);
+
+impl Default for EID {
+    fn default() -> Self {
+        EID(usize::MAX)
+    }
+}
 
 impl EID {
     pub fn as_u64(self) -> u64 {
@@ -105,7 +118,7 @@ pub enum GID {
 
 impl Default for GID {
     fn default() -> Self {
-        GID::U64(0)
+        GID::U64(u64::MAX)
     }
 }
 

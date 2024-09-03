@@ -1,7 +1,8 @@
 use crate::core::entities::nodes::node_store::NodeStore;
 use lock_api;
+use num_integer::Integer;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use raphtory_api::core::entities::VID;
+use raphtory_api::core::entities::{GidRef, VID};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -226,6 +227,9 @@ impl NodeStorage {
         self.len.fetch_max(index + 1, Ordering::Relaxed);
         let (bucket, offset) = self.resolve(index);
         let mut guard = self.data[bucket].data.write();
+        if guard.len() <= offset {
+            guard.resize_with(offset + 1, NodeStore::default)
+        }
         guard[offset] = value
     }
 
@@ -315,23 +319,58 @@ impl<'a> NodeShardWriter<'a> {
         (shard_id == self.shard_id).then_some(offset)
     }
     pub fn get_mut(&mut self, index: VID) -> Option<&mut NodeStore> {
-        self.resolve(index).map(|offset| &mut self.shard[offset])
+        self.resolve(index).map(|offset| {
+            if offset >= self.shard.len() {
+                self.shard.extend(
+                    (self.shard.len()..=offset)
+                        .map(|i| NodeStore::init(VID(i * self.num_shards + self.shard_id))),
+                );
+            }
+            &mut self.shard[offset]
+        })
+    }
+
+    pub fn set(&mut self, vid: VID, gid: GidRef) {
+        if let Some(offset) = self.resolve(vid) {
+            if offset >= self.shard.len() {
+                self.shard.resize_with(offset + 1, NodeStore::default);
+            }
+            self.shard[offset] = NodeStore::resolved(gid.to_owned(), vid);
+        }
+    }
+
+    fn reserve(&mut self, new_global_len: usize) {
+        let mut new_len = new_global_len / self.num_shards;
+        if self.shard_id < new_global_len % self.num_shards {
+            new_len += 1;
+        }
+        if new_len > self.shard.len() {
+            self.shard.reserve(new_len - self.shard.len())
+        }
     }
 }
 
 impl<'a> WriteLockedNodes<'a> {
-    pub fn par_iter_mut(
-        &'a mut self,
-    ) -> impl IndexedParallelIterator<Item = NodeShardWriter<'a>> + 'a {
+    pub fn par_iter_mut(&mut self) -> impl IndexedParallelIterator<Item = NodeShardWriter> + '_ {
         let num_shards = self.guards.len();
-        self.guards
-            .par_iter_mut()
+        let shards: Vec<&mut Vec<NodeStore>> = self
+            .guards
+            .iter_mut()
+            .map(|guard| guard.deref_mut())
+            .collect();
+        shards
+            .into_par_iter()
             .enumerate()
             .map(move |(shard_id, shard)| NodeShardWriter {
                 shard,
                 shard_id,
                 num_shards,
             })
+    }
+
+    pub fn reserve(&'a mut self, new_len: usize) {
+        self.par_iter_mut()
+            .for_each(|mut shard| shard.reserve(new_len))
     }
 }
 

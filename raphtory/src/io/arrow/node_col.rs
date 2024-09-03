@@ -12,7 +12,7 @@ use rayon::prelude::{IndexedParallelIterator, *};
 
 trait NodeColOps: Array + Send + Sync {
     fn has_missing_values(&self) -> bool {
-        self.null_count() == 0
+        self.null_count() != 0
     }
     fn get(&self, i: usize) -> Option<GidRef>;
 
@@ -144,6 +144,10 @@ impl<'a> TryFrom<&'a dyn Array> for NodeCol {
 impl NodeCol {
     pub fn par_iter(&self) -> impl IndexedParallelIterator<Item = Option<GidRef<'_>>> + '_ {
         (0..self.0.len()).into_par_iter().map(|i| self.0.get(i))
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = Option<GidRef>> + '_ {
+        (0..self.0.len()).map(|i| self.0.get(i))
     }
 
     pub fn validate(

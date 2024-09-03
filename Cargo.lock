@@ -4344,6 +4344,7 @@ dependencies = [
  "async-openai",
  "async-trait",
  "bincode",
+ "bytemuck",
  "bzip2",
  "chrono",
  "csv",
@@ -4402,6 +4403,7 @@ dependencies = [
 name = "raphtory-api"
 version = "0.11.2"
 dependencies = [
+ "bytemuck",
  "chrono",
  "dashmap 6.0.1",
  "lock_api",

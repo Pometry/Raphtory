@@ -44,6 +44,20 @@ impl NodeStore {
         }
     }
 
+    pub fn is_initialised(&self) -> bool {
+        self.global_id != GID::default()
+    }
+    pub fn init(vid: VID) -> Self {
+        Self {
+            global_id: Default::default(),
+            vid,
+            timestamps: Default::default(),
+            layers: vec![],
+            props: None,
+            node_type: 0,
+        }
+    }
+
     pub fn empty(global_id: GID) -> Self {
         let mut layers = Vec::with_capacity(1);
         layers.push(Adj::Solo);
@@ -52,6 +66,17 @@ impl NodeStore {
             vid: VID(0),
             timestamps: TimeIndex::Empty,
             layers,
+            props: None,
+            node_type: 0,
+        }
+    }
+
+    pub fn resolved(global_id: GID, vid: VID) -> Self {
+        Self {
+            global_id,
+            vid,
+            timestamps: Default::default(),
+            layers: vec![],
             props: None,
             node_type: 0,
         }

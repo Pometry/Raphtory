@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     ops::{Deref, DerefMut},
     sync::{
-        atomic::{self, AtomicUsize},
+        atomic::{self, AtomicUsize, Ordering},
         Arc,
     },
 };
@@ -132,6 +132,10 @@ impl EdgesStorage {
     #[inline]
     pub fn len(&self) -> usize {
         self.len.load(atomic::Ordering::SeqCst)
+    }
+
+    pub fn next_id(&self) -> EID {
+        EID(self.len.fetch_add(1, Ordering::Relaxed))
     }
 
     pub fn read_lock(&self) -> LockedEdges {
@@ -388,8 +392,14 @@ impl<'a> EdgeShardWriter<'a> {
         (bucket == self.shard_id).then_some(offset)
     }
 
-    fn get_mut(&mut self, eid: EID) -> Option<MutEdge> {
-        self.resolve(eid).map(|offset| MutEdge {
+    pub fn get_mut(&mut self, eid: EID) -> Option<MutEdge> {
+        let offset = self.resolve(eid)?;
+        if self.shard.edge_ids.len() <= offset {
+            self.shard
+                .edge_ids
+                .resize_with(offset + 1, EdgeStore::default)
+        }
+        Some(MutEdge {
             guard: self.shard,
             i: offset,
         })
@@ -401,10 +411,15 @@ pub struct WriteLockedEdges<'a> {
 }
 
 impl<'a> WriteLockedEdges<'a> {
-    pub fn par_iter(&'a mut self) -> impl IndexedParallelIterator<Item = EdgeShardWriter<'a>> + 'a {
+    pub fn par_iter_mut(&mut self) -> impl IndexedParallelIterator<Item = EdgeShardWriter> + '_ {
         let num_shards = self.shards.len();
-        self.shards
-            .par_iter_mut()
+        let shards: Vec<_> = self
+            .shards
+            .iter_mut()
+            .map(|shard| shard.deref_mut())
+            .collect();
+        shards
+            .into_par_iter()
             .enumerate()
             .map(move |(shard_id, shard)| EdgeShardWriter {
                 shard,

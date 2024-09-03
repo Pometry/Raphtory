@@ -185,6 +185,7 @@ impl InternalAdditionOps for GraphStorage {
         match self {
             GraphStorage::Unlocked(storage) => storage.id_type(),
             GraphStorage::Mem(storage) => storage.graph.id_type(),
+            #[cfg(feature = "storage")]
             GraphStorage::Disk(storage) => Some(storage.inner().id_type()),
         }
     }

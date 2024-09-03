@@ -5,6 +5,7 @@ use crate::core::{
         ReadLockedStorage, WriteLockedNodes,
     },
 };
+use raphtory_api::core::entities::EID;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -55,9 +56,9 @@ impl Clone for LockedGraph {
 }
 
 pub struct WriteLockedGraph<'a> {
-    nodes: WriteLockedNodes<'a>,
-    edges: WriteLockedEdges<'a>,
-    graph: &'a TemporalGraph,
+    pub nodes: WriteLockedNodes<'a>,
+    pub edges: WriteLockedEdges<'a>,
+    pub graph: &'a TemporalGraph,
 }
 
 impl<'a> WriteLockedGraph<'a> {
@@ -70,11 +71,12 @@ impl<'a> WriteLockedGraph<'a> {
             graph,
         }
     }
-    pub fn nodes_mut(&'a mut self) -> &'a mut WriteLockedNodes<'a> {
-        &mut self.nodes
+
+    pub fn next_edge_id(&self) -> EID {
+        self.graph.storage.edges.next_id()
     }
 
-    pub fn edges_mut(&'a mut self) -> &'a mut WriteLockedEdges<'a> {
+    pub fn edges_mut(&mut self) -> &mut WriteLockedEdges<'a> {
         &mut self.edges
     }
 

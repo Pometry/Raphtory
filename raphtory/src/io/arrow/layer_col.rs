@@ -1,11 +1,15 @@
 use crate::{
     core::utils::errors::{GraphError, LoadError},
+    db::api::mutation::internal::InternalAdditionOps,
     io::arrow::dataframe::DFChunk,
 };
 use polars_arrow::array::Utf8Array;
-use rayon::iter::{
-    plumbing::{Consumer, ProducerCallback, UnindexedConsumer},
-    IndexedParallelIterator, IntoParallelIterator, ParallelIterator,
+use rayon::{
+    iter::{
+        plumbing::{Consumer, ProducerCallback, UnindexedConsumer},
+        IndexedParallelIterator, IntoParallelIterator, ParallelIterator,
+    },
+    prelude::*,
 };
 
 #[derive(Copy, Clone)]
@@ -83,6 +87,29 @@ impl<'a> LayerCol<'a> {
             }
             LayerCol::LargeUtf8 { col } => {
                 LayerColVariants::LargeUtf8((0..col.len()).into_par_iter().map(|i| col.get(i)))
+            }
+        }
+    }
+
+    pub fn resolve(
+        self,
+        graph: &(impl InternalAdditionOps + Send + Sync),
+    ) -> Result<Vec<usize>, GraphError> {
+        match self {
+            LayerCol::Name { name, len } => {
+                let layer = graph.resolve_layer(name)?.inner();
+                Ok(vec![layer; len])
+            }
+            col => {
+                let mut iter = col.par_iter();
+                let mut res = vec![0usize; iter.len()];
+                iter.zip(res.par_iter_mut())
+                    .try_for_each(|(layer, entry)| {
+                        let layer = graph.resolve_layer(layer)?.inner();
+                        *entry = layer;
+                        Ok::<(), GraphError>(())
+                    })?;
+                Ok(res)
             }
         }
     }
