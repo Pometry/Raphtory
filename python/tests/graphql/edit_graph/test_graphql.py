@@ -28,7 +28,10 @@ def test_failed_server_start_in_time():
 def test_wrong_url():
     with pytest.raises(Exception) as excinfo:
         client = RaphtoryClient("http://broken_url.com")
-    assert str(excinfo.value) == "Could not connect to the given server - no response"
+    assert (
+        str(excinfo.value)
+        == "Could not connect to the given server - no response --error sending request for url (http://broken_url.com/)"
+    )
 
 
 def test_successful_server_start_in_time():
