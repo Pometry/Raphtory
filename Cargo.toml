@@ -32,6 +32,10 @@ split-debuginfo = "unpacked"
 inherits = "release"
 debug = true
 
+[profile.test-ci]
+inherits = "test"
+debug = 0
+
 [workspace.dependencies]
 #[public-storage]
 pometry-storage = { version = ">=0.8.1", path = "pometry-storage" }
