@@ -101,7 +101,7 @@ impl<'a> LayerCol<'a> {
                 Ok(vec![layer; len])
             }
             col => {
-                let mut iter = col.par_iter();
+                let iter = col.par_iter();
                 let mut res = vec![0usize; iter.len()];
                 iter.zip(res.par_iter_mut())
                     .try_for_each(|(layer, entry)| {

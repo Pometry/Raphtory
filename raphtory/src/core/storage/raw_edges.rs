@@ -7,7 +7,6 @@ use crate::{
     db::api::storage::graph::edges::edge_storage_ops::{EdgeStorageOps, MemEdge},
     DEFAULT_NUM_SHARDS,
 };
-use itertools::Itertools;
 use lock_api::ArcRwLockReadGuard;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use raphtory_api::core::{entities::EID, storage::timeindex::TimeIndexEntry};

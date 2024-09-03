@@ -1,6 +1,5 @@
 use crate::core::entities::nodes::node_store::NodeStore;
 use lock_api;
-use num_integer::Integer;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use raphtory_api::core::entities::{GidRef, VID};
 use rayon::prelude::*;
