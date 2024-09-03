@@ -8,17 +8,21 @@ use crate::{
         utils::errors::GraphError,
         PropType,
     },
-    db::api::mutation::internal::InternalAdditionOps,
+    db::api::{mutation::internal::InternalAdditionOps, storage::graph::locked::WriteLockedGraph},
     prelude::Prop,
 };
 use either::Either;
 use raphtory_api::core::{
-    entities::{EID, VID},
+    entities::{GidRef, EID, VID},
     storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
 };
 use std::sync::atomic::Ordering;
 
 impl InternalAdditionOps for TemporalGraph {
+    fn write_lock(&self) -> Result<WriteLockedGraph, GraphError> {
+        Ok(WriteLockedGraph::new(self))
+    }
+
     fn num_shards(&self) -> Result<usize, GraphError> {
         Ok(self.storage.nodes.data.len())
     }
@@ -40,7 +44,7 @@ impl InternalAdditionOps for TemporalGraph {
     fn resolve_node<V: AsNodeRef>(&self, n: V) -> Result<MaybeNew<VID>, GraphError> {
         match n.as_gid_ref() {
             Either::Left(id) => {
-                let ref_mut = self.logical_to_physical.get_or_init(id, || {
+                let ref_mut = self.logical_to_physical.get_or_init_node(id, || {
                     let node_store = NodeStore::empty(id.into());
                     self.storage.push_node(node_store)
                 })?;
@@ -48,6 +52,11 @@ impl InternalAdditionOps for TemporalGraph {
             }
             Either::Right(vid) => Ok(MaybeNew::Existing(vid)),
         }
+    }
+
+    fn resolve_node_no_init(&self, id: GidRef) -> Result<MaybeNew<VID>, GraphError> {
+        self.logical_to_physical
+            .get_or_init(id, || self.storage.nodes.next_id())
     }
 
     fn resolve_node_and_type<V: AsNodeRef>(
@@ -133,7 +142,7 @@ impl InternalAdditionOps for TemporalGraph {
         props: &[(usize, Prop)],
         layer: usize,
     ) -> Result<MaybeNew<EID>, GraphError> {
-        self.link_nodes(src, dst, t, layer, move |edge| {
+        self.link_nodes(src, dst, t, layer, move |mut edge| {
             edge.additions_mut(layer).insert(t);
             if !props.is_empty() {
                 let edge_layer = edge.layer_mut(layer);
@@ -153,7 +162,7 @@ impl InternalAdditionOps for TemporalGraph {
         props: &[(usize, Prop)],
         layer: usize,
     ) -> Result<(), GraphError> {
-        self.link_edge(edge, t, layer, |edge| {
+        self.link_edge(edge, t, layer, |mut edge| {
             edge.additions_mut(layer).insert(t);
             if !props.is_empty() {
                 let edge_layer = edge.layer_mut(layer);
@@ -168,6 +177,13 @@ impl InternalAdditionOps for TemporalGraph {
 }
 
 impl InternalAdditionOps for GraphStorage {
+    fn write_lock(&self) -> Result<WriteLockedGraph, GraphError> {
+        match self {
+            GraphStorage::Unlocked(storage) => storage.write_lock(),
+            _ => Err(GraphError::AttemptToMutateImmutableGraph),
+        }
+    }
+
     fn num_shards(&self) -> Result<usize, GraphError> {
         match self {
             GraphStorage::Unlocked(storage) => storage.num_shards(),
@@ -199,6 +215,13 @@ impl InternalAdditionOps for GraphStorage {
     fn resolve_node<V: AsNodeRef>(&self, n: V) -> Result<MaybeNew<VID>, GraphError> {
         match self {
             GraphStorage::Unlocked(storage) => storage.resolve_node(n),
+            _ => Err(GraphError::AttemptToMutateImmutableGraph),
+        }
+    }
+
+    fn resolve_node_no_init(&self, id: GidRef) -> Result<MaybeNew<VID>, GraphError> {
+        match self {
+            GraphStorage::Unlocked(storage) => storage.resolve_node_no_init(id),
             _ => Err(GraphError::AttemptToMutateImmutableGraph),
         }
     }

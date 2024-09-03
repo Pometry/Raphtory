@@ -41,6 +41,7 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{iter, sync::Arc};
 
+use crate::{core::utils::errors::GraphError, db::api::storage::graph::locked::WriteLockedGraph};
 #[cfg(feature = "storage")]
 use crate::{
     db::api::storage::graph::variants::storage_variants::StorageVariants,
@@ -122,6 +123,16 @@ impl GraphStorage {
                 GraphStorage::Mem(locked)
             }
             _ => self.clone(),
+        }
+    }
+
+    pub fn write_lock(&self) -> Result<WriteLockedGraph, GraphError> {
+        match self {
+            GraphStorage::Unlocked(storage) => {
+                let locked = WriteLockedGraph::new(storage);
+                Ok(locked)
+            }
+            _ => Err(GraphError::AttemptToMutateImmutableGraph),
         }
     }
 

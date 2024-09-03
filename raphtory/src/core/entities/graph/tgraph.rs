@@ -12,7 +12,7 @@ use crate::{
             LayerIds, EID, VID,
         },
         storage::{
-            raw_edges::EdgeWGuard,
+            raw_edges::{EdgeWGuard, MutEdge},
             timeindex::{AsTime, TimeIndexEntry},
             PairEntryMut,
         },
@@ -344,7 +344,7 @@ impl TemporalGraph {
         eid: EID,
         t: TimeIndexEntry,
         layer: usize,
-        edge_fn: impl FnOnce(&mut EdgeWGuard) -> Result<(), GraphError>,
+        edge_fn: impl FnOnce(MutEdge) -> Result<(), GraphError>,
     ) -> Result<(), GraphError> {
         let (src, dst) = {
             let edge_r = self.storage.edges.get_edge(eid);
@@ -357,10 +357,10 @@ impl TemporalGraph {
             self.link_nodes_inner(&mut node_pair, eid, t, layer)?;
         }
         let mut edge_w = self.storage.edges.get_edge_mut(eid);
-        edge_fn(&mut edge_w)
+        edge_fn(edge_w.as_mut())
     }
 
-    pub(crate) fn link_nodes<F: FnOnce(&mut EdgeWGuard) -> Result<(), GraphError>>(
+    pub(crate) fn link_nodes<F: FnOnce(MutEdge) -> Result<(), GraphError>>(
         &self,
         src_id: VID,
         dst_id: VID,
@@ -371,12 +371,12 @@ impl TemporalGraph {
         let edge = {
             let mut node_pair = self.storage.pair_node_mut(src_id, dst_id);
             let src = node_pair.get_i();
-            let edge = match src.find_edge_eid(dst_id, &LayerIds::All) {
+            let mut edge = match src.find_edge_eid(dst_id, &LayerIds::All) {
                 Some(edge_id) => Either::Left(self.storage.get_edge_mut(edge_id)),
                 None => Either::Right(self.storage.push_edge(EdgeStore::new(src_id, dst_id))),
             };
-            let eid = match edge.as_ref() {
-                Either::Left(edge) => edge.edge_store().eid,
+            let eid = match edge.as_mut() {
+                Either::Left(edge) => edge.as_ref().eid(),
                 Either::Right(edge) => edge.value().eid,
             };
             self.link_nodes_inner(&mut node_pair, eid, t, layer)?;
@@ -385,13 +385,13 @@ impl TemporalGraph {
 
         match edge {
             Either::Left(mut edge) => {
-                edge_fn(&mut edge)?;
-                Ok(MaybeNew::Existing(edge.edge_store().eid))
+                edge_fn(edge.as_mut())?;
+                Ok(MaybeNew::Existing(edge.as_ref().eid()))
             }
             Either::Right(edge) => {
                 let mut edge = edge.init();
-                edge_fn(&mut edge)?;
-                Ok(MaybeNew::New(edge.edge_store().eid))
+                edge_fn(edge.as_mut())?;
+                Ok(MaybeNew::New(edge.as_ref().eid()))
             }
         }
     }

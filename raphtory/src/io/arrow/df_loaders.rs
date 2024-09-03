@@ -3,7 +3,10 @@ use crate::{
         utils::errors::{GraphError, LoadError},
         PropType,
     },
-    db::api::{mutation::internal::*, view::StaticGraphViewOps},
+    db::api::{
+        mutation::internal::*,
+        view::{internal::CoreGraphOps, StaticGraphViewOps},
+    },
     io::arrow::{
         dataframe::{DFChunk, DFView},
         layer_col::{lift_layer_col, lift_node_type_col},
@@ -13,7 +16,10 @@ use crate::{
     prelude::*,
 };
 use kdam::{Bar, BarBuilder, BarExt};
-use raphtory_api::core::storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry};
+use raphtory_api::core::{
+    entities::VID,
+    storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
+};
 use rayon::prelude::*;
 use std::collections::HashMap;
 
@@ -190,8 +196,35 @@ pub(crate) fn load_edges_from_df<
             |key, dtype| graph.resolve_edge_property(key, dtype, true),
         )?;
         let layer = lift_layer_col(layer, layer_index, &df)?;
+
         let src_col = df.node_col(src_index)?;
+        let mut src_col_resolved = vec![VID(0); df.len()];
+        src_col
+            .par_iter()
+            .zip(src_col_resolved.par_iter_mut())
+            .try_for_each(|(gid, entry)| {
+                let gid = gid.ok_or(LoadError::MissingSrcError)?;
+                let vid = graph.resolve_node_no_init(gid)?.inner();
+                *entry = vid;
+                Ok::<(), GraphError>(())
+            })?;
+
         let dst_col = df.node_col(dst_index)?;
+        let mut dst_col_resolved = vec![VID(0); df.len()];
+        dst_col
+            .par_iter()
+            .zip(dst_col_resolved.par_iter_mut())
+            .try_for_each(|(gid, entry)| {
+                let gid = gid.ok_or(LoadError::MissingDstError)?;
+                let vid = graph.resolve_node_no_init(gid)?.inner();
+                *entry = vid;
+                Ok::<(), GraphError>(())
+            })?;
+
+        let mut write_locked_graph = graph.write_lock()?;
+
+        let mut eid_col_resolved = vec![0; df.len()];
+
         let time_col = df.time_col(time_index)?;
         src_col
             .par_iter()

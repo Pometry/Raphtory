@@ -19,7 +19,7 @@ use crate::{
             mutation::internal::{
                 InheritPropertyAdditionOps, InternalAdditionOps, InternalDeletionOps,
             },
-            storage::graph::edges::edge_storage_ops::EdgeStorageOps,
+            storage::graph::{edges::edge_storage_ops::EdgeStorageOps, locked::WriteLockedGraph},
             view::{
                 internal::{DynamicGraph, InheritViewOps, IntoDynamic, Static},
                 Base, StaticGraphViewOps,
@@ -29,7 +29,10 @@ use crate::{
     },
     prelude::*,
 };
-use raphtory_api::core::storage::{arc_str::ArcStr, dict_mapper::MaybeNew};
+use raphtory_api::core::{
+    entities::GidRef,
+    storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
+};
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
 use std::{collections::HashSet, ops::Deref, sync::Arc};
 use tantivy::{
@@ -756,6 +759,10 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
 }
 
 impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph<G> {
+    fn write_lock(&self) -> Result<WriteLockedGraph, GraphError> {
+        self.graph.write_lock()
+    }
+
     #[inline]
     fn num_shards(&self) -> Result<usize, GraphError> {
         self.graph.num_shards()
@@ -779,6 +786,11 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
     #[inline]
     fn resolve_node<V: AsNodeRef>(&self, n: V) -> Result<MaybeNew<VID>, GraphError> {
         self.graph.resolve_node(n)
+    }
+
+    #[inline]
+    fn resolve_node_no_init(&self, id: GidRef) -> Result<MaybeNew<VID>, GraphError> {
+        self.graph.resolve_node_no_init(id)
     }
 
     fn resolve_node_and_type<V: AsNodeRef>(

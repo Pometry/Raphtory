@@ -712,7 +712,7 @@ impl StableDecode for TemporalGraph {
             let mut node_store = NodeStore::empty(gid.to_owned());
             node_store.vid = vid;
             node_store.node_type = node.type_id as usize;
-            storage.storage.nodes.set(vid, node_store).init();
+            storage.storage.nodes.set(node_store);
             Ok::<(), GraphError>(())
         })?;
         graph.edges.par_iter().for_each(|edge| {

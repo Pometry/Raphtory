@@ -23,6 +23,7 @@ use crate::{
                     edge_entry::EdgeStorageEntry, edge_owned_entry::EdgeOwnedEntry,
                     edge_ref::EdgeStorageRef, edges::EdgesStorage,
                 },
+                locked::WriteLockedGraph,
                 nodes::{
                     node_entry::NodeStorageEntry, node_owned_entry::NodeOwnedEntry,
                     nodes::NodesStorage,
@@ -37,7 +38,10 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
-use raphtory_api::core::storage::{arc_str::ArcStr, dict_mapper::MaybeNew};
+use raphtory_api::core::{
+    entities::GidRef,
+    storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
+};
 use serde::{Deserialize, Serialize};
 
 #[enum_dispatch(CoreGraphOps)]

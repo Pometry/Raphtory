@@ -1,5 +1,8 @@
+use crate::core::entities::nodes::node_store::NodeStore;
+use itertools::Itertools;
 use lock_api;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use raphtory_api::core::entities::VID;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -19,7 +22,6 @@ pub mod sorted_vec_map;
 pub mod timeindex;
 
 type ArcRwLockReadGuard<T> = lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, T>;
-
 #[must_use]
 pub struct UninitialisedEntry<'a, T> {
     offset: usize,
@@ -79,13 +81,12 @@ impl<T: Default> LockVec<T> {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct RawStorage<T: Default, Index = usize> {
-    pub(crate) data: Box<[LockVec<T>]>,
+pub struct NodeStorage {
+    pub(crate) data: Box<[LockVec<NodeStore>]>,
     len: AtomicUsize,
-    _index: PhantomData<Index>,
 }
 
-impl<Index, T: PartialEq + Default> PartialEq for RawStorage<T, Index> {
+impl PartialEq for NodeStorage {
     fn eq(&self, other: &Self) -> bool {
         self.data.eq(&other.data)
     }
@@ -166,26 +167,20 @@ where
     }
 }
 
-impl<Index, T: Default + Send + Sync> RawStorage<T, Index>
-where
-    usize: From<Index>,
-{
-    pub fn count_with_filter<F: Fn(&T) -> bool + Send + Sync>(&self, f: F) -> usize {
+impl NodeStorage {
+    pub fn count_with_filter<F: Fn(&NodeStore) -> bool + Send + Sync>(&self, f: F) -> usize {
         self.read_lock().par_iter().filter(|x| f(x)).count()
     }
 }
 
-impl<Index, T: Default> RawStorage<T, Index>
-where
-    usize: From<Index>,
-{
+impl NodeStorage {
     #[inline]
     fn resolve(&self, index: usize) -> (usize, usize) {
         resolve(index, self.data.len())
     }
 
     #[inline]
-    pub fn read_lock(&self) -> ReadLockedStorage<T, Index> {
+    pub fn read_lock(&self) -> ReadLockedStorage<NodeStore, VID> {
         let guards = self
             .data
             .iter()
@@ -198,21 +193,26 @@ where
         }
     }
 
+    pub(crate) fn write_lock(&self) -> WriteLockedNodes {
+        WriteLockedNodes {
+            guards: self.data.iter().map(|lock| lock.data.write()).collect(),
+        }
+    }
+
     pub fn new(n_locks: usize) -> Self {
-        let data: Box<[LockVec<T>]> = (0..n_locks)
+        let data: Box<[LockVec<NodeStore>]> = (0..n_locks)
             .map(|_| LockVec::new())
             .collect::<Vec<_>>()
             .into();
         Self {
             data,
             len: AtomicUsize::new(0),
-            _index: PhantomData,
         }
     }
 
-    pub fn push<F: Fn(usize, &mut T)>(&self, mut value: T, f: F) -> UninitialisedEntry<T> {
+    pub fn push(&self, mut value: NodeStore) -> UninitialisedEntry<NodeStore> {
         let index = self.len.fetch_add(1, Ordering::Relaxed);
-        f(index, &mut value);
+        value.vid = VID(index);
         let (bucket, offset) = self.resolve(index);
         let guard = self.data[bucket].data.write();
         UninitialisedEntry {
@@ -222,27 +222,23 @@ where
         }
     }
 
-    pub fn set(&self, index: Index, value: T) -> UninitialisedEntry<T> {
-        let index = index.into();
+    pub fn set(&self, value: NodeStore) {
+        let VID(index) = value.vid;
         self.len.fetch_max(index + 1, Ordering::Relaxed);
         let (bucket, offset) = self.resolve(index);
-        let guard = self.data[bucket].data.write();
-        UninitialisedEntry {
-            offset,
-            guard,
-            value,
-        }
+        let mut guard = self.data[bucket].data.write();
+        guard[offset] = value
     }
 
     #[inline]
-    pub fn entry(&self, index: Index) -> Entry<'_, T> {
+    pub fn entry(&self, index: VID) -> Entry<'_, NodeStore> {
         let index = index.into();
         let (bucket, offset) = self.resolve(index);
         let guard = self.data[bucket].data.read_recursive();
         Entry { offset, guard }
     }
 
-    pub fn entry_arc(&self, index: Index) -> ArcEntry<T> {
+    pub fn entry_arc(&self, index: VID) -> ArcEntry<NodeStore> {
         let index = index.into();
         let (bucket, offset) = self.resolve(index);
         let guard = &self.data[bucket].data;
@@ -253,7 +249,7 @@ where
         }
     }
 
-    pub fn entry_mut(&self, index: Index) -> EntryMut<'_, T> {
+    pub fn entry_mut(&self, index: VID) -> EntryMut<'_, NodeStore> {
         let index = index.into();
         let (bucket, offset) = self.resolve(index);
         let guard = self.data[bucket].data.write();
@@ -261,7 +257,7 @@ where
     }
 
     // This helps get the right locks when adding an edge
-    pub fn pair_entry_mut(&self, i: Index, j: Index) -> PairEntryMut<'_, T> {
+    pub fn pair_entry_mut(&self, i: VID, j: VID) -> PairEntryMut<'_, NodeStore> {
         let i = i.into();
         let j = j.into();
         let (bucket_i, offset_i) = self.resolve(i);
@@ -297,6 +293,46 @@ where
     #[inline]
     pub fn len(&self) -> usize {
         self.len.load(Ordering::SeqCst)
+    }
+
+    pub fn next_id(&self) -> VID {
+        VID(self.len.fetch_add(1, Ordering::Relaxed))
+    }
+}
+
+pub struct WriteLockedNodes<'a> {
+    guards: Vec<RwLockWriteGuard<'a, Vec<NodeStore>>>,
+}
+
+pub struct NodeShardWriter<'a> {
+    shard: &'a mut Vec<NodeStore>,
+    shard_id: usize,
+    num_shards: usize,
+}
+
+impl<'a> NodeShardWriter<'a> {
+    fn resolve(&self, index: VID) -> Option<usize> {
+        let (shard_id, offset) = resolve(index.into(), self.num_shards);
+        (shard_id == self.shard_id).then_some(offset)
+    }
+    pub fn get_mut(&mut self, index: VID) -> Option<&mut NodeStore> {
+        self.resolve(index).map(|offset| &mut self.shard[offset])
+    }
+}
+
+impl<'a> WriteLockedNodes<'a> {
+    pub fn par_iter_mut(
+        &'a mut self,
+    ) -> impl IndexedParallelIterator<Item = NodeShardWriter<'a>> + 'a {
+        let num_shards = self.guards.len();
+        self.guards
+            .par_iter_mut()
+            .enumerate()
+            .map(move |(shard_id, shard)| NodeShardWriter {
+                shard,
+                shard_id,
+                num_shards,
+            })
     }
 }
 
@@ -401,75 +437,90 @@ impl<'a, T> DerefMut for EntryMut<'a, T> {
 
 #[cfg(test)]
 mod test {
-    use super::RawStorage;
+    use super::NodeStorage;
+    use crate::core::entities::nodes::node_store::NodeStore;
     use pretty_assertions::assert_eq;
     use quickcheck_macros::quickcheck;
+    use raphtory_api::core::entities::{GID, VID};
     use rayon::prelude::{IntoParallelIterator, ParallelIterator};
+    use std::borrow::Cow;
 
     #[test]
     fn add_5_values_to_storage() {
-        let storage = RawStorage::<String>::new(2);
+        let storage = NodeStorage::new(2);
 
         for i in 0..5 {
-            storage.push(i.to_string(), |_, _| {}).init();
+            storage.push(NodeStore::empty(i.into())).init();
         }
 
         assert_eq!(storage.len(), 5);
 
         for i in 0..5 {
-            let entry = storage.entry(i);
-            assert_eq!(*entry, i.to_string());
+            let entry = storage.entry(VID(i));
+            assert_eq!(entry.vid, VID(i));
         }
 
         let items_iter = storage.read_lock().into_iter();
 
-        let actual = items_iter.map(|s| (*s).to_owned()).collect::<Vec<_>>();
+        let actual = items_iter.map(|s| s.vid.index()).collect::<Vec<_>>();
 
-        assert_eq!(actual, vec!["0", "2", "4", "1", "3"]);
+        assert_eq!(actual, vec![0, 2, 4, 1, 3]);
     }
 
     #[test]
     fn test_index_correctness() {
-        let storage = RawStorage::<String>::new(2);
+        let storage = NodeStorage::new(2);
 
         for i in 0..5 {
-            storage.push(i.to_string(), |_, _| {}).init();
+            storage.push(NodeStore::empty(i.into())).init();
         }
         let locked = storage.read_lock();
-        let actual: Vec<_> = (0..5).map(|i| (i, locked.get(i).as_str())).collect();
+        let actual: Vec<_> = (0..5)
+            .map(|i| (i, locked.get(VID(i)).global_id.to_str()))
+            .collect();
+
         assert_eq!(
             actual,
-            vec![(0usize, "0"), (1, "1"), (2, "2"), (3, "3"), (4, "4")]
+            vec![
+                (0usize, Cow::Borrowed("0")),
+                (1, "1".into()),
+                (2, "2".into()),
+                (3, "3".into()),
+                (4, "4".into())
+            ]
         );
     }
 
     #[test]
     fn test_entry() {
-        let storage = RawStorage::<String>::new(2);
+        let storage = NodeStorage::new(2);
 
         for i in 0..5 {
-            storage.push(i.to_string(), |_, _| {}).init();
+            storage.push(NodeStore::empty(i.into())).init();
         }
 
         for i in 0..5 {
-            let entry = storage.entry(i);
-            assert_eq!(*entry, i.to_string());
+            let entry = storage.entry(VID(i));
+            assert_eq!(*entry.global_id.to_str(), i.to_string());
         }
     }
 
     #[quickcheck]
-    fn concurrent_push(v: Vec<usize>) -> bool {
-        let storage = RawStorage::<usize>::new(16);
+    fn concurrent_push(v: Vec<u64>) -> bool {
+        let storage = NodeStorage::new(16);
         let mut expected = v
             .into_par_iter()
             .map(|v| {
-                storage.push(v, |_, _| {}).init();
+                storage.push(NodeStore::empty(GID::U64(v))).init();
                 v
             })
             .collect::<Vec<_>>();
 
         let locked = storage.read_lock();
-        let mut actual: Vec<_> = locked.iter().copied().collect();
+        let mut actual: Vec<_> = locked
+            .iter()
+            .map(|n| n.global_id.as_u64().unwrap())
+            .collect();
 
         actual.sort();
         expected.sort();

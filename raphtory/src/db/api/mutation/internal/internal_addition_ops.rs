@@ -5,13 +5,14 @@ use crate::{
         utils::errors::GraphError,
         Prop, PropType,
     },
-    db::api::view::internal::Base,
+    db::api::{storage::graph::locked::WriteLockedGraph, view::internal::Base},
 };
 use enum_dispatch::enum_dispatch;
-use raphtory_api::core::storage::dict_mapper::MaybeNew;
+use raphtory_api::core::{entities::GidRef, storage::dict_mapper::MaybeNew};
 
 #[enum_dispatch]
 pub trait InternalAdditionOps {
+    fn write_lock(&self) -> Result<WriteLockedGraph, GraphError>;
     fn num_shards(&self) -> Result<usize, GraphError>;
     /// get the sequence id for the next event
     fn next_event_id(&self) -> Result<usize, GraphError>;
@@ -23,6 +24,9 @@ pub trait InternalAdditionOps {
 
     /// map external node id to internal id, allocating a new empty node if needed
     fn resolve_node<V: AsNodeRef>(&self, id: V) -> Result<MaybeNew<VID>, GraphError>;
+
+    /// map external node id to internal id, creating a new mapping if the node does not exist without allocating the node storage
+    fn resolve_node_no_init(&self, id: GidRef) -> Result<MaybeNew<VID>, GraphError>;
 
     /// resolve a node and corresponding type, outer MaybeNew tracks whether the type assignment is new for the node even if both node and type already existed.
     fn resolve_node_and_type<V: AsNodeRef>(
@@ -102,6 +106,10 @@ pub trait DelegateAdditionOps {
 }
 
 impl<G: DelegateAdditionOps> InternalAdditionOps for G {
+    fn write_lock(&self) -> Result<WriteLockedGraph, GraphError> {
+        self.graph().write_lock()
+    }
+
     #[inline]
     fn num_shards(&self) -> Result<usize, GraphError> {
         self.graph().num_shards()
@@ -125,6 +133,11 @@ impl<G: DelegateAdditionOps> InternalAdditionOps for G {
     #[inline]
     fn resolve_node<V: AsNodeRef>(&self, n: V) -> Result<MaybeNew<VID>, GraphError> {
         self.graph().resolve_node(n)
+    }
+
+    #[inline]
+    fn resolve_node_no_init(&self, id: GidRef) -> Result<MaybeNew<VID>, GraphError> {
+        self.graph().resolve_node_no_init(id)
     }
 
     #[inline]

@@ -69,7 +69,48 @@ impl Mapping {
         .ok_or_else(|| MutateGraphError::InvalidNodeId(gid.into()).into())
     }
 
-    pub fn get_or_init<'a>(
+    pub fn get_or_init(
+        &self,
+        gid: GidRef,
+        next_id: impl FnOnce() -> VID,
+    ) -> Result<MaybeNew<VID>, GraphError> {
+        let map = self.map.get_or_init(|| match &gid {
+            GidRef::U64(_) => Map::U64(FxDashMap::default()),
+            GidRef::Str(_) => Map::Str(FxDashMap::default()),
+        });
+        let vid = match gid {
+            GidRef::U64(id) => map.as_u64().map(|m| {
+                m.get(&id)
+                    .map(|id| MaybeNew::Existing(*id))
+                    .unwrap_or_else(|| match m.entry(id) {
+                        Entry::Occupied(id) => MaybeNew::Existing(*id.get()),
+                        Entry::Vacant(entry) => {
+                            let vid = next_id();
+                            entry.insert(vid);
+                            MaybeNew::New(vid)
+                        }
+                    })
+            }),
+            GidRef::Str(id) => map.as_str().map(|m| {
+                m.get(id)
+                    .map(|vid| MaybeNew::Existing(*vid))
+                    .unwrap_or_else(|| match m.entry(id.to_owned()) {
+                        Entry::Occupied(entry) => MaybeNew::Existing(*entry.get()),
+                        Entry::Vacant(entry) => {
+                            let vid = next_id();
+                            entry.insert(vid);
+                            MaybeNew::New(vid)
+                        }
+                    })
+            }),
+        };
+
+        vid.ok_or_else(|| GraphError::FailedToMutateGraph {
+            source: MutateGraphError::InvalidNodeId(gid.into()),
+        })
+    }
+
+    pub fn get_or_init_node<'a>(
         &self,
         gid: GidRef,
         f_init: impl FnOnce() -> UninitialisedEntry<'a, NodeStore>,

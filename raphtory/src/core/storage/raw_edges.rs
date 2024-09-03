@@ -7,13 +7,14 @@ use crate::{
     db::api::storage::graph::edges::edge_storage_ops::{EdgeStorageOps, MemEdge},
     DEFAULT_NUM_SHARDS,
 };
+use itertools::Itertools;
 use lock_api::ArcRwLockReadGuard;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use raphtory_api::core::{entities::EID, storage::timeindex::TimeIndexEntry};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
-    ops::Deref,
+    ops::{Deref, DerefMut},
     sync::{
         atomic::{self, AtomicUsize},
         Arc,
@@ -144,6 +145,12 @@ impl EdgesStorage {
         }
     }
 
+    pub fn write_lock(&self) -> WriteLockedEdges {
+        WriteLockedEdges {
+            shards: self.shards.iter().map(|shard| shard.write()).collect(),
+        }
+    }
+
     #[inline]
     fn resolve(&self, index: usize) -> (usize, usize) {
         resolve(index, self.shards.len())
@@ -214,10 +221,28 @@ pub struct EdgeWGuard<'a> {
 }
 
 impl<'a> EdgeWGuard<'a> {
-    pub fn edge_store(&self) -> &EdgeStore {
-        &self.guard.edge_ids[self.i]
+    pub fn as_mut(&mut self) -> MutEdge {
+        MutEdge {
+            guard: self.guard.deref_mut(),
+            i: self.i,
+        }
     }
 
+    pub fn as_ref(&self) -> MemEdge {
+        MemEdge::new(&self.guard, self.i)
+    }
+
+    pub fn eid(&self) -> EID {
+        self.as_ref().eid()
+    }
+}
+
+pub struct MutEdge<'a> {
+    guard: &'a mut EdgeShard,
+    i: usize,
+}
+
+impl<'a> MutEdge<'a> {
     pub fn edge_store_mut(&mut self) -> &mut EdgeStore {
         &mut self.guard.edge_ids[self.i]
     }
@@ -346,5 +371,45 @@ impl LockedEdges {
                 .enumerate()
                 .map(move |(offset, _)| MemEdge::new(shard, offset))
         })
+    }
+}
+
+pub struct EdgeShardWriter<'a> {
+    shard: &'a mut EdgeShard,
+    shard_id: usize,
+    num_shards: usize,
+}
+
+impl<'a> EdgeShardWriter<'a> {
+    /// Map an edge id to local offset if it is in the shard
+    fn resolve(&self, eid: EID) -> Option<usize> {
+        let EID(eid) = eid;
+        let (bucket, offset) = resolve(eid, self.num_shards);
+        (bucket == self.shard_id).then_some(offset)
+    }
+
+    fn get_mut(&mut self, eid: EID) -> Option<MutEdge> {
+        self.resolve(eid).map(|offset| MutEdge {
+            guard: self.shard,
+            i: offset,
+        })
+    }
+}
+
+pub struct WriteLockedEdges<'a> {
+    shards: Vec<RwLockWriteGuard<'a, EdgeShard>>,
+}
+
+impl<'a> WriteLockedEdges<'a> {
+    pub fn par_iter(&'a mut self) -> impl IndexedParallelIterator<Item = EdgeShardWriter<'a>> + 'a {
+        let num_shards = self.shards.len();
+        self.shards
+            .par_iter_mut()
+            .enumerate()
+            .map(move |(shard_id, shard)| EdgeShardWriter {
+                shard,
+                shard_id,
+                num_shards,
+            })
     }
 }

@@ -84,6 +84,7 @@ impl InternalPropertyAdditionOps for TemporalGraph {
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         let mut edge = self.storage.get_edge_mut(eid);
+        let mut edge = edge.as_mut();
         let edge_layer = edge.layer_mut(layer);
         for (prop_id, prop) in props {
             let prop = self.process_prop_value(prop);
@@ -110,6 +111,7 @@ impl InternalPropertyAdditionOps for TemporalGraph {
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         let mut edge = self.storage.get_edge_mut(eid);
+        let mut edge = edge.as_mut();
         let edge_layer = edge.layer_mut(layer);
         for (prop_id, prop) in props {
             let prop = self.process_prop_value(prop);

@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use crate::core::{
     entities::{graph::tgraph::TemporalGraph, nodes::node_store::NodeStore, VID},
-    storage::{raw_edges::LockedEdges, ReadLockedStorage},
+    storage::{
+        raw_edges::{LockedEdges, WriteLockedEdges},
+        ReadLockedStorage, WriteLockedNodes,
+    },
 };
 
 #[derive(Debug)]
@@ -49,5 +52,34 @@ impl Clone for LockedGraph {
             edges: self.edges.clone(),
             graph: self.graph.clone(),
         }
+    }
+}
+
+pub struct WriteLockedGraph<'a> {
+    nodes: WriteLockedNodes<'a>,
+    edges: WriteLockedEdges<'a>,
+    graph: &'a TemporalGraph,
+}
+
+impl<'a> WriteLockedGraph<'a> {
+    pub(crate) fn new(graph: &'a TemporalGraph) -> Self {
+        let nodes = graph.storage.nodes.write_lock();
+        let edges = graph.storage.edges.write_lock();
+        Self {
+            nodes,
+            edges,
+            graph,
+        }
+    }
+    pub fn nodes_mut(&'a mut self) -> &'a mut WriteLockedNodes<'a> {
+        &mut self.nodes
+    }
+
+    pub fn edges_mut(&'a mut self) -> &'a mut WriteLockedEdges<'a> {
+        &mut self.edges
+    }
+
+    pub fn graph(&self) -> &TemporalGraph {
+        &self.graph
     }
 }
