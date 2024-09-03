@@ -107,7 +107,7 @@ impl GqlMutableGraph {
                 let node_view = self
                     .graph
                     .node(name)
-                    .ok_or(GraphError::NodeNameError(node.name.clone()))?;
+                    .ok_or_else(|| GraphError::NodeMissingError(GID::Str(node.name.clone())))?;
                 node_view.set_node_type(node_type)?;
             }
             let constant_props = node.constant_properties.unwrap_or(vec![]);

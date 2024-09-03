@@ -87,6 +87,8 @@ pub mod algorithms;
 pub mod core;
 pub mod db;
 pub mod graphgen;
+
+#[cfg(target_os = "macos")]
 use snmalloc_rs;
 
 pub const DEFAULT_NUM_SHARDS: usize = 128;
