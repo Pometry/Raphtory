@@ -15,7 +15,7 @@ use crate::{
 };
 use bytemuck::checked::cast_slice_mut;
 use kdam::{Bar, BarBuilder, BarExt};
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLock};
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
     core::{
@@ -202,8 +202,6 @@ pub(crate) fn load_edges_from_df<
         let layer = lift_layer_col(layer, layer_index, &df)?;
         let layer_col_resolved = layer.resolve(graph)?;
 
-        // It's our graph, no one else can change it
-        let mut write_locked_graph = graph.write_lock()?;
         let src_col = df.node_col(src_index)?;
         src_col.validate(graph, LoadError::MissingSrcError)?;
 
@@ -213,53 +211,29 @@ pub(crate) fn load_edges_from_df<
         let time_col = df.time_col(time_index)?;
 
         let mut src_col_resolved = vec![VID(0); df.len()];
-        let src_col_resolved_shared =
-            atomic_usize_from_mut_slice(cast_slice_mut(&mut src_col_resolved));
-        {
-            write_locked_graph
-                .nodes
-                .par_iter_mut()
-                .try_for_each(|mut shard| {
-                    for (gid, resolved_id) in src_col.iter().zip(src_col_resolved_shared.iter()) {
-                        let gid = gid.ok_or(LoadError::FatalError)?;
-                        let vid = graph
-                            .resolve_node_no_init(gid)
-                            .map_err(|_| LoadError::FatalError)?
-                            .inner();
-                        if let Some(node) = shard.get_mut(vid) {
-                            if !node.is_initialised() {
-                                node.global_id = gid.to_owned();
-                            }
-                            resolved_id.store(vid.index(), Ordering::Relaxed);
-                        }
-                    }
-                    Ok::<(), LoadError>(())
-                })?;
-        };
-
-        let mut dst_col_resolved = vec![VID(0); df.len()];
-        let dst_col_resolved_shared =
-            atomic_usize_from_mut_slice(cast_slice_mut(&mut dst_col_resolved));
-
-        write_locked_graph
-            .nodes
-            .par_iter_mut()
-            .try_for_each(|mut shard| {
-                for (gid, resolved_id) in dst_col.iter().zip(dst_col_resolved_shared.iter()) {
-                    let gid = gid.ok_or(LoadError::FatalError)?;
-                    let vid = graph
-                        .resolve_node_no_init(gid)
-                        .map_err(|_| LoadError::FatalError)?
-                        .inner();
-                    if let Some(node) = shard.get_mut(vid) {
-                        if !node.is_initialised() {
-                            node.global_id = gid.to_owned();
-                        }
-                        resolved_id.store(vid.index(), Ordering::Relaxed);
-                    }
-                }
+        src_col
+            .par_iter()
+            .zip(src_col_resolved.par_iter_mut())
+            .try_for_each(|(gid, resolved)| {
+                let gid = gid.ok_or(LoadError::FatalError)?;
+                let vid = graph.resolve_node(gid).map_err(|_| LoadError::FatalError)?;
+                *resolved = vid.inner();
                 Ok::<(), LoadError>(())
             })?;
+
+        let mut dst_col_resolved = vec![VID(0); df.len()];
+        dst_col
+            .par_iter()
+            .zip(dst_col_resolved.par_iter_mut())
+            .try_for_each(|(gid, resolved)| {
+                let gid = gid.ok_or(LoadError::FatalError)?;
+                let vid = graph.resolve_node(gid).map_err(|_| LoadError::FatalError)?;
+                *resolved = vid.inner();
+                Ok::<(), LoadError>(())
+            })?;
+
+        // It's our graph, no one else can change it
+        let mut write_locked_graph = graph.write_lock()?;
 
         // resolve all the edges
         let mut eid_col_resolved = vec![EID(0); df.len()];
