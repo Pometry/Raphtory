@@ -86,14 +86,6 @@ impl<'a> LayerCol<'a> {
             }
         }
     }
-
-    pub fn get(self, i: usize) -> Option<&'a str> {
-        match self {
-            LayerCol::Name { name, .. } => name,
-            LayerCol::Utf8 { col } => col.get(i),
-            LayerCol::LargeUtf8 { col } => col.get(i),
-        }
-    }
 }
 
 pub(crate) fn lift_layer_col<'a>(
