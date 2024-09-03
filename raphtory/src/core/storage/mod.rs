@@ -1,5 +1,5 @@
 use lock_api;
-use parking_lot::{RwLock, RwLockReadGuard};
+use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -19,6 +19,25 @@ pub mod sorted_vec_map;
 pub mod timeindex;
 
 type ArcRwLockReadGuard<T> = lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, T>;
+
+#[must_use]
+pub struct UninitialisedEntry<'a, T> {
+    offset: usize,
+    guard: RwLockWriteGuard<'a, Vec<T>>,
+    value: T,
+}
+
+impl<'a, T: Default> UninitialisedEntry<'a, T> {
+    pub fn init(mut self) {
+        if self.offset >= self.guard.len() {
+            self.guard.resize_with(self.offset + 1, Default::default);
+        }
+        self.guard[self.offset] = self.value;
+    }
+    pub fn value(&self) -> &T {
+        &self.value
+    }
+}
 
 #[inline]
 fn resolve(index: usize, num_buckets: usize) -> (usize, usize) {
@@ -191,27 +210,28 @@ where
         }
     }
 
-    pub fn push<F: Fn(usize, &mut T)>(&self, mut value: T, f: F) -> usize {
+    pub fn push<F: Fn(usize, &mut T)>(&self, mut value: T, f: F) -> UninitialisedEntry<T> {
         let index = self.len.fetch_add(1, Ordering::Relaxed);
-        let (bucket, offset) = self.resolve(index);
-        let mut vec = self.data[bucket].data.write();
-        if offset >= vec.len() {
-            vec.resize_with(offset + 1, || Default::default());
-        }
         f(index, &mut value);
-        vec[offset] = value;
-        index
+        let (bucket, offset) = self.resolve(index);
+        let guard = self.data[bucket].data.write();
+        UninitialisedEntry {
+            offset,
+            guard,
+            value,
+        }
     }
 
-    pub fn set(&self, index: Index, value: T) {
+    pub fn set(&self, index: Index, value: T) -> UninitialisedEntry<T> {
         let index = index.into();
         self.len.fetch_max(index + 1, Ordering::Relaxed);
         let (bucket, offset) = self.resolve(index);
-        let mut vec = self.data[bucket].data.write();
-        if offset >= vec.len() {
-            vec.resize_with(offset + 1, || Default::default());
+        let guard = self.data[bucket].data.write();
+        UninitialisedEntry {
+            offset,
+            guard,
+            value,
         }
-        vec[offset] = value;
     }
 
     #[inline]
@@ -391,7 +411,7 @@ mod test {
         let storage = RawStorage::<String>::new(2);
 
         for i in 0..5 {
-            storage.push(i.to_string(), |_, _| {});
+            storage.push(i.to_string(), |_, _| {}).init();
         }
 
         assert_eq!(storage.len(), 5);
@@ -413,7 +433,7 @@ mod test {
         let storage = RawStorage::<String>::new(2);
 
         for i in 0..5 {
-            storage.push(i.to_string(), |_, _| {});
+            storage.push(i.to_string(), |_, _| {}).init();
         }
         let locked = storage.read_lock();
         let actual: Vec<_> = (0..5).map(|i| (i, locked.get(i).as_str())).collect();
@@ -428,7 +448,7 @@ mod test {
         let storage = RawStorage::<String>::new(2);
 
         for i in 0..5 {
-            storage.push(i.to_string(), |_, _| {});
+            storage.push(i.to_string(), |_, _| {}).init();
         }
 
         for i in 0..5 {
@@ -443,7 +463,7 @@ mod test {
         let mut expected = v
             .into_par_iter()
             .map(|v| {
-                storage.push(v, |_, _| {});
+                storage.push(v, |_, _| {}).init();
                 v
             })
             .collect::<Vec<_>>();

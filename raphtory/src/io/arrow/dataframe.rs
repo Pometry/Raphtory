@@ -1,14 +1,14 @@
-use crate::core::utils::errors::GraphError;
-
+use crate::{
+    core::utils::errors::{GraphError, LoadError},
+    io::arrow::node_col::{lift_node_col, NodeCol},
+};
+use itertools::Itertools;
 use polars_arrow::{
-    array::{Array, PrimitiveArray, Utf8Array},
+    array::{Array, PrimitiveArray, StaticArray},
     compute::cast::{self, CastOptions},
     datatypes::{ArrowDataType as DataType, TimeUnit},
-    offset::Offset,
-    types::NativeType,
 };
-
-use itertools::Itertools;
+use rayon::prelude::*;
 
 pub(crate) struct DFView<I> {
     pub names: Vec<String>,
@@ -40,37 +40,17 @@ where
     }
 }
 
-#[derive(Clone)]
-pub(crate) struct DFChunk {
-    pub(crate) chunk: Vec<Box<dyn Array>>,
-}
+pub struct TimeCol(PrimitiveArray<i64>);
 
-impl DFChunk {
-    pub(crate) fn iter_col<T: NativeType>(
-        &self,
-        idx: usize,
-    ) -> Option<impl Iterator<Item = Option<&T>> + '_> {
-        let col_arr = (&self.chunk)[idx]
+impl TimeCol {
+    fn new(arr: &dyn Array) -> Result<Self, LoadError> {
+        let arr = arr
             .as_any()
-            .downcast_ref::<PrimitiveArray<T>>()?;
-        Some(col_arr.iter())
-    }
-
-    pub fn utf8<O: Offset>(&self, idx: usize) -> Option<impl Iterator<Item = Option<&str>> + '_> {
-        // test that it's actually a utf8 array
-        let col_arr = (&self.chunk)[idx].as_any().downcast_ref::<Utf8Array<O>>()?;
-
-        Some(col_arr.iter())
-    }
-
-    pub fn time_iter_col(&self, idx: usize) -> Option<impl Iterator<Item = Option<i64>> + '_> {
-        let col_arr = (&self.chunk)[idx]
-            .as_any()
-            .downcast_ref::<PrimitiveArray<i64>>()?;
-
-        let arr = if let DataType::Timestamp(_, _) = col_arr.data_type() {
+            .downcast_ref::<PrimitiveArray<i64>>()
+            .ok_or_else(|| LoadError::InvalidTimestamp(arr.data_type().clone()))?;
+        let arr = if let DataType::Timestamp(_, _) = arr.data_type() {
             let array = cast::cast(
-                col_arr,
+                arr,
                 &DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".to_string())),
                 CastOptions::default(),
             )
@@ -81,9 +61,35 @@ impl DFChunk {
                 .unwrap()
                 .clone()
         } else {
-            col_arr.clone()
+            arr.clone()
         };
+        Ok(Self(arr))
+    }
 
-        Some(arr.into_iter())
+    pub fn par_iter(&self) -> impl IndexedParallelIterator<Item = Option<i64>> + '_ {
+        (0..self.0.len()).into_par_iter().map(|i| self.get(i))
+    }
+
+    pub fn get(&self, i: usize) -> Option<i64> {
+        self.0.get(i)
+    }
+}
+
+#[derive(Clone)]
+pub(crate) struct DFChunk {
+    pub(crate) chunk: Vec<Box<dyn Array>>,
+}
+
+impl DFChunk {
+    pub fn len(&self) -> usize {
+        self.chunk.first().map(|c| c.len()).unwrap_or(0)
+    }
+
+    pub fn node_col(&self, index: usize) -> Result<NodeCol, LoadError> {
+        lift_node_col(index, self)
+    }
+
+    pub fn time_col(&self, index: usize) -> Result<TimeCol, LoadError> {
+        TimeCol::new(self.chunk[index].as_ref())
     }
 }

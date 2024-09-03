@@ -73,6 +73,9 @@ pometry-storage = { workspace = true, optional = true }
 prost = { workspace = true, optional = true }
 prost-types = { workspace = true, optional = true }
 
+[target.'cfg(target_os = "macos")'.dependencies]
+snmalloc-rs = { workspace = true }
+
 [dev-dependencies]
 csv = { workspace = true }
 pretty_assertions = { workspace = true }
@@ -118,7 +121,7 @@ python = [
     "dep:display-error-chain",
     "polars-arrow?/compute",
     "raphtory-api/python",
-    "kdam/notebook"
+    "kdam/notebook",
 ]
 
 # storage

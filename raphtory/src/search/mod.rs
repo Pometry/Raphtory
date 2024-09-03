@@ -757,9 +757,20 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
 
 impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph<G> {
     #[inline]
+    fn num_shards(&self) -> Result<usize, GraphError> {
+        self.graph.num_shards()
+    }
+
+    #[inline]
     fn next_event_id(&self) -> Result<usize, GraphError> {
         self.graph.next_event_id()
     }
+
+    #[inline]
+    fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, GraphError> {
+        self.graph.reserve_event_ids(num_ids)
+    }
+
     #[inline]
     fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, GraphError> {
         self.graph.resolve_layer(layer)

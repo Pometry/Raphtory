@@ -19,8 +19,16 @@ use raphtory_api::core::{
 use std::sync::atomic::Ordering;
 
 impl InternalAdditionOps for TemporalGraph {
+    fn num_shards(&self) -> Result<usize, GraphError> {
+        Ok(self.storage.nodes.data.len())
+    }
+
     fn next_event_id(&self) -> Result<usize, GraphError> {
         Ok(self.event_counter.fetch_add(1, Ordering::Relaxed))
+    }
+
+    fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, GraphError> {
+        Ok(self.event_counter.fetch_add(num_ids, Ordering::Relaxed))
     }
 
     fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, GraphError> {
@@ -160,9 +168,23 @@ impl InternalAdditionOps for TemporalGraph {
 }
 
 impl InternalAdditionOps for GraphStorage {
+    fn num_shards(&self) -> Result<usize, GraphError> {
+        match self {
+            GraphStorage::Unlocked(storage) => storage.num_shards(),
+            _ => Err(GraphError::AttemptToMutateImmutableGraph),
+        }
+    }
+
     fn next_event_id(&self) -> Result<usize, GraphError> {
         match self {
             GraphStorage::Unlocked(storage) => storage.next_event_id(),
+            _ => Err(GraphError::AttemptToMutateImmutableGraph),
+        }
+    }
+
+    fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, GraphError> {
+        match self {
+            GraphStorage::Unlocked(storage) => storage.reserve_event_ids(num_ids),
             _ => Err(GraphError::AttemptToMutateImmutableGraph),
         }
     }

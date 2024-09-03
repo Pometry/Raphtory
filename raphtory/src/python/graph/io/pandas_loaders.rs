@@ -44,11 +44,7 @@ pub fn load_nodes_from_pandas(
             node_type_col,
             graph,
         )
-        .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
-        Ok::<(), PyErr>(())
     })
-    .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
-    Ok(())
 }
 
 pub fn load_edges_from_pandas(
@@ -85,11 +81,7 @@ pub fn load_edges_from_pandas(
             layer_col,
             graph,
         )
-        .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
-        Ok::<(), PyErr>(())
     })
-    .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
-    Ok(())
 }
 
 pub fn load_node_props_from_pandas(
@@ -118,11 +110,7 @@ pub fn load_node_props_from_pandas(
             shared_constant_properties,
             graph,
         )
-        .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
-        Ok::<(), PyErr>(())
     })
-    .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
-    Ok(())
 }
 
 pub fn load_edge_props_from_pandas(
@@ -153,11 +141,7 @@ pub fn load_edge_props_from_pandas(
             layer_col,
             graph,
         )
-        .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
-        Ok::<(), PyErr>(())
     })
-    .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
-    Ok(())
 }
 
 pub fn load_edge_deletions_from_pandas(
@@ -186,11 +170,7 @@ pub fn load_edge_deletions_from_pandas(
             layer_col,
             graph.core_graph(),
         )
-        .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
-        Ok::<(), PyErr>(())
     })
-    .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
-    Ok(())
 }
 
 pub(crate) fn process_pandas_py_df<'a>(
@@ -221,7 +201,7 @@ pub(crate) fn process_pandas_py_df<'a>(
 
     let table = pa_table.call_method("from_pandas", (dropped_df,), None)?;
     let kwargs = PyDict::new(py);
-    kwargs.set_item("max_chunksize", 100000)?;
+    kwargs.set_item("max_chunksize", 1000000)?;
     let rb = table
         .call_method("to_batches", (), Some(kwargs))?
         .extract::<Vec<&PyAny>>()?;

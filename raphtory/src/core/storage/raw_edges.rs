@@ -1,3 +1,17 @@
+use super::{resolve, timeindex::TimeIndex};
+use crate::{
+    core::entities::{
+        edges::edge_store::{EdgeDataLike, EdgeLayer, EdgeStore},
+        LayerIds,
+    },
+    db::api::storage::graph::edges::edge_storage_ops::{EdgeStorageOps, MemEdge},
+    DEFAULT_NUM_SHARDS,
+};
+use lock_api::ArcRwLockReadGuard;
+use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use raphtory_api::core::{entities::EID, storage::timeindex::TimeIndexEntry};
+use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::{
     ops::Deref,
     sync::{
@@ -6,29 +20,37 @@ use std::{
     },
 };
 
-use lock_api::ArcRwLockReadGuard;
-use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
-
-use raphtory_api::core::{entities::EID, storage::timeindex::TimeIndexEntry};
-
-use crate::{
-    core::entities::{
-        edges::edge_store::{EdgeDataLike, EdgeLayer, EdgeStore},
-        LayerIds,
-    },
-    db::api::storage::graph::edges::edge_storage_ops::{EdgeStorageOps, MemEdge},
-};
-
-use super::{resolve, timeindex::TimeIndex};
-
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct EdgeShard {
     edge_ids: Vec<EdgeStore>,
     props: Vec<Vec<EdgeLayer>>,
     additions: Vec<Vec<TimeIndex<TimeIndexEntry>>>,
     deletions: Vec<Vec<TimeIndex<TimeIndexEntry>>>,
+}
+
+#[must_use]
+pub struct UninitialisedEdge<'a> {
+    guard: RwLockWriteGuard<'a, EdgeShard>,
+    offset: usize,
+    value: EdgeStore,
+}
+
+impl<'a> UninitialisedEdge<'a> {
+    pub fn init(mut self) -> EdgeWGuard<'a> {
+        self.guard.insert(self.offset, self.value);
+        EdgeWGuard {
+            guard: self.guard,
+            i: self.offset,
+        }
+    }
+
+    pub fn value(&self) -> &EdgeStore {
+        &self.value
+    }
+
+    pub fn value_mut(&mut self) -> &mut EdgeStore {
+        &mut self.value
+    }
 }
 
 impl EdgeShard {
@@ -67,8 +89,6 @@ impl EdgeShard {
     }
 }
 
-pub const SHARD_SIZE: usize = 64;
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EdgesStorage {
     shards: Arc<[Arc<RwLock<EdgeShard>>]>,
@@ -88,13 +108,13 @@ impl PartialEq for EdgesStorage {
 
 impl Default for EdgesStorage {
     fn default() -> Self {
-        Self::new()
+        Self::new(DEFAULT_NUM_SHARDS)
     }
 }
 
 impl EdgesStorage {
-    pub fn new() -> Self {
-        let shards = (0..SHARD_SIZE).map(|_| {
+    pub fn new(num_shards: usize) -> Self {
+        let shards = (0..num_shards).map(|_| {
             Arc::new(RwLock::new(EdgeShard {
                 edge_ids: vec![],
                 props: Vec::with_capacity(0),
@@ -113,12 +133,6 @@ impl EdgesStorage {
         self.len.load(atomic::Ordering::SeqCst)
     }
 
-    pub(crate) fn push_edge(&self, edge: EdgeStore) -> EdgeWGuard {
-        let (eid, mut edge) = self.push(edge);
-        edge.edge_store_mut().eid = eid;
-        edge
-    }
-
     pub fn read_lock(&self) -> LockedEdges {
         LockedEdges {
             shards: self
@@ -135,24 +149,28 @@ impl EdgesStorage {
         resolve(index, self.shards.len())
     }
 
-    fn push(&self, value: EdgeStore) -> (EID, EdgeWGuard) {
+    pub(crate) fn push(&self, mut value: EdgeStore) -> UninitialisedEdge {
         let index = self.len.fetch_add(1, atomic::Ordering::Relaxed);
+        value.eid = EID(index);
         let (bucket, offset) = self.resolve(index);
-        let mut shard = self.shards[bucket].write();
-        shard.insert(offset, value);
-        let guard = EdgeWGuard {
-            guard: shard,
-            i: offset,
-        };
-        (index.into(), guard)
+        let guard = self.shards[bucket].write();
+        UninitialisedEdge {
+            guard,
+            offset,
+            value,
+        }
     }
 
-    pub(crate) fn set(&self, value: EdgeStore) {
+    pub(crate) fn set(&self, value: EdgeStore) -> UninitialisedEdge {
         let EID(index) = value.eid;
         self.len.fetch_max(index + 1, atomic::Ordering::Relaxed);
         let (bucket, offset) = self.resolve(index);
-        let mut shard = self.shards[bucket].write();
-        shard.insert(offset, value);
+        let guard = self.shards[bucket].write();
+        UninitialisedEdge {
+            guard,
+            offset,
+            value,
+        }
     }
 
     pub fn get_edge_mut(&self, eid: EID) -> EdgeWGuard {

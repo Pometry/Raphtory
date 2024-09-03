@@ -88,6 +88,15 @@ pub mod core;
 pub mod db;
 pub mod graphgen;
 
+#[cfg(target_os = "macos")]
+use snmalloc_rs;
+
+pub const DEFAULT_NUM_SHARDS: usize = 128;
+
+#[cfg(target_os = "macos")]
+#[global_allocator]
+static ALLOC: snmalloc_rs::SnMalloc = snmalloc_rs::SnMalloc;
+
 #[cfg(feature = "storage")]
 pub mod disk_graph;
 

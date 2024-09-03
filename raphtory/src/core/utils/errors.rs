@@ -1,6 +1,6 @@
 use crate::core::{utils::time::error::ParseTimeError, Prop, PropType};
 #[cfg(feature = "arrow")]
-use polars_arrow::legacy::error;
+use polars_arrow::{datatypes::ArrowDataType, legacy::error};
 #[cfg(feature = "storage")]
 use pometry_storage::RAError;
 #[cfg(feature = "python")]
@@ -38,6 +38,29 @@ pub enum InvalidPathReason {
     PathIsDirectory(PathBuf),
 }
 
+#[cfg(feature = "arrow")]
+#[derive(thiserror::Error, Debug)]
+pub enum LoadError {
+    #[error("Only str columns are supported for layers, got {0:?}")]
+    InvalidLayerType(ArrowDataType),
+    #[error("Only str columns are supported for node type, got {0:?}")]
+    InvalidNodeType(ArrowDataType),
+    #[error("{0:?} not supported as property type")]
+    InvalidPropertyType(ArrowDataType),
+    #[error("{0:?} not supported as node id type")]
+    InvalidNodeIdType(ArrowDataType),
+    #[error("{0:?} not supported for time column")]
+    InvalidTimestamp(ArrowDataType),
+    #[error("Missing value for src id")]
+    MissingSrcError,
+    #[error("Missing value for dst id")]
+    MissingDstError,
+    #[error("Missing value for node id")]
+    MissingNodeError,
+    #[error("Missing value for timestamp")]
+    MissingTimeError,
+}
+
 #[derive(thiserror::Error, Debug)]
 pub enum GraphError {
     #[error("You cannot set ‘{0}’ and ‘{1}’ at the same time. Please pick one or the other.")]
@@ -50,8 +73,12 @@ pub enum GraphError {
         #[from]
         source: InvalidPathReason,
     },
-    #[error("Graph error occurred")]
-    UnsupportedDataType,
+    #[cfg(feature = "arrow")]
+    #[error("{source}")]
+    LoadError {
+        #[from]
+        source: LoadError,
+    },
     #[error("Disk graph not found")]
     DiskGraphNotFound,
     #[error("Disk Graph is immutable")]
@@ -96,20 +123,14 @@ pub enum GraphError {
     #[error("Edge already exists for nodes {0:?} {1:?}")]
     EdgeExistsError(GID, GID),
 
-    #[error("No Node with ID {0}")]
-    NodeIdError(u64),
-
-    #[error("No Node with name {0}")]
-    NodeNameError(String),
+    #[error("Node {0} does not exist")]
+    NodeMissingError(GID),
 
     #[error("Node Type Error {0}")]
     NodeTypeError(String),
 
     #[error("No Edge between {src} and {dst}")]
-    EdgeIdError { src: u64, dst: u64 },
-
-    #[error("No Edge between {src} and {dst}")]
-    EdgeNameError { src: String, dst: String },
+    EdgeMissingError { src: GID, dst: GID },
     // wasm
     #[error("Node is not String or Number")]
     NodeIdNotStringOrNumber,
