@@ -11,7 +11,7 @@ use crate::{
     },
 };
 use parking_lot::Mutex;
-use prost::{ Message};
+use prost::Message;
 use raphtory_api::core::{
     entities::{GidRef, EID, VID},
     storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
