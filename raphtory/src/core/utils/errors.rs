@@ -6,7 +6,7 @@ use pometry_storage::RAError;
 #[cfg(feature = "python")]
 use pyo3::PyErr;
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
-use std::path::PathBuf;
+use std::{io, path::PathBuf};
 #[cfg(feature = "search")]
 use tantivy;
 #[cfg(feature = "search")]
@@ -194,6 +194,15 @@ pub enum GraphError {
     #[cfg(feature = "proto")]
     #[error("Protobuf encode error{0}")]
     DecodeError(#[from] prost::DecodeError),
+
+    #[cfg(feature = "proto")]
+    #[error(
+        "Cannot recover from write failure {write_err}, new updates are invalid: {decode_err}"
+    )]
+    FatalDecodeError {
+        write_err: io::Error,
+        decode_err: prost::DecodeError,
+    },
 
     #[cfg(feature = "proto")]
     #[error("Protobuf decode error{0}")]
