@@ -1,5 +1,4 @@
 use crate::core::entities::nodes::node_store::NodeStore;
-use itertools::Itertools;
 use lock_api;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use raphtory_api::core::entities::VID;

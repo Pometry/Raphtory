@@ -3,10 +3,7 @@ use crate::{
         utils::errors::{GraphError, LoadError},
         PropType,
     },
-    db::api::{
-        mutation::internal::*,
-        view::{internal::CoreGraphOps, StaticGraphViewOps},
-    },
+    db::api::{mutation::internal::*, view::StaticGraphViewOps},
     io::arrow::{
         dataframe::{DFChunk, DFView},
         layer_col::{lift_layer_col, lift_node_type_col},
@@ -16,9 +13,12 @@ use crate::{
     prelude::*,
 };
 use kdam::{Bar, BarBuilder, BarExt};
-use raphtory_api::core::{
-    entities::VID,
-    storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
+use raphtory_api::{
+    atomic_extra::atomic_usize_from_mut_slice,
+    core::{
+        entities::VID,
+        storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
+    },
 };
 use rayon::prelude::*;
 use std::collections::HashMap;
@@ -197,35 +197,47 @@ pub(crate) fn load_edges_from_df<
         )?;
         let layer = lift_layer_col(layer, layer_index, &df)?;
 
+        // It's our graph, no one else can change it
+        let mut write_locked_graph = graph.write_lock()?;
         let src_col = df.node_col(src_index)?;
+        src_col.validate(graph, LoadError::MissingSrcError)?;
+
+        let dst_col = df.node_col(dst_index)?;
+        dst_col.validate(graph, LoadError::MissingDstError)?;
+
+        let time_col = df.time_col(time_index)?;
+
         let mut src_col_resolved = vec![VID(0); df.len()];
         src_col
             .par_iter()
             .zip(src_col_resolved.par_iter_mut())
             .try_for_each(|(gid, entry)| {
-                let gid = gid.ok_or(LoadError::MissingSrcError)?;
-                let vid = graph.resolve_node_no_init(gid)?.inner();
+                let gid = gid.ok_or(LoadError::FatalError)?;
+                let vid = graph
+                    .resolve_node_no_init(gid)
+                    .map_err(|_| LoadError::FatalError)?
+                    .inner();
                 *entry = vid;
                 Ok::<(), GraphError>(())
             })?;
 
-        let dst_col = df.node_col(dst_index)?;
         let mut dst_col_resolved = vec![VID(0); df.len()];
         dst_col
             .par_iter()
             .zip(dst_col_resolved.par_iter_mut())
             .try_for_each(|(gid, entry)| {
-                let gid = gid.ok_or(LoadError::MissingDstError)?;
-                let vid = graph.resolve_node_no_init(gid)?.inner();
+                let gid = gid.ok_or(LoadError::FatalError)?;
+                let vid = graph
+                    .resolve_node_no_init(gid)
+                    .map_err(|_| LoadError::FatalError)?
+                    .inner();
                 *entry = vid;
                 Ok::<(), GraphError>(())
             })?;
 
-        let mut write_locked_graph = graph.write_lock()?;
+        let mut eid_col_resolved = vec![0usize; df.len()];
+        let eid_col_shared = atomic_usize_from_mut_slice(&mut eid_col_resolved);
 
-        let mut eid_col_resolved = vec![0; df.len()];
-
-        let time_col = df.time_col(time_index)?;
         src_col
             .par_iter()
             .zip(dst_col.par_iter())

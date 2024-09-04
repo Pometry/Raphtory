@@ -7,7 +7,7 @@ use dashmap::mapref::entry::Entry;
 use either::Either;
 use once_cell::sync::OnceCell;
 use raphtory_api::core::{
-    entities::{GidRef, VID},
+    entities::{GidRef, GidType, VID},
     storage::{dict_mapper::MaybeNew, FxDashMap},
 };
 use serde::{Deserialize, Deserializer, Serialize};
@@ -47,6 +47,12 @@ pub(crate) struct Mapping {
 }
 
 impl Mapping {
+    pub fn dtype(&self) -> Option<GidType> {
+        self.map.get().map(|map| match map {
+            Map::U64(_) => GidType::U64,
+            Map::Str(_) => GidType::Str,
+        })
+    }
     pub fn new() -> Self {
         Mapping {
             map: OnceCell::new(),

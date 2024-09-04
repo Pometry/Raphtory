@@ -5,7 +5,10 @@ use polars_arrow::{datatypes::ArrowDataType, legacy::error};
 use pometry_storage::RAError;
 #[cfg(feature = "python")]
 use pyo3::PyErr;
-use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
+use raphtory_api::core::{
+    entities::{GidType, GID},
+    storage::arc_str::ArcStr,
+};
 use std::{io, path::PathBuf};
 #[cfg(feature = "search")]
 use tantivy;
@@ -59,6 +62,10 @@ pub enum LoadError {
     MissingNodeError,
     #[error("Missing value for timestamp")]
     MissingTimeError,
+    #[error("Node IDs have the wrong type, expected {existing}, got {new}")]
+    NodeIdTypeError { existing: GidType, new: GidType },
+    #[error("Fatal load error, graph may be in a dirty state.")]
+    FatalError,
 }
 
 #[derive(thiserror::Error, Debug)]

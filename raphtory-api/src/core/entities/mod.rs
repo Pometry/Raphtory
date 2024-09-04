@@ -119,6 +119,12 @@ impl Display for GID {
 }
 
 impl GID {
+    pub fn dtype(&self) -> GidType {
+        match self {
+            GID::U64(_) => GidType::U64,
+            GID::Str(_) => GidType::Str,
+        }
+    }
     pub fn into_str(self) -> Option<String> {
         match self {
             GID::Str(v) => Some(v),
@@ -202,6 +208,25 @@ pub enum GidRef<'a> {
     Str(&'a str),
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub enum GidType {
+    U64,
+    Str,
+}
+
+impl Display for GidType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GidType::U64 => {
+                write!(f, "Numeric")
+            }
+            GidType::Str => {
+                write!(f, "String")
+            }
+        }
+    }
+}
+
 impl Display for GidRef<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -221,6 +246,12 @@ impl<'a> From<&'a GID> for GidRef<'a> {
 }
 
 impl<'a> GidRef<'a> {
+    pub fn dtype(self) -> GidType {
+        match self {
+            GidRef::U64(_) => GidType::U64,
+            GidRef::Str(_) => GidType::Str,
+        }
+    }
     pub fn as_str(self) -> Option<&'a str> {
         match self {
             GidRef::Str(s) => Some(s),

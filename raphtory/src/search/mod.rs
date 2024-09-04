@@ -30,7 +30,7 @@ use crate::{
     prelude::*,
 };
 use raphtory_api::core::{
-    entities::GidRef,
+    entities::{GidRef, GidType},
     storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
 };
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
@@ -759,6 +759,11 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
 }
 
 impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph<G> {
+    #[inline]
+    fn id_type(&self) -> Option<GidType> {
+        self.graph.id_type()
+    }
+
     fn write_lock(&self) -> Result<WriteLockedGraph, GraphError> {
         self.graph.write_lock()
     }

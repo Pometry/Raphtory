@@ -48,6 +48,9 @@ impl TimeCol {
             .as_any()
             .downcast_ref::<PrimitiveArray<i64>>()
             .ok_or_else(|| LoadError::InvalidTimestamp(arr.data_type().clone()))?;
+        if arr.null_count() > 0 {
+            return Err(LoadError::MissingTimeError);
+        }
         let arr = if let DataType::Timestamp(_, _) = arr.data_type() {
             let array = cast::cast(
                 arr,
@@ -63,6 +66,7 @@ impl TimeCol {
         } else {
             arr.clone()
         };
+
         Ok(Self(arr))
     }
 

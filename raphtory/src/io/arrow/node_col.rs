@@ -1,16 +1,22 @@
-use crate::{core::utils::errors::LoadError, io::arrow::dataframe::DFChunk};
+use crate::{
+    core::utils::errors::LoadError, db::api::mutation::internal::InternalAdditionOps,
+    io::arrow::dataframe::DFChunk,
+};
 use polars_arrow::{
     array::{Array, PrimitiveArray, StaticArray, Utf8Array},
     datatypes::ArrowDataType,
     offset::Offset,
 };
-use raphtory_api::core::entities::GidRef;
+use raphtory_api::core::entities::{GidRef, GidType};
 use rayon::prelude::{IndexedParallelIterator, *};
 
-trait NodeColOps: Send + Sync {
+trait NodeColOps: Array + Send + Sync {
+    fn has_missing_values(&self) -> bool {
+        self.null_count() == 0
+    }
     fn get(&self, i: usize) -> Option<GidRef>;
 
-    fn len(&self) -> usize;
+    fn dtype(&self) -> GidType;
 }
 
 impl NodeColOps for PrimitiveArray<u64> {
@@ -18,8 +24,8 @@ impl NodeColOps for PrimitiveArray<u64> {
         StaticArray::get(self, i).map(GidRef::U64)
     }
 
-    fn len(&self) -> usize {
-        self.len()
+    fn dtype(&self) -> GidType {
+        GidType::U64
     }
 }
 
@@ -28,8 +34,8 @@ impl NodeColOps for PrimitiveArray<u32> {
         StaticArray::get(self, i).map(|v| GidRef::U64(v as u64))
     }
 
-    fn len(&self) -> usize {
-        self.len()
+    fn dtype(&self) -> GidType {
+        GidType::U64
     }
 }
 
@@ -38,8 +44,8 @@ impl NodeColOps for PrimitiveArray<i64> {
         StaticArray::get(self, i).map(|v| GidRef::U64(v as u64))
     }
 
-    fn len(&self) -> usize {
-        self.len()
+    fn dtype(&self) -> GidType {
+        GidType::U64
     }
 }
 
@@ -48,8 +54,8 @@ impl NodeColOps for PrimitiveArray<i32> {
         StaticArray::get(self, i).map(|v| GidRef::U64(v as u64))
     }
 
-    fn len(&self) -> usize {
-        self.len()
+    fn dtype(&self) -> GidType {
+        GidType::U64
     }
 }
 
@@ -70,8 +76,8 @@ impl<O: Offset> NodeColOps for Utf8Array<O> {
         }
     }
 
-    fn len(&self) -> usize {
-        self.len()
+    fn dtype(&self) -> GidType {
+        GidType::Str
     }
 }
 
@@ -138,6 +144,23 @@ impl<'a> TryFrom<&'a dyn Array> for NodeCol {
 impl NodeCol {
     pub fn par_iter(&self) -> impl IndexedParallelIterator<Item = Option<GidRef<'_>>> + '_ {
         (0..self.0.len()).into_par_iter().map(|i| self.0.get(i))
+    }
+
+    pub fn validate(
+        &self,
+        graph: &impl InternalAdditionOps,
+        node_missing_error: LoadError,
+    ) -> Result<(), LoadError> {
+        if let Some(existing) = graph.id_type().filter(|&id_type| id_type != self.0.dtype()) {
+            return Err(LoadError::NodeIdTypeError {
+                existing,
+                new: self.0.dtype(),
+            });
+        }
+        if self.0.has_missing_values() {
+            return Err(node_missing_error);
+        }
+        Ok(())
     }
 }
 

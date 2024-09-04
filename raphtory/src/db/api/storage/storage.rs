@@ -22,7 +22,7 @@ use crate::{
 };
 use once_cell::sync::OnceCell;
 use raphtory_api::core::{
-    entities::{GidRef, EID, VID},
+    entities::{GidRef, GidType, EID, VID},
     storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
 };
 use serde::{Deserialize, Serialize};
@@ -82,6 +82,11 @@ impl Storage {
 impl InheritViewOps for Storage {}
 
 impl InternalAdditionOps for Storage {
+    #[inline]
+    fn id_type(&self) -> Option<GidType> {
+        self.graph.id_type()
+    }
+
     fn write_lock(&self) -> Result<WriteLockedGraph, GraphError> {
         self.graph.write_lock()
     }

@@ -13,12 +13,16 @@ use crate::{
 };
 use either::Either;
 use raphtory_api::core::{
-    entities::{GidRef, EID, VID},
+    entities::{GidRef, GidType, EID, VID},
     storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
 };
 use std::sync::atomic::Ordering;
 
 impl InternalAdditionOps for TemporalGraph {
+    fn id_type(&self) -> Option<GidType> {
+        self.logical_to_physical.dtype()
+    }
+
     fn write_lock(&self) -> Result<WriteLockedGraph, GraphError> {
         Ok(WriteLockedGraph::new(self))
     }
@@ -177,6 +181,14 @@ impl InternalAdditionOps for TemporalGraph {
 }
 
 impl InternalAdditionOps for GraphStorage {
+    fn id_type(&self) -> Option<GidType> {
+        match self {
+            GraphStorage::Unlocked(storage) => storage.id_type(),
+            GraphStorage::Mem(storage) => storage.graph.id_type(),
+            GraphStorage::Disk(storage) => Some(storage.inner().id_type()),
+        }
+    }
+
     fn write_lock(&self) -> Result<WriteLockedGraph, GraphError> {
         match self {
             GraphStorage::Unlocked(storage) => storage.write_lock(),

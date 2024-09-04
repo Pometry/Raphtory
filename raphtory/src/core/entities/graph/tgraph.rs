@@ -12,7 +12,7 @@ use crate::{
             LayerIds, EID, VID,
         },
         storage::{
-            raw_edges::{EdgeWGuard, MutEdge},
+            raw_edges::MutEdge,
             timeindex::{AsTime, TimeIndexEntry},
             PairEntryMut,
         },

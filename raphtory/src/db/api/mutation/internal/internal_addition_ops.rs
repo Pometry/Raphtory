@@ -8,10 +8,14 @@ use crate::{
     db::api::{storage::graph::locked::WriteLockedGraph, view::internal::Base},
 };
 use enum_dispatch::enum_dispatch;
-use raphtory_api::core::{entities::GidRef, storage::dict_mapper::MaybeNew};
+use raphtory_api::core::{
+    entities::{GidRef, GidType},
+    storage::dict_mapper::MaybeNew,
+};
 
 #[enum_dispatch]
 pub trait InternalAdditionOps {
+    fn id_type(&self) -> Option<GidType>;
     fn write_lock(&self) -> Result<WriteLockedGraph, GraphError>;
     fn num_shards(&self) -> Result<usize, GraphError>;
     /// get the sequence id for the next event
@@ -106,6 +110,12 @@ pub trait DelegateAdditionOps {
 }
 
 impl<G: DelegateAdditionOps> InternalAdditionOps for G {
+    #[inline]
+    fn id_type(&self) -> Option<GidType> {
+        self.graph().id_type()
+    }
+
+    #[inline]
     fn write_lock(&self) -> Result<WriteLockedGraph, GraphError> {
         self.graph().write_lock()
     }
