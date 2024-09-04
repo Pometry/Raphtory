@@ -15,7 +15,7 @@ use crate::{
 };
 use bytemuck::checked::cast_slice_mut;
 use kdam::{Bar, BarBuilder, BarExt};
-use parking_lot::{Mutex, RwLock};
+use parking_lot::Mutex;
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
     core::{
