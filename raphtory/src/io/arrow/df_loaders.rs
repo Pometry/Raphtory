@@ -188,6 +188,10 @@ pub(crate) fn load_edges_from_df<
     let _ = pb.update(0);
     let mut start_idx = graph.reserve_event_ids(df_view.num_rows)?;
 
+    let mut src_col_resolved = vec![];
+    let mut dst_col_resolved = vec![];
+    let mut eid_col_resolved = vec![];
+
     for chunk in df_view.chunks {
         let df = chunk?;
         let prop_cols = combine_properties(properties, &properties_indices, &df, |key, dtype| {
@@ -209,8 +213,7 @@ pub(crate) fn load_edges_from_df<
         dst_col.validate(graph, LoadError::MissingDstError)?;
 
         let time_col = df.time_col(time_index)?;
-
-        let mut src_col_resolved = vec![VID(0); df.len()];
+        src_col_resolved.resize_with(df.len(), Default::default);
         src_col
             .par_iter()
             .zip(src_col_resolved.par_iter_mut())
@@ -221,7 +224,7 @@ pub(crate) fn load_edges_from_df<
                 Ok::<(), LoadError>(())
             })?;
 
-        let mut dst_col_resolved = vec![VID(0); df.len()];
+        dst_col_resolved.resize_with(df.len(), Default::default);
         dst_col
             .par_iter()
             .zip(dst_col_resolved.par_iter_mut())
@@ -236,7 +239,7 @@ pub(crate) fn load_edges_from_df<
         let mut write_locked_graph = graph.write_lock()?;
 
         // resolve all the edges
-        let mut eid_col_resolved = vec![EID(0); df.len()];
+        eid_col_resolved.resize_with(df.len(), Default::default);
         let eid_col_shared = atomic_usize_from_mut_slice(cast_slice_mut(&mut eid_col_resolved));
         let g = write_locked_graph.graph;
         let next_edge_id = || g.storage.edges.next_id();
@@ -310,18 +313,24 @@ pub(crate) fn load_edges_from_df<
                         }
                         let t = TimeIndexEntry(time, start_idx + idx);
                         edge.additions_mut(*layer).insert(t);
-                        let edge_layer = edge.layer_mut(*layer);
-                        for (id, prop) in prop_cols.iter_row(idx) {
-                            if let Err(err) = edge_layer.add_prop(t, id, prop) {
-                                failures.lock().push((idx, err));
-                            }
-                        }
-                        for (id, prop) in const_prop_cols
+                        let mut t_props = prop_cols.iter_row(idx).peekable();
+                        let mut c_props = const_prop_cols
                             .iter_row(idx)
                             .chain(shared_constant_properties.iter().cloned())
-                        {
-                            if let Err(err) = edge_layer.update_constant_prop(id, prop) {
-                                failures.lock().push((idx, err))
+                            .peekable();
+
+                        if t_props.peek().is_some() || c_props.peek().is_some() {
+                            let edge_layer = edge.layer_mut(*layer);
+                            for (id, prop) in t_props {
+                                if let Err(err) = edge_layer.add_prop(t, id, prop) {
+                                    failures.lock().push((idx, err));
+                                }
+                            }
+
+                            for (id, prop) in c_props {
+                                if let Err(err) = edge_layer.update_constant_prop(id, prop) {
+                                    failures.lock().push((idx, err))
+                                }
                             }
                         }
                     }
