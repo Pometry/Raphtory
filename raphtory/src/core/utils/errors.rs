@@ -61,6 +61,18 @@ pub enum LoadError {
     MissingTimeError,
 }
 
+#[cfg(feature = "proto")]
+#[derive(thiserror::Error, Debug)]
+pub enum WriteError {
+    #[cfg(feature = "proto")]
+    #[error("Unrecoverable disk error: {0}, resetting file size failed: {1}")]
+    FatalWriteError(io::Error, io::Error),
+
+    #[cfg(feature = "proto")]
+    #[error("Failed to write delta to cache: {0}")]
+    WriteError(io::Error),
+}
+
 #[derive(thiserror::Error, Debug)]
 pub enum GraphError {
     #[error("You cannot set ‘{0}’ and ‘{1}’ at the same time. Please pick one or the other.")]
@@ -151,7 +163,7 @@ pub enum GraphError {
     #[error("IO operation failed")]
     IOError {
         #[from]
-        source: std::io::Error,
+        source: io::Error,
     },
 
     #[cfg(feature = "arrow")]
@@ -200,9 +212,13 @@ pub enum GraphError {
         "Cannot recover from write failure {write_err}, new updates are invalid: {decode_err}"
     )]
     FatalDecodeError {
-        write_err: io::Error,
+        write_err: WriteError,
         decode_err: prost::DecodeError,
     },
+
+    #[cfg(feature = "proto")]
+    #[error("Cache write error: {0}")]
+    CacheWriteError(#[from] WriteError),
 
     #[cfg(feature = "proto")]
     #[error("Protobuf decode error{0}")]
