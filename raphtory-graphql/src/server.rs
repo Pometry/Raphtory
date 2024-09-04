@@ -26,7 +26,7 @@ use raphtory::{
     },
 };
 
-use crate::server_config::{load_config, AppConfig, LoggingConfig};
+use crate::server_config::{load_config, AppConfig};
 use config::ConfigError;
 use std::{
     fs,
@@ -44,6 +44,7 @@ use tokio::{
     },
     task::JoinHandle,
 };
+use tracing::{error, info};
 use tracing_subscriber::{
     layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, FmtSubscriber, Registry,
 };
@@ -180,29 +181,24 @@ impl GraphServer {
 
     /// Start the server on the port `port` and return a handle to it.
     pub async fn start_with_port(self, port: u16) -> IoResult<RunningGraphServer> {
-        fn configure_logger(configs: &LoggingConfig) {
-            let log_level = &configs.log_level;
-            let filter = EnvFilter::new(log_level);
-            let subscriber = FmtSubscriber::builder().with_env_filter(filter).finish();
-            if let Err(err) = tracing::subscriber::set_global_default(subscriber) {
-                eprintln!(
-                    "Log level cannot be updated within the same runtime environment: {}",
-                    err
-                );
-            }
+        let log_level = &self.configs.logging.log_level;
+        let filter = EnvFilter::new(log_level);
+        let subscriber = FmtSubscriber::builder().with_env_filter(filter).finish();
+        if let Err(err) = tracing::subscriber::set_global_default(subscriber) {
+            error!(
+                "Log level cannot be updated within the same runtime environment: {}",
+                err
+            );
         }
 
-        configure_logger(&self.configs.logging);
-
         let registry = Registry::default().with(tracing_subscriber::fmt::layer().pretty());
-        let env_filter = EnvFilter::try_from_default_env().unwrap_or(EnvFilter::new("INFO"));
-
+        let filter = EnvFilter::new(log_level);
         match create_tracer_from_env() {
             Some(tracer) => registry
                 .with(tracing_opentelemetry::layer().with_tracer(tracer))
-                .with(env_filter)
+                .with(filter)
                 .try_init(),
-            None => registry.with(env_filter).try_init(),
+            None => registry.with(filter).try_init(),
         }
         .unwrap_or(());
 
@@ -212,7 +208,7 @@ impl GraphServer {
 
         let (signal_sender, signal_receiver) = mpsc::channel(1);
 
-        println!("Playground: http://localhost:{port}");
+        info!("Playground live at: http://0.0.0.0:{port}");
         let server_task = Server::new(TcpListener::bind(format!("0.0.0.0:{port}")))
             .run_with_graceful_shutdown(app, server_termination(signal_receiver), None);
         let server_result = tokio::spawn(server_task);

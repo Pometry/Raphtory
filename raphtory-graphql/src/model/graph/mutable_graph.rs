@@ -11,6 +11,7 @@ use raphtory::{
 };
 use raphtory_api::core::storage::arc_str::OptionAsStr;
 use std::path::PathBuf;
+use tracing::instrument;
 
 #[derive(InputObject)]
 pub struct GqlPropInput {
@@ -63,16 +64,19 @@ fn as_properties(properties: Vec<GqlPropInput>) -> impl Iterator<Item = (String,
 #[ResolvedObjectFields]
 impl GqlMutableGraph {
     /// Get the non-mutable graph
+    #[instrument(skip(self))]
     async fn graph(&self) -> GqlGraph {
         GqlGraph::new(self.path.clone(), self.graph.clone())
     }
 
     /// Get mutable existing node
+    #[instrument(skip(self))]
     async fn node(&self, name: String) -> Option<GqlMutableNode> {
         self.graph.node(name).map(|n| n.into())
     }
 
     /// Add a new node or add updates to an existing node
+    #[instrument(skip(self, properties))]
     async fn add_node(
         &self,
         time: i64,
@@ -91,6 +95,7 @@ impl GqlMutableGraph {
     }
 
     /// Add a batch of nodes
+    #[instrument(skip(self, nodes))]
     async fn add_nodes(&self, nodes: Vec<NodeAddition>) -> Result<bool, GraphError> {
         for node in nodes {
             let name = node.name.as_str();
@@ -124,11 +129,13 @@ impl GqlMutableGraph {
     }
 
     /// Get a mutable existing edge
+    #[instrument(skip(self))]
     async fn edge(&self, src: String, dst: String) -> Option<GqlMutableEdge> {
         self.graph.edge(src, dst).map(|e| e.into())
     }
 
     /// Add a new edge or add updates to an existing edge
+    #[instrument(skip(self, properties))]
     async fn add_edge(
         &self,
         time: i64,
@@ -149,6 +156,7 @@ impl GqlMutableGraph {
     }
 
     /// Add a batch of edges
+    #[instrument(skip(self, edges))]
     async fn add_edges(&self, edges: Vec<EdgeAddition>) -> Result<bool, GraphError> {
         for edge in edges {
             let src = edge.src.as_str();
@@ -177,6 +185,7 @@ impl GqlMutableGraph {
     }
 
     /// Mark an edge as deleted (creates the edge if it did not exist)
+    #[instrument(skip(self))]
     async fn delete_edge(
         &self,
         time: i64,
@@ -190,6 +199,7 @@ impl GqlMutableGraph {
     }
 
     /// Add temporal properties to graph
+    #[instrument(skip(self, properties))]
     async fn add_properties(
         &self,
         t: i64,
@@ -212,6 +222,7 @@ impl GqlMutableGraph {
     }
 
     /// Update constant properties of the graph (overwrites existing values)
+    #[instrument(skip(self, properties))]
     async fn update_constant_properties(
         &self,
         properties: Vec<GqlPropInput>,
