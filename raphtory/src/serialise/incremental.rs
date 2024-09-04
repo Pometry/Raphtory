@@ -39,10 +39,25 @@ impl GraphWriter {
         }
     }
     pub fn write(&self) -> Result<(), GraphError> {
-        let proto = mem::take(self.proto_delta.lock().deref_mut());
+        let mut proto = mem::take(self.proto_delta.lock().deref_mut());
         let bytes = proto.encode_to_vec();
         if !bytes.is_empty() {
-            self.writer.lock().write_all(&bytes)?;
+            if let Err(write_err) = self.writer.lock().write_all(&bytes) {
+                // If the write fails, try to put the updates back
+                let mut new_delta = self.proto_delta.lock();
+                let bytes = new_delta.encode_to_vec();
+                match proto.merge(&*bytes) {
+                    Ok(_) => *new_delta = proto,
+                    Err(decode_err) => {
+                        // This should never happen, it means that the new delta was an invalid Graph
+                        return Err(GraphError::FatalDecodeError {
+                            write_err,
+                            decode_err,
+                        });
+                    }
+                }
+                return Err(write_err.into());
+            }
         }
         Ok(())
     }
