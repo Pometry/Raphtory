@@ -1,6 +1,5 @@
 use crate::{
-    core::utils::errors::LoadError,
-    db::api::mutation::internal::InternalAdditionOps,
+    core::utils::errors::LoadError, db::api::mutation::internal::InternalAdditionOps,
     io::arrow::dataframe::DFChunk,
 };
 use polars_arrow::{
