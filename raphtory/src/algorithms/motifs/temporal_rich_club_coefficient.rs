@@ -8,6 +8,8 @@ use std::{
 use raphtory_api::core::entities::VID;
 use rustc_hash::FxHashSet;
 
+use rayon::prelude::*;
+
 use crate::prelude::{EdgeViewOps, GraphViewOps, NodeViewOps};
 
 struct SlidingWindows<I> {
@@ -60,6 +62,10 @@ where
         .map(|v| v.node)
         .collect();
 
+    if s_k.len() <= 1 {
+        return 0.0 as f64;
+    }
+
     let temp_rich_club_val = SlidingWindows::new(views.into_iter(), window_size)
         .map(|window| intermediate_rich_club_coef(s_k.clone(), window))
         .reduce(f64::max)
@@ -81,6 +87,7 @@ where
                 .subgraph(s_k.clone())
                 .edges()
                 .into_iter()
+                .filter(|e| e.src() != e.dst())
                 .map(|e| undir_edge(e.src().node, e.dst().node))
                 .collect();
             new_edges
