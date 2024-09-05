@@ -85,17 +85,13 @@ impl Mapping {
             GidRef::Str(_) => Map::Str(FxDashMap::default()),
         });
         let vid = match gid {
-            GidRef::U64(id) => map.as_u64().map(|m| {
-                m.get(&id)
-                    .map(|id| MaybeNew::Existing(*id))
-                    .unwrap_or_else(|| match m.entry(id) {
-                        Entry::Occupied(id) => MaybeNew::Existing(*id.get()),
-                        Entry::Vacant(entry) => {
-                            let vid = next_id();
-                            entry.insert(vid);
-                            MaybeNew::New(vid)
-                        }
-                    })
+            GidRef::U64(id) => map.as_u64().map(|m| match m.entry(id) {
+                Entry::Occupied(id) => MaybeNew::Existing(*id.get()),
+                Entry::Vacant(entry) => {
+                    let vid = next_id();
+                    entry.insert(vid);
+                    MaybeNew::New(vid)
+                }
             }),
             GidRef::Str(id) => map.as_str().map(|m| {
                 m.get(id)

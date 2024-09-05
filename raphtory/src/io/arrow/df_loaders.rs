@@ -19,7 +19,7 @@ use parking_lot::Mutex;
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
     core::{
-        entities::{EID, VID},
+        entities::EID,
         storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
         Direction,
     },
@@ -213,13 +213,18 @@ pub(crate) fn load_edges_from_df<
         dst_col.validate(graph, LoadError::MissingDstError)?;
 
         let time_col = df.time_col(time_index)?;
+
+        // It's our graph, no one else can change it
+        let mut write_locked_graph = graph.write_lock()?;
         src_col_resolved.resize_with(df.len(), Default::default);
         src_col
             .par_iter()
             .zip(src_col_resolved.par_iter_mut())
             .try_for_each(|(gid, resolved)| {
                 let gid = gid.ok_or(LoadError::FatalError)?;
-                let vid = graph.resolve_node(gid).map_err(|_| LoadError::FatalError)?;
+                let vid = write_locked_graph
+                    .resolve_node(gid)
+                    .map_err(|_| LoadError::FatalError)?;
                 *resolved = vid.inner();
                 Ok::<(), LoadError>(())
             })?;
@@ -230,13 +235,16 @@ pub(crate) fn load_edges_from_df<
             .zip(dst_col_resolved.par_iter_mut())
             .try_for_each(|(gid, resolved)| {
                 let gid = gid.ok_or(LoadError::FatalError)?;
-                let vid = graph.resolve_node(gid).map_err(|_| LoadError::FatalError)?;
+                let vid = write_locked_graph
+                    .resolve_node(gid)
+                    .map_err(|_| LoadError::FatalError)?;
                 *resolved = vid.inner();
                 Ok::<(), LoadError>(())
             })?;
 
-        // It's our graph, no one else can change it
-        let mut write_locked_graph = graph.write_lock()?;
+        write_locked_graph
+            .nodes
+            .resize(write_locked_graph.num_nodes());
 
         // resolve all the edges
         eid_col_resolved.resize_with(df.len(), Default::default);
@@ -248,14 +256,16 @@ pub(crate) fn load_edges_from_df<
             .nodes
             .par_iter_mut()
             .for_each(|mut shard| {
-                for (row, (((src, dst), time), layer)) in src_col_resolved
+                for (row, ((((src, src_gid), dst), time), layer)) in src_col_resolved
                     .iter()
+                    .zip(src_col.iter())
                     .zip(dst_col_resolved.iter())
                     .zip(time_col.iter())
                     .zip(layer_col_resolved.iter())
                     .enumerate()
                 {
                     if let Some(src_node) = shard.get_mut(*src) {
+                        src_node.init(*src, src_gid);
                         update_time(TimeIndexEntry(time, start_idx + row));
                         src_node.update_time(TimeIndexEntry(time, start_idx + row));
                         let EID(eid) = match src_node.find_edge_eid(*dst, &LayerIds::All) {
@@ -276,15 +286,16 @@ pub(crate) fn load_edges_from_df<
             .nodes
             .par_iter_mut()
             .for_each(|mut shard| {
-                for (row, ((((src, dst), eid), time), layer)) in src_col_resolved
+                for (row, ((((src, (dst, dst_gid)), eid), time), layer)) in src_col_resolved
                     .iter()
-                    .zip(dst_col_resolved.iter())
+                    .zip(dst_col_resolved.iter().zip(dst_col.iter()))
                     .zip(eid_col_resolved.iter())
                     .zip(time_col.iter())
                     .zip(layer_col_resolved.iter())
                     .enumerate()
                 {
                     if let Some(node) = shard.get_mut(*dst) {
+                        node.init(*dst, dst_gid);
                         node.update_time(TimeIndexEntry(time, row + start_idx));
                         node.add_edge(*src, Direction::IN, *layer, *eid)
                     }

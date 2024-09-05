@@ -4,8 +4,9 @@ use crate::core::{
         raw_edges::{LockedEdges, WriteLockedEdges},
         ReadLockedStorage, WriteLockedNodes,
     },
+    utils::errors::GraphError,
 };
-use raphtory_api::core::entities::EID;
+use raphtory_api::core::{entities::GidRef, storage::dict_mapper::MaybeNew};
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -72,8 +73,13 @@ impl<'a> WriteLockedGraph<'a> {
         }
     }
 
-    pub fn next_edge_id(&self) -> EID {
-        self.graph.storage.edges.next_id()
+    pub fn num_nodes(&self) -> usize {
+        self.graph.storage.nodes.len()
+    }
+    pub fn resolve_node(&self, gid: GidRef) -> Result<MaybeNew<VID>, GraphError> {
+        self.graph
+            .logical_to_physical
+            .get_or_init(gid, || self.graph.storage.nodes.next_id())
     }
 
     pub fn edges_mut(&mut self) -> &mut WriteLockedEdges<'a> {

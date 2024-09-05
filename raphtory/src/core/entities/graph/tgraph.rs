@@ -20,7 +20,6 @@ use crate::{
         Direction, Prop,
     },
     db::api::{storage::graph::edges::edge_storage_ops::EdgeStorageOps, view::Layer},
-    DEFAULT_NUM_SHARDS,
 };
 use dashmap::DashSet;
 use either::Either;
@@ -81,7 +80,7 @@ impl std::fmt::Display for TemporalGraph {
 
 impl Default for TemporalGraph {
     fn default() -> Self {
-        Self::new(DEFAULT_NUM_SHARDS)
+        Self::new(rayon::current_num_threads())
     }
 }
 

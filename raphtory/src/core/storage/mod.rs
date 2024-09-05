@@ -313,20 +313,15 @@ pub struct NodeShardWriter<'a> {
 }
 
 impl<'a> NodeShardWriter<'a> {
+    #[inline]
     fn resolve(&self, index: VID) -> Option<usize> {
         let (shard_id, offset) = resolve(index.into(), self.num_shards);
         (shard_id == self.shard_id).then_some(offset)
     }
+
+    #[inline]
     pub fn get_mut(&mut self, index: VID) -> Option<&mut NodeStore> {
-        self.resolve(index).map(|offset| {
-            if offset >= self.shard.len() {
-                self.shard.extend(
-                    (self.shard.len()..=offset)
-                        .map(|i| NodeStore::init(VID(i * self.num_shards + self.shard_id))),
-                );
-            }
-            &mut self.shard[offset]
-        })
+        self.resolve(index).map(|offset| &mut self.shard[offset])
     }
 
     pub fn set(&mut self, vid: VID, gid: GidRef) {
@@ -338,13 +333,13 @@ impl<'a> NodeShardWriter<'a> {
         }
     }
 
-    fn reserve(&mut self, new_global_len: usize) {
+    fn resize(&mut self, new_global_len: usize) {
         let mut new_len = new_global_len / self.num_shards;
         if self.shard_id < new_global_len % self.num_shards {
             new_len += 1;
         }
         if new_len > self.shard.len() {
-            self.shard.reserve(new_len - self.shard.len())
+            self.shard.resize_with(new_len, Default::default)
         }
     }
 }
@@ -367,9 +362,9 @@ impl<'a> WriteLockedNodes<'a> {
             })
     }
 
-    pub fn reserve(&'a mut self, new_len: usize) {
+    pub fn resize(&mut self, new_len: usize) {
         self.par_iter_mut()
-            .for_each(|mut shard| shard.reserve(new_len))
+            .for_each(|mut shard| shard.resize(new_len))
     }
 }
 

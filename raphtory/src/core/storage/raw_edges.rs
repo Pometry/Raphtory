@@ -5,7 +5,6 @@ use crate::{
         LayerIds,
     },
     db::api::storage::graph::edges::edge_storage_ops::{EdgeStorageOps, MemEdge},
-    DEFAULT_NUM_SHARDS,
 };
 use lock_api::ArcRwLockReadGuard;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -108,7 +107,7 @@ impl PartialEq for EdgesStorage {
 
 impl Default for EdgesStorage {
     fn default() -> Self {
-        Self::new(DEFAULT_NUM_SHARDS)
+        Self::new(rayon::current_num_threads())
     }
 }
 
