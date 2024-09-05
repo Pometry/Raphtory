@@ -23,7 +23,7 @@ use crate::{
                 internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
                 Properties,
             },
-            storage::edges::edge_storage_ops::EdgeStorageOps,
+            storage::graph::edges::edge_storage_ops::EdgeStorageOps,
             view::{
                 internal::{OneHopFilter, Static},
                 BaseEdgeViewOps, IntoDynBoxed, StaticGraphViewOps,
@@ -88,7 +88,7 @@ impl<
         let t = time_from_input(&self.graph, t)?;
         let layer = self.resolve_layer(layer, true)?;
         self.graph
-            .internal_delete_edge(t, self.edge.src(), self.edge.dst(), layer)
+            .internal_delete_existing_edge(t, self.edge.pid(), layer)
     }
 }
 
@@ -183,7 +183,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
                     }),
                 None => {
                     if create {
-                        Ok(self.graph.resolve_layer(layer))
+                        Ok(self.graph.resolve_layer(layer)?.inner())
                     } else {
                         self.graph
                             .get_layer_id(name)
@@ -199,8 +199,6 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
     }
 
     /// Add constant properties for the edge
-    ///
-    /// Returns a person with the name given them
     ///
     /// # Arguments
     ///
@@ -227,15 +225,14 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
                 dst: self.dst().name(),
             });
         }
-        let properties: Vec<(usize, Prop)> = props.collect_properties(
-            |name, dtype| self.graph.resolve_edge_property(name, dtype, true),
-            |prop| self.graph.process_prop_value(prop),
-        )?;
+        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
+            Ok(self.graph.resolve_edge_property(name, dtype, true)?.inner())
+        })?;
 
         self.graph.internal_add_constant_edge_properties(
             self.edge.pid(),
             input_layer_id,
-            properties,
+            &properties,
         )
     }
 
@@ -245,15 +242,14 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
         let input_layer_id = self.resolve_layer(layer, false)?;
-        let properties: Vec<(usize, Prop)> = props.collect_properties(
-            |name, dtype| self.graph.resolve_edge_property(name, dtype, true),
-            |prop| self.graph.process_prop_value(prop),
-        )?;
+        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
+            Ok(self.graph.resolve_edge_property(name, dtype, true)?.inner())
+        })?;
 
         self.graph.internal_update_constant_edge_properties(
             self.edge.pid(),
             input_layer_id,
-            properties,
+            &properties,
         )
     }
 
@@ -265,13 +261,15 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
     ) -> Result<(), GraphError> {
         let t = time_from_input(&self.graph, time)?;
         let layer_id = self.resolve_layer(layer, true)?;
-        let properties: Vec<(usize, Prop)> = props.collect_properties(
-            |name, dtype| self.graph.resolve_edge_property(name, dtype, false),
-            |prop| self.graph.process_prop_value(prop),
-        )?;
+        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
+            Ok(self
+                .graph
+                .resolve_edge_property(name, dtype, false)?
+                .inner())
+        })?;
 
         self.graph
-            .internal_add_edge(t, self.edge.src(), self.edge.dst(), properties, layer_id)?;
+            .internal_add_edge_update(t, self.edge.pid(), &properties, layer_id)?;
         Ok(())
     }
 }
@@ -381,7 +379,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperti
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Debug for EdgeView<G, GH> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "EdgeView({}, {})", self.src().id(), self.dst().id())
+        write!(f, "EdgeView({:?}, {:?})", self.src().id(), self.dst().id())
     }
 }
 

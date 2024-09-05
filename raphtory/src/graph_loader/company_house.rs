@@ -28,7 +28,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
     fn restore_from_bincode(encoded_data_dir: &PathBuf) -> Option<Graph> {
         if encoded_data_dir.exists() {
             let now = Instant::now();
-            let g = Graph::load_from_file(encoded_data_dir.as_path(), false)
+            let g = Graph::decode(encoded_data_dir.as_path())
                 .map_err(|err| {
                     println!(
                         "Restoring from bincode failed with error: {}! Reloading file!",
@@ -155,8 +155,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
             now.elapsed().as_secs()
         );
 
-        g.save_to_file(encoded_data_dir)
-            .expect("Failed to save graph");
+        g.encode(encoded_data_dir).expect("Failed to save graph");
 
         g
     });

@@ -3,7 +3,7 @@ use crate::{
     db::{
         api::{
             properties::Properties,
-            storage::storage_ops::GraphStorage,
+            storage::graph::storage_ops::GraphStorage,
             view::{
                 internal::OneHopFilter, BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed,
             },
@@ -143,13 +143,12 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
         op: F,
     ) -> Self::ValueType<O> {
         let graph = self.graph.clone();
-        let cg = graph.core_graph();
         self.iter_refs()
             .map(move |it| {
                 let graph = graph.clone();
                 let op = op.clone();
-                let cg = cg.clone();
-                it.map(move |node| op(&cg, &graph, node)).into_dyn_boxed()
+                it.map(move |node| op(graph.core_graph(), &graph, node))
+                    .into_dyn_boxed()
             })
             .into_dyn_boxed()
     }
@@ -169,13 +168,11 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
         let base_graph = self.base_graph.clone();
         let nodes = self.nodes.clone();
         let node_op = self.op.clone();
-        let cg = graph.core_graph();
         let edges = Arc::new(move |node: VID| {
             let op = op.clone();
             let graph = graph.clone();
-            let cg = cg.clone();
             node_op(node)
-                .flat_map(move |node| op(&cg, &graph, node))
+                .flat_map(move |node| op(graph.core_graph(), &graph, node))
                 .into_dyn_boxed()
         });
         let graph = self.graph.clone();
@@ -200,8 +197,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
         PathFromGraph::new(self.base_graph.clone(), nodes, move |v| {
             let op = op.clone();
             let graph = graph.clone();
-            let cg = graph.core_graph();
-            Box::new(old_op(v).flat_map(move |vv| op(&cg, &graph, vv)))
+            Box::new(old_op(v).flat_map(move |vv| op(graph.core_graph(), &graph, vv)))
         })
     }
 }
@@ -382,8 +378,10 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
         op: F,
     ) -> Self::ValueType<O> {
         let graph = self.graph.clone();
-        let cg = graph.core_graph();
-        Box::new(self.iter_refs().map(move |node| op(&cg, &graph, node)))
+        Box::new(
+            self.iter_refs()
+                .map(move |node| op(graph.core_graph(), &graph, node)),
+        )
     }
 
     fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>> {
@@ -403,9 +401,8 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
         let edges = Arc::new(move || {
             let graph = graph.clone();
             let op = op.clone();
-            let cg = graph.core_graph();
             node_op()
-                .flat_map(move |node| op(&cg, &graph, node))
+                .flat_map(move |node| op(graph.core_graph(), &graph, node))
                 .into_dyn_boxed()
         });
         let graph = self.graph.clone();
@@ -429,9 +426,8 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
         PathFromNode::new(self.base_graph.clone(), move || {
             let op = op.clone();
             let graph = graph.clone();
-            let cg = graph.core_graph();
             old_op()
-                .flat_map(move |vv| op(&cg, &graph, vv))
+                .flat_map(move |vv| op(graph.core_graph(), &graph, vv))
                 .into_dyn_boxed()
         })
     }
@@ -478,6 +474,8 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'gr
 
 #[cfg(test)]
 mod test {
+    use raphtory_api::core::entities::GID;
+
     use crate::prelude::*;
 
     #[test]
@@ -487,6 +485,6 @@ mod test {
         g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
 
         let n = Vec::from_iter(g.node(1).unwrap().neighbours().id());
-        assert_eq!(n, [2])
+        assert_eq!(n, [GID::U64(2)])
     }
 }

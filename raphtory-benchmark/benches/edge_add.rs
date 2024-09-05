@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use raphtory::{core::entities::nodes::input_node::InputNode, prelude::*};
+use raphtory::prelude::*;
 
 mod common;
 use rand::{

@@ -51,12 +51,13 @@ use crate::{
     db::{api::view::internal::DynamicGraph, graph::node::NodeView},
     python::{
         graph::{edge::PyDirection, views::graph_view::PyGraphView},
-        utils::{PyInputNode, PyTime},
+        utils::PyTime,
     },
 };
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
 use rand::{prelude::StdRng, SeedableRng};
+use raphtory_api::core::entities::GID;
 use std::collections::{HashMap, HashSet};
 
 #[cfg(feature = "storage")]
@@ -102,7 +103,7 @@ pub fn local_triangle_count(g: &PyGraphView, v: NodeRef) -> Option<usize> {
 pub fn weakly_connected_components(
     g: &PyGraphView,
     iter_count: usize,
-) -> AlgorithmResult<DynamicGraph, u64, u64> {
+) -> AlgorithmResult<DynamicGraph, GID, GID> {
     components::weakly_connected_components(&g.graph, iter_count, None)
 }
 
@@ -139,7 +140,7 @@ pub fn connected_components(g: &PyDiskGraph) -> Vec<usize> {
 ///     AlgorithmResult : AlgorithmResult object mapping each node to an array containing the ids of all nodes within their 'in-component'
 #[pyfunction]
 #[pyo3(signature = (g))]
-pub fn in_components(g: &PyGraphView) -> AlgorithmResult<DynamicGraph, Vec<u64>, Vec<u64>> {
+pub fn in_components(g: &PyGraphView) -> AlgorithmResult<DynamicGraph, Vec<GID>, Vec<GID>> {
     components::in_components(&g.graph, None)
 }
 
@@ -152,7 +153,7 @@ pub fn in_components(g: &PyGraphView) -> AlgorithmResult<DynamicGraph, Vec<u64>,
 ///     AlgorithmResult : AlgorithmResult object mapping each node to an array containing the ids of all nodes within their 'out-component'
 #[pyfunction]
 #[pyo3(signature = (g))]
-pub fn out_components(g: &PyGraphView) -> AlgorithmResult<DynamicGraph, Vec<u64>, Vec<u64>> {
+pub fn out_components(g: &PyGraphView) -> AlgorithmResult<DynamicGraph, Vec<GID>, Vec<GID>> {
     components::out_components(&g.graph, None)
 }
 
@@ -209,8 +210,8 @@ pub fn temporally_reachable_nodes(
     g: &PyGraphView,
     max_hops: usize,
     start_time: i64,
-    seed_nodes: Vec<PyInputNode>,
-    stop_nodes: Option<Vec<PyInputNode>>,
+    seed_nodes: Vec<GID>,
+    stop_nodes: Option<Vec<GID>>,
 ) -> AlgorithmResult<DynamicGraph, Vec<(i64, String)>, Vec<(i64, String)>> {
     temporal_reachability_rs(&g.graph, None, max_hops, start_time, seed_nodes, stop_nodes)
 }
@@ -764,7 +765,7 @@ pub fn fruchterman_reingold(
     node_start_size: f32,
     cooloff_factor: f32,
     dt: f32,
-) -> HashMap<u64, [f32; 2]> {
+) -> HashMap<GID, [f32; 2]> {
     fruchterman_reingold_rs(
         &graph.graph,
         iterations,
@@ -788,7 +789,7 @@ pub fn cohesive_fruchterman_reingold(
     node_start_size: f32,
     cooloff_factor: f32,
     dt: f32,
-) -> HashMap<u64, [f32; 2]> {
+) -> HashMap<GID, [f32; 2]> {
     cohesive_fruchterman_reingold_rs(
         &graph.graph,
         iterations,

@@ -43,9 +43,12 @@ use pyo3::{
 };
 use python::{
     types::repr::{iterator_repr, Repr},
-    utils::export::{create_row, extract_properties, get_column_names_from_props},
+    utils::{
+        export::{create_row, extract_properties, get_column_names_from_props},
+        PyGenericIterator,
+    },
 };
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr, utils::hashing::calculate_hash};
 use rayon::{iter::IntoParallelIterator, prelude::*};
 use std::collections::HashMap;
 
@@ -115,23 +118,23 @@ impl PyNode {
     /// Returns:
     ///   The node id.
     pub fn __hash__(&self) -> u64 {
-        self.node.id()
+        calculate_hash(&self.node.id())
     }
 
     /// Returns the id of the node.
     /// This is a unique identifier for the node.
     ///
     /// Returns:
-    ///    The id of the node as an integer.
+    ///    (str|int): The id of the node.
     #[getter]
-    pub fn id(&self) -> u64 {
+    pub fn id(&self) -> GID {
         self.node.id()
     }
 
     /// Returns the name of the node.
     ///
     /// Returns:
-    ///     The name of the node as a string.
+    ///     str: The id of the node as a string.
     #[getter]
     pub fn name(&self) -> String {
         self.node.name()
@@ -140,7 +143,7 @@ impl PyNode {
     /// Returns the earliest time that the node exists.
     ///
     /// Returns:
-    ///     The earliest time that the node exists as an integer.
+    ///     int: The earliest time that the node exists as an integer.
     #[getter]
     pub fn earliest_time(&self) -> Option<i64> {
         self.node.earliest_time()
@@ -149,7 +152,7 @@ impl PyNode {
     /// Returns the earliest datetime that the node exists.
     ///
     /// Returns:
-    ///     The earliest datetime that the node exists as an integer.
+    ///     Datetime: The earliest datetime that the node exists as a Datetime.
     #[getter]
     pub fn earliest_date_time(&self) -> Option<DateTime<Utc>> {
         self.node.earliest_date_time()
@@ -158,7 +161,7 @@ impl PyNode {
     /// Returns the latest time that the node exists.
     ///
     /// Returns:
-    ///     The latest time that the node exists as an integer.
+    ///    int:  The latest time that the node exists as an integer.
     #[getter]
     pub fn latest_time(&self) -> Option<i64> {
         self.node.latest_time()
@@ -170,7 +173,7 @@ impl PyNode {
     ///    None
     ///
     /// Returns:
-    ///     The latest datetime that the node exists as an integer.
+    ///     Datetime: The latest datetime that the node exists as a Datetime.
     #[getter]
     pub fn latest_date_time(&self) -> Option<DateTime<Utc>> {
         self.node.latest_date_time()
@@ -179,7 +182,7 @@ impl PyNode {
     /// The properties of the node
     ///
     /// Returns:
-    ///     A list of properties.
+    ///     Properties: A list of properties.
     #[getter]
     pub fn properties(&self) -> Properties<NodeView<DynamicGraph, DynamicGraph>> {
         self.node.properties()
@@ -194,7 +197,7 @@ impl PyNode {
     /// Get the degree of this node (i.e., the number of edges that are incident to it).
     ///
     /// Returns
-    ///     The degree of this node.
+    ///     int: The degree of this node.
     pub fn degree(&self) -> usize {
         self.node.degree()
     }
@@ -202,7 +205,7 @@ impl PyNode {
     /// Get the in-degree of this node (i.e., the number of edges that are incident to it from other nodes).
     ///
     /// Returns:
-    ///    The in-degree of this node.
+    ///    int: The in-degree of this node.
     pub fn in_degree(&self) -> usize {
         self.node.in_degree()
     }
@@ -210,7 +213,7 @@ impl PyNode {
     /// Get the out-degree of this node (i.e., the number of edges that are incident to it from this node).
     ///
     /// Returns:
-    ///   The out-degree of this node.
+    ///   int: The out-degree of this node.
     pub fn out_degree(&self) -> usize {
         self.node.out_degree()
     }
@@ -218,7 +221,7 @@ impl PyNode {
     /// Returns the history of a node, including node additions and changes made to node.
     ///
     /// Returns:
-    ///     A list of unix timestamps of the event history of node.
+    ///     List[int]: A list of unix timestamps of the event history of node.
     pub fn history(&self) -> Vec<i64> {
         self.node.history()
     }
@@ -226,7 +229,7 @@ impl PyNode {
     /// Returns the history of a node, including node additions and changes made to node.
     ///
     /// Returns:
-    ///     A list of timestamps of the event history of node.
+    ///     List[Datetime]: A list of timestamps of the event history of node.
     ///
     pub fn history_date_time(&self) -> Option<Vec<DateTime<Utc>>> {
         self.node.history_date_time()
@@ -346,9 +349,6 @@ impl PyMutableNode {
     ///
     /// Parameters:
     ///     new_type (str): The new type to be set
-    ///
-    /// Returns:
-    ///     Result: A result object indicating success or failure. On failure, it contains a GraphError.
     pub fn set_node_type(&self, new_type: &str) -> Result<(), GraphError> {
         self.node.set_node_type(new_type)
     }
@@ -357,10 +357,8 @@ impl PyMutableNode {
     /// This function allows for the addition of property updates to a node within the graph. The updates are time-stamped, meaning they are applied at the specified time.
     ///
     /// Parameters:
-    ///     t (PyTime): The timestamp at which the updates should be applied.
-    ///     properties (Optional[Dict[str, Prop]]): A dictionary of properties to update.
-    ///         Each key is a string representing the property name, and each value is of type Prop representing the property value.
-    ///         If None, no properties are updated.
+    ///     t (int | str | DateTime): The timestamp at which the updates should be applied.
+    ///     properties (Dict[str, Prop]): A dictionary of properties to update. Each key is a string representing the property name, and each value is of type Prop representing the property value. If None, no properties are updated.
     ///
     /// Returns:
     ///     Result: A result object indicating success or failure. On failure, it contains a GraphError.
@@ -377,12 +375,7 @@ impl PyMutableNode {
     /// change over time. These properties are fundamental attributes of the node.
     ///
     /// Parameters:
-    ///     properties (Dict[str, Prop]): A dictionary of properties to be added to the node.
-    ///     Each key is a string representing the property name, and each value is of type Prop
-    ///     representing the property value.
-    ///
-    /// Returns:
-    ///     Result: A result object indicating success or failure. On failure, it contains a GraphError.
+    ///     properties (Dict[str, Prop]): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
     pub fn add_constant_properties(
         &self,
         properties: HashMap<String, Prop>,
@@ -395,12 +388,7 @@ impl PyMutableNode {
     /// change over time. These properties are fundamental attributes of the node.
     ///
     /// Parameters:
-    ///     properties (Dict[str, Prop]): A dictionary of properties to be added to the node.
-    ///     Each key is a string representing the property name, and each value is of type Prop
-    ///     representing the property value.
-    ///
-    /// Returns:
-    ///     Result: A result object indicating success or failure. On failure, it contains a GraphError.
+    ///     properties (Dict[str, Prop]): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
     pub fn update_constant_properties(
         &self,
         properties: HashMap<String, Prop>,
@@ -431,13 +419,25 @@ impl_nodeviewops!(
     Nodes<'static, DynamicGraph, DynamicGraph>,
     "Nodes"
 );
-impl_iterable_mixin!(
-    PyNodes,
-    nodes,
-    Vec<NodeView<DynamicGraph>>,
-    "list[Node]",
-    "node"
-);
+#[pymethods]
+impl PyNodes {
+    fn __len__(&self) -> usize {
+        self.nodes.len()
+    }
+    fn __bool__(&self) -> bool {
+        !self.nodes.is_empty()
+    }
+    fn __iter__(&self) -> PyGenericIterator {
+        self.nodes.iter_owned().into()
+    }
+    #[doc = concat!(" Collect all ","node","s into a list")]
+    #[doc = r""]
+    #[doc = r" Returns:"]
+    #[doc = concat!("     ","list[Node]",": the list of ","node","s")]
+    fn collect(&self) -> Vec<NodeView<DynamicGraph>> {
+        self.nodes.collect()
+    }
+}
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
     From<Nodes<'static, G, GH>> for PyNodes
@@ -466,10 +466,10 @@ impl PyNodes {
     /// checks if a list of nodes is equal to another list by their idd (ids are unique)
     ///
     /// Arguments:
-    ///    other: The other nodes to compare to.
+    ///    other (Nodes): The other nodes to compare to.
     ///
     /// Returns:
-    ///   True if the nodes are equal, false otherwise.
+    ///   bool: True if the nodes are equal, false otherwise.
     fn __eq__(&self, other: &PyNodes) -> bool {
         for (v1, v2) in self.nodes.iter().zip(other.nodes.iter()) {
             if v1.id() != v2.id() {
@@ -481,7 +481,7 @@ impl PyNodes {
 
     /// Returns an iterator over the nodes ids
     #[getter]
-    fn id(&self) -> LazyNodeState<'static, u64, DynamicGraph, DynamicGraph> {
+    fn id(&self) -> LazyNodeState<'static, GID, DynamicGraph, DynamicGraph> {
         self.nodes.id()
     }
 
@@ -692,7 +692,7 @@ impl_iterable_mixin!(
 #[pymethods]
 impl PyPathFromGraph {
     #[getter]
-    fn id(&self) -> NestedU64Iterable {
+    fn id(&self) -> NestedGIDIterable {
         let path = self.path.clone();
         (move || path.id()).into()
     }
@@ -851,7 +851,7 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic> 
 #[pymethods]
 impl PyPathFromNode {
     #[getter]
-    fn id(&self) -> U64Iterable {
+    fn id(&self) -> GIDIterable {
         let path = self.path.clone();
         (move || path.id()).into()
     }

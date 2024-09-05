@@ -11,7 +11,7 @@ use crate::{
     db::{
         api::{
             properties::Properties,
-            storage::storage_ops::GraphStorage,
+            storage::graph::storage_ops::GraphStorage,
             view::{internal::OneHopFilter, BaseNodeViewOps, BoxedLIter, IntoDynBoxed},
         },
         graph::{create_node_type_filter, edges::Edges, node::NodeView, path::PathFromNode},

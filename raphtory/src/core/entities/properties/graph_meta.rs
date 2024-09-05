@@ -1,19 +1,22 @@
 use crate::core::{
-    entities::properties::tprop::TProp,
+    entities::properties::{props::PropMapper, tprop::TProp},
     storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
     utils::errors::{GraphError, MutateGraphError},
     Prop, PropType,
 };
 use raphtory_api::core::storage::{
-    arc_str::ArcStr, dict_mapper::DictMapper, locked_vec::ArcReadLockedVec, FxDashMap,
+    arc_str::ArcStr,
+    dict_mapper::{DictMapper, MaybeNew},
+    locked_vec::ArcReadLockedVec,
+    FxDashMap,
 };
 use serde::{Deserialize, Serialize};
-use std::ops::DerefMut;
+use std::ops::{Deref, DerefMut};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GraphMeta {
     constant_mapper: DictMapper,
-    temporal_mapper: DictMapper,
+    temporal_mapper: PropMapper,
     constant: FxDashMap<usize, Option<Prop>>,
     temporal: FxDashMap<usize, TProp>,
 }
@@ -22,7 +25,7 @@ impl GraphMeta {
     pub(crate) fn new() -> Self {
         Self {
             constant_mapper: DictMapper::default(),
-            temporal_mapper: DictMapper::default(),
+            temporal_mapper: PropMapper::default(),
             constant: FxDashMap::default(),
             temporal: FxDashMap::default(),
         }
@@ -34,16 +37,21 @@ impl GraphMeta {
     }
 
     #[inline]
-    pub fn temporal_prop_meta(&self) -> &DictMapper {
+    pub fn temporal_prop_meta(&self) -> &PropMapper {
         &self.temporal_mapper
     }
 
     #[inline]
-    pub(crate) fn resolve_property(&self, name: &str, is_static: bool) -> usize {
+    pub(crate) fn resolve_property(
+        &self,
+        name: &str,
+        dtype: PropType,
+        is_static: bool,
+    ) -> Result<MaybeNew<usize>, GraphError> {
         if is_static {
-            self.constant_mapper.get_or_create_id(name)
+            Ok(self.constant_mapper.get_or_create_id(name))
         } else {
-            self.temporal_mapper.get_or_create_id(name)
+            self.temporal_mapper.get_or_create_and_validate(name, dtype)
         }
     }
 
@@ -140,5 +148,17 @@ impl GraphMeta {
 
     pub(crate) fn temporal_ids(&self) -> impl Iterator<Item = usize> {
         0..self.temporal_mapper.len()
+    }
+
+    pub(crate) fn const_props(&self) -> impl Iterator<Item = (usize, Prop)> + '_ {
+        self.constant
+            .iter()
+            .filter_map(|kv| kv.value().as_ref().map(|v| (*kv.key(), v.clone())))
+    }
+
+    pub(crate) fn temporal_props(
+        &self,
+    ) -> impl Iterator<Item = (usize, impl Deref<Target = TProp> + '_)> + '_ {
+        (0..self.temporal_mapper.len()).filter_map(|id| self.temporal.get(&id).map(|v| (id, v)))
     }
 }

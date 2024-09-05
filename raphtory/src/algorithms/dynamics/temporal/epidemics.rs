@@ -382,7 +382,10 @@ mod test {
         let mut rng = SmallRng::seed_from_u64(0);
         let g = generate_graph(1000, event_rate, &mut rng);
         let test_dir = TempDir::new().unwrap();
-        let disk_graph = g.persist_as_disk_graph(test_dir.path()).unwrap();
+        let disk_graph = g
+            .persist_as_disk_graph(test_dir.path())
+            .unwrap()
+            .into_graph();
         let mut rng = SmallRng::seed_from_u64(0);
         let res_arrow = temporal_SEIR(
             &disk_graph,

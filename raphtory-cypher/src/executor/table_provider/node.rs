@@ -17,26 +17,29 @@ use datafusion::{
     logical_expr::Expr,
     physical_plan::{
         metrics::MetricsSet, stream::RecordBatchStreamAdapter, DisplayAs, DisplayFormatType,
-        ExecutionPlan,
+        ExecutionPlan, PlanProperties,
     },
 };
 use futures::Stream;
 use pometry_storage::properties::ConstProps;
 use raphtory::{
     core::entities::VID,
-    disk_graph::{graph_impl::DiskGraph, prelude::*},
+    disk_graph::{prelude::*, DiskGraphStorage},
 };
 use std::{any::Any, fmt::Formatter, sync::Arc};
 
+use super::plan_properties;
+
+// FIXME: review this file, some of the assuptions and mapping between partitions and chunk sizes are not correct
 pub struct NodeTableProvider {
-    graph: DiskGraph,
+    graph: DiskGraphStorage,
     schema: SchemaRef,
     num_partitions: usize,
     chunk_size: usize,
 }
 
 impl NodeTableProvider {
-    pub fn new(g: DiskGraph) -> Result<Self, ExecError> {
+    pub fn new(g: DiskGraphStorage) -> Result<Self, ExecError> {
         let graph = g.as_ref();
         let (num_partitions, chunk_size) = graph
             .node_properties()
@@ -116,25 +119,24 @@ impl TableProvider for NodeTableProvider {
         _limit: Option<usize>,
     ) -> Result<Arc<dyn ExecutionPlan>, DataFusionError> {
         let schema = projection
-            .as_ref()
-            .map(|proj| Arc::new(self.schema().project(proj).expect("failed projection")))
-            .unwrap_or_else(|| self.schema().clone());
+            .map(|proj| self.schema().project(proj).map(Arc::new))
+            .unwrap_or_else(|| Ok(self.schema().clone()))?;
 
-        // let plan_properties = plan_properties(self.schema.clone(), self.num_partitions);
+        let plan_properties = plan_properties(schema.clone(), self.num_partitions);
 
         Ok(Arc::new(NodeScanExecPlan {
             graph: self.graph.clone(),
             schema,
             num_partitions: self.num_partitions,
             chunk_size: self.chunk_size,
-            // props: plan_properties,
+            props: plan_properties,
             projection: projection.map(|proj| Arc::from(proj.as_slice())),
         }))
     }
 }
 
 async fn produce_record_batch(
-    g: DiskGraph,
+    g: DiskGraphStorage,
     schema: SchemaRef,
     chunk_id: usize,
     chunk_size: usize,
@@ -154,12 +156,15 @@ async fn produce_record_batch(
     let start = chunk_id * chunk_size;
     let end = (chunk_id + 1) * chunk_size;
 
+    let n = chunk.values()[0].len();
+    let iter = (start as u64..end as u64).take(n);
     let id = Arc::new(PrimitiveArray::<UInt64Type>::new(
-        ScalarBuffer::from_iter((start as u64..end as u64).take(chunk.values()[0].len())),
+        ScalarBuffer::from_iter(iter),
         None,
     ));
 
-    let arr_gid = graph.global_ordering().sliced(start, end - start);
+    let length = (end - start).min(graph.global_ordering().len());
+    let arr_gid = graph.global_ordering().sliced(start, length);
     let gid_data = to_data(arr_gid.as_ref());
     let gid = make_array(gid_data);
 
@@ -186,11 +191,11 @@ async fn produce_record_batch(
 }
 
 struct NodeScanExecPlan {
-    graph: DiskGraph,
+    graph: DiskGraphStorage,
     schema: SchemaRef,
     num_partitions: usize,
     chunk_size: usize,
-    // props: PlanProperties,
+    props: PlanProperties,
     projection: Option<Arc<[usize]>>,
 }
 
@@ -231,19 +236,16 @@ impl DisplayAs for NodeScanExecPlan {
 
 #[async_trait]
 impl ExecutionPlan for NodeScanExecPlan {
+    fn name(&self) -> &str {
+        "NodeScanExecPlan"
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }
 
-    // fn properties(&self) -> &PlanProperties {
-    //     &self.props
-    // }
-
-    fn output_partitioning(&self) -> datafusion::physical_expr::Partitioning {
-        datafusion::physical_expr::Partitioning::UnknownPartitioning(self.num_partitions)
-    }
-    fn output_ordering(&self) -> Option<&[datafusion::physical_expr::PhysicalSortExpr]> {
-        None
+    fn properties(&self) -> &PlanProperties {
+        &self.props
     }
 
     fn schema(&self) -> SchemaRef {
@@ -254,7 +256,7 @@ impl ExecutionPlan for NodeScanExecPlan {
         vec![true; self.children().len()]
     }
 
-    fn children(&self) -> Vec<Arc<dyn ExecutionPlan>> {
+    fn children(&self) -> Vec<&Arc<dyn ExecutionPlan>> {
         vec![]
     }
 

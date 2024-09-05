@@ -26,7 +26,7 @@ impl From<NodeView<TGraph>> for Node {
 impl Node {
     #[wasm_bindgen(js_name = id)]
     pub fn id(&self) -> u64 {
-        self.0.id()
+        self.0.id().as_u64().expect("only u64 supported in js")
     }
 
     #[wasm_bindgen(js_name = name)]

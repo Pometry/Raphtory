@@ -1,7 +1,7 @@
 use crate::{
     core::entities::LayerIds,
     db::api::{
-        storage::nodes::node_ref::NodeStorageRef,
+        storage::graph::nodes::node_ref::NodeStorageRef,
         view::{Base, MaterializedGraph},
     },
 };

@@ -1,27 +1,25 @@
 use std::sync::Arc;
 
+use super::execution::HopExec;
+use crate::hop::operator::HopPlan;
 use async_trait::async_trait;
 use datafusion::{
-    common::Column,
+    common::{tree_node::Transformed, Column},
     error::DataFusionError,
     execution::context::{QueryPlanner, SessionState},
     logical_expr::{Expr, Extension, Join, LogicalPlan, UserDefinedLogicalNode},
-    optimizer::{optimize_children, optimizer::ApplyOrder, OptimizerConfig, OptimizerRule},
+    optimizer::{optimizer::ApplyOrder, OptimizerConfig, OptimizerRule},
     physical_plan::ExecutionPlan,
     physical_planner::{DefaultPhysicalPlanner, ExtensionPlanner, PhysicalPlanner},
 };
-use raphtory::{core::Direction, disk_graph::graph_impl::DiskGraph};
-
-use crate::hop::operator::HopPlan;
-
-use super::execution::HopExec;
+use raphtory::{core::Direction, disk_graph::DiskGraphStorage};
 
 pub struct HopRule {
-    pub graph: DiskGraph,
+    pub graph: DiskGraphStorage,
 }
 
 impl HopRule {
-    pub fn new(graph: DiskGraph) -> Self {
+    pub fn new(graph: DiskGraphStorage) -> Self {
         Self { graph }
     }
 }
@@ -31,12 +29,12 @@ impl OptimizerRule for HopRule {
         Some(ApplyOrder::BottomUp)
     }
 
-    fn try_optimize(
+    fn rewrite(
         &self,
-        plan: &LogicalPlan,
-        config: &dyn OptimizerConfig,
-    ) -> Result<Option<LogicalPlan>, DataFusionError> {
-        if let LogicalPlan::Join(join) = plan {
+        plan: LogicalPlan,
+        _config: &dyn OptimizerConfig,
+    ) -> Result<Transformed<LogicalPlan>, DataFusionError> {
+        if let LogicalPlan::Join(join) = &plan {
             let Join {
                 right,
                 on,
@@ -46,7 +44,7 @@ impl OptimizerRule for HopRule {
             } = join;
 
             if on.len() != 1 {
-                return Ok(None); //optimize_children(self, plan, config);
+                return Ok(Transformed::no(plan));
             }
 
             let (hop_from_col, _hop_to_col, direction) = if let (
@@ -63,11 +61,11 @@ impl OptimizerRule for HopRule {
                     ("dst", "dst") => Direction::IN,
                     ("src", "src") => Direction::OUT,
                     ("src", "dst") => Direction::IN,
-                    _ => return Ok(None),
+                    _ => return Ok(Transformed::no(plan)),
                 };
                 (hop_from_col, hop_to_col, direction)
             } else {
-                return Ok(None);
+                return Ok(Transformed::no(plan));
             };
 
             // simplest form Any -> TableScan
@@ -84,11 +82,11 @@ impl OptimizerRule for HopRule {
                             on.clone(),
                         )),
                     });
-                    return Ok(Some(plan));
+                    return Ok(Transformed::yes(plan));
                 }
             }
         }
-        optimize_children(self, plan, config)
+        Ok(Transformed::no(plan))
     }
 
     fn name(&self) -> &str {
@@ -141,7 +139,7 @@ impl ExtensionPlanner for HopPlanner {
 #[cfg(test)]
 mod test {
     use arrow::util::pretty::print_batches;
-    use raphtory::disk_graph::graph_impl::DiskGraph;
+    use raphtory::disk_graph::DiskGraphStorage;
     use tempfile::tempdir;
 
     use crate::prepare_plan;
@@ -150,7 +148,7 @@ mod test {
     async fn double_hop_edge_to_edge() {
         let graph_dir = tempdir().unwrap();
         let edges = vec![(0u64, 1u64, 0i64, 2.)];
-        let g = DiskGraph::make_simple_graph(graph_dir, &edges, 10, 10);
+        let g = DiskGraphStorage::make_simple_graph(graph_dir, &edges, 10, 10);
         let (_, plan) = prepare_plan("MATCH ()-[e1]->()-[e2]->() RETURN *", &g, true)
             .await
             .unwrap();
@@ -162,7 +160,7 @@ mod test {
     async fn double_hop_edge_to_edge_with_pushdown_filter_e2() {
         let graph_dir = tempdir().unwrap();
         let edges = vec![(0u64, 1u64, 0i64, 2.)];
-        let g = DiskGraph::make_simple_graph(graph_dir, &edges, 10, 10);
+        let g = DiskGraphStorage::make_simple_graph(graph_dir, &edges, 10, 10);
         let (_, plan) = prepare_plan(
             "MATCH ()-[e1]->()-[e2]->() WHERE e2.weight > 5 RETURN *",
             &g,
@@ -178,7 +176,7 @@ mod test {
     async fn double_hop_edge_to_edge_with_pushdown_filter_e1() {
         let graph_dir = tempdir().unwrap();
         let edges = vec![(0u64, 1u64, 0i64, 2.)];
-        let g = DiskGraph::make_simple_graph(graph_dir, &edges, 10, 10);
+        let g = DiskGraphStorage::make_simple_graph(graph_dir, &edges, 10, 10);
         let (_, plan) = prepare_plan(
             "MATCH ()-[e1]->()-[e2]->() WHERE e1.weight > 5 RETURN *",
             &g,
@@ -200,7 +198,7 @@ mod test {
         // +----+----------+-----+-----+----------+--------+----+----------+-----+-----+----------+--------+
         let graph_dir = tempdir().unwrap();
         let edges = vec![(0u64, 1u64, 0i64, 2.), (1, 2, 1, 3.), (2, 3, 2, 4.)];
-        let g = DiskGraph::make_simple_graph(graph_dir, &edges, 10, 10);
+        let g = DiskGraphStorage::make_simple_graph(graph_dir, &edges, 10, 10);
 
         // let (ctx, plan) = prepare_plan("MATCH ()-[e1]->() RETURN *", &g)
         let (ctx, plan) = prepare_plan("MATCH ()-[e1]->()-[e2]->() RETURN *", &g, true)

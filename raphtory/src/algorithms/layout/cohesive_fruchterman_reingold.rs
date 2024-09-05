@@ -1,3 +1,5 @@
+use raphtory_api::core::entities::GID;
+
 use crate::{
     algorithms::{
         components::weakly_connected_components,
@@ -19,12 +21,12 @@ pub fn cohesive_fruchterman_reingold<'graph, G: GraphViewOps<'graph>>(
 ) -> NodeVectors {
     let virtual_graph = graph.materialize().unwrap();
 
-    let transform_map = |input_map: HashMap<String, u64>| -> HashMap<u64, Vec<NodeView<MaterializedGraph, MaterializedGraph>>> {
-        let mut output_map: HashMap<u64, Vec<NodeView<MaterializedGraph, MaterializedGraph>>> = HashMap::new();
+    let transform_map = |input_map: HashMap<String, GID>| -> HashMap<GID, Vec<NodeView<MaterializedGraph, MaterializedGraph>>> {
+        let mut output_map: HashMap<GID, Vec<NodeView<MaterializedGraph, MaterializedGraph>>> = HashMap::new();
 
-        for (key, value) in input_map.iter() {
+        for (key, value) in input_map.into_iter() {
             output_map
-                .entry(*value)
+                .entry(value)
                 .or_default()
                 .push(virtual_graph.node(key.clone()).unwrap());
         }
@@ -44,8 +46,8 @@ pub fn cohesive_fruchterman_reingold<'graph, G: GraphViewOps<'graph>>(
             .max()
             .unwrap_or(0); // Default to 0 if there are no nodes
 
-        let nodes_with_max_degree: Vec<_> = virtual_graph
-            .nodes()
+        let nodes = &virtual_graph.nodes();
+        let nodes_with_max_degree: Vec<_> = nodes
             .iter()
             .filter(|node| node.degree() == max_degree)
             .collect();

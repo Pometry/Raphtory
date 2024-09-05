@@ -190,11 +190,8 @@ fn main() {
 
     // Out neighbours of all nodes with time
     now = Instant::now();
-    let _out_neighbours = g
-        .nodes()
-        .iter()
-        .map(|v| v.out_neighbours())
-        .collect::<Vec<_>>();
+    let nodes = &g.nodes();
+    let _out_neighbours = nodes.iter().map(|v| v.out_neighbours()).collect::<Vec<_>>();
     println!("Out neighbours: {} seconds", now.elapsed().as_secs_f64());
 
     // page rank with time

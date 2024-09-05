@@ -16,11 +16,11 @@ use crate::{
         types::{
             repr::{iterator_repr, Repr},
             wrappers::iterables::{
-                ArcStringIterable, ArcStringVecIterable, BoolIterable, I64Iterable, I64VecIterable,
-                NestedArcStringIterable, NestedArcStringVecIterable, NestedBoolIterable,
-                NestedI64VecIterable, NestedOptionI64Iterable, NestedU64U64Iterable,
-                NestedUtcDateTimeIterable, NestedVecUtcDateTimeIterable, OptionI64Iterable,
-                OptionUtcDateTimeIterable, OptionVecUtcDateTimeIterable, U64U64Iterable,
+                ArcStringIterable, ArcStringVecIterable, BoolIterable, GIDGIDIterable, I64Iterable,
+                I64VecIterable, NestedArcStringIterable, NestedArcStringVecIterable,
+                NestedBoolIterable, NestedGIDGIDIterable, NestedI64VecIterable,
+                NestedOptionI64Iterable, NestedUtcDateTimeIterable, NestedVecUtcDateTimeIterable,
+                OptionI64Iterable, OptionUtcDateTimeIterable, OptionVecUtcDateTimeIterable,
             },
         },
         utils::{
@@ -165,7 +165,7 @@ impl PyEdges {
 
     /// Returns all ids of the edges.
     #[getter]
-    fn id(&self) -> U64U64Iterable {
+    fn id(&self) -> GIDGIDIterable {
         let edges = self.edges.clone();
         (move || edges.id()).into()
     }
@@ -479,7 +479,7 @@ impl PyNestedEdges {
 
     /// Returns all ids of the edges.
     #[getter]
-    fn id(&self) -> NestedU64U64Iterable {
+    fn id(&self) -> NestedGIDGIDIterable {
         let edges = self.edges.clone();
         (move || edges.id()).into()
     }

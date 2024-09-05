@@ -33,14 +33,12 @@ use crate::{
     },
 };
 use chrono::prelude::*;
-use pyo3::{prelude::*, types::PyBytes};
+use pyo3::prelude::*;
 use raphtory_api::core::storage::arc_str::ArcStr;
 
 impl IntoPy<PyObject> for MaterializedGraph {
     fn into_py(self, py: Python<'_>) -> PyObject {
         match self {
-            #[cfg(feature = "storage")]
-            MaterializedGraph::DiskEventGraph(g) => g.into_py(py),
             MaterializedGraph::EventGraph(g) => g.into_py(py),
             MaterializedGraph::PersistentGraph(g) => g.into_py(py),
         }
@@ -55,15 +53,7 @@ impl IntoPy<PyObject> for DynamicGraph {
 
 impl<'source> FromPyObject<'source> for DynamicGraph {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
-        ob.extract::<PyRef<PyGraphView>>()
-            .map(|g| g.graph.clone())
-            .or_else(|err| {
-                let res = ob.call_method0("bincode").map_err(|_| err)?; // return original error as probably more helpful
-                                                                        // assume we have a graph at this point, the res probably should not fail
-                let b = res.extract::<&[u8]>()?;
-                let g = MaterializedGraph::from_bincode(b)?;
-                Ok(g.into_dynamic())
-            })
+        ob.extract::<PyRef<PyGraphView>>().map(|g| g.graph.clone())
     }
 }
 /// Graph view is a read-only version of a graph at a certain point in time.
@@ -258,7 +248,6 @@ impl PyGraphView {
     /// Arguments:
     ///     src (str or int): the source node id
     ///     dst (str or int): the destination node id
-    ///     layer (str): the edge layer (optional)
     ///
     /// Returns:
     ///     the edge with the specified source and destination nodes, or None if the edge does not exist
@@ -350,12 +339,6 @@ impl PyGraphView {
     ///    GraphView - Returns a graph clone
     fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
         self.graph.materialize()
-    }
-
-    /// Get bincode encoded graph
-    pub fn bincode<'py>(&'py self, py: Python<'py>) -> Result<&'py PyBytes, GraphError> {
-        let bytes = self.graph.materialize()?.bincode()?;
-        Ok(PyBytes::new(py, &bytes))
     }
 
     /// Displays the graph

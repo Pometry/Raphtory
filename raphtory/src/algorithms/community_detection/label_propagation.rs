@@ -1,4 +1,5 @@
 use rand::{rngs::StdRng, seq::SliceRandom, thread_rng, SeedableRng};
+use raphtory_api::core::entities::GID;
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::{
@@ -24,13 +25,13 @@ pub fn label_propagation<G>(
 where
     G: StaticGraphViewOps,
 {
-    let mut labels: HashMap<NodeView<G>, u64> = HashMap::new();
-    for node in graph.nodes() {
-        labels.insert(node.clone(), node.id());
+    let mut labels: HashMap<NodeView<&G>, GID> = HashMap::new();
+    let nodes = &graph.nodes();
+    for node in nodes.iter() {
+        labels.insert(node, node.id());
     }
 
-    let nodes = graph.nodes();
-    let mut shuffled_nodes: Vec<NodeView<G>> = nodes.iter().collect();
+    let mut shuffled_nodes: Vec<NodeView<&G>> = nodes.iter().collect();
     if let Some(seed_value) = seed {
         let mut rng = StdRng::from_seed(seed_value);
         shuffled_nodes.shuffle(&mut rng);
@@ -43,10 +44,10 @@ where
         changed = false;
         for node in &shuffled_nodes {
             let neighbors = node.neighbours();
-            let mut label_count: BTreeMap<u64, f64> = BTreeMap::new();
+            let mut label_count: BTreeMap<GID, f64> = BTreeMap::new();
 
             for neighbour in neighbors {
-                *label_count.entry(labels[&neighbour.clone()]).or_insert(0.0) += 1.0;
+                *label_count.entry(labels[&neighbour].clone()).or_insert(0.0) += 1.0;
             }
 
             if let Some(max_label) = find_max_label(&label_count) {
@@ -59,19 +60,19 @@ where
     }
 
     // Group nodes by their labels to form communities
-    let mut communities: HashMap<u64, HashSet<NodeView<G>>> = HashMap::new();
+    let mut communities: HashMap<GID, HashSet<NodeView<G>>> = HashMap::new();
     for (node, label) in labels {
-        communities.entry(label).or_default().insert(node.clone());
+        communities.entry(label).or_default().insert(node.cloned());
     }
 
     Ok(communities.values().cloned().collect())
 }
 
-fn find_max_label(label_count: &BTreeMap<u64, f64>) -> Option<u64> {
+fn find_max_label(label_count: &BTreeMap<GID, f64>) -> Option<GID> {
     label_count
         .iter()
         .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-        .map(|(label, _)| *label)
+        .map(|(label, _)| label.clone())
 }
 
 #[cfg(test)]
@@ -98,10 +99,10 @@ mod lpa_tests {
         for (ts, src, dst) in edges {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
-
         test_storage!(&graph, |graph| {
             let seed = Some([5; 32]);
             let result = label_propagation(graph, seed).unwrap();
+
             let expected = vec![
                 HashSet::from([
                     graph.node("R1").unwrap(),

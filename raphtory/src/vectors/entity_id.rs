@@ -5,14 +5,15 @@ use crate::{
     },
     prelude::{EdgeViewOps, NodeViewOps},
 };
-use serde::{Deserialize, Serialize, Serializer};
+use raphtory_api::core::entities::GID;
+use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub(crate) enum EntityId {
     Graph { name: String },
-    Node { id: u64 },
-    Edge { src: u64, dst: u64 },
+    Node { id: GID },
+    Edge { src: GID, dst: GID },
 }
 
 impl EntityId {
@@ -67,13 +68,13 @@ impl Display for EntityId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             EntityId::Graph { name } => f.write_str(&format!("graph:{name}")),
-            EntityId::Node { id } => f.serialize_u64(*id),
+            EntityId::Node { id } => f.write_str(&id.to_str()),
             EntityId::Edge { src, dst } => {
-                f.serialize_u64(*src)
+                f.write_str(&src.to_str())
                     .expect("src ID couldn't be serialized");
                 f.write_str("-")
                     .expect("edge ID separator couldn't be serialized");
-                f.serialize_u64(*dst)
+                f.write_str(&dst.to_str())
             }
         }
     }

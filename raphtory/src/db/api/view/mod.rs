@@ -2,7 +2,7 @@
 
 mod edge;
 mod graph;
-pub(crate) mod internal;
+pub mod internal;
 mod layer;
 pub(crate) mod node;
 mod reset_filter;

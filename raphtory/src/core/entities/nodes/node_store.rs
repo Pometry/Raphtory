@@ -3,28 +3,23 @@ use crate::core::{
         edges::edge_ref::{Dir, EdgeRef},
         nodes::structure::adj::Adj,
         properties::{props::Props, tprop::TProp},
-        LayerIds, EID, VID,
+        LayerIds, EID, GID, VID,
     },
     storage::{
         lazy_vec::IllegalSet,
         timeindex::{AsTime, TimeIndex, TimeIndexEntry},
         ArcEntry, Entry,
     },
-    utils::errors::GraphError,
+    utils::{errors::GraphError, iter::GenLockedIter},
     Direction, Prop,
 };
 use itertools::Itertools;
-use ouroboros::self_referencing;
 use serde::{Deserialize, Serialize};
-use std::{
-    iter,
-    ops::{Deref, Range},
-};
+use std::{iter, ops::Deref};
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub struct NodeStore {
-    pub(crate) global_id: u64,
-    pub(crate) name: Option<String>,
+    pub(crate) global_id: GID,
     pub(crate) vid: VID,
     // all the timestamps that have been seen by this node
     timestamps: TimeIndex<i64>,
@@ -36,12 +31,11 @@ pub struct NodeStore {
 }
 
 impl NodeStore {
-    pub fn new(global_id: u64, t: TimeIndexEntry) -> Self {
+    pub fn new(global_id: GID, t: TimeIndexEntry) -> Self {
         let mut layers = Vec::with_capacity(1);
         layers.push(Adj::Solo);
         Self {
             global_id,
-            name: None,
             vid: 0.into(),
             timestamps: TimeIndex::one(t.t()),
             layers,
@@ -50,12 +44,11 @@ impl NodeStore {
         }
     }
 
-    pub fn empty(global_id: u64, name: Option<String>) -> Self {
+    pub fn empty(global_id: GID) -> Self {
         let mut layers = Vec::with_capacity(1);
         layers.push(Adj::Solo);
         Self {
             global_id,
-            name,
             vid: VID(0),
             timestamps: TimeIndex::Empty,
             layers,
@@ -64,8 +57,8 @@ impl NodeStore {
         }
     }
 
-    pub fn global_id(&self) -> u64 {
-        self.global_id
+    pub fn global_id(&self) -> &GID {
+        &self.global_id
     }
 
     pub fn timestamps(&self) -> &TimeIndex<i64> {
@@ -79,15 +72,6 @@ impl NodeStore {
     pub fn update_node_type(&mut self, node_type: usize) -> usize {
         self.node_type = node_type;
         node_type
-    }
-
-    pub fn update_name(&mut self, name: &str) {
-        match &self.name {
-            None => {
-                self.name = Some(name.to_owned());
-            }
-            Some(old) => debug_assert_eq!(old, name), // one-to-one mapping between name and id, name should never change
-        }
     }
 
     pub fn add_prop(
@@ -148,28 +132,6 @@ impl NodeStore {
             Direction::OUT => self.layers[layer].add_edge_out(v_id, edge_id),
             _ => {}
         }
-    }
-
-    pub(crate) fn temporal_properties(
-        &self,
-        prop_id: usize,
-        window: Option<Range<i64>>,
-    ) -> impl Iterator<Item = (i64, Prop)> + '_ {
-        if let Some(window) = window {
-            self.props
-                .as_ref()
-                .map(|ps| ps.temporal_props_window(prop_id, window.start, window.end))
-                .unwrap_or_else(|| Box::new(iter::empty()))
-        } else {
-            self.props
-                .as_ref()
-                .map(|ps| ps.temporal_props(prop_id))
-                .unwrap_or_else(|| Box::new(iter::empty()))
-        }
-    }
-
-    pub(crate) fn const_prop(&self, prop_id: usize) -> Option<&Prop> {
-        self.props.as_ref().and_then(|ps| ps.const_prop(prop_id))
     }
 
     #[inline]
@@ -341,6 +303,10 @@ impl NodeStore {
         self.props.as_ref().and_then(|ps| ps.temporal_prop(prop_id))
     }
 
+    pub(crate) fn constant_property(&self, prop_id: usize) -> Option<&Prop> {
+        self.props.as_ref().and_then(|ps| ps.const_prop(prop_id))
+    }
+
     pub(crate) fn temporal_prop_ids(&self) -> impl Iterator<Item = usize> + '_ {
         self.props
             .as_ref()
@@ -350,20 +316,12 @@ impl NodeStore {
 }
 
 impl ArcEntry<NodeStore> {
-    pub fn into_edges(self, layers: &LayerIds, dir: Direction) -> LockedAdjIter {
-        LockedAdjIterBuilder {
-            entry: self,
-            iter_builder: |node| node.edge_tuples(layers, dir),
-        }
-        .build()
+    pub fn into_edges(self, layers: &LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> {
+        GenLockedIter::from(self, |node| node.edge_tuples(layers, dir))
     }
 
-    pub fn into_neighbours(self, layers: &LayerIds, dir: Direction) -> LockedNeighboursIter {
-        LockedNeighboursIterBuilder {
-            entry: self,
-            iter_builder: |node| node.neighbours(layers, dir),
-        }
-        .build()
+    pub fn into_neighbours(self, layers: &LayerIds, dir: Direction) -> impl Iterator<Item = VID> {
+        GenLockedIter::from(self, |node| node.neighbours(layers, dir))
     }
 
     pub fn into_layers(self) -> LockedLayers {
@@ -384,85 +342,28 @@ impl ArcEntry<NodeStore> {
 }
 
 impl<'a> Entry<'a, NodeStore> {
-    pub fn into_neighbours(self, layers: &LayerIds, dir: Direction) -> LockedRefNeighboursIter<'a> {
-        LockedRefNeighboursIterBuilder {
-            entry: self,
-            iter_builder: |node| node.neighbours(layers, dir),
-        }
-        .build()
+    pub fn into_neighbours(
+        self,
+        layers: &LayerIds,
+        dir: Direction,
+    ) -> impl Iterator<Item = VID> + 'a {
+        GenLockedIter::from(self, |node| node.neighbours(layers, dir))
     }
 
-    pub fn into_edges(self, layers: &LayerIds, dir: Direction) -> LockedRefEdgesIter<'a> {
-        LockedRefEdgesIterBuilder {
-            entry: self,
-            iter_builder: |node| node.edge_tuples(layers, dir),
-        }
-        .build()
+    pub fn into_edges(
+        self,
+        layers: &LayerIds,
+        dir: Direction,
+    ) -> impl Iterator<Item = EdgeRef> + 'a {
+        GenLockedIter::from(self, |node| node.edge_tuples(layers, dir))
     }
-}
 
-#[self_referencing]
-pub struct LockedAdjIter {
-    entry: ArcEntry<NodeStore>,
-    #[borrows(entry)]
-    #[covariant]
-    iter: Box<dyn Iterator<Item = EdgeRef> + Send + 'this>,
-}
-
-impl Iterator for LockedAdjIter {
-    type Item = EdgeRef;
-
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        self.with_iter_mut(|iter| iter.next())
-    }
-}
-
-#[self_referencing]
-pub struct LockedNeighboursIter {
-    entry: ArcEntry<NodeStore>,
-    #[borrows(entry)]
-    #[covariant]
-    iter: Box<dyn Iterator<Item = VID> + Send + 'this>,
-}
-
-impl Iterator for LockedNeighboursIter {
-    type Item = VID;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.with_iter_mut(|iter| iter.next())
-    }
-}
-
-#[self_referencing]
-pub struct LockedRefNeighboursIter<'a> {
-    entry: Entry<'a, NodeStore>,
-    #[borrows(entry)]
-    #[covariant]
-    iter: Box<dyn Iterator<Item = VID> + Send + 'this>,
-}
-
-impl<'a> Iterator for LockedRefNeighboursIter<'a> {
-    type Item = VID;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.with_iter_mut(|iter| iter.next())
-    }
-}
-
-#[self_referencing]
-pub struct LockedRefEdgesIter<'a> {
-    entry: Entry<'a, NodeStore>,
-    #[borrows(entry)]
-    #[covariant]
-    iter: Box<dyn Iterator<Item = EdgeRef> + Send + 'this>,
-}
-
-impl<'a> Iterator for LockedRefEdgesIter<'a> {
-    type Item = EdgeRef;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.with_iter_mut(|iter| iter.next())
+    pub fn into_edges_iter(
+        self,
+        layers: &'a LayerIds,
+        dir: Direction,
+    ) -> impl Iterator<Item = EdgeRef> + 'a {
+        GenLockedIter::from(self, |node| Box::new(node.edge_tuples(layers, dir)))
     }
 }
 

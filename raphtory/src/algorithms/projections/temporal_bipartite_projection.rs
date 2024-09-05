@@ -22,8 +22,8 @@ pub fn temporal_bipartite_projection<G: StaticGraphViewOps>(
     pivot_type: String,
 ) -> Graph {
     let new_graph = Graph::new();
-    let nodes = graph
-        .nodes()
+    let nodes = graph.nodes();
+    let nodes = nodes
         .iter()
         .filter(|v| v.node_type().unwrap() == pivot_type);
     for v in nodes {

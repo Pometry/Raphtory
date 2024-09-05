@@ -73,6 +73,9 @@ impl<'source> FromPyObject<'source> for Prop {
         if let Ok(d) = ob.extract() {
             return Ok(Prop::NDTime(d));
         }
+        if let Ok(d) = ob.extract() {
+            return Ok(Prop::DTime(d));
+        }
         if let Ok(s) = ob.extract::<String>() {
             return Ok(Prop::Str(s.into()));
         }

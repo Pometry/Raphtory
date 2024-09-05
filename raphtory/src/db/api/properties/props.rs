@@ -8,7 +8,7 @@ use raphtory_api::core::storage::arc_str::ArcStr;
 use std::collections::HashMap;
 
 /// View of the properties of an entity (graph|node|edge)
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Properties<P: PropertiesOps + Clone> {
     pub(crate) props: P,
 }

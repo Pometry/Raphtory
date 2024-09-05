@@ -1,22 +1,9 @@
-#![allow(unused)]
-
-pub(crate) mod iter;
-pub mod lazy_vec;
-pub mod locked_view;
-pub mod sorted_vec_map;
-pub mod timeindex;
-
-use self::iter::Iter;
 use lock_api;
-use locked_view::LockedView;
-use ouroboros::self_referencing;
-use parking_lot::{RwLock, RwLockReadGuard};
+use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
-    array,
     fmt::Debug,
-    iter::FusedIterator,
     marker::PhantomData,
     ops::{Deref, DerefMut},
     sync::{
@@ -25,7 +12,32 @@ use std::{
     },
 };
 
+pub mod lazy_vec;
+pub mod locked_view;
+pub mod raw_edges;
+pub mod sorted_vec_map;
+pub mod timeindex;
+
 type ArcRwLockReadGuard<T> = lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, T>;
+
+#[must_use]
+pub struct UninitialisedEntry<'a, T> {
+    offset: usize,
+    guard: RwLockWriteGuard<'a, Vec<T>>,
+    value: T,
+}
+
+impl<'a, T: Default> UninitialisedEntry<'a, T> {
+    pub fn init(mut self) {
+        if self.offset >= self.guard.len() {
+            self.guard.resize_with(self.offset + 1, Default::default);
+        }
+        self.guard[self.offset] = self.value;
+    }
+    pub fn value(&self) -> &T {
+        &self.value
+    }
+}
 
 #[inline]
 fn resolve(index: usize, num_buckets: usize) -> (usize, usize) {
@@ -127,34 +139,30 @@ where
         self.locks.par_iter().flat_map(|v| v.par_iter())
     }
 
+    #[allow(unused)]
     pub(crate) fn into_iter(self) -> impl Iterator<Item = ArcEntry<T>> + Send
     where
         T: Send + Sync + 'static,
     {
-        self.locks
-            .into_iter()
-            .enumerate()
-            .flat_map(|(bucket, data)| {
-                (0..data.len()).map(move |offset| ArcEntry {
-                    guard: data.clone(),
-                    i: offset,
-                })
+        self.locks.into_iter().flat_map(|data| {
+            (0..data.len()).map(move |offset| ArcEntry {
+                guard: data.clone(),
+                i: offset,
             })
+        })
     }
 
+    #[allow(unused)]
     pub(crate) fn into_par_iter(self) -> impl ParallelIterator<Item = ArcEntry<T>>
     where
         T: Send + Sync + 'static,
     {
-        self.locks
-            .into_par_iter()
-            .enumerate()
-            .flat_map(|(bucket, data)| {
-                (0..data.len()).into_par_iter().map(move |offset| ArcEntry {
-                    guard: data.clone(),
-                    i: offset,
-                })
+        self.locks.into_par_iter().flat_map(|data| {
+            (0..data.len()).into_par_iter().map(move |offset| ArcEntry {
+                guard: data.clone(),
+                i: offset,
             })
+        })
     }
 }
 
@@ -190,10 +198,6 @@ where
         }
     }
 
-    pub fn indices(&self) -> impl Iterator<Item = usize> + Send + '_ {
-        0..self.len()
-    }
-
     pub fn new(n_locks: usize) -> Self {
         let data: Box<[LockVec<T>]> = (0..n_locks)
             .map(|_| LockVec::new())
@@ -206,16 +210,28 @@ where
         }
     }
 
-    pub fn push<F: Fn(usize, &mut T)>(&self, mut value: T, f: F) -> usize {
-        let index = self.len.fetch_add(1, Ordering::SeqCst);
-        let (bucket, offset) = self.resolve(index);
-        let mut vec = self.data[bucket].data.write();
-        if offset >= vec.len() {
-            vec.resize_with(offset + 1, || Default::default());
-        }
+    pub fn push<F: Fn(usize, &mut T)>(&self, mut value: T, f: F) -> UninitialisedEntry<T> {
+        let index = self.len.fetch_add(1, Ordering::Relaxed);
         f(index, &mut value);
-        vec[offset] = value;
-        index
+        let (bucket, offset) = self.resolve(index);
+        let guard = self.data[bucket].data.write();
+        UninitialisedEntry {
+            offset,
+            guard,
+            value,
+        }
+    }
+
+    pub fn set(&self, index: Index, value: T) -> UninitialisedEntry<T> {
+        let index = index.into();
+        self.len.fetch_max(index + 1, Ordering::Relaxed);
+        let (bucket, offset) = self.resolve(index);
+        let guard = self.data[bucket].data.write();
+        UninitialisedEntry {
+            offset,
+            guard,
+            value,
+        }
     }
 
     #[inline]
@@ -224,14 +240,6 @@ where
         let (bucket, offset) = self.resolve(index);
         let guard = self.data[bucket].data.read_recursive();
         Entry { offset, guard }
-    }
-
-    #[inline]
-    pub fn get(&self, index: Index) -> impl Deref<Target = T> + '_ {
-        let index = index.into();
-        let (bucket, offset) = self.resolve(index);
-        let guard = self.data[bucket].data.read_recursive();
-        RwLockReadGuard::map(guard, |guard| &guard[offset])
     }
 
     pub fn entry_arc(&self, index: Index) -> ArcEntry<T> {
@@ -298,14 +306,6 @@ pub struct Entry<'a, T: 'static> {
     guard: RwLockReadGuard<'a, Vec<T>>,
 }
 
-impl<'a, T: 'static> Clone for Entry<'a, T> {
-    fn clone(&self) -> Self {
-        let guard = RwLockReadGuard::rwlock(&self.guard).read_recursive();
-        let i = self.offset;
-        Self { offset: i, guard }
-    }
-}
-
 #[derive(Debug)]
 pub struct ArcEntry<T> {
     guard: Arc<ArcRwLockReadGuard<Vec<T>>>,
@@ -329,35 +329,11 @@ impl<T> Deref for ArcEntry<T> {
     }
 }
 
-impl<T, S> AsRef<T> for ArcEntry<S>
-where
-    T: ?Sized,
-    S: AsRef<T>,
-{
-    fn as_ref(&self) -> &T {
-        self.deref().as_ref()
-    }
-}
-
-impl<'a, T> Entry<'a, T> {
-    pub fn value(&self) -> &T {
-        &self.guard[self.offset]
-    }
-
-    pub fn map<U, F: Fn(&T) -> &U>(self, f: F) -> LockedView<'a, U> {
-        let mapped_guard = RwLockReadGuard::map(self.guard, |guard| {
-            let what = &guard[self.offset];
-            f(what)
-        });
-        LockedView::LockMapped(mapped_guard)
-    }
-}
-
 impl<'a, T> Deref for Entry<'a, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        self.value()
+        &self.guard[self.offset]
     }
 }
 
@@ -376,10 +352,23 @@ pub enum PairEntryMut<'a, T: 'static> {
 }
 
 impl<'a, T: 'static> PairEntryMut<'a, T> {
+    pub(crate) fn get_i(&self) -> &T {
+        match self {
+            PairEntryMut::Same { i, guard, .. } => &guard[*i],
+            PairEntryMut::Different { i, guard1, .. } => &guard1[*i],
+        }
+    }
     pub(crate) fn get_mut_i(&mut self) -> &mut T {
         match self {
             PairEntryMut::Same { i, guard, .. } => &mut guard[*i],
             PairEntryMut::Different { i, guard1, .. } => &mut guard1[*i],
+        }
+    }
+
+    pub(crate) fn get_j(&self) -> &T {
+        match self {
+            PairEntryMut::Same { j, guard, .. } => &guard[*j],
+            PairEntryMut::Different { j, guard2, .. } => &guard2[*j],
         }
     }
 
@@ -412,16 +401,17 @@ impl<'a, T> DerefMut for EntryMut<'a, T> {
 
 #[cfg(test)]
 mod test {
-    use rayon::prelude::{IntoParallelIterator, ParallelIterator};
-
     use super::RawStorage;
+    use pretty_assertions::assert_eq;
+    use quickcheck_macros::quickcheck;
+    use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 
     #[test]
     fn add_5_values_to_storage() {
         let storage = RawStorage::<String>::new(2);
 
         for i in 0..5 {
-            storage.push(i.to_string(), |_, _| {});
+            storage.push(i.to_string(), |_, _| {}).init();
         }
 
         assert_eq!(storage.len(), 5);
@@ -443,7 +433,7 @@ mod test {
         let storage = RawStorage::<String>::new(2);
 
         for i in 0..5 {
-            storage.push(i.to_string(), |_, _| {});
+            storage.push(i.to_string(), |_, _| {}).init();
         }
         let locked = storage.read_lock();
         let actual: Vec<_> = (0..5).map(|i| (i, locked.get(i).as_str())).collect();
@@ -458,7 +448,7 @@ mod test {
         let storage = RawStorage::<String>::new(2);
 
         for i in 0..5 {
-            storage.push(i.to_string(), |_, _| {});
+            storage.push(i.to_string(), |_, _| {}).init();
         }
 
         for i in 0..5 {
@@ -467,16 +457,13 @@ mod test {
         }
     }
 
-    use pretty_assertions::assert_eq;
-    use quickcheck_macros::quickcheck;
-
     #[quickcheck]
     fn concurrent_push(v: Vec<usize>) -> bool {
         let storage = RawStorage::<usize>::new(16);
         let mut expected = v
             .into_par_iter()
             .map(|v| {
-                storage.push(v, |_, _| {});
+                storage.push(v, |_, _| {}).init();
                 v
             })
             .collect::<Vec<_>>();
