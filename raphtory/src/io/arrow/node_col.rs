@@ -20,18 +20,12 @@ trait NodeColOps: Array + Send + Sync {
     }
     fn get(&self, i: usize) -> Option<GidRef>;
 
-    fn iter(&self) -> BoxedLIter<GidRef>;
-
     fn dtype(&self) -> GidType;
 }
 
 impl NodeColOps for PrimitiveArray<u64> {
     fn get(&self, i: usize) -> Option<GidRef> {
         StaticArray::get(self, i).map(GidRef::U64)
-    }
-
-    fn iter(&self) -> BoxedLIter<GidRef> {
-        self.values_iter().map(|v| GidRef::U64(*v)).into_dyn_boxed()
     }
 
     fn dtype(&self) -> GidType {
@@ -44,12 +38,6 @@ impl NodeColOps for PrimitiveArray<u32> {
         StaticArray::get(self, i).map(|v| GidRef::U64(v as u64))
     }
 
-    fn iter(&self) -> BoxedLIter<GidRef> {
-        self.values_iter()
-            .map(|v| GidRef::U64(*v as u64))
-            .into_dyn_boxed()
-    }
-
     fn dtype(&self) -> GidType {
         GidType::U64
     }
@@ -60,12 +48,6 @@ impl NodeColOps for PrimitiveArray<i64> {
         StaticArray::get(self, i).map(|v| GidRef::U64(v as u64))
     }
 
-    fn iter(&self) -> BoxedLIter<GidRef> {
-        self.values_iter()
-            .map(|v| GidRef::U64(*v as u64))
-            .into_dyn_boxed()
-    }
-
     fn dtype(&self) -> GidType {
         GidType::U64
     }
@@ -74,12 +56,6 @@ impl NodeColOps for PrimitiveArray<i64> {
 impl NodeColOps for PrimitiveArray<i32> {
     fn get(&self, i: usize) -> Option<GidRef> {
         StaticArray::get(self, i).map(|v| GidRef::U64(v as u64))
-    }
-
-    fn iter(&self) -> BoxedLIter<GidRef> {
-        self.values_iter()
-            .map(|v| GidRef::U64(*v as u64))
-            .into_dyn_boxed()
     }
 
     fn dtype(&self) -> GidType {
@@ -103,11 +79,6 @@ impl<O: Offset> NodeColOps for Utf8Array<O> {
             }
         }
     }
-
-    fn iter(&self) -> BoxedLIter<GidRef> {
-        self.values_iter().map(|v| GidRef::Str(v)).into_dyn_boxed()
-    }
-
     fn dtype(&self) -> GidType {
         GidType::Str
     }
