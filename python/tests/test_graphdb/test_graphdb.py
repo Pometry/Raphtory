@@ -347,10 +347,14 @@ def test_getitem():
     g.add_node(0, 1, {"cost": 0})
     g.add_node(1, 1, {"cost": 1})
 
-    assert (
-        g.node(1).properties.temporal.get("cost")
-        == g.node(1).properties.temporal["cost"]
-    )
+    @with_disk_graph
+    def check(g):
+        assert (
+            g.node(1).properties.temporal.get("cost")
+            == g.node(1).properties.temporal["cost"]
+        )
+
+    check(g)
 
 
 def test_entity_history_date_time():
@@ -557,8 +561,7 @@ def test_graph_properties():
     assert "prop 2" in g.before(2).properties
     assert "static prop" not in g.properties.constant
 
-
-def test_node_properties():
+def create_graph_history_1():
     g = Graph()
     g.add_edge(1, 1, 1)
     props_t1 = {"prop 1": 1, "prop 3": "hi", "prop 4": True}
@@ -568,116 +571,132 @@ def test_node_properties():
     props_t3 = {"prop 2": 0.9, "prop 3": "hello", "prop 4": True}
     v.add_updates(3, props_t3)
     v.add_constant_properties({"static prop": 123})
+    return g
 
-    # testing property history
-    def history_test(key, value):
-        if value is None:
-            assert g.node(1).properties.temporal.get(key) is None
-            assert g.nodes.properties.temporal.get(key) is None
-            assert g.nodes.out_neighbours.properties.temporal.get(key) is None
-        else:
-            assert g.node(1).properties.temporal.get(key).items() == value
-            assert g.nodes.properties.temporal.get(key).items() == [value]
-            assert g.nodes.out_neighbours.properties.temporal.get(key).items() == [
-                [value]
-            ]
+def test_node_properties():
+    g = create_graph_history_1()
 
-    history_test("prop 1", [(1, 1), (2, 2)])
-    history_test("prop 2", [(2, 0.6), (3, 0.9)])
-    history_test("prop 3", [(1, "hi"), (3, "hello")])
-    history_test("prop 4", [(1, True), (2, False), (3, True)])
-    history_test("undefined", None)
+    @with_disk_graph
+    def check(g):
+        # testing property history
+        def history_test(key, value):
+            if value is None:
+                assert g.node(1).properties.temporal.get(key) is None
+                assert g.nodes.properties.temporal.get(key) is None
+                assert g.nodes.out_neighbours.properties.temporal.get(key) is None
+            else:
+                assert g.node(1).properties.temporal.get(key).items() == value
+                assert g.nodes.properties.temporal.get(key).items() == [value]
+                assert g.nodes.out_neighbours.properties.temporal.get(key).items() == [
+                    [value]
+                ]
 
-    def time_history_test(time, key, value):
-        if value is None:
-            assert g.at(time).node(1).properties.temporal.get(key) is None
-            assert g.at(time).nodes.properties.temporal.get(key) is None
-            assert g.at(time).nodes.out_neighbours.properties.temporal.get(key) is None
-        else:
-            assert g.at(time).node(1).properties.temporal.get(key).items() == value
-            assert g.at(time).nodes.properties.temporal.get(key).items() == [value]
-            assert g.at(time).nodes.out_neighbours.properties.temporal.get(
-                key
-            ).items() == [[value]]
+        history_test("prop 1", [(1, 1), (2, 2)])
+        history_test("prop 2", [(2, 0.6), (3, 0.9)])
+        history_test("prop 3", [(1, "hi"), (3, "hello")])
+        history_test("prop 4", [(1, True), (2, False), (3, True)])
+        history_test("undefined", None)
+    
 
-    time_history_test(1, "prop 4", [(1, True)])
-    time_history_test(1, "static prop", None)
+        def time_history_test(time, key, value):
+            if value is None:
+                assert g.at(time).node(1).properties.temporal.get(key) is None
+                assert g.at(time).nodes.properties.temporal.get(key) is None
+                assert g.at(time).nodes.out_neighbours.properties.temporal.get(key) is None
+            else:
+                assert g.at(time).node(1).properties.temporal.get(key).items() == value
+                assert g.at(time).nodes.properties.temporal.get(key).items() == [value]
+                assert g.at(time).nodes.out_neighbours.properties.temporal.get(
+                    key
+                ).items() == [[value]]
 
-    def time_static_property_test(time, key, value):
-        gg = g.before(time + 1)
-        if value is None:
-            assert gg.node(1).properties.constant.get(key) is None
-            assert gg.nodes.properties.constant.get(key) is None
-            assert gg.nodes.out_neighbours.properties.constant.get(key) is None
-        else:
-            assert gg.node(1).properties.constant.get(key) == value
-            assert gg.nodes.properties.constant.get(key) == [value]
-            assert gg.nodes.out_neighbours.properties.constant.get(key) == [[value]]
+        time_history_test(1, "prop 4", [(1, True)])
+        time_history_test(1, "static prop", None)
 
-    def static_property_test(key, value):
-        if value is None:
-            assert g.node(1).properties.constant.get(key) is None
-            assert g.nodes.properties.constant.get(key) is None
-            assert g.nodes.out_neighbours.properties.constant.get(key) is None
-        else:
-            assert g.node(1).properties.constant.get(key) == value
-            assert g.nodes.properties.constant.get(key) == [value]
-            assert g.nodes.out_neighbours.properties.constant.get(key) == [[value]]
+        def time_static_property_test(time, key, value):
+            gg = g.before(time + 1)
+            if value is None:
+                assert gg.node(1).properties.constant.get(key) is None
+                assert gg.nodes.properties.constant.get(key) is None
+                assert gg.nodes.out_neighbours.properties.constant.get(key) is None
+            else:
+                assert gg.node(1).properties.constant.get(key) == value
+                assert gg.nodes.properties.constant.get(key) == [value]
+                assert gg.nodes.out_neighbours.properties.constant.get(key) == [[value]]
 
-    time_static_property_test(1, "static prop", 123)
-    time_static_property_test(100, "static prop", 123)
-    static_property_test("static prop", 123)
-    static_property_test("prop 4", None)
+        def static_property_test(key, value):
+            if value is None:
+                assert g.node(1).properties.constant.get(key) is None
+                assert g.nodes.properties.constant.get(key) is None
+                assert g.nodes.out_neighbours.properties.constant.get(key) is None
+            else:
+                assert g.node(1).properties.constant.get(key) == value
+                assert g.nodes.properties.constant.get(key) == [value]
+                assert g.nodes.out_neighbours.properties.constant.get(key) == [[value]]
 
-    # testing property
-    def time_property_test(time, key, value):
-        gg = g.before(time + 1)
-        if value is None:
-            assert gg.node(1).properties.get(key) is None
-            assert gg.nodes.properties.get(key) is None
-            assert gg.nodes.out_neighbours.properties.get(key) is None
-        else:
-            assert gg.node(1).properties.get(key) == value
-            assert gg.nodes.properties.get(key) == [value]
-            assert gg.nodes.out_neighbours.properties.get(key) == [[value]]
+        time_static_property_test(1, "static prop", 123)
+        time_static_property_test(100, "static prop", 123)
+        static_property_test("static prop", 123)
+        static_property_test("prop 4", None)
 
-    def property_test(key, value):
-        if value is None:
-            assert g.node(1).properties.get(key) is None
-            assert g.nodes.properties.get(key) is None
-            assert g.nodes.out_neighbours.properties.get(key) is None
-        else:
-            assert g.node(1).properties.get(key) == value
-            assert g.nodes.properties.get(key) == [value]
-            assert g.nodes.out_neighbours.properties.get(key) == [[value]]
+        # testing property
+        def time_property_test(time, key, value):
+            gg = g.before(time + 1)
+            if value is None:
+                assert gg.node(1).properties.get(key) is None
+                assert gg.nodes.properties.get(key) is None
+                assert gg.nodes.out_neighbours.properties.get(key) is None
+            else:
+                assert gg.node(1).properties.get(key) == value
+                assert gg.nodes.properties.get(key) == [value]
+                assert gg.nodes.out_neighbours.properties.get(key) == [[value]]
 
-    def no_static_property_test(key, value):
-        if value is None:
-            assert g.node(1).properties.temporal.get(key) is None
-            assert g.nodes.properties.temporal.get(key) is None
-            assert g.nodes.out_neighbours.properties.temporal.get(key) is None
-        else:
-            assert g.node(1).properties.temporal.get(key).value() == value
-            assert g.nodes.properties.temporal.get(key).value() == [value]
-            assert g.nodes.out_neighbours.properties.temporal.get(key).value() == [
-                [value]
-            ]
+        def property_test(key, value):
+            if value is None:
+                assert g.node(1).properties.get(key) is None
+                assert g.nodes.properties.get(key) is None
+                assert g.nodes.out_neighbours.properties.get(key) is None
+            else:
+                assert g.node(1).properties.get(key) == value
+                assert g.nodes.properties.get(key) == [value]
+                assert g.nodes.out_neighbours.properties.get(key) == [[value]]
 
-    property_test("static prop", 123)
-    assert g.node(1)["static prop"] == 123
-    no_static_property_test("static prop", None)
-    no_static_property_test("prop 1", 2)
-    time_property_test(2, "prop 2", 0.6)
-    time_property_test(1, "prop 2", None)
+        def no_static_property_test(key, value):
+            if value is None:
+                assert g.node(1).properties.temporal.get(key) is None
+                assert g.nodes.properties.temporal.get(key) is None
+                assert g.nodes.out_neighbours.properties.temporal.get(key) is None
+            else:
+                assert g.node(1).properties.temporal.get(key).value() == value
+                assert g.nodes.properties.temporal.get(key).value() == [value]
+                assert g.nodes.out_neighbours.properties.temporal.get(key).value() == [
+                    [value]
+                ]
 
-    # testing properties
-    assert g.node(1).properties == {
-        "prop 2": 0.9,
-        "prop 3": "hello",
-        "prop 1": 2,
-        "prop 4": True,
-        "static prop": 123,
-    }
+        property_test("static prop", 123)
+        assert g.node(1)["static prop"] == 123
+        no_static_property_test("static prop", None)
+        no_static_property_test("prop 1", 2)
+        time_property_test(2, "prop 2", 0.6)
+        time_property_test(1, "prop 2", None)
+
+        # testing properties
+        properties = g.node(1).properties
+        assert properties["prop 2"] == 0.9
+        assert properties["prop 3"] == "hello"
+        assert properties["prop 1"] == 2
+        assert properties["prop 4"] == True
+        assert properties["static prop"] == 123
+
+        assert properties == {
+            "prop 2": 0.9,
+            "prop 3": "hello",
+            "prop 1": 2,
+            "prop 4": True,
+            "static prop": 123,
+        }
+
+    check(g)
 
     # find all nodes that match properties
     [n] = g.find_nodes(
