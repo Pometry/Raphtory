@@ -2,8 +2,9 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         storage::timeindex::{TimeIndex, TimeIndexOps},
+        Prop,
     },
-    db::api::storage::{
+    db::api::storage::graph::{
         edges::edge_storage_ops::{EdgeStorageOps, TimeIndexRef},
         tprop_storage_ops::TPropOps,
     },
@@ -95,5 +96,10 @@ impl<'a> EdgeStorageOps<'a> for Edge<'a> {
             None
         }
         .unwrap_or(DiskTProp::empty())
+    }
+
+    fn constant_prop_layer(self, _layer_id: usize, _prop_id: usize) -> Option<Prop> {
+        // TODO: constant edge properties not implemented in diskgraph yet
+        None
     }
 }

@@ -5,7 +5,7 @@ use datafusion::{
     logical_expr::{Expr, LogicalPlan, TableScan, UserDefinedLogicalNodeCore},
 };
 
-use raphtory::{core::Direction, disk_graph::graph_impl::DiskGraph};
+use raphtory::{core::Direction, disk_graph::DiskGraphStorage};
 
 #[derive(Debug, PartialEq, Hash, Eq)]
 pub struct HopPlan {
@@ -22,17 +22,17 @@ pub struct HopPlan {
 
 #[derive(Clone)]
 struct GraphHolder {
-    pub graph: DiskGraph,
+    pub graph: DiskGraphStorage,
 }
 
 impl GraphHolder {
-    pub fn new(graph: DiskGraph) -> Self {
+    pub fn new(graph: DiskGraphStorage) -> Self {
         GraphHolder { graph }
     }
 }
 
-impl AsRef<DiskGraph> for GraphHolder {
-    fn as_ref(&self) -> &DiskGraph {
+impl AsRef<DiskGraphStorage> for GraphHolder {
+    fn as_ref(&self) -> &DiskGraphStorage {
         &self.graph
     }
 }
@@ -59,12 +59,12 @@ impl std::fmt::Debug for GraphHolder {
 }
 
 impl HopPlan {
-    pub fn graph(&self) -> DiskGraph {
+    pub fn graph(&self) -> DiskGraphStorage {
         self.graph.as_ref().clone()
     }
 
     pub fn from_table_scans(
-        graph: DiskGraph,
+        graph: DiskGraphStorage,
         dir: Direction,
         schema: DFSchemaRef,
         left: &LogicalPlan,
@@ -85,10 +85,9 @@ impl HopPlan {
         }
     }
 }
-
 impl UserDefinedLogicalNodeCore for HopPlan {
     fn name(&self) -> &str {
-        "Hop"
+        "HopPlan"
     }
 
     fn inputs(&self) -> Vec<&LogicalPlan> {
@@ -122,12 +121,16 @@ impl UserDefinedLogicalNodeCore for HopPlan {
         )
     }
 
-    fn from_template(&self, exprs: &[Expr], inputs: &[LogicalPlan]) -> Self {
+    fn with_exprs_and_inputs(
+        &self,
+        exprs: Vec<Expr>,
+        inputs: Vec<LogicalPlan>,
+    ) -> datafusion::error::Result<Self> {
         assert_eq!(inputs.len(), 1);
         assert_eq!(exprs.len(), 0); // (eg JOIN on edge1.src = edge2.dst for -[]->()-[]->)
                                     // let expr = exprs.first().unwrap();
                                     // let (left, right) = extract_eq_exprs(expr).unwrap();
-        HopPlan {
+        Ok(HopPlan {
             graph: self.graph.clone(),
             dir: self.dir,
             left_col: self.left_col.clone(),
@@ -137,6 +140,6 @@ impl UserDefinedLogicalNodeCore for HopPlan {
             right_layers: self.right_layers.clone(),
             expressions: self.expressions.clone(),
             right_proj: self.right_proj.clone(),
-        }
+        })
     }
 }

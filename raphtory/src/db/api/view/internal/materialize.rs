@@ -2,22 +2,23 @@ use crate::{
     core::{
         entities::{
             edges::edge_ref::EdgeRef,
-            graph::tgraph::InternalGraph,
-            nodes::node_ref::NodeRef,
+            nodes::node_ref::{AsNodeRef, NodeRef},
             properties::{graph_meta::GraphMeta, props::Meta, tprop::TProp},
-            LayerIds, EID, ELID, VID,
+            LayerIds, EID, ELID, GID, VID,
         },
         storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
-        utils::errors::GraphError,
+        utils::errors::{GraphError, GraphError::EventGraphDeletionsNotSupported},
         PropType,
     },
     db::{
         api::{
-            mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
+            mutation::internal::{
+                InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
+            },
             properties::internal::{
                 ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
-            storage::{
+            storage::graph::{
                 edges::{
                     edge_entry::EdgeStorageEntry, edge_owned_entry::EdgeOwnedEntry,
                     edge_ref::EdgeStorageRef, edges::EdgesStorage,
@@ -33,16 +34,11 @@ use crate::{
         graph::{graph::Graph, views::deletion_graph::PersistentGraph},
     },
     prelude::*,
-    BINCODE_VERSION,
 };
 use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
-use raphtory_api::core::storage::arc_str::ArcStr;
-use serde::{de::Error, Deserialize, Deserializer, Serialize};
-use std::path::Path;
-
-#[cfg(feature = "storage")]
-use crate::disk_graph::graph_impl::DiskGraph;
+use raphtory_api::core::storage::{arc_str::ArcStr, dict_mapper::MaybeNew};
+use serde::{Deserialize, Serialize};
 
 #[enum_dispatch(CoreGraphOps)]
 #[enum_dispatch(InternalLayerOps)]
@@ -60,110 +56,80 @@ use crate::disk_graph::graph_impl::DiskGraph;
 pub enum MaterializedGraph {
     EventGraph(Graph),
     PersistentGraph(PersistentGraph),
-    #[cfg(feature = "storage")]
-    DiskEventGraph(DiskGraph),
 }
 
-fn version_deserialize<'de, D>(deserializer: D) -> Result<u32, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let version = u32::deserialize(deserializer)?;
-    if version != BINCODE_VERSION {
-        return Err(Error::custom(GraphError::BincodeVersionError(
-            version,
-            BINCODE_VERSION,
-        )));
-    };
-    Ok(version)
-}
-
-#[derive(Serialize, Deserialize)]
-struct VersionedGraph<T> {
-    #[serde(deserialize_with = "version_deserialize")]
-    version: u32,
-    graph: T,
+pub enum GraphType {
+    EventGraph,
+    PersistentGraph,
 }
 
 impl Static for MaterializedGraph {}
 
 impl MaterializedGraph {
+    pub fn storage(&self) -> &GraphStorage {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.core_graph(),
+            MaterializedGraph::PersistentGraph(g) => g.core_graph(),
+        }
+    }
+
     pub fn into_events(self) -> Option<Graph> {
         match self {
             MaterializedGraph::EventGraph(g) => Some(g),
             MaterializedGraph::PersistentGraph(_) => None,
-            #[cfg(feature = "storage")]
-            MaterializedGraph::DiskEventGraph(_) => None,
         }
     }
     pub fn into_persistent(self) -> Option<PersistentGraph> {
         match self {
             MaterializedGraph::EventGraph(_) => None,
             MaterializedGraph::PersistentGraph(g) => Some(g),
-            #[cfg(feature = "storage")]
-            MaterializedGraph::DiskEventGraph(_) => None,
         }
-    }
-
-    #[cfg(feature = "storage")]
-    pub fn into_disk_graph(self) -> Option<DiskGraph> {
-        match self {
-            MaterializedGraph::EventGraph(_) => None,
-            MaterializedGraph::PersistentGraph(_) => None,
-            #[cfg(feature = "storage")]
-            MaterializedGraph::DiskEventGraph(g) => Some(g),
-        }
-    }
-
-    pub fn load_from_file<P: AsRef<Path>>(path: P, force: bool) -> Result<Self, GraphError> {
-        let f = std::fs::File::open(path)?;
-        let mut reader = std::io::BufReader::new(f);
-        if force {
-            let _: String = bincode::deserialize_from(&mut reader)?;
-            let data: Self = bincode::deserialize_from(&mut reader)?;
-            Ok(data)
-        } else {
-            let version: u32 = bincode::deserialize_from(&mut reader)?;
-            if version != BINCODE_VERSION {
-                return Err(GraphError::BincodeVersionError(version, BINCODE_VERSION));
-            }
-            let data: Self = bincode::deserialize_from(&mut reader)?;
-            Ok(data)
-        }
-    }
-
-    pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), GraphError> {
-        let f = std::fs::File::create(path)?;
-        let mut writer = std::io::BufWriter::new(f);
-        let versioned_data = VersionedGraph {
-            version: BINCODE_VERSION,
-            graph: self.clone(),
-        };
-        Ok(bincode::serialize_into(&mut writer, &versioned_data)?)
-    }
-
-    pub fn bincode(&self) -> Result<Vec<u8>, GraphError> {
-        let versioned_data = VersionedGraph {
-            version: BINCODE_VERSION,
-            graph: self.clone(),
-        };
-        let encoded = bincode::serialize(&versioned_data)?;
-        Ok(encoded)
-    }
-
-    pub fn from_bincode(b: &[u8]) -> Result<Self, GraphError> {
-        let version: u32 = bincode::deserialize(b)?;
-        if version != BINCODE_VERSION {
-            return Err(GraphError::BincodeVersionError(version, BINCODE_VERSION));
-        }
-        let g: VersionedGraph<MaterializedGraph> = bincode::deserialize(b)?;
-        Ok(g.graph)
     }
 }
 
+impl InternalDeletionOps for MaterializedGraph {
+    fn internal_delete_edge(
+        &self,
+        t: TimeIndexEntry,
+        src: VID,
+        dst: VID,
+        layer: usize,
+    ) -> Result<MaybeNew<EID>, GraphError> {
+        match self {
+            MaterializedGraph::EventGraph(_) => Err(EventGraphDeletionsNotSupported),
+            MaterializedGraph::PersistentGraph(g) => g.internal_delete_edge(t, src, dst, layer),
+        }
+    }
+
+    fn internal_delete_existing_edge(
+        &self,
+        t: TimeIndexEntry,
+        eid: EID,
+        layer: usize,
+    ) -> Result<(), GraphError> {
+        match self {
+            MaterializedGraph::EventGraph(_) => Err(EventGraphDeletionsNotSupported),
+            MaterializedGraph::PersistentGraph(g) => g.internal_delete_existing_edge(t, eid, layer),
+        }
+    }
+}
+
+impl DeletionOps for MaterializedGraph {}
+
 #[enum_dispatch]
 pub trait InternalMaterialize {
-    fn new_base_graph(&self, graph: InternalGraph) -> MaterializedGraph;
+    fn new_base_graph(&self, graph: GraphStorage) -> MaterializedGraph {
+        match self.graph_type() {
+            GraphType::EventGraph => {
+                MaterializedGraph::EventGraph(Graph::from_internal_graph(graph))
+            }
+            GraphType::PersistentGraph => {
+                MaterializedGraph::PersistentGraph(PersistentGraph::from_internal_graph(graph))
+            }
+        }
+    }
+
+    fn graph_type(&self) -> GraphType;
 
     fn include_deletions(&self) -> bool;
 }
@@ -174,10 +140,17 @@ impl<G: InheritMaterialize> InternalMaterialize for G
 where
     G::Base: InternalMaterialize,
 {
-    fn new_base_graph(&self, graph: InternalGraph) -> MaterializedGraph {
+    #[inline]
+    fn new_base_graph(&self, graph: GraphStorage) -> MaterializedGraph {
         self.base().new_base_graph(graph)
     }
 
+    #[inline]
+    fn graph_type(&self) -> GraphType {
+        self.base().graph_type()
+    }
+
+    #[inline]
     fn include_deletions(&self) -> bool {
         self.base().include_deletions()
     }
@@ -185,6 +158,8 @@ where
 
 #[cfg(test)]
 mod test_materialised_graph_dispatch {
+    use raphtory_api::core::entities::GID;
+
     use crate::{
         core::entities::LayerIds,
         db::api::view::internal::{
@@ -237,6 +212,6 @@ mod test_materialised_graph_dispatch {
         let mg = g.materialize().unwrap();
 
         let v = mg.add_node(0, 1, NO_PROPS, None).unwrap();
-        assert_eq!(v.id(), 1)
+        assert_eq!(v.id(), GID::U64(1))
     }
 }

@@ -8,7 +8,10 @@ use std::{
     task::{Context, Poll},
 };
 
-use crate::arrow2::{offset::Offset, types::NativeType};
+use crate::{
+    arrow2::{offset::Offset, types::NativeType},
+    executor::table_provider::plan_properties,
+};
 // use disk_graph::compute::take_record_batch;
 use arrow_array::{
     builder::{
@@ -26,11 +29,7 @@ use datafusion::{
     error::DataFusionError,
     execution::{RecordBatchStream, TaskContext},
     physical_plan::{
-        DisplayAs,
-        DisplayFormatType,
-        Distribution,
-        ExecutionPlan, //ExecutionPlanProperties,
-        // PlanProperties,
+        DisplayAs, DisplayFormatType, Distribution, ExecutionPlan, PlanProperties,
         SendableRecordBatchStream,
     },
 };
@@ -38,22 +37,21 @@ use datafusion::{
 use datafusion::physical_expr::Partitioning;
 use futures::{Stream, StreamExt};
 
+use crate::take_record_batch;
 use pometry_storage::graph_fragment::TempColGraphFragment;
 use raphtory::{
     core::{entities::VID, Direction},
     disk_graph::{
-        graph_impl::DiskGraph,
         prelude::{ArrayOps, BaseArrayOps, PrimitiveCol},
+        DiskGraphStorage,
     },
 };
-
-use crate::take_record_batch;
 
 use super::operator::HopPlan;
 
 #[derive(Debug)]
 pub struct HopExec {
-    graph: DiskGraph,
+    graph: DiskGraphStorage,
     dir: Direction,
     input_col: usize,
     input: Arc<dyn ExecutionPlan>,
@@ -61,7 +59,7 @@ pub struct HopExec {
     right_schema: DFSchemaRef,
 
     output_schema: SchemaRef,
-
+    props: PlanProperties,
     right_proj: Option<Vec<usize>>,
 }
 
@@ -86,7 +84,11 @@ impl HopExec {
 
         let input_col = find_last_input_col(hop, &input);
 
-        let out_schema: Schema = hop.out_schema.as_ref().into();
+        let out_schema: Arc<Schema> = Arc::new(hop.out_schema.as_ref().into());
+        let props = plan_properties(
+            out_schema.clone(),
+            input.properties().output_partitioning().partition_count(),
+        );
 
         Self {
             graph,
@@ -96,8 +98,8 @@ impl HopExec {
             right_schema: hop.right_schema.clone(),
             layers: hop.right_layers.clone(),
 
-            output_schema: Arc::new(out_schema),
-
+            output_schema: out_schema,
+            props,
             right_proj: hop.right_proj.clone(),
         }
     }
@@ -111,21 +113,22 @@ impl DisplayAs for HopExec {
 
 #[async_trait]
 impl ExecutionPlan for HopExec {
+    fn name(&self) -> &str {
+        "HopExec"
+    }
+
     /// Return a reference to Any that can be used for downcasting
     fn as_any(&self) -> &dyn Any {
         self
     }
 
+    fn properties(&self) -> &PlanProperties {
+        &self.props
+    }
+
     fn schema(&self) -> SchemaRef {
         self.output_schema.clone()
     }
-    fn output_partitioning(&self) -> Partitioning {
-        self.input.output_partitioning()
-    }
-    fn output_ordering(&self) -> Option<&[datafusion::physical_expr::PhysicalSortExpr]> {
-        self.input.output_ordering()
-    }
-
     fn required_input_distribution(&self) -> Vec<Distribution> {
         vec![Distribution::UnspecifiedDistribution]
     }
@@ -134,8 +137,8 @@ impl ExecutionPlan for HopExec {
         vec![true]
     }
 
-    fn children(&self) -> Vec<Arc<dyn ExecutionPlan>> {
-        vec![self.input.clone()]
+    fn children(&self) -> Vec<&Arc<dyn ExecutionPlan>> {
+        vec![&self.input]
     }
 
     fn with_new_children(
@@ -150,6 +153,7 @@ impl ExecutionPlan for HopExec {
             layers: self.layers.clone(),
             right_schema: self.right_schema.clone(),
             output_schema: self.output_schema.clone(),
+            props: self.props.clone(),
             right_proj: self.right_proj.clone(),
         }))
     }
@@ -176,7 +180,7 @@ impl ExecutionPlan for HopExec {
 }
 pub(crate) struct HopStream {
     input: SendableRecordBatchStream,
-    graph: DiskGraph,
+    graph: DiskGraphStorage,
     dir: Direction,
     input_col: usize,
     batch_size: usize,
@@ -190,7 +194,7 @@ pub(crate) struct HopStream {
 impl HopStream {
     fn new(
         input: SendableRecordBatchStream,
-        graph: DiskGraph,
+        graph: DiskGraphStorage,
         dir: Direction,
         input_col: usize,
         batch_size: usize,
@@ -342,7 +346,7 @@ fn produce_next_record(
     prev_node: &mut Option<VID>,
 
     input_col: usize,
-    graph: &DiskGraph,
+    graph: &DiskGraphStorage,
     layers: Vec<String>,
     output_schema: SchemaRef,
     right_schema: DFSchemaRef,
@@ -663,7 +667,8 @@ mod test {
         edges: &[(u64, u64, i64, f64)],
     ) {
         let graph_dir = tempdir().unwrap();
-        let graph = DiskGraph::make_simple_graph(graph_dir, edges, chunk_size, t_props_chunk_size);
+        let graph =
+            DiskGraphStorage::make_simple_graph(graph_dir, edges, chunk_size, t_props_chunk_size);
 
         let query = "MATCH (a)-[e1]->(b)-[e2]->(c) RETURN count(*)";
         let df = run_cypher(query, &graph, false).await.unwrap();
@@ -689,7 +694,8 @@ mod test {
         output_range: Range<usize>,
     ) {
         let graph_dir = tempdir().unwrap();
-        let graph = DiskGraph::make_simple_graph(graph_dir, &EDGES, chunk_size, t_props_chunk_size);
+        let graph =
+            DiskGraphStorage::make_simple_graph(graph_dir, &EDGES, chunk_size, t_props_chunk_size);
 
         let schema = make_input_schema();
         let table_schema: DFSchema = schema.clone().to_dfschema().unwrap();
@@ -791,7 +797,7 @@ mod test {
 
     fn make_hop_stream(
         batch_size: usize,
-        graph: DiskGraph,
+        graph: DiskGraphStorage,
         table_schema: DFSchema,
         output_schema: Arc<Schema>,
         input: RecordBatchStreamAdapter<

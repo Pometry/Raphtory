@@ -6,7 +6,7 @@ use crate::{
     core::{entities::LayerIds, utils::errors::GraphError},
     db::api::{
         properties::internal::InheritPropertiesOps,
-        storage::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+        storage::graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
         view::{
             internal::{
                 Base, EdgeFilterOps, Immutable, InheritCoreOps, InheritListOps, InheritMaterialize,
@@ -131,6 +131,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalLayerOps for LayeredGraph<G> {
 mod test_layers {
     use crate::{prelude::*, test_utils::test_graph};
     use itertools::Itertools;
+    use raphtory_api::core::entities::GID;
 
     #[test]
     fn test_layer_node() {
@@ -157,7 +158,7 @@ mod test_layers {
                     .edges()
                     .id()
                     .collect_vec(),
-                vec![(2, 3)]
+                vec![(GID::U64(2), GID::U64(3))]
             );
             assert_eq!(
                 graph
@@ -168,7 +169,7 @@ mod test_layers {
                     .edges()
                     .id()
                     .collect_vec(),
-                vec![(2, 3)]
+                vec![(GID::U64(2), GID::U64(3))]
             );
             let mut edges = graph
                 .layers("layer1")
@@ -177,10 +178,17 @@ mod test_layers {
                 .unwrap()
                 .edges()
                 .id()
+                .filter_map(|(a, b)| a.to_u64().zip(b.to_u64()))
                 .collect_vec();
             edges.sort();
             assert_eq!(edges, vec![(1, 2), (2, 4)]);
-            let mut edges = graph.layers("layer1").unwrap().edges().id().collect_vec();
+            let mut edges = graph
+                .layers("layer1")
+                .unwrap()
+                .edges()
+                .id()
+                .filter_map(|(a, b)| a.to_u64().zip(b.to_u64()))
+                .collect_vec();
             edges.sort();
             assert_eq!(edges, vec![(1, 2), (2, 4)]);
             let mut edges = graph
@@ -188,6 +196,7 @@ mod test_layers {
                 .unwrap()
                 .edges()
                 .id()
+                .filter_map(|(a, b)| a.to_u64().zip(b.to_u64()))
                 .collect_vec();
             edges.sort();
             assert_eq!(edges, vec![(1, 2), (2, 3), (2, 4)]);

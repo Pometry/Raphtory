@@ -96,7 +96,7 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
     pub fn nodes(&self) -> Vec<NodeView<G>> {
         self.selected_docs
             .iter()
-            .filter_map(|(doc, _)| match doc.entity_id {
+            .filter_map(|(doc, _)| match &doc.entity_id {
                 EntityId::Node { id } => self.source_graph.node(id),
                 _ => None,
             })
@@ -107,7 +107,7 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
     pub fn edges(&self) -> Vec<EdgeView<G>> {
         self.selected_docs
             .iter()
-            .filter_map(|(doc, _)| match doc.entity_id {
+            .filter_map(|(doc, _)| match &doc.entity_id {
                 EntityId::Edge { src, dst } => self.source_graph.edge(src, dst),
                 _ => None,
             })
@@ -464,7 +464,7 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         windowed_graph: &'a W,
         window: Option<(i64, i64)>,
     ) -> Box<dyn Iterator<Item = &DocumentRef> + '_> {
-        match document.entity_id {
+        match &document.entity_id {
             EntityId::Graph { .. } => Box::new(std::iter::empty()),
             EntityId::Node { id } => {
                 let self_docs = self

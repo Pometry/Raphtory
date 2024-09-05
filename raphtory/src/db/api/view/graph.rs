@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{graph::tgraph::InternalGraph, nodes::node_ref::AsNodeRef, LayerIds, VID},
+        entities::{nodes::node_ref::AsNodeRef, LayerIds, VID},
         storage::timeindex::AsTime,
         utils::errors::GraphError,
     },
@@ -8,8 +8,9 @@ use crate::{
         api::{
             mutation::{internal::InternalAdditionOps, AdditionOps, PropertyAdditionOps},
             properties::Properties,
-            storage::{
+            storage::graph::{
                 edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
+                storage_ops::GraphStorage,
             },
             view::{internal::*, *},
         },
@@ -118,7 +119,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
     fn edges(&self) -> Edges<'graph, Self, Self> {
         let graph = self.clone();
         let edges = Arc::new(move || {
-            let core_graph = graph.core_graph();
+            let core_graph = graph.core_graph().lock();
             core_graph.into_edges_iter(graph.clone()).into_dyn_boxed()
         });
         Edges {
@@ -134,7 +135,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
     }
 
     fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
-        let g = InternalGraph::default();
+        let g = GraphStorage::default();
         let earliest = if let Some(earliest) = self.earliest_time() {
             earliest
         } else {
@@ -144,7 +145,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         // make sure we preserve all layers even if they are empty
         // skip default layer
         for layer in self.unique_layers().skip(1) {
-            g.resolve_layer(Some(&layer));
+            g.resolve_layer(Some(&layer))?;
         }
         // Add edges first so we definitely have all associated nodes (important in case of persistent edges)
         for e in self.edges() {
@@ -162,8 +163,8 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                 for ee in ee.explode() {
                     g.add_edge(
                         ee.time().expect("exploded edge"),
-                        ee.src().name(),
-                        ee.dst().name(),
+                        ee.src().id(),
+                        ee.dst().id(),
                         ee.properties().temporal().collect_properties(),
                         layer_name,
                     )?;
@@ -185,17 +186,17 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
             let v_type_string = v.node_type(); //stop it being dropped
             let v_type_str = v_type_string.as_str();
             for h in v.history() {
-                g.add_node(h, v.name(), NO_PROPS, v_type_str)?;
+                g.add_node(h, v.id(), NO_PROPS, v_type_str)?;
             }
             for (name, prop_view) in v.properties().temporal().iter() {
                 for (t, prop) in prop_view.iter() {
-                    g.add_node(t, v.name(), [(name.clone(), prop)], v_type_str)?;
+                    g.add_node(t, v.id(), [(name.clone(), prop)], v_type_str)?;
                 }
             }
 
             let node = match g.node(v.id()) {
                 Some(node) => node,
-                None => g.add_node(earliest, v.name(), NO_PROPS, v_type_str)?,
+                None => g.add_node(earliest, v.id(), NO_PROPS, v_type_str)?,
             };
 
             node.add_constant_properties(v.properties().constant())?;
@@ -501,12 +502,10 @@ mod test_materialize {
         g.add_edge(0, 1, 2, [("layer2", "2")], Some("2")).unwrap();
 
         let gm = g.materialize().unwrap();
-        assert!(gm
-            .nodes()
-            .name()
-            .values()
-            .collect::<Vec<String>>()
-            .eq(&vec!["1", "2"]));
+        assert_eq!(
+            gm.nodes().name().values().collect::<Vec<String>>(),
+            vec!["1", "2"]
+        );
 
         assert!(!g
             .layers("2")

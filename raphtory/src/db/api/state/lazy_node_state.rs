@@ -3,7 +3,7 @@ use crate::{
     db::{
         api::{
             state::{NodeState, NodeStateOps},
-            storage::{nodes::node_storage_ops::NodeStorageOps, storage_ops::GraphStorage},
+            storage::graph::{nodes::node_storage_ops::NodeStorageOps, storage_ops::GraphStorage},
             view::{internal::NodeList, IntoDynBoxed},
         },
         graph::node::NodeView,
@@ -224,7 +224,7 @@ impl<
             let cg = self.graph.core_graph();
             Some((
                 NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, vid),
-                (self.op)(&cg, &self.graph, vid),
+                (self.op)(cg, &self.graph, vid),
             ))
         }
     }
@@ -242,7 +242,7 @@ impl<
         }
 
         let cg = self.graph.core_graph();
-        Some(self.apply(&cg, &self.graph, vid))
+        Some(self.apply(cg, &self.graph, vid))
     }
 
     fn len(&self) -> usize {

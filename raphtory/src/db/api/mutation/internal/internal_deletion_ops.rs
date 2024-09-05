@@ -2,6 +2,7 @@ use crate::{
     core::{entities::VID, storage::timeindex::TimeIndexEntry, utils::errors::GraphError},
     db::api::view::internal::Base,
 };
+use raphtory_api::core::{entities::EID, storage::dict_mapper::MaybeNew};
 
 pub trait InternalDeletionOps {
     fn internal_delete_edge(
@@ -9,6 +10,13 @@ pub trait InternalDeletionOps {
         t: TimeIndexEntry,
         src: VID,
         dst: VID,
+        layer: usize,
+    ) -> Result<MaybeNew<EID>, GraphError>;
+
+    fn internal_delete_existing_edge(
+        &self,
+        t: TimeIndexEntry,
+        eid: EID,
         layer: usize,
     ) -> Result<(), GraphError>;
 }
@@ -40,7 +48,17 @@ impl<G: DelegateDeletionOps> InternalDeletionOps for G {
         src: VID,
         dst: VID,
         layer: usize,
-    ) -> Result<(), GraphError> {
+    ) -> Result<MaybeNew<EID>, GraphError> {
         self.graph().internal_delete_edge(t, src, dst, layer)
+    }
+
+    #[inline]
+    fn internal_delete_existing_edge(
+        &self,
+        t: TimeIndexEntry,
+        eid: EID,
+        layer: usize,
+    ) -> Result<(), GraphError> {
+        self.graph().internal_delete_existing_edge(t, eid, layer)
     }
 }

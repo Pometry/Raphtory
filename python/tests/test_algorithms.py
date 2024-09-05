@@ -192,7 +192,6 @@ def test_algo_result():
     expected_result = pd.DataFrame({"Key": [1], "Value": [1]})
     row_with_one = df[df["Key"] == 1]
     row_with_one.reset_index(inplace=True, drop=True)
-    print(row_with_one)
     assert row_with_one.equals(expected_result)
     # Algo Str u64
     actual = algorithms.weakly_connected_components(g)
@@ -259,7 +258,11 @@ def test_temporal_reachability():
     actual = algorithms.temporally_reachable_nodes(g, 20, 11, [1, 2], [4, 5])
     expected = {
         "1": [(11, "start")],
-        "2": [(11, "start"), (12, "1"), (11, "1")],
+        "2": [
+            (11, "1"),
+            (11, "start"),
+            (12, "1"),
+        ],
         "3": [],
         "4": [(12, "2")],
         "5": [(13, "2")],

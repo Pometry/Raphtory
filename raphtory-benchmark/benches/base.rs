@@ -20,7 +20,12 @@ pub fn base(c: &mut Criterion) {
     large_group.throughput(Throughput::Elements(1_000));
     large_group.measurement_time(std::time::Duration::from_secs(3));
     // Make an option of None
-    run_large_ingestion_benchmarks(&mut large_group, || bootstrap_graph(10000), None);
+    run_large_ingestion_benchmarks(
+        &mut large_group,
+        || bootstrap_graph(10000, GID::U64),
+        || bootstrap_graph(10000, |id| GID::Str(id.to_string())),
+        None,
+    );
     large_group.finish();
 
     let graph = lotr_graph();
@@ -43,7 +48,7 @@ pub fn base(c: &mut Criterion) {
         }
     }
 
-    run_graph_ops_benches(c, "lotr", graph, layered_graph)
+    run_graph_ops_benches(c, "lotr_graph", graph, layered_graph)
 }
 
 criterion_group!(benches, base);

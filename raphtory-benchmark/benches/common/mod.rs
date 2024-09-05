@@ -19,7 +19,7 @@ fn make_time_gen() -> Box<dyn Iterator<Item = i64>> {
     Box::new(rng.sample_iter(range))
 }
 
-pub fn bootstrap_graph(num_nodes: usize) -> Graph {
+pub fn bootstrap_graph(num_nodes: usize, as_gid: impl Fn(u64) -> GID) -> Graph {
     let graph = Graph::new();
     let mut indexes = make_index_gen();
     let mut times = make_time_gen();
@@ -29,7 +29,7 @@ pub fn bootstrap_graph(num_nodes: usize) -> Graph {
         let target = indexes.next().unwrap();
         let time = times.next().unwrap();
         graph
-            .add_edge(time, source, target, NO_PROPS, None)
+            .add_edge(time, as_gid(source), as_gid(target), NO_PROPS, None)
             .unwrap();
     }
     graph
@@ -119,12 +119,14 @@ fn times(n: usize) -> impl Iterator {
     std::iter::repeat(()).take(n)
 }
 
-pub fn run_large_ingestion_benchmarks<F>(
+pub fn run_large_ingestion_benchmarks<F, F2>(
     group: &mut BenchmarkGroup<WallTime>,
     mut make_graph: F,
+    mut make_graph_str: F2,
     parameter: Option<usize>,
 ) where
     F: FnMut() -> Graph,
+    F2: FnMut() -> Graph,
 {
     let updates = 1000;
 
@@ -158,7 +160,7 @@ pub fn run_large_ingestion_benchmarks<F>(
             b.iter_batched_ref(
                 || {
                     (
-                        make_graph(),
+                        make_graph_str(),
                         make_time_gen().take(updates).collect::<Vec<i64>>(),
                     )
                 },
@@ -180,7 +182,7 @@ pub fn run_large_ingestion_benchmarks<F>(
             b.iter_batched_ref(
                 || {
                     (
-                        make_graph(),
+                        make_graph_str(),
                         make_time_gen().take(updates).collect::<Vec<i64>>(),
                     )
                 },
@@ -233,7 +235,7 @@ pub fn run_large_ingestion_benchmarks<F>(
             b.iter_batched_ref(
                 || {
                     (
-                        make_graph(),
+                        make_graph_str(),
                         make_index_gen().map(|v| v.to_string()),
                         make_index_gen().map(|v| v.to_string()),
                         make_time_gen().take(updates).collect::<Vec<i64>>(),
@@ -272,11 +274,7 @@ pub fn run_analysis_benchmarks<F, G>(
         graph.count_nodes(),
         graph.count_edges()
     );
-    let edges: HashSet<(u64, u64)> = graph
-        .edges()
-        .into_iter()
-        .map(|e| (e.src().id(), e.dst().id()))
-        .collect();
+    let edges: HashSet<(GID, GID)> = graph.edges().id().collect();
 
     let edges_t = graph
         .edges()
@@ -285,7 +283,7 @@ pub fn run_analysis_benchmarks<F, G>(
         .map(|e| (e.src().id(), e.dst().id(), e.time().expect("need time")))
         .collect::<Vec<_>>();
 
-    let nodes: HashSet<u64> = graph.nodes().id().into_iter().collect();
+    let nodes: HashSet<GID> = graph.nodes().id().collect();
 
     bench(group, "num_edges", parameter, |b: &mut Bencher| {
         b.iter(|| graph.count_edges())
@@ -297,8 +295,8 @@ pub fn run_analysis_benchmarks<F, G>(
 
     bench(group, "has_edge_existing", parameter, |b: &mut Bencher| {
         let mut rng = rand::thread_rng();
-        let edge = edges.iter().choose(&mut rng).expect("non-empty graph");
-        b.iter(|| graph.has_edge(edge.0, edge.1))
+        let (src, dst) = edges.iter().choose(&mut rng).expect("non-empty graph");
+        b.iter(|| graph.has_edge(src, dst))
     });
 
     bench(
@@ -308,11 +306,11 @@ pub fn run_analysis_benchmarks<F, G>(
         |b: &mut Bencher| {
             let mut rng = rand::thread_rng();
             let edge = loop {
-                let edge: (u64, u64) = (
-                    *nodes.iter().choose(&mut rng).expect("non-empty graph"),
-                    *nodes.iter().choose(&mut rng).expect("non-empty graph"),
+                let edge: (&GID, &GID) = (
+                    nodes.iter().choose(&mut rng).expect("non-empty graph"),
+                    nodes.iter().choose(&mut rng).expect("non-empty graph"),
                 );
-                if !edges.contains(&edge) {
+                if !edges.contains(&(edge.0.clone(), edge.1.clone())) {
                     break edge;
                 }
             };
@@ -358,7 +356,7 @@ pub fn run_analysis_benchmarks<F, G>(
 
     bench(group, "has_node_existing", parameter, |b: &mut Bencher| {
         let mut rng = rand::thread_rng();
-        let v = *nodes.iter().choose(&mut rng).expect("non-empty graph");
+        let v = nodes.iter().choose(&mut rng).expect("non-empty graph");
         b.iter(|| graph.has_node(v))
     });
 
@@ -370,7 +368,7 @@ pub fn run_analysis_benchmarks<F, G>(
             let mut rng = rand::thread_rng();
             let v: u64 = loop {
                 let v: u64 = rng.gen();
-                if !nodes.contains(&v) {
+                if !nodes.contains(&GID::U64(v)) {
                     break v;
                 }
             };
@@ -469,10 +467,14 @@ pub fn run_graph_ops_benches(
     run_analysis_benchmarks(&mut graph_window_group_100, make_graph, None);
     graph_window_group_100.finish();
 
-    bench_materialise(&format!("{graph_name}_materialise"), c, make_graph);
+    bench_materialise(
+        &format!("{graph_name}_window_100_materialise"),
+        c,
+        make_graph,
+    );
 
     // graph windowed
-    let group_name = format!("{graph_name}_graph_window_10");
+    let group_name = format!("{graph_name}_window_10");
     let mut graph_window_group_10 = c.benchmark_group(group_name);
     let latest = graph.latest_time().expect("non-empty graph");
     let earliest = graph.earliest_time().expect("non-empty graph");
@@ -481,7 +483,11 @@ pub fn run_graph_ops_benches(
     let make_graph = || graph.window(start, latest + 1);
     run_analysis_benchmarks(&mut graph_window_group_10, make_graph, None);
     graph_window_group_10.finish();
-    bench_materialise(&format!("{graph_name}_materialise"), c, make_graph);
+    bench_materialise(
+        &format!("{graph_name}_window_10_materialise"),
+        c,
+        make_graph,
+    );
 
     // subgraph
     let mut rng = rand::rngs::StdRng::seed_from_u64(73);
@@ -500,7 +506,11 @@ pub fn run_graph_ops_benches(
     let make_graph = || subgraph.clone();
     run_analysis_benchmarks(&mut subgraph_10, make_graph, None);
     subgraph_10.finish();
-    bench_materialise(&format!("{graph_name}_materialise"), c, make_graph);
+    bench_materialise(
+        &format!("{graph_name}_subgraph_10pc_materialise"),
+        c,
+        make_graph,
+    );
 
     // subgraph windowed
     let group_name = format!("{graph_name}_subgraph_10pc_windowed");
@@ -509,11 +519,15 @@ pub fn run_graph_ops_benches(
     let make_graph = || subgraph.window(start, latest + 1);
     run_analysis_benchmarks(&mut subgraph_10_windowed, make_graph, None);
     subgraph_10_windowed.finish();
-    bench_materialise(&format!("{graph_name}_materialise"), c, make_graph);
+    bench_materialise(
+        &format!("{graph_name}_subgraph_10pc_windowed_materialise"),
+        c,
+        make_graph,
+    );
 
     // layered graph windowed
     let graph = layered_graph;
-    let group_name = format!("{graph_name}_graph_window_50_layered");
+    let group_name = format!("{graph_name}_window_50_layered");
     let mut graph_window_layered_group_50 = c.benchmark_group(group_name);
     let latest = graph.latest_time().expect("non-empty graph");
     let earliest = graph.earliest_time().expect("non-empty graph");
@@ -527,7 +541,11 @@ pub fn run_graph_ops_benches(
     };
     run_analysis_benchmarks(&mut graph_window_layered_group_50, make_graph, None);
     graph_window_layered_group_50.finish();
-    bench_materialise(&format!("{graph_name}_materialise"), c, make_graph);
+    bench_materialise(
+        &format!("{graph_name}_window_50_layered_materialise"),
+        c,
+        make_graph,
+    );
 
     let graph = graph.persistent_graph();
 
@@ -545,7 +563,11 @@ pub fn run_graph_ops_benches(
     };
     run_analysis_benchmarks(&mut graph_window_layered_group_50, make_graph, None);
     graph_window_layered_group_50.finish();
-    bench_materialise(&format!("{graph_name}_materialise"), c, make_graph);
+    bench_materialise(
+        &format!("{graph_name}_persistent_window_50_layered_materialise"),
+        c,
+        make_graph,
+    );
 }
 
 fn bench_materialise<F, G>(name: &str, c: &mut Criterion, make_graph: F)

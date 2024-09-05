@@ -14,16 +14,17 @@ use raphtory::{
         Direction,
     },
     db::{api::properties::internal::ConstPropertiesOps, graph::node::NodeView},
-    disk_graph::graph_impl::DiskGraph,
+    disk_graph::DiskGraphStorage,
     prelude::*,
 };
 use sqlparser::ast::{
-    self as sql_ast, GroupByExpr, OrderByExpr, SetExpr, TableAlias, WildcardAdditionalOptions, With,
+    self as sql_ast, DuplicateTreatment, FunctionArgumentList, GroupByExpr, OrderByExpr, SetExpr,
+    TableAlias, WildcardAdditionalOptions, With,
 };
 
 mod exprs;
 
-pub fn to_sql(query: Query, graph: &DiskGraph) -> sql_ast::Statement {
+pub fn to_sql(query: Query, graph: &DiskGraphStorage) -> sql_ast::Statement {
     let query = bind_unbound_pattern_filters(query);
     let query = unbind_unused_binds(query);
 
@@ -204,7 +205,7 @@ fn parse_order_by(query: &Query, rel_binds: &[String], node_binds: &[String]) ->
 fn scan_edges_as_sql_cte(
     layer_names: &[impl AsRef<str>],
     name: &impl AsRef<str>,
-    graph: &DiskGraph,
+    graph: &DiskGraphStorage,
 ) -> sql_ast::Cte {
     // fetch and merge the schemas
 
@@ -240,12 +241,12 @@ fn scan_edges_as_sql_cte(
         },
         query: union_query,
         from: None,
-        // materialized: None,
+        materialized: None,
     }
 }
 
 // TODO: this needs to match the schema from EdgeListTableProvider
-fn full_layer_fields(graph: &DiskGraph, layer_id: usize) -> Option<Fields> {
+fn full_layer_fields(graph: &DiskGraphStorage, layer_id: usize) -> Option<Fields> {
     let dt = graph.as_ref().layer(layer_id).edges_props_data_type();
     let arr_dt: arrow_schema::DataType = dt.clone().into();
     match arr_dt {
@@ -301,7 +302,7 @@ fn query_union(q1: Box<sql_ast::Query>, q2: Box<sql_ast::Query>) -> Box<sql_ast:
 
 fn select_scan_query(
     layer_name: &str,
-    graph: &DiskGraph,
+    graph: &DiskGraphStorage,
     total_schema: Option<&Schema>,
 ) -> (usize, Box<sql_ast::Query>) {
     let layer_id = graph
@@ -390,7 +391,10 @@ fn select_query_with_projection(
             named_window: vec![],
             // QUALIFY (Snowflake)
             qualify: None,
-            // value_table_mode: None,
+            // extra
+            value_table_mode: None,
+            window_before_qualify: false,
+            connect_by: None,
         }))),
         // ORDER BY
         order_by: vec![],
@@ -411,7 +415,7 @@ fn select_query_with_projection(
     })
 }
 
-fn parse_rels_to_ctes(query: &Query, graph: &DiskGraph) -> With {
+fn parse_rels_to_ctes(query: &Query, graph: &DiskGraphStorage) -> With {
     // each rel can become a CTE
     // inside the cte
     // if the pattern has no layers -[e]- and the graph has one layer then we just select * from the layer
@@ -473,13 +477,13 @@ fn node_scan_cte(node: &NodePattern) -> sql_ast::Cte {
             "nodes",
         ),
         from: None,
-        // materialized: None,
+        materialized: None,
     }
 }
 
 fn parse_select_body(
     query: &Query,
-    _graph: &DiskGraph,
+    _graph: &DiskGraphStorage,
     rel_binds: &[String],
     node_binds: &[String],
 ) -> Box<SetExpr> {
@@ -515,7 +519,9 @@ fn parse_select_body(
         named_window: vec![],
         // QUALIFY (Snowflake)
         qualify: None,
-        // value_table_mode: None,
+        value_table_mode: None,
+        window_before_qualify: false,
+        connect_by: None,
     })))
 }
 
@@ -1075,20 +1081,22 @@ fn cypher_to_sql_expr(
 fn sql_count_all(table: &str, attr: &str) -> sql_ast::Expr {
     sql_ast::Expr::Function(sql_ast::Function {
         name: sql_ast::ObjectName(vec![sql_ast::Ident::new("COUNT")]),
-        args: vec![sql_ast::FunctionArg::Unnamed(
-            sql_ast::FunctionArgExpr::Expr(sql_ast::Expr::CompoundIdentifier(
-                vec![table.to_string(), attr.to_string()]
-                    .into_iter()
-                    .map(sql_ast::Ident::new)
-                    .collect(),
-            )), // this is a hack because datafusion gets confused when there are no columns selected
-        )],
+        args: sql_ast::FunctionArguments::List(FunctionArgumentList {
+            args: vec![sql_ast::FunctionArg::Unnamed(
+                sql_ast::FunctionArgExpr::Expr(sql_ast::Expr::CompoundIdentifier(
+                    vec![table.to_string(), attr.to_string()]
+                        .into_iter()
+                        .map(sql_ast::Ident::new)
+                        .collect(),
+                )), // this is a hack because datafusion gets confused when there are no columns selected
+            )],
+            duplicate_treatment: None,
+            clauses: vec![],
+        }),
         over: None,
-        distinct: false,
         filter: None,
         null_treatment: None,
-        special: false,
-        order_by: vec![],
+        within_group: vec![],
     })
 }
 
@@ -1099,22 +1107,28 @@ fn sql_function_ast(
     node_binds: &[String],
     distinct: &bool,
 ) -> sql_ast::Expr {
+    let args = args
+        .iter()
+        .map(|arg| {
+            sql_ast::FunctionArg::Unnamed(sql_ast::FunctionArgExpr::Expr(cypher_to_sql_expr(
+                arg, rel_binds, node_binds, false,
+            )))
+        })
+        .collect();
+
+    let duplicate_treatment = distinct.then(|| DuplicateTreatment::Distinct);
+    let args = sql_ast::FunctionArguments::List(FunctionArgumentList {
+        args,
+        duplicate_treatment,
+        clauses: vec![],
+    });
     sql_ast::Expr::Function(sql_ast::Function {
         name: sql_ast::ObjectName(vec![sql_ast::Ident::new(name)]),
-        args: args
-            .iter()
-            .map(|arg| {
-                sql_ast::FunctionArg::Unnamed(sql_ast::FunctionArgExpr::Expr(cypher_to_sql_expr(
-                    arg, rel_binds, node_binds, false,
-                )))
-            })
-            .collect(),
+        args,
         over: None,
-        distinct: *distinct,
         filter: None,
         null_treatment: None,
-        special: false,
-        order_by: vec![],
+        within_group: vec![],
     })
 }
 
@@ -1143,17 +1157,14 @@ fn sql_like(
 
 #[cfg(test)]
 mod test {
-
     use crate::{parser, transpiler};
-
-    use super::*;
+    use pretty_assertions::assert_eq;
     use raphtory::{
         db::{api::mutation::AdditionOps, graph::graph::Graph},
+        disk_graph::DiskGraphStorage,
         prelude::NO_PROPS,
     };
     use tempfile::tempdir;
-
-    use pretty_assertions::assert_eq;
 
     #[test]
     fn count_all_nodes() {
@@ -1646,7 +1657,7 @@ mod test {
             g.add_edge(0, 0, 0, NO_PROPS, Some(layer.as_ref()))
                 .expect("failed to add edge");
         }
-        let graph = DiskGraph::from_graph(&g, graph_dir).unwrap();
+        let graph = DiskGraphStorage::from_graph(&g, graph_dir).unwrap();
         let sql = transpiler::to_sql(query, &graph);
         assert_eq!(sql.to_string(), expected.to_string());
     }

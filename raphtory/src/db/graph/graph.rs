@@ -16,27 +16,28 @@
 //! ```
 //!
 
+use super::views::deletion_graph::PersistentGraph;
 use crate::{
-    core::{entities::graph::tgraph::InternalGraph, utils::errors::GraphError},
     db::api::{
         mutation::internal::InheritMutationOps,
-        view::internal::{Base, InheritViewOps, MaterializedGraph, Static},
+        storage::{graph::storage_ops::GraphStorage, storage::Storage},
+        view::internal::{Base, InheritViewOps, Static},
     },
     prelude::*,
 };
+use core::panic;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Display, Formatter},
-    path::Path,
     sync::Arc,
 };
 
-use super::views::deletion_graph::PersistentGraph;
-
 #[repr(transparent)]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct Graph(pub Arc<InternalGraph>);
+pub struct Graph {
+    pub(crate) inner: Arc<Storage>,
+}
 
 impl Static for Graph {}
 
@@ -88,9 +89,22 @@ pub fn assert_graph_equal<
         g1.count_temporal_edges(),
         g2.count_temporal_edges()
     );
-    for n_id in g1.nodes().id().values() {
-        assert!(g2.has_node(n_id), "missing node {n_id}");
+    for n1 in g1.nodes() {
+        assert!(g2.has_node(n1.id()), "missing node {:?}", n1.id());
+
+        let c1 = n1.properties().constant().into_iter().count();
+        let t1 = n1.properties().temporal().into_iter().count();
+        let check = g2
+            .node(n1.id())
+            .filter(|node| {
+                c1 == node.properties().constant().into_iter().count()
+                    && t1 == node.properties().temporal().into_iter().count()
+            })
+            .is_some();
+
+        assert!(check, "node {:?} properties mismatch", n1.id());
     }
+
     for e in g1.edges().explode() {
         // all exploded edges exist in other
         let e2 = g2
@@ -101,19 +115,26 @@ pub fn assert_graph_equal<
             "exploded edge {:?} not active as expected at time {}",
             e2.id(),
             e.time().unwrap()
-        )
+        );
+
+        let c1 = e.properties().constant().into_iter().count();
+        let t1 = e.properties().temporal().into_iter().count();
+        let check = g2
+            .edge(e.src().id(), e.dst().id())
+            .filter(|ee| {
+                ee.active(e.time().expect("exploded"))
+                    && c1 == e.properties().constant().into_iter().count()
+                    && t1 == e.properties().temporal().into_iter().count()
+            })
+            .is_some();
+
+        assert!(check, "edge {:?} properties mismatch", e.id());
     }
 }
 
 impl Display for Graph {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl From<InternalGraph> for Graph {
-    fn from(value: InternalGraph) -> Self {
-        Self(Arc::new(value))
+        write!(f, "{}", self.inner)
     }
 }
 
@@ -127,11 +148,11 @@ where
 }
 
 impl Base for Graph {
-    type Base = InternalGraph;
+    type Base = Storage;
 
     #[inline(always)]
-    fn base(&self) -> &InternalGraph {
-        &self.0
+    fn base(&self) -> &Self::Base {
+        &self.inner
     }
 }
 
@@ -153,7 +174,9 @@ impl Graph {
     /// let g = Graph::new();
     /// ```
     pub fn new() -> Self {
-        Self(Arc::new(InternalGraph::default()))
+        Self {
+            inner: Arc::new(Storage::default()),
+        }
     }
 
     /// Create a new graph with specified number of shards
@@ -162,46 +185,23 @@ impl Graph {
     ///
     /// A raphtory graph
     pub fn new_with_shards(num_shards: usize) -> Self {
-        Self(Arc::new(InternalGraph::new(num_shards)))
+        Self {
+            inner: Arc::new(Storage::new(num_shards)),
+        }
     }
 
-    pub(crate) fn from_internal_graph(internal_graph: Arc<InternalGraph>) -> Self {
-        Self(internal_graph)
+    pub(crate) fn from_storage(inner: Arc<Storage>) -> Self {
+        Self { inner }
     }
 
-    /// Load a graph from a directory
-    ///
-    /// # Arguments
-    ///
-    /// * `path` - The path to the directory
-    ///
-    /// Returns:
-    ///
-    /// A raphtory graph
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use raphtory::prelude::Graph;
-    /// let g = Graph::load_from_file("path/to/graph", false);
-    /// ```
-    pub fn load_from_file<P: AsRef<Path>>(path: P, force: bool) -> Result<Self, GraphError> {
-        let g = MaterializedGraph::load_from_file(path, force)?;
-        g.into_events().ok_or(GraphError::GraphLoadError)
-    }
-
-    /// Save a graph to a directory
-    pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), GraphError> {
-        MaterializedGraph::from(self.clone()).save_to_file(path)
-    }
-
-    pub fn as_arc(&self) -> Arc<InternalGraph> {
-        self.0.clone()
+    pub(crate) fn from_internal_graph(graph_storage: GraphStorage) -> Self {
+        let inner = Arc::new(Storage::from_inner(graph_storage));
+        Self { inner }
     }
 
     /// Get persistent graph
     pub fn persistent_graph(&self) -> PersistentGraph {
-        PersistentGraph::from_internal_graph(self.0.clone())
+        PersistentGraph::from_storage(self.inner.clone())
     }
 }
 
@@ -211,7 +211,10 @@ mod db_tests {
     use crate::{
         algorithms::components::weakly_connected_components,
         core::{
-            utils::time::{error::ParseTimeError, TryIntoTime},
+            utils::{
+                errors::GraphError,
+                time::{error::ParseTimeError, TryIntoTime},
+            },
             Prop,
         },
         db::{
@@ -233,7 +236,10 @@ mod db_tests {
     use chrono::NaiveDateTime;
     use itertools::Itertools;
     use quickcheck_macros::quickcheck;
-    use raphtory_api::core::storage::arc_str::{ArcStr, OptionAsStr};
+    use raphtory_api::core::{
+        entities::GID,
+        storage::arc_str::{ArcStr, OptionAsStr},
+    };
     use serde_json::Value;
     use std::collections::{HashMap, HashSet};
     use tempfile::TempDir;
@@ -276,7 +282,7 @@ mod db_tests {
             assert!(graph.start().is_none());
             assert!(graph.end().is_none());
             assert!(graph.earliest_date_time().is_none());
-            assert!(graph.earliest_time().is_none());
+            assert_eq!(graph.earliest_time(), None);
             assert!(graph.end_date_time().is_none());
             assert!(graph.timeline_end().is_none());
 
@@ -479,9 +485,8 @@ mod db_tests {
         );
 
         let gg = Graph::new();
-        let res = gg.import_nodes(vec![&g_a, &g_b], false).unwrap();
-        assert_eq!(res.len(), 2);
-        assert_eq!(res.iter().map(|n| n.name()).collect_vec(), vec!["A", "B"]);
+        let _ = gg.import_nodes(vec![&g_a, &g_b], false).unwrap();
+        assert_eq!(gg.nodes().name().collect_vec(), vec!["A", "B"]);
 
         let e_a_b = g.add_edge(2, "A", "B", NO_PROPS, None).unwrap();
         let res = gg.import_edge(&e_a_b, false).unwrap();
@@ -505,8 +510,8 @@ mod db_tests {
 
         let e_c_d = g.add_edge(4, "C", "D", NO_PROPS, None).unwrap();
         let gg = Graph::new();
-        let res = gg.import_edges(vec![&e_a_b, &e_c_d], false).unwrap();
-        assert_eq!(res.len(), 2);
+        let _ = gg.import_edges(vec![&e_a_b, &e_c_d], false).unwrap();
+        assert_eq!(gg.edges().len(), 2);
     }
 
     #[test]
@@ -524,6 +529,7 @@ mod db_tests {
     }
 
     #[test]
+    #[cfg(feature = "proto")]
     fn graph_save_to_load_from_file() {
         let vs = vec![
             (1, 1, 2),
@@ -543,10 +549,10 @@ mod db_tests {
         let tmp_raphtory_path: TempDir = TempDir::new().expect("Failed to create tempdir");
 
         let graph_path = format!("{}/graph.bin", tmp_raphtory_path.path().display());
-        g.save_to_file(&graph_path).expect("Failed to save graph");
+        g.encode(&graph_path).expect("Failed to save graph");
 
         // Load from files
-        let g2 = Graph::load_from_file(&graph_path, false).expect("Failed to load graph");
+        let g2 = Graph::decode(&graph_path).expect("Failed to load graph");
 
         assert_eq!(g, g2);
 
@@ -565,7 +571,11 @@ mod db_tests {
 
         assert!(!g.has_edge(9, 7));
         assert!(g.has_edge(7, 9));
+    }
 
+    #[test]
+    fn has_edge_str() {
+        let g = Graph::new();
         g.add_edge(2, "haaroon", "northLondon", NO_PROPS, None)
             .unwrap();
         assert!(g.has_edge("haaroon", "northLondon"));
@@ -593,8 +603,8 @@ mod db_tests {
                 .unwrap()
                 .edge(1, 3)
                 .unwrap();
-            assert_eq!(e.src().id(), 1u64);
-            assert_eq!(e.dst().id(), 3u64);
+            assert_eq!(e.src().id().into_u64(), Some(1u64));
+            assert_eq!(e.dst().id().into_u64(), Some(3u64));
         });
     }
 
@@ -944,9 +954,21 @@ mod db_tests {
                 .map(|i| {
                     let v = graph.node(i).unwrap();
                     (
-                        v.window(-1, 7).in_neighbours().id().collect::<Vec<_>>(),
-                        v.window(1, 7).out_neighbours().id().collect::<Vec<_>>(),
-                        v.window(0, 1).neighbours().id().collect::<Vec<_>>(),
+                        v.window(-1, 7)
+                            .in_neighbours()
+                            .id()
+                            .filter_map(|id| id.as_u64())
+                            .collect::<Vec<_>>(),
+                        v.window(1, 7)
+                            .out_neighbours()
+                            .id()
+                            .filter_map(|id| id.as_u64())
+                            .collect::<Vec<_>>(),
+                        v.window(0, 1)
+                            .neighbours()
+                            .id()
+                            .filter_map(|id| id.as_u64())
+                            .collect::<Vec<_>>(),
                     )
                 })
                 .collect::<Vec<_>>();
@@ -969,18 +991,28 @@ mod db_tests {
     }
 
     #[test]
+    fn test_add_node_with_nums() {
+        let graph = Graph::new();
+
+        graph.add_node(1, 831, NO_PROPS, None).unwrap();
+        test_storage!(&graph, |graph| {
+            assert!(graph.has_node(831));
+
+            assert_eq!(graph.count_nodes(), 1);
+        });
+    }
+
+    #[test]
     fn test_add_node_with_strings() {
         let graph = Graph::new();
 
         graph.add_node(0, "haaroon", NO_PROPS, None).unwrap();
         graph.add_node(1, "hamza", NO_PROPS, None).unwrap();
-        graph.add_node(1, 831, NO_PROPS, None).unwrap();
         test_storage!(&graph, |graph| {
-            assert!(graph.has_node(831));
             assert!(graph.has_node("haaroon"));
             assert!(graph.has_node("hamza"));
 
-            assert_eq!(graph.count_nodes(), 3);
+            assert_eq!(graph.count_nodes(), 2);
         });
     }
 
@@ -1057,7 +1089,11 @@ mod db_tests {
             fn to_tuples<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
                 edges: Edges<'graph, G, GH>,
             ) -> Vec<(u64, u64)> {
-                edges.id().sorted().collect_vec()
+                edges
+                    .id()
+                    .filter_map(|(s, d)| s.to_u64().zip(d.to_u64()))
+                    .sorted()
+                    .collect_vec()
             }
 
             assert_eq!(
@@ -1087,7 +1123,11 @@ mod db_tests {
             fn to_ids<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
                 neighbours: PathFromNode<'graph, G, GH>,
             ) -> Vec<u64> {
-                neighbours.iter().map(|n| n.id()).sorted().collect_vec()
+                neighbours
+                    .iter()
+                    .filter_map(|n| n.id().as_u64())
+                    .sorted()
+                    .collect_vec()
             }
 
             assert_eq!(to_ids(node.neighbours()), vec![22, 33, 44]);
@@ -1277,14 +1317,8 @@ mod db_tests {
     }
 
     #[test]
-    fn check_node_history() {
+    fn check_node_history_str() {
         let graph = Graph::new();
-
-        graph.add_node(1, 1, NO_PROPS, None).unwrap();
-        graph.add_node(2, 1, NO_PROPS, None).unwrap();
-        graph.add_node(3, 1, NO_PROPS, None).unwrap();
-        graph.add_node(4, 1, NO_PROPS, None).unwrap();
-        graph.add_node(8, 1, NO_PROPS, None).unwrap();
 
         graph.add_node(4, "Lord Farquaad", NO_PROPS, None).unwrap();
         graph.add_node(6, "Lord Farquaad", NO_PROPS, None).unwrap();
@@ -1293,18 +1327,37 @@ mod db_tests {
 
         // FIXME: Node updates without properties or edges are currently not supported in disk_graph (see issue #46)
         test_graph(&graph, |graph| {
-            let times_of_one = graph.node(1).unwrap().history();
             let times_of_farquaad = graph.node("Lord Farquaad").unwrap().history();
 
-            assert_eq!(times_of_one, [1, 2, 3, 4, 8]);
             assert_eq!(times_of_farquaad, [4, 6, 7, 8]);
 
             let view = graph.window(1, 8);
 
-            let windowed_times_of_one = view.node(1).unwrap().history();
             let windowed_times_of_farquaad = view.node("Lord Farquaad").unwrap().history();
-            assert_eq!(windowed_times_of_one, [1, 2, 3, 4]);
             assert_eq!(windowed_times_of_farquaad, [4, 6, 7]);
+        });
+    }
+
+    #[test]
+    fn check_node_history_num() {
+        let graph = Graph::new();
+
+        graph.add_node(1, 1, NO_PROPS, None).unwrap();
+        graph.add_node(2, 1, NO_PROPS, None).unwrap();
+        graph.add_node(3, 1, NO_PROPS, None).unwrap();
+        graph.add_node(4, 1, NO_PROPS, None).unwrap();
+        graph.add_node(8, 1, NO_PROPS, None).unwrap();
+
+        // FIXME: Node updates without properties or edges are currently not supported in disk_graph (see issue #46)
+        test_graph(&graph, |graph| {
+            let times_of_one = graph.node(1).unwrap().history();
+
+            assert_eq!(times_of_one, [1, 2, 3, 4, 8]);
+
+            let view = graph.window(1, 8);
+
+            let windowed_times_of_one = view.node(1).unwrap().history();
+            assert_eq!(windowed_times_of_one, [1, 2, 3, 4]);
         });
     }
 
@@ -1359,47 +1412,6 @@ mod db_tests {
             assert!(times_of_outside_window.is_empty());
             assert_eq!(windowed_times_of_four, [4]);
             assert_eq!(windowed_times_of_four_higher, [8, 9, 10]);
-        });
-    }
-
-    #[test]
-    fn check_node_history_multiple_shards() {
-        let graph = Graph::new();
-
-        graph.add_node(1, 1, NO_PROPS, None).unwrap();
-        graph.add_node(2, 1, NO_PROPS, None).unwrap();
-        graph.add_node(3, 1, NO_PROPS, None).unwrap();
-        graph.add_node(4, 1, NO_PROPS, None).unwrap();
-        graph.add_node(5, 2, NO_PROPS, None).unwrap();
-        graph.add_node(6, 2, NO_PROPS, None).unwrap();
-        graph.add_node(7, 2, NO_PROPS, None).unwrap();
-        graph.add_node(8, 1, NO_PROPS, None).unwrap();
-        graph.add_node(9, 2, NO_PROPS, None).unwrap();
-        graph.add_node(10, 2, NO_PROPS, None).unwrap();
-
-        graph.add_node(4, "Lord Farquaad", NO_PROPS, None).unwrap();
-        graph.add_node(6, "Lord Farquaad", NO_PROPS, None).unwrap();
-        graph.add_node(7, "Lord Farquaad", NO_PROPS, None).unwrap();
-        graph.add_node(8, "Lord Farquaad", NO_PROPS, None).unwrap();
-
-        // FIXME: Issue #46
-        test_graph(&graph, |graph| {
-            let times_of_one = graph.node(1).unwrap().history();
-            let times_of_farquaad = graph.node("Lord Farquaad").unwrap().history();
-            let times_of_upper = graph.node(2).unwrap().history();
-
-            assert_eq!(times_of_one, [1, 2, 3, 4, 8]);
-            assert_eq!(times_of_farquaad, [4, 6, 7, 8]);
-            assert_eq!(times_of_upper, [5, 6, 7, 9, 10]);
-
-            let view = graph.window(1, 8);
-            let windowed_times_of_one = view.node(1).unwrap().history();
-            let windowed_times_of_two = view.node(2).unwrap().history();
-            let windowed_times_of_farquaad = view.node("Lord Farquaad").unwrap().history();
-
-            assert_eq!(windowed_times_of_one, [1, 2, 3, 4]);
-            assert_eq!(windowed_times_of_farquaad, [4, 6, 7]);
-            assert_eq!(windowed_times_of_two, [5, 6, 7]);
         });
     }
 
@@ -1693,10 +1705,16 @@ mod db_tests {
 
         // FIXME: Node add without properties not showing up (Issue #46)
         test_graph(&graph, |graph| {
-            assert_eq!(graph.nodes().id().collect::<Vec<u64>>(), vec![1, 2, 3]);
+            assert_eq!(
+                graph.nodes().id().collect::<Vec<_>>(),
+                vec![1u64.into(), 2u64.into(), 3u64.into()]
+            );
 
             let g_at = graph.at(1);
-            assert_eq!(g_at.nodes().id().collect::<Vec<u64>>(), vec![1, 2]);
+            assert_eq!(
+                g_at.nodes().id().collect::<Vec<_>>(),
+                vec![1u64.into(), 2u64.into()]
+            );
         });
     }
 
@@ -1709,7 +1727,7 @@ mod db_tests {
         // FIXME: Needs multilayer support (Issue #47)
         test_graph(&graph, |graph| {
             let what = graph.edges().id().collect_vec();
-            assert_eq!(what, vec![(0, 1)]);
+            assert_eq!(what, vec![(0u64.into(), 1u64.into())]);
 
             let layer_names = graph.edges().layer_names().flatten().sorted().collect_vec();
             assert_eq!(layer_names, vec!["_default", "awesome name"]);
@@ -1753,7 +1771,11 @@ mod db_tests {
             assert!(g_layers.edge(1, 4).is_none());
 
             let one = g_layers.node(1).expect("node");
-            let ns = one.neighbours().iter().map(|v| v.id()).collect::<Vec<_>>();
+            let ns = one
+                .neighbours()
+                .iter()
+                .filter_map(|v| v.id().as_u64())
+                .collect::<Vec<_>>();
             assert_eq!(ns, vec![2, 3]);
 
             let g_layers2 = g_layers.layers(vec!["layer1"]).expect("layer");
@@ -1766,7 +1788,11 @@ mod db_tests {
             assert!(g_layers2.edge(1, 4).is_none());
 
             let one = g_layers2.node(1).expect("node");
-            let ns = one.neighbours().iter().map(|v| v.id()).collect::<Vec<_>>();
+            let ns = one
+                .neighbours()
+                .iter()
+                .filter_map(|v| v.id().as_u64())
+                .collect::<Vec<_>>();
             assert_eq!(ns, vec![2]);
         });
     }
@@ -1784,10 +1810,18 @@ mod db_tests {
         test_storage!(&graph, |graph| {
             let windowed_graph = graph.window(0, 5);
             let one = windowed_graph.node(1).expect("node");
-            let ns_win = one.neighbours().id().collect::<Vec<_>>();
+            let ns_win = one
+                .neighbours()
+                .id()
+                .filter_map(|id| id.to_u64())
+                .collect::<Vec<_>>();
 
             let one = graph.node(1).expect("node");
-            let ns = one.neighbours().id().collect::<Vec<_>>();
+            let ns = one
+                .neighbours()
+                .id()
+                .filter_map(|id| id.to_u64())
+                .collect::<Vec<_>>();
             assert_eq!(ns, vec![2, 3]);
             assert_eq!(ns_win, ns);
         });
@@ -1809,10 +1843,9 @@ mod db_tests {
                 .explode_layers()
                 .iter()
                 .filter_map(|e| {
-                    e.edge
-                        .layer()
-                        .copied()
-                        .map(|layer| (e.src().id(), e.dst().id(), layer))
+                    e.edge.layer().copied().and_then(|layer| {
+                        Some((e.src().id().as_u64()?, e.dst().id().as_u64()?, layer))
+                    })
                 })
                 .collect::<Vec<_>>();
 
@@ -1844,7 +1877,10 @@ mod db_tests {
                 })
                 .collect::<Vec<_>>();
 
-            assert_eq!(layer_exploded, vec![(1, 2, 1), (1, 2, 2)]);
+            assert_eq!(
+                layer_exploded,
+                vec![(GID::U64(1), GID::U64(2), 1), (GID::U64(1), GID::U64(2), 2)]
+            );
         });
     }
 
@@ -1876,6 +1912,9 @@ mod db_tests {
             assert_eq!(
                 layer_exploded,
                 vec![(3, 1, 2, 0), (0, 1, 2, 1), (2, 1, 2, 1), (1, 1, 2, 2)]
+                    .into_iter()
+                    .map(|(a, b, c, d)| (a, GID::U64(b), GID::U64(c), d))
+                    .collect::<Vec<_>>()
             );
         });
     }
@@ -1909,6 +1948,9 @@ mod db_tests {
             assert_eq!(
                 layer_exploded,
                 vec![(0, 1, 2, 1), (2, 1, 2, 1), (1, 1, 2, 2)]
+                    .into_iter()
+                    .map(|(a, b, c, d)| { (a, GID::U64(b), GID::U64(c), d) })
+                    .collect::<Vec<_>>()
             );
         });
     }
@@ -2070,8 +2112,12 @@ mod db_tests {
             correct = correct && condition;
         };
         // checks that exploded edges are preserved with correct timestamps
-        let mut edges: Vec<(u64, u64, Vec<i64>)> =
-            edges.into_iter().filter(|e| !e.2.is_empty()).collect();
+        let mut edges: Vec<(GID, GID, Vec<i64>)> = edges
+            .into_iter()
+            .filter_map(|(src, dst, ts)| {
+                (!ts.is_empty()).then_some((GID::U64(src), GID::U64(dst), ts))
+            })
+            .collect();
         // discard edges without timestamps
         for e in edges.iter_mut() {
             e.2.sort();
@@ -2079,16 +2125,16 @@ mod db_tests {
             e.2.dedup(); // add each timestamp only once (multi-edge per timestamp currently not implemented)
         }
         edges.sort();
-        edges.dedup_by_key(|(src, dst, _)| (*src, *dst));
+        edges.dedup_by_key(|(src, dst, _)| src.as_u64().zip(dst.as_u64()));
 
         let g = Graph::new();
         for (src, dst, times) in edges.iter() {
             for t in times.iter() {
-                g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
+                g.add_edge(*t, src, dst, NO_PROPS, None).unwrap();
             }
         }
 
-        let mut actual_edges: Vec<(u64, u64, Vec<i64>)> = g
+        let mut actual_edges: Vec<(GID, GID, Vec<i64>)> = g
             .edges()
             .iter()
             .map(|e| {
@@ -2162,7 +2208,7 @@ mod db_tests {
                 .out_neighbours()
                 .id()
                 .collect();
-            assert_eq!(out_out, [3]);
+            assert_eq!(out_out, [GID::U64(3)]);
 
             let out_out: Vec<_> = v
                 .at(0)
@@ -2214,7 +2260,7 @@ mod db_tests {
                 .out_neighbours()
                 .id()
                 .collect();
-            assert_eq!(out_out, [4]);
+            assert_eq!(out_out, [GID::U64(4)]);
 
             let earliest_time = v
                 .at(0)
@@ -2253,18 +2299,21 @@ mod db_tests {
             let wl = graph.window(0, 3).layers(vec!["1", "2"]).unwrap();
             assert_eq!(
                 weakly_connected_components(&wl, 10, None).get_all_values(),
-                [1, 1, 1, 1]
+                vec![GID::U64(1); 4]
             );
         });
     }
 
     #[test]
+    #[cfg(feature = "proto")]
     fn save_load_serial() {
         let g = Graph::new();
         g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
         let dir = tempfile::tempdir().unwrap();
         let file_path = dir.path().join("abcd11");
-        g.save_to_file(file_path).unwrap();
+        g.encode(&file_path).unwrap();
+        let gg = Graph::decode(file_path).unwrap();
+        assert_graph_equal(&g, &gg);
     }
 
     #[test]
@@ -2802,11 +2851,17 @@ mod db_tests {
         let g = Graph::new();
         g.add_edge(0, 0, 1, [("added", Prop::I64(0))], None)
             .unwrap();
-        assert_eq!(g.edges().id().collect::<Vec<_>>(), vec![(0, 1)]);
+        assert_eq!(
+            g.edges().id().collect::<Vec<_>>(),
+            vec![(GID::U64(0), GID::U64(1))]
+        );
 
         let pg = g.persistent_graph();
         pg.delete_edge(10, 0, 1, None).unwrap();
-        assert_eq!(g.edges().id().collect::<Vec<_>>(), vec![(0, 1)]);
+        assert_eq!(
+            g.edges().id().collect::<Vec<_>>(),
+            vec![(GID::U64(0), GID::U64(1))]
+        );
     }
 
     #[test]
@@ -2921,6 +2976,6 @@ mod db_tests {
             .build()
             .unwrap();
         let graph = pool.install(|| Graph::new());
-        assert_eq!(graph.0.inner().storage.nodes.data.len(), 5);
+        assert_eq!(graph.core_graph().internal_num_nodes(), 0);
     }
 }

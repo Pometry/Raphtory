@@ -34,7 +34,7 @@
 //! graph.add_edge(2, 2, 3, NO_PROPS, None).unwrap();
 //!
 //!  let wg = graph.window(0, 1);
-//!  assert_eq!(wg.edge(1, 2).unwrap().src().id(), 1);
+//!  assert_eq!(wg.edge(1, 2).unwrap().src().id(), GID::U64(1));
 //! ```
 
 use crate::{
@@ -48,7 +48,7 @@ use crate::{
             properties::internal::{
                 InheritStaticPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
-            storage::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
+            storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
             view::{
                 internal::{
                     Base, EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps,
@@ -541,6 +541,7 @@ mod views_test {
     use quickcheck::TestResult;
     use quickcheck_macros::quickcheck;
     use rand::prelude::*;
+    use raphtory_api::core::entities::GID;
     use rayon::prelude::*;
     #[cfg(feature = "storage")]
     use tempfile::TempDir;
@@ -570,7 +571,7 @@ mod views_test {
                 .map(|v| (v.id(), v.degree()))
                 .collect::<Vec<_>>();
 
-            let expected = vec![(1, 2), (2, 1)];
+            let expected = vec![(GID::U64(1), 2), (GID::U64(2), 1)];
 
             assert_eq!(actual, expected);
         });
@@ -594,8 +595,8 @@ mod views_test {
         }
         test_storage!(&graph, |graph| {
             let wg = graph.window(i64::MIN, i64::MAX);
-            assert_eq!(wg.edge(1, 3).unwrap().src().id(), 1);
-            assert_eq!(wg.edge(1, 3).unwrap().dst().id(), 3);
+            assert_eq!(wg.edge(1, 3).unwrap().src().id(), GID::U64(1));
+            assert_eq!(wg.edge(1, 3).unwrap().dst().id(), GID::U64(3));
         });
     }
 
@@ -618,7 +619,7 @@ mod views_test {
         test_storage!(&graph, |graph| {
             let wg = graph.window(-1, 1);
 
-            assert_eq!(wg.node(1).unwrap().id(), 1);
+            assert_eq!(wg.node(1).unwrap().id(), GID::U64(1));
         });
     }
 
@@ -806,7 +807,10 @@ mod views_test {
             g.add_edge(*t, e.0, e.1, NO_PROPS, None).unwrap();
         }
         let test_dir = TempDir::new().unwrap();
-        let g = g.persist_as_disk_graph(test_dir.path()).unwrap();
+        let g = g
+            .persist_as_disk_graph(test_dir.path())
+            .unwrap()
+            .into_graph();
 
         let start = edges.get(rand_start_index).expect("start index in range").0;
         let end = edges.get(rand_end_index).expect("end index in range").0;
@@ -918,7 +922,12 @@ mod views_test {
             let res: Vec<_> = (0..=3)
                 .map(|i| {
                     let wg = graph.window(args[i].0, args[i].1);
-                    let mut e = wg.nodes().id().values().collect::<Vec<_>>();
+                    let mut e = wg
+                        .nodes()
+                        .id()
+                        .values()
+                        .filter_map(|id| id.to_u64())
+                        .collect::<Vec<_>>();
                     e.sort();
                     e
                 })
@@ -935,7 +944,12 @@ mod views_test {
             let res: Vec<_> = (0..=3)
                 .map(|i| {
                     let wg = graph.window(args[i].0, args[i].1);
-                    let mut e = wg.nodes().id().values().collect::<Vec<_>>();
+                    let mut e = wg
+                        .nodes()
+                        .id()
+                        .values()
+                        .filter_map(|id| id.to_u64())
+                        .collect::<Vec<_>>();
                     e.sort();
                     e
                 })
@@ -992,7 +1006,12 @@ mod views_test {
         test_storage!(&graph, |graph| {
             let wg = graph.window(-2, 0);
 
-            let actual = wg.nodes().id().values().collect::<Vec<_>>();
+            let actual = wg
+                .nodes()
+                .id()
+                .values()
+                .filter_map(|id| id.to_u64())
+                .collect::<Vec<_>>();
 
             let expected = vec![1, 2];
 

@@ -36,7 +36,7 @@ fn main() {
     println!("Loading data");
     let graph = if encoded_data_dir.exists() {
         let now = Instant::now();
-        let g = Graph::load_from_file(encoded_data_dir.as_path(), false)
+        let g = Graph::decode(encoded_data_dir.as_path())
             .expect("Failed to load graph from encoded data files");
 
         println!(
@@ -74,8 +74,7 @@ fn main() {
             now.elapsed().as_secs()
         );
 
-        g.save_to_file(encoded_data_dir)
-            .expect("Failed to save graph");
+        g.encode(encoded_data_dir).expect("Failed to save graph");
 
         g
     };

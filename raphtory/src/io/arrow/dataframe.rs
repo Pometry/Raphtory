@@ -1,29 +1,25 @@
-use crate::core::utils::errors::GraphError;
-
+use crate::{
+    core::utils::errors::{GraphError, LoadError},
+    io::arrow::node_col::{lift_node_col, NodeCol},
+};
+use itertools::Itertools;
 use polars_arrow::{
-    array::{Array, PrimitiveArray, Utf8Array},
+    array::{Array, PrimitiveArray, StaticArray},
     compute::cast::{self, CastOptions},
     datatypes::{ArrowDataType as DataType, TimeUnit},
-    offset::Offset,
-    types::NativeType,
 };
+use rayon::prelude::*;
 
-use itertools::Itertools;
-
-#[derive(Debug)]
-pub(crate) struct DFView {
-    pub(crate) names: Vec<String>,
-    pub(crate) arrays: Vec<Vec<Box<dyn Array>>>,
+pub(crate) struct DFView<I> {
+    pub names: Vec<String>,
+    pub(crate) chunks: I,
+    pub num_rows: usize,
 }
 
-impl DFView {
-    pub(crate) fn get_inner_size(&self) -> usize {
-        if self.arrays.is_empty() || self.arrays[0].is_empty() {
-            return 0;
-        }
-        self.arrays[0][0].len()
-    }
-
+impl<I, E> DFView<I>
+where
+    I: Iterator<Item = Result<DFChunk, E>>,
+{
     pub fn check_cols_exist(&self, cols: &[&str]) -> Result<(), GraphError> {
         let non_cols: Vec<&&str> = cols
             .iter()
@@ -36,66 +32,64 @@ impl DFView {
         Ok(())
     }
 
-    pub(crate) fn iter_col<T: NativeType>(
-        &self,
-        name: &str,
-    ) -> Option<impl Iterator<Item = Option<&T>> + '_> {
-        let idx = self.names.iter().position(|n| n == name)?;
+    pub(crate) fn get_index(&self, name: &str) -> Result<usize, GraphError> {
+        self.names
+            .iter()
+            .position(|n| n == name)
+            .ok_or_else(|| GraphError::ColumnDoesNotExist(name.to_string()))
+    }
+}
 
-        let _ = (&self.arrays[0])[idx]
+pub struct TimeCol(PrimitiveArray<i64>);
+
+impl TimeCol {
+    fn new(arr: &dyn Array) -> Result<Self, LoadError> {
+        let arr = arr
             .as_any()
-            .downcast_ref::<PrimitiveArray<T>>()?;
-
-        let iter = self.arrays.iter().flat_map(move |arr| {
-            let arr = &arr[idx];
-            let arr = arr.as_any().downcast_ref::<PrimitiveArray<T>>().unwrap();
-            arr.iter()
-        });
-
-        Some(iter)
+            .downcast_ref::<PrimitiveArray<i64>>()
+            .ok_or_else(|| LoadError::InvalidTimestamp(arr.data_type().clone()))?;
+        let arr = if let DataType::Timestamp(_, _) = arr.data_type() {
+            let array = cast::cast(
+                arr,
+                &DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".to_string())),
+                CastOptions::default(),
+            )
+            .unwrap();
+            array
+                .as_any()
+                .downcast_ref::<PrimitiveArray<i64>>()
+                .unwrap()
+                .clone()
+        } else {
+            arr.clone()
+        };
+        Ok(Self(arr))
     }
 
-    pub fn utf8<O: Offset>(&self, name: &str) -> Option<impl Iterator<Item = Option<&str>> + '_> {
-        let idx = self.names.iter().position(|n| n == name)?;
-        // test that it's actually a utf8 array
-        let _ = (&self.arrays[0])[idx]
-            .as_any()
-            .downcast_ref::<Utf8Array<O>>()?;
-
-        let iter = self.arrays.iter().flat_map(move |arr| {
-            let arr = &arr[idx];
-            let arr = arr.as_any().downcast_ref::<Utf8Array<O>>().unwrap();
-            arr.iter()
-        });
-
-        Some(iter)
+    pub fn par_iter(&self) -> impl IndexedParallelIterator<Item = Option<i64>> + '_ {
+        (0..self.0.len()).into_par_iter().map(|i| self.get(i))
     }
 
-    pub fn time_iter_col(&self, name: &str) -> Option<impl Iterator<Item = Option<i64>> + '_> {
-        let idx = self.names.iter().position(|n| n == name)?;
+    pub fn get(&self, i: usize) -> Option<i64> {
+        self.0.get(i)
+    }
+}
 
-        let _ = (&self.arrays[0])[idx]
-            .as_any()
-            .downcast_ref::<PrimitiveArray<i64>>()?;
+#[derive(Clone)]
+pub(crate) struct DFChunk {
+    pub(crate) chunk: Vec<Box<dyn Array>>,
+}
 
-        let iter = self.arrays.iter().flat_map(move |arr| {
-            let arr = &arr[idx];
-            let arr = if let DataType::Timestamp(_, _) = arr.data_type() {
-                let array = cast::cast(
-                    &*arr.clone(),
-                    &DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".to_string())),
-                    CastOptions::default(),
-                )
-                .unwrap();
-                array
-            } else {
-                arr.clone()
-            };
+impl DFChunk {
+    pub fn len(&self) -> usize {
+        self.chunk.first().map(|c| c.len()).unwrap_or(0)
+    }
 
-            let arr = arr.as_any().downcast_ref::<PrimitiveArray<i64>>().unwrap();
-            arr.clone().into_iter()
-        });
+    pub fn node_col(&self, index: usize) -> Result<NodeCol, LoadError> {
+        lift_node_col(index, self)
+    }
 
-        Some(iter)
+    pub fn time_col(&self, index: usize) -> Result<TimeCol, LoadError> {
+        TimeCol::new(self.chunk[index].as_ref())
     }
 }

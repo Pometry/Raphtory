@@ -22,7 +22,7 @@ fn main() {
     let data_dir = Path::new(args.get(1).expect("No data directory provided"));
 
     let g = if std::path::Path::new("/tmp/pokec").exists() {
-        Graph::load_from_file("/tmp/pokec", false).unwrap()
+        Graph::decode("/tmp/pokec").unwrap()
     } else {
         let g = Graph::new();
         CsvLoader::new(data_dir)
@@ -34,7 +34,7 @@ fn main() {
             })
             .expect("Failed to load graph from encoded data files");
 
-        g.save_to_file("/tmp/pokec")
+        g.encode("/tmp/pokec")
             .expect("Failed to save graph to file");
         g
     };

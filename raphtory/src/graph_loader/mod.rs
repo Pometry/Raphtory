@@ -7,7 +7,7 @@
 //! # Examples
 //!
 //! Load a pre-built graph
-//! ```rust
+//! ```rust,no_run
 //! use raphtory::algorithms::metrics::degree::average_degree;
 //! use raphtory::prelude::*;
 //! use raphtory::graph_loader::lotr_graph::lotr_graph;
@@ -82,7 +82,7 @@
 //!
 //! download a file without creating the graph
 //!
-//! ```rust
+//! ```rust,no_run
 //! use raphtory::graph_loader::fetch_file;
 //!
 //! let path = fetch_file(

@@ -1,56 +1,72 @@
-use chrono::{DateTime, Utc};
-use polars_arrow::{
-    array::{Array, BooleanArray, FixedSizeListArray, ListArray, PrimitiveArray, Utf8Array},
-    datatypes::{ArrowDataType as DataType, TimeUnit},
-};
-
 use crate::{
-    core::{utils::errors::GraphError, IntoPropList},
-    io::arrow::dataframe::DFView,
+    core::{
+        utils::errors::{GraphError, LoadError},
+        IntoPropList, PropType,
+    },
+    io::arrow::dataframe::DFChunk,
     prelude::Prop,
 };
+use chrono::{DateTime, Utc};
+use polars_arrow::{
+    array::{
+        Array, BooleanArray, FixedSizeListArray, ListArray, PrimitiveArray, StaticArray, Utf8Array,
+    },
+    datatypes::{ArrowDataType as DataType, TimeUnit},
+    offset::Offset,
+};
+use raphtory_api::core::storage::dict_mapper::MaybeNew;
+use rayon::prelude::*;
 
-pub struct PropIter<'a> {
-    inner: Box<dyn Iterator<Item = Vec<(&'a str, Prop)>> + 'a>,
+pub struct PropCols {
+    prop_ids: Vec<usize>,
+    cols: Vec<Box<dyn PropCol>>,
+    len: usize,
 }
 
-impl<'a> Iterator for PropIter<'a> {
-    type Item = Vec<(&'a str, Prop)>;
+impl PropCols {
+    pub fn iter_row(&self, i: usize) -> impl Iterator<Item = (usize, Prop)> + '_ {
+        self.prop_ids
+            .iter()
+            .zip(self.cols.iter())
+            .filter_map(move |(id, col)| col.get(i).map(|v| (*id, v)))
+    }
 
-    fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next()
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    pub fn par_rows(
+        &self,
+    ) -> impl IndexedParallelIterator<Item = impl Iterator<Item = (usize, Prop)> + '_> + '_ {
+        (0..self.len()).into_par_iter().map(|i| self.iter_row(i))
     }
 }
 
-pub(crate) fn get_prop_rows<'a>(
-    df: &'a DFView,
-    props: Option<Vec<&'a str>>,
-    const_props: Option<Vec<&'a str>>,
-) -> Result<(PropIter<'a>, PropIter<'a>), GraphError> {
-    let prop_iter = combine_properties(props, df)?;
-    let const_prop_iter = combine_properties(const_props, df)?;
-    Ok((prop_iter, const_prop_iter))
-}
+pub(crate) fn combine_properties(
+    props: &[&str],
+    indices: &[usize],
+    df: &DFChunk,
+    prop_id_resolver: impl Fn(&str, PropType) -> Result<MaybeNew<usize>, GraphError>,
+) -> Result<PropCols, GraphError> {
+    let dtypes = indices
+        .iter()
+        .map(|idx| data_type_as_prop_type(df.chunk[*idx].data_type()))
+        .collect::<Result<Vec<_>, _>>()?;
+    let cols = indices
+        .iter()
+        .map(|idx| lift_property_col(df.chunk[*idx].as_ref()))
+        .collect::<Vec<_>>();
+    let prop_ids = props
+        .iter()
+        .zip(dtypes.into_iter())
+        .map(|(name, dtype)| Ok(prop_id_resolver(name, dtype)?.inner()))
+        .collect::<Result<Vec<_>, GraphError>>()?;
 
-fn combine_properties<'a>(
-    props: Option<Vec<&'a str>>,
-    df: &'a DFView,
-) -> Result<PropIter<'a>, GraphError> {
-    let iter = props
-        .unwrap_or_default()
-        .into_iter()
-        .map(|name| lift_property(name, df))
-        .reduce(|i1, i2| {
-            let i1 = i1?;
-            let i2 = i2?;
-            Ok(Box::new(i1.zip(i2).map(|(mut v1, v2)| {
-                v1.extend(v2);
-                v1
-            })))
-        })
-        .unwrap_or_else(|| Ok(Box::new(std::iter::repeat(vec![]))));
-
-    Ok(PropIter { inner: iter? })
+    Ok(PropCols {
+        prop_ids,
+        cols,
+        len: df.len(),
+    })
 }
 
 fn arr_as_prop(arr: Box<dyn Array>) -> Prop {
@@ -124,7 +140,33 @@ fn arr_as_prop(arr: Box<dyn Array>) -> Prop {
     }
 }
 
-fn validate_data_types(dt: &DataType) -> Result<(), GraphError> {
+fn data_type_as_prop_type(dt: &DataType) -> Result<PropType, GraphError> {
+    match dt {
+        DataType::Boolean => Ok(PropType::Bool),
+        DataType::Int32 => Ok(PropType::I32),
+        DataType::Int64 => Ok(PropType::I64),
+        DataType::UInt8 => Ok(PropType::U8),
+        DataType::UInt16 => Ok(PropType::U16),
+        DataType::UInt32 => Ok(PropType::U32),
+        DataType::UInt64 => Ok(PropType::U64),
+        DataType::Float32 => Ok(PropType::F32),
+        DataType::Float64 => Ok(PropType::F64),
+        DataType::Utf8 => Ok(PropType::Str),
+        DataType::LargeUtf8 => Ok(PropType::Str),
+        DataType::List(v) => is_data_type_supported(v.data_type()).map(|_| PropType::List),
+        DataType::FixedSizeList(v, _) => {
+            is_data_type_supported(v.data_type()).map(|_| PropType::List)
+        }
+        DataType::LargeList(v) => is_data_type_supported(v.data_type()).map(|_| PropType::List),
+        DataType::Timestamp(_, v) => match v {
+            None => Ok(PropType::NDTime),
+            Some(_) => Ok(PropType::DTime),
+        },
+        _ => Err(LoadError::InvalidPropertyType(dt.clone()).into()),
+    }
+}
+
+fn is_data_type_supported(dt: &DataType) -> Result<(), GraphError> {
     match dt {
         DataType::Boolean => {}
         DataType::Int32 => {}
@@ -137,289 +179,208 @@ fn validate_data_types(dt: &DataType) -> Result<(), GraphError> {
         DataType::Float64 => {}
         DataType::Utf8 => {}
         DataType::LargeUtf8 => {}
-        DataType::List(v) => validate_data_types(v.data_type())?,
-        DataType::FixedSizeList(v, _) => validate_data_types(v.data_type())?,
-        DataType::LargeList(v) => validate_data_types(v.data_type())?,
+        DataType::List(v) => is_data_type_supported(v.data_type())?,
+        DataType::FixedSizeList(v, _) => is_data_type_supported(v.data_type())?,
+        DataType::LargeList(v) => is_data_type_supported(v.data_type())?,
         DataType::Timestamp(_, _) => {}
-        _ => Err(GraphError::UnsupportedDataType)?,
+        _ => return Err(LoadError::InvalidPropertyType(dt.clone()).into()),
     }
     Ok(())
 }
 
-pub(crate) fn lift_property<'a: 'b, 'b>(
-    name: &'a str,
-    df: &'b DFView,
-) -> Result<Box<dyn Iterator<Item = Vec<(&'b str, Prop)>> + 'b>, GraphError> {
-    let idx = df
-        .names
-        .iter()
-        .position(|n| n == name)
-        .ok_or_else(|| GraphError::ColumnDoesNotExist(name.to_string()))?;
+trait PropCol: Send + Sync {
+    fn get(&self, i: usize) -> Option<Prop>;
+}
 
-    if let Some(first_chunk) = df.arrays.get(0) {
-        validate_data_types(first_chunk[idx].data_type())?;
+impl<A> PropCol for A
+where
+    A: StaticArray,
+    for<'a> A::ValueT<'a>: Into<Prop>,
+{
+    #[inline]
+    fn get(&self, i: usize) -> Option<Prop> {
+        StaticArray::get(self, i).map(|v| v.into())
     }
+}
 
-    let r = df.arrays.iter().flat_map(move |arr| {
-        let arr: &Box<dyn Array> = &arr[idx];
-        match arr.data_type() {
-            DataType::Boolean => {
-                let arr = arr.as_any().downcast_ref::<BooleanArray>().unwrap();
-                iter_as_prop(name, arr.iter())
-            }
-            DataType::Int32 => {
-                let arr = arr.as_any().downcast_ref::<PrimitiveArray<i32>>().unwrap();
-                iter_as_prop(name, arr.iter().map(|i| i.copied()))
-            }
-            DataType::Int64 => {
-                let arr = arr.as_any().downcast_ref::<PrimitiveArray<i64>>().unwrap();
-                iter_as_prop(name, arr.iter().map(|i| i.copied()))
-            }
-            DataType::UInt8 => {
-                let arr = arr.as_any().downcast_ref::<PrimitiveArray<u8>>().unwrap();
-                iter_as_prop(name, arr.iter().map(|i| i.copied()))
-            }
-            DataType::UInt16 => {
-                let arr = arr.as_any().downcast_ref::<PrimitiveArray<u16>>().unwrap();
-                iter_as_prop(name, arr.iter().map(|i| i.copied()))
-            }
-            DataType::UInt32 => {
-                let arr = arr.as_any().downcast_ref::<PrimitiveArray<u32>>().unwrap();
-                iter_as_prop(name, arr.iter().map(|i| i.copied()))
-            }
-            DataType::UInt64 => {
-                let arr = arr.as_any().downcast_ref::<PrimitiveArray<u64>>().unwrap();
-                iter_as_prop(name, arr.iter().map(|i| i.copied()))
-            }
-            DataType::Float32 => {
-                let arr = arr.as_any().downcast_ref::<PrimitiveArray<f32>>().unwrap();
-                iter_as_prop(name, arr.iter().map(|i| i.copied()))
-            }
-            DataType::Float64 => {
-                let arr = arr.as_any().downcast_ref::<PrimitiveArray<f64>>().unwrap();
-                iter_as_prop(name, arr.iter().map(|i| i.copied()))
-            }
-            DataType::Utf8 => {
-                let arr = arr.as_any().downcast_ref::<Utf8Array<i32>>().unwrap();
-                iter_as_prop(name, arr.iter())
-            }
-            DataType::LargeUtf8 => {
-                let arr = arr.as_any().downcast_ref::<Utf8Array<i64>>().unwrap();
-                iter_as_prop(name, arr.iter())
-            }
-            DataType::List(_) => {
-                let arr = arr.as_any().downcast_ref::<ListArray<i32>>().unwrap();
-                iter_as_arr_prop(name, arr.iter())
-            }
-            DataType::FixedSizeList(_, _) => {
-                let arr = arr.as_any().downcast_ref::<FixedSizeListArray>().unwrap();
-                iter_as_arr_prop(name, arr.iter())
-            }
-            DataType::LargeList(_) => {
-                let arr = arr.as_any().downcast_ref::<ListArray<i64>>().unwrap();
-                iter_as_arr_prop(name, arr.iter())
-            }
-            DataType::Timestamp(timeunit, timezone) => {
-                let arr = arr.as_any().downcast_ref::<PrimitiveArray<i64>>().unwrap();
-                match timezone {
-                    Some(_) => match timeunit {
-                        TimeUnit::Second => {
-                            println!("Timestamp(Second, Some({:?})); ", timezone);
-                            let r: Box<dyn Iterator<Item = Vec<(&'b str, Prop)>> + 'b> =
-                                Box::new(arr.iter().map(move |val| {
-                                    val.into_iter()
-                                        .map(|v| {
-                                            (
-                                                name,
-                                                Prop::DTime(
-                                                    DateTime::<Utc>::from_timestamp(*v, 0)
-                                                        .expect("DateTime conversion failed"),
-                                                ),
-                                            )
-                                        })
-                                        .collect::<Vec<_>>()
-                                }));
-                            r
-                        }
-                        TimeUnit::Millisecond => {
-                            println!("Timestamp(Millisecond, Some({:?})); ", timezone);
-                            let r: Box<dyn Iterator<Item = Vec<(&'b str, Prop)>> + 'b> =
-                                Box::new(arr.iter().map(move |val| {
-                                    val.into_iter()
-                                        .map(|v| {
-                                            (
-                                                name,
-                                                Prop::DTime(
-                                                    DateTime::<Utc>::from_timestamp_millis(*v)
-                                                        .expect("DateTime conversion failed"),
-                                                ),
-                                            )
-                                        })
-                                        .collect::<Vec<_>>()
-                                }));
-                            r
-                        }
-                        TimeUnit::Microsecond => {
-                            println!("Timestamp(Microsecond, Some({:?})); ", timezone);
-                            let r: Box<dyn Iterator<Item = Vec<(&'b str, Prop)>> + 'b> =
-                                Box::new(arr.iter().map(move |val| {
-                                    val.into_iter()
-                                        .map(|v| {
-                                            (
-                                                name,
-                                                Prop::DTime(
-                                                    DateTime::<Utc>::from_timestamp_micros(*v)
-                                                        .expect("DateTime conversion failed"),
-                                                ),
-                                            )
-                                        })
-                                        .collect::<Vec<_>>()
-                                }));
-                            r
-                        }
-                        TimeUnit::Nanosecond => {
-                            println!("Timestamp(Nanosecond, Some({:?})); ", timezone);
-                            let r: Box<dyn Iterator<Item = Vec<(&'b str, Prop)>> + 'b> =
-                                Box::new(arr.iter().map(move |val| {
-                                    val.into_iter()
-                                        .map(|v| {
-                                            (
-                                                name,
-                                                Prop::DTime(DateTime::<Utc>::from_timestamp_nanos(
-                                                    *v,
-                                                )),
-                                            )
-                                        })
-                                        .collect::<Vec<_>>()
-                                }));
-                            r
-                        }
-                    },
-                    None => match timeunit {
-                        TimeUnit::Second => {
-                            println!("Timestamp(Second, None); ");
-                            let r: Box<dyn Iterator<Item = Vec<(&'b str, Prop)>> + 'b> =
-                                Box::new(arr.iter().map(move |val| {
-                                    val.into_iter()
-                                        .map(|v| {
-                                            (
-                                                name,
-                                                Prop::NDTime(
-                                                    DateTime::from_timestamp(*v, 0)
-                                                        .expect("DateTime conversion failed")
-                                                        .naive_utc(),
-                                                ),
-                                            )
-                                        })
-                                        .collect::<Vec<_>>()
-                                }));
-                            r
-                        }
-                        TimeUnit::Millisecond => {
-                            println!("Timestamp(Millisecond, None); ");
-                            let r: Box<dyn Iterator<Item = Vec<(&'b str, Prop)>> + 'b> =
-                                Box::new(arr.iter().map(move |val| {
-                                    val.into_iter()
-                                        .map(|v| {
-                                            (
-                                                name,
-                                                Prop::NDTime(
-                                                    DateTime::from_timestamp_millis(*v)
-                                                        .expect("DateTime conversion failed")
-                                                        .naive_utc(),
-                                                ),
-                                            )
-                                        })
-                                        .collect::<Vec<_>>()
-                                }));
-                            r
-                        }
-                        TimeUnit::Microsecond => {
-                            println!("Timestamp(Microsecond, None); ");
-                            let r: Box<dyn Iterator<Item = Vec<(&'b str, Prop)>> + 'b> =
-                                Box::new(arr.iter().map(move |val| {
-                                    val.into_iter()
-                                        .map(|v| {
-                                            (
-                                                name,
-                                                Prop::NDTime(
-                                                    DateTime::from_timestamp_micros(*v)
-                                                        .expect("DateTime conversion failed")
-                                                        .naive_utc(),
-                                                ),
-                                            )
-                                        })
-                                        .collect::<Vec<_>>()
-                                }));
-                            r
-                        }
-                        TimeUnit::Nanosecond => {
-                            println!("Timestamp(Nanosecond, None); ");
-                            let r: Box<dyn Iterator<Item = Vec<(&'b str, Prop)>> + 'b> =
-                                Box::new(arr.iter().map(move |val| {
-                                    val.into_iter()
-                                        .map(|v| {
-                                            (
-                                                name,
-                                                Prop::NDTime(
-                                                    DateTime::from_timestamp_nanos(*v).naive_utc(),
-                                                ),
-                                            )
-                                        })
-                                        .collect::<Vec<_>>()
-                                }));
-                            r
-                        }
-                    },
+struct Wrap<A>(A);
+
+impl PropCol for Wrap<Utf8Array<i32>> {
+    fn get(&self, i: usize) -> Option<Prop> {
+        self.0.get(i).map(Prop::str)
+    }
+}
+
+impl<O: Offset> PropCol for Wrap<ListArray<O>> {
+    fn get(&self, i: usize) -> Option<Prop> {
+        if i >= self.0.len() {
+            None
+        } else {
+            // safety: bounds checked above
+            unsafe {
+                if self.0.is_null_unchecked(i) {
+                    None
+                } else {
+                    let value = self.0.value_unchecked(i);
+                    Some(arr_as_prop(value))
                 }
             }
-            unsupported => panic!("Data type not supported: {:?}", unsupported),
         }
-    });
-
-    Ok(Box::new(r))
-}
-
-pub(crate) fn lift_layer<'a, S: AsRef<str>>(
-    layer: Option<S>,
-    layer_in_df: bool,
-    df: &'a DFView,
-) -> Box<dyn Iterator<Item = Option<String>> + 'a> {
-    if let Some(layer) = layer {
-        if layer_in_df {
-            if let Some(col) = df.utf8::<i32>(layer.as_ref()) {
-                Box::new(col.map(|v| v.map(|v| v.to_string())))
-            } else if let Some(col) = df.utf8::<i64>(layer.as_ref()) {
-                Box::new(col.map(|v| v.map(|v| v.to_string())))
-            } else {
-                Box::new(std::iter::repeat(None))
-            }
-        } else {
-            Box::new(std::iter::repeat(Some(layer.as_ref().to_string())))
-        }
-    } else {
-        Box::new(std::iter::repeat(None))
     }
 }
 
-fn iter_as_prop<'a, T: Into<Prop> + 'a, I: Iterator<Item = Option<T>> + 'a>(
-    name: &'a str,
-    is: I,
-) -> Box<dyn Iterator<Item = Vec<(&'a str, Prop)>> + 'a> {
-    Box::new(is.map(move |val| {
-        val.into_iter()
-            .map(|v| (name, (v).into()))
-            .collect::<Vec<_>>()
-    }))
+impl PropCol for Wrap<FixedSizeListArray> {
+    fn get(&self, i: usize) -> Option<Prop> {
+        self.0.get(i).map(arr_as_prop)
+    }
 }
 
-fn iter_as_arr_prop<'a, I: Iterator<Item = Option<Box<dyn Array>>> + 'a>(
-    name: &'a str,
-    is: I,
-) -> Box<dyn Iterator<Item = Vec<(&'a str, Prop)>> + 'a> {
-    Box::new(is.map(move |val| {
-        val.into_iter()
-            .map(|v| (name, arr_as_prop(v)))
-            .collect::<Vec<_>>()
-    }))
+struct DTimeCol {
+    arr: PrimitiveArray<i64>,
+    map: fn(i64) -> Prop,
+}
+
+impl PropCol for DTimeCol {
+    fn get(&self, i: usize) -> Option<Prop> {
+        StaticArray::get(&self.arr, i).map(self.map)
+    }
+}
+fn lift_property_col(arr: &dyn Array) -> Box<dyn PropCol> {
+    match arr.data_type() {
+        DataType::Boolean => {
+            let arr = arr.as_any().downcast_ref::<BooleanArray>().unwrap();
+            Box::new(arr.clone())
+        }
+        DataType::Int32 => {
+            let arr = arr.as_any().downcast_ref::<PrimitiveArray<i32>>().unwrap();
+            Box::new(arr.clone())
+        }
+        DataType::Int64 => {
+            let arr = arr.as_any().downcast_ref::<PrimitiveArray<i64>>().unwrap();
+            Box::new(arr.clone())
+        }
+        DataType::UInt8 => {
+            let arr = arr.as_any().downcast_ref::<PrimitiveArray<u8>>().unwrap();
+            Box::new(arr.clone())
+        }
+        DataType::UInt16 => {
+            let arr = arr.as_any().downcast_ref::<PrimitiveArray<u16>>().unwrap();
+            Box::new(arr.clone())
+        }
+        DataType::UInt32 => {
+            let arr = arr.as_any().downcast_ref::<PrimitiveArray<u32>>().unwrap();
+            Box::new(arr.clone())
+        }
+        DataType::UInt64 => {
+            let arr = arr.as_any().downcast_ref::<PrimitiveArray<u64>>().unwrap();
+            Box::new(arr.clone())
+        }
+        DataType::Float32 => {
+            let arr = arr.as_any().downcast_ref::<PrimitiveArray<f32>>().unwrap();
+            Box::new(arr.clone())
+        }
+        DataType::Float64 => {
+            let arr = arr.as_any().downcast_ref::<PrimitiveArray<f64>>().unwrap();
+            Box::new(arr.clone())
+        }
+        DataType::Utf8 => {
+            let arr = arr.as_any().downcast_ref::<Utf8Array<i32>>().unwrap();
+            Box::new(Wrap(arr.clone()))
+        }
+        DataType::LargeUtf8 => {
+            let arr = arr.as_any().downcast_ref::<Utf8Array<i64>>().unwrap();
+            Box::new(arr.clone())
+        }
+        DataType::List(_) => {
+            let arr = arr.as_any().downcast_ref::<ListArray<i32>>().unwrap();
+            Box::new(Wrap(arr.clone()))
+        }
+        DataType::FixedSizeList(_, _) => {
+            let arr = arr.as_any().downcast_ref::<FixedSizeListArray>().unwrap();
+            Box::new(Wrap(arr.clone()))
+        }
+        DataType::LargeList(_) => {
+            let arr = arr.as_any().downcast_ref::<ListArray<i64>>().unwrap();
+            Box::new(Wrap(arr.clone()))
+        }
+        DataType::Timestamp(timeunit, timezone) => {
+            let arr = arr
+                .as_any()
+                .downcast_ref::<PrimitiveArray<i64>>()
+                .unwrap()
+                .clone();
+            match timezone {
+                Some(_) => match timeunit {
+                    TimeUnit::Second => Box::new(DTimeCol {
+                        arr,
+                        map: |v| {
+                            Prop::DTime(
+                                DateTime::<Utc>::from_timestamp(v, 0)
+                                    .expect("DateTime conversion failed"),
+                            )
+                        },
+                    }),
+                    TimeUnit::Millisecond => Box::new(DTimeCol {
+                        arr,
+                        map: |v| {
+                            Prop::DTime(
+                                DateTime::<Utc>::from_timestamp_millis(v)
+                                    .expect("DateTime conversion failed"),
+                            )
+                        },
+                    }),
+                    TimeUnit::Microsecond => Box::new(DTimeCol {
+                        arr,
+                        map: |v| {
+                            Prop::DTime(
+                                DateTime::<Utc>::from_timestamp_micros(v)
+                                    .expect("DateTime conversion failed"),
+                            )
+                        },
+                    }),
+                    TimeUnit::Nanosecond => Box::new(DTimeCol {
+                        arr,
+                        map: |v| Prop::DTime(DateTime::<Utc>::from_timestamp_nanos(v)),
+                    }),
+                },
+                None => match timeunit {
+                    TimeUnit::Second => Box::new(DTimeCol {
+                        arr,
+                        map: |v| {
+                            Prop::NDTime(
+                                DateTime::from_timestamp(v, 0)
+                                    .expect("DateTime conversion failed")
+                                    .naive_utc(),
+                            )
+                        },
+                    }),
+                    TimeUnit::Millisecond => Box::new(DTimeCol {
+                        arr,
+                        map: |v| {
+                            Prop::NDTime(
+                                DateTime::from_timestamp_millis(v)
+                                    .expect("DateTime conversion failed")
+                                    .naive_utc(),
+                            )
+                        },
+                    }),
+                    TimeUnit::Microsecond => Box::new(DTimeCol {
+                        arr,
+                        map: |v| {
+                            Prop::NDTime(
+                                DateTime::from_timestamp_micros(v)
+                                    .expect("DateTime conversion failed")
+                                    .naive_utc(),
+                            )
+                        },
+                    }),
+                    TimeUnit::Nanosecond => Box::new(DTimeCol {
+                        arr,
+                        map: |v| Prop::NDTime(DateTime::from_timestamp_nanos(v).naive_utc()),
+                    }),
+                },
+            }
+        }
+        unsupported => panic!("Data type not supported: {:?}", unsupported),
+    }
 }

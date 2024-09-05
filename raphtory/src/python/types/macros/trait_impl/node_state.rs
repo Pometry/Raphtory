@@ -1,4 +1,3 @@
-#![allow(non_local_definitions)]
 use crate::{
     core::entities::nodes::node_ref::NodeRef,
     db::{
@@ -17,8 +16,8 @@ use pyo3::{
     prelude::*,
     types::PyNotImplemented,
 };
-use raphtory_api::core::storage::arc_str::ArcStr;
-use std::sync::Arc;
+use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
+use std::{collections::HashMap, sync::Arc};
 
 macro_rules! impl_node_state_ops {
     ($name:ident<$value:ty>, $inner_t:ty, $to_owned:expr) => {
@@ -63,9 +62,6 @@ macro_rules! impl_node_state_ops {
                                 None => PyTypeError::new_err("Invalid node reference"),
                             }
                         }
-                        NodeRef::ExternalStr(name) => {
-                            PyKeyError::new_err(format!("Missing value for node with name {name}"))
-                        }
                     })
             }
 
@@ -77,6 +73,10 @@ macro_rules! impl_node_state_ops {
 
             fn values(&self) -> PyBorrowingIterator {
                 self.__iter__()
+            }
+
+            fn sorted_by_id(&self) -> NodeState<'static, $value, DynamicGraph> {
+                self.inner.sort_by_id()
             }
 
             fn __repr__(&self) -> String {
@@ -141,8 +141,14 @@ macro_rules! impl_node_state_ord_ops {
                         .inner
                         .values()
                         .map($to_owned)
-                        .eq(other.iter().cloned())
+                        .eq(other.into_iter())
                         .into_py(py);
+                } else if let Ok(other) = other.extract::<HashMap<NodeRef, $value>>() {
+                    return (self.inner.len() == other.len()
+                        && other.into_iter().all(|(node, value)| {
+                            self.inner.get_by_node(node).map($to_owned) == Some(value)
+                        }))
+                    .into_py(py);
                 }
                 PyNotImplemented::get(py).into_py(py)
             }
@@ -265,6 +271,9 @@ impl_node_state_num!(NodeStateUsize<usize>);
 
 impl_lazy_node_state_num!(LazyNodeStateU64<u64>);
 impl_node_state_num!(NodeStateU64<u64>);
+
+impl_node_state_ord!(NodeStateGID<GID>);
+impl_lazy_node_state_ord!(LazyNodeStateGID<GID>);
 
 impl_lazy_node_state_ord!(LazyNodeStateOptionI64<Option<i64>>);
 impl_node_state_ord!(NodeStateOptionI64<Option<i64>>);
