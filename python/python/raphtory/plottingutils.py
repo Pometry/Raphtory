@@ -186,8 +186,8 @@ def cdf(observations, normalised=True):
         list(float): x coordinates for the cdf
         list(float): y coordinates for the cdf
     """
-    data = np.array(listlike, dtype=object)
-    N = len(listlike)
+    data = np.array(observations, dtype=object)
+    N = len(observations)
 
     x = np.sort(data)
     if normalised:
@@ -209,11 +209,11 @@ def ccdf(observations, normalised=True):
         list(float): x coordinates for the cdf
         list(float): y coordinates for the cdf
     """
-    x, y = cdf(listlike, normalised)
+    x, y = cdf(observations, normalised)
     if normalised:
         return x, 1.0 - y
     else:
-        return x, len(listlike) - y
+        return x, len(observations) - y
 
 
 def lorenz(observations):
@@ -227,9 +227,9 @@ def lorenz(observations):
         list(float): x coordinates for the cdf
         list(float): y coordinates for the cdf
     """
-    tmp_arr = np.array(sorted(listlike))
+    tmp_arr = np.array(sorted(observations))
     # print(tmp_arr[0])
-    x = np.arange(listlike.size) / (listlike.size - 1)
+    x = np.arange(len(observations)) / (len(observations) - 1)
     y = tmp_arr.cumsum() / tmp_arr.sum()
     return x, y
 
