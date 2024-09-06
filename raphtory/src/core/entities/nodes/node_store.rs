@@ -36,16 +36,6 @@ impl NodeStore {
     pub fn is_initialised(&self) -> bool {
         self.vid != VID::default()
     }
-    pub fn new(vid: VID) -> Self {
-        Self {
-            global_id: Default::default(),
-            vid,
-            timestamps: Default::default(),
-            layers: vec![],
-            props: None,
-            node_type: 0,
-        }
-    }
 
     #[inline]
     pub fn init(&mut self, vid: VID, gid: GidRef) {
