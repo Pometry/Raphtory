@@ -3,7 +3,6 @@ use futures_util::future::BoxFuture;
 use std::future::Future;
 
 mod document_ref;
-pub mod document_template;
 mod embedding_cache;
 pub mod embeddings;
 mod entity_id;

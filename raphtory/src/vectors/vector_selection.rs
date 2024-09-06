@@ -13,7 +13,6 @@ use crate::{
 
 use super::{
     document_ref::DocumentRef,
-    document_template::DocumentTemplate,
     entity_id::EntityId,
     similarity_search_utils::{find_top_k, score_document_groups_by_highest, score_documents},
     vectorised_graph::VectorisedGraph,
