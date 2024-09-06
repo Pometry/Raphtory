@@ -13,6 +13,7 @@ use crate::{
             properties::{graph_meta::GraphMeta, props::Meta},
             LayerIds, EID, VID,
         },
+        utils::errors::GraphError,
         Direction,
     },
     db::api::{
@@ -22,7 +23,7 @@ use crate::{
                 edge_storage_ops::EdgeStorageOps,
                 edges::{EdgesStorage, EdgesStorageRef},
             },
-            locked::LockedGraph,
+            locked::{LockedGraph, WriteLockedGraph},
             nodes::{
                 node_owned_entry::NodeOwnedEntry,
                 node_storage_ops::{NodeStorageIntoOps, NodeStorageOps},
@@ -41,7 +42,6 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{iter, sync::Arc};
 
-use crate::{core::utils::errors::GraphError, db::api::storage::graph::locked::WriteLockedGraph};
 #[cfg(feature = "storage")]
 use crate::{
     db::api::storage::graph::variants::storage_variants::StorageVariants,

@@ -333,6 +333,10 @@ impl<'a> NodeShardWriter<'a> {
         }
     }
 
+    pub fn shard_id(&self) -> usize {
+        self.num_shards
+    }
+
     fn resize(&mut self, new_global_len: usize) {
         let mut new_len = new_global_len / self.num_shards;
         if self.shard_id < new_global_len % self.num_shards {
@@ -365,6 +369,10 @@ impl<'a> WriteLockedNodes<'a> {
     pub fn resize(&mut self, new_len: usize) {
         self.par_iter_mut()
             .for_each(|mut shard| shard.resize(new_len))
+    }
+
+    pub fn num_shards(&self) -> usize {
+        self.guards.len()
     }
 }
 

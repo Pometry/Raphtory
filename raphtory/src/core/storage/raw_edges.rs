@@ -402,6 +402,10 @@ impl<'a> EdgeShardWriter<'a> {
             i: offset,
         })
     }
+
+    pub fn shard_id(&self) -> usize {
+        self.shard_id
+    }
 }
 
 pub struct WriteLockedEdges<'a> {
@@ -424,5 +428,9 @@ impl<'a> WriteLockedEdges<'a> {
                 shard_id,
                 num_shards,
             })
+    }
+
+    pub fn num_shards(&self) -> usize {
+        self.shards.len()
     }
 }

@@ -23,21 +23,31 @@ use std::{
     mem,
     ops::DerefMut,
     path::Path,
+    sync::Arc,
 };
 
 #[derive(Debug)]
 pub struct GraphWriter {
-    writer: Mutex<File>,
+    writer: Arc<Mutex<File>>,
     proto_delta: Mutex<ProtoGraph>,
 }
 
 impl GraphWriter {
     pub fn new(file: File) -> Self {
         Self {
-            writer: Mutex::new(file),
+            writer: Arc::new(Mutex::new(file)),
             proto_delta: Default::default(),
         }
     }
+
+    /// Get an independent writer pointing at the same underlying cache file
+    pub fn fork(&self) -> Self {
+        GraphWriter {
+            writer: self.writer.clone(),
+            proto_delta: Default::default(),
+        }
+    }
+
     pub fn write(&self) -> Result<(), GraphError> {
         let mut proto = mem::take(self.proto_delta.lock().deref_mut());
         let bytes = proto.encode_to_vec();
@@ -188,11 +198,13 @@ impl GraphWriter {
     }
 
     pub fn add_edge_cprops(&self, edge: EID, layer: usize, props: &[(usize, Prop)]) {
-        self.proto_delta.lock().update_edge_cprops(
-            edge,
-            layer,
-            props.iter().map(|(id, prop)| (*id, prop)),
-        )
+        if !props.is_empty() {
+            self.proto_delta.lock().update_edge_cprops(
+                edge,
+                layer,
+                props.iter().map(|(id, prop)| (*id, prop)),
+            )
+        }
     }
 
     pub fn delete_edge(&self, edge: EID, t: TimeIndexEntry, layer: usize) {

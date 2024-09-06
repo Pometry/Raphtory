@@ -82,6 +82,10 @@ impl<'a> WriteLockedGraph<'a> {
             .get_or_init(gid, || self.graph.storage.nodes.next_id())
     }
 
+    pub fn num_shards(&self) -> usize {
+        self.nodes.num_shards().max(self.edges.num_shards())
+    }
+
     pub fn edges_mut(&mut self) -> &mut WriteLockedEdges<'a> {
         &mut self.edges
     }

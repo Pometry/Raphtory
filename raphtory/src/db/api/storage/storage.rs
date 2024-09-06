@@ -37,6 +37,8 @@ pub struct Storage {
     #[cfg(feature = "proto")]
     #[serde(skip)]
     pub(crate) cache: OnceCell<GraphWriter>,
+    // search index (tantivy)
+    // vector index
 }
 
 impl Display for Storage {
