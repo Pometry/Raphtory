@@ -236,25 +236,6 @@ impl Mut {
         Ok(true)
     }
 
-    async fn update_graph_last_opened<'a>(ctx: &Context<'a>, path: String) -> Result<bool> {
-        let path = Path::new(&path);
-        let data = ctx.data_unchecked::<Data>();
-        let graph = data.get_graph(path)?;
-
-        if graph.graph.storage().is_immutable() {
-            return Err(GqlGraphError::ImmutableDiskGraph.into());
-        }
-
-        let dt = Utc::now();
-        let timestamp: i64 = dt.timestamp();
-
-        graph.update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
-
-        graph.write_updates()?;
-
-        Ok(true)
-    }
-
     async fn create_graph<'a>(
         ctx: &Context<'a>,
         parent_graph_path: String,
@@ -459,20 +440,6 @@ impl Mut {
         g.cache(&full_path)?;
         data.graphs.insert(path.to_path_buf(), g.into());
         Ok(path.display().to_string())
-    }
-
-    async fn archive_graph<'a>(ctx: &Context<'a>, path: String, is_archive: u8) -> Result<bool> {
-        let path = Path::new(&path);
-        let data = ctx.data_unchecked::<Data>();
-        let graph = data.get_graph(path)?;
-
-        if graph.graph.storage().is_immutable() {
-            return Err(GqlGraphError::ImmutableDiskGraph.into());
-        }
-
-        graph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
-        graph.write_updates()?;
-        Ok(true)
     }
 }
 
