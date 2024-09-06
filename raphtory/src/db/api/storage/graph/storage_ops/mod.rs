@@ -13,6 +13,7 @@ use crate::{
             properties::{graph_meta::GraphMeta, props::Meta},
             LayerIds, EID, VID,
         },
+        utils::errors::GraphError,
         Direction,
     },
     db::api::{
@@ -22,7 +23,7 @@ use crate::{
                 edge_storage_ops::EdgeStorageOps,
                 edges::{EdgesStorage, EdgesStorageRef},
             },
-            locked::LockedGraph,
+            locked::{LockedGraph, WriteLockedGraph},
             nodes::{
                 node_owned_entry::NodeOwnedEntry,
                 node_storage_ops::{NodeStorageIntoOps, NodeStorageOps},
@@ -122,6 +123,16 @@ impl GraphStorage {
                 GraphStorage::Mem(locked)
             }
             _ => self.clone(),
+        }
+    }
+
+    pub fn write_lock(&self) -> Result<WriteLockedGraph, GraphError> {
+        match self {
+            GraphStorage::Unlocked(storage) => {
+                let locked = WriteLockedGraph::new(storage);
+                Ok(locked)
+            }
+            _ => Err(GraphError::AttemptToMutateImmutableGraph),
         }
     }
 

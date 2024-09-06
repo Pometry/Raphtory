@@ -9,11 +9,21 @@ use polars_arrow::{
     datatypes::{ArrowDataType as DataType, TimeUnit},
 };
 use rayon::prelude::*;
+use std::fmt::{Debug, Formatter};
 
 pub(crate) struct DFView<I> {
     pub names: Vec<String>,
     pub(crate) chunks: I,
     pub num_rows: usize,
+}
+
+impl<I> Debug for DFView<I> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DFView")
+            .field("names", &self.names)
+            .field("num_rows", &self.num_rows)
+            .finish()
+    }
 }
 
 impl<I, E> DFView<I>
@@ -48,6 +58,9 @@ impl TimeCol {
             .as_any()
             .downcast_ref::<PrimitiveArray<i64>>()
             .ok_or_else(|| LoadError::InvalidTimestamp(arr.data_type().clone()))?;
+        if arr.null_count() > 0 {
+            return Err(LoadError::MissingTimeError);
+        }
         let arr = if let DataType::Timestamp(_, _) = arr.data_type() {
             let array = cast::cast(
                 arr,
@@ -63,6 +76,7 @@ impl TimeCol {
         } else {
             arr.clone()
         };
+
         Ok(Self(arr))
     }
 
@@ -70,12 +84,16 @@ impl TimeCol {
         (0..self.0.len()).into_par_iter().map(|i| self.get(i))
     }
 
+    pub fn iter(&self) -> impl Iterator<Item = i64> + '_ {
+        self.0.values_iter().copied()
+    }
+
     pub fn get(&self, i: usize) -> Option<i64> {
         self.0.get(i)
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct DFChunk {
     pub(crate) chunk: Vec<Box<dyn Array>>,
 }

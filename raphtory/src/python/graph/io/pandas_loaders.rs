@@ -1,8 +1,12 @@
 use crate::{
     core::{utils::errors::GraphError, Prop},
-    db::api::{storage::graph::storage_ops::GraphStorage, view::internal::CoreGraphOps},
+    db::api::{
+        mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
+        view::StaticGraphViewOps,
+    },
     io::arrow::{dataframe::*, df_loaders::*},
     python::graph::io::*,
+    serialise::incremental::InternalCache,
 };
 use polars_arrow::{array::Array, ffi};
 use pyo3::{
@@ -12,8 +16,10 @@ use pyo3::{
 };
 use std::collections::HashMap;
 
-pub fn load_nodes_from_pandas(
-    graph: &GraphStorage,
+pub fn load_nodes_from_pandas<
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
+>(
+    graph: &G,
     df: &PyAny,
     time: &str,
     id: &str,
@@ -47,8 +53,10 @@ pub fn load_nodes_from_pandas(
     })
 }
 
-pub fn load_edges_from_pandas(
-    graph: &GraphStorage,
+pub(crate) fn load_edges_from_pandas<
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
+>(
+    graph: &G,
     df: &PyAny,
     time: &str,
     src: &str,
@@ -84,8 +92,10 @@ pub fn load_edges_from_pandas(
     })
 }
 
-pub fn load_node_props_from_pandas(
-    graph: &GraphStorage,
+pub(crate) fn load_node_props_from_pandas<
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
+>(
+    graph: &G,
     df: &PyAny,
     id: &str,
     node_type: Option<&str>,
@@ -113,8 +123,10 @@ pub fn load_node_props_from_pandas(
     })
 }
 
-pub fn load_edge_props_from_pandas(
-    graph: &GraphStorage,
+pub(crate) fn load_edge_props_from_pandas<
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
+>(
+    graph: &G,
     df: &PyAny,
     src: &str,
     dst: &str,
@@ -144,8 +156,10 @@ pub fn load_edge_props_from_pandas(
     })
 }
 
-pub fn load_edge_deletions_from_pandas(
-    graph: &GraphStorage,
+pub fn load_edge_deletions_from_pandas<
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
+>(
+    graph: &G,
     df: &PyAny,
     time: &str,
     src: &str,

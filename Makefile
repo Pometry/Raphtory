@@ -54,7 +54,7 @@ python-fmt:
 
 tidy: rust-fmt stubs python-fmt
 
-build-python:
+build-python: activate-storage
 	cd python && maturin develop -r --features storage
 
 python-docs:

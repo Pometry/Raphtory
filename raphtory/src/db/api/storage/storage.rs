@@ -1,3 +1,5 @@
+#[cfg(feature = "proto")]
+use crate::serialise::incremental::GraphWriter;
 use crate::{
     core::{
         entities::{
@@ -11,13 +13,16 @@ use crate::{
         mutation::internal::{
             InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
         },
-        storage::graph::{nodes::node_storage_ops::NodeStorageOps, storage_ops::GraphStorage},
+        storage::graph::{
+            locked::WriteLockedGraph, nodes::node_storage_ops::NodeStorageOps,
+            storage_ops::GraphStorage,
+        },
         view::{Base, InheritViewOps},
     },
 };
 use once_cell::sync::OnceCell;
 use raphtory_api::core::{
-    entities::{EID, VID},
+    entities::{GidType, EID, VID},
     storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
 };
 use serde::{Deserialize, Serialize};
@@ -26,15 +31,14 @@ use std::{
     sync::Arc,
 };
 
-#[cfg(feature = "proto")]
-use crate::serialise::incremental::GraphWriter;
-
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Storage {
     graph: GraphStorage,
     #[cfg(feature = "proto")]
     #[serde(skip)]
     pub(crate) cache: OnceCell<GraphWriter>,
+    // search index (tantivy)
+    // vector index
 }
 
 impl Display for Storage {
@@ -80,6 +84,15 @@ impl Storage {
 impl InheritViewOps for Storage {}
 
 impl InternalAdditionOps for Storage {
+    #[inline]
+    fn id_type(&self) -> Option<GidType> {
+        self.graph.id_type()
+    }
+
+    fn write_lock(&self) -> Result<WriteLockedGraph, GraphError> {
+        self.graph.write_lock()
+    }
+
     #[inline]
     fn num_shards(&self) -> Result<usize, GraphError> {
         self.graph.num_shards()
