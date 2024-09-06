@@ -1,10 +1,8 @@
-use std::fs;
 use crate::data::get_graph_name;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
-use std::path::PathBuf;
-use std::time::UNIX_EPOCH;
 use raphtory::core::utils::errors::GraphError;
+use std::{fs, path::PathBuf, time::UNIX_EPOCH};
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlGraphs {
@@ -39,46 +37,46 @@ impl GqlGraphs {
     }
 
     async fn last_opened(&self) -> Result<Vec<i64>, GraphError> {
-        let last_opened = self
+        let last_opened: Result<Vec<i64>, GraphError> = self
             .paths
             .iter()
-            .filter_map(|path| {
-                let full_path = std::env::current_dir()
-                    .unwrap()
+            .map(|path| {
+                let full_path = std::env::current_dir()?
                     .join(self.work_dir.clone())
-                    .join(self.path.clone());
+                    .join(path);
 
-                let metadata = fs::metadata(full_path)?;
+                let metadata = fs::metadata(full_path.clone())?;
 
                 let accessed_time = metadata.accessed()?;
                 let accessed_time_duration = accessed_time.duration_since(UNIX_EPOCH)?;
                 let accessed_time_seconds = accessed_time_duration.as_secs() as i64;
-                accessed_time_seconds
-            })
-            .collect_vec();
 
-        Ok(last_opened)
+                Ok(accessed_time_seconds)
+            })
+            .collect();
+
+        last_opened
     }
 
     async fn last_updated(&self) -> Result<Vec<i64>, GraphError> {
-        let last_updated = self
+        let last_updated: Result<Vec<i64>, GraphError> = self
             .paths
             .iter()
-            .filter_map(|path| {
-                let full_path = std::env::current_dir()
-                    .unwrap()
+            .map(|path| {
+                let full_path = std::env::current_dir()?
                     .join(self.work_dir.clone())
-                    .join(self.path.clone());
+                    .join(path);
 
-                let metadata = fs::metadata(full_path)?;
+                let metadata = fs::metadata(full_path.clone())?;
 
                 let modified_time = metadata.modified()?;
                 let modified_time_duration = modified_time.duration_since(UNIX_EPOCH)?;
                 let modified_time_seconds = modified_time_duration.as_secs() as i64;
-                modified_time_seconds
-            })
-            .collect_vec();
 
-        Ok(last_updated)
+                Ok(modified_time_seconds)
+            })
+            .collect();
+
+        last_updated
     }
 }

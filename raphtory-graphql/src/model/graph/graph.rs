@@ -207,8 +207,7 @@ impl GqlGraph {
     ////////////////////////
 
     async fn last_opened(&self) -> Result<i64, GraphError> {
-        let full_path = std::env::current_dir()
-            .unwrap()
+        let full_path = std::env::current_dir()?
             .join(self.work_dir.clone())
             .join(self.path.clone());
 
@@ -222,8 +221,7 @@ impl GqlGraph {
     }
 
     async fn last_updated(&self) -> Result<i64, GraphError> {
-        let full_path = std::env::current_dir()
-            .unwrap()
+        let full_path = std::env::current_dir()?
             .join(self.work_dir.clone())
             .join(self.path.clone());
 

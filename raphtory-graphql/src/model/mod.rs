@@ -113,7 +113,8 @@ impl QueryRoot {
     async fn graphs<'a>(ctx: &Context<'a>) -> Result<GqlGraphs> {
         let data = ctx.data_unchecked::<Data>();
         let paths = data.get_graph_names_paths()?;
-        Ok(GqlGraphs::new(paths))
+        let work_dir = data.work_dir.clone();
+        Ok(GqlGraphs::new(work_dir, paths))
     }
 
     async fn plugins<'a>(ctx: &Context<'a>) -> GlobalPlugins {
