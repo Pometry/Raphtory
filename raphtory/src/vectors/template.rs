@@ -217,9 +217,9 @@ impl From<Prop> for Value {
 
 #[derive(Clone)]
 pub struct DocumentTemplate {
-    graph_template: Option<String>,
-    node_template: Option<String>,
-    edge_template: Option<String>,
+    pub graph_template: Option<String>,
+    pub node_template: Option<String>,
+    pub edge_template: Option<String>,
 }
 
 fn empty_iter() -> Box<dyn Iterator<Item = DocumentInput>> {
@@ -227,18 +227,6 @@ fn empty_iter() -> Box<dyn Iterator<Item = DocumentInput>> {
 }
 
 impl DocumentTemplate {
-    pub fn new(
-        graph_template: Option<String>,
-        node_template: Option<String>,
-        edge_template: Option<String>,
-    ) -> Self {
-        Self {
-            graph_template,
-            node_template,
-            edge_template,
-        }
-    }
-
     pub(crate) fn graph<G: StaticGraphViewOps>(
         // TODO: change everything in this file to use StaticGraphViewOps
         &self,
@@ -338,6 +326,7 @@ fn build_template<'a>(env: &'a mut Environment<'a>, template: &'a str) -> Templa
 struct EdgeTemplateContext {
     src: NodeTemplateContext,
     dst: NodeTemplateContext,
+    history: Vec<i64>,
     layers: Vec<String>,
     props: Value,
 }
@@ -347,6 +336,7 @@ impl<'graph, G: GraphViewOps<'graph>> From<&EdgeView<G>> for EdgeTemplateContext
         Self {
             src: (&value.src()).into(),
             dst: (&value.dst()).into(),
+            history: value.history(),
             layers: value
                 .layer_names()
                 .into_iter()
@@ -417,7 +407,7 @@ mod template_tests {
             .unwrap();
 
         // I should be able to iteate over props without doing props|items, which would be solved by implementing Object for Properties
-        let template_string = indoc! {"
+        let node_template = indoc! {"
             node {{ name }} is {% if node_type is none %}an unknown entity{% else %}a {{ node_type }}{% endif %} with the following props:
             {% if props.const_test is defined %}const_test: {{ props.const_test }} {% endif %}
             {% if temporal_props.temp_test is defined and temporal_props.temp_test|length > 0 %}
@@ -433,9 +423,14 @@ mod template_tests {
             {{ key }}: {{ value }}
             {% endfor %}
         "};
-        let template = NodeTemplate(template_string.to_owned());
+        let template = DocumentTemplate {
+            node_template: Some(node_template.to_owned()),
+            graph_template: None,
+            edge_template: None,
+        };
 
-        let rendered = template.render(graph.node("node1").unwrap());
+        let mut docs = template.node(&graph.node("node1").unwrap());
+        let rendered = docs.next().unwrap().content;
         let expected = indoc! {"
             node node1 is an unknown entity with the following props:
             temp_test:
@@ -448,7 +443,8 @@ mod template_tests {
         "};
         assert_eq!(&rendered, expected);
 
-        let rendered = template.render(graph.node("node2").unwrap());
+        let mut docs = template.node(&graph.node("node2").unwrap());
+        let rendered = docs.next().unwrap().content;
         let expected = indoc! {"
             node node2 is a person with the following props:
             const_test: const_test_value"};

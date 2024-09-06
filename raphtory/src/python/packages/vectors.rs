@@ -73,27 +73,6 @@ fn format_time(millis: i64) -> String {
     }
 }
 
-#[pyfunction(signature = (entity, filter_out = vec![], force_static = vec![]))]
-pub fn generate_property_list(
-    entity: &PyAny,
-    // TODO: add time_format parameter with options: None (number) or str, to set some format like "%Y-%m-%d %H:%M:%S"
-    filter_out: Vec<&str>,
-    force_static: Vec<&str>,
-) -> PyResult<String> {
-    let node = entity.extract::<PyNode>().map(|node| node.node);
-    let edge = entity.extract::<PyEdge>().map(|edge| edge.edge);
-
-    if let Ok(node) = node {
-        Ok(node.generate_property_list(&format_time, filter_out, force_static))
-    } else if let Ok(edge) = edge {
-        Ok(edge.generate_property_list(&format_time, filter_out, force_static))
-    } else {
-        Err(PyAttributeError::new_err(
-            "First argument 'entity' has to be of type Node or Edge",
-        ))
-    }
-}
-
 impl PyDocument {
     pub fn extract_rust_document(&self, py: Python) -> Result<Document, String> {
         if let (Some(entity), Some(embedding)) = (&self.entity, &self.embedding) {
@@ -272,7 +251,11 @@ impl PyGraphView {
         let embedding: Py<PyFunction> = embedding.into();
         let graph = self.graph.clone();
         let cache = cache.map(PathBuf::from);
-        let template = DocumentTemplate::new(graph_template, node_template, edge_template);
+        let template = DocumentTemplate {
+            graph_template,
+            node_template,
+            edge_template,
+        };
         execute_async_task(move || async move {
             graph
                 .vectorise(
