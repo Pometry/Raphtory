@@ -192,6 +192,7 @@ pub(crate) fn load_edges_from_df<
     let mut dst_col_resolved = vec![];
     let mut eid_col_resolved = vec![];
 
+    let mut write_locked_graph = graph.write_lock()?;
     for chunk in df_view.chunks {
         let df = chunk?;
         let prop_cols = combine_properties(properties, &properties_indices, &df, |key, dtype| {
@@ -215,7 +216,6 @@ pub(crate) fn load_edges_from_df<
         let time_col = df.time_col(time_index)?;
 
         // It's our graph, no one else can change it
-        let mut write_locked_graph = graph.write_lock()?;
         src_col_resolved.resize_with(df.len(), Default::default);
         src_col
             .par_iter()
