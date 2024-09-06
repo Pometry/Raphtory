@@ -9,11 +9,21 @@ use polars_arrow::{
     datatypes::{ArrowDataType as DataType, TimeUnit},
 };
 use rayon::prelude::*;
+use std::fmt::{Debug, Formatter};
 
 pub(crate) struct DFView<I> {
     pub names: Vec<String>,
     pub(crate) chunks: I,
     pub num_rows: usize,
+}
+
+impl<I> Debug for DFView<I> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DFView")
+            .field("names", &self.names)
+            .field("num_rows", &self.num_rows)
+            .finish()
+    }
 }
 
 impl<I, E> DFView<I>
@@ -83,7 +93,7 @@ impl TimeCol {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct DFChunk {
     pub(crate) chunk: Vec<Box<dyn Array>>,
 }

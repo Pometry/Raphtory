@@ -15,7 +15,9 @@ use crate::{
     serialise::incremental::InternalCache,
 };
 use bytemuck::checked::cast_slice_mut;
+use itertools::Itertools;
 use kdam::{Bar, BarBuilder, BarExt};
+use polars_arrow::array::{MutableArray, MutablePrimitiveArray, MutableUtf8Array, PrimitiveArray};
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
     core::{
@@ -594,4 +596,102 @@ pub(crate) fn load_edges_props_from_df<
         let _ = pb.update(df.len());
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        core::utils::errors::GraphError,
+        db::graph::graph::assert_graph_equal,
+        io::arrow::{
+            dataframe::{DFChunk, DFView},
+            df_loaders::load_edges_from_df,
+        },
+        prelude::*,
+    };
+    use itertools::Itertools;
+    use polars_arrow::array::{
+        MutableArray, MutablePrimitiveArray, MutableUtf8Array, PrimitiveArray, StaticArray,
+        Utf8Array,
+    };
+    use proptest::{
+        prelude::{any, Strategy},
+        proptest,
+    };
+
+    fn build_edge_list(
+        len: usize,
+        num_nodes: u64,
+    ) -> impl Strategy<Value = Vec<(u64, u64, i64, String, i64)>> {
+        proptest::collection::vec(
+            (
+                0..num_nodes,
+                0..num_nodes,
+                any::<i64>(),
+                any::<String>(),
+                any::<i64>(),
+            ),
+            len,
+        )
+    }
+
+    fn build_df(
+        chunk_size: usize,
+        edges: &[(u64, u64, i64, String, i64)],
+    ) -> DFView<impl Iterator<Item = Result<DFChunk, GraphError>>> {
+        let chunks = edges.iter().chunks(chunk_size);
+        let chunks = chunks
+            .into_iter()
+            .map(|chunk| {
+                let mut src_col = MutablePrimitiveArray::new();
+                let mut dst_col = MutablePrimitiveArray::new();
+                let mut time_col = MutablePrimitiveArray::new();
+                let mut str_prop_col = MutableUtf8Array::<i64>::new();
+                let mut int_prop_col = MutablePrimitiveArray::new();
+                for (src, dst, time, str_prop, int_prop) in chunk {
+                    src_col.push_value(*src);
+                    dst_col.push_value(*dst);
+                    time_col.push_value(*time);
+                    str_prop_col.push(Some(str_prop));
+                    int_prop_col.push_value(*int_prop);
+                }
+                let chunk = vec![
+                    src_col.as_box(),
+                    dst_col.as_box(),
+                    time_col.as_box(),
+                    str_prop_col.as_box(),
+                    int_prop_col.as_box(),
+                ];
+                Ok(DFChunk { chunk })
+            })
+            .collect_vec();
+        DFView {
+            names: vec![
+                "src".to_owned(),
+                "dst".to_owned(),
+                "time".to_owned(),
+                "str_prop".to_owned(),
+                "int_prop".to_owned(),
+            ],
+            chunks: chunks.into_iter(),
+            num_rows: edges.len(),
+        }
+    }
+    #[test]
+    fn test_load_edges() {
+        proptest!(|(edges in build_edge_list(1000, 100), chunk_size in 1usize..=1000)| {
+            let df_view = build_df(chunk_size, &edges);
+            let g = Graph::new();
+            let props = ["str_prop", "int_prop"];
+            load_edges_from_df(df_view, "time", "src", "dst", Some(&props), None, None, None, None, &g).unwrap();
+            let g2 = Graph::new();
+            for (src, dst, time, str_prop, int_prop) in edges {
+                g2.add_edge(time, src, dst, [("str_prop", str_prop.clone().into_prop()), ("int_prop", int_prop.into_prop())], None).unwrap();
+                let edge = g.edge(src, dst).unwrap().at(time);
+                assert_eq!(edge.properties().get("str_prop").unwrap_str(), str_prop);
+                assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
+            }
+            assert_graph_equal(&g, &g2);
+        })
+    }
 }
