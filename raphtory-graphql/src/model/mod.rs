@@ -83,16 +83,19 @@ impl QueryRoot {
     async fn graph<'a>(ctx: &Context<'a>, path: String) -> Result<GqlGraph> {
         let path = Path::new(&path);
         let data = ctx.data_unchecked::<Data>();
+        let work_dir = data.work_dir.clone();
+
         Ok(data
             .get_graph(path)
-            .map(|g| GqlGraph::new(path.to_path_buf(), g))?)
+            .map(|g| GqlGraph::new(work_dir, path.to_path_buf(), g))?)
     }
 
     async fn update_graph<'a>(ctx: &Context<'a>, path: String) -> Result<GqlMutableGraph> {
         let data = ctx.data_unchecked::<Data>();
+        let work_dir = data.work_dir.clone();
         let graph = data
             .get_graph(path.as_ref())
-            .map(|g| GqlMutableGraph::new(path, g))?;
+            .map(|g| GqlMutableGraph::new(work_dir, path, g))?;
         Ok(graph)
     }
 
