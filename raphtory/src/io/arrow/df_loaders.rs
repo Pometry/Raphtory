@@ -15,9 +15,7 @@ use crate::{
     serialise::incremental::InternalCache,
 };
 use bytemuck::checked::cast_slice_mut;
-use itertools::Itertools;
 use kdam::{Bar, BarBuilder, BarExt};
-use polars_arrow::array::{MutableArray, MutablePrimitiveArray, MutableUtf8Array, PrimitiveArray};
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
     core::{
@@ -610,10 +608,7 @@ mod tests {
         prelude::*,
     };
     use itertools::Itertools;
-    use polars_arrow::array::{
-        MutableArray, MutablePrimitiveArray, MutableUtf8Array, PrimitiveArray, StaticArray,
-        Utf8Array,
-    };
+    use polars_arrow::array::{MutableArray, MutablePrimitiveArray, MutableUtf8Array};
     use proptest::{
         prelude::{any, Strategy},
         proptest,

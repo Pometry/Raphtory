@@ -22,7 +22,7 @@ use crate::{
 };
 use once_cell::sync::OnceCell;
 use raphtory_api::core::{
-    entities::{GidRef, GidType, EID, VID},
+    entities::{GidType, EID, VID},
     storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
 };
 use serde::{Deserialize, Serialize};
@@ -129,15 +129,6 @@ impl InternalAdditionOps for Storage {
                 Ok(id)
             }
         }
-    }
-
-    fn resolve_node_no_init(&self, id: GidRef) -> Result<MaybeNew<VID>, GraphError> {
-        let vid = self.graph.resolve_node_no_init(id)?;
-
-        #[cfg(feature = "proto")]
-        self.if_cache(|cache| cache.resolve_node(vid, id));
-
-        Ok(vid)
     }
 
     fn resolve_node_and_type<V: AsNodeRef>(

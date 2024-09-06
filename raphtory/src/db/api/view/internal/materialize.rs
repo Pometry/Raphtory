@@ -39,7 +39,7 @@ use crate::{
 use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
 use raphtory_api::core::{
-    entities::{GidRef, GidType},
+    entities::GidType,
     storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
 };
 use serde::{Deserialize, Serialize};

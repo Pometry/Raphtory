@@ -13,7 +13,7 @@ use crate::{
 };
 use either::Either;
 use raphtory_api::core::{
-    entities::{GidRef, GidType, EID, VID},
+    entities::{GidType, EID, VID},
     storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
 };
 use std::sync::atomic::Ordering;
@@ -56,11 +56,6 @@ impl InternalAdditionOps for TemporalGraph {
             }
             Either::Right(vid) => Ok(MaybeNew::Existing(vid)),
         }
-    }
-
-    fn resolve_node_no_init(&self, id: GidRef) -> Result<MaybeNew<VID>, GraphError> {
-        self.logical_to_physical
-            .get_or_init(id, || self.storage.nodes.next_id())
     }
 
     fn resolve_node_and_type<V: AsNodeRef>(
@@ -228,13 +223,6 @@ impl InternalAdditionOps for GraphStorage {
     fn resolve_node<V: AsNodeRef>(&self, n: V) -> Result<MaybeNew<VID>, GraphError> {
         match self {
             GraphStorage::Unlocked(storage) => storage.resolve_node(n),
-            _ => Err(GraphError::AttemptToMutateImmutableGraph),
-        }
-    }
-
-    fn resolve_node_no_init(&self, id: GidRef) -> Result<MaybeNew<VID>, GraphError> {
-        match self {
-            GraphStorage::Unlocked(storage) => storage.resolve_node_no_init(id),
             _ => Err(GraphError::AttemptToMutateImmutableGraph),
         }
     }

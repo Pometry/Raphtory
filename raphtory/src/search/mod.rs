@@ -30,7 +30,7 @@ use crate::{
     prelude::*,
 };
 use raphtory_api::core::{
-    entities::{GidRef, GidType},
+    entities::GidType,
     storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
 };
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
@@ -791,11 +791,6 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
     #[inline]
     fn resolve_node<V: AsNodeRef>(&self, n: V) -> Result<MaybeNew<VID>, GraphError> {
         self.graph.resolve_node(n)
-    }
-
-    #[inline]
-    fn resolve_node_no_init(&self, id: GidRef) -> Result<MaybeNew<VID>, GraphError> {
-        self.graph.resolve_node_no_init(id)
     }
 
     fn resolve_node_and_type<V: AsNodeRef>(
