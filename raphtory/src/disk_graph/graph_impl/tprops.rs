@@ -18,7 +18,7 @@ use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use rayon::prelude::*;
 use std::{iter, ops::Range};
 
-impl <'a> TPropOps<'a> for TPropColumn<'a, ChunkedBoolCol<'a>, TimeIndexEntry> {
+impl<'a> TPropOps<'a> for TPropColumn<'a, ChunkedBoolCol<'a>, TimeIndexEntry> {
     fn last_before(&self, t: i64) -> Option<(TimeIndexEntry, Prop)> {
         let (props, timestamps) = self.into_inner();
         let (t, t_index) = timestamps.last_before(t)?;
@@ -46,7 +46,6 @@ impl <'a> TPropOps<'a> for TPropColumn<'a, ChunkedBoolCol<'a>, TimeIndexEntry> {
             .into_iter()
             .zip(props.sliced(start..end))
             .filter_map(|(t, v)| v.map(|v| (t, v.into())))
-
     }
 
     fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
@@ -171,6 +170,11 @@ where
 
 pub fn read_tprop_column(id: usize, field: Field, edge: Edge) -> Option<DiskTProp<TimeIndexEntry>> {
     match field.data_type() {
+        DataType::Boolean => {
+            let props = edge.prop_bool_values(id)?;
+            let timestamps = TimeStamps::new(edge.timestamp_slice(), None);
+            Some(DiskTProp::Bool(TPropColumn::new(props, timestamps)))
+        }
         DataType::Int64 => new_tprop_column::<i64>(edge, id).map(DiskTProp::I64),
         DataType::Int32 => new_tprop_column::<i32>(edge, id).map(DiskTProp::I32),
         DataType::UInt32 => new_tprop_column::<u32>(edge, id).map(DiskTProp::U32),

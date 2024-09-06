@@ -36,7 +36,12 @@ impl<'a> DiskNode<'a> {
     }
 
     pub fn temporal_node_prop_ids(self) -> Box<dyn Iterator<Item = usize> + 'a> {
-        Box::new(std::iter::empty())
+        match &self.graph.node_properties().temporal_props {
+            Some(props) => {
+                Box::new(props.prop_dtypes().iter().enumerate().map(|(i, _)| i))
+            },
+            None => Box::new(std::iter::empty()),
+        }
     }
 
     pub(crate) fn new(graph: &'a TemporalGraph, vid: VID) -> Self {

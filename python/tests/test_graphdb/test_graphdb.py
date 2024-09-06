@@ -561,6 +561,7 @@ def test_graph_properties():
     assert "prop 2" in g.before(2).properties
     assert "static prop" not in g.properties.constant
 
+
 def create_graph_history_1():
     g = Graph()
     g.add_edge(1, 1, 1)
@@ -572,6 +573,7 @@ def create_graph_history_1():
     v.add_updates(3, props_t3)
     v.add_constant_properties({"static prop": 123})
     return g
+
 
 def test_node_properties():
     g = create_graph_history_1()
@@ -596,13 +598,14 @@ def test_node_properties():
         history_test("prop 3", [(1, "hi"), (3, "hello")])
         history_test("prop 4", [(1, True), (2, False), (3, True)])
         history_test("undefined", None)
-    
 
         def time_history_test(time, key, value):
             if value is None:
                 assert g.at(time).node(1).properties.temporal.get(key) is None
                 assert g.at(time).nodes.properties.temporal.get(key) is None
-                assert g.at(time).nodes.out_neighbours.properties.temporal.get(key) is None
+                assert (
+                    g.at(time).nodes.out_neighbours.properties.temporal.get(key) is None
+                )
             else:
                 assert g.at(time).node(1).properties.temporal.get(key).items() == value
                 assert g.at(time).nodes.properties.temporal.get(key).items() == [value]
@@ -681,14 +684,7 @@ def test_node_properties():
         time_property_test(1, "prop 2", None)
 
         # testing properties
-        properties = g.node(1).properties
-        assert properties["prop 2"] == 0.9
-        assert properties["prop 3"] == "hello"
-        assert properties["prop 1"] == 2
-        assert properties["prop 4"] == True
-        assert properties["static prop"] == 123
-
-        assert properties == {
+        assert g.node(1).properties == {
             "prop 2": 0.9,
             "prop 3": "hello",
             "prop 1": 2,
@@ -696,185 +692,308 @@ def test_node_properties():
             "static prop": 123,
         }
 
-    check(g)
+        # find all nodes that match properties
+        [n] = g.find_nodes(
+            {
+                "prop 3": "hello",
+                "prop 1": 2,
+            }
+        )
+        assert n == g.node(1)
 
-    # find all nodes that match properties
-    [n] = g.find_nodes(
-        {
+        empty_list = g.find_nodes({"prop 1": 2, "prop 3": "hi"})
+        assert len(empty_list) == 0
+
+        assert g.nodes.properties == {
+            "prop 2": [0.9],
+            "prop 3": ["hello"],
+            "prop 1": [2],
+            "prop 4": [True],
+            "static prop": [123],
+        }
+
+        assert g.nodes.out_neighbours.properties == {
+            "prop 2": [[0.9]],
+            "prop 3": [["hello"]],
+            "prop 1": [[2]],
+            "prop 4": [[True]],
+            "static prop": [[123]],
+        }
+
+        assert g.node(1).properties.temporal.latest() == {
+            "prop 2": 0.9,
             "prop 3": "hello",
             "prop 1": 2,
+            "prop 4": True,
         }
-    )
-    assert n == g.node(1)
+        assert g.nodes.properties.temporal.latest() == {
+            "prop 2": [0.9],
+            "prop 3": ["hello"],
+            "prop 1": [2],
+            "prop 4": [True],
+        }
+        assert g.nodes.out_neighbours.properties.temporal.latest() == {
+            "prop 2": [[0.9]],
+            "prop 3": [["hello"]],
+            "prop 1": [[2]],
+            "prop 4": [[True]],
+        }
 
-    empty_list = g.find_nodes({"prop 1": 2, "prop 3": "hi"})
-    assert len(empty_list) == 0
+        assert g.before(3).node(1).properties == {
+            "prop 1": 2,
+            "prop 4": False,
+            "prop 2": 0.6,
+            "static prop": 123,
+            "prop 3": "hi",
+        }
+        assert g.before(3).nodes.properties == {
+            "prop 1": [2],
+            "prop 4": [False],
+            "prop 2": [0.6],
+            "static prop": [123],
+            "prop 3": ["hi"],
+        }
+        assert g.before(3).nodes.out_neighbours.properties == {
+            "prop 1": [[2]],
+            "prop 4": [[False]],
+            "prop 2": [[0.6]],
+            "static prop": [[123]],
+            "prop 3": [["hi"]],
+        }
 
-    assert g.nodes.properties == {
-        "prop 2": [0.9],
-        "prop 3": ["hello"],
-        "prop 1": [2],
-        "prop 4": [True],
-        "static prop": [123],
-    }
-    assert g.nodes.out_neighbours.properties == {
-        "prop 2": [[0.9]],
-        "prop 3": [["hello"]],
-        "prop 1": [[2]],
-        "prop 4": [[True]],
-        "static prop": [[123]],
-    }
+        # testing property histories
+        assert g.node(1).properties.temporal == {
+            "prop 3": [(1, "hi"), (3, "hello")],
+            "prop 1": [(1, 1), (2, 2)],
+            "prop 4": [(1, True), (2, False), (3, True)],
+            "prop 2": [(2, 0.6), (3, 0.9)],
+        }
+        assert g.nodes.properties.temporal == {
+            "prop 3": [[(1, "hi"), (3, "hello")]],
+            "prop 1": [[(1, 1), (2, 2)]],
+            "prop 4": [[(1, True), (2, False), (3, True)]],
+            "prop 2": [[(2, 0.6), (3, 0.9)]],
+        }
+        assert g.nodes.out_neighbours.properties.temporal == {
+            "prop 3": [[[(1, "hi"), (3, "hello")]]],
+            "prop 1": [[[(1, 1), (2, 2)]]],
+            "prop 4": [[[(1, True), (2, False), (3, True)]]],
+            "prop 2": [[[(2, 0.6), (3, 0.9)]]],
+        }
 
-    assert g.node(1).properties.temporal.latest() == {
-        "prop 2": 0.9,
-        "prop 3": "hello",
-        "prop 1": 2,
-        "prop 4": True,
-    }
-    assert g.nodes.properties.temporal.latest() == {
-        "prop 2": [0.9],
-        "prop 3": ["hello"],
-        "prop 1": [2],
-        "prop 4": [True],
-    }
-    assert g.nodes.out_neighbours.properties.temporal.latest() == {
-        "prop 2": [[0.9]],
-        "prop 3": [["hello"]],
-        "prop 1": [[2]],
-        "prop 4": [[True]],
-    }
+        assert g.at(2).node(1).properties.temporal == {
+            "prop 2": [(2, 0.6)],
+            "prop 4": [(2, False)],
+            "prop 1": [(2, 2)],
+        }
+        assert g.before(3).nodes.properties.temporal == {
+            "prop 2": [[(2, 0.6)]],
+            "prop 4": [[(1, True), (2, False)]],
+            "prop 1": [[(1, 1), (2, 2)]],
+            "prop 3": [[(1, "hi")]],
+        }
+        assert g.before(3).nodes.out_neighbours.properties.temporal == {
+            "prop 2": [[[(2, 0.6)]]],
+            "prop 4": [[[(1, True), (2, False)]]],
+            "prop 1": [[[(1, 1), (2, 2)]]],
+            "prop 3": [[[(1, "hi")]]],
+        }
 
-    assert g.before(3).node(1).properties == {
-        "prop 1": 2,
-        "prop 4": False,
-        "prop 2": 0.6,
-        "static prop": 123,
-        "prop 3": "hi",
-    }
-    assert g.before(3).nodes.properties == {
-        "prop 1": [2],
-        "prop 4": [False],
-        "prop 2": [0.6],
-        "static prop": [123],
-        "prop 3": ["hi"],
-    }
-    assert g.before(3).nodes.out_neighbours.properties == {
-        "prop 1": [[2]],
-        "prop 4": [[False]],
-        "prop 2": [[0.6]],
-        "static prop": [[123]],
-        "prop 3": [["hi"]],
-    }
+        # testing property names
+        expected_names = sorted(["prop 4", "prop 1", "prop 2", "prop 3", "static prop"])
+        assert sorted(g.node(1).properties.keys()) == expected_names
+        assert sorted(g.nodes.properties.keys()) == expected_names
+        assert sorted(g.nodes.out_neighbours.properties.keys()) == expected_names
 
-    # testing property histories
-    assert g.node(1).properties.temporal == {
-        "prop 3": [(1, "hi"), (3, "hello")],
-        "prop 1": [(1, 1), (2, 2)],
-        "prop 4": [(1, True), (2, False), (3, True)],
-        "prop 2": [(2, 0.6), (3, 0.9)],
-    }
-    assert g.nodes.properties.temporal == {
-        "prop 3": [[(1, "hi"), (3, "hello")]],
-        "prop 1": [[(1, 1), (2, 2)]],
-        "prop 4": [[(1, True), (2, False), (3, True)]],
-        "prop 2": [[(2, 0.6), (3, 0.9)]],
-    }
-    assert g.nodes.out_neighbours.properties.temporal == {
-        "prop 3": [[[(1, "hi"), (3, "hello")]]],
-        "prop 1": [[[(1, 1), (2, 2)]]],
-        "prop 4": [[[(1, True), (2, False), (3, True)]]],
-        "prop 2": [[[(2, 0.6), (3, 0.9)]]],
-    }
+        expected_names_no_static = sorted(["prop 4", "prop 1", "prop 2", "prop 3"])
+        assert sorted(g.node(1).properties.temporal.keys()) == expected_names_no_static
+        assert sorted(g.nodes.properties.temporal.keys()) == expected_names_no_static
+        assert (
+            sorted(g.nodes.out_neighbours.properties.temporal.keys())
+            == expected_names_no_static
+        )
 
-    assert g.at(2).node(1).properties.temporal == {
-        "prop 2": [(2, 0.6)],
-        "prop 4": [(2, False)],
-        "prop 1": [(2, 2)],
-    }
-    assert g.before(3).nodes.properties.temporal == {
-        "prop 2": [[(2, 0.6)]],
-        "prop 4": [[(1, True), (2, False)]],
-        "prop 1": [[(1, 1), (2, 2)]],
-        "prop 3": [[(1, "hi")]],
-    }
-    assert g.before(3).nodes.out_neighbours.properties.temporal == {
-        "prop 2": [[[(2, 0.6)]]],
-        "prop 4": [[[(1, True), (2, False)]]],
-        "prop 1": [[[(1, 1), (2, 2)]]],
-        "prop 3": [[[(1, "hi")]]],
-    }
+        expected_names_no_static_at_1 = sorted(["prop 4", "prop 1", "prop 3"])
+        assert (
+            sorted(g.at(1).node(1).properties.temporal.keys())
+            == expected_names_no_static_at_1
+        )
+        assert (
+            sorted(g.at(1).nodes.properties.temporal.keys())
+            == expected_names_no_static_at_1
+        )
+        assert (
+            sorted(g.at(1).nodes.out_neighbours.properties.temporal.keys())
+            == expected_names_no_static_at_1
+        )
 
-    # testing property names
-    expected_names = sorted(["prop 4", "prop 1", "prop 2", "prop 3", "static prop"])
-    assert sorted(g.node(1).properties.keys()) == expected_names
-    assert sorted(g.nodes.properties.keys()) == expected_names
-    assert sorted(g.nodes.out_neighbours.properties.keys()) == expected_names
+        # testing has_property
+        assert "prop 4" in g.node(1).properties
+        assert "prop 4" in g.nodes.properties
+        assert "prop 4" in g.nodes.out_neighbours.properties
 
-    expected_names_no_static = sorted(["prop 4", "prop 1", "prop 2", "prop 3"])
-    assert sorted(g.node(1).properties.temporal.keys()) == expected_names_no_static
-    assert sorted(g.nodes.properties.temporal.keys()) == expected_names_no_static
-    assert (
-        sorted(g.nodes.out_neighbours.properties.temporal.keys())
-        == expected_names_no_static
-    )
+        assert "prop 2" in g.node(1).properties
+        assert "prop 2" in g.nodes.properties
+        assert "prop 2" in g.nodes.out_neighbours.properties
 
-    expected_names_no_static_at_1 = sorted(["prop 4", "prop 1", "prop 3"])
-    assert (
-        sorted(g.at(1).node(1).properties.temporal.keys())
-        == expected_names_no_static_at_1
-    )
-    assert (
-        sorted(g.at(1).nodes.properties.temporal.keys())
-        == expected_names_no_static_at_1
-    )
-    assert (
-        sorted(g.at(1).nodes.out_neighbours.properties.temporal.keys())
-        == expected_names_no_static_at_1
-    )
+        assert "prop 5" not in g.node(1).properties
+        assert "prop 5" not in g.nodes.properties
+        assert "prop 5" not in g.nodes.out_neighbours.properties
 
-    # testing has_property
-    assert "prop 4" in g.node(1).properties
-    assert "prop 4" in g.nodes.properties
-    assert "prop 4" in g.nodes.out_neighbours.properties
+        assert "prop 2" not in g.at(1).node(1).properties
+        assert "prop 2" not in g.at(1).nodes.properties
+        assert "prop 2" not in g.at(1).nodes.out_neighbours.properties
 
-    assert "prop 2" in g.node(1).properties
-    assert "prop 2" in g.nodes.properties
-    assert "prop 2" in g.nodes.out_neighbours.properties
+        assert "static prop" in g.node(1).properties
+        assert "static prop" in g.nodes.properties
+        assert "static prop" in g.nodes.out_neighbours.properties
 
-    assert "prop 5" not in g.node(1).properties
-    assert "prop 5" not in g.nodes.properties
-    assert "prop 5" not in g.nodes.out_neighbours.properties
+        assert "static prop" in g.at(1).node(1).properties
+        assert "static prop" in g.at(1).nodes.properties
+        assert "static prop" in g.at(1).nodes.out_neighbours.properties
 
-    assert "prop 2" not in g.at(1).node(1).properties
-    assert "prop 2" not in g.at(1).nodes.properties
-    assert "prop 2" not in g.at(1).nodes.out_neighbours.properties
+        assert "static prop" not in g.at(1).node(1).properties.temporal
+        assert "static prop" not in g.at(1).nodes.properties.temporal
+        assert "static prop" not in g.at(1).nodes.out_neighbours.properties.temporal
 
-    assert "static prop" in g.node(1).properties
-    assert "static prop" in g.nodes.properties
-    assert "static prop" in g.nodes.out_neighbours.properties
+        assert "static prop" in g.node(1).properties.constant
+        assert "static prop" in g.nodes.properties.constant
+        assert "static prop" in g.nodes.out_neighbours.properties.constant
 
-    assert "static prop" in g.at(1).node(1).properties
-    assert "static prop" in g.at(1).nodes.properties
-    assert "static prop" in g.at(1).nodes.out_neighbours.properties
+        assert "prop 2" not in g.node(1).properties.constant
+        assert "prop 2" not in g.nodes.properties.constant
+        assert "prop 2" not in g.nodes.out_neighbours.properties.constant
 
-    assert "static prop" not in g.at(1).node(1).properties.temporal
-    assert "static prop" not in g.at(1).nodes.properties.temporal
-    assert "static prop" not in g.at(1).nodes.out_neighbours.properties.temporal
+        assert "static prop" in g.at(1).node(1).properties.constant
+        assert "static prop" in g.at(1).nodes.properties.constant
+        assert "static prop" in g.at(1).nodes.out_neighbours.properties.constant
 
-    assert "static prop" in g.node(1).properties.constant
-    assert "static prop" in g.nodes.properties.constant
-    assert "static prop" in g.nodes.out_neighbours.properties.constant
-
-    assert "prop 2" not in g.node(1).properties.constant
-    assert "prop 2" not in g.nodes.properties.constant
-    assert "prop 2" not in g.nodes.out_neighbours.properties.constant
-
-    assert "static prop" in g.at(1).node(1).properties.constant
-    assert "static prop" in g.at(1).nodes.properties.constant
-    assert "static prop" in g.at(1).nodes.out_neighbours.properties.constant
+    check(g)
 
 
 def test_edge_properties():
+    g = create_graph_edge_properties()
+
+    @with_disk_graph
+    def check_temporal_properties(g):
+        # testing property history
+        assert g.edge(1, 2).properties.temporal.get("prop 1") == [(1, 1), (2, 2)]
+        assert g.edge(1, 2).properties.temporal.get("prop 2") == [(2, 0.6), (3, 0.9)]
+        assert g.edge(1, 2).properties.temporal.get("prop 3") == [
+            (1, "hi"),
+            (3, "hello"),
+        ]
+        assert g.edge(1, 2).properties.temporal.get("prop 4") == [
+            (1, True),
+            (2, False),
+            (3, True),
+        ]
+        assert g.edge(1, 2).properties.temporal.get("undefined") is None
+        assert g.at(1).edge(1, 2).properties.temporal.get("prop 4") == [(1, True)]
+        assert g.at(1).edge(1, 2).properties.temporal.get("static prop") is None
+
+        assert g.at(1).edge(1, 2).properties.temporal == {
+            "prop 4": True,
+            "prop 1": 1,
+            "prop 3": "hi",
+        }
+
+        assert g.edge(1, 2).properties.temporal.latest() == {
+            "prop 2": 0.9,
+            "prop 3": "hello",
+            "prop 1": 2,
+            "prop 4": True,
+        }
+
+        # testing property histories
+        assert g.edge(1, 2).properties.temporal == {
+            "prop 3": [(1, "hi"), (3, "hello")],
+            "prop 1": [(1, 1), (2, 2)],
+            "prop 4": [(1, True), (2, False), (3, True)],
+            "prop 2": [(2, 0.6), (3, 0.9)],
+        }
+
+        assert g.at(2).edge(1, 2).properties.temporal == {
+            "prop 2": [(2, 0.6)],
+            "prop 4": [(2, False)],
+            "prop 1": [(2, 2)],
+        }
+
+        assert g.after(2).edge(1, 2).properties.temporal == {
+            "prop 2": [(3, 0.9)],
+            "prop 3": [(3, "hello")],
+            "prop 4": [(3, True)],
+        }
+
+        assert sorted(g.edge(1, 2).properties.temporal.keys()) == sorted(
+            ["prop 4", "prop 1", "prop 2", "prop 3"]
+        )
+
+        assert sorted(g.at(1).edge(1, 2).properties.temporal.keys()) == sorted(
+            ["prop 4", "prop 1", "prop 3"]
+        )
+        # find all edges that match properties
+        [e] = g.at(1).find_edges({"prop 1": 1, "prop 3": "hi"})
+        assert e == g.edge(1, 2)
+
+        empty_list = g.at(1).find_edges({"prop 1": 1, "prop 3": "hx"})
+        assert len(empty_list) == 0
+
+        # testing has_property
+        assert "prop 4" in g.edge(1, 2).properties
+        assert "prop 2" in g.edge(1, 2).properties
+        assert "prop 5" not in g.edge(1, 2).properties
+        assert "prop 2" not in g.at(1).edge(1, 2).properties
+
+    def check(g):
+        assert g.at(1).edge(1, 2).properties.constant.get("static prop") == 123
+        assert g.before(101).edge(1, 2).properties.constant.get("static prop") == 123
+        assert g.edge(1, 2).properties.constant.get("static prop") == 123
+        assert g.edge(1, 2).properties.constant.get("prop 4") is None
+
+        # testing property
+        assert g.edge(1, 2).properties.get("static prop") == 123
+        assert g.edge(1, 2)["static prop"] == 123
+        assert g.edge(1, 2).properties.temporal.get("static prop") is None
+        assert g.edge(1, 2).properties.temporal.get("prop 1").value() == 2
+        assert g.at(2).edge(1, 2).properties.get("prop 2") == 0.6
+        assert g.at(1).edge(1, 2).properties.get("prop 2") is None
+
+        # testing properties
+        assert g.edge(1, 2).properties == {
+            "prop 2": 0.9,
+            "prop 3": "hello",
+            "prop 1": 2,
+            "prop 4": True,
+            "static prop": 123,
+        }
+
+        assert g.before(3).edge(1, 2).properties == {
+            "prop 1": 2,
+            "prop 4": False,
+            "prop 2": 0.6,
+            "static prop": 123,
+            "prop 3": "hi",
+        }
+
+        # testing property names
+        assert sorted(g.edge(1, 2).properties.keys()) == sorted(
+            ["prop 4", "prop 1", "prop 2", "prop 3", "static prop"]
+        )
+
+        assert "static prop" in g.edge(1, 2).properties
+        assert "static prop" in g.at(1).edge(1, 2).properties
+        assert "static prop" not in g.at(1).edge(1, 2).properties.temporal
+
+        assert "static prop" in g.edge(1, 2).properties.constant
+        assert "prop 2" not in g.edge(1, 2).properties.constant
+        assert "static prop" in g.at(1).edge(1, 2).properties.constant
+
+    check_temporal_properties(g)
+    check(g)
+
+
+def create_graph_edge_properties():
     g = Graph()
     props_t1 = {"prop 1": 1, "prop 3": "hi", "prop 4": True}
     e = g.add_edge(1, 1, 2, props_t1)
@@ -884,109 +1003,7 @@ def test_edge_properties():
     e.add_updates(3, props_t3)
 
     e.add_constant_properties({"static prop": 123})
-
-    # testing property history
-    assert g.edge(1, 2).properties.temporal.get("prop 1") == [(1, 1), (2, 2)]
-    assert g.edge(1, 2).properties.temporal.get("prop 2") == [(2, 0.6), (3, 0.9)]
-    assert g.edge(1, 2).properties.temporal.get("prop 3") == [(1, "hi"), (3, "hello")]
-    assert g.edge(1, 2).properties.temporal.get("prop 4") == [
-        (1, True),
-        (2, False),
-        (3, True),
-    ]
-    assert g.edge(1, 2).properties.temporal.get("undefined") is None
-    assert g.at(1).edge(1, 2).properties.temporal.get("prop 4") == [(1, True)]
-    assert g.at(1).edge(1, 2).properties.temporal.get("static prop") is None
-
-    assert g.at(1).edge(1, 2).properties.constant.get("static prop") == 123
-    assert g.before(101).edge(1, 2).properties.constant.get("static prop") == 123
-    assert g.edge(1, 2).properties.constant.get("static prop") == 123
-    assert g.edge(1, 2).properties.constant.get("prop 4") is None
-
-    # testing property
-    assert g.edge(1, 2).properties.get("static prop") == 123
-    assert g.edge(1, 2)["static prop"] == 123
-    assert g.edge(1, 2).properties.temporal.get("static prop") is None
-    assert g.edge(1, 2).properties.temporal.get("prop 1").value() == 2
-    assert g.at(2).edge(1, 2).properties.get("prop 2") == 0.6
-    assert g.at(1).edge(1, 2).properties.get("prop 2") is None
-
-    # testing properties
-    assert g.edge(1, 2).properties == {
-        "prop 2": 0.9,
-        "prop 3": "hello",
-        "prop 1": 2,
-        "prop 4": True,
-        "static prop": 123,
-    }
-
-    assert g.edge(1, 2).properties.temporal.latest() == {
-        "prop 2": 0.9,
-        "prop 3": "hello",
-        "prop 1": 2,
-        "prop 4": True,
-    }
-
-    assert g.before(3).edge(1, 2).properties == {
-        "prop 1": 2,
-        "prop 4": False,
-        "prop 2": 0.6,
-        "static prop": 123,
-        "prop 3": "hi",
-    }
-
-    # testing property histories
-    assert g.edge(1, 2).properties.temporal == {
-        "prop 3": [(1, "hi"), (3, "hello")],
-        "prop 1": [(1, 1), (2, 2)],
-        "prop 4": [(1, True), (2, False), (3, True)],
-        "prop 2": [(2, 0.6), (3, 0.9)],
-    }
-
-    assert g.at(2).edge(1, 2).properties.temporal == {
-        "prop 2": [(2, 0.6)],
-        "prop 4": [(2, False)],
-        "prop 1": [(2, 2)],
-    }
-
-    assert g.after(2).edge(1, 2).properties.temporal == {
-        "prop 2": [(3, 0.9)],
-        "prop 3": [(3, "hello")],
-        "prop 4": [(3, True)],
-    }
-
-    # testing property names
-    assert sorted(g.edge(1, 2).properties.keys()) == sorted(
-        ["prop 4", "prop 1", "prop 2", "prop 3", "static prop"]
-    )
-
-    assert sorted(g.edge(1, 2).properties.temporal.keys()) == sorted(
-        ["prop 4", "prop 1", "prop 2", "prop 3"]
-    )
-
-    assert sorted(g.at(1).edge(1, 2).properties.temporal.keys()) == sorted(
-        ["prop 4", "prop 1", "prop 3"]
-    )
-
-    # find all edges that match properties
-    [e] = g.at(1).find_edges({"prop 1": 1, "prop 3": "hi"})
-    assert e == g.edge(1, 2)
-
-    empty_list = g.at(1).find_edges({"prop 1": 1, "prop 3": "hx"})
-    assert len(empty_list) == 0
-
-    # testing has_property
-    assert "prop 4" in g.edge(1, 2).properties
-    assert "prop 2" in g.edge(1, 2).properties
-    assert "prop 5" not in g.edge(1, 2).properties
-    assert "prop 2" not in g.at(1).edge(1, 2).properties
-    assert "static prop" in g.edge(1, 2).properties
-    assert "static prop" in g.at(1).edge(1, 2).properties
-    assert "static prop" not in g.at(1).edge(1, 2).properties.temporal
-
-    assert "static prop" in g.edge(1, 2).properties.constant
-    assert "prop 2" not in g.edge(1, 2).properties.constant
-    assert "static prop" in g.at(1).edge(1, 2).properties.constant
+    return g
 
 
 def test_graph_as_property():
@@ -1007,12 +1024,17 @@ def test_map_and_list_property():
 
 def test_exploded_edge_time():
     g = graph_loader.lotr_graph()
-    e = g.edge("Frodo", "Gandalf")
-    his = e.history()
-    exploded_his = []
-    for ee in e.explode():
-        exploded_his.append(ee.time)
-    assert his == exploded_his
+
+    @with_disk_graph
+    def check(g):
+        e = g.edge("Frodo", "Gandalf")
+        his = e.history()
+        exploded_his = []
+        for ee in e.explode():
+            exploded_his.append(ee.time)
+        assert his == exploded_his
+
+    check(g)
 
 
 def test_algorithms():
@@ -1022,43 +1044,52 @@ def test_algorithms():
     g.add_edge(2, 2, 3, {"prop1": 1})
     g.add_edge(3, 3, 1, {"prop1": 1})
 
-    view = g.window(0, 4)
-    triangles = algorithms.local_triangle_count(view, 1)
-    average_degree = algorithms.average_degree(view)
-    max_out_degree = algorithms.max_out_degree(view)
-    max_in_degree = algorithms.max_in_degree(view)
-    min_out_degree = algorithms.min_out_degree(view)
-    min_in_degree = algorithms.min_in_degree(view)
-    graph_density = algorithms.directed_graph_density(view)
-    clustering_coefficient = algorithms.local_clustering_coefficient(view, 1)
+    @with_disk_graph
+    def check(g):
+        view = g.window(0, 4)
+        triangles = algorithms.local_triangle_count(view, 1)
+        average_degree = algorithms.average_degree(view)
+        max_out_degree = algorithms.max_out_degree(view)
+        max_in_degree = algorithms.max_in_degree(view)
+        min_out_degree = algorithms.min_out_degree(view)
+        min_in_degree = algorithms.min_in_degree(view)
+        graph_density = algorithms.directed_graph_density(view)
+        clustering_coefficient = algorithms.local_clustering_coefficient(view, 1)
 
-    assert triangles == 1
-    assert average_degree == 2.0
-    assert graph_density == 0.5
-    assert max_out_degree == 1
-    assert max_in_degree == 1
-    assert min_out_degree == 1
-    assert min_in_degree == 1
-    assert clustering_coefficient == 1.0
+        assert triangles == 1
+        assert average_degree == 2.0
+        assert graph_density == 0.5
+        assert max_out_degree == 1
+        assert max_in_degree == 1
+        assert min_out_degree == 1
+        assert min_in_degree == 1
+        assert clustering_coefficient == 1.0
 
-    lotr_clustering_coefficient = algorithms.local_clustering_coefficient(
-        lotr_graph, "Frodo"
-    )
-    lotr_local_triangle_count = algorithms.local_triangle_count(lotr_graph, "Frodo")
-    assert lotr_clustering_coefficient == 0.1984313726425171
-    assert lotr_local_triangle_count == 253
+        lotr_clustering_coefficient = algorithms.local_clustering_coefficient(
+            lotr_graph, "Frodo"
+        )
+        lotr_local_triangle_count = algorithms.local_triangle_count(lotr_graph, "Frodo")
+        assert lotr_clustering_coefficient == 0.1984313726425171
+        assert lotr_local_triangle_count == 253
+
+    check(g)
 
 
 def test_graph_time_api():
     g = create_graph()
 
-    earliest_time = g.earliest_time
-    latest_time = g.latest_time
-    assert len(list(g.rolling(1))) == latest_time - earliest_time + 1
-    assert len(list(g.expanding(2))) == math.ceil((latest_time + 1 - earliest_time) / 2)
+    def check(g):
+        earliest_time = g.earliest_time
+        latest_time = g.latest_time
+        assert len(list(g.rolling(1))) == latest_time - earliest_time + 1
+        assert len(list(g.expanding(2))) == math.ceil(
+            (latest_time + 1 - earliest_time) / 2
+        )
 
-    w = g.window(2, 6)
-    assert len(list(w.rolling(window=10, step=3))) == 2
+        w = g.window(2, 6)
+        assert len(list(w.rolling(window=10, step=3))) == 2
+
+    check(g)
 
 
 def test_save_missing_dir():

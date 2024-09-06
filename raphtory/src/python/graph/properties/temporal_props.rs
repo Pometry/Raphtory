@@ -184,8 +184,15 @@ pub struct PyTemporalProp {
     prop: DynTemporalProperty,
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(Clone, Debug)]
 pub struct PyTemporalPropCmp(Vec<(i64, Prop)>);
+
+impl PartialEq for PyTemporalPropCmp {
+    fn eq(&self, other: &Self) -> bool {
+        println!("Comparing \n{:?}\n{:?}", self, other);
+        self.0 == other.0
+    }
+}
 
 impl<'source> FromPyObject<'source> for PyTemporalPropCmp {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
