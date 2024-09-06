@@ -2,12 +2,9 @@ use crate::{
     core::{
         entities::nodes::node_ref::NodeRef, utils::time::IntoTime, DocumentInput, Lifespan, Prop,
     },
-    db::{
-        api::{
-            properties::{internal::PropertiesOps, Properties},
-            view::{internal::DynamicGraph, StaticGraphViewOps},
-        },
-        graph::{edge::EdgeView, node::NodeView},
+    db::api::{
+        properties::{internal::PropertiesOps, Properties},
+        view::internal::DynamicGraph,
     },
     prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
     python::{
@@ -16,12 +13,9 @@ use crate::{
         utils::{execute_async_task, PyTime},
     },
     vectors::{
-        document_template::{DefaultTemplate, DocumentTemplate},
-        graph_entity::GraphEntity,
-        vector_selection::DynamicVectorSelection,
-        vectorisable::Vectorisable,
-        vectorised_graph::DynamicVectorisedGraph,
-        Document, Embedding, EmbeddingFunction,
+        graph_entity::GraphEntity, template::DocumentTemplate,
+        vector_selection::DynamicVectorSelection, vectorisable::Vectorisable,
+        vectorised_graph::DynamicVectorisedGraph, Document, Embedding, EmbeddingFunction,
     },
 };
 use chrono::DateTime;
@@ -188,55 +182,6 @@ pub fn into_py_document(
     }
 }
 
-#[allow(dead_code)]
-#[cfg(feature = "python")] // we dont need this, we already have the flag for the full module
-#[allow(dead_code)]
-pub struct PyDocumentTemplate {
-    graph_document: Option<String>,
-    node_document: Option<String>,
-    edge_document: Option<String>,
-    default_template: DefaultTemplate,
-}
-
-impl PyDocumentTemplate {
-    pub fn new(
-        graph_document: Option<String>,
-        node_document: Option<String>,
-        edge_document: Option<String>,
-    ) -> Self {
-        Self {
-            graph_document,
-            node_document,
-            edge_document,
-            default_template: DefaultTemplate,
-        }
-    }
-}
-
-impl<G: StaticGraphViewOps> DocumentTemplate<G> for PyDocumentTemplate {
-    // TODO: review, how can we let the users use the default template from graphql??
-    fn graph(&self, graph: &G) -> Box<dyn Iterator<Item = DocumentInput>> {
-        match &self.graph_document {
-            Some(graph_document) => get_documents_from_props(graph.properties(), graph_document),
-            None => Box::new(std::iter::empty()), // self.default_template.graph(graph),
-        }
-    }
-
-    fn node(&self, node: &NodeView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>> {
-        match &self.node_document {
-            Some(node_document) => get_documents_from_props(node.properties(), node_document),
-            None => Box::new(std::iter::empty()), // self.default_template.node(node),
-        }
-    }
-
-    fn edge(&self, edge: &EdgeView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>> {
-        match &self.edge_document {
-            Some(edge_document) => get_documents_from_props(edge.properties(), edge_document),
-            None => Box::new(std::iter::empty()), // self.default_template.edge(edge),
-        }
-    }
-}
-
 /// This funtions ignores the time history of temporal props if their type is Document and they have a life different than Lifespan::Inherited
 fn get_documents_from_props<P: PropertiesOps + Clone + 'static>(
     properties: Properties<P>,
@@ -313,28 +258,28 @@ impl PyGraphView {
     ///
     /// Returns:
     ///   A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
-    #[pyo3(signature = (embedding, cache = None, overwrite_cache = false, graph_document = None, node_document = None, edge_document = None, verbose = false))]
+    #[pyo3(signature = (embedding, cache = None, overwrite_cache = false, graph_template = None, node_template = None, edge_template = None, verbose = false))]
     fn vectorise(
         &self,
         embedding: &PyFunction,
         cache: Option<String>,
         overwrite_cache: bool,
-        graph_document: Option<String>,
-        node_document: Option<String>,
-        edge_document: Option<String>,
+        graph_template: Option<String>,
+        node_template: Option<String>,
+        edge_template: Option<String>,
         verbose: bool,
     ) -> DynamicVectorisedGraph {
         let embedding: Py<PyFunction> = embedding.into();
         let graph = self.graph.clone();
         let cache = cache.map(PathBuf::from);
-        let template = PyDocumentTemplate::new(graph_document, node_document, edge_document);
+        let template = DocumentTemplate::new(graph_template, node_template, edge_template);
         execute_async_task(move || async move {
             graph
-                .vectorise_with_template(
+                .vectorise(
                     Box::new(embedding.clone()),
                     cache,
                     overwrite_cache,
-                    Arc::new(template) as Arc<dyn DocumentTemplate<DynamicGraph>>,
+                    template,
                     verbose,
                 )
                 .await

@@ -1,16 +1,15 @@
-use indoc::indoc;
 use minijinja::{
     value::{Enumerator, Object},
-    Environment, Value,
+    Environment, Template, Value,
 };
 use raphtory_api::core::storage::arc_str::ArcStr;
 use serde::Serialize;
 use std::sync::Arc;
 
 use crate::{
-    core::Prop,
+    core::{DocumentInput, Prop},
     db::{
-        api::properties::TemporalPropertyView,
+        api::{properties::TemporalPropertyView, view::StaticGraphViewOps},
         graph::{edge::EdgeView, node::NodeView},
     },
     prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
@@ -24,6 +23,20 @@ struct PropUpdate {
 
 impl<'graph, G: GraphViewOps<'graph>> From<TemporalPropertyView<NodeView<G>>> for Value {
     fn from(value: TemporalPropertyView<NodeView<G>>) -> Self {
+        value
+            .iter()
+            .map(|(time, value)| PropUpdate {
+                time,
+                value: value.into(),
+            })
+            .map(Value::from_object)
+            .collect()
+    }
+}
+
+// FIXME: merge with the one above
+impl<'graph, G: GraphViewOps<'graph>> From<TemporalPropertyView<G>> for Value {
+    fn from(value: TemporalPropertyView<G>) -> Self {
         value
             .iter()
             .map(|(time, value)| PropUpdate {
@@ -59,12 +72,48 @@ struct NodeTemplateContext {
     temporal_props: Value,
 }
 
-impl<'graph, G: GraphViewOps<'graph>> From<NodeView<G>> for NodeTemplateContext {
-    fn from(value: NodeView<G>) -> Self {
+impl<'graph, G: GraphViewOps<'graph>> From<&NodeView<G>> for NodeTemplateContext {
+    fn from(value: &NodeView<G>) -> Self {
         Self {
             name: value.name(),
             // node_type: value.node_type().unwrap_or(ArcStr::from("")),
             node_type: value.node_type(),
+            props: value
+                .properties()
+                .iter()
+                .map(|(key, value)| (key.to_string(), value.clone()))
+                .collect(),
+            constant_props: value
+                .properties()
+                .constant()
+                .iter()
+                .map(|(key, value)| (key.to_string(), value.clone()))
+                .collect(),
+            temporal_props: value
+                .properties()
+                .temporal()
+                .iter()
+                .map(|(key, prop)| (key.to_string(), Into::<Value>::into(prop)))
+                .collect(),
+        }
+    }
+}
+
+#[derive(Serialize)]
+struct GraphTemplateContext {
+    // name: String, // TODO: add the name, I need some trait
+    props: Value,
+    // test: Value,
+    constant_props: Value,
+    temporal_props: Value,
+}
+
+// FIXME: boilerplate for the properties
+impl<'graph, G: GraphViewOps<'graph>> From<G> for GraphTemplateContext {
+    fn from(value: G) -> Self {
+        Self {
+            // name: value.name(),
+            // node_type: value.node_type().unwrap_or(ArcStr::from("")),
             props: value
                 .properties()
                 .iter()
@@ -136,21 +185,154 @@ impl From<Prop> for Value {
 //     }
 // }
 
-struct NodeTemplate(String);
+// pub(crate) struct NodeTemplate(pub(crate) String);
 
-impl NodeTemplate {
-    pub(crate) fn render<'graph, G: GraphViewOps<'graph>>(&self, node: NodeView<G>) -> String {
-        let mut env = Environment::new();
-        // it's important adding these settings
-        env.set_trim_blocks(true);
-        env.set_lstrip_blocks(true);
-        // before adding any template
-        env.add_template("template", &self.0).unwrap();
-        println!("trimblocks ->{}", env.trim_blocks());
-        let tmpl = env.get_template("template").unwrap();
-        tmpl.render(NodeTemplateContext::from(node)).unwrap() // FIXME: this unwrap?
+// impl NodeTemplate {
+//     pub(crate) fn render<'graph, G: GraphViewOps<'graph>>(&self, node: NodeView<G>) -> String {
+//         let mut env = Environment::new();
+//         let template = build_template(&mut env, &self.0);
+//         template.render(NodeTemplateContext::from(node)).unwrap() // FIXME: this unwrap?
+//     }
+// }
+
+// pub(crate) struct EdgeTemplate(pub(crate) String);
+
+// impl EdgeTemplate {
+//     pub(crate) fn render<'graph, G: GraphViewOps<'graph>>(&self, edge: EdgeView<G>) -> String {
+//         let mut env = Environment::new();
+//         let template = build_template(&mut env, &self.0);
+//         template.render(EdgeTemplateContext::from(edge)).unwrap() // FIXME: this unwrap?
+//     }
+// }
+
+// pub(crate) struct GraphTemplate(pub(crate) String);
+
+// impl GraphTemplate {
+//     pub(crate) fn render<'graph, G: GraphViewOps<'graph>>(&self, graph: G) -> String {
+//         let mut env = Environment::new();
+//         let template = build_template(&mut env, &self.0);
+//         template.render(GraphTemplateContext::from(graph)).unwrap() // FIXME: this unwrap?
+//     }
+// }
+
+#[derive(Clone)]
+pub struct DocumentTemplate {
+    graph_template: Option<String>,
+    node_template: Option<String>,
+    edge_template: Option<String>,
+}
+
+fn empty_iter() -> Box<dyn Iterator<Item = DocumentInput>> {
+    Box::new(std::iter::empty())
+}
+
+impl DocumentTemplate {
+    pub fn new(
+        graph_template: Option<String>,
+        node_template: Option<String>,
+        edge_template: Option<String>,
+    ) -> Self {
+        Self {
+            graph_template,
+            node_template,
+            edge_template,
+        }
+    }
+
+    pub(crate) fn graph<G: StaticGraphViewOps>(
+        // TODO: change everything in this file to use StaticGraphViewOps
+        &self,
+        graph: &G,
+    ) -> Box<dyn Iterator<Item = DocumentInput>> {
+        match &self.graph_template {
+            Some(template) => {
+                let mut env = Environment::new();
+                let template = build_template(&mut env, template);
+                let document = template.render(GraphTemplateContext::from(graph)).unwrap(); // FIXME: this unwrap?
+                Box::new(std::iter::once(document.into()))
+            }
+            None => empty_iter(),
+        }
+    }
+
+    /// A function that translate a node into an iterator of documents
+    pub(crate) fn node<G: StaticGraphViewOps>(
+        &self,
+        node: &NodeView<G>,
+    ) -> impl Iterator<Item = DocumentInput> {
+        match &self.node_template {
+            Some(template) => {
+                let mut env = Environment::new();
+                let template = build_template(&mut env, template);
+                let document = template.render(NodeTemplateContext::from(node)).unwrap(); // FIXME: this unwrap?
+                Box::new(std::iter::once(document.into()))
+            }
+            None => empty_iter(),
+        }
+    }
+
+    /// A function that translate an edge into an iterator of documents
+    pub(crate) fn edge<G: StaticGraphViewOps>(
+        &self,
+        edge: &EdgeView<G, G>,
+    ) -> impl Iterator<Item = DocumentInput> {
+        match &self.edge_template {
+            Some(template) => {
+                let mut env = Environment::new();
+                let template = build_template(&mut env, template);
+                let document = template.render(EdgeTemplateContext::from(edge)).unwrap(); // FIXME: this unwrap?
+                Box::new(std::iter::once(document.into()))
+            }
+            None => empty_iter(),
+        }
     }
 }
+
+fn build_template<'a>(env: &'a mut Environment<'a>, template: &'a str) -> Template<'a, 'a> {
+    // let mut env = Environment::new();
+    // it's important adding these settings
+    env.set_trim_blocks(true);
+    env.set_lstrip_blocks(true);
+    // before adding any template
+    env.add_template("template", template).unwrap();
+    env.get_template("template").unwrap()
+}
+
+// trait TemplateTrait<T> {
+//     fn render(&self, entity: T) -> String {
+//         let mut env = Environment::new();
+//         // it's important adding these settings
+//         env.set_trim_blocks(true);
+//         env.set_lstrip_blocks(true);
+//         // before adding any template
+//         env.add_template("template", self.get_template()).unwrap();
+//         let tmpl = env.get_template("template").unwrap();
+//         tmpl.render(Self::serialize_entity(entity)).unwrap() // FIXME: this unwrap?
+//     }
+
+//     fn get_template(&self) -> &str;
+
+//     fn serialize_entity(entity: T) -> impl Serialize;
+// }
+
+// impl<'graph, G> TemplateTrait<NodeView<G>> for String
+// where
+//     G: GraphViewOps<'graph>,
+// {
+//     fn get_template(&self) -> &str {
+//         self.as_str()
+//     }
+
+//     fn serialize_entity(entity: NodeView<G>) -> impl Serialize {
+//         NodeTemplateContext::from(entity)
+//     }
+// }
+
+// trait TemplateContext: Serialize {}
+
+// impl TemplateContext for EdgeTemplateContext {}
+// impl TemplateContext for EdgeLayerTemplateContext {}
+// impl TemplateContext for NodeTemplateContext {}
 
 #[derive(Serialize)]
 struct EdgeTemplateContext {
@@ -160,11 +342,11 @@ struct EdgeTemplateContext {
     props: Value,
 }
 
-impl<'graph, G: GraphViewOps<'graph>> From<EdgeView<G>> for EdgeTemplateContext {
-    fn from(value: EdgeView<G>) -> Self {
+impl<'graph, G: GraphViewOps<'graph>> From<&EdgeView<G>> for EdgeTemplateContext {
+    fn from(value: &EdgeView<G>) -> Self {
         Self {
-            src: value.src().into(),
-            dst: value.dst().into(),
+            src: (&value.src()).into(),
+            dst: (&value.dst()).into(),
             layers: value
                 .layer_names()
                 .into_iter()
@@ -193,8 +375,8 @@ impl<'graph, G: GraphViewOps<'graph>> From<EdgeView<G>> for Vec<EdgeLayerTemplat
             .explode_layers()
             .iter()
             .map(|edge| EdgeLayerTemplateContext {
-                src: value.src().into(),
-                dst: value.dst().into(),
+                src: (&value.src()).into(),
+                dst: (&value.dst()).into(),
                 layer: edge.layer_name().unwrap().into(),
                 props: edge // FIXME: boilerplate
                     .properties()
@@ -208,6 +390,8 @@ impl<'graph, G: GraphViewOps<'graph>> From<EdgeView<G>> for Vec<EdgeLayerTemplat
 
 #[cfg(test)]
 mod template_tests {
+    use indoc::indoc;
+
     use crate::prelude::{AdditionOps, Graph, NO_PROPS};
 
     use super::*;
@@ -231,11 +415,6 @@ mod template_tests {
         node2
             .add_constant_properties([("const_test", "const_test_value")])
             .unwrap();
-        // node1.add_constant_properties([
-        //     ("key1", "value1"),
-        //     ("iter2", "value2"),
-        //     ("iter3", "value3"),
-        // ]);
 
         // I should be able to iteate over props without doing props|items, which would be solved by implementing Object for Properties
         let template_string = indoc! {"

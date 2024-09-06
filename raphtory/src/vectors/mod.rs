@@ -10,12 +10,11 @@ mod entity_id;
 pub mod graph_entity;
 mod similarity_search_utils;
 pub mod splitting;
-mod template;
+pub mod template;
 pub mod vector_selection;
 pub mod vectorisable;
 pub mod vectorised_cluster;
 pub mod vectorised_graph;
-pub mod vectorised_graph_storage;
 
 pub type Embedding = Vec<f32>;
 

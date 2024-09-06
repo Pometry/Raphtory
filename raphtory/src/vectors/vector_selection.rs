@@ -16,7 +16,7 @@ use super::{
     document_template::DocumentTemplate,
     entity_id::EntityId,
     similarity_search_utils::{find_top_k, score_document_groups_by_highest, score_documents},
-    vectorised_graph::{DynamicTemplate, VectorisedGraph},
+    vectorised_graph::VectorisedGraph,
     Document, Embedding,
 };
 
@@ -27,16 +27,16 @@ enum ExpansionPath {
     Both,
 }
 
-pub type DynamicVectorSelection = VectorSelection<DynamicGraph, DynamicTemplate>;
+pub type DynamicVectorSelection = VectorSelection<DynamicGraph>;
 
-pub struct VectorSelection<G: StaticGraphViewOps, T: DocumentTemplate<G>> {
-    pub(crate) graph: VectorisedGraph<G, T>,
+pub struct VectorSelection<G: StaticGraphViewOps> {
+    pub(crate) graph: VectorisedGraph<G>,
     selected_docs: Vec<(DocumentRef, f32)>,
     // selected_entities: Vec<(EntityId, f32)>,
 }
 
-impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorSelection<G, T> {
-    pub(crate) fn new(graph: VectorisedGraph<G, T>) -> Self {
+impl<G: StaticGraphViewOps> VectorSelection<G> {
+    pub(crate) fn new(graph: VectorisedGraph<G>) -> Self {
         Self {
             graph,
             selected_docs: vec![],
@@ -44,7 +44,7 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorSelection<G, T> {
     }
 
     pub(crate) fn new_with_preselection(
-        graph: VectorisedGraph<G, T>,
+        graph: VectorisedGraph<G>,
         docs: Vec<(DocumentRef, f32)>,
     ) -> Self {
         Self {
@@ -91,7 +91,7 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorSelection<G, T> {
             .iter()
             .map(|(doc, score)| {
                 (
-                    doc.regenerate(&self.graph.source_graph, self.graph.template.as_ref()),
+                    doc.regenerate(&self.graph.source_graph, &self.graph.template),
                     *score,
                 )
             })

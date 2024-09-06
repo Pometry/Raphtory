@@ -4,10 +4,10 @@ use crate::{
     prelude::*,
     vectors::{
         document_ref::DocumentRef,
-        document_template::DocumentTemplate,
         embedding_cache::EmbeddingCache,
         entity_id::EntityId,
         similarity_search_utils::{find_top_k, score_documents},
+        template::DocumentTemplate,
         DocumentOps, Embedding, EmbeddingFunction,
     },
 };
@@ -18,9 +18,9 @@ use super::{
     similarity_search_utils::score_document_groups_by_highest, vector_selection::VectorSelection,
 };
 
-pub struct VectorisedGraph<G: StaticGraphViewOps, T: DocumentTemplate<G>> {
+pub struct VectorisedGraph<G: StaticGraphViewOps> {
     pub(crate) source_graph: G,
-    pub(crate) template: Arc<T>,
+    pub(crate) template: DocumentTemplate,
     pub(crate) embedding: Arc<dyn EmbeddingFunction>,
     // it is not the end of the world but we are storing the entity id twice
     pub(crate) graph_documents: Arc<Vec<DocumentRef>>,
@@ -30,10 +30,9 @@ pub struct VectorisedGraph<G: StaticGraphViewOps, T: DocumentTemplate<G>> {
 }
 
 // This has to be here so it is shared between python and graphql
-pub type DynamicTemplate = Arc<dyn DocumentTemplate<DynamicGraph> + 'static>;
-pub type DynamicVectorisedGraph = VectorisedGraph<DynamicGraph, DynamicTemplate>;
+pub type DynamicVectorisedGraph = VectorisedGraph<DynamicGraph>;
 
-impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> Clone for VectorisedGraph<G, T> {
+impl<G: StaticGraphViewOps> Clone for VectorisedGraph<G> {
     fn clone(&self) -> Self {
         Self::new(
             self.source_graph.clone(),
@@ -46,10 +45,10 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> Clone for VectorisedGraph<G,
     }
 }
 
-impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
+impl<G: StaticGraphViewOps> VectorisedGraph<G> {
     pub(crate) fn new(
         graph: G,
-        template: Arc<T>,
+        template: DocumentTemplate,
         embedding: Arc<dyn EmbeddingFunction>,
         graph_documents: Arc<Vec<DocumentRef>>,
         node_documents: Arc<HashMap<EntityId, Vec<DocumentRef>>>,
@@ -71,7 +70,7 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         let cache = EmbeddingCache::new(file);
         chain!(self.node_documents.iter(), self.edge_documents.iter()).for_each(|(_, group)| {
             group.iter().for_each(|doc| {
-                let original = doc.regenerate(&self.source_graph, self.template.as_ref());
+                let original = doc.regenerate(&self.source_graph, &self.template);
                 cache.upsert_embedding(original.content(), doc.embedding.clone());
             })
         });
@@ -79,7 +78,7 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
     }
 
     /// Return an empty selection of documents
-    pub fn empty_selection(&self) -> VectorSelection<G, T> {
+    pub fn empty_selection(&self) -> VectorSelection<G> {
         VectorSelection::new(self.clone())
     }
 
@@ -97,7 +96,7 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         query: &Embedding,
         limit: usize,
         window: Option<(i64, i64)>,
-    ) -> VectorSelection<G, T> {
+    ) -> VectorSelection<G> {
         let joined = chain!(self.node_documents.iter(), self.edge_documents.iter());
         let docs = self.search_top_documents(joined, query, limit, window);
         VectorSelection::new_with_preselection(self.clone(), docs)
@@ -117,7 +116,7 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         query: &Embedding,
         limit: usize,
         window: Option<(i64, i64)>,
-    ) -> VectorSelection<G, T> {
+    ) -> VectorSelection<G> {
         let joined = chain!(self.node_documents.iter(), self.edge_documents.iter());
         let docs = self.search_top_document_groups(joined, query, limit, window);
         VectorSelection::new_with_preselection(self.clone(), docs)
@@ -137,7 +136,7 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         query: &Embedding,
         limit: usize,
         window: Option<(i64, i64)>,
-    ) -> VectorSelection<G, T> {
+    ) -> VectorSelection<G> {
         let docs =
             self.search_top_document_groups(self.node_documents.as_ref(), query, limit, window);
         VectorSelection::new_with_preselection(self.clone(), docs)
@@ -157,7 +156,7 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         query: &Embedding,
         limit: usize,
         window: Option<(i64, i64)>,
-    ) -> VectorSelection<G, T> {
+    ) -> VectorSelection<G> {
         let docs =
             self.search_top_document_groups(self.edge_documents.as_ref(), query, limit, window);
         VectorSelection::new_with_preselection(self.clone(), docs)

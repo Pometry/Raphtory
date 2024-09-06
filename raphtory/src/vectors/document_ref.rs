@@ -1,9 +1,7 @@
 use crate::{
     db::api::view::StaticGraphViewOps,
     prelude::NodeViewOps,
-    vectors::{
-        document_template::DocumentTemplate, entity_id::EntityId, Document, Embedding, Lifespan,
-    },
+    vectors::{entity_id::EntityId, template::DocumentTemplate, Document, Embedding, Lifespan},
 };
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
@@ -89,10 +87,9 @@ impl DocumentRef {
         }
     }
 
-    pub fn regenerate<G, T>(&self, original_graph: &G, template: &T) -> Document
+    pub fn regenerate<G>(&self, original_graph: &G, template: &DocumentTemplate) -> Document
     where
         G: StaticGraphViewOps,
-        T: DocumentTemplate<G>,
     {
         // FIXME: there is a problem here. We need to use the original graph so the number of
         // documents is the same and the index is therefore consistent. However, we want to return
