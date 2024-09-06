@@ -334,7 +334,7 @@ impl<'a> NodeShardWriter<'a> {
     }
 
     pub fn shard_id(&self) -> usize {
-        self.num_shards
+        self.shard_id
     }
 
     fn resize(&mut self, new_global_len: usize) {

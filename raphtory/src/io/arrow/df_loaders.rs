@@ -618,6 +618,7 @@ mod tests {
         prelude::{any, Strategy},
         proptest,
     };
+    use tempfile::NamedTempFile;
 
     fn build_edge_list(
         len: usize,
@@ -631,7 +632,7 @@ mod tests {
                 any::<String>(),
                 any::<i64>(),
             ),
-            len,
+            0..=len,
         )
     }
 
@@ -684,6 +685,27 @@ mod tests {
             let g = Graph::new();
             let props = ["str_prop", "int_prop"];
             load_edges_from_df(df_view, "time", "src", "dst", Some(&props), None, None, None, None, &g).unwrap();
+            let g2 = Graph::new();
+            for (src, dst, time, str_prop, int_prop) in edges {
+                g2.add_edge(time, src, dst, [("str_prop", str_prop.clone().into_prop()), ("int_prop", int_prop.into_prop())], None).unwrap();
+                let edge = g.edge(src, dst).unwrap().at(time);
+                assert_eq!(edge.properties().get("str_prop").unwrap_str(), str_prop);
+                assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
+            }
+            assert_graph_equal(&g, &g2);
+        })
+    }
+
+    #[test]
+    fn test_load_edges_with_cache() {
+        proptest!(|(edges in build_edge_list(100, 100), chunk_size in 1usize..=100)| {
+            let df_view = build_df(chunk_size, &edges);
+            let g = Graph::new();
+            let cache_file = NamedTempFile::new().unwrap();
+            g.cache(cache_file.path()).unwrap();
+            let props = ["str_prop", "int_prop"];
+            load_edges_from_df(df_view, "time", "src", "dst", Some(&props), None, None, None, None, &g).unwrap();
+            let g = Graph::load_cached(cache_file.path()).unwrap();
             let g2 = Graph::new();
             for (src, dst, time, str_prop, int_prop) in edges {
                 g2.add_edge(time, src, dst, [("str_prop", str_prop.clone().into_prop()), ("int_prop", int_prop.into_prop())], None).unwrap();
