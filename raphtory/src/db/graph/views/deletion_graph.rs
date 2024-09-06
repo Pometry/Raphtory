@@ -386,7 +386,7 @@ impl TimeSemantics for PersistentGraph {
                 Some(i64::MIN)
             } else {
                 entry
-                    .additions_par_iter(layer_ids)
+                    .additions_iter(layer_ids)
                     .map(|(_, a)| a.first_t())
                     .flatten()
                     .min()
@@ -405,7 +405,7 @@ impl TimeSemantics for PersistentGraph {
             Some(w.start)
         } else {
             entry
-                .additions_par_iter(layer_ids)
+                .additions_iter(layer_ids)
                 .map(|(_, a)| a.range_t(w.clone()).first_t())
                 .flatten()
                 .min()
@@ -414,15 +414,19 @@ impl TimeSemantics for PersistentGraph {
 
     fn edge_latest_time(&self, e: EdgeRef, layer_ids: &LayerIds) -> Option<i64> {
         let edge = self.core_edge(e.into());
-        match e.time().map(|ti| ti.t()) {
+        match e.time() {
             Some(t) => {
-                let t_start = t.saturating_add(1);
-                edge.updates_par_iter(layer_ids)
+                let t_start = t.next();
+                edge.updates_iter(layer_ids)
                     .map(|(_, a, d)| {
                         // last time for exploded edge is next addition or deletion
                         min(
-                            a.range_t(t_start..i64::MAX).first_t().unwrap_or(i64::MAX),
-                            d.range_t(t_start..i64::MAX).first_t().unwrap_or(i64::MAX),
+                            a.range(t_start..TimeIndexEntry::MAX)
+                                .first_t()
+                                .unwrap_or(i64::MAX),
+                            d.range(t_start..TimeIndexEntry::MAX)
+                                .first_t()
+                                .unwrap_or(i64::MAX),
                         )
                     })
                     .min()
@@ -431,7 +435,7 @@ impl TimeSemantics for PersistentGraph {
                 if edge_alive_at_end(edge.as_ref(), i64::MAX, layer_ids) {
                     Some(i64::MAX)
                 } else {
-                    edge.deletions_par_iter(layer_ids)
+                    edge.deletions_iter(layer_ids)
                         .map(|(_, d)| d.last_t())
                         .flatten()
                         .max()
@@ -1242,5 +1246,25 @@ mod test_deletions {
             g.edges().id().collect::<Vec<_>>(),
             vec![(GID::U64(0), GID::U64(1))]
         );
+    }
+
+    #[test]
+    fn test_exploded_latest_time_deleted() {
+        let g = PersistentGraph::new();
+        g.add_edge(1, 1, 2, NO_PROPS, None).unwrap();
+        g.delete_edge(1, 1, 2, None).unwrap();
+
+        assert_eq!(
+            g.edge(1, 2).unwrap().explode().latest_time().collect_vec(),
+            [Some(1)]
+        );
+        assert_eq!(
+            g.edge(1, 2)
+                .unwrap()
+                .explode()
+                .earliest_time()
+                .collect_vec(),
+            [Some(1)]
+        )
     }
 }
