@@ -2,6 +2,7 @@ use crate::core::{DocumentInput, Lifespan};
 use futures_util::future::BoxFuture;
 use std::future::Future;
 
+pub mod datetimeformat;
 mod document_ref;
 mod embedding_cache;
 pub mod embeddings;

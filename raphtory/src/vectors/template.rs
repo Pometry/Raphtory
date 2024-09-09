@@ -12,8 +12,10 @@ use crate::{
         api::{properties::TemporalPropertyView, view::StaticGraphViewOps},
         graph::{edge::EdgeView, node::NodeView},
     },
-    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
+    prelude::{EdgeViewOps, NodeViewOps},
 };
+
+use super::datetimeformat::datetimeformat;
 
 #[derive(Debug)]
 struct PropUpdate {
@@ -220,6 +222,8 @@ impl DocumentTemplate {
 }
 
 fn build_template<'a>(env: &'a mut Environment<'a>, template: &'a str) -> Template<'a, 'a> {
+    minijinja_contrib::add_to_environment(env);
+    env.add_filter("datetimeformat", datetimeformat);
     // it's important adding these settings
     env.set_trim_blocks(true);
     env.set_lstrip_blocks(true);
@@ -261,7 +265,7 @@ impl<G: StaticGraphViewOps> From<&EdgeView<G>> for EdgeTemplateContext {
 mod template_tests {
     use indoc::indoc;
 
-    use crate::prelude::{AdditionOps, Graph, NO_PROPS};
+    use crate::prelude::{AdditionOps, Graph, GraphViewOps, NO_PROPS};
 
     use super::*;
 
@@ -327,6 +331,28 @@ mod template_tests {
         let expected = indoc! {"
             node node2 is a person with the following props:
             const_test: const_test_value"};
+        assert_eq!(&rendered, expected);
+    }
+
+    #[test]
+    fn test_datetimes() {
+        let graph = Graph::new();
+        graph
+            .add_node("2024-09-09T09:08:01", "node1", [("temp", "value")], None)
+            .unwrap();
+
+        // I should be able to iteate over props without doing props|items, which would be solved by implementing Object for Properties
+        let node_template =
+            "{{ (temporal_props.temp|first).time|datetimeformat(format=\"long\") }}";
+        let template = DocumentTemplate {
+            node_template: Some(node_template.to_owned()),
+            graph_template: None,
+            edge_template: None,
+        };
+
+        let mut docs = template.node(&graph.node("node1").unwrap());
+        let rendered = docs.next().unwrap().content;
+        let expected = "September 9 2024 09:08:01";
         assert_eq!(&rendered, expected);
     }
 }
