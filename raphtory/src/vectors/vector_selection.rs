@@ -28,10 +28,10 @@ enum ExpansionPath {
 
 pub type DynamicVectorSelection = VectorSelection<DynamicGraph>;
 
+#[derive(Clone)]
 pub struct VectorSelection<G: StaticGraphViewOps> {
     pub(crate) graph: VectorisedGraph<G>,
     selected_docs: Vec<(DocumentRef, f32)>,
-    // selected_entities: Vec<(EntityId, f32)>,
 }
 
 impl<G: StaticGraphViewOps> VectorSelection<G> {
@@ -135,22 +135,21 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         self.selected_docs = extend_selection(self.selected_docs.clone(), edge_docs, usize::MAX);
     }
 
-    /// Add all the documents in `selection` to the current selection
+    /// Append all the documents in `selection` to the current selection
     ///
     /// # Arguments
     ///   * selection - a selection to be added
     ///
     /// # Returns
-    ///   A new selection containing the join
-    pub fn join(&self, selection: &Self) -> Self {
-        Self {
-            selected_docs: extend_selection(
-                self.selected_docs.clone(),
-                selection.selected_docs.clone().into_iter(),
-                usize::MAX,
-            ),
-            graph: self.graph.clone(),
-        }
+    ///   The selection with the new documents
+    pub fn append(&mut self, selection: &Self) -> &Self {
+        self.selected_docs = extend_selection(
+            self.selected_docs.clone(),
+            selection.selected_docs.clone().into_iter(),
+            usize::MAX,
+        );
+
+        self
     }
 
     /// Add all the documents `hops` hops away to the selection

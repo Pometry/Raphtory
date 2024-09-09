@@ -195,7 +195,7 @@ mod vector_tests {
             .await;
         let embedding: Embedding = fake_embedding(vec!["whatever".to_owned()]).await.remove(0);
 
-        let mut selection = vectors.search_documents(&embedding, 10, None);
+        let mut selection = vectors.documents_by_similarity(&embedding, 10, None);
         selection.expand_documents_by_similarity(&embedding, 10, None);
         selection.expand(2, None);
         let docs = selection.get_documents();
@@ -419,14 +419,18 @@ mod vector_tests {
         let embedding = openai_embedding(vec!["Find a magician".to_owned()])
             .await
             .remove(0);
-        let docs = vectors.search_nodes(&embedding, 1, None).get_documents();
+        let docs = vectors
+            .nodes_by_similarity(&embedding, 1, None)
+            .get_documents();
         // TODO: use the ids instead in all of these cases
         assert!(docs[0].content().contains("Gandalf is a wizard"));
 
         let embedding = openai_embedding(vec!["Find a young person".to_owned()])
             .await
             .remove(0);
-        let docs = vectors.search_nodes(&embedding, 1, None).get_documents();
+        let docs = vectors
+            .nodes_by_similarity(&embedding, 1, None)
+            .get_documents();
         assert!(docs[0].content().contains("Frodo is a hobbit")); // this fails when using gte-small
 
         // with window!
@@ -434,7 +438,7 @@ mod vector_tests {
             .await
             .remove(0);
         let docs = vectors
-            .search_nodes(&embedding, 1, Some((1, 3)))
+            .nodes_by_similarity(&embedding, 1, Some((1, 3)))
             .get_documents();
         assert!(!docs[0].content().contains("Frodo is a hobbit")); // this fails when using gte-small
 
@@ -442,7 +446,9 @@ mod vector_tests {
             .await
             .remove(0);
 
-        let docs = vectors.search_edges(&embedding, 1, None).get_documents();
+        let docs = vectors
+            .edges_by_similarity(&embedding, 1, None)
+            .get_documents();
         assert!(docs[0].content().contains("Frodo appeared with Gandalf"));
     }
 }

@@ -2,10 +2,7 @@ use crate::{
     core::{
         entities::nodes::node_ref::NodeRef, utils::time::IntoTime, DocumentInput, Lifespan, Prop,
     },
-    db::api::{
-        properties::{internal::PropertiesOps, Properties},
-        view::internal::DynamicGraph,
-    },
+    db::api::properties::{internal::PropertiesOps, Properties},
     prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
     python::{
         graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
@@ -13,20 +10,20 @@ use crate::{
         utils::{execute_async_task, PyTime},
     },
     vectors::{
-        graph_entity::GraphEntity, template::DocumentTemplate,
-        vector_selection::DynamicVectorSelection, vectorisable::Vectorisable,
-        vectorised_graph::DynamicVectorisedGraph, Document, Embedding, EmbeddingFunction,
+        template::DocumentTemplate, vector_selection::DynamicVectorSelection,
+        vectorisable::Vectorisable, vectorised_graph::DynamicVectorisedGraph, Document, Embedding,
+        EmbeddingFunction,
     },
 };
 use chrono::DateTime;
 use futures_util::future::BoxFuture;
 use itertools::Itertools;
 use pyo3::{
-    exceptions::{PyAttributeError, PyTypeError},
+    exceptions::PyTypeError,
     prelude::*,
     types::{PyFunction, PyList},
 };
-use std::{path::PathBuf, sync::Arc};
+use std::path::PathBuf;
 
 pub type PyWindow = Option<(PyTime, PyTime)>;
 
@@ -315,7 +312,7 @@ impl PyVectorisedGraph {
     /// Returns:
     ///   The vector selection resulting from the search
     #[pyo3(signature = (query, limit, window=None))]
-    pub fn search_documents(
+    pub fn documents_by_similarity(
         &self,
         query: PyQuery,
         limit: usize,
@@ -323,7 +320,7 @@ impl PyVectorisedGraph {
     ) -> DynamicVectorSelection {
         let embedding = compute_embedding(&self.0, query);
         self.0
-            .search_documents(&embedding, limit, translate_window(window))
+            .documents_by_similarity(&embedding, limit, translate_window(window))
     }
 
     /// Search the top scoring entities according to `query` with no more than `limit` entities
@@ -336,7 +333,7 @@ impl PyVectorisedGraph {
     /// Returns:
     ///   The vector selection resulting from the search
     #[pyo3(signature = (query, limit, window=None))]
-    pub fn search_entities(
+    pub fn entities_by_similarity(
         &self,
         query: PyQuery,
         limit: usize,
@@ -344,7 +341,7 @@ impl PyVectorisedGraph {
     ) -> DynamicVectorSelection {
         let embedding = compute_embedding(&self.0, query);
         self.0
-            .search_entities(&embedding, limit, translate_window(window))
+            .entities_by_similarity(&embedding, limit, translate_window(window))
     }
 
     /// Search the top scoring nodes according to `query` with no more than `limit` nodes
@@ -357,7 +354,7 @@ impl PyVectorisedGraph {
     /// Returns:
     ///   The vector selection resulting from the search
     #[pyo3(signature = (query, limit, window=None))]
-    pub fn search_nodes(
+    pub fn nodes_by_similarity(
         &self,
         query: PyQuery,
         limit: usize,
@@ -365,7 +362,7 @@ impl PyVectorisedGraph {
     ) -> DynamicVectorSelection {
         let embedding = compute_embedding(&self.0, query);
         self.0
-            .search_nodes(&embedding, limit, translate_window(window))
+            .nodes_by_similarity(&embedding, limit, translate_window(window))
     }
 
     /// Search the top scoring edges according to `query` with no more than `limit` edges
@@ -378,7 +375,7 @@ impl PyVectorisedGraph {
     /// Returns:
     ///   The vector selection resulting from the search
     #[pyo3(signature = (query, limit, window=None))]
-    pub fn search_edges(
+    pub fn edges_by_similarity(
         &self,
         query: PyQuery,
         limit: usize,
@@ -386,7 +383,7 @@ impl PyVectorisedGraph {
     ) -> DynamicVectorSelection {
         let embedding = compute_embedding(&self.0, query);
         self.0
-            .search_edges(&embedding, limit, translate_window(window))
+            .edges_by_similarity(&embedding, limit, translate_window(window))
     }
 }
 
@@ -458,9 +455,9 @@ impl PyVectorSelection {
     ///   selection: a selection to be added
     ///
     /// Returns:
-    ///   A new selection containing the join
-    pub fn join(&self, selection: &Self) -> DynamicVectorSelection {
-        self.0.join(&selection.0)
+    ///   The selection with the new documents
+    pub fn append(mut self_: PyRefMut<'_, Self>, selection: &Self) -> DynamicVectorSelection {
+        self_.0.append(&selection.0).clone()
     }
 
     /// Add all the documents `hops` hops away to the selection

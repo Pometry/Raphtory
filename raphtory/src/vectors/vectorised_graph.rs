@@ -91,7 +91,7 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
     ///
     /// # Returns
     ///   The vector selection resulting from the search
-    pub fn search_documents(
+    pub fn documents_by_similarity(
         &self,
         query: &Embedding,
         limit: usize,
@@ -111,7 +111,7 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
     ///
     /// # Returns
     ///   The vector selection resulting from the search
-    pub fn search_entities(
+    pub fn entities_by_similarity(
         &self,
         query: &Embedding,
         limit: usize,
@@ -131,7 +131,7 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
     ///
     /// # Returns
     ///   The vector selection resulting from the search
-    pub fn search_nodes(
+    pub fn nodes_by_similarity(
         &self,
         query: &Embedding,
         limit: usize,
@@ -151,7 +151,7 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
     ///
     /// # Returns
     ///   The vector selection resulting from the search
-    pub fn search_edges(
+    pub fn edges_by_similarity(
         &self,
         query: &Embedding,
         limit: usize,

@@ -161,6 +161,12 @@ impl GraphServer {
         Ok(self)
     }
 
+    impl Algorithm for yourtruct{
+
+        efergerg
+    }
+
+
     pub fn register_algorithm<
         'a,
         E: AlgorithmEntryPoint<'a> + 'static,
