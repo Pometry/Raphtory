@@ -13,8 +13,8 @@ readme.workspace = true
 homepage.workspace = true
 
 [dependencies]
-raphtory = { path = "../raphtory", version = "0.11.0", features = ['vectors', 'search', "io"] }
-raphtory-api = { path = "../raphtory-api", version = "0.11.0" }
+raphtory = { path = "../raphtory", version = "0.11.3", features = ['vectors', 'search', "io"] }
+raphtory-api = { path = "../raphtory-api", version = "0.11.3" }
 base64 = { workspace = true }
 thiserror = { workspace = true }
 itertools = { workspace = true }
@@ -45,11 +45,10 @@ url = { workspace = true }
 base64-compat = { workspace = true }
 reqwest = { workspace = true }
 moka = { workspace = true }
-
-
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
 crossbeam-channel = { workspace = true }
+minijinja = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

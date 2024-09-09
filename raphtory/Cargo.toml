@@ -15,7 +15,7 @@ homepage.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-raphtory-api = { path = "../raphtory-api", version = "0.11.0" }
+raphtory-api = { path = "../raphtory-api", version = "0.11.3" }
 chrono = { workspace = true }
 itertools = { workspace = true }
 num-traits = { workspace = true }
@@ -40,7 +40,7 @@ serde_json = { workspace = true }
 ouroboros = { workspace = true }
 either = { workspace = true }
 kdam = { workspace = true }
-
+bytemuck = { workspace = true }
 
 # io optional dependencies
 csv = { workspace = true, optional = true }
@@ -74,6 +74,10 @@ pometry-storage = { workspace = true, optional = true }
 
 prost = { workspace = true, optional = true }
 prost-types = { workspace = true, optional = true }
+
+
+[target.'cfg(target_os = "macos")'.dependencies]
+snmalloc-rs = { workspace = true }
 
 [dev-dependencies]
 csv = { workspace = true }

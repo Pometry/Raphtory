@@ -115,6 +115,10 @@ impl EdgeStore {
         }
     }
 
+    pub fn initialised(&self) -> bool {
+        self.eid != EID::default()
+    }
+
     pub fn as_edge_ref(&self) -> EdgeRef {
         EdgeRef::new_outgoing(self.eid, self.src, self.dst)
     }

@@ -41,6 +41,16 @@ impl TimeIndexEntry {
         Self(t, 0)
     }
 
+    pub fn next(&self) -> Self {
+        if self.1 < usize::MAX {
+            Self(self.0, self.1 + 1)
+        } else if self.0 < i64::MAX {
+            Self(self.0 + 1, 0)
+        } else {
+            *self
+        }
+    }
+
     pub fn end(t: i64) -> Self {
         Self(t.saturating_add(1), 0)
     }

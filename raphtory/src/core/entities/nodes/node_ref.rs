@@ -2,7 +2,7 @@ use crate::core::entities::VID;
 use either::Either;
 use raphtory_api::core::entities::{GidRef, GID};
 
-#[derive(Copy, Clone, PartialOrd, PartialEq, Debug)]
+#[derive(Copy, Clone, PartialOrd, PartialEq, Debug, Eq, Hash, Ord)]
 pub enum NodeRef<'a> {
     Internal(VID),
     External(GidRef<'a>),

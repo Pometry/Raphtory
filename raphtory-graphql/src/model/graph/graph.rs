@@ -8,7 +8,7 @@ use crate::{
         schema::graph_schema::GraphSchema,
     },
 };
-use async_graphql::{Context, DataContext};
+use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{

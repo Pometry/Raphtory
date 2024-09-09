@@ -2,8 +2,10 @@ use crate::core::{
     entities::{edges::edge_store::EdgeStore, nodes::node_store::NodeStore, EID, VID},
     storage::{
         self,
-        raw_edges::{EdgeArcGuard, EdgeRGuard, EdgeWGuard, EdgesStorage, LockedEdges},
-        Entry, EntryMut, PairEntryMut,
+        raw_edges::{
+            EdgeArcGuard, EdgeRGuard, EdgeWGuard, EdgesStorage, LockedEdges, UninitialisedEdge,
+        },
+        Entry, EntryMut, NodeStorage, PairEntryMut, UninitialisedEntry,
     },
 };
 use serde::{Deserialize, Serialize};
@@ -11,7 +13,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub(crate) struct GraphStorage {
     // node storage with having (id, time_index, properties, adj list for each layer)
-    pub(crate) nodes: storage::RawStorage<NodeStore, VID>,
+    pub(crate) nodes: NodeStorage,
 
     pub(crate) edges: EdgesStorage,
 }
@@ -19,8 +21,8 @@ pub(crate) struct GraphStorage {
 impl GraphStorage {
     pub(crate) fn new(num_locks: usize) -> Self {
         Self {
-            nodes: storage::RawStorage::new(num_locks),
-            edges: EdgesStorage::new(),
+            nodes: storage::NodeStorage::new(num_locks),
+            edges: EdgesStorage::new(num_locks),
         }
     }
 
@@ -45,14 +47,12 @@ impl GraphStorage {
     }
 
     #[inline]
-    pub(crate) fn push_node(&self, node: NodeStore) -> VID {
-        self.nodes
-            .push(node, |vid, node| node.vid = vid.into())
-            .into()
+    pub(crate) fn push_node(&self, node: NodeStore) -> UninitialisedEntry<NodeStore> {
+        self.nodes.push(node)
     }
     #[inline]
-    pub(crate) fn push_edge(&self, edge: EdgeStore) -> EdgeWGuard {
-        self.edges.push_edge(edge)
+    pub(crate) fn push_edge(&self, edge: EdgeStore) -> UninitialisedEdge {
+        self.edges.push(edge)
     }
 
     #[inline]
