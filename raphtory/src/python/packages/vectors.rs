@@ -228,8 +228,9 @@ impl PyGraphView {
     ///   embedding (Callable[[list], list]): the embedding function to translate documents to embeddings
     ///   cache (str): the file to be used as a cache to avoid calling the embedding function (optional)
     ///   overwrite_cache (bool): whether or not to overwrite the cache if there are new embeddings (optional)
-    ///   node_document (str): the property name to be used as document for nodes (optional)
-    ///   edge_document (str): the property name to be used as document for edges (optional)
+    ///   graph_template (str): the document template for the graphs (optional)
+    ///   node_template (str): the document template for the nodes (optional)
+    ///   edge_template (str): the document template for the edges (optional)
     ///   verbose (bool): whether or not to print logs reporting the progress
     ///
     /// Returns:

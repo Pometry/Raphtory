@@ -7,7 +7,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use itertools::Itertools;
-use std::{collections::HashMap, iter, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf};
 
 const CHUNK_SIZE: usize = 1000;
 
