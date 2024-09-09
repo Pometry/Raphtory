@@ -893,9 +893,9 @@ def test_edge_properties():
         assert g.at(1).edge(1, 2).properties.temporal.get("static prop") is None
 
         assert g.at(1).edge(1, 2).properties.temporal == {
-            "prop 4": True,
-            "prop 1": 1,
-            "prop 3": "hi",
+            "prop 4": [(1, True)],
+            "prop 1": [(1, 1)],
+            "prop 3": [(1, "hi")],
         }
 
         assert g.edge(1, 2).properties.temporal.latest() == {
@@ -1078,6 +1078,7 @@ def test_algorithms():
 def test_graph_time_api():
     g = create_graph()
 
+    @with_disk_graph
     def check(g):
         earliest_time = g.earliest_time
         latest_time = g.latest_time
@@ -1110,52 +1111,63 @@ def test_save_load_graph():
     g.add_edge(5, 12, 13, {"prop1": 1321, "prop2": 9.8, "prop3": "test"})
     g.add_edge(6, 13, 11, {"prop1": 645, "prop2": 9.8, "prop3": "test"})
 
-    view = g.window(0, 10)
-    assert g.has_node(13)
-    assert view.node(13).in_degree() == 1
-    assert view.node(13).out_degree() == 1
-    assert view.node(13).degree() == 2
+    @with_disk_graph
+    def check(g):
+        view = g.window(0, 10)
+        assert g.has_node(13)
+        assert view.node(13).in_degree() == 1
+        assert view.node(13).out_degree() == 1
+        assert view.node(13).degree() == 2
 
-    triangles = algorithms.local_triangle_count(
-        view, 13
-    )  # How many triangles is 13 involved in
-    assert triangles == 1
+        triangles = algorithms.local_triangle_count(
+            view, 13
+        )  # How many triangles is 13 involved in
+        assert triangles == 1
 
-    v = view.node(11)
-    assert v.properties.temporal == {"type": [(1, "wallet")], "balance": [(1, 99.5)]}
+        v = view.node(11)
+        assert v.properties.temporal == {
+            "type": [(1, "wallet")],
+            "balance": [(1, 99.5)],
+        }
 
-    tmpdirname = tempfile.TemporaryDirectory()
-    graph_abs_path = tmpdirname.name + "/test_graph.bin"
-    g.save_to_file(graph_abs_path)
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            graph_abs_path = os.path.join(tmpdirname, "test_graph.bin")
+            g.save_to_file(graph_abs_path)
 
-    del g
+            del g
 
-    g = Graph.load_from_file(graph_abs_path)
+            g = Graph.load_from_file(graph_abs_path)
 
-    view = g.window(0, 10)
-    assert g.has_node(13)
-    assert view.node(13).in_degree() == 1
+            view = g.window(0, 10)
+            assert g.has_node(13)
+            assert view.node(13).in_degree() == 1
+            del view
+            del g
 
-    tmpdirname.cleanup()
+    check(g)
 
 
 def test_graph_at():
     g = create_graph()
 
-    view = g.at(1)
-    assert view.node(1).degree() == 2
-    assert view.node(2).degree() == 1
+    @with_disk_graph
+    def check(g):
+        view = g.at(1)
+        assert view.node(1).degree() == 2
+        assert view.node(2).degree() == 1
 
-    view = g.before(3)
-    assert view.node(1).degree() == 3
-    assert view.node(3).degree() == 1
+        view = g.before(3)
+        assert view.node(1).degree() == 3
+        assert view.node(3).degree() == 1
 
-    view = g.before(8)
-    assert view.node(3).degree() == 2
+        view = g.before(8)
+        assert view.node(3).degree() == 2
 
-    view = g.after(6)
-    assert view.node(2).degree() == 1
-    assert view.node(3).degree() == 1
+        view = g.after(6)
+        assert view.node(2).degree() == 1
+        assert view.node(3).degree() == 1
+
+    check(g)
 
 
 def test_add_node_string_multiple_types_fail():
@@ -1206,11 +1218,15 @@ def test_all_neighbours_window():
     g.add_edge(3, 3, 2, {})
     g.add_edge(4, 2, 4, {})
 
-    view = g.before(3)
-    v = view.node(2)
-    assert list(v.window(0, 2).in_neighbours.id) == [1]
-    assert list(v.window(0, 2).out_neighbours.id) == [3]
-    assert list(v.window(0, 2).neighbours.id) == [1, 3]
+    @with_disk_graph
+    def check(g):
+        view = g.before(3)
+        v = view.node(2)
+        assert list(v.window(0, 2).in_neighbours.id) == [1]
+        assert list(v.window(0, 2).out_neighbours.id) == [3]
+        assert list(v.window(0, 2).neighbours.id) == [1, 3]
+
+    check(g)
 
 
 def test_all_degrees_window():
@@ -1223,17 +1239,21 @@ def test_all_degrees_window():
     g.add_edge(4, 2, 4, {})
     g.add_edge(5, 2, 1, {})
 
-    view = g.before(5)
-    v = view.node(2)
-    assert v.window(0, 4).in_degree() == 3
-    assert v.after(1).in_degree() == 2
-    assert v.before(3).in_degree() == 2
-    assert v.window(0, 4).out_degree() == 1
-    assert v.after(1).out_degree() == 1
-    assert v.before(end=3).out_degree() == 1
-    assert v.window(0, 4).degree() == 3
-    assert v.after(1).degree() == 2
-    assert v.before(end=3).degree() == 2
+    @with_disk_graph
+    def check(g):
+        view = g.before(5)
+        v = view.node(2)
+        assert v.window(0, 4).in_degree() == 3
+        assert v.after(1).in_degree() == 2
+        assert v.before(3).in_degree() == 2
+        assert v.window(0, 4).out_degree() == 1
+        assert v.after(1).out_degree() == 1
+        assert v.before(end=3).out_degree() == 1
+        assert v.window(0, 4).degree() == 3
+        assert v.after(1).degree() == 2
+        assert v.before(end=3).degree() == 2
+
+    check(g)
 
 
 def test_all_edge_window():
@@ -1246,33 +1266,37 @@ def test_all_edge_window():
     g.add_edge(4, 2, 4, {})
     g.add_edge(5, 2, 1, {})
 
-    view = g.before(5)
-    v = view.node(2)
-    assert sorted(v.window(0, 4).in_edges.src.id) == [1, 3, 4]
-    assert sorted(v.before(end=4).in_edges.src.id) == [1, 3, 4]
-    assert sorted(v.after(start=1).in_edges.src.id) == [3, 4]
-    assert sorted(v.window(0, 4).out_edges.dst.id) == [3]
-    assert sorted(v.before(end=3).out_edges.dst.id) == [3]
-    assert sorted(v.after(start=1).out_edges.dst.id) == [4]
-    assert sorted((e.src.id, e.dst.id) for e in v.window(0, 4).edges) == [
-        (1, 2),
-        (2, 3),
-        (3, 2),
-        (4, 2),
-    ]
-    assert sorted((e.src.id, e.dst.id) for e in v.before(end=4).edges) == [
-        (1, 2),
-        (2, 3),
-        (3, 2),
-        (4, 2),
-    ]
-    assert sorted((e.src.id, e.dst.id) for e in v.after(start=0).edges) == [
-        (1, 2),
-        (2, 3),
-        (2, 4),
-        (3, 2),
-        (4, 2),
-    ]
+    @with_disk_graph
+    def check(g):
+        view = g.before(5)
+        v = view.node(2)
+        assert sorted(v.window(0, 4).in_edges.src.id) == [1, 3, 4]
+        assert sorted(v.before(end=4).in_edges.src.id) == [1, 3, 4]
+        assert sorted(v.after(start=1).in_edges.src.id) == [3, 4]
+        assert sorted(v.window(0, 4).out_edges.dst.id) == [3]
+        assert sorted(v.before(end=3).out_edges.dst.id) == [3]
+        assert sorted(v.after(start=1).out_edges.dst.id) == [4]
+        assert sorted((e.src.id, e.dst.id) for e in v.window(0, 4).edges) == [
+            (1, 2),
+            (2, 3),
+            (3, 2),
+            (4, 2),
+        ]
+        assert sorted((e.src.id, e.dst.id) for e in v.before(end=4).edges) == [
+            (1, 2),
+            (2, 3),
+            (3, 2),
+            (4, 2),
+        ]
+        assert sorted((e.src.id, e.dst.id) for e in v.after(start=0).edges) == [
+            (1, 2),
+            (2, 3),
+            (2, 4),
+            (3, 2),
+            (4, 2),
+        ]
+
+    check(g)
 
 
 def test_static_prop_change():
@@ -1322,7 +1346,11 @@ def test_triplet_count():
     g.add_edge(0, 2, 3, {})
     g.add_edge(0, 3, 1, {})
 
-    assert algorithms.triplet_count(g) == 3
+    @with_disk_graph
+    def check(g):
+        assert algorithms.triplet_count(g) == 3
+
+    check(g)
 
 
 def test_global_clustering_coeffficient():
@@ -1335,8 +1363,12 @@ def test_global_clustering_coeffficient():
     g.add_edge(0, 4, 1, {})
     g.add_edge(0, 5, 2, {})
 
-    assert algorithms.global_clustering_coefficient(g) == 0.5454545454545454
-    assert algorithms.global_clustering_coefficient(g.at(0)) == 0.5454545454545454
+    @with_disk_graph
+    def check(g):
+        assert algorithms.global_clustering_coefficient(g) == 0.5454545454545454
+        assert algorithms.global_clustering_coefficient(g.at(0)) == 0.5454545454545454
+
+    check(g)
 
 
 def test_edge_time_apis():
@@ -1347,34 +1379,38 @@ def test_edge_time_apis():
     g.add_edge(3, 4, 5, {"prop2": 12})
     g.add_edge(4, 1, 5, {"prop2": 13})
 
-    v = g.node(1)
-    e = g.edge(1, 2)
+    @with_disk_graph
+    def check(g):
+        v = g.node(1)
+        e = g.edge(1, 2)
 
-    for e in e.expanding(1):
-        assert e.src.name == "1"
-        assert e.dst.name == "2"
+        for e in e.expanding(1):
+            assert e.src.name == "1"
+            assert e.dst.name == "2"
 
-    ls = []
-    for e in v.edges:
-        ls.append(e.src.name)
-        ls.append(e.dst.name)
+        ls = []
+        for e in v.edges:
+            ls.append(e.src.name)
+            ls.append(e.dst.name)
 
-    assert ls == ["1", "2", "1", "5"]
+        assert ls == ["1", "2", "1", "5"]
 
-    v = g.node(2)
-    ls = []
-    for e in v.in_edges:
-        ls.append(e.src.name)
-        ls.append(e.dst.name)
+        v = g.node(2)
+        ls = []
+        for e in v.in_edges:
+            ls.append(e.src.name)
+            ls.append(e.dst.name)
 
-    assert ls == ["1", "2"]
+        assert ls == ["1", "2"]
 
-    ls = []
-    for e in v.out_edges:
-        ls.append(e.src.name)
-        ls.append(e.dst.name)
+        ls = []
+        for e in v.out_edges:
+            ls.append(e.src.name)
+            ls.append(e.dst.name)
 
-    assert ls == ["2", "4"]
+        assert ls == ["2", "4"]
+
+    check(g)
 
 
 def test_edge_earliest_latest_time():
@@ -1386,17 +1422,21 @@ def test_edge_earliest_latest_time():
     g.add_edge(1, 1, 3, {})
     g.add_edge(2, 1, 3, {})
 
-    assert g.edge(1, 2).earliest_time == 0
-    assert g.edge(1, 2).latest_time == 2
+    @with_disk_graph
+    def check(g):
+        assert g.edge(1, 2).earliest_time == 0
+        assert g.edge(1, 2).latest_time == 2
 
-    assert list(g.node(1).edges.earliest_time) == [0, 0]
-    assert list(g.node(1).edges.latest_time) == [2, 2]
-    assert list(g.node(1).at(1).edges.earliest_time) == [1, 1]
-    assert list(g.node(1).before(1).edges.earliest_time) == [0, 0]
-    assert list(g.node(1).after(1).edges.earliest_time) == [2, 2]
-    assert list(g.node(1).at(1).edges.latest_time) == [1, 1]
-    assert list(g.node(1).before(1).edges.latest_time) == [0, 0]
-    assert list(g.node(1).after(1).edges.latest_time) == [2, 2]
+        assert list(g.node(1).edges.earliest_time) == [0, 0]
+        assert list(g.node(1).edges.latest_time) == [2, 2]
+        assert list(g.node(1).at(1).edges.earliest_time) == [1, 1]
+        assert list(g.node(1).before(1).edges.earliest_time) == [0, 0]
+        assert list(g.node(1).after(1).edges.earliest_time) == [2, 2]
+        assert list(g.node(1).at(1).edges.latest_time) == [1, 1]
+        assert list(g.node(1).before(1).edges.latest_time) == [0, 0]
+        assert list(g.node(1).after(1).edges.latest_time) == [2, 2]
+
+    check(g)
 
 
 def test_node_earliest_time():
@@ -1405,17 +1445,21 @@ def test_node_earliest_time():
     g.add_node(1, 1, {})
     g.add_node(2, 1, {})
 
-    view = g.at(1)
-    assert view.node(1).earliest_time == 1
-    assert view.node(1).latest_time == 1
+    # @with_disk_graph FIXME: need special handling for nodes additions from Graph
+    def check(g):
+        view = g.at(1)
+        assert view.node(1).earliest_time == 1
+        assert view.node(1).latest_time == 1
 
-    view = g.after(0)
-    assert view.node(1).earliest_time == 1
-    assert view.node(1).latest_time == 2
+        view = g.after(0)
+        assert view.node(1).earliest_time == 1
+        assert view.node(1).latest_time == 2
 
-    view = g.before(3)
-    assert view.node(1).earliest_time == 0
-    assert view.node(1).latest_time == 2
+        view = g.before(3)
+        assert view.node(1).earliest_time == 0
+        assert view.node(1).latest_time == 2
+
+    check(g)
 
 
 def test_node_history():
@@ -1427,9 +1471,13 @@ def test_node_history():
     g.add_node(4, 1, {})
     g.add_node(8, 1, {})
 
-    assert g.node(1).history() == [1, 2, 3, 4, 8]
-    view = g.window(1, 8)
-    assert view.node(1).history() == [1, 2, 3, 4]
+    # @with_disk_graph FIXME: need special handling for nodes additions from Graph
+    def check(g):
+        assert g.node(1).history() == [1, 2, 3, 4, 8]
+        view = g.window(1, 8)
+        assert view.node(1).history() == [1, 2, 3, 4]
+
+    check(g)
 
     g = Graph()
 
@@ -1438,9 +1486,13 @@ def test_node_history():
     g.add_node(7, "Lord Farquaad", {})
     g.add_node(8, "Lord Farquaad", {})
 
-    assert g.node("Lord Farquaad").history() == [4, 6, 7, 8]
-    view = g.window(1, 8)
-    assert view.node("Lord Farquaad").history() == [4, 6, 7]
+    # @with_disk_graph FIXME: need special handling for nodes additions from Graph
+    def check(g):
+        assert g.node("Lord Farquaad").history() == [4, 6, 7, 8]
+        view = g.window(1, 8)
+        assert view.node("Lord Farquaad").history() == [4, 6, 7]
+
+    check(g)
 
 
 def test_edge_history():
@@ -1451,106 +1503,114 @@ def test_edge_history():
     g.add_edge(3, 1, 2)
     g.add_edge(4, 1, 4)
 
-    view = g.window(1, 5)
-    view2 = g.window(1, 4)
+    @with_disk_graph
+    def check(g):
+        view = g.window(1, 5)
+        view2 = g.window(1, 4)
 
-    assert g.edge(1, 2).history() == [1, 3]
-    assert view.edge(1, 4).history() == [4]
-    assert g.edges.history() == [[1, 3], [2], [4]]
-    assert view2.edges.history() == [[1, 3], [2]]
+        assert g.edge(1, 2).history() == [1, 3]
+        assert view.edge(1, 4).history() == [4]
+        assert g.edges.history() == [[1, 3], [2], [4]]
+        assert view2.edges.history() == [[1, 3], [2]]
 
-    old_way = []
-    for e in g.edges:
-        old_way.append(e.history())
-    assert list(g.edges.history()) == old_way
+        old_way = []
+        for e in g.edges:
+            old_way.append(e.history())
+        assert list(g.edges.history()) == old_way
 
-    assert g.nodes.edges.history().collect() == [
-        [[1, 3], [2], [4]],
-        [[1, 3]],
-        [[2]],
-        [[4]],
-    ]
+        assert g.nodes.edges.history().collect() == [
+            [[1, 3], [2], [4]],
+            [[1, 3]],
+            [[2]],
+            [[4]],
+        ]
 
-    old_way2 = []
-    for edges in g.nodes.edges:
-        for edge in edges:
-            old_way2.append(edge.history())
-    new_way = g.nodes.edges.history().collect()
-    assert [item for sublist in new_way for item in sublist] == old_way2
+        old_way2 = []
+        for edges in g.nodes.edges:
+            for edge in edges:
+                old_way2.append(edge.history())
+        new_way = g.nodes.edges.history().collect()
+        assert [item for sublist in new_way for item in sublist] == old_way2
+
+    check(g)
 
 
 def test_lotr_edge_history():
     g = graph_loader.lotr_graph()
 
-    assert g.edge("Frodo", "Gandalf").history() == [
-        329,
-        555,
-        861,
-        1056,
-        1130,
-        1160,
-        1234,
-        1241,
-        1390,
-        1417,
-        1656,
-        1741,
-        1783,
-        1785,
-        1792,
-        1804,
-        1809,
-        1999,
-        2056,
-        2254,
-        2925,
-        2999,
-        3703,
-        3914,
-        4910,
-        5620,
-        5775,
-        6381,
-        6531,
-        6578,
-        6661,
-        6757,
-        7041,
-        7356,
-        8183,
-        8190,
-        8276,
-        8459,
-        8598,
-        8871,
-        9098,
-        9343,
-        9903,
-        11189,
-        11192,
-        11279,
-        11365,
-        14364,
-        21551,
-        21706,
-        23212,
-        26958,
-        27060,
-        29024,
-        30173,
-        30737,
-        30744,
-        31023,
-        31052,
-        31054,
-        31103,
-        31445,
-        32656,
-    ]
-    assert g.before(1000).edge("Frodo", "Gandalf").history() == [329, 555, 861]
-    assert g.edge("Frodo", "Gandalf").before(1000).history() == [329, 555, 861]
-    assert g.window(100, 1000).edge("Frodo", "Gandalf").history() == [329, 555, 861]
-    assert g.edge("Frodo", "Gandalf").window(100, 1000).history() == [329, 555, 861]
+    @with_disk_graph
+    def check(g):
+        assert g.edge("Frodo", "Gandalf").history() == [
+            329,
+            555,
+            861,
+            1056,
+            1130,
+            1160,
+            1234,
+            1241,
+            1390,
+            1417,
+            1656,
+            1741,
+            1783,
+            1785,
+            1792,
+            1804,
+            1809,
+            1999,
+            2056,
+            2254,
+            2925,
+            2999,
+            3703,
+            3914,
+            4910,
+            5620,
+            5775,
+            6381,
+            6531,
+            6578,
+            6661,
+            6757,
+            7041,
+            7356,
+            8183,
+            8190,
+            8276,
+            8459,
+            8598,
+            8871,
+            9098,
+            9343,
+            9903,
+            11189,
+            11192,
+            11279,
+            11365,
+            14364,
+            21551,
+            21706,
+            23212,
+            26958,
+            27060,
+            29024,
+            30173,
+            30737,
+            30744,
+            31023,
+            31052,
+            31054,
+            31103,
+            31445,
+            32656,
+        ]
+        assert g.before(1000).edge("Frodo", "Gandalf").history() == [329, 555, 861]
+        assert g.edge("Frodo", "Gandalf").before(1000).history() == [329, 555, 861]
+        assert g.window(100, 1000).edge("Frodo", "Gandalf").history() == [329, 555, 861]
+        assert g.edge("Frodo", "Gandalf").window(100, 1000).history() == [329, 555, 861]
+
+    check(g)
 
 
 # def test_generic_taint_loader():
@@ -1581,30 +1641,34 @@ def test_layer():
     g.add_edge(0, 1, 6, layer="layer1")
     g.add_edge(0, 1, 4, layer="layer2")
 
-    assert g.default_layer().count_edges() == 1
-    assert g.layers(["layer1"]).count_edges() == 3
-    assert g.layers(["layer2"]).count_edges() == 1
+    # @with_disk_graph FIXME: no multi layer support
+    def check(g):
+        assert g.default_layer().count_edges() == 1
+        assert g.layers(["layer1"]).count_edges() == 3
+        assert g.layers(["layer2"]).count_edges() == 1
 
-    assert g.exclude_layers(["layer1"]).count_edges() == 2
-    assert g.exclude_layer("layer1").count_edges() == 2
-    assert g.exclude_layers(["layer1", "layer2"]).count_edges() == 1
-    assert g.exclude_layer("layer2").count_edges() == 4
+        assert g.exclude_layers(["layer1"]).count_edges() == 2
+        assert g.exclude_layer("layer1").count_edges() == 2
+        assert g.exclude_layers(["layer1", "layer2"]).count_edges() == 1
+        assert g.exclude_layer("layer2").count_edges() == 4
 
-    with pytest.raises(
-        Exception,
-        match=re.escape(
-            "Invalid layer: test_layer. Valid layers: _default, layer1, layer2"
-        ),
-    ):
-        g.layers(["test_layer"])
+        with pytest.raises(
+            Exception,
+            match=re.escape(
+                "Invalid layer: test_layer. Valid layers: _default, layer1, layer2"
+            ),
+        ):
+            g.layers(["test_layer"])
 
-    with pytest.raises(
-        Exception,
-        match=re.escape(
-            "Invalid layer: test_layer. Valid layers: _default, layer1, layer2"
-        ),
-    ):
-        g.edge(1, 2).layers(["test_layer"])
+        with pytest.raises(
+            Exception,
+            match=re.escape(
+                "Invalid layer: test_layer. Valid layers: _default, layer1, layer2"
+            ),
+        ):
+            g.edge(1, 2).layers(["test_layer"])
+
+    check(g)
 
 
 def test_layer_node():
@@ -1630,15 +1694,19 @@ def test_rolling_as_iterable():
     g.add_node(1, 1)
     g.add_node(4, 4)
 
-    rolling = g.rolling(1)
+    # @with_disk_graph FIXME: need special handling for nodes additions from Graph
+    def check(g):
+        rolling = g.rolling(1)
 
-    # a normal operation is reusing the object returned by rolling twice, to get both results and an index.
-    # So the following should work fine:
-    n_nodes = [w.count_nodes() for w in rolling]
-    time_index = [w.start for w in rolling]
+        # a normal operation is reusing the object returned by rolling twice, to get both results and an index.
+        # So the following should work fine:
+        n_nodes = [w.count_nodes() for w in rolling]
+        time_index = [w.start for w in rolling]
 
-    assert n_nodes == [1, 0, 0, 1]
-    assert time_index == [1, 2, 3, 4]
+        assert n_nodes == [1, 0, 0, 1]
+        assert time_index == [1, 2, 3, 4]
+
+    check(g)
 
 
 def test_layer_name():
@@ -1697,31 +1765,37 @@ def test_time():
     g.add_edge(0, 0, 2)
     g.add_edge(1, 0, 2)
 
-    error_msg = (
-        "The time function is only available once an edge has been exploded via .explode(). "
-        "You may want to retrieve the history for this edge via .history(), or the earliest/latest time via earliest_time or latest_time"
-    )
-    with pytest.raises(Exception) as e:
-        g.edges.time()
-    assert str(e.value) == error_msg
+    @with_disk_graph
+    def check(g):
+        error_msg = (
+            "The time function is only available once an edge has been exploded via .explode(). "
+            "You may want to retrieve the history for this edge via .history(), or the earliest/latest time via earliest_time or latest_time"
+        )
+        with pytest.raises(Exception) as e:
+            g.edges.time()
+        assert str(e.value) == error_msg
 
-    assert list(g.edges.explode().time) == [0, 0, 1]
+        assert list(g.edges.explode().time) == [0, 0, 1]
 
-    with pytest.raises(Exception) as e:
-        g.edge(0, 2).time()
-    assert str(e.value) == error_msg
+        with pytest.raises(Exception) as e:
+            g.edge(0, 2).time()
+        assert str(e.value) == error_msg
 
-    assert list(g.edge(0, 2).explode().time) == [0, 1]
+        assert list(g.edge(0, 2).explode().time) == [0, 1]
 
-    with pytest.raises(Exception) as e:
-        g.nodes.neighbours.edges.time()
-    assert str(e.value) == error_msg
+        with pytest.raises(Exception) as e:
+            g.nodes.neighbours.edges.time()
+        assert str(e.value) == error_msg
 
-    assert [list(iterator) for iterator in g.nodes.neighbours.edges.explode().time] == [
-        [0, 0, 1],
-        [0, 0, 1],
-        [0, 0, 1],
-    ]
+        assert [
+            list(iterator) for iterator in g.nodes.neighbours.edges.explode().time
+        ] == [
+            [0, 0, 1],
+            [0, 0, 1],
+            [0, 0, 1],
+        ]
+
+    check(g)
 
 
 def test_window_size():
@@ -1729,41 +1803,54 @@ def test_window_size():
     g.add_node(1, 1)
     g.add_node(4, 4)
 
-    assert g.window_size is None
-    assert g.window(1, 5).window_size == 4
+    @with_disk_graph
+    def check(g):
+        assert g.window_size is None
+        assert g.window(1, 5).window_size == 4
+
+    check(g)
 
 
 def test_time_index():
     g = Graph()
 
-    w = g.window("2020-01-01", "2020-01-03")
-    rolling = w.rolling("1 day")
-    time_index = rolling.time_index()
-    assert list(time_index) == [
-        datetime(2020, 1, 1, 23, 59, 59, 999000, tzinfo=utc),
-        datetime(2020, 1, 2, 23, 59, 59, 999000, tzinfo=utc),
-    ]
+    @with_disk_graph
+    def check(g):
+        w = g.window("2020-01-01", "2020-01-03")
+        rolling = w.rolling("1 day")
+        time_index = rolling.time_index()
+        assert list(time_index) == [
+            datetime(2020, 1, 1, 23, 59, 59, 999000, tzinfo=utc),
+            datetime(2020, 1, 2, 23, 59, 59, 999000, tzinfo=utc),
+        ]
 
-    w = g.window(1, 3)
-    rolling = w.rolling(1)
-    time_index = rolling.time_index()
-    assert list(time_index) == [1, 2]
+        w = g.window(1, 3)
+        rolling = w.rolling(1)
+        time_index = rolling.time_index()
+        assert list(time_index) == [1, 2]
 
-    w = g.window(0, 100)
-    rolling = w.rolling(50)
-    time_index = rolling.time_index(center=True)
-    assert list(time_index) == [25, 75]
+        w = g.window(0, 100)
+        rolling = w.rolling(50)
+        time_index = rolling.time_index(center=True)
+        assert list(time_index) == [25, 75]
+
+    check(g)
 
 
 def test_datetime_props():
     g = Graph()
-    dt1 = datetime(2020, 1, 1, 23, 59, 59, 999000)
-    g.add_node(0, 0, {"time": dt1})
-    assert g.node(0).properties.get("time") == dt1
 
-    dt2 = datetime(2020, 1, 1, 23, 59, 59, 999999)
-    g.add_node(0, 1, {"time": dt2})
-    assert g.node(1).properties.get("time") == dt2
+    # @with_disk_graph FIXME support for DateTime properties
+    def check(g):
+        dt1 = datetime(2020, 1, 1, 23, 59, 59, 999000)
+        g.add_node(0, 0, {"time": dt1})
+        assert g.node(0).properties.get("time") == dt1
+
+        dt2 = datetime(2020, 1, 1, 23, 59, 59, 999999)
+        g.add_node(0, 1, {"time": dt2})
+        assert g.node(1).properties.get("time") == dt2
+
+    check(g)
 
 
 def test_date_time():
@@ -1774,19 +1861,23 @@ def test_date_time():
     g.add_edge("2014-02-04", 1, 4)
     g.add_edge("2014-02-05", 1, 2)
 
-    assert g.earliest_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
-    assert g.latest_date_time == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
+    @with_disk_graph
+    def check(g):
+        assert g.earliest_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+        assert g.latest_date_time == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
 
-    e = g.edge(1, 3)
-    exploded_edges = []
-    for edge in e.explode():
-        exploded_edges.append(edge.date_time)
-    assert exploded_edges == [datetime(2014, 2, 3, tzinfo=utc)]
-    assert g.edge(1, 2).earliest_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
-    assert g.edge(1, 2).latest_date_time == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
+        e = g.edge(1, 3)
+        exploded_edges = []
+        for edge in e.explode():
+            exploded_edges.append(edge.date_time)
+        assert exploded_edges == [datetime(2014, 2, 3, tzinfo=utc)]
+        assert g.edge(1, 2).earliest_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+        assert g.edge(1, 2).latest_date_time == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
 
-    assert g.node(1).earliest_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
-    assert g.node(1).latest_date_time == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
+        assert g.node(1).earliest_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+        assert g.node(1).latest_date_time == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
+
+    check(g)
 
 
 def test_date_time_window():
@@ -1798,26 +1889,32 @@ def test_date_time_window():
     g.add_edge("2014-02-05", 1, 2)
     g.add_edge("2014-02-06", 1, 2)
 
-    view = g.window("2014-02-02", "2014-02-04")
-    view2 = g.window("2014-02-02", "2014-02-05")
+    @with_disk_graph
+    def check(g):
+        view = g.window("2014-02-02", "2014-02-04")
+        view2 = g.window("2014-02-02", "2014-02-05")
 
-    assert view.start_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
-    assert view.end_date_time == datetime(2014, 2, 4, 0, 0, tzinfo=utc)
+        assert view.start_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+        assert view.end_date_time == datetime(2014, 2, 4, 0, 0, tzinfo=utc)
 
-    assert view.earliest_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
-    assert view.latest_date_time == datetime(2014, 2, 3, 0, 0, tzinfo=utc)
+        assert view.earliest_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+        assert view.latest_date_time == datetime(2014, 2, 3, 0, 0, tzinfo=utc)
 
-    assert view2.edge(1, 2).start_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
-    assert view2.edge(1, 2).end_date_time == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
+        assert view2.edge(1, 2).start_date_time == datetime(
+            2014, 2, 2, 0, 0, tzinfo=utc
+        )
+        assert view2.edge(1, 2).end_date_time == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
 
-    assert view.node(1).earliest_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
-    assert view.node(1).latest_date_time == datetime(2014, 2, 3, 0, 0, tzinfo=utc)
+        assert view.node(1).earliest_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+        assert view.node(1).latest_date_time == datetime(2014, 2, 3, 0, 0, tzinfo=utc)
 
-    e = view.edge(1, 2)
-    exploded_edges = []
-    for edge in e.explode():
-        exploded_edges.append(edge.date_time)
-    assert exploded_edges == [datetime(2014, 2, 2, tzinfo=utc)]
+        e = view.edge(1, 2)
+        exploded_edges = []
+        for edge in e.explode():
+            exploded_edges.append(edge.date_time)
+        assert exploded_edges == [datetime(2014, 2, 2, tzinfo=utc)]
+
+    check(g)
 
 
 def test_datetime_add_node():
@@ -1828,20 +1925,24 @@ def test_datetime_add_node():
     g.add_node(datetime(2014, 2, 5), 4)
     g.add_node(datetime(2014, 2, 6), 5)
 
-    view = g.window("2014-02-02", "2014-02-04")
-    view2 = g.window("2014-02-02", "2014-02-05")
+    # @with_disk_graph FIXME: need special handling for nodes additions from Graph
+    def check(g):
+        view = g.window("2014-02-02", "2014-02-04")
+        view2 = g.window("2014-02-02", "2014-02-05")
 
-    assert view.start_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
-    assert view.end_date_time == datetime(2014, 2, 4, 0, 0, tzinfo=utc)
+        assert view.start_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+        assert view.end_date_time == datetime(2014, 2, 4, 0, 0, tzinfo=utc)
 
-    assert view2.earliest_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
-    assert view2.latest_date_time == datetime(2014, 2, 4, 0, 0, tzinfo=utc)
+        assert view2.earliest_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+        assert view2.latest_date_time == datetime(2014, 2, 4, 0, 0, tzinfo=utc)
 
-    assert view2.node(1).start_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
-    assert view2.node(1).end_date_time == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
+        assert view2.node(1).start_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+        assert view2.node(1).end_date_time == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
 
-    assert view.node(2).earliest_date_time == datetime(2014, 2, 3, 0, 0, tzinfo=utc)
-    assert view.node(2).latest_date_time == datetime(2014, 2, 3, 0, 0, tzinfo=utc)
+        assert view.node(2).earliest_date_time == datetime(2014, 2, 3, 0, 0, tzinfo=utc)
+        assert view.node(2).latest_date_time == datetime(2014, 2, 3, 0, 0, tzinfo=utc)
+
+    check(g)
 
 
 def test_datetime_with_timezone():
@@ -1872,7 +1973,12 @@ def test_datetime_with_timezone():
         naive_datetime = datetime(2024, 1, 5, 12, 0, 0)
         localized_datetime = timezone.localize(naive_datetime)
         g.add_node(localized_datetime, 1)
-    assert g.node(1).history_date_time() == results
+
+    # @with_disk_graph FIXME: need special handling for nodes additions from Graph
+    def check(g):
+        assert g.node(1).history_date_time() == results
+
+    check(g)
 
 
 def test_equivalent_nodes_edges_and_sets():
@@ -1884,54 +1990,73 @@ def test_equivalent_nodes_edges_and_sets():
     g.add_edge(1, 1, 2)
     g.add_edge(1, 2, 3)
 
-    assert g.node(1) == g.node(1)
-    assert list(g.node(1).neighbours)[0] == list(g.node(3).neighbours)[0]
-    assert set(g.node(1).neighbours) == set(g.node(3).neighbours)
-    assert set(g.node(1).out_edges) == set(g.node(2).in_edges)
+    @with_disk_graph
+    def check(g):
+        assert g.node(1) == g.node(1)
+        assert list(g.node(1).neighbours)[0] == list(g.node(3).neighbours)[0]
+        assert set(g.node(1).neighbours) == set(g.node(3).neighbours)
+        assert set(g.node(1).out_edges) == set(g.node(2).in_edges)
 
-    assert g.edge(1, 1) == g.edge(1, 1)
+        assert g.edge(1, 1) == g.edge(1, 1)
+
+    check(g)
 
 
 def test_subgraph():
     g = create_graph()
-    empty_graph = g.subgraph([])
-    assert empty_graph.nodes.collect() == []
 
-    node1 = g.nodes[1]
-    subgraph = g.subgraph([node1])
-    assert subgraph.nodes.collect() == [node1]
+    @with_disk_graph
+    def check(g):
+        empty_graph = g.subgraph([])
+        assert empty_graph.nodes.collect() == []
 
-    subgraph_from_str = g.subgraph(["1"])
-    assert subgraph_from_str.nodes.collect() == [node1]
+        node1 = g.nodes[1]
+        subgraph = g.subgraph([node1])
+        assert subgraph.nodes.collect() == [node1]
 
-    subgraph_from_int = g.subgraph([1])
-    assert subgraph_from_int.nodes.collect() == [node1]
+        subgraph_from_str = g.subgraph(["1"])
+        assert subgraph_from_str.nodes.collect() == [node1]
 
-    mg = subgraph.materialize()
-    assert mg.nodes.collect()[0].properties["type"] == "wallet"
-    assert mg.nodes.collect()[0].name == "1"
+        subgraph_from_int = g.subgraph([1])
+        assert subgraph_from_int.nodes.collect() == [node1]
 
-    props = {"prop 4": 11, "prop 5": "world", "prop 6": False}
-    mg.add_property(1, props)
+        mg = subgraph.materialize()
+        assert mg.nodes.collect()[0].properties["type"] == "wallet"
+        assert mg.nodes.collect()[0].name == "1"
 
-    props = {"prop 1": 1, "prop 2": "hi", "prop 3": True}
-    mg.add_constant_properties(props)
-    x = mg.properties.keys()
-    x.sort()
-    assert x == ["prop 1", "prop 2", "prop 3", "prop 4", "prop 5", "prop 6"]
+        props = {"prop 4": 11, "prop 5": "world", "prop 6": False}
+        mg.add_property(1, props)
+
+        props = {"prop 1": 1, "prop 2": "hi", "prop 3": True}
+        mg.add_constant_properties(props)
+        x = mg.properties.keys()
+        x.sort()
+        assert x == ["prop 1", "prop 2", "prop 3", "prop 4", "prop 5", "prop 6"]
+
+    check(g)
 
 
 def test_exclude_nodes():
     g = create_graph()
-    exclude_nodes = g.exclude_nodes([1])
-    assert exclude_nodes.nodes.id.collect() == [2, 3]
+
+    @with_disk_graph
+    def check(g):
+        exclude_nodes = g.exclude_nodes([1])
+        assert exclude_nodes.nodes.id.collect() == [2, 3]
+
+    check(g)
 
 
 def test_nbr():
     g = create_graph()
-    r = [e.nbr.name for e in g.edges]
-    r.sort()
-    assert r == ["1", "1", "2", "2", "3"]
+
+    @with_disk_graph
+    def check(g):
+        r = [e.nbr.name for e in g.edges]
+        r.sort()
+        assert r == ["1", "1", "2", "2", "3"]
+
+    check(g)
 
 
 def test_materialize_graph():
@@ -1953,76 +2078,85 @@ def test_materialize_graph():
     g.add_constant_properties(sprop)
     assert g.properties.constant == sprop
 
-    mg = g.materialize()
+    # @with_disk_graph FIXME: need special handling for nodes additions from Graph, support for constant properties on edges
+    def check(g):
+        mg = g.materialize()
 
-    assert mg.node(1).properties.get("type") == "wallet"
-    assert mg.node(4).properties == {"abc": "xyz"}
-    assert mg.node(4).properties.constant.get("abc") == "xyz"
-    assert mg.node(1).history() == [-1, 0, 1, 2]
-    assert mg.node(4).history() == [6, 8]
-    assert mg.nodes.id.collect() == [1, 2, 3, 4]
-    assert set(mg.edges.id) == {(1, 1), (1, 2), (1, 3), (2, 1), (3, 2), (2, 4)}
-    assert g.nodes.id.collect() == mg.nodes.id.collect()
-    assert set(g.edges.id) == set(mg.edges.id)
-    assert mg.node(1).properties.constant == {}
-    assert mg.node(4).properties.constant == {"abc": "xyz"}
-    assert g.edge(1, 2).id == (1, 2)
-    assert mg.edge(1, 2).id == (1, 2)
-    assert mg.has_edge(1, 2)
-    assert g.has_edge(1, 2)
-    assert mg.has_edge(2, 1)
-    assert g.has_edge(2, 1)
+        assert mg.node(1).properties.get("type") == "wallet"
+        assert mg.node(4).properties == {"abc": "xyz"}
+        assert mg.node(4).properties.constant.get("abc") == "xyz"
+        assert mg.node(1).history() == [-1, 0, 1, 2]
+        assert mg.node(4).history() == [6, 8]
+        assert mg.nodes.id.collect() == [1, 2, 3, 4]
+        assert set(mg.edges.id) == {(1, 1), (1, 2), (1, 3), (2, 1), (3, 2), (2, 4)}
+        assert g.nodes.id.collect() == mg.nodes.id.collect()
+        assert set(g.edges.id) == set(mg.edges.id)
+        assert mg.node(1).properties.constant == {}
+        assert mg.node(4).properties.constant == {"abc": "xyz"}
+        assert g.edge(1, 2).id == (1, 2)
+        assert mg.edge(1, 2).id == (1, 2)
+        assert mg.has_edge(1, 2)
+        assert g.has_edge(1, 2)
+        assert mg.has_edge(2, 1)
+        assert g.has_edge(2, 1)
 
-    sprop2 = {"sprop 3": 11, "sprop 4": 10}
-    mg.add_constant_properties(sprop2)
-    sprop.update(sprop2)
-    assert mg.properties.constant == sprop
+        sprop2 = {"sprop 3": 11, "sprop 4": 10}
+        mg.add_constant_properties(sprop2)
+        sprop.update(sprop2)
+        assert mg.properties.constant == sprop
+
+    check(g)
 
 
 def test_deletions():
     g = create_graph_with_deletions()
-    deleted_edge = g.edge(edges[0][1], edges[0][2])
-    for e in edges:
-        assert g.at(e[0]).has_edge(e[1], e[2])
-        assert g.after(e[0]).has_edge(e[1], e[2])
 
-    for e in edges[:-1]:
-        # last update is an existing edge
-        assert not g.before(e[0]).has_edge(e[1], e[2])
+    # @with_disk_graph FIXME: add support for edge deletions
+    def check(g):
+        deleted_edge = g.edge(edges[0][1], edges[0][2])
+        for e in edges:
+            assert g.at(e[0]).has_edge(e[1], e[2])
+            assert g.after(e[0]).has_edge(e[1], e[2])
 
-    # deleted at window start
-    assert deleted_edge.window(10, 20).is_deleted()
-    assert not deleted_edge.window(10, 20).is_valid()
-    assert deleted_edge.window(10, 20).earliest_time is None
-    assert deleted_edge.window(10, 20).latest_time is None
+        for e in edges[:-1]:
+            # last update is an existing edge
+            assert not g.before(e[0]).has_edge(e[1], e[2])
 
-    # deleted before window start
-    assert deleted_edge.window(15, 20).is_deleted()
-    assert not deleted_edge.window(15, 20).is_valid()
-    assert deleted_edge.window(15, 20).earliest_time is None
-    assert deleted_edge.window(15, 20).latest_time is None
+        # deleted at window start
+        assert deleted_edge.window(10, 20).is_deleted()
+        assert not deleted_edge.window(10, 20).is_valid()
+        assert deleted_edge.window(10, 20).earliest_time is None
+        assert deleted_edge.window(10, 20).latest_time is None
 
-    # deleted in window
-    assert deleted_edge.window(5, 20).is_deleted()
-    assert not deleted_edge.window(5, 20).is_valid()
-    assert deleted_edge.window(5, 20).earliest_time == 5
-    assert deleted_edge.window(5, 20).latest_time == 10
+        # deleted before window start
+        assert deleted_edge.window(15, 20).is_deleted()
+        assert not deleted_edge.window(15, 20).is_valid()
+        assert deleted_edge.window(15, 20).earliest_time is None
+        assert deleted_edge.window(15, 20).latest_time is None
 
-    # check deleted edge is gone at 10
-    assert not g.after(start=10).has_edge(edges[0][1], edges[0][2])
-    assert not g.at(10).has_edge(edges[0][1], edges[0][2])
-    assert g.before(10).has_edge(edges[0][1], edges[0][2])
+        # deleted in window
+        assert deleted_edge.window(5, 20).is_deleted()
+        assert not deleted_edge.window(5, 20).is_valid()
+        assert deleted_edge.window(5, 20).earliest_time == 5
+        assert deleted_edge.window(5, 20).latest_time == 10
 
-    # check not deleted edges are still there
-    for e in edges[1:]:
-        assert g.after(start=10).has_edge(e[1], e[2])
+        # check deleted edge is gone at 10
+        assert not g.after(start=10).has_edge(edges[0][1], edges[0][2])
+        assert not g.at(10).has_edge(edges[0][1], edges[0][2])
+        assert g.before(10).has_edge(edges[0][1], edges[0][2])
 
-    assert list(deleted_edge.explode().latest_time) == [10]
-    assert list(deleted_edge.explode().earliest_time) == [edges[0][0]]
+        # check not deleted edges are still there
+        for e in edges[1:]:
+            assert g.after(start=10).has_edge(e[1], e[2])
 
-    # check rolling and expanding behaviour
-    assert not list(g.before(1).node(1).after(1).rolling(1))
-    assert not list(g.after(0).edge(1, 1).before(1).expanding(1))
+        assert list(deleted_edge.explode().latest_time) == [10]
+        assert list(deleted_edge.explode().earliest_time) == [edges[0][0]]
+
+        # check rolling and expanding behaviour
+        assert not list(g.before(1).node(1).after(1).rolling(1))
+        assert not list(g.after(0).edge(1, 1).before(1).expanding(1))
+
+    check(g)
 
 
 def test_edge_layer():
@@ -2033,25 +2167,27 @@ def test_edge_layer():
     g.add_edge(1, 2, 3, layer="layer 2").add_constant_properties(
         {"test_prop": "test_val 2"}
     )
-    assert g.edges.properties.constant.get("test_prop") == [
-        {"layer 1": "test_val"},
-        {"layer 2": "test_val 2"},
-    ]
+
+    # @with_disk_graph #FIXME: add support for edge constant properties
+    def check(g):
+        assert g.edges.properties.constant.get("test_prop") == [
+            {"layer 1": "test_val"},
+            {"layer 2": "test_val 2"},
+        ]
+
+    check(g)
 
 
 def test_layers_earliest_time():
     g = Graph()
     e = g.add_edge(1, 1, 2, layer="test")
-    e = g.edge(1, 2)
-    assert e.earliest_time == 1
 
+    # @with_disk_graph # FIXME: add support for multiple layers
+    def check(g):
+        e = g.edge(1, 2)
+        assert e.earliest_time == 1
 
-def test_layers_earliest_time():
-    g = Graph()
-    e = g.add_edge(1, 1, 2, layer="test")
-    e = g.edge(1, 2)
-    print(e)
-    assert e.earliest_time == 1
+    check(g)
 
 
 def test_edge_explode_layers():
@@ -2061,29 +2197,33 @@ def test_edge_explode_layers():
     g.add_edge(1, 2, 1, {"layer": 1}, layer="1")
     g.add_edge(1, 2, 1, {"layer": 2}, layer="2")
 
-    layered_edges = g.edge(1, 2).explode_layers()
-    e_layers = [ee.layer_names for ee in layered_edges]
-    e_layer_prop = [[str(ee.properties["layer"])] for ee in layered_edges]
-    assert e_layers == e_layer_prop
+    # @with_disk_graph # FIXME: add edge multi layer support
+    def check(g):
+        layered_edges = g.edge(1, 2).explode_layers()
+        e_layers = [ee.layer_names for ee in layered_edges]
+        e_layer_prop = [[str(ee.properties["layer"])] for ee in layered_edges]
+        assert e_layers == e_layer_prop
 
-    nested_layered_edges = g.nodes.out_edges.explode_layers()
-    e_layers = [[ee.layer_names for ee in edges] for edges in nested_layered_edges]
-    e_layer_prop = [
-        [[str(ee.properties["layer"])] for ee in layered_edges]
-        for layered_edges in nested_layered_edges
-    ]
-    assert e_layers == e_layer_prop
+        nested_layered_edges = g.nodes.out_edges.explode_layers()
+        e_layers = [[ee.layer_names for ee in edges] for edges in nested_layered_edges]
+        e_layer_prop = [
+            [[str(ee.properties["layer"])] for ee in layered_edges]
+            for layered_edges in nested_layered_edges
+        ]
+        assert e_layers == e_layer_prop
 
-    nested_layered_edges = g.nodes.out_neighbours.out_edges.explode_layers()
-    e_layers = [
-        [ee.layer_names for ee in layered_edges]
-        for layered_edges in nested_layered_edges
-    ]
-    e_layer_prop = [
-        [[str(ee.properties["layer"])] for ee in layered_edges]
-        for layered_edges in nested_layered_edges
-    ]
-    assert e_layers == e_layer_prop
+        nested_layered_edges = g.nodes.out_neighbours.out_edges.explode_layers()
+        e_layers = [
+            [ee.layer_names for ee in layered_edges]
+            for layered_edges in nested_layered_edges
+        ]
+        e_layer_prop = [
+            [[str(ee.properties["layer"])] for ee in layered_edges]
+            for layered_edges in nested_layered_edges
+        ]
+        assert e_layers == e_layer_prop
+
+    check(g)
 
 
 def test_starend_edges():
@@ -2092,35 +2232,41 @@ def test_starend_edges():
     g.add_edge(2, 1, 2)
     g.add_edge(3, 1, 2)
 
-    old_latest_time_way = []
-    for e in g.edges:
-        old_latest_time_way.append(e.latest_time)
+    @with_disk_graph
+    def check(g):
+        old_latest_time_way = []
+        for e in g.edges:
+            old_latest_time_way.append(e.latest_time)
 
-    assert old_latest_time_way == list(g.edges.latest_time)
+        assert old_latest_time_way == list(g.edges.latest_time)
 
-    old_earliest_time_way = []
-    for e in g.edges:
-        old_earliest_time_way.append(e.earliest_time)
-    assert old_earliest_time_way == list(g.edges.earliest_time)
+        old_earliest_time_way = []
+        for e in g.edges:
+            old_earliest_time_way.append(e.earliest_time)
+        assert old_earliest_time_way == list(g.edges.earliest_time)
 
-    old_latest_time_nested_way = []
-    old_earliest_time_nested_way = []
-    for edges in g.nodes.edges:
-        for edge in edges:
-            old_latest_time_nested_way.append(edge.latest_time)
-            old_earliest_time_nested_way.append(edge.earliest_time)
+        old_latest_time_nested_way = []
+        old_earliest_time_nested_way = []
+        for edges in g.nodes.edges:
+            for edge in edges:
+                old_latest_time_nested_way.append(edge.latest_time)
+                old_earliest_time_nested_way.append(edge.earliest_time)
 
-    assert old_latest_time_nested_way == [
-        item for sublist in g.nodes.edges.latest_time.collect() for item in sublist
-    ]
-    assert old_earliest_time_nested_way == [
-        item for sublist in g.nodes.edges.earliest_time.collect() for item in sublist
-    ]
-    gw = g.window(1, 3)
-    assert gw.edges.start == gw.start
-    assert gw.edges.end == gw.end
-    assert gw.nodes.edges.start == gw.start
-    assert gw.nodes.edges.end == gw.end
+        assert old_latest_time_nested_way == [
+            item for sublist in g.nodes.edges.latest_time.collect() for item in sublist
+        ]
+        assert old_earliest_time_nested_way == [
+            item
+            for sublist in g.nodes.edges.earliest_time.collect()
+            for item in sublist
+        ]
+        gw = g.window(1, 3)
+        assert gw.edges.start == gw.start
+        assert gw.edges.end == gw.end
+        assert gw.nodes.edges.start == gw.start
+        assert gw.nodes.edges.end == gw.end
+
+    check(g)
 
 
 def test_date_time_edges():
@@ -2131,19 +2277,23 @@ def test_date_time_edges():
     g.add_edge("2014-02-04", 1, 4)
     g.add_edge("2014-02-05", 1, 2)
 
-    old_date_way = []
-    for edges in g.nodes.edges:
-        for edge in edges:
-            old_date_way.append(edge.date_time)
+    @with_disk_graph
+    def check(g):
+        old_date_way = []
+        for edges in g.nodes.edges:
+            for edge in edges:
+                old_date_way.append(edge.date_time)
 
-    assert old_date_way == [
-        item for sublist in g.nodes.edges.date_time.collect() for item in sublist
-    ]
-    gw = g.window("2014-02-02", "2014-02-05")
-    assert gw.edges.start_date_time == gw.start_date_time
-    assert gw.edges.end_date_time == gw.end_date_time
-    assert gw.nodes.edges.start_date_time == gw.start_date_time
-    assert gw.nodes.edges.end_date_time == gw.end_date_time
+        assert old_date_way == [
+            item for sublist in g.nodes.edges.date_time.collect() for item in sublist
+        ]
+        gw = g.window("2014-02-02", "2014-02-05")
+        assert gw.edges.start_date_time == gw.start_date_time
+        assert gw.edges.end_date_time == gw.end_date_time
+        assert gw.nodes.edges.start_date_time == gw.start_date_time
+        assert gw.nodes.edges.end_date_time == gw.end_date_time
+
+    check(g)
 
 
 def test_layer_edges():
@@ -2153,15 +2303,19 @@ def test_layer_edges():
     g.add_edge(3, 1, 2, layer="layer 3")
     layer_names = ["layer 1", "layer 2", "layer 3"]
 
-    old_layer_way = []
-    for e in g.edges:
-        old_layer_way.append(e.layer("layer 1"))
-    assert old_layer_way == list(g.edges.layer("layer 1"))
+    @with_disk_graph
+    def check(g):
+        old_layer_way = []
+        for e in g.edges:
+            old_layer_way.append(e.layer("layer 1"))
+        assert old_layer_way == list(g.edges.layer("layer 1"))
 
-    old_layers_way = []
-    for e in g.edges:
-        old_layers_way.append(e.layers(layer_names))
-    assert old_layers_way == list(g.edges.layers(layer_names))
+        old_layers_way = []
+        for e in g.edges:
+            old_layers_way.append(e.layers(layer_names))
+        assert old_layers_way == list(g.edges.layers(layer_names))
+
+    check(g)
 
 
 def test_window_edges():
@@ -2171,20 +2325,29 @@ def test_window_edges():
     g.add_edge(3, 1, 2)
     g.add_edge(4, 1, 2)
 
-    old_window_way = []
-    for e in g.edges:
-        old_window_way.append(e.window(2, 3))
-    assert old_window_way == list(g.edges.window(2, 3))
+    @with_disk_graph
+    def check(g):
+        old_window_way = []
+        for e in g.edges:
+            old_window_way.append(e.window(2, 3))
+        assert old_window_way == list(g.edges.window(2, 3))
+
+    check(g)
 
 
 def test_weird_windows():
     g = Graph()
     g.add_edge(1, 1, 2)
-    with pytest.raises(
-        Exception,
-        match="'ddd' is not a valid datetime, valid formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%, %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%",
-    ):
-        g.window("ddd", "aaa")
+
+    @with_disk_graph
+    def check(g):
+        with pytest.raises(
+            Exception,
+            match="'ddd' is not a valid datetime, valid formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%, %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%",
+        ):
+            g.window("ddd", "aaa")
+
+    check(g)
 
 
 def test_at_edges():
@@ -2194,10 +2357,12 @@ def test_at_edges():
     g.add_edge(3, 1, 2)
     g.add_edge(4, 1, 2)
 
-    old_at_way = []
-    for e in g.edges:
-        old_at_way.append(e.at(2))
-    assert old_at_way == list(g.edges.at(2))
+    @with_disk_graph
+    def check(g):
+        old_at_way = []
+        for e in g.edges:
+            old_at_way.append(e.at(2))
+        assert old_at_way == list(g.edges.at(2))
 
 
 def test_one_hop_filter_reset():
@@ -2208,34 +2373,43 @@ def test_one_hop_filter_reset():
     g.add_edge(2, 3, 4, {"layer": 2}, "2")
     g.add_edge(0, 1, 3, {"layer": 2}, "2")
 
-    v = g.node(1)
+    @with_disk_graph
+    def check(g):
+        v = g.node(1)
 
-    # filtering resets on neighbours
-    out_out = v.at(0).layer("1").out_neighbours.layer("2").out_neighbours.id
-    assert out_out == [3]
+        # filtering resets on neighbours
+        out_out = v.at(0).layer("1").out_neighbours.layer("2").out_neighbours.id
+        assert out_out == [3]
 
-    out_out = (
-        v.at(0).layer("1").out_neighbours.layer("2").out_edges.properties.get("layer")
-    )
-    assert out_out == [2]
+        out_out = (
+            v.at(0)
+            .layer("1")
+            .out_neighbours.layer("2")
+            .out_edges.properties.get("layer")
+        )
+        assert out_out == [2]
 
-    out_out = v.at(0).out_neighbours.after(1).out_neighbours.id
-    assert out_out == [4]
+        out_out = v.at(0).out_neighbours.after(1).out_neighbours.id
+        assert out_out == [4]
 
-    earliest_time = v.at(0).out_neighbours.after(1).out_edges.earliest_time.min()
-    assert earliest_time == 2
+        earliest_time = v.at(0).out_neighbours.after(1).out_edges.earliest_time.min()
+        assert earliest_time == 2
 
-    # filter applies to edges
-    layers = set(v.layer("1").edges.explode_layers().layer_name)
-    assert layers == {"1"}
+        # filter applies to edges
+        layers = set(v.layer("1").edges.explode_layers().layer_name)
+        assert layers == {"1"}
 
-    # dst and src on edge reset the filter
-    degrees = v.at(0).layer("1").edges.dst.out_degree()
-    assert degrees == [1]
+        # dst and src on edge reset the filter
+        degrees = v.at(0).layer("1").edges.dst.out_degree()
+        assert degrees == [1]
 
-    # graph level filter is preserved
-    out_out_2 = g.at(0).node(1).layer("1").out_neighbours.layer("2").out_neighbours.id
-    assert len(out_out_2) == 0
+        # graph level filter is preserved
+        out_out_2 = (
+            g.at(0).node(1).layer("1").out_neighbours.layer("2").out_neighbours.id
+        )
+        assert len(out_out_2) == 0
+
+    check(g)
 
 
 def test_type_filter():
@@ -2245,8 +2419,12 @@ def test_type_filter():
     g.add_node(1, 3, node_type="timer")
     g.add_node(1, 4, node_type="wallet")
 
-    assert [node.name for node in g.nodes.type_filter(["wallet"])] == ["1", "4"]
-    assert g.subgraph_node_types(["timer"]).nodes.name.collect() == ["2", "3"]
+    @with_disk_graph
+    def check(g):
+        assert [node.name for node in g.nodes.type_filter(["wallet"])] == ["1", "4"]
+        assert g.subgraph_node_types(["timer"]).nodes.name.collect() == ["2", "3"]
+
+    check(g)
 
     g = PersistentGraph()
     g.add_node(1, 1, node_type="wallet")
@@ -2254,16 +2432,23 @@ def test_type_filter():
     g.add_node(3, 3, node_type="timer")
     g.add_node(4, 4, node_type="wallet")
 
-    assert [node.name for node in g.nodes.type_filter(["wallet"])] == ["1", "4"]
-    assert g.subgraph_node_types(["timer"]).nodes.name.collect() == ["2", "3"]
+    # @with_disk_graph # FIXME PersistentGraph cannot be used with with_disk_graph
+    def check(g):
+        assert [node.name for node in g.nodes.type_filter(["wallet"])] == ["1", "4"]
+        assert g.subgraph_node_types(["timer"]).nodes.name.collect() == ["2", "3"]
 
-    subgraph = g.subgraph([1, 2, 3])
-    assert [node.name for node in subgraph.nodes.type_filter(["wallet"])] == ["1"]
-    assert subgraph.subgraph_node_types(["timer"]).nodes.name.collect() == ["2", "3"]
+        subgraph = g.subgraph([1, 2, 3])
+        assert [node.name for node in subgraph.nodes.type_filter(["wallet"])] == ["1"]
+        assert subgraph.subgraph_node_types(["timer"]).nodes.name.collect() == [
+            "2",
+            "3",
+        ]
 
-    w = g.window(1, 3)
-    assert [node.name for node in w.nodes.type_filter(["wallet"])] == ["1"]
-    assert w.subgraph_node_types(["timer"]).nodes.name.collect() == ["2", "3"]
+        w = g.window(1, 3)
+        assert [node.name for node in w.nodes.type_filter(["wallet"])] == ["1"]
+        assert w.subgraph_node_types(["timer"]).nodes.name.collect() == ["2", "3"]
+
+    check(g)
 
     g = Graph()
     g.add_node(1, 1, node_type="wallet")
@@ -2273,9 +2458,14 @@ def test_type_filter():
     g.add_edge(1, 1, 2, layer="layer1")
     g.add_edge(2, 2, 3, layer="layer1")
     g.add_edge(3, 2, 4, layer="layer2")
-    layer = g.layers(["layer1"])
-    assert [node.name for node in layer.nodes.type_filter(["wallet"])] == ["1"]
-    assert layer.subgraph_node_types(["timer"]).nodes.name.collect() == ["2", "3"]
+
+    @with_disk_graph
+    def check(g):
+        layer = g.layers(["layer1"])
+        assert [node.name for node in layer.nodes.type_filter(["wallet"])] == ["1"]
+        assert layer.subgraph_node_types(["timer"]).nodes.name.collect() == ["2", "3"]
+
+    check(g)
 
     g = Graph()
     g.add_node(1, 1, node_type="a")
@@ -2295,61 +2485,84 @@ def test_type_filter():
     g.add_edge(2, 5, 6, layer="a")
     g.add_edge(2, 3, 6, layer="a")
 
-    assert g.nodes.type_filter([""]).name.collect() == ["7", "8", "9"]
+    # @with_disk_graph # FIXME: add support for type_filters + layers support on edges
+    def check(g):
+        assert g.nodes.type_filter([""]).name.collect() == ["7", "8", "9"]
 
-    assert g.nodes.type_filter(["a"]).name.collect() == ["1", "4"]
-    assert g.nodes.type_filter(["a", "c"]).name.collect() == ["1", "4", "5"]
-    assert g.nodes.type_filter(["a"]).neighbours.name.collect() == [["2"], ["2", "5"]]
+        assert g.nodes.type_filter(["a"]).name.collect() == ["1", "4"]
+        assert g.nodes.type_filter(["a", "c"]).name.collect() == ["1", "4", "5"]
+        assert g.nodes.type_filter(["a"]).neighbours.name.collect() == [
+            ["2"],
+            ["2", "5"],
+        ]
 
-    assert g.nodes.degree().collect() == [1, 3, 2, 2, 2, 2, 0, 0, 0]
-    assert g.nodes.type_filter(["a"]).degree().collect() == [1, 2]
-    assert g.nodes.type_filter(["d"]).degree().collect() == []
-    assert g.nodes.type_filter([]).name.collect() == []
+        assert g.nodes.degree().collect() == [1, 3, 2, 2, 2, 2, 0, 0, 0]
+        assert g.nodes.type_filter(["a"]).degree().collect() == [1, 2]
+        assert g.nodes.type_filter(["d"]).degree().collect() == []
+        assert g.nodes.type_filter([]).name.collect() == []
 
-    assert len(g.nodes) == 9
-    assert len(g.nodes.type_filter(["b"])) == 2
-    assert len(g.nodes.type_filter(["d"])) == 0
+        assert len(g.nodes) == 9
+        assert len(g.nodes.type_filter(["b"])) == 2
+        assert len(g.nodes.type_filter(["d"])) == 0
 
-    assert g.nodes.type_filter(["d"]).neighbours.name.collect() == []
-    assert g.nodes.type_filter(["a"]).neighbours.name.collect() == [["2"], ["2", "5"]]
-    assert g.nodes.type_filter(["a", "c"]).neighbours.name.collect() == [
-        ["2"],
-        ["2", "5"],
-        ["4", "6"],
-    ]
+        assert g.nodes.type_filter(["d"]).neighbours.name.collect() == []
+        assert g.nodes.type_filter(["a"]).neighbours.name.collect() == [
+            ["2"],
+            ["2", "5"],
+        ]
+        assert g.nodes.type_filter(["a", "c"]).neighbours.name.collect() == [
+            ["2"],
+            ["2", "5"],
+            ["4", "6"],
+        ]
 
-    assert g.nodes.type_filter(["a"]).neighbours.type_filter(["c"]).name.collect() == [
-        [],
-        ["5"],
-    ]
-    assert g.nodes.type_filter(["a"]).neighbours.type_filter([]).name.collect() == [
-        [],
-        [],
-    ]
-    assert g.nodes.type_filter(["a"]).neighbours.type_filter(
-        ["b", "c"]
-    ).name.collect() == [["2"], ["2", "5"]]
-    assert g.nodes.type_filter(["a"]).neighbours.type_filter(["d"]).name.collect() == [
-        [],
-        [],
-    ]
-    assert g.nodes.type_filter(["a"]).neighbours.neighbours.name.collect() == [
-        ["1", "3", "4"],
-        ["1", "3", "4", "4", "6"],
-    ]
-    assert g.nodes.type_filter(["a"]).neighbours.type_filter(
-        ["c"]
-    ).neighbours.name.collect() == [[], ["4", "6"]]
-    assert g.nodes.type_filter(["a"]).neighbours.type_filter(
-        ["d"]
-    ).neighbours.name.collect() == [[], []]
+        assert g.nodes.type_filter(["a"]).neighbours.type_filter(
+            ["c"]
+        ).name.collect() == [
+            [],
+            ["5"],
+        ]
+        assert g.nodes.type_filter(["a"]).neighbours.type_filter([]).name.collect() == [
+            [],
+            [],
+        ]
+        assert g.nodes.type_filter(["a"]).neighbours.type_filter(
+            ["b", "c"]
+        ).name.collect() == [["2"], ["2", "5"]]
+        assert g.nodes.type_filter(["a"]).neighbours.type_filter(
+            ["d"]
+        ).name.collect() == [
+            [],
+            [],
+        ]
+        assert g.nodes.type_filter(["a"]).neighbours.neighbours.name.collect() == [
+            ["1", "3", "4"],
+            ["1", "3", "4", "4", "6"],
+        ]
+        assert g.nodes.type_filter(["a"]).neighbours.type_filter(
+            ["c"]
+        ).neighbours.name.collect() == [[], ["4", "6"]]
+        assert g.nodes.type_filter(["a"]).neighbours.type_filter(
+            ["d"]
+        ).neighbours.name.collect() == [[], []]
 
-    assert g.node("2").neighbours.type_filter(["b"]).name.collect() == ["3"]
-    assert g.node("2").neighbours.type_filter(["d"]).name.collect() == []
-    assert g.node("2").neighbours.type_filter([]).name.collect() == []
-    assert g.node("2").neighbours.type_filter(["c", "a"]).name.collect() == ["1", "4"]
-    assert g.node("2").neighbours.type_filter(["c"]).neighbours.name.collect() == []
-    assert g.node("2").neighbours.neighbours.name.collect() == ["2", "2", "6", "2", "5"]
+        assert g.node("2").neighbours.type_filter(["b"]).name.collect() == ["3"]
+        assert g.node("2").neighbours.type_filter(["d"]).name.collect() == []
+        assert g.node("2").neighbours.type_filter([]).name.collect() == []
+        assert g.node("2").neighbours.type_filter(["c", "a"]).name.collect() == [
+            "1",
+            "4",
+        ]
+        assert g.node("2").neighbours.type_filter(["c"]).neighbours.name.collect() == []
+        assert g.node("2").neighbours.neighbours.name.collect() == [
+            "2",
+            "2",
+            "6",
+            "2",
+            "5",
+        ]
+
+    check(g)
 
 
 def test_time_exploded_edges():
@@ -2359,33 +2572,39 @@ def test_time_exploded_edges():
     g.add_edge(3, 1, 2)
     g.add_edge(4, 1, 3)
 
-    time = []
-    for e in g.edges.explode():
-        time.append(e.time)
-    assert list(g.edges.explode().time) == time
+    @with_disk_graph
+    def check(g):
+        time = []
+        for e in g.edges.explode():
+            time.append(e.time)
+        assert list(g.edges.explode().time) == time
 
-    date_time = []
-    for e in g.edges.explode():
-        date_time.append(e.date_time)
-    assert list(g.edges.explode().date_time) == date_time
+        date_time = []
+        for e in g.edges.explode():
+            date_time.append(e.date_time)
+        assert list(g.edges.explode().date_time) == date_time
 
-    time_nested = []
-    for edges in g.nodes.edges.explode():
-        for edge in edges:
-            time_nested.append(edge.time)
-    assert [
-        item for sublist in g.nodes.edges.explode().time.collect() for item in sublist
-    ] == time_nested
+        time_nested = []
+        for edges in g.nodes.edges.explode():
+            for edge in edges:
+                time_nested.append(edge.time)
+        assert [
+            item
+            for sublist in g.nodes.edges.explode().time.collect()
+            for item in sublist
+        ] == time_nested
 
-    date_time_nested = []
-    for edges in g.nodes.edges.explode():
-        for edge in edges:
-            date_time_nested.append(edge.date_time)
-    assert [
-        item
-        for sublist in g.nodes.edges.explode().date_time.collect()
-        for item in sublist
-    ] == date_time_nested
+        date_time_nested = []
+        for edges in g.nodes.edges.explode():
+            for edge in edges:
+                date_time_nested.append(edge.date_time)
+        assert [
+            item
+            for sublist in g.nodes.edges.explode().date_time.collect()
+            for item in sublist
+        ] == date_time_nested
+
+    check(g)
 
 
 def test_leading_zeroes_ids():
@@ -2394,23 +2613,39 @@ def test_leading_zeroes_ids():
     g.add_node(0, "01")
     g.add_node(0, "001")
     g.add_node(0, "0001")
-    assert g.count_nodes() == 4
-    assert g.nodes.name.collect() == ["1", "01", "001", "0001"]
+
+    @with_disk_graph
+    def check(g):
+        assert g.count_nodes() == 4
+        assert g.nodes.name.collect() == ["1", "01", "001", "0001"]
+
+    check(g)
+
     g = Graph()
     g.add_node(0, 0)
     g.add_node(1, 0)
-    assert g.node(0).history() == [0, 1]
-    assert g.node("0").history() == [0, 1]
-    assert g.nodes.name.collect() == ["0"]
+
+    # @with_disk_graph # FIXME: need special handling for nodes additions from Graph
+    def check(g):
+        assert g.node(0).history() == [0, 1]
+        assert g.node("0").history() == [0, 1]
+        assert g.nodes.name.collect() == ["0"]
+
+    check(g)
 
 
 def test_node_types():
     g = Graph()
     a = g.add_node(0, "A", None, None)
     b = g.add_node(0, "B", None, "BTYPE")
-    assert a.node_type == None
-    assert b.node_type == "BTYPE"
-    assert set(g.nodes.node_type) == {None, "BTYPE"}
+
+    @with_disk_graph
+    def check(g):
+        assert a.node_type == None
+        assert b.node_type == "BTYPE"
+        assert set(g.nodes.node_type) == {None, "BTYPE"}
+
+    check(g)
 
 
 def test_node_types_change():
@@ -2459,8 +2694,13 @@ def test_NaN_NaT_as_properties():
     df = pd.DataFrame(data)
     g = Graph()
     g.load_nodes_from_pandas(time="time", id="id", df=df, properties=["floats"])
-    assert g.node(103).properties.temporal.get("floats").items() == [(30, 2.4)]
-    assert g.node(101).properties.temporal.get("floats") == None
+
+    @with_disk_graph
+    def check(g):
+        assert g.node(103).properties.temporal.get("floats").items() == [(30, 2.4)]
+        assert g.node(101).properties.temporal.get("floats") == None
+
+    check(g)
 
 
 def test_unique_temporal_properties():
@@ -2481,34 +2721,38 @@ def test_unique_temporal_properties():
     g.add_node(2, 3, {"name": "avatar2"})
     g.add_node(3, 3, {"name": "avatar2"})
 
-    assert g.edge(1, 2).properties.temporal.get("status").ordered_dedupe(True) == [
-        (2, "open"),
-        (3, "review"),
-        (4, "open"),
-        (10, "in-progress"),
-    ]
-    assert g.edge(1, 2).properties.temporal.get("status").ordered_dedupe(False) == [
-        (1, "open"),
-        (3, "review"),
-        (4, "open"),
-        (5, "in-progress"),
-    ]
-    assert g.properties.temporal.get("name").ordered_dedupe(True) == [
-        (1, "tarzan"),
-        (3, "tarzan2"),
-    ]
-    assert g.properties.temporal.get("name").ordered_dedupe(False) == [
-        (1, "tarzan"),
-        (2, "tarzan2"),
-    ]
-    assert g.node(3).properties.temporal.get("name").ordered_dedupe(True) == [
-        (1, "avatar1"),
-        (3, "avatar2"),
-    ]
-    assert g.node(3).properties.temporal.get("name").ordered_dedupe(False) == [
-        (1, "avatar1"),
-        (2, "avatar2"),
-    ]
+    # @with_disk_graph # FIXME need disk graph to support temporal properties
+    def check(g):
+        assert g.edge(1, 2).properties.temporal.get("status").ordered_dedupe(True) == [
+            (2, "open"),
+            (3, "review"),
+            (4, "open"),
+            (10, "in-progress"),
+        ]
+        assert g.edge(1, 2).properties.temporal.get("status").ordered_dedupe(False) == [
+            (1, "open"),
+            (3, "review"),
+            (4, "open"),
+            (5, "in-progress"),
+        ]
+        assert g.properties.temporal.get("name").ordered_dedupe(True) == [
+            (1, "tarzan"),
+            (3, "tarzan2"),
+        ]
+        assert g.properties.temporal.get("name").ordered_dedupe(False) == [
+            (1, "tarzan"),
+            (2, "tarzan2"),
+        ]
+        assert g.node(3).properties.temporal.get("name").ordered_dedupe(True) == [
+            (1, "avatar1"),
+            (3, "avatar2"),
+        ]
+        assert g.node(3).properties.temporal.get("name").ordered_dedupe(False) == [
+            (1, "avatar1"),
+            (2, "avatar2"),
+        ]
+
+    check(g)
 
     g.add_node(4, 3, {"i64": 1})
     g.add_node(5, 3, {"i64": 1})
@@ -2529,57 +2773,67 @@ def test_unique_temporal_properties():
     g.add_node(18, 3, {"map": {"name": "bob", "value list": [1, 2, 3]}})
     g.add_node(19, 3, {"map": {"name": "bob", "value list": [1, 2]}})
 
-    assert list(g.edge(1, 2).properties.temporal.get("status")) == [
-        (1, "open"),
-        (2, "open"),
-        (3, "review"),
-        (4, "open"),
-        (5, "in-progress"),
-        (10, "in-progress"),
-    ]
-    assert sorted(g.edge(1, 2).properties.temporal.get("status").unique()) == [
-        "in-progress",
-        "open",
-        "review",
-    ]
-    assert list(g.properties.temporal.get("name")) == [
-        (1, "tarzan"),
-        (2, "tarzan2"),
-        (3, "tarzan2"),
-    ]
-    assert sorted(g.properties.temporal.get("name").unique()) == ["tarzan", "tarzan2"]
-    assert list(g.node(3).properties.temporal.get("name")) == [
-        (1, "avatar1"),
-        (2, "avatar2"),
-        (3, "avatar2"),
-    ]
-    assert sorted(g.node(3).properties.temporal.get("name").unique()) == [
-        "avatar1",
-        "avatar2",
-    ]
-    assert sorted(g.node(3).properties.temporal.get("i64").unique()) == [1, 5]
-    assert sorted(g.node(3).properties.temporal.get("f64").unique()) == [1.2, 1.3]
-    assert sorted(g.node(3).properties.temporal.get("bool").unique()) == [False, True]
-    assert sorted(g.node(3).properties.temporal.get("list").unique()) == [
-        [1, 2, 3],
-        [2, 3],
-    ]
-    assert sorted(g.node(3).properties.temporal.get("date").unique()) == [
-        datetime_obj,
-        datetime_obj2,
-    ]
-    actual_list = g.node(3).properties.temporal.get("map").unique()
-    expected_list = [
-        {"name": "bob", "value list": [1, 2]},
-        {"name": "bob", "value list": [1, 2, 3]},
-    ]
-    sorted_actual_list = sorted(
-        actual_list, key=lambda d: (d["name"], tuple(d["value list"]))
-    )
-    sorted_expected_list = sorted(
-        expected_list, key=lambda d: (d["name"], tuple(d["value list"]))
-    )
-    assert sorted_actual_list == sorted_expected_list
+    # @with_disk_graph # FIXME List, Map and NDTime properties are not supported
+    def check(g):
+        assert list(g.edge(1, 2).properties.temporal.get("status")) == [
+            (1, "open"),
+            (2, "open"),
+            (3, "review"),
+            (4, "open"),
+            (5, "in-progress"),
+            (10, "in-progress"),
+        ]
+        assert sorted(g.edge(1, 2).properties.temporal.get("status").unique()) == [
+            "in-progress",
+            "open",
+            "review",
+        ]
+        assert list(g.properties.temporal.get("name")) == [
+            (1, "tarzan"),
+            (2, "tarzan2"),
+            (3, "tarzan2"),
+        ]
+        assert sorted(g.properties.temporal.get("name").unique()) == [
+            "tarzan",
+            "tarzan2",
+        ]
+        assert list(g.node(3).properties.temporal.get("name")) == [
+            (1, "avatar1"),
+            (2, "avatar2"),
+            (3, "avatar2"),
+        ]
+        assert sorted(g.node(3).properties.temporal.get("name").unique()) == [
+            "avatar1",
+            "avatar2",
+        ]
+        assert sorted(g.node(3).properties.temporal.get("i64").unique()) == [1, 5]
+        assert sorted(g.node(3).properties.temporal.get("f64").unique()) == [1.2, 1.3]
+        assert sorted(g.node(3).properties.temporal.get("bool").unique()) == [
+            False,
+            True,
+        ]
+        assert sorted(g.node(3).properties.temporal.get("list").unique()) == [
+            [1, 2, 3],
+            [2, 3],
+        ]
+        assert sorted(g.node(3).properties.temporal.get("date").unique()) == [
+            datetime_obj,
+            datetime_obj2,
+        ]
+        actual_list = g.node(3).properties.temporal.get("map").unique()
+        expected_list = [
+            {"name": "bob", "value list": [1, 2]},
+            {"name": "bob", "value list": [1, 2, 3]},
+        ]
+        sorted_actual_list = sorted(
+            actual_list, key=lambda d: (d["name"], tuple(d["value list"]))
+        )
+        sorted_expected_list = sorted(
+            expected_list, key=lambda d: (d["name"], tuple(d["value list"]))
+        )
+        assert sorted_actual_list == sorted_expected_list
+
+    check(g)
     g1 = Graph()
     g1.add_constant_properties({"type": "a"})
     g1.add_node(1, "ben")
@@ -2593,24 +2847,28 @@ def test_unique_temporal_properties():
     g3.add_node(1, "shivam")
     g.add_node(7, 3, {"graph": g3})
 
-    actual_list = g.node(3).properties.temporal.get("graph").unique()
-    expected_list = [g1, g3]
-    sorted_actual_list = sorted(
-        actual_list, key=lambda g: g.properties.constant.get("type")
-    )
-    sorted_expected_list = sorted(
-        expected_list, key=lambda g: g.properties.constant.get("type")
-    )
-    assert sorted_actual_list == sorted_expected_list
+    # @with_disk_graph #FIXME List, Map and NDTime properties are not supported
+    def check(g):
+        actual_list = g.node(3).properties.temporal.get("graph").unique()
+        expected_list = [g1, g3]
+        sorted_actual_list = sorted(
+            actual_list, key=lambda g: g.properties.constant.get("type")
+        )
+        sorted_expected_list = sorted(
+            expected_list, key=lambda g: g.properties.constant.get("type")
+        )
+        assert sorted_actual_list == sorted_expected_list
 
-    assert g.node(3).properties.temporal.get("i64").ordered_dedupe(True) == [
-        (5, 1),
-        (6, 5),
-    ]
-    assert g.node(3).properties.temporal.get("i64").ordered_dedupe(False) == [
-        (4, 1),
-        (6, 5),
-    ]
+        assert g.node(3).properties.temporal.get("i64").ordered_dedupe(True) == [
+            (5, 1),
+            (6, 5),
+        ]
+        assert g.node(3).properties.temporal.get("i64").ordered_dedupe(False) == [
+            (4, 1),
+            (6, 5),
+        ]
+
+    check(g)
 
 
 def test_fuzzy_search():
@@ -2652,39 +2910,53 @@ def test_fuzzy_search():
     )
     g.add_edge(4, "hamza", "naomi", properties={"value_str": "I wanna rock right now"})
 
-    index = g.index()
+    # @with_disk_graph # FIXME: Indexing doesn't seem to return layers and doesn't pass the layer id to the storage blowing up in the storage
+    def check(g):
+        index = g.index()
 
-    assert len(index.fuzzy_search_nodes("name:habza", levenshtein_distance=1)) == 1
-    assert (
-        len(index.fuzzy_search_nodes("name:haa", levenshtein_distance=1, prefix=True))
-        == 2
-    )
-    assert (
-        len(
-            index.fuzzy_search_nodes(
-                "value_str:abc123", levenshtein_distance=2, prefix=True
+        assert len(index.fuzzy_search_nodes("name:habza", levenshtein_distance=1)) == 1
+        assert (
+            len(
+                index.fuzzy_search_nodes(
+                    "name:haa", levenshtein_distance=1, prefix=True
+                )
             )
+            == 2
         )
-        == 2
-    )
-    assert (
-        len(
-            index.fuzzy_search_nodes(
-                "value_str:dsss312", levenshtein_distance=2, prefix=False
+        assert (
+            len(
+                index.fuzzy_search_nodes(
+                    "value_str:abc123", levenshtein_distance=2, prefix=True
+                )
             )
+            == 2
         )
-        == 1
-    )
+        assert (
+            len(
+                index.fuzzy_search_nodes(
+                    "value_str:dsss312", levenshtein_distance=2, prefix=False
+                )
+            )
+            == 1
+        )
 
-    assert len(index.fuzzy_search_edges("from:bon", levenshtein_distance=1)) == 2
-    assert (
-        len(index.fuzzy_search_edges("from:bo", levenshtein_distance=1, prefix=True))
-        == 2
-    )
-    assert (
-        len(index.fuzzy_search_edges("from:eon", levenshtein_distance=2, prefix=True))
-        == 2
-    )
+        assert len(index.fuzzy_search_edges("from:bon", levenshtein_distance=1)) == 2
+        assert (
+            len(
+                index.fuzzy_search_edges("from:bo", levenshtein_distance=1, prefix=True)
+            )
+            == 2
+        )
+        assert (
+            len(
+                index.fuzzy_search_edges(
+                    "from:eon", levenshtein_distance=2, prefix=True
+                )
+            )
+            == 2
+        )
+
+    check(g)
 
 
 @fixture

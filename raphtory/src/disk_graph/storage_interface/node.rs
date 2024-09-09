@@ -37,9 +37,7 @@ impl<'a> DiskNode<'a> {
 
     pub fn temporal_node_prop_ids(self) -> Box<dyn Iterator<Item = usize> + 'a> {
         match &self.graph.node_properties().temporal_props {
-            Some(props) => {
-                Box::new(props.prop_dtypes().iter().enumerate().map(|(i, _)| i))
-            },
+            Some(props) => Box::new(props.prop_dtypes().iter().enumerate().map(|(i, _)| i)),
             None => Box::new(std::iter::empty()),
         }
     }
