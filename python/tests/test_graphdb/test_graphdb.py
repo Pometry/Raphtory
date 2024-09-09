@@ -53,15 +53,19 @@ def create_graph_with_deletions():
     return g
 
 
+import psutil
+
 if "DISK_TEST_MARK" in os.environ:
 
     def with_disk_graph(func):
         def inner(graph):
-            func(graph)
-            with tempfile.TemporaryDirectory() as tmpdirname:
+            def inner2(graph, tmpdirname):
                 g = graph.to_disk_graph(tmpdirname)
                 func(g)
-                del g
+
+            func(graph)
+            with tempfile.TemporaryDirectory() as tmpdirname:
+                inner2(graph, tmpdirname)
 
         return inner
 
