@@ -179,6 +179,7 @@ impl DocumentTemplate {
     ) -> Box<dyn Iterator<Item = DocumentInput>> {
         match &self.graph_template {
             Some(template) => {
+                // TODO: create the environment only once and store it on the DocumentTemplate struct
                 let mut env = Environment::new();
                 let template = build_template(&mut env, template);
                 let document = template.render(GraphTemplateContext::from(graph)).unwrap(); // FIXME: this unwrap?
