@@ -1757,7 +1757,7 @@ def test_layer_name():
     ]
 
 
-def test_time():
+def test_time1():
     g = Graph()
     g.add_constant_properties({"name": "graph"})
 
@@ -1774,14 +1774,47 @@ def test_time():
         with pytest.raises(Exception) as e:
             g.edges.time()
         assert str(e.value) == error_msg
-
         assert list(g.edges.explode().time) == [0, 0, 1]
 
+    check(g)
+
+
+def test_time2():
+    g = Graph()
+    g.add_constant_properties({"name": "graph"})
+
+    g.add_edge(0, 0, 1)
+    g.add_edge(0, 0, 2)
+    g.add_edge(1, 0, 2)
+
+    @with_disk_graph
+    def check(g):
+        error_msg = (
+            "The time function is only available once an edge has been exploded via .explode(). "
+            "You may want to retrieve the history for this edge via .history(), or the earliest/latest time via earliest_time or latest_time"
+        )
         with pytest.raises(Exception) as e:
             g.edge(0, 2).time()
         assert str(e.value) == error_msg
-
         assert list(g.edge(0, 2).explode().time) == [0, 1]
+
+    check(g)
+
+
+def test_time3():
+    g = Graph()
+    g.add_constant_properties({"name": "graph"})
+
+    g.add_edge(0, 0, 1)
+    g.add_edge(0, 0, 2)
+    g.add_edge(1, 0, 2)
+
+    @with_disk_graph
+    def check(g):
+        error_msg = (
+            "The time function is only available once an edge has been exploded via .explode(). "
+            "You may want to retrieve the history for this edge via .history(), or the earliest/latest time via earliest_time or latest_time"
+        )
 
         with pytest.raises(Exception) as e:
             g.nodes.neighbours.edges.time()
