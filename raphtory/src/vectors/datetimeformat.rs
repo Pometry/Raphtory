@@ -1,5 +1,4 @@
-use minijinja::State;
-use minijinja::{value::Kwargs, Error, Value};
+use minijinja::{value::Kwargs, Error, State, Value};
 use minijinja_contrib::filters::datetimeformat as minijinja_datetimeformat;
 
 /// Formats a timestamp as date and time.

@@ -101,7 +101,6 @@ impl<G: StaticGraphViewOps> From<&NodeView<G>> for NodeTemplateContext {
 
 #[derive(Serialize)]
 struct GraphTemplateContext {
-    // name: String, // TODO: add the name, I need some trait
     props: Value,
     constant_props: Value,
     temporal_props: Value,
@@ -111,7 +110,6 @@ struct GraphTemplateContext {
 impl<G: StaticGraphViewOps> From<&G> for GraphTemplateContext {
     fn from(value: &G) -> Self {
         Self {
-            // name: value.name(),
             props: value
                 .properties()
                 .iter()
@@ -147,16 +145,16 @@ impl From<Prop> for Value {
             Prop::U32(value) => Value::from(value),
             Prop::U64(value) => Value::from(value),
             Prop::Str(value) => Value::from(value.0.to_owned()),
-            Prop::DTime(value) => Value::from(value.to_string()), // TODO: review this, should return the epoch!!!!!! should be possible to be consumed by the datetime formatting functions
-            Prop::NDTime(value) => Value::from(value.to_string()), // TODO: review this, should return the epoch!!!!!! should be possible to be consumed by the datetime formatting functions
+            Prop::DTime(value) => Value::from(value.timestamp_millis()),
+            Prop::NDTime(value) => Value::from(value.and_utc().timestamp_millis()),
             Prop::List(value) => value.iter().cloned().collect(),
             Prop::Map(value) => value
                 .iter()
                 .map(|(key, value)| (key.to_string(), value.clone()))
                 .collect(),
             Prop::Document(value) => Value::from(value.content),
-            Prop::Graph(value) => Value::from(value.to_string()), // TODO: review this
-            Prop::PersistentGraph(value) => Value::from(value.to_string()), // TODO: review this
+            Prop::Graph(value) => Value::from(value.to_string()),
+            Prop::PersistentGraph(value) => Value::from(value.to_string()),
         }
     }
 }
