@@ -180,8 +180,13 @@ impl DocumentTemplate {
                 // TODO: create the environment only once and store it on the DocumentTemplate struct
                 let mut env = Environment::new();
                 let template = build_template(&mut env, template);
-                let document = template.render(GraphTemplateContext::from(graph)).unwrap(); // FIXME: this unwrap?
-                Box::new(std::iter::once(document.into()))
+                match template.render(GraphTemplateContext::from(graph)) {
+                    Ok(document) => Box::new(std::iter::once(document.into())),
+                    Err(error) => {
+                        eprintln!("Template render failed for a node, skipping: {error}");
+                        empty_iter()
+                    }
+                }
             }
             None => empty_iter(),
         }
@@ -191,13 +196,18 @@ impl DocumentTemplate {
     pub(crate) fn node<G: StaticGraphViewOps>(
         &self,
         node: &NodeView<G>,
-    ) -> impl Iterator<Item = DocumentInput> {
+    ) -> Box<dyn Iterator<Item = DocumentInput>> {
         match &self.node_template {
             Some(template) => {
                 let mut env = Environment::new();
                 let template = build_template(&mut env, template);
-                let document = template.render(NodeTemplateContext::from(node)).unwrap(); // FIXME: this unwrap?
-                Box::new(std::iter::once(document.into()))
+                match template.render(NodeTemplateContext::from(node)) {
+                    Ok(document) => Box::new(std::iter::once(document.into())),
+                    Err(error) => {
+                        eprintln!("Template render failed for a node, skipping: {error}");
+                        empty_iter()
+                    }
+                }
             }
             None => empty_iter(),
         }
@@ -207,13 +217,18 @@ impl DocumentTemplate {
     pub(crate) fn edge<G: StaticGraphViewOps>(
         &self,
         edge: &EdgeView<G, G>,
-    ) -> impl Iterator<Item = DocumentInput> {
+    ) -> Box<dyn Iterator<Item = DocumentInput>> {
         match &self.edge_template {
             Some(template) => {
                 let mut env = Environment::new();
                 let template = build_template(&mut env, template);
-                let document = template.render(EdgeTemplateContext::from(edge)).unwrap(); // FIXME: this unwrap?
-                Box::new(std::iter::once(document.into()))
+                match template.render(EdgeTemplateContext::from(edge)) {
+                    Ok(document) => Box::new(std::iter::once(document.into())),
+                    Err(error) => {
+                        eprintln!("Template render failed for an edge, skipping: {error}");
+                        empty_iter()
+                    }
+                }
             }
             None => empty_iter(),
         }
@@ -249,12 +264,12 @@ impl<G: StaticGraphViewOps> From<&EdgeView<G>> for EdgeTemplateContext {
             layers: value
                 .layer_names()
                 .into_iter()
-                .map(|name| name.into()) // TODO: there has to be something easier than key.0.as_ref().to_owned()
+                .map(|name| name.into())
                 .collect(),
             props: value // FIXME: boilerplate
                 .properties()
                 .iter()
-                .map(|(key, value)| (key.to_string(), value.clone())) // TODO: there has to be something easier than key.0.as_ref().to_owned()
+                .map(|(key, value)| (key.to_string(), value.clone()))
                 .collect(),
         }
     }
@@ -288,7 +303,7 @@ mod template_tests {
             .add_constant_properties([("const_test", "const_test_value")])
             .unwrap();
 
-        // I should be able to iteate over props without doing props|items, which would be solved by implementing Object for Properties
+        // I should be able to iterate over props without doing props|items, which would be solved by implementing Object for Properties
         let node_template = indoc! {"
             node {{ name }} is {% if node_type is none %}an unknown entity{% else %}a {{ node_type }}{% endif %} with the following props:
             {% if props.const_test is defined %}const_test: {{ props.const_test }} {% endif %}
