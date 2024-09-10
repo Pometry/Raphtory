@@ -59,7 +59,7 @@ def test_disk_graph():
     rsc_dir = os.path.normpath(rsc_dir)
     print("rsc_dir:", rsc_dir + "/netflowsorted/nft_sorted")
 
-    with tempfile.TemporaryDirectory() as graph_dir:
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as graph_dir:
         layer_parquet_cols = [
             {
                 "parquet_dir": rsc_dir + "/netflowsorted/nft_sorted",
