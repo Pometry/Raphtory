@@ -1,8 +1,5 @@
 use dynamic_graphql::SimpleObject;
-use raphtory::{
-    core::Lifespan,
-    vectors::{Document, Embedding},
-};
+use raphtory::{core::Lifespan, vectors::Document};
 
 #[derive(SimpleObject)]
 pub struct GqlDocument {
@@ -11,7 +8,7 @@ pub struct GqlDocument {
     /// Return the type of entity: "node" or "edge"
     entity_type: String,
     content: String,
-    embedding: Embedding,
+    embedding: Vec<f32>,
     life: Vec<i64>,
 }
 
@@ -27,7 +24,7 @@ impl From<Document> for GqlDocument {
                 name: vec![name],
                 entity_type: "graph".to_owned(),
                 content,
-                embedding,
+                embedding: embedding.to_vec(),
                 life: lifespan_into_vec(life),
             },
             Document::Node {
@@ -39,7 +36,7 @@ impl From<Document> for GqlDocument {
                 name: vec![name],
                 entity_type: "node".to_owned(),
                 content,
-                embedding,
+                embedding: embedding.to_vec(),
                 life: lifespan_into_vec(life),
             },
             Document::Edge {
@@ -52,7 +49,7 @@ impl From<Document> for GqlDocument {
                 name: vec![src, dst],
                 entity_type: "edge".to_owned(),
                 content,
-                embedding,
+                embedding: embedding.to_vec(),
                 life: lifespan_into_vec(life),
             },
         }

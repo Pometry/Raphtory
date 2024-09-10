@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{
     core::{DocumentInput, Lifespan},
     vectors::Embedding,
@@ -20,8 +22,18 @@ impl IntoPy<PyObject> for Lifespan {
 pub struct PyDocument {
     pub(crate) content: String,
     pub(crate) entity: Option<PyObject>,
-    pub(crate) embedding: Option<Embedding>,
+    pub(crate) embedding: Option<PyEmbedding>,
     pub(crate) life: Lifespan,
+}
+
+#[pyclass(name = "Embedding", frozen)]
+#[derive(Clone)]
+pub struct PyEmbedding(pub Embedding);
+
+impl PyEmbedding {
+    pub fn embedding(&self) -> Embedding {
+        self.0.clone()
+    }
 }
 
 impl From<DocumentInput> for PyDocument {

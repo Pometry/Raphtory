@@ -1,6 +1,6 @@
 use crate::core::{DocumentInput, Lifespan};
 use futures_util::future::BoxFuture;
-use std::future::Future;
+use std::{future::Future, sync::Arc};
 
 pub mod datetimeformat;
 mod document_ref;
@@ -15,7 +15,7 @@ pub mod vectorisable;
 pub mod vectorised_cluster;
 pub mod vectorised_graph;
 
-pub type Embedding = Vec<f32>;
+pub type Embedding = Arc<[f32]>;
 
 #[derive(Debug)]
 pub enum Document {
@@ -127,7 +127,10 @@ mod vector_tests {
     }
 
     async fn fake_embedding(texts: Vec<String>) -> Vec<Embedding> {
-        texts.into_iter().map(|_| vec![1.0, 0.0, 0.0]).collect_vec()
+        texts
+            .into_iter()
+            .map(|_| vec![1.0, 0.0, 0.0].into())
+            .collect_vec()
     }
 
     async fn panicking_embedding(_texts: Vec<String>) -> Vec<Embedding> {

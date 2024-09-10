@@ -6,7 +6,7 @@ use crate::{
     prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
     python::{
         graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
-        types::wrappers::document::PyDocument,
+        types::wrappers::document::{PyDocument, PyEmbedding},
         utils::{execute_async_task, PyTime},
     },
     vectors::{
@@ -51,8 +51,8 @@ impl<'source> FromPyObject<'source> for PyQuery {
         if let Ok(text) = query.extract::<String>() {
             return Ok(PyQuery::Raw(text));
         }
-        if let Ok(embedding) = query.extract::<Embedding>() {
-            return Ok(PyQuery::Computed(embedding));
+        if let Ok(embedding) = query.extract::<Vec<f32>>() {
+            return Ok(PyQuery::Computed(embedding.into()));
         }
         let message = format!("query '{query}' must be a str, or a list of float");
         Err(PyTypeError::new_err(message))
@@ -80,7 +80,7 @@ impl PyDocument {
                 Ok(Document::Node {
                     name: node.name(),
                     content: self.content.clone(),
-                    embedding: embedding.clone(),
+                    embedding: embedding.embedding(),
                     life: self.life,
                 })
             } else if let Ok(edge) = edge {
@@ -88,14 +88,14 @@ impl PyDocument {
                     src: edge.edge.src().name(),
                     dst: edge.edge.dst().name(),
                     content: self.content.clone(),
-                    embedding: embedding.clone(),
+                    embedding: embedding.embedding(),
                     life: self.life,
                 })
             } else if let Ok(graph) = graph {
                 Ok(Document::Graph {
                     name: graph.graph.properties().get("name").unwrap().to_string(),
                     content: self.content.clone(),
-                    embedding: embedding.clone(),
+                    embedding: embedding.embedding(),
                     life: self.life,
                 })
             } else {
@@ -121,7 +121,7 @@ pub fn into_py_document(
         } => PyDocument {
             content,
             entity: Some(graph.source_graph.clone().into_py(py)),
-            embedding: Some(embedding),
+            embedding: Some(PyEmbedding(embedding)),
             life,
         },
         Document::Node {
@@ -135,7 +135,7 @@ pub fn into_py_document(
             PyDocument {
                 content,
                 entity: Some(node.into_py(py)),
-                embedding: Some(embedding),
+                embedding: Some(PyEmbedding(embedding)),
                 life,
             }
         }
@@ -151,7 +151,7 @@ pub fn into_py_document(
             PyDocument {
                 content,
                 entity: Some(edge.into_py(py)),
-                embedding: Some(embedding),
+                embedding: Some(PyEmbedding(embedding)),
                 life,
             }
         }
@@ -594,7 +594,7 @@ impl EmbeddingFunction for Py<PyFunction> {
                         pylist
                             .iter()
                             .map(|element| element.extract::<f32>().unwrap())
-                            .collect_vec()
+                            .collect()
                     })
                     .collect_vec()
             })
