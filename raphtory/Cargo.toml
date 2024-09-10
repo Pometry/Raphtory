@@ -59,6 +59,8 @@ futures-util = { workspace = true, optional = true }
 async-trait = { workspace = true, optional = true }
 async-openai = { workspace = true, optional = true }
 bincode = { workspace = true, optional = true }
+minijinja = { workspace = true, optional = true }
+minijinja-contrib = { workspace = true, optional = true }
 
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
@@ -87,6 +89,7 @@ tokio = { workspace = true }             # for vector testing
 dotenv = { workspace = true }            # for vector testing
 streaming-stats = { workspace = true }
 proptest = { workspace = true }
+indoc = { workspace = true }
 
 [build-dependencies]
 prost-build = { workspace = true, optional = true }
@@ -108,7 +111,14 @@ io = [
 # search
 search = ["dep:tantivy"]
 # vectors
-vectors = ["dep:futures-util", "dep:async-trait", "dep:async-openai", "dep:bincode"]
+vectors = [
+    "dep:futures-util",
+    "dep:async-trait",
+    "dep:async-openai",
+    "dep:bincode",
+    "dep:minijinja",
+    "dep:minijinja-contrib",
+]
 
 # Enables generating the pyo3 python bindings
 python = [
@@ -140,9 +150,4 @@ arrow = [
     "polars-parquet?/compression",
 ]
 
-proto = [
-    "dep:prost",
-    "dep:prost-types",
-    "dep:prost-build",
-    "dep:memmap2",
-]
+proto = ["dep:prost", "dep:prost-types", "dep:prost-build", "dep:memmap2"]

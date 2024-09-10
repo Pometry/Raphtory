@@ -1,6 +1,8 @@
 use crate::vectors::{document_ref::DocumentRef, Embedding};
 use itertools::Itertools;
 
+use super::entity_id::EntityId;
+
 pub(crate) fn score_documents<'a, I>(
     query: &'a Embedding,
     documents: I,
@@ -14,13 +16,26 @@ where
     })
 }
 
-/// Returns the top k nodes in descending order
-pub(crate) fn find_top_k<'a, I>(
-    elements: I,
-    k: usize,
-) -> impl Iterator<Item = (DocumentRef, f32)> + 'a
+/// the caller is responsible for filtering out empty document vectors
+pub(crate) fn score_document_groups_by_highest<'a, I>(
+    query: &'a Embedding,
+    documents: I,
+) -> impl Iterator<Item = ((EntityId, Vec<DocumentRef>), f32)> + 'a
 where
-    I: Iterator<Item = (DocumentRef, f32)> + 'a,
+    I: IntoIterator<Item = (EntityId, Vec<DocumentRef>)> + 'a,
+{
+    documents.into_iter().map(|group| {
+        let scores = group.1.iter().map(|doc| cosine(query, &doc.embedding));
+        let highest_score = scores.max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+        (group, highest_score)
+    })
+}
+
+/// Returns the top k nodes in descending order
+pub(crate) fn find_top_k<'a, I, T>(elements: I, k: usize) -> impl Iterator<Item = (T, f32)> + 'a
+where
+    I: Iterator<Item = (T, f32)> + 'a,
+    T: 'static,
 {
     // TODO: add optimization for when this is used -> don't maintain more candidates than the max number of documents to return !!!
     elements

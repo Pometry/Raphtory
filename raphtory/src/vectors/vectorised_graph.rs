@@ -1,50 +1,38 @@
 use crate::{
-    core::entities::nodes::node_ref::AsNodeRef,
-    db::{
-        api::view::{DynamicGraph, StaticGraphViewOps},
-        graph::{edge::EdgeView, node::NodeView},
-    },
+    // core::entities::nodes::node_ref::AsNodeRef,
+    db::api::view::{DynamicGraph, StaticGraphViewOps},
     prelude::*,
     vectors::{
         document_ref::DocumentRef,
-        document_template::DocumentTemplate,
         embedding_cache::EmbeddingCache,
         entity_id::EntityId,
         similarity_search_utils::{find_top_k, score_documents},
-        Document, DocumentOps, Embedding, EmbeddingFunction,
+        template::DocumentTemplate,
+        DocumentOps, Embedding, EmbeddingFunction,
     },
 };
 use itertools::{chain, Itertools};
-use std::{
-    collections::{HashMap, HashSet},
-    path::PathBuf,
-    sync::Arc,
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
+
+use super::{
+    similarity_search_utils::score_document_groups_by_highest, vector_selection::VectorSelection,
 };
 
-#[derive(Clone, Copy)]
-enum ExpansionPath {
-    Nodes,
-    Edges,
-    Both,
-}
-
-pub struct VectorisedGraph<G: StaticGraphViewOps, T: DocumentTemplate<G>> {
+pub struct VectorisedGraph<G: StaticGraphViewOps> {
     pub(crate) source_graph: G,
-    pub(crate) template: Arc<T>,
+    pub(crate) template: DocumentTemplate,
     pub(crate) embedding: Arc<dyn EmbeddingFunction>,
     // it is not the end of the world but we are storing the entity id twice
     pub(crate) graph_documents: Arc<Vec<DocumentRef>>,
     pub(crate) node_documents: Arc<HashMap<EntityId, Vec<DocumentRef>>>, // TODO: replace with FxHashMap
     pub(crate) edge_documents: Arc<HashMap<EntityId, Vec<DocumentRef>>>,
-    selected_docs: Vec<(DocumentRef, f32)>,
-    empty_vec: Vec<DocumentRef>,
+    pub(crate) empty_vec: Vec<DocumentRef>,
 }
 
 // This has to be here so it is shared between python and graphql
-pub type DynamicTemplate = Arc<dyn DocumentTemplate<DynamicGraph> + 'static>;
-pub type DynamicVectorisedGraph = VectorisedGraph<DynamicGraph, DynamicTemplate>;
+pub type DynamicVectorisedGraph = VectorisedGraph<DynamicGraph>;
 
-impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> Clone for VectorisedGraph<G, T> {
+impl<G: StaticGraphViewOps> Clone for VectorisedGraph<G> {
     fn clone(&self) -> Self {
         Self::new(
             self.source_graph.clone(),
@@ -53,20 +41,18 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> Clone for VectorisedGraph<G,
             self.graph_documents.clone(),
             self.node_documents.clone(),
             self.edge_documents.clone(),
-            self.selected_docs.clone(),
         )
     }
 }
 
-impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
+impl<G: StaticGraphViewOps> VectorisedGraph<G> {
     pub(crate) fn new(
         graph: G,
-        template: Arc<T>,
+        template: DocumentTemplate,
         embedding: Arc<dyn EmbeddingFunction>,
         graph_documents: Arc<Vec<DocumentRef>>,
         node_documents: Arc<HashMap<EntityId, Vec<DocumentRef>>>,
         edge_documents: Arc<HashMap<EntityId, Vec<DocumentRef>>>,
-        selected_docs: Vec<(DocumentRef, f32)>,
     ) -> Self {
         Self {
             source_graph: graph,
@@ -75,7 +61,6 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
             graph_documents,
             node_documents,
             edge_documents,
-            selected_docs,
             empty_vec: vec![],
         }
     }
@@ -85,452 +70,169 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         let cache = EmbeddingCache::new(file);
         chain!(self.node_documents.iter(), self.edge_documents.iter()).for_each(|(_, group)| {
             group.iter().for_each(|doc| {
-                let original = doc.regenerate(&self.source_graph, self.template.as_ref());
+                let original = doc.regenerate(&self.source_graph, &self.template);
                 cache.upsert_embedding(original.content(), doc.embedding.clone());
             })
         });
         cache.dump_to_disk();
     }
 
-    /// Return the nodes present in the current selection
-    pub fn nodes(&self) -> Vec<NodeView<G>> {
-        self.selected_docs
-            .iter()
-            .filter_map(|(doc, _)| match &doc.entity_id {
-                EntityId::Node { id } => self.source_graph.node(id),
-                _ => None,
-            })
-            .collect_vec()
+    /// Return an empty selection of documents
+    pub fn empty_selection(&self) -> VectorSelection<G> {
+        VectorSelection::new(self.clone())
     }
 
-    /// Return the edges present in the current selection
-    pub fn edges(&self) -> Vec<EdgeView<G>> {
-        self.selected_docs
-            .iter()
-            .filter_map(|(doc, _)| match &doc.entity_id {
-                EntityId::Edge { src, dst } => self.source_graph.edge(src, dst),
-                _ => None,
-            })
-            .collect_vec()
-    }
-
-    /// Return the documents present in the current selection
-    pub fn get_documents(&self) -> Vec<Document> {
-        self.get_documents_with_scores()
-            .into_iter()
-            .map(|(doc, _)| doc)
-            .collect_vec()
-    }
-
-    /// Return the documents alongside their scores present in the current selection
-    pub fn get_documents_with_scores(&self) -> Vec<(Document, f32)> {
-        self.selected_docs
-            .iter()
-            .map(|(doc, score)| {
-                (
-                    doc.regenerate(&self.source_graph, self.template.as_ref()),
-                    *score,
-                )
-            })
-            .collect_vec()
-    }
-
-    /// Add all the documents from `nodes` and `edges` to the current selection
-    ///
-    /// Documents added by this call are assumed to have a score of 0.
+    /// Search the top scoring documents according to `query` with no more than `limit` documents
     ///
     /// # Arguments
-    ///   * nodes - a list of the node ids or nodes to add
-    ///   * edges - a list of the edge ids or edges to add
-    ///
-    /// # Returns
-    ///   A new vectorised graph containing the updated selection
-    pub fn append<V: AsNodeRef>(&self, nodes: Vec<V>, edges: Vec<(V, V)>) -> Self {
-        let node_docs = nodes.into_iter().flat_map(|id| {
-            let node = self.source_graph.node(id);
-            let opt = node.map(|node| self.node_documents.get(&EntityId::from_node(&node)));
-            opt.flatten().unwrap_or(&self.empty_vec)
-        });
-        let edge_docs = edges.into_iter().flat_map(|(src, dst)| {
-            let edge = self.source_graph.edge(src, dst);
-            let opt = edge.map(|edge| self.edge_documents.get(&EntityId::from_edge(&edge)));
-            opt.flatten().unwrap_or(&self.empty_vec)
-        });
-        let new_selected = chain!(node_docs, edge_docs).map(|doc| (doc.clone(), 0.0));
-        Self {
-            selected_docs: extend_selection(self.selected_docs.clone(), new_selected, usize::MAX),
-            ..self.clone()
-        }
-    }
-
-    /// Add all the documents for this graph to the current selection
-    ///
-    /// Documents added by this call are assumed to have a score of 0.
-    ///
-    /// # Returns
-    ///   A new vectorised graph containing the updated selection
-    pub fn append_graph_documents(&self) -> Self {
-        let graph_documents = self.graph_documents.iter().map(|doc| (doc.clone(), 0.0));
-        Self {
-            selected_docs: extend_selection(
-                self.selected_docs.clone(),
-                graph_documents,
-                usize::MAX,
-            ),
-            ..self.clone()
-        }
-    }
-
-    /// Add the top `limit` documents to the current selection using `query`
-    ///
-    /// # Arguments
-    ///   * query - the text or the embedding to score against
-    ///   * limit - the maximum number of new documents to add
+    ///   * query - the embedding to score against
+    ///   * limit - the maximum number of documents to search
     ///   * window - the window where documents need to belong to in order to be considered
     ///
     /// # Returns
-    ///   A new vectorised graph containing the updated selection
-    pub fn append_by_similarity(
+    ///   The vector selection resulting from the search
+    pub fn documents_by_similarity(
         &self,
         query: &Embedding,
         limit: usize,
         window: Option<(i64, i64)>,
-    ) -> Self {
+    ) -> VectorSelection<G> {
         let joined = chain!(self.node_documents.iter(), self.edge_documents.iter());
-        self.add_top_documents(joined, query, limit, window)
+        let docs = self.search_top_documents(joined, query, limit, window);
+        VectorSelection::new_with_preselection(self.clone(), docs)
     }
 
-    /// Add the top `limit` node documents to the current selection using `query`
+    /// Search the top scoring entities according to `query` with no more than `limit` entities
     ///
     /// # Arguments
-    ///   * query - the text or the embedding to score against
-    ///   * limit - the maximum number of new documents to add
+    ///   * query - the embedding to score against
+    ///   * limit - the maximum number of entities to search
     ///   * window - the window where documents need to belong to in order to be considered
     ///
     /// # Returns
-    ///   A new vectorised graph containing the updated selection
-    pub fn append_nodes_by_similarity(
+    ///   The vector selection resulting from the search
+    pub fn entities_by_similarity(
         &self,
         query: &Embedding,
         limit: usize,
         window: Option<(i64, i64)>,
-    ) -> Self {
-        self.add_top_documents(self.node_documents.as_ref(), query, limit, window)
+    ) -> VectorSelection<G> {
+        let joined = chain!(self.node_documents.iter(), self.edge_documents.iter());
+        let docs = self.search_top_document_groups(joined, query, limit, window);
+        VectorSelection::new_with_preselection(self.clone(), docs)
     }
 
-    /// Add the top `limit` edge documents to the current selection using `query`
+    /// Search the top scoring nodes according to `query` with no more than `limit` nodes
     ///
     /// # Arguments
-    ///   * query - the text or the embedding to score against
-    ///   * limit - the maximum number of new documents to add
+    ///   * query - the embedding to score against
+    ///   * limit - the maximum number of nodes to search
     ///   * window - the window where documents need to belong to in order to be considered
     ///
     /// # Returns
-    ///   A new vectorised graph containing the updated selection
-    pub fn append_edges_by_similarity(
+    ///   The vector selection resulting from the search
+    pub fn nodes_by_similarity(
         &self,
         query: &Embedding,
         limit: usize,
         window: Option<(i64, i64)>,
-    ) -> Self {
-        self.add_top_documents(self.edge_documents.as_ref(), query, limit, window)
+    ) -> VectorSelection<G> {
+        let docs =
+            self.search_top_document_groups(self.node_documents.as_ref(), query, limit, window);
+        VectorSelection::new_with_preselection(self.clone(), docs)
     }
 
-    /// Add all the documents `hops` hops away to the selection
-    ///
-    /// Two documents A and B are considered to be 1 hop away of each other if they are on the same
-    /// entity or if they are on the same node/edge pair. Provided that, two nodes A and C are n
-    /// hops away of  each other if there is a document B such that A is n - 1 hops away of B and B
-    /// is 1 hop away of C.
+    /// Search the top scoring edges according to `query` with no more than `limit` edges
     ///
     /// # Arguments
-    ///   * hops - the number of hops to carry out the expansion
+    ///   * query - the embedding to score against
+    ///   * limit - the maximum number of edges to search
     ///   * window - the window where documents need to belong to in order to be considered
     ///
     /// # Returns
-    ///   A new vectorised graph containing the updated selection
-    pub fn expand(&self, hops: usize, window: Option<(i64, i64)>) -> Self {
-        match window {
-            None => self.expand_with_window(hops, window, &self.source_graph),
-            Some((start, end)) => {
-                let windowed_graph = self.source_graph.window(start, end);
-                self.expand_with_window(hops, window, &windowed_graph)
-            }
-        }
-    }
-
-    fn expand_with_window<W: StaticGraphViewOps>(
-        &self,
-        hops: usize,
-        window: Option<(i64, i64)>,
-        windowed_graph: &W,
-    ) -> Self {
-        let mut selected_docs = self.selected_docs.clone();
-        for _ in 0..hops {
-            let context = selected_docs
-                .iter()
-                .flat_map(|(doc, _)| self.get_context(doc, windowed_graph, window))
-                .map(|doc| (doc.clone(), 0.0));
-            selected_docs = extend_selection(selected_docs.clone(), context, usize::MAX);
-        }
-
-        Self {
-            selected_docs,
-            ..self.clone()
-        }
-    }
-
-    /// Add the top `limit` adjacent documents with higher score for `query` to the selection
-    ///
-    /// The expansion algorithm is a loop with two steps on each iteration:
-    ///   1. All the documents 1 hop away of some of the documents included on the selection (and
-    /// not already selected) are marked as candidates.
-    ///  2. Those candidates are added to the selection in descending order according to the
-    /// similarity score obtained against the `query`.
-    ///
-    /// This loops goes on until the current selection reaches a total of `limit`  documents or
-    /// until no more documents are available
-    ///
-    /// # Arguments
-    ///   * query - the text or the embedding to score against
-    ///   * window - the window where documents need to belong to in order to be considered
-    ///
-    /// # Returns
-    ///   A new vectorised graph containing the updated selection
-    pub fn expand_by_similarity(
+    ///   The vector selection resulting from the search
+    pub fn edges_by_similarity(
         &self,
         query: &Embedding,
         limit: usize,
         window: Option<(i64, i64)>,
-    ) -> Self {
-        self.expand_by_similarity_with_path(query, limit, window, ExpansionPath::Both)
+    ) -> VectorSelection<G> {
+        let docs =
+            self.search_top_document_groups(self.edge_documents.as_ref(), query, limit, window);
+        VectorSelection::new_with_preselection(self.clone(), docs)
     }
 
-    /// Add the top `limit` adjacent node documents with higher score for `query` to the selection
-    ///
-    /// This function has the same behavior as expand_by_similarity but it only considers nodes.
-    ///
-    /// # Arguments
-    ///   * query - the text or the embedding to score against
-    ///   * limit - the maximum number of new documents to add  
-    ///   * window - the window where documents need to belong to in order to be considered
-    ///
-    /// # Returns
-    ///   A new vectorised graph containing the updated selection
-    pub fn expand_nodes_by_similarity(
-        &self,
-        query: &Embedding,
-        limit: usize,
-        window: Option<(i64, i64)>,
-    ) -> Self {
-        self.expand_by_similarity_with_path(query, limit, window, ExpansionPath::Nodes)
-    }
-
-    /// Add the top `limit` adjacent edge documents with higher score for `query` to the selection
-    ///
-    /// This function has the same behavior as expand_by_similarity but it only considers edges.
-    ///
-    /// # Arguments
-    ///   * query - the text or the embedding to score against
-    ///   * limit - the maximum number of new documents to add
-    ///   * window - the window where documents need to belong to in order to be considered
-    ///
-    /// # Returns
-    ///   A new vectorised graph containing the updated selection
-    pub fn expand_edges_by_similarity(
-        &self,
-        query: &Embedding,
-        limit: usize,
-        window: Option<(i64, i64)>,
-    ) -> Self {
-        self.expand_by_similarity_with_path(query, limit, window, ExpansionPath::Edges)
-    }
-
-    fn expand_by_similarity_with_path(
-        &self,
-        query: &Embedding,
-        limit: usize,
-        window: Option<(i64, i64)>,
-        path: ExpansionPath,
-    ) -> Self {
-        match window {
-            None => self.expand_by_similarity_with_path_and_window(
-                query,
-                limit,
-                window,
-                &self.source_graph,
-                path,
-            ),
-            Some((start, end)) => {
-                let windowed_graph = self.source_graph.window(start, end);
-                self.expand_by_similarity_with_path_and_window(
-                    query,
-                    limit,
-                    window,
-                    &windowed_graph,
-                    path,
-                )
-            }
-        }
-    }
-
-    /// this function only exists so that we can make the type of graph generic
-    fn expand_by_similarity_with_path_and_window<W: StaticGraphViewOps>(
-        &self,
-        query: &Embedding,
-        limit: usize,
-        window: Option<(i64, i64)>,
-        windowed_graph: &W,
-        path: ExpansionPath,
-    ) -> Self {
-        let mut selected_docs = self.selected_docs.clone();
-        let total_limit = selected_docs.len() + limit;
-
-        while selected_docs.len() < total_limit {
-            let remaining = total_limit - selected_docs.len();
-            let candidates = selected_docs
-                .iter()
-                .flat_map(|(doc, _)| self.get_context(doc, windowed_graph, window))
-                .flat_map(|doc| match (path, doc.entity_id.clone()) {
-                    (ExpansionPath::Nodes, EntityId::Edge { .. })
-                    | (ExpansionPath::Edges, EntityId::Node { .. }) => {
-                        self.get_context(doc, windowed_graph, window)
-                    }
-                    _ => Box::new(std::iter::once(doc)),
-                })
-                .filter(|doc| match path {
-                    ExpansionPath::Both => true,
-                    ExpansionPath::Nodes => doc.entity_id.is_node(),
-                    ExpansionPath::Edges => doc.entity_id.is_edge(),
-                });
-
-            let scored_candidates = score_documents(query, candidates.cloned());
-            let top_sorted_candidates = find_top_k(scored_candidates, usize::MAX);
-            selected_docs =
-                extend_selection(selected_docs.clone(), top_sorted_candidates, total_limit);
-
-            let new_remaining = total_limit - selected_docs.len();
-            if new_remaining == remaining {
-                break; // TODO: try to move this to the top condition
-            }
-        }
-
-        Self {
-            selected_docs,
-            ..self.clone()
-        }
-    }
-
-    fn add_top_documents<'a, I>(
+    fn search_top_documents<'a, I>(
         &self,
         document_groups: I,
         query: &Embedding,
         limit: usize,
         window: Option<(i64, i64)>,
-    ) -> Self
+    ) -> Vec<(DocumentRef, f32)>
     where
         I: IntoIterator<Item = (&'a EntityId, &'a Vec<DocumentRef>)> + 'a,
     {
-        let documents = document_groups
+        let all_documents = document_groups
             .into_iter()
             .flat_map(|(_, embeddings)| embeddings);
 
         let window_docs: Box<dyn Iterator<Item = &DocumentRef>> = match window {
-            None => Box::new(documents),
+            None => Box::new(all_documents),
             Some((start, end)) => {
                 let windowed_graph = self.source_graph.window(start, end);
-                let filtered = documents.filter(move |document| {
-                    document.exists_on_window(Some(&windowed_graph), window)
+                let filtered = all_documents.filter(move |document| {
+                    document.exists_on_window(Some(&windowed_graph), &window)
                 });
                 Box::new(filtered)
             }
         };
 
-        let new_len = self.selected_docs.len() + limit;
-        let scored_nodes = score_documents(query, window_docs.cloned()); // TODO: try to remove this clone
-        let candidates = find_top_k(scored_nodes, usize::MAX);
-        let new_selected = extend_selection(self.selected_docs.clone(), candidates, new_len);
-
-        Self {
-            selected_docs: new_selected,
-            ..self.clone()
-        }
+        let scored_docs = score_documents(query, window_docs.cloned()); // TODO: try to remove this clone
+        let top_documents = find_top_k(scored_docs, limit);
+        top_documents.collect()
     }
 
-    // this might return the document used as input, uniqueness need to be check outside of this
-    fn get_context<'a, W: StaticGraphViewOps>(
-        &'a self,
-        document: &DocumentRef,
-        windowed_graph: &'a W,
+    fn search_top_document_groups<'a, I>(
+        &self,
+        document_groups: I,
+        query: &Embedding,
+        limit: usize,
         window: Option<(i64, i64)>,
-    ) -> Box<dyn Iterator<Item = &DocumentRef> + '_> {
-        match &document.entity_id {
-            EntityId::Graph { .. } => Box::new(std::iter::empty()),
-            EntityId::Node { id } => {
-                let self_docs = self
-                    .node_documents
-                    .get(&document.entity_id)
-                    .unwrap_or(&self.empty_vec);
-                match windowed_graph.node(id) {
-                    None => Box::new(std::iter::empty()),
-                    Some(node) => {
-                        let edges = node.edges();
-                        let edge_docs = edges.iter().flat_map(|edge| {
-                            let edge_id = EntityId::from_edge(&edge);
-                            self.edge_documents.get(&edge_id).unwrap_or(&self.empty_vec)
-                        });
-                        Box::new(
-                            chain!(self_docs, edge_docs).filter(move |doc| {
-                                doc.exists_on_window(Some(windowed_graph), window)
-                            }),
-                        )
-                    }
-                }
+    ) -> Vec<(DocumentRef, f32)>
+    where
+        I: IntoIterator<Item = (&'a EntityId, &'a Vec<DocumentRef>)> + 'a,
+    {
+        let window_docs: Box<dyn Iterator<Item = (EntityId, Vec<DocumentRef>)>> = match window {
+            None => Box::new(
+                document_groups
+                    .into_iter()
+                    .map(|(id, docs)| (id.clone(), docs.clone())),
+                // TODO: filter empty vectors here? what happens if the user inputs an empty list as the doc prop
+            ),
+            Some((start, end)) => {
+                let windowed_graph = self.source_graph.window(start, end);
+                let filtered = document_groups
+                    .into_iter()
+                    .map(move |(entity_id, docs)| {
+                        let filtered_dcos = docs
+                            .iter()
+                            .filter(|doc| doc.exists_on_window(Some(&windowed_graph), &window))
+                            .cloned()
+                            .collect_vec();
+                        (entity_id.clone(), filtered_dcos)
+                    })
+                    .filter(|(_, docs)| docs.len() > 0);
+                Box::new(filtered)
             }
-            EntityId::Edge { src, dst } => {
-                let self_docs = self
-                    .edge_documents
-                    .get(&document.entity_id)
-                    .unwrap_or(&self.empty_vec);
-                match windowed_graph.edge(src, dst) {
-                    None => Box::new(std::iter::empty()),
-                    Some(edge) => {
-                        let src_id = EntityId::from_node(&edge.src());
-                        let dst_id = EntityId::from_node(&edge.dst());
-                        let src_docs = self.node_documents.get(&src_id).unwrap_or(&self.empty_vec);
-                        let dst_docs = self.node_documents.get(&dst_id).unwrap_or(&self.empty_vec);
-                        Box::new(
-                            chain!(self_docs, src_docs, dst_docs).filter(move |doc| {
-                                doc.exists_on_window(Some(windowed_graph), window)
-                            }),
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
+        };
 
-/// this function assumes that extension might contain duplicates and might contain elements
-/// already present in selection, and returns a sequence with no repetitions and preserving the
-/// elements in selection in the same indexes
-fn extend_selection<I>(
-    selection: Vec<(DocumentRef, f32)>,
-    extension: I,
-    new_total_size: usize,
-) -> Vec<(DocumentRef, f32)>
-where
-    I: IntoIterator<Item = (DocumentRef, f32)>,
-{
-    let selection_set: HashSet<DocumentRef> =
-        HashSet::from_iter(selection.iter().map(|(doc, _)| doc.clone()));
-    let new_docs = extension
-        .into_iter()
-        .unique_by(|(doc, _)| doc.clone())
-        .filter(|(doc, _)| !selection_set.contains(doc));
-    selection
-        .into_iter()
-        .chain(new_docs)
-        .take(new_total_size)
-        .collect_vec()
+        let scored_docs = score_document_groups_by_highest(query, window_docs);
+
+        // let scored_docs = score_documents(query, window_docs.cloned()); // TODO: try to remove this clone
+        let top_documents = find_top_k(scored_docs, limit);
+
+        top_documents
+            .flat_map(|((_, docs), score)| docs.into_iter().map(move |doc| (doc, score)))
+            .collect()
+    }
 }
