@@ -7,10 +7,12 @@ use raphtory_api::core::{
 };
 use rayon::iter::ParallelIterator;
 
+use super::GraphStorage;
 use crate::{
     core::{
         entities::LayerIds,
         storage::timeindex::{TimeIndexIntoOps, TimeIndexOps},
+        utils::iter::GenLockedIter,
     },
     db::api::{
         storage::graph::{
@@ -23,13 +25,11 @@ use crate::{
         },
         view::{
             internal::{CoreGraphOps, TimeSemantics},
-            BoxedIter,
+            BoxedIter, BoxedLIter, IntoDynBoxed,
         },
     },
     prelude::Prop,
 };
-
-use super::GraphStorage;
 
 impl TimeSemantics for GraphStorage {
     fn node_earliest_time(&self, v: VID) -> Option<i64> {
@@ -240,27 +240,37 @@ impl TimeSemantics for GraphStorage {
         }
     }
 
-    fn edge_deletion_history(&self, e: EdgeRef, layer_ids: &LayerIds) -> Vec<i64> {
+    fn edge_deletion_history<'a>(
+        &'a self,
+        e: EdgeRef,
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, TimeIndexEntry> {
         let entry = self.core_edge(e.into());
-        entry
-            .deletions_iter(layer_ids)
-            .map(|(_, d)| d.into_iter_t())
-            .kmerge()
-            .collect()
+        GenLockedIter::from(entry, |entry| {
+            entry
+                .deletions_iter(layer_ids)
+                .map(|(_, d)| d.into_iter())
+                .kmerge()
+                .into_dyn_boxed()
+        })
+        .into_dyn_boxed()
     }
 
-    fn edge_deletion_history_window(
-        &self,
+    fn edge_deletion_history_window<'a>(
+        &'a self,
         e: EdgeRef,
         w: Range<i64>,
-        layer_ids: &LayerIds,
-    ) -> Vec<i64> {
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, TimeIndexEntry> {
         let entry = self.core_edge(e.into());
-        entry
-            .deletions_iter(layer_ids)
-            .map(|(_, d)| d.into_range_t(w.clone()).into_iter_t())
-            .kmerge()
-            .collect()
+        GenLockedIter::from(entry, |entry| {
+            entry
+                .deletions_iter(layer_ids)
+                .map(|(_, d)| d.into_range_t(w.clone()).into_iter())
+                .kmerge()
+                .into_dyn_boxed()
+        })
+        .into_dyn_boxed()
     }
 
     fn edge_is_valid(&self, _e: EdgeRef, _layer_ids: &LayerIds) -> bool {

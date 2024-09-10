@@ -155,7 +155,11 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     }
 
     fn deletions(&self) -> Self::ValueType<Vec<i64>> {
-        self.map(move |g, e| g.edge_deletion_history(e, &g.layer_ids().constrain_from_edge(e)))
+        self.map(move |g, e| {
+            g.edge_deletion_history(e, &g.layer_ids().constrain_from_edge(e))
+                .map(|t| t.t())
+                .collect()
+        })
     }
 
     fn deletions_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>> {

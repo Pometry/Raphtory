@@ -5,10 +5,11 @@ use crate::{
     },
     db::api::{
         storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
-        view::{internal::Base, BoxedIter, MaterializedGraph},
+        view::{internal::Base, BoxedIter, BoxedLIter, MaterializedGraph},
     },
 };
 use enum_dispatch::enum_dispatch;
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use std::ops::Range;
 
 /// Methods for defining time windowing semantics for a graph
@@ -118,15 +119,19 @@ pub trait TimeSemantics {
     ) -> Option<i64>;
 
     /// Get the edge deletions for use with materialize
-    fn edge_deletion_history(&self, e: EdgeRef, layer_ids: &LayerIds) -> Vec<i64>;
+    fn edge_deletion_history<'a>(
+        &'a self,
+        e: EdgeRef,
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, TimeIndexEntry>;
 
     /// Get the edge deletions for use with materialize restricted to window `w`
-    fn edge_deletion_history_window(
-        &self,
+    fn edge_deletion_history_window<'a>(
+        &'a self,
         e: EdgeRef,
         w: Range<i64>,
-        layer_ids: &LayerIds,
-    ) -> Vec<i64>;
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, TimeIndexEntry>;
 
     /// Check if  edge `e` is currently valid in any layer included in `layer_ids`
     fn edge_is_valid(&self, e: EdgeRef, layer_ids: &LayerIds) -> bool;
@@ -481,17 +486,21 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
     }
 
     #[inline]
-    fn edge_deletion_history(&self, e: EdgeRef, layer_ids: &LayerIds) -> Vec<i64> {
+    fn edge_deletion_history<'a>(
+        &'a self,
+        e: EdgeRef,
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, TimeIndexEntry> {
         self.graph().edge_deletion_history(e, layer_ids)
     }
 
     #[inline]
-    fn edge_deletion_history_window(
-        &self,
+    fn edge_deletion_history_window<'a>(
+        &'a self,
         e: EdgeRef,
         w: Range<i64>,
-        layer_ids: &LayerIds,
-    ) -> Vec<i64> {
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, TimeIndexEntry> {
         self.graph().edge_deletion_history_window(e, w, layer_ids)
     }
 

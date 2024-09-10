@@ -1,7 +1,5 @@
 use std::borrow::Borrow;
 
-use raphtory_api::core::storage::arc_str::OptionAsStr;
-
 use crate::{
     core::{
         entities::LayerIds,
@@ -21,6 +19,7 @@ use crate::{
     },
     prelude::{AdditionOps, EdgeViewOps, GraphViewOps, NodeViewOps},
 };
+use raphtory_api::core::storage::{arc_str::OptionAsStr, timeindex::AsTime};
 
 use super::time_from_input;
 
@@ -213,7 +212,7 @@ impl<
 
             if self.include_deletions() {
                 for t in edge.graph.edge_deletion_history(edge.edge, &layer_ids) {
-                    let ti = time_from_input(self, t)?;
+                    let ti = time_from_input(self, t.t())?;
                     let src_id = self.resolve_node(edge.src().id())?.inner();
                     let dst_id = self.resolve_node(edge.dst().id())?.inner();
                     let layer = self.resolve_layer(layer_name)?.inner();

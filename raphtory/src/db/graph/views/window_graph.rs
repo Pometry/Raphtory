@@ -54,7 +54,7 @@ use crate::{
                     Base, EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps,
                     InheritListOps, InheritMaterialize, NodeFilterOps, Static, TimeSemantics,
                 },
-                BoxedIter,
+                BoxedIter, BoxedLIter,
             },
         },
         graph::graph::graph_equal,
@@ -62,7 +62,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use chrono::{DateTime, Utc};
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry};
 use std::{
     fmt::{Debug, Formatter},
     ops::Range,
@@ -355,17 +355,21 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
             .edge_latest_time_window(e, w.start..w.end, layer_ids)
     }
 
-    fn edge_deletion_history(&self, e: EdgeRef, layer_ids: &LayerIds) -> Vec<i64> {
+    fn edge_deletion_history<'a>(
+        &'a self,
+        e: EdgeRef,
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, TimeIndexEntry> {
         self.graph
             .edge_deletion_history_window(e, self.start_bound()..self.end_bound(), layer_ids)
     }
 
-    fn edge_deletion_history_window(
-        &self,
+    fn edge_deletion_history_window<'a>(
+        &'a self,
         e: EdgeRef,
         w: Range<i64>,
-        layer_ids: &LayerIds,
-    ) -> Vec<i64> {
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, TimeIndexEntry> {
         self.graph
             .edge_deletion_history_window(e, w.start..w.end, layer_ids)
     }
