@@ -52,10 +52,14 @@ impl<'a> TPropOps<'a> for TPropColumn<'a, ChunkedBoolCol<'a>, TimeIndexEntry> {
     fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
         let (props, timestamps) = self.into_inner();
         let t_index = timestamps.position(ti);
-        timestamps
-            .get(t_index)
-            .eq(ti)
-            .then(|| props.get(t_index).map(|v| v.into()))?
+        if t_index < timestamps.len() {
+            timestamps
+                .get(t_index)
+                .eq(ti)
+                .then(|| props.get(t_index).map(|v| v.into()))?
+        } else {
+            None
+        }
     }
 
     fn len(self) -> usize {
@@ -102,10 +106,14 @@ impl<'a, T: NativeType + Into<Prop>> TPropOps<'a>
     fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
         let (props, timestamps) = self.into_inner();
         let t_index = timestamps.position(ti);
-        timestamps
-            .get(t_index)
-            .eq(ti)
-            .then(|| props.get(t_index).map(|v| v.into()))?
+        if t_index < timestamps.len() {
+            timestamps
+                .get(t_index)
+                .eq(ti)
+                .then(|| props.get(t_index).map(|v| v.into()))?
+        } else {
+            None
+        }
     }
 
     fn len(self) -> usize {
@@ -155,10 +163,14 @@ impl<'a, I: Offset> TPropOps<'a> for TPropColumn<'a, StringCol<'a, I>, TimeIndex
     fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
         let (props, timestamps) = self.into_inner();
         let t_index = timestamps.position(ti);
-        timestamps
-            .get(t_index)
-            .eq(ti)
-            .then(|| props.get(t_index).map(|v| v.into()))?
+        if t_index < timestamps.len() {
+            timestamps
+                .get(t_index)
+                .eq(ti)
+                .then(|| props.get(t_index).map(|v| v.into()))?
+        } else {
+            None
+        }
     }
 
     fn len(self) -> usize {
