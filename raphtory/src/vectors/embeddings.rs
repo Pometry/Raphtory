@@ -17,7 +17,11 @@ pub async fn openai_embedding(texts: Vec<String>) -> Vec<Embedding> {
     };
     let response = client.embeddings().create(request).await.unwrap();
     println!("Generated embeddings successfully");
-    response.data.into_iter().map(|e| e.embedding).collect_vec()
+    response
+        .data
+        .into_iter()
+        .map(|e| e.embedding.into())
+        .collect_vec()
 }
 
 // this is currently commented out so we don't need to add any new dependencies

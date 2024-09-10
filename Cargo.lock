@@ -3036,6 +3036,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "minijinja-contrib"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "744a2b84dbd22398e347594ed2aef9d3f1b948934e3e6e94ef69ecd39d597f4b"
+dependencies = [
+ "minijinja",
+ "serde",
+ "time",
+]
+
+[[package]]
 name = "minimal-lexical"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4356,10 +4367,13 @@ dependencies = [
  "flate2",
  "futures-util",
  "glam",
+ "indoc",
  "itertools 0.13.0",
  "kdam",
  "lock_api",
  "memmap2",
+ "minijinja",
+ "minijinja-contrib",
  "neo4rs",
  "num",
  "num-integer",
