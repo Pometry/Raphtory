@@ -26,8 +26,14 @@ use raphtory::{
     },
 };
 
-use crate::server_config::{load_config, AppConfig};
+use crate::{
+    observability::{open_telemetry::OpenTelemetry, tracing::get_tracer},
+    server::ServerError::SchemaError,
+    server_config::{load_config, AppConfig},
+};
 use config::ConfigError;
+use opentelemetry::global::BoxedTracer;
+use opentelemetry_sdk::trace::Tracer;
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -46,7 +52,7 @@ use tokio::{
 };
 use tracing::{error, info};
 use tracing_subscriber::{
-    layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, FmtSubscriber, Registry,
+    fmt, fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry,
 };
 use url::ParseError;
 
@@ -66,6 +72,10 @@ pub enum ServerError {
     FailedToParseUrl(#[from] ParseError),
     #[error("Failed to fetch JWKS")]
     FailedToFetchJWKS,
+    #[error("Failed to load schema: {0}")]
+    SchemaError(String),
+    #[error("Failed to create endpoints: {0}")]
+    EndpointError(String),
 }
 
 impl From<ServerError> for io::Error {
@@ -182,29 +192,39 @@ impl GraphServer {
     /// Start the server on the port `port` and return a handle to it.
     pub async fn start_with_port(self, port: u16) -> IoResult<RunningGraphServer> {
         let log_level = &self.configs.logging.log_level;
-        let filter = EnvFilter::new(log_level);
-        let subscriber = FmtSubscriber::builder().with_env_filter(filter).finish();
-        if let Err(err) = tracing::subscriber::set_global_default(subscriber) {
-            error!(
-                "Log level cannot be updated within the same runtime environment: {}",
-                err
-            );
-        }
+        let filter = EnvFilter::new(format!(
+            "raphtory-graphql={},raphtory={}",
+            log_level, log_level
+        ));
 
-        let registry = Registry::default().with(tracing_subscriber::fmt::layer().pretty());
-        let filter = EnvFilter::new(log_level);
+        // Create the base registry
+        let registry = Registry::default().with(filter).with(
+            fmt::layer().pretty().with_span_events(FmtSpan::FULL), //(FULL, NEW, ENTER, EXIT, CLOSE)
+        );
+
+        let filter = EnvFilter::new(format!(
+            "raphtory-graphql={},raphtory={}",
+            log_level, log_level
+        ));
         match create_tracer_from_env() {
-            Some(tracer) => registry
-                .with(tracing_opentelemetry::layer().with_tracer(tracer))
-                .with(filter)
-                .try_init(),
-            None => registry.with(filter).try_init(),
-        }
-        .unwrap_or(());
+            Some(tracer) => {
+                registry
+                    .with(tracing_opentelemetry::layer().with_tracer(tracer))
+                    .try_init()
+                    .ok();
+            }
+
+            None => {
+                registry.with(filter).try_init().ok();
+            }
+        };
+        //registry.try_init().ok();
+        // let tracer = create_tracer_from_env();
 
         // it is important that this runs after algorithms have been pushed to PLUGIN_ALGOS static variable
 
-        let app: CorsEndpoint<CookieJarManagerEndpoint<Route>> = self.generate_endpoint().await?;
+        let app: CorsEndpoint<CookieJarManagerEndpoint<Route>> =
+            self.generate_endpoint(get_tracer()).await?;
 
         let (signal_sender, signal_receiver) = mpsc::channel(1);
 
@@ -219,10 +239,19 @@ impl GraphServer {
         })
     }
 
-    async fn generate_endpoint(self) -> IoResult<CorsEndpoint<CookieJarManagerEndpoint<Route>>> {
+    async fn generate_endpoint(
+        self,
+        tracer: Option<Tracer>,
+    ) -> Result<CorsEndpoint<CookieJarManagerEndpoint<Route>>, ServerError> {
         let schema_builder = App::create_schema();
         let schema_builder = schema_builder.data(self.data);
-        let schema = schema_builder.finish().unwrap();
+        let schema = schema_builder;
+        let schema = if let Some(t) = tracer {
+            schema.extension(OpenTelemetry::new(t)).finish()
+        } else {
+            schema.finish()
+        }
+        .map_err(|e| SchemaError(e.to_string()))?;
 
         let app = Route::new()
             .at("/", get(graphql_playground).post(GraphQL::new(schema)))

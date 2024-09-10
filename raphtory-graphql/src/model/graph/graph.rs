@@ -50,17 +50,14 @@ impl GqlGraph {
     // LAYERS AND WINDOWS //
     ////////////////////////
     #[instrument(skip(self))]
-
     async fn unique_layers(&self) -> Vec<String> {
         self.graph.unique_layers().map_into().collect()
     }
     #[instrument(skip(self))]
-
     async fn default_layer(&self) -> GqlGraph {
         GqlGraph::new(self.path.clone(), self.graph.default_layer())
     }
     #[instrument(skip(self))]
-
     async fn layers(&self, names: Vec<String>) -> GqlGraph {
         GqlGraph::new(self.path.clone(), self.graph.valid_layers(names))
     }

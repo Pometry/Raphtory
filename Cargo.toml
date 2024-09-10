@@ -95,11 +95,11 @@ criterion = "0.5.1"
 crossbeam-channel = "0.5.11"
 base64 = "0.22.1"
 poem = { version = "3.0.1", features = ["cookie"] }
-opentelemetry = "0.23.0"
-opentelemetry_sdk = { version = "0.23.0", features = ["rt-tokio"] }
-opentelemetry-jaeger = { version = "0.22.0", features = ["rt-tokio"] }
+opentelemetry = "0.25.0"
+opentelemetry_sdk = { version = "0.25.0", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.25.0"}
 tracing = "0.1.37"
-tracing-opentelemetry = "0.24.0"
+tracing-opentelemetry = "0.26.0"
 tracing-subscriber = { version = "0.3.16", features = ["std", "env-filter"] }
 walkdir = "2"
 uuid = { version = "1.0", features = ["v4"] }

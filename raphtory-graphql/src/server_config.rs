@@ -10,7 +10,7 @@ pub struct LoggingConfig {
 impl Default for LoggingConfig {
     fn default() -> Self {
         Self {
-            log_level: "INFO".to_string(),
+            log_level: "TRACE".to_string(),
         }
     }
 }

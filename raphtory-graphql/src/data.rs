@@ -26,6 +26,7 @@ use std::{
     path::{Component, Path, PathBuf, StripPrefixError},
     sync::Arc,
 };
+use tracing::info;
 use walkdir::WalkDir;
 
 pub struct Data {
@@ -241,13 +242,13 @@ fn load_disk_graph_from_path(
         if overwrite {
             fs::remove_dir_all(&target_path)?;
             copy_dir_recursive(path_on_server, &target_path)?;
-            println!("Disk Graph loaded = {}", target_path.display());
+            info!("Disk Graph loaded = {}", target_path.display());
         } else {
             return Err(GraphError::GraphNameAlreadyExists(target_path.to_path_buf()).into());
         }
     } else {
         copy_dir_recursive(path_on_server, &target_path)?;
-        println!("Disk Graph loaded = {}", target_path.display());
+        info!("Disk Graph loaded = {}", target_path.display());
     }
     Ok(Some(target_path.to_path_buf()))
 }
@@ -257,7 +258,7 @@ fn get_disk_graph_from_path(
     path: &Path,
 ) -> Result<Option<IndexedGraph<MaterializedGraph>>, GraphError> {
     let graph = load_disk_graph(path)?;
-    println!("Disk Graph loaded = {}", path.display());
+    info!("Disk Graph loaded = {}", path.display());
     Ok(Some(IndexedGraph::from_graph(&graph.into())?))
 }
 
@@ -280,7 +281,7 @@ fn get_graph_from_path(path: &Path) -> Result<IndexedGraph<MaterializedGraph>, G
         }
     } else {
         let graph = MaterializedGraph::load_cached(path)?;
-        println!("Graph loaded = {}", path.display());
+        info!("Graph loaded = {}", path.display());
         Ok(IndexedGraph::from_graph(&graph)?)
     }
 }
