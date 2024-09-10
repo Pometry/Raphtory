@@ -53,8 +53,6 @@ def create_graph_with_deletions():
     return g
 
 
-import psutil
-
 if "DISK_TEST_MARK" in os.environ:
 
     def with_disk_graph(func):

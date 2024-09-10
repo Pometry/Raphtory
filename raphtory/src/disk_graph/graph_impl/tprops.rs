@@ -7,6 +7,7 @@ use crate::{
     db::api::{storage::graph::tprop_storage_ops::TPropOps, view::IntoDynBoxed},
     prelude::Prop,
 };
+use polars_arrow::array::Array;
 use pometry_storage::{
     chunked_array::{bool_col::ChunkedBoolCol, col::ChunkedPrimitiveCol, utf8_col::StringCol},
     edge::Edge,
@@ -51,12 +52,18 @@ impl<'a> TPropOps<'a> for TPropColumn<'a, ChunkedBoolCol<'a>, TimeIndexEntry> {
     fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
         let (props, timestamps) = self.into_inner();
         let t_index = timestamps.position(ti);
-        props.get(t_index).map(|v| v.into())
+        timestamps
+            .get(t_index)
+            .eq(ti)
+            .then(|| props.get(t_index).map(|v| v.into()))?
     }
 
     fn len(self) -> usize {
         let (props, _) = self.into_inner();
-        props.par_iter().flatten().count()
+        props
+            .iter_chunks()
+            .map(|chunk| chunk.len() - chunk.null_count())
+            .sum()
     }
 }
 
@@ -95,12 +102,18 @@ impl<'a, T: NativeType + Into<Prop>> TPropOps<'a>
     fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
         let (props, timestamps) = self.into_inner();
         let t_index = timestamps.position(ti);
-        props.get(t_index).map(|v| v.into())
+        timestamps
+            .get(t_index)
+            .eq(ti)
+            .then(|| props.get(t_index).map(|v| v.into()))?
     }
 
     fn len(self) -> usize {
         let (props, _) = self.into_inner();
-        props.par_iter().flatten().count()
+        props
+            .iter_chunks()
+            .map(|chunk| chunk.len() - chunk.null_count())
+            .sum()
     }
 
     fn is_empty(self) -> bool {
@@ -142,12 +155,18 @@ impl<'a, I: Offset> TPropOps<'a> for TPropColumn<'a, StringCol<'a, I>, TimeIndex
     fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
         let (props, timestamps) = self.into_inner();
         let t_index = timestamps.position(ti);
-        props.get(t_index).map(|v| v.into())
+        timestamps
+            .get(t_index)
+            .eq(ti)
+            .then(|| props.get(t_index).map(|v| v.into()))?
     }
 
     fn len(self) -> usize {
         let (props, _) = self.into_inner();
-        props.par_iter().flatten().count()
+        props
+            .iter_chunks()
+            .map(|chunk| chunk.len() - chunk.null_count())
+            .sum()
     }
 
     fn is_empty(self) -> bool {

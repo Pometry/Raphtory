@@ -151,7 +151,6 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
     }
 
     fn constant_prop_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
-        println!("constant_prop_layer");
         self.as_ref().constant_prop_layer(layer_id, prop_id)
     }
 }

@@ -40,13 +40,10 @@ impl PartialEq for PyPropsComp {
 impl<'source> FromPyObject<'source> for PyPropsComp {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
         if let Ok(sp) = ob.extract::<PyRef<PyConstProperties>>() {
-            println!("sp1");
             Ok(sp.deref().into())
         } else if let Ok(p) = ob.extract::<PyRef<PyProperties>>() {
-            println!("sp2");
             Ok(p.deref().into())
         } else if let Ok(m) = ob.extract::<HashMap<ArcStr, Prop>>() {
-            println!("sp3");
             Ok(PyPropsComp(m))
         } else {
             println!("sp4");
