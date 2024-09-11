@@ -42,6 +42,10 @@ harness = false
 name = "edge_add"
 harness = false
 
+[[bench]]
+name = "materialise"
+harness = false
+
 # [[bench]]
 # name = "arrow_algobench"
 # harness = false

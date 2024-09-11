@@ -1,4 +1,3 @@
-use crate::common::bench;
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, SamplingMode};
 use raphtory::{
     algorithms::{
@@ -17,8 +16,8 @@ use raphtory::{
     prelude::*,
 };
 use rayon::prelude::*;
+use raphtory_benchmark::common::bench;
 
-mod common;
 pub fn local_triangle_count_analysis(c: &mut Criterion) {
     let mut group = c.benchmark_group("local_triangle_count");
     group.sample_size(10);

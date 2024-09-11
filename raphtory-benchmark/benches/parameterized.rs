@@ -1,10 +1,8 @@
-use crate::common::{bootstrap_graph, run_large_ingestion_benchmarks};
 use criterion::{
     criterion_group, criterion_main, AxisScale, Criterion, PlotConfiguration, Throughput,
 };
 use raphtory_api::core::entities::GID;
-
-mod common;
+use raphtory_benchmark::common::{bootstrap_graph, run_large_ingestion_benchmarks};
 
 pub fn parameterized(c: &mut Criterion) {
     let nodes_exponents = 1..6;

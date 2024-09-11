@@ -570,7 +570,7 @@ pub fn run_graph_ops_benches(
     );
 }
 
-fn bench_materialise<F, G>(name: &str, c: &mut Criterion, make_graph: F)
+pub fn bench_materialise<F, G>(name: &str, c: &mut Criterion, make_graph: F)
 where
     F: Fn() -> G,
     G: StaticGraphViewOps,
