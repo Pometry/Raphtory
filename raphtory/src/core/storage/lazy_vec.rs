@@ -127,8 +127,7 @@ where
             None => {
                 let mut value = A::default();
                 updater(&mut value)?;
-                self.set(id, value)
-                    .map_err(|e| GraphError::IllegalSet(e.to_string()))?;
+                self.set(id, value)?;
             }
         };
         Ok(())

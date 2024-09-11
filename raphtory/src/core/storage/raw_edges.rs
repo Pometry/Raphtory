@@ -150,6 +150,7 @@ impl EdgesStorage {
     pub fn write_lock(&self) -> WriteLockedEdges {
         WriteLockedEdges {
             shards: self.shards.iter().map(|shard| shard.write()).collect(),
+            global_len: &self.len,
         }
     }
 
@@ -380,6 +381,7 @@ pub struct EdgeShardWriter<'a> {
     shard: &'a mut EdgeShard,
     shard_id: usize,
     num_shards: usize,
+    global_len: &'a AtomicUsize,
 }
 
 impl<'a> EdgeShardWriter<'a> {
@@ -393,6 +395,7 @@ impl<'a> EdgeShardWriter<'a> {
     pub fn get_mut(&mut self, eid: EID) -> Option<MutEdge> {
         let offset = self.resolve(eid)?;
         if self.shard.edge_ids.len() <= offset {
+            self.global_len.fetch_max(eid.0 + 1, Ordering::Relaxed);
             self.shard
                 .edge_ids
                 .resize_with(offset + 1, EdgeStore::default)
@@ -410,6 +413,7 @@ impl<'a> EdgeShardWriter<'a> {
 
 pub struct WriteLockedEdges<'a> {
     shards: Vec<RwLockWriteGuard<'a, EdgeShard>>,
+    global_len: &'a AtomicUsize,
 }
 
 impl<'a> WriteLockedEdges<'a> {
@@ -420,6 +424,7 @@ impl<'a> WriteLockedEdges<'a> {
             .iter_mut()
             .map(|shard| shard.deref_mut())
             .collect();
+        let global_len = self.global_len;
         shards
             .into_par_iter()
             .enumerate()
@@ -427,6 +432,7 @@ impl<'a> WriteLockedEdges<'a> {
                 shard,
                 shard_id,
                 num_shards,
+                global_len,
             })
     }
 

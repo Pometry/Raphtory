@@ -131,7 +131,7 @@ impl GraphMeta {
     }
 
     pub fn get_temporal_dtype(&self, prop_id: usize) -> Option<PropType> {
-        self.temporal.get(&prop_id).map(|v| v.dtype())
+        self.temporal_mapper.get_dtype(prop_id)
     }
 
     pub(crate) fn constant_names(&self) -> ArcReadLockedVec<ArcStr> {

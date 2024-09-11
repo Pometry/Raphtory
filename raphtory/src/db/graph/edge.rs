@@ -12,6 +12,7 @@ use crate::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         storage::timeindex::AsTime,
         utils::{errors::GraphError, time::IntoTime},
+        PropType,
     },
     db::{
         api::{
@@ -308,16 +309,24 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> ConstPropertiesO
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalPropertyViewOps
     for EdgeView<G, GH>
 {
+    fn dtype(&self, id: usize) -> PropType {
+        self.graph
+            .edge_meta()
+            .temporal_prop_meta()
+            .get_dtype(id)
+            .unwrap()
+    }
+
     fn temporal_history(&self, id: usize) -> Vec<i64> {
         self.graph
-            .temporal_edge_prop_vec(self.edge, id, &self.layer_ids())
+            .temporal_edge_prop_hist(self.edge, id, &self.layer_ids())
             .into_iter()
-            .map(|(t, _)| t)
+            .map(|(t, _)| t.t())
             .collect()
     }
     fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
         self.graph
-            .temporal_edge_prop_vec(self.edge, id, &self.layer_ids())
+            .temporal_edge_prop_hist(self.edge, id, &self.layer_ids())
             .into_iter()
             .map(|(t, _)| t.dt())
             .collect()
@@ -326,7 +335,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperty
     fn temporal_values(&self, id: usize) -> Vec<Prop> {
         let layer_ids = self.layer_ids();
         self.graph
-            .temporal_edge_prop_vec(self.edge, id, &layer_ids)
+            .temporal_edge_prop_hist(self.edge, id, &layer_ids)
             .into_iter()
             .map(|(_, v)| v)
             .collect()

@@ -1,13 +1,13 @@
 use crate::{
     core::{
-        entities::{nodes::node_ref::AsNodeRef, LayerIds, VID},
+        entities::{graph::tgraph::TemporalGraph, nodes::node_ref::AsNodeRef, LayerIds, VID},
         storage::timeindex::AsTime,
         utils::errors::GraphError,
     },
     db::{
         api::{
             mutation::{internal::InternalAdditionOps, AdditionOps, PropertyAdditionOps},
-            properties::Properties,
+            properties::{internal::TemporalPropertiesOps, Properties},
             storage::graph::{
                 edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
                 storage_ops::GraphStorage,
@@ -30,7 +30,11 @@ use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use raphtory_api::core::{
     entities::EID,
-    storage::arc_str::{ArcStr, OptionAsStr},
+    storage::{
+        arc_str::{ArcStr, OptionAsStr},
+        timeindex::TimeIndexEntry,
+    },
+    Direction,
 };
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
@@ -139,16 +143,27 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 
     fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
         let storage = self.core_graph().lock();
-        let g = GraphStorage::default();
+        let g = TemporalGraph::default();
+        if let Some(earliest) = self.earliest_time() {
+            g.update_time(TimeIndexEntry::start(earliest));
+        } else {
+            return Ok(self.new_base_graph(g.into()));
+        };
+
+        if let Some(latest) = self.latest_time() {
+            g.update_time(TimeIndexEntry::end(latest));
+        } else {
+            return Ok(self.new_base_graph(g.into()));
+        };
 
         let layer_map: Vec<_> = match self.layer_ids() {
             LayerIds::None => {
-                return Ok(self.new_base_graph(g));
+                return Ok(self.new_base_graph(g.into()));
             }
             LayerIds::All => {
                 let mut layer_map = vec![0; self.unfiltered_num_layers()];
                 let layers = storage.edge_meta().layer_meta().get_keys();
-                for id in (1..layers.len()) {
+                for id in 1..layers.len() {
                     let new_id = g.resolve_layer(Some(&layers[id]))?.inner();
                     layer_map[id] = new_id;
                 }
@@ -176,17 +191,30 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         };
 
         let mut node_map = vec![VID::default(); storage.unfiltered_num_nodes()];
-        for node in self.nodes().iter() {
-            let new_id = g.resolve_node(node)?;
-            let VID(old_index) = node.node;
-            node_map[old_index] = new_id.inner();
-        }
-
-        let earliest = if let Some(earliest) = self.earliest_time() {
-            earliest
-        } else {
-            return Ok(self.new_base_graph(g));
-        };
+        storage
+            .nodes_par_opt(self, None)
+            .zip(node_map.par_iter_mut())
+            .try_for_each(|(node, entry)| {
+                if let Some(node) = node {
+                    let node_type_id = node.node_type_id();
+                    let new_id = if node_type_id != 0 {
+                        g.resolve_node_and_type(
+                            node.id(),
+                            self.node_meta()
+                                .get_node_type_name_by_id(node_type_id)
+                                .as_str()
+                                .unwrap(),
+                        )?
+                        .inner()
+                        .0
+                        .inner()
+                    } else {
+                        g.resolve_node(node.id())?.inner()
+                    };
+                    *entry = new_id;
+                }
+                Ok::<(), GraphError>(())
+            })?;
 
         {
             // scope for the write lock
@@ -206,7 +234,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                             let t_props = e.properties().temporal();
                             let mut props_iter = t_props.iter_latest().peekable();
                             if props_iter.peek().is_some() {
-                                let mut edge_layer = new_edge.layer_mut(layer);
+                                let edge_layer = new_edge.layer_mut(layer);
                                 for (prop_name, prop_value) in props_iter {
                                     let prop_id = g
                                         .resolve_edge_property(
@@ -219,6 +247,24 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                                 }
                             }
                         }
+                        for e in edge.explode_layers() {
+                            let layer = layer_map[*e.edge.layer().unwrap()];
+                            let c_props = e.properties().constant();
+                            let mut props_iter = c_props.iter().peekable();
+                            if props_iter.peek().is_some() {
+                                let edge_layer = new_edge.layer_mut(layer);
+                                for (prop_name, prop_value) in props_iter {
+                                    let prop_id = g
+                                        .resolve_edge_property(
+                                            &prop_name,
+                                            prop_value.dtype(),
+                                            true,
+                                        )?
+                                        .inner();
+                                    edge_layer.add_constant_prop(prop_id, prop_value)?;
+                                }
+                            }
+                        }
                         if self.include_deletions() {
                             for e in edge.explode_layers() {
                                 let layer = *e.edge.layer().unwrap();
@@ -226,8 +272,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                                 let mut deletion_history =
                                     self.edge_deletion_history(edge.edge, &layer_ids).peekable();
                                 if deletion_history.peek().is_some() {
-                                    let mut edge_deletions =
-                                        new_edge.deletions_mut(layer_map[layer]);
+                                    let edge_deletions = new_edge.deletions_mut(layer_map[layer]);
                                     for t in deletion_history {
                                         edge_deletions.insert(t);
                                     }
@@ -239,65 +284,70 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                 Ok::<(), GraphError>(())
             })?;
 
-            // Add edges first so we definitely have all associated nodes (important in case of persistent edges)
-            for e in self.edges() {
-                // FIXME: this needs to be verified
-                for ee in e.explode_layers() {
-                    let layer_id = *ee.edge.layer().expect("exploded layers");
-                    let layer_ids = LayerIds::One(layer_id);
-                    let layer_name = self.get_layer_name(layer_id);
-                    let layer_name: Option<&str> = if layer_id == 0 {
-                        None
-                    } else {
-                        Some(&layer_name)
-                    };
-
-                    for ee in ee.explode() {
-                        g.add_edge(
-                            ee.time().expect("exploded edge"),
-                            ee.src().id(),
-                            ee.dst().id(),
-                            ee.properties().temporal().collect_properties(),
-                            layer_name,
-                        )?;
-                    }
-
-                    if self.include_deletions() {
-                        for t in self.edge_deletion_history(e.edge, &layer_ids) {
-                            g.delete_edge(t.t(), e.src().id(), e.dst().id(), layer_name)?;
+            new_storage.nodes.par_iter_mut().try_for_each(|mut shard| {
+                for (eid, edge) in self.edges().iter().enumerate() {
+                    if let Some(src_node) = shard.get_mut(node_map[edge.edge.src().index()]) {
+                        for ee in edge.explode_layers() {
+                            src_node.add_edge(
+                                node_map[edge.edge.dst().index()],
+                                Direction::OUT,
+                                *ee.edge.layer().unwrap(),
+                                EID(eid),
+                            );
                         }
                     }
-
-                    g.edge(ee.src().id(), ee.dst().id())
-                        .expect("edge added")
-                        .add_constant_properties(ee.properties().constant(), layer_name)?;
+                    if let Some(dst_node) = shard.get_mut(node_map[edge.edge.dst().index()]) {
+                        for ee in edge.explode_layers() {
+                            dst_node.add_edge(
+                                node_map[edge.edge.src().index()],
+                                Direction::IN,
+                                *ee.edge.layer().unwrap(),
+                                EID(eid),
+                            );
+                        }
+                    }
                 }
-            }
-
-            for v in self.nodes().iter() {
-                let v_type_string = v.node_type(); //stop it being dropped
-                let v_type_str = v_type_string.as_str();
-                for h in v.history() {
-                    g.add_node(h, v.id(), NO_PROPS, v_type_str)?;
-                }
-                for (name, prop_view) in v.properties().temporal().iter() {
-                    for (t, prop) in prop_view.iter() {
-                        g.add_node(t, v.id(), [(name.clone(), prop)], v_type_str)?;
+                let nodes = self.nodes();
+                for node in nodes.iter() {
+                    if let Some(new_node) = shard.get_mut(node_map[node.node.index()]) {
+                        if let Some(earliest) = node.earliest_time() {
+                            // explicitly add node earliest_time to handle PersistentGraph
+                            new_node.update_time(TimeIndexEntry::start(earliest))
+                        }
+                        for t in node.history() {
+                            new_node.update_time(TimeIndexEntry::start(t));
+                        }
+                        for prop_id in node.temporal_prop_ids() {
+                            let prop_name = self.node_meta().temporal_prop_meta().get_name(prop_id);
+                            let prop_type = self
+                                .node_meta()
+                                .temporal_prop_meta()
+                                .get_dtype(prop_id)
+                                .unwrap();
+                            let new_prop_id = g
+                                .resolve_node_property(&prop_name, prop_type, false)?
+                                .inner();
+                            for (t, prop_value) in self.temporal_node_prop_hist(node.node, prop_id)
+                            {
+                                new_node.add_prop(t, new_prop_id, prop_value)?;
+                            }
+                        }
+                        for (c_prop_name, prop_value) in node.properties().constant().iter() {
+                            let prop_id = g
+                                .resolve_node_property(&c_prop_name, prop_value.dtype(), true)?
+                                .inner();
+                            new_node.add_constant_prop(prop_id, prop_value)?;
+                        }
                     }
                 }
 
-                let node = match g.node(v.id()) {
-                    Some(node) => node,
-                    None => g.add_node(earliest, v.id(), NO_PROPS, v_type_str)?,
-                };
-
-                node.add_constant_properties(v.properties().constant())?;
-            }
+                Ok::<(), GraphError>(())
+            })?;
 
             g.add_constant_properties(self.properties().constant())?;
         }
 
-        Ok(self.new_base_graph(g))
+        Ok(self.new_base_graph(g.into()))
     }
 
     fn subgraph<I: IntoIterator<Item = V>, V: AsNodeRef>(&self, nodes: I) -> NodeSubgraph<G> {

@@ -204,7 +204,7 @@ pub trait TimeSemantics {
     /// A vector of tuples representing the temporal values of the property for the given node
     /// that fall within the specified time window, where the first element of each tuple is the timestamp
     /// and the second element is the property value.
-    fn temporal_node_prop_vec(&self, v: VID, id: usize) -> Vec<(i64, Prop)>;
+    fn temporal_node_prop_hist(&self, v: VID, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)>;
 
     /// Check if node has temporal property with the given id in the window
     ///
@@ -230,13 +230,13 @@ pub trait TimeSemantics {
     /// A vector of tuples representing the temporal values of the property for the given node
     /// that fall within the specified time window, where the first element of each tuple is the timestamp
     /// and the second element is the property value.
-    fn temporal_node_prop_vec_window(
+    fn temporal_node_prop_hist_window(
         &self,
         v: VID,
         id: usize,
         start: i64,
         end: i64,
-    ) -> Vec<(i64, Prop)>;
+    ) -> BoxedLIter<(TimeIndexEntry, Prop)>;
 
     /// Check if edge has temporal property with the given id in the window
     ///
@@ -268,14 +268,14 @@ pub trait TimeSemantics {
     /// * A `Vec` of tuples containing the values of the temporal property with the given name for the given edge
     /// within the specified time window.
     ///
-    fn temporal_edge_prop_vec_window(
-        &self,
+    fn temporal_edge_prop_hist_window<'a>(
+        &'a self,
         e: EdgeRef,
         id: usize,
         start: i64,
         end: i64,
-        layer_ids: &LayerIds,
-    ) -> Vec<(i64, Prop)>;
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, (TimeIndexEntry, Prop)>;
 
     /// Check if edge has temporal property with the given id
     ///
@@ -296,12 +296,12 @@ pub trait TimeSemantics {
     /// Returns:
     ///
     /// * A `Vec` of tuples containing the values of the temporal property with the given name for the given edge.
-    fn temporal_edge_prop_vec(
-        &self,
+    fn temporal_edge_prop_hist<'a>(
+        &'a self,
         e: EdgeRef,
         id: usize,
-        layer_ids: &LayerIds,
-    ) -> Vec<(i64, Prop)>;
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, (TimeIndexEntry, Prop)>;
 }
 
 pub trait InheritTimeSemantics: Base {}
@@ -540,8 +540,12 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
     }
 
     #[inline]
-    fn temporal_node_prop_vec(&self, v: VID, prop_id: usize) -> Vec<(i64, Prop)> {
-        self.graph().temporal_node_prop_vec(v, prop_id)
+    fn temporal_node_prop_hist(
+        &self,
+        v: VID,
+        prop_id: usize,
+    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+        self.graph().temporal_node_prop_hist(v, prop_id)
     }
 
     #[inline]
@@ -550,15 +554,15 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
     }
 
     #[inline]
-    fn temporal_node_prop_vec_window(
+    fn temporal_node_prop_hist_window(
         &self,
         v: VID,
         prop_id: usize,
         start: i64,
         end: i64,
-    ) -> Vec<(i64, Prop)> {
+    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         self.graph()
-            .temporal_node_prop_vec_window(v, prop_id, start, end)
+            .temporal_node_prop_hist_window(v, prop_id, start, end)
     }
 
     fn has_temporal_edge_prop_window(
@@ -573,29 +577,30 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
     }
 
     #[inline]
-    fn temporal_edge_prop_vec_window(
-        &self,
+    fn temporal_edge_prop_hist_window<'a>(
+        &'a self,
         e: EdgeRef,
         prop_id: usize,
         start: i64,
         end: i64,
-        layer_ids: &LayerIds,
-    ) -> Vec<(i64, Prop)> {
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, (TimeIndexEntry, Prop)> {
         self.graph()
-            .temporal_edge_prop_vec_window(e, prop_id, start, end, layer_ids)
+            .temporal_edge_prop_hist_window(e, prop_id, start, end, layer_ids)
     }
 
+    #[inline]
     fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: &LayerIds) -> bool {
         self.graph().has_temporal_edge_prop(e, prop_id, layer_ids)
     }
 
     #[inline]
-    fn temporal_edge_prop_vec(
-        &self,
+    fn temporal_edge_prop_hist<'a>(
+        &'a self,
         e: EdgeRef,
         prop_id: usize,
-        layer_ids: &LayerIds,
-    ) -> Vec<(i64, Prop)> {
-        self.graph().temporal_edge_prop_vec(e, prop_id, layer_ids)
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, (TimeIndexEntry, Prop)> {
+        self.graph().temporal_edge_prop_hist(e, prop_id, layer_ids)
     }
 }

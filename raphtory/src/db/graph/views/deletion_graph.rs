@@ -554,8 +554,12 @@ impl TimeSemantics for PersistentGraph {
         self.0.has_temporal_node_prop(v, prop_id)
     }
 
-    fn temporal_node_prop_vec(&self, v: VID, prop_id: usize) -> Vec<(i64, Prop)> {
-        self.0.temporal_node_prop_vec(v, prop_id)
+    fn temporal_node_prop_hist(
+        &self,
+        v: VID,
+        prop_id: usize,
+    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+        self.0.temporal_node_prop_hist(v, prop_id)
     }
 
     fn has_temporal_node_prop_window(&self, v: VID, prop_id: usize, w: Range<i64>) -> bool {
@@ -563,20 +567,23 @@ impl TimeSemantics for PersistentGraph {
             .has_temporal_node_prop_window(v, prop_id, i64::MIN..w.end)
     }
 
-    fn temporal_node_prop_vec_window(
+    fn temporal_node_prop_hist_window(
         &self,
         v: VID,
         prop_id: usize,
         start: i64,
         end: i64,
-    ) -> Vec<(i64, Prop)> {
+    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         let node = self.core_node_entry(v);
-        let prop = node.tprop(prop_id);
-        prop.last_before(start.saturating_add(1))
-            .into_iter()
-            .map(|(_, v)| (start, v))
-            .chain(prop.iter_window_t(start.saturating_add(1)..end))
-            .collect()
+        GenLockedIter::from(node, move |node| {
+            let prop = node.tprop(prop_id);
+            prop.last_before(start.saturating_add(1))
+                .into_iter()
+                .map(move |(_, v)| (TimeIndexEntry::start(start), v))
+                .chain(prop.iter_window(TimeIndexEntry::range(start.saturating_add(1)..end)))
+                .into_dyn_boxed()
+        })
+        .into_dyn_boxed()
     }
 
     fn has_temporal_edge_prop_window(
@@ -612,45 +619,48 @@ impl TimeSemantics for PersistentGraph {
         }
     }
 
-    fn temporal_edge_prop_vec_window(
-        &self,
+    fn temporal_edge_prop_hist_window<'a>(
+        &'a self,
         e: EdgeRef,
         prop_id: usize,
         start: i64,
         end: i64,
-        layer_ids: &LayerIds,
-    ) -> Vec<(i64, Prop)> {
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, (TimeIndexEntry, Prop)> {
         let entry = self.core_edge(e.into());
-        entry
-            .temporal_prop_iter(layer_ids, prop_id)
-            .map(|(l, prop)| {
-                let first_prop = prop
-                    .last_before(start.saturating_add(1))
-                    .filter(|(t, _)| {
-                        !entry
-                            .deletions(l)
-                            .active(*t..TimeIndexEntry::start(start.saturating_add(1)))
-                    })
-                    .map(|(_, v)| (start, v));
-                first_prop
-                    .into_iter()
-                    .chain(prop.iter_window_t(start.saturating_add(1)..end))
-            })
-            .kmerge_by(|(t1, _), (t2, _)| t1 <= t2)
-            .collect()
+        GenLockedIter::from(entry, |entry| {
+            entry
+                .temporal_prop_iter(layer_ids, prop_id)
+                .map(|(l, prop)| {
+                    let first_prop = prop
+                        .last_before(start.saturating_add(1))
+                        .filter(|(t, _)| {
+                            !entry
+                                .deletions(l)
+                                .active(*t..TimeIndexEntry::start(start.saturating_add(1)))
+                        })
+                        .map(|(_, v)| (TimeIndexEntry::start(start), v));
+                    first_prop.into_iter().chain(
+                        prop.iter_window(TimeIndexEntry::range(start.saturating_add(1)..end)),
+                    )
+                })
+                .kmerge_by(|(t1, _), (t2, _)| t1 <= t2)
+                .into_dyn_boxed()
+        })
+        .into_dyn_boxed()
     }
 
     fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: &LayerIds) -> bool {
         self.0.has_temporal_edge_prop(e, prop_id, layer_ids)
     }
 
-    fn temporal_edge_prop_vec(
-        &self,
+    fn temporal_edge_prop_hist<'a>(
+        &'a self,
         e: EdgeRef,
         prop_id: usize,
-        layer_ids: &LayerIds,
-    ) -> Vec<(i64, Prop)> {
-        self.0.temporal_edge_prop_vec(e, prop_id, layer_ids)
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, (TimeIndexEntry, Prop)> {
+        self.0.temporal_edge_prop_hist(e, prop_id, layer_ids)
     }
 }
 

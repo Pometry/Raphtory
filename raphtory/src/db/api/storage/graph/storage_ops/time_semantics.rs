@@ -1,4 +1,4 @@
-use std::ops::Range;
+use std::{iter, ops::Range};
 
 use itertools::{kmerge, Itertools};
 use raphtory_api::core::{
@@ -312,9 +312,9 @@ impl TimeSemantics for GraphStorage {
         node.tprop(prop_id).len() > 0
     }
 
-    fn temporal_node_prop_vec(&self, v: VID, id: usize) -> Vec<(i64, Prop)> {
+    fn temporal_node_prop_hist(&self, v: VID, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         let node = self.node_entry(v);
-        node.tprop(id).iter_t().collect()
+        GenLockedIter::from(node, |node| node.tprop(id).iter().into_dyn_boxed()).into_dyn_boxed()
     }
 
     fn has_temporal_node_prop_window(&self, v: VID, prop_id: usize, w: Range<i64>) -> bool {
@@ -324,15 +324,20 @@ impl TimeSemantics for GraphStorage {
         iter_window_t.next().is_some()
     }
 
-    fn temporal_node_prop_vec_window(
+    fn temporal_node_prop_hist_window(
         &self,
         v: VID,
         id: usize,
         start: i64,
         end: i64,
-    ) -> Vec<(i64, Prop)> {
+    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         let node = self.node_entry(v);
-        node.tprop(id).iter_window_t(start..end).collect()
+        GenLockedIter::from(node, |node| {
+            node.tprop(id)
+                .iter_window(TimeIndexEntry::range(start..end))
+                .into_dyn_boxed()
+        })
+        .into_dyn_boxed()
     }
 
     fn has_temporal_edge_prop_window(
@@ -348,31 +353,37 @@ impl TimeSemantics for GraphStorage {
             .any(|(_, p)| p.active(w.clone()))
     }
 
-    fn temporal_edge_prop_vec_window(
-        &self,
+    fn temporal_edge_prop_hist_window<'a>(
+        &'a self,
         e: EdgeRef,
         prop_id: usize,
         start: i64,
         end: i64,
-        layer_ids: &LayerIds,
-    ) -> Vec<(i64, Prop)> {
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, (TimeIndexEntry, Prop)> {
         let entry = self.core_edge(e.into());
         match e.time() {
             Some(t) => {
                 if (start..end).contains(&t.t()) {
-                    entry
-                        .temporal_prop_iter(layer_ids, prop_id)
-                        .flat_map(|(_, p)| p.at(&t).map(|v| (t.t(), v)))
-                        .collect()
+                    GenLockedIter::from(entry, move |entry| {
+                        entry
+                            .temporal_prop_iter(layer_ids, prop_id)
+                            .flat_map(move |(_, p)| p.at(&t).map(move |v| (t, v)))
+                            .into_dyn_boxed()
+                    })
+                    .into_dyn_boxed()
                 } else {
-                    vec![]
+                    iter::empty().into_dyn_boxed()
                 }
             }
-            None => entry
-                .temporal_prop_iter(layer_ids, prop_id)
-                .map(|(_, p)| p.iter_window_t(start..end))
-                .kmerge()
-                .collect(),
+            None => GenLockedIter::from(entry, |entry| {
+                entry
+                    .temporal_prop_iter(layer_ids, prop_id)
+                    .map(|(_, p)| p.iter_window(TimeIndexEntry::range(start..end)))
+                    .kmerge()
+                    .into_dyn_boxed()
+            })
+            .into_dyn_boxed(),
         }
     }
 
@@ -381,23 +392,29 @@ impl TimeSemantics for GraphStorage {
         (&entry).has_temporal_prop(layer_ids, prop_id)
     }
 
-    fn temporal_edge_prop_vec(
-        &self,
+    fn temporal_edge_prop_hist<'a>(
+        &'a self,
         e: EdgeRef,
         prop_id: usize,
-        layer_ids: &LayerIds,
-    ) -> Vec<(i64, Prop)> {
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         let entry = self.core_edge(e.into());
         match e.time() {
-            Some(t) => entry
-                .temporal_prop_iter(layer_ids, prop_id)
-                .flat_map(|(_, p)| p.at(&t).map(|v| (t.t(), v)))
-                .collect(),
-            None => entry
-                .temporal_prop_iter(layer_ids, prop_id)
-                .map(|(_, p)| p.iter_t())
-                .kmerge()
-                .collect(),
+            Some(t) => GenLockedIter::from(entry, move |entry| {
+                entry
+                    .temporal_prop_iter(layer_ids, prop_id)
+                    .flat_map(move |(_, p)| p.at(&t).map(move |v| (t, v)))
+                    .into_dyn_boxed()
+            })
+            .into_dyn_boxed(),
+            None => GenLockedIter::from(entry, |entry| {
+                entry
+                    .temporal_prop_iter(layer_ids, prop_id)
+                    .map(|(_, p)| p.iter())
+                    .kmerge()
+                    .into_dyn_boxed()
+            })
+            .into_dyn_boxed(),
         }
     }
 }
