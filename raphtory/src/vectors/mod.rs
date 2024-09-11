@@ -107,10 +107,6 @@ mod vector_tests {
     use super::*;
     use crate::{
         core::Prop,
-        db::{
-            api::view::StaticGraphViewOps,
-            graph::{edge::EdgeView, node::NodeView},
-        },
         prelude::{AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps},
         vectors::{embeddings::openai_embedding, vectorisable::Vectorisable},
     };
@@ -220,7 +216,7 @@ mod vector_tests {
 
         let template = custom_template();
         let doc: DocumentInput = template
-            .node(&g.node("Frodo").unwrap())
+            .node(g.node("Frodo").unwrap())
             .next()
             .unwrap()
             .into();

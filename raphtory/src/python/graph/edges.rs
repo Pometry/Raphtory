@@ -2,8 +2,7 @@ use crate::{
     core::{utils::errors::GraphError, Prop},
     db::{
         api::view::{
-            internal::CoreGraphOps, BoxedIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
-            StaticGraphViewOps,
+            internal::CoreGraphOps, DynamicGraph, IntoDynBoxed, IntoDynamic, StaticGraphViewOps,
         },
         graph::{
             edge::EdgeView,

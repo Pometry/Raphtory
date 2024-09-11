@@ -6,16 +6,15 @@ use raphtory_api::core::storage::arc_str::ArcStr;
 use serde::Serialize;
 use std::sync::Arc;
 
+use super::datetimeformat::datetimeformat;
 use crate::{
     core::{DocumentInput, Prop},
     db::{
         api::{properties::TemporalPropertyView, view::StaticGraphViewOps},
         graph::{edge::EdgeView, node::NodeView},
     },
-    prelude::{EdgeViewOps, NodeViewOps},
+    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
 };
-
-use super::datetimeformat::datetimeformat;
 
 #[derive(Debug)]
 struct PropUpdate {
@@ -23,7 +22,7 @@ struct PropUpdate {
     value: Value,
 }
 
-impl<G: StaticGraphViewOps> From<TemporalPropertyView<NodeView<G>>> for Value {
+impl<'graph, G: GraphViewOps<'graph>> From<TemporalPropertyView<NodeView<G>>> for Value {
     fn from(value: TemporalPropertyView<NodeView<G>>) -> Self {
         value
             .iter()
@@ -73,8 +72,8 @@ struct NodeTemplateContext {
     temporal_props: Value,
 }
 
-impl<G: StaticGraphViewOps> From<&NodeView<G>> for NodeTemplateContext {
-    fn from(value: &NodeView<G>) -> Self {
+impl<'graph, G: GraphViewOps<'graph>> From<NodeView<G>> for NodeTemplateContext {
+    fn from(value: NodeView<G>) -> Self {
         Self {
             name: value.name(),
             node_type: value.node_type(),
@@ -193,9 +192,9 @@ impl DocumentTemplate {
     }
 
     /// A function that translate a node into an iterator of documents
-    pub(crate) fn node<G: StaticGraphViewOps>(
+    pub(crate) fn node<'graph, G: GraphViewOps<'graph>>(
         &self,
-        node: &NodeView<G>,
+        node: NodeView<G>,
     ) -> Box<dyn Iterator<Item = DocumentInput>> {
         match &self.node_template {
             Some(template) => {
@@ -216,7 +215,7 @@ impl DocumentTemplate {
     /// A function that translate an edge into an iterator of documents
     pub(crate) fn edge<G: StaticGraphViewOps>(
         &self,
-        edge: &EdgeView<G, G>,
+        edge: EdgeView<&G, &G>,
     ) -> Box<dyn Iterator<Item = DocumentInput>> {
         match &self.edge_template {
             Some(template) => {
@@ -255,11 +254,11 @@ struct EdgeTemplateContext {
     props: Value,
 }
 
-impl<G: StaticGraphViewOps> From<&EdgeView<G>> for EdgeTemplateContext {
-    fn from(value: &EdgeView<G>) -> Self {
+impl<G: StaticGraphViewOps> From<EdgeView<&G>> for EdgeTemplateContext {
+    fn from(value: EdgeView<&G>) -> Self {
         Self {
-            src: (&value.src()).into(),
-            dst: (&value.dst()).into(),
+            src: (value.src()).into(),
+            dst: (value.dst()).into(),
             history: value.history(),
             layers: value
                 .layer_names()
@@ -326,7 +325,7 @@ mod template_tests {
             edge_template: None,
         };
 
-        let mut docs = template.node(&graph.node("node1").unwrap());
+        let mut docs = template.node(graph.node("node1").unwrap());
         let rendered = docs.next().unwrap().content;
         let expected = indoc! {"
             node node1 is an unknown entity with the following props:
@@ -340,7 +339,7 @@ mod template_tests {
         "};
         assert_eq!(&rendered, expected);
 
-        let mut docs = template.node(&graph.node("node2").unwrap());
+        let mut docs = template.node(graph.node("node2").unwrap());
         let rendered = docs.next().unwrap().content;
         let expected = indoc! {"
             node node2 is a person with the following props:
@@ -364,7 +363,7 @@ mod template_tests {
             edge_template: None,
         };
 
-        let mut docs = template.node(&graph.node("node1").unwrap());
+        let mut docs = template.node(graph.node("node1").unwrap());
         let rendered = docs.next().unwrap().content;
         let expected = "September 9 2024 09:08:01";
         assert_eq!(&rendered, expected);

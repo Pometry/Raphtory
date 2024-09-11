@@ -1,6 +1,5 @@
 use crate::{
     db::api::view::{internal::IntoDynamic, StaticGraphViewOps},
-    prelude::GraphViewOps,
     vectors::{
         document_ref::DocumentRef, embedding_cache::EmbeddingCache, entity_id::EntityId,
         template::DocumentTemplate, vectorised_graph::VectorisedGraph, EmbeddingFunction, Lifespan,
@@ -63,12 +62,13 @@ impl<G: StaticGraphViewOps + IntoDynamic> Vectorisable<G> for G {
                     index,
                     life: doc.life,
                 });
-        let nodes = self.nodes().iter_owned().flat_map(|node| {
+        let nodes = self.nodes();
+        let nodes_iter = nodes.iter().flat_map(|node| {
             template
-                .node(&node)
+                .node(node)
                 .enumerate()
                 .map(move |(index, doc)| IndexedDocumentInput {
-                    entity_id: EntityId::from_node(&node),
+                    entity_id: EntityId::from_node(node),
                     content: doc.content,
                     index,
                     life: doc.life,
@@ -103,7 +103,8 @@ impl<G: StaticGraphViewOps + IntoDynamic> Vectorisable<G> for G {
         if verbose {
             println!("computing embeddings for nodes");
         }
-        let node_refs = compute_embedding_groups(nodes, embedding.as_ref(), &cache_storage).await;
+        let node_refs =
+            compute_embedding_groups(nodes_iter, embedding.as_ref(), &cache_storage).await;
 
         if verbose {
             println!("computing embeddings for edges");

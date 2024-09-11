@@ -1,5 +1,5 @@
 use raphtory::{
-    db::{api::view::StaticGraphViewOps, graph::node::NodeView},
+    db::graph::node::NodeView,
     prelude::{GraphViewOps, NodeViewOps},
 };
 use std::collections::{HashMap, HashSet};
