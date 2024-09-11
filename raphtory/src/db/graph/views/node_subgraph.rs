@@ -102,8 +102,8 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for NodeSubgraph<G> {
 #[cfg(test)]
 mod subgraph_tests {
     use crate::{
-        algorithms::motifs::triangle_count::triangle_count, prelude::*, test_storage,
-        test_utils::test_graph,
+        algorithms::motifs::triangle_count::triangle_count, db::graph::graph::assert_graph_equal,
+        prelude::*, test_storage, test_utils::test_graph,
     };
     use itertools::Itertools;
 
@@ -119,7 +119,7 @@ mod subgraph_tests {
             let sg = graph.subgraph([1, 2]);
 
             let actual = sg.materialize().unwrap().into_events().unwrap();
-            assert_eq!(actual, sg);
+            assert_graph_equal(&actual, &sg);
         });
     }
 

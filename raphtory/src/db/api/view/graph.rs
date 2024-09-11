@@ -27,17 +27,23 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
-use raphtory_api::core::{
-    entities::EID,
-    storage::{
-        arc_str::{ArcStr, OptionAsStr},
-        timeindex::TimeIndexEntry,
+use raphtory_api::{
+    atomic_extra::atomic_usize_from_mut_slice,
+    core::{
+        entities::EID,
+        storage::{
+            arc_str::{ArcStr, OptionAsStr},
+            timeindex::TimeIndexEntry,
+        },
+        Direction,
     },
-    Direction,
 };
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
-use std::{borrow::Borrow, sync::Arc};
+use std::{
+    borrow::Borrow,
+    sync::{atomic::Ordering, Arc},
+};
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types
@@ -189,35 +195,66 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
             }
         };
 
-        let mut node_map = vec![VID::default(); storage.unfiltered_num_nodes()];
-        storage
-            .nodes_par_opt(self, None)
-            .zip(node_map.par_iter_mut())
-            .try_for_each(|(node, entry)| {
-                if let Some(node) = node {
-                    let node_type_id = node.node_type_id();
-                    let new_id = if node_type_id != 0 {
-                        g.resolve_node_and_type(
-                            node.id(),
-                            self.node_meta()
-                                .get_node_type_name_by_id(node_type_id)
-                                .as_str()
-                                .unwrap(),
-                        )?
-                        .inner()
-                        .0
-                        .inner()
-                    } else {
-                        g.resolve_node(node.id())?.inner()
-                    };
-                    *entry = new_id;
+        {
+            // scope for the write lock
+            let mut new_storage = g.write_lock()?;
+            new_storage.nodes.resize(self.count_nodes());
+
+            let mut node_map = vec![VID::default(); storage.unfiltered_num_nodes()];
+            let node_map_shared =
+                atomic_usize_from_mut_slice(bytemuck::cast_slice_mut(&mut node_map));
+
+            new_storage.nodes.par_iter_mut().try_for_each(|mut shard| {
+                for (index, node) in self.nodes().iter().enumerate() {
+                    let new_id = VID(index);
+                    let gid = node.id();
+                    if let Some(new_node) = shard.get_mut(new_id) {
+                        node_map_shared[node.node.index()].store(index, Ordering::Relaxed);
+                        if let Some(node_type) = node.node_type() {
+                            let new_type_id = g
+                                .node_meta
+                                .node_type_meta()
+                                .get_or_create_id(&node_type)
+                                .inner();
+                            new_node.node_type = new_type_id;
+                        }
+                        new_node.vid = new_id;
+                        g.logical_to_physical.set((&gid).into(), new_id)?;
+                        new_node.global_id = gid;
+
+                        if let Some(earliest) = node.earliest_time() {
+                            // explicitly add node earliest_time to handle PersistentGraph
+                            new_node.update_time(TimeIndexEntry::start(earliest))
+                        }
+                        for t in node.history() {
+                            new_node.update_time(TimeIndexEntry::start(t));
+                        }
+                        for prop_id in node.temporal_prop_ids() {
+                            let prop_name = self.node_meta().temporal_prop_meta().get_name(prop_id);
+                            let prop_type = self
+                                .node_meta()
+                                .temporal_prop_meta()
+                                .get_dtype(prop_id)
+                                .unwrap();
+                            let new_prop_id = g
+                                .resolve_node_property(&prop_name, prop_type, false)?
+                                .inner();
+                            for (t, prop_value) in self.temporal_node_prop_hist(node.node, prop_id)
+                            {
+                                new_node.add_prop(t, new_prop_id, prop_value)?;
+                            }
+                        }
+                        for (c_prop_name, prop_value) in node.properties().constant().iter() {
+                            let prop_id = g
+                                .resolve_node_property(&c_prop_name, prop_value.dtype(), true)?
+                                .inner();
+                            new_node.add_constant_prop(prop_id, prop_value)?;
+                        }
+                    }
                 }
                 Ok::<(), GraphError>(())
             })?;
 
-        {
-            // scope for the write lock
-            let mut new_storage = g.write_lock()?;
             new_storage.edges.par_iter_mut().try_for_each(|mut shard| {
                 for (eid, edge) in self.edges().iter().enumerate() {
                     if let Some(mut new_edge) = shard.get_mut(EID(eid)) {
@@ -303,39 +340,6 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                                 *ee.edge.layer().unwrap(),
                                 EID(eid),
                             );
-                        }
-                    }
-                }
-                let nodes = self.nodes();
-                for node in nodes.iter() {
-                    if let Some(new_node) = shard.get_mut(node_map[node.node.index()]) {
-                        if let Some(earliest) = node.earliest_time() {
-                            // explicitly add node earliest_time to handle PersistentGraph
-                            new_node.update_time(TimeIndexEntry::start(earliest))
-                        }
-                        for t in node.history() {
-                            new_node.update_time(TimeIndexEntry::start(t));
-                        }
-                        for prop_id in node.temporal_prop_ids() {
-                            let prop_name = self.node_meta().temporal_prop_meta().get_name(prop_id);
-                            let prop_type = self
-                                .node_meta()
-                                .temporal_prop_meta()
-                                .get_dtype(prop_id)
-                                .unwrap();
-                            let new_prop_id = g
-                                .resolve_node_property(&prop_name, prop_type, false)?
-                                .inner();
-                            for (t, prop_value) in self.temporal_node_prop_hist(node.node, prop_id)
-                            {
-                                new_node.add_prop(t, new_prop_id, prop_value)?;
-                            }
-                        }
-                        for (c_prop_name, prop_value) in node.properties().constant().iter() {
-                            let prop_id = g
-                                .resolve_node_property(&c_prop_name, prop_value.dtype(), true)?
-                                .inner();
-                            new_node.add_constant_prop(prop_id, prop_value)?;
                         }
                     }
                 }
