@@ -1655,7 +1655,13 @@ mod db_tests {
             .add_edge(3, 1, 2, vec![("weight".to_string(), Prop::I64(3))], None)
             .unwrap();
         test_storage!(&graph, |graph| {
-            let e = graph.node(1).unwrap().out_edges().iter().next().unwrap();
+            let e = graph
+                .node(1)
+                .unwrap()
+                .out_edges()
+                .into_iter()
+                .next()
+                .unwrap();
             let res: HashMap<ArcStr, Vec<(i64, Prop)>> = e
                 .window(1, 3)
                 .properties()
@@ -1900,7 +1906,7 @@ mod db_tests {
                 .explode_layers()
                 .iter()
                 .flat_map(|e| {
-                    e.explode().iter().filter_map(|e| {
+                    e.explode().into_iter().filter_map(|e| {
                         e.edge
                             .layer()
                             .zip(e.time().ok())
@@ -1936,7 +1942,7 @@ mod db_tests {
                 .explode_layers()
                 .iter()
                 .flat_map(|e| {
-                    e.explode().iter().filter_map(|e| {
+                    e.explode().into_iter().filter_map(|e| {
                         e.edge
                             .layer()
                             .zip(Some(e.time().unwrap()))

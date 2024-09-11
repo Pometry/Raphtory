@@ -1,9 +1,9 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use raphtory::prelude::*;
 use rand::{
     distributions::{Alphanumeric, DistString},
     thread_rng, Rng,
 };
+use raphtory::prelude::*;
 
 fn random_string(n: usize) -> String {
     Alphanumeric.sample_string(&mut thread_rng(), n)

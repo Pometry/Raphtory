@@ -27,7 +27,7 @@ use crate::{
             storage::graph::edges::edge_storage_ops::EdgeStorageOps,
             view::{
                 internal::{OneHopFilter, Static},
-                BaseEdgeViewOps, IntoDynBoxed, StaticGraphViewOps,
+                Base, BaseEdgeViewOps, IntoDynBoxed, StaticGraphViewOps,
             },
         },
         graph::{edges::Edges, node::NodeView},
@@ -41,7 +41,7 @@ use std::{
 };
 
 /// A view of an edge in the graph.
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 pub struct EdgeView<G, GH = G> {
     pub base_graph: G,
     /// A view of an edge in the graph.
@@ -56,6 +56,32 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeView<G, G> {
     pub fn new(graph: G, edge: EdgeRef) -> Self {
         let base_graph = graph.clone();
         Self {
+            base_graph,
+            graph,
+            edge,
+        }
+    }
+}
+
+impl<G: Clone, GH: Clone> EdgeView<&G, &GH> {
+    pub fn cloned(&self) -> EdgeView<G, GH> {
+        let graph = self.graph.clone();
+        let base_graph = self.base_graph.clone();
+        let edge = self.edge;
+        EdgeView {
+            base_graph,
+            graph,
+            edge,
+        }
+    }
+}
+
+impl<G, GH> EdgeView<G, GH> {
+    pub fn as_ref(&self) -> EdgeView<&G, &GH> {
+        let graph = &self.graph;
+        let base_graph = &self.base_graph;
+        let edge = self.edge;
+        EdgeView {
             base_graph,
             graph,
             edge,

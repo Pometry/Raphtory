@@ -1,15 +1,11 @@
-use criterion::Criterion;
+use criterion::{criterion_group, criterion_main, Criterion};
 use raphtory::{graph_loader::sx_superuser_graph::sx_superuser_graph, prelude::Graph};
 use raphtory_benchmark::common::bench_materialise;
 
-pub fn bench() {
+pub fn bench(c: &mut Criterion) {
     let graph = sx_superuser_graph().unwrap();
+    bench_materialise("materialise", c, || graph.clone());
 }
 
-pub fn run_materialise_bench(c: &mut Criterion, graph_name: &str, graph: Graph) {
-    let mut graph_group = c.benchmark_group(graph_name);
-    let make_graph = || graph.clone();
-    graph_group.finish();
-
-    bench_materialise(&format!("{graph_name}_materialise"), c, make_graph);
-}
+criterion_group!(benches, bench);
+criterion_main!(benches);

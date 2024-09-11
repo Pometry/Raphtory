@@ -237,7 +237,7 @@ mod vector_tests {
 
         let template = custom_template();
         let doc: DocumentInput = template
-            .edge(&g.edge("Frodo", "Gandalf").unwrap())
+            .edge(g.edge("Frodo", "Gandalf").unwrap().as_ref())
             .next()
             .unwrap()
             .into();
@@ -261,7 +261,7 @@ mod vector_tests {
     //                 .map(|text| text.into()),
     //         )
     //     }
-    //     fn edge(&self, _edge: &EdgeView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+    //     fn edge(&self, _edge: EdgeView<&G, &G>) -> Box<dyn Iterator<Item = DocumentInput>> {
     //         Box::new(std::iter::empty())
     //     }
     // }

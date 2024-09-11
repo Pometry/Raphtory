@@ -15,8 +15,8 @@ use raphtory::{
     graphgen::random_attachment::random_attachment,
     prelude::*,
 };
-use rayon::prelude::*;
 use raphtory_benchmark::common::bench;
+use rayon::prelude::*;
 
 pub fn local_triangle_count_analysis(c: &mut Criterion) {
     let mut group = c.benchmark_group("local_triangle_count");

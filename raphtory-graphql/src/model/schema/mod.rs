@@ -1,6 +1,6 @@
 use raphtory::{
     db::{api::view::StaticGraphViewOps, graph::node::NodeView},
-    prelude::NodeViewOps,
+    prelude::{GraphViewOps, NodeViewOps},
 };
 use std::collections::{HashMap, HashSet};
 
@@ -12,7 +12,7 @@ pub(crate) mod property_schema;
 
 const ENUM_BOUNDARY: usize = 20;
 
-fn get_node_type<G: StaticGraphViewOps>(node: NodeView<G>) -> String {
+fn get_node_type<'graph, G: GraphViewOps<'graph>>(node: NodeView<G>) -> String {
     let prop = node.properties().get("type");
     prop.map(|prop| prop.to_string())
         .unwrap_or_else(|| "NONE".to_string())

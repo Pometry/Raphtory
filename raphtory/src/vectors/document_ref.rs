@@ -119,7 +119,7 @@ impl DocumentRef {
                 src: original_graph.node(src).unwrap().name(),
                 dst: original_graph.node(dst).unwrap().name(),
                 content: template
-                    .edge(&original_graph.edge(src, dst).unwrap())
+                    .edge(original_graph.edge(src, dst).unwrap().as_ref())
                     .nth(self.index)
                     .unwrap()
                     .content,

@@ -31,7 +31,7 @@ impl EntityId {
         Self::Node { id: node.id() }
     }
 
-    pub(crate) fn from_edge<G: StaticGraphViewOps>(edge: &EdgeView<G>) -> Self {
+    pub(crate) fn from_edge<G: StaticGraphViewOps>(edge: EdgeView<&G>) -> Self {
         Self::Edge {
             src: edge.src().id(),
             dst: edge.dst().id(),
