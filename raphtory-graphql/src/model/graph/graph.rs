@@ -1,5 +1,5 @@
 use crate::{
-    data::{get_graph_name, Data},
+    data::{Data, ExistingGraphFolder},
     model::{
         algorithms::graph_algorithms::GraphAlgorithms,
         graph::{
@@ -30,12 +30,12 @@ use std::{collections::HashSet, convert::Into, path::PathBuf, sync::Arc};
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlGraph {
-    path: PathBuf,
+    path: ExistingGraphFolder,
     graph: IndexedGraph<DynamicGraph>,
 }
 
 impl GqlGraph {
-    pub fn new<G: DynamicIndexedGraph>(path: PathBuf, graph: G) -> Self {
+    pub fn new<G: DynamicIndexedGraph>(path: ExistingGraphFolder, graph: G) -> Self {
         Self {
             path,
             graph: graph.into_dynamic_indexed(),
@@ -320,13 +320,15 @@ impl GqlGraph {
     //These name/path functions basically can only fail
     //if someone write non-utf characters as a filename
     async fn name(&self) -> Result<String, GraphError> {
-        get_graph_name(&self.path)
+        self.path.get_graph_name()
     }
     async fn path(&self) -> Result<String, GraphError> {
-        self.path
+        Ok(self
+            .path
+            .user_facing_path
             .to_str()
-            .map(|s| s.to_string())
-            .ok_or(PathNotParsable(self.path.to_path_buf()).into())
+            .ok_or(PathNotParsable(self.path.user_facing_path.clone()))?
+            .to_owned())
     }
 
     async fn schema(&self) -> GraphSchema {

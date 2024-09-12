@@ -1,16 +1,17 @@
 use crate::core::{DocumentInput, Lifespan};
 use futures_util::future::BoxFuture;
-use std::{future::Future, sync::Arc};
+use std::{future::Future, ops::Deref, sync::Arc};
 
 pub mod datetimeformat;
 mod document_ref;
-mod embedding_cache;
+pub mod embedding_cache;
 pub mod embeddings;
 mod entity_id;
 mod similarity_search_utils;
 pub mod splitting;
 pub mod template;
 pub mod vector_selection;
+mod vector_storage;
 pub mod vectorisable;
 pub mod vectorised_cluster;
 pub mod vectorised_graph;
@@ -99,6 +100,12 @@ where
 {
     fn call(&self, texts: Vec<String>) -> BoxFuture<'static, Vec<Embedding>> {
         Box::pin(self(texts))
+    }
+}
+
+impl EmbeddingFunction for Arc<dyn EmbeddingFunction> {
+    fn call(&self, texts: Vec<String>) -> BoxFuture<'static, Vec<Embedding>> {
+        Box::pin(self.deref().call(texts))
     }
 }
 

@@ -49,10 +49,10 @@ impl PyGlobalPlugins {
         window: PyWindow,
     ) -> Vec<(PyDocument, f32)> {
         let window = translate_window(window);
-        let graphs = self.0.vectorised_graphs.read();
+        let graphs = self.0.graphs;
         let cluster = VectorisedCluster::new(&graphs);
-        let vectorised_graphs = self.0.vectorised_graphs.read();
-        let graph_entry = vectorised_graphs.iter().next();
+        // let vectorised_graphs = self.0.vectorised_graphs.read();
+        let graph_entry = graphs.iter().next();
         let (_, first_graph) = graph_entry
             .expect("trying to search documents with no vectorised graphs on the server");
         let embedding = compute_embedding(first_graph, query);
@@ -60,7 +60,7 @@ impl PyGlobalPlugins {
         documents.into_iter().map(|(doc, score)| {
             let graph = match &doc {
                 Document::Graph { name, .. } => {
-                    vectorised_graphs.get(name).unwrap()
+                    graphs.get(name).unwrap()
                 }
                 _ => panic!("search_graph_documents_with_scores returned a document that is not from a graph"),
             };

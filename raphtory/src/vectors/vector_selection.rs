@@ -1,6 +1,12 @@
-use std::{collections::HashSet, usize};
+use std::{
+    collections::{HashMap, HashSet},
+    ops::Deref,
+    usize,
+};
 
 use itertools::{chain, Itertools};
+use lock_api::RwLockReadGuard;
+use parking_lot::RawRwLock;
 
 use crate::{
     core::entities::nodes::node_ref::AsNodeRef,
@@ -104,12 +110,12 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
     /// # Arguments
     ///   * nodes - a list of the node ids or nodes to add
     pub fn add_nodes<V: AsNodeRef>(&mut self, nodes: Vec<V>) {
+        let node_documents = self.graph.node_documents.read();
         let node_docs = nodes
             .into_iter()
             .flat_map(|id| {
                 let node = self.graph.source_graph.node(id);
-                let opt =
-                    node.map(|node| self.graph.node_documents.get(&EntityId::from_node(&node)));
+                let opt = node.map(|node| node_documents.get(&EntityId::from_node(&node)));
                 opt.flatten().unwrap_or(&self.graph.empty_vec)
             })
             .map(|doc| (doc.clone(), 0.0));
@@ -123,12 +129,12 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
     /// # Arguments
     ///   * edges - a list of the edge ids or edges to add
     pub fn add_edges<V: AsNodeRef>(&mut self, edges: Vec<(V, V)>) {
+        let edge_documents = self.graph.edge_documents.read();
         let edge_docs = edges
             .into_iter()
             .flat_map(|(src, dst)| {
                 let edge = self.graph.source_graph.edge(src, dst);
-                let opt =
-                    edge.map(|edge| self.graph.edge_documents.get(&EntityId::from_edge(&edge)));
+                let opt = edge.map(|edge| edge_documents.get(&EntityId::from_edge(&edge)));
                 opt.flatten().unwrap_or(&self.graph.empty_vec)
             })
             .map(|doc| (doc.clone(), 0.0));
@@ -178,11 +184,21 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         window: Option<(i64, i64)>,
         windowed_graph: &W,
     ) {
+        let node_documents = self.graph.node_documents.read();
+        let edge_documents = self.graph.edge_documents.read();
         for _ in 0..hops {
             let context = self
                 .selected_docs
                 .iter()
-                .flat_map(|(doc, _)| self.get_context(doc, windowed_graph, window))
+                .flat_map(|(doc, _)| {
+                    self.get_context(
+                        doc,
+                        node_documents.deref(),
+                        edge_documents.deref(),
+                        windowed_graph,
+                        window,
+                    )
+                })
                 .map(|doc| (doc.clone(), 0.0));
             self.selected_docs = extend_selection(self.selected_docs.clone(), context, usize::MAX);
         }
@@ -305,6 +321,9 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         windowed_graph: &W,
         path: ExpansionPath,
     ) {
+        let node_documents = self.graph.node_documents.read();
+        let edge_documents = self.graph.edge_documents.read();
+
         // let mut selected_docs = self.selected_docs.clone();
         let total_limit = self.selected_docs.len() + limit;
 
@@ -313,13 +332,25 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
             let candidates = self
                 .selected_docs
                 .iter()
-                .flat_map(|(doc, _)| self.get_context(doc, windowed_graph, window))
+                .flat_map(|(doc, _)| {
+                    self.get_context(
+                        doc,
+                        node_documents.deref(),
+                        edge_documents.deref(),
+                        windowed_graph,
+                        window,
+                    )
+                })
                 .flat_map(|doc| match (path, doc.entity_id.clone()) {
                     // this is to hope from node->node or edge->edge
                     (ExpansionPath::Nodes, EntityId::Edge { .. })
-                    | (ExpansionPath::Edges, EntityId::Node { .. }) => {
-                        self.get_context(doc, windowed_graph, window)
-                    }
+                    | (ExpansionPath::Edges, EntityId::Node { .. }) => self.get_context(
+                        doc,
+                        node_documents.deref(),
+                        edge_documents.deref(),
+                        windowed_graph,
+                        window,
+                    ),
                     _ => Box::new(std::iter::once(doc)),
                 })
                 .filter(|doc| match path {
@@ -435,15 +466,15 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
     fn get_context<'a, W: StaticGraphViewOps>(
         &'a self,
         document: &DocumentRef,
+        node_documents: &'a HashMap<EntityId, Vec<DocumentRef>>,
+        edge_documents: &'a HashMap<EntityId, Vec<DocumentRef>>,
         windowed_graph: &'a W,
         window: Option<(i64, i64)>,
     ) -> Box<dyn Iterator<Item = &DocumentRef> + '_> {
         match &document.entity_id {
             EntityId::Graph { .. } => Box::new(std::iter::empty()),
             EntityId::Node { id } => {
-                let self_docs = self
-                    .graph
-                    .node_documents
+                let self_docs = node_documents
                     .get(&document.entity_id)
                     .unwrap_or(&self.graph.empty_vec);
                 match windowed_graph.node(id) {
@@ -452,8 +483,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
                         let edges = node.edges();
                         let edge_docs = edges.iter().flat_map(|edge| {
                             let edge_id = EntityId::from_edge(&edge);
-                            self.graph
-                                .edge_documents
+                            edge_documents
                                 .get(&edge_id)
                                 .unwrap_or(&self.graph.empty_vec)
                         });
@@ -466,9 +496,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
                 }
             }
             EntityId::Edge { src, dst } => {
-                let self_docs = self
-                    .graph
-                    .edge_documents
+                let self_docs = edge_documents
                     .get(&document.entity_id)
                     .unwrap_or(&self.graph.empty_vec);
                 match windowed_graph.edge(src, dst) {
@@ -476,16 +504,8 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
                     Some(edge) => {
                         let src_id = EntityId::from_node(&edge.src());
                         let dst_id = EntityId::from_node(&edge.dst());
-                        let src_docs = self
-                            .graph
-                            .node_documents
-                            .get(&src_id)
-                            .unwrap_or(&self.graph.empty_vec);
-                        let dst_docs = self
-                            .graph
-                            .node_documents
-                            .get(&dst_id)
-                            .unwrap_or(&self.graph.empty_vec);
+                        let src_docs = node_documents.get(&src_id).unwrap_or(&self.graph.empty_vec);
+                        let dst_docs = node_documents.get(&dst_id).unwrap_or(&self.graph.empty_vec);
                         Box::new(
                             chain!(self_docs, src_docs, dst_docs).filter(move |doc| {
                                 doc.exists_on_window(Some(windowed_graph), &window)
@@ -506,14 +526,18 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         let groups = nodes
             .map(move |node| {
                 let entity_id = EntityId::from_node(&node);
-                self.graph.node_documents.get(&entity_id).map(|group| {
-                    let docs = group
-                        .iter()
-                        .filter(|doc| doc.exists_on_window(Some(windowed_graph), &window))
-                        .cloned()
-                        .collect_vec();
-                    (entity_id, docs)
-                })
+                self.graph
+                    .node_documents
+                    .read()
+                    .get(&entity_id)
+                    .map(|group| {
+                        let docs = group
+                            .iter()
+                            .filter(|doc| doc.exists_on_window(Some(windowed_graph), &window))
+                            .cloned()
+                            .collect_vec();
+                        (entity_id, docs)
+                    })
             })
             .flatten()
             .filter(|(_, docs)| docs.len() > 0);
@@ -529,14 +553,18 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         let groups = edges
             .map(move |edge| {
                 let entity_id = EntityId::from_edge(&edge);
-                self.graph.edge_documents.get(&entity_id).map(|group| {
-                    let docs = group
-                        .iter()
-                        .filter(|doc| doc.exists_on_window(Some(windowed_graph), &window))
-                        .cloned()
-                        .collect_vec();
-                    (entity_id, docs)
-                })
+                self.graph
+                    .edge_documents
+                    .read()
+                    .get(&entity_id)
+                    .map(|group| {
+                        let docs = group
+                            .iter()
+                            .filter(|doc| doc.exists_on_window(Some(windowed_graph), &window))
+                            .cloned()
+                            .collect_vec();
+                        (entity_id, docs)
+                    })
             })
             .flatten()
             .filter(|(_, docs)| docs.len() > 0);

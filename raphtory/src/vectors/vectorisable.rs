@@ -1,5 +1,8 @@
 use crate::{
-    db::api::view::{internal::IntoDynamic, StaticGraphViewOps},
+    db::{
+        api::view::{internal::IntoDynamic, StaticGraphViewOps},
+        graph::{edge::EdgeView, node::NodeView},
+    },
     vectors::{
         document_ref::DocumentRef, embedding_cache::EmbeddingCache, entity_id::EntityId,
         template::DocumentTemplate, vectorised_graph::VectorisedGraph, EmbeddingFunction, Lifespan,
@@ -7,7 +10,8 @@ use crate::{
 };
 use async_trait::async_trait;
 use itertools::Itertools;
-use std::{collections::HashMap, path::PathBuf};
+use parking_lot::RwLock;
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 const CHUNK_SIZE: usize = 1000;
 
@@ -19,7 +23,7 @@ struct IndexedDocumentInput {
     life: Lifespan,
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 pub trait Vectorisable<G: StaticGraphViewOps> {
     /// Create a VectorisedGraph from the current graph
     ///
@@ -36,14 +40,24 @@ pub trait Vectorisable<G: StaticGraphViewOps> {
         &self,
         embedding: Box<dyn EmbeddingFunction>,
         cache: Option<PathBuf>,
-        override_cache: bool,
+        overwrite_cache: bool,
+        template: DocumentTemplate,
+        verbose: bool,
+    ) -> VectorisedGraph<G>;
+
+    // TODO: docs
+    async fn vectorise_with_cache(
+        &self,
+        embedding: Box<dyn EmbeddingFunction>,
+        cache: Arc<Option<EmbeddingCache>>,
+        overwrite_cache: bool,
         template: DocumentTemplate,
         verbose: bool,
     ) -> VectorisedGraph<G>;
 }
 
-#[async_trait(?Send)]
-impl<G: StaticGraphViewOps + IntoDynamic> Vectorisable<G> for G {
+#[async_trait] // TODO: review id this ?Send can be removed once we stop using the EmbeddingFunction trait
+impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
     async fn vectorise(
         &self,
         embedding: Box<dyn EmbeddingFunction>,
@@ -52,77 +66,149 @@ impl<G: StaticGraphViewOps + IntoDynamic> Vectorisable<G> for G {
         template: DocumentTemplate,
         verbose: bool,
     ) -> VectorisedGraph<G> {
-        let graph_docs =
-            template
-                .graph(self)
-                .enumerate()
-                .map(move |(index, doc)| IndexedDocumentInput {
-                    entity_id: EntityId::from_graph(self),
-                    content: doc.content,
-                    index,
-                    life: doc.life,
-                });
-        let nodes = self.nodes().iter_owned().flat_map(|node| {
-            template
-                .node(&node)
-                .enumerate()
-                .map(move |(index, doc)| IndexedDocumentInput {
-                    entity_id: EntityId::from_node(&node),
-                    content: doc.content,
-                    index,
-                    life: doc.life,
-                })
-        });
-        let edges = self.edges().iter().flat_map(|edge| {
-            template
-                .edge(&edge)
-                .enumerate()
-                .map(move |(index, doc)| IndexedDocumentInput {
-                    entity_id: EntityId::from_edge(&edge),
-                    content: doc.content,
-                    index,
-                    life: doc.life,
-                })
-        });
+        let cache: Arc<_> = cache.map(EmbeddingCache::from_path).into();
+        Self::vectorise_with_cache(&self, embedding, cache, overwrite_cache, template, verbose)
+            .await
+    }
 
-        let cache_storage = cache.map(EmbeddingCache::from_path);
+    async fn vectorise_with_cache(
+        &self,
+        embedding: Box<dyn EmbeddingFunction>,
+        cache: Arc<Option<EmbeddingCache>>,
+        overwrite_cache: bool,
+        template: DocumentTemplate,
+        verbose: bool,
+    ) -> VectorisedGraph<G> {
+        let graph_docs = indexed_docs_for_graph(self, &template);
+
+        let node_iter = self.nodes().iter_owned();
+        let nodes = node_iter
+            .flat_map(|node| indexed_docs_for_node(node, &template))
+            .collect_vec();
+
+        let edge_iter = self.edges().iter();
+        let edges = edge_iter
+            .flat_map(|edge| indexed_docs_for_edge(edge, &template))
+            .collect_vec();
 
         if verbose {
             println!("computing embeddings for graph");
         }
-        let graph_ref_map =
-            compute_embedding_groups(graph_docs, embedding.as_ref(), &cache_storage).await;
-        let graph_refs = graph_ref_map
-            .into_iter()
-            .next()
-            .map(|(_, graph_refs)| graph_refs)
-            .unwrap_or_else(|| vec![]); // there should be only one value here, TODO: check that's true
+        let graph_refs =
+            compute_entity_embeddings(graph_docs.into_iter(), embedding.as_ref(), &cache).await;
 
         if verbose {
             println!("computing embeddings for nodes");
         }
-        let node_refs = compute_embedding_groups(nodes, embedding.as_ref(), &cache_storage).await;
+        let node_refs =
+            compute_embedding_groups(nodes.into_iter(), embedding.as_ref(), &cache).await;
 
         if verbose {
             println!("computing embeddings for edges");
         }
-        let edge_refs = compute_embedding_groups(edges, embedding.as_ref(), &cache_storage).await; // FIXME: re-enable
+        let edge_refs =
+            compute_embedding_groups(edges.into_iter(), embedding.as_ref(), &cache).await; // FIXME: re-enable
 
         if overwrite_cache {
-            cache_storage.iter().for_each(|cache| cache.dump_to_disk());
+            cache.iter().for_each(|cache| cache.dump_to_disk());
         }
 
         VectorisedGraph::new(
             self.clone(),
             template,
             embedding.into(),
+            cache.into(),
             graph_refs.into(),
-            node_refs.into(),
-            edge_refs.into(),
+            RwLock::new(node_refs).into(),
+            RwLock::new(edge_refs).into(),
         )
     }
 }
 
+pub(crate) async fn vectorise_node<G: StaticGraphViewOps>(
+    node: NodeView<G>,
+    template: &DocumentTemplate,
+    embedding: &Arc<dyn EmbeddingFunction>,
+    cache_storage: &Option<EmbeddingCache>,
+) -> Vec<DocumentRef> {
+    let docs = indexed_docs_for_node(node, template);
+    compute_entity_embeddings(docs, embedding.as_ref(), &cache_storage).await
+}
+
+pub(crate) async fn vectorise_edge<G: StaticGraphViewOps>(
+    edge: EdgeView<G>,
+    template: &DocumentTemplate,
+    embedding: &Arc<dyn EmbeddingFunction>,
+    cache_storage: &Option<EmbeddingCache>,
+) -> Vec<DocumentRef> {
+    let docs = indexed_docs_for_edge(edge, template);
+    compute_entity_embeddings(docs, embedding.as_ref(), &cache_storage).await
+}
+
+fn indexed_docs_for_graph<'a, G: StaticGraphViewOps>(
+    graph: &'a G,
+    template: &DocumentTemplate,
+) -> Vec<IndexedDocumentInput> {
+    template
+        .graph(graph)
+        .enumerate()
+        .map(move |(index, doc)| IndexedDocumentInput {
+            entity_id: EntityId::from_graph(graph),
+            content: doc.content,
+            index,
+            life: doc.life,
+        })
+        .collect()
+}
+
+fn indexed_docs_for_node<G: StaticGraphViewOps>(
+    node: NodeView<G>,
+    template: &DocumentTemplate,
+) -> impl Iterator<Item = IndexedDocumentInput> + Send {
+    template
+        .node(&node)
+        .enumerate()
+        .map(move |(index, doc)| IndexedDocumentInput {
+            entity_id: EntityId::from_node(&node),
+            content: doc.content,
+            index,
+            life: doc.life,
+        })
+}
+
+fn indexed_docs_for_edge<G: StaticGraphViewOps>(
+    edge: EdgeView<G>,
+    template: &DocumentTemplate,
+) -> impl Iterator<Item = IndexedDocumentInput> + Send {
+    template
+        .edge(&edge)
+        .enumerate()
+        .map(move |(index, doc)| IndexedDocumentInput {
+            entity_id: EntityId::from_edge(&edge),
+            content: doc.content,
+            index,
+            life: doc.life,
+        })
+}
+
+async fn compute_entity_embeddings<I>(
+    documents: I,
+    embedding: &dyn EmbeddingFunction,
+    cache: &Option<EmbeddingCache>,
+) -> Vec<DocumentRef>
+where
+    I: Iterator<Item = IndexedDocumentInput> + Send,
+{
+    // let documents = documents.collect_vec().into_iter();
+    let map = compute_embedding_groups(documents, embedding, cache).await;
+    // vec![]
+    map.into_iter()
+        .next()
+        .map(|(_, refs)| refs)
+        .unwrap_or_else(|| vec![]) // there should be only one value here, TODO: check that's true
+}
+
+// TODO: remove, this is only a dummy impl that is Send
 async fn compute_embedding_groups<I>(
     documents: I,
     embedding: &dyn EmbeddingFunction,
@@ -132,8 +218,9 @@ where
     I: Iterator<Item = IndexedDocumentInput>,
 {
     let mut embedding_groups: HashMap<EntityId, Vec<DocumentRef>> = HashMap::new();
-    for chunk in documents.chunks(CHUNK_SIZE).into_iter() {
-        let doc_refs = compute_chunk(chunk, embedding, cache).await;
+
+    for document in documents {
+        let doc_refs = compute_chunk(std::iter::once(document), embedding, cache).await;
         for doc in doc_refs {
             match embedding_groups.get_mut(&doc.entity_id) {
                 Some(group) => group.push(doc),
@@ -145,6 +232,29 @@ where
     }
     embedding_groups
 }
+
+// async fn compute_embedding_groups<I>(
+//     documents: I,
+//     embedding: &dyn EmbeddingFunction,
+//     cache: &Option<EmbeddingCache>,
+// ) -> HashMap<EntityId, Vec<DocumentRef>>
+// where
+//     I: Iterator<Item = IndexedDocumentInput>,
+// {
+//     let mut embedding_groups: HashMap<EntityId, Vec<DocumentRef>> = HashMap::new();
+//     for chunk in documents.chunks(CHUNK_SIZE).into_iter() {
+//         let doc_refs = compute_chunk(chunk, embedding, cache).await;
+//         for doc in doc_refs {
+//             match embedding_groups.get_mut(&doc.entity_id) {
+//                 Some(group) => group.push(doc),
+//                 None => {
+//                     embedding_groups.insert(doc.entity_id.clone(), vec![doc]);
+//                 }
+//             }
+//         }
+//     }
+//     embedding_groups
+// }
 
 async fn compute_chunk<I>(
     documents: I,
