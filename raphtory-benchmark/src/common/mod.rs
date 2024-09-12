@@ -6,6 +6,7 @@ use criterion::{
 use rand::{distributions::Uniform, seq::*, Rng, SeedableRng};
 use raphtory::{db::api::view::StaticGraphViewOps, prelude::*};
 use std::collections::HashSet;
+use tempfile::NamedTempFile;
 
 fn make_index_gen() -> Box<dyn Iterator<Item = u64>> {
     let rng = rand::thread_rng();
@@ -568,6 +569,21 @@ pub fn run_graph_ops_benches(
         c,
         make_graph,
     );
+}
+
+pub fn run_proto_encode_benchmark(group: &mut BenchmarkGroup<WallTime>, graph: Graph) {
+    let f = NamedTempFile::new().unwrap();
+    bench(group, "proto_encode", None, |b: &mut Bencher| {
+        b.iter(|| graph.encode(f.path()).unwrap())
+    });
+}
+
+pub fn run_proto_decode_benchmark(group: &mut BenchmarkGroup<WallTime>, graph: Graph) {
+    let f = NamedTempFile::new().unwrap();
+    graph.encode(f.path()).unwrap();
+    bench(group, "proto_decode", None, |b| {
+        b.iter(|| Graph::decode(f.path()).unwrap())
+    })
 }
 
 pub fn bench_materialise<F, G>(name: &str, c: &mut Criterion, make_graph: F)
