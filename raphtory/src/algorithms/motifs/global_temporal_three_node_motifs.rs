@@ -45,7 +45,6 @@ where
                 None
             }
         })
-        .map(|e| e.explode())
         .kmerge_by(|e1, e2| e1.time_and_index() < e2.time_and_index())
         .map(|edge| {
             if edge.src().node == evv.node {
