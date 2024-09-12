@@ -2,7 +2,6 @@ use crate::data::get_graph_name;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use std::path::PathBuf;
-use tracing::instrument;
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlGraphs {
@@ -19,7 +18,7 @@ impl GqlGraphs {
 impl GqlGraphs {
     //Name and path here do not return a result as we only want to let the user know about
     //valid graph paths. No point blowing up if there is one busted fule
-    #[instrument(skip(self))]
+
     async fn name(&self) -> Vec<String> {
         self.paths
             .iter()
@@ -27,7 +26,6 @@ impl GqlGraphs {
             .collect()
     }
 
-    #[instrument(skip(self))]
     async fn path(&self) -> Vec<String> {
         let paths = self
             .paths

@@ -6,7 +6,6 @@ use crate::{
         algorithms::{algorithm::Algorithm, algorithm_entry_point::AlgorithmEntryPoint},
         App,
     },
-    observability::tracing::create_tracer_from_env,
     routes::{graphql_playground, health},
 };
 use async_graphql_poem::GraphQL;
@@ -27,12 +26,11 @@ use raphtory::{
 };
 
 use crate::{
-    observability::{open_telemetry::OpenTelemetry, tracing::get_tracer},
+    config::app_config::{load_config, AppConfig},
+    observability::open_telemetry::OpenTelemetry,
     server::ServerError::SchemaError,
-    server_config::{load_config, AppConfig},
 };
 use config::ConfigError;
-use opentelemetry::global::BoxedTracer;
 use opentelemetry_sdk::trace::Tracer;
 use std::{
     fs,
@@ -52,7 +50,7 @@ use tokio::{
 };
 use tracing::{error, info};
 use tracing_subscriber::{
-    fmt, fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry,
+    fmt, fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt, Registry,
 };
 use url::ParseError;
 
@@ -87,7 +85,7 @@ impl From<ServerError> for io::Error {
 /// A struct for defining and running a Raphtory GraphQL server
 pub struct GraphServer {
     data: Data,
-    configs: AppConfig,
+    config: AppConfig,
 }
 
 impl GraphServer {
@@ -103,7 +101,10 @@ impl GraphServer {
             load_config(app_config, config_path).map_err(|err| ServerError::ConfigError(err))?;
         let data = Data::new(work_dir.as_path(), &configs);
 
-        Ok(Self { data, configs })
+        Ok(Self {
+            data,
+            config: configs,
+        })
     }
 
     /// Vectorise a subset of the graphs of the server.
@@ -191,22 +192,13 @@ impl GraphServer {
 
     /// Start the server on the port `port` and return a handle to it.
     pub async fn start_with_port(self, port: u16) -> IoResult<RunningGraphServer> {
-        let log_level = &self.configs.logging.log_level;
-        let filter = EnvFilter::new(format!(
-            "raphtory-graphql={},raphtory={}",
-            log_level, log_level
-        ));
+        let filter = self.config.logging.get_log_env();
 
         // Create the base registry
         let registry = Registry::default().with(filter).with(
             fmt::layer().pretty().with_span_events(FmtSpan::FULL), //(FULL, NEW, ENTER, EXIT, CLOSE)
         );
-
-        let filter = EnvFilter::new(format!(
-            "raphtory-graphql={},raphtory={}",
-            log_level, log_level
-        ));
-        match create_tracer_from_env() {
+        match self.config.tracing.get_tracer() {
             Some(tracer) => {
                 registry
                     .with(tracing_opentelemetry::layer().with_tracer(tracer))
@@ -215,16 +207,14 @@ impl GraphServer {
             }
 
             None => {
-                registry.with(filter).try_init().ok();
+                registry.try_init().ok();
             }
         };
-        //registry.try_init().ok();
-        // let tracer = create_tracer_from_env();
 
         // it is important that this runs after algorithms have been pushed to PLUGIN_ALGOS static variable
-
+        let tracer = self.config.tracing.get_tracer();
         let app: CorsEndpoint<CookieJarManagerEndpoint<Route>> =
-            self.generate_endpoint(get_tracer()).await?;
+            self.generate_endpoint(tracer).await?;
 
         let (signal_sender, signal_receiver) = mpsc::channel(1);
 
@@ -260,104 +250,6 @@ impl GraphServer {
             .with(Cors::new());
         Ok(app)
     }
-
-    // async fn generate_microsoft_endpoint_with_auth(
-    //     self,
-    //     enable_tracing: bool,
-    //     port: u16,
-    // ) -> IoResult<CorsEndpoint<CookieJarManagerEndpoint<Route>>> {
-    //     let schema_builder = App::create_schema();
-    //     let schema_builder = schema_builder.data(self.data);
-    //     let schema = if enable_tracing {
-    //         let schema_builder = schema_builder.extension(ApolloTracing);
-    //         schema_builder.finish().unwrap()
-    //     } else {
-    //         schema_builder.finish().unwrap()
-    //     };
-    //
-    //     dotenv().ok();
-    //     let client_id = self
-    //         .configs
-    //         .auth
-    //         .client_id
-    //         .ok_or(ServerError::MissingClientId)?;
-    //     let client_secret = self
-    //         .configs
-    //         .auth
-    //         .client_secret
-    //         .ok_or(ServerError::MissingClientSecret)?;
-    //     let tenant_id = self
-    //         .configs
-    //         .auth
-    //         .tenant_id
-    //         .ok_or(ServerError::MissingTenantId)?;
-    //
-    //     let client_id = ClientId::new(client_id);
-    //     let client_secret = ClientSecret::new(client_secret);
-    //
-    //     let auth_url = AuthUrl::new(format!(
-    //         "https://login.microsoftonline.com/{}/oauth2/v2.0/authorize",
-    //         tenant_id.clone()
-    //     ))
-    //     .map_err(|e| ServerError::FailedToParseUrl(e))?;
-    //     let token_url = TokenUrl::new(format!(
-    //         "https://login.microsoftonline.com/{}/oauth2/v2.0/token",
-    //         tenant_id.clone()
-    //     ))
-    //     .map_err(|e| ServerError::FailedToParseUrl(e))?;
-    //
-    //     println!("Loading client");
-    //     let client = BasicClient::new(
-    //         client_id.clone(),
-    //         Some(client_secret.clone()),
-    //         auth_url,
-    //         Some(token_url),
-    //     )
-    //     .set_redirect_uri(
-    //         RedirectUrl::new(format!(
-    //             "http://localhost:{}/auth/callback",
-    //             port.to_string()
-    //         ))
-    //         .map_err(|e| ServerError::FailedToParseUrl(e))?,
-    //     );
-    //
-    //     println!("Fetching JWKS");
-    //     let jwks = get_jwks()
-    //         .await
-    //         .map_err(|_| ServerError::FailedToFetchJWKS)?;
-    //
-    //     let app_state = AppState {
-    //         oauth_client: Arc::new(client),
-    //         csrf_state: Arc::new(Mutex::new(HashMap::new())),
-    //         pkce_verifier: Arc::new(Mutex::new(HashMap::new())),
-    //         jwks: Arc::new(jwks),
-    //     };
-    //
-    //     let token_middleware = TokenMiddleware::new(Arc::new(app_state.clone()));
-    //
-    //     println!("Making app");
-    //     let app = Route::new()
-    //         .at(
-    //             "/",
-    //             get(graphql_playground)
-    //                 .post(GraphQL::new(schema))
-    //                 .with(token_middleware.clone()),
-    //         )
-    //         .at("/health", get(health))
-    //         .at("/login", login.data(app_state.clone()))
-    //         .at("/auth/callback", auth_callback.data(app_state.clone()))
-    //         .at(
-    //             "/verify",
-    //             verify
-    //                 .data(app_state.clone())
-    //                 .with(token_middleware.clone()),
-    //         )
-    //         .at("/logout", logout.with(token_middleware.clone()))
-    //         .with(CookieJarManager::new())
-    //         .with(Cors::new());
-    //     println!("App done");
-    //     Ok(app)
-    // }
 
     /// Run the server on the default port until completion.
     pub async fn run(self) -> IoResult<()> {
@@ -423,7 +315,7 @@ async fn server_termination(mut internal_signal: Receiver<()>) {
         _ = internal_terminate => {},
     }
 
-    opentelemetry::global::shutdown_tracer_provider();
+    // opentelemetry::global::shutdown_tracer_provider();
 }
 
 #[cfg(test)]
@@ -445,3 +337,101 @@ mod server_tests {
         handler.await.unwrap().stop().await
     }
 }
+
+// async fn generate_microsoft_endpoint_with_auth(
+//     self,
+//     enable_tracing: bool,
+//     port: u16,
+// ) -> IoResult<CorsEndpoint<CookieJarManagerEndpoint<Route>>> {
+//     let schema_builder = App::create_schema();
+//     let schema_builder = schema_builder.data(self.data);
+//     let schema = if enable_tracing {
+//         let schema_builder = schema_builder.extension(ApolloTracing);
+//         schema_builder.finish().unwrap()
+//     } else {
+//         schema_builder.finish().unwrap()
+//     };
+//
+//     dotenv().ok();
+//     let client_id = self
+//         .configs
+//         .auth
+//         .client_id
+//         .ok_or(ServerError::MissingClientId)?;
+//     let client_secret = self
+//         .configs
+//         .auth
+//         .client_secret
+//         .ok_or(ServerError::MissingClientSecret)?;
+//     let tenant_id = self
+//         .configs
+//         .auth
+//         .tenant_id
+//         .ok_or(ServerError::MissingTenantId)?;
+//
+//     let client_id = ClientId::new(client_id);
+//     let client_secret = ClientSecret::new(client_secret);
+//
+//     let auth_url = AuthUrl::new(format!(
+//         "https://login.microsoftonline.com/{}/oauth2/v2.0/authorize",
+//         tenant_id.clone()
+//     ))
+//     .map_err(|e| ServerError::FailedToParseUrl(e))?;
+//     let token_url = TokenUrl::new(format!(
+//         "https://login.microsoftonline.com/{}/oauth2/v2.0/token",
+//         tenant_id.clone()
+//     ))
+//     .map_err(|e| ServerError::FailedToParseUrl(e))?;
+//
+//     println!("Loading client");
+//     let client = BasicClient::new(
+//         client_id.clone(),
+//         Some(client_secret.clone()),
+//         auth_url,
+//         Some(token_url),
+//     )
+//     .set_redirect_uri(
+//         RedirectUrl::new(format!(
+//             "http://localhost:{}/auth/callback",
+//             port.to_string()
+//         ))
+//         .map_err(|e| ServerError::FailedToParseUrl(e))?,
+//     );
+//
+//     println!("Fetching JWKS");
+//     let jwks = get_jwks()
+//         .await
+//         .map_err(|_| ServerError::FailedToFetchJWKS)?;
+//
+//     let app_state = AppState {
+//         oauth_client: Arc::new(client),
+//         csrf_state: Arc::new(Mutex::new(HashMap::new())),
+//         pkce_verifier: Arc::new(Mutex::new(HashMap::new())),
+//         jwks: Arc::new(jwks),
+//     };
+//
+//     let token_middleware = TokenMiddleware::new(Arc::new(app_state.clone()));
+//
+//     println!("Making app");
+//     let app = Route::new()
+//         .at(
+//             "/",
+//             get(graphql_playground)
+//                 .post(GraphQL::new(schema))
+//                 .with(token_middleware.clone()),
+//         )
+//         .at("/health", get(health))
+//         .at("/login", login.data(app_state.clone()))
+//         .at("/auth/callback", auth_callback.data(app_state.clone()))
+//         .at(
+//             "/verify",
+//             verify
+//                 .data(app_state.clone())
+//                 .with(token_middleware.clone()),
+//         )
+//         .at("/logout", logout.with(token_middleware.clone()))
+//         .with(CookieJarManager::new())
+//         .with(Cors::new());
+//     println!("App done");
+//     Ok(app)
+// }

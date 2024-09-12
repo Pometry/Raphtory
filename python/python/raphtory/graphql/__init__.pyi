@@ -16,6 +16,10 @@ class GraphServer:
         cache_capacity=None,
         cache_tti_seconds=None,
         log_level=None,
+        tracing=None,
+        otlp_agent_host=None,
+        otlp_agent_port=None,
+        otlp_tracing_service_name=None,
         config_path=None,
     ):
         """Initialize self.  See help(type(self)) for accurate signature."""

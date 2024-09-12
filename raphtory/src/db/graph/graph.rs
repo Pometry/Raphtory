@@ -235,6 +235,7 @@ mod db_tests {
     };
     use chrono::NaiveDateTime;
     use itertools::Itertools;
+    use log::error;
     use quickcheck_macros::quickcheck;
     use raphtory_api::core::{
         entities::GID,
@@ -323,7 +324,7 @@ mod db_tests {
         let expected_len = vs.iter().map(|(_, v)| v).sorted().dedup().count();
         for (t, v) in vs {
             g.add_node(t, v, NO_PROPS, None)
-                .map_err(|err| println!("{:?}", err))
+                .map_err(|err| error!("{:?}", err))
                 .ok();
         }
 

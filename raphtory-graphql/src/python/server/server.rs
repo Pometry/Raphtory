@@ -1,4 +1,5 @@
 use crate::{
+    config::app_config::AppConfigBuilder,
     model::algorithms::{
         algorithm_entry_point::AlgorithmEntryPoint, document::GqlDocument,
         global_plugins::GlobalPlugins, vector_algorithms::VectorAlgorithms,
@@ -10,7 +11,6 @@ use crate::{
             running_server::PyRunningGraphServer, take_server_ownership, wait_server, BridgeCommand,
         },
     },
-    server_config::AppConfigBuilder,
     GraphServer,
 };
 use async_graphql::dynamic::{Field, FieldFuture, FieldValue, InputValue, Object, TypeRef};
@@ -141,18 +141,35 @@ impl PyGraphServer {
 impl PyGraphServer {
     #[new]
     #[pyo3(
-        signature = (work_dir, cache_capacity = None, cache_tti_seconds = None, log_level = None, config_path = None)
+        signature = (work_dir, cache_capacity = None, cache_tti_seconds = None, log_level = None, tracing=None, otlp_agent_host=None, otlp_agent_port=None, otlp_tracing_service_name=None, config_path = None)
     )]
     fn py_new(
         work_dir: PathBuf,
         cache_capacity: Option<u64>,
         cache_tti_seconds: Option<u64>,
         log_level: Option<String>,
+        tracing: Option<bool>,
+        otlp_agent_host: Option<String>,
+        otlp_agent_port: Option<String>,
+        otlp_tracing_service_name: Option<String>,
         config_path: Option<PathBuf>,
     ) -> PyResult<Self> {
         let mut app_config_builder = AppConfigBuilder::new();
         if let Some(log_level) = log_level {
             app_config_builder = app_config_builder.with_log_level(log_level);
+        }
+        if let Some(tracing) = tracing {
+            app_config_builder = app_config_builder.with_tracing(tracing);
+        }
+        if let Some(otlp_agent_host) = otlp_agent_host {
+            app_config_builder = app_config_builder.with_otlp_agent_host(otlp_agent_host);
+        }
+        if let Some(otlp_agent_port) = otlp_agent_port {
+            app_config_builder = app_config_builder.with_otlp_agent_port(otlp_agent_port);
+        }
+        if let Some(otlp_tracing_service_name) = otlp_tracing_service_name {
+            app_config_builder =
+                app_config_builder.with_otlp_tracing_service_name(otlp_tracing_service_name);
         }
         if let Some(cache_capacity) = cache_capacity {
             app_config_builder = app_config_builder.with_cache_capacity(cache_capacity);

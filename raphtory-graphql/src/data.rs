@@ -1,6 +1,6 @@
 use crate::{
+    config::app_config::AppConfig,
     model::{algorithms::global_plugins::GlobalPlugins, create_dirs_if_not_present, GqlGraphType},
-    server_config::AppConfig,
 };
 use moka::sync::Cache;
 #[cfg(feature = "storage")]
@@ -343,10 +343,7 @@ fn _load_disk_graph(_path: &Path) -> Result<MaterializedGraph, GraphError> {
 
 #[cfg(test)]
 pub(crate) mod data_tests {
-    use crate::{
-        data::{get_graph_from_path, Data},
-        server_config::{AppConfig, AppConfigBuilder},
-    };
+    use crate::data::{get_graph_from_path, Data};
     use raphtory::{db::api::view::MaterializedGraph, prelude::*};
     use std::{
         collections::HashMap,
@@ -356,6 +353,7 @@ pub(crate) mod data_tests {
         path::{Path, PathBuf},
     };
 
+    use crate::config::app_config::{AppConfig, AppConfigBuilder};
     #[cfg(feature = "storage")]
     use crate::data::copy_dir_recursive;
     use raphtory::core::utils::errors::{GraphError, InvalidPathReason};
