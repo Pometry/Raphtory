@@ -6,6 +6,7 @@ use crate::{
             graph::tgraph::TemporalGraph,
             nodes::node_ref::{AsNodeRef, NodeRef},
         },
+        storage::{raw_edges::WriteLockedEdges, WriteLockedNodes},
         utils::errors::GraphError,
         Prop, PropType,
     },
@@ -89,8 +90,19 @@ impl InternalAdditionOps for Storage {
         self.graph.id_type()
     }
 
+    #[inline]
     fn write_lock(&self) -> Result<WriteLockedGraph, GraphError> {
         self.graph.write_lock()
+    }
+
+    #[inline]
+    fn write_lock_nodes(&self) -> Result<WriteLockedNodes, GraphError> {
+        self.graph.write_lock_nodes()
+    }
+
+    #[inline]
+    fn write_lock_edges(&self) -> Result<WriteLockedEdges, GraphError> {
+        self.graph.write_lock_edges()
     }
 
     #[inline]

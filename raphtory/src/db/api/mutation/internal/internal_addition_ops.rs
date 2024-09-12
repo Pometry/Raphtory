@@ -1,7 +1,7 @@
 use crate::{
     core::{
         entities::{nodes::node_ref::AsNodeRef, EID, VID},
-        storage::timeindex::TimeIndexEntry,
+        storage::{raw_edges::WriteLockedEdges, timeindex::TimeIndexEntry, WriteLockedNodes},
         utils::errors::GraphError,
         Prop, PropType,
     },
@@ -14,6 +14,10 @@ use raphtory_api::core::{entities::GidType, storage::dict_mapper::MaybeNew};
 pub trait InternalAdditionOps {
     fn id_type(&self) -> Option<GidType>;
     fn write_lock(&self) -> Result<WriteLockedGraph, GraphError>;
+
+    fn write_lock_nodes(&self) -> Result<WriteLockedNodes, GraphError>;
+
+    fn write_lock_edges(&self) -> Result<WriteLockedEdges, GraphError>;
     fn num_shards(&self) -> Result<usize, GraphError>;
     /// get the sequence id for the next event
     fn next_event_id(&self) -> Result<usize, GraphError>;
@@ -112,6 +116,16 @@ impl<G: DelegateAdditionOps> InternalAdditionOps for G {
     #[inline]
     fn write_lock(&self) -> Result<WriteLockedGraph, GraphError> {
         self.graph().write_lock()
+    }
+
+    #[inline]
+    fn write_lock_nodes(&self) -> Result<WriteLockedNodes, GraphError> {
+        self.graph().write_lock_nodes()
+    }
+
+    #[inline]
+    fn write_lock_edges(&self) -> Result<WriteLockedEdges, GraphError> {
+        self.graph().write_lock_edges()
     }
 
     #[inline]

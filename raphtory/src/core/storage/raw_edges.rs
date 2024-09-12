@@ -1,8 +1,11 @@
 use super::{resolve, timeindex::TimeIndex};
 use crate::{
-    core::entities::{
-        edges::edge_store::{EdgeDataLike, EdgeLayer, EdgeStore},
-        LayerIds,
+    core::{
+        entities::{
+            edges::edge_store::{EdgeDataLike, EdgeLayer, EdgeStore},
+            LayerIds,
+        },
+        utils::errors::GraphError,
     },
     db::api::storage::graph::edges::edge_storage_ops::{EdgeStorageOps, MemEdge},
 };
@@ -377,14 +380,17 @@ impl LockedEdges {
     }
 }
 
-pub struct EdgeShardWriter<'a> {
-    shard: &'a mut EdgeShard,
+pub struct EdgeShardWriter<'a, S> {
+    shard: S,
     shard_id: usize,
     num_shards: usize,
     global_len: &'a AtomicUsize,
 }
 
-impl<'a> EdgeShardWriter<'a> {
+impl<'a, S> EdgeShardWriter<'a, S>
+where
+    S: DerefMut<Target = EdgeShard>,
+{
     /// Map an edge id to local offset if it is in the shard
     fn resolve(&self, eid: EID) -> Option<usize> {
         let EID(eid) = eid;
@@ -401,7 +407,7 @@ impl<'a> EdgeShardWriter<'a> {
                 .resize_with(offset + 1, EdgeStore::default)
         }
         Some(MutEdge {
-            guard: self.shard,
+            guard: self.shard.deref_mut(),
             i: offset,
         })
     }
@@ -417,7 +423,9 @@ pub struct WriteLockedEdges<'a> {
 }
 
 impl<'a> WriteLockedEdges<'a> {
-    pub fn par_iter_mut(&mut self) -> impl IndexedParallelIterator<Item = EdgeShardWriter> + '_ {
+    pub fn par_iter_mut(
+        &mut self,
+    ) -> impl IndexedParallelIterator<Item = EdgeShardWriter<&mut EdgeShard>> + '_ {
         let num_shards = self.shards.len();
         let shards: Vec<_> = self
             .shards
@@ -426,6 +434,23 @@ impl<'a> WriteLockedEdges<'a> {
             .collect();
         let global_len = self.global_len;
         shards
+            .into_par_iter()
+            .enumerate()
+            .map(move |(shard_id, shard)| EdgeShardWriter {
+                shard,
+                shard_id,
+                num_shards,
+                global_len,
+            })
+    }
+
+    pub fn into_par_iter_mut(
+        self,
+    ) -> impl IndexedParallelIterator<Item = EdgeShardWriter<'a, RwLockWriteGuard<'a, EdgeShard>>> + 'a
+    {
+        let num_shards = self.shards.len();
+        let global_len = self.global_len;
+        self.shards
             .into_par_iter()
             .enumerate()
             .map(move |(shard_id, shard)| EdgeShardWriter {

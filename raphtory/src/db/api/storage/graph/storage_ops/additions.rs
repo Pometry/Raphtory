@@ -5,6 +5,7 @@ use crate::{
             graph::tgraph::TemporalGraph,
             nodes::{node_ref::AsNodeRef, node_store::NodeStore},
         },
+        storage::{raw_edges::WriteLockedEdges, WriteLockedNodes},
         utils::errors::GraphError,
         PropType,
     },
@@ -25,6 +26,14 @@ impl InternalAdditionOps for TemporalGraph {
 
     fn write_lock(&self) -> Result<WriteLockedGraph, GraphError> {
         Ok(WriteLockedGraph::new(self))
+    }
+
+    fn write_lock_nodes(&self) -> Result<WriteLockedNodes, GraphError> {
+        Ok(self.storage.nodes.write_lock())
+    }
+
+    fn write_lock_edges(&self) -> Result<WriteLockedEdges, GraphError> {
+        Ok(self.storage.edges.write_lock())
     }
 
     fn num_shards(&self) -> Result<usize, GraphError> {
@@ -188,6 +197,20 @@ impl InternalAdditionOps for GraphStorage {
     fn write_lock(&self) -> Result<WriteLockedGraph, GraphError> {
         match self {
             GraphStorage::Unlocked(storage) => storage.write_lock(),
+            _ => Err(GraphError::AttemptToMutateImmutableGraph),
+        }
+    }
+
+    fn write_lock_nodes(&self) -> Result<WriteLockedNodes, GraphError> {
+        match self {
+            GraphStorage::Unlocked(storage) => storage.write_lock_nodes(),
+            _ => Err(GraphError::AttemptToMutateImmutableGraph),
+        }
+    }
+
+    fn write_lock_edges(&self) -> Result<WriteLockedEdges, GraphError> {
+        match self {
+            GraphStorage::Unlocked(storage) => storage.write_lock_edges(),
             _ => Err(GraphError::AttemptToMutateImmutableGraph),
         }
     }

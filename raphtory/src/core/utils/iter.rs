@@ -20,7 +20,7 @@ impl<'a, O, OUT> Iterator for GenLockedIter<'a, O, OUT> {
 impl<'a, O, OUT> GenLockedIter<'a, O, OUT> {
     pub fn from<'b>(
         owner: O,
-        iter_fn: impl FnOnce(&O) -> Box<dyn Iterator<Item = OUT> + Send + '_>,
+        iter_fn: impl FnOnce(&O) -> Box<dyn Iterator<Item = OUT> + Send + '_> + 'b,
     ) -> Self {
         GenLockedIterBuilder {
             owner,

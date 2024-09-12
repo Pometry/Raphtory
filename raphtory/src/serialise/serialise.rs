@@ -2,7 +2,7 @@ use crate::{
     core::{
         entities::{
             edges::edge_store::EdgeStore, graph::tgraph::TemporalGraph,
-            nodes::node_store::NodeStore,
+            nodes::node_store::NodeStore, LayerIds,
         },
         storage::timeindex::TimeIndexOps,
         utils::errors::GraphError,
@@ -39,6 +39,7 @@ use raphtory_api::core::{
         arc_str::ArcStr,
         timeindex::{AsTime, TimeIndexEntry},
     },
+    Direction,
 };
 use rayon::prelude::*;
 use std::{borrow::Borrow, fs::File, io::Write, iter, path::Path, sync::Arc};
@@ -135,6 +136,108 @@ fn as_prop_type(p_type: SPropType) -> PropType {
         SPropType::Graph => PropType::Graph,
         SPropType::PersistentGraph => PropType::PersistentGraph,
         SPropType::Document => PropType::Document,
+    }
+}
+
+impl NewEdge {
+    fn src(&self) -> VID {
+        VID(self.src as usize)
+    }
+
+    fn dst(&self) -> VID {
+        VID(self.dst as usize)
+    }
+
+    fn eid(&self) -> EID {
+        EID(self.eid as usize)
+    }
+}
+
+impl DelEdge {
+    fn eid(&self) -> EID {
+        EID(self.eid as usize)
+    }
+
+    fn layer_id(&self) -> usize {
+        self.layer_id as usize
+    }
+
+    fn time(&self) -> TimeIndexEntry {
+        TimeIndexEntry(self.time, self.secondary as usize)
+    }
+}
+
+impl UpdateEdgeCProps {
+    fn eid(&self) -> EID {
+        EID(self.eid as usize)
+    }
+
+    fn layer_id(&self) -> usize {
+        self.layer_id as usize
+    }
+
+    fn props(&self) -> impl Iterator<Item = Result<(usize, Prop), GraphError>> + '_ {
+        self.properties.iter().map(as_prop)
+    }
+}
+
+impl UpdateEdgeTProps {
+    fn eid(&self) -> EID {
+        EID(self.eid as usize)
+    }
+
+    fn layer_id(&self) -> usize {
+        self.layer_id as usize
+    }
+
+    fn time(&self) -> TimeIndexEntry {
+        TimeIndexEntry(self.time, self.secondary as usize)
+    }
+
+    fn has_props(&self) -> bool {
+        !self.properties.is_empty()
+    }
+
+    fn props(&self) -> impl Iterator<Item = Result<(usize, Prop), GraphError>> + '_ {
+        self.properties.iter().map(as_prop)
+    }
+}
+
+impl UpdateNodeType {
+    fn vid(&self) -> VID {
+        VID(self.id as usize)
+    }
+
+    fn type_id(&self) -> usize {
+        self.type_id as usize
+    }
+}
+
+impl UpdateNodeCProps {
+    fn vid(&self) -> VID {
+        VID(self.id as usize)
+    }
+
+    fn props(&self) -> impl Iterator<Item = Result<(usize, Prop), GraphError>> + '_ {
+        self.properties.iter().map(as_prop)
+    }
+}
+
+impl UpdateNodeTProps {
+    fn vid(&self) -> VID {
+        VID(self.id as usize)
+    }
+
+    fn time(&self) -> TimeIndexEntry {
+        TimeIndexEntry(self.time, self.secondary as usize)
+    }
+
+    fn has_props(&self) -> bool {
+        !self.properties.is_empty()
+    }
+
+    fn props(&self) -> impl Iterator<Item = Result<(usize, Prop), GraphError>> + '_ {
+        self.properties.iter().map(as_prop)
     }
 }
 
@@ -702,42 +805,125 @@ impl StableDecode for TemporalGraph {
                 }
             }
         });
-        graph.nodes.par_iter().try_for_each(|node| {
-            let gid = match node.gid.as_ref().unwrap() {
-                Gid::GidStr(name) => GidRef::Str(name),
-                Gid::GidU64(gid) => GidRef::U64(*gid),
-            };
-            let vid = VID(node.vid as usize);
-            storage.logical_to_physical.set(gid, vid)?;
-            let mut node_store = NodeStore::empty(gid.to_owned());
-            node_store.vid = vid;
-            node_store.node_type = node.type_id as usize;
-            storage.storage.nodes.set(node_store);
-            Ok::<(), GraphError>(())
-        })?;
-        graph.edges.par_iter().for_each(|edge| {
-            let eid = EID(edge.eid as usize);
-            let src = VID(edge.src as usize);
-            let dst = VID(edge.dst as usize);
-            let mut edge = EdgeStore::new(src, dst);
-            edge.eid = eid;
-            storage.storage.edges.set(edge).init();
-        });
+        {}
+        storage
+            .write_lock_edges()?
+            .into_par_iter_mut()
+            .try_for_each(|mut shard| {
+                for edge in graph.edges.iter() {
+                    if let Some(mut new_edge) = shard.get_mut(edge.eid()) {
+                        let edge_store = new_edge.edge_store_mut();
+                        edge_store.src = edge.src();
+                        edge_store.dst = edge.dst();
+                        edge_store.eid = edge.eid();
+                    }
+                }
+                for update in graph.updates.iter() {
+                    if let Some(update) = update.update.as_ref() {
+                        match update {
+                            Update::DelEdge(del_edge) => {
+                                if let Some(mut edge_mut) = shard.get_mut(del_edge.eid()) {
+                                    edge_mut
+                                        .deletions_mut(del_edge.layer_id())
+                                        .insert(del_edge.time());
+                                }
+                            }
+                            Update::UpdateEdgeCprops(update) => {
+                                if let Some(mut edge_mut) = shard.get_mut(update.eid()) {
+                                    let edge_layer = edge_mut.layer_mut(update.layer_id());
+                                    for prop_update in update.props() {
+                                        let (id, prop) = prop_update?;
+                                        let prop = storage.process_prop_value(&prop);
+                                        edge_layer.update_constant_prop(id, prop)?;
+                                    }
+                                }
+                            }
+                            Update::UpdateEdgeTprops(update) => {
+                                if let Some(mut edge_mut) = shard.get_mut(update.eid()) {
+                                    edge_mut
+                                        .additions_mut(update.layer_id())
+                                        .insert(update.time());
+                                    if update.has_props() {
+                                        let edge_layer = edge_mut.layer_mut(update.layer_id());
+                                        for prop_update in update.props() {
+                                            let (id, prop) = prop_update?;
+                                            let prop = storage.process_prop_value(&prop);
+                                            edge_layer.add_prop(update.time(), id, prop)?;
+                                        }
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                Ok::<(), GraphError>(())
+            })?;
+        storage
+            .write_lock_nodes()?
+            .into_par_iter_mut()
+            .try_for_each(|mut shard| {
+                for node in graph.nodes.iter() {
+                    let vid = VID(node.vid as usize);
+                    let gid = match node.gid.as_ref().unwrap() {
+                        Gid::GidStr(name) => GidRef::Str(name),
+                        Gid::GidU64(gid) => GidRef::U64(*gid),
+                    };
+                    if let Some(node_store) = shard.set(vid, gid) {
+                        storage.logical_to_physical.set(gid, vid)?;
+                        node_store.node_type = node.type_id as usize;
+                    }
+                }
+                let edges = storage.storage.edges.read_lock();
+                for edge in edges.iter() {
+                    if let Some(src) = shard.get_mut(edge.src()) {
+                        for layer in edge.layer_ids_iter(&LayerIds::All) {
+                            src.add_edge(edge.dst(), Direction::OUT, layer, edge.eid());
+                        }
+                    }
+                    if let Some(dst) = shard.get_mut(edge.dst()) {
+                        for layer in edge.layer_ids_iter(&LayerIds::All) {
+                            dst.add_edge(edge.src(), Direction::IN, layer, edge.eid());
+                        }
+                    }
+                }
+                for update in graph.updates.iter() {
+                    if let Some(update) = update.update.as_ref() {
+                        match update {
+                            Update::UpdateNodeCprops(update) => {
+                                if let Some(node) = shard.get_mut(update.vid()) {
+                                    for prop_update in update.props() {
+                                        let (id, prop) = prop_update?;
+                                        let prop = storage.process_prop_value(&prop);
+                                        node.update_constant_prop(id, prop)?;
+                                    }
+                                }
+                            }
+                            Update::UpdateNodeTprops(update) => {
+                                if let Some(node) = shard.get_mut(update.vid()) {
+                                    node.update_time(update.time());
+                                    for prop_update in update.props() {
+                                        let (id, prop) = prop_update?;
+                                        let prop = storage.process_prop_value(&prop);
+                                        node.add_prop(update.time(), id, prop)?;
+                                    }
+                                }
+                            }
+                            Update::UpdateNodeType(update) => {
+                                if let Some(node) = shard.get_mut(update.vid()) {
+                                    node.node_type = update.type_id();
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                Ok::<(), GraphError>(())
+            })?;
+
         graph.updates.par_iter().try_for_each(|update| {
             if let Some(update) = update.update.as_ref() {
                 match update {
-                    Update::UpdateNodeCprops(props) => {
-                        storage.internal_update_constant_node_properties(
-                            VID(props.id as usize),
-                            &collect_props(&props.properties)?,
-                        )?;
-                    }
-                    Update::UpdateNodeTprops(props) => {
-                        let time = TimeIndexEntry(props.time, props.secondary as usize);
-                        let node = VID(props.id as usize);
-                        let props = collect_props(&props.properties)?;
-                        storage.internal_add_node(time, node, &props)?;
-                    }
                     Update::UpdateGraphCprops(props) => {
                         storage.internal_update_constant_properties(&collect_props(
                             &props.properties,
@@ -748,36 +934,7 @@ impl StableDecode for TemporalGraph {
                         storage
                             .internal_add_properties(time, &collect_props(&props.properties)?)?;
                     }
-                    Update::DelEdge(del_edge) => {
-                        let time = TimeIndexEntry(del_edge.time, del_edge.secondary as usize);
-                        storage.internal_delete_existing_edge(
-                            time,
-                            EID(del_edge.eid as usize),
-                            del_edge.layer_id as usize,
-                        )?;
-                    }
-                    Update::UpdateEdgeCprops(props) => {
-                        storage.internal_update_constant_edge_properties(
-                            EID(props.eid as usize),
-                            props.layer_id as usize,
-                            &collect_props(&props.properties)?,
-                        )?;
-                    }
-                    Update::UpdateEdgeTprops(props) => {
-                        let time = TimeIndexEntry(props.time, props.secondary as usize);
-                        let eid = EID(props.eid as usize);
-                        storage.internal_add_edge_update(
-                            time,
-                            eid,
-                            &collect_props(&props.properties)?,
-                            props.layer_id as usize,
-                        )?;
-                    }
-                    Update::UpdateNodeType(update) => {
-                        let id = VID(update.id as usize);
-                        let type_id = update.type_id as usize;
-                        storage.storage.get_node_mut(id).node_type = type_id;
-                    }
+                    _ => {}
                 }
             }
             Ok::<_, GraphError>(())

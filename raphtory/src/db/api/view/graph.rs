@@ -203,6 +203,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
             let mut node_map = vec![VID::default(); storage.unfiltered_num_nodes()];
             let node_map_shared =
                 atomic_usize_from_mut_slice(bytemuck::cast_slice_mut(&mut node_map));
+            let t_prop_keys = self.node_meta().temporal_prop_meta().get_keys();
 
             new_storage.nodes.par_iter_mut().try_for_each(|mut shard| {
                 for (index, node) in self.nodes().iter().enumerate() {
@@ -230,14 +231,14 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                             new_node.update_time(TimeIndexEntry::start(t));
                         }
                         for prop_id in node.temporal_prop_ids() {
-                            let prop_name = self.node_meta().temporal_prop_meta().get_name(prop_id);
+                            let prop_name = &t_prop_keys[prop_id];
                             let prop_type = self
                                 .node_meta()
                                 .temporal_prop_meta()
                                 .get_dtype(prop_id)
                                 .unwrap();
                             let new_prop_id = g
-                                .resolve_node_property(&prop_name, prop_type, false)?
+                                .resolve_node_property(prop_name, prop_type, false)?
                                 .inner();
                             for (t, prop_value) in self.temporal_node_prop_hist(node.node, prop_id)
                             {
