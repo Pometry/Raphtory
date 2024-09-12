@@ -38,7 +38,13 @@ where
     let events = evv
         .edges()
         .iter()
-        .filter_map(|e| {if e.src().node != e.dst().node {Some(e.explode()) } else {None}})
+        .filter_map(|e| {
+            if e.src().node != e.dst().node {
+                Some(e.explode())
+            } else {
+                None
+            }
+        })
         .map(|e| e.explode())
         .kmerge_by(|e1, e2| e1.time_and_index() < e2.time_and_index())
         .map(|edge| {
