@@ -1,9 +1,6 @@
 use crate::{
     core::{
-        entities::{
-            edges::edge_store::EdgeStore, graph::tgraph::TemporalGraph,
-            nodes::node_store::NodeStore, LayerIds,
-        },
+        entities::{graph::tgraph::TemporalGraph, LayerIds},
         storage::timeindex::TimeIndexOps,
         utils::errors::GraphError,
         DocumentInput, Lifespan, Prop, PropType,
@@ -881,11 +878,23 @@ impl StableDecode for TemporalGraph {
                     if let Some(src) = shard.get_mut(edge.src()) {
                         for layer in edge.layer_ids_iter(&LayerIds::All) {
                             src.add_edge(edge.dst(), Direction::OUT, layer, edge.eid());
+                            for t in edge.additions(layer).iter() {
+                                src.update_time(t);
+                            }
+                            for t in edge.deletions(layer).iter() {
+                                src.update_time(t)
+                            }
                         }
                     }
                     if let Some(dst) = shard.get_mut(edge.dst()) {
                         for layer in edge.layer_ids_iter(&LayerIds::All) {
                             dst.add_edge(edge.src(), Direction::IN, layer, edge.eid());
+                            for t in edge.additions(layer).iter() {
+                                dst.update_time(t);
+                            }
+                            for t in edge.deletions(layer).iter() {
+                                dst.update_time(t)
+                            }
                         }
                     }
                 }
@@ -1160,8 +1169,6 @@ fn as_proto_prop(prop: &Prop) -> proto::Prop {
 
 #[cfg(test)]
 mod proto_test {
-    use chrono::{DateTime, NaiveDateTime};
-
     use super::*;
     use crate::{
         core::DocumentInput,
@@ -1170,9 +1177,9 @@ mod proto_test {
             graph::graph::assert_graph_equal,
         },
         prelude::*,
-        search::IndexedGraph,
         serialise::{proto::GraphType, ProtoGraph},
     };
+    use chrono::{DateTime, NaiveDateTime};
 
     #[test]
     fn node_no_props() {

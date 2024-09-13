@@ -52,7 +52,7 @@ impl TimeIndexEntry {
     }
 
     pub fn end(t: i64) -> Self {
-        Self(t.saturating_add(1), 0)
+        Self(t, usize::MAX)
     }
 }
 

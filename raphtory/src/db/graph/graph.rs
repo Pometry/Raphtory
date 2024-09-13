@@ -89,20 +89,88 @@ pub fn assert_graph_equal<
         g1.count_temporal_edges(),
         g2.count_temporal_edges()
     );
+    assert_eq!(
+        g1.earliest_time(),
+        g2.earliest_time(),
+        "mismatched earliest time: left {:?}, right {:?}",
+        g1.earliest_time(),
+        g2.earliest_time()
+    );
+    assert_eq!(
+        g1.latest_time(),
+        g2.latest_time(),
+        "mismatched latest time: left {:?}, right {:?}",
+        g1.latest_time(),
+        g2.latest_time()
+    );
     for n1 in g1.nodes() {
-        assert!(g2.has_node(n1.id()), "missing node {:?}", n1.id());
-
-        let c1 = n1.properties().constant().into_iter().count();
-        let t1 = n1.properties().temporal().into_iter().count();
-        let check = g2
+        let n2 = g2
             .node(n1.id())
-            .filter(|node| {
-                c1 == node.properties().constant().into_iter().count()
-                    && t1 == node.properties().temporal().into_iter().count()
-            })
-            .is_some();
-
-        assert!(check, "node {:?} properties mismatch", n1.id());
+            .expect(&format!("missing node {:?}", n1.id()));
+        assert_eq!(
+            n1.name(),
+            n2.name(),
+            "mismatched node name: left {:?}, right {:?}",
+            n1.name(),
+            n2.name()
+        );
+        assert_eq!(
+            n1.earliest_time(),
+            n2.earliest_time(),
+            "mismatched node earliest time for node {:?}: left {:?}, right {:?}",
+            n1.id(),
+            n1.earliest_time(),
+            n2.earliest_time()
+        );
+        // This doesn't hold for materialised windowed PersistentGraph (node is still present after the end of the window)
+        // assert_eq!(
+        //     n1.latest_time(),
+        //     n2.latest_time(),
+        //     "mismatched node latest time for node {:?}: left {:?}, right {:?}",
+        //     n1.id(),
+        //     n1.latest_time(),
+        //     n2.latest_time()
+        // );
+        assert_eq!(
+            n1.properties().constant().as_map(),
+            n2.properties().constant().as_map(),
+            "mismatched constant properties for node {:?}: left {:?}, right {:?}",
+            n1.id(),
+            n1.properties().constant().as_map(),
+            n2.properties().constant().as_map()
+        );
+        assert_eq!(
+            n1.properties().temporal().histories(),
+            n2.properties().temporal().histories(),
+            "mismatched temporal properties for node {:?}: left {:?}, right {:?}",
+            n1.id(),
+            n1.properties().temporal().histories(),
+            n2.properties().temporal().histories()
+        );
+        assert_eq!(
+            n1.out_degree(),
+            n2.out_degree(),
+            "mismatched out-degree for node {:?}: left {}, right {}",
+            n1.id(),
+            n1.out_degree(),
+            n2.out_degree(),
+        );
+        assert_eq!(
+            n1.in_degree(),
+            n2.in_degree(),
+            "mismatched in-degree for node {:?}: left {}, right {}",
+            n1.id(),
+            n1.in_degree(),
+            n2.in_degree(),
+        );
+        assert_eq!(
+            n1.degree(),
+            n2.degree(),
+            "mismatched degree for node {:?}: left {}, right {}",
+            n1.id(),
+            n1.degree(),
+            n2.degree(),
+        );
     }
 
     for e in g1.edges().explode() {
