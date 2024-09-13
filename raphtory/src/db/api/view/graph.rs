@@ -6,7 +6,7 @@ use crate::{
     },
     db::{
         api::{
-            mutation::{internal::InternalAdditionOps, AdditionOps, PropertyAdditionOps},
+            mutation::{internal::InternalAdditionOps, PropertyAdditionOps},
             properties::{internal::TemporalPropertiesOps, Properties},
             storage::graph::{
                 edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
@@ -23,7 +23,6 @@ use crate::{
             },
         },
     },
-    prelude::DeletionOps,
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
@@ -31,10 +30,7 @@ use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
     core::{
         entities::EID,
-        storage::{
-            arc_str::{ArcStr, OptionAsStr},
-            timeindex::TimeIndexEntry,
-        },
+        storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
         Direction,
     },
 };

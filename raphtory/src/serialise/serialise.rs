@@ -7,9 +7,7 @@ use crate::{
     },
     db::{
         api::{
-            mutation::internal::{
-                InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
-            },
+            mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
             storage::graph::{
                 edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
                 storage_ops::GraphStorage, tprop_storage_ops::TPropOps,
@@ -227,10 +225,6 @@ impl UpdateNodeTProps {
 
     fn time(&self) -> TimeIndexEntry {
         TimeIndexEntry(self.time, self.secondary as usize)
-    }
-
-    fn has_props(&self) -> bool {
-        !self.properties.is_empty()
     }
 
     fn props(&self) -> impl Iterator<Item = Result<(usize, Prop), GraphError>> + '_ {

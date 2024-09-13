@@ -107,7 +107,7 @@ mod vector_tests {
     use super::*;
     use crate::{
         core::Prop,
-        prelude::{AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps},
+        prelude::{AdditionOps, Graph, GraphViewOps},
         vectors::{embeddings::openai_embedding, vectorisable::Vectorisable},
     };
     use dotenv::dotenv;

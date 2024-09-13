@@ -1,11 +1,8 @@
 use super::{resolve, timeindex::TimeIndex};
 use crate::{
-    core::{
-        entities::{
-            edges::edge_store::{EdgeDataLike, EdgeLayer, EdgeStore},
-            LayerIds,
-        },
-        utils::errors::GraphError,
+    core::entities::{
+        edges::edge_store::{EdgeDataLike, EdgeLayer, EdgeStore},
+        LayerIds,
     },
     db::api::storage::graph::edges::edge_storage_ops::{EdgeStorageOps, MemEdge},
 };
@@ -165,18 +162,6 @@ impl EdgesStorage {
     pub(crate) fn push(&self, mut value: EdgeStore) -> UninitialisedEdge {
         let index = self.len.fetch_add(1, atomic::Ordering::Relaxed);
         value.eid = EID(index);
-        let (bucket, offset) = self.resolve(index);
-        let guard = self.shards[bucket].write();
-        UninitialisedEdge {
-            guard,
-            offset,
-            value,
-        }
-    }
-
-    pub(crate) fn set(&self, value: EdgeStore) -> UninitialisedEdge {
-        let EID(index) = value.eid;
-        self.len.fetch_max(index + 1, atomic::Ordering::Relaxed);
         let (bucket, offset) = self.resolve(index);
         let guard = self.shards[bucket].write();
         UninitialisedEdge {
