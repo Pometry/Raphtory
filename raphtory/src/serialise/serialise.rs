@@ -826,6 +826,7 @@ impl StableDecode for TemporalGraph {
                                     edge_mut
                                         .deletions_mut(del_edge.layer_id())
                                         .insert(del_edge.time());
+                                    storage.update_time(del_edge.time());
                                 }
                             }
                             Update::UpdateEdgeCprops(update) => {
@@ -851,6 +852,7 @@ impl StableDecode for TemporalGraph {
                                             edge_layer.add_prop(update.time(), id, prop)?;
                                         }
                                     }
+                                    storage.update_time(update.time())
                                 }
                             }
                             _ => {}
@@ -907,6 +909,7 @@ impl StableDecode for TemporalGraph {
                                         let prop = storage.process_prop_value(&prop);
                                         node.add_prop(update.time(), id, prop)?;
                                     }
+                                    storage.update_time(update.time())
                                 }
                             }
                             Update::UpdateNodeType(update) => {
@@ -1167,6 +1170,7 @@ mod proto_test {
             graph::graph::assert_graph_equal,
         },
         prelude::*,
+        search::IndexedGraph,
         serialise::{proto::GraphType, ProtoGraph},
     };
 
@@ -1190,6 +1194,36 @@ mod proto_test {
         g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
+    }
+
+    #[cfg(feature = "search")]
+    #[test]
+    fn test_node_name() {
+        let g = Graph::new();
+        g.add_edge(1, "ben", "hamza", NO_PROPS, None).unwrap();
+        g.add_edge(2, "haaroon", "hamza", NO_PROPS, None).unwrap();
+        g.add_edge(3, "ben", "haaroon", NO_PROPS, None).unwrap();
+        let temp_file = tempfile::NamedTempFile::new().unwrap();
+
+        g.encode(&temp_file).unwrap();
+        let g2 = MaterializedGraph::load_cached(&temp_file).unwrap();
+        assert_eq!(g2.nodes().name().collect_vec(), ["ben", "hamza", "haaroon"]);
+        let node_names: Vec<_> = g2.nodes().iter().map(|n| n.name()).collect();
+        assert_eq!(node_names, ["ben", "hamza", "haaroon"]);
+        let g2_m = g2.materialize().unwrap();
+        assert_eq!(
+            g2_m.nodes().name().collect_vec(),
+            ["ben", "hamza", "haaroon"]
+        );
+        let g3 = g.materialize().unwrap();
+        assert_eq!(g3.nodes().name().collect_vec(), ["ben", "hamza", "haaroon"]);
+        let node_names: Vec<_> = g3.nodes().iter().map(|n| n.name()).collect();
+        assert_eq!(node_names, ["ben", "hamza", "haaroon"]);
+        g3.encode(&temp_file).unwrap();
+        let g4 = MaterializedGraph::decode(&temp_file).unwrap();
+        assert_eq!(g4.nodes().name().collect_vec(), ["ben", "hamza", "haaroon"]);
+        let node_names: Vec<_> = g4.nodes().iter().map(|n| n.name()).collect();
+        assert_eq!(node_names, ["ben", "hamza", "haaroon"]);
     }
 
     #[test]

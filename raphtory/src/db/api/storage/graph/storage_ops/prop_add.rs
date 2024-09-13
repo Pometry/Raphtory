@@ -20,6 +20,7 @@ impl InternalPropertyAdditionOps for TemporalGraph {
             let prop = self.process_prop_value(prop);
             self.graph_meta.add_prop(t, *prop_id, prop)?;
         }
+        self.update_time(t);
         Ok(())
     }
 
