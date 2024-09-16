@@ -996,97 +996,18 @@ def test_update_graph_succeeds_with_new_node_removed_from_new_graph():
         assert result["graph"]["properties"]["constant"]["isArchive"]["value"] == 1
 
 
-def test_update_graph_last_opened_fails_if_graph_not_found():
-    work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start() as server:
-        client = server.get_client()
-
-        query = """mutation { updateGraphLastOpened(path: "g1") }"""
-        with pytest.raises(Exception) as excinfo:
-            client.query(query)
-        assert "Graph not found" in str(excinfo.value)
-
-
-def test_update_graph_last_opened_fails_if_graph_not_found_at_namespace():
-    work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start() as server:
-        client = server.get_client()
-
-        query = """mutation { updateGraphLastOpened(path: "shivam/g1") }"""
-        with pytest.raises(Exception) as excinfo:
-            client.query(query)
-        assert "Graph not found" in str(excinfo.value)
-
-
-def test_update_graph_last_opened_succeeds():
-    work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start() as server:
-        client = server.get_client()
-
-        g = Graph()
-        g.add_edge(1, "ben", "hamza")
-        g.add_edge(2, "haaroon", "hamza")
-        g.add_edge(3, "ben", "haaroon")
-
-        g.save_to_file(os.path.join(work_dir, "g1"))
-
-        os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
-        g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
-
-        query_last_opened = """{ graph(path: "g1") { properties { constant { get(key: "lastOpened") { value } } } } }"""
-        mutate_last_opened = """mutation { updateGraphLastOpened(path: "g1") }"""
-        assert client.query(query_last_opened) == {
-            "graph": {"properties": {"constant": {"get": None}}}
-        }
-        assert client.query(mutate_last_opened) == {"updateGraphLastOpened": True}
-        updated_last_opened1 = client.query(query_last_opened)["graph"]["properties"][
-            "constant"
-        ]["get"]["value"]
-        time.sleep(1)
-        assert client.query(mutate_last_opened) == {"updateGraphLastOpened": True}
-        updated_last_opened2 = client.query(query_last_opened)["graph"]["properties"][
-            "constant"
-        ]["get"]["value"]
-        assert updated_last_opened2 > updated_last_opened1
-
-
-def test_update_graph_last_opened_succeeds_at_namespace():
-    work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start() as server:
-        client = server.get_client()
-
-        g = Graph()
-        g.add_edge(1, "ben", "hamza")
-        g.add_edge(2, "haaroon", "hamza")
-        g.add_edge(3, "ben", "haaroon")
-
-        os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
-        g.save_to_file(os.path.join(work_dir, "g1"))
-        g.save_to_file(os.path.join(work_dir, "shivam", "g2"))
-
-        query_last_opened = """{ graph(path: "shivam/g2") { properties { constant { get(key: "lastOpened") { value } } } } }"""
-        mutate_last_opened = """mutation { updateGraphLastOpened(path: "shivam/g2") }"""
-        assert client.query(query_last_opened) == {
-            "graph": {"properties": {"constant": {"get": None}}}
-        }
-        assert client.query(mutate_last_opened) == {"updateGraphLastOpened": True}
-        updated_last_opened1 = client.query(query_last_opened)["graph"]["properties"][
-            "constant"
-        ]["get"]["value"]
-        time.sleep(1)
-        assert client.query(mutate_last_opened) == {"updateGraphLastOpened": True}
-        updated_last_opened2 = client.query(query_last_opened)["graph"]["properties"][
-            "constant"
-        ]["get"]["value"]
-        assert updated_last_opened2 > updated_last_opened1
-
-
 def test_archive_graph_fails_if_graph_not_found():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir).start() as server:
         client = server.get_client()
 
-        query = """mutation { archiveGraph(path: "g1", isArchive: 0) }"""
+        query = """query {
+                  updateGraph(path: "g1") {
+                    updateConstantProperties(
+                      properties: [{key: "isArchive", value: 0}]
+                    )
+                  }
+                }"""
         with pytest.raises(Exception) as excinfo:
             client.query(query)
         assert "Graph not found" in str(excinfo.value)
@@ -1097,7 +1018,13 @@ def test_archive_graph_fails_if_graph_not_found_at_namespace():
     with GraphServer(work_dir).start() as server:
         client = server.get_client()
 
-        query = """mutation { archiveGraph(path: "shivam/g1", isArchive: 0) }"""
+        query = """query {
+                  updateGraph(path: "shivam/g1") {
+                    updateConstantProperties(
+                      properties: [{key: "isArchive", value: 0}]
+                    )
+                  }
+                }"""
         with pytest.raises(Exception) as excinfo:
             client.query(query)
         assert "Graph not found" in str(excinfo.value)
@@ -1121,16 +1048,28 @@ def test_archive_graph_succeeds():
         assert client.query(query_is_archive) == {
             "graph": {"properties": {"constant": {"get": None}}}
         }
-        update_archive_graph = """mutation { archiveGraph(path: "g1", isArchive: 0) }"""
-        assert client.query(update_archive_graph) == {"archiveGraph": True}
+        update_archive_graph = """query {
+                  updateGraph(path: "g1") {
+                    updateConstantProperties(
+                      properties: [{key: "isArchive", value: 0}]
+                    )
+                  }
+                }"""
+        assert client.query(update_archive_graph) == {'updateGraph': {'updateConstantProperties': True}}
         assert (
             client.query(query_is_archive)["graph"]["properties"]["constant"]["get"][
                 "value"
             ]
             == 0
         )
-        update_archive_graph = """mutation { archiveGraph(path: "g1", isArchive: 1) }"""
-        assert client.query(update_archive_graph) == {"archiveGraph": True}
+        update_archive_graph = """query {
+                  updateGraph(path: "g1") {
+                    updateConstantProperties(
+                      properties: [{key: "isArchive", value: 1}]
+                    )
+                  }
+                }"""
+        assert client.query(update_archive_graph) == {'updateGraph': {'updateConstantProperties': True}}
         assert (
             client.query(query_is_archive)["graph"]["properties"]["constant"]["get"][
                 "value"
@@ -1157,20 +1096,28 @@ def test_archive_graph_succeeds_at_namespace():
         assert client.query(query_is_archive) == {
             "graph": {"properties": {"constant": {"get": None}}}
         }
-        update_archive_graph = (
-            """mutation { archiveGraph(path: "shivam/g2", isArchive: 0) }"""
-        )
-        assert client.query(update_archive_graph) == {"archiveGraph": True}
+        update_archive_graph = """query {
+                  updateGraph(path: "shivam/g2") {
+                    updateConstantProperties(
+                      properties: [{key: "isArchive", value: 0}]
+                    )
+                  }
+                }"""
+        assert client.query(update_archive_graph) == {'updateGraph': {'updateConstantProperties': True}}
         assert (
             client.query(query_is_archive)["graph"]["properties"]["constant"]["get"][
                 "value"
             ]
             == 0
         )
-        update_archive_graph = (
-            """mutation { archiveGraph(path: "shivam/g2", isArchive: 1) }"""
-        )
-        assert client.query(update_archive_graph) == {"archiveGraph": True}
+        update_archive_graph = """query {
+                  updateGraph(path: "shivam/g2") {
+                    updateConstantProperties(
+                      properties: [{key: "isArchive", value: 1}]
+                    )
+                  }
+                }"""
+        assert client.query(update_archive_graph) == {'updateGraph': {'updateConstantProperties': True}}
         assert (
             client.query(query_is_archive)["graph"]["properties"]["constant"]["get"][
                 "value"
