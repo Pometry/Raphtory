@@ -24,8 +24,8 @@ use polars_arrow::{
     datatypes::{ArrowDataType as DataType, Field},
 };
 use pometry_storage::{
-    disk_hmap::DiskHashMap, graph::TemporalGraph, graph_fragment::TempColGraphFragment,
-    load::ExternalEdgeList, merge::merge_graph::merge_graphs, RAError,
+    graph::TemporalGraph, graph_fragment::TempColGraphFragment, load::ExternalEdgeList,
+    merge::merge_graph::merge_graphs, RAError,
 };
 use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
@@ -401,23 +401,6 @@ impl DiskGraphStorage {
             .map(|(_, layer)| layer)
     }
 
-    pub fn from_layer(layer: TempColGraphFragment) -> Self {
-        let path = layer.graph_dir().to_path_buf();
-        let global_ordering = layer.nodes_storage().gids().clone();
-
-        let global_order = DiskHashMap::from_sorted_dedup(global_ordering.clone())
-            .expect("Failed to create global order");
-
-        let inner = TemporalGraph::new_from_layers(
-            path,
-            global_ordering,
-            Arc::new(global_order),
-            vec![layer],
-            vec!["_default".to_string()],
-        );
-        Self::new(inner)
-    }
-
     pub fn node_meta(&self) -> &Meta {
         &self.node_meta
     }
@@ -616,11 +599,9 @@ mod test {
             Ok(graph) => {
                 // check graph is sane
                 check_graph_sanity(&edges, &nodes, &graph);
-                let node_gids = PrimitiveArray::from_slice(&nodes).boxed();
 
                 // check that reloading from graph dir works
-                let reloaded_graph =
-                    TempColGraphFragment::new(test_dir.path(), true, 0, node_gids).unwrap();
+                let reloaded_graph = TempColGraphFragment::new(test_dir.path(), true, 0).unwrap();
                 check_graph_sanity(&edges, &nodes, &reloaded_graph)
             }
             Err(RAError::NoEdgeLists | RAError::EmptyChunk) => assert!(edges.is_empty()),
@@ -774,9 +755,7 @@ mod test {
         ];
         assert_eq!(all_exploded, expected);
 
-        let node_gids = PrimitiveArray::from_slice([0u64, 1, 2]).boxed();
-        let reloaded_graph =
-            TempColGraphFragment::new(graph.graph_dir(), true, 0, node_gids).unwrap();
+        let reloaded_graph = TempColGraphFragment::new(graph.graph_dir(), true, 0).unwrap();
 
         check_graph_sanity(
             &[(0, 1, 0), (0, 1, 1), (0, 1, 2), (1, 2, 3)],

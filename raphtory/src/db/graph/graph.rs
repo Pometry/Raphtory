@@ -420,6 +420,7 @@ mod db_tests {
     };
     use serde_json::Value;
     use std::collections::{HashMap, HashSet};
+    #[cfg(feature = "proto")]
     use tempfile::TempDir;
     use tracing::{error, info};
 

@@ -21,6 +21,7 @@ use crate::{
         view::{Base, InheritViewOps},
     },
 };
+#[cfg(feature = "proto")]
 use once_cell::sync::OnceCell;
 use raphtory_api::core::{
     entities::{GidType, EID, VID},
