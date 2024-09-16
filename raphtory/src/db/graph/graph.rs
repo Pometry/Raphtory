@@ -234,25 +234,28 @@ pub fn assert_graph_equal<
             e2.properties().temporal().as_map(),
         );
 
+        // FIXME: DiskGraph does not currently preserve secondary index
+
+        let mut e1_updates: Vec<_> = e1
+            .explode()
+            .iter()
+            .map(|e| (e.layer_name().unwrap(), e.time().unwrap()))
+            .collect();
+        e1_updates.sort();
+
+        let mut e2_updates: Vec<_> = e2
+            .explode()
+            .iter()
+            .map(|e| (e.layer_name().unwrap(), e.time().unwrap()))
+            .collect();
+        e2_updates.sort();
         assert_eq!(
-            e1.explode()
-                .iter()
-                .map(|e| (e.edge.layer().unwrap(), e.edge.time().unwrap()))
-                .collect::<HashSet<_>>(),
-            e2.explode()
-                .iter()
-                .map(|e| (e.edge.layer().unwrap(), e.edge.time().unwrap()))
-                .collect::<HashSet<_>>(),
+            e1_updates,
+            e2_updates,
             "mismatched updates for edge {:?}: left {:?}, right {:?}",
             e1.id(),
-            e1.explode()
-                .iter()
-                .map(|e| (e.edge.layer().unwrap(), e.edge.time().unwrap()))
-                .collect::<HashSet<_>>(),
-            e2.explode()
-                .iter()
-                .map(|e| (e.edge.layer().unwrap(), e.edge.time().unwrap()))
-                .collect::<HashSet<_>>(),
+            e1_updates,
+            e2_updates,
         );
     }
 }

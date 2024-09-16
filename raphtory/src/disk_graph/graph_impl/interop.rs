@@ -9,7 +9,7 @@ use crate::{
             edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
             tprop_storage_ops::TPropOps,
         },
-        view::internal::CoreGraphOps,
+        view::internal::{CoreGraphOps, TimeSemantics},
     },
     disk_graph::graph_impl::prop_conversion::arrow_array_from_props,
     prelude::*,
@@ -138,5 +138,13 @@ impl GraphLike<TimeIndexEntry> for Graph {
             }),
             prop_type,
         )
+    }
+
+    fn earliest_time(&self) -> i64 {
+        self.earliest_time_global().unwrap_or(i64::MAX)
+    }
+
+    fn latest_time(&self) -> i64 {
+        self.latest_time_global().unwrap_or(i64::MIN)
     }
 }
