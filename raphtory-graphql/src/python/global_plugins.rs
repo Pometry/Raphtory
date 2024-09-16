@@ -3,7 +3,7 @@ use pyo3::{pyclass, pymethods, Python};
 use raphtory::{
     python::{
         packages::vectors::{
-            compute_embedding, into_py_document, translate_py_window, PyQuery, PyVectorisedGraph,
+            compute_embedding, into_py_document, translate_window, PyQuery, PyVectorisedGraph,
             PyWindow,
         },
         types::wrappers::document::PyDocument,
@@ -48,7 +48,7 @@ impl PyGlobalPlugins {
         limit: usize,
         window: PyWindow,
     ) -> Vec<(PyDocument, f32)> {
-        let window = translate_py_window(window);
+        let window = translate_window(window);
         let graphs = self.0.vectorised_graphs.read();
         let cluster = VectorisedCluster::new(&graphs);
         let vectorised_graphs = self.0.vectorised_graphs.read();

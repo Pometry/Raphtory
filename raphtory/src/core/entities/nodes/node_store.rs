@@ -14,6 +14,7 @@ use crate::core::{
     Direction, Prop,
 };
 use itertools::Itertools;
+use raphtory_api::core::entities::GidRef;
 use serde::{Deserialize, Serialize};
 use std::{iter, ops::Deref};
 
@@ -31,16 +32,16 @@ pub struct NodeStore {
 }
 
 impl NodeStore {
-    pub fn new(global_id: GID, t: TimeIndexEntry) -> Self {
-        let mut layers = Vec::with_capacity(1);
-        layers.push(Adj::Solo);
-        Self {
-            global_id,
-            vid: 0.into(),
-            timestamps: TimeIndex::one(t.t()),
-            layers,
-            props: None,
-            node_type: 0,
+    #[inline]
+    pub fn is_initialised(&self) -> bool {
+        self.vid != VID::default()
+    }
+
+    #[inline]
+    pub fn init(&mut self, vid: VID, gid: GidRef) {
+        if !self.is_initialised() {
+            self.vid = vid;
+            self.global_id = gid.to_owned();
         }
     }
 
@@ -52,6 +53,17 @@ impl NodeStore {
             vid: VID(0),
             timestamps: TimeIndex::Empty,
             layers,
+            props: None,
+            node_type: 0,
+        }
+    }
+
+    pub fn resolved(global_id: GID, vid: VID) -> Self {
+        Self {
+            global_id,
+            vid,
+            timestamps: Default::default(),
+            layers: vec![],
             props: None,
             node_type: 0,
         }

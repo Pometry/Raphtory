@@ -4,7 +4,7 @@ use crate::{
         api::state::{node_state::NodeState, ord_ops, Index},
         graph::node::NodeView,
     },
-    prelude::GraphViewOps,
+    prelude::{GraphViewOps, NodeViewOps},
 };
 use num_traits::AsPrimitive;
 use rayon::{
@@ -113,6 +113,29 @@ pub trait NodeStateOps<'graph>: IntoIterator<Item = Self::OwnedValue> {
                 Some(Index::from(keys)),
             )
         }
+    }
+
+    /// Sort the results by global node id
+    fn sort_by_id(&self) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph> {
+        let mut state: Vec<_> = self
+            .par_iter()
+            .map(|(n, v)| (n.id(), n.node, v.borrow().clone()))
+            .collect();
+        state.par_sort_by(|(l_id, l_n, _), (r_id, r_n, _)| (l_id, l_n).cmp(&(r_id, r_n)));
+
+        let mut keys = Vec::with_capacity(state.len());
+        let mut values = Vec::with_capacity(state.len());
+        state
+            .into_par_iter()
+            .map(|(_, n, v)| (n, v))
+            .unzip_into_vecs(&mut keys, &mut values);
+
+        NodeState::new(
+            self.base_graph().clone(),
+            self.graph().clone(),
+            values,
+            Some(Index::from(keys)),
+        )
     }
 
     /// Retrieves the top-k elements from the `AlgorithmResult` based on its values.

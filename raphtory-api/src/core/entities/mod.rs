@@ -1,5 +1,6 @@
 use self::edges::edge_ref::EdgeRef;
 use super::input::input_node::parse_u64_strict;
+use bytemuck::{Pod, Zeroable};
 use num_traits::ToPrimitive;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -12,9 +13,15 @@ pub mod edges;
 // the only reason this is public is because the physical ids of the nodes don't move
 #[repr(transparent)]
 #[derive(
-    Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Default,
+    Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Pod, Zeroable,
 )]
 pub struct VID(pub usize);
+
+impl Default for VID {
+    fn default() -> Self {
+        VID(usize::MAX)
+    }
+}
 
 impl VID {
     pub fn index(&self) -> usize {
@@ -40,9 +47,15 @@ impl From<VID> for usize {
 
 #[repr(transparent)]
 #[derive(
-    Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Default,
+    Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Pod, Zeroable,
 )]
 pub struct EID(pub usize);
+
+impl Default for EID {
+    fn default() -> Self {
+        EID(usize::MAX)
+    }
+}
 
 impl EID {
     pub fn as_u64(self) -> u64 {
@@ -105,7 +118,7 @@ pub enum GID {
 
 impl Default for GID {
     fn default() -> Self {
-        GID::U64(0)
+        GID::U64(u64::MAX)
     }
 }
 
@@ -119,6 +132,12 @@ impl Display for GID {
 }
 
 impl GID {
+    pub fn dtype(&self) -> GidType {
+        match self {
+            GID::U64(_) => GidType::U64,
+            GID::Str(_) => GidType::Str,
+        }
+    }
     pub fn into_str(self) -> Option<String> {
         match self {
             GID::Str(v) => Some(v),
@@ -147,7 +166,7 @@ impl GID {
         }
     }
 
-    pub fn to_str(&self) -> Cow<String> {
+    pub fn to_str(&self) -> Cow<str> {
         match self {
             GID::U64(v) => Cow::Owned(v.to_string()),
             GID::Str(v) => Cow::Borrowed(v),
@@ -202,6 +221,25 @@ pub enum GidRef<'a> {
     Str(&'a str),
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub enum GidType {
+    U64,
+    Str,
+}
+
+impl Display for GidType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GidType::U64 => {
+                write!(f, "Numeric")
+            }
+            GidType::Str => {
+                write!(f, "String")
+            }
+        }
+    }
+}
+
 impl Display for GidRef<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -221,6 +259,12 @@ impl<'a> From<&'a GID> for GidRef<'a> {
 }
 
 impl<'a> GidRef<'a> {
+    pub fn dtype(self) -> GidType {
+        match self {
+            GidRef::U64(_) => GidType::U64,
+            GidRef::Str(_) => GidType::Str,
+        }
+    }
     pub fn as_str(self) -> Option<&'a str> {
         match self {
             GidRef::Str(s) => Some(s),

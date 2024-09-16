@@ -17,12 +17,8 @@ use poem::{
     EndpointExt, Route, Server,
 };
 use raphtory::{
-    db::api::view::{DynamicGraph, IntoDynamic},
-    vectors::{
-        document_template::{DefaultTemplate, DocumentTemplate},
-        vectorisable::Vectorisable,
-        EmbeddingFunction,
-    },
+    db::api::view::IntoDynamic,
+    vectors::{template::DocumentTemplate, vectorisable::Vectorisable, EmbeddingFunction},
 };
 
 use crate::{
@@ -36,7 +32,6 @@ use opentelemetry_sdk::trace::{Tracer, TracerProvider as TP};
 use std::{
     fs,
     path::{Path, PathBuf},
-    sync::Arc,
 };
 use thiserror::Error;
 use tokio::{
@@ -118,17 +113,13 @@ impl GraphServer {
     ///
     /// Returns:
     ///    A new server object containing the vectorised graphs.
-    pub async fn with_vectorised<F, T>(
+    pub async fn with_vectorised<F: EmbeddingFunction + Clone + 'static>(
         self,
         graph_names: Option<Vec<String>>,
         embedding: F,
         cache: &Path,
-        template: Option<T>,
-    ) -> IoResult<Self>
-    where
-        F: EmbeddingFunction + Clone + 'static,
-        T: DocumentTemplate<DynamicGraph> + 'static,
-    {
+        template: DocumentTemplate,
+    ) -> IoResult<Self> {
         let graphs = &self.data.global_plugins.graphs;
         let stores = &self.data.global_plugins.vectorised_graphs;
 
@@ -137,10 +128,6 @@ impl GraphServer {
                 .get_graphs_from_work_dir()
                 .map_err(|err| ServerError::CacheError(err.to_string()))?,
         );
-
-        let template = template
-            .map(|template| Arc::new(template) as Arc<dyn DocumentTemplate<DynamicGraph>>)
-            .unwrap_or(Arc::new(DefaultTemplate));
 
         let graph_names = graph_names.unwrap_or_else(|| {
             let all_graph_names = {
@@ -159,7 +146,7 @@ impl GraphServer {
             println!("Loading embeddings for {graph_name} using cache from {graph_cache:?}");
             let vectorised = graph
                 .into_dynamic()
-                .vectorise_with_template(
+                .vectorise(
                     Box::new(embedding.clone()),
                     Some(graph_cache),
                     true,

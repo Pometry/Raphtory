@@ -1,5 +1,8 @@
 use crate::{
-    core::{utils::errors::GraphError, Prop, PropType},
+    core::{
+        utils::errors::{GraphError, WriteError},
+        Prop, PropType,
+    },
     db::{
         api::{storage::storage::Storage, view::MaterializedGraph},
         graph::views::deletion_graph::PersistentGraph,
@@ -19,30 +22,70 @@ use raphtory_api::core::{
 use std::{
     fmt::Debug,
     fs::{File, OpenOptions},
-    io::Write,
+    io::{Seek, SeekFrom, Write},
     mem,
     ops::DerefMut,
     path::Path,
+    sync::Arc,
 };
 
 #[derive(Debug)]
 pub struct GraphWriter {
-    writer: Mutex<File>,
+    writer: Arc<Mutex<File>>,
     proto_delta: Mutex<ProtoGraph>,
+}
+
+fn try_write(writer: &mut File, bytes: &[u8]) -> Result<(), WriteError> {
+    let pos = writer
+        .seek(SeekFrom::End(0))
+        .map_err(WriteError::WriteError)?;
+    writer
+        .write_all(bytes)
+        .map_err(|write_err| match writer.set_len(pos) {
+            Ok(_) => WriteError::WriteError(write_err),
+            Err(reset_err) => WriteError::FatalWriteError(write_err, reset_err),
+        })
 }
 
 impl GraphWriter {
     pub fn new(file: File) -> Self {
         Self {
-            writer: Mutex::new(file),
+            writer: Arc::new(Mutex::new(file)),
             proto_delta: Default::default(),
         }
     }
+
+    /// Get an independent writer pointing at the same underlying cache file
+    pub fn fork(&self) -> Self {
+        GraphWriter {
+            writer: self.writer.clone(),
+            proto_delta: Default::default(),
+        }
+    }
+
     pub fn write(&self) -> Result<(), GraphError> {
-        let proto = mem::take(self.proto_delta.lock().deref_mut());
+        let mut proto = mem::take(self.proto_delta.lock().deref_mut());
         let bytes = proto.encode_to_vec();
         if !bytes.is_empty() {
-            self.writer.lock().write_all(&bytes)?;
+            let mut writer = self.writer.lock();
+
+            if let Err(write_err) = try_write(&mut writer, &bytes) {
+                // If the write fails, try to put the updates back
+                let mut new_delta = self.proto_delta.lock();
+                let bytes = new_delta.encode_to_vec();
+                match proto.merge(&*bytes) {
+                    Ok(_) => *new_delta = proto,
+                    Err(decode_err) => {
+                        // This should never happen, it means that the new delta was an invalid Graph
+                        return Err(GraphError::FatalDecodeError {
+                            write_err,
+                            decode_err,
+                        });
+                    }
+                }
+                return Err(write_err.into());
+            }
+            // should we flush the file?
         }
         Ok(())
     }
@@ -173,11 +216,13 @@ impl GraphWriter {
     }
 
     pub fn add_edge_cprops(&self, edge: EID, layer: usize, props: &[(usize, Prop)]) {
-        self.proto_delta.lock().update_edge_cprops(
-            edge,
-            layer,
-            props.iter().map(|(id, prop)| (*id, prop)),
-        )
+        if !props.is_empty() {
+            self.proto_delta.lock().update_edge_cprops(
+                edge,
+                layer,
+                props.iter().map(|(id, prop)| (*id, prop)),
+            )
+        }
     }
 
     pub fn delete_edge(&self, edge: EID, t: TimeIndexEntry, layer: usize) {
@@ -259,5 +304,29 @@ impl<G: InternalCache + StableDecode + StableEncode> CacheOps for G {
         let graph = Self::decode(path.as_ref())?;
         graph.init_cache(path)?;
         Ok(graph)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::serialise::incremental::GraphWriter;
+    use raphtory_api::core::{
+        entities::{GidRef, VID},
+        storage::dict_mapper::MaybeNew,
+    };
+    use std::fs::File;
+    use tempfile::NamedTempFile;
+
+    #[test]
+    fn test_write_failure() {
+        let tmp_file = NamedTempFile::new().unwrap();
+        let read_only = File::open(tmp_file.path()).unwrap();
+
+        let cache = GraphWriter::new(read_only);
+        cache.resolve_node(MaybeNew::New(VID(0)), GidRef::Str("0"));
+        let res = cache.write();
+        println!("{res:?}");
+        assert!(res.is_err());
+        assert_eq!(cache.proto_delta.lock().nodes.len(), 1);
     }
 }

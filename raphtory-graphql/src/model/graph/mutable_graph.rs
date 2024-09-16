@@ -109,7 +109,7 @@ impl GqlMutableGraph {
                 let node_view = self
                     .graph
                     .node(name)
-                    .ok_or(GraphError::NodeNameError(node.name.clone()))?;
+                    .ok_or_else(|| GraphError::NodeMissingError(GID::Str(node.name.clone())))?;
                 node_view.set_node_type(node_type)?;
             }
             let constant_props = node.constant_properties.unwrap_or(vec![]);
@@ -117,7 +117,7 @@ impl GqlMutableGraph {
                 let node_view = self
                     .graph
                     .node(name)
-                    .ok_or(GraphError::NodeNameError(node.name))?;
+                    .ok_or(GraphError::NodeMissingError(GID::Str(node.name)))?;
                 node_view.add_constant_properties(as_properties(constant_props))?;
             }
         }
@@ -168,10 +168,13 @@ impl GqlMutableGraph {
             }
             let constant_props = edge.constant_properties.unwrap_or(vec![]);
             if !constant_props.is_empty() {
-                let edge_view = self.graph.edge(src, dst).ok_or(GraphError::EdgeNameError {
-                    src: edge.src,
-                    dst: edge.dst,
-                })?;
+                let edge_view = self
+                    .graph
+                    .edge(src, dst)
+                    .ok_or(GraphError::EdgeMissingError {
+                        src: GID::Str(edge.src),
+                        dst: GID::Str(edge.dst),
+                    })?;
                 edge_view.add_constant_properties(as_properties(constant_props), layer)?;
             }
         }

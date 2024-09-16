@@ -708,11 +708,11 @@ impl StableDecode for TemporalGraph {
                 Gid::GidU64(gid) => GidRef::U64(*gid),
             };
             let vid = VID(node.vid as usize);
-            storage.logical_to_physical.get_or_init(gid, || vid)?;
+            storage.logical_to_physical.set(gid, vid)?;
             let mut node_store = NodeStore::empty(gid.to_owned());
             node_store.vid = vid;
             node_store.node_type = node.type_id as usize;
-            storage.storage.nodes.set(vid, node_store);
+            storage.storage.nodes.set(node_store);
             Ok::<(), GraphError>(())
         })?;
         graph.edges.par_iter().for_each(|edge| {
@@ -721,7 +721,7 @@ impl StableDecode for TemporalGraph {
             let dst = VID(edge.dst as usize);
             let mut edge = EdgeStore::new(src, dst);
             edge.eid = eid;
-            storage.storage.edges.set(edge);
+            storage.storage.edges.set(edge).init();
         });
         graph.updates.par_iter().try_for_each(|update| {
             if let Some(update) = update.update.as_ref() {

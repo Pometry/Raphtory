@@ -15,7 +15,7 @@ homepage.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-raphtory-api = { path = "../raphtory-api", version = "0.11.1" }
+raphtory-api = { path = "../raphtory-api", version = "0.11.3" }
 chrono = { workspace = true }
 itertools = { workspace = true }
 num-traits = { workspace = true }
@@ -40,7 +40,7 @@ serde_json = { workspace = true }
 ouroboros = { workspace = true }
 either = { workspace = true }
 kdam = { workspace = true }
-
+bytemuck = { workspace = true }
 
 # io optional dependencies
 csv = { workspace = true, optional = true }
@@ -59,6 +59,8 @@ futures-util = { workspace = true, optional = true }
 async-trait = { workspace = true, optional = true }
 async-openai = { workspace = true, optional = true }
 bincode = { workspace = true, optional = true }
+minijinja = { workspace = true, optional = true }
+minijinja-contrib = { workspace = true, optional = true }
 
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
@@ -75,6 +77,10 @@ prost-types = { workspace = true, optional = true }
 log = "0.4.22"
 env_logger = "0.8.4"
 
+
+[target.'cfg(target_os = "macos")'.dependencies]
+snmalloc-rs = { workspace = true }
+
 [dev-dependencies]
 csv = { workspace = true }
 pretty_assertions = { workspace = true }
@@ -85,6 +91,7 @@ tokio = { workspace = true }             # for vector testing
 dotenv = { workspace = true }            # for vector testing
 streaming-stats = { workspace = true }
 proptest = { workspace = true }
+indoc = { workspace = true }
 
 [build-dependencies]
 prost-build = { workspace = true, optional = true }
@@ -106,7 +113,14 @@ io = [
 # search
 search = ["dep:tantivy"]
 # vectors
-vectors = ["dep:futures-util", "dep:async-trait", "dep:async-openai", "dep:bincode"]
+vectors = [
+    "dep:futures-util",
+    "dep:async-trait",
+    "dep:async-openai",
+    "dep:bincode",
+    "dep:minijinja",
+    "dep:minijinja-contrib",
+]
 
 # Enables generating the pyo3 python bindings
 python = [
@@ -120,7 +134,7 @@ python = [
     "dep:display-error-chain",
     "polars-arrow?/compute",
     "raphtory-api/python",
-    "kdam/notebook"
+    "kdam/notebook",
 ]
 
 # storage
@@ -138,9 +152,4 @@ arrow = [
     "polars-parquet?/compression",
 ]
 
-proto = [
-    "dep:prost",
-    "dep:prost-types",
-    "dep:prost-build",
-    "dep:memmap2",
-]
+proto = ["dep:prost", "dep:prost-types", "dep:prost-build", "dep:memmap2"]

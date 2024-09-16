@@ -14,7 +14,7 @@ impl GraphSchema {
         let nodes = graph
             .nodes()
             .iter()
-            .filter_map(|node| node.properties().get("type").map(|p| p.to_string()))
+            .filter_map(|node| node.node_type().map(|p| p.to_string()))
             .unique()
             .map(|node_type| NodeSchema::new(node_type, graph.clone()))
             .collect_vec();

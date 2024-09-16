@@ -96,7 +96,13 @@ where
     let events = evv
         .edges()
         .iter()
-        .map(|e| e.explode())
+        .filter_map(|e| {
+            if e.src().node != e.dst().node {
+                Some(e.explode())
+            } else {
+                None
+            }
+        })
         .kmerge_by(|e1, e2| e1.time_and_index() < e2.time_and_index())
         .map(|edge| {
             if edge.src().node == evv.node {
@@ -140,11 +146,15 @@ where
             .merge_by(inc.iter().flat_map(|e| e.explode()), |e1, e2| {
                 e1.time_and_index() < e2.time_and_index()
             })
-            .map(|e| {
-                two_node_event(
-                    if e.src().node == evv.node { 1 } else { 0 },
-                    e.time().unwrap(),
-                )
+            .filter_map(|e| {
+                if e.src().node != e.dst().node {
+                    Some(two_node_event(
+                        if e.src().node == evv.node { 1 } else { 0 },
+                        e.time().unwrap(),
+                    ))
+                } else {
+                    None
+                }
             })
             .collect();
         for j in 0..deltas.len() {
@@ -402,6 +412,9 @@ mod motifs_test {
 
     fn load_sample_graph() -> Graph {
         let edges = vec![
+            (1, 1, 1),
+            (1, 1, 1),
+            (2, 1, 1),
             (1, 1, 2),
             (2, 1, 3),
             (3, 1, 4),

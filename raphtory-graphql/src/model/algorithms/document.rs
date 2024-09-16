@@ -8,6 +8,7 @@ pub struct GqlDocument {
     /// Return the type of entity: "node" or "edge"
     entity_type: String,
     content: String,
+    embedding: Vec<f32>,
     life: Vec<i64>,
 }
 
@@ -17,32 +18,38 @@ impl From<Document> for GqlDocument {
             Document::Graph {
                 name,
                 content,
+                embedding,
                 life,
             } => Self {
                 name: vec![name],
                 entity_type: "graph".to_owned(),
                 content,
+                embedding: embedding.to_vec(),
                 life: lifespan_into_vec(life),
             },
             Document::Node {
                 name,
                 content,
+                embedding,
                 life,
             } => Self {
                 name: vec![name],
                 entity_type: "node".to_owned(),
                 content,
+                embedding: embedding.to_vec(),
                 life: lifespan_into_vec(life),
             },
             Document::Edge {
                 src,
                 dst,
                 content,
+                embedding,
                 life,
             } => Self {
                 name: vec![src, dst],
                 entity_type: "edge".to_owned(),
                 content,
+                embedding: embedding.to_vec(),
                 life: lifespan_into_vec(life),
             },
         }
