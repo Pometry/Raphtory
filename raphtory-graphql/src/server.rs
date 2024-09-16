@@ -302,9 +302,9 @@ async fn server_termination(mut internal_signal: Receiver<()>, tp: Option<TP>) {
         internal_signal.recv().await;
     };
     tokio::select! {
-        _ = ctrl_c => {},
-        _ = terminate => {},
-        _ = internal_terminate => {},
+        _ = ctrl_c => {println!("in ctrl c")},
+        _ = terminate => {println!("in terminate")},
+        _ = internal_terminate => {println!("in  internal terminate")},
     }
     match tp {
         None => {}
