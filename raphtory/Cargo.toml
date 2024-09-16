@@ -41,6 +41,7 @@ ouroboros = { workspace = true }
 either = { workspace = true }
 kdam = { workspace = true }
 bytemuck = { workspace = true }
+tracing = {workspace = true}
 
 # io optional dependencies
 csv = { workspace = true, optional = true }

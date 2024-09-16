@@ -325,7 +325,7 @@ impl PyGraphServer {
         });
 
         let mut server = PyRunningGraphServer::new(join_handle, sender, port)?;
-        if let Some(server_handler) = &server.server_handler {
+        if let Some(_server_handler) = &server.server_handler {
             let url = format!("http://localhost:{port}");
             match PyRunningGraphServer::wait_for_server_online(&url, timeout_ms) {
                 Ok(_) => return Ok(server),

@@ -187,24 +187,22 @@ impl GraphServer {
 
         // Create the base registry
         let registry = Registry::default().with(filter).with(
-            fmt::layer().pretty().with_span_events(FmtSpan::FULL), //(FULL, NEW, ENTER, EXIT, CLOSE)
+            fmt::layer().pretty().with_span_events(FmtSpan::NONE), //(FULL, NEW, ENTER, EXIT, CLOSE)
         );
-        // match tp.clone() {
-        //     Some(tp) => {
-        //         registry
-        //             .with(
-        //                 tracing_opentelemetry::layer()
-        //                     .with_tracer(tp.tracer(tracer_name.clone())),
-        //             )
-        //             .try_init()
-        //             .ok();
-        //     }
-        //
-        //     None => {
-        //         registry.try_init().ok();
-        //     }
-        // };
-        registry.try_init().ok();
+        match tp.clone() {
+            Some(tp) => {
+                registry
+                    .with(
+                        tracing_opentelemetry::layer().with_tracer(tp.tracer(tracer_name.clone())),
+                    )
+                    .try_init()
+                    .ok();
+            }
+
+            None => {
+                registry.try_init().ok();
+            }
+        };
         // it is important that this runs after algorithms have been pushed to PLUGIN_ALGOS static variable
         //let tracer = self.config.tracing.get_tracer();
         let app: CorsEndpoint<CookieJarManagerEndpoint<Route>> = self
@@ -302,13 +300,13 @@ async fn server_termination(mut internal_signal: Receiver<()>, tp: Option<TP>) {
         internal_signal.recv().await;
     };
     tokio::select! {
-        _ = ctrl_c => {println!("in ctrl c")},
-        _ = terminate => {println!("in terminate")},
-        _ = internal_terminate => {println!("in  internal terminate")},
+        _ = ctrl_c => {},
+        _ = terminate => {},
+        _ = internal_terminate => {},
     }
     match tp {
         None => {}
-        Some(tp) => {
+        Some(_) => {
             std::process::exit(0);
         }
     }

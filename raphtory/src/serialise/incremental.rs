@@ -28,6 +28,7 @@ use std::{
     path::Path,
     sync::Arc,
 };
+use tracing::instrument;
 
 #[derive(Debug)]
 pub struct GraphWriter {
@@ -294,7 +295,7 @@ impl<G: InternalCache + StableDecode + StableEncode> CacheOps for G {
         self.encode(path.as_ref())?;
         self.init_cache(path)
     }
-
+    #[instrument(level = "debug", skip(self))]
     fn write_updates(&self) -> Result<(), GraphError> {
         let cache = self.get_cache().ok_or(GraphError::CacheNotInnitialised)?;
         cache.write()
