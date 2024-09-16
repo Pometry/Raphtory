@@ -995,7 +995,7 @@ class Edges:
 class Graph:
     """A temporal graph."""
 
-    def __init__(self):
+    def __init__(self, num_shards=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
     def add_constant_properties(self, properties):
@@ -1881,9 +1881,9 @@ class Graph:
         embedding,
         cache=None,
         overwrite_cache=False,
-        graph_document=None,
-        node_document=None,
-        edge_document=None,
+        graph_template=None,
+        node_template=None,
+        edge_template=None,
         verbose=False,
     ):
         """
@@ -1893,8 +1893,9 @@ class Graph:
           embedding (Callable[[list], list]): the embedding function to translate documents to embeddings
           cache (str): the file to be used as a cache to avoid calling the embedding function (optional)
           overwrite_cache (bool): whether or not to overwrite the cache if there are new embeddings (optional)
-          node_document (str): the property name to be used as document for nodes (optional)
-          edge_document (str): the property name to be used as document for edges (optional)
+          graph_template (str): the document template for the graphs (optional)
+          node_template (str): the document template for the nodes (optional)
+          edge_template (str): the document template for the edges (optional)
           verbose (bool): whether or not to print logs reporting the progress
 
         Returns:
@@ -4663,9 +4664,9 @@ class PersistentGraph:
         embedding,
         cache=None,
         overwrite_cache=False,
-        graph_document=None,
-        node_document=None,
-        edge_document=None,
+        graph_template=None,
+        node_template=None,
+        edge_template=None,
         verbose=False,
     ):
         """
@@ -4675,8 +4676,9 @@ class PersistentGraph:
           embedding (Callable[[list], list]): the embedding function to translate documents to embeddings
           cache (str): the file to be used as a cache to avoid calling the embedding function (optional)
           overwrite_cache (bool): whether or not to overwrite the cache if there are new embeddings (optional)
-          node_document (str): the property name to be used as document for nodes (optional)
-          edge_document (str): the property name to be used as document for edges (optional)
+          graph_template (str): the document template for the graphs (optional)
+          node_template (str): the document template for the nodes (optional)
+          edge_template (str): the document template for the edges (optional)
           verbose (bool): whether or not to print logs reporting the progress
 
         Returns:

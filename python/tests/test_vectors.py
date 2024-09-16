@@ -48,7 +48,9 @@ def create_graph() -> VectorisedGraph:
     g.add_edge(3, "node1", "node3", {"name": "edge2"})
     g.add_edge(4, "node3", "node4", {"name": "edge3"})
 
-    vg = g.vectorise(embedding, node_template="{{ name }}", edge_template="{{ props.name }}")
+    vg = g.vectorise(
+        embedding, node_template="{{ name }}", edge_template="{{ props.name }}"
+    )
 
     return vg
 
@@ -120,10 +122,14 @@ def test_search():
     assert [doc.content for doc in docs] == ["node3", "edge3", "edge2"]
 
     # chained search
-    node_selection = vg.nodes_by_similarity("node2", 1);
-    edge_selection = vg.edges_by_similarity("node3", 1);
-    entity_selection = vg.entities_by_similarity("node1", 4);
-    docs = node_selection.append(edge_selection).append(entity_selection).get_documents()[:4]
+    node_selection = vg.nodes_by_similarity("node2", 1)
+    edge_selection = vg.edges_by_similarity("node3", 1)
+    entity_selection = vg.entities_by_similarity("node1", 4)
+    docs = (
+        node_selection.append(edge_selection)
+        .append(entity_selection)
+        .get_documents()[:4]
+    )
     assert [doc.content for doc in docs] == ["node2", "edge3", "node1", "edge1"]
     # the intention of this test was getting all the documents of for different entities,
     # including at least node and one edge at the top.

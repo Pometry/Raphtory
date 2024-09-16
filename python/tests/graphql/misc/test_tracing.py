@@ -3,7 +3,7 @@ import tempfile
 from raphtory import Graph
 from raphtory.graphql import GraphServer, RaphtoryClient
 
-#TODO this doesn't work currently due to how we terminate with Tracing
+# TODO this doesn't work currently due to how we terminate with Tracing
 # def test_server_start_on_default_port():
 #     g = Graph()
 #     g.add_edge(1, "ben", "hamza")

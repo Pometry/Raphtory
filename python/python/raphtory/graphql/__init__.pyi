@@ -82,9 +82,9 @@ class GraphServer:
         cache,
         graph_names=None,
         embedding=None,
-        graph_document=None,
-        node_document=None,
-        edge_document=None,
+        graph_template=None,
+        node_template=None,
+        edge_template=None,
     ):
         """
         Vectorise a subset of the graphs of the server.
@@ -98,9 +98,9 @@ class GraphServer:
           graph_names (List[str]): the names of the graphs to vectorise. All by default.
           cache (str):  the directory to use as cache for the embeddings.
           embedding (Function):  the embedding function to translate documents to embeddings.
-          graph_document (String):  the property name to use as the source for the documents on graphs.
-          node_document (String):  the property name to use as the source for the documents on nodes.
-          edge_document (String):  the property name to use as the source for the documents on edges.
+          graph_template (String):  the template to use for graphs.
+          node_template (String):  the template to use for nodes.
+          edge_template (String):  the template to use for edges.
 
         Returns:
            GraphServer: A new server object containing the vectorised graphs.

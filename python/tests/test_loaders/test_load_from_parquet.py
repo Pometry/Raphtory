@@ -155,14 +155,18 @@ def assert_expected_node_property_dept(g):
 
 
 def assert_expected_edge_properties(g):
-    assert dict(zip(g.layers(["layer 1", "layer 2", "layer 3"]).edges.id,
-                    g.layers(["layer 1", "layer 2", "layer 3"]).edges.properties.constant.get(
-                        "marbles_const"
-                    ))) == {
-               (1, 2): {"layer 1": "red"},
-               (2, 3): {"layer 2": "blue"},
-               (3, 4): {"layer 3": "green"},
-           }
+    assert dict(
+        zip(
+            g.layers(["layer 1", "layer 2", "layer 3"]).edges.id,
+            g.layers(["layer 1", "layer 2", "layer 3"]).edges.properties.constant.get(
+                "marbles_const"
+            ),
+        )
+    ) == {
+        (1, 2): {"layer 1": "red"},
+        (2, 3): {"layer 2": "blue"},
+        (3, 4): {"layer 3": "green"},
+    }
     assert dict(zip(g.edges.id, g.edges.properties.constant.get("tag"))) == {
         (1, 2): {"layer 1": "test_tag"},
         (2, 3): {"layer 2": "test_tag"},
@@ -218,10 +222,8 @@ def assert_expected_layers(g):
         5,
     ]
     with pytest.raises(
-            Exception,
-            match=re.escape(
-                "Invalid layer: test_layer"
-            ),
+        Exception,
+        match=re.escape("Invalid layer: test_layer"),
     ):
         g.layers(["test_layer"])
 
@@ -512,8 +514,8 @@ def test_edge_both_option_failures_parquet(parquet_files):
     # CHECK ALL EDGE FUNCTIONS ON GRAPH FAIL WITH BOTH LAYER AND LAYER_COL
     g = Graph()
     with pytest.raises(
-            Exception,
-            match=r"Failed to load graph: Failed to load graph WrongNumOfArgs\(\"layer_name\", \"layer_col\"\)",
+        Exception,
+        match=r"Failed to load graph: Failed to load graph WrongNumOfArgs\(\"layer_name\", \"layer_col\"\)",
     ):
         g.load_edges_from_parquet(
             edges_parquet_file_path,
@@ -525,8 +527,8 @@ def test_edge_both_option_failures_parquet(parquet_files):
         )
 
     with pytest.raises(
-            Exception,
-            match=r"Failed to load graph: Failed to load graph WrongNumOfArgs\(\"layer_name\", \"layer_col\"\)",
+        Exception,
+        match=r"Failed to load graph: Failed to load graph WrongNumOfArgs\(\"layer_name\", \"layer_col\"\)",
     ):
         g.load_edge_props_from_parquet(
             edges_parquet_file_path, "src", "dst", layer="blah", layer_col="marbles"
@@ -565,7 +567,9 @@ def test_edge_both_option_failures_parquet(parquet_files):
         ["blah"],
     ]
     assert g.unique_layers == ["_default", "blah"]
-    assert dict(zip(g.layer("blah").edges.id, g.layer("blah").edges.properties.get("marbles"))) == {
+    assert dict(
+        zip(g.layer("blah").edges.id, g.layer("blah").edges.properties.get("marbles"))
+    ) == {
         (1, 2): "red",
         (2, 3): "blue",
         (3, 4): "green",
@@ -585,7 +589,14 @@ def test_edge_both_option_failures_parquet(parquet_files):
         (4, 5): ["yellow"],
         (5, 6): ["purple"],
     }
-    assert set(g.unique_layers) == {"_default", "red", "blue", "green", "yellow", "purple"}
+    assert set(g.unique_layers) == {
+        "_default",
+        "red",
+        "blue",
+        "green",
+        "yellow",
+        "purple",
+    }
 
     g = Graph()
     g.load_edges_from_parquet(
@@ -605,7 +616,14 @@ def test_edge_both_option_failures_parquet(parquet_files):
         (4, 5): ["yellow"],
         (5, 6): ["purple"],
     }
-    assert set(g.unique_layers) == {"_default", "red", "blue", "green", "yellow", "purple"}
+    assert set(g.unique_layers) == {
+        "_default",
+        "red",
+        "blue",
+        "green",
+        "yellow",
+        "purple",
+    }
     assert dict(zip(g.edges.id, g.edges.properties.get("marbles"))) == {
         (1, 2): {"red": "red"},
         (2, 3): {"blue": "blue"},
@@ -616,8 +634,8 @@ def test_edge_both_option_failures_parquet(parquet_files):
 
     g = PersistentGraph()
     with pytest.raises(
-            Exception,
-            match=r"Failed to load graph: Failed to load graph WrongNumOfArgs\(\"layer_name\", \"layer_col\"\)",
+        Exception,
+        match=r"Failed to load graph: Failed to load graph WrongNumOfArgs\(\"layer_name\", \"layer_col\"\)",
     ):
         g.load_edges_from_parquet(
             edges_parquet_file_path,
@@ -629,16 +647,16 @@ def test_edge_both_option_failures_parquet(parquet_files):
         )
 
     with pytest.raises(
-            Exception,
-            match=r"Failed to load graph: Failed to load graph WrongNumOfArgs\(\"layer_name\", \"layer_col\"\)",
+        Exception,
+        match=r"Failed to load graph: Failed to load graph WrongNumOfArgs\(\"layer_name\", \"layer_col\"\)",
     ):
         g.load_edge_props_from_parquet(
             edges_parquet_file_path, "src", "dst", layer="blah", layer_col="marbles"
         )
 
     with pytest.raises(
-            Exception,
-            match=r"Failed to load graph: Failed to load graph WrongNumOfArgs\(\"layer_name\", \"layer_col\"\)",
+        Exception,
+        match=r"Failed to load graph: Failed to load graph WrongNumOfArgs\(\"layer_name\", \"layer_col\"\)",
     ):
         g.load_edge_deletions_from_parquet(
             edges_parquet_file_path,
@@ -682,7 +700,9 @@ def test_edge_both_option_failures_parquet(parquet_files):
         ["blah"],
     ]
     assert g.unique_layers == ["_default", "blah"]
-    assert dict(zip(g.layer("blah").edges.id, g.layer("blah").edges.properties.get("marbles"))) == {
+    assert dict(
+        zip(g.layer("blah").edges.id, g.layer("blah").edges.properties.get("marbles"))
+    ) == {
         (1, 2): "red",
         (2, 3): "blue",
         (3, 4): "green",
@@ -715,7 +735,14 @@ def test_edge_both_option_failures_parquet(parquet_files):
         (4, 5): ["yellow"],
         (5, 6): ["purple"],
     }
-    assert set(g.unique_layers) == {"_default", "red", "blue", "green", "yellow", "purple"}
+    assert set(g.unique_layers) == {
+        "_default",
+        "red",
+        "blue",
+        "green",
+        "yellow",
+        "purple",
+    }
 
     g = PersistentGraph()
     g.load_edges_from_parquet(
@@ -735,7 +762,14 @@ def test_edge_both_option_failures_parquet(parquet_files):
         (4, 5): ["yellow"],
         (5, 6): ["purple"],
     }
-    assert set(g.unique_layers) == {"_default", "red", "blue", "green", "yellow", "purple"}
+    assert set(g.unique_layers) == {
+        "_default",
+        "red",
+        "blue",
+        "green",
+        "yellow",
+        "purple",
+    }
     assert dict(zip(g.edges.id, g.edges.properties.get("marbles"))) == {
         (1, 2): {"red": "red"},
         (2, 3): {"blue": "blue"},
@@ -755,7 +789,14 @@ def test_edge_both_option_failures_parquet(parquet_files):
         (4, 5): ["yellow"],
         (5, 6): ["purple"],
     }
-    assert set(g.unique_layers) == {"_default", "red", "blue", "green", "yellow", "purple"}
+    assert set(g.unique_layers) == {
+        "_default",
+        "red",
+        "blue",
+        "green",
+        "yellow",
+        "purple",
+    }
 
 
 def test_node_both_option_failures_parquet(parquet_files):
@@ -767,9 +808,10 @@ def test_node_both_option_failures_parquet(parquet_files):
 
     # CHECK ALL NODE FUNCTIONS ON GRAPH FAIL WITH BOTH NODE_TYPE AND NODE_TYPE_COL
     with pytest.raises(
-            Exception,
-            match=re.escape(
-                r'Failed to load graph: Failed to load graph WrongNumOfArgs("node_type_name", "node_type_col")'),
+        Exception,
+        match=re.escape(
+            r'Failed to load graph: Failed to load graph WrongNumOfArgs("node_type_name", "node_type_col")'
+        ),
     ):
         g = Graph()
         g.load_nodes_from_parquet(
@@ -781,9 +823,10 @@ def test_node_both_option_failures_parquet(parquet_files):
         )
 
     with pytest.raises(
-            Exception,
-            match=re.escape(
-                r'Failed to load graph: Failed to load graph WrongNumOfArgs("node_type_name", "node_type_col")'),
+        Exception,
+        match=re.escape(
+            r'Failed to load graph: Failed to load graph WrongNumOfArgs("node_type_name", "node_type_col")'
+        ),
     ):
         g = Graph()
         g.load_node_props_from_parquet(
