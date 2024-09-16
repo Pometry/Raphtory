@@ -610,10 +610,7 @@ mod tests {
     };
     use itertools::Itertools;
     use polars_arrow::array::{MutableArray, MutablePrimitiveArray, MutableUtf8Array};
-    use proptest::{
-        prelude::{any, Strategy},
-        proptest,
-    };
+    use proptest::proptest;
     use tempfile::NamedTempFile;
 
     fn build_df(

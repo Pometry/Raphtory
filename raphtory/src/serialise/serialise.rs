@@ -796,7 +796,6 @@ impl StableDecode for TemporalGraph {
                 }
             }
         });
-        {}
         storage
             .write_lock_edges()?
             .into_par_iter_mut()

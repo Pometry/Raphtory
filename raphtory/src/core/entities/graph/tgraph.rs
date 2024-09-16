@@ -32,11 +32,7 @@ use raphtory_api::core::{
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashMap,
-    fmt::Debug,
-    hash::BuildHasherDefault,
-    iter,
-    sync::{atomic::AtomicUsize, Arc},
+    collections::HashMap, fmt::Debug, hash::BuildHasherDefault, iter, sync::atomic::AtomicUsize,
 };
 
 pub(crate) type FxDashSet<K> = DashSet<K, BuildHasherDefault<FxHasher>>;

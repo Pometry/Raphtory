@@ -10,7 +10,7 @@ use crate::{
         PropType,
     },
     db::api::{mutation::internal::InternalAdditionOps, storage::graph::locked::WriteLockedGraph},
-    prelude::{GraphViewOps, Prop},
+    prelude::Prop,
 };
 use either::Either;
 use raphtory_api::core::{

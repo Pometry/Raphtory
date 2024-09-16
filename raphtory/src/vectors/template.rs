@@ -1,3 +1,12 @@
+use super::datetimeformat::datetimeformat;
+use crate::{
+    core::{DocumentInput, Prop},
+    db::{
+        api::properties::TemporalPropertyView,
+        graph::{edge::EdgeView, node::NodeView},
+    },
+    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
+};
 use minijinja::{
     value::{Enumerator, Object},
     Environment, Template, Value,
@@ -5,16 +14,6 @@ use minijinja::{
 use raphtory_api::core::storage::arc_str::ArcStr;
 use serde::Serialize;
 use std::sync::Arc;
-
-use super::datetimeformat::datetimeformat;
-use crate::{
-    core::{DocumentInput, Prop},
-    db::{
-        api::{properties::TemporalPropertyView, view::StaticGraphViewOps},
-        graph::{edge::EdgeView, node::NodeView},
-    },
-    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
-};
 
 #[derive(Debug)]
 struct PropUpdate {
@@ -36,7 +35,7 @@ impl<'graph, G: GraphViewOps<'graph>> From<TemporalPropertyView<NodeView<G>>> fo
 }
 
 // FIXME: merge with the one above
-impl<G: StaticGraphViewOps> From<TemporalPropertyView<G>> for Value {
+impl<'graph, G: GraphViewOps<'graph>> From<TemporalPropertyView<G>> for Value {
     fn from(value: TemporalPropertyView<G>) -> Self {
         value
             .iter()
@@ -106,8 +105,8 @@ struct GraphTemplateContext {
 }
 
 // FIXME: boilerplate for the properties
-impl<G: StaticGraphViewOps> From<&G> for GraphTemplateContext {
-    fn from(value: &G) -> Self {
+impl<'graph, G: GraphViewOps<'graph>> From<G> for GraphTemplateContext {
+    fn from(value: G) -> Self {
         Self {
             props: value
                 .properties()
@@ -170,9 +169,9 @@ fn empty_iter() -> Box<dyn Iterator<Item = DocumentInput>> {
 }
 
 impl DocumentTemplate {
-    pub(crate) fn graph<G: StaticGraphViewOps>(
+    pub(crate) fn graph<'graph, G: GraphViewOps<'graph>>(
         &self,
-        graph: &G,
+        graph: G,
     ) -> Box<dyn Iterator<Item = DocumentInput>> {
         match &self.graph_template {
             Some(template) => {
@@ -213,9 +212,9 @@ impl DocumentTemplate {
     }
 
     /// A function that translate an edge into an iterator of documents
-    pub(crate) fn edge<G: StaticGraphViewOps>(
+    pub(crate) fn edge<'graph, G: GraphViewOps<'graph>>(
         &self,
-        edge: EdgeView<&G, &G>,
+        edge: EdgeView<G, G>,
     ) -> Box<dyn Iterator<Item = DocumentInput>> {
         match &self.edge_template {
             Some(template) => {
@@ -254,11 +253,11 @@ struct EdgeTemplateContext {
     props: Value,
 }
 
-impl<G: StaticGraphViewOps> From<EdgeView<&G>> for EdgeTemplateContext {
-    fn from(value: EdgeView<&G>) -> Self {
+impl<'graph, G: GraphViewOps<'graph>> From<EdgeView<G>> for EdgeTemplateContext {
+    fn from(value: EdgeView<G>) -> Self {
         Self {
-            src: (value.src()).into(),
-            dst: (value.dst()).into(),
+            src: value.src().into(),
+            dst: value.dst().into(),
             history: value.history(),
             layers: value
                 .layer_names()

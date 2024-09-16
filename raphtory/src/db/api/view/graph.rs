@@ -6,7 +6,7 @@ use crate::{
     },
     db::{
         api::{
-            mutation::{internal::InternalAdditionOps, PropertyAdditionOps},
+            mutation::internal::InternalAdditionOps,
             properties::{
                 internal::{ConstPropertiesOps, TemporalPropertiesOps},
                 Properties,
