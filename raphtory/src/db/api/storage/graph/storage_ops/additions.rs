@@ -10,7 +10,7 @@ use crate::{
         PropType,
     },
     db::api::{mutation::internal::InternalAdditionOps, storage::graph::locked::WriteLockedGraph},
-    prelude::Prop,
+    prelude::{GraphViewOps, Prop},
 };
 use either::Either;
 use raphtory_api::core::{
@@ -42,6 +42,10 @@ impl InternalAdditionOps for TemporalGraph {
 
     fn next_event_id(&self) -> Result<usize, GraphError> {
         Ok(self.event_counter.fetch_add(1, Ordering::Relaxed))
+    }
+
+    fn read_event_id(&self) -> usize {
+        self.event_counter.load(Ordering::Relaxed)
     }
 
     fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, GraphError> {
@@ -226,6 +230,15 @@ impl InternalAdditionOps for GraphStorage {
         match self {
             GraphStorage::Unlocked(storage) => storage.next_event_id(),
             _ => Err(GraphError::AttemptToMutateImmutableGraph),
+        }
+    }
+
+    fn read_event_id(&self) -> usize {
+        match self {
+            GraphStorage::Mem(storage) => storage.graph.read_event_id(),
+            GraphStorage::Unlocked(storage) => storage.read_event_id(),
+            #[cfg(feature = "storage")]
+            GraphStorage::Disk(storage) => storage.inner.count_temporal_edges(),
         }
     }
 

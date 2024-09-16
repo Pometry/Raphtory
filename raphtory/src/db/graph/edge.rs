@@ -201,7 +201,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
                 Some(l_id) => self
                     .graph
                     .get_layer_id(name)
-                    .filter(|id| id == l_id)
+                    .filter(|&id| id == l_id)
                     .ok_or_else(|| {
                         GraphError::invalid_layer(
                             name.to_owned(),
@@ -221,7 +221,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
                     }
                 }
             },
-            None => Ok(self.edge.layer().copied().unwrap_or(0)),
+            None => Ok(self.edge.layer().unwrap_or(0)),
         }
     }
 

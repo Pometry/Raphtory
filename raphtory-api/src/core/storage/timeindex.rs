@@ -3,7 +3,7 @@ use std::{fmt, ops::Range};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq, Ord, PartialOrd, Eq)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq, Ord, PartialOrd, Eq, Hash)]
 pub struct TimeIndexEntry(pub i64, pub usize);
 
 pub trait AsTime: fmt::Debug + Copy + Ord + Eq + Send + Sync + 'static {

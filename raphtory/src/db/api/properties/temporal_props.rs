@@ -174,6 +174,12 @@ impl<P: PropertiesOps + Clone> TemporalProperties<P> {
             .flat_map(|(k, v)| v.latest().map(|v| (k.clone(), v)))
             .collect()
     }
+
+    pub fn as_map(&self) -> HashMap<ArcStr, Vec<(i64, Prop)>> {
+        self.iter()
+            .map(|(key, value)| (key, value.histories().collect()))
+            .collect()
+    }
 }
 
 impl<P: PropertiesOps> PropUnwrap for TemporalPropertyView<P> {

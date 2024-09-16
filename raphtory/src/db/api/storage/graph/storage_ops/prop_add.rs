@@ -205,3 +205,30 @@ impl InternalPropertyAdditionOps for GraphStorage {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::{prelude::*, test_storage};
+    use itertools::Itertools;
+
+    #[test]
+    fn test_graph_temporal_prop_updates_time() {
+        let graph = Graph::new();
+        graph.add_properties(1, [("test", "test")]).unwrap();
+        graph.add_properties(2, [("test", "test2")]).unwrap();
+        test_storage!(&graph, |graph| {
+            assert_eq!(graph.earliest_time(), Some(1));
+            assert_eq!(graph.latest_time(), Some(2));
+            assert_eq!(
+                graph
+                    .properties()
+                    .temporal()
+                    .get("test")
+                    .unwrap()
+                    .iter()
+                    .collect_vec(),
+                [(1, Prop::str("test")), (2, Prop::str("test2"))]
+            );
+        });
+    }
+}

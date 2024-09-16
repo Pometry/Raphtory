@@ -7,7 +7,10 @@ use crate::{
     db::{
         api::{
             mutation::{internal::InternalAdditionOps, PropertyAdditionOps},
-            properties::{internal::TemporalPropertiesOps, Properties},
+            properties::{
+                internal::{ConstPropertiesOps, TemporalPropertiesOps},
+                Properties,
+            },
             storage::graph::{
                 edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
             },
@@ -144,7 +147,21 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 
     fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
         let storage = self.core_graph().lock();
-        let g = TemporalGraph::default();
+        let mut g = TemporalGraph::default();
+
+        // Copy all graph properties
+        g.graph_meta = self.graph_meta().deep_clone();
+
+        // preserve all property mappings
+        g.node_meta
+            .set_const_prop_meta(self.node_meta().const_prop_meta().deep_clone());
+        g.node_meta
+            .set_temporal_prop_meta(self.node_meta().temporal_prop_meta().deep_clone());
+        g.edge_meta
+            .set_const_prop_meta(self.edge_meta().const_prop_meta().deep_clone());
+        g.edge_meta
+            .set_temporal_prop_meta(self.edge_meta().temporal_prop_meta().deep_clone());
+
         if let Some(earliest) = self.earliest_time() {
             g.update_time(TimeIndexEntry::start(earliest));
         } else {
@@ -190,6 +207,9 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                 layer_map
             }
         };
+        // Set event counter to be the same as old graph to avoid any possibility for duplicate event ids
+        g.event_counter
+            .fetch_max(storage.read_event_id(), Ordering::Relaxed);
 
         {
             // scope for the write lock
@@ -199,13 +219,12 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
             let mut node_map = vec![VID::default(); storage.unfiltered_num_nodes()];
             let node_map_shared =
                 atomic_usize_from_mut_slice(bytemuck::cast_slice_mut(&mut node_map));
-            let t_prop_keys = self.node_meta().temporal_prop_meta().get_keys();
 
             new_storage.nodes.par_iter_mut().try_for_each(|mut shard| {
                 for (index, node) in self.nodes().iter().enumerate() {
                     let new_id = VID(index);
                     let gid = node.id();
-                    if let Some(new_node) = shard.get_mut(new_id) {
+                    if let Some(new_node) = shard.set(new_id, gid.as_ref()) {
                         node_map_shared[node.node.index()].store(index, Ordering::Relaxed);
                         if let Some(node_type) = node.node_type() {
                             let new_type_id = g
@@ -215,9 +234,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                                 .inner();
                             new_node.node_type = new_type_id;
                         }
-                        new_node.vid = new_id;
-                        g.logical_to_physical.set((&gid).into(), new_id)?;
-                        new_node.global_id = gid;
+                        g.logical_to_physical.set(gid.as_ref(), new_id)?;
 
                         if let Some(earliest) = node.earliest_time() {
                             // explicitly add node earliest_time to handle PersistentGraph
@@ -226,26 +243,17 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                         for t in node.history() {
                             new_node.update_time(TimeIndexEntry::start(t));
                         }
-                        for prop_id in node.temporal_prop_ids() {
-                            let prop_name = &t_prop_keys[prop_id];
-                            let prop_type = self
-                                .node_meta()
-                                .temporal_prop_meta()
-                                .get_dtype(prop_id)
-                                .unwrap();
-                            let new_prop_id = g
-                                .resolve_node_property(prop_name, prop_type, false)?
-                                .inner();
-                            for (t, prop_value) in self.temporal_node_prop_hist(node.node, prop_id)
+                        for t_prop_id in node.temporal_prop_ids() {
+                            for (t, prop_value) in
+                                self.temporal_node_prop_hist(node.node, t_prop_id)
                             {
-                                new_node.add_prop(t, new_prop_id, prop_value)?;
+                                new_node.add_prop(t, t_prop_id, prop_value)?;
                             }
                         }
-                        for (c_prop_name, prop_value) in node.properties().constant().iter() {
-                            let prop_id = g
-                                .resolve_node_property(&c_prop_name, prop_value.dtype(), true)?
-                                .inner();
-                            new_node.add_constant_prop(prop_id, prop_value)?;
+                        for c_prop_id in node.const_prop_ids() {
+                            if let Some(prop_value) = node.get_const_prop(c_prop_id) {
+                                new_node.add_constant_prop(c_prop_id, prop_value)?;
+                            }
                         }
                     }
                 }
@@ -259,51 +267,31 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                         edge_store.src = node_map[edge.edge.src().index()];
                         edge_store.dst = node_map[edge.edge.dst().index()];
                         edge_store.eid = EID(eid);
-                        for e in edge.explode() {
-                            let t = e.edge.time().unwrap();
-                            let layer = layer_map[*e.edge.layer().unwrap()];
-                            let edge_additions = new_edge.additions_mut(layer);
-                            edge_additions.insert(e.edge.time().unwrap());
-                            let t_props = e.properties().temporal();
-                            let mut props_iter = t_props.iter_latest().peekable();
-                            if props_iter.peek().is_some() {
-                                let edge_layer = new_edge.layer_mut(layer);
-                                for (prop_name, prop_value) in props_iter {
-                                    let prop_id = g
-                                        .resolve_edge_property(
-                                            &prop_name,
-                                            prop_value.dtype(),
-                                            false,
-                                        )?
-                                        .inner();
-                                    edge_layer.add_prop(t, prop_id, prop_value)?;
+                        for edge in edge.explode_layers() {
+                            let old_layer = LayerIds::All.constrain_from_edge(edge.edge);
+                            let layer = layer_map[edge.edge.layer().unwrap()];
+                            let additions = new_edge.additions_mut(layer);
+                            for edge in edge.explode() {
+                                let t = edge.edge.time().unwrap();
+                                additions.insert(t);
+                            }
+                            for t_prop in edge.temporal_prop_ids() {
+                                for (t, prop_value) in
+                                    self.temporal_edge_prop_hist(edge.edge, t_prop, &old_layer)
+                                {
+                                    new_edge.layer_mut(layer).add_prop(t, t_prop, prop_value)?;
                                 }
                             }
-                        }
-                        for e in edge.explode_layers() {
-                            let layer = layer_map[*e.edge.layer().unwrap()];
-                            let c_props = e.properties().constant();
-                            let mut props_iter = c_props.iter().peekable();
-                            if props_iter.peek().is_some() {
-                                let edge_layer = new_edge.layer_mut(layer);
-                                for (prop_name, prop_value) in props_iter {
-                                    let prop_id = g
-                                        .resolve_edge_property(
-                                            &prop_name,
-                                            prop_value.dtype(),
-                                            true,
-                                        )?
-                                        .inner();
-                                    edge_layer.add_constant_prop(prop_id, prop_value)?;
+                            for c_prop in edge.const_prop_ids() {
+                                if let Some(prop_value) = edge.get_const_prop(c_prop) {
+                                    new_edge
+                                        .layer_mut(layer)
+                                        .add_constant_prop(c_prop, prop_value)?;
                                 }
                             }
-                        }
-                        if self.include_deletions() {
-                            for e in edge.explode_layers() {
-                                let layer = *e.edge.layer().unwrap();
-                                let layer_ids = LayerIds::One(layer);
+                            if self.include_deletions() {
                                 let mut deletion_history =
-                                    self.edge_deletion_history(edge.edge, &layer_ids).peekable();
+                                    self.edge_deletion_history(edge.edge, &old_layer).peekable();
                                 if deletion_history.peek().is_some() {
                                     let edge_deletions = new_edge.deletions_mut(layer_map[layer]);
                                     for t in deletion_history {
@@ -324,7 +312,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                             src_node.add_edge(
                                 node_map[edge.edge.dst().index()],
                                 Direction::OUT,
-                                *ee.edge.layer().unwrap(),
+                                ee.edge.layer().unwrap(),
                                 EID(eid),
                             );
                         }
@@ -334,7 +322,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                             dst_node.add_edge(
                                 node_map[edge.edge.src().index()],
                                 Direction::IN,
-                                *ee.edge.layer().unwrap(),
+                                ee.edge.layer().unwrap(),
                                 EID(eid),
                             );
                         }
@@ -343,8 +331,6 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 
                 Ok::<(), GraphError>(())
             })?;
-
-            g.add_constant_properties(self.properties().constant())?;
         }
 
         Ok(self.new_base_graph(g.into()))
@@ -635,8 +621,15 @@ mod test_exploded_edges {
 
 #[cfg(test)]
 mod test_materialize {
-    use crate::{db::api::view::internal::CoreGraphOps, prelude::*, test_storage};
+    use crate::{
+        db::{api::view::internal::CoreGraphOps, graph::graph::assert_graph_equal},
+        prelude::*,
+        test_storage,
+        test_utils::{build_edge_list, build_graph_from_edge_list},
+    };
+    use proptest::{arbitrary::any, proptest};
     use raphtory_api::core::storage::arc_str::OptionAsStr;
+    use std::ops::Range;
 
     #[test]
     fn test_materialize() {
@@ -645,6 +638,8 @@ mod test_materialize {
         g.add_edge(0, 1, 2, [("layer2", "2")], Some("2")).unwrap();
 
         let gm = g.materialize().unwrap();
+
+        assert_graph_equal(&g, &gm);
         assert_eq!(
             gm.nodes().name().values().collect::<Vec<String>>(),
             vec!["1", "2"]
@@ -671,6 +666,33 @@ mod test_materialize {
     }
 
     #[test]
+    fn test_graph_properties() {
+        let g = Graph::new();
+        g.add_properties(1, [("test", "test")]).unwrap();
+        g.add_constant_properties([("test_constant", "test2")])
+            .unwrap();
+
+        test_storage!(&g, |g| {
+            let gm = g.materialize().unwrap();
+            assert_graph_equal(&g, &gm);
+        });
+    }
+
+    #[test]
+    fn materialize_prop_test() {
+        proptest!(|(edges in build_edge_list(100, 100), w in any::<Range<i64>>())| {
+            let g = build_graph_from_edge_list(&edges);
+            test_storage!(&g, |g| {
+                let gm = g.materialize().unwrap();
+                assert_graph_equal(&g, &gm);
+                let gw = g.window(w.start, w.end);
+                let gmw = gw.materialize().unwrap();
+                assert_graph_equal(&gw, &gmw);
+            });
+        })
+    }
+
+    #[test]
     fn test_subgraph() {
         let g = Graph::new();
         g.add_node(0, 1, NO_PROPS, None).unwrap();
@@ -688,6 +710,8 @@ mod test_materialize {
                 .collect::<Vec<String>>(),
             vec!["4", "5"]
         );
+        let gm = nodes_subgraph.materialize().unwrap();
+        assert_graph_equal(&nodes_subgraph, &gm);
     }
 
     #[test]
@@ -708,6 +732,8 @@ mod test_materialize {
                 .collect::<Vec<String>>(),
             vec!["1", "2", "3"]
         );
+        let gm = exclude_nodes_subgraph.materialize().unwrap();
+        assert_graph_equal(&exclude_nodes_subgraph, &gm);
     }
 
     #[test]

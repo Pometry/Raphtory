@@ -372,11 +372,7 @@ impl TimeSemantics for PersistentGraph {
         let g = self.clone();
         let edge = self.core_edge_arc(e.into());
         Box::new(g.edge_layers(e, layer_ids).filter(move |&e| {
-            g.include_edge_window(
-                edge.as_ref(),
-                w.clone(),
-                &LayerIds::One(*e.layer().unwrap()),
-            )
+            g.include_edge_window(edge.as_ref(), w.clone(), &LayerIds::One(e.layer().unwrap()))
         }))
     }
 

@@ -22,6 +22,9 @@ pub trait InternalAdditionOps {
     /// get the sequence id for the next event
     fn next_event_id(&self) -> Result<usize, GraphError>;
 
+    /// get the current sequence id without incrementing the counter
+    fn read_event_id(&self) -> usize;
+
     fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, GraphError>;
 
     /// map layer name to id and allocate a new layer if needed
@@ -136,6 +139,11 @@ impl<G: DelegateAdditionOps> InternalAdditionOps for G {
     #[inline(always)]
     fn next_event_id(&self) -> Result<usize, GraphError> {
         self.graph().next_event_id()
+    }
+
+    #[inline]
+    fn read_event_id(&self) -> usize {
+        self.graph().read_event_id()
     }
 
     #[inline]

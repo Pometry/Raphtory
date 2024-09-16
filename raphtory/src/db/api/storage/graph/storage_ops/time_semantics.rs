@@ -180,7 +180,7 @@ impl TimeSemantics for GraphStorage {
             entry
                 .clone()
                 .into_layers(layer_ids.clone(), e)
-                .filter(move |e| entry.additions(*e.layer().unwrap()).active_t(w.clone())),
+                .filter(move |e| entry.additions(e.layer().unwrap()).active_t(w.clone())),
         )
     }
 

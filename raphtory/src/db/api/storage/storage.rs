@@ -115,6 +115,10 @@ impl InternalAdditionOps for Storage {
         self.graph.next_event_id()
     }
 
+    fn read_event_id(&self) -> usize {
+        self.graph.read_event_id()
+    }
+
     #[inline]
     fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, GraphError> {
         self.graph.reserve_event_ids(num_ids)

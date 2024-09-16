@@ -29,6 +29,7 @@ use core::panic;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
+    collections::HashSet,
     fmt::{Display, Formatter},
     sync::Arc,
 };
@@ -103,6 +104,21 @@ pub fn assert_graph_equal<
         g1.latest_time(),
         g2.latest_time()
     );
+    assert_eq!(
+        g1.properties().constant().as_map(),
+        g2.properties().constant().as_map(),
+        "mismatched graph constant properties: left {:?}, right {:?}",
+        g1.properties().constant().as_map(),
+        g2.properties().constant().as_map()
+    );
+    assert_eq!(
+        g1.properties().temporal().as_map(),
+        g2.properties().temporal().as_map(),
+        "mismatched graph temporal properties: left {:?}, right {:?}",
+        g1.properties().temporal().as_map(),
+        g2.properties().temporal().as_map()
+    );
+
     for n1 in g1.nodes() {
         let n2 = g2
             .node(n1.id())
@@ -140,12 +156,12 @@ pub fn assert_graph_equal<
             n2.properties().constant().as_map()
         );
         assert_eq!(
-            n1.properties().temporal().histories(),
-            n2.properties().temporal().histories(),
+            n1.properties().temporal().as_map(),
+            n2.properties().temporal().as_map(),
             "mismatched temporal properties for node {:?}: left {:?}, right {:?}",
             n1.id(),
-            n1.properties().temporal().histories(),
-            n2.properties().temporal().histories()
+            n1.properties().temporal().as_map(),
+            n2.properties().temporal().as_map()
         );
         assert_eq!(
             n1.out_degree(),
@@ -171,32 +187,73 @@ pub fn assert_graph_equal<
             n1.degree(),
             n2.degree(),
         );
+        assert_eq!(
+            n1.out_neighbours().id().collect::<HashSet<_>>(),
+            n2.out_neighbours().id().collect::<HashSet<_>>(),
+            "mismatched out-neighbours for node {:?}: left {:?}, right {:?}",
+            n1.id(),
+            n1.out_neighbours().id().collect::<HashSet<_>>(),
+            n2.out_neighbours().id().collect::<HashSet<_>>()
+        );
+        assert_eq!(
+            n1.in_neighbours().id().collect::<HashSet<_>>(),
+            n2.in_neighbours().id().collect::<HashSet<_>>(),
+            "mismatched in-neighbours for node {:?}: left {:?}, right {:?}",
+            n1.id(),
+            n1.in_neighbours().id().collect::<HashSet<_>>(),
+            n2.in_neighbours().id().collect::<HashSet<_>>()
+        )
     }
 
-    for e in g1.edges().explode() {
-        // all exploded edges exist in other
+    for e1 in g1.edges() {
         let e2 = g2
-            .edge(e.src().id(), e.dst().id())
-            .unwrap_or_else(|| panic!("missing edge {:?}", e.id()));
-        assert!(
-            e2.active(e.time().unwrap()),
-            "exploded edge {:?} not active as expected at time {}",
-            e2.id(),
-            e.time().unwrap()
+            .edge(e1.src().id(), e1.dst().id())
+            .unwrap_or_else(|| panic!("missing edge {:?}", e1.id()));
+        assert_eq!(
+            e1.earliest_time(),
+            e2.earliest_time(),
+            "mismatched earliest time for edge {:?}: left {:?}, right {:?}",
+            e1.id(),
+            e1.earliest_time(),
+            e2.earliest_time()
+        );
+        assert_eq!(
+            e1.properties().constant().as_map(),
+            e2.properties().constant().as_map(),
+            "mismatched constant properties for edge {:?}: left {:?}, right {:?}",
+            e1.id(),
+            e1.properties().constant().as_map(),
+            e2.properties().constant().as_map()
+        );
+        assert_eq!(
+            e1.properties().temporal().as_map(),
+            e2.properties().temporal().as_map(),
+            "mismatched temporal properties for edge {:?}: left {:?}, right {:?}",
+            e1.id(),
+            e1.properties().temporal().as_map(),
+            e2.properties().temporal().as_map(),
         );
 
-        let c1 = e.properties().constant().into_iter().count();
-        let t1 = e.properties().temporal().into_iter().count();
-        let check = g2
-            .edge(e.src().id(), e.dst().id())
-            .filter(|ee| {
-                ee.active(e.time().expect("exploded"))
-                    && c1 == e.properties().constant().into_iter().count()
-                    && t1 == e.properties().temporal().into_iter().count()
-            })
-            .is_some();
-
-        assert!(check, "edge {:?} properties mismatch", e.id());
+        assert_eq!(
+            e1.explode()
+                .iter()
+                .map(|e| (e.edge.layer().unwrap(), e.edge.time().unwrap()))
+                .collect::<HashSet<_>>(),
+            e2.explode()
+                .iter()
+                .map(|e| (e.edge.layer().unwrap(), e.edge.time().unwrap()))
+                .collect::<HashSet<_>>(),
+            "mismatched updates for edge {:?}: left {:?}, right {:?}",
+            e1.id(),
+            e1.explode()
+                .iter()
+                .map(|e| (e.edge.layer().unwrap(), e.edge.time().unwrap()))
+                .collect::<HashSet<_>>(),
+            e2.explode()
+                .iter()
+                .map(|e| (e.edge.layer().unwrap(), e.edge.time().unwrap()))
+                .collect::<HashSet<_>>(),
+        );
     }
 }
 
@@ -1917,7 +1974,7 @@ mod db_tests {
                 .explode_layers()
                 .iter()
                 .filter_map(|e| {
-                    e.edge.layer().copied().and_then(|layer| {
+                    e.edge.layer().and_then(|layer| {
                         Some((e.src().id().as_u64()?, e.dst().id().as_u64()?, layer))
                     })
                 })
@@ -1946,7 +2003,6 @@ mod db_tests {
                 .filter_map(|e| {
                     e.edge
                         .layer()
-                        .copied()
                         .map(|layer| (e.src().id(), e.dst().id(), layer))
                 })
                 .collect::<Vec<_>>();
@@ -1978,7 +2034,7 @@ mod db_tests {
                         e.edge
                             .layer()
                             .zip(e.time().ok())
-                            .map(|(layer, t)| (t, e.src().id(), e.dst().id(), *layer))
+                            .map(|(layer, t)| (t, e.src().id(), e.dst().id(), layer))
                     })
                 })
                 .collect::<Vec<_>>();
@@ -2014,7 +2070,7 @@ mod db_tests {
                         e.edge
                             .layer()
                             .zip(Some(e.time().unwrap()))
-                            .map(|(layer, t)| (t, e.src().id(), e.dst().id(), *layer))
+                            .map(|(layer, t)| (t, e.src().id(), e.dst().id(), layer))
                     })
                 })
                 .collect::<Vec<_>>();

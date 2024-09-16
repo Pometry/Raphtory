@@ -192,7 +192,7 @@ impl<
         // Add edges first so we definitely have all associated nodes (important in case of persistent edges)
         // FIXME: this needs to be verified
         for ee in edge.explode_layers() {
-            let layer_id = *ee.edge.layer().expect("exploded layers");
+            let layer_id = ee.edge.layer().expect("exploded layers");
             let layer_ids = LayerIds::One(layer_id);
             let layer_name = self.get_layer_name(layer_id);
             let layer_name: Option<&str> = if layer_id == 0 {

@@ -794,6 +794,11 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
     }
 
     #[inline]
+    fn read_event_id(&self) -> usize {
+        self.graph.read_event_id()
+    }
+
+    #[inline]
     fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, GraphError> {
         self.graph.reserve_event_ids(num_ids)
     }
