@@ -31,7 +31,8 @@ use crate::{
     server::ServerError::SchemaError,
 };
 use config::ConfigError;
-use opentelemetry_sdk::trace::Tracer;
+use opentelemetry::trace::TracerProvider;
+use opentelemetry_sdk::trace::{Tracer, TracerProvider as TP};
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -192,35 +193,42 @@ impl GraphServer {
 
     /// Start the server on the port `port` and return a handle to it.
     pub async fn start_with_port(self, port: u16) -> IoResult<RunningGraphServer> {
-        let filter = self.config.logging.get_log_env();
+        let config = &self.config;
+        let filter = config.logging.get_log_env();
+        let tracer_name = config.tracing.otlp_tracing_service_name.clone();
+        let tp = config.tracing.tracer_provider();
 
         // Create the base registry
         let registry = Registry::default().with(filter).with(
             fmt::layer().pretty().with_span_events(FmtSpan::FULL), //(FULL, NEW, ENTER, EXIT, CLOSE)
         );
-        match self.config.tracing.get_tracer() {
-            Some(tracer) => {
-                registry
-                    .with(tracing_opentelemetry::layer().with_tracer(tracer))
-                    .try_init()
-                    .ok();
-            }
-
-            None => {
-                registry.try_init().ok();
-            }
-        };
-
+        // match tp.clone() {
+        //     Some(tp) => {
+        //         registry
+        //             .with(
+        //                 tracing_opentelemetry::layer()
+        //                     .with_tracer(tp.tracer(tracer_name.clone())),
+        //             )
+        //             .try_init()
+        //             .ok();
+        //     }
+        //
+        //     None => {
+        //         registry.try_init().ok();
+        //     }
+        // };
+        registry.try_init().ok();
         // it is important that this runs after algorithms have been pushed to PLUGIN_ALGOS static variable
-        let tracer = self.config.tracing.get_tracer();
-        let app: CorsEndpoint<CookieJarManagerEndpoint<Route>> =
-            self.generate_endpoint(tracer).await?;
+        //let tracer = self.config.tracing.get_tracer();
+        let app: CorsEndpoint<CookieJarManagerEndpoint<Route>> = self
+            .generate_endpoint(tp.clone().map(|tp| tp.tracer(tracer_name)))
+            .await?;
 
         let (signal_sender, signal_receiver) = mpsc::channel(1);
 
         info!("Playground live at: http://0.0.0.0:{port}");
         let server_task = Server::new(TcpListener::bind(format!("0.0.0.0:{port}")))
-            .run_with_graceful_shutdown(app, server_termination(signal_receiver), None);
+            .run_with_graceful_shutdown(app, server_termination(signal_receiver, tp), None);
         let server_result = tokio::spawn(server_task);
 
         Ok(RunningGraphServer {
@@ -287,13 +295,12 @@ impl RunningGraphServer {
     }
 }
 
-async fn server_termination(mut internal_signal: Receiver<()>) {
+async fn server_termination(mut internal_signal: Receiver<()>, tp: Option<TP>) {
     let ctrl_c = async {
         signal::ctrl_c()
             .await
             .expect("failed to install Ctrl+C handler");
     };
-
     #[cfg(unix)]
     let terminate = async {
         signal::unix::signal(signal::unix::SignalKind::terminate())
@@ -301,21 +308,23 @@ async fn server_termination(mut internal_signal: Receiver<()>) {
             .recv()
             .await;
     };
-
     #[cfg(not(unix))]
     let terminate = std::future::pending::<()>();
 
     let internal_terminate = async {
         internal_signal.recv().await;
     };
-
     tokio::select! {
         _ = ctrl_c => {},
         _ = terminate => {},
         _ = internal_terminate => {},
     }
-
-    // opentelemetry::global::shutdown_tracer_provider();
+    match tp {
+        None => {}
+        Some(tp) => {
+            std::process::exit(0);
+        }
+    }
 }
 
 #[cfg(test)]

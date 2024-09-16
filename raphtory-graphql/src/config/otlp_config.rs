@@ -1,8 +1,8 @@
-use opentelemetry::{trace::TracerProvider, KeyValue};
+use opentelemetry::KeyValue;
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::{
     trace,
-    trace::{Sampler, Tracer},
+    trace::{Sampler, TracerProvider},
     Resource,
 };
 use serde::Deserialize;
@@ -20,21 +20,15 @@ impl Default for TracingConfig {
     fn default() -> Self {
         Self {
             tracing_enabled: false,
-            otlp_agent_host: "http://0.0.0.0".to_string(),
+            otlp_agent_host: "http://localhost".to_string(),
             otlp_agent_port: "4317".to_string(),
             otlp_tracing_service_name: "Raphtory".to_string(),
         }
     }
 }
 impl TracingConfig {
-    pub fn get_tracer(&self) -> Option<Tracer> {
-        info!("Tracer being accessed");
+    pub fn tracer_provider(&self) -> Option<TracerProvider> {
         if self.tracing_enabled {
-            info!(
-                "Tracing enabled at {}:{}",
-                self.otlp_agent_host.clone(),
-                self.otlp_agent_port.clone()
-            );
             match opentelemetry_otlp::new_pipeline()
                 .tracing()
                 .with_exporter(
@@ -58,7 +52,13 @@ impl TracingConfig {
                 .install_batch(opentelemetry_sdk::runtime::Tokio)
             {
                 Ok(tracer_provider) => {
-                    Some(tracer_provider.tracer(self.otlp_tracing_service_name.clone()))
+                    info!(
+                        "Sending traces to {}:{}",
+                        self.otlp_agent_host.clone(),
+                        self.otlp_agent_port.clone()
+                    );
+                    Some(tracer_provider)
+                    // Some(tracer_provider.tracer(self.otlp_tracing_service_name.clone()))
                 }
                 Err(e) => {
                     error!("{}", e.to_string());
