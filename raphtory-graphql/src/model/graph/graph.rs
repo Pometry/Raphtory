@@ -255,7 +255,7 @@ impl GqlGraph {
     async fn latest_time(&self) -> Option<i64> {
         self.graph.latest_time()
     }
-    
+
     async fn start(&self) -> Option<i64> {
         self.graph.start()
     }

@@ -37,8 +37,7 @@ impl GqlGraphs {
     }
 
     async fn created(&self) -> Result<Vec<i64>, GraphError> {
-        self
-            .paths
+        self.paths
             .iter()
             .map(|path| {
                 let full_path = std::env::current_dir()?
@@ -57,8 +56,7 @@ impl GqlGraphs {
     }
 
     async fn last_opened(&self) -> Result<Vec<i64>, GraphError> {
-        self
-            .paths
+        self.paths
             .iter()
             .map(|path| {
                 let full_path = std::env::current_dir()?
@@ -77,8 +75,7 @@ impl GqlGraphs {
     }
 
     async fn last_updated(&self) -> Result<Vec<i64>, GraphError> {
-        self
-            .paths
+        self.paths
             .iter()
             .map(|path| {
                 let full_path = std::env::current_dir()?
