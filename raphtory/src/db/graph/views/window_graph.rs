@@ -541,10 +541,11 @@ mod views_test {
     use quickcheck::TestResult;
     use quickcheck_macros::quickcheck;
     use rand::prelude::*;
-    use raphtory_api::core::entities::GID;
+    use raphtory_api::core::{entities::GID, utils::logging::global_info_logger};
     use rayon::prelude::*;
     #[cfg(feature = "storage")]
     use tempfile::TempDir;
+    use tracing::{error, info};
 
     #[test]
     fn windowed_graph_nodes_degree() {
@@ -625,6 +626,7 @@ mod views_test {
 
     #[test]
     fn graph_has_node_check_fail() {
+        global_info_logger();
         let vs: Vec<(i64, u64)> = vec![
             (1, 0),
             (-100, 262),
@@ -638,7 +640,7 @@ mod views_test {
         for (t, v) in &vs {
             graph
                 .add_node(*t, *v, NO_PROPS, None)
-                .map_err(|err| println!("{:?}", err))
+                .map_err(|err| error!("{:?}", err))
                 .ok();
         }
 
@@ -651,6 +653,7 @@ mod views_test {
 
     #[quickcheck]
     fn windowed_graph_has_node(mut vs: Vec<(i64, u64)>) -> TestResult {
+        global_info_logger();
         if vs.is_empty() {
             return TestResult::discard();
         }
@@ -666,7 +669,7 @@ mod views_test {
 
         for (t, v) in &vs {
             g.add_node(*t, *v, NO_PROPS, None)
-                .map_err(|err| println!("{:?}", err))
+                .map_err(|err| error!("{:?}", err))
                 .ok();
         }
 
@@ -698,7 +701,8 @@ mod views_test {
     // FIXME: Issue #46
     // #[quickcheck]
     // fn windowed_disk_graph_has_node(mut vs: Vec<(i64, u64)>) -> TestResult {
-    //     if vs.is_empty() {
+    //     global_info_logger();
+    //      if vs.is_empty() {
     //         return TestResult::discard();
     //     }
     //
@@ -712,7 +716,7 @@ mod views_test {
     //     let g = Graph::new();
     //     for (t, v) in &vs {
     //         g.add_node(*t, *v, NO_PROPS, None)
-    //             .map_err(|err| println!("{:?}", err))
+    //             .map_err(|err| error!("{:?}", err))
     //             .ok();
     //     }
     //     let test_dir = TempDir::new().unwrap();
@@ -842,6 +846,7 @@ mod views_test {
         mut edges: Vec<(i64, (u64, u64))>,
         window: Range<i64>,
     ) -> TestResult {
+        global_info_logger();
         if window.end < window.start {
             return TestResult::discard();
         }
@@ -859,12 +864,12 @@ mod views_test {
 
         let wg = g.window(window.start, window.end);
         if wg.count_edges() != true_edge_count {
-            println!(
+            info!(
                 "failed, g.num_edges() = {}, true count = {}",
                 wg.count_edges(),
                 true_edge_count
             );
-            println!("g.edges() = {:?}", wg.edges().iter().collect_vec());
+            info!("g.edges() = {:?}", wg.edges().iter().collect_vec());
         }
         TestResult::from_bool(wg.count_edges() == true_edge_count)
     }
@@ -1034,13 +1039,14 @@ mod views_test {
 
     #[test]
     fn test_algorithm_on_windowed_graph() {
+        global_info_logger();
         let graph = Graph::new();
         graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         test_storage!(&graph, |graph| {
             let w = graph.window(0, 1);
 
             let res = degree_centrality(&w, None);
-            println!("{:?}", res)
+            info!("{:?}", res)
         });
     }
 

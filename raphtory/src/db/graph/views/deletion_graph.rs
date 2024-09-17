@@ -657,7 +657,8 @@ mod test_deletions {
         prelude::*,
     };
     use itertools::Itertools;
-    use raphtory_api::core::entities::GID;
+    use raphtory_api::core::{entities::GID, utils::logging::global_info_logger};
+    use tracing::info;
 
     #[test]
     fn test_nodes() {
@@ -1168,6 +1169,7 @@ mod test_deletions {
 
     #[test]
     fn test_jira() {
+        global_info_logger();
         let g = PersistentGraph::new();
 
         g.add_edge(0, 1, 2, [("added", Prop::I64(0))], Some("assigned"))
@@ -1194,7 +1196,7 @@ mod test_deletions {
             .map(|vv| vv.id())
             .collect_vec();
 
-        println!("windowed edges = {:?}", nodes);
+        info!("windowed edges = {:?}", nodes);
 
         let nodes = g
             .window(0, 1701786285758)
@@ -1205,7 +1207,7 @@ mod test_deletions {
             .map(|vv| vv.name())
             .collect_vec();
 
-        println!("windowed nodes = {:?}", nodes);
+        info!("windowed nodes = {:?}", nodes);
 
         let nodes = g
             .at(1701786285758)
@@ -1215,7 +1217,7 @@ mod test_deletions {
             .into_iter()
             .map(|vv| vv.id())
             .collect_vec();
-        println!("at edges = {:?}", nodes);
+        info!("at edges = {:?}", nodes);
 
         let nodes = g
             .at(1701786285758)
@@ -1226,8 +1228,7 @@ mod test_deletions {
             .map(|vv| vv.id())
             .collect_vec();
 
-        println!("at nodes = {:?}", nodes);
-        // assert_eq!(g.window(1, 2).node(0).unwrap().out_degree(), 1)
+        info!("at nodes = {:?}", nodes);
     }
 
     #[test]

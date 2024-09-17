@@ -235,15 +235,16 @@ mod db_tests {
     };
     use chrono::NaiveDateTime;
     use itertools::Itertools;
-    use log::error;
     use quickcheck_macros::quickcheck;
     use raphtory_api::core::{
         entities::GID,
         storage::arc_str::{ArcStr, OptionAsStr},
+        utils::logging::global_info_logger,
     };
     use serde_json::Value;
     use std::collections::{HashMap, HashSet};
     use tempfile::TempDir;
+    use tracing::{error, info};
 
     #[test]
     fn test_empty_graph() {
@@ -333,12 +334,13 @@ mod db_tests {
 
     #[quickcheck]
     fn add_node_gets_names(vs: Vec<String>) -> bool {
+        global_info_logger();
         let g = Graph::new();
 
         let expected_len = vs.iter().sorted().dedup().count();
         for (t, name) in vs.iter().enumerate() {
             g.add_node(t as i64, name.clone(), NO_PROPS, None)
-                .map_err(|err| println!("{:?}", err))
+                .map_err(|err| info!("{:?}", err))
                 .ok();
         }
 
@@ -517,16 +519,17 @@ mod db_tests {
 
     #[test]
     fn props_with_layers() {
+        global_info_logger();
         let g = Graph::new();
         g.add_edge(0, "A", "B", NO_PROPS, None).unwrap();
         let ed = g.edge("A", "B").unwrap();
         ed.add_constant_properties(vec![("CCC", Prop::str("RED"))], None)
             .unwrap();
-        println!("{:?}", ed.properties().constant().as_map());
+        info!("{:?}", ed.properties().constant().as_map());
         g.add_edge(0, "A", "B", NO_PROPS, Some("LAYERONE")).unwrap();
         ed.add_constant_properties(vec![("CCC", Prop::str("BLUE"))], Some("LAYERONE"))
             .unwrap();
-        println!("{:?}", ed.properties().constant().as_map());
+        info!("{:?}", ed.properties().constant().as_map());
     }
 
     #[test]
@@ -677,6 +680,7 @@ mod db_tests {
 
     #[test]
     fn test_explode_layers_time() {
+        global_info_logger();
         let g = Graph::new();
         g.add_edge(
             1,
@@ -685,7 +689,7 @@ mod db_tests {
             vec![("duration".to_string(), Prop::U32(5))],
             Some("a"),
         )
-        .map_err(|err| println!("{:?}", err))
+        .map_err(|err| error!("{:?}", err))
         .ok();
         g.add_edge(
             2,
@@ -694,7 +698,7 @@ mod db_tests {
             vec![("duration".to_string(), Prop::U32(5))],
             Some("a"),
         )
-        .map_err(|err| println!("{:?}", err))
+        .map_err(|err| error!("{:?}", err))
         .ok();
         g.add_edge(
             3,
@@ -703,7 +707,7 @@ mod db_tests {
             vec![("duration".to_string(), Prop::U32(5))],
             Some("a"),
         )
-        .map_err(|err| println!("{:?}", err))
+        .map_err(|err| error!("{:?}", err))
         .ok();
         g.add_edge(
             4,
@@ -712,10 +716,10 @@ mod db_tests {
             vec![("duration".to_string(), Prop::U32(6))],
             Some("b"),
         )
-        .map_err(|err| println!("{:?}", err))
+        .map_err(|err| error!("{:?}", err))
         .ok();
         g.add_edge(5, 1, 2, NO_PROPS, Some("c"))
-            .map_err(|err| println!("{:?}", err))
+            .map_err(|err| error!("{:?}", err))
             .ok();
 
         assert_eq!(g.latest_time(), Some(5));
@@ -743,13 +747,14 @@ mod db_tests {
 
     #[test]
     fn time_test() {
+        global_info_logger();
         let g = Graph::new();
 
         assert_eq!(g.latest_time(), None);
         assert_eq!(g.earliest_time(), None);
 
         g.add_node(5, 1, NO_PROPS, None)
-            .map_err(|err| println!("{:?}", err))
+            .map_err(|err| error!("{:?}", err))
             .ok();
 
         assert_eq!(g.latest_time(), Some(5));
@@ -762,7 +767,7 @@ mod db_tests {
         assert_eq!(g.earliest_time(), Some(10));
 
         g.add_node(5, 1, NO_PROPS, None)
-            .map_err(|err| println!("{:?}", err))
+            .map_err(|err| error!("{:?}", err))
             .ok();
         assert_eq!(g.latest_time(), Some(10));
         assert_eq!(g.earliest_time(), Some(5));
@@ -1579,6 +1584,7 @@ mod db_tests {
 
     #[quickcheck]
     fn test_graph_temporal_props(str_props: HashMap<String, String>) -> bool {
+        global_info_logger();
         let g = Graph::new();
 
         let (t0, t1) = (1, 2);
@@ -1612,7 +1618,7 @@ mod db_tests {
             g.properties().temporal().get(name).unwrap().at(t1) == Some(value.clone())
         });
         if !check {
-            println!("failed time-specific comparison for {:?}", str_props);
+            error!("failed time-specific comparison for {:?}", str_props);
             return false;
         }
         let check = check
@@ -1624,7 +1630,7 @@ mod db_tests {
                 .collect::<HashMap<_, _, _>>()
                 == t0_props;
         if !check {
-            println!("failed latest value comparison for {:?} at t0", str_props);
+            error!("failed latest value comparison for {:?} at t0", str_props);
             return false;
         }
         let check = check
@@ -1637,7 +1643,7 @@ mod db_tests {
                     == Some(ve.clone())
             });
         if !check {
-            println!("failed latest value comparison for {:?} at t1", str_props);
+            error!("failed latest value comparison for {:?} at t1", str_props);
             return false;
         }
         check
@@ -2079,9 +2085,10 @@ mod db_tests {
 
     #[test]
     fn large_id_is_consistent() {
+        global_info_logger();
         let g = Graph::new();
         g.add_node(0, 10000000000000000006, NO_PROPS, None).unwrap();
-        println!("names: {:?}", g.nodes().name().collect_vec());
+        info!("names: {:?}", g.nodes().name().collect_vec());
         assert!(g
             .nodes()
             .name()
@@ -2105,10 +2112,11 @@ mod db_tests {
         edges: Vec<(u64, u64, Vec<i64>)>,
         offset: i64,
     ) -> bool {
+        global_info_logger();
         let mut correct = true;
         let mut check = |condition: bool, message: String| {
             if !condition {
-                println!("Failed: {}", message);
+                error!("Failed: {}", message);
             }
             correct = correct && condition;
         };

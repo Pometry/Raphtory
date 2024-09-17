@@ -13,7 +13,9 @@ mod tests {
         let config_toml = r#"
             [logging]
             log_level = "DEBUG"
-            tracing = true
+
+            [tracing]
+            tracing_enabled = true
 
             [cache]
             tti_seconds = 1000

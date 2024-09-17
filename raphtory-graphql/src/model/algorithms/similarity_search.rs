@@ -8,6 +8,7 @@ use async_graphql::{
 use dynamic_graphql::internal::TypeName;
 use futures_util::future::BoxFuture;
 use raphtory::vectors::embeddings::openai_embedding;
+use tracing::info;
 
 pub(crate) struct SimilaritySearch;
 
@@ -38,7 +39,7 @@ impl<'a> Algorithm<'a, VectorAlgorithms> for SimilaritySearch {
 
         Box::pin(async move {
             let embedding = openai_embedding(vec![query.clone()]).await.remove(0);
-            println!("running similarity search for {query}");
+            info!("running similarity search for {query}");
 
             let documents = graph
                 .documents_by_similarity(&embedding, limit, None)

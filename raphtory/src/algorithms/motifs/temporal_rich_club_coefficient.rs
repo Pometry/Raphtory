@@ -6,8 +6,6 @@ use std::{
 };
 
 use raphtory_api::core::entities::VID;
-use rustc_hash::FxHashSet;
-
 use rayon::prelude::*;
 
 use crate::prelude::{EdgeViewOps, GraphViewOps, NodeViewOps};

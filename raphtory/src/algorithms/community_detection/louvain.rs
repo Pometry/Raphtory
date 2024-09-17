@@ -70,6 +70,8 @@ mod test {
         test_storage,
     };
     use proptest::prelude::*;
+    use raphtory_api::core::utils::logging::global_info_logger;
+    use tracing::info;
 
     #[test]
     fn test_louvain() {
@@ -136,7 +138,7 @@ mod test {
         use crate::io::csv_loader::CsvLoader;
         use serde::{Deserialize, Serialize};
         use std::path::PathBuf;
-
+        global_info_logger();
         let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         d.push("resources/test");
         let loader = CsvLoader::new(d.join("test.csv")).set_delimiter(",");
@@ -156,7 +158,7 @@ mod test {
 
         test_storage!(&graph, |graph| {
             let result = louvain::<ModularityUnDir, _>(graph, 1.0, None, None);
-            println!("{result:?}")
+            info!("{result:?}")
         });
     }
 }

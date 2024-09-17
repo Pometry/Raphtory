@@ -4,10 +4,12 @@ use raphtory::{
     },
     db::{api::mutation::AdditionOps, graph::graph::Graph},
     io::csv_loader::CsvLoader,
+    logging::global_info_logger,
     prelude::*,
 };
 use serde::Deserialize;
 use std::{env, path::Path, time::Instant};
+use tracing::info;
 
 #[derive(Deserialize, std::fmt::Debug)]
 struct Edge {
@@ -17,7 +19,7 @@ struct Edge {
 
 fn main() {
     let now = Instant::now();
-
+    global_info_logger();
     let args: Vec<String> = env::args().collect();
     let data_dir = Path::new(args.get(1).expect("No data directory provided"));
 
@@ -39,7 +41,7 @@ fn main() {
         g
     };
 
-    println!(
+    info!(
         "Loaded graph from encoded data files {} with {} nodes, {} edges which took {} seconds",
         data_dir.to_str().unwrap(),
         g.count_nodes(),
@@ -51,13 +53,13 @@ fn main() {
 
     unweighted_page_rank(&g, Some(100), None, Some(0.00000001), true, None);
 
-    println!("PageRank took {} millis", now.elapsed().as_millis());
+    info!("PageRank took {} millis", now.elapsed().as_millis());
 
     let now = Instant::now();
 
     weakly_connected_components(&g, 100, None);
 
-    println!(
+    info!(
         "Connected Components took {} millis",
         now.elapsed().as_millis()
     );

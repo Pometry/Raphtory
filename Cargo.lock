@@ -650,6 +650,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
+name = "atty"
+version = "0.2.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d9b39be18770d11421cdb1b9947a45dd3f37e93092cbf377614828a319d5fee8"
+dependencies = [
+ "hermit-abi 0.1.19",
+ "libc",
+ "winapi",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -887,9 +898,9 @@ checksum = "79296716171880943b8470b5f8d03aa55eb2e645a4874bdbb28adb49162e012c"
 
 [[package]]
 name = "bytemuck"
-version = "1.17.0"
+version = "1.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6fd4c6dcc3b0aea2f5c0b4b82c2b15fe39ddbc76041a310848f4706edf76bb31"
+checksum = "94bbb0ad554ad961ddc5da507a12a29b14e4ae5bda06b19f575a3e6079d2e2ae"
 dependencies = [
  "bytemuck_derive",
 ]
@@ -1111,6 +1122,15 @@ name = "clap_lex"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1462739cb27611015575c0c11df5df7601141071f07518d56fcc1be504cbec97"
+
+[[package]]
+name = "cmake"
+version = "0.1.51"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fb1e43aa7fd152b1f968787f7dbcdeb306d1867ff373c69955211876c053f91a"
+dependencies = [
+ "cc",
+]
 
 [[package]]
 name = "colorchoice"
@@ -1966,8 +1986,11 @@ version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a19187fea3ac7e84da7dacf48de0c45d63c6a76f9490dae389aead16c243fce3"
 dependencies = [
+ "atty",
+ "humantime",
  "log",
  "regex",
+ "termcolor",
 ]
 
 [[package]]
@@ -2005,13 +2028,14 @@ dependencies = [
 
 [[package]]
 name = "examples"
-version = "0.11.1"
+version = "0.11.3"
 dependencies = [
  "chrono",
  "itertools 0.13.0",
  "raphtory",
  "regex",
  "serde",
+ "tracing",
 ]
 
 [[package]]
@@ -2371,6 +2395,15 @@ name = "heck"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
+
+[[package]]
+name = "hermit-abi"
+version = "0.1.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "62b467343b94ba476dcb2500d242dadbb39557df889310ac77c5d99100aaac33"
+dependencies = [
+ "libc",
+]
 
 [[package]]
 name = "hermit-abi"
@@ -2774,7 +2807,7 @@ dependencies = [
 
 [[package]]
 name = "js-raphtory"
-version = "0.11.1"
+version = "0.11.3"
 dependencies = [
  "chrono",
  "console_error_panic_hook",
@@ -3106,6 +3139,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6d7d3e3a3eece1fa4618237ad41e1de855ced47eab705cec1c9a920e1d1c5aad"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "minijinja-contrib"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "744a2b84dbd22398e347594ed2aef9d3f1b948934e3e6e94ef69ecd39d597f4b"
+dependencies = [
+ "minijinja",
+ "serde",
+ "time",
 ]
 
 [[package]]
@@ -4030,7 +4074,7 @@ dependencies = [
 
 [[package]]
 name = "pometry-storage"
-version = "0.11.1"
+version = "0.11.3"
 
 [[package]]
 name = "portable-atomic"
@@ -4418,11 +4462,12 @@ dependencies = [
 
 [[package]]
 name = "raphtory"
-version = "0.11.1"
+version = "0.11.3"
 dependencies = [
  "async-openai",
  "async-trait",
  "bincode",
+ "bytemuck",
  "bzip2",
  "chrono",
  "csv",
@@ -4431,13 +4476,17 @@ dependencies = [
  "dotenv",
  "either",
  "enum_dispatch",
+ "env_logger",
  "flate2",
  "futures-util",
  "glam",
+ "indoc",
  "itertools 0.13.0",
  "kdam",
  "lock_api",
  "memmap2",
+ "minijinja",
+ "minijinja-contrib",
  "neo4rs",
  "num",
  "num-integer",
@@ -4467,19 +4516,22 @@ dependencies = [
  "rustc-hash 2.0.0",
  "serde",
  "serde_json",
+ "snmalloc-rs",
  "sorted_vector_map",
  "streaming-stats",
  "tantivy",
  "tempfile",
  "thiserror",
  "tokio",
+ "tracing",
  "zip",
 ]
 
 [[package]]
 name = "raphtory-api"
-version = "0.11.1"
+version = "0.11.3"
 dependencies = [
+ "bytemuck",
  "chrono",
  "dashmap 6.0.1",
  "lock_api",
@@ -4493,12 +4545,14 @@ dependencies = [
  "rayon",
  "rustc-hash 2.0.0",
  "serde",
+ "tracing",
+ "tracing-subscriber",
  "twox-hash",
 ]
 
 [[package]]
 name = "raphtory-benchmark"
-version = "0.11.1"
+version = "0.11.3"
 dependencies = [
  "clap",
  "criterion",
@@ -4511,11 +4565,12 @@ dependencies = [
  "rayon",
  "sorted_vector_map",
  "tempfile",
+ "tracing",
 ]
 
 [[package]]
 name = "raphtory-cypher"
-version = "0.11.1"
+version = "0.11.3"
 dependencies = [
  "arrow",
  "arrow-array",
@@ -4541,11 +4596,12 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
 name = "raphtory-graphql"
-version = "0.11.1"
+version = "0.11.3"
 dependencies = [
  "async-graphql",
  "async-graphql-poem",
@@ -4587,7 +4643,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-pymodule"
-version = "0.11.1"
+version = "0.11.3"
 dependencies = [
  "pyo3",
  "pyo3-build-config",
@@ -4597,7 +4653,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory_netflow"
-version = "0.11.1"
+version = "0.11.3"
 dependencies = [
  "pyo3",
  "pyo3-build-config",
@@ -5301,6 +5357,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1b6b67fb9a61334225b5b790716f609cd58395f895b3fe8b328786812a40bc3b"
 
 [[package]]
+name = "snmalloc-rs"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2504c9edd7ca7a1cfe637296dc0d263ce1e9975c4ec43f3652616ebce9d1df1c"
+dependencies = [
+ "snmalloc-sys",
+]
+
+[[package]]
+name = "snmalloc-sys"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8d448599db5c3263b35d67ab26a2399e74ca0265211f5f5dd4cb9f4c3ccada6a"
+dependencies = [
+ "cmake",
+]
+
+[[package]]
 name = "socket2"
 version = "0.5.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5670,6 +5744,15 @@ dependencies = [
  "once_cell",
  "rustix",
  "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "termcolor"
+version = "1.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "06794f8f6c5c898b3275aebefa6b8a1cb24cd2c6c79397ab15774837a0bc5755"
+dependencies = [
+ "winapi-util",
 ]
 
 [[package]]

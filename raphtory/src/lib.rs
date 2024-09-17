@@ -141,6 +141,8 @@ pub mod prelude {
 #[cfg(feature = "storage")]
 pub use polars_arrow as arrow2;
 
+pub use raphtory_api::core::utils::logging;
+
 #[cfg(test)]
 mod test_utils {
     use crate::prelude::Graph;

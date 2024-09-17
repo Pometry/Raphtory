@@ -94,14 +94,10 @@ impl GraphServer {
         if !work_dir.exists() {
             fs::create_dir_all(&work_dir).unwrap();
         }
-        let configs =
+        let config =
             load_config(app_config, config_path).map_err(|err| ServerError::ConfigError(err))?;
-        let data = Data::new(work_dir.as_path(), &configs);
-
-        Ok(Self {
-            data,
-            config: configs,
-        })
+        let data = Data::new(work_dir.as_path(), &config);
+        Ok(Self { data, config })
     }
 
     /// Vectorise a subset of the graphs of the server.
@@ -144,7 +140,7 @@ impl GraphServer {
         for graph_name in graph_names {
             let graph_cache = cache.join(&graph_name);
             let graph = graphs.read().get(&graph_name).unwrap().clone();
-            println!("Loading embeddings for {graph_name} using cache from {graph_cache:?}");
+            info!("Loading embeddings for {graph_name} using cache from {graph_cache:?}");
             let vectorised = graph
                 .into_dynamic()
                 .vectorise(
@@ -157,7 +153,7 @@ impl GraphServer {
                 .await;
             stores.write().insert(graph_name, vectorised);
         }
-        println!("Embeddings were loaded successfully");
+        info!("Embeddings were loaded successfully");
 
         Ok(self)
     }
@@ -205,7 +201,6 @@ impl GraphServer {
             }
         };
         // it is important that this runs after algorithms have been pushed to PLUGIN_ALGOS static variable
-        //let tracer = self.config.tracing.get_tracer();
         let app: CorsEndpoint<CookieJarManagerEndpoint<Route>> = self
             .generate_endpoint(tp.clone().map(|tp| tp.tracer(tracer_name)))
             .await?;
@@ -326,114 +321,19 @@ mod server_tests {
 
     use crate::server::GraphServer;
     use chrono::prelude::*;
+    use raphtory_api::core::utils::logging::global_info_logger;
     use tokio::time::{sleep, Duration};
+    use tracing::info;
 
     #[tokio::test]
     async fn test_server_start_stop() {
+        global_info_logger();
         let tmp_dir = tempfile::tempdir().unwrap();
         let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, None).unwrap();
-        println!("Calling start at time {}", Local::now());
+        info!("Calling start at time {}", Local::now());
         let handler = server.start_with_port(0);
         sleep(Duration::from_secs(1)).await;
-        println!("Calling stop at time {}", Local::now());
+        info!("Calling stop at time {}", Local::now());
         handler.await.unwrap().stop().await
     }
 }
-
-// async fn generate_microsoft_endpoint_with_auth(
-//     self,
-//     enable_tracing: bool,
-//     port: u16,
-// ) -> IoResult<CorsEndpoint<CookieJarManagerEndpoint<Route>>> {
-//     let schema_builder = App::create_schema();
-//     let schema_builder = schema_builder.data(self.data);
-//     let schema = if enable_tracing {
-//         let schema_builder = schema_builder.extension(ApolloTracing);
-//         schema_builder.finish().unwrap()
-//     } else {
-//         schema_builder.finish().unwrap()
-//     };
-//
-//     dotenv().ok();
-//     let client_id = self
-//         .configs
-//         .auth
-//         .client_id
-//         .ok_or(ServerError::MissingClientId)?;
-//     let client_secret = self
-//         .configs
-//         .auth
-//         .client_secret
-//         .ok_or(ServerError::MissingClientSecret)?;
-//     let tenant_id = self
-//         .configs
-//         .auth
-//         .tenant_id
-//         .ok_or(ServerError::MissingTenantId)?;
-//
-//     let client_id = ClientId::new(client_id);
-//     let client_secret = ClientSecret::new(client_secret);
-//
-//     let auth_url = AuthUrl::new(format!(
-//         "https://login.microsoftonline.com/{}/oauth2/v2.0/authorize",
-//         tenant_id.clone()
-//     ))
-//     .map_err(|e| ServerError::FailedToParseUrl(e))?;
-//     let token_url = TokenUrl::new(format!(
-//         "https://login.microsoftonline.com/{}/oauth2/v2.0/token",
-//         tenant_id.clone()
-//     ))
-//     .map_err(|e| ServerError::FailedToParseUrl(e))?;
-//
-//     println!("Loading client");
-//     let client = BasicClient::new(
-//         client_id.clone(),
-//         Some(client_secret.clone()),
-//         auth_url,
-//         Some(token_url),
-//     )
-//     .set_redirect_uri(
-//         RedirectUrl::new(format!(
-//             "http://localhost:{}/auth/callback",
-//             port.to_string()
-//         ))
-//         .map_err(|e| ServerError::FailedToParseUrl(e))?,
-//     );
-//
-//     println!("Fetching JWKS");
-//     let jwks = get_jwks()
-//         .await
-//         .map_err(|_| ServerError::FailedToFetchJWKS)?;
-//
-//     let app_state = AppState {
-//         oauth_client: Arc::new(client),
-//         csrf_state: Arc::new(Mutex::new(HashMap::new())),
-//         pkce_verifier: Arc::new(Mutex::new(HashMap::new())),
-//         jwks: Arc::new(jwks),
-//     };
-//
-//     let token_middleware = TokenMiddleware::new(Arc::new(app_state.clone()));
-//
-//     println!("Making app");
-//     let app = Route::new()
-//         .at(
-//             "/",
-//             get(graphql_playground)
-//                 .post(GraphQL::new(schema))
-//                 .with(token_middleware.clone()),
-//         )
-//         .at("/health", get(health))
-//         .at("/login", login.data(app_state.clone()))
-//         .at("/auth/callback", auth_callback.data(app_state.clone()))
-//         .at(
-//             "/verify",
-//             verify
-//                 .data(app_state.clone())
-//                 .with(token_middleware.clone()),
-//         )
-//         .at("/logout", logout.with(token_middleware.clone()))
-//         .with(CookieJarManager::new())
-//         .with(Cors::new());
-//     println!("App done");
-//     Ok(app)
-// }

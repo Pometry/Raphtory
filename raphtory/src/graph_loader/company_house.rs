@@ -2,6 +2,7 @@ use crate::{io::csv_loader::CsvLoader, prelude::*};
 use chrono::DateTime;
 use serde::Deserialize;
 use std::{fs, path::PathBuf, time::Instant};
+use tracing::{error, info};
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct CompanyHouse {
@@ -30,14 +31,14 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
             let now = Instant::now();
             let g = Graph::decode(encoded_data_dir.as_path())
                 .map_err(|err| {
-                    println!(
+                    error!(
                         "Restoring from bincode failed with error: {}! Reloading file!",
                         err
                     )
                 })
                 .ok()?;
 
-            println!(
+            info!(
                 "Loaded graph from encoded data files {} with {} nodes, {} edges which took {} seconds",
                 encoded_data_dir.to_str().unwrap(),
                 g.count_nodes(),
@@ -166,18 +167,21 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
 #[cfg(test)]
 mod company_house_graph_test {
     use crate::db::api::view::{NodeViewOps, TimeOps};
+    use raphtory_api::core::utils::logging::global_info_logger;
+    use tracing::info;
 
     use super::*;
 
     #[test]
     #[ignore]
     fn test_ch_load() {
+        global_info_logger();
         let g = company_house_graph(None);
         assert_eq!(g.start().unwrap(), 1000);
         assert_eq!(g.end().unwrap(), 1001);
         g.window(1000, 1001)
             .nodes()
             .into_iter()
-            .for_each(|v| println!("nodeid = {}", v.id()));
+            .for_each(|v| info!("nodeid = {}", v.id()));
     }
 }

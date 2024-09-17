@@ -8,10 +8,7 @@ pub struct LoggingConfig {
 
 impl LoggingConfig {
     pub fn get_log_env(&self) -> EnvFilter {
-        EnvFilter::new(format!(
-            "raphtory-graphql={},raphtory={},raphtory-api={},",
-            self.log_level, self.log_level, self.log_level
-        ))
+        raphtory_api::core::utils::logging::get_log_env(self.log_level.clone())
     }
 }
 

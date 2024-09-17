@@ -417,9 +417,9 @@ mod algorithm_result_test {
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::{NO_PROPS, *},
     };
-    use log::info;
     use ordered_float::OrderedFloat;
-    use raphtory_api::core::entities::GID;
+    use raphtory_api::core::{entities::GID, utils::logging::global_info_logger};
+    use tracing::info;
 
     fn create_algo_result_u64() -> AlgorithmResult<Graph, u64> {
         let g = create_graph();
@@ -672,10 +672,11 @@ mod algorithm_result_test {
 
     #[test]
     fn test_get_all() {
+        global_info_logger();
         let algo_result = create_algo_result_u64();
         let gotten_all = algo_result.get_all();
         let names: Vec<String> = gotten_all.keys().map(|vv| vv.name()).collect();
-        println!("{:?}", names)
+        info!("{:?}", names)
     }
 
     #[test]

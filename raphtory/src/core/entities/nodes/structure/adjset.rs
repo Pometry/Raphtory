@@ -236,9 +236,12 @@ impl<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send + Sync> Ad
 mod tadjset_tests {
     use super::*;
     use quickcheck_macros::quickcheck;
+    use raphtory_api::core::utils::logging::global_info_logger;
+    use tracing::info;
 
     #[quickcheck]
     fn insert_fuzz(input: Vec<usize>) -> bool {
+        global_info_logger();
         let mut ts: AdjSet<usize, usize> = AdjSet::default();
 
         for (e, i) in input.iter().enumerate() {
@@ -248,8 +251,8 @@ mod tadjset_tests {
         let res = input.iter().all(|i| ts.find(*i).is_some());
         if !res {
             let ts_vec: Vec<(usize, usize)> = ts.iter().collect();
-            println!("Input: {:?}", input);
-            println!("TAdjSet: {:?}", ts_vec);
+            info!("Input: {:?}", input);
+            info!("TAdjSet: {:?}", ts_vec);
         }
         res
     }

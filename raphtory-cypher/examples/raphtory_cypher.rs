@@ -17,9 +17,13 @@ mod cypher {
     use arrow::util::pretty::print_batches;
     use clap::Parser;
     use futures::{stream, StreamExt};
-    use raphtory::disk_graph::{graph_impl::ParquetLayerCols, DiskGraphStorage};
+    use raphtory::{
+        disk_graph::{graph_impl::ParquetLayerCols, DiskGraphStorage},
+        logging::global_info_logger,
+    };
     use raphtory_cypher::{run_cypher, run_cypher_to_streams, run_sql};
     use serde::{de::DeserializeOwned, Deserialize};
+    use tracing::info;
 
     /// Query graph with cypher
     #[derive(Parser, Debug)]
@@ -133,6 +137,7 @@ mod cypher {
 
     // #[tokio::main]
     pub async fn main() {
+        global_info_logger();
         let args = Args::parse();
 
         match args {
@@ -151,7 +156,8 @@ mod cypher {
 
                     let now = std::time::Instant::now();
                     let batches = df.collect().await.unwrap();
-                    println!("Query execution time: {:?}", now.elapsed());
+                    global_info_logger();
+                    !("Query execution time: {:?}", now.elapsed());
                     print_batches(&batches).expect("Failed to print batches");
                 } else {
                     let streams = run_cypher_to_streams(&args.query, &graph).await.unwrap();
@@ -161,7 +167,7 @@ mod cypher {
                         .map(|batch| batch.num_rows())
                         .fold(0, |acc, x| async move { acc + x })
                         .await;
-                    println!("Query execution: {:?}, num_rows: {num_rows}", now.elapsed());
+                    info!("Query execution: {:?}, num_rows: {num_rows}", now.elapsed());
                 }
             }
 

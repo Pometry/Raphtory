@@ -46,6 +46,7 @@ use std::{
     io::{self, BufRead},
     path::{Path, PathBuf},
 };
+use tracing::error;
 
 /// Download the dataset and return the path to the file
 /// # Arguments
@@ -137,16 +138,16 @@ pub fn generate_reddit_graph(path: PathBuf) -> Graph {
                         ),
                     ];
                     g.add_node(time, *src_id, NO_PROPS, None)
-                        .map_err(|err| println!("{:?}", err))
+                        .map_err(|err| error!("{:?}", err))
                         .ok();
                     g.add_node(time, *dst_id, NO_PROPS, None)
-                        .map_err(|err| println!("{:?}", err))
+                        .map_err(|err| error!("{:?}", err))
                         .ok();
                     g.add_edge(time, *src_id, *dst_id, edge_properties, None)
                         .expect("Error: Unable to add edge");
                 }
                 Err(e) => {
-                    println!("{}", e)
+                    error!("{}", e)
                 }
             }
         }

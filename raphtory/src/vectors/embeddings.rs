@@ -4,9 +4,10 @@ use async_openai::{
     Client,
 };
 use itertools::Itertools;
+use tracing::info;
 
 pub async fn openai_embedding(texts: Vec<String>) -> Vec<Embedding> {
-    println!("computing embeddings for {} texts", texts.len());
+    info!("computing embeddings for {} texts", texts.len());
     let client = Client::new();
     let request = CreateEmbeddingRequest {
         model: "text-embedding-ada-002".to_owned(),
@@ -16,7 +17,7 @@ pub async fn openai_embedding(texts: Vec<String>) -> Vec<Embedding> {
         dimensions: None,
     };
     let response = client.embeddings().create(request).await.unwrap();
-    println!("Generated embeddings successfully");
+    info!("Generated embeddings successfully");
     response
         .data
         .into_iter()
@@ -27,7 +28,7 @@ pub async fn openai_embedding(texts: Vec<String>) -> Vec<Embedding> {
 // this is currently commented out so we don't need to add any new dependencies
 // but might be potentially useful in the future
 // async fn sentence_transformers_embeddings(texts: Vec<String>) -> Vec<Embedding> {
-//     println!("computing embeddings for {} texts", texts.len());
+//     info!("computing embeddings for {} texts", texts.len());
 //     Python::with_gil(|py| {
 //         let sentence_transformers = py.import("sentence_transformers")?;
 //         let locals = [("sentence_transformers", sentence_transformers)].into_py_dict(py);

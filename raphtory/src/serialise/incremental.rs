@@ -314,19 +314,20 @@ mod test {
     use raphtory_api::core::{
         entities::{GidRef, VID},
         storage::dict_mapper::MaybeNew,
+        utils::logging::global_info_logger,
     };
     use std::fs::File;
     use tempfile::NamedTempFile;
 
     #[test]
     fn test_write_failure() {
+        global_info_logger();
         let tmp_file = NamedTempFile::new().unwrap();
         let read_only = File::open(tmp_file.path()).unwrap();
 
         let cache = GraphWriter::new(read_only);
         cache.resolve_node(MaybeNew::New(VID(0)), GidRef::Str("0"));
         let res = cache.write();
-        println!("{res:?}");
         assert!(res.is_err());
         assert_eq!(cache.proto_delta.lock().nodes.len(), 1);
     }

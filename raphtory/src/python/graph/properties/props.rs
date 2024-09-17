@@ -46,7 +46,6 @@ impl<'source> FromPyObject<'source> for PyPropsComp {
         } else if let Ok(m) = ob.extract::<HashMap<ArcStr, Prop>>() {
             Ok(PyPropsComp(m))
         } else {
-            println!("sp4");
             Err(PyTypeError::new_err("not comparable with properties"))
         }
     }

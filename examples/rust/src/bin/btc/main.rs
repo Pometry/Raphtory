@@ -2,7 +2,7 @@
 #![allow(dead_code)]
 
 use chrono::{DateTime, Utc};
-use raphtory::{io::csv_loader::CsvLoader, prelude::*};
+use raphtory::{io::csv_loader::CsvLoader, logging::global_info_logger, prelude::*};
 use regex::Regex;
 use serde::Deserialize;
 use std::{
@@ -16,6 +16,7 @@ use std::{
     thread::JoinHandle,
     time::Instant,
 };
+use tracing::info;
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct Sent {
@@ -38,6 +39,7 @@ pub struct Received {
 }
 
 fn main() {
+    global_info_logger();
     let args: Vec<String> = env::args().collect();
 
     let default_data_dir: PathBuf = [env!("CARGO_MANIFEST_DIR"), "src/bin/btc/data"]
@@ -65,7 +67,7 @@ fn main() {
         let g = Graph::decode(encoded_data_dir.as_path())
             .expect("Failed to load graph from encoded data files");
 
-        println!(
+        info!(
             "Loaded graph from path {} with {} nodes, {} edges, took {} seconds",
             encoded_data_dir.to_str().unwrap(),
             g.count_nodes(),
@@ -87,7 +89,7 @@ fn main() {
                 let time = sent.time.timestamp();
 
                 if src == test_v || dst == test_v {
-                    println!("{} sent {} to {}", sent.addr, sent.amount_btc, sent.txn);
+                    info!("{} sent {} to {}", sent.addr, sent.amount_btc, sent.txn);
                 }
 
                 g.add_edge(
@@ -101,7 +103,7 @@ fn main() {
             })
             .expect("Failed to load graph from CSV data files");
 
-        println!(
+        info!(
             "Loaded graph from CSV data files {} with {} nodes, {} edges which took {} seconds",
             encoded_data_dir.to_str().unwrap(),
             g.count_nodes(),

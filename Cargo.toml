@@ -135,7 +135,6 @@ bytemuck = { version = "1.18.0", features = ["derive"] }
 ouroboros = "0.18.3"
 url = "2.2"
 base64-compat = { package = "base64-compat", version = "1.0.0" }
-
 prost = "0.13.1"
 prost-types = "0.13.1"
 prost-build = "0.13.1"

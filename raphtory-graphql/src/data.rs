@@ -26,7 +26,7 @@ use std::{
     path::{Component, Path, PathBuf, StripPrefixError},
     sync::Arc,
 };
-use tracing::info;
+use tracing::{error, info};
 use walkdir::WalkDir;
 
 pub struct Data {
@@ -45,7 +45,7 @@ impl Data {
             .eviction_listener(|_, value, _| {
                 value
                     .write_updates()
-                    .unwrap_or_else(|err| println!("Write on eviction failed: {err:?}"))
+                    .unwrap_or_else(|err| error!("Write on eviction failed: {err:?}"))
             })
             .build();
 
@@ -204,7 +204,7 @@ impl Data {
             .map(move |entry| {
                 let path = entry.path();
                 let path_string = path.display().to_string();
-                println!("loading from {path_string}");
+                info!("loading from {path_string}");
                 loader(path)
             })
     }

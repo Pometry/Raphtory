@@ -1,5 +1,6 @@
 use raphtory::{
-    algorithms::centrality::pagerank::unweighted_page_rank, io::csv_loader::CsvLoader, prelude::*,
+    algorithms::centrality::pagerank::unweighted_page_rank, io::csv_loader::CsvLoader,
+    logging::global_info_logger, prelude::*,
 };
 use serde::Deserialize;
 use std::{
@@ -7,6 +8,7 @@ use std::{
     path::{Path, PathBuf},
     time::Instant,
 };
+use tracing::info;
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct Benchr {
@@ -15,7 +17,8 @@ pub struct Benchr {
 }
 
 fn main() {
-    println!("Hello, world!");
+    global_info_logger();
+    info!("Hello, world!");
     let args: Vec<String> = env::args().collect();
 
     let default_data_dir: PathBuf = [env!("CARGO_MANIFEST_DIR"), "src/bin/bench/data"]
@@ -33,13 +36,13 @@ fn main() {
     }
 
     let encoded_data_dir = data_dir.join("graphdb.bincode");
-    println!("Loading data");
+    info!("Loading data");
     let graph = if encoded_data_dir.exists() {
         let now = Instant::now();
         let g = Graph::decode(encoded_data_dir.as_path())
             .expect("Failed to load graph from encoded data files");
 
-        println!(
+        info!(
             "Loaded graph from encoded data files {} with {} nodes, {} edges which took {} seconds",
             encoded_data_dir.to_str().unwrap(),
             g.count_nodes(),
@@ -66,7 +69,7 @@ fn main() {
             })
             .expect("Failed to load graph from CSV data files");
 
-        println!(
+        info!(
             "Loaded graph from CSV data files {} with {} nodes, {} edges which took {} seconds",
             encoded_data_dir.to_str().unwrap(),
             g.count_nodes(),
@@ -78,7 +81,7 @@ fn main() {
 
         g
     };
-    println!("Data loaded\nPageRanking");
+    info!("Data loaded\nPageRanking");
     unweighted_page_rank(&graph, Some(25), Some(8), None, true, None);
-    println!("Done PR");
+    info!("Done PR");
 }

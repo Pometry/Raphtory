@@ -17,6 +17,7 @@ tempfile = { workspace = true }
 clap = { workspace = true }
 csv = { workspace = true }
 flate2 = { workspace = true }
+tracing = {workspace = true}
 
 [[bench]]
 name = "tgraph_benchmarks"
