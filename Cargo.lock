@@ -840,9 +840,9 @@ checksum = "79296716171880943b8470b5f8d03aa55eb2e645a4874bdbb28adb49162e012c"
 
 [[package]]
 name = "bytemuck"
-version = "1.17.1"
+version = "1.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "773d90827bc3feecfb67fab12e24de0749aad83c74b9504ecde46237b5cd24e2"
+checksum = "94bbb0ad554ad961ddc5da507a12a29b14e4ae5bda06b19f575a3e6079d2e2ae"
 dependencies = [
  "bytemuck_derive",
 ]
@@ -1967,7 +1967,7 @@ dependencies = [
 
 [[package]]
 name = "examples"
-version = "0.11.2"
+version = "0.11.3"
 dependencies = [
  "chrono",
  "itertools 0.13.0",
@@ -2707,7 +2707,7 @@ dependencies = [
 
 [[package]]
 name = "js-raphtory"
-version = "0.11.2"
+version = "0.11.3"
 dependencies = [
  "chrono",
  "console_error_panic_hook",
@@ -3033,6 +3033,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6d7d3e3a3eece1fa4618237ad41e1de855ced47eab705cec1c9a920e1d1c5aad"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "minijinja-contrib"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "744a2b84dbd22398e347594ed2aef9d3f1b948934e3e6e94ef69ecd39d597f4b"
+dependencies = [
+ "minijinja",
+ "serde",
+ "time",
 ]
 
 [[package]]
@@ -3951,7 +3962,7 @@ dependencies = [
 
 [[package]]
 name = "pometry-storage"
-version = "0.11.2"
+version = "0.11.3"
 
 [[package]]
 name = "portable-atomic"
@@ -4339,11 +4350,12 @@ dependencies = [
 
 [[package]]
 name = "raphtory"
-version = "0.11.2"
+version = "0.11.3"
 dependencies = [
  "async-openai",
  "async-trait",
  "bincode",
+ "bytemuck",
  "bzip2",
  "chrono",
  "csv",
@@ -4355,10 +4367,13 @@ dependencies = [
  "flate2",
  "futures-util",
  "glam",
+ "indoc",
  "itertools 0.13.0",
  "kdam",
  "lock_api",
  "memmap2",
+ "minijinja",
+ "minijinja-contrib",
  "neo4rs",
  "num",
  "num-integer",
@@ -4400,8 +4415,9 @@ dependencies = [
 
 [[package]]
 name = "raphtory-api"
-version = "0.11.2"
+version = "0.11.3"
 dependencies = [
+ "bytemuck",
  "chrono",
  "dashmap 6.0.1",
  "lock_api",
@@ -4420,7 +4436,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-benchmark"
-version = "0.11.2"
+version = "0.11.3"
 dependencies = [
  "clap",
  "criterion",
@@ -4437,7 +4453,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-cypher"
-version = "0.11.2"
+version = "0.11.3"
 dependencies = [
  "arrow",
  "arrow-array",
@@ -4467,7 +4483,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-graphql"
-version = "0.11.2"
+version = "0.11.3"
 dependencies = [
  "async-graphql",
  "async-graphql-poem",
@@ -4509,7 +4525,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-pymodule"
-version = "0.11.2"
+version = "0.11.3"
 dependencies = [
  "pyo3",
  "pyo3-build-config",
@@ -4519,7 +4535,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory_netflow"
-version = "0.11.2"
+version = "0.11.3"
 dependencies = [
  "pyo3",
  "pyo3-build-config",

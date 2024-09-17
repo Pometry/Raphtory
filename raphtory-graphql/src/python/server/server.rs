@@ -23,11 +23,8 @@ use pyo3::{
     IntoPy, Py, PyObject, PyRefMut, PyResult, Python,
 };
 use raphtory::{
-    python::{
-        packages::vectors::PyDocumentTemplate, types::wrappers::document::PyDocument,
-        utils::execute_async_task,
-    },
-    vectors::{embeddings::openai_embedding, EmbeddingFunction},
+    python::{types::wrappers::document::PyDocument, utils::execute_async_task},
+    vectors::{embeddings::openai_embedding, template::DocumentTemplate, EmbeddingFunction},
 };
 use std::{collections::HashMap, path::PathBuf, thread};
 
@@ -45,20 +42,19 @@ impl PyGraphServer {
         graph_names: Option<Vec<String>>,
         embedding: F,
         cache: String,
-        graph_document: Option<String>,
-        node_document: Option<String>,
-        edge_document: Option<String>,
+        graph_template: Option<String>,
+        node_template: Option<String>,
+        edge_template: Option<String>,
     ) -> PyResult<Self> {
-        let template = PyDocumentTemplate::new(graph_document, node_document, edge_document);
+        let template = DocumentTemplate {
+            graph_template,
+            node_template,
+            edge_template,
+        };
         let server = take_server_ownership(slf)?;
         execute_async_task(move || async move {
             let new_server = server
-                .with_vectorised(
-                    graph_names,
-                    embedding,
-                    &PathBuf::from(cache),
-                    Some(template),
-                )
+                .with_vectorised(graph_names, embedding, &PathBuf::from(cache), template)
                 .await?;
             Ok(Self::new(new_server))
         })
@@ -177,9 +173,9 @@ impl PyGraphServer {
     ///   graph_names (List[str]): the names of the graphs to vectorise. All by default.
     ///   cache (str):  the directory to use as cache for the embeddings.
     ///   embedding (Function):  the embedding function to translate documents to embeddings.
-    ///   graph_document (String):  the property name to use as the source for the documents on graphs.
-    ///   node_document (String):  the property name to use as the source for the documents on nodes.
-    ///   edge_document (String):  the property name to use as the source for the documents on edges.
+    ///   graph_template (String):  the template to use for graphs.
+    ///   node_template (String):  the template to use for nodes.
+    ///   edge_template (String):  the template to use for edges.
     ///
     /// Returns:
     ///    GraphServer: A new server object containing the vectorised graphs.
@@ -189,9 +185,9 @@ impl PyGraphServer {
         graph_names: Option<Vec<String>>,
         // TODO: support more models by just providing a string, e.g. "openai", here and in the VectorisedGraph API
         embedding: Option<&PyFunction>,
-        graph_document: Option<String>,
-        node_document: Option<String>,
-        edge_document: Option<String>,
+        graph_template: Option<String>,
+        node_template: Option<String>,
+        edge_template: Option<String>,
     ) -> PyResult<Self> {
         match embedding {
             Some(embedding) => {
@@ -201,9 +197,9 @@ impl PyGraphServer {
                     graph_names,
                     embedding,
                     cache,
-                    graph_document,
-                    node_document,
-                    edge_document,
+                    graph_template,
+                    node_template,
+                    edge_template,
                 )
             }
             None => Self::with_vectorised_generic_embedding(
@@ -211,9 +207,9 @@ impl PyGraphServer {
                 graph_names,
                 openai_embedding,
                 cache,
-                graph_document,
-                node_document,
-                edge_document,
+                graph_template,
+                node_template,
+                edge_template,
             ),
         }
     }

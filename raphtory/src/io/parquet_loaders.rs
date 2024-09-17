@@ -9,6 +9,7 @@ use crate::{
     },
     io::arrow::{dataframe::*, df_loaders::*},
     prelude::DeletionOps,
+    serialise::incremental::InternalCache,
 };
 use itertools::Itertools;
 use polars_arrow::datatypes::{ArrowDataType as DataType, ArrowSchema, Field};
@@ -63,8 +64,8 @@ pub fn load_nodes_from_parquet<
     Ok(())
 }
 
-pub fn load_edges_from_parquet<
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
+pub(crate) fn load_edges_from_parquet<
+    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
 >(
     graph: &G,
     parquet_path: impl AsRef<Path>,

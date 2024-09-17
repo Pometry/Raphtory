@@ -1,9 +1,7 @@
 use crate::{
     db::api::view::StaticGraphViewOps,
     prelude::NodeViewOps,
-    vectors::{
-        document_template::DocumentTemplate, entity_id::EntityId, Document, Embedding, Lifespan,
-    },
+    vectors::{entity_id::EntityId, template::DocumentTemplate, Document, Embedding, Lifespan},
 };
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
@@ -56,7 +54,7 @@ impl DocumentRef {
 
     // TODO: review -> does window really need to be an Option
     /// This function expects a graph with a window that matches the one provided in `window`
-    pub fn exists_on_window<G>(&self, graph: Option<&G>, window: Option<(i64, i64)>) -> bool
+    pub fn exists_on_window<G>(&self, graph: Option<&G>, window: &Option<(i64, i64)>) -> bool
     where
         G: StaticGraphViewOps,
     {
@@ -89,10 +87,9 @@ impl DocumentRef {
         }
     }
 
-    pub fn regenerate<G, T>(&self, original_graph: &G, template: &T) -> Document
+    pub fn regenerate<G>(&self, original_graph: &G, template: &DocumentTemplate) -> Document
     where
         G: StaticGraphViewOps,
-        T: DocumentTemplate<G>,
     {
         // FIXME: there is a problem here. We need to use the original graph so the number of
         // documents is the same and the index is therefore consistent. However, we want to return
@@ -105,6 +102,7 @@ impl DocumentRef {
                     .nth(self.index)
                     .unwrap()
                     .content,
+                embedding: self.embedding.clone(),
                 life: self.life,
             },
             EntityId::Node { id } => Document::Node {
@@ -114,6 +112,7 @@ impl DocumentRef {
                     .nth(self.index)
                     .unwrap()
                     .content,
+                embedding: self.embedding.clone(),
                 life: self.life,
             },
             EntityId::Edge { src, dst } => Document::Edge {
@@ -124,6 +123,7 @@ impl DocumentRef {
                     .nth(self.index)
                     .unwrap()
                     .content,
+                embedding: self.embedding.clone(),
                 life: self.life,
             },
         }

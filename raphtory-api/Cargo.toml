@@ -16,6 +16,7 @@ edition.workspace = true
 
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
+bytemuck = { workspace = true }
 chrono.workspace = true
 dashmap = { workspace = true }
 rustc-hash = { workspace = true }

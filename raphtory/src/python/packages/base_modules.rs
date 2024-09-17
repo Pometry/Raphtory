@@ -15,12 +15,7 @@ use crate::{
             node::{PyMutableNode, PyNode, PyNodes},
             properties::{PyConstProperties, PyProperties, PyTemporalProp, PyTemporalProperties},
         },
-        packages::{
-            algorithms::*,
-            graph_gen::*,
-            graph_loader::*,
-            vectors::{generate_property_list, PyVectorisedGraph},
-        },
+        packages::{algorithms::*, graph_gen::*, graph_loader::*, vectors::PyVectorisedGraph},
         types::wrappers::document::PyDocument,
     },
 };
@@ -127,6 +122,5 @@ pub fn base_vectors_module(py: Python<'_>) -> Result<&PyModule, PyErr> {
     let vectors_module = PyModule::new(py, "vectors")?;
     vectors_module.add_class::<PyVectorisedGraph>()?;
     vectors_module.add_class::<PyDocument>()?;
-    add_functions!(vectors_module, generate_property_list);
     return Ok(vectors_module);
 }

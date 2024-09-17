@@ -399,7 +399,7 @@ impl PyGraph {
         shared_constant_properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
         load_nodes_from_pandas(
-            self.graph.core_graph(),
+            &self.graph,
             df,
             time,
             id,
@@ -477,7 +477,7 @@ impl PyGraph {
         layer_col: Option<&str>,
     ) -> Result<(), GraphError> {
         load_edges_from_pandas(
-            self.graph.core_graph(),
+            &self.graph,
             df,
             time,
             src,
@@ -551,7 +551,7 @@ impl PyGraph {
         shared_constant_properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
         load_node_props_from_pandas(
-            self.graph.core_graph(),
+            &self.graph,
             df,
             id,
             node_type,
@@ -615,7 +615,7 @@ impl PyGraph {
         layer_col: Option<&str>,
     ) -> Result<(), GraphError> {
         load_edge_props_from_pandas(
-            self.graph.core_graph(),
+            &self.graph,
             df,
             src,
             dst,

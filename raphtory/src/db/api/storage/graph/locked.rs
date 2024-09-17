@@ -1,9 +1,13 @@
-use std::sync::Arc;
-
 use crate::core::{
     entities::{graph::tgraph::TemporalGraph, nodes::node_store::NodeStore, VID},
-    storage::{raw_edges::LockedEdges, ReadLockedStorage},
+    storage::{
+        raw_edges::{LockedEdges, WriteLockedEdges},
+        ReadLockedStorage, WriteLockedNodes,
+    },
+    utils::errors::GraphError,
 };
+use raphtory_api::core::{entities::GidRef, storage::dict_mapper::MaybeNew};
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct LockedGraph {
@@ -49,5 +53,44 @@ impl Clone for LockedGraph {
             edges: self.edges.clone(),
             graph: self.graph.clone(),
         }
+    }
+}
+
+pub struct WriteLockedGraph<'a> {
+    pub nodes: WriteLockedNodes<'a>,
+    pub edges: WriteLockedEdges<'a>,
+    pub graph: &'a TemporalGraph,
+}
+
+impl<'a> WriteLockedGraph<'a> {
+    pub(crate) fn new(graph: &'a TemporalGraph) -> Self {
+        let nodes = graph.storage.nodes.write_lock();
+        let edges = graph.storage.edges.write_lock();
+        Self {
+            nodes,
+            edges,
+            graph,
+        }
+    }
+
+    pub fn num_nodes(&self) -> usize {
+        self.graph.storage.nodes.len()
+    }
+    pub fn resolve_node(&self, gid: GidRef) -> Result<MaybeNew<VID>, GraphError> {
+        self.graph
+            .logical_to_physical
+            .get_or_init(gid, || self.graph.storage.nodes.next_id())
+    }
+
+    pub fn num_shards(&self) -> usize {
+        self.nodes.num_shards().max(self.edges.num_shards())
+    }
+
+    pub fn edges_mut(&mut self) -> &mut WriteLockedEdges<'a> {
+        &mut self.edges
+    }
+
+    pub fn graph(&self) -> &TemporalGraph {
+        &self.graph
     }
 }
