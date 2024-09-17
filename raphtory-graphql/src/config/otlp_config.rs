@@ -52,7 +52,7 @@ impl TracingConfig {
                 .install_batch(opentelemetry_sdk::runtime::Tokio)
             {
                 Ok(tracer_provider) => {
-                    info!(
+                    println!(
                         "Sending traces to {}:{}",
                         self.otlp_agent_host.clone(),
                         self.otlp_agent_port.clone()
