@@ -49,7 +49,7 @@ impl GqlGraphs {
 
                 let accessed_time = metadata.accessed()?;
                 let accessed_time_duration = accessed_time.duration_since(UNIX_EPOCH)?;
-                let accessed_time_seconds = accessed_time_duration.as_secs() as i64;
+                let accessed_time_seconds = accessed_time_duration.as_millis() as i64;
 
                 Ok(accessed_time_seconds)
             })
@@ -71,7 +71,7 @@ impl GqlGraphs {
 
                 let modified_time = metadata.modified()?;
                 let modified_time_duration = modified_time.duration_since(UNIX_EPOCH)?;
-                let modified_time_seconds = modified_time_duration.as_secs() as i64;
+                let modified_time_seconds = modified_time_duration.as_millis() as i64;
 
                 Ok(modified_time_seconds)
             })
