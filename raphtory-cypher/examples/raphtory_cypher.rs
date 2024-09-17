@@ -157,7 +157,7 @@ mod cypher {
                     let now = std::time::Instant::now();
                     let batches = df.collect().await.unwrap();
                     global_info_logger();
-                    !("Query execution time: {:?}", now.elapsed());
+                    info!("Query execution time: {:?}", now.elapsed());
                     print_batches(&batches).expect("Failed to print batches");
                 } else {
                     let streams = run_cypher_to_streams(&args.query, &graph).await.unwrap();
