@@ -5,7 +5,7 @@ use crate::model::algorithms::{
 use async_graphql::{dynamic::FieldValue, Context};
 use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName};
 use once_cell::sync::Lazy;
-use raphtory::vectors::vectorised_graph::DynamicVectorisedGraph;
+use raphtory::{db::api::view::MaterializedGraph, vectors::vectorised_graph::VectorisedGraph};
 use std::{
     borrow::Cow,
     collections::HashMap,
@@ -16,11 +16,11 @@ pub static VECTOR_ALGO_PLUGINS: Lazy<Mutex<HashMap<String, RegisterFunction>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
 pub struct VectorAlgorithms {
-    pub graph: DynamicVectorisedGraph,
+    pub graph: VectorisedGraph<MaterializedGraph>,
 }
 
-impl From<DynamicVectorisedGraph> for VectorAlgorithms {
-    fn from(graph: DynamicVectorisedGraph) -> Self {
+impl From<VectorisedGraph<MaterializedGraph>> for VectorAlgorithms {
+    fn from(graph: VectorisedGraph<MaterializedGraph>) -> Self {
         Self { graph }
     }
 }

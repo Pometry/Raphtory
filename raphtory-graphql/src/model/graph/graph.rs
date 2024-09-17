@@ -1,5 +1,5 @@
 use crate::{
-    data::{Data, ExistingGraphFolder},
+    data::Data,
     model::{
         algorithms::graph_algorithms::GraphAlgorithms,
         graph::{
@@ -7,6 +7,7 @@ use crate::{
         },
         schema::graph_schema::GraphSchema,
     },
+    paths::ExistingGraphFolder,
 };
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
@@ -26,7 +27,7 @@ use raphtory::{
     prelude::*,
     search::{into_indexed::DynamicIndexedGraph, IndexedGraph},
 };
-use std::{collections::HashSet, convert::Into, path::PathBuf, sync::Arc};
+use std::{collections::HashSet, convert::Into, sync::Arc};
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlGraph {
@@ -325,9 +326,9 @@ impl GqlGraph {
     async fn path(&self) -> Result<String, GraphError> {
         Ok(self
             .path
-            .user_facing_path
+            .get_original_path()
             .to_str()
-            .ok_or(PathNotParsable(self.path.user_facing_path.clone()))?
+            .ok_or(PathNotParsable(self.path.to_error_path()))?
             .to_owned())
     }
 
@@ -373,7 +374,7 @@ impl GqlGraph {
         path: String,
     ) -> Result<bool, Arc<GraphError>> {
         let data = ctx.data_unchecked::<Data>();
-        let other_g = data.get_graph(path.as_ref())?;
+        let other_g = data.get_graph(path.as_ref())?.0;
         other_g.import_nodes(self.graph.nodes(), true)?;
         other_g.import_edges(self.graph.edges(), true)?;
         other_g.write_updates()?;

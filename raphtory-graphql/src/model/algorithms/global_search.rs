@@ -35,13 +35,11 @@ impl<'a> Algorithm<'a, GlobalPlugins> for GlobalSearch {
             .unwrap()
             .to_owned();
         let limit = ctx.args.try_get("limit").unwrap().u64().unwrap() as usize;
-        let vectorised_graphs = entry_point.vectorised_graphs.clone();
+        let graphs = entry_point.graphs.clone();
 
         Box::pin(async move {
             let embedding = openai_embedding(vec![query.clone()]).await.remove(0);
             println!("running global search for {query}");
-
-            let graphs = vectorised_graphs.read();
 
             let cluster = VectorisedCluster::new(graphs.deref());
             let documents = cluster.search_graph_documents(&embedding, limit, None); // TODO: add window

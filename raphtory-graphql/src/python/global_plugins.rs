@@ -70,10 +70,6 @@ impl PyGlobalPlugins {
 
     /// Return the `VectorisedGraph` with name `name` or `None` if it doesn't exist
     fn get(&self, name: &str) -> Option<PyVectorisedGraph> {
-        self.0
-            .vectorised_graphs
-            .read()
-            .get(name)
-            .map(|graph| graph.clone().into())
+        self.0.graphs.get(name).map(|graph| graph.clone().into())
     }
 }

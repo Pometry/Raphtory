@@ -2,7 +2,10 @@ use crate::{
     core::{
         entities::nodes::node_ref::NodeRef, utils::time::IntoTime, DocumentInput, Lifespan, Prop,
     },
-    db::api::properties::{internal::PropertiesOps, Properties},
+    db::api::{
+        properties::{internal::PropertiesOps, Properties},
+        view::{DynamicGraph, MaterializedGraph, StaticGraphViewOps},
+    },
     prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
     python::{
         graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
@@ -10,9 +13,11 @@ use crate::{
         utils::{execute_async_task, PyTime},
     },
     vectors::{
-        template::DocumentTemplate, vector_selection::DynamicVectorSelection,
-        vectorisable::Vectorisable, vectorised_graph::DynamicVectorisedGraph, Document, Embedding,
-        EmbeddingFunction,
+        template::DocumentTemplate,
+        vector_selection::DynamicVectorSelection,
+        vectorisable::Vectorisable,
+        vectorised_graph::{DynamicVectorisedGraph, VectorisedGraph},
+        Document, Embedding, EmbeddingFunction,
     },
 };
 use chrono::DateTime;
@@ -274,6 +279,12 @@ pub struct PyVectorisedGraph(DynamicVectorisedGraph);
 impl From<DynamicVectorisedGraph> for PyVectorisedGraph {
     fn from(value: DynamicVectorisedGraph) -> Self {
         PyVectorisedGraph(value)
+    }
+}
+
+impl From<VectorisedGraph<MaterializedGraph>> for PyVectorisedGraph {
+    fn from(value: VectorisedGraph<MaterializedGraph>) -> Self {
+        PyVectorisedGraph(DynamicGraph::new(value.source_graph))
     }
 }
 
@@ -573,7 +584,10 @@ impl PyVectorSelection {
     }
 }
 
-pub fn compute_embedding(vectors: &DynamicVectorisedGraph, query: PyQuery) -> Embedding {
+pub fn compute_embedding<G: StaticGraphViewOps>(
+    vectors: &VectorisedGraph<G>,
+    query: PyQuery,
+) -> Embedding {
     let embedding = vectors.embedding.clone();
     execute_async_task(move || async move { query.into_embedding(embedding.as_ref()).await })
 }

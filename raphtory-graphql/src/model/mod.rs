@@ -1,5 +1,5 @@
 use crate::{
-    data::{Data, ExistingGraphFolder},
+    data::Data,
     model::{
         algorithms::global_plugins::GlobalPlugins,
         graph::{
@@ -7,6 +7,7 @@ use crate::{
             vectorised_graph::GqlVectorisedGraph,
         },
     },
+    paths::ExistingGraphFolder,
     url_encode::{url_decode_graph, url_encode_graph},
 };
 use async_graphql::Context;
@@ -84,25 +85,20 @@ impl QueryRoot {
         let data = ctx.data_unchecked::<Data>();
         Ok(data
             .get_graph(path)
-            .map(|g| GqlGraph::new(path.into(), g))?)
+            .map(|(g, folder)| GqlGraph::new(folder, g.graph))?)
     }
 
     async fn update_graph<'a>(ctx: &Context<'a>, path: String) -> Result<GqlMutableGraph> {
         let data = ctx.data_unchecked::<Data>();
         let graph = data
-            .get_graph_with_vectors(path.as_ref())
-            .map(|g| GqlMutableGraph::new(path, g))?;
+            .get_graph(path.as_ref())
+            .map(|(g, folder)| GqlMutableGraph::new(folder, g))?;
         Ok(graph)
     }
 
-    async fn vectorised_graph<'a>(ctx: &Context<'a>, path: String) -> Option<GqlVectorisedGraph> {
+    async fn vectorised_graph<'a>(ctx: &Context<'a>, path: &str) -> Option<GqlVectorisedGraph> {
         let data = ctx.data_unchecked::<Data>();
-        let g = data
-            .global_plugins
-            .vectorised_graphs
-            .read()
-            .get(&path)
-            .cloned()?;
+        let g = data.get_graph(path).ok()?.0.vectors?;
         Some(g.into())
     }
 
@@ -120,7 +116,7 @@ impl QueryRoot {
     async fn receive_graph<'a>(ctx: &Context<'a>, path: String) -> Result<String, Arc<GraphError>> {
         let path = path.as_ref();
         let data = ctx.data_unchecked::<Data>();
-        let g = data.get_graph(path)?.graph.clone();
+        let g = data.get_graph(path)?.0.graph.graph.clone();
         let res = url_encode_graph(g)?;
         Ok(res)
     }
@@ -151,7 +147,7 @@ impl Mut {
             GqlGraphType::Persistent => PersistentGraph::new().materialize()?,
             GqlGraphType::Event => Graph::new().materialize()?,
         };
-        data.insert_graph(&path, graph);
+        data.insert_graph(&path, graph).await;
         Ok(true)
     }
 
@@ -168,7 +164,7 @@ impl Mut {
     // This applies to both the graph namespace and new graph namespace.
     async fn copy_graph<'a>(ctx: &Context<'a>, path: &str, new_path: &str) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
-        let graph = data.get_graph(path)?.materialize()?;
+        let graph = data.get_graph(path)?.0.graph.materialize()?;
 
         #[cfg(feature = "storage")]
         if let GraphStorage::Disk(_) = graph.core_graph() {
@@ -189,7 +185,7 @@ impl Mut {
 
     async fn update_graph_last_opened<'a>(ctx: &Context<'a>, path: &str) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
-        let graph = data.get_graph(path)?;
+        let graph = data.get_graph(path)?.0.graph;
         if graph.graph.storage().is_immutable() {
             return Err(GqlGraphError::ImmutableDiskGraph.into());
         }
@@ -213,7 +209,7 @@ impl Mut {
         // Creating a new graph (owner is user) from UI
         // Graph is created from the parent graph. This means the new graph retains the character of the parent graph i.e.,
         // the new graph is an event or persistent graph depending on if the parent graph is event or persistent graph, respectively.
-        let parent_graph = data.get_graph(parent_graph_path)?;
+        let parent_graph = data.get_graph(parent_graph_path)?.0.graph;
         let new_subgraph = parent_graph.subgraph(graph_nodes).materialize()?;
 
         let now: Prop = Prop::I64(Utc::now().timestamp_millis());
@@ -389,9 +385,9 @@ impl Mut {
 
     async fn archive_graph<'a>(ctx: &Context<'a>, path: &str, is_archive: u8) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
-        let graph = data.get_graph(path)?;
+        let graph = data.get_graph(path)?.0;
 
-        if graph.graph.storage().is_immutable() {
+        if graph.graph.graph.storage().is_immutable() {
             return Err(GqlGraphError::ImmutableDiskGraph.into());
         }
         graph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;

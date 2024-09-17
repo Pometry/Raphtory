@@ -101,7 +101,7 @@ impl GraphServer {
         // or maybe it could be in a standard location like /tmp/raphtory/embedding_cache
         global_template: Option<DocumentTemplate>,
     ) {
-        let cache = EmbeddingCache::from_path(PathBuf::from(cache)).into();
+        let cache = Some(EmbeddingCache::from_path(PathBuf::from(cache))).into();
         self.data.embedding_conf = Some(EmbeddingConf {
             function: Arc::new(embedding),
             cache,

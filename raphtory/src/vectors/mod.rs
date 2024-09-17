@@ -16,6 +16,10 @@ pub mod vectorisable;
 pub mod vectorised_cluster;
 pub mod vectorised_graph;
 
+#[cfg(feature = "proto")]
+#[cfg(feature = "search")]
+pub mod serialise;
+
 pub type Embedding = Arc<[f32]>;
 
 #[derive(Debug)]

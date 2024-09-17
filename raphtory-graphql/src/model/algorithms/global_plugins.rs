@@ -1,5 +1,5 @@
 use crate::{
-    data::GraphWithVectors,
+    graph::GraphWithVectors,
     model::algorithms::{
         algorithm::Algorithm, algorithm_entry_point::AlgorithmEntryPoint,
         global_search::GlobalSearch, RegisterFunction,

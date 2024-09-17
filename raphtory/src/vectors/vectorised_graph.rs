@@ -1,7 +1,7 @@
 use crate::{
     // core::entities::nodes::node_ref::AsNodeRef,
     core::entities::nodes::node_ref::AsNodeRef,
-    db::api::view::{DynamicGraph, StaticGraphViewOps},
+    db::api::view::{DynamicGraph, IntoDynamic, StaticGraphViewOps},
     prelude::*,
     vectors::{
         document_ref::DocumentRef,
@@ -43,6 +43,20 @@ impl<G: StaticGraphViewOps> Clone for VectorisedGraph<G> {
     fn clone(&self) -> Self {
         Self::new(
             self.source_graph.clone(),
+            self.template.clone(),
+            self.embedding.clone(),
+            self.cache_storage.clone(),
+            self.graph_documents.clone(),
+            self.node_documents.clone(),
+            self.edge_documents.clone(),
+        )
+    }
+}
+
+impl<G: StaticGraphViewOps + IntoDynamic> VectorisedGraph<G> {
+    pub(crate) fn into_dynamic(&self) -> VectorisedGraph<DynamicGraph> {
+        VectorisedGraph::new(
+            self.source_graph.clone().into_dynamic(),
             self.template.clone(),
             self.embedding.clone(),
             self.cache_storage.clone(),

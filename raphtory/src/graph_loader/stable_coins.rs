@@ -61,7 +61,7 @@ pub fn stable_coin_graph(path: Option<String>, subset: bool) -> Graph {
         }
     }
 
-    let encoded_data_dir = data_dir.join("graphdb.bincode");
+    let encoded_data_dir = data_dir.join("graphdb.bincode"); // this as a dir in windows might fail ?
     let g = restore_from_file(&encoded_data_dir).unwrap_or_else(|| {
         let g = Graph::new();
         let now = Instant::now();

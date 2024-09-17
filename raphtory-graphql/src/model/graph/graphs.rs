@@ -1,6 +1,7 @@
-use crate::data::ExistingGraphFolder;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
+
+use crate::paths::ExistingGraphFolder;
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlGraphs {
@@ -28,7 +29,7 @@ impl GqlGraphs {
         let paths = self
             .folders
             .iter()
-            .filter_map(|folder| Some(folder.user_facing_path.to_str()?.to_owned()))
+            .map(|folder| folder.get_original_path_str().to_owned())
             .collect_vec();
         paths
     }

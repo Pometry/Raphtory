@@ -1,8 +1,10 @@
 pub use crate::server::GraphServer;
 pub mod azure_auth;
 mod data;
+mod graph;
 pub mod model;
 mod observability;
+mod paths;
 mod routes;
 pub mod server;
 pub mod server_config;
