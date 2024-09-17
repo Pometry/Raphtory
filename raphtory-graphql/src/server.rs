@@ -42,9 +42,10 @@ use tokio::{
         mpsc,
         mpsc::{Receiver, Sender},
     },
+    task,
     task::JoinHandle,
 };
-use tracing::{error, info};
+use tracing::{debug, error, info};
 use tracing_subscriber::{
     fmt, fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt, Registry,
 };
@@ -306,8 +307,15 @@ async fn server_termination(mut internal_signal: Receiver<()>, tp: Option<TP>) {
     }
     match tp {
         None => {}
-        Some(_) => {
-            std::process::exit(0);
+        Some(p) => {
+            task::spawn_blocking(move || {
+                let res = p.shutdown();
+                if let Err(e) = res {
+                    debug!("Failed to shut down tracing provider: {:?}", e);
+                }
+            })
+            .await
+            .unwrap();
         }
     }
 }
