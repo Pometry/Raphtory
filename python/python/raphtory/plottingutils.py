@@ -229,7 +229,7 @@ def lorenz(observations):
     """
     tmp_arr = np.array(sorted(observations))
     # print(tmp_arr[0])
-    x = np.arange(observations.size) / (observations.size - 1)
+    x = np.arange(len(observations)) / (len(observations) - 1)
     y = tmp_arr.cumsum() / tmp_arr.sum()
     return x, y
 

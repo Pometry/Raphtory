@@ -546,13 +546,13 @@ mod db_tests {
             g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
 
-        let tmp_raphtory_path: TempDir = TempDir::new().expect("Failed to create tempdir");
+        let tmp_raphtory_path: TempDir = TempDir::new().unwrap();
 
         let graph_path = format!("{}/graph.bin", tmp_raphtory_path.path().display());
-        g.encode(&graph_path).expect("Failed to save graph");
+        g.encode(&graph_path).unwrap();
 
         // Load from files
-        let g2 = Graph::decode(&graph_path).expect("Failed to load graph");
+        let g2 = Graph::decode(&graph_path).unwrap();
 
         assert_eq!(g, g2);
 

@@ -16,7 +16,7 @@ impl InternalDeletionOps for TemporalGraph {
         dst: VID,
         layer: usize,
     ) -> Result<MaybeNew<EID>, GraphError> {
-        self.link_nodes(src, dst, t, layer, |new_edge| {
+        self.link_nodes(src, dst, t, layer, |mut new_edge| {
             new_edge.deletions_mut(layer).insert(t);
             Ok(())
         })
@@ -28,7 +28,7 @@ impl InternalDeletionOps for TemporalGraph {
         eid: EID,
         layer: usize,
     ) -> Result<(), GraphError> {
-        self.link_edge(eid, t, layer, |edge| {
+        self.link_edge(eid, t, layer, |mut edge| {
             edge.deletions_mut(layer).insert(t);
             Ok(())
         })

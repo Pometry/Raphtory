@@ -5,8 +5,11 @@ use polars_arrow::{datatypes::ArrowDataType, legacy::error};
 use pometry_storage::RAError;
 #[cfg(feature = "python")]
 use pyo3::PyErr;
-use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 use std::{io, path::PathBuf, time::SystemTimeError};
+use raphtory_api::core::{
+    entities::{GidType, GID},
+    storage::arc_str::ArcStr,
+};
 #[cfg(feature = "search")]
 use tantivy;
 #[cfg(feature = "search")]
@@ -59,6 +62,22 @@ pub enum LoadError {
     MissingNodeError,
     #[error("Missing value for timestamp")]
     MissingTimeError,
+    #[error("Node IDs have the wrong type, expected {existing}, got {new}")]
+    NodeIdTypeError { existing: GidType, new: GidType },
+    #[error("Fatal load error, graph may be in a dirty state.")]
+    FatalError,
+}
+
+#[cfg(feature = "proto")]
+#[derive(thiserror::Error, Debug)]
+pub enum WriteError {
+    #[cfg(feature = "proto")]
+    #[error("Unrecoverable disk error: {0}, resetting file size failed: {1}")]
+    FatalWriteError(io::Error, io::Error),
+
+    #[cfg(feature = "proto")]
+    #[error("Failed to write delta to cache: {0}")]
+    WriteError(io::Error),
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -151,7 +170,7 @@ pub enum GraphError {
     #[error("IO operation failed")]
     IOError {
         #[from]
-        source: std::io::Error,
+        source: io::Error,
     },
 
     #[cfg(feature = "arrow")]
@@ -200,9 +219,13 @@ pub enum GraphError {
         "Cannot recover from write failure {write_err}, new updates are invalid: {decode_err}"
     )]
     FatalDecodeError {
-        write_err: io::Error,
+        write_err: WriteError,
         decode_err: prost::DecodeError,
     },
+
+    #[cfg(feature = "proto")]
+    #[error("Cache write error: {0}")]
+    CacheWriteError(#[from] WriteError),
 
     #[cfg(feature = "proto")]
     #[error("Protobuf decode error{0}")]

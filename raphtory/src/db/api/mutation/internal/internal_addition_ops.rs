@@ -5,13 +5,15 @@ use crate::{
         utils::errors::GraphError,
         Prop, PropType,
     },
-    db::api::view::internal::Base,
+    db::api::{storage::graph::locked::WriteLockedGraph, view::internal::Base},
 };
 use enum_dispatch::enum_dispatch;
-use raphtory_api::core::storage::dict_mapper::MaybeNew;
+use raphtory_api::core::{entities::GidType, storage::dict_mapper::MaybeNew};
 
 #[enum_dispatch]
 pub trait InternalAdditionOps {
+    fn id_type(&self) -> Option<GidType>;
+    fn write_lock(&self) -> Result<WriteLockedGraph, GraphError>;
     fn num_shards(&self) -> Result<usize, GraphError>;
     /// get the sequence id for the next event
     fn next_event_id(&self) -> Result<usize, GraphError>;
@@ -102,6 +104,16 @@ pub trait DelegateAdditionOps {
 }
 
 impl<G: DelegateAdditionOps> InternalAdditionOps for G {
+    #[inline]
+    fn id_type(&self) -> Option<GidType> {
+        self.graph().id_type()
+    }
+
+    #[inline]
+    fn write_lock(&self) -> Result<WriteLockedGraph, GraphError> {
+        self.graph().write_lock()
+    }
+
     #[inline]
     fn num_shards(&self) -> Result<usize, GraphError> {
         self.graph().num_shards()

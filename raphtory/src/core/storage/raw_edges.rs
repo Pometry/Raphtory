@@ -5,7 +5,6 @@ use crate::{
         LayerIds,
     },
     db::api::storage::graph::edges::edge_storage_ops::{EdgeStorageOps, MemEdge},
-    DEFAULT_NUM_SHARDS,
 };
 use lock_api::ArcRwLockReadGuard;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -13,9 +12,9 @@ use raphtory_api::core::{entities::EID, storage::timeindex::TimeIndexEntry};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
-    ops::Deref,
+    ops::{Deref, DerefMut},
     sync::{
-        atomic::{self, AtomicUsize},
+        atomic::{self, AtomicUsize, Ordering},
         Arc,
     },
 };
@@ -108,7 +107,7 @@ impl PartialEq for EdgesStorage {
 
 impl Default for EdgesStorage {
     fn default() -> Self {
-        Self::new(DEFAULT_NUM_SHARDS)
+        Self::new(rayon::current_num_threads())
     }
 }
 
@@ -133,6 +132,10 @@ impl EdgesStorage {
         self.len.load(atomic::Ordering::SeqCst)
     }
 
+    pub fn next_id(&self) -> EID {
+        EID(self.len.fetch_add(1, Ordering::Relaxed))
+    }
+
     pub fn read_lock(&self) -> LockedEdges {
         LockedEdges {
             shards: self
@@ -141,6 +144,12 @@ impl EdgesStorage {
                 .map(|shard| Arc::new(shard.read_arc()))
                 .collect(),
             len: self.len(),
+        }
+    }
+
+    pub fn write_lock(&self) -> WriteLockedEdges {
+        WriteLockedEdges {
+            shards: self.shards.iter().map(|shard| shard.write()).collect(),
         }
     }
 
@@ -214,10 +223,28 @@ pub struct EdgeWGuard<'a> {
 }
 
 impl<'a> EdgeWGuard<'a> {
-    pub fn edge_store(&self) -> &EdgeStore {
-        &self.guard.edge_ids[self.i]
+    pub fn as_mut(&mut self) -> MutEdge {
+        MutEdge {
+            guard: self.guard.deref_mut(),
+            i: self.i,
+        }
     }
 
+    pub fn as_ref(&self) -> MemEdge {
+        MemEdge::new(&self.guard, self.i)
+    }
+
+    pub fn eid(&self) -> EID {
+        self.as_ref().eid()
+    }
+}
+
+pub struct MutEdge<'a> {
+    guard: &'a mut EdgeShard,
+    i: usize,
+}
+
+impl<'a> MutEdge<'a> {
     pub fn edge_store_mut(&mut self) -> &mut EdgeStore {
         &mut self.guard.edge_ids[self.i]
     }
@@ -346,5 +373,64 @@ impl LockedEdges {
                 .enumerate()
                 .map(move |(offset, _)| MemEdge::new(shard, offset))
         })
+    }
+}
+
+pub struct EdgeShardWriter<'a> {
+    shard: &'a mut EdgeShard,
+    shard_id: usize,
+    num_shards: usize,
+}
+
+impl<'a> EdgeShardWriter<'a> {
+    /// Map an edge id to local offset if it is in the shard
+    fn resolve(&self, eid: EID) -> Option<usize> {
+        let EID(eid) = eid;
+        let (bucket, offset) = resolve(eid, self.num_shards);
+        (bucket == self.shard_id).then_some(offset)
+    }
+
+    pub fn get_mut(&mut self, eid: EID) -> Option<MutEdge> {
+        let offset = self.resolve(eid)?;
+        if self.shard.edge_ids.len() <= offset {
+            self.shard
+                .edge_ids
+                .resize_with(offset + 1, EdgeStore::default)
+        }
+        Some(MutEdge {
+            guard: self.shard,
+            i: offset,
+        })
+    }
+
+    pub fn shard_id(&self) -> usize {
+        self.shard_id
+    }
+}
+
+pub struct WriteLockedEdges<'a> {
+    shards: Vec<RwLockWriteGuard<'a, EdgeShard>>,
+}
+
+impl<'a> WriteLockedEdges<'a> {
+    pub fn par_iter_mut(&mut self) -> impl IndexedParallelIterator<Item = EdgeShardWriter> + '_ {
+        let num_shards = self.shards.len();
+        let shards: Vec<_> = self
+            .shards
+            .iter_mut()
+            .map(|shard| shard.deref_mut())
+            .collect();
+        shards
+            .into_par_iter()
+            .enumerate()
+            .map(move |(shard_id, shard)| EdgeShardWriter {
+                shard,
+                shard_id,
+                num_shards,
+            })
+    }
+
+    pub fn num_shards(&self) -> usize {
+        self.shards.len()
     }
 }

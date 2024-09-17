@@ -7,8 +7,9 @@ use crate::{
     db::api::{storage::graph::tprop_storage_ops::TPropOps, view::IntoDynBoxed},
     prelude::Prop,
 };
+use polars_arrow::array::Array;
 use pometry_storage::{
-    chunked_array::{col::ChunkedPrimitiveCol, utf8_col::StringCol},
+    chunked_array::{bool_col::ChunkedBoolCol, col::ChunkedPrimitiveCol, utf8_col::StringCol},
     edge::Edge,
     prelude::{ArrayOps, BaseArrayOps},
     timestamps::TimeStamps,
@@ -17,6 +18,58 @@ use pometry_storage::{
 use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use rayon::prelude::*;
 use std::{iter, ops::Range};
+
+impl<'a> TPropOps<'a> for TPropColumn<'a, ChunkedBoolCol<'a>, TimeIndexEntry> {
+    fn last_before(&self, t: i64) -> Option<(TimeIndexEntry, Prop)> {
+        let (props, timestamps) = self.into_inner();
+        let (t, t_index) = timestamps.last_before(t)?;
+        let v = props.get(t_index)?;
+        Some((t, v.into()))
+    }
+
+    fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+        let (props, timestamps) = self.into_inner();
+        timestamps
+            .into_iter()
+            .zip(props)
+            .filter_map(|(t, v)| v.map(|v| (t, v.into())))
+    }
+
+    fn iter_window(
+        self,
+        r: Range<TimeIndexEntry>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+        let (props, timestamps) = self.into_inner();
+        let start = timestamps.position(&r.start);
+        let end = timestamps.position(&r.end);
+        timestamps
+            .sliced(start..end)
+            .into_iter()
+            .zip(props.sliced(start..end))
+            .filter_map(|(t, v)| v.map(|v| (t, v.into())))
+    }
+
+    fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
+        let (props, timestamps) = self.into_inner();
+        let t_index = timestamps.position(ti);
+        if t_index < timestamps.len() {
+            timestamps
+                .get(t_index)
+                .eq(ti)
+                .then(|| props.get(t_index).map(|v| v.into()))?
+        } else {
+            None
+        }
+    }
+
+    fn len(self) -> usize {
+        let (props, _) = self.into_inner();
+        props
+            .iter_chunks()
+            .map(|chunk| chunk.len() - chunk.null_count())
+            .sum()
+    }
+}
 
 impl<'a, T: NativeType + Into<Prop>> TPropOps<'a>
     for TPropColumn<'a, ChunkedPrimitiveCol<'a, T>, TimeIndexEntry>
@@ -53,12 +106,22 @@ impl<'a, T: NativeType + Into<Prop>> TPropOps<'a>
     fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
         let (props, timestamps) = self.into_inner();
         let t_index = timestamps.position(ti);
-        props.get(t_index).map(|v| v.into())
+        if t_index < timestamps.len() {
+            timestamps
+                .get(t_index)
+                .eq(ti)
+                .then(|| props.get(t_index).map(|v| v.into()))?
+        } else {
+            None
+        }
     }
 
     fn len(self) -> usize {
         let (props, _) = self.into_inner();
-        props.par_iter().flatten().count()
+        props
+            .iter_chunks()
+            .map(|chunk| chunk.len() - chunk.null_count())
+            .sum()
     }
 
     fn is_empty(self) -> bool {
@@ -100,12 +163,22 @@ impl<'a, I: Offset> TPropOps<'a> for TPropColumn<'a, StringCol<'a, I>, TimeIndex
     fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
         let (props, timestamps) = self.into_inner();
         let t_index = timestamps.position(ti);
-        props.get(t_index).map(|v| v.into())
+        if t_index < timestamps.len() {
+            timestamps
+                .get(t_index)
+                .eq(ti)
+                .then(|| props.get(t_index).map(|v| v.into()))?
+        } else {
+            None
+        }
     }
 
     fn len(self) -> usize {
         let (props, _) = self.into_inner();
-        props.par_iter().flatten().count()
+        props
+            .iter_chunks()
+            .map(|chunk| chunk.len() - chunk.null_count())
+            .sum()
     }
 
     fn is_empty(self) -> bool {
@@ -128,6 +201,11 @@ where
 
 pub fn read_tprop_column(id: usize, field: Field, edge: Edge) -> Option<DiskTProp<TimeIndexEntry>> {
     match field.data_type() {
+        DataType::Boolean => {
+            let props = edge.prop_bool_values(id)?;
+            let timestamps = TimeStamps::new(edge.timestamp_slice(), None);
+            Some(DiskTProp::Bool(TPropColumn::new(props, timestamps)))
+        }
         DataType::Int64 => new_tprop_column::<i64>(edge, id).map(DiskTProp::I64),
         DataType::Int32 => new_tprop_column::<i32>(edge, id).map(DiskTProp::I32),
         DataType::UInt32 => new_tprop_column::<u32>(edge, id).map(DiskTProp::U32),
@@ -147,9 +225,6 @@ pub fn read_tprop_column(id: usize, field: Field, edge: Edge) -> Option<DiskTPro
         _ => todo!(),
     }
 }
-
-// #[derive(Copy, Clone, Debug)]
-// pub struct EmptyTProp();
 
 impl<'a> TPropOps<'a> for EmptyTProp {
     fn last_before(&self, _t: i64) -> Option<(TimeIndexEntry, Prop)> {
@@ -187,6 +262,7 @@ macro_rules! for_all {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
             DiskTProp::Empty($pattern) => $result,
+            DiskTProp::Bool($pattern) => $result,
             DiskTProp::Str64($pattern) => $result,
             DiskTProp::Str32($pattern) => $result,
             DiskTProp::I32($pattern) => $result,

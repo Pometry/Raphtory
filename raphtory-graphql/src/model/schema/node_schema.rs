@@ -30,7 +30,7 @@ impl NodeSchema {
 
     /// Returns the list of property schemas for this node
     async fn properties(&self) -> Vec<PropertySchema> {
-        let filter_type = |node: &NodeView<DynamicGraph>| match node.properties().get("type") {
+        let filter_type = |node: &NodeView<DynamicGraph>| match node.node_type() {
             Some(node_type) => node_type.to_string() == self.type_name,
             None => false,
         };

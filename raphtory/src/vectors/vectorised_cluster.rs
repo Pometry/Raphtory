@@ -2,7 +2,6 @@ use crate::{
     db::api::view::StaticGraphViewOps,
     prelude::Graph,
     vectors::{
-        document_template::DocumentTemplate,
         entity_id::EntityId,
         similarity_search_utils::{find_top_k, score_documents},
         vectorised_graph::VectorisedGraph,
@@ -12,12 +11,12 @@ use crate::{
 use itertools::Itertools;
 use std::collections::HashMap;
 
-pub struct VectorisedCluster<'a, G: StaticGraphViewOps, T: DocumentTemplate<G>> {
-    graphs: &'a HashMap<String, VectorisedGraph<G, T>>,
+pub struct VectorisedCluster<'a, G: StaticGraphViewOps> {
+    graphs: &'a HashMap<String, VectorisedGraph<G>>,
 }
 
-impl<'a, G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedCluster<'a, G, T> {
-    pub fn new(graphs: &'a HashMap<String, VectorisedGraph<G, T>>) -> Self {
+impl<'a, G: StaticGraphViewOps> VectorisedCluster<'a, G> {
+    pub fn new(graphs: &'a HashMap<String, VectorisedGraph<G>>) -> Self {
         Self { graphs }
     }
 
@@ -43,7 +42,7 @@ impl<'a, G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedCluster<'a, G,
             .graphs
             .iter()
             .flat_map(|(_name, graph)| graph.graph_documents.iter().cloned())
-            .filter(|doc| doc.exists_on_window::<Graph>(None, window))
+            .filter(|doc| doc.exists_on_window::<Graph>(None, &window))
             .collect_vec();
         let scored_documents = score_documents(query, documents);
         let top_k = find_top_k(scored_documents, limit);
@@ -52,10 +51,7 @@ impl<'a, G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedCluster<'a, G,
             .map(|(doc, score)| match doc.entity_id {
                 EntityId::Graph { ref name } => {
                     let graph = self.graphs.get(name).unwrap();
-                    (
-                        doc.regenerate(&graph.source_graph, graph.template.as_ref()),
-                        score,
-                    )
+                    (doc.regenerate(&graph.source_graph, &graph.template), score)
                 }
                 _ => panic!("got document that is not related to any graph"),
             })

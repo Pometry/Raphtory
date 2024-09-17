@@ -184,7 +184,7 @@ pub struct PyTemporalProp {
     prop: DynTemporalProperty,
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(Clone, PartialEq)]
 pub struct PyTemporalPropCmp(Vec<(i64, Prop)>);
 
 impl<'source> FromPyObject<'source> for PyTemporalPropCmp {

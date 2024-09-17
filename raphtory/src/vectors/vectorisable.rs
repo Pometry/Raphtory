@@ -1,12 +1,8 @@
 use crate::{
     db::api::view::{internal::IntoDynamic, StaticGraphViewOps},
     vectors::{
-        document_ref::DocumentRef,
-        document_template::{DefaultTemplate, DocumentTemplate},
-        embedding_cache::EmbeddingCache,
-        entity_id::EntityId,
-        vectorised_graph::VectorisedGraph,
-        EmbeddingFunction, Lifespan,
+        document_ref::DocumentRef, embedding_cache::EmbeddingCache, entity_id::EntityId,
+        template::DocumentTemplate, vectorised_graph::VectorisedGraph, EmbeddingFunction, Lifespan,
     },
 };
 use async_trait::async_trait;
@@ -31,37 +27,19 @@ pub trait Vectorisable<G: StaticGraphViewOps> {
     ///   * embedding - the embedding function to translate documents to embeddings
     ///   * cache - the file to be used as a cache to avoid calling the embedding function
     ///   * overwrite_cache - whether or not to overwrite the cache if there are new embeddings
+    ///   * template - the template to use to translate entities into documents
     ///   * verbose - whether or not to print logs reporting the progress
-    ///   
+    ///
     /// # Returns:
     ///   A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
     async fn vectorise(
         &self,
         embedding: Box<dyn EmbeddingFunction>,
-        cache_file: Option<PathBuf>,
-        override_cache: bool,
-        verbose: bool,
-    ) -> VectorisedGraph<G, DefaultTemplate>;
-
-    /// Create a VectorisedGraph from the current graph
-    ///
-    /// # Arguments:
-    ///   * embedding - the embedding function to translate documents to embeddings
-    ///   * cache - the file to be used as a cache to avoid calling the embedding function
-    ///   * overwrite_cache - whether or not to overwrite the cache if there are new embeddings
-    ///   * template - the template to use to translate entities into documents
-    ///   * verbose - whether or not to print logs reporting the progress
-    ///   
-    /// # Returns:
-    ///   A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
-    async fn vectorise_with_template<T: DocumentTemplate<G>>(
-        &self,
-        embedding: Box<dyn EmbeddingFunction>,
         cache: Option<PathBuf>,
         override_cache: bool,
-        template: T,
+        template: DocumentTemplate,
         verbose: bool,
-    ) -> VectorisedGraph<G, T>;
+    ) -> VectorisedGraph<G>;
 }
 
 #[async_trait(?Send)]
@@ -71,20 +49,9 @@ impl<G: StaticGraphViewOps + IntoDynamic> Vectorisable<G> for G {
         embedding: Box<dyn EmbeddingFunction>,
         cache: Option<PathBuf>,
         overwrite_cache: bool,
+        template: DocumentTemplate,
         verbose: bool,
-    ) -> VectorisedGraph<G, DefaultTemplate> {
-        self.vectorise_with_template(embedding, cache, overwrite_cache, DefaultTemplate, verbose)
-            .await
-    }
-
-    async fn vectorise_with_template<T: DocumentTemplate<G>>(
-        &self,
-        embedding: Box<dyn EmbeddingFunction>,
-        cache: Option<PathBuf>,
-        overwrite_cache: bool,
-        template: T,
-        verbose: bool,
-    ) -> VectorisedGraph<G, T> {
+    ) -> VectorisedGraph<G> {
         let graph_docs =
             template
                 .graph(self)
@@ -147,12 +114,11 @@ impl<G: StaticGraphViewOps + IntoDynamic> Vectorisable<G> for G {
 
         VectorisedGraph::new(
             self.clone(),
-            template.into(),
+            template,
             embedding.into(),
             graph_refs.into(),
             node_refs.into(),
             edge_refs.into(),
-            vec![],
         )
     }
 }
