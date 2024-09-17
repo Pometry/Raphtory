@@ -5,11 +5,11 @@ use polars_arrow::{datatypes::ArrowDataType, legacy::error};
 use pometry_storage::RAError;
 #[cfg(feature = "python")]
 use pyo3::PyErr;
-use std::{io, path::PathBuf, time::SystemTimeError};
 use raphtory_api::core::{
     entities::{GidType, GID},
     storage::arc_str::ArcStr,
 };
+use std::{io, path::PathBuf, time::SystemTimeError};
 #[cfg(feature = "search")]
 use tantivy;
 #[cfg(feature = "search")]
