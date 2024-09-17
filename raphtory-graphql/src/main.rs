@@ -11,7 +11,6 @@ async fn main() -> IoResult<()> {
     let work_dir = env::var("GRAPH_DIRECTORY").unwrap_or(default_path.display().to_string());
     let work_dir = PathBuf::from(&work_dir);
     let app_config = Some(AppConfigBuilder::new().with_tracing(true).build());
-    //let app_config = None;
     GraphServer::new(work_dir, app_config, None)?.run().await?;
 
     Ok(())

@@ -75,8 +75,6 @@ pometry-storage = { workspace = true, optional = true }
 
 prost = { workspace = true, optional = true }
 prost-types = { workspace = true, optional = true }
-env_logger = "0.8.4"
-
 
 [target.'cfg(target_os = "macos")'.dependencies]
 snmalloc-rs = { workspace = true }

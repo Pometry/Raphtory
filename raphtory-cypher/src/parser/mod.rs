@@ -1299,6 +1299,7 @@ mod test {
 
     use pretty_assertions::assert_eq;
     use raphtory::logging::global_info_logger;
+    use tracing::info;
 
     #[test]
     fn parse_lanl_large_paths_with_expr() {
