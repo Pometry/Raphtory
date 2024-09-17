@@ -36,8 +36,28 @@ impl GqlGraphs {
         paths
     }
 
+    async fn created(&self) -> Result<Vec<i64>, GraphError> {
+        self
+            .paths
+            .iter()
+            .map(|path| {
+                let full_path = std::env::current_dir()?
+                    .join(self.work_dir.clone())
+                    .join(path);
+
+                let metadata = fs::metadata(full_path.clone())?;
+
+                let created_time = metadata.created()?;
+                let created_time_duration = created_time.duration_since(UNIX_EPOCH)?;
+                let created_time_millis = created_time_duration.as_millis() as i64;
+
+                Ok(created_time_millis)
+            })
+            .collect()
+    }
+
     async fn last_opened(&self) -> Result<Vec<i64>, GraphError> {
-        let last_opened: Result<Vec<i64>, GraphError> = self
+        self
             .paths
             .iter()
             .map(|path| {
@@ -49,17 +69,15 @@ impl GqlGraphs {
 
                 let accessed_time = metadata.accessed()?;
                 let accessed_time_duration = accessed_time.duration_since(UNIX_EPOCH)?;
-                let accessed_time_seconds = accessed_time_duration.as_millis() as i64;
+                let accessed_time_millis = accessed_time_duration.as_millis() as i64;
 
-                Ok(accessed_time_seconds)
+                Ok(accessed_time_millis)
             })
-            .collect();
-
-        last_opened
+            .collect()
     }
 
     async fn last_updated(&self) -> Result<Vec<i64>, GraphError> {
-        let last_updated: Result<Vec<i64>, GraphError> = self
+        self
             .paths
             .iter()
             .map(|path| {
@@ -71,12 +89,10 @@ impl GqlGraphs {
 
                 let modified_time = metadata.modified()?;
                 let modified_time_duration = modified_time.duration_since(UNIX_EPOCH)?;
-                let modified_time_seconds = modified_time_duration.as_millis() as i64;
+                let modified_time_millis = modified_time_duration.as_millis() as i64;
 
-                Ok(modified_time_seconds)
+                Ok(modified_time_millis)
             })
-            .collect();
-
-        last_updated
+            .collect()
     }
 }
