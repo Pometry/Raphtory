@@ -9,7 +9,7 @@ use raphtory_api::core::{
     entities::{GidType, GID},
     storage::arc_str::ArcStr,
 };
-use std::{io, path::PathBuf};
+use std::{io, path::PathBuf, time::SystemTimeError};
 #[cfg(feature = "search")]
 use tantivy;
 #[cfg(feature = "search")]
@@ -251,6 +251,8 @@ pub enum GraphError {
     JinjaError(String),
     #[error("An error when parsing the data to json")]
     SerdeError,
+    #[error("System time error: {0}")]
+    SystemTimeError(#[from] SystemTimeError),
 }
 
 impl GraphError {

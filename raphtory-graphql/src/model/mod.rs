@@ -83,16 +83,19 @@ impl QueryRoot {
     async fn graph<'a>(ctx: &Context<'a>, path: String) -> Result<GqlGraph> {
         let path = Path::new(&path);
         let data = ctx.data_unchecked::<Data>();
+        let work_dir = data.work_dir.clone();
+
         Ok(data
             .get_graph(path)
-            .map(|g| GqlGraph::new(path.to_path_buf(), g))?)
+            .map(|g| GqlGraph::new(work_dir, path.to_path_buf(), g))?)
     }
 
     async fn update_graph<'a>(ctx: &Context<'a>, path: String) -> Result<GqlMutableGraph> {
         let data = ctx.data_unchecked::<Data>();
+        let work_dir = data.work_dir.clone();
         let graph = data
             .get_graph(path.as_ref())
-            .map(|g| GqlMutableGraph::new(path, g))?;
+            .map(|g| GqlMutableGraph::new(work_dir, path, g))?;
         Ok(graph)
     }
 
@@ -110,7 +113,8 @@ impl QueryRoot {
     async fn graphs<'a>(ctx: &Context<'a>) -> Result<GqlGraphs> {
         let data = ctx.data_unchecked::<Data>();
         let paths = data.get_graph_names_paths()?;
-        Ok(GqlGraphs::new(paths))
+        let work_dir = data.work_dir.clone();
+        Ok(GqlGraphs::new(work_dir, paths))
     }
 
     async fn plugins<'a>(ctx: &Context<'a>) -> GlobalPlugins {
@@ -228,25 +232,6 @@ impl Mut {
             create_dirs_if_not_present(&new_full_path)?;
             new_graph.encode(&new_full_path)?;
         }
-
-        Ok(true)
-    }
-
-    async fn update_graph_last_opened<'a>(ctx: &Context<'a>, path: String) -> Result<bool> {
-        let path = Path::new(&path);
-        let data = ctx.data_unchecked::<Data>();
-        let graph = data.get_graph(path)?;
-
-        if graph.graph.storage().is_immutable() {
-            return Err(GqlGraphError::ImmutableDiskGraph.into());
-        }
-
-        let dt = Utc::now();
-        let timestamp: i64 = dt.timestamp();
-
-        graph.update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
-
-        graph.write_updates()?;
 
         Ok(true)
     }
@@ -455,20 +440,6 @@ impl Mut {
         g.cache(&full_path)?;
         data.graphs.insert(path.to_path_buf(), g.into());
         Ok(path.display().to_string())
-    }
-
-    async fn archive_graph<'a>(ctx: &Context<'a>, path: String, is_archive: u8) -> Result<bool> {
-        let path = Path::new(&path);
-        let data = ctx.data_unchecked::<Data>();
-        let graph = data.get_graph(path)?;
-
-        if graph.graph.storage().is_immutable() {
-            return Err(GqlGraphError::ImmutableDiskGraph.into());
-        }
-
-        graph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
-        graph.write_updates()?;
-        Ok(true)
     }
 }
 
