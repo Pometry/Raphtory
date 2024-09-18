@@ -1,12 +1,12 @@
 use crate::{
-    core::{entities::LayerIds, Prop},
+    core::entities::LayerIds,
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
             storage::graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
             view::{
                 internal::{
-                    EdgeFilterOps, InheritCoreOps, InheritLayerOps, InheritListOps,
+                    EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps, InheritListOps,
                     InheritMaterialize, InheritNodeFilterOps, InheritTimeSemantics, Static,
                 },
                 Base,
@@ -42,6 +42,7 @@ impl<'graph, G> EdgePropertyFilteredGraph<G> {
 }
 
 impl<G> Static for EdgePropertyFilteredGraph<G> {}
+impl<G> Immutable for EdgePropertyFilteredGraph<G> {}
 
 impl<'graph, G> Base for EdgePropertyFilteredGraph<G> {
     type Base = G;

@@ -52,6 +52,7 @@ impl_iterable_mixin!(
     "edge",
     |edges: &Edges<'static, DynamicGraph>| edges.clone().into_iter()
 );
+impl_edge_property_filter_ops!(PyEdges<Edges<'static, DynamicGraph>>, edges, "Edges");
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for Edges<'graph, G, GH> {
     fn repr(&self) -> String {
@@ -354,6 +355,11 @@ impl_iterable_mixin!(
     Vec<Vec<EdgeView<DynamicGraph>>>,
     "list[list[Edges]]",
     "edge"
+);
+impl_edge_property_filter_ops!(
+    PyNestedEdges<NestedEdges<'static, DynamicGraph>>,
+    edges,
+    "NestedEdges"
 );
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject>

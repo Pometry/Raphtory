@@ -3,7 +3,6 @@ use crate::{
         entities::{graph::tgraph::TemporalGraph, nodes::node_ref::AsNodeRef, LayerIds, VID},
         storage::timeindex::AsTime,
         utils::errors::GraphError,
-        Prop,
     },
     db::{
         api::{
@@ -23,9 +22,7 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             views::{
-                node_subgraph::NodeSubgraph,
-                node_type_filtered_subgraph::TypeFilteredSubgraph,
-                property_filter::{edge_property_filter::EdgePropertyFilteredGraph, PropFilter},
+                node_subgraph::NodeSubgraph, node_type_filtered_subgraph::TypeFilteredSubgraph,
             },
         },
     },
@@ -44,7 +41,6 @@ use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::{
     borrow::Borrow,
-    cmp::Ordering::{Equal, Greater, Less},
     sync::{atomic::Ordering, Arc},
 };
 

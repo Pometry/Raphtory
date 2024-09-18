@@ -69,6 +69,7 @@ pub struct PyGraphView {
 
 impl_timeops!(PyGraphView, graph, DynamicGraph, "GraphView");
 impl_layerops!(PyGraphView, graph, DynamicGraph, "GraphView");
+impl_edge_property_filter_ops!(PyGraphView<DynamicGraph>, graph, "GraphView");
 
 /// Graph view is a read-only version of a graph at a certain point in time.
 impl<G: StaticGraphViewOps + IntoDynamic> From<G> for PyGraphView {
@@ -328,33 +329,6 @@ impl PyGraphView {
     ///    GraphView - Returns the subgraph
     fn subgraph_node_types(&self, node_types: Vec<ArcStr>) -> TypeFilteredSubgraph<DynamicGraph> {
         self.graph.subgraph_node_types(node_types)
-    }
-
-    /// Filter edges to only include edges which have a property value for `property` greater than `value`
-    fn filter_edges_gt(
-        &self,
-        property: &str,
-        value: Prop,
-    ) -> EdgePropertyFilteredGraph<DynamicGraph> {
-        self.graph.filter_edges_gt(property, value)
-    }
-
-    /// Filter edges to only include edges which have a property value for `property` less than `value`
-    fn filter_edges_lt(
-        &self,
-        property: &str,
-        value: Prop,
-    ) -> EdgePropertyFilteredGraph<DynamicGraph> {
-        self.graph.filter_edges_lt(property, value)
-    }
-
-    /// Filter edges to only include edges which have a property value for `property` equal to `value`
-    fn filter_edges_eq(
-        &self,
-        property: &str,
-        value: Prop,
-    ) -> EdgePropertyFilteredGraph<DynamicGraph> {
-        self.graph.filter_edges_eq(property, value)
     }
 
     /// Returns a subgraph given a set of nodes that are excluded from the subgraph

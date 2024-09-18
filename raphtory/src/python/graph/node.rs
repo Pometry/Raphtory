@@ -60,6 +60,7 @@ pub struct PyNode {
 }
 
 impl_nodeviewops!(PyNode, node, NodeView<DynamicGraph>, "Node");
+impl_edge_property_filter_ops!(PyNode<NodeView<DynamicGraph, DynamicGraph>>, node, "Node");
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
     From<NodeView<G, GH>> for PyNode
@@ -419,6 +420,12 @@ impl_nodeviewops!(
     Nodes<'static, DynamicGraph, DynamicGraph>,
     "Nodes"
 );
+impl_edge_property_filter_ops!(
+    PyNodes<Nodes<'static, DynamicGraph, DynamicGraph>>,
+    nodes,
+    "Nodes"
+);
+
 #[pymethods]
 impl PyNodes {
     fn __len__(&self) -> usize {
@@ -688,6 +695,11 @@ impl_iterable_mixin!(
     "list[list[Node]]",
     "node"
 );
+impl_edge_property_filter_ops!(
+    PyPathFromGraph<PathFromGraph<'static, DynamicGraph, DynamicGraph>>,
+    path,
+    "PathFromGraph"
+);
 
 #[pymethods]
 impl PyPathFromGraph {
@@ -824,6 +836,11 @@ impl_iterable_mixin!(
     Vec<NodeView<DynamicGraph>>,
     "list[Node]",
     "node"
+);
+impl_edge_property_filter_ops!(
+    PyPathFromNode<PathFromNode<'static, DynamicGraph, DynamicGraph>>,
+    path,
+    "PathFromNode"
 );
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
