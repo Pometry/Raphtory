@@ -3,7 +3,7 @@ use crate::{
         api::view::StaticGraphViewOps,
         graph::{edge::EdgeView, node::NodeView},
     },
-    prelude::{EdgeViewOps, NodeViewOps},
+    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
 };
 use raphtory_api::core::entities::GID;
 use serde::{Deserialize, Serialize};
@@ -27,11 +27,11 @@ impl EntityId {
         }
     }
 
-    pub(crate) fn from_node<G: StaticGraphViewOps>(node: &NodeView<G>) -> Self {
+    pub(crate) fn from_node<'graph, G: GraphViewOps<'graph>>(node: NodeView<G>) -> Self {
         Self::Node { id: node.id() }
     }
 
-    pub(crate) fn from_edge<G: StaticGraphViewOps>(edge: &EdgeView<G>) -> Self {
+    pub(crate) fn from_edge<'graph, G: GraphViewOps<'graph>>(edge: EdgeView<G>) -> Self {
         Self::Edge {
             src: edge.src().id(),
             dst: edge.dst().id(),

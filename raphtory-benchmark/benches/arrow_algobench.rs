@@ -1,5 +1,3 @@
-mod common;
-
 #[cfg(feature = "storage")]
 pub mod arrow_bench {
 

@@ -107,11 +107,7 @@ mod vector_tests {
     use super::*;
     use crate::{
         core::Prop,
-        db::{
-            api::view::StaticGraphViewOps,
-            graph::{edge::EdgeView, node::NodeView},
-        },
-        prelude::{AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps},
+        prelude::{AdditionOps, Graph, GraphViewOps},
         vectors::{embeddings::openai_embedding, vectorisable::Vectorisable},
     };
     use dotenv::dotenv;
@@ -220,7 +216,7 @@ mod vector_tests {
 
         let template = custom_template();
         let doc: DocumentInput = template
-            .node(&g.node("Frodo").unwrap())
+            .node(g.node("Frodo").unwrap())
             .next()
             .unwrap()
             .into();
@@ -237,7 +233,7 @@ mod vector_tests {
 
         let template = custom_template();
         let doc: DocumentInput = template
-            .edge(&g.edge("Frodo", "Gandalf").unwrap())
+            .edge(g.edge("Frodo", "Gandalf").unwrap().as_ref())
             .next()
             .unwrap()
             .into();
@@ -261,7 +257,7 @@ mod vector_tests {
     //                 .map(|text| text.into()),
     //         )
     //     }
-    //     fn edge(&self, _edge: &EdgeView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+    //     fn edge(&self, _edge: EdgeView<&G, &G>) -> Box<dyn Iterator<Item = DocumentInput>> {
     //         Box::new(std::iter::empty())
     //     }
     // }

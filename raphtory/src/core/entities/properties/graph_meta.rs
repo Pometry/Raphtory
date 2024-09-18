@@ -31,6 +31,15 @@ impl GraphMeta {
         }
     }
 
+    pub fn deep_clone(&self) -> Self {
+        Self {
+            constant_mapper: self.constant_mapper.deep_clone(),
+            temporal_mapper: self.temporal_mapper.deep_clone(),
+            constant: self.constant.clone(),
+            temporal: self.temporal.clone(),
+        }
+    }
+
     #[inline]
     pub fn const_prop_meta(&self) -> &DictMapper {
         &self.constant_mapper
@@ -131,7 +140,7 @@ impl GraphMeta {
     }
 
     pub fn get_temporal_dtype(&self, prop_id: usize) -> Option<PropType> {
-        self.temporal.get(&prop_id).map(|v| v.dtype())
+        self.temporal_mapper.get_dtype(prop_id)
     }
 
     pub(crate) fn constant_names(&self) -> ArcReadLockedVec<ArcStr> {

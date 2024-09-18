@@ -1,4 +1,5 @@
 pub(crate) mod incremental;
+mod proto_ext;
 mod serialise;
 
 mod proto {

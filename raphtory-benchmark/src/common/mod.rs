@@ -8,6 +8,7 @@ use raphtory::{db::api::view::StaticGraphViewOps, prelude::*};
 use raphtory_api::core::utils::logging::global_info_logger;
 use std::collections::HashSet;
 use tracing::info;
+use tempfile::NamedTempFile;
 
 fn make_index_gen() -> Box<dyn Iterator<Item = u64>> {
     let rng = rand::thread_rng();
@@ -573,7 +574,24 @@ pub fn run_graph_ops_benches(
     );
 }
 
-fn bench_materialise<F, G>(name: &str, c: &mut Criterion, make_graph: F)
+pub fn run_proto_encode_benchmark(group: &mut BenchmarkGroup<WallTime>, graph: Graph) {
+    println!("graph: {graph}");
+    let f = NamedTempFile::new().unwrap();
+    bench(group, "proto_encode", None, |b: &mut Bencher| {
+        b.iter(|| graph.encode(f.path()).unwrap())
+    });
+}
+
+pub fn run_proto_decode_benchmark(group: &mut BenchmarkGroup<WallTime>, graph: Graph) {
+    println!("graph: {graph}");
+    let f = NamedTempFile::new().unwrap();
+    graph.encode(f.path()).unwrap();
+    bench(group, "proto_decode", None, |b| {
+        b.iter(|| Graph::decode(f.path()).unwrap())
+    })
+}
+
+pub fn bench_materialise<F, G>(name: &str, c: &mut Criterion, make_graph: F)
 where
     F: Fn() -> G,
     G: StaticGraphViewOps,

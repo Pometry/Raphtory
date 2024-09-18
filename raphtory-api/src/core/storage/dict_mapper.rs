@@ -87,6 +87,14 @@ impl<Index> BorrowMut<Index> for MaybeNew<Index> {
 }
 
 impl DictMapper {
+    pub fn deep_clone(&self) -> Self {
+        let reverse_map = self.reverse_map.read().clone();
+
+        Self {
+            map: self.map.clone(),
+            reverse_map: Arc::new(RwLock::new(reverse_map)),
+        }
+    }
     pub fn get_or_create_id<Q, T>(&self, name: &Q) -> MaybeNew<usize>
     where
         Q: Hash + Eq + ?Sized + ToOwned<Owned = T> + Borrow<str>,

@@ -32,11 +32,7 @@ use raphtory_api::core::{
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashMap,
-    fmt::Debug,
-    hash::BuildHasherDefault,
-    iter,
-    sync::{atomic::AtomicUsize, Arc},
+    collections::HashMap, fmt::Debug, hash::BuildHasherDefault, iter, sync::atomic::AtomicUsize,
 };
 
 pub(crate) type FxDashSet<K> = DashSet<K, BuildHasherDefault<FxHasher>>;
@@ -58,10 +54,10 @@ pub struct TemporalGraph {
     pub(in crate::core) latest_time: MaxCounter,
 
     // props meta data for nodes (mapping between strings and ids)
-    pub(crate) node_meta: Arc<Meta>,
+    pub(crate) node_meta: Meta,
 
     // props meta data for edges (mapping between strings and ids)
-    pub(crate) edge_meta: Arc<Meta>,
+    pub(crate) edge_meta: Meta,
 
     // graph properties
     pub(crate) graph_meta: GraphMeta,
@@ -93,8 +89,8 @@ impl TemporalGraph {
             event_counter: AtomicUsize::new(0),
             earliest_time: MinCounter::new(),
             latest_time: MaxCounter::new(),
-            node_meta: Arc::new(Meta::new()),
-            edge_meta: Arc::new(Meta::new()),
+            node_meta: Meta::new(),
+            edge_meta: Meta::new(),
             graph_meta: GraphMeta::new(),
         }
     }
@@ -106,7 +102,7 @@ impl TemporalGraph {
         }
     }
 
-    fn get_valid_layers(edge_meta: &Arc<Meta>) -> Vec<String> {
+    fn get_valid_layers(edge_meta: &Meta) -> Vec<String> {
         edge_meta
             .layer_meta()
             .get_keys()
