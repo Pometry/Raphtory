@@ -126,7 +126,8 @@ pub mod prelude {
                 mutation::{AdditionOps, DeletionOps, ImportOps, PropertyAdditionOps},
                 state::{AsOrderedNodeStateOps, NodeStateOps, OrderedNodeStateOps},
                 view::{
-                    EdgeViewOps, GraphViewOps, Layer, LayerOps, NodeViewOps, ResetFilter, TimeOps,
+                    EdgePropertyFilterOps, EdgeViewOps, GraphViewOps, Layer, LayerOps, NodeViewOps,
+                    ResetFilter, TimeOps,
                 },
             },
             graph::graph::Graph,
