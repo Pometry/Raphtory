@@ -29,8 +29,8 @@ use raphtory::{
 use std::{
     collections::HashSet,
     convert::Into,
-    fs, io,
-    path::{Path, PathBuf},
+    fs,
+    path::{PathBuf},
     sync::Arc,
     time::UNIX_EPOCH,
 };

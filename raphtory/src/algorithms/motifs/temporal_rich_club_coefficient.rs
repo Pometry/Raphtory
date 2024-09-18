@@ -5,11 +5,6 @@ use std::{
     collections::HashSet,
 };
 
-use raphtory_api::core::entities::VID;
-use rayon::prelude::*;
-
-use crate::prelude::{EdgeViewOps, GraphViewOps, NodeViewOps};
-
 struct SlidingWindows<I> {
     iter: I,
     window_size: usize,
