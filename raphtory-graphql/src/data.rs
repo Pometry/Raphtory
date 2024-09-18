@@ -1,6 +1,6 @@
 use crate::{
+    config::app_config::AppConfig,
     model::{algorithms::global_plugins::GlobalPlugins, create_dirs_if_not_present, GqlGraphType},
-    server_config::AppConfig,
 };
 use moka::sync::Cache;
 #[cfg(feature = "storage")]
@@ -26,6 +26,7 @@ use std::{
     path::{Component, Path, PathBuf, StripPrefixError},
     sync::Arc,
 };
+use tracing::{error, info};
 use walkdir::WalkDir;
 
 pub struct Data {
@@ -44,7 +45,7 @@ impl Data {
             .eviction_listener(|_, value, _| {
                 value
                     .write_updates()
-                    .unwrap_or_else(|err| println!("Write on eviction failed: {err:?}"))
+                    .unwrap_or_else(|err| error!("Write on eviction failed: {err:?}"))
             })
             .build();
 
@@ -203,7 +204,7 @@ impl Data {
             .map(move |entry| {
                 let path = entry.path();
                 let path_string = path.display().to_string();
-                println!("loading from {path_string}");
+                info!("loading from {path_string}");
                 loader(path)
             })
     }
@@ -241,13 +242,13 @@ fn load_disk_graph_from_path(
         if overwrite {
             fs::remove_dir_all(&target_path)?;
             copy_dir_recursive(path_on_server, &target_path)?;
-            println!("Disk Graph loaded = {}", target_path.display());
+            info!("Disk Graph loaded = {}", target_path.display());
         } else {
             return Err(GraphError::GraphNameAlreadyExists(target_path.to_path_buf()).into());
         }
     } else {
         copy_dir_recursive(path_on_server, &target_path)?;
-        println!("Disk Graph loaded = {}", target_path.display());
+        info!("Disk Graph loaded = {}", target_path.display());
     }
     Ok(Some(target_path.to_path_buf()))
 }
@@ -257,7 +258,7 @@ fn get_disk_graph_from_path(
     path: &Path,
 ) -> Result<Option<IndexedGraph<MaterializedGraph>>, GraphError> {
     let graph = load_disk_graph(path)?;
-    println!("Disk Graph loaded = {}", path.display());
+    info!("Disk Graph loaded = {}", path.display());
     Ok(Some(IndexedGraph::from_graph(&graph.into())?))
 }
 
@@ -280,7 +281,7 @@ fn get_graph_from_path(path: &Path) -> Result<IndexedGraph<MaterializedGraph>, G
         }
     } else {
         let graph = MaterializedGraph::load_cached(path)?;
-        println!("Graph loaded = {}", path.display());
+        info!("Graph loaded = {}", path.display());
         Ok(IndexedGraph::from_graph(&graph)?)
     }
 }
@@ -342,10 +343,7 @@ fn _load_disk_graph(_path: &Path) -> Result<MaterializedGraph, GraphError> {
 
 #[cfg(test)]
 pub(crate) mod data_tests {
-    use crate::{
-        data::{get_graph_from_path, Data},
-        server_config::{AppConfig, AppConfigBuilder},
-    };
+    use crate::data::{get_graph_from_path, Data};
     use raphtory::{db::api::view::MaterializedGraph, prelude::*};
     use std::{
         collections::HashMap,
@@ -355,6 +353,7 @@ pub(crate) mod data_tests {
         path::{Path, PathBuf},
     };
 
+    use crate::config::app_config::{AppConfig, AppConfigBuilder};
     #[cfg(feature = "storage")]
     use crate::data::copy_dir_recursive;
     use raphtory::core::utils::errors::{GraphError, InvalidPathReason};

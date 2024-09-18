@@ -55,7 +55,6 @@ fn cosine(vector1: &Embedding, vector2: &Embedding) -> f32 {
     // see: https://platform.openai.com/docs/guides/embeddings/which-distance-function-should-i-use
 
     let normalized = dot_product / (x_length.sqrt() * y_length.sqrt());
-    // println!("cosine for {vector1:?} and {vector2:?} is {normalized}");
     assert!(normalized <= 1.001);
     assert!(normalized >= -1.001);
     normalized

@@ -1,6 +1,6 @@
 use raphtory::{
     algorithms::pathing::temporal_reachability::temporally_reachable_nodes,
-    io::csv_loader::CsvLoader, prelude::*,
+    io::csv_loader::CsvLoader, logging::global_info_logger, prelude::*,
 };
 use serde::Deserialize;
 use std::{
@@ -8,6 +8,7 @@ use std::{
     path::{Path, PathBuf},
     time::Instant,
 };
+use tracing::info;
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct Lotr {
@@ -18,7 +19,7 @@ pub struct Lotr {
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-
+    global_info_logger();
     let default_data_dir: PathBuf = [env!("CARGO_MANIFEST_DIR"), "src/bin/lotr/data"]
         .iter()
         .collect();
@@ -40,7 +41,7 @@ fn main() {
         let g = Graph::decode(encoded_data_dir.as_path())
             .expect("Failed to load graph from encoded data files");
 
-        println!(
+        info!(
             "Loaded graph from encoded data files {} with {} nodes, {} edges which took {} seconds",
             encoded_data_dir.to_str().unwrap(),
             g.count_nodes(),
@@ -82,7 +83,7 @@ fn main() {
             })
             .expect("Failed to load graph from CSV data files");
 
-        println!(
+        info!(
             "Loaded graph from CSV data files {} with {} nodes, {} edges which took {} seconds",
             encoded_data_dir.to_str().unwrap(),
             g.count_nodes(),

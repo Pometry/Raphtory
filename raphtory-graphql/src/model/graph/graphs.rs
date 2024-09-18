@@ -20,6 +20,7 @@ impl GqlGraphs {
 impl GqlGraphs {
     //Name and path here do not return a result as we only want to let the user know about
     //valid graph paths. No point blowing up if there is one busted fule
+
     async fn name(&self) -> Vec<String> {
         self.paths
             .iter()

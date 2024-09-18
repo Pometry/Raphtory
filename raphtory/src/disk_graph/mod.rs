@@ -30,6 +30,7 @@ use pometry_storage::{
 use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use tracing::warn;
 
 pub mod graph_impl;
 pub mod storage_interface;
@@ -254,7 +255,7 @@ impl DiskGraphStorage {
                     .resolve_prop_id(prop_name, data_type.into(), false)
                     .expect("Arrow data types should without failing");
                 if resolved_id != id {
-                    println!("Warning: Layers with different edge properties are not supported by the high-level apis on top of the disk_graph graph yet, edge properties will not be available to high-level apis");
+                    warn!("Warning: Layers with different edge properties are not supported by the high-level apis on top of the disk_graph graph yet, edge properties will not be available to high-level apis");
                     edge_meta = Meta::new();
                     break;
                 }

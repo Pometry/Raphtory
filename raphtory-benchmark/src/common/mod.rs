@@ -5,8 +5,10 @@ use criterion::{
 };
 use rand::{distributions::Uniform, seq::*, Rng, SeedableRng};
 use raphtory::{db::api::view::StaticGraphViewOps, prelude::*};
+use raphtory_api::core::utils::logging::global_info_logger;
 use std::collections::HashSet;
 use tempfile::NamedTempFile;
+use tracing::info;
 
 fn make_index_gen() -> Box<dyn Iterator<Item = u64>> {
     let rng = rand::thread_rng();
@@ -268,8 +270,9 @@ pub fn run_analysis_benchmarks<F, G>(
     F: Fn() -> G,
     G: StaticGraphViewOps,
 {
+    global_info_logger();
     let graph = make_graph();
-    println!(
+    info!(
         "Num layers {:?}, node count: {}, edge_count: {}",
         graph.unique_layers().count(),
         graph.count_nodes(),

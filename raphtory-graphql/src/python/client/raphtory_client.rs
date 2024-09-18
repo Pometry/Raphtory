@@ -17,6 +17,7 @@ use reqwest::{multipart, multipart::Part, Client};
 use serde_json::{json, Value as JsonValue};
 use std::{collections::HashMap, fs::File, io::Read, path::Path};
 use tokio::{self, runtime::Runtime};
+use tracing::debug;
 
 /// A client for handling GraphQL operations in the context of Raphtory.
 #[derive(Clone)]
@@ -171,7 +172,7 @@ impl PyRaphtoryClient {
 
         match data.get("sendGraph") {
             Some(JsonValue::String(name)) => {
-                println!("Sent graph '{name}' to the server");
+                debug!("Sent graph '{name}' to the server");
                 Ok(())
             }
             _ => Err(PyException::new_err(format!(

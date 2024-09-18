@@ -14,6 +14,7 @@ use minijinja::{
 use raphtory_api::core::storage::arc_str::ArcStr;
 use serde::Serialize;
 use std::sync::Arc;
+use tracing::error;
 
 #[derive(Debug)]
 struct PropUpdate {
@@ -181,7 +182,7 @@ impl DocumentTemplate {
                 match template.render(GraphTemplateContext::from(graph)) {
                     Ok(document) => Box::new(std::iter::once(document.into())),
                     Err(error) => {
-                        eprintln!("Template render failed for a node, skipping: {error}");
+                        error!("Template render failed for a node, skipping: {error}");
                         empty_iter()
                     }
                 }
@@ -202,7 +203,7 @@ impl DocumentTemplate {
                 match template.render(NodeTemplateContext::from(node)) {
                     Ok(document) => Box::new(std::iter::once(document.into())),
                     Err(error) => {
-                        eprintln!("Template render failed for a node, skipping: {error}");
+                        error!("Template render failed for a node, skipping: {error}");
                         empty_iter()
                     }
                 }
@@ -223,7 +224,7 @@ impl DocumentTemplate {
                 match template.render(EdgeTemplateContext::from(edge)) {
                     Ok(document) => Box::new(std::iter::once(document.into())),
                     Err(error) => {
-                        eprintln!("Template render failed for an edge, skipping: {error}");
+                        error!("Template render failed for an edge, skipping: {error}");
                         empty_iter()
                     }
                 }

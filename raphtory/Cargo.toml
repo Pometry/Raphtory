@@ -41,6 +41,7 @@ ouroboros = { workspace = true }
 either = { workspace = true }
 kdam = { workspace = true }
 bytemuck = { workspace = true }
+tracing = {workspace = true}
 
 # io optional dependencies
 csv = { workspace = true, optional = true }
@@ -74,7 +75,6 @@ pometry-storage = { workspace = true, optional = true }
 
 prost = { workspace = true, optional = true }
 prost-types = { workspace = true, optional = true }
-
 
 [target.'cfg(target_os = "macos")'.dependencies]
 snmalloc-rs = { workspace = true }

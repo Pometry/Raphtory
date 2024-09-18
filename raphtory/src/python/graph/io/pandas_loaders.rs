@@ -15,6 +15,7 @@ use pyo3::{
     types::{IntoPyDict, PyDict},
 };
 use std::collections::HashMap;
+use tracing::error;
 
 pub fn load_nodes_from_pandas<
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
@@ -299,7 +300,7 @@ except NameError:
 "#;
 
     if let Err(e) = py.run(code, None, None) {
-        println!("Error checking if running in a jupyter notebook: {}", e);
+        error!("Error checking if running in a jupyter notebook: {}", e);
         return;
     }
 
@@ -310,7 +311,7 @@ except NameError:
             }
         }
         Err(e) => {
-            println!("Error checking if running in a jupyter notebook: {}", e);
+            error!("Error checking if running in a jupyter notebook: {}", e);
         }
     };
 }

@@ -1055,7 +1055,9 @@ def test_archive_graph_succeeds():
                     )
                   }
                 }"""
-        assert client.query(update_archive_graph) == {'updateGraph': {'updateConstantProperties': True}}
+        assert client.query(update_archive_graph) == {
+            "updateGraph": {"updateConstantProperties": True}
+        }
         assert (
             client.query(query_is_archive)["graph"]["properties"]["constant"]["get"][
                 "value"
@@ -1069,7 +1071,9 @@ def test_archive_graph_succeeds():
                     )
                   }
                 }"""
-        assert client.query(update_archive_graph) == {'updateGraph': {'updateConstantProperties': True}}
+        assert client.query(update_archive_graph) == {
+            "updateGraph": {"updateConstantProperties": True}
+        }
         assert (
             client.query(query_is_archive)["graph"]["properties"]["constant"]["get"][
                 "value"
@@ -1103,7 +1107,9 @@ def test_archive_graph_succeeds_at_namespace():
                     )
                   }
                 }"""
-        assert client.query(update_archive_graph) == {'updateGraph': {'updateConstantProperties': True}}
+        assert client.query(update_archive_graph) == {
+            "updateGraph": {"updateConstantProperties": True}
+        }
         assert (
             client.query(query_is_archive)["graph"]["properties"]["constant"]["get"][
                 "value"
@@ -1117,7 +1123,9 @@ def test_archive_graph_succeeds_at_namespace():
                     )
                   }
                 }"""
-        assert client.query(update_archive_graph) == {'updateGraph': {'updateConstantProperties': True}}
+        assert client.query(update_archive_graph) == {
+            "updateGraph": {"updateConstantProperties": True}
+        }
         assert (
             client.query(query_is_archive)["graph"]["properties"]["constant"]["get"][
                 "value"

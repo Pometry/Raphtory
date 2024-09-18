@@ -8,6 +8,7 @@ use crate::{
 use async_trait::async_trait;
 use itertools::Itertools;
 use std::{collections::HashMap, path::PathBuf};
+use tracing::info;
 
 const CHUNK_SIZE: usize = 1000;
 
@@ -90,7 +91,7 @@ impl<G: StaticGraphViewOps + IntoDynamic> Vectorisable<G> for G {
         let cache_storage = cache.map(EmbeddingCache::from_path);
 
         if verbose {
-            println!("computing embeddings for graph");
+            info!("computing embeddings for graph");
         }
         let graph_ref_map =
             compute_embedding_groups(graph_docs, embedding.as_ref(), &cache_storage).await;
@@ -101,13 +102,13 @@ impl<G: StaticGraphViewOps + IntoDynamic> Vectorisable<G> for G {
             .unwrap_or_else(|| vec![]); // there should be only one value here, TODO: check that's true
 
         if verbose {
-            println!("computing embeddings for nodes");
+            info!("computing embeddings for nodes");
         }
         let node_refs =
             compute_embedding_groups(nodes_iter, embedding.as_ref(), &cache_storage).await;
 
         if verbose {
-            println!("computing embeddings for edges");
+            info!("computing embeddings for edges");
         }
         let edge_refs =
             compute_embedding_groups(edges_iter, embedding.as_ref(), &cache_storage).await; // FIXME: re-enable

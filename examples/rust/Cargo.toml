@@ -12,6 +12,7 @@ chrono = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true }
 itertools = { workspace = true }
+tracing = { workspace = true }
 
 [[bin]]
 name = "btc"

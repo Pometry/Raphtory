@@ -3,17 +3,19 @@
 //! # Example
 //! ```no_run
 //! use std::path::{Path, PathBuf};
+//! use tracing::{error, info};
 //! use regex::Regex;
 //! use raphtory::io::csv_loader::CsvLoader;
 //! use raphtory::graph_loader::lotr_graph::Lotr;
 //! use raphtory::prelude::*;
-//!
+//! use raphtory::logging::global_info_logger;
+//!  global_info_logger();
 //!  let g = Graph::new();
 //!  let csv_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), "../../resource/"]
 //!         .iter()
 //!         .collect();
 //!
-//!  println!("path = {}", csv_path.as_path().to_str().unwrap());
+//!  info!("path = {}", csv_path.as_path().to_str().unwrap());
 //!  let csv_loader = CsvLoader::new(Path::new(&csv_path));
 //!  let has_header = true;
 //!  let r = Regex::new(r".+(lotr.csv)").unwrap();
@@ -34,7 +36,7 @@
 //!              [("name", Prop::str("Character"))],
 //!              None,
 //!          )
-//!          .map_err(|err| println!("{:?}", err))
+//!          .map_err(|err| error!("{:?}", err))
 //!          .ok();
 //!          g.add_node(
 //!              time,
@@ -42,7 +44,7 @@
 //!              [("name", Prop::str("Character"))],
 //!              None,
 //!          )
-//!          .map_err(|err| println!("{:?}", err))
+//!          .map_err(|err| error!("{:?}", err))
 //!          .ok();
 //!          g.add_edge(
 //!              time,
@@ -77,6 +79,7 @@ use std::{
     io::BufReader,
     path::{Path, PathBuf},
 };
+use tracing::info;
 
 #[derive(Debug)]
 pub enum CsvErr {
@@ -394,7 +397,7 @@ impl CsvLoader {
     {
         let file_path: PathBuf = path.into();
         if self.print_file_name {
-            println!("Loading file: {:?}", file_path);
+            info!("Loading file: {:?}", file_path);
         }
         let mut csv_reader = self.csv_reader(file_path)?;
         let records_iter = csv_reader.deserialize::<REC>();
@@ -475,9 +478,11 @@ impl CsvLoader {
 mod csv_loader_test {
     use crate::{io::csv_loader::CsvLoader, prelude::*};
     use csv::StringRecord;
+    use raphtory_api::core::utils::logging::global_info_logger;
     use regex::Regex;
     use serde::Deserialize;
     use std::path::{Path, PathBuf};
+    use tracing::{error, info};
 
     #[test]
     fn regex_match() {
@@ -519,10 +524,10 @@ mod csv_loader_test {
                 let time = lotr.time;
 
                 g.add_node(time, src_id, [("name", Prop::str("Character"))], None)
-                    .map_err(|err| println!("{:?}", err))
+                    .map_err(|err| error!("{:?}", err))
                     .ok();
                 g.add_node(time, dst_id, [("name", Prop::str("Character"))], None)
-                    .map_err(|err| println!("{:?}", err))
+                    .map_err(|err| error!("{:?}", err))
                     .ok();
                 g.add_edge(
                     time,
@@ -547,10 +552,10 @@ mod csv_loader_test {
                 let time = lotr.get(2).map(|s| s.parse::<i64>().unwrap()).unwrap();
 
                 g.add_node(time, src_id, [("name", Prop::str("Character"))], None)
-                    .map_err(|err| println!("{:?}", err))
+                    .map_err(|err| error!("{:?}", err))
                     .ok();
                 g.add_node(time, dst_id, [("name", Prop::str("Character"))], None)
-                    .map_err(|err| println!("{:?}", err))
+                    .map_err(|err| error!("{:?}", err))
                     .ok();
                 g.add_edge(
                     time,
@@ -566,13 +571,14 @@ mod csv_loader_test {
 
     #[test]
     fn test_headers_flag_and_delimiter() {
+        global_info_logger();
         let g = Graph::new();
         // todo: move file path to data module
         let csv_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), "../resource/"]
             .iter()
             .collect();
 
-        println!("path = {}", csv_path.as_path().to_str().unwrap());
+        info!("path = {}", csv_path.as_path().to_str().unwrap());
         let csv_loader = CsvLoader::new(Path::new(&csv_path));
         let has_header = true;
         let r = Regex::new(r".+(lotr.csv)").unwrap();
@@ -587,6 +593,7 @@ mod csv_loader_test {
     #[test]
     #[should_panic]
     fn test_wrong_header_flag_file_with_header() {
+        global_info_logger();
         let g = Graph::new();
         // todo: move file path to data module
         let csv_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), "../../resource/"]
@@ -602,6 +609,7 @@ mod csv_loader_test {
     #[test]
     #[should_panic]
     fn test_flag_has_header_but_file_has_no_header() {
+        global_info_logger();
         let g = Graph::new();
         // todo: move file path to data module
         let csv_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), "../../resource/"]
@@ -617,6 +625,7 @@ mod csv_loader_test {
     #[test]
     #[should_panic]
     fn test_wrong_header_names() {
+        global_info_logger();
         let g = Graph::new();
         // todo: move file path to data module
         let csv_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), "../../resource/"]
@@ -632,6 +641,7 @@ mod csv_loader_test {
     #[test]
     #[should_panic]
     fn test_wrong_delimiter() {
+        global_info_logger();
         let g = Graph::new();
         // todo: move file path to data module
         let csv_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), "../../resource/"]

@@ -944,10 +944,11 @@ impl<G: DeletionOps> DeletionOps for IndexedGraph<G> {}
 
 #[cfg(test)]
 mod test {
+    use super::*;
+    use raphtory_api::core::utils::logging::global_info_logger;
     use std::time::SystemTime;
     use tantivy::{doc, DocAddress, Order};
-
-    use super::*;
+    use tracing::info;
 
     #[test]
     fn index_numeric_props() {
@@ -981,6 +982,7 @@ mod test {
     #[cfg(feature = "proto")]
     #[ignore = "this test is for experiments with the jira graph"]
     fn load_jira_graph() -> Result<(), GraphError> {
+        global_info_logger();
         let graph = Graph::decode("/tmp/graphs/jira").expect("failed to load graph");
         assert!(graph.count_nodes() > 0);
 
@@ -988,14 +990,14 @@ mod test {
 
         let index_graph: IndexedGraph<Graph> = graph.into();
         let elapsed = now.elapsed().unwrap().as_secs();
-        println!("indexing took: {:?}", elapsed);
+        info!("indexing took: {:?}", elapsed);
 
         let issues = index_graph.search_nodes("name:'DEV-1690'", 5, 0)?;
 
         assert!(!issues.is_empty());
 
         let names = issues.into_iter().map(|v| v.name()).collect::<Vec<_>>();
-        println!("names: {:?}", names);
+        info!("names: {:?}", names);
 
         Ok(())
     }

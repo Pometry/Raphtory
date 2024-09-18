@@ -10,6 +10,7 @@ use raphtory::{
         },
     },
     io::csv_loader::CsvLoader,
+    logging::global_info_logger,
     prelude::*,
 };
 use regex::Regex;
@@ -21,6 +22,7 @@ use std::{
     path::Path,
     time::Instant,
 };
+use tracing::{error, info};
 
 #[derive(Deserialize, Debug)]
 pub struct Edge {
@@ -65,7 +67,7 @@ pub fn loader(data_dir: &Path) -> Result<Graph, Box<dyn Error>> {
         let now = Instant::now();
         let g = Graph::decode(encoded_data_dir.as_path())?;
 
-        println!(
+        info!(
             "Loaded graph from path {} with {} nodes, {} edges, took {} seconds",
             encoded_data_dir.display(),
             g.count_nodes(),
@@ -96,7 +98,7 @@ pub fn loader(data_dir: &Path) -> Result<Graph, Box<dyn Error>> {
                 .unwrap();
             })?;
 
-        println!(
+        info!(
             "Loaded graph from CSV data files {} with {} nodes, {} edges which took {} seconds",
             encoded_data_dir.display(),
             g.count_nodes(),
@@ -110,6 +112,7 @@ pub fn loader(data_dir: &Path) -> Result<Graph, Box<dyn Error>> {
 }
 
 fn try_main() -> Result<(), Box<dyn Error>> {
+    global_info_logger();
     let args: Vec<String> = env::args().collect();
     let data_dir = Path::new(args.get(1).ok_or(MissingArgumentError)?);
 
@@ -117,9 +120,9 @@ fn try_main() -> Result<(), Box<dyn Error>> {
     let now = Instant::now();
     let actual_tri_count = triangle_count(&graph, None);
 
-    println!("Actual triangle count: {:?}", actual_tri_count);
+    info!("Actual triangle count: {:?}", actual_tri_count);
 
-    println!(
+    info!(
         "Counting triangles took {} seconds",
         now.elapsed().as_secs()
     );
@@ -136,31 +139,31 @@ fn try_main() -> Result<(), Box<dyn Error>> {
         .rev()
         .take(50)
         .for_each(|(cc, count)| {
-            println!("CC {} has {} nodes", cc, count);
+            info!("CC {} has {} nodes", cc, count);
         });
 
-    println!(
+    info!(
         "Connected Components took {} seconds",
         now.elapsed().as_secs()
     );
 
     let now = Instant::now();
     let num_edges: usize = graph.nodes().out_degree().sum();
-    println!(
+    info!(
         "Counting edges by summing degrees returned {} in {} seconds",
         num_edges,
         now.elapsed().as_secs()
     );
     let earliest_time = graph.start().ok_or(GraphEmptyError)?;
     let latest_time = graph.end().ok_or(GraphEmptyError)?;
-    println!("graph time range: {}-{}", earliest_time, latest_time);
+    info!("graph time range: {}-{}", earliest_time, latest_time);
     let now = Instant::now();
     let window = graph.window(i64::MIN, i64::MAX);
-    println!("Creating window took {} seconds", now.elapsed().as_secs());
+    info!("Creating window took {} seconds", now.elapsed().as_secs());
 
     let now = Instant::now();
     let num_windowed_edges: usize = window.nodes().out_degree().sum();
-    println!(
+    info!(
         "Counting edges in window by summing degrees returned {} in {} seconds",
         num_windowed_edges,
         now.elapsed().as_secs()
@@ -168,7 +171,7 @@ fn try_main() -> Result<(), Box<dyn Error>> {
 
     let now = Instant::now();
     let num_windowed_edges2 = window.count_edges();
-    println!(
+    info!(
         "Window num_edges returned {} in {} seconds",
         num_windowed_edges2,
         now.elapsed().as_secs()
@@ -178,6 +181,7 @@ fn try_main() -> Result<(), Box<dyn Error>> {
 }
 
 fn try_main_bm() -> Result<(), Box<dyn Error>> {
+    global_info_logger();
     let args: Vec<String> = env::args().collect();
     let data_dir = Path::new(args.get(1).ok_or(MissingArgumentError)?);
 
@@ -185,18 +189,18 @@ fn try_main_bm() -> Result<(), Box<dyn Error>> {
 
     let now = Instant::now();
     let num_edges: usize = graph.nodes().iter().map(|v| v.out_degree()).sum();
-    println!(
+    info!(
         "Counting edges by summing degrees returned {} in {} milliseconds",
         num_edges,
         now.elapsed().as_millis()
     );
     let earliest_time = graph.start().ok_or(GraphEmptyError)?;
     let latest_time = graph.end().ok_or(GraphEmptyError)?;
-    println!("graph time range: {}-{}", earliest_time, latest_time);
+    info!("graph time range: {}-{}", earliest_time, latest_time);
 
     let now = Instant::now();
     let num_edges2 = graph.count_edges();
-    println!(
+    info!(
         "num_edges returned {} in {} milliseconds",
         num_edges2,
         now.elapsed().as_millis()
@@ -204,7 +208,7 @@ fn try_main_bm() -> Result<(), Box<dyn Error>> {
 
     let now = Instant::now();
     let num_exploded_edges = graph.edges().explode().iter().count();
-    println!(
+    info!(
         "counted {} exploded edges in {} milliseconds",
         num_exploded_edges,
         now.elapsed().as_millis()
@@ -222,8 +226,9 @@ fn try_motif() -> Result<(), Box<dyn Error>> {
 }
 
 fn main() {
+    global_info_logger();
     if let Err(e) = try_motif() {
-        eprintln!("Failed: {}", e);
+        error!("Failed: {}", e);
         std::process::exit(1)
     }
 }

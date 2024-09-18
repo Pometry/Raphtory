@@ -21,6 +21,7 @@ use crate::{
     prelude::{NodeStateOps, NO_PROPS},
 };
 use rand::{rngs::StdRng, seq::SliceRandom, SeedableRng};
+use tracing::error;
 
 use super::next_id;
 
@@ -68,7 +69,7 @@ pub fn random_attachment(
         latest_time += 1;
         graph
             .add_node(latest_time, &max_id, NO_PROPS, None)
-            .map_err(|err| println!("{:?}", err))
+            .map_err(|err| error!("{:?}", err))
             .ok();
         ids.push(max_id.clone());
     }
@@ -90,6 +91,7 @@ pub fn random_attachment(
 mod random_graph_test {
     use super::*;
     use crate::graphgen::preferential_attachment::ba_preferential_attachment;
+    use raphtory_api::core::utils::logging::global_info_logger;
     #[test]
     fn blank_graph() {
         let graph = Graph::new();
@@ -100,11 +102,12 @@ mod random_graph_test {
 
     #[test]
     fn only_nodes() {
+        global_info_logger();
         let graph = Graph::new();
         for i in 0..10 {
             graph
                 .add_node(i, i as u64, NO_PROPS, None)
-                .map_err(|err| println!("{:?}", err))
+                .map_err(|err| error!("{:?}", err))
                 .ok();
         }
 

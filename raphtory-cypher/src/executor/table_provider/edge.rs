@@ -428,10 +428,13 @@ mod test {
     use super::*;
     use arrow::util::pretty::print_batches;
     use datafusion::execution::context::SessionContext;
+    use raphtory::logging::global_info_logger;
     use tempfile::tempdir;
+    use tracing::info;
 
     #[tokio::test]
     async fn test_edge_list_table_provider() {
+        global_info_logger();
         let ctx = SessionContext::new();
         let graph_dir = tempdir().unwrap();
         let edges = vec![
@@ -458,7 +461,7 @@ mod test {
             "with a AS (select * from graph), b as (select * from graph2) select a.*,b.* from a,b where a.dst=b.src",
             dialect,
         );
-        println!("AST {:?}", plan);
+        info!("AST {:?}", plan);
 
         let df = ctx
             .sql("WITH e AS (SELECT * FROM graph) SELECT e.* FROM e")

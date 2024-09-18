@@ -541,7 +541,8 @@ mod proto_test {
     };
     use chrono::{DateTime, NaiveDateTime};
     use proptest::proptest;
-    use raphtory_api::core::storage::arc_str::ArcStr;
+    use raphtory_api::core::{storage::arc_str::ArcStr, utils::logging::global_info_logger};
+    use tracing::info;
 
     #[test]
     fn node_no_props() {
@@ -912,6 +913,7 @@ mod proto_test {
 
     #[test]
     fn test_incremental_writing_on_graph() {
+        global_info_logger();
         let g = Graph::new();
         let mut props = vec![];
         write_props_to_vec(&mut props);
@@ -948,16 +950,17 @@ mod proto_test {
         g.add_edge(7, "Bob", "Charlie", [("friends", false)], Some("two"))
             .unwrap();
         g.write_updates().unwrap();
-        println!("{g:?}");
+        info!("{g:?}");
 
         let g2 = Graph::decode(temp_cache_file.path()).unwrap();
-        println!("{g2:?}");
+        info!("{g2:?}");
 
         assert_graph_equal(&g, &g2);
     }
 
     #[test]
     fn test_incremental_writing_on_persistent_graph() {
+        global_info_logger();
         let g = PersistentGraph::new();
         let mut props = vec![];
         write_props_to_vec(&mut props);
@@ -994,10 +997,10 @@ mod proto_test {
         g.add_edge(7, "Bob", "Charlie", [("friends", false)], Some("two"))
             .unwrap();
         g.write_updates().unwrap();
-        println!("{g:?}");
+        info!("{g:?}");
 
         let g2 = PersistentGraph::decode(temp_cache_file.path()).unwrap();
-        println!("{g2:?}");
+        info!("{g2:?}");
 
         assert_graph_equal(&g, &g2);
     }

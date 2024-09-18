@@ -423,9 +423,12 @@ mod test {
         prelude::*,
         test_storage,
     };
+    use raphtory_api::core::utils::logging::global_info_logger;
+    use tracing::info;
 
     #[test]
     fn test_delta() {
+        global_info_logger();
         let graph = Graph::new();
         graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         graph.add_edge(0, 2, 1, NO_PROPS, None).unwrap();
@@ -441,7 +444,7 @@ mod test {
             let old_value = m.value();
             assert_eq!(old_value, -0.5);
             let delta = m.move_delta(&VID(0), ComID(1));
-            println!("delta: {delta}");
+            info!("delta: {delta}");
             m.move_node(&VID(0), ComID(1));
             assert_eq!(m.value(), old_value + delta)
         });
@@ -449,6 +452,7 @@ mod test {
 
     #[test]
     fn test_aggregation() {
+        global_info_logger();
         let graph = Graph::new();
         graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
         graph.add_edge(0, 1, 0, NO_PROPS, None).unwrap();
@@ -463,7 +467,7 @@ mod test {
             let value_before = m.value();
             let _ = m.aggregate();
             let value_after = m.value();
-            println!("before: {value_before}, after: {value_after}");
+            info!("before: {value_before}, after: {value_after}");
             assert_eq!(value_after, value_before);
             let delta = m.move_delta(&VID(0), ComID(1));
             m.move_node(&VID(0), ComID(1));

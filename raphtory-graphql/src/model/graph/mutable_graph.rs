@@ -69,11 +69,13 @@ fn as_properties(properties: Vec<GqlPropInput>) -> impl Iterator<Item = (String,
 #[ResolvedObjectFields]
 impl GqlMutableGraph {
     /// Get the non-mutable graph
+
     async fn graph(&self) -> GqlGraph {
         GqlGraph::new(self.work_dir.clone(), self.path.clone(), self.graph.clone())
     }
 
     /// Get mutable existing node
+
     async fn node(&self, name: String) -> Option<GqlMutableNode> {
         self.graph.node(name).map(|n| n.into())
     }
@@ -130,6 +132,7 @@ impl GqlMutableGraph {
     }
 
     /// Get a mutable existing edge
+
     async fn edge(&self, src: String, dst: String) -> Option<GqlMutableEdge> {
         self.graph.edge(src, dst).map(|e| e.into())
     }
@@ -186,6 +189,7 @@ impl GqlMutableGraph {
     }
 
     /// Mark an edge as deleted (creates the edge if it did not exist)
+
     async fn delete_edge(
         &self,
         time: i64,

@@ -72,8 +72,8 @@ def test_load_from_pandas_with_invalid_data():
     def assertions(exc_info):
         assert "ArrowInvalid" in str(exc_info.value)
         assert (
-                "Could not convert '3.0 KG' with type str: tried to convert to double"
-                in str(exc_info.value)
+            "Could not convert '3.0 KG' with type str: tried to convert to double"
+            in str(exc_info.value)
         )
 
     # Use pytest.raises to expect an exception
@@ -90,8 +90,8 @@ def test_load_from_pandas_with_invalid_data():
     # Optionally, you can check the exception message or type
     assert "ArrowInvalid" in str(exc_info.value)
     assert (
-            "Could not convert '3.0 KG' with type str: tried to convert to double"
-            in str(exc_info.value)
+        "Could not convert '3.0 KG' with type str: tried to convert to double"
+        in str(exc_info.value)
     )
 
 
@@ -386,7 +386,9 @@ def test_load_from_pandas_with_types():
             {"test_layer": "test_tag"},
             {"test_layer": "test_tag"},
         ]
-        assert dict(zip(g.edges.id, g.edges.properties.constant.get("marbles_const"))) == {
+        assert dict(
+            zip(g.edges.id, g.edges.properties.constant.get("marbles_const"))
+        ) == {
             (1, 2): {"test_layer": "red"},
             (2, 3): {"test_layer": "blue"},
             (3, 4): {"test_layer": "green"},
@@ -455,7 +457,13 @@ def test_load_from_pandas_with_types():
             "Person",
             "Person",
         ]
-        assert set(g.layers(["test_layer"]).edges.id) == {(1, 2), (2, 3), (3, 4), (4, 5), (5, 6)}
+        assert set(g.layers(["test_layer"]).edges.id) == {
+            (1, 2),
+            (2, 3),
+            (3, 4),
+            (4, 5),
+            (5, 6),
+        }
 
     g = Graph()
     g.load_edges_from_pandas(
@@ -572,15 +580,18 @@ def test_load_from_pandas_with_types():
     assertions7(g)
 
     def assertions8(g):
-        assert dict(zip(g.layers(
-            ["layer 1", "layer 2", "layer 3"]
-        ).edges.id, g.layers(
-            ["layer 1", "layer 2", "layer 3"]
-        ).edges.properties.constant.get("marbles_const"))) == {
-                   (1, 2): {"layer 1": "red"},
-                   (2, 3): {"layer 2": "blue"},
-                   (3, 4): {"layer 3": "green"},
-               }
+        assert dict(
+            zip(
+                g.layers(["layer 1", "layer 2", "layer 3"]).edges.id,
+                g.layers(
+                    ["layer 1", "layer 2", "layer 3"]
+                ).edges.properties.constant.get("marbles_const"),
+            )
+        ) == {
+            (1, 2): {"layer 1": "red"},
+            (2, 3): {"layer 2": "blue"},
+            (3, 4): {"layer 3": "green"},
+        }
         assert dict(zip(g.edges.id, g.edges.properties.constant.get("tag"))) == {
             (1, 2): {"layer 1": "test_tag"},
             (2, 3): {"layer 2": "test_tag"},
@@ -640,10 +651,8 @@ def test_load_from_pandas_with_types():
         assert g.layers(["layer 1"]).edges.src.id.collect() == [1]
         assert g.layers(["layer 3"]).edges.src.id.collect() == [3]
         with pytest.raises(
-                Exception,
-                match=re.escape(
-                    "Invalid layer: test_layer"
-                ),
+            Exception,
+            match=re.escape("Invalid layer: test_layer"),
         ):
             g.layers(["test_layer"])
 
@@ -694,10 +703,10 @@ def test_missing_columns():
     )
 
     with pytest.raises(
-            Exception,
-            match=re.escape(
-                "columns are not present within the dataframe: not_src, not_dst, not_time"
-            ),
+        Exception,
+        match=re.escape(
+            "columns are not present within the dataframe: not_src, not_dst, not_time"
+        ),
     ):
         g = Graph()
         g.load_edges_from_pandas(
@@ -708,10 +717,10 @@ def test_missing_columns():
         )
 
     with pytest.raises(
-            Exception,
-            match=re.escape(
-                "columns are not present within the dataframe: not_src, not_dst, not_time"
-            ),
+        Exception,
+        match=re.escape(
+            "columns are not present within the dataframe: not_src, not_dst, not_time"
+        ),
     ):
         g = PersistentGraph()
         g.load_edges_from_pandas(
@@ -722,10 +731,10 @@ def test_missing_columns():
         )
 
     with pytest.raises(
-            Exception,
-            match=re.escape(
-                "columns are not present within the dataframe: not_weight, bleep_bloop"
-            ),
+        Exception,
+        match=re.escape(
+            "columns are not present within the dataframe: not_weight, bleep_bloop"
+        ),
     ):
         g = Graph()
         g.load_edges_from_pandas(
@@ -739,10 +748,10 @@ def test_missing_columns():
         g.load_nodes_from_pandas(df=nodes_df, time="time", id="id", properties=["name"])
 
     with pytest.raises(
-            Exception,
-            match=re.escape(
-                "columns are not present within the dataframe: not_weight, bleep_bloop"
-            ),
+        Exception,
+        match=re.escape(
+            "columns are not present within the dataframe: not_weight, bleep_bloop"
+        ),
     ):
         g = PersistentGraph()
         g.load_edges_from_pandas(
@@ -756,10 +765,10 @@ def test_missing_columns():
         g.load_nodes_from_pandas(df=nodes_df, time="time", id="id", properties=["name"])
 
     with pytest.raises(
-            Exception,
-            match=re.escape(
-                "columns are not present within the dataframe: not_id, not_time, not_name"
-            ),
+        Exception,
+        match=re.escape(
+            "columns are not present within the dataframe: not_id, not_time, not_name"
+        ),
     ):
         g = Graph()
         g.load_edges_from_pandas(
@@ -774,10 +783,10 @@ def test_missing_columns():
         )
 
     with pytest.raises(
-            Exception,
-            match=re.escape(
-                "columns are not present within the dataframe: not_id, not_time, not_name"
-            ),
+        Exception,
+        match=re.escape(
+            "columns are not present within the dataframe: not_id, not_time, not_name"
+        ),
     ):
         g = PersistentGraph()
         g.load_edges_from_pandas(
@@ -792,10 +801,10 @@ def test_missing_columns():
         )
 
     with pytest.raises(
-            Exception,
-            match=re.escape(
-                "columns are not present within the dataframe: sauce, dist, wait, marples"
-            ),
+        Exception,
+        match=re.escape(
+            "columns are not present within the dataframe: sauce, dist, wait, marples"
+        ),
     ):
         g = Graph()
         g.load_edge_props_from_pandas(
@@ -806,10 +815,10 @@ def test_missing_columns():
         )
 
     with pytest.raises(
-            Exception,
-            match=re.escape(
-                "columns are not present within the dataframe: sauce, dist, wait, marples"
-            ),
+        Exception,
+        match=re.escape(
+            "columns are not present within the dataframe: sauce, dist, wait, marples"
+        ),
     ):
         g = PersistentGraph()
         g.load_edge_props_from_pandas(
@@ -820,10 +829,10 @@ def test_missing_columns():
         )
 
     with pytest.raises(
-            Exception,
-            match=re.escape(
-                "columns are not present within the dataframe: sauce, wait, marples"
-            ),
+        Exception,
+        match=re.escape(
+            "columns are not present within the dataframe: sauce, wait, marples"
+        ),
     ):
         g = Graph()
         g.load_node_props_from_pandas(
@@ -833,10 +842,10 @@ def test_missing_columns():
         )
 
     with pytest.raises(
-            Exception,
-            match=re.escape(
-                "columns are not present within the dataframe: sauce, wait, marples"
-            ),
+        Exception,
+        match=re.escape(
+            "columns are not present within the dataframe: sauce, wait, marples"
+        ),
     ):
         g = PersistentGraph()
         g.load_node_props_from_pandas(
@@ -851,13 +860,13 @@ def test_none_columns_edges():
         {"src": [1, None, 3, 4, 5], "dst": [2, 3, 4, 5, 6], "time": [1, 2, 3, 4, 5]}
     )
     with pytest.raises(
-            Exception, match=re.escape("Float64 not supported as node id type")
+        Exception, match=re.escape("Float64 not supported as node id type")
     ):
         g = Graph()
         g.load_edges_from_pandas(edges_df, "time", "src", "dst")
 
     with pytest.raises(
-            Exception, match=re.escape("Float64 not supported as node id type")
+        Exception, match=re.escape("Float64 not supported as node id type")
     ):
         PersistentGraph().load_edges_from_pandas(edges_df, "time", "src", "dst")
 
@@ -865,11 +874,11 @@ def test_none_columns_edges():
         {"src": [1, 2, 3, 4, 5], "dst": [2, 3, 4, None, 6], "time": [1, 2, 3, 4, 5]}
     )
     with pytest.raises(
-            Exception, match=re.escape("Float64 not supported as node id type")
+        Exception, match=re.escape("Float64 not supported as node id type")
     ):
         Graph().load_edges_from_pandas(edges_df, "time", "src", "dst")
     with pytest.raises(
-            Exception, match=re.escape("Float64 not supported as node id type")
+        Exception, match=re.escape("Float64 not supported as node id type")
     ):
         PersistentGraph().load_edges_from_pandas(edges_df, "time", "src", "dst")
 
@@ -877,11 +886,11 @@ def test_none_columns_edges():
         {"src": [1, 2, 3, 4, 5], "dst": [2, 3, 4, 5, 6], "time": [1, 2, None, 4, 5]}
     )
     with pytest.raises(
-            Exception, match=re.escape("Float64 not supported for time column")
+        Exception, match=re.escape("Float64 not supported for time column")
     ):
         Graph().load_edges_from_pandas(edges_df, "time", "src", "dst")
     with pytest.raises(
-            Exception, match=re.escape("Float64 not supported for time column")
+        Exception, match=re.escape("Float64 not supported for time column")
     ):
         PersistentGraph().load_edges_from_pandas(edges_df, "time", "src", "dst")
 
@@ -939,10 +948,10 @@ def test_unparsable_props():
     )
 
     with pytest.raises(
-            Exception,
-            match=re.escape(
-                """"Could not convert '2.0' with type str: tried to convert to double", 'Conversion failed for column weight with type object'"""
-            ),
+        Exception,
+        match=re.escape(
+            """"Could not convert '2.0' with type str: tried to convert to double", 'Conversion failed for column weight with type object'"""
+        ),
     ):
         Graph().load_edges_from_pandas(
             edges_df,
@@ -952,10 +961,10 @@ def test_unparsable_props():
             properties=["weight"],
         )
     with pytest.raises(
-            Exception,
-            match=re.escape(
-                """"Could not convert '2.0' with type str: tried to convert to double", 'Conversion failed for column weight with type object'"""
-            ),
+        Exception,
+        match=re.escape(
+            """"Could not convert '2.0' with type str: tried to convert to double", 'Conversion failed for column weight with type object'"""
+        ),
     ):
         PersistentGraph().load_edges_from_pandas(
             edges_df,
@@ -1083,16 +1092,16 @@ def test_edge_both_option_failures_pandas():
     # CHECK ALL EDGE FUNCTIONS ON GRAPH FAIL WITH BOTH LAYER AND LAYER_COL
     g = Graph()
     with pytest.raises(
-            Exception,
-            match=r"You cannot set ‘layer_name’ and ‘layer_col’ at the same time. Please pick one or the other.",
+        Exception,
+        match=r"You cannot set ‘layer_name’ and ‘layer_col’ at the same time. Please pick one or the other.",
     ):
         g.load_edges_from_pandas(
             edges_df, "time", "src", "dst", layer="blah", layer_col="marbles"
         )
 
     with pytest.raises(
-            Exception,
-            match=r"You cannot set ‘layer_name’ and ‘layer_col’ at the same time. Please pick one or the other.",
+        Exception,
+        match=r"You cannot set ‘layer_name’ and ‘layer_col’ at the same time. Please pick one or the other.",
     ):
         g.load_edge_props_from_pandas(
             edges_df, "src", "dst", layer="blah", layer_col="marbles"
@@ -1123,7 +1132,9 @@ def test_edge_both_option_failures_pandas():
         ["blah"],
     ]
     assert g.unique_layers == ["_default", "blah"]
-    assert dict(zip(g.layer("blah").edges.id, g.layer("blah").edges.properties.get("marbles"))) == {
+    assert dict(
+        zip(g.layer("blah").edges.id, g.layer("blah").edges.properties.get("marbles"))
+    ) == {
         (1, 2): "red",
         (2, 3): "blue",
         (3, 4): "green",
@@ -1141,7 +1152,14 @@ def test_edge_both_option_failures_pandas():
         (4, 5): ["yellow"],
         (5, 6): ["purple"],
     }
-    assert set(g.unique_layers) == {"_default", "red", "blue", "green", "yellow", "purple"}
+    assert set(g.unique_layers) == {
+        "_default",
+        "red",
+        "blue",
+        "green",
+        "yellow",
+        "purple",
+    }
 
     g = Graph()
     g.load_edges_from_pandas(edges_df, "time", "src", "dst", layer_col="marbles")
@@ -1155,7 +1173,14 @@ def test_edge_both_option_failures_pandas():
         (4, 5): ["yellow"],
         (5, 6): ["purple"],
     }
-    assert set(g.unique_layers) == {"_default", "red", "blue", "green", "yellow", "purple"}
+    assert set(g.unique_layers) == {
+        "_default",
+        "red",
+        "blue",
+        "green",
+        "yellow",
+        "purple",
+    }
     assert dict(zip(g.edges.id, g.edges.properties.get("marbles"))) == {
         (1, 2): {"red": "red"},
         (2, 3): {"blue": "blue"},
@@ -1166,24 +1191,24 @@ def test_edge_both_option_failures_pandas():
 
     g = PersistentGraph()
     with pytest.raises(
-            Exception,
-            match=r"You cannot set ‘layer_name’ and ‘layer_col’ at the same time. Please pick one or the other.",
+        Exception,
+        match=r"You cannot set ‘layer_name’ and ‘layer_col’ at the same time. Please pick one or the other.",
     ):
         g.load_edges_from_pandas(
             edges_df, "time", "src", "dst", layer="blah", layer_col="marbles"
         )
 
     with pytest.raises(
-            Exception,
-            match=r"You cannot set ‘layer_name’ and ‘layer_col’ at the same time. Please pick one or the other.",
+        Exception,
+        match=r"You cannot set ‘layer_name’ and ‘layer_col’ at the same time. Please pick one or the other.",
     ):
         g.load_edge_props_from_pandas(
             edges_df, "src", "dst", layer="blah", layer_col="marbles"
         )
 
     with pytest.raises(
-            Exception,
-            match=r"You cannot set ‘layer_name’ and ‘layer_col’ at the same time. Please pick one or the other.",
+        Exception,
+        match=r"You cannot set ‘layer_name’ and ‘layer_col’ at the same time. Please pick one or the other.",
     ):
         g.load_edge_deletions_from_pandas(
             edges_df, "time", "src", "dst", layer="blah", layer_col="marbles"
@@ -1214,7 +1239,9 @@ def test_edge_both_option_failures_pandas():
         ["blah"],
     ]
     assert g.unique_layers == ["_default", "blah"]
-    assert dict(zip(g.layer("blah").edges.id, g.layer("blah").edges.properties.get("marbles"))) == {
+    assert dict(
+        zip(g.layer("blah").edges.id, g.layer("blah").edges.properties.get("marbles"))
+    ) == {
         (1, 2): "red",
         (2, 3): "blue",
         (3, 4): "green",
@@ -1243,7 +1270,14 @@ def test_edge_both_option_failures_pandas():
         (4, 5): ["yellow"],
         (5, 6): ["purple"],
     }
-    assert set(g.unique_layers) == {"_default", "red", "blue", "green", "yellow", "purple"}
+    assert set(g.unique_layers) == {
+        "_default",
+        "red",
+        "blue",
+        "green",
+        "yellow",
+        "purple",
+    }
 
     g = PersistentGraph()
     g.load_edges_from_pandas(edges_df, "time", "src", "dst", layer_col="marbles")
@@ -1257,7 +1291,14 @@ def test_edge_both_option_failures_pandas():
         (4, 5): ["yellow"],
         (5, 6): ["purple"],
     }
-    assert set(g.unique_layers) == {"_default", "red", "blue", "green", "yellow", "purple"}
+    assert set(g.unique_layers) == {
+        "_default",
+        "red",
+        "blue",
+        "green",
+        "yellow",
+        "purple",
+    }
     assert dict(zip(g.edges.id, g.edges.properties.get("marbles"))) == {
         (1, 2): {"red": "red"},
         (2, 3): {"blue": "blue"},
@@ -1277,7 +1318,14 @@ def test_edge_both_option_failures_pandas():
         (4, 5): ["yellow"],
         (5, 6): ["purple"],
     }
-    assert set(g.unique_layers) == {"_default", "red", "blue", "green", "yellow", "purple"}
+    assert set(g.unique_layers) == {
+        "_default",
+        "red",
+        "blue",
+        "green",
+        "yellow",
+        "purple",
+    }
 
 
 def test_node_both_option_failures_pandas():
@@ -1291,8 +1339,8 @@ def test_node_both_option_failures_pandas():
     )
     # CHECK ALL NODE FUNCTIONS ON GRAPH FAIL WITH BOTH NODE_TYPE AND NODE_TYPE_COL
     with pytest.raises(
-            Exception,
-            match=r"You cannot set ‘node_type_name’ and ‘node_type_col’ at the same time. Please pick one or the other.",
+        Exception,
+        match=r"You cannot set ‘node_type_name’ and ‘node_type_col’ at the same time. Please pick one or the other.",
     ):
         g = Graph()
         g.load_nodes_from_pandas(
@@ -1300,8 +1348,8 @@ def test_node_both_option_failures_pandas():
         )
 
     with pytest.raises(
-            Exception,
-            match=r"You cannot set ‘node_type_name’ and ‘node_type_col’ at the same time. Please pick one or the other.",
+        Exception,
+        match=r"You cannot set ‘node_type_name’ and ‘node_type_col’ at the same time. Please pick one or the other.",
     ):
         g = Graph()
         g.load_node_props_from_pandas(
