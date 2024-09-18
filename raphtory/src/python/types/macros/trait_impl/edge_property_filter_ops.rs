@@ -10,6 +10,16 @@ macro_rules! impl_edge_property_filter_ops {
     ($obj:ident<$base_type:ty>, $field:ident, $name:literal) => {
         #[pyo3::pymethods]
         impl $obj {
+            /// Return a filtered view that only includes edges with a given property value
+            ///
+            /// Arguments:
+            ///     property (str): The name of the property to use for filtering
+            ///                     (looked up in temporal properties first and falls
+            ///                     back to constant properties
+            ///     value (Any): The property value to compare with
+            ///
+            /// Returns:
+            #[doc=concat!("    ", $name, ": The filtered view")]
             fn filter_edges_eq(
                 &self,
                 property: &str,
@@ -23,6 +33,17 @@ macro_rules! impl_edge_property_filter_ops {
                 )
             }
 
+            /// Return a filtered view that only includes edges with a property value less than a
+            /// given value
+            ///
+            /// Arguments:
+            ///     property (str): The name of the property to use for filtering
+            ///                     (looked up in temporal properties first and falls
+            ///                     back to constant properties
+            ///     value (Any): The property value to compare with
+            ///
+            /// Returns:
+            #[doc=concat!("    ", $name, ": The filtered view")]
             fn filter_edges_lt(
                 &self,
                 property: &str,
@@ -36,6 +57,17 @@ macro_rules! impl_edge_property_filter_ops {
                 )
             }
 
+            /// Return a filtered view that only includes edges with a property value greater than a
+            /// given value
+            ///
+            /// Arguments:
+            ///     property (str): The name of the property to use for filtering
+            ///                     (looked up in temporal properties first and falls
+            ///                     back to constant properties
+            ///     value (Any): The property value to compare with
+            ///
+            /// Returns:
+            #[doc=concat!("    ", $name, ": The filtered view")]
             fn filter_edges_gt(
                 &self,
                 property: &str,
