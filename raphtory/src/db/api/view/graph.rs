@@ -3,6 +3,7 @@ use crate::{
         entities::{graph::tgraph::TemporalGraph, nodes::node_ref::AsNodeRef, LayerIds, VID},
         storage::timeindex::AsTime,
         utils::errors::GraphError,
+        Prop,
     },
     db::{
         api::{
@@ -22,7 +23,9 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             views::{
-                node_subgraph::NodeSubgraph, node_type_filtered_subgraph::TypeFilteredSubgraph,
+                node_subgraph::NodeSubgraph,
+                node_type_filtered_subgraph::TypeFilteredSubgraph,
+                property_filter::{edge_property_filter::EdgePropertyFilteredGraph, PropFilter},
             },
         },
     },
@@ -41,6 +44,7 @@ use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::{
     borrow::Borrow,
+    cmp::Ordering::{Equal, Greater, Less},
     sync::{atomic::Ordering, Arc},
 };
 
@@ -75,6 +79,12 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
         &self,
         nodes: I,
     ) -> NodeSubgraph<Self>;
+
+    fn filter_edges_lt(&self, property: &str, value: Prop) -> EdgePropertyFilteredGraph<Self>;
+
+    fn filter_edges_eq(&self, property: &str, value: Prop) -> EdgePropertyFilteredGraph<Self>;
+
+    fn filter_edges_gt(&self, property: &str, value: Prop) -> EdgePropertyFilteredGraph<Self>;
 
     /// Return all the layer ids in the graph
     fn unique_layers(&self) -> BoxedIter<ArcStr>;
@@ -373,6 +383,39 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
             .collect();
 
         NodeSubgraph::new(self.clone(), nodes_to_include)
+    }
+
+    fn filter_edges_lt(&self, property: &str, value: Prop) -> EdgePropertyFilteredGraph<Self> {
+        let t_prop_id = self.edge_meta().get_prop_id(property, false);
+        let c_prop_id = self.edge_meta().get_prop_id(property, true);
+        EdgePropertyFilteredGraph::new(
+            self.clone(),
+            t_prop_id,
+            c_prop_id,
+            PropFilter::new(value, Less),
+        )
+    }
+
+    fn filter_edges_eq(&self, property: &str, value: Prop) -> EdgePropertyFilteredGraph<Self> {
+        let t_prop_id = self.edge_meta().get_prop_id(property, false);
+        let c_prop_id = self.edge_meta().get_prop_id(property, true);
+        EdgePropertyFilteredGraph::new(
+            self.clone(),
+            t_prop_id,
+            c_prop_id,
+            PropFilter::new(value, Equal),
+        )
+    }
+
+    fn filter_edges_gt(&self, property: &str, value: Prop) -> EdgePropertyFilteredGraph<Self> {
+        let t_prop_id = self.edge_meta().get_prop_id(property, false);
+        let c_prop_id = self.edge_meta().get_prop_id(property, true);
+        EdgePropertyFilteredGraph::new(
+            self.clone(),
+            t_prop_id,
+            c_prop_id,
+            PropFilter::new(value, Greater),
+        )
     }
 
     /// Return all the layer ids in the graph

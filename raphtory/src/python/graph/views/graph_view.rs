@@ -21,7 +21,9 @@ use crate::{
             nodes::Nodes,
             views::{
                 layer_graph::LayeredGraph, node_subgraph::NodeSubgraph,
-                node_type_filtered_subgraph::TypeFilteredSubgraph, window_graph::WindowedGraph,
+                node_type_filtered_subgraph::TypeFilteredSubgraph,
+                property_filter::edge_property_filter::EdgePropertyFilteredGraph,
+                window_graph::WindowedGraph,
             },
         },
     },
@@ -96,6 +98,12 @@ impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for NodeSubgraph<G> {
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for TypeFilteredSubgraph<G> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        PyGraphView::from(self).into_py(py)
+    }
+}
+
+impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for EdgePropertyFilteredGraph<G> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyGraphView::from(self).into_py(py)
     }
@@ -320,6 +328,33 @@ impl PyGraphView {
     ///    GraphView - Returns the subgraph
     fn subgraph_node_types(&self, node_types: Vec<ArcStr>) -> TypeFilteredSubgraph<DynamicGraph> {
         self.graph.subgraph_node_types(node_types)
+    }
+
+    /// Filter edges to only include edges which have a property value for `property` greater than `value`
+    fn filter_edges_gt(
+        &self,
+        property: &str,
+        value: Prop,
+    ) -> EdgePropertyFilteredGraph<DynamicGraph> {
+        self.graph.filter_edges_gt(property, value)
+    }
+
+    /// Filter edges to only include edges which have a property value for `property` less than `value`
+    fn filter_edges_lt(
+        &self,
+        property: &str,
+        value: Prop,
+    ) -> EdgePropertyFilteredGraph<DynamicGraph> {
+        self.graph.filter_edges_lt(property, value)
+    }
+
+    /// Filter edges to only include edges which have a property value for `property` equal to `value`
+    fn filter_edges_eq(
+        &self,
+        property: &str,
+        value: Prop,
+    ) -> EdgePropertyFilteredGraph<DynamicGraph> {
+        self.graph.filter_edges_eq(property, value)
     }
 
     /// Returns a subgraph given a set of nodes that are excluded from the subgraph
