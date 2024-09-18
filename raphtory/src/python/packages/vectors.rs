@@ -159,7 +159,7 @@ pub fn into_py_document(
 }
 
 /// This funtions ignores the time history of temporal props if their type is Document and they have a life different than Lifespan::Inherited
-fn get_documents_from_props<P: PropertiesOps + Clone + 'static>(
+fn get_documents_from_props<P: PropertiesOps + Clone>(
     properties: Properties<P>,
     name: &str,
 ) -> Box<dyn Iterator<Item = DocumentInput>> {
@@ -167,7 +167,7 @@ fn get_documents_from_props<P: PropertiesOps + Clone + 'static>(
 
     match prop {
         Some(prop) => {
-            let props = prop.iter();
+            let props = prop.into_iter();
             let docs = props
                 .map(|(time, prop)| prop_to_docs(&prop, Lifespan::event(time)).collect_vec())
                 .flatten();

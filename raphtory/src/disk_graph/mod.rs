@@ -12,7 +12,10 @@ use crate::{
         },
         utils::errors::GraphError,
     },
-    db::{api::storage::graph::storage_ops, graph::views::deletion_graph::PersistentGraph},
+    db::{
+        api::{storage::graph::storage_ops, view::internal::CoreGraphOps},
+        graph::views::deletion_graph::PersistentGraph,
+    },
     disk_graph::graph_impl::{prop_conversion::make_node_properties_from_graph, ParquetLayerCols},
     prelude::{Graph, Layer},
 };
@@ -292,7 +295,9 @@ impl DiskGraphStorage {
         let inner_graph = TemporalGraph::from_graph(graph, graph_dir.as_ref(), || {
             make_node_properties_from_graph(graph, graph_dir.as_ref())
         })?;
-        Ok(Self::new(inner_graph))
+        let mut storage = Self::new(inner_graph);
+        storage.graph_props = Arc::new(graph.graph_meta().deep_clone());
+        Ok(storage)
     }
 
     pub fn load_from_edge_lists(

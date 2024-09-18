@@ -108,7 +108,7 @@ impl DocumentRef {
             EntityId::Node { id } => Document::Node {
                 name: original_graph.node(id).unwrap().name(),
                 content: template
-                    .node(&original_graph.node(id).unwrap())
+                    .node((&&original_graph).node(id).unwrap())
                     .nth(self.index)
                     .unwrap()
                     .content,
@@ -119,7 +119,7 @@ impl DocumentRef {
                 src: original_graph.node(src).unwrap().name(),
                 dst: original_graph.node(dst).unwrap().name(),
                 content: template
-                    .edge(&original_graph.edge(src, dst).unwrap())
+                    .edge(original_graph.edge(src, dst).unwrap().as_ref())
                     .nth(self.index)
                     .unwrap()
                     .content,

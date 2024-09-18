@@ -62,23 +62,25 @@ impl<G: StaticGraphViewOps + IntoDynamic> Vectorisable<G> for G {
                     index,
                     life: doc.life,
                 });
-        let nodes = self.nodes().iter_owned().flat_map(|node| {
+        let nodes = self.nodes();
+        let nodes_iter = nodes.iter().flat_map(|node| {
             template
-                .node(&node)
+                .node(node)
                 .enumerate()
                 .map(move |(index, doc)| IndexedDocumentInput {
-                    entity_id: EntityId::from_node(&node),
+                    entity_id: EntityId::from_node(node),
                     content: doc.content,
                     index,
                     life: doc.life,
                 })
         });
-        let edges = self.edges().iter().flat_map(|edge| {
+        let edges = self.edges();
+        let edges_iter = edges.iter().flat_map(|edge| {
             template
-                .edge(&edge)
+                .edge(edge)
                 .enumerate()
                 .map(move |(index, doc)| IndexedDocumentInput {
-                    entity_id: EntityId::from_edge(&edge),
+                    entity_id: EntityId::from_edge(edge),
                     content: doc.content,
                     index,
                     life: doc.life,
@@ -101,12 +103,14 @@ impl<G: StaticGraphViewOps + IntoDynamic> Vectorisable<G> for G {
         if verbose {
             println!("computing embeddings for nodes");
         }
-        let node_refs = compute_embedding_groups(nodes, embedding.as_ref(), &cache_storage).await;
+        let node_refs =
+            compute_embedding_groups(nodes_iter, embedding.as_ref(), &cache_storage).await;
 
         if verbose {
             println!("computing embeddings for edges");
         }
-        let edge_refs = compute_embedding_groups(edges, embedding.as_ref(), &cache_storage).await; // FIXME: re-enable
+        let edge_refs =
+            compute_embedding_groups(edges_iter, embedding.as_ref(), &cache_storage).await; // FIXME: re-enable
 
         if overwrite_cache {
             cache_storage.iter().for_each(|cache| cache.dump_to_disk());

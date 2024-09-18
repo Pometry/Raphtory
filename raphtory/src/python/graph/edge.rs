@@ -71,6 +71,12 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic +
     }
 }
 
+impl IntoPy<PyObject> for EdgeView<&DynamicGraph, &DynamicGraph> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        self.cloned().into_py(py)
+    }
+}
+
 impl<G: Into<MaterializedGraph> + StaticGraphViewOps> From<EdgeView<G, G>> for PyMutableEdge {
     fn from(value: EdgeView<G, G>) -> Self {
         let edge = EdgeView {

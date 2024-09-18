@@ -22,7 +22,7 @@ impl GqlEdges {
     }
 
     fn iter(&self) -> Box<dyn Iterator<Item = Edge> + '_> {
-        let iter = self.ee.iter().map(Edge::from);
+        let iter = self.ee.iter().map(Edge::from_ref);
         Box::new(iter)
     }
 }

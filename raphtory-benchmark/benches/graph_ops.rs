@@ -1,4 +1,3 @@
-use common::run_graph_ops_benches;
 use criterion::{criterion_group, criterion_main, Criterion};
 use raphtory::{
     graph_loader::sx_superuser_graph::{sx_superuser_file, sx_superuser_graph, TEdge},
@@ -6,8 +5,7 @@ use raphtory::{
     prelude::*,
 };
 use raphtory_api::core::utils::hashing::calculate_hash;
-
-mod common;
+use raphtory_benchmark::common::run_graph_ops_benches;
 
 pub fn graph(c: &mut Criterion) {
     let group_name = "analysis_graph";

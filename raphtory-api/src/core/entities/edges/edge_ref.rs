@@ -76,8 +76,8 @@ impl EdgeRef {
     }
 
     #[inline(always)]
-    pub fn layer(&self) -> Option<&usize> {
-        self.layer_id.as_ref()
+    pub fn layer(&self) -> Option<usize> {
+        self.layer_id
     }
 
     #[inline(always)]

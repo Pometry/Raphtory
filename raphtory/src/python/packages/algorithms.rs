@@ -55,7 +55,6 @@ use crate::{
         utils::PyTime,
     },
 };
-use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use pyo3::{prelude::*, types::PyIterator};
 use rand::{prelude::StdRng, SeedableRng};

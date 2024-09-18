@@ -197,7 +197,7 @@ impl ModularityFunction for ModularityUnDir {
                         let w = weight_prop
                             .map(|w| e.properties().get(w).unwrap_f64())
                             .unwrap_or(1.0);
-                        let dst_id = local_id_map[&e.nbr()];
+                        let dst_id = local_id_map[&e.nbr().cloned()];
                         (dst_id, w)
                     })
                     .filter(|(_, w)| w >= &tol)

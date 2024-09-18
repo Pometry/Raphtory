@@ -624,7 +624,7 @@ mod storage_tests {
 
     use crate::{
         core::Prop,
-        db::graph::graph::assert_graph_equal,
+        db::{api::mutation::internal::InternalAdditionOps, graph::graph::assert_graph_equal},
         prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, NO_PROPS, *},
     };
 
@@ -736,7 +736,7 @@ mod storage_tests {
             .flat_map(|(_, src, dst)| [*src, *dst])
             .collect();
         for n in nodes {
-            g.add_node(0, n, NO_PROPS, None).unwrap();
+            g.resolve_node(n).unwrap();
         }
         for (t, src, dst) in edges {
             g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
@@ -772,6 +772,10 @@ mod storage_tests {
         })
     }
 
+    #[test]
+    fn test_one_empty_graph_non_zero_time() {
+        inner_merge_test(&[], &[(1, 0, 0)])
+    }
     #[test]
     fn test_empty_graphs() {
         inner_merge_test(&[], &[])

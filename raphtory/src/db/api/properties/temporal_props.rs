@@ -1,5 +1,5 @@
 use crate::{
-    core::{DocumentInput, Prop, PropUnwrap},
+    core::{DocumentInput, Prop, PropType, PropUnwrap},
     db::{api::properties::internal::PropertiesOps, graph::views::deletion_graph::PersistentGraph},
     prelude::Graph,
 };
@@ -19,6 +19,10 @@ pub struct TemporalPropertyView<P: PropertiesOps> {
 impl<P: PropertiesOps> TemporalPropertyView<P> {
     pub(crate) fn new(props: P, key: usize) -> Self {
         TemporalPropertyView { props, id: key }
+    }
+
+    pub fn dtype(&self) -> PropType {
+        self.props.dtype(self.id)
     }
     pub fn history(&self) -> Vec<i64> {
         self.props.temporal_history(self.id)
@@ -168,6 +172,12 @@ impl<P: PropertiesOps + Clone> TemporalProperties<P> {
     pub fn collect_properties(self) -> Vec<(ArcStr, Prop)> {
         self.iter()
             .flat_map(|(k, v)| v.latest().map(|v| (k.clone(), v)))
+            .collect()
+    }
+
+    pub fn as_map(&self) -> HashMap<ArcStr, Vec<(i64, Prop)>> {
+        self.iter()
+            .map(|(key, value)| (key, value.histories().collect()))
             .collect()
     }
 }

@@ -10,7 +10,11 @@ use crate::{
             nodes::node_ref::{AsNodeRef, NodeRef},
             EID, ELID, VID,
         },
-        storage::timeindex::{AsTime, TimeIndexEntry},
+        storage::{
+            raw_edges::WriteLockedEdges,
+            timeindex::{AsTime, TimeIndexEntry},
+            WriteLockedNodes,
+        },
         utils::errors::GraphError,
         PropType,
     },
@@ -764,8 +768,19 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
         self.graph.id_type()
     }
 
+    #[inline]
     fn write_lock(&self) -> Result<WriteLockedGraph, GraphError> {
         self.graph.write_lock()
+    }
+
+    #[inline]
+    fn write_lock_nodes(&self) -> Result<WriteLockedNodes, GraphError> {
+        self.graph.write_lock_nodes()
+    }
+
+    #[inline]
+    fn write_lock_edges(&self) -> Result<WriteLockedEdges, GraphError> {
+        self.graph.write_lock_edges()
     }
 
     #[inline]
@@ -776,6 +791,11 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
     #[inline]
     fn next_event_id(&self) -> Result<usize, GraphError> {
         self.graph.next_event_id()
+    }
+
+    #[inline]
+    fn read_event_id(&self) -> usize {
+        self.graph.read_event_id()
     }
 
     #[inline]

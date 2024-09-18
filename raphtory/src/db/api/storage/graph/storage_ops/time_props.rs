@@ -2,7 +2,9 @@ use std::ops::Deref;
 
 use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::AsTime};
 
+use super::GraphStorage;
 use crate::{
+    core::PropType,
     db::api::{
         properties::internal::{TemporalPropertiesOps, TemporalPropertyViewOps},
         storage::graph::tprop_storage_ops::TPropOps,
@@ -10,9 +12,10 @@ use crate::{
     prelude::Prop,
 };
 
-use super::GraphStorage;
-
 impl TemporalPropertyViewOps for GraphStorage {
+    fn dtype(&self, id: usize) -> PropType {
+        self.graph_meta().get_temporal_dtype(id).unwrap()
+    }
     fn temporal_history(&self, id: usize) -> Vec<i64> {
         self.graph_meta()
             .get_temporal_prop(id)

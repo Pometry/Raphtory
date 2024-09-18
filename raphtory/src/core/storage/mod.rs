@@ -195,6 +195,7 @@ impl NodeStorage {
     pub(crate) fn write_lock(&self) -> WriteLockedNodes {
         WriteLockedNodes {
             guards: self.data.iter().map(|lock| lock.data.write()).collect(),
+            global_len: &self.len,
         }
     }
 
@@ -304,15 +305,20 @@ impl NodeStorage {
 
 pub struct WriteLockedNodes<'a> {
     guards: Vec<RwLockWriteGuard<'a, Vec<NodeStore>>>,
+    global_len: &'a AtomicUsize,
 }
 
-pub struct NodeShardWriter<'a> {
-    shard: &'a mut Vec<NodeStore>,
+pub struct NodeShardWriter<'a, S> {
+    shard: S,
     shard_id: usize,
     num_shards: usize,
+    global_len: &'a AtomicUsize,
 }
 
-impl<'a> NodeShardWriter<'a> {
+impl<'a, S> NodeShardWriter<'a, S>
+where
+    S: DerefMut<Target = Vec<NodeStore>>,
+{
     #[inline]
     fn resolve(&self, index: VID) -> Option<usize> {
         let (shard_id, offset) = resolve(index.into(), self.num_shards);
@@ -324,13 +330,16 @@ impl<'a> NodeShardWriter<'a> {
         self.resolve(index).map(|offset| &mut self.shard[offset])
     }
 
-    pub fn set(&mut self, vid: VID, gid: GidRef) {
-        if let Some(offset) = self.resolve(vid) {
+    pub fn set(&mut self, vid: VID, gid: GidRef) -> Option<&mut NodeStore> {
+        self.resolve(vid).map(|offset| {
             if offset >= self.shard.len() {
                 self.shard.resize_with(offset + 1, NodeStore::default);
+                self.global_len
+                    .fetch_max(vid.index() + 1, Ordering::Relaxed);
             }
             self.shard[offset] = NodeStore::resolved(gid.to_owned(), vid);
-        }
+            &mut self.shard[offset]
+        })
     }
 
     pub fn shard_id(&self) -> usize {
@@ -343,14 +352,18 @@ impl<'a> NodeShardWriter<'a> {
             new_len += 1;
         }
         if new_len > self.shard.len() {
-            self.shard.resize_with(new_len, Default::default)
+            self.shard.resize_with(new_len, Default::default);
+            self.global_len.fetch_max(new_global_len, Ordering::Relaxed);
         }
     }
 }
 
 impl<'a> WriteLockedNodes<'a> {
-    pub fn par_iter_mut(&mut self) -> impl IndexedParallelIterator<Item = NodeShardWriter> + '_ {
+    pub fn par_iter_mut(
+        &mut self,
+    ) -> impl IndexedParallelIterator<Item = NodeShardWriter<&mut Vec<NodeStore>>> + '_ {
         let num_shards = self.guards.len();
+        let global_len = self.global_len;
         let shards: Vec<&mut Vec<NodeStore>> = self
             .guards
             .iter_mut()
@@ -363,6 +376,24 @@ impl<'a> WriteLockedNodes<'a> {
                 shard,
                 shard_id,
                 num_shards,
+                global_len,
+            })
+    }
+
+    pub fn into_par_iter_mut(
+        self,
+    ) -> impl IndexedParallelIterator<Item = NodeShardWriter<'a, RwLockWriteGuard<'a, Vec<NodeStore>>>>
+           + 'a {
+        let num_shards = self.guards.len();
+        let global_len = self.global_len;
+        self.guards
+            .into_par_iter()
+            .enumerate()
+            .map(move |(shard_id, shard)| NodeShardWriter {
+                shard,
+                shard_id,
+                num_shards,
+                global_len,
             })
     }
 

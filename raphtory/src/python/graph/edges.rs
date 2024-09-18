@@ -2,8 +2,7 @@ use crate::{
     core::{utils::errors::GraphError, Prop},
     db::{
         api::view::{
-            internal::CoreGraphOps, BoxedIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
-            StaticGraphViewOps,
+            internal::CoreGraphOps, DynamicGraph, IntoDynBoxed, IntoDynamic, StaticGraphViewOps,
         },
         graph::{
             edge::EdgeView,
@@ -50,7 +49,8 @@ impl_iterable_mixin!(
     edges,
     Vec<EdgeView<DynamicGraph>>,
     "list[Edge]",
-    "edge"
+    "edge",
+    |edges: &Edges<'static, DynamicGraph>| edges.clone().into_iter()
 );
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for Edges<'graph, G, GH> {
@@ -77,18 +77,11 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic> 
     }
 }
 
-impl PyEdges {
-    /// an iterable that can be used in rust
-    fn iter(&self) -> BoxedIter<EdgeView<DynamicGraph, DynamicGraph>> {
-        self.edges.iter().into_dyn_boxed()
-    }
-}
-
 #[pymethods]
 impl PyEdges {
     /// Returns the number of edges
     fn count(&self) -> usize {
-        self.iter().count()
+        self.edges.len()
     }
 
     /// Returns the earliest time of the edges.
@@ -340,7 +333,7 @@ impl PyEdges {
 
 impl Repr for PyEdges {
     fn repr(&self) -> String {
-        format!("Edges({})", iterator_repr(self.iter()))
+        format!("Edges({})", iterator_repr(self.edges.iter()))
     }
 }
 
