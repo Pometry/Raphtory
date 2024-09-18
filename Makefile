@@ -52,7 +52,7 @@ stubs:
 python-fmt:
 	cd python && black .
 
-tidy: rust-fmt stubs python-fmt
+tidy: rust-fmt build-python stubs python-fmt
 
 build-python: activate-storage
 	cd python && maturin develop -r --features storage
