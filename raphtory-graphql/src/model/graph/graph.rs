@@ -26,14 +26,7 @@ use raphtory::{
     prelude::*,
     search::{into_indexed::DynamicIndexedGraph, IndexedGraph},
 };
-use std::{
-    collections::HashSet,
-    convert::Into,
-    fs,
-    path::{PathBuf},
-    sync::Arc,
-    time::UNIX_EPOCH,
-};
+use std::{collections::HashSet, convert::Into, fs, path::PathBuf, sync::Arc, time::UNIX_EPOCH};
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlGraph {

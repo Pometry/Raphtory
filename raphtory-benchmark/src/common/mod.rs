@@ -7,8 +7,8 @@ use rand::{distributions::Uniform, seq::*, Rng, SeedableRng};
 use raphtory::{db::api::view::StaticGraphViewOps, prelude::*};
 use raphtory_api::core::utils::logging::global_info_logger;
 use std::collections::HashSet;
-use tracing::info;
 use tempfile::NamedTempFile;
+use tracing::info;
 
 fn make_index_gen() -> Box<dyn Iterator<Item = u64>> {
     let rng = rand::thread_rng();

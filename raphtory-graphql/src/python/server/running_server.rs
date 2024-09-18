@@ -68,11 +68,11 @@ impl PyRunningGraphServer {
 
     pub(crate) fn stop_server(&mut self, py: Python) -> PyResult<()> {
         Self::apply_if_alive(self, |handler| {
-            match handler
-                .sender
-                .send(BridgeCommand::StopServer) {
+            match handler.sender.send(BridgeCommand::StopServer) {
                 Ok(_) => {}
-                Err(e) => {error!("Failed to establish Channel with server, this could be because you already have Raphtory running on this port. {}",e.to_string())}
+                Err(e) => {
+                    error!("Failed to establish Channel with server, this could be because you already have Raphtory running on this port. {}",e.to_string())
+                }
             }
             Ok(())
         })?;

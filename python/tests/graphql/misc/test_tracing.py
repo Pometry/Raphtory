@@ -3,6 +3,7 @@ import tempfile
 from raphtory import Graph
 from raphtory.graphql import GraphServer, RaphtoryClient
 
+
 # TODO this doesn't work currently due to how we terminate with Tracing
 def test_server_start_on_default_port():
     g = Graph()
@@ -11,7 +12,7 @@ def test_server_start_on_default_port():
     g.add_edge(3, "ben", "haaroon")
 
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir,tracing=True).start():
+    with GraphServer(tmp_work_dir, tracing=True).start():
         client = RaphtoryClient("http://localhost:1736")
         client.send_graph(path="g", graph=g)
 
@@ -23,7 +24,7 @@ def test_server_start_on_default_port():
                 }
             }
         }
-    with GraphServer(tmp_work_dir,tracing=True).start():
+    with GraphServer(tmp_work_dir, tracing=True).start():
         client = RaphtoryClient("http://localhost:1736")
         client.send_graph(path="g2", graph=g)
 

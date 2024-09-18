@@ -540,9 +540,8 @@ mod proto_test {
         test_utils::{build_edge_list, build_graph_from_edge_list},
     };
     use chrono::{DateTime, NaiveDateTime};
-    use raphtory_api::core::utils::logging::global_info_logger;
     use proptest::proptest;
-    use raphtory_api::core::storage::arc_str::ArcStr;
+    use raphtory_api::core::{storage::arc_str::ArcStr, utils::logging::global_info_logger};
     use tracing::info;
 
     #[test]

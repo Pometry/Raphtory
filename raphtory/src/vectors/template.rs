@@ -16,7 +16,6 @@ use serde::Serialize;
 use std::sync::Arc;
 use tracing::error;
 
-
 #[derive(Debug)]
 struct PropUpdate {
     time: i64,
