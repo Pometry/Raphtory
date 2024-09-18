@@ -43,13 +43,19 @@ pub struct EdgeAddition {
 
 #[derive(ResolvedObject)]
 pub struct GqlMutableGraph {
+    work_dir: PathBuf,
     path: PathBuf,
     graph: IndexedGraph<MaterializedGraph>,
 }
 
 impl GqlMutableGraph {
-    pub(crate) fn new(path: impl Into<PathBuf>, graph: IndexedGraph<MaterializedGraph>) -> Self {
+    pub(crate) fn new(
+        work_dir: PathBuf,
+        path: impl Into<PathBuf>,
+        graph: IndexedGraph<MaterializedGraph>,
+    ) -> Self {
         Self {
+            work_dir,
             path: path.into(),
             graph,
         }
@@ -64,7 +70,7 @@ fn as_properties(properties: Vec<GqlPropInput>) -> impl Iterator<Item = (String,
 impl GqlMutableGraph {
     /// Get the non-mutable graph
     async fn graph(&self) -> GqlGraph {
-        GqlGraph::new(self.path.clone(), self.graph.clone())
+        GqlGraph::new(self.work_dir.clone(), self.path.clone(), self.graph.clone())
     }
 
     /// Get mutable existing node
