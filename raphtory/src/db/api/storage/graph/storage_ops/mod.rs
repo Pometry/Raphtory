@@ -384,19 +384,6 @@ impl GraphStorage {
         })
     }
 
-    pub fn nodes_par_opt<'a, 'graph: 'a, G: GraphViewOps<'graph>>(
-        &'a self,
-        view: &'a G,
-        type_filter: Option<&'a Arc<[bool]>>,
-    ) -> impl IndexedParallelIterator<Item = Option<NodeStorageEntry<'a>>> + 'a {
-        view.node_list().into_par_iter().map(move |vid| {
-            let node = self.node_entry(vid);
-            (type_filter.map_or(true, |type_filter| type_filter[node.node_type_id()])
-                && view.filter_node(node.as_ref(), view.layer_ids()))
-            .then_some(node)
-        })
-    }
-
     pub fn into_nodes_par<'graph, G: GraphViewOps<'graph>>(
         self,
         view: G,
