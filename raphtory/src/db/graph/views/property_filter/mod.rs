@@ -6,18 +6,19 @@ pub mod edge_property_filter;
 #[derive(Debug, Clone)]
 pub struct PropFilter {
     value: Prop,
-    cmp: Ordering,
+    filter: fn(&Prop, &Prop) -> bool,
 }
 
 impl PropFilter {
-    pub fn new(value: Prop, cmp: Ordering) -> Self {
-        Self { value, cmp }
+    /// Construct a property filter
+    ///
+    /// `value` is the first argument passed to `filter`, the second argument is the property value
+    /// from the node or edge
+    pub fn new(value: Prop, filter: fn(&Prop, &Prop) -> bool) -> Self {
+        Self { value, filter }
     }
 
     fn filter(&self, other: &Prop) -> bool {
-        match other.partial_cmp(&self.value) {
-            None => false,
-            Some(ordering) => ordering == self.cmp,
-        }
+        (self.filter)(&self.value, &other)
     }
 }

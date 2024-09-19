@@ -36,7 +36,7 @@ impl<'graph, G: OneHopFilter<'graph>> EdgePropertyFilterOps<'graph> for G {
             self.current_filter().clone(),
             t_prop_id,
             c_prop_id,
-            PropFilter::new(value, Less),
+            PropFilter::new(value, |left, right| left > right),
         ))
     }
 
@@ -54,7 +54,7 @@ impl<'graph, G: OneHopFilter<'graph>> EdgePropertyFilterOps<'graph> for G {
             self.current_filter().clone(),
             t_prop_id,
             c_prop_id,
-            PropFilter::new(value, Equal),
+            PropFilter::new(value, |left, right| left == right),
         ))
     }
 
@@ -72,7 +72,7 @@ impl<'graph, G: OneHopFilter<'graph>> EdgePropertyFilterOps<'graph> for G {
             self.current_filter().clone(),
             t_prop_id,
             c_prop_id,
-            PropFilter::new(value, Greater),
+            PropFilter::new(value, |left, right| left < right),
         ))
     }
 }
