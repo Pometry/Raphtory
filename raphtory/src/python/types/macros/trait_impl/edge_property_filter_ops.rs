@@ -163,6 +163,82 @@ macro_rules! impl_edge_property_filter_ops {
                     value,
                 )
             }
+
+            /// Return a filtered view that only includes edges with a property value in a set
+            ///
+            /// Arguments:
+            ///     property (str): The name of the property to use for filtering
+            ///                     (looked up in temporal properties first and falls
+            ///                     back to constant properties
+            ///     set (set): The property values to compare with
+            ///
+            /// Returns:
+            #[doc=concat!("    ", $name, ": The filtered view")]
+            fn filter_edges_in(
+                &self,
+                property: &str,
+                set: std::collections::HashSet<Prop>,
+            ) -> <$base_type as crate::prelude::EdgePropertyFilterOps<'static>>::FilteredViewType
+            {
+                crate::prelude::EdgePropertyFilterOps::filter_edges_in(&self.$field, property, set)
+            }
+
+            /// Return a filtered view that only includes edges with a property value not in a set
+            ///
+            /// Arguments:
+            ///     property (str): The name of the property to use for filtering
+            ///                     (looked up in temporal properties first and falls
+            ///                     back to constant properties
+            ///     set (set): The property values to compare with
+            ///
+            /// Returns:
+            #[doc=concat!("    ", $name, ": The filtered view")]
+            fn filter_edges_not_in(
+                &self,
+                property: &str,
+                set: std::collections::HashSet<Prop>,
+            ) -> <$base_type as crate::prelude::EdgePropertyFilterOps<'static>>::FilteredViewType
+            {
+                crate::prelude::EdgePropertyFilterOps::filter_edges_not_in(
+                    &self.$field,
+                    property,
+                    set,
+                )
+            }
+
+            /// Return a filtered view that only includes edges that have a given property
+            ///
+            /// Arguments:
+            ///     property (str): The name of the property to use for filtering
+            ///                     (looked up in temporal properties first and falls
+            ///                     back to constant properties
+            ///
+            /// Returns:
+            #[doc=concat!("    ", $name, ": The filtered view")]
+            fn filter_edges_has(
+                &self,
+                property: &str,
+            ) -> <$base_type as crate::prelude::EdgePropertyFilterOps<'static>>::FilteredViewType
+            {
+                crate::prelude::EdgePropertyFilterOps::filter_edges_has(&self.$field, property)
+            }
+
+            /// Return a filtered view that only includes edges that do not have a given property
+            ///
+            /// Arguments:
+            ///     property (str): The name of the property to use for filtering
+            ///                     (looked up in temporal properties first and falls
+            ///                     back to constant properties
+            ///
+            /// Returns:
+            #[doc=concat!("    ", $name, ": The filtered view")]
+            fn filter_edges_has_not(
+                &self,
+                property: &str,
+            ) -> <$base_type as crate::prelude::EdgePropertyFilterOps<'static>>::FilteredViewType
+            {
+                crate::prelude::EdgePropertyFilterOps::filter_edges_has_not(&self.$field, property)
+            }
         }
     };
 }

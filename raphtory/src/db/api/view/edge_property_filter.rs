@@ -3,10 +3,11 @@ use crate::{
     db::{
         api::view::internal::{CoreGraphOps, OneHopFilter},
         graph::views::property_filter::{
-            edge_property_filter::EdgePropertyFilteredGraph, PropFilter,
+            edge_property_filter::EdgePropertyFilteredGraph, PropFilter, PropValueFilter,
         },
     },
 };
+use std::collections::HashSet;
 
 pub trait EdgePropertyFilterOps<'graph> {
     type FilteredViewType;
@@ -43,6 +44,10 @@ pub trait EdgePropertyFilterOps<'graph> {
         property: &str,
         value: Prop,
     ) -> Result<Self::FilteredViewType, GraphError>;
+    fn filter_edges_has(&self, property: &str) -> Self::FilteredViewType;
+    fn filter_edges_has_not(&self, property: &str) -> Self::FilteredViewType;
+    fn filter_edges_in(&self, property: &str, set: HashSet<Prop>) -> Self::FilteredViewType;
+    fn filter_edges_not_in(&self, property: &str, set: HashSet<Prop>) -> Self::FilteredViewType;
 }
 
 fn get_ids_and_check_type(
@@ -55,6 +60,12 @@ fn get_ids_and_check_type(
         .get_and_validate(property, dtype)?;
     let c_prop_id = meta.const_prop_meta().get_and_validate(property, dtype)?;
     Ok((t_prop_id, c_prop_id))
+}
+
+fn get_ids(meta: &Meta, property: &str) -> (Option<usize>, Option<usize>) {
+    let t_prop_id = meta.temporal_prop_meta().get_id(property);
+    let c_prop_id = meta.const_prop_meta().get_id(property);
+    (t_prop_id, c_prop_id)
 }
 
 impl<'graph, G: OneHopFilter<'graph>> EdgePropertyFilterOps<'graph> for G {
@@ -71,7 +82,7 @@ impl<'graph, G: OneHopFilter<'graph>> EdgePropertyFilterOps<'graph> for G {
             self.current_filter().clone(),
             t_prop_id,
             c_prop_id,
-            PropFilter::new(value, |left, right| left > right),
+            PropValueFilter::new(value, |left, right| left > right),
         )))
     }
 
@@ -86,7 +97,7 @@ impl<'graph, G: OneHopFilter<'graph>> EdgePropertyFilterOps<'graph> for G {
             self.current_filter().clone(),
             t_prop_id,
             c_prop_id,
-            PropFilter::new(value, |left, right| left >= right),
+            PropValueFilter::new(value, |left, right| left >= right),
         )))
     }
 
@@ -102,7 +113,7 @@ impl<'graph, G: OneHopFilter<'graph>> EdgePropertyFilterOps<'graph> for G {
             self.current_filter().clone(),
             t_prop_id,
             c_prop_id,
-            PropFilter::new(value, |left, right| left == right),
+            PropValueFilter::new(value, |left, right| left == right),
         )))
     }
 
@@ -118,7 +129,7 @@ impl<'graph, G: OneHopFilter<'graph>> EdgePropertyFilterOps<'graph> for G {
             self.current_filter().clone(),
             t_prop_id,
             c_prop_id,
-            PropFilter::new(value, |left, right| left != right),
+            PropValueFilter::new(value, |left, right| left != right),
         )))
     }
 
@@ -134,7 +145,7 @@ impl<'graph, G: OneHopFilter<'graph>> EdgePropertyFilterOps<'graph> for G {
             self.current_filter().clone(),
             t_prop_id,
             c_prop_id,
-            PropFilter::new(value, |left, right| left < right),
+            PropValueFilter::new(value, |left, right| left < right),
         )))
     }
 
@@ -150,8 +161,48 @@ impl<'graph, G: OneHopFilter<'graph>> EdgePropertyFilterOps<'graph> for G {
             self.current_filter().clone(),
             t_prop_id,
             c_prop_id,
-            PropFilter::new(value, |left, right| left <= right),
+            PropValueFilter::new(value, |left, right| left <= right),
         )))
+    }
+
+    fn filter_edges_has(&self, property: &str) -> Self::FilteredViewType {
+        let (t_prop_id, c_prop_id) = get_ids(self.current_filter().edge_meta(), property);
+        self.one_hop_filtered(EdgePropertyFilteredGraph::new(
+            self.current_filter().clone(),
+            t_prop_id,
+            c_prop_id,
+            PropFilter::Has,
+        ))
+    }
+
+    fn filter_edges_has_not(&self, property: &str) -> Self::FilteredViewType {
+        let (t_prop_id, c_prop_id) = get_ids(self.current_filter().edge_meta(), property);
+        self.one_hop_filtered(EdgePropertyFilteredGraph::new(
+            self.current_filter().clone(),
+            t_prop_id,
+            c_prop_id,
+            PropFilter::HasNot,
+        ))
+    }
+
+    fn filter_edges_in(&self, property: &str, set: HashSet<Prop>) -> Self::FilteredViewType {
+        let (t_prop_id, c_prop_id) = get_ids(self.current_filter().edge_meta(), property);
+        self.one_hop_filtered(EdgePropertyFilteredGraph::new(
+            self.current_filter().clone(),
+            t_prop_id,
+            c_prop_id,
+            PropFilter::In(set),
+        ))
+    }
+
+    fn filter_edges_not_in(&self, property: &str, set: HashSet<Prop>) -> Self::FilteredViewType {
+        let (t_prop_id, c_prop_id) = get_ids(self.current_filter().edge_meta(), property);
+        self.one_hop_filtered(EdgePropertyFilteredGraph::new(
+            self.current_filter().clone(),
+            t_prop_id,
+            c_prop_id,
+            PropFilter::NotIn(set),
+        ))
     }
 }
 

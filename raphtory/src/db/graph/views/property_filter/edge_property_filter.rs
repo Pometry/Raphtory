@@ -12,7 +12,10 @@ use crate::{
                 Base,
             },
         },
-        graph::{edge::EdgeView, views::property_filter::PropFilter},
+        graph::{
+            edge::EdgeView,
+            views::property_filter::{PropFilter, PropValueFilter},
+        },
     },
     prelude::{EdgeViewOps, GraphViewOps},
 };
@@ -30,13 +33,13 @@ impl<'graph, G> EdgePropertyFilteredGraph<G> {
         graph: G,
         t_prop_id: Option<usize>,
         c_prop_id: Option<usize>,
-        filter: PropFilter,
+        filter: impl Into<PropFilter>,
     ) -> Self {
         Self {
             graph,
             t_prop_id,
             c_prop_id,
-            filter,
+            filter: filter.into(),
         }
     }
 }
@@ -88,7 +91,7 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for EdgePropertyFilteredGrap
                     self.c_prop_id
                         .and_then(|prop_id| props.constant().get_by_id(prop_id))
                 });
-            prop_value.filter(|v| self.filter.filter(v)).is_some()
+            self.filter.filter(prop_value.as_ref())
         } else {
             false
         }
