@@ -30,10 +30,10 @@ use std::{collections::HashMap, path::PathBuf, thread};
 
 /// A class for defining and running a Raphtory GraphQL server
 #[pyclass(name = "GraphServer")]
-pub struct PyGraphServer(pub(crate) Option<GraphServer>);
+pub struct PyGraphServer(pub Option<GraphServer>);
 
 impl PyGraphServer {
-    fn new(server: GraphServer) -> Self {
+    pub fn new(server: GraphServer) -> Self {
         Self(Some(server))
     }
 

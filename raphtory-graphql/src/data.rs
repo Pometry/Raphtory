@@ -29,9 +29,9 @@ use std::{
 use walkdir::WalkDir;
 
 pub struct Data {
-    pub(crate) work_dir: PathBuf,
-    pub(crate) graphs: Cache<PathBuf, IndexedGraph<MaterializedGraph>>,
-    pub(crate) global_plugins: GlobalPlugins,
+    pub work_dir: PathBuf,
+    pub graphs: Cache<PathBuf, IndexedGraph<MaterializedGraph>>,
+    pub global_plugins: GlobalPlugins,
 }
 
 impl Data {
