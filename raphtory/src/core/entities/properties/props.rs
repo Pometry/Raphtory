@@ -275,6 +275,28 @@ impl PropMapper {
             dtypes: Arc::new(RwLock::new(dtypes)),
         }
     }
+
+    pub fn get_and_validate(
+        &self,
+        prop: &str,
+        dtype: PropType,
+    ) -> Result<Option<usize>, GraphError> {
+        match self.get_id(prop) {
+            Some(id) => {
+                let existing_dtype = self.get_dtype(id).unwrap();
+                if existing_dtype == dtype {
+                    Ok(Some(id))
+                } else {
+                    Err(GraphError::PropertyTypeError {
+                        name: prop.to_string(),
+                        expected: existing_dtype,
+                        actual: dtype,
+                    })
+                }
+            }
+            None => Ok(None),
+        }
+    }
     pub(crate) fn get_or_create_and_validate(
         &self,
         prop: &str,
