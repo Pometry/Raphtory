@@ -12,7 +12,7 @@ use crate::{
         tprop_storage_ops::TPropOps,
     },
 };
-use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+use raphtory_api::core::{entities::EID, storage::timeindex::TimeIndexEntry};
 use rayon::iter::ParallelIterator;
 use std::ops::Range;
 
@@ -80,6 +80,10 @@ impl<'a> EdgeStorageOps<'a> for &'a EdgeOwnedEntry {
 
     fn dst(self) -> VID {
         self.as_ref().dst()
+    }
+
+    fn eid(self) -> EID {
+        self.as_ref().eid()
     }
 
     fn layer_ids_iter(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = usize> + 'a {

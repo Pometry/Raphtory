@@ -1,34 +1,31 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, LayerIds, EID, ELID},
-        storage::timeindex::TimeIndexOps,
+        entities::{edges::edge_ref::EdgeRef, LayerIds, EID},
+        storage::timeindex::TimeIndexIntoOps,
+        utils::iter::GenLockedIter,
     },
-    db::api::storage::graph::edges::edge_storage_ops::EdgeStorageIntoOps,
+    db::api::{storage::graph::edges::edge_storage_ops::{EdgeStorageIntoOps, EdgeStorageOps}, view::IntoDynBoxed},
+    disk_graph::DiskGraphStorage,
 };
-use pometry_storage::{edge::Edge, edges::Edges, graph::TemporalGraph, timestamps::TimeStamps};
+use itertools::Itertools;
+use pometry_storage::edge::Edge;
 use raphtory_api::core::storage::timeindex::TimeIndexEntry;
-use std::ops::Range;
+use std::{ops::Range, sync::Arc};
 
 pub type DiskEdge<'a> = Edge<'a>;
 
 #[derive(Debug, Clone)]
 pub struct DiskOwnedEdge {
-    edges: Edges,
+    graph: Arc<DiskGraphStorage>,
     eid: EID,
 }
 
 impl DiskOwnedEdge {
-    pub(crate) fn new(graph: &TemporalGraph, eid: ELID) -> Self {
-        let layer = eid
-            .layer()
-            .expect("disk_graph EdgeRefs should have layer always defined");
-        Self {
-            edges: graph.layer(layer).edges_storage().clone(),
-            eid: eid.pid(),
-        }
+    pub(crate) fn new(graph: Arc<DiskGraphStorage>, eid: EID) -> Self {
+        Self { graph, eid }
     }
     pub fn as_ref(&self) -> DiskEdge {
-        self.edges.edge(self.eid)
+        self.graph.inner.edge(self.eid)
     }
 }
 
@@ -38,8 +35,15 @@ impl EdgeStorageIntoOps for DiskOwnedEdge {
         layer_ids: LayerIds,
         eref: EdgeRef,
     ) -> impl Iterator<Item = EdgeRef> + Send {
-        let layer_id = self.edges.layer_id();
-        layer_ids.contains(&layer_id).then_some(eref).into_iter()
+        let layer_ids = layer_ids.constrain_from_edge(eref);
+
+        GenLockedIter::from((self, layer_ids), |(edge, layers)| {
+            Box::new(
+                edge.as_ref()
+                    .layer_ids_iter(layers)
+                    .map(move |l| eref.at_layer(l)),
+            )
+        })
     }
 
     fn into_exploded(
@@ -47,17 +51,14 @@ impl EdgeStorageIntoOps for DiskOwnedEdge {
         layer_ids: LayerIds,
         eref: EdgeRef,
     ) -> impl Iterator<Item = EdgeRef> + Send {
-        let layer_id = self.edges.layer_id();
-        layer_ids
-            .contains(&layer_id)
-            .then(move || {
-                let ts = self.edges.into_time().into_value(self.eid.0);
-                let range = ts.range().clone();
-                ts.zip(range)
-                    .map(move |(t, s)| eref.at(TimeIndexEntry(t, s)))
-            })
-            .into_iter()
-            .flatten()
+        let layer_ids = layer_ids.constrain_from_edge(eref);
+        GenLockedIter::from((self, layer_ids, eref), |(edge, layers, eref)| {
+            edge.as_ref()
+                .additions_iter(layers)
+                .map(move |(l, a)| a.into_iter().map(move |t| eref.at(t).at_layer(l)))
+                .kmerge_by(|e1, e2| e1.time() <= e2.time())
+                .into_dyn_boxed()
+        })
     }
 
     fn into_exploded_window(
@@ -66,19 +67,17 @@ impl EdgeStorageIntoOps for DiskOwnedEdge {
         w: Range<TimeIndexEntry>,
         eref: EdgeRef,
     ) -> impl Iterator<Item = EdgeRef> + Send {
-        let layer_id = self.edges.layer_id();
-        layer_ids
-            .contains(&layer_id)
-            .then(move || {
-                let array = self.edges.into_time();
-                let ts: TimeStamps<TimeIndexEntry> = TimeStamps::new(array.value(self.eid.0), None);
-                let times = ts.range(w).timestamps().into_owned();
-                let range = times.range().clone();
-                times
-                    .zip(range)
-                    .map(move |(t, s)| eref.at(TimeIndexEntry(t, s)))
-            })
-            .into_iter()
-            .flatten()
-    }
+        let layer_ids = layer_ids.constrain_from_edge(eref);
+        GenLockedIter::from((self, layer_ids, w), |(edge, layers, w)| {
+            Box::new(
+                edge.as_ref()
+                    .additions_iter(layers)
+                    .flat_map(move |(l, a)| {
+                        a.into_range(w.clone())
+                            .into_iter()
+                            .map(move |t| eref.at(t).at_layer(l))
+                    }),
+            )
+        })
+   }
 }

@@ -1,5 +1,6 @@
 use std::ops::Range;
 
+use raphtory_api::core::entities::EID;
 use rayon::prelude::*;
 
 use super::edge_storage_ops::MemEdge;
@@ -63,6 +64,10 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
 
     fn dst(self) -> VID {
         self.as_ref().dst()
+    }
+
+    fn eid(self) -> EID{
+        self.as_ref().eid()
     }
 
     fn layer_ids_iter(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = usize> + 'a {

@@ -7,30 +7,36 @@ use crate::{
     db::api::storage::graph::{
         edges::edge_storage_ops::{EdgeStorageOps, TimeIndexRef},
         tprop_storage_ops::TPropOps,
+        variants::layer_variants::LayerVariants,
     },
     disk_graph::graph_impl::tprops::read_tprop_column,
 };
 use pometry_storage::{edge::Edge, tprops::DiskTProp};
-use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+use raphtory_api::core::{entities::EID, storage::timeindex::TimeIndexEntry};
 use rayon::prelude::*;
 use std::{iter, ops::Range};
 
 impl<'a> EdgeStorageOps<'a> for Edge<'a> {
-    fn in_ref(self) -> EdgeRef {
-        EdgeRef::new_incoming(self.eid(), self.src_id(), self.dst_id()).at_layer(self.layer_id())
-    }
-
-    fn out_ref(self) -> EdgeRef {
-        EdgeRef::new_outgoing(self.eid(), self.src_id(), self.dst_id()).at_layer(self.layer_id())
-    }
-
     fn active(self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
-        // this is probably heavy
-        self.has_layer(layer_ids) && self.timestamps::<i64>().active_t(w)
+        match layer_ids {
+            LayerIds::None => false,
+            LayerIds::All => self
+                .additions_iter(layer_ids)
+                .any(|(_, t_index)| t_index.active_t(w.clone())),
+            LayerIds::One(l_id) => self.get_additions::<i64>(*l_id).active_t(w),
+            LayerIds::Multiple(layers) => layers
+                .iter()
+                .any(|l_id| self.active(&LayerIds::One(*l_id), w.clone())),
+        }
     }
 
     fn has_layer(self, layer_ids: &LayerIds) -> bool {
-        layer_ids.contains(&self.layer_id())
+        match layer_ids {
+            LayerIds::None => false,
+            LayerIds::All => true,
+            LayerIds::One(id) => self.has_layer_inner(*id),
+            LayerIds::Multiple(ids) => ids.iter().any(|id| self.has_layer_inner(*id)),
+        }
     }
 
     fn src(self) -> VID {
@@ -41,21 +47,47 @@ impl<'a> EdgeStorageOps<'a> for Edge<'a> {
         self.dst_id()
     }
 
+    fn eid(self) -> EID {
+        self.eidx()
+    }
+
     fn layer_ids_iter(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = usize> + 'a {
-        layer_ids
-            .contains(&self.layer_id())
-            .then_some(self.layer_id())
-            .into_iter()
+        match layer_ids {
+            LayerIds::None => LayerVariants::None(std::iter::empty()),
+            LayerIds::All => LayerVariants::All(
+                (0..self.internal_num_layers()).filter(move |&l| self.has_layer_inner(l)),
+            ),
+            LayerIds::One(id) => {
+                LayerVariants::One(self.has_layer_inner(*id).then_some(*id).into_iter())
+            }
+            LayerIds::Multiple(ids) => LayerVariants::Multiple(
+                ids.iter()
+                    .copied()
+                    .filter(move |&id| self.has_layer_inner(id)),
+            ),
+        }
     }
 
     fn layer_ids_par_iter(
         self,
         layer_ids: &'a LayerIds,
     ) -> impl ParallelIterator<Item = usize> + 'a {
-        layer_ids
-            .contains(&self.layer_id())
-            .then_some(self.layer_id())
-            .into_par_iter()
+        match layer_ids {
+            LayerIds::None => LayerVariants::None(rayon::iter::empty()),
+            LayerIds::All => LayerVariants::All(
+                (0..self.internal_num_layers())
+                    .into_par_iter()
+                    .filter(move |&l| self.has_layer_inner(l)),
+            ),
+            LayerIds::One(id) => {
+                LayerVariants::One(self.has_layer_inner(*id).then_some(*id).into_par_iter())
+            }
+            LayerIds::Multiple(ids) => LayerVariants::Multiple(
+                ids.par_iter()
+                    .copied()
+                    .filter(move |&id| self.has_layer_inner(id)),
+            ),
+        }
     }
 
     fn deletions_iter(
@@ -73,29 +105,17 @@ impl<'a> EdgeStorageOps<'a> for Edge<'a> {
     }
 
     fn additions(self, layer_id: usize) -> TimeIndexRef<'a> {
-        if self.layer_id() != layer_id {
-            TimeIndexRef::Ref(&TimeIndex::Empty)
-        } else {
-            TimeIndexRef::External(self.timestamps::<TimeIndexEntry>())
-        }
+        TimeIndexRef::External(self.get_additions::<TimeIndexEntry>(layer_id))
     }
 
     fn deletions(self, _layer_id: usize) -> TimeIndexRef<'a> {
         TimeIndexRef::Ref(&TimeIndex::Empty)
     }
 
-    fn has_temporal_prop(self, layer_ids: &LayerIds, prop_id: usize) -> bool {
-        layer_ids.contains(&self.layer_id()) && self.has_temporal_prop_inner(prop_id)
-    }
-
     fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> impl TPropOps<'a> + Sync + 'a {
-        if layer_id == self.layer_id() {
-            self.temporal_property_field(prop_id)
-                .and_then(|field| read_tprop_column(prop_id, field, self))
-        } else {
-            None
-        }
-        .unwrap_or(DiskTProp::empty())
+        self.temporal_prop_layer_inner(layer_id, prop_id)
+            .and_then(|field| read_tprop_column(self, prop_id, layer_id, field))
+            .unwrap_or(DiskTProp::empty())
     }
 
     fn constant_prop_layer(self, _layer_id: usize, _prop_id: usize) -> Option<Prop> {

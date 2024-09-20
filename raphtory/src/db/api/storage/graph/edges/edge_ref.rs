@@ -89,6 +89,10 @@ impl<'a> EdgeStorageOps<'a> for EdgeStorageRef<'a> {
         for_all!(self, edge => edge.dst())
     }
 
+    fn eid(self) -> EID {
+        for_all!(self, edge => edge.eid())
+    }
+
     fn layer_ids_iter(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = usize> + 'a {
         for_all_iter!(self, edge => EdgeStorageOps::layer_ids_iter(edge, layer_ids))
     }

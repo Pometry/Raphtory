@@ -4,12 +4,10 @@ use crate::{
             edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
             properties::{props::Props, tprop::TProp},
             LayerIds, VID,
-        },
-        storage::{
+        }, storage::{
             raw_edges::EdgeShard,
             timeindex::{TimeIndex, TimeIndexIntoOps, TimeIndexOps, TimeIndexWindow},
-        },
-        Prop,
+        }, utils::iter::GenLockedIter, Prop
     },
     db::api::{
         storage::graph::{tprop_storage_ops::TPropOps, variants::layer_variants::LayerVariants},
@@ -145,14 +143,55 @@ pub trait EdgeStorageIntoOps {
     ) -> impl Iterator<Item = EdgeRef> + Send;
 }
 
-pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
-    fn in_ref(self) -> EdgeRef;
+// impl <'a, E: EdgeStorageOps<'a>, OE: AsRef<E>> EdgeStorageIntoOps<'a> for OE {
+//     fn into_layers(
+//         self,
+//         layer_ids: LayerIds,
+//         eref: EdgeRef,
+//     ) -> impl Iterator<Item = EdgeRef> + Send {
+//         let layer_ids = layer_ids.constrain_from_edge(eref);
+//         GenLockedIter::from((self, layer_ids), |(edge, layers)| {
+//             Box::new(
+//                 edge.as_ref()
+//                     .layer_ids_iter(layers)
+//                     .map(move |l| eref.at_layer(l)),
+//             )
+//         })
+//     }
 
-    fn out_ref(self) -> EdgeRef;
+//     fn into_exploded(
+//         self,
+//         layer_ids: LayerIds,
+//         eref: EdgeRef,
+//     ) -> impl Iterator<Item = EdgeRef> + Send {
+//         todo!()
+//     }
+
+//     fn into_exploded_window(
+//         self,
+//         layer_ids: LayerIds,
+//         w: Range<TimeIndexEntry>,
+//         eref: EdgeRef,
+//     ) -> impl Iterator<Item = EdgeRef> + Send {
+//         todo!()
+//     }
+// }
+
+pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
+    fn in_ref(self) -> EdgeRef {
+        EdgeRef::new_incoming(self.eid(), self.src(), self.dst())
+    }
+
+    fn out_ref(self) -> EdgeRef {
+        EdgeRef::new_outgoing(self.eid(), self.src(), self.dst())
+    }
+
     fn active(self, layer_ids: &LayerIds, w: Range<i64>) -> bool;
+
     fn has_layer(self, layer_ids: &LayerIds) -> bool;
     fn src(self) -> VID;
     fn dst(self) -> VID;
+    fn eid(self) -> EID;
 
     fn layer_ids_iter(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = usize> + 'a;
 
@@ -298,13 +337,6 @@ impl<'a> MemEdge<'a> {
 }
 
 impl<'a> EdgeStorageOps<'a> for MemEdge<'a> {
-    fn in_ref(self) -> EdgeRef {
-        EdgeRef::new_incoming(self.eid(), self.src(), self.dst())
-    }
-
-    fn out_ref(self) -> EdgeRef {
-        EdgeRef::new_outgoing(self.eid(), self.src(), self.dst())
-    }
 
     fn active(self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
         match layer_ids {
@@ -395,5 +427,9 @@ impl<'a> EdgeStorageOps<'a> for MemEdge<'a> {
     fn constant_prop_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
         self.props(layer_id)
             .and_then(|props| props.const_prop(prop_id).cloned())
+    }
+    
+    fn eid(self) -> EID {
+        self.eid()
     }
 }

@@ -144,13 +144,7 @@ impl<'a> EdgesStorageRef<'a> {
                 EdgeStorageEntry::Unlocked(storage.0.edge_entry(edge.pid()))
             }
             #[cfg(feature = "storage")]
-            EdgesStorageRef::Disk(storage) => EdgeStorageEntry::Disk(
-                storage.edge(
-                    edge.pid(),
-                    edge.layer()
-                        .expect("DiskGraph edges should always have layer set currently"),
-                ),
-            ),
+            EdgesStorageRef::Disk(storage) => EdgeStorageEntry::Disk(storage.edge(edge.pid())),
         }
     }
 
