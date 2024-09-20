@@ -3,7 +3,7 @@ use crate::python::{
     server::{is_online, wait_server, BridgeCommand},
     RUNNING_SERVER_CONSUMED_MSG, WAIT_CHECK_INTERVAL_MILLIS,
 };
-use crossbeam_channel::{SendError, Sender as CrossbeamSender};
+use crossbeam_channel::Sender as CrossbeamSender;
 use pyo3::{exceptions::PyException, pyclass, pymethods, Py, PyObject, PyResult, Python};
 use std::{
     thread::{sleep, JoinHandle},

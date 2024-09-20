@@ -52,7 +52,7 @@ pub fn graph_equal<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps
             g1.edges().explode().iter().all(|e| { // all exploded edges exist in other
                 g2
                     .edge(e.src().id(), e.dst().id())
-                    .filter(|ee| ee.active(e.time().expect("exploded")))
+                    .filter(|ee| ee.at(e.time().expect("exploded")).is_active())
                     .is_some()
             })
     } else {
@@ -2292,17 +2292,20 @@ mod db_tests {
                             ); // times are the same for exploded edge
                             let t = ee.earliest_time().unwrap();
                             check(
-                                ee.active(t),
+                                ee.at(t).is_active(),
                                 format!("exploded edge {:?} inactive at {}", ee, t),
                             );
                             if t < i64::MAX {
                                 // window is broken at MAX!
-                                check(e.active(t), format!("edge {:?} inactive at {}", e, t));
+                                check(
+                                    e.at(t).is_active(),
+                                    format!("edge {:?} inactive at {}", e, t),
+                                );
                             }
                             let t_test = t.saturating_add(offset);
                             if t_test != t && t_test < i64::MAX && t_test > i64::MIN {
                                 check(
-                                    !ee.active(t_test),
+                                    !ee.at(t_test).is_active(),
                                     format!("exploded edge {:?} active at {}", ee, t_test),
                                 );
                             }
