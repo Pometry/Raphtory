@@ -2,10 +2,7 @@
 
 use crate::{
     data::Data,
-    model::{
-        algorithms::{query::Query, query_entry_point::QueryEntryPoint},
-        App,
-    },
+    model::App,
     observability::tracing::create_tracer_from_env,
     routes::{graphql_playground, health},
 };
@@ -23,7 +20,10 @@ use raphtory::{
 };
 
 use crate::{
-    model::algorithms::{mutation::Mutation, mutation_entry_point::MutationEntryPoint},
+    model::plugins::{
+        mutation::Mutation, mutation_entry_point::MutationEntryPoint, query::Query,
+        query_entry_point::QueryEntryPoint,
+    },
     server_config::{load_config, AppConfig, LoggingConfig},
 };
 use config::ConfigError;

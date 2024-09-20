@@ -1,5 +1,6 @@
-use crate::model::algorithms::{
-    global_search::GlobalSearch, query::Query, query_entry_point::QueryEntryPoint, RegisterFunction,
+use crate::model::{
+    algorithms::{global_search::GlobalSearch, RegisterFunction},
+    plugins::{query::Query, query_entry_point::QueryEntryPoint},
 };
 use async_graphql::{dynamic::FieldValue, Context};
 use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName};

@@ -1,4 +1,7 @@
-use crate::model::algorithms::{document::GqlDocument, query::Query, query_plugins::QueryPlugins};
+use crate::model::{
+    algorithms::document::GqlDocument,
+    plugins::{query::Query, query_plugins::QueryPlugins},
+};
 use async_graphql::{
     dynamic::{FieldValue, ResolverContext, TypeRef},
     FieldResult,

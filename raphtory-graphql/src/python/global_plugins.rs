@@ -1,4 +1,4 @@
-use crate::model::algorithms::query_plugins::QueryPlugins;
+use crate::model::plugins::query_plugins::QueryPlugins;
 use pyo3::{pyclass, pymethods, Python};
 use raphtory::{
     python::{

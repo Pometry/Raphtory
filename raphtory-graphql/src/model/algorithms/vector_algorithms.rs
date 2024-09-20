@@ -1,6 +1,6 @@
-use crate::model::algorithms::{
-    query::Query, query_entry_point::QueryEntryPoint, similarity_search::SimilaritySearch,
-    RegisterFunction,
+use crate::model::{
+    algorithms::{similarity_search::SimilaritySearch, RegisterFunction},
+    plugins::{query::Query, query_entry_point::QueryEntryPoint},
 };
 use async_graphql::{dynamic::FieldValue, Context};
 use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName};

@@ -1,4 +1,6 @@
-use crate::model::algorithms::{mutation_entry_point::MutationEntryPoint, RegisterFunction};
+use crate::model::{
+    algorithms::RegisterFunction, plugins::mutation_entry_point::MutationEntryPoint,
+};
 use async_graphql::{dynamic::FieldValue, Context};
 use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName};
 use once_cell::sync::Lazy;

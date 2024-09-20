@@ -1,11 +1,11 @@
 use crate::{
     data::Data,
     model::{
-        algorithms::{mutation_plugins::MutationPlugins, query_plugins::QueryPlugins},
         graph::{
             graph::GqlGraph, graphs::GqlGraphs, mutable_graph::GqlMutableGraph,
             vectorised_graph::GqlVectorisedGraph,
         },
+        plugins::{mutation_plugins::MutationPlugins, query_plugins::QueryPlugins},
     },
     url_encode::{url_decode_graph, url_encode_graph},
 };
@@ -36,6 +36,7 @@ use std::{
 
 pub mod algorithms;
 pub(crate) mod graph;
+pub mod plugins;
 pub(crate) mod schema;
 
 #[derive(Debug)]

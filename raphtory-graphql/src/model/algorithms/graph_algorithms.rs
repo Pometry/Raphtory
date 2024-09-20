@@ -1,7 +1,9 @@
-use crate::model::algorithms::{
-    query::{Pagerank, Query},
-    query_entry_point::QueryEntryPoint,
-    RegisterFunction,
+use crate::model::{
+    algorithms::{
+        algorithms::{Pagerank, ShortestPath},
+        RegisterFunction,
+    },
+    plugins::{query::Query, query_entry_point::QueryEntryPoint},
 };
 use async_graphql::{dynamic::FieldValue, Context};
 use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName};
@@ -12,8 +14,6 @@ use std::{
     collections::HashMap,
     sync::{Mutex, MutexGuard},
 };
-
-use super::query::ShortestPath;
 
 pub static GRAPH_ALGO_PLUGINS: Lazy<Mutex<HashMap<String, RegisterFunction>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));

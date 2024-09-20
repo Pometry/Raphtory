@@ -1,4 +1,4 @@
-use crate::model::algorithms::mutation_entry_point::MutationEntryPoint;
+use crate::model::plugins::mutation_entry_point::MutationEntryPoint;
 use async_graphql::{
     dynamic::{Field, FieldFuture, FieldValue, InputValue, Object, ResolverContext, TypeRef},
     FieldResult,

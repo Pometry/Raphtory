@@ -1,5 +1,5 @@
 use crate::{
-    model::{algorithms::query_plugins::QueryPlugins, create_dirs_if_not_present, GqlGraphType},
+    model::{create_dirs_if_not_present, plugins::query_plugins::QueryPlugins, GqlGraphType},
     server_config::AppConfig,
 };
 use moka::sync::Cache;

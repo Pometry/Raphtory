@@ -1,5 +1,6 @@
-use crate::model::algorithms::{
-    document::GqlDocument, query::Query, vector_algorithms::VectorAlgorithms,
+use crate::model::{
+    algorithms::{document::GqlDocument, vector_algorithms::VectorAlgorithms},
+    plugins::query::Query,
 };
 use async_graphql::{
     dynamic::{FieldValue, ResolverContext, TypeRef},

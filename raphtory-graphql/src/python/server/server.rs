@@ -1,7 +1,7 @@
 use crate::{
-    model::algorithms::{
-        document::GqlDocument, query_entry_point::QueryEntryPoint, query_plugins::QueryPlugins,
-        vector_algorithms::VectorAlgorithms,
+    model::{
+        algorithms::{document::GqlDocument, vector_algorithms::VectorAlgorithms},
+        plugins::{query_entry_point::QueryEntryPoint, query_plugins::QueryPlugins},
     },
     python::{
         adapt_graphql_value,
