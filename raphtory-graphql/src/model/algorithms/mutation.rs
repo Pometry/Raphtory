@@ -1,0 +1,33 @@
+use async_graphql::dynamic::{Field, FieldFuture, FieldValue, InputValue, Object, ResolverContext, TypeRef};
+use async_graphql::FieldResult;
+use dynamic_graphql::internal::{Register, Registry};
+use futures_util::future::BoxFuture;
+use crate::model::algorithms::mutation_entry_point::MutationEntryPoint;
+
+pub trait Mutation<'a, A: MutationEntryPoint<'a> + 'static> {
+    type OutputType: Register + 'static;
+
+    fn output_type() -> TypeRef;
+
+    fn args<'b>() -> Vec<(&'b str, TypeRef)>;
+
+    fn apply_mutation<'b>(
+        entry_point: &A,
+        ctx: ResolverContext,
+    ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>>;
+
+    fn register_algo(name: &str, registry: Registry, parent: Object) -> (Registry, Object) {
+        let registry = registry.register::<Self::OutputType>();
+        let mut field = Field::new(name, Self::output_type(), |ctx| {
+            FieldFuture::new(async move {
+                let algos: &A = ctx.parent_value.downcast_ref().unwrap();
+                Self::apply_mutation(&algos, ctx).await
+            })
+        });
+        for (name, type_ref) in Self::args() {
+            field = field.argument(InputValue::new(name, type_ref));
+        }
+        let parent = parent.field(field);
+        (registry, parent)
+    }
+}

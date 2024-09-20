@@ -33,6 +33,7 @@ use std::{
     path::Path,
     sync::Arc,
 };
+use crate::model::algorithms::mutation_plugins::MutationPlugins;
 
 pub mod algorithms;
 pub(crate) mod graph;
@@ -139,6 +140,11 @@ pub(crate) struct Mut(MutRoot);
 
 #[MutationFields]
 impl Mut {
+
+    async fn plugins<'a>(ctx: &Context<'a>) -> MutationPlugins {
+        MutationPlugins::default()
+    }
+
     // If namespace is not provided, it will be set to the current working directory.
     async fn delete_graph<'a>(ctx: &Context<'a>, path: String) -> Result<bool> {
         let path = Path::new(&path);

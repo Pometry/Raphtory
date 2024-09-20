@@ -43,6 +43,8 @@ use tracing_subscriber::{
     layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, FmtSubscriber, Registry,
 };
 use url::ParseError;
+use crate::model::algorithms::mutation::Mutation;
+use crate::model::algorithms::mutation_entry_point::MutationEntryPoint;
 
 #[derive(Error, Debug)]
 pub enum ServerError {
@@ -152,10 +154,16 @@ impl GraphServer {
         'a,
         E: AlgorithmEntryPoint<'a> + 'static,
         A: Algorithm<'a, E> + 'static,
-    >(
-        self,
-        name: &str,
-    ) -> Self {
+    >(self, name: &str) -> Self {
+        E::lock_plugins().insert(name.to_string(), Box::new(A::register_algo));
+        self
+    }
+
+    pub fn register_mutation_plugins<
+        'a,
+        E: MutationEntryPoint<'a> + 'static,
+        A: Mutation<'a, E> + 'static,
+    >(self, name: &str) -> Self {
         E::lock_plugins().insert(name.to_string(), Box::new(A::register_algo));
         self
     }
