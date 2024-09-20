@@ -283,7 +283,9 @@ impl PropMapper {
     ) -> Result<Option<usize>, GraphError> {
         match self.get_id(prop) {
             Some(id) => {
-                let existing_dtype = self.get_dtype(id).unwrap();
+                let existing_dtype = self
+                    .get_dtype(id)
+                    .expect("Existing id should always have a dtype");
                 if existing_dtype == dtype {
                     Ok(Some(id))
                 } else {
