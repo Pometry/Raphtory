@@ -208,7 +208,6 @@ where
         .unwrap_or_else(|| vec![]) // there should be only one value here, TODO: check that's true
 }
 
-// TODO: remove, this is only a dummy impl that is Send
 async fn compute_embedding_groups<I>(
     documents: I,
     embedding: &dyn EmbeddingFunction,
@@ -218,52 +217,43 @@ where
     I: Iterator<Item = IndexedDocumentInput>,
 {
     let mut embedding_groups: HashMap<EntityId, Vec<DocumentRef>> = HashMap::new();
+    let mut buffer = Vec::with_capacity(CHUNK_SIZE);
 
     for document in documents {
-        let doc_refs = compute_chunk(std::iter::once(document), embedding, cache).await;
-        for doc in doc_refs {
-            match embedding_groups.get_mut(&doc.entity_id) {
-                Some(group) => group.push(doc),
-                None => {
-                    embedding_groups.insert(doc.entity_id.clone(), vec![doc]);
+        buffer.push(document);
+        if buffer.len() >= CHUNK_SIZE {
+            let doc_refs = compute_chunk(&buffer, embedding, cache).await;
+            for doc in doc_refs {
+                match embedding_groups.get_mut(&doc.entity_id) {
+                    Some(group) => group.push(doc),
+                    None => {
+                        embedding_groups.insert(doc.entity_id.clone(), vec![doc]);
+                    }
                 }
+            }
+            buffer.clear();
+        }
+    }
+
+    // FIXME: repeated code above
+    let doc_refs = compute_chunk(&buffer, embedding, cache).await;
+    for doc in doc_refs {
+        match embedding_groups.get_mut(&doc.entity_id) {
+            Some(group) => group.push(doc),
+            None => {
+                embedding_groups.insert(doc.entity_id.clone(), vec![doc]);
             }
         }
     }
+
     embedding_groups
 }
 
-// async fn compute_embedding_groups<I>(
-//     documents: I,
-//     embedding: &dyn EmbeddingFunction,
-//     cache: &Option<EmbeddingCache>,
-// ) -> HashMap<EntityId, Vec<DocumentRef>>
-// where
-//     I: Iterator<Item = IndexedDocumentInput>,
-// {
-//     let mut embedding_groups: HashMap<EntityId, Vec<DocumentRef>> = HashMap::new();
-//     for chunk in documents.chunks(CHUNK_SIZE).into_iter() {
-//         let doc_refs = compute_chunk(chunk, embedding, cache).await;
-//         for doc in doc_refs {
-//             match embedding_groups.get_mut(&doc.entity_id) {
-//                 Some(group) => group.push(doc),
-//                 None => {
-//                     embedding_groups.insert(doc.entity_id.clone(), vec![doc]);
-//                 }
-//             }
-//         }
-//     }
-//     embedding_groups
-// }
-
-async fn compute_chunk<I>(
-    documents: I,
+async fn compute_chunk(
+    documents: &Vec<IndexedDocumentInput>,
     embedding: &dyn EmbeddingFunction,
     cache: &Option<EmbeddingCache>,
-) -> Vec<DocumentRef>
-where
-    I: Iterator<Item = IndexedDocumentInput>,
-{
+) -> Vec<DocumentRef> {
     let mut misses = vec![];
     let mut embedded = vec![];
     match cache {
@@ -272,7 +262,7 @@ where
                 let embedding = cache.get_embedding(&doc.content);
                 match embedding {
                     Some(embedding) => embedded.push(DocumentRef::new(
-                        doc.entity_id,
+                        doc.entity_id.clone(),
                         doc.index,
                         embedding,
                         doc.life,
@@ -281,7 +271,7 @@ where
                 }
             }
         }
-        None => misses = documents.collect_vec(),
+        None => misses = documents.iter().collect(),
     };
 
     let texts = misses.iter().map(|doc| doc.content.clone()).collect_vec();
@@ -296,7 +286,7 @@ where
             cache.upsert_embedding(&doc.content, embedding.clone())
         };
         embedded.push(DocumentRef::new(
-            doc.entity_id,
+            doc.entity_id.clone(),
             doc.index,
             embedding,
             doc.life,

@@ -253,7 +253,7 @@ impl Mut {
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
         let graph = {
-            let mut in_file = graph.value(ctx)?.content;
+            let in_file = graph.value(ctx)?.content;
             let mut archive = ZipArchive::new(in_file)?;
             let mut entry = archive.by_name("graph")?;
             let mut buf = vec![];
