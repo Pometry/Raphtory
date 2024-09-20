@@ -244,7 +244,7 @@ pub(crate) trait InternalCache {
 impl InternalCache for Storage {
     fn init_cache(&self, path: &GraphFolder) -> Result<(), GraphError> {
         self.cache.get_or_try_init(|| {
-            let file = path.append_to_graph()?;
+            let file = path.get_appendable_graph_file()?;
             Ok::<_, GraphError>(GraphWriter::new(file))
         })?;
         Ok(())

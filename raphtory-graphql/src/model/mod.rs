@@ -28,12 +28,12 @@ use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{
     error::Error,
     fmt::{Display, Formatter},
-    fs,
-    fs::File,
-    io::copy,
+    fs::{self, File},
+    io::{copy, Read},
     path::Path,
     sync::Arc,
 };
+use zip::ZipArchive;
 
 pub mod algorithms;
 pub(crate) mod graph;
@@ -147,7 +147,7 @@ impl Mut {
             GqlGraphType::Persistent => PersistentGraph::new().materialize()?,
             GqlGraphType::Event => Graph::new().materialize()?,
         };
-        data.insert_graph(&path, graph).await;
+        data.insert_graph(&path, graph).await?;
         Ok(true)
     }
 
@@ -224,101 +224,6 @@ impl Mut {
         Ok(true)
     }
 
-    // TODO: bring back ?
-    // async fn update_graph<'a>(
-    //     ctx: &Context<'a>,
-    //     parent_graph_path: String,
-    //     graph_path: String,
-    //     new_graph_path: String,
-    //     props: String,
-    //     is_archive: u8,
-    //     graph_nodes: Vec<String>,
-    // ) -> Result<bool> {
-    //     let parent_graph_path = Path::new(&parent_graph_path);
-    //     let graph_path = Path::new(&graph_path);
-    //     let new_graph_path = Path::new(&new_graph_path);
-    //     let data = ctx.data_unchecked::<Data>();
-
-    //     let parent_graph_full_path = data.construct_graph_full_path(parent_graph_path)?;
-    //     if !parent_graph_full_path.exists() {
-    //         return Err(GraphError::GraphNotFound(parent_graph_path.to_path_buf()).into());
-    //     }
-
-    //     // Saving an existing graph
-    //     let graph_full_path = data.construct_graph_full_path(graph_path)?;
-    //     if !graph_full_path.exists() {
-    //         return Err(GraphError::GraphNotFound(graph_path.to_path_buf()).into());
-    //     }
-
-    //     let new_graph_full_path = data.construct_graph_full_path(new_graph_path)?;
-    //     if graph_path != new_graph_path {
-    //         // Save as
-    //         if new_graph_full_path.exists() {
-    //             return Err(
-    //                 GraphError::GraphNameAlreadyExists(new_graph_path.to_path_buf()).into(),
-    //             );
-    //         }
-    //     }
-
-    //     let current_graph = data.get_graph(graph_path)?;
-    //     #[cfg(feature = "storage")]
-    //     if current_graph.graph.storage().is_immutable() {
-    //         return Err(GqlGraphError::ImmutableDiskGraph.into());
-    //     }
-
-    //     let timestamp: i64 = Utc::now().timestamp();
-    //     let node_ids = graph_nodes.iter().map(|key| key.as_str()).collect_vec();
-
-    //     // Creating a new graph from the current graph instead of the parent graph preserves the character of the new graph
-    //     // i.e., the new graph is an event or persistent graph depending on if the current graph is event or persistent graph, respectively.
-    //     let new_subgraph = current_graph.subgraph(node_ids.clone()).materialize()?;
-
-    //     let parent_graph = data.get_graph(parent_graph_path)?;
-    //     let new_node_ids = node_ids
-    //         .iter()
-    //         .filter(|x| current_graph.graph.node(x).is_none())
-    //         .collect_vec();
-    //     let parent_subgraph = parent_graph.subgraph(new_node_ids);
-
-    //     let nodes = parent_subgraph.nodes();
-    //     new_subgraph.import_nodes(nodes, true)?;
-    //     let edges = parent_subgraph.edges();
-    //     new_subgraph.import_edges(edges, true)?;
-
-    //     if graph_path == new_graph_path {
-    //         // Save
-    //         let static_props: Vec<(ArcStr, Prop)> = current_graph
-    //             .properties()
-    //             .into_iter()
-    //             .filter(|(a, _)| a != "name" && a != "lastUpdated" && a != "uiProps")
-    //             .collect_vec();
-    //         new_subgraph.update_constant_properties(static_props)?;
-    //     } else {
-    //         // Save as
-    //         let static_props: Vec<(ArcStr, Prop)> = current_graph
-    //             .properties()
-    //             .into_iter()
-    //             .filter(|(a, _)| a != "name" && a != "creationTime" && a != "uiProps")
-    //             .collect_vec();
-    //         new_subgraph.update_constant_properties(static_props)?;
-    //         new_subgraph
-    //             .update_constant_properties([("creationTime", Prop::I64(timestamp * 1000))])?;
-    //     }
-
-    //     new_subgraph.update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
-    //     new_subgraph.update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
-    //     new_subgraph.update_constant_properties([("uiProps", Prop::Str(props.into()))])?;
-    //     new_subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
-
-    //     new_subgraph.cache(new_graph_full_path)?;
-
-    //     data.graphs.remove(&graph_path.to_path_buf());
-    //     data.graphs
-    //         .insert(new_graph_path.to_path_buf(), new_subgraph.into());
-
-    //     Ok(true)
-    // }
-
     // /// Load graph from path
     // ///
     // /// Returns::
@@ -336,33 +241,43 @@ impl Mut {
     //     Ok(new_path.display().to_string())
     // }
 
-    // TODO: bring back ?
-    // /// Use GQL multipart upload to send new graphs to server
-    // ///
-    // /// Returns::
-    // ///    name of the new graph
-    // async fn upload_graph<'a>(
-    //     ctx: &Context<'a>,
-    //     path: String,
-    //     graph: Upload,
-    //     overwrite: bool,
-    // ) -> Result<String> {
-    //     let path = Path::new(&path);
-    //     let data = ctx.data_unchecked::<Data>();
+    /// Use GQL multipart upload to send new graphs to server
+    ///
+    /// Returns::
+    ///    name of the new graph
+    async fn upload_graph<'a>(
+        ctx: &Context<'a>,
+        path: String,
+        graph: Upload,
+        overwrite: bool,
+    ) -> Result<String> {
+        let data = ctx.data_unchecked::<Data>();
+        let graph = {
+            let mut in_file = graph.value(ctx)?.content;
+            let mut archive = ZipArchive::new(in_file)?;
+            let mut entry = archive.by_name("graph")?;
+            let mut buf = vec![];
+            entry.read_to_end(&mut buf)?;
+            MaterializedGraph::decode_from_bytes(&buf)?
+        };
+        if overwrite {
+            let _ignored = data.delete_graph(&path);
+        }
+        data.insert_graph(&path, graph).await?;
+        Ok(path)
 
-    //     let full_path = data.construct_graph_full_path(path)?;
-    //     if full_path.exists() && !overwrite {
-    //         return Err(GraphError::GraphNameAlreadyExists(path.to_path_buf()).into());
-    //     }
+        // let full_path = data.construct_graph_full_path(path)?;
+        // if full_path.exists() && !overwrite {
+        //     return Err(GraphError::GraphNameAlreadyExists(path.to_path_buf()).into());
+        // }
 
-    //     let mut in_file = graph.value(ctx)?.content;
-    //     create_dirs_if_not_present(&full_path)?;
-    //     let mut out_file = File::create(&full_path)?;
-    //     copy(&mut in_file, &mut out_file)?;
-    //     let g = MaterializedGraph::load_cached(&full_path)?;
-    //     data.graphs.insert(path.to_path_buf(), g.into());
-    //     Ok(path.display().to_string())
-    // }
+        // create_dirs_if_not_present(&full_path)?;
+        // let mut out_file = File::create(&full_path)?;
+        // copy(&mut in_file, &mut out_file)?;
+        // let g = MaterializedGraph::load_cached(&full_path)?;
+        // data.graphs.insert(path.to_path_buf(), g.into());
+        // Ok(path.display().to_string())
+    }
 
     /// Send graph bincode as base64 encoded string
     ///

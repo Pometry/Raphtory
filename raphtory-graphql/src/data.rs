@@ -6,8 +6,6 @@ use crate::{
 };
 use moka::sync::Cache;
 use once_cell::sync::OnceCell;
-#[cfg(feature = "storage")]
-use raphtory::disk_graph::DiskGraphStorage;
 use raphtory::{
     core::{
         entities::nodes::node_ref::AsNodeRef,
@@ -184,11 +182,11 @@ impl Data {
 
     pub(crate) async fn vectorise_all_graphs_that_are_not(&self) {
         for folder in self.get_all_graph_folders() {
-            if !folder.get_vectors_file().exists() {
+            if !folder.get_vectors_path().exists() {
                 if let Ok(graph) = GraphWithVectors::read_from_folder(&folder) {
                     let vectors = self.vectorise(graph.graph.graph, &folder).await;
                     if let Some(vectors) = vectors {
-                        vectors.write_to_path(&folder.get_vectors_file());
+                        vectors.write_to_path(&folder.get_vectors_path());
                     }
                 }
             }
@@ -233,54 +231,33 @@ impl Data {
 }
 
 // TODO: review if we are using this
-#[cfg(feature = "storage")]
-fn copy_dir_recursive(source_dir: &Path, target_dir: &Path) -> Result<(), GraphError> {
-    if !target_dir.exists() {
-        fs::create_dir_all(target_dir)?;
-    }
-
-    for entry in fs::read_dir(source_dir)? {
-        let entry = entry?;
-        let entry_path = entry.path();
-        let target_path = target_dir.join(entry.file_name());
-
-        if entry_path.is_dir() {
-            copy_dir_recursive(&entry_path, &target_path)?;
-        } else {
-            fs::copy(&entry_path, &target_path)?;
-        }
-    }
-
-    Ok(())
-}
-
-// TODO: review if we are using this
-#[cfg(feature = "storage")]
-fn load_disk_graph_from_path(
-    path_on_server: &Path,
-    target_path: &Path,
-    overwrite: bool,
-) -> Result<Option<PathBuf>, GraphError> {
-    let _ = load_disk_graph(path_on_server)?;
-    if target_path.exists() {
-        if overwrite {
-            fs::remove_dir_all(&target_path)?;
-            copy_dir_recursive(path_on_server, &target_path)?;
-            println!("Disk Graph loaded = {}", target_path.display());
-        } else {
-            return Err(GraphError::GraphNameAlreadyExists(target_path.to_path_buf()).into());
-        }
-    } else {
-        copy_dir_recursive(path_on_server, &target_path)?;
-        println!("Disk Graph loaded = {}", target_path.display());
-    }
-    Ok(Some(target_path.to_path_buf()))
-}
-
+// #[cfg(feature = "storage")]
+// fn load_disk_graph_from_path(
+//     path_on_server: &Path,
+//     target_path: &Path,
+//     overwrite: bool,
+// ) -> Result<Option<PathBuf>, GraphError> {
+//     let _ = load_disk_graph(path_on_server)?;
+//     if target_path.exists() {
+//         if overwrite {
+//             fs::remove_dir_all(&target_path)?;
+//             copy_dir_recursive(path_on_server, &target_path)?;
+//             println!("Disk Graph loaded = {}", target_path.display());
+//         } else {
+//             return Err(GraphError::GraphNameAlreadyExists(target_path.to_path_buf()).into());
+//         }
+//     } else {
+//         copy_dir_recursive(path_on_server, &target_path)?;
+//         println!("Disk Graph loaded = {}", target_path.display());
+//     }
+//     Ok(Some(target_path.to_path_buf()))
+// }
 #[cfg(test)]
 pub(crate) mod data_tests {
     use crate::{
         data::Data,
+        graph::GraphWithVectors,
+        paths::ExistingGraphFolder,
         server_config::{AppConfig, AppConfigBuilder},
     };
     use itertools::Itertools;
@@ -293,8 +270,8 @@ pub(crate) mod data_tests {
         path::{Path, PathBuf},
     };
 
-    #[cfg(feature = "storage")]
-    use crate::data::copy_dir_recursive;
+    // #[cfg(feature = "storage")]
+    // use crate::data::copy_dir_recursive;
     use raphtory::core::utils::errors::{GraphError, InvalidPathReason};
     #[cfg(feature = "storage")]
     use raphtory::{
@@ -305,6 +282,23 @@ pub(crate) mod data_tests {
     use std::{thread, time::Duration};
 
     use super::ValidGraphFolder;
+
+    #[cfg(feature = "storage")]
+    fn copy_dir_recursive(source_dir: &Path, target_dir: &Path) -> Result<(), GraphError> {
+        fs::create_dir_all(target_dir)?;
+        for entry in fs::read_dir(source_dir)? {
+            let entry = entry?;
+            let entry_path = entry.path();
+            let target_path = target_dir.join(entry.file_name());
+
+            if entry_path.is_dir() {
+                copy_dir_recursive(&entry_path, &target_path)?;
+            } else {
+                fs::copy(&entry_path, &target_path)?;
+            }
+        }
+        Ok(())
+    }
 
     fn get_maybe_relative_path(work_dir: &Path, path: PathBuf) -> Option<String> {
         let relative_path = match path.strip_prefix(work_dir) {
@@ -347,28 +341,28 @@ pub(crate) mod data_tests {
     ) -> Result<(), GraphError> {
         for (name, graph) in graphs.into_iter() {
             let data = Data::new(work_dir, &AppConfig::default());
-            dbg!();
             let folder = ValidGraphFolder::try_from(data.work_dir, name)?;
-            dbg!(&folder);
 
             #[cfg(feature = "storage")]
             if let GraphStorage::Disk(dg) = graph.core_graph() {
                 let disk_graph_path = dg.graph_dir();
-                #[cfg(feature = "storage")]
-                copy_dir_recursive(disk_graph_path, &full_path)?;
+                copy_dir_recursive(disk_graph_path, &folder.get_graph_path())?;
             } else {
-                graph.encode(&full_path)?;
+                graph.encode(folder)?;
             }
 
-            dbg!();
             #[cfg(not(feature = "storage"))]
-            {
-                dbg!();
-                graph.encode(folder)?;
-                dbg!();
-            }
+            graph.encode(folder)?;
         }
         Ok(())
+    }
+
+    fn read_graph_from_path(
+        base_path: PathBuf,
+        relative_path: &str,
+    ) -> Result<GraphWithVectors, GraphError> {
+        let folder = ExistingGraphFolder::try_from(base_path, relative_path)?;
+        GraphWithVectors::read_from_folder(&folder)
     }
 
     #[test]
@@ -383,25 +377,27 @@ pub(crate) mod data_tests {
         graph
             .add_edge(0, 1, 3, [("name", "test_e2")], None)
             .unwrap();
-        let graph_path = tmp_graph_dir.path().join("test_dg");
-        let _ = DiskGraphStorage::from_graph(&graph, &graph_path).unwrap();
 
-        let res = read_graph_from_path(&graph_path).unwrap();
-        assert_eq!(res.graph.into_events().unwrap().count_edges(), 2);
+        let base_path = tmp_graph_dir.path().to_owned();
+        let graph_path = base_path.join("test_dg");
+        let _ = DiskGraphStorage::from_graph(&graph, &graph_path.join("graph")).unwrap();
+
+        let res = read_graph_from_path(base_path.clone(), "test_dg").unwrap();
+        assert_eq!(res.graph.graph.into_events().unwrap().count_edges(), 2);
 
         // Dir path doesn't exists
-        let res = read_graph_from_path(&tmp_graph_dir.path().join("test_dg1"));
+        let res = read_graph_from_path(base_path.clone(), "test_dg1");
         assert!(res.is_err());
         if let Err(err) = res {
-            assert!(err.to_string().contains("Invalid path"));
+            assert!(err.to_string().contains("Graph not found"));
         }
 
         // Dir path exists but is not a disk graph path
         let tmp_graph_dir = tempfile::tempdir().unwrap();
-        let res = read_graph_from_path(&tmp_graph_dir.path());
+        let res = read_graph_from_path(base_path, "");
         assert!(res.is_err());
         if let Err(err) = res {
-            assert!(err.to_string().contains("Invalid path"));
+            assert!(err.to_string().contains("Graph not found"));
         }
     }
 
@@ -456,8 +452,8 @@ pub(crate) mod data_tests {
         assert_eq!(graphs, vec!["test_dg", "test_g"]);
     }
 
-    #[test]
     #[cfg(feature = "storage")]
+    #[test]
     fn test_eviction() {
         let tmp_work_dir = tempfile::tempdir().unwrap();
 
@@ -470,7 +466,8 @@ pub(crate) mod data_tests {
             .unwrap();
 
         graph.encode(&tmp_work_dir.path().join("test_g")).unwrap();
-        let _ = DiskGraphStorage::from_graph(&graph, &tmp_work_dir.path().join("test_dg")).unwrap();
+        let _ = DiskGraphStorage::from_graph(&graph, &tmp_work_dir.path().join("test_dg/graph"))
+            .unwrap();
         graph.encode(&tmp_work_dir.path().join("test_g2")).unwrap();
 
         let configs = AppConfigBuilder::new()
@@ -480,20 +477,20 @@ pub(crate) mod data_tests {
 
         let data = Data::new(tmp_work_dir.path(), &configs);
 
-        assert!(!data.graphs.contains_key(&PathBuf::from("test_dg")));
-        assert!(!data.graphs.contains_key(&PathBuf::from("test_g")));
+        assert!(!data.cache.contains_key(&PathBuf::from("test_dg")));
+        assert!(!data.cache.contains_key(&PathBuf::from("test_g")));
 
         // Test size based eviction
-        let _ = data.get_graph(Path::new("test_dg"));
-        assert!(data.graphs.contains_key(&PathBuf::from("test_dg")));
-        assert!(!data.graphs.contains_key(&PathBuf::from("test_g")));
+        let _ = data.get_graph("test_dg");
+        assert!(data.cache.contains_key(&PathBuf::from("test_dg")));
+        assert!(!data.cache.contains_key(&PathBuf::from("test_g")));
 
-        let _ = data.get_graph(Path::new("test_g"));
-        assert!(data.graphs.contains_key(&PathBuf::from("test_g")));
+        let _ = data.get_graph("test_g");
+        assert!(data.cache.contains_key(&PathBuf::from("test_g")));
 
         thread::sleep(Duration::from_secs(3));
-        assert!(!data.graphs.contains_key(&PathBuf::from("test_dg")));
-        assert!(!data.graphs.contains_key(&PathBuf::from("test_g")));
+        assert!(!data.cache.contains_key(&PathBuf::from("test_dg")));
+        assert!(!data.cache.contains_key(&PathBuf::from("test_g")));
     }
 
     fn create_graph_folder(path: &Path) {

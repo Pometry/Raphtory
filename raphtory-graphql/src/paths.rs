@@ -132,7 +132,7 @@ impl ValidGraphFolder {
         }
         Ok(Self {
             original_path: relative_path.to_owned(),
-            folder: full_path.into(),
+            folder: GraphFolder::from(full_path),
         })
     }
 

@@ -41,14 +41,7 @@ use raphtory_api::core::{
     },
 };
 use rayon::prelude::*;
-use std::{
-    borrow::Borrow,
-    fs::{File, OpenOptions},
-    io::Write,
-    iter,
-    path::Path,
-    sync::Arc,
-};
+use std::{borrow::Borrow, fs::File, io::Write, iter, path::Path, sync::Arc};
 
 use super::GraphFolder;
 
@@ -68,11 +61,8 @@ pub trait StableEncode {
     }
 
     fn encode(&self, path: impl Into<GraphFolder>) -> Result<(), GraphError> {
-        dbg!();
-        let mut file = path.into().create_graph_file()?;
-        dbg!();
         let bytes = self.encode_to_vec();
-        file.write_all(&bytes)?;
+        path.into().write_graph(&bytes)?;
         Ok(())
     }
 }
@@ -84,10 +74,8 @@ pub trait StableDecode: Sized {
         Self::decode_from_proto(&graph)
     }
     fn decode(path: impl Into<GraphFolder>) -> Result<Self, GraphError> {
-        let file = File::open(path.into().get_graph_path())?;
-        let buf = unsafe { memmap2::MmapOptions::new().map(&file)? };
-        let bytes = buf.as_ref();
-        Self::decode_from_bytes(bytes)
+        let bytes = path.into().read_graph()?;
+        Self::decode_from_bytes(bytes.as_ref())
     }
 }
 
@@ -1012,6 +1000,7 @@ fn as_proto_prop(prop: &Prop) -> proto::Prop {
 #[cfg(test)]
 mod proto_test {
     use chrono::{DateTime, NaiveDateTime};
+    use tempfile::TempDir;
 
     use super::*;
     use crate::{
@@ -1026,7 +1015,8 @@ mod proto_test {
 
     #[test]
     fn node_no_props() {
-        let temp_file = tempfile::tempdir().unwrap();
+        let tempdir = TempDir::new().unwrap();
+        let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new();
         g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
         g1.encode(&temp_file).unwrap();
@@ -1036,7 +1026,8 @@ mod proto_test {
 
     #[test]
     fn node_with_props() {
-        let temp_file = tempfile::tempdir().unwrap();
+        let tempdir = TempDir::new().unwrap();
+        let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new();
         g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
         g1.add_node(2, "Bob", [("age", Prop::U32(47))], None)
@@ -1048,7 +1039,8 @@ mod proto_test {
 
     #[test]
     fn node_with_const_props() {
-        let temp_file = tempfile::tempdir().unwrap();
+        let tempdir = TempDir::new().unwrap();
+        let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new();
         g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
         let n1 = g1
@@ -1065,7 +1057,8 @@ mod proto_test {
 
     #[test]
     fn edge_no_props() {
-        let temp_file = tempfile::tempdir().unwrap();
+        let tempdir = TempDir::new().unwrap();
+        let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new();
         g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
         g1.add_node(2, "Bob", NO_PROPS, None).unwrap();
@@ -1077,7 +1070,8 @@ mod proto_test {
 
     #[test]
     fn edge_no_props_delete() {
-        let temp_file = tempfile::tempdir().unwrap();
+        let tempdir = TempDir::new().unwrap();
+        let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new().persistent_graph();
         g1.add_edge(3, "Alice", "Bob", NO_PROPS, None).unwrap();
         g1.delete_edge(19, "Alice", "Bob", None).unwrap();
@@ -1092,7 +1086,8 @@ mod proto_test {
 
     #[test]
     fn edge_t_props() {
-        let temp_file = tempfile::tempdir().unwrap();
+        let tempdir = TempDir::new().unwrap();
+        let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new();
         g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
         g1.add_node(2, "Bob", NO_PROPS, None).unwrap();
@@ -1105,7 +1100,8 @@ mod proto_test {
 
     #[test]
     fn edge_const_props() {
-        let temp_file = tempfile::tempdir().unwrap();
+        let tempdir = TempDir::new().unwrap();
+        let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new();
         let e1 = g1.add_edge(3, "Alice", "Bob", NO_PROPS, None).unwrap();
         e1.update_constant_properties([("friends", true)], None)
@@ -1117,7 +1113,8 @@ mod proto_test {
 
     #[test]
     fn edge_layers() {
-        let temp_file = tempfile::tempdir().unwrap();
+        let tempdir = TempDir::new().unwrap();
+        let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new();
         g1.add_edge(7, "Alice", "Bob", NO_PROPS, Some("one"))
             .unwrap();
@@ -1133,7 +1130,8 @@ mod proto_test {
         let mut props = vec![];
         write_props_to_vec(&mut props);
 
-        let temp_file = tempfile::tempdir().unwrap();
+        let tempdir = TempDir::new().unwrap();
+        let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new();
         g1.add_node(1, "Alice", props.clone(), None).unwrap();
         g1.encode(&temp_file).unwrap();
@@ -1159,7 +1157,8 @@ mod proto_test {
         let mut props = vec![];
         write_props_to_vec(&mut props);
 
-        let temp_file = tempfile::tempdir().unwrap();
+        let tempdir = TempDir::new().unwrap();
+        let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new();
         g1.add_edge(1, "Alice", "Bob", props.clone(), None).unwrap();
         g1.encode(&temp_file).unwrap();
@@ -1185,7 +1184,8 @@ mod proto_test {
         let mut props = vec![];
         write_props_to_vec(&mut props);
 
-        let temp_file = tempfile::tempdir().unwrap();
+        let tempdir = TempDir::new().unwrap();
+        let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new();
         let e = g1.add_edge(1, "Alice", "Bob", NO_PROPS, Some("a")).unwrap();
         e.update_constant_properties(props.clone(), Some("a"))
@@ -1211,7 +1211,8 @@ mod proto_test {
         let mut props = vec![];
         write_props_to_vec(&mut props);
 
-        let temp_file = tempfile::tempdir().unwrap();
+        let tempdir = TempDir::new().unwrap();
+        let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new();
         let n = g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
         n.update_constant_properties(props.clone())
@@ -1240,7 +1241,8 @@ mod proto_test {
         g1.add_constant_properties(props.clone())
             .expect("Failed to add constant properties");
 
-        let temp_file = tempfile::tempdir().unwrap();
+        let tempdir = TempDir::new().unwrap();
+        let temp_file = tempdir.path().join("graph");
         g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
@@ -1262,7 +1264,8 @@ mod proto_test {
                 .expect("Failed to add constant properties");
         }
 
-        let temp_file = tempfile::tempdir().unwrap();
+        let tempdir = TempDir::new().unwrap();
+        let temp_file = tempdir.path().join("graph");
         g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);

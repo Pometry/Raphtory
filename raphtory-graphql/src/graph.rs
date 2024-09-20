@@ -2,6 +2,8 @@ use std::{fs, sync::Arc};
 
 use once_cell::sync::OnceCell;
 use raphtory::core::utils::errors::InvalidPathReason::*;
+#[cfg(feature = "storage")]
+use raphtory::disk_graph::DiskGraphStorage;
 use raphtory::{
     core::{entities::nodes::node_ref::AsNodeRef, utils::errors::GraphError},
     db::{
@@ -66,7 +68,7 @@ impl GraphWithVectors {
                     .folder
                     .get()
                     .ok_or(GraphError::CacheNotInnitialised)?
-                    .get_vectors_file(),
+                    .get_vectors_path(),
             );
         }
         self.graph.write_updates()
@@ -84,9 +86,9 @@ impl GraphWithVectors {
             MaterializedGraph::load_cached(folder.clone())?
         };
 
-        // use EmbeddingConf here
+        // TODO: use EmbeddingConf here
         let vectors = VectorisedGraph::read_from_path(
-            &folder.get_vectors_file(),
+            &folder.get_vectors_path(),
             graph.clone(),
             Arc::new(openai_embedding), // FIXME ??????????
             Arc::new(None),             // FIXME ??????????
@@ -118,10 +120,10 @@ fn is_disk_graph_dir(path: &ExistingGraphFolder) -> bool {
 fn get_disk_graph_from_path(
     path: &ExistingGraphFolder,
 ) -> Result<Option<MaterializedGraph>, GraphError> {
-    let disk_graph = DiskGraphStorage::load_from_dir(path)
+    let disk_graph = DiskGraphStorage::load_from_dir(&path.get_graph_path())
         .map_err(|e| GraphError::LoadFailure(e.to_string()))?;
     let graph: MaterializedGraph = disk_graph.into_graph().into(); // TODO: We currently have no way to identify disk graphs as MaterializedGraphs
-    println!("Disk Graph loaded = {}", path.display());
+    println!("Disk Graph loaded = {}", path.get_original_path().display());
     Ok(Some(graph))
 }
 

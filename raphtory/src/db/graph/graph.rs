@@ -531,7 +531,6 @@ mod db_tests {
     #[test]
     #[cfg(feature = "proto")]
     fn graph_save_to_load_from_file() {
-        use crate::serialise::GraphFolder;
         let vs = vec![
             (1, 1, 2),
             (2, 1, 3),
@@ -547,9 +546,9 @@ mod db_tests {
             g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
 
-        let temp_dir = TempDir::new().unwrap();
-        let graph_path: GraphFolder = temp_dir.path().into();
+        let tmp_raphtory_path: TempDir = TempDir::new().unwrap();
 
+        let graph_path = format!("{}/graph.bin", tmp_raphtory_path.path().display());
         g.encode(&graph_path).unwrap();
 
         // Load from files
@@ -2306,12 +2305,10 @@ mod db_tests {
     #[test]
     #[cfg(feature = "proto")]
     fn save_load_serial() {
-        use crate::serialise::GraphFolder;
-
         let g = Graph::new();
         g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
-        let temp_dir = tempfile::tempdir().unwrap();
-        let file_path: GraphFolder = temp_dir.path().into();
+        let dir = tempfile::tempdir().unwrap();
+        let file_path = dir.path().join("abcd11");
         g.encode(&file_path).unwrap();
         let gg = Graph::decode(&file_path).unwrap();
         assert_graph_equal(&g, &gg);

@@ -150,4 +150,10 @@ arrow = [
     "polars-parquet?/compression",
 ]
 
-proto = ["dep:prost", "dep:prost-types", "dep:prost-build", "dep:memmap2"]
+proto = [
+    "dep:prost",
+    "dep:prost-types",
+    "dep:prost-build",
+    "dep:memmap2",
+    "dep:zip",
+]
