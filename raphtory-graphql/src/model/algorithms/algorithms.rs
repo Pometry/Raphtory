@@ -1,4 +1,4 @@
-use crate::model::{algorithms::graph_algorithms::GraphAlgorithms, plugins::query::Query};
+use crate::model::plugins::{graph_algorithm_plugins::GraphAlgorithmPlugins, query::Query};
 use async_graphql::{
     dynamic::{FieldValue, ResolverContext, TypeRef},
     FieldResult,
@@ -52,7 +52,7 @@ impl From<(&String, &OrderedFloat<f64>)> for PagerankOutput {
 
 pub(crate) struct Pagerank;
 
-impl<'a> Query<'a, GraphAlgorithms> for Pagerank {
+impl<'a> Query<'a, GraphAlgorithmPlugins> for Pagerank {
     type OutputType = PagerankOutput;
 
     fn output_type() -> TypeRef {
@@ -69,7 +69,7 @@ impl<'a> Query<'a, GraphAlgorithms> for Pagerank {
     }
 
     fn apply_query<'b>(
-        entry_point: &GraphAlgorithms,
+        entry_point: &GraphAlgorithmPlugins,
         ctx: ResolverContext,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
         let result = apply_pagerank(entry_point, ctx);
@@ -78,7 +78,7 @@ impl<'a> Query<'a, GraphAlgorithms> for Pagerank {
 }
 
 fn apply_pagerank<'b>(
-    entry_point: &GraphAlgorithms,
+    entry_point: &GraphAlgorithmPlugins,
     ctx: ResolverContext,
 ) -> FieldResult<Option<FieldValue<'b>>> {
     let iter_count = ctx.args.try_get("iterCount")?.u64()? as usize;
@@ -120,7 +120,7 @@ impl From<(String, Vec<String>)> for ShortestPathOutput {
     }
 }
 
-impl<'a> Query<'a, GraphAlgorithms> for ShortestPath {
+impl<'a> Query<'a, GraphAlgorithmPlugins> for ShortestPath {
     type OutputType = ShortestPathOutput;
 
     fn output_type() -> TypeRef {
@@ -136,7 +136,7 @@ impl<'a> Query<'a, GraphAlgorithms> for ShortestPath {
     }
 
     fn apply_query<'b>(
-        entry_point: &GraphAlgorithms,
+        entry_point: &GraphAlgorithmPlugins,
         ctx: ResolverContext,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
         let result = apply_shortest_path(entry_point, ctx);
@@ -145,7 +145,7 @@ impl<'a> Query<'a, GraphAlgorithms> for ShortestPath {
 }
 
 fn apply_shortest_path<'b>(
-    entry_point: &GraphAlgorithms,
+    entry_point: &GraphAlgorithmPlugins,
     ctx: ResolverContext,
 ) -> FieldResult<Option<FieldValue<'b>>> {
     let source = ctx.args.try_get("source")?.string()?;

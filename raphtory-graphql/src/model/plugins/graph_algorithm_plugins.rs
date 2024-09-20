@@ -18,17 +18,17 @@ use std::{
 pub static GRAPH_ALGO_PLUGINS: Lazy<Mutex<HashMap<String, RegisterFunction>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
-pub struct GraphAlgorithms {
+pub struct GraphAlgorithmPlugins {
     pub graph: DynamicGraph,
 }
 
-impl From<DynamicGraph> for GraphAlgorithms {
+impl From<DynamicGraph> for GraphAlgorithmPlugins {
     fn from(graph: DynamicGraph) -> Self {
         Self { graph }
     }
 }
 
-impl<'a> QueryEntryPoint<'a> for GraphAlgorithms {
+impl<'a> QueryEntryPoint<'a> for GraphAlgorithmPlugins {
     fn predefined_queries() -> HashMap<&'static str, RegisterFunction> {
         HashMap::from([
             (
@@ -47,21 +47,21 @@ impl<'a> QueryEntryPoint<'a> for GraphAlgorithms {
     }
 }
 
-impl Register for GraphAlgorithms {
+impl Register for GraphAlgorithmPlugins {
     fn register(registry: Registry) -> Registry {
         Self::register_queries(registry)
     }
 }
 
-impl TypeName for GraphAlgorithms {
+impl TypeName for GraphAlgorithmPlugins {
     fn get_type_name() -> Cow<'static, str> {
-        "GraphAlgorithms".into()
+        "GraphAlgorithmPlugins".into()
     }
 }
 
-impl OutputTypeName for GraphAlgorithms {}
+impl OutputTypeName for GraphAlgorithmPlugins {}
 
-impl<'a> ResolveOwned<'a> for GraphAlgorithms {
+impl<'a> ResolveOwned<'a> for GraphAlgorithmPlugins {
     fn resolve_owned(self, _ctx: &Context) -> dynamic_graphql::Result<Option<FieldValue<'a>>> {
         Ok(Some(FieldValue::owned_any(self)))
     }

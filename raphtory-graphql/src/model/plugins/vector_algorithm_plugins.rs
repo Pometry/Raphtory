@@ -15,17 +15,17 @@ use std::{
 pub static VECTOR_ALGO_PLUGINS: Lazy<Mutex<HashMap<String, RegisterFunction>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
-pub struct VectorAlgorithms {
+pub struct VectorAlgorithmPlugins {
     pub graph: DynamicVectorisedGraph,
 }
 
-impl From<DynamicVectorisedGraph> for VectorAlgorithms {
+impl From<DynamicVectorisedGraph> for VectorAlgorithmPlugins {
     fn from(graph: DynamicVectorisedGraph) -> Self {
         Self { graph }
     }
 }
 
-impl<'a> QueryEntryPoint<'a> for VectorAlgorithms {
+impl<'a> QueryEntryPoint<'a> for VectorAlgorithmPlugins {
     fn predefined_queries() -> HashMap<&'static str, RegisterFunction> {
         HashMap::from([(
             "similaritySearch",
@@ -38,21 +38,21 @@ impl<'a> QueryEntryPoint<'a> for VectorAlgorithms {
     }
 }
 
-impl Register for VectorAlgorithms {
+impl Register for VectorAlgorithmPlugins {
     fn register(registry: Registry) -> Registry {
         Self::register_queries(registry)
     }
 }
 
-impl TypeName for VectorAlgorithms {
+impl TypeName for VectorAlgorithmPlugins {
     fn get_type_name() -> Cow<'static, str> {
-        "VectorAlgorithms".into()
+        "VectorAlgorithmPlugins".into()
     }
 }
 
-impl OutputTypeName for VectorAlgorithms {}
+impl OutputTypeName for VectorAlgorithmPlugins {}
 
-impl<'a> ResolveOwned<'a> for VectorAlgorithms {
+impl<'a> ResolveOwned<'a> for VectorAlgorithmPlugins {
     fn resolve_owned(self, _ctx: &Context) -> dynamic_graphql::Result<Option<FieldValue<'a>>> {
         Ok(Some(FieldValue::owned_any(self)))
     }
