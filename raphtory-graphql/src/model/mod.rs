@@ -1,7 +1,7 @@
 use crate::{
     data::Data,
     model::{
-        algorithms::global_plugins::GlobalPlugins,
+        algorithms::{mutation_plugins::MutationPlugins, query_plugins::QueryPlugins},
         graph::{
             graph::GqlGraph, graphs::GqlGraphs, mutable_graph::GqlMutableGraph,
             vectorised_graph::GqlVectorisedGraph,
@@ -33,7 +33,6 @@ use std::{
     path::Path,
     sync::Arc,
 };
-use crate::model::algorithms::mutation_plugins::MutationPlugins;
 
 pub mod algorithms;
 pub(crate) mod graph;
@@ -118,7 +117,7 @@ impl QueryRoot {
         Ok(GqlGraphs::new(work_dir, paths))
     }
 
-    async fn plugins<'a>(ctx: &Context<'a>) -> GlobalPlugins {
+    async fn plugins<'a>(ctx: &Context<'a>) -> QueryPlugins {
         let data = ctx.data_unchecked::<Data>();
         data.global_plugins.clone()
     }
@@ -140,7 +139,6 @@ pub(crate) struct Mut(MutRoot);
 
 #[MutationFields]
 impl Mut {
-
     async fn plugins<'a>(ctx: &Context<'a>) -> MutationPlugins {
         MutationPlugins::default()
     }

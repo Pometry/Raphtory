@@ -1,8 +1,10 @@
-use async_graphql::dynamic::{Field, FieldFuture, FieldValue, InputValue, Object, ResolverContext, TypeRef};
-use async_graphql::FieldResult;
+use crate::model::algorithms::mutation_entry_point::MutationEntryPoint;
+use async_graphql::{
+    dynamic::{Field, FieldFuture, FieldValue, InputValue, Object, ResolverContext, TypeRef},
+    FieldResult,
+};
 use dynamic_graphql::internal::{Register, Registry};
 use futures_util::future::BoxFuture;
-use crate::model::algorithms::mutation_entry_point::MutationEntryPoint;
 
 pub trait Mutation<'a, A: MutationEntryPoint<'a> + 'static> {
     type OutputType: Register + 'static;

@@ -5,7 +5,7 @@ use itertools::Itertools;
 use std::{collections::HashMap, sync::MutexGuard};
 
 pub trait MutationEntryPoint<'a>:
-Register + TypeName + OutputTypeName + ResolveOwned<'a> + Sync
+    Register + TypeName + OutputTypeName + ResolveOwned<'a> + Sync
 {
     fn lock_plugins() -> MutexGuard<'static, HashMap<String, RegisterFunction>>;
     fn register_mutations(registry: Registry) -> Registry {

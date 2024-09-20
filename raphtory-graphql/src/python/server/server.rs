@@ -1,7 +1,7 @@
 use crate::{
     model::algorithms::{
-        algorithm_entry_point::AlgorithmEntryPoint, document::GqlDocument,
-        global_plugins::GlobalPlugins, vector_algorithms::VectorAlgorithms,
+        document::GqlDocument, query_entry_point::QueryEntryPoint, query_plugins::QueryPlugins,
+        vector_algorithms::VectorAlgorithms,
     },
     python::{
         adapt_graphql_value,
@@ -62,7 +62,7 @@ impl PyGraphServer {
 
     fn with_generic_document_search_function<
         'a,
-        E: AlgorithmEntryPoint<'a> + 'static,
+        E: QueryEntryPoint<'a> + 'static,
         F: Fn(&E, Python) -> PyObject + Send + Sync + 'static,
     >(
         slf: PyRefMut<Self>,
@@ -259,7 +259,7 @@ impl PyGraphServer {
         input: HashMap<String, String>,
         function: &PyFunction,
     ) -> PyResult<Self> {
-        let adapter = |entry_point: &GlobalPlugins, py: Python| {
+        let adapter = |entry_point: &QueryPlugins, py: Python| {
             PyGlobalPlugins(entry_point.clone()).into_py(py)
         };
         PyGraphServer::with_generic_document_search_function(slf, name, input, function, adapter)

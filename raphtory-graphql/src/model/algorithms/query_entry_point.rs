@@ -4,16 +4,18 @@ use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned
 use itertools::Itertools;
 use std::{collections::HashMap, sync::MutexGuard};
 
-pub trait AlgorithmEntryPoint<'a>:
+pub trait QueryEntryPoint<'a>:
     Register + TypeName + OutputTypeName + ResolveOwned<'a> + Sync
 {
-    fn predefined_algos() -> HashMap<&'static str, RegisterFunction>;
+    fn predefined_queries() -> HashMap<&'static str, RegisterFunction>;
+
     fn lock_plugins() -> MutexGuard<'static, HashMap<String, RegisterFunction>>;
-    fn register_algos(registry: Registry) -> Registry {
+
+    fn register_queries(registry: Registry) -> Registry {
         let mut registry = registry;
         let mut object = Object::new(Self::get_type_name());
 
-        for (name, register_algo) in Self::predefined_algos() {
+        for (name, register_algo) in Self::predefined_queries() {
             (registry, object) = register_algo(name, registry, object);
         }
 

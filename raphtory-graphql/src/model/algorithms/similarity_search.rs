@@ -1,5 +1,5 @@
 use crate::model::algorithms::{
-    algorithm::Algorithm, document::GqlDocument, vector_algorithms::VectorAlgorithms,
+    document::GqlDocument, query::Query, vector_algorithms::VectorAlgorithms,
 };
 use async_graphql::{
     dynamic::{FieldValue, ResolverContext, TypeRef},
@@ -11,7 +11,7 @@ use raphtory::vectors::embeddings::openai_embedding;
 
 pub(crate) struct SimilaritySearch;
 
-impl<'a> Algorithm<'a, VectorAlgorithms> for SimilaritySearch {
+impl<'a> Query<'a, VectorAlgorithms> for SimilaritySearch {
     type OutputType = GqlDocument;
     fn output_type() -> TypeRef {
         TypeRef::named_nn_list_nn(GqlDocument::get_type_name())
@@ -22,7 +22,7 @@ impl<'a> Algorithm<'a, VectorAlgorithms> for SimilaritySearch {
             ("limit", TypeRef::named_nn(TypeRef::INT)),
         ]
     }
-    fn apply_algo<'b>(
+    fn apply_query<'b>(
         entry_point: &VectorAlgorithms,
         ctx: ResolverContext,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {

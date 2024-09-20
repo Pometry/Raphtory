@@ -3,7 +3,7 @@
 use crate::{
     data::Data,
     model::{
-        algorithms::{algorithm::Algorithm, algorithm_entry_point::AlgorithmEntryPoint},
+        algorithms::{query::Query, query_entry_point::QueryEntryPoint},
         App,
     },
     observability::tracing::create_tracer_from_env,
@@ -22,7 +22,10 @@ use raphtory::{
     vectors::{template::DocumentTemplate, vectorisable::Vectorisable, EmbeddingFunction},
 };
 
-use crate::server_config::{load_config, AppConfig, LoggingConfig};
+use crate::{
+    model::algorithms::{mutation::Mutation, mutation_entry_point::MutationEntryPoint},
+    server_config::{load_config, AppConfig, LoggingConfig},
+};
 use config::ConfigError;
 use std::{
     fs,
@@ -43,8 +46,6 @@ use tracing_subscriber::{
     layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, FmtSubscriber, Registry,
 };
 use url::ParseError;
-use crate::model::algorithms::mutation::Mutation;
-use crate::model::algorithms::mutation_entry_point::MutationEntryPoint;
 
 #[derive(Error, Debug)]
 pub enum ServerError {
@@ -150,12 +151,11 @@ impl GraphServer {
         Ok(self)
     }
 
-    pub fn register_algorithm<
-        'a,
-        E: AlgorithmEntryPoint<'a> + 'static,
-        A: Algorithm<'a, E> + 'static,
-    >(self, name: &str) -> Self {
-        E::lock_plugins().insert(name.to_string(), Box::new(A::register_algo));
+    pub fn register_algorithm<'a, E: QueryEntryPoint<'a> + 'static, A: Query<'a, E> + 'static>(
+        self,
+        name: &str,
+    ) -> Self {
+        E::lock_plugins().insert(name.to_string(), Box::new(A::register_query));
         self
     }
 
@@ -163,7 +163,10 @@ impl GraphServer {
         'a,
         E: MutationEntryPoint<'a> + 'static,
         A: Mutation<'a, E> + 'static,
-    >(self, name: &str) -> Self {
+    >(
+        self,
+        name: &str,
+    ) -> Self {
         E::lock_plugins().insert(name.to_string(), Box::new(A::register_algo));
         self
     }

@@ -1,4 +1,4 @@
-use crate::model::algorithms::RegisterFunction;
+use crate::model::algorithms::{mutation_entry_point::MutationEntryPoint, RegisterFunction};
 use async_graphql::{dynamic::FieldValue, Context};
 use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName};
 use once_cell::sync::Lazy;
@@ -7,7 +7,6 @@ use std::{
     collections::HashMap,
     sync::{Mutex, MutexGuard},
 };
-use crate::model::algorithms::mutation_entry_point::MutationEntryPoint;
 
 pub static MUTATION_PLUGINS: Lazy<Mutex<HashMap<String, RegisterFunction>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));

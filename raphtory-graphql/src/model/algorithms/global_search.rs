@@ -1,6 +1,4 @@
-use crate::model::algorithms::{
-    algorithm::Algorithm, document::GqlDocument, global_plugins::GlobalPlugins,
-};
+use crate::model::algorithms::{document::GqlDocument, query::Query, query_plugins::QueryPlugins};
 use async_graphql::{
     dynamic::{FieldValue, ResolverContext, TypeRef},
     FieldResult,
@@ -12,19 +10,22 @@ use std::ops::Deref;
 
 pub(crate) struct GlobalSearch;
 
-impl<'a> Algorithm<'a, GlobalPlugins> for GlobalSearch {
+impl<'a> Query<'a, QueryPlugins> for GlobalSearch {
     type OutputType = GqlDocument;
+
     fn output_type() -> TypeRef {
         TypeRef::named_nn_list_nn(GqlDocument::get_type_name())
     }
+
     fn args<'b>() -> Vec<(&'b str, TypeRef)> {
         vec![
             ("query", TypeRef::named_nn(TypeRef::STRING)),
             ("limit", TypeRef::named_nn(TypeRef::INT)),
         ]
     }
-    fn apply_algo<'b>(
-        entry_point: &GlobalPlugins,
+
+    fn apply_query<'b>(
+        entry_point: &QueryPlugins,
         ctx: ResolverContext,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
         let query = ctx
