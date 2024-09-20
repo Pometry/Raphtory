@@ -42,13 +42,13 @@ impl From<PropValueFilter> for PropFilter {
 impl PropValueFilter {
     /// Construct a property filter
     ///
-    /// `value` is the first argument passed to `filter`, the second argument is the property value
+    /// the first argument passed to `filter` is the property value from the node or edge, the second argument is `value`
     /// from the node or edge
     pub(crate) fn new(value: Prop, filter: fn(&Prop, &Prop) -> bool) -> Self {
         Self { value, filter }
     }
 
     fn filter(&self, other: &Prop) -> bool {
-        (self.filter)(&self.value, &other)
+        (self.filter)(&other, &self.value)
     }
 }
