@@ -1,5 +1,5 @@
 use crate::core::Prop;
-use std::{cmp::Ordering, collections::HashSet};
+use std::collections::HashSet;
 
 pub mod edge_property_filter;
 

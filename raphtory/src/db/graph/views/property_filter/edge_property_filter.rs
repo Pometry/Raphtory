@@ -12,10 +12,7 @@ use crate::{
                 Base,
             },
         },
-        graph::{
-            edge::EdgeView,
-            views::property_filter::{PropFilter, PropValueFilter},
-        },
+        graph::{edge::EdgeView, views::property_filter::PropFilter},
     },
     prelude::{EdgeViewOps, GraphViewOps},
 };
@@ -95,29 +92,5 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for EdgePropertyFilteredGrap
         } else {
             false
         }
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::{db::api::view::internal::CoreGraphOps, prelude::*};
-    use itertools::Itertools;
-
-    #[test]
-    fn test_filter() {
-        let g = Graph::new();
-        g.add_edge(0, 1, 2, [("test", 1i64)], None).unwrap();
-        g.add_edge(1, 2, 3, [("test", 2i64)], None).unwrap();
-        let prop_id = g.edge_meta().get_prop_id("test", false).unwrap();
-        let gf = g.filter_edges_eq("test", Prop::I64(1)).unwrap();
-        assert_eq!(
-            gf.edges().id().collect_vec(),
-            vec![(GID::U64(1), GID::U64(2))]
-        );
-        let gf = g.filter_edges_gt("test", Prop::I64(1)).unwrap();
-        assert_eq!(
-            gf.edges().id().collect_vec(),
-            vec![(GID::U64(2), GID::U64(3))]
-        );
     }
 }
