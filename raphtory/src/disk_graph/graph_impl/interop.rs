@@ -1,15 +1,13 @@
 use crate::{
     core::{
-        entities::{LayerIds, ELID},
-        storage::timeindex::TimeIndexOps,
-        Direction,
+        entities::{LayerIds, ELID}, storage::timeindex::{TimeIndexIntoOps, TimeIndexOps}, utils::iter::GenLockedIter, Direction
     },
     db::api::{
         storage::graph::{
-            edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
+            edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::{NodeStorageIntoOps, NodeStorageOps},
             tprop_storage_ops::TPropOps,
         },
-        view::internal::{CoreGraphOps, TimeSemantics},
+        view::{internal::CoreGraphOps, IntoDynBoxed, TimeSemantics},
     },
     disk_graph::graph_impl::prop_conversion::arrow_array_from_props,
     prelude::*,
@@ -96,11 +94,12 @@ impl GraphLike<TimeIndexEntry> for Graph {
         edges
     }
 
-    fn edge_additions(&self, eid: EID, layer: usize) -> Vec<TimeIndexEntry> {
+    fn edge_additions(&self, eid: EID, layer: usize) -> impl Iterator<Item = TimeIndexEntry> + '_{
         let el_id = ELID::new(eid.0.into(), Some(layer));
-        let edge = self.core_edge(el_id);
-        let timestamps: Vec<_> = edge.additions(layer).iter().collect();
-        timestamps
+        let edge = self.core_edge_arc(el_id);
+        GenLockedIter::from(edge, |edge|{
+            edge.additions(layer).into_iter().into_dyn_boxed()
+        })
     }
 
     fn edge_prop_keys(&self) -> Vec<String> {
@@ -146,5 +145,17 @@ impl GraphLike<TimeIndexEntry> for Graph {
 
     fn latest_time(&self) -> i64 {
         self.latest_time_global().unwrap_or(i64::MIN)
+    }
+
+    fn resolve_layer(&self, name: &str) -> Option<usize> {
+        self.edge_meta().layer_meta().get_id(name)
+    }
+
+    fn all_edges(&self) -> impl Iterator<Item = (VID, VID)> + '_{
+        self.edges().into_iter().map(|edge| (edge.src().node, edge.dst().node))
+    }
+
+    fn out_neighbours(&self, vid: VID) -> impl Iterator<Item = VID> + '_ {
+       self.core_node_arc(vid).into_neighbours_iter(LayerIds::All, Direction::OUT)
     }
 }

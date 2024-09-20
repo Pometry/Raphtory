@@ -261,7 +261,7 @@ impl GraphStorage {
                 GraphStorage::Mem(LockedGraph::new(storage.clone())).owned_edges()
             }
             #[cfg(feature = "storage")]
-            GraphStorage::Disk(storage) => EdgesStorage::Disk(DiskEdges::new(&storage.inner)),
+            GraphStorage::Disk(storage) => EdgesStorage::Disk(DiskEdges::new(storage)),
         }
     }
 
@@ -274,10 +274,7 @@ impl GraphStorage {
             }
             #[cfg(feature = "storage")]
             GraphStorage::Disk(storage) => {
-                let layer = eid
-                    .layer()
-                    .expect("disk_graph EdgeRefs should always have layer set");
-                EdgeStorageEntry::Disk(storage.inner.layers()[layer].edge(eid.pid()))
+                EdgeStorageEntry::Disk(storage.inner.edge(eid.pid()))
             }
         }
     }

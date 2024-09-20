@@ -292,7 +292,7 @@ mod test {
             TemporalGraph::from_graph(&mem_graph, test_dir.path(), || Ok(Properties::default()))
                 .unwrap();
         assert_eq!(disk_graph.num_nodes(), 2);
-        assert_eq!(disk_graph.num_edges(0), 1);
+        assert_eq!(disk_graph.num_edges(), 1);
     }
 
     #[test]

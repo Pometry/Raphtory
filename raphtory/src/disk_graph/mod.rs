@@ -25,7 +25,7 @@ use polars_arrow::{
 };
 use pometry_storage::{
     graph::TemporalGraph, graph_fragment::TempColGraphFragment, load::ExternalEdgeList,
-    merge::merge_graph::merge_graphs, RAError,
+    /* merge::merge_graph::merge_graphs,*/ RAError,
 };
 use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
@@ -162,23 +162,6 @@ impl DiskGraphStorage {
             _ => panic!("Only one layer is supported"),
         };
         Box::new(1..self.inner.edges_data_type(layer_id).len())
-    }
-
-    pub fn layer_from_ids(&self, layer_ids: &LayerIds) -> Option<usize> {
-        match layer_ids {
-            LayerIds::One(layer_id) => Some(*layer_id),
-            LayerIds::None => None,
-            LayerIds::All => match self.inner.layers().len() {
-                0 => None,
-                1 => Some(0),
-                _ => todo!("multilayer edge views not yet supported in Diskgraph"),
-            },
-            LayerIds::Multiple(ids) => match ids.len() {
-                0 => None,
-                1 => Some(ids[0]),
-                _ => todo!("multilayer edge views not yet supported in Diskgraph"),
-            },
-        }
     }
 
     pub fn make_simple_graph(
@@ -339,7 +322,7 @@ impl DiskGraphStorage {
         num_threads: usize,
         node_type_col: Option<&str>,
     ) -> Result<DiskGraphStorage, RAError> {
-        let layered_edge_list: Vec<ExternalEdgeList<&Path>> = layer_parquet_cols
+        let edge_lists: Vec<ExternalEdgeList<&Path>> = layer_parquet_cols
             .into_iter()
             .map(
                 |ParquetLayerCols {
@@ -367,10 +350,9 @@ impl DiskGraphStorage {
             num_threads,
             chunk_size,
             t_props_chunk_size,
-            read_chunk_size,
-            concurrent_files,
             graph_dir.as_ref(),
-            layered_edge_list,
+            edge_lists,
+            &[],
             node_properties.as_ref().map(|p| p.as_ref()),
             node_type_col,
         )?;
@@ -495,7 +477,7 @@ mod test {
         let go: GlobalMap = nodes.iter().copied().collect();
         let node_gids = PrimitiveArray::from_slice(nodes).boxed();
 
-        let mut graph = TempColGraphFragment::load_from_edge_list(
+        let (src_ids, mut graph) = TempColGraphFragment::load_from_edge_list(
             test_dir.as_ref(),
             0,
             chunk_size,
@@ -507,7 +489,7 @@ mod test {
             2,
             triples,
         )?;
-        graph.build_node_additions(chunk_size)?;
+        graph.build_node_additions(chunk_size, src_ids)?;
         Ok(graph)
     }
 
@@ -532,7 +514,7 @@ mod test {
         assert_eq!(actual_num_verts, g_num_verts);
         assert!(graph
             .all_edges_iter()
-            .all(|e| e.src().0 < g_num_verts && e.dst().0 < g_num_verts));
+            .all(|(VID(src), VID(dst))| src < g_num_verts && dst < g_num_verts));
 
         for v in 0..g_num_verts {
             let v = VID(v);
@@ -550,7 +532,7 @@ mod test {
 
         let exploded_edges: Vec<_> = graph
             .exploded_edges()
-            .map(|e| (nodes[e.src().0], nodes[e.dst().0], e.timestamp()))
+            .map(|(VID(src), VID(dst), time)| (nodes[src], nodes[dst], time))
             .collect();
         assert_eq!(exploded_edges, edges);
 
@@ -568,16 +550,11 @@ mod test {
             assert_eq!(expected_inbound, actual_inbound);
         }
 
-        let unique_edges = edges.iter().map(|(src, dst, _)| (*src, *dst)).dedup();
+        let (expected_srcs, expected_dsts): (Vec<_>, Vec<_>) = edges.iter().map(|(src, dst, _)| (*src, *dst)).dedup().unzip();
+        let (actual_srcs, actual_dst): (Vec<_>, Vec<_>) = graph.all_edges_iter().map(|(VID(src), VID(dst))| (src as u64, dst as u64)).unzip();
 
-        for (e_id, (src, dst)) in unique_edges.enumerate() {
-            let edge = graph.edge(EID(e_id));
-            let VID(src_id) = edge.src();
-            let VID(dst_id) = edge.dst();
-
-            assert_eq!(nodes[src_id], src);
-            assert_eq!(nodes[dst_id], dst);
-        }
+        assert_eq!(expected_srcs, actual_srcs);
+        assert_eq!(expected_dsts, actual_dst);
     }
 
     fn edges_sanity_check_inner(
@@ -741,11 +718,11 @@ mod test {
         graph.add_edge(2, 0, 1, [("weight", 2.)], None).unwrap();
         graph.add_edge(3, 1, 2, [("weight", 3.)], None).unwrap();
         let disk_graph = graph.persist_as_disk_graph(graph_dir.path()).unwrap();
-        let graph = disk_graph.inner.layer(0);
+        let graph = disk_graph.inner;
 
         let all_exploded: Vec<_> = graph
             .exploded_edges()
-            .map(|e| (e.src(), e.dst(), e.timestamp()))
+            .map(|ee| (ee.src(), ee.dst(), ee.timestamp()))
             .collect();
         let expected: Vec<_> = vec![
             (VID(0), VID(1), 0),
