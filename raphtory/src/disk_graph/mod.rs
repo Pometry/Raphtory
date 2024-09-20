@@ -210,9 +210,10 @@ impl DiskGraphStorage {
         other: &DiskGraphStorage,
         new_graph_dir: impl AsRef<Path>,
     ) -> Result<DiskGraphStorage, GraphError> {
-        let graph_dir = new_graph_dir.as_ref();
-        let inner = merge_graphs(graph_dir, &self.inner, &other.inner)?;
-        Ok(DiskGraphStorage::new(inner))
+        // let graph_dir = new_graph_dir.as_ref();
+        // let inner = merge_graphs(graph_dir, &self.inner, &other.inner)?;
+        // Ok(DiskGraphStorage::new(inner))
+        todo!()
     }
 
     fn new(inner_graph: TemporalGraph) -> Self {
