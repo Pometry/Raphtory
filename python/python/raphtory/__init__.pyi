@@ -2925,6 +2925,7 @@ class MutableNode:
         An iterator over the neighbours of this node that point into this node.
         """
 
+    def is_active(self): ...
     def latest(self):
         """
          Create a view of the Node including all events at the latest time.
@@ -3402,6 +3403,7 @@ class Node:
         An iterator over the neighbours of this node that point into this node.
         """
 
+    def is_active(self): ...
     def latest(self):
         """
          Create a view of the Node including all events at the latest time.
