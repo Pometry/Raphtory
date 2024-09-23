@@ -108,7 +108,10 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<
 {
     type BaseGraph = G;
     type Graph = GH;
-    type ValueType<T> = BoxedLIter<'graph, T> where T: 'graph;
+    type ValueType<T>
+        = BoxedLIter<'graph, T>
+    where
+        T: 'graph;
     type PropType = EdgeView<GH>;
     type Nodes = PathFromNode<'graph, G, G>;
     type Exploded = Self;
@@ -249,7 +252,10 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<
 {
     type BaseGraph = G;
     type Graph = GH;
-    type ValueType<T> = BoxedLIter<'graph, BoxedLIter<'graph, T>> where T: 'graph;
+    type ValueType<T>
+        = BoxedLIter<'graph, BoxedLIter<'graph, T>>
+    where
+        T: 'graph;
     type PropType = EdgeView<GH>;
     type Nodes = PathFromGraph<'graph, G, G>;
     type Exploded = Self;

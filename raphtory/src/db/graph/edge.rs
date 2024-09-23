@@ -144,7 +144,8 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<
     type BaseGraph = G;
     type Graph = GH;
 
-    type ValueType<T> = T
+    type ValueType<T>
+        = T
     where
         T: 'graph;
     type PropType = Self;

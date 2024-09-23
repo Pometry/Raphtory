@@ -153,7 +153,10 @@ impl<
 {
     type BaseGraph = &'graph G;
     type Graph = GH;
-    type ValueType<T> = BoxedLIter<'graph, T> where T: 'graph;
+    type ValueType<T>
+        = BoxedLIter<'graph, T>
+    where
+        T: 'graph;
     type PropType = <Edges<'graph, &'graph G, GH> as BaseEdgeViewOps<'graph>>::PropType;
     type Nodes = EvalPathFromNode<'graph, 'a, G, &'graph G, CS, S>;
     type Exploded = EvalEdges<'graph, 'a, G, GH, CS, S>;

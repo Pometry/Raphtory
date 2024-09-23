@@ -132,7 +132,10 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
 }
 
 impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
-    type ValueType<T> = E::ValueType<T> where T: 'graph;
+    type ValueType<T>
+        = E::ValueType<T>
+    where
+        T: 'graph;
     type PropType = E::PropType;
     type Graph = E::Graph;
     type BaseGraph = E::BaseGraph;
