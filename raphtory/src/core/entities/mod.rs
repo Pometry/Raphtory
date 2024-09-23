@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{borrow::Cow, sync::Arc};
 
 use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
 
@@ -104,10 +104,13 @@ impl LayerIds {
         }
     }
 
-    pub fn constrain_from_edge(&self, e: EdgeRef) -> LayerIds {
+    pub fn constrain_from_edge(&self, e: EdgeRef) -> Cow<LayerIds> {
         match e.layer() {
-            None => self.clone(),
-            Some(l) => self.find(l).map(LayerIds::One).unwrap_or(LayerIds::None),
+            None => Cow::Borrowed(self),
+            Some(l) => self
+                .find(l)
+                .map(|id| Cow::Owned(LayerIds::One(id)))
+                .unwrap_or(Cow::Owned(LayerIds::None)),
         }
     }
 

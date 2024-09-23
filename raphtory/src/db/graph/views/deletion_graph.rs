@@ -254,11 +254,20 @@ impl TimeSemantics for PersistentGraph {
         self.0.node_history_window(v, w)
     }
 
-    fn edge_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64> {
+    fn edge_history<'a>(
+        &'a self,
+        e: EdgeRef,
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, TimeIndexEntry> {
         self.0.edge_history(e, layer_ids)
     }
 
-    fn edge_history_window(&self, e: EdgeRef, layer_ids: LayerIds, w: Range<i64>) -> Vec<i64> {
+    fn edge_history_window<'a>(
+        &'a self,
+        e: EdgeRef,
+        layer_ids: &'a LayerIds,
+        w: Range<i64>,
+    ) -> BoxedLIter<'a, TimeIndexEntry> {
         self.0.edge_history_window(e, layer_ids, w)
     }
 
@@ -573,7 +582,7 @@ impl TimeSemantics for PersistentGraph {
         let node = self.core_node_entry(v);
         GenLockedIter::from(node, move |node| {
             let prop = node.tprop(prop_id);
-            prop.last_before(start.saturating_add(1))
+            prop.last_before(TimeIndexEntry::start(start.saturating_add(1)))
                 .into_iter()
                 .map(move |(_, v)| (TimeIndexEntry::start(start), v))
                 .chain(prop.iter_window(TimeIndexEntry::range(start.saturating_add(1)..end)))
@@ -629,7 +638,7 @@ impl TimeSemantics for PersistentGraph {
                 .temporal_prop_iter(layer_ids, prop_id)
                 .map(|(l, prop)| {
                     let first_prop = prop
-                        .last_before(start.saturating_add(1))
+                        .last_before(TimeIndexEntry::start(start.saturating_add(1)))
                         .filter(|(t, _)| {
                             !entry
                                 .deletions(l)
@@ -644,6 +653,25 @@ impl TimeSemantics for PersistentGraph {
                 .into_dyn_boxed()
         })
         .into_dyn_boxed()
+    }
+
+    fn temporal_edge_prop_at(
+        &self,
+        e: EdgeRef,
+        id: usize,
+        t: TimeIndexEntry,
+        layer_ids: &LayerIds,
+    ) -> Option<Prop> {
+        let entry = self.core_edge(e.into());
+        let res = entry
+            .temporal_prop_iter(layer_ids, id)
+            .filter_map(|(layer_id, prop)| {
+                prop.last_before(t)
+                    .filter(|(last_t, _)| !entry.deletions(layer_id).active(*last_t..t.next())) // check with inclusive window
+                    .map(|(_, v)| v)
+            })
+            .next();
+        res
     }
 
     fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: &LayerIds) -> bool {

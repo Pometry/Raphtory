@@ -109,25 +109,39 @@ impl TimeSemantics for GraphStorage {
         self.node_entry(v).additions().range_t(w).iter().collect()
     }
 
-    fn edge_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64> {
+    fn edge_history<'a>(
+        &'a self,
+        e: EdgeRef,
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, TimeIndexEntry> {
         let core_edge = self.edge_entry(e.into());
-        kmerge(
-            core_edge
-                .additions_iter(&layer_ids)
-                .map(|(_, index)| index.into_iter()),
-        )
-        .map(|te| te.t())
-        .collect()
+        GenLockedIter::from(core_edge, |core_edge| {
+            kmerge(
+                core_edge
+                    .additions_iter(&layer_ids)
+                    .map(|(_, index)| index.into_iter()),
+            )
+            .into_dyn_boxed()
+        })
+        .into_dyn_boxed()
     }
 
-    fn edge_history_window(&self, e: EdgeRef, layer_ids: LayerIds, w: Range<i64>) -> Vec<i64> {
+    fn edge_history_window<'a>(
+        &'a self,
+        e: EdgeRef,
+        layer_ids: &'a LayerIds,
+        w: Range<i64>,
+    ) -> BoxedLIter<'a, TimeIndexEntry> {
         let core_edge = self.edge_entry(e.into());
-        kmerge(
-            core_edge
-                .additions_iter(&layer_ids)
-                .map(move |(_, index)| index.into_range_t(w.clone()).into_iter_t()),
-        )
-        .collect()
+        GenLockedIter::from(core_edge, |core_edge| {
+            kmerge(
+                core_edge
+                    .additions_iter(&layer_ids)
+                    .map(move |(_, index)| index.into_range_t(w.clone()).into_iter()),
+            )
+            .into_dyn_boxed()
+        })
+        .into_dyn_boxed()
     }
 
     fn edge_exploded_count(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> usize {
@@ -385,6 +399,21 @@ impl TimeSemantics for GraphStorage {
             })
             .into_dyn_boxed(),
         }
+    }
+
+    fn temporal_edge_prop_at(
+        &self,
+        e: EdgeRef,
+        id: usize,
+        t: TimeIndexEntry,
+        layer_ids: &LayerIds,
+    ) -> Option<Prop> {
+        let entry = self.core_edge(e.into());
+        let res = entry
+            .temporal_prop_iter(layer_ids, id)
+            .filter_map(|(_, p)| p.at(&t))
+            .next();
+        res
     }
 
     fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: &LayerIds) -> bool {

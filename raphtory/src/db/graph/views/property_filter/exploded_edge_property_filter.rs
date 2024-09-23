@@ -1,0 +1,396 @@
+use crate::{
+    core::{entities::LayerIds, Prop},
+    db::{
+        api::{
+            properties::internal::{InheritPropertiesOps, TemporalPropertyViewOps},
+            storage::graph::{
+                edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+                nodes::node_ref::NodeStorageRef,
+            },
+            view::{
+                internal::{
+                    EdgeFilterOps, Immutable, InheritCoreOps, InheritEdgeFilterOps,
+                    InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeFilterOps,
+                    InheritTimeSemantics, Static, TimeSemantics,
+                },
+                Base, BoxedIter, BoxedLIter, IntoDynBoxed,
+            },
+        },
+        graph::{edge::EdgeView, views::property_filter::PropFilter},
+    },
+    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
+};
+use raphtory_api::core::{
+    entities::{edges::edge_ref::EdgeRef, VID},
+    storage::timeindex::{AsTime, TimeIndexEntry},
+};
+use std::ops::Range;
+
+#[derive(Debug, Clone)]
+pub struct ExplodedEdgePropertyFilteredGraph<G> {
+    graph: G,
+    prop_id: Option<usize>,
+    filter: PropFilter,
+}
+
+impl<'graph, G> ExplodedEdgePropertyFilteredGraph<G> {
+    pub(crate) fn new(graph: G, prop_id: Option<usize>, filter: impl Into<PropFilter>) -> Self {
+        Self {
+            graph,
+            prop_id,
+            filter: filter.into(),
+        }
+    }
+
+    fn filter(&self, e: EdgeRef, t: TimeIndexEntry, layer_ids: LayerIds) -> bool {
+        self.filter.filter(self.prop_id.and_then(|prop_id| {
+            self.temporal_edge_prop_at(e, prop_id, t, layer_ids)
+                .as_ref()
+        }))
+    }
+}
+
+impl<G> Static for ExplodedEdgePropertyFilteredGraph<G> {}
+impl<G> Immutable for ExplodedEdgePropertyFilteredGraph<G> {}
+
+impl<'graph, G> Base for ExplodedEdgePropertyFilteredGraph<G> {
+    type Base = G;
+
+    fn base(&self) -> &Self::Base {
+        &self.graph
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for ExplodedEdgePropertyFilteredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for ExplodedEdgePropertyFilteredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritListOps for ExplodedEdgePropertyFilteredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for ExplodedEdgePropertyFilteredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritNodeFilterOps
+    for ExplodedEdgePropertyFilteredGraph<G>
+{
+}
+impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps
+    for ExplodedEdgePropertyFilteredGraph<G>
+{
+}
+impl<'graph, G: GraphViewOps<'graph>> InheritEdgeFilterOps
+    for ExplodedEdgePropertyFilteredGraph<G>
+{
+}
+
+impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilteredGraph<G> {
+    fn node_earliest_time(&self, v: VID) -> Option<i64> {
+        self.graph.node_earliest_time(v)
+    }
+
+    fn node_latest_time(&self, v: VID) -> Option<i64> {
+        self.graph.node_latest_time(v)
+    }
+
+    fn view_start(&self) -> Option<i64> {
+        self.graph.view_start()
+    }
+
+    fn view_end(&self) -> Option<i64> {
+        self.graph.view_end()
+    }
+
+    fn earliest_time_global(&self) -> Option<i64> {
+        self.graph.earliest_time_global()
+    }
+
+    fn latest_time_global(&self) -> Option<i64> {
+        self.graph.latest_time_global()
+    }
+
+    fn earliest_time_window(&self, start: i64, end: i64) -> Option<i64> {
+        // FIXME: this is potentially wrong but there is no way to fix this right now as nodes don't
+        // separate timestamps from node property updates and edge additions currently
+        self.graph.earliest_time_window(start, end)
+    }
+
+    fn latest_time_window(&self, start: i64, end: i64) -> Option<i64> {
+        // FIXME: this is potentially wrong but there is no way to fix this right now as nodes don't
+        // separate timestamps from node property updates and edge additions currently
+        self.graph.latest_time_window(start, end)
+    }
+
+    fn node_earliest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
+        // FIXME: this is potentially wrong but there is no way to fix this right now as nodes don't
+        // separate timestamps from node property updates and edge additions currently
+        self.graph.node_earliest_time_window(v, start, end)
+    }
+
+    fn node_latest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
+        // FIXME: this is potentially wrong but there is no way to fix this right now as nodes don't
+        // separate timestamps from node property updates and edge additions currently
+        self.graph.node_latest_time_window(v, start, end)
+    }
+
+    fn include_node_window(&self, v: NodeStorageRef, w: Range<i64>, layer_ids: &LayerIds) -> bool {
+        // FIXME: this is potentially wrong but there is no way to fix this right now as nodes don't
+        // separate timestamps from node property updates and edge additions currently
+        self.graph.include_node_window(v, w, layer_ids)
+    }
+
+    fn include_edge_window(
+        &self,
+        edge: EdgeStorageRef,
+        w: Range<i64>,
+        layer_ids: &LayerIds,
+    ) -> bool {
+        self.edge_window_exploded(edge.out_ref(), w, layer_ids.clone())
+            .next()
+            .is_some()
+    }
+
+    fn node_history(&self, v: VID) -> Vec<i64> {
+        // FIXME: this is potentially wrong but there is no way to fix this right now as nodes don't
+        // separate timestamps from node property updates and edge additions currently
+        self.graph.node_history(v)
+    }
+
+    fn node_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
+        // FIXME: this is potentially wrong but there is no way to fix this right now as nodes don't
+        // separate timestamps from node property updates and edge additions currently
+        self.graph.node_history_window(v, w)
+    }
+
+    fn edge_history<'a>(
+        &'a self,
+        e: EdgeRef,
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, TimeIndexEntry> {
+        self.graph
+            .edge_history(e, layer_ids)
+            .filter(move |t| self.filter(e, *t, layer_ids.clone()))
+            .into_dyn_boxed()
+    }
+
+    fn edge_history_window<'a>(
+        &'a self,
+        e: EdgeRef,
+        layer_ids: &'a LayerIds,
+        w: Range<i64>,
+    ) -> BoxedLIter<'a, TimeIndexEntry> {
+        self.graph
+            .edge_history_window(e, layer_ids, w)
+            .filter(move |t| self.filter(e, *t, layer_ids.clone()))
+            .into_dyn_boxed()
+    }
+
+    fn edge_exploded_count(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> usize {
+        self.edge_exploded(edge.out_ref(), layer_ids.clone())
+            .count()
+    }
+
+    fn edge_exploded_count_window(
+        &self,
+        edge: EdgeStorageRef,
+        layer_ids: &LayerIds,
+        w: Range<i64>,
+    ) -> usize {
+        self.edge_window_exploded(edge.out_ref(), w, layer_ids)
+            .count()
+    }
+
+    fn edge_exploded<'a>(&'a self, e: EdgeRef, layer_ids: &'a LayerIds) -> BoxedLIter<'a, EdgeRef> {
+        self.graph
+            .edge_exploded(e, layer_ids)
+            .filter(|&e| {
+                self.filter(
+                    e,
+                    e.time().expect("exploded edge should have timestamp"),
+                    layer_ids,
+                )
+            })
+            .into_dyn_boxed()
+    }
+
+    fn edge_layers<'a>(&'a self, e: EdgeRef, layer_ids: &'a LayerIds) -> BoxedLIter<'a, EdgeRef> {
+        self.graph
+            .edge_layers(e, layer_ids)
+            .filter(|&e| {
+                self.edge_exploded(
+                    e,
+                    &LayerIds::One(e.layer().expect("exploded edge should have layer")),
+                )
+                .next()
+                .is_some()
+            })
+            .into_dyn_boxed()
+    }
+
+    fn edge_window_exploded<'a>(
+        &'a self,
+        e: EdgeRef,
+        w: Range<i64>,
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, EdgeRef> {
+        self.graph
+            .edge_window_exploded(e, w, layer_ids)
+            .filter(|&e| {
+                self.filter(
+                    e,
+                    e.time().expect("exploded edge should have timestamp"),
+                    layer_ids,
+                )
+            })
+            .into_dyn_boxed()
+    }
+
+    fn edge_window_layers<'a>(
+        &'a self,
+        e: EdgeRef,
+        w: Range<i64>,
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<EdgeRef> {
+        self.graph
+            .edge_window_layers(e, w.clone(), layer_ids)
+            .filter(move |&e| {
+                self.edge_window_exploded(
+                    e,
+                    w.clone(),
+                    &LayerIds::One(e.layer().expect("exploded edge should have layer")),
+                )
+                .next()
+                .is_some()
+            })
+            .into_dyn_boxed()
+    }
+
+    fn edge_earliest_time(&self, e: EdgeRef, layer_ids: &LayerIds) -> Option<i64> {
+        self.edge_history(e, layer_ids).next().map(|ti| ti.t())
+    }
+
+    fn edge_earliest_time_window(
+        &self,
+        e: EdgeRef,
+        w: Range<i64>,
+        layer_ids: &LayerIds,
+    ) -> Option<i64> {
+        self.edge_history_window(e, layer_ids, w)
+            .next()
+            .map(|ti| ti.t())
+    }
+
+    fn edge_latest_time(&self, e: EdgeRef, layer_ids: &LayerIds) -> Option<i64> {
+        todo!()
+    }
+
+    fn edge_latest_time_window(
+        &self,
+        e: EdgeRef,
+        w: Range<i64>,
+        layer_ids: &LayerIds,
+    ) -> Option<i64> {
+        todo!()
+    }
+
+    fn edge_deletion_history<'a>(
+        &'a self,
+        e: EdgeRef,
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, TimeIndexEntry> {
+        todo!()
+    }
+
+    fn edge_deletion_history_window<'a>(
+        &'a self,
+        e: EdgeRef,
+        w: Range<i64>,
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, TimeIndexEntry> {
+        todo!()
+    }
+
+    fn edge_is_valid(&self, e: EdgeRef, layer_ids: &LayerIds) -> bool {
+        todo!()
+    }
+
+    fn edge_is_valid_at_end(&self, e: EdgeRef, layer_ids: &LayerIds, t: i64) -> bool {
+        todo!()
+    }
+
+    fn has_temporal_prop(&self, prop_id: usize) -> bool {
+        todo!()
+    }
+
+    fn temporal_prop_vec(&self, prop_id: usize) -> Vec<(i64, Prop)> {
+        todo!()
+    }
+
+    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
+        todo!()
+    }
+
+    fn temporal_prop_vec_window(&self, prop_id: usize, start: i64, end: i64) -> Vec<(i64, Prop)> {
+        todo!()
+    }
+
+    fn has_temporal_node_prop(&self, v: VID, prop_id: usize) -> bool {
+        todo!()
+    }
+
+    fn temporal_node_prop_hist(&self, v: VID, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+        todo!()
+    }
+
+    fn has_temporal_node_prop_window(&self, v: VID, prop_id: usize, w: Range<i64>) -> bool {
+        todo!()
+    }
+
+    fn temporal_node_prop_hist_window(
+        &self,
+        v: VID,
+        id: usize,
+        start: i64,
+        end: i64,
+    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+        todo!()
+    }
+
+    fn has_temporal_edge_prop_window(
+        &self,
+        e: EdgeRef,
+        prop_id: usize,
+        w: Range<i64>,
+        layer_ids: &LayerIds,
+    ) -> bool {
+        todo!()
+    }
+
+    fn temporal_edge_prop_hist_window<'a>(
+        &'a self,
+        e: EdgeRef,
+        id: usize,
+        start: i64,
+        end: i64,
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, (TimeIndexEntry, Prop)> {
+        todo!()
+    }
+
+    fn temporal_edge_prop_at(
+        &self,
+        e: EdgeRef,
+        id: usize,
+        t: TimeIndexEntry,
+        layer_ids: &LayerIds,
+    ) -> Option<Prop> {
+        todo!()
+    }
+
+    fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: &LayerIds) -> bool {
+        todo!()
+    }
+
+    fn temporal_edge_prop_hist<'a>(
+        &'a self,
+        e: EdgeRef,
+        id: usize,
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, (TimeIndexEntry, Prop)> {
+        todo!()
+    }
+}

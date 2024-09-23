@@ -2,6 +2,7 @@ use crate::core::Prop;
 use std::collections::HashSet;
 
 pub mod edge_property_filter;
+mod exploded_edge_property_filter;
 
 #[derive(Debug, Clone)]
 pub(crate) struct PropValueFilter {
