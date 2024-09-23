@@ -6,9 +6,11 @@ use std::{
 };
 
 use chrono::Duration;
-use raphtory::core::utils::errors::InvalidPathReason::*;
-use raphtory::{core::utils::errors::GraphError, prelude::*};
-use raphtory::{core::utils::errors::InvalidPathReason, serialise::GraphFolder};
+use raphtory::{
+    core::utils::errors::{GraphError, InvalidPathReason, InvalidPathReason::*},
+    prelude::*,
+    serialise::GraphFolder,
+};
 
 #[derive(Clone)]
 pub(crate) struct ExistingGraphFolder {

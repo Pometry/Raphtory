@@ -1,11 +1,13 @@
 use std::{fs, sync::Arc};
 
 use once_cell::sync::OnceCell;
-use raphtory::core::utils::errors::InvalidPathReason::*;
 #[cfg(feature = "storage")]
 use raphtory::disk_graph::DiskGraphStorage;
 use raphtory::{
-    core::{entities::nodes::node_ref::AsNodeRef, utils::errors::GraphError},
+    core::{
+        entities::nodes::node_ref::AsNodeRef,
+        utils::errors::{GraphError, InvalidPathReason::*},
+    },
     db::{
         api::{
             mutation::internal::InheritMutationOps,
