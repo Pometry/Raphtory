@@ -39,6 +39,7 @@ impl Node {
     ////////////////////////
     // LAYERS AND WINDOWS //
     ////////////////////////
+
     async fn layers(&self, names: Vec<String>) -> Node {
         self.vv.valid_layers(names).into()
     }
@@ -86,6 +87,7 @@ impl Node {
     ////////////////////////
     //// TIME QUERIES //////
     ////////////////////////
+
     async fn earliest_time(&self) -> Option<i64> {
         self.vv.earliest_time()
     }
@@ -117,6 +119,7 @@ impl Node {
     ////////////////////////
     /////// PROPERTIES /////
     ////////////////////////
+
     pub async fn node_type(&self) -> Option<String> {
         match self.vv.node_type() {
             None => None,
@@ -132,16 +135,19 @@ impl Node {
     //// EDGE GETTERS //////
     ////////////////////////
     /// Returns the number of edges connected to this node
+
     async fn degree(&self) -> usize {
         self.vv.degree()
     }
 
     /// Returns the number edges with this node as the source
+
     async fn out_degree(&self) -> usize {
         self.vv.out_degree()
     }
 
     /// Returns the number edges with this node as the destination
+
     async fn in_degree(&self) -> usize {
         self.vv.in_degree()
     }

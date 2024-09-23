@@ -1,4 +1,5 @@
 use crate::{db::api::mutation::AdditionOps, prelude::*};
+use tracing::error;
 
 /// `karate_club_graph` constructs a karate club graph.
 ///
@@ -68,7 +69,7 @@ pub fn karate_club_graph() -> Graph {
     for i in 0..34 {
         graph
             .add_node(0, i, NO_PROPS, None)
-            .map_err(|err| println!("{:?}", err))
+            .map_err(|err| error!("{:?}", err))
             .ok();
     }
 
@@ -83,7 +84,7 @@ pub fn karate_club_graph() -> Graph {
                 let actual_row = row - 1;
                 graph
                     .add_edge(0, actual_row as u64, col as u64, [("weight", entry)], None)
-                    .map_err(|err| println!("{:?}", err))
+                    .map_err(|err| error!("{:?}", err))
                     .ok();
             }
         }
@@ -97,7 +98,7 @@ pub fn karate_club_graph() -> Graph {
             const_prop = "Mr. Hi";
         }
         node.add_constant_properties([("club", const_prop)])
-            .map_err(|err| println!("{:?}", err))
+            .map_err(|err| error!("{:?}", err))
             .ok();
     }
 

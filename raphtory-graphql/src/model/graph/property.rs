@@ -99,6 +99,7 @@ impl GqlProp {
     async fn key(&self) -> String {
         self.key.clone()
     }
+
     async fn as_string(&self) -> String {
         self.prop.to_string()
     }
@@ -129,9 +130,11 @@ impl GqlPropTuple {
     async fn time(&self) -> i64 {
         self.time
     }
+
     async fn as_string(&self) -> String {
         self.prop.to_string()
     }
+
     async fn value(&self) -> GqlPropValue {
         GqlPropValue(self.prop.clone())
     }
@@ -158,18 +161,23 @@ impl GqlTemporalProp {
     async fn key(&self) -> String {
         self.key.clone()
     }
+
     async fn history(&self) -> Vec<i64> {
         self.prop.history()
     }
+
     async fn values(&self) -> Vec<String> {
         self.prop.values().iter().map(|x| x.to_string()).collect()
     }
+
     async fn at(&self, t: i64) -> Option<String> {
         self.prop.at(t).map(|x| x.to_string())
     }
+
     async fn latest(&self) -> Option<String> {
         self.prop.latest().map(|x| x.to_string())
     }
+
     async fn unique(&self) -> Vec<String> {
         self.prop
             .unique()
@@ -177,6 +185,7 @@ impl GqlTemporalProp {
             .map(|x| x.to_string())
             .collect_vec()
     }
+
     async fn ordered_dedupe(&self, latest_time: bool) -> Vec<GqlPropTuple> {
         self.prop
             .ordered_dedupe(latest_time)
@@ -240,9 +249,11 @@ impl GqlProperties {
     async fn get(&self, key: &str) -> Option<GqlProp> {
         self.props.get(key).map(|p| (key.to_string(), p).into())
     }
+
     async fn contains(&self, key: &str) -> bool {
         self.props.contains(key)
     }
+
     async fn keys(&self) -> Vec<String> {
         self.props.keys().map(|k| k.into()).collect()
     }
@@ -273,7 +284,7 @@ impl GqlProperties {
         self.props.temporal().into()
     }
 
-    pub fn constant(&self) -> GqlConstantProperties {
+    async fn constant(&self) -> GqlConstantProperties {
         self.props.constant().into()
     }
 }
@@ -283,9 +294,11 @@ impl GqlConstantProperties {
     async fn get(&self, key: &str) -> Option<GqlProp> {
         self.props.get(key).map(|p| (key.to_string(), p).into())
     }
+
     async fn contains(&self, key: &str) -> bool {
         self.props.contains(key)
     }
+
     async fn keys(&self) -> Vec<String> {
         self.props.keys().iter().map(|k| k.clone().into()).collect()
     }
@@ -318,12 +331,15 @@ impl GqlTemporalProperties {
     async fn get(&self, key: &str) -> Option<GqlTemporalProp> {
         self.props.get(key).map(|p| (key.to_string(), p).into())
     }
+
     async fn contains(&self, key: &str) -> bool {
         self.props.contains(key)
     }
+
     async fn keys(&self) -> Vec<String> {
         self.props.keys().map(|k| k.into()).collect()
     }
+
     async fn values(&self, keys: Option<Vec<String>>) -> Vec<GqlTemporalProp> {
         match keys {
             Some(keys) => self

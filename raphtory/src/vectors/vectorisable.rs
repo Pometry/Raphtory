@@ -12,6 +12,7 @@ use async_trait::async_trait;
 use itertools::Itertools;
 use parking_lot::RwLock;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use tracing::info;
 
 const CHUNK_SIZE: usize = 1000;
 
@@ -92,19 +93,19 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
             .collect_vec();
 
         if verbose {
-            println!("computing embeddings for graph");
+            info!("computing embeddings for graph");
         }
         let graph_refs =
             compute_entity_embeddings(graph_docs.into_iter(), embedding.as_ref(), &cache).await;
 
         if verbose {
-            println!("computing embeddings for nodes");
+            info!("computing embeddings for nodes");
         }
         let node_refs =
             compute_embedding_groups(nodes.into_iter(), embedding.as_ref(), &cache).await;
 
         if verbose {
-            println!("computing embeddings for edges");
+            info!("computing embeddings for edges");
         }
         let edge_refs =
             compute_embedding_groups(edges.into_iter(), embedding.as_ref(), &cache).await; // FIXME: re-enable

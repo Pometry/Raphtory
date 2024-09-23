@@ -1,24 +1,23 @@
 pub use crate::server::GraphServer;
-pub mod azure_auth;
 mod data;
 mod graph;
 pub mod model;
-mod observability;
+pub mod observability;
 mod paths;
 mod routes;
 pub mod server;
-pub mod server_config;
 pub mod url_encode;
 
+pub mod config;
 #[cfg(feature = "python")]
 pub mod python;
 
 #[cfg(test)]
 mod graphql_test {
     use crate::{
+        config::app_config::AppConfig,
         data::{data_tests::save_graphs_to_work_dir, Data},
         model::App,
-        server_config::AppConfig,
         url_encode::{url_decode_graph, url_encode_graph},
     };
     use async_graphql::UploadValue;
@@ -966,19 +965,5 @@ mod graphql_test {
                 }
             }),
         );
-
-        let req = &format!(
-            r#"mutation {{
-              updateGraphLastOpened(path: "{}")
-            }}"#,
-            "graph"
-        );
-
-        let req = Request::new(req);
-        let res = schema.execute(req).await;
-        let data = res.errors;
-        let error_message = &data[0].message;
-        let expected_error_message = "Disk Graph is immutable";
-        assert_eq!(error_message, expected_error_message);
     }
 }

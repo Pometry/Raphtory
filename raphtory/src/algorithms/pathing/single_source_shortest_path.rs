@@ -83,6 +83,8 @@ mod sssp_tests {
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         test_storage,
     };
+    use raphtory_api::core::utils::logging::global_info_logger;
+    use tracing::info;
 
     fn load_graph(edges: Vec<(i64, u64, u64)>) -> Graph {
         let graph = Graph::new();
@@ -94,6 +96,7 @@ mod sssp_tests {
 
     #[test]
     fn test_sssp_1() {
+        global_info_logger();
         let graph = load_graph(vec![
             (0, 1, 2),
             (1, 1, 3),
@@ -130,7 +133,7 @@ mod sssp_tests {
             ]);
             assert_eq!(results, expected);
             let binding = single_source_shortest_path(graph, 5, Some(4));
-            println!("{:?}", binding.get_all_with_names());
+            info!("{:?}", binding.get_all_with_names());
         });
     }
 }

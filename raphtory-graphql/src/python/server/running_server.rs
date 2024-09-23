@@ -3,13 +3,14 @@ use crate::python::{
     server::{is_online, wait_server, BridgeCommand},
     RUNNING_SERVER_CONSUMED_MSG, WAIT_CHECK_INTERVAL_MILLIS,
 };
-use crossbeam_channel::Sender as CrossbeamSender;
+use crossbeam_channel::{SendError, Sender as CrossbeamSender};
 use pyo3::{exceptions::PyException, pyclass, pymethods, Py, PyObject, PyResult, Python};
 use std::{
     thread::{sleep, JoinHandle},
     time::Duration,
 };
 use tokio::{self, io::Result as IoResult};
+use tracing::error;
 
 /// A Raphtory server handler that also enables querying the server
 #[pyclass(name = "RunningGraphServer")]
@@ -67,10 +68,12 @@ impl PyRunningGraphServer {
 
     pub(crate) fn stop_server(&mut self, py: Python) -> PyResult<()> {
         Self::apply_if_alive(self, |handler| {
-            handler
-                .sender
-                .send(BridgeCommand::StopServer)
-                .expect("Failed when sending cancellation signal");
+            match handler.sender.send(BridgeCommand::StopServer) {
+                Ok(_) => {}
+                Err(e) => {
+                    error!("Failed to establish Channel with server, this could be because you already have Raphtory running on this port. {}",e.to_string())
+                }
+            }
             Ok(())
         })?;
         let server = &mut self.server_handler;

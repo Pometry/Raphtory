@@ -24,6 +24,7 @@
 use crate::{graph_loader::fetch_file, io::csv_loader::CsvLoader, prelude::*};
 use serde::Deserialize;
 use std::path::PathBuf;
+use tracing::error;
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct Lotr {
@@ -66,10 +67,10 @@ pub fn lotr_graph() -> Graph {
                 let time = lotr.time;
 
                 g.add_node(time, src_id.clone(), NO_PROPS, None)
-                    .map_err(|err| println!("{:?}", err))
+                    .map_err(|err| error!("{:?}", err))
                     .ok();
                 g.add_node(time, dst_id.clone(), NO_PROPS, None)
-                    .map_err(|err| println!("{:?}", err))
+                    .map_err(|err| error!("{:?}", err))
                     .ok();
                 g.add_edge(time, src_id.clone(), dst_id.clone(), NO_PROPS, None)
                     .expect("Error: Unable to add edge");

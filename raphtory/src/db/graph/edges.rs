@@ -55,10 +55,10 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'gr
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Edges<'graph, G, GH> {
-    pub fn iter(&self) -> impl Iterator<Item = EdgeView<G, GH>> + 'graph {
-        let base_graph = self.base_graph.clone();
-        let graph = self.graph.clone();
-        (self.edges)().map(move |e| EdgeView::new_filtered(base_graph.clone(), graph.clone(), e))
+    pub fn iter(&self) -> impl Iterator<Item = EdgeView<&G, &GH>> + '_ {
+        let base_graph = &self.base_graph;
+        let graph = &self.graph;
+        (self.edges)().map(move |e| EdgeView::new_filtered(base_graph, graph, e))
     }
 
     pub fn len(&self) -> usize {
@@ -70,7 +70,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Edges<'graph, G,
     }
 
     pub fn collect(&self) -> Vec<EdgeView<G, GH>> {
-        self.iter().collect()
+        self.iter().map(|e| e.cloned()).collect()
     }
 
     pub fn get_const_prop_id(&self, prop_name: &str) -> Option<usize> {

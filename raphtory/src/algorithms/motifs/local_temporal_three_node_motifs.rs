@@ -19,6 +19,7 @@ use num_traits::Zero;
 use raphtory_api::core::entities::VID;
 use rustc_hash::FxHashSet;
 use std::{collections::HashMap, mem, ops::Add, slice::Iter};
+use tracing::debug;
 ///////////////////////////////////////////////////////
 
 // State objects for three node motifs
@@ -96,7 +97,13 @@ where
     let events = evv
         .edges()
         .iter()
-        .map(|e| e.explode())
+        .filter_map(|e| {
+            if e.src().node != e.dst().node {
+                Some(e.explode())
+            } else {
+                None
+            }
+        })
         .kmerge_by(|e1, e2| e1.time_and_index() < e2.time_and_index())
         .map(|edge| {
             if edge.src().node == evv.node {
@@ -140,11 +147,15 @@ where
             .merge_by(inc.iter().flat_map(|e| e.explode()), |e1, e2| {
                 e1.time_and_index() < e2.time_and_index()
             })
-            .map(|e| {
-                two_node_event(
-                    if e.src().node == evv.node { 1 } else { 0 },
-                    e.time().unwrap(),
-                )
+            .filter_map(|e| {
+                if e.src().node != e.dst().node {
+                    Some(two_node_event(
+                        if e.src().node == evv.node { 1 } else { 0 },
+                        e.time().unwrap(),
+                    ))
+                } else {
+                    None
+                }
             })
             .collect();
         for j in 0..deltas.len() {
@@ -320,9 +331,9 @@ where
     let delta_len = deltas.len();
     let ctx: Context<G, ComputeStateVec> = g.into();
 
-    println!("Running triangle step");
+    debug!("Running triangle step");
     let triadic_motifs = triangle_motifs(g, deltas.clone(), threads);
-    println!("Running rest of motifs");
+    debug!("Running rest of motifs");
 
     let star_motif_step = ATask::new(move |evv: &mut EvalNodeView<G, MotifCounter>| {
         let two_nodes = twonode_motif_count(evv, deltas.clone());
@@ -390,6 +401,8 @@ mod motifs_test {
         prelude::NO_PROPS,
         test_storage,
     };
+    use raphtory_api::core::utils::logging::global_debug_logger;
+    use tracing::info;
 
     fn load_graph(edges: Vec<(i64, u64, u64)>) -> Graph {
         let graph = Graph::new();
@@ -402,6 +415,9 @@ mod motifs_test {
 
     fn load_sample_graph() -> Graph {
         let edges = vec![
+            (1, 1, 1),
+            (1, 1, 1),
+            (2, 1, 1),
             (1, 1, 2),
             (2, 1, 3),
             (3, 1, 4),
@@ -432,6 +448,7 @@ mod motifs_test {
     #[ignore]
     #[test]
     fn test_triangle_motif() {
+        global_debug_logger();
         let ij_kj_ik = vec![(1, 1, 2), (2, 3, 2), (3, 1, 3)];
         let g = load_graph(ij_kj_ik);
         let mc = temporal_three_node_motif(&g, vec![3], None)
@@ -439,7 +456,7 @@ mod motifs_test {
             .map(|(k, v)| (k.clone(), v[0].clone()))
             .into_iter()
             .collect::<HashMap<String, Vec<usize>>>();
-        println!("{:?}", mc.get("3").unwrap());
+        info!("{:?}", mc.get("3").unwrap());
 
         let ij_ki_jk = vec![(1, 1, 2), (2, 3, 1), (3, 2, 3)];
         let g = load_graph(ij_ki_jk);
@@ -448,7 +465,7 @@ mod motifs_test {
             .map(|(k, v)| (k.clone(), v[0].clone()))
             .into_iter()
             .collect::<HashMap<String, Vec<usize>>>();
-        println!("{:?}", mc.get("3").unwrap());
+        info!("{:?}", mc.get("3").unwrap());
 
         let ij_jk_ik = vec![(1, 1, 2), (2, 2, 3), (3, 1, 3)];
         let g = load_graph(ij_jk_ik);
@@ -457,7 +474,7 @@ mod motifs_test {
             .map(|(k, v)| (k.clone(), v[0].clone()))
             .into_iter()
             .collect::<HashMap<String, Vec<usize>>>();
-        println!("{:?}", mc.get("3").unwrap());
+        info!("{:?}", mc.get("3").unwrap());
 
         let ij_ik_jk = vec![(1, 1, 2), (2, 1, 3), (3, 2, 3)];
         let g = load_graph(ij_ik_jk);
@@ -466,7 +483,7 @@ mod motifs_test {
             .map(|(k, v)| (k.clone(), v[0].clone()))
             .into_iter()
             .collect::<HashMap<String, Vec<usize>>>();
-        println!("{:?}", mc.get("3").unwrap());
+        info!("{:?}", mc.get("3").unwrap());
 
         let ij_kj_ki = vec![(1, 1, 2), (2, 3, 2), (3, 3, 1)];
         let g = load_graph(ij_kj_ki);
@@ -475,7 +492,7 @@ mod motifs_test {
             .map(|(k, v)| (k.clone(), v[0].clone()))
             .into_iter()
             .collect::<HashMap<String, Vec<usize>>>();
-        println!("{:?}", mc.get("3").unwrap());
+        info!("{:?}", mc.get("3").unwrap());
 
         let ij_ki_kj = vec![(1, 1, 2), (2, 3, 1), (3, 3, 2)];
         let g = load_graph(ij_ki_kj);
@@ -484,7 +501,7 @@ mod motifs_test {
             .map(|(k, v)| (k.clone(), v[0].clone()))
             .into_iter()
             .collect::<HashMap<String, Vec<usize>>>();
-        println!("{:?}", mc.get("3").unwrap());
+        info!("{:?}", mc.get("3").unwrap());
 
         let ij_jk_ki = vec![(1, 1, 2), (2, 2, 3), (3, 3, 1)];
         let g = load_graph(ij_jk_ki);
@@ -493,7 +510,7 @@ mod motifs_test {
             .map(|(k, v)| (k.clone(), v[0].clone()))
             .into_iter()
             .collect::<HashMap<String, Vec<usize>>>();
-        println!("{:?}", mc.get("3").unwrap());
+        info!("{:?}", mc.get("3").unwrap());
 
         let ij_ik_kj = vec![(1, 1, 2), (2, 1, 3), (3, 3, 2)];
         let g = load_graph(ij_ik_kj);
@@ -502,7 +519,7 @@ mod motifs_test {
             .map(|(k, v)| (k.clone(), v[0].clone()))
             .into_iter()
             .collect::<HashMap<String, Vec<usize>>>();
-        println!("{:?}", mc.get("3").unwrap());
+        info!("{:?}", mc.get("3").unwrap());
     }
 
     #[test]
@@ -608,9 +625,10 @@ mod motifs_test {
 
     #[test]
     fn test_windowed_graph() {
+        global_debug_logger();
         let g = load_sample_graph();
         let g_windowed = g.before(11).after(0);
-        println! {"windowed graph has {:?} vertices",g_windowed.count_nodes()}
+        info! {"windowed graph has {:?} vertices",g_windowed.count_nodes()}
 
         let binding = temporal_three_node_motif(&g_windowed, Vec::from([10]), None);
         let actual = binding

@@ -5,6 +5,7 @@ use crate::{
             graph::tgraph::TemporalGraph,
             nodes::{node_ref::AsNodeRef, node_store::NodeStore},
         },
+        storage::{raw_edges::WriteLockedEdges, WriteLockedNodes},
         utils::errors::GraphError,
         PropType,
     },
@@ -27,12 +28,24 @@ impl InternalAdditionOps for TemporalGraph {
         Ok(WriteLockedGraph::new(self))
     }
 
+    fn write_lock_nodes(&self) -> Result<WriteLockedNodes, GraphError> {
+        Ok(self.storage.nodes.write_lock())
+    }
+
+    fn write_lock_edges(&self) -> Result<WriteLockedEdges, GraphError> {
+        Ok(self.storage.edges.write_lock())
+    }
+
     fn num_shards(&self) -> Result<usize, GraphError> {
         Ok(self.storage.nodes.data.len())
     }
 
     fn next_event_id(&self) -> Result<usize, GraphError> {
         Ok(self.event_counter.fetch_add(1, Ordering::Relaxed))
+    }
+
+    fn read_event_id(&self) -> usize {
+        self.event_counter.load(Ordering::Relaxed)
     }
 
     fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, GraphError> {
@@ -192,6 +205,20 @@ impl InternalAdditionOps for GraphStorage {
         }
     }
 
+    fn write_lock_nodes(&self) -> Result<WriteLockedNodes, GraphError> {
+        match self {
+            GraphStorage::Unlocked(storage) => storage.write_lock_nodes(),
+            _ => Err(GraphError::AttemptToMutateImmutableGraph),
+        }
+    }
+
+    fn write_lock_edges(&self) -> Result<WriteLockedEdges, GraphError> {
+        match self {
+            GraphStorage::Unlocked(storage) => storage.write_lock_edges(),
+            _ => Err(GraphError::AttemptToMutateImmutableGraph),
+        }
+    }
+
     fn num_shards(&self) -> Result<usize, GraphError> {
         match self {
             GraphStorage::Unlocked(storage) => storage.num_shards(),
@@ -203,6 +230,15 @@ impl InternalAdditionOps for GraphStorage {
         match self {
             GraphStorage::Unlocked(storage) => storage.next_event_id(),
             _ => Err(GraphError::AttemptToMutateImmutableGraph),
+        }
+    }
+
+    fn read_event_id(&self) -> usize {
+        match self {
+            GraphStorage::Mem(storage) => storage.graph.read_event_id(),
+            GraphStorage::Unlocked(storage) => storage.read_event_id(),
+            #[cfg(feature = "storage")]
+            GraphStorage::Disk(storage) => storage.inner.count_temporal_edges(),
         }
     }
 

@@ -87,6 +87,12 @@ impl CoreGraphOps for GraphStorage {
     }
 }
 
+impl From<TemporalGraph> for GraphStorage {
+    fn from(value: TemporalGraph) -> Self {
+        Self::Unlocked(Arc::new(value))
+    }
+}
+
 impl Default for GraphStorage {
     fn default() -> Self {
         GraphStorage::Unlocked(Arc::new(TemporalGraph::default()))

@@ -28,8 +28,14 @@ use pyo3::{
 use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{collections::HashMap, ops::Deref, sync::Arc};
 
-#[derive(PartialEq, Clone)]
+#[derive(Clone, Debug)]
 pub struct PyPropsComp(HashMap<ArcStr, Prop>);
+
+impl PartialEq for PyPropsComp {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
 
 impl<'source> FromPyObject<'source> for PyPropsComp {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
@@ -142,6 +148,13 @@ impl PyProperties {
     /// Convert properties view to a dict
     pub fn as_dict(&self) -> HashMap<ArcStr, Prop> {
         self.props.as_map()
+    }
+
+    pub fn __repr__(&self) -> String {
+        format!(
+            "Properties({{{}}})",
+            iterator_dict_repr(self.items().into_iter())
+        )
     }
 }
 

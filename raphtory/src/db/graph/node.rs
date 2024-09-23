@@ -26,7 +26,7 @@ use crate::{
 };
 
 use crate::{
-    core::{entities::nodes::node_ref::AsNodeRef, storage::timeindex::AsTime},
+    core::{entities::nodes::node_ref::AsNodeRef, storage::timeindex::AsTime, PropType},
     db::{api::storage::graph::storage_ops::GraphStorage, graph::edges::Edges},
 };
 use chrono::{DateTime, Utc};
@@ -198,25 +198,32 @@ impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertiesOps for NodeView<G, 
     }
 }
 
-impl<G, GH: TimeSemantics> TemporalPropertyViewOps for NodeView<G, GH> {
+impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertyViewOps for NodeView<G, GH> {
+    fn dtype(&self, id: usize) -> PropType {
+        self.graph
+            .node_meta()
+            .temporal_prop_meta()
+            .get_dtype(id)
+            .unwrap()
+    }
     fn temporal_value(&self, id: usize) -> Option<Prop> {
         self.graph
-            .temporal_node_prop_vec(self.node, id)
+            .temporal_node_prop_hist(self.node, id)
             .last()
             .map(|(_, v)| v.to_owned())
     }
 
     fn temporal_history(&self, id: usize) -> Vec<i64> {
         self.graph
-            .temporal_node_prop_vec(self.node, id)
+            .temporal_node_prop_hist(self.node, id)
             .into_iter()
-            .map(|(t, _)| t)
+            .map(|(t, _)| t.t())
             .collect()
     }
 
     fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
         self.graph
-            .temporal_node_prop_vec(self.node, id)
+            .temporal_node_prop_hist(self.node, id)
             .into_iter()
             .map(|(t, _)| t.dt())
             .collect()
@@ -224,7 +231,7 @@ impl<G, GH: TimeSemantics> TemporalPropertyViewOps for NodeView<G, GH> {
 
     fn temporal_values(&self, id: usize) -> Vec<Prop> {
         self.graph
-            .temporal_node_prop_vec(self.node, id)
+            .temporal_node_prop_hist(self.node, id)
             .into_iter()
             .map(|(_, v)| v)
             .collect()

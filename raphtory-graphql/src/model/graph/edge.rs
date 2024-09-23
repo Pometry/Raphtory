@@ -29,6 +29,17 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
     }
 }
 
+impl Edge {
+    pub(crate) fn from_ref<
+        G: StaticGraphViewOps + IntoDynamic,
+        GH: StaticGraphViewOps + IntoDynamic,
+    >(
+        value: EdgeView<&G, &GH>,
+    ) -> Self {
+        value.cloned().into()
+    }
+}
+
 #[ResolvedObjectFields]
 impl Edge {
     ////////////////////////

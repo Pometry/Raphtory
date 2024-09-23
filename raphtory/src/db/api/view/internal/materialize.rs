@@ -6,7 +6,10 @@ use crate::{
             properties::{graph_meta::GraphMeta, props::Meta, tprop::TProp},
             LayerIds, EID, ELID, GID, VID,
         },
-        storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
+        storage::{
+            locked_view::LockedView, raw_edges::WriteLockedEdges, timeindex::TimeIndexEntry,
+            WriteLockedNodes,
+        },
         utils::errors::{GraphError, GraphError::EventGraphDeletionsNotSupported},
         PropType,
     },

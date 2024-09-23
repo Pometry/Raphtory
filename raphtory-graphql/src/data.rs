@@ -1,8 +1,8 @@
 use crate::{
+    config::app_config::AppConfig,
     graph::GraphWithVectors,
     model::{algorithms::global_plugins::GlobalPlugins, create_dirs_if_not_present, GqlGraphType},
     paths::{ExistingGraphFolder, ValidGraphFolder},
-    server_config::AppConfig,
 };
 use moka::sync::Cache;
 use once_cell::sync::OnceCell;
@@ -38,6 +38,7 @@ use std::{
     path::{Component, Path, PathBuf, StripPrefixError},
     sync::Arc,
 };
+use tracing::{error, info};
 use walkdir::WalkDir;
 
 #[derive(Clone)]
@@ -85,7 +86,7 @@ impl Data {
                 value
                     .graph
                     .write_updates()
-                    .unwrap_or_else(|err| println!("Write on eviction failed: {err:?}"))
+                    .unwrap_or_else(|err| error!("Write on eviction failed: {err:?}"))
                 // FIXME: don't have currently a way to know which embedding updates are pending
             })
             .build();
@@ -254,12 +255,7 @@ impl Data {
 // }
 #[cfg(test)]
 pub(crate) mod data_tests {
-    use crate::{
-        data::Data,
-        graph::GraphWithVectors,
-        paths::ExistingGraphFolder,
-        server_config::{AppConfig, AppConfigBuilder},
-    };
+    use crate::{data::Data, graph::GraphWithVectors, paths::ExistingGraphFolder};
     use itertools::Itertools;
     use raphtory::{db::api::view::MaterializedGraph, prelude::*};
     use std::{
@@ -270,6 +266,7 @@ pub(crate) mod data_tests {
         path::{Path, PathBuf},
     };
 
+    use crate::config::app_config::{AppConfig, AppConfigBuilder};
     // #[cfg(feature = "storage")]
     // use crate::data::copy_dir_recursive;
     use raphtory::core::utils::errors::{GraphError, InvalidPathReason};

@@ -12,7 +12,10 @@ use crate::{
         },
         utils::errors::GraphError,
     },
-    db::{api::storage::graph::storage_ops, graph::views::deletion_graph::PersistentGraph},
+    db::{
+        api::{storage::graph::storage_ops, view::internal::CoreGraphOps},
+        graph::views::deletion_graph::PersistentGraph,
+    },
     disk_graph::graph_impl::{prop_conversion::make_node_properties_from_graph, ParquetLayerCols},
     prelude::{Graph, Layer},
 };
@@ -27,6 +30,7 @@ use pometry_storage::{
 use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use tracing::warn;
 
 pub mod graph_impl;
 pub mod storage_interface;
@@ -251,7 +255,7 @@ impl DiskGraphStorage {
                     .resolve_prop_id(prop_name, data_type.into(), false)
                     .expect("Arrow data types should without failing");
                 if resolved_id != id {
-                    println!("Warning: Layers with different edge properties are not supported by the high-level apis on top of the disk_graph graph yet, edge properties will not be available to high-level apis");
+                    warn!("Warning: Layers with different edge properties are not supported by the high-level apis on top of the disk_graph graph yet, edge properties will not be available to high-level apis");
                     edge_meta = Meta::new();
                     break;
                 }
@@ -292,7 +296,9 @@ impl DiskGraphStorage {
         let inner_graph = TemporalGraph::from_graph(graph, graph_dir.as_ref(), || {
             make_node_properties_from_graph(graph, graph_dir.as_ref())
         })?;
-        Ok(Self::new(inner_graph))
+        let mut storage = Self::new(inner_graph);
+        storage.graph_props = Arc::new(graph.graph_meta().deep_clone());
+        Ok(storage)
     }
 
     pub fn load_from_edge_lists(

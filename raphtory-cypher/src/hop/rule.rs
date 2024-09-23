@@ -138,14 +138,15 @@ impl ExtensionPlanner for HopPlanner {
 
 #[cfg(test)]
 mod test {
-    use arrow::util::pretty::print_batches;
-    use raphtory::disk_graph::DiskGraphStorage;
-    use tempfile::tempdir;
-
     use crate::prepare_plan;
+    use arrow::util::pretty::print_batches;
+    use raphtory::{disk_graph::DiskGraphStorage, logging::global_info_logger};
+    use tempfile::tempdir;
+    use tracing::info;
 
     #[tokio::test]
     async fn double_hop_edge_to_edge() {
+        global_info_logger();
         let graph_dir = tempdir().unwrap();
         let edges = vec![(0u64, 1u64, 0i64, 2.)];
         let g = DiskGraphStorage::make_simple_graph(graph_dir, &edges, 10, 10);
@@ -153,11 +154,12 @@ mod test {
             .await
             .unwrap();
 
-        println!("PLAN {plan:?}");
+        info!("PLAN {plan:?}");
     }
 
     #[tokio::test]
     async fn double_hop_edge_to_edge_with_pushdown_filter_e2() {
+        global_info_logger();
         let graph_dir = tempdir().unwrap();
         let edges = vec![(0u64, 1u64, 0i64, 2.)];
         let g = DiskGraphStorage::make_simple_graph(graph_dir, &edges, 10, 10);
@@ -169,11 +171,12 @@ mod test {
         .await
         .unwrap();
 
-        println!("PLAN {plan:?}");
+        info!("PLAN {plan:?}");
     }
 
     #[tokio::test]
     async fn double_hop_edge_to_edge_with_pushdown_filter_e1() {
+        global_info_logger();
         let graph_dir = tempdir().unwrap();
         let edges = vec![(0u64, 1u64, 0i64, 2.)];
         let g = DiskGraphStorage::make_simple_graph(graph_dir, &edges, 10, 10);
@@ -185,11 +188,12 @@ mod test {
         .await
         .unwrap();
 
-        println!("PLAN {plan:?}");
+        info!("PLAN {plan:?}");
     }
 
     #[tokio::test]
     async fn as_physical_plan_e1() {
+        global_info_logger();
         // +----+----------+-----+-----+----------+--------+----+----------+-----+-----+----------+--------+
         // | id | layer_id | src | dst | rap_time | weight | id | layer_id | src | dst | rap_time | weight |
         // +----+----------+-----+-----+----------+--------+----+----------+-----+-----+----------+--------+
@@ -205,7 +209,7 @@ mod test {
             .await
             .unwrap();
 
-        println!("PLAN {plan:?}");
+        info!("PLAN {plan:?}");
         let df = ctx.execute_logical_plan(plan).await.unwrap();
         let out = df.collect().await.unwrap();
         print_batches(&out).expect("print_batches");

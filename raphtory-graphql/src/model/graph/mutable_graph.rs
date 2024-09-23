@@ -48,13 +48,19 @@ pub struct EdgeAddition {
 
 #[derive(ResolvedObject)]
 pub struct GqlMutableGraph {
+    work_dir: PathBuf,
     path: ExistingGraphFolder,
     graph: GraphWithVectors,
 }
 
 impl GqlMutableGraph {
-    pub(crate) fn new(path: ExistingGraphFolder, graph: GraphWithVectors) -> Self {
+    pub(crate) fn new(
+        work_dir: PathBuf,
+        path: ExistingGraphFolder,
+        graph: GraphWithVectors,
+    ) -> Self {
         Self {
+            work_dir,
             path: path.into(),
             graph,
         }
@@ -68,11 +74,17 @@ fn as_properties(properties: Vec<GqlPropInput>) -> impl Iterator<Item = (String,
 #[ResolvedObjectFields]
 impl GqlMutableGraph {
     /// Get the non-mutable graph
+
     async fn graph(&self) -> GqlGraph {
-        GqlGraph::new(self.path.clone(), self.graph.graph.clone())
+        GqlGraph::new(
+            self.work_dir.clone(),
+            self.path.clone(),
+            self.graph.graph.clone(),
+        )
     }
 
     /// Get mutable existing node
+
     async fn node(&self, name: String) -> Option<GqlMutableNode> {
         self.graph.node(name).map(|n| n.into())
     }
@@ -127,6 +139,7 @@ impl GqlMutableGraph {
     }
 
     /// Get a mutable existing edge
+
     async fn edge(&self, src: String, dst: String) -> Option<GqlMutableEdge> {
         self.graph.edge(src, dst).map(|e| e.into())
     }
@@ -185,6 +198,7 @@ impl GqlMutableGraph {
     }
 
     /// Mark an edge as deleted (creates the edge if it did not exist)
+
     async fn delete_edge(
         &self,
         time: i64,

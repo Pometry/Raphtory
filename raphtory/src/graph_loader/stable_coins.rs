@@ -7,6 +7,7 @@ use chrono::DateTime;
 use regex::Regex;
 use serde::Deserialize;
 use std::{collections::HashMap, fs, path::PathBuf, time::Instant};
+use tracing::{error, info};
 
 #[allow(dead_code)]
 #[derive(Deserialize, std::fmt::Debug)]
@@ -40,14 +41,14 @@ pub fn stable_coin_graph(path: Option<String>, subset: bool) -> Graph {
             let now = Instant::now();
             let g = Graph::decode(encoded_data_file.as_path())
                 .map_err(|err| {
-                    println!(
+                    error!(
                         "Restoring from bincode failed with error: {}! Reloading file!",
                         err
                     )
                 })
                 .ok()?;
 
-            println!(
+            info!(
                 "Loaded graph from encoded data files {} with {} nodes, {} edges which took {} seconds",
                 encoded_data_file.to_str().unwrap(),
                 g.count_nodes(),
@@ -98,7 +99,7 @@ pub fn stable_coin_graph(path: Option<String>, subset: bool) -> Graph {
             })
             .expect("Failed to load graph from CSV data files");
 
-        println!(
+        info!(
             "Loaded graph from CSV data files {} with {} nodes, {} edges which took {} seconds",
             encoded_data_dir.to_str().unwrap(),
             g.count_nodes(),

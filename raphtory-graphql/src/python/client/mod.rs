@@ -270,9 +270,7 @@ fn to_graphql_valid(key: &String, value: &Prop) -> String {
         Prop::NDTime(value) => format!("{{ key: \"{}\", value: \"{}\" }}", key, value.to_string()),
         Prop::Graph(_) => "Graph cannot be converted to JSON".to_string(),
         Prop::PersistentGraph(_) => "Persistent Graph cannot be converted to JSON".to_string(),
-        Prop::Document(DocumentInput { content, .. }) => {
-            "Document cannot be converted to JSON".to_string()
-        } // TODO: return Value::Object ??
+        Prop::Document(_) => "Document cannot be converted to JSON".to_string(), // TODO: return Value::Object ??
     }
 }
 

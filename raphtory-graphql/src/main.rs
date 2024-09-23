@@ -1,4 +1,4 @@
-use raphtory_graphql::GraphServer;
+use raphtory_graphql::{config::app_config::AppConfigBuilder, GraphServer};
 use std::{
     env,
     path::{Path, PathBuf},
@@ -10,8 +10,8 @@ async fn main() -> IoResult<()> {
     let default_path = Path::new("/tmp/graphs");
     let work_dir = env::var("GRAPH_DIRECTORY").unwrap_or(default_path.display().to_string());
     let work_dir = PathBuf::from(&work_dir);
-
-    GraphServer::new(work_dir, None, None)?.run().await?;
+    let app_config = Some(AppConfigBuilder::new().with_tracing(true).build());
+    GraphServer::new(work_dir, app_config, None)?.run().await?;
 
     Ok(())
 }
