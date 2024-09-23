@@ -576,7 +576,7 @@ mod proto_test {
         g.add_edge(1, "ben", "hamza", NO_PROPS, None).unwrap();
         g.add_edge(2, "haaroon", "hamza", NO_PROPS, None).unwrap();
         g.add_edge(3, "ben", "haaroon", NO_PROPS, None).unwrap();
-        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let temp_file = TempDir::new().unwrap();
 
         g.encode(&temp_file).unwrap();
         let g2 = MaterializedGraph::load_cached(&temp_file).unwrap();
