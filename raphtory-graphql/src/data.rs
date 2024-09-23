@@ -202,6 +202,7 @@ impl Data {
             .filter_map(|e| {
                 let entry = e.ok()?;
                 let path = entry.path();
+                dbg!(path);
                 let relative = self.get_relative_path(path).ok()?;
                 let relative_str = relative.to_str()?; // optential UTF8 error here
                 let folder = ExistingGraphFolder::try_from(base_path.clone(), relative_str).ok()?;
