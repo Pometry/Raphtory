@@ -327,6 +327,10 @@ impl Graph {
         Self { inner }
     }
 
+    pub fn event_graph(&self) -> Graph {
+        self.clone()
+    }
+
     /// Get persistent graph
     pub fn persistent_graph(&self) -> PersistentGraph {
         PersistentGraph::from_storage(self.inner.clone())

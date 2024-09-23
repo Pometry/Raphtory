@@ -451,7 +451,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'gr
 #[cfg(test)]
 mod test_edge {
     use crate::{
-        core::IntoPropMap, db::api::view::time::internal::TimeOps, prelude::*, test_storage,
+        core::IntoPropMap, db::api::view::time::TimeOps, prelude::*, test_storage,
         test_utils::test_graph,
     };
     use itertools::Itertools;

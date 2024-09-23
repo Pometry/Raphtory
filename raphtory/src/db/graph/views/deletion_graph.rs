@@ -127,6 +127,9 @@ impl PersistentGraph {
     pub fn event_graph(&self) -> Graph {
         Graph::from_storage(self.0.clone())
     }
+    pub fn persistent_graph(&self) -> PersistentGraph {
+        self.clone()
+    }
 }
 
 impl<'graph, G: GraphViewOps<'graph>> PartialEq<G> for PersistentGraph {

@@ -1299,6 +1299,7 @@ class Graph:
              The latest datetime that this GraphView is valid or None if the GraphView is valid for all times.
         """
 
+    def event_graph(self): ...
     def exclude_layer(self, name):
         """
          Return a view of GraphView containing all layers except the excluded `name`
@@ -4894,6 +4895,7 @@ class PersistentGraph:
          the nodes in the graph
         """
 
+    def persistent_graph(self): ...
     @property
     def properties(self):
         """
