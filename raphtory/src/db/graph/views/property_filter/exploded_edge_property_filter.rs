@@ -33,7 +33,7 @@ pub struct ExplodedEdgePropertyFilteredGraph<G> {
     filter: PropFilter,
 }
 
-impl<'graph, G> ExplodedEdgePropertyFilteredGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> ExplodedEdgePropertyFilteredGraph<G> {
     pub(crate) fn new(graph: G, prop_id: Option<usize>, filter: impl Into<PropFilter>) -> Self {
         Self {
             graph,
@@ -42,11 +42,12 @@ impl<'graph, G> ExplodedEdgePropertyFilteredGraph<G> {
         }
     }
 
-    fn filter(&self, e: EdgeRef, t: TimeIndexEntry, layer_ids: LayerIds) -> bool {
-        self.filter.filter(self.prop_id.and_then(|prop_id| {
-            self.temporal_edge_prop_at(e, prop_id, t, layer_ids)
-                .as_ref()
-        }))
+    fn filter(&self, e: EdgeRef, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
+        self.filter.filter(
+            self.prop_id
+                .and_then(|prop_id| self.temporal_edge_prop_at(e, prop_id, t, layer_ids))
+                .as_ref(),
+        )
     }
 }
 
@@ -139,7 +140,7 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
         w: Range<i64>,
         layer_ids: &LayerIds,
     ) -> bool {
-        self.edge_window_exploded(edge.out_ref(), w, layer_ids.clone())
+        self.edge_window_exploded(edge.out_ref(), w, layer_ids)
             .next()
             .is_some()
     }
@@ -163,7 +164,7 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
     ) -> BoxedLIter<'a, TimeIndexEntry> {
         self.graph
             .edge_history(e, layer_ids)
-            .filter(move |t| self.filter(e, *t, layer_ids.clone()))
+            .filter(move |t| self.filter(e, *t, layer_ids))
             .into_dyn_boxed()
     }
 
@@ -175,13 +176,12 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
     ) -> BoxedLIter<'a, TimeIndexEntry> {
         self.graph
             .edge_history_window(e, layer_ids, w)
-            .filter(move |t| self.filter(e, *t, layer_ids.clone()))
+            .filter(move |t| self.filter(e, *t, layer_ids))
             .into_dyn_boxed()
     }
 
     fn edge_exploded_count(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> usize {
-        self.edge_exploded(edge.out_ref(), layer_ids.clone())
-            .count()
+        self.edge_exploded(edge.out_ref(), layer_ids).count()
     }
 
     fn edge_exploded_count_window(
@@ -194,20 +194,22 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
             .count()
     }
 
-    fn edge_exploded<'a>(&'a self, e: EdgeRef, layer_ids: &'a LayerIds) -> BoxedLIter<'a, EdgeRef> {
+    fn edge_exploded(&self, e: EdgeRef, layer_ids: &LayerIds) -> BoxedIter<EdgeRef> {
+        let filter = self.clone();
+        let layer_ids = layer_ids.clone();
         self.graph
-            .edge_exploded(e, layer_ids)
-            .filter(|&e| {
-                self.filter(
+            .edge_exploded(e, &layer_ids)
+            .filter(move |&e| {
+                filter.filter(
                     e,
                     e.time().expect("exploded edge should have timestamp"),
-                    layer_ids,
+                    &layer_ids,
                 )
             })
             .into_dyn_boxed()
     }
 
-    fn edge_layers<'a>(&'a self, e: EdgeRef, layer_ids: &'a LayerIds) -> BoxedLIter<'a, EdgeRef> {
+    fn edge_layers(&self, e: EdgeRef, layer_ids: &LayerIds) -> BoxedIter<EdgeRef> {
         self.graph
             .edge_layers(e, layer_ids)
             .filter(|&e| {
@@ -221,12 +223,12 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
             .into_dyn_boxed()
     }
 
-    fn edge_window_exploded<'a>(
-        &'a self,
+    fn edge_window_exploded(
+        &self,
         e: EdgeRef,
         w: Range<i64>,
-        layer_ids: &'a LayerIds,
-    ) -> BoxedLIter<'a, EdgeRef> {
+        layer_ids: &LayerIds,
+    ) -> BoxedIter<EdgeRef> {
         self.graph
             .edge_window_exploded(e, w, layer_ids)
             .filter(|&e| {
@@ -239,12 +241,12 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
             .into_dyn_boxed()
     }
 
-    fn edge_window_layers<'a>(
-        &'a self,
+    fn edge_window_layers(
+        &self,
         e: EdgeRef,
         w: Range<i64>,
-        layer_ids: &'a LayerIds,
-    ) -> BoxedLIter<EdgeRef> {
+        layer_ids: &LayerIds,
+    ) -> BoxedIter<EdgeRef> {
         self.graph
             .edge_window_layers(e, w.clone(), layer_ids)
             .filter(move |&e| {

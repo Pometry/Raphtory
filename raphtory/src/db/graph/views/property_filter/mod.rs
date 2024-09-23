@@ -1,5 +1,5 @@
 use crate::core::Prop;
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::Arc};
 
 pub mod edge_property_filter;
 mod exploded_edge_property_filter;
@@ -15,8 +15,8 @@ pub(crate) enum PropFilter {
     ByValue(PropValueFilter),
     Has,
     HasNot,
-    In(HashSet<Prop>),
-    NotIn(HashSet<Prop>),
+    In(Arc<HashSet<Prop>>),
+    NotIn(Arc<HashSet<Prop>>),
 }
 
 impl PropFilter {

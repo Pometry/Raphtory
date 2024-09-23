@@ -7,7 +7,7 @@ use crate::{
         },
     },
 };
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::Arc};
 
 pub trait EdgePropertyFilterOps<'graph> {
     type FilteredViewType;
@@ -191,7 +191,7 @@ impl<'graph, G: OneHopFilter<'graph>> EdgePropertyFilterOps<'graph> for G {
             self.current_filter().clone(),
             t_prop_id,
             c_prop_id,
-            PropFilter::In(set),
+            PropFilter::In(Arc::new(set)),
         ))
     }
 
@@ -201,7 +201,7 @@ impl<'graph, G: OneHopFilter<'graph>> EdgePropertyFilterOps<'graph> for G {
             self.current_filter().clone(),
             t_prop_id,
             c_prop_id,
-            PropFilter::NotIn(set),
+            PropFilter::NotIn(Arc::new(set)),
         ))
     }
 }

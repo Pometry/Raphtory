@@ -142,16 +142,11 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
 
     /// list the activation timestamps for the edge
     fn history(&self) -> Self::ValueType<Vec<i64>> {
-        self.map(|g, e| g.edge_history(e, g.layer_ids().constrain_from_edge(e)))
+        self.map(|g, e| g.edge_history(e, g.layer_ids()).map(|ti| ti.t()).collect())
     }
 
     fn history_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>> {
-        self.map(move |g, e| {
-            g.edge_history(e, g.layer_ids().constrain_from_edge(e))
-                .into_iter()
-                .map(|t| t.dt())
-                .collect()
-        })
+        self.map(move |g, e| g.edge_history(e, g.layer_ids()).map(|t| t.dt()).collect())
     }
 
     fn deletions(&self) -> Self::ValueType<Vec<i64>> {

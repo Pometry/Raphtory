@@ -130,7 +130,7 @@ impl EdgeStorageIntoOps for EdgeArcGuard {
         layer_ids: LayerIds,
         eref: EdgeRef,
     ) -> impl Iterator<Item = EdgeRef> + Send {
-        let layer_ids = layer_ids.constrain_from_edge(eref);
+        let layer_ids = layer_ids.constrain_from_edge(eref).into_owned();
         GenLockedIter::from((self, layer_ids), |(edge, layers)| {
             Box::new(
                 edge.as_mem_edge()
@@ -145,7 +145,7 @@ impl EdgeStorageIntoOps for EdgeArcGuard {
         layer_ids: LayerIds,
         eref: EdgeRef,
     ) -> impl Iterator<Item = EdgeRef> + Send {
-        let layer_ids = layer_ids.constrain_from_edge(eref);
+        let layer_ids = layer_ids.constrain_from_edge(eref).into_owned();
         GenLockedIter::from((self, layer_ids, eref), |(edge, layers, eref)| {
             edge.as_mem_edge()
                 .additions_iter(layers)
@@ -161,7 +161,7 @@ impl EdgeStorageIntoOps for EdgeArcGuard {
         w: Range<TimeIndexEntry>,
         eref: EdgeRef,
     ) -> impl Iterator<Item = EdgeRef> + Send {
-        let layer_ids = layer_ids.constrain_from_edge(eref);
+        let layer_ids = layer_ids.constrain_from_edge(eref).into_owned();
         GenLockedIter::from((self, layer_ids, w), |(edge, layers, w)| {
             Box::new(
                 edge.as_mem_edge()

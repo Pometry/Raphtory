@@ -1,7 +1,7 @@
 use std::{borrow::Cow, sync::Arc};
 
 use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
-
+use std::borrow::Borrow;
 pub mod edges;
 pub mod graph;
 pub mod nodes;

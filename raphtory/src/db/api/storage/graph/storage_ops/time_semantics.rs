@@ -163,8 +163,7 @@ impl TimeSemantics for GraphStorage {
 
     fn edge_exploded(&self, eref: EdgeRef, layer_ids: &LayerIds) -> BoxedIter<EdgeRef> {
         let edge = self.core_edge_arc(eref.into());
-        let layer_ids = layer_ids.constrain_from_edge(eref);
-        Box::new(edge.into_exploded(layer_ids, eref))
+        Box::new(edge.into_exploded(layer_ids.clone(), eref))
     }
 
     fn edge_layers(&self, e: EdgeRef, layer_ids: &LayerIds) -> BoxedIter<EdgeRef> {
