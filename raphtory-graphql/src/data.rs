@@ -203,10 +203,13 @@ impl Data {
                 let entry = e.ok()?;
                 let path = entry.path();
                 let relative = self.get_relative_path(path).ok()?;
-                let relative_str = relative.to_str()?; // optential UTF8 error here
-                let folder = ExistingGraphFolder::try_from(base_path.clone(), relative_str)
+                let relative_str = relative.to_str()?; // potential UTF8 error here
+                let cleaned = relative_str.replace(r"\", "/");
+                let folder = ExistingGraphFolder::try_from(base_path.clone(), &cleaned)
                     .map_err(|e| {
                         dbg!(path);
+                        dbg!(relative_str);
+                        dbg!(cleaned);
                         dbg!(&e);
                         e
                     })
