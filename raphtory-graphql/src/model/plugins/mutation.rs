@@ -5,6 +5,7 @@ use async_graphql::{
 };
 use dynamic_graphql::internal::{Register, Registry};
 use futures_util::future::BoxFuture;
+use crate::model::plugins::mutation_plugins::MutationPlugins;
 
 pub trait Mutation<'a, A: MutationEntryPoint<'a> + 'static> {
     type OutputType: Register + 'static;
@@ -18,7 +19,7 @@ pub trait Mutation<'a, A: MutationEntryPoint<'a> + 'static> {
         ctx: ResolverContext,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>>;
 
-    fn register_algo(name: &str, registry: Registry, parent: Object) -> (Registry, Object) {
+    fn register_mutation(name: &str, registry: Registry, parent: Object) -> (Registry, Object) {
         let registry = registry.register::<Self::OutputType>();
         let mut field = Field::new(name, Self::output_type(), |ctx| {
             FieldFuture::new(async move {
@@ -31,5 +32,28 @@ pub trait Mutation<'a, A: MutationEntryPoint<'a> + 'static> {
         }
         let parent = parent.field(field);
         (registry, parent)
+    }
+}
+
+pub(crate) struct NoOpMutation;
+
+impl<'a> Mutation<'a, MutationPlugins> for NoOpMutation {
+    type OutputType = String;
+
+    fn output_type() -> TypeRef {
+        TypeRef::named_nn(TypeRef::STRING)
+    }
+
+    fn args<'b>() -> Vec<(&'b str, TypeRef)> {
+        vec![]
+    }
+
+    fn apply_mutation<'b>(
+        entry_point: &MutationPlugins,
+        ctx: ResolverContext
+    ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
+        Box::pin(async move {
+            Ok(Some(FieldValue::value("no-op".to_owned())))
+        })
     }
 }

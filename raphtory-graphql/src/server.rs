@@ -151,7 +151,7 @@ impl GraphServer {
         Ok(self)
     }
 
-    pub fn register_algorithm<'a, E: QueryEntryPoint<'a> + 'static, A: Query<'a, E> + 'static>(
+    pub fn register_query_plugins<'a, E: QueryEntryPoint<'a> + 'static, A: Query<'a, E> + 'static>(
         self,
         name: &str,
     ) -> Self {
@@ -167,7 +167,7 @@ impl GraphServer {
         self,
         name: &str,
     ) -> Self {
-        E::lock_plugins().insert(name.to_string(), Box::new(A::register_algo));
+        E::lock_plugins().insert(name.to_string(), Box::new(A::register_mutation));
         self
     }
 

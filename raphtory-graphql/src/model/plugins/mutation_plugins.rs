@@ -9,9 +9,16 @@ use std::{
     collections::HashMap,
     sync::{Mutex, MutexGuard},
 };
+use std::string::ToString;
+use crate::model::plugins::mutation::{Mutation, NoOpMutation};
 
 pub static MUTATION_PLUGINS: Lazy<Mutex<HashMap<String, RegisterFunction>>> =
-    Lazy::new(|| Mutex::new(HashMap::new()));
+    Lazy::new(|| Mutex::new(
+        HashMap::from([(
+            "NoOps".to_string(),
+            Box::new(NoOpMutation::register_mutation) as RegisterFunction,
+        )])
+    ));
 
 #[derive(Clone, Default)]
 pub struct MutationPlugins {}
