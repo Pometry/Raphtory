@@ -134,7 +134,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
             .into_iter()
             .flat_map(|(src, dst)| {
                 let edge = self.graph.source_graph.edge(src, dst);
-                let opt = edge.map(|edge| edge_documents.get(&EntityId::from_edge(&edge)));
+                let opt = edge.map(|edge| edge_documents.get(&EntityId::from_edge(edge)));
                 opt.flatten().unwrap_or(&self.graph.empty_vec)
             })
             .map(|doc| (doc.clone(), 0.0));

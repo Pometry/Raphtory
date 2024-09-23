@@ -6,16 +6,10 @@ use crate::{
 use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     core::utils::errors::GraphError,
-    db::{
-        api::view::MaterializedGraph,
-        graph::{edge::EdgeView, node::NodeView},
-    },
+    db::graph::{edge::EdgeView, node::NodeView},
     prelude::*,
-    search::IndexedGraph,
-    vectors::vectorised_graph::VectorisedGraph,
 };
 use raphtory_api::core::storage::arc_str::OptionAsStr;
-use std::path::PathBuf;
 
 #[derive(InputObject)]
 pub struct GqlPropInput {
@@ -48,19 +42,13 @@ pub struct EdgeAddition {
 
 #[derive(ResolvedObject)]
 pub struct GqlMutableGraph {
-    work_dir: PathBuf,
     path: ExistingGraphFolder,
     graph: GraphWithVectors,
 }
 
 impl GqlMutableGraph {
-    pub(crate) fn new(
-        work_dir: PathBuf,
-        path: ExistingGraphFolder,
-        graph: GraphWithVectors,
-    ) -> Self {
+    pub(crate) fn new(path: ExistingGraphFolder, graph: GraphWithVectors) -> Self {
         Self {
-            work_dir,
             path: path.into(),
             graph,
         }
@@ -76,11 +64,7 @@ impl GqlMutableGraph {
     /// Get the non-mutable graph
 
     async fn graph(&self) -> GqlGraph {
-        GqlGraph::new(
-            self.work_dir.clone(),
-            self.path.clone(),
-            self.graph.graph.clone(),
-        )
+        GqlGraph::new(self.path.clone(), self.graph.graph.clone())
     }
 
     /// Get mutable existing node

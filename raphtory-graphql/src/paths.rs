@@ -1,8 +1,11 @@
 use std::{
+    fs,
     ops::Deref,
     path::{Component, Path, PathBuf},
+    time::{SystemTime, UNIX_EPOCH},
 };
 
+use chrono::Duration;
 use raphtory::core::utils::errors::InvalidPathReason::*;
 use raphtory::{core::utils::errors::GraphError, prelude::*};
 use raphtory::{core::utils::errors::InvalidPathReason, serialise::GraphFolder};
@@ -136,6 +139,18 @@ impl ValidGraphFolder {
         })
     }
 
+    pub(crate) fn created(&self) -> Result<i64, GraphError> {
+        fs::metadata(self.get_graph_path())?.created()?.to_millis()
+    }
+
+    pub(crate) fn last_opened(&self) -> Result<i64, GraphError> {
+        fs::metadata(self.get_graph_path())?.accessed()?.to_millis()
+    }
+
+    pub(crate) fn last_updated(&self) -> Result<i64, GraphError> {
+        fs::metadata(self.get_graph_path())?.modified()?.to_millis()
+    }
+
     pub(crate) fn get_original_path_str(&self) -> &str {
         &self.original_path
     }
@@ -147,5 +162,14 @@ impl ValidGraphFolder {
     /// This returns the PathBuf used to build multiple GraphError types
     pub(crate) fn to_error_path(&self) -> PathBuf {
         self.original_path.to_owned().into()
+    }
+}
+
+trait ToMillis {
+    fn to_millis(&self) -> Result<i64, GraphError>;
+}
+impl ToMillis for SystemTime {
+    fn to_millis(&self) -> Result<i64, GraphError> {
+        Ok(self.duration_since(UNIX_EPOCH)?.as_millis() as i64)
     }
 }

@@ -57,7 +57,7 @@ pub trait Vectorisable<G: StaticGraphViewOps> {
     ) -> VectorisedGraph<G>;
 }
 
-#[async_trait] // TODO: review id this ?Send can be removed once we stop using the EmbeddingFunction trait
+#[async_trait]
 impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
     async fn vectorise(
         &self,
@@ -80,35 +80,28 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
         template: DocumentTemplate,
         verbose: bool,
     ) -> VectorisedGraph<G> {
-        let graph_docs = indexed_docs_for_graph(self, &template);
+        let graph_docs = indexed_docs_for_graph(self, &template).into_iter();
 
-        let node_iter = self.nodes().iter_owned();
-        let nodes = node_iter
-            .flat_map(|node| indexed_docs_for_node(node, &template))
-            .collect_vec();
+        let nodes = self.nodes().collect().into_iter();
+        let nodes_docs = nodes.flat_map(|node| indexed_docs_for_node(node, &template));
 
-        let edge_iter = self.edges().iter();
-        let edges = edge_iter
-            .flat_map(|edge| indexed_docs_for_edge(edge, &template))
-            .collect_vec();
+        let edges = self.edges().collect().into_iter();
+        let edges_docs = edges.flat_map(|edge| indexed_docs_for_edge(edge, &template));
 
         if verbose {
             info!("computing embeddings for graph");
         }
-        let graph_refs =
-            compute_entity_embeddings(graph_docs.into_iter(), embedding.as_ref(), &cache).await;
+        let graph_refs = compute_entity_embeddings(graph_docs, embedding.as_ref(), &cache).await;
 
         if verbose {
             info!("computing embeddings for nodes");
         }
-        let node_refs =
-            compute_embedding_groups(nodes.into_iter(), embedding.as_ref(), &cache).await;
+        let node_refs = compute_embedding_groups(nodes_docs, embedding.as_ref(), &cache).await;
 
         if verbose {
             info!("computing embeddings for edges");
         }
-        let edge_refs =
-            compute_embedding_groups(edges.into_iter(), embedding.as_ref(), &cache).await; // FIXME: re-enable
+        let edge_refs = compute_embedding_groups(edges_docs, embedding.as_ref(), &cache).await; // FIXME: re-enable
 
         if overwrite_cache {
             cache.iter().for_each(|cache| cache.dump_to_disk());
@@ -167,10 +160,10 @@ fn indexed_docs_for_node<G: StaticGraphViewOps>(
     template: &DocumentTemplate,
 ) -> impl Iterator<Item = IndexedDocumentInput> + Send {
     template
-        .node(&node)
+        .node(node.clone())
         .enumerate()
         .map(move |(index, doc)| IndexedDocumentInput {
-            entity_id: EntityId::from_node(&node),
+            entity_id: EntityId::from_node(node.clone()),
             content: doc.content,
             index,
             life: doc.life,
@@ -182,10 +175,10 @@ fn indexed_docs_for_edge<G: StaticGraphViewOps>(
     template: &DocumentTemplate,
 ) -> impl Iterator<Item = IndexedDocumentInput> + Send {
     template
-        .edge(&edge)
+        .edge(edge.clone())
         .enumerate()
         .map(move |(index, doc)| IndexedDocumentInput {
-            entity_id: EntityId::from_edge(&edge),
+            entity_id: EntityId::from_edge(edge.clone()),
             content: doc.content,
             index,
             life: doc.life,

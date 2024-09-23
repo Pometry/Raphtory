@@ -91,7 +91,7 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
 
     pub async fn update_node<T: AsNodeRef>(&self, node: T) {
         if let Some(node) = self.source_graph.node(node) {
-            let entity_id = EntityId::from_node(&node);
+            let entity_id = EntityId::from_node(node.clone());
             let refs = vectorise_node(
                 node,
                 &self.template,
@@ -105,7 +105,7 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
 
     pub async fn update_edge<T: AsNodeRef>(&self, src: T, dst: T) {
         if let Some(edge) = self.source_graph.edge(src, dst) {
-            let entity_id = EntityId::from_edge(&edge);
+            let entity_id = EntityId::from_edge(edge.clone());
             let refs = vectorise_edge(
                 edge,
                 &self.template,

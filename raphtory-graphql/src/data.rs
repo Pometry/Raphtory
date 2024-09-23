@@ -70,7 +70,7 @@ impl EmbeddingConf {
 }
 
 pub struct Data {
-    work_dir: PathBuf,
+    pub(crate) work_dir: PathBuf, // TODO: make private again!!!
     cache: Cache<PathBuf, GraphWithVectors>,
     pub(crate) embedding_conf: Option<EmbeddingConf>,
 }
