@@ -377,11 +377,9 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
         end: i64,
         layer_ids: &'a LayerIds,
     ) -> BoxedLIter<'a, (TimeIndexEntry, Prop)> {
-        self.edge_window_exploded(e, start..end, layer_ids)
-            .filter_map(move |e| {
-                self.graph
-                    .temporal_edge_prop_at(e, id, e.time().unwrap(), layer_ids)
-            })
+        self.graph
+            .temporal_edge_prop_hist_window(e, id, start, end, layer_ids)
+            .filter(move |(ti, _)| self.filter(e, *ti, layer_ids))
             .into_dyn_boxed()
     }
 
@@ -392,11 +390,15 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
         t: TimeIndexEntry,
         layer_ids: &LayerIds,
     ) -> Option<Prop> {
-        self.graph.temporal_edge_prop_at(e, id, t, layer_ids).filter(self.filter(e, t, layer_ids))
+        self.graph
+            .temporal_edge_prop_at(e, id, t, layer_ids)
+            .filter(|_| self.filter(e, t, layer_ids))
     }
 
     fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: &LayerIds) -> bool {
-        self.temporal_edge_prop_hist(e, prop_id, layer_ids).next().is_some()
+        self.temporal_edge_prop_hist(e, prop_id, layer_ids)
+            .next()
+            .is_some()
     }
 
     fn temporal_edge_prop_hist<'a>(
@@ -405,6 +407,9 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
         id: usize,
         layer_ids: &'a LayerIds,
     ) -> BoxedLIter<'a, (TimeIndexEntry, Prop)> {
-
+        self.graph
+            .temporal_edge_prop_hist(e, id, layer_ids)
+            .filter(move |(ti, _)| self.filter(e, *ti, layer_ids))
+            .into_dyn_boxed()
     }
 }
