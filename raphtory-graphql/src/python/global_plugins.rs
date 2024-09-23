@@ -8,7 +8,9 @@ use raphtory::{
         },
         types::wrappers::document::PyDocument,
     },
-    vectors::{vectorised_cluster::VectorisedCluster, Document},
+    vectors::{
+        vectorised_cluster::VectorisedCluster, vectorised_graph::DynamicVectorisedGraph, Document,
+    },
 };
 
 /// A class for accessing graphs hosted in a Raphtory GraphQL server and running global search for
@@ -49,7 +51,7 @@ impl PyGlobalPlugins {
         window: PyWindow,
     ) -> Vec<(PyDocument, f32)> {
         let window = translate_window(window);
-        let graphs = self.0.graphs;
+        let graphs = &self.0.graphs;
         let cluster = VectorisedCluster::new(&graphs);
         // let vectorised_graphs = self.0.vectorised_graphs.read();
         let graph_entry = graphs.iter().next();
@@ -64,7 +66,7 @@ impl PyGlobalPlugins {
                 }
                 _ => panic!("search_graph_documents_with_scores returned a document that is not from a graph"),
             };
-            (into_py_document(doc, graph, py), score)
+            (into_py_document(doc, &graph.clone().into_dynamic(), py), score)
         }).collect()
     }
 

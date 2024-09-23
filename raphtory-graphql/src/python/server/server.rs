@@ -20,11 +20,14 @@ use pyo3::{
     exceptions::{PyAttributeError, PyException},
     pyclass, pymethods,
     types::{IntoPyDict, PyFunction, PyList},
-    IntoPy, Py, PyObject, PyRefMut, PyResult, Python,
+    IntoPy, Py, PyObject, PyRefMut, PyResult, Python, ToPyObject,
 };
 use raphtory::{
     python::{types::wrappers::document::PyDocument, utils::execute_async_task},
-    vectors::{embeddings::openai_embedding, template::DocumentTemplate, EmbeddingFunction},
+    vectors::{
+        embedding_cache::EmbeddingCache, embeddings::openai_embedding, template::DocumentTemplate,
+        EmbeddingFunction,
+    },
 };
 use std::{collections::HashMap, path::PathBuf, thread};
 
@@ -32,32 +35,45 @@ use std::{collections::HashMap, path::PathBuf, thread};
 #[pyclass(name = "GraphServer")]
 pub struct PyGraphServer(pub(crate) Option<GraphServer>);
 
+impl IntoPy<PyObject> for GraphServer {
+    fn into_py(self, py: Python) -> PyObject {
+        Py::new(py, PyGraphServer(Some(self))).unwrap().into_py(py)
+    }
+}
+
+fn template_from_python(
+    graph_template: Option<String>,
+    node_template: Option<String>,
+    edge_template: Option<String>,
+) -> Option<DocumentTemplate> {
+    if graph_template.is_none() && node_template.is_none() && edge_template.is_none() {
+        None
+    } else {
+        Some(DocumentTemplate {
+            graph_template,
+            node_template,
+            edge_template,
+        })
+    }
+}
+
 impl PyGraphServer {
     fn new(server: GraphServer) -> Self {
         Self(Some(server))
     }
 
-    fn with_vectorised_generic_embedding<F: EmbeddingFunction + Clone + 'static>(
+    fn set_generic_embeddings<F: EmbeddingFunction + Clone + 'static>(
         slf: PyRefMut<Self>,
-        graph_names: Option<Vec<String>>,
-        embedding: F,
         cache: String,
+        embedding: F,
         graph_template: Option<String>,
         node_template: Option<String>,
         edge_template: Option<String>,
-    ) -> PyResult<Self> {
-        let template = DocumentTemplate {
-            graph_template,
-            node_template,
-            edge_template,
-        };
+    ) -> PyResult<GraphServer> {
+        let global_template = template_from_python(graph_template, node_template, edge_template);
         let server = take_server_ownership(slf)?;
-        execute_async_task(move || async move {
-            let new_server = server
-                .with_vectorised(graph_names, embedding, &PathBuf::from(cache), template)
-                .await?;
-            Ok(Self::new(new_server))
-        })
+        let cache = PathBuf::from(cache);
+        Ok(server.set_embeddings(embedding, &cache, global_template))
     }
 
     fn with_generic_document_search_function<
@@ -70,7 +86,7 @@ impl PyGraphServer {
         input: HashMap<String, String>,
         function: &PyFunction,
         adapter: F,
-    ) -> PyResult<Self> {
+    ) -> PyResult<GraphServer> {
         let function: Py<PyFunction> = function.into();
 
         let input_mapper = HashMap::from([
@@ -129,7 +145,7 @@ impl PyGraphServer {
         E::lock_plugins().insert(name, Box::new(register_function));
 
         let new_server = take_server_ownership(slf)?;
-        Ok(Self::new(new_server))
+        Ok(new_server)
     }
 }
 
@@ -162,6 +178,37 @@ impl PyGraphServer {
         Ok(PyGraphServer::new(server))
     }
 
+    fn set_embeddings(
+        slf: PyRefMut<Self>,
+        cache: String,
+        embedding: Option<&PyFunction>,
+        graph_template: Option<String>,
+        node_template: Option<String>,
+        edge_template: Option<String>,
+    ) -> PyResult<GraphServer> {
+        match embedding {
+            Some(embedding) => {
+                let embedding: Py<PyFunction> = embedding.into();
+                Self::set_generic_embeddings(
+                    slf,
+                    cache,
+                    embedding,
+                    graph_template,
+                    node_template,
+                    edge_template,
+                )
+            }
+            None => Self::set_generic_embeddings(
+                slf,
+                cache,
+                openai_embedding,
+                graph_template,
+                node_template,
+                edge_template,
+            ),
+        }
+    }
+
     /// Vectorise a subset of the graphs of the server.
     ///
     /// Note:
@@ -179,90 +226,21 @@ impl PyGraphServer {
     ///
     /// Returns:
     ///    GraphServer: A new server object containing the vectorised graphs.
-    fn with_vectorised(
+    fn with_vectorised_graphs(
         slf: PyRefMut<Self>,
-        cache: String,
-        graph_names: Option<Vec<String>>,
+        graph_names: Vec<String>,
         // TODO: support more models by just providing a string, e.g. "openai", here and in the VectorisedGraph API
-        embedding: Option<&PyFunction>,
         graph_template: Option<String>,
         node_template: Option<String>,
         edge_template: Option<String>,
-    ) -> PyResult<Self> {
-        match embedding {
-            Some(embedding) => {
-                let embedding: Py<PyFunction> = embedding.into();
-                Self::with_vectorised_generic_embedding(
-                    slf,
-                    graph_names,
-                    embedding,
-                    cache,
-                    graph_template,
-                    node_template,
-                    edge_template,
-                )
-            }
-            None => Self::with_vectorised_generic_embedding(
-                slf,
-                graph_names,
-                openai_embedding,
-                cache,
-                graph_template,
-                node_template,
-                edge_template,
+    ) -> PyResult<GraphServer> {
+        let template = template_from_python(graph_template, node_template, edge_template).ok_or(
+            PyAttributeError::new_err(
+                "some of graph_template, node_template, edge_template has to be set",
             ),
-        }
-    }
-
-    /// Register a function in the GraphQL schema for document search over a graph.
-    ///
-    /// The function needs to take a `VectorisedGraph` as the first argument followed by a
-    /// pre-defined set of keyword arguments. Supported types are `str`, `int`, and `float`.
-    /// They have to be specified using the `input` parameter as a dict where the keys are the
-    /// names of the parameters and the values are the types, expressed as strings.
-    ///
-    /// Arguments:
-    ///   name (str): The name of the function in the GraphQL schema.
-    ///   input (dict): The keyword arguments expected by the function.
-    ///   function (Function): the function to run.
-    ///
-    /// Returns:
-    ///    GraphServer: A new server object containing the vectorised graphs.
-    pub fn with_document_search_function(
-        slf: PyRefMut<Self>,
-        name: String,
-        input: HashMap<String, String>,
-        function: &PyFunction,
-    ) -> PyResult<Self> {
-        let adapter =
-            |entry_point: &VectorAlgorithms, py: Python| entry_point.graph.clone().into_py(py);
-        PyGraphServer::with_generic_document_search_function(slf, name, input, function, adapter)
-    }
-
-    /// Register a function in the GraphQL schema for document search among all the graphs.
-    ///
-    /// The function needs to take a `GraphqlGraphs` object as the first argument followed by a
-    /// pre-defined set of keyword arguments. Supported types are `str`, `int`, and `float`.
-    /// They have to be specified using the `input` parameter as a dict where the keys are the
-    /// names of the parameters and the values are the types, expressed as strings.
-    ///
-    /// Arguments:
-    ///   name (str): the name of the function in the GraphQL schema.
-    ///   input (dict):  the keyword arguments expected by the function.
-    ///   function (Function): the function to run.
-    ///
-    /// Returns:
-    ///    GraphServer: A new server object containing the vectorised graphs.
-    pub fn with_global_search_function(
-        slf: PyRefMut<Self>,
-        name: String,
-        input: HashMap<String, String>,
-        function: &PyFunction,
-    ) -> PyResult<Self> {
-        let adapter = |entry_point: &GlobalPlugins, py: Python| {
-            PyGlobalPlugins(entry_point.clone()).into_py(py)
-        };
-        PyGraphServer::with_generic_document_search_function(slf, name, input, function, adapter)
+        )?;
+        let server = take_server_ownership(slf)?;
+        Ok(server.with_vectorised_graphs(graph_names, template))
     }
 
     /// Start the server and return a handle to it.

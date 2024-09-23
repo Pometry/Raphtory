@@ -96,18 +96,19 @@ impl GraphServer {
 
     pub fn set_embeddings<F: EmbeddingFunction + Clone + 'static>(
         mut self,
-        embedding: F,
+        embedding: F, // TODO: make this optional
         cache: &Path, // TODO: maybe now that we are storing vectors we could bin the cache!!!
         // or maybe it could be in a standard location like /tmp/raphtory/embedding_cache
         global_template: Option<DocumentTemplate>,
-    ) {
+    ) -> Self {
         let cache = Some(EmbeddingCache::from_path(PathBuf::from(cache))).into();
         self.data.embedding_conf = Some(EmbeddingConf {
             function: Arc::new(embedding),
             cache,
             global_template,
             individual_templates: Default::default(),
-        })
+        });
+        self
     }
 
     /// Vectorise a subset of the graphs of the server.
@@ -120,11 +121,11 @@ impl GraphServer {
     ///
     /// Returns:
     ///    A new server object containing the vectorised graphs.
-    pub async fn with_vectorised_graphs<F: EmbeddingFunction + Clone + 'static>(
+    pub fn with_vectorised_graphs(
         mut self,
         graph_names: Vec<String>,
         template: DocumentTemplate,
-    ) -> IoResult<Self> {
+    ) -> Self {
         if let Some(embedding_conf) = &mut self.data.embedding_conf {
             for graph_name in graph_names {
                 embedding_conf
@@ -132,8 +133,7 @@ impl GraphServer {
                     .insert(graph_name.into(), template.clone());
             }
         }
-
-        Ok(self)
+        self
     }
 
     pub fn register_algorithm<

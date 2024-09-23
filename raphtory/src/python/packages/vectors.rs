@@ -284,7 +284,7 @@ impl From<DynamicVectorisedGraph> for PyVectorisedGraph {
 
 impl From<VectorisedGraph<MaterializedGraph>> for PyVectorisedGraph {
     fn from(value: VectorisedGraph<MaterializedGraph>) -> Self {
-        PyVectorisedGraph(DynamicGraph::new(value.source_graph))
+        PyVectorisedGraph(value.into_dynamic())
     }
 }
 

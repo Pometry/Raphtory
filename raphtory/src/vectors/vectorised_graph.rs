@@ -54,7 +54,7 @@ impl<G: StaticGraphViewOps> Clone for VectorisedGraph<G> {
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic> VectorisedGraph<G> {
-    pub(crate) fn into_dynamic(&self) -> VectorisedGraph<DynamicGraph> {
+    pub fn into_dynamic(&self) -> VectorisedGraph<DynamicGraph> {
         VectorisedGraph::new(
             self.source_graph.clone().into_dynamic(),
             self.template.clone(),
