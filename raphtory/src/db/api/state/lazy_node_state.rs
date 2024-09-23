@@ -111,7 +111,11 @@ impl<
 {
     type Graph = GH;
     type BaseGraph = G;
-    type Value<'a> = V where 'graph: 'a, Self: 'a;
+    type Value<'a>
+        = V
+    where
+        'graph: 'a,
+        Self: 'a;
     type OwnedValue = V;
 
     fn graph(&self) -> &Self::Graph {
