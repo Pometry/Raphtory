@@ -2480,14 +2480,8 @@ mod db_tests {
 
         // FIXME: Needs multilayer support (Issue #47)
         test_graph(&graph, |graph| {
-            assert_eq!(
-                graph.edge(0, 1).unwrap().layer_names().collect_vec(),
-                ["_default"]
-            );
-            assert_eq!(
-                graph.edge(0, 2).unwrap().layer_names().collect_vec(),
-                ["awesome layer"]
-            );
+            assert_eq!(graph.edge(0, 1).unwrap().layer_names(), ["_default"]);
+            assert_eq!(graph.edge(0, 2).unwrap().layer_names(), ["awesome layer"]);
         });
     }
 

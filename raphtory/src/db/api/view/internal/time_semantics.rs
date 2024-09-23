@@ -84,26 +84,26 @@ pub trait TimeSemantics {
     ) -> usize;
 
     /// Exploded edge iterator for edge `e`
-    fn edge_exploded(&self, e: EdgeRef, layer_ids: &LayerIds) -> BoxedIter<EdgeRef>;
+    fn edge_exploded<'a>(&'a self, e: EdgeRef, layer_ids: &'a LayerIds) -> BoxedLIter<'a, EdgeRef>;
 
     /// Explode edge iterator for edge `e` for every layer
-    fn edge_layers(&self, e: EdgeRef, layer_ids: &LayerIds) -> BoxedIter<EdgeRef>;
+    fn edge_layers<'a>(&'a self, e: EdgeRef, layer_ids: &'a LayerIds) -> BoxedLIter<'a, EdgeRef>;
 
     /// Exploded edge iterator for edge`e` over window `w`
-    fn edge_window_exploded(
-        &self,
+    fn edge_window_exploded<'a>(
+        &'a self,
         e: EdgeRef,
         w: Range<i64>,
-        layer_ids: &LayerIds,
-    ) -> BoxedIter<EdgeRef>;
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, EdgeRef>;
 
     /// Exploded edge iterator for edge `e` over window `w` for every layer
-    fn edge_window_layers(
-        &self,
+    fn edge_window_layers<'a>(
+        &'a self,
         e: EdgeRef,
         w: Range<i64>,
-        layer_ids: &LayerIds,
-    ) -> BoxedIter<EdgeRef>;
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, EdgeRef>;
 
     /// Get the time of the earliest activity of an edge
     fn edge_earliest_time(&self, e: EdgeRef, layer_ids: &LayerIds) -> Option<i64>;
@@ -449,36 +449,32 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
     }
 
     #[inline]
-    fn edge_exploded(
-        &self,
-        e: EdgeRef,
-        layer_ids: &LayerIds,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+    fn edge_exploded<'a>(&'a self, e: EdgeRef, layer_ids: &'a LayerIds) -> BoxedLIter<'a, EdgeRef> {
         self.graph().edge_exploded(e, layer_ids)
     }
 
     #[inline]
-    fn edge_layers(&self, e: EdgeRef, layer_ids: &LayerIds) -> BoxedIter<EdgeRef> {
+    fn edge_layers<'a>(&'a self, e: EdgeRef, layer_ids: &'a LayerIds) -> BoxedLIter<'a, EdgeRef> {
         self.graph().edge_layers(e, layer_ids)
     }
 
     #[inline]
-    fn edge_window_exploded(
-        &self,
+    fn edge_window_exploded<'a>(
+        &'a self,
         e: EdgeRef,
         w: Range<i64>,
-        layer_ids: &LayerIds,
-    ) -> BoxedIter<EdgeRef> {
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, EdgeRef> {
         self.graph().edge_window_exploded(e, w, layer_ids)
     }
 
     #[inline]
-    fn edge_window_layers(
-        &self,
+    fn edge_window_layers<'a>(
+        &'a self,
         e: EdgeRef,
         w: Range<i64>,
-        layer_ids: &LayerIds,
-    ) -> BoxedIter<EdgeRef> {
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, EdgeRef> {
         self.graph().edge_window_layers(e, w, layer_ids)
     }
 

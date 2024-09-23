@@ -194,13 +194,11 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
             .count()
     }
 
-    fn edge_exploded(&self, e: EdgeRef, layer_ids: &LayerIds) -> BoxedIter<EdgeRef> {
-        let filter = self.clone();
-        let layer_ids = layer_ids.clone();
+    fn edge_exploded<'a>(&'a self, e: EdgeRef, layer_ids: &'a LayerIds) -> BoxedLIter<'a, EdgeRef> {
         self.graph
             .edge_exploded(e, &layer_ids)
             .filter(move |&e| {
-                filter.filter(
+                self.filter(
                     e,
                     e.time().expect("exploded edge should have timestamp"),
                     &layer_ids,
@@ -209,26 +207,19 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
             .into_dyn_boxed()
     }
 
-    fn edge_layers(&self, e: EdgeRef, layer_ids: &LayerIds) -> BoxedIter<EdgeRef> {
+    fn edge_layers<'a>(&'a self, e: EdgeRef, layer_ids: &'a LayerIds) -> BoxedLIter<'a, EdgeRef> {
         self.graph
             .edge_layers(e, layer_ids)
-            .filter(|&e| {
-                self.edge_exploded(
-                    e,
-                    &LayerIds::One(e.layer().expect("exploded edge should have layer")),
-                )
-                .next()
-                .is_some()
-            })
+            .filter(|&e| self.edge_exploded(e, layer_ids).next().is_some())
             .into_dyn_boxed()
     }
 
-    fn edge_window_exploded(
-        &self,
+    fn edge_window_exploded<'a>(
+        &'a self,
         e: EdgeRef,
         w: Range<i64>,
-        layer_ids: &LayerIds,
-    ) -> BoxedIter<EdgeRef> {
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, EdgeRef> {
         self.graph
             .edge_window_exploded(e, w, layer_ids)
             .filter(|&e| {
@@ -241,12 +232,12 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
             .into_dyn_boxed()
     }
 
-    fn edge_window_layers(
-        &self,
+    fn edge_window_layers<'a>(
+        &'a self,
         e: EdgeRef,
         w: Range<i64>,
-        layer_ids: &LayerIds,
-    ) -> BoxedIter<EdgeRef> {
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, EdgeRef> {
         self.graph
             .edge_window_layers(e, w.clone(), layer_ids)
             .filter(move |&e| {

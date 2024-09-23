@@ -324,11 +324,11 @@ impl TimeSemantics for PersistentGraph {
         }
     }
 
-    fn edge_exploded(&self, e: EdgeRef, layer_ids: &LayerIds) -> BoxedIter<EdgeRef> {
+    fn edge_exploded<'a>(&'a self, e: EdgeRef, layer_ids: &'a LayerIds) -> BoxedLIter<'a, EdgeRef> {
         let edge = self.0.core_edge(e.into());
 
         let alive_layers: Vec<_> = edge
-            .updates_iter(layer_ids)
+            .updates_iter(&layer_ids.constrain_from_edge(e))
             .filter_map(
                 |(l, additions, deletions)| match (additions.first(), deletions.first()) {
                     (Some(a), Some(d)) => (d < a).then_some(l),
@@ -344,23 +344,23 @@ impl TimeSemantics for PersistentGraph {
             .into_dyn_boxed()
     }
 
-    fn edge_layers(&self, e: EdgeRef, layer_ids: &LayerIds) -> BoxedIter<EdgeRef> {
+    fn edge_layers<'a>(&'a self, e: EdgeRef, layer_ids: &'a LayerIds) -> BoxedLIter<'a, EdgeRef> {
         self.0.edge_layers(e, layer_ids)
     }
 
-    fn edge_window_exploded(
-        &self,
+    fn edge_window_exploded<'a>(
+        &'a self,
         e: EdgeRef,
         w: Range<i64>,
-        layer_ids: &LayerIds,
-    ) -> BoxedIter<EdgeRef> {
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, EdgeRef> {
         if w.end <= w.start {
             return Box::new(iter::empty());
         }
         let edge = self.0.core_edge(e.into());
 
         let alive_layers: Vec<_> = edge
-            .updates_iter(layer_ids)
+            .updates_iter(&layer_ids.constrain_from_edge(e))
             .filter_map(|(l, additions, deletions)| {
                 alive_at(&additions, &deletions, w.start).then_some(l)
             })
@@ -372,16 +372,15 @@ impl TimeSemantics for PersistentGraph {
             .into_dyn_boxed()
     }
 
-    fn edge_window_layers(
-        &self,
+    fn edge_window_layers<'a>(
+        &'a self,
         e: EdgeRef,
         w: Range<i64>,
-        layer_ids: &LayerIds,
-    ) -> BoxedIter<EdgeRef> {
-        let g = self.clone();
-        let edge = self.core_edge_arc(e.into());
-        Box::new(g.edge_layers(e, layer_ids).filter(move |&e| {
-            g.include_edge_window(edge.as_ref(), w.clone(), &LayerIds::One(e.layer().unwrap()))
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, EdgeRef> {
+        let edge = self.core_edge(e.into());
+        Box::new(self.edge_layers(e, layer_ids).filter(move |&e| {
+            self.include_edge_window(edge.as_ref(), w.clone(), &LayerIds::One(e.layer().unwrap()))
         }))
     }
 

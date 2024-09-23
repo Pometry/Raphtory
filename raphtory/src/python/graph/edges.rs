@@ -242,7 +242,7 @@ impl PyEdges {
     #[getter]
     fn layer_names(&self) -> ArcStringVecIterable {
         let edges = self.edges.clone();
-        (move || edges.layer_names().map(|e| e.collect_vec())).into()
+        (move || edges.layer_names()).into()
     }
 
     /// Converts the graph's edges into a Pandas DataFrame.
@@ -458,14 +458,7 @@ impl PyNestedEdges {
     #[getter]
     fn layer_names(&self) -> NestedArcStringVecIterable {
         let edges = self.edges.clone();
-        (move || {
-            edges.layer_names().map(
-                |e: Box<dyn Iterator<Item = Box<dyn Iterator<Item = ArcStr> + Send>> + Send>| {
-                    e.map(|e| e.collect_vec())
-                },
-            )
-        })
-        .into()
+        (move || edges.layer_names()).into()
     }
 
     // FIXME: needs a view that allows indexing into the properties

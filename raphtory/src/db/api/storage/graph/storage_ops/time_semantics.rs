@@ -25,10 +25,11 @@ use crate::{
         },
         view::{
             internal::{CoreGraphOps, TimeSemantics},
+            time::internal::InternalTimeOps,
             BoxedIter, BoxedLIter, IntoDynBoxed,
         },
     },
-    prelude::Prop,
+    prelude::{EdgeViewOps, Prop},
 };
 
 impl TimeSemantics for GraphStorage {
@@ -115,7 +116,8 @@ impl TimeSemantics for GraphStorage {
         layer_ids: &'a LayerIds,
     ) -> BoxedLIter<'a, TimeIndexEntry> {
         let core_edge = self.edge_entry(e.into());
-        GenLockedIter::from(core_edge, |core_edge| {
+        let layer_ids = layer_ids.constrain_from_edge(e);
+        GenLockedIter::from((core_edge, layer_ids), |(core_edge, layer_ids)| {
             kmerge(
                 core_edge
                     .additions_iter(&layer_ids)
@@ -133,7 +135,8 @@ impl TimeSemantics for GraphStorage {
         w: Range<i64>,
     ) -> BoxedLIter<'a, TimeIndexEntry> {
         let core_edge = self.edge_entry(e.into());
-        GenLockedIter::from(core_edge, |core_edge| {
+        let layer_ids = layer_ids.constrain_from_edge(e);
+        GenLockedIter::from((core_edge, layer_ids), |(core_edge, layer_ids)| {
             kmerge(
                 core_edge
                     .additions_iter(&layer_ids)
@@ -145,7 +148,7 @@ impl TimeSemantics for GraphStorage {
     }
 
     fn edge_exploded_count(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> usize {
-        edge.additions_par_iter(layer_ids)
+        edge.additions_par_iter(&layer_ids)
             .map(|(_, a)| a.len())
             .sum()
     }
@@ -156,52 +159,74 @@ impl TimeSemantics for GraphStorage {
         layer_ids: &LayerIds,
         w: Range<i64>,
     ) -> usize {
-        edge.additions_par_iter(layer_ids)
+        edge.additions_par_iter(&layer_ids)
             .map(|(_, a)| a.range_t(w.clone()).len())
             .sum()
     }
 
-    fn edge_exploded(&self, eref: EdgeRef, layer_ids: &LayerIds) -> BoxedIter<EdgeRef> {
-        let edge = self.core_edge_arc(eref.into());
-        Box::new(edge.into_exploded(layer_ids.clone(), eref))
+    fn edge_exploded<'a>(
+        &'a self,
+        eref: EdgeRef,
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, EdgeRef> {
+        let edge = self.core_edge(eref.into());
+        let layer_ids = layer_ids.constrain_from_edge(eref);
+        GenLockedIter::from((edge, layer_ids), move |(edge, layers)| {
+            edge.additions_iter(layers)
+                .map(move |(l, a)| a.into_iter().map(move |t| eref.at(t).at_layer(l)))
+                .kmerge_by(|e1, e2| e1.time() <= e2.time())
+                .into_dyn_boxed()
+        })
+        .into_dyn_boxed()
     }
 
-    fn edge_layers(&self, e: EdgeRef, layer_ids: &LayerIds) -> BoxedIter<EdgeRef> {
-        let entry = self.core_edge_arc(e.into());
-        Box::new(entry.into_layers(layer_ids.clone(), e))
+    fn edge_layers<'a>(&'a self, e: EdgeRef, layer_ids: &'a LayerIds) -> BoxedLIter<'a, EdgeRef> {
+        let entry = self.core_edge(e.into());
+        let layer_ids = layer_ids.constrain_from_edge(e);
+        GenLockedIter::from((entry, layer_ids), move |(edge, layers)| {
+            Box::new(edge.layer_ids_iter(layers).map(move |l| e.at_layer(l)))
+        })
+        .into_dyn_boxed()
     }
 
-    fn edge_window_exploded(
-        &self,
+    fn edge_window_exploded<'a>(
+        &'a self,
         e: EdgeRef,
         w: Range<i64>,
-        layer_ids: &LayerIds,
-    ) -> BoxedIter<EdgeRef> {
-        let arc = self.core_edge_arc(e.into());
-        let layer_ids = layer_ids.clone();
-        Box::new(arc.into_exploded_window(layer_ids, TimeIndexEntry::range(w), e))
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, EdgeRef> {
+        let entry = self.core_edge(e.into());
+        let layer_ids = layer_ids.constrain_from_edge(e);
+        GenLockedIter::from((entry, layer_ids), move |(edge, layers)| {
+            edge.additions_iter(layers)
+                .map(move |(l, a)| {
+                    a.into_range(TimeIndexEntry::range(w.clone()))
+                        .into_iter()
+                        .map(move |t| e.at(t).at_layer(l))
+                })
+                .kmerge_by(|e1, e2| e1.time() <= e2.time())
+                .into_dyn_boxed()
+        })
+        .into_dyn_boxed()
     }
 
-    fn edge_window_layers(
-        &self,
+    fn edge_window_layers<'a>(
+        &'a self,
         e: EdgeRef,
         w: Range<i64>,
-        layer_ids: &LayerIds,
-    ) -> BoxedIter<EdgeRef> {
-        let entry = self.core_edge_arc(e.into());
-        Box::new(
-            entry
-                .clone()
-                .into_layers(layer_ids.clone(), e)
-                .filter(move |e| entry.additions(e.layer().unwrap()).active_t(w.clone())),
-        )
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, EdgeRef> {
+        let entry = self.core_edge(e.into());
+        self.edge_layers(e, layer_ids)
+            .filter(move |e| entry.additions(e.layer().unwrap()).active_t(w.clone()))
+            .into_dyn_boxed()
     }
 
     fn edge_earliest_time(&self, e: EdgeRef, layer_ids: &LayerIds) -> Option<i64> {
         e.time_t().or_else(|| {
             let entry = self.core_edge(e.into());
             entry
-                .additions_par_iter(layer_ids)
+                .additions_par_iter(&layer_ids)
                 .flat_map(|(_, a)| a.first_t())
                 .min()
         })

@@ -287,7 +287,7 @@ impl PyEdge {
     ///     List[str]-  The name of the layer
     #[getter]
     pub fn layer_names(&self) -> Vec<ArcStr> {
-        self.edge.layer_names().collect_vec()
+        self.edge.layer_names()
     }
 
     /// Gets the name of the layer this edge belongs to - assuming it only belongs to one layer
