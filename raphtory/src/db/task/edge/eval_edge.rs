@@ -77,7 +77,10 @@ impl<
 {
     type BaseGraph = &'graph G;
     type Graph = GH;
-    type ValueType<T> = T where T: 'graph;
+    type ValueType<T>
+        = T
+    where
+        T: 'graph;
     type PropType = EdgeView<&'graph G, GH>;
     type Nodes = EvalNodeView<'graph, 'a, G, S, &'graph G, CS>;
     type Exploded = EvalEdges<'graph, 'a, G, GH, CS, S>;

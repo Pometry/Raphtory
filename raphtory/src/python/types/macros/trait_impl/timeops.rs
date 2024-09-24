@@ -111,6 +111,14 @@ macro_rules! impl_timeops {
                 self.$field.at(time)
             }
 
+            #[doc = concat!(r" Create a view of the ", $name, r" including all events at the latest time.")]
+            ///
+            /// Returns:
+            #[doc = concat!(r"     A ", $name, r" object.")]
+            pub fn latest(&self) -> <$base_type as TimeOps<'static>>::WindowedViewType {
+                self.$field.latest()
+            }
+
             #[doc = concat!(r" Create a view of the ", $name, r" including all events before `end` (exclusive).")]
             ///
             /// Arguments:

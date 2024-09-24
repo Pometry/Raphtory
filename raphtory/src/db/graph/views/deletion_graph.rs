@@ -127,6 +127,9 @@ impl PersistentGraph {
     pub fn event_graph(&self) -> Graph {
         Graph::from_storage(self.0.clone())
     }
+    pub fn persistent_graph(&self) -> PersistentGraph {
+        self.clone()
+    }
 }
 
 impl<'graph, G: GraphViewOps<'graph>> PartialEq<G> for PersistentGraph {
@@ -205,7 +208,7 @@ impl TimeSemantics for PersistentGraph {
     fn latest_time_window(&self, start: i64, end: i64) -> Option<i64> {
         self.latest_time_global()
             .map(|t| t.min(end.saturating_sub(1)))
-            .filter(|&t| t > start)
+            .filter(|&t| t >= start)
     }
 
     fn node_earliest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {

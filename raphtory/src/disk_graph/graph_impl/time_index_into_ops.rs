@@ -55,7 +55,10 @@ impl<'a> TimeIndexIntoOps for TimeStamps<'a, i64> {
 
 impl<'a> TimeIndexOps for TimeStamps<'a, TimeIndexEntry> {
     type IndexType = TimeIndexEntry;
-    type RangeType<'b> = TimeStamps<'b, TimeIndexEntry> where Self: 'b;
+    type RangeType<'b>
+        = TimeStamps<'b, TimeIndexEntry>
+    where
+        Self: 'b;
 
     fn len(&self) -> usize {
         self.timestamps().len()
@@ -125,7 +128,10 @@ impl<'a> TimeIndexOps for TimeStamps<'a, TimeIndexEntry> {
 }
 impl<'a> TimeIndexOps for TimeStamps<'a, i64> {
     type IndexType = i64;
-    type RangeType<'b> = TimeStamps<'b, i64> where Self: 'b;
+    type RangeType<'b>
+        = TimeStamps<'b, i64>
+    where
+        Self: 'b;
 
     fn len(&self) -> usize {
         self.timestamps().len()

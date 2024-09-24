@@ -275,7 +275,10 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
 {
     type BaseGraph = G;
     type Graph = GH;
-    type ValueType<T> = T where T: 'graph;
+    type ValueType<T>
+        = T
+    where
+        T: 'graph;
     type PropType = Self;
     type PathType = PathFromNode<'graph, G, G>;
     type Edges = Edges<'graph, G, GH>;

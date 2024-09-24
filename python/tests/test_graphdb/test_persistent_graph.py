@@ -1,4 +1,4 @@
-from raphtory import PersistentGraph
+from raphtory import PersistentGraph, Graph
 
 
 def test_basics():
@@ -159,6 +159,27 @@ def test_window_boundaries():
 
     assert G.window(6, 10).count_nodes() == 2
     assert G.window(6, 10).count_edges() == 0
+
+
+def test_graph_type_swap():
+    g = PersistentGraph()
+    g.add_edge(1, 1, 2)
+    g.add_edge(2, 1, 3)
+    g.add_edge(30, 1, 4)
+    eg = Graph()
+    eg.add_edge(1, 1, 2)
+    eg.add_edge(2, 1, 3)
+    eg.add_edge(30, 1, 4)
+    assert type(g.persistent_graph()) == PersistentGraph
+    assert type(g.event_graph()) == Graph
+    assert g.persistent_graph().at(15).count_edges() == 2
+    assert g.event_graph().at(2).count_edges() == 1
+
+    assert type(eg.persistent_graph()) == PersistentGraph
+    assert type(eg.event_graph()) == Graph
+    assert eg.persistent_graph().count_edges() == 3
+    assert eg.persistent_graph().at(15).count_edges() == 2
+    assert eg.event_graph().at(2).count_edges() == 1
 
 
 # TODO this will not pass until we fix hanging edges

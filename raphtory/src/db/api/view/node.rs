@@ -98,6 +98,9 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     /// Gets the history of the node (time that the node was added and times when changes were made to the node) as `DateTime<Utc>` objects if parseable
     fn history_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>>;
 
+    //Returns true if the node has any updates within the current window, otherwise false
+    fn is_active(&self) -> Self::ValueType<bool>;
+
     /// Get a view of the temporal properties of this node.
     ///
     /// Returns:
@@ -225,6 +228,10 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
                 .map(|t| t.dt())
                 .collect::<Option<Vec<_>>>()
         })
+    }
+
+    fn is_active(&self) -> Self::ValueType<bool> {
+        self.map(|_cg, g, v| !g.node_history(v).is_empty())
     }
 
     #[inline]
