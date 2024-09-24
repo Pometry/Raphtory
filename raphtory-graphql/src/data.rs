@@ -142,7 +142,7 @@ impl Data {
     ) -> Option<VectorisedGraph<MaterializedGraph>> {
         let conf = self.get_embedding_conf(folder.get_original_path())?;
         let vectors = graph
-            .vectorise_with_cache(
+            .vectorise(
                 Box::new(conf.function.clone()),
                 conf.cache.clone(),
                 true,
