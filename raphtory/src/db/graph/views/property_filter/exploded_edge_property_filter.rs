@@ -9,9 +9,9 @@ use crate::{
             },
             view::{
                 internal::{
-                    Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritLayerOps,
-                    InheritListOps, InheritMaterialize, InheritNodeFilterOps, Static,
-                    TimeSemantics,
+                    EdgeFilterOps, Immutable, InheritCoreOps, InheritEdgeFilterOps,
+                    InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeFilterOps,
+                    Static, TimeSemantics,
                 },
                 Base, BoxedLIter, IntoDynBoxed,
             },
@@ -45,7 +45,7 @@ impl<'graph, G: GraphViewOps<'graph>> ExplodedEdgePropertyFilteredGraph<G> {
     fn filter(&self, e: EdgeRef, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
         self.filter.filter(
             self.prop_id
-                .and_then(|prop_id| self.temporal_edge_prop_at(e, prop_id, t, layer_ids))
+                .and_then(|prop_id| self.graph.temporal_edge_prop_at(e, prop_id, t, layer_ids))
                 .as_ref(),
         )
     }
@@ -74,9 +74,26 @@ impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps
     for ExplodedEdgePropertyFilteredGraph<G>
 {
 }
-impl<'graph, G: GraphViewOps<'graph>> InheritEdgeFilterOps
-    for ExplodedEdgePropertyFilteredGraph<G>
-{
+impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for ExplodedEdgePropertyFilteredGraph<G> {
+    fn edges_filtered(&self) -> bool {
+        true
+    }
+
+    fn edge_list_trusted(&self) -> bool {
+        false
+    }
+
+    fn edge_filter_includes_node_filter(&self) -> bool {
+        self.graph.edge_filter_includes_node_filter()
+    }
+
+    fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
+        self.graph.filter_edge(edge, layer_ids)
+            && self
+                .edge_exploded(edge.out_ref(), layer_ids)
+                .next()
+                .is_some()
+    }
 }
 
 impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilteredGraph<G> {
