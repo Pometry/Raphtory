@@ -231,8 +231,8 @@ impl<'a, T: AsTime, Ops: TimeIndexOps<IndexType = T>, V: AsRef<Vec<Ops>> + Send 
 {
     type IndexType = Ops::IndexType;
     type RangeType<'b>
-
-    = LayeredTimeIndexWindow<'b, Ops::RangeType<'b>> where
+        = LayeredTimeIndexWindow<'b, Ops::RangeType<'b>>
+    where
         Self: 'b;
 
     #[inline(always)]
@@ -339,7 +339,10 @@ pub trait TimeIndexIntoOps: Sized {
 
 impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
     type IndexType = T;
-    type RangeType<'a> = TimeIndexWindow<'a, T> where Self: 'a,;
+    type RangeType<'a>
+        = TimeIndexWindow<'a, T>
+    where
+        Self: 'a;
 
     #[inline(always)]
     fn active(&self, w: Range<T>) -> bool {
@@ -419,7 +422,10 @@ where
     Self: 'b,
 {
     type IndexType = T;
-    type RangeType<'a> = TimeIndexWindow<'a, T> where Self: 'a;
+    type RangeType<'a>
+        = TimeIndexWindow<'a, T>
+    where
+        Self: 'a;
 
     #[inline(always)]
     fn active(&self, w: Range<T>) -> bool {
@@ -504,7 +510,10 @@ where
 
 impl<'a, Ops: TimeIndexOps + 'a> TimeIndexOps for LayeredTimeIndexWindow<'a, Ops> {
     type IndexType = Ops::IndexType;
-    type RangeType<'b> = LayeredTimeIndexWindow<'b, Ops::RangeType<'b>> where Self: 'b;
+    type RangeType<'b>
+        = LayeredTimeIndexWindow<'b, Ops::RangeType<'b>>
+    where
+        Self: 'b;
 
     #[inline(always)]
     fn active(&self, w: Range<Self::IndexType>) -> bool {

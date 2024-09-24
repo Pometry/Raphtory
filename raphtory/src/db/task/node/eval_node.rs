@@ -495,7 +495,10 @@ impl<
 {
     type BaseGraph = &'graph G;
     type Graph = GH;
-    type ValueType<T>  = T where T: 'graph;
+    type ValueType<T>
+        = T
+    where
+        T: 'graph;
     type PropType = NodeView<GH>;
     type PathType = EvalPathFromNode<'graph, 'a, G, &'graph G, CS, S>;
     type Edges = EvalEdges<'graph, 'a, G, GH, CS, S>;

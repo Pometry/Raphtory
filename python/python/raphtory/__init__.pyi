@@ -437,6 +437,13 @@ class Edge:
     def id(self):
         """The id of the edge."""
 
+    def is_active(self):
+        """
+        Check if the edge is currently active (i.e., has at least one update within this period)
+        Returns:
+            bool
+        """
+
     def is_deleted(self):
         """
         Check if the edge is currently deleted
@@ -456,6 +463,14 @@ class Edge:
         Check if the edge is currently valid (i.e., not deleted)
         Returns:
             bool
+        """
+
+    def latest(self):
+        """
+         Create a view of the Edge including all events at the latest time.
+
+        Returns:
+             A Edge object.
         """
 
     @property
@@ -882,6 +897,7 @@ class Edges:
     def id(self):
         """Returns all ids of the edges."""
 
+    def is_active(self): ...
     def is_deleted(self):
         """Check if the edges are deleted"""
 
@@ -890,6 +906,14 @@ class Edges:
 
     def is_valid(self):
         """Check if the edges are valid (i.e. not deleted)"""
+
+    def latest(self):
+        """
+         Create a view of the Edges including all events at the latest time.
+
+        Returns:
+             A Edges object.
+        """
 
     @property
     def latest_date_time(self):
@@ -1275,6 +1299,7 @@ class Graph:
              The latest datetime that this GraphView is valid or None if the GraphView is valid for all times.
         """
 
+    def event_graph(self): ...
     def exclude_layer(self, name):
         """
          Return a view of GraphView containing all layers except the excluded `name`
@@ -1517,6 +1542,14 @@ class Graph:
         # Returns:
         Graph: sub-graph of the graph `g` containing the largest connected component
 
+        """
+
+    def latest(self):
+        """
+         Create a view of the GraphView including all events at the latest time.
+
+        Returns:
+             A GraphView object.
         """
 
     @property
@@ -2394,6 +2427,13 @@ class MutableEdge:
     def id(self):
         """The id of the edge."""
 
+    def is_active(self):
+        """
+        Check if the edge is currently active (i.e., has at least one update within this period)
+        Returns:
+            bool
+        """
+
     def is_deleted(self):
         """
         Check if the edge is currently deleted
@@ -2413,6 +2453,14 @@ class MutableEdge:
         Check if the edge is currently valid (i.e., not deleted)
         Returns:
             bool
+        """
+
+    def latest(self):
+        """
+         Create a view of the Edge including all events at the latest time.
+
+        Returns:
+             A Edge object.
         """
 
     @property
@@ -2876,6 +2924,15 @@ class MutableNode:
         Returns:
 
         An iterator over the neighbours of this node that point into this node.
+        """
+
+    def is_active(self): ...
+    def latest(self):
+        """
+         Create a view of the Node including all events at the latest time.
+
+        Returns:
+             A Node object.
         """
 
     @property
@@ -3347,6 +3404,15 @@ class Node:
         An iterator over the neighbours of this node that point into this node.
         """
 
+    def is_active(self): ...
+    def latest(self):
+        """
+         Create a view of the Node including all events at the latest time.
+
+        Returns:
+             A Node object.
+        """
+
     @property
     def latest_date_time(self):
         """
@@ -3793,6 +3859,14 @@ class Nodes:
         Returns:
 
         An iterator over the neighbours of this node that point into this node.
+        """
+
+    def latest(self):
+        """
+         Create a view of the Nodes including all events at the latest time.
+
+        Returns:
+             A Nodes object.
         """
 
     @property
@@ -4443,6 +4517,14 @@ class PersistentGraph:
            GraphIndex - Returns a GraphIndex
         """
 
+    def latest(self):
+        """
+         Create a view of the GraphView including all events at the latest time.
+
+        Returns:
+             A GraphView object.
+        """
+
     @property
     def latest_date_time(self):
         """
@@ -4813,6 +4895,7 @@ class PersistentGraph:
          the nodes in the graph
         """
 
+    def persistent_graph(self): ...
     @property
     def properties(self):
         """
