@@ -98,6 +98,33 @@ pub enum PropType {
     DTime,
 }
 
+impl Display for PropType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let type_str = match self {
+            PropType::Empty => "Empty",
+            PropType::Str => "Str",
+            PropType::U8 => "U8",
+            PropType::U16 => "U16",
+            PropType::I32 => "I32",
+            PropType::I64 => "I64",
+            PropType::U32 => "U32",
+            PropType::U64 => "U64",
+            PropType::F32 => "F32",
+            PropType::F64 => "F64",
+            PropType::Bool => "Bool",
+            PropType::List => "List",
+            PropType::Map => "Map",
+            PropType::NDTime => "NDTime",
+            PropType::Graph => "Graph",
+            PropType::PersistentGraph => "PersistentGraph",
+            PropType::Document => "Document",
+            PropType::DTime => "DTime",
+        };
+
+        write!(f, "{}", type_str)
+    }
+}
+
 impl PropType {
     pub fn is_numeric(&self) -> bool {
         matches!(

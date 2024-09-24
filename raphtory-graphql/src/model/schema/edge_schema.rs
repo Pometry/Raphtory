@@ -60,6 +60,21 @@ impl<G: StaticGraphViewOps> EdgeSchema<G> {
 fn collect_edge_schema<'graph, G: GraphViewOps<'graph>>(edge: EdgeView<G>) -> SchemaAggregate {
     edge.properties()
         .iter()
-        .map(|(key, value)| (key.to_string(), HashSet::from([value.to_string()])))
+        .map(|(key, value)| {
+            let temporal_prop = edge.base_graph.node_meta().get_prop_id(&key.to_string(), false);
+            let constant_prop = edge.base_graph.node_meta().get_prop_id(&key.to_string(), true);
+
+            let key_with_prop_type = if temporal_prop.is_some() {
+                let p_type = edge.base_graph.node_meta().temporal_prop_meta().get_dtype(temporal_prop.unwrap());
+                (key.to_string(), p_type.unwrap().to_string())
+            } else if constant_prop.is_some() {
+                let p_type = edge.base_graph.node_meta().const_prop_meta().get_dtype(constant_prop.unwrap());
+                (key.to_string(), p_type.unwrap().to_string())
+            } else {
+                (key.to_string(), "NONE".to_string())
+            };
+
+            (key_with_prop_type, HashSet::from([value.to_string()]))
+        })
         .collect()
 }

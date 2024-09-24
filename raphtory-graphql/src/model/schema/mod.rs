@@ -18,11 +18,11 @@ fn get_node_type<'graph, G: GraphViewOps<'graph>>(node: NodeView<G>) -> String {
         .unwrap_or_else(|| "NONE".to_string())
 }
 
-type SchemaAggregate = HashMap<String, HashSet<String>>;
+type SchemaAggregate = HashMap<(String, String), HashSet<String>>;
 
 fn merge_schemas(mut s1: SchemaAggregate, s2: SchemaAggregate) -> SchemaAggregate {
-    for (key, set2) in s2 {
-        if let Some(set1) = s1.get_mut(&key) {
+    for ((key, prop_type), set2) in s2 {
+        if let Some(set1) = s1.get_mut(&(key.clone(), prop_type.clone())) {
             // Here, an empty set means: too many values to be interpreted as an enumerated type
             if set1.len() > 0 && set2.len() > 0 {
                 set1.extend(set2);
@@ -31,9 +31,8 @@ fn merge_schemas(mut s1: SchemaAggregate, s2: SchemaAggregate) -> SchemaAggregat
                 set1.clear();
             }
         } else {
-            s1.insert(key, set2);
+            s1.insert((key, prop_type), set2);
         }
     }
-
     s1
 }
