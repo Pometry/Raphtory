@@ -208,6 +208,12 @@ impl PyEdges {
         (move || edges.is_valid()).into()
     }
 
+    ////Check if the edges are active (i.e. there is at least one update during this time)
+    fn is_active(&self) -> BoolIterable {
+        let edges = self.edges.clone();
+        (move || edges.is_active()).into()
+    }
+
     /// Check if the edges are on the same node
     fn is_self_loop(&self) -> BoolIterable {
         let edges = self.edges.clone();
@@ -517,6 +523,12 @@ impl PyNestedEdges {
     fn is_valid(&self) -> NestedBoolIterable {
         let edges = self.edges.clone();
         (move || edges.is_valid()).into()
+    }
+
+    ////Check if the edges are active (i.e. there is at least one update during this time)
+    fn is_active(&self) -> NestedBoolIterable {
+        let edges = self.edges.clone();
+        (move || edges.is_active()).into()
     }
 
     /// Check if the edges are on the same node

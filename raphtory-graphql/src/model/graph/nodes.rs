@@ -57,6 +57,10 @@ impl GqlNodes {
         self.update(self.nn.at(time))
     }
 
+    async fn latest(&self) -> Self {
+        self.update(self.nn.latest())
+    }
+
     async fn before(&self, time: i64) -> Self {
         self.update(self.nn.before(time))
     }

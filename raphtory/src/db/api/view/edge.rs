@@ -96,7 +96,7 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     fn nbr(&self) -> Self::Nodes;
 
     /// Check if edge is active at a given time point
-    fn active(&self, t: i64) -> Self::ValueType<bool>;
+    fn is_active(&self) -> Self::ValueType<bool>;
 
     /// Returns the id of the edge.
     fn id(&self) -> Self::ValueType<(GID, GID)>;
@@ -205,19 +205,12 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         self.map_nodes(|_, e| e.remote())
     }
 
-    /// Check if edge is active at a given time point
-    fn active(&self, t: i64) -> Self::ValueType<bool> {
-        self.map(move |g, e| match e.time() {
-            Some(tt) => {
-                tt.t() <= t
-                    && t <= g
-                        .edge_latest_time(e, &g.layer_ids().constrain_from_edge(e))
-                        .unwrap_or(tt.t())
-            }
-            None => {
-                let edge = g.core_edge(e.into());
-                g.include_edge_window(edge.as_ref(), t..t.saturating_add(1), g.layer_ids())
-            }
+    /// Check if edge is active (i.e. has some update within the current bound)
+    fn is_active(&self) -> Self::ValueType<bool> {
+        self.map(move |g, e| {
+            g.edge_exploded(e, &g.layer_ids().constrain_from_edge(e))
+                .next()
+                .is_some()
         })
     }
 

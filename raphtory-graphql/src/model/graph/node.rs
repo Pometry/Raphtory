@@ -64,6 +64,10 @@ impl Node {
         self.vv.at(time).into()
     }
 
+    async fn latest(&self) -> Node {
+        self.vv.latest().into()
+    }
+
     async fn before(&self, time: i64) -> Node {
         self.vv.before(time).into()
     }
@@ -114,6 +118,10 @@ impl Node {
 
     async fn history(&self) -> Vec<i64> {
         self.vv.history()
+    }
+
+    async fn is_active(&self) -> bool {
+        self.vv.is_active()
     }
 
     ////////////////////////

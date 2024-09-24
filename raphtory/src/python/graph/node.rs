@@ -236,6 +236,10 @@ impl PyNode {
         self.node.history_date_time()
     }
 
+    pub fn is_active(&self) -> bool {
+        self.node.is_active()
+    }
+
     //******  Python  ******//
     pub fn __getitem__(&self, name: &str) -> PyResult<Prop> {
         self.node

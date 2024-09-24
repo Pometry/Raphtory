@@ -450,7 +450,10 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'gr
 
 #[cfg(test)]
 mod test_edge {
-    use crate::{core::IntoPropMap, prelude::*, test_storage, test_utils::test_graph};
+    use crate::{
+        core::IntoPropMap, db::api::view::time::TimeOps, prelude::*, test_storage,
+        test_utils::test_graph,
+    };
     use itertools::Itertools;
     use raphtory_api::core::storage::arc_str::ArcStr;
     use std::collections::HashMap;

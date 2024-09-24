@@ -56,6 +56,9 @@ impl GqlEdges {
     async fn at(&self, time: i64) -> Self {
         self.update(self.ee.at(time))
     }
+    async fn latest(&self) -> Self {
+        self.update(self.ee.latest())
+    }
 
     async fn before(&self, time: i64) -> Self {
         self.update(self.ee.before(time))
