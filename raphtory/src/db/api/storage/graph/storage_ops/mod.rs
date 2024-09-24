@@ -273,9 +273,7 @@ impl GraphStorage {
                 EdgeStorageEntry::Unlocked(storage.storage.edge_entry(eid.pid()))
             }
             #[cfg(feature = "storage")]
-            GraphStorage::Disk(storage) => {
-                EdgeStorageEntry::Disk(storage.inner.edge(eid.pid()))
-            }
+            GraphStorage::Disk(storage) => EdgeStorageEntry::Disk(storage.inner.edge(eid.pid())),
         }
     }
 

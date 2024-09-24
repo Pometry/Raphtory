@@ -318,8 +318,6 @@ impl DiskGraphStorage {
         node_properties: Option<P>,
         chunk_size: usize,
         t_props_chunk_size: usize,
-        read_chunk_size: Option<usize>,
-        concurrent_files: Option<usize>,
         num_threads: usize,
         node_type_col: Option<&str>,
     ) -> Result<DiskGraphStorage, RAError> {
@@ -409,16 +407,16 @@ mod test {
     use proptest::{prelude::*, sample::size_range};
     use tempfile::TempDir;
 
-    use pometry_storage::{global_order::GlobalMap, graph_fragment::TempColGraphFragment, RAError};
+    use pometry_storage::{
+        global_order::GlobalMap, graph::TemporalGraph, graph_fragment::TempColGraphFragment, interop::GraphLike, RAError
+    };
     use raphtory_api::core::{
-        entities::{EID, VID},
+        entities::{EID, ELID, VID},
         Direction,
     };
 
     use crate::{
-        arrow2::datatypes::{ArrowDataType as DataType, ArrowSchema as Schema},
-        db::graph::graph::assert_graph_equal,
-        prelude::*,
+        arrow2::datatypes::{ArrowDataType as DataType, ArrowSchema as Schema}, core::{entities::LayerIds, storage::timeindex::TimeIndexOps}, db::{api::{storage::graph::edges::edge_storage_ops::EdgeStorageOps, view::internal::{CoreGraphOps, TimeSemantics}}, graph::graph::assert_graph_equal}, prelude::*
     };
 
     fn edges_sanity_node_list(edges: &[(u64, u64, i64)]) -> Vec<u64> {
@@ -434,11 +432,10 @@ mod test {
     pub fn edges_sanity_check_build_graph<P: AsRef<Path>>(
         test_dir: P,
         edges: &[(u64, u64, i64)],
-        nodes: &[u64],
         input_chunk_size: u64,
         chunk_size: usize,
         t_props_chunk_size: usize,
-    ) -> Result<TempColGraphFragment, RAError> {
+    ) -> Result<TemporalGraph, RAError> {
         let chunks = edges
             .iter()
             .map(|(src, _, _)| *src)
@@ -467,34 +464,30 @@ mod test {
             Field::new("time", DataType::Int64, false),
         ]);
 
-        let triples = srcs.zip(dsts).zip(times).map(move |((a, b), c)| {
-            StructArray::new(
-                DataType::Struct(schema.fields.clone()),
-                vec![a.boxed(), b.boxed(), c.boxed()],
-                None,
-            )
-        });
+        let triples = srcs
+            .zip(dsts)
+            .zip(times)
+            .map(move |((a, b), c)| {
+                StructArray::new(
+                    DataType::Struct(schema.fields.clone()),
+                    vec![a.boxed(), b.boxed(), c.boxed()],
+                    None,
+                )
+            })
+            .collect::<Vec<_>>();
 
-        let go: GlobalMap = nodes.iter().copied().collect();
-        let node_gids = PrimitiveArray::from_slice(nodes).boxed();
-
-        let (src_ids, mut graph) = TempColGraphFragment::load_from_edge_list(
+        TemporalGraph::from_sorted_edge_list(
             test_dir.as_ref(),
-            0,
-            chunk_size,
-            t_props_chunk_size,
-            go.into(),
-            node_gids,
             0,
             1,
             2,
-            triples,
-        )?;
-        graph.build_node_additions(chunk_size, src_ids)?;
-        Ok(graph)
+            chunk_size,
+            t_props_chunk_size,
+            &triples,
+        )
     }
 
-    fn check_graph_sanity(edges: &[(u64, u64, i64)], nodes: &[u64], graph: &TempColGraphFragment) {
+    fn check_graph_sanity(edges: &[(u64, u64, i64)], nodes: &[u64], graph: &TemporalGraph) {
         let expected_graph = Graph::new();
         for (src, dst, t) in edges {
             expected_graph
@@ -514,26 +507,27 @@ mod test {
         let g_num_verts = graph.num_nodes();
         assert_eq!(actual_num_verts, g_num_verts);
         assert!(graph
-            .all_edges_iter()
+            .edges_iter()
+            .map(|edge| (edge.src_id(), edge.dst_id()))
             .all(|(VID(src), VID(dst))| src < g_num_verts && dst < g_num_verts));
 
         for v in 0..g_num_verts {
             let v = VID(v);
             assert!(graph
-                .edges(v, Direction::OUT)
-                .map(|(_, v)| v)
+                .node(v, 0)
+                .out_neighbours()
                 .tuple_windows()
                 .all(|(v1, v2)| v1 <= v2));
             assert!(graph
-                .edges(v, Direction::IN)
-                .map(|(_, v)| v)
+                .node(v, 0)
+                .in_neighbours()
                 .tuple_windows()
                 .all(|(v1, v2)| v1 <= v2));
         }
 
         let exploded_edges: Vec<_> = graph
             .exploded_edges()
-            .map(|(VID(src), VID(dst), time)| (nodes[src], nodes[dst], time))
+            .map(|edge| (nodes[edge.src().0], nodes[edge.dst().0], edge.timestamp()))
             .collect();
         assert_eq!(exploded_edges, edges);
 
@@ -544,18 +538,24 @@ mod test {
             expected_inbound.sort();
 
             let actual_inbound = graph
-                .edges(VID(v_id), Direction::IN)
-                .map(|(_, v)| GID::U64(nodes[v.0]))
+                .node(VID(v_id), 0)
+                .in_neighbours()
+                .map(|v| GID::U64(nodes[v.0]))
                 .collect::<Vec<_>>();
 
             assert_eq!(expected_inbound, actual_inbound);
         }
 
-        let (expected_srcs, expected_dsts): (Vec<_>, Vec<_>) = edges.iter().map(|(src, dst, _)| (*src, *dst)).dedup().unzip();
-        let (actual_srcs, actual_dst): (Vec<_>, Vec<_>) = graph.all_edges_iter().map(|(VID(src), VID(dst))| (src as u64, dst as u64)).unzip();
+        let unique_edges = edges.iter().map(|(src, dst, _)| (*src, *dst)).dedup();
 
-        assert_eq!(expected_srcs, actual_srcs);
-        assert_eq!(expected_dsts, actual_dst);
+        for (e_id, (src, dst)) in unique_edges.enumerate() {
+            let edge = graph.edge(EID(e_id));
+            let VID(src_id) = edge.src_id();
+            let VID(dst_id) = edge.dst_id();
+
+            assert_eq!(nodes[src_id], src);
+            assert_eq!(nodes[dst_id], dst);
+        }
     }
 
     fn edges_sanity_check_inner(
@@ -569,7 +569,6 @@ mod test {
         match edges_sanity_check_build_graph(
             test_dir.path(),
             &edges,
-            &nodes,
             input_chunk_size,
             chunk_size,
             t_props_chunk_size,
@@ -579,7 +578,7 @@ mod test {
                 check_graph_sanity(&edges, &nodes, &graph);
 
                 // check that reloading from graph dir works
-                let reloaded_graph = TempColGraphFragment::new(test_dir.path(), true, 0).unwrap();
+                let reloaded_graph = TemporalGraph::new(&test_dir).unwrap();
                 check_graph_sanity(&edges, &nodes, &reloaded_graph)
             }
             Err(RAError::NoEdgeLists | RAError::EmptyChunk) => assert!(edges.is_empty()),
@@ -606,6 +605,12 @@ mod test {
     }
 
     #[test]
+    fn edge_sanity_fail1() {
+        let edges = vec![(0, 17, 0), (1, 0, -1), (17, 0, 0)];
+        edges_sanity_check_inner(edges, 4, 4, 4)
+    }
+
+    #[test]
     fn edge_sanity_bad() {
         let edges = vec![
             (0, 85, -8744527736816607775),
@@ -619,7 +624,7 @@ mod test {
             (0, 85, -5577061971106014565),
             (0, 85, -5484794766797320810),
         ];
-        edges_sanity_check_inner(edges, 3, 5, 6)
+        edges_sanity_check_inner(edges, 3, 5, 12)
     }
 
     #[test]
@@ -733,7 +738,7 @@ mod test {
         ];
         assert_eq!(all_exploded, expected);
 
-        let reloaded_graph = TempColGraphFragment::new(graph.graph_dir(), true, 0).unwrap();
+        let reloaded_graph = TemporalGraph::new(graph.graph_dir()).unwrap();
 
         check_graph_sanity(
             &[(0, 1, 0), (0, 1, 1), (0, 1, 2), (1, 2, 3)],
@@ -750,8 +755,7 @@ mod test {
         use raphtory_api::core::entities::VID;
 
         use super::{
-            edges_sanity_check_build_graph, AdditionOps, Graph, GraphViewOps, NodeViewOps,
-            TempColGraphFragment, NO_PROPS,
+            edges_sanity_check_build_graph, AdditionOps, Graph, GraphViewOps, NodeViewOps, NO_PROPS,
         };
 
         fn compare_raphtory_graph(edges: Vec<(u64, u64, i64)>, chunk_size: usize) {
@@ -770,10 +774,9 @@ mod test {
             }
 
             let test_dir = TempDir::new().unwrap();
-            let graph: TempColGraphFragment = edges_sanity_check_build_graph(
+            let graph = edges_sanity_check_build_graph(
                 test_dir.path(),
                 &edges,
-                &nodes,
                 edges.len() as u64,
                 chunk_size,
                 chunk_size,
@@ -783,7 +786,7 @@ mod test {
             for (v_id, node) in nodes.into_iter().enumerate() {
                 let node = rg.node(node).expect("failed to get node id");
                 let expected = node.history();
-                let node = graph.node(VID(v_id));
+                let node = graph.node(VID(v_id), 0);
                 let actual = node.timestamps().into_iter_t().collect::<Vec<_>>();
                 assert_eq!(actual, expected);
             }
