@@ -6,6 +6,7 @@ members = [
     "pometry-storage",
     "examples/rust",
     "examples/netflow",
+    "examples/custom-gql-apis",
     "python",
     "js-raphtory",
     "raphtory-graphql",
