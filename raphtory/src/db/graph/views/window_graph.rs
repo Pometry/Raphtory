@@ -54,7 +54,7 @@ use crate::{
                     Base, EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps,
                     InheritListOps, InheritMaterialize, NodeFilterOps, Static, TimeSemantics,
                 },
-                BoxedIter, BoxedLIter,
+                BoxedLIter,
             },
         },
         graph::graph::graph_equal,

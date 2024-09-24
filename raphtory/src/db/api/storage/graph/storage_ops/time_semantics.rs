@@ -16,20 +16,16 @@ use crate::{
     },
     db::api::{
         storage::graph::{
-            edges::{
-                edge_ref::EdgeStorageRef,
-                edge_storage_ops::{EdgeStorageIntoOps, EdgeStorageOps},
-            },
+            edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
             nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
             tprop_storage_ops::TPropOps,
         },
         view::{
             internal::{CoreGraphOps, TimeSemantics},
-            time::internal::InternalTimeOps,
-            BoxedIter, BoxedLIter, IntoDynBoxed,
+            BoxedLIter, IntoDynBoxed,
         },
     },
-    prelude::{EdgeViewOps, Prop},
+    prelude::Prop,
 };
 
 impl TimeSemantics for GraphStorage {

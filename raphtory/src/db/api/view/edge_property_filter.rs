@@ -209,7 +209,6 @@ impl<'graph, G: OneHopFilter<'graph>> EdgePropertyFilterOps<'graph> for G {
 #[cfg(test)]
 mod test {
     use crate::{
-        db::{api::view::internal::CoreGraphOps, graph::graph::assert_graph_equal},
         prelude::*,
         test_utils::{build_edge_list, build_graph_from_edge_list},
     };

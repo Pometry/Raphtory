@@ -1,7 +1,5 @@
 use super::{
-    edges::{
-        edge_entry::EdgeStorageEntry, edge_owned_entry::EdgeOwnedEntry, unlocked::UnlockedEdges,
-    },
+    edges::{edge_entry::EdgeStorageEntry, unlocked::UnlockedEdges},
     nodes::node_entry::NodeStorageEntry,
 };
 use crate::{
@@ -47,7 +45,6 @@ use crate::{
     db::api::storage::graph::variants::storage_variants::StorageVariants,
     disk_graph::{
         storage_interface::{
-            edge::DiskOwnedEdge,
             edges::DiskEdges,
             edges_ref::DiskEdgesRef,
             node::{DiskNode, DiskOwnedNode},
@@ -281,25 +278,6 @@ impl GraphStorage {
                     .layer()
                     .expect("disk_graph EdgeRefs should always have layer set");
                 EdgeStorageEntry::Disk(storage.inner.layers()[layer].edge(eid.pid()))
-            }
-        }
-    }
-
-    #[inline(always)]
-    pub fn edge_owned(&self, eid: ELID) -> EdgeOwnedEntry {
-        match self {
-            GraphStorage::Mem(storage) => {
-                EdgeOwnedEntry::Mem(storage.edges.get_edge_arc(eid.pid()))
-            }
-            GraphStorage::Unlocked(storage) => {
-                EdgeOwnedEntry::Mem(storage.storage.get_edge_arc(eid.pid()))
-            }
-            #[cfg(feature = "storage")]
-            GraphStorage::Disk(storage) => {
-                let _ = eid
-                    .layer()
-                    .expect("disk_graph EdgeRefs should always have layer set");
-                EdgeOwnedEntry::Disk(DiskOwnedEdge::new(&storage.inner, eid))
             }
         }
     }

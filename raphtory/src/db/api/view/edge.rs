@@ -13,7 +13,7 @@ use crate::{
         properties::{internal::PropertiesOps, Properties},
         view::{
             internal::{CoreGraphOps, InternalLayerOps, TimeSemantics},
-            BoxedIter, IntoDynBoxed,
+            IntoDynBoxed,
         },
     },
     prelude::{GraphViewOps, LayerOps, NodeViewOps, TimeOps},

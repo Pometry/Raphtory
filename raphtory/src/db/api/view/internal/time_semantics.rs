@@ -5,7 +5,7 @@ use crate::{
     },
     db::api::{
         storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
-        view::{internal::Base, BoxedIter, BoxedLIter, MaterializedGraph},
+        view::{internal::Base, BoxedLIter, MaterializedGraph},
     },
 };
 use enum_dispatch::enum_dispatch;

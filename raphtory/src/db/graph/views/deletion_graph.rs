@@ -18,7 +18,7 @@ use crate::{
                 },
                 storage::Storage,
             },
-            view::{internal::*, BoxedIter, BoxedLIter, IntoDynBoxed},
+            view::{internal::*, BoxedLIter, IntoDynBoxed},
         },
         graph::graph::graph_equal,
     },

@@ -28,7 +28,6 @@ use crate::{
         },
     },
 };
-use itertools::Itertools;
 use pyo3::{
     prelude::PyModule, pyclass, pymethods, types::PyDict, IntoPy, PyObject, PyResult, Python,
     ToPyObject,

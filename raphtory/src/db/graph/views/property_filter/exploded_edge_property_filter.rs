@@ -2,27 +2,27 @@ use crate::{
     core::{entities::LayerIds, Prop},
     db::{
         api::{
-            properties::internal::{InheritPropertiesOps, TemporalPropertyViewOps},
+            properties::internal::InheritPropertiesOps,
             storage::graph::{
                 edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
                 nodes::node_ref::NodeStorageRef,
             },
             view::{
                 internal::{
-                    EdgeFilterOps, Immutable, InheritCoreOps, InheritEdgeFilterOps,
-                    InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeFilterOps,
-                    InheritTimeSemantics, Static, TimeSemantics,
+                    Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritLayerOps,
+                    InheritListOps, InheritMaterialize, InheritNodeFilterOps, Static,
+                    TimeSemantics,
                 },
-                Base, BoxedIter, BoxedLIter, IntoDynBoxed,
+                Base, BoxedLIter, IntoDynBoxed,
             },
         },
-        graph::{edge::EdgeView, views::property_filter::PropFilter},
+        graph::views::property_filter::PropFilter,
     },
-    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
+    prelude::GraphViewOps,
 };
 use raphtory_api::core::{
     entities::{edges::edge_ref::EdgeRef, VID},
-    storage::timeindex::{AsTime, TimeIndexEntry},
+    storage::timeindex::TimeIndexEntry,
 };
 use std::ops::Range;
 
