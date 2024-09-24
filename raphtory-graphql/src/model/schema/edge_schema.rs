@@ -63,24 +63,24 @@ fn collect_edge_schema<'graph, G: GraphViewOps<'graph>>(edge: EdgeView<G>) -> Sc
         .map(|(key, value)| {
             let temporal_prop = edge
                 .base_graph
-                .node_meta()
+                .edge_meta()
                 .get_prop_id(&key.to_string(), false);
             let constant_prop = edge
                 .base_graph
-                .node_meta()
+                .edge_meta()
                 .get_prop_id(&key.to_string(), true);
 
             let key_with_prop_type = if temporal_prop.is_some() {
                 let p_type = edge
                     .base_graph
-                    .node_meta()
+                    .edge_meta()
                     .temporal_prop_meta()
                     .get_dtype(temporal_prop.unwrap());
                 (key.to_string(), p_type.unwrap().to_string())
             } else if constant_prop.is_some() {
                 let p_type = edge
                     .base_graph
-                    .node_meta()
+                    .edge_meta()
                     .const_prop_meta()
                     .get_dtype(constant_prop.unwrap());
                 (key.to_string(), p_type.unwrap().to_string())

@@ -4,7 +4,7 @@ use std::collections::HashSet;
 #[derive(SimpleObject)]
 pub(crate) struct PropertySchema {
     key: String,
-    prop_type: String,
+    property_type: String,
     variants: Vec<String>,
 }
 
@@ -19,7 +19,7 @@ impl From<((String, String), HashSet<String>)> for PropertySchema {
         let ((key, prop_type), set) = value;
         PropertySchema {
             key,
-            prop_type,
+            property_type: prop_type,
             variants: Vec::from_iter(set),
         }
     }
