@@ -78,7 +78,6 @@ dependencies = [
  "const-random",
  "getrandom",
  "once_cell",
- "serde",
  "version_check",
  "zerocopy",
 ]
@@ -4055,35 +4054,6 @@ name = "pometry-storage"
 version = "0.11.3"
 
 [[package]]
-name = "pometry-storage-private"
-version = "0.8.1"
-dependencies = [
- "ahash",
- "bincode",
- "bytemuck",
- "criterion",
- "itertools 0.12.1",
- "memmap2",
- "once_cell",
- "parking_lot",
- "polars-arrow",
- "polars-parquet",
- "polars-utils",
- "proptest",
- "rand",
- "raphtory-api",
- "rayon",
- "serde",
- "serde_json",
- "strum",
- "tempfile",
- "thiserror",
- "tracing",
- "tracing-subscriber",
- "twox-hash",
-]
-
-[[package]]
 name = "portable-atomic"
 version = "1.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4503,7 +4473,7 @@ dependencies = [
  "parking_lot",
  "polars-arrow",
  "polars-parquet",
- "pometry-storage-private",
+ "pometry-storage",
  "pretty_assertions",
  "proptest",
  "prost",
@@ -4564,7 +4534,7 @@ dependencies = [
  "criterion",
  "csv",
  "flate2",
- "pometry-storage-private",
+ "pometry-storage",
  "rand",
  "raphtory",
  "raphtory-api",
@@ -4591,7 +4561,7 @@ dependencies = [
  "pest",
  "pest_derive",
  "polars-arrow",
- "pometry-storage-private",
+ "pometry-storage",
  "pretty_assertions",
  "proptest",
  "raphtory",
