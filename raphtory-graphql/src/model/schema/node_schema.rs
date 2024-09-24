@@ -2,12 +2,13 @@ use crate::model::schema::{merge_schemas, property_schema::PropertySchema, Schem
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
-    db::{api::view::DynamicGraph, graph::node::NodeView},
+    db::{
+        api::view::{internal::CoreGraphOps, Base, DynamicGraph},
+        graph::node::NodeView,
+    },
     prelude::{GraphViewOps, NodeViewOps},
 };
 use std::collections::{HashMap, HashSet};
-use raphtory::db::api::view::Base;
-use raphtory::db::api::view::internal::CoreGraphOps;
 
 #[derive(ResolvedObject)]
 pub(crate) struct NodeSchema {
@@ -52,14 +53,28 @@ fn collect_node_schema(node: NodeView<DynamicGraph>) -> SchemaAggregate {
     node.properties()
         .iter()
         .map(|(key, value)| {
-            let temporal_prop = node.base_graph.node_meta().get_prop_id(&key.to_string(), false);
-            let constant_prop = node.base_graph.node_meta().get_prop_id(&key.to_string(), true);
+            let temporal_prop = node
+                .base_graph
+                .node_meta()
+                .get_prop_id(&key.to_string(), false);
+            let constant_prop = node
+                .base_graph
+                .node_meta()
+                .get_prop_id(&key.to_string(), true);
 
             let key_with_prop_type = if temporal_prop.is_some() {
-                let p_type = node.base_graph.node_meta().temporal_prop_meta().get_dtype(temporal_prop.unwrap());
+                let p_type = node
+                    .base_graph
+                    .node_meta()
+                    .temporal_prop_meta()
+                    .get_dtype(temporal_prop.unwrap());
                 (key.to_string(), p_type.unwrap().to_string())
             } else if constant_prop.is_some() {
-                let p_type = node.base_graph.node_meta().const_prop_meta().get_dtype(constant_prop.unwrap());
+                let p_type = node
+                    .base_graph
+                    .node_meta()
+                    .const_prop_meta()
+                    .get_dtype(constant_prop.unwrap());
                 (key.to_string(), p_type.unwrap().to_string())
             } else {
                 (key.to_string(), "NONE".to_string())
