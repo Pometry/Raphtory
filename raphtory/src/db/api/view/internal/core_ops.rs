@@ -339,7 +339,10 @@ pub enum NodeAdditions<'a> {
 
 impl<'b> TimeIndexOps for NodeAdditions<'b> {
     type IndexType = i64;
-    type RangeType<'a> = NodeAdditions<'a> where Self: 'a;
+    type RangeType<'a>
+        = NodeAdditions<'a>
+    where
+        Self: 'a;
 
     #[inline]
     fn active(&self, w: Range<i64>) -> bool {
