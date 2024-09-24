@@ -18,7 +18,10 @@ use raphtory::{
     prelude::{CacheOps, EdgeViewOps, NodeViewOps},
     search::IndexedGraph,
     serialise::GraphFolder,
-    vectors::{embeddings::openai_embedding, vectorised_graph::VectorisedGraph},
+    vectors::{
+        embedding_cache::EmbeddingCache, embeddings::openai_embedding,
+        vectorised_graph::VectorisedGraph, EmbeddingFunction,
+    },
 };
 
 use crate::paths::ExistingGraphFolder;
@@ -76,7 +79,11 @@ impl GraphWithVectors {
         self.graph.write_updates()
     }
 
-    pub(crate) fn read_from_folder(folder: &ExistingGraphFolder) -> Result<Self, GraphError> {
+    pub(crate) fn read_from_folder(
+        folder: &ExistingGraphFolder,
+        embedding: Arc<dyn EmbeddingFunction>,
+        cache: Arc<Option<EmbeddingCache>>,
+    ) -> Result<Self, GraphError> {
         let graph_path = &folder.get_graph_path();
         let graph = if graph_path.is_dir() {
             if is_disk_graph_dir(folder) {
@@ -92,8 +99,8 @@ impl GraphWithVectors {
         let vectors = VectorisedGraph::read_from_path(
             &folder.get_vectors_path(),
             graph.clone(),
-            Arc::new(openai_embedding), // FIXME ??????????
-            Arc::new(None),             // FIXME ??????????
+            embedding,
+            cache,
         );
 
         println!("Graph loaded = {}", folder.get_original_path_str());

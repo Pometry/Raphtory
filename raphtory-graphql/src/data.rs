@@ -1,44 +1,26 @@
 use crate::{
     config::app_config::AppConfig,
     graph::GraphWithVectors,
-    model::{algorithms::global_plugins::GlobalPlugins, create_dirs_if_not_present, GqlGraphType},
+    model::algorithms::global_plugins::GlobalPlugins,
     paths::{ExistingGraphFolder, ValidGraphFolder},
 };
 use moka::sync::Cache;
-use once_cell::sync::OnceCell;
 use raphtory::{
-    core::{
-        entities::nodes::node_ref::AsNodeRef,
-        utils::errors::{
-            GraphError,
-            InvalidPathReason::{
-                self, BackslashError, CurDirNotAllowed, DoubleForwardSlash, ParentDirNotAllowed,
-                PathDoesNotExist, PathIsDirectory, PathNotParsable, PathNotUTF8, RootNotAllowed,
-                SymlinkNotAllowed,
-            },
-        },
-    },
-    db::{
-        api::{
-            mutation::internal::InheritMutationOps,
-            view::{internal::Static, Base, InheritViewOps, MaterializedGraph, StaticGraphViewOps},
-        },
-        graph::{edge::EdgeView, node::NodeView, views::deletion_graph::PersistentGraph},
-    },
+    core::utils::errors::GraphError,
+    db::api::view::MaterializedGraph,
     prelude::*,
-    search::IndexedGraph,
     vectors::{
-        embedding_cache::EmbeddingCache, template::DocumentTemplate, vectorisable::Vectorisable,
-        vectorised_graph::VectorisedGraph, EmbeddingFunction,
+        embedding_cache::EmbeddingCache, embeddings::openai_embedding, template::DocumentTemplate,
+        vectorisable::Vectorisable, vectorised_graph::VectorisedGraph, EmbeddingFunction,
     },
 };
 use std::{
     collections::HashMap,
     fs,
-    path::{Component, Path, PathBuf, StripPrefixError},
+    path::{Path, PathBuf, StripPrefixError},
     sync::Arc,
 };
-use tracing::{error, info};
+use tracing::error;
 use walkdir::WalkDir;
 
 #[derive(Clone)]
@@ -98,23 +80,13 @@ impl Data {
         }
     }
 
-    // TODO: make this return GraphWithVectors and remove the other one
-    // pub fn get_graph(
-    //     &self,
-    //     path: &str,
-    // ) -> Result<IndexedGraph<MaterializedGraph>, Arc<GraphError>> {
-    //     self.get_graph_with_vectors(path).map(|graph| graph.graph)
-    // }
-
     pub fn get_graph(
         &self,
         path: &str,
     ) -> Result<(GraphWithVectors, ExistingGraphFolder), Arc<GraphError>> {
         let graph_folder = ExistingGraphFolder::try_from(self.work_dir.clone(), path)?;
         self.cache
-            .try_get_with(path.into(), || {
-                GraphWithVectors::read_from_folder(&graph_folder)
-            })
+            .try_get_with(path.into(), || self.read_graph_from_folder(&graph_folder))
             .map(|graph| (graph, graph_folder))
     }
 
@@ -184,7 +156,7 @@ impl Data {
     pub(crate) async fn vectorise_all_graphs_that_are_not(&self) {
         for folder in self.get_all_graph_folders() {
             if !folder.get_vectors_path().exists() {
-                if let Ok(graph) = GraphWithVectors::read_from_folder(&folder) {
+                if let Ok(graph) = self.read_graph_from_folder(&folder) {
                     let vectors = self.vectorise(graph.graph.graph, &folder).await;
                     if let Some(vectors) = vectors {
                         vectors.write_to_path(&folder.get_vectors_path());
@@ -230,13 +202,33 @@ impl Data {
             .filter_map(|folder| {
                 Some((
                     folder.get_original_path_str().to_owned(),
-                    GraphWithVectors::read_from_folder(&folder).ok()?.vectors?,
+                    self.read_graph_from_folder(&folder).ok()?.vectors?,
                 ))
             })
             .collect::<HashMap<_, _>>();
         GlobalPlugins {
             graphs: graphs.into(),
         }
+    }
+
+    fn read_graph_from_folder(
+        &self,
+        folder: &ExistingGraphFolder,
+    ) -> Result<GraphWithVectors, GraphError> {
+        // TODO: I should have a way to get the global embedding conf from self that takes care of providing defaults
+        // I don't think this is the only place I need smth like that
+        let embedding = self
+            .embedding_conf
+            .as_ref()
+            .map(|conf| conf.function.clone())
+            .unwrap_or(Arc::new(openai_embedding));
+        let cache = self
+            .embedding_conf
+            .as_ref()
+            .map(|conf| conf.cache.clone())
+            .unwrap_or(Arc::new(None));
+
+        GraphWithVectors::read_from_folder(folder, embedding, cache)
     }
 }
 
@@ -306,24 +298,6 @@ pub(crate) mod data_tests {
         Ok(())
     }
 
-    fn get_maybe_relative_path(work_dir: &Path, path: PathBuf) -> Option<String> {
-        let relative_path = match path.strip_prefix(work_dir) {
-            Ok(relative_path) => relative_path,
-            Err(_) => return None, // Skip paths that cannot be stripped
-        };
-
-        let parent_path = relative_path.parent().unwrap_or(Path::new(""));
-        if let Some(parent_str) = parent_path.to_str() {
-            if parent_str.is_empty() {
-                None
-            } else {
-                Some(parent_str.to_string())
-            }
-        } else {
-            None
-        }
-    }
-
     // This function creates files that mimic disk graph for tests
     fn create_ipc_files_in_dir(dir_path: &Path) -> io::Result<()> {
         if !dir_path.exists() {
@@ -363,14 +337,6 @@ pub(crate) mod data_tests {
         Ok(())
     }
 
-    fn read_graph_from_path(
-        base_path: PathBuf,
-        relative_path: &str,
-    ) -> Result<GraphWithVectors, GraphError> {
-        let folder = ExistingGraphFolder::try_from(base_path, relative_path)?;
-        GraphWithVectors::read_from_folder(&folder)
-    }
-
     #[test]
     #[cfg(feature = "storage")]
     fn test_get_disk_graph_from_path() {
@@ -388,19 +354,23 @@ pub(crate) mod data_tests {
         let graph_path = base_path.join("test_dg");
         let _ = DiskGraphStorage::from_graph(&graph, &graph_path.join("graph")).unwrap();
 
-        let res = read_graph_from_path(base_path.clone(), "test_dg").unwrap();
+        let data = Data::new(&base_path, &Default::default());
+        let res = data.get_graph("test_dg").unwrap().0;
+        // let res = read_graph_from_path(base_path.clone(), "test_dg").unwrap();
         assert_eq!(res.graph.graph.into_events().unwrap().count_edges(), 2);
 
         // Dir path doesn't exists
-        let res = read_graph_from_path(base_path.clone(), "test_dg1");
+        let res = data.get_graph("test_dg1");
+        // let res = read_graph_from_path(base_path.clone(), "test_dg1");
         assert!(res.is_err());
         if let Err(err) = res {
             assert!(err.to_string().contains("Graph not found"));
         }
 
         // Dir path exists but is not a disk graph path
-        let tmp_graph_dir = tempfile::tempdir().unwrap();
-        let res = read_graph_from_path(base_path, "");
+        // let tmp_graph_dir = tempfile::tempdir().unwrap();
+        // let res = read_graph_from_path(base_path, "");
+        let res = data.get_graph("");
         assert!(res.is_err());
         if let Err(err) = res {
             assert!(err.to_string().contains("Graph not found"));
@@ -548,25 +518,11 @@ pub(crate) mod data_tests {
         assert!(paths.contains(&g2_path));
         assert!(paths.contains(&g3_path));
         assert!(paths.contains(&g4_path));
-        assert!(!paths.contains(&g5_path)); // Empty dir are ignored
+        assert!(!paths.contains(&g5_path)); // Empty dir is ignored
 
-        assert_eq!(get_maybe_relative_path(work_dir, g0_path), None);
-        assert_eq!(get_maybe_relative_path(work_dir, g1_path), None);
-        let expected = Path::new("shivam")
-            .join("investigations")
-            .join("2024-12-22");
-        assert_eq!(
-            get_maybe_relative_path(work_dir, g2_path),
-            Some(expected.display().to_string())
-        );
-        let expected = Path::new("shivam").join("investigations");
-        assert_eq!(
-            get_maybe_relative_path(work_dir, g3_path),
-            Some(expected.display().to_string())
-        );
-        assert_eq!(
-            get_maybe_relative_path(work_dir, g4_path),
-            Some(expected.display().to_string())
-        );
+        assert!(data
+            .get_graph("shivam/investigations/2024-12-22/g2")
+            .is_ok());
+        assert!(data.get_graph("some/random/path").is_err());
     }
 }
