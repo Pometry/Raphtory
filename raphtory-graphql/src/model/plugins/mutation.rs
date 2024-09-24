@@ -5,7 +5,7 @@ use async_graphql::{
 };
 use dynamic_graphql::internal::{Register, Registry};
 use futures_util::future::BoxFuture;
-use crate::model::plugins::mutation_plugins::MutationPlugins;
+use crate::model::plugins::mutation_plugin::MutationPlugin;
 
 pub trait Mutation<'a, A: MutationEntryPoint<'a> + 'static> {
     type OutputType: Register + 'static;
@@ -37,7 +37,7 @@ pub trait Mutation<'a, A: MutationEntryPoint<'a> + 'static> {
 
 pub(crate) struct NoOpMutation;
 
-impl<'a> Mutation<'a, MutationPlugins> for NoOpMutation {
+impl<'a> Mutation<'a, MutationPlugin> for NoOpMutation {
     type OutputType = String;
 
     fn output_type() -> TypeRef {
@@ -49,7 +49,7 @@ impl<'a> Mutation<'a, MutationPlugins> for NoOpMutation {
     }
 
     fn apply_mutation<'b>(
-        entry_point: &MutationPlugins,
+        entry_point: &MutationPlugin,
         ctx: ResolverContext
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
         Box::pin(async move {

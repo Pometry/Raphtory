@@ -1,4 +1,4 @@
-use crate::model::plugins::query_plugins::QueryPlugins;
+use crate::model::plugins::query_plugin::QueryPlugin;
 use pyo3::{pyclass, pymethods, Python};
 use raphtory::{
     python::{
@@ -14,7 +14,7 @@ use raphtory::{
 /// A class for accessing graphs hosted in a Raphtory GraphQL server and running global search for
 /// graph documents
 #[pyclass(name = "GraphqlGraphs")]
-pub struct PyGlobalPlugins(pub(crate) QueryPlugins);
+pub struct PyGlobalPlugins(pub(crate) QueryPlugin);
 
 #[pymethods]
 impl PyGlobalPlugins {

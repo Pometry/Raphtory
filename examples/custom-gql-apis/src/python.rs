@@ -11,6 +11,6 @@ pub fn py_add_custom_gql_apis(
     server: PyRefMut<PyGraphServer>,
 ) -> Result<PyGraphServer, PyErr> {
     let server = take_server_ownership(server)?;
-    let server = server.register_query_plugins::<_, HelloWorld>("hello_world");
+    let server = server.register_query_plugin::<_, HelloWorld>("hello_world");
     Ok(PyGraphServer::new(server))
 }

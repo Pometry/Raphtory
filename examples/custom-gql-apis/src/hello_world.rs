@@ -9,11 +9,11 @@ use raphtory_core::prelude::{CacheOps, GraphViewOps, ImportOps, NodeViewOps, Pro
 use raphtory_graphql::data::Data;
 use itertools::Itertools;
 use raphtory_graphql::model::plugins::query::Query;
-use raphtory_graphql::model::plugins::query_plugins::QueryPlugins;
+use raphtory_graphql::model::plugins::query_plugin::QueryPlugin;
 
 pub(crate) struct HelloWorld;
 
-impl<'a> Query<'a, QueryPlugins> for HelloWorld {
+impl<'a> Query<'a, QueryPlugin> for HelloWorld {
     type OutputType = String;
 
     fn output_type() -> TypeRef {
@@ -27,7 +27,7 @@ impl<'a> Query<'a, QueryPlugins> for HelloWorld {
     }
 
     fn apply_query<'b>(
-        entry_point: &QueryPlugins,
+        entry_point: &QueryPlugin,
         ctx: ResolverContext,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
         let name = ctx

@@ -21,29 +21,29 @@ pub static MUTATION_PLUGINS: Lazy<Mutex<HashMap<String, RegisterFunction>>> =
     ));
 
 #[derive(Clone, Default)]
-pub struct MutationPlugins {}
+pub struct MutationPlugin {}
 
-impl<'a> MutationEntryPoint<'a> for MutationPlugins {
+impl<'a> MutationEntryPoint<'a> for MutationPlugin {
     fn lock_plugins() -> MutexGuard<'static, HashMap<String, RegisterFunction>> {
         MUTATION_PLUGINS.lock().unwrap()
     }
 }
 
-impl Register for MutationPlugins {
+impl Register for MutationPlugin {
     fn register(registry: Registry) -> Registry {
         Self::register_mutations(registry)
     }
 }
 
-impl TypeName for MutationPlugins {
+impl TypeName for MutationPlugin {
     fn get_type_name() -> Cow<'static, str> {
         "MutationPlugins".into()
     }
 }
 
-impl OutputTypeName for MutationPlugins {}
+impl OutputTypeName for MutationPlugin {}
 
-impl<'a> ResolveOwned<'a> for MutationPlugins {
+impl<'a> ResolveOwned<'a> for MutationPlugin {
     fn resolve_owned(self, _ctx: &Context) -> dynamic_graphql::Result<Option<FieldValue<'a>>> {
         Ok(Some(FieldValue::owned_any(self)))
     }

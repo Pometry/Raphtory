@@ -20,12 +20,12 @@ pub static QUERY_PLUGINS: Lazy<Mutex<HashMap<String, RegisterFunction>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
 #[derive(Clone, Default)]
-pub struct QueryPlugins {
+pub struct QueryPlugin {
     pub graphs: Arc<RwLock<HashMap<String, IndexedGraph<MaterializedGraph>>>>,
     pub vectorised_graphs: Arc<RwLock<HashMap<String, DynamicVectorisedGraph>>>,
 }
 
-impl<'a> QueryEntryPoint<'a> for QueryPlugins {
+impl<'a> QueryEntryPoint<'a> for QueryPlugin {
     fn predefined_queries() -> HashMap<&'static str, RegisterFunction> {
         HashMap::from([(
             "globalSearch",
@@ -38,21 +38,21 @@ impl<'a> QueryEntryPoint<'a> for QueryPlugins {
     }
 }
 
-impl Register for QueryPlugins {
+impl Register for QueryPlugin {
     fn register(registry: Registry) -> Registry {
         Self::register_queries(registry)
     }
 }
 
-impl TypeName for QueryPlugins {
+impl TypeName for QueryPlugin {
     fn get_type_name() -> Cow<'static, str> {
         "QueryPlugins".into()
     }
 }
 
-impl OutputTypeName for QueryPlugins {}
+impl OutputTypeName for QueryPlugin {}
 
-impl<'a> ResolveOwned<'a> for QueryPlugins {
+impl<'a> ResolveOwned<'a> for QueryPlugin {
     fn resolve_owned(self, _ctx: &Context) -> dynamic_graphql::Result<Option<FieldValue<'a>>> {
         Ok(Some(FieldValue::owned_any(self)))
     }

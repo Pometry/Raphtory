@@ -110,8 +110,8 @@ impl GraphServer {
         cache: &Path,
         template: DocumentTemplate,
     ) -> IoResult<Self> {
-        let graphs = &self.data.global_plugins.graphs;
-        let stores = &self.data.global_plugins.vectorised_graphs;
+        let graphs = &self.data.global_plugin.graphs;
+        let stores = &self.data.global_plugin.vectorised_graphs;
 
         graphs.write().extend(
             self.data
@@ -151,7 +151,11 @@ impl GraphServer {
         Ok(self)
     }
 
-    pub fn register_query_plugins<'a, E: QueryEntryPoint<'a> + 'static, A: Query<'a, E> + 'static>(
+    pub fn register_query_plugin<
+        'a,
+        E: QueryEntryPoint<'a> + 'static,
+        A: Query<'a, E> + 'static
+    >(
         self,
         name: &str,
     ) -> Self {
@@ -159,7 +163,7 @@ impl GraphServer {
         self
     }
 
-    pub fn register_mutation_plugins<
+    pub fn register_mutation_plugin<
         'a,
         E: MutationEntryPoint<'a> + 'static,
         A: Mutation<'a, E> + 'static,

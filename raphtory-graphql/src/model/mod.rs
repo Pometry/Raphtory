@@ -5,7 +5,7 @@ use crate::{
             graph::GqlGraph, graphs::GqlGraphs, mutable_graph::GqlMutableGraph,
             vectorised_graph::GqlVectorisedGraph,
         },
-        plugins::{mutation_plugins::MutationPlugins, query_plugins::QueryPlugins},
+        plugins::{mutation_plugin::MutationPlugin, query_plugin::QueryPlugin},
     },
     url_encode::{url_decode_graph, url_encode_graph},
 };
@@ -103,7 +103,7 @@ impl QueryRoot {
     async fn vectorised_graph<'a>(ctx: &Context<'a>, path: String) -> Option<GqlVectorisedGraph> {
         let data = ctx.data_unchecked::<Data>();
         let g = data
-            .global_plugins
+            .global_plugin
             .vectorised_graphs
             .read()
             .get(&path)
@@ -118,9 +118,9 @@ impl QueryRoot {
         Ok(GqlGraphs::new(work_dir, paths))
     }
 
-    async fn plugins<'a>(ctx: &Context<'a>) -> QueryPlugins {
+    async fn plugins<'a>(ctx: &Context<'a>) -> QueryPlugin {
         let data = ctx.data_unchecked::<Data>();
-        data.global_plugins.clone()
+        data.global_plugin.clone()
     }
 
     async fn receive_graph<'a>(ctx: &Context<'a>, path: String) -> Result<String, Arc<GraphError>> {
@@ -140,8 +140,8 @@ pub(crate) struct Mut(MutRoot);
 
 #[MutationFields]
 impl Mut {
-    async fn plugins<'a>(ctx: &Context<'a>) -> MutationPlugins {
-        MutationPlugins::default()
+    async fn plugins<'a>(ctx: &Context<'a>) -> MutationPlugin {
+        MutationPlugin::default()
     }
 
     // If namespace is not provided, it will be set to the current working directory.
