@@ -2,11 +2,14 @@ use crate::model::graph::{
     edges::GqlEdges, path_from_node::GqlPathFromNode, property::GqlProperties,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
-use raphtory::db::{
-    api::{properties::dyn_props::DynProperties, view::*},
-    graph::node::NodeView,
+use itertools::Itertools;
+use raphtory::{
+    algorithms::components::{in_component, out_component},
+    db::{
+        api::{properties::dyn_props::DynProperties, view::*},
+        graph::node::NodeView,
+    },
 };
-
 #[derive(ResolvedObject)]
 pub(crate) struct Node {
     pub(crate) vv: NodeView<DynamicGraph>,
@@ -158,6 +161,20 @@ impl Node {
 
     async fn in_degree(&self) -> usize {
         self.vv.in_degree()
+    }
+
+    async fn in_component(&self) -> Vec<Node> {
+        in_component(self.vv.clone())
+            .iter()
+            .map(|n| n.clone().into())
+            .collect()
+    }
+
+    async fn out_component(&self) -> Vec<Node> {
+        out_component(self.vv.clone())
+            .iter()
+            .map(|n| n.clone().into())
+            .collect()
     }
 
     async fn edges(&self) -> GqlEdges {
