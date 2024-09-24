@@ -5,7 +5,11 @@ use crate::{
     algorithms::algorithm_result::AlgorithmResult,
     core::{entities::VID, state::compute_state::ComputeStateVec},
     db::{
-        api::view::{NodeViewOps, StaticGraphViewOps},
+        api::view::{
+            internal::{CoreGraphOps, DelegateCoreOps},
+            NodeViewOps, StaticGraphViewOps,
+        },
+        graph::node::NodeView,
         task::{
             context::Context,
             node::eval_node::EvalNodeView,
@@ -13,6 +17,7 @@ use crate::{
             task_runner::TaskRunner,
         },
     },
+    prelude::GraphViewOps,
 };
 use std::collections::HashSet;
 
@@ -91,12 +96,84 @@ where
     );
     AlgorithmResult::new(graph.clone(), "In Components", results_type, res)
 }
+/// Computes the in-component of a given node in the graph
+///
+/// # Arguments
+///
+/// * `node` - The node whose in-component we wish to calculate
+///
+/// Returns:
+///
+/// A Vec containing the Nodes within the given nodes in-component
+///
+pub fn in_component<'graph, G: GraphViewOps<'graph>>(node: NodeView<G>) -> Vec<NodeView<G>> {
+    let mut in_components = HashSet::new();
+    let mut to_check_stack = Vec::new();
+    node.in_neighbours().iter().for_each(|node| {
+        let id = node.node;
+        in_components.insert(id);
+        to_check_stack.push(id);
+    });
+    while let Some(neighbour_id) = to_check_stack.pop() {
+        if let Some(neighbour) = &node.graph.node(neighbour_id) {
+            neighbour.in_neighbours().iter().for_each(|node| {
+                let id = node.node;
+                if !in_components.contains(&id) {
+                    in_components.insert(id);
+                    to_check_stack.push(id);
+                }
+            });
+        }
+    }
+    in_components
+        .iter()
+        .filter_map(|vid| node.graph.node(*vid))
+        .collect()
+}
 
 #[cfg(test)]
 mod components_test {
     use super::*;
     use crate::{db::api::mutation::AdditionOps, prelude::*, test_storage};
     use std::collections::HashMap;
+
+    #[test]
+    fn in_component_test() {
+        let graph = Graph::new();
+        let edges = vec![
+            (1, 1, 2),
+            (1, 1, 3),
+            (1, 2, 4),
+            (1, 2, 5),
+            (1, 5, 4),
+            (1, 4, 6),
+            (1, 4, 7),
+            (1, 5, 8),
+        ];
+
+        for (ts, src, dst) in edges {
+            graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
+        }
+
+        fn check_node(graph: Graph, node_id: u64, mut correct: Vec<u64>) {
+            let mut results: Vec<u64> = in_component(graph.node(node_id).unwrap())
+                .iter()
+                .map(|n| n.id().as_u64().unwrap())
+                .collect();
+            results.sort();
+            correct.sort();
+            assert_eq!(results, correct);
+        }
+
+        check_node(graph.clone(), 1, vec![]);
+        check_node(graph.clone(), 2, vec![1]);
+        check_node(graph.clone(), 3, vec![1]);
+        check_node(graph.clone(), 4, vec![1, 2, 5]);
+        check_node(graph.clone(), 5, vec![1, 2]);
+        check_node(graph.clone(), 6, vec![1, 2, 4, 5]);
+        check_node(graph.clone(), 7, vec![1, 2, 4, 5]);
+        check_node(graph.clone(), 8, vec![1, 2, 5]);
+    }
 
     #[test]
     fn in_components_test() {

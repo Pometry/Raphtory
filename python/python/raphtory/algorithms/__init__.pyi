@@ -247,6 +247,17 @@ def hits(g, iter_count=20, threads=None):
         An AlgorithmResult object containing the mapping from node ID to the hub and authority score of the node
     """
 
+def in_component(node):
+    """
+    In component -- Finding the "in-component" of a node in a directed graph involves identifying all nodes that can be reached following only incoming edges.
+
+    Arguments:
+        node (Node) : The node whose in-component we wish to calculate
+
+    Returns:
+       An array containing the Nodes within the given nodes in-component
+    """
+
 def in_components(g):
     """
     In components -- Finding the "in-component" of a node in a directed graph involves identifying all nodes that can be reached following only incoming edges.
@@ -395,6 +406,17 @@ def min_out_degree(g):
 
     Returns:
         int : value of the smallest outdegree
+    """
+
+def out_component(node):
+    """
+    Out component -- Finding the "out-component" of a node in a directed graph involves identifying all nodes that can be reached following only outgoing edges.
+
+    Arguments:
+        node (Node) : The node whose out-component we wish to calculate
+
+    Returns:
+       An array containing the Nodes within the given nodes out-component
     """
 
 def out_components(g):
