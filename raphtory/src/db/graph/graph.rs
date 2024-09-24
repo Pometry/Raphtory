@@ -52,7 +52,7 @@ pub fn graph_equal<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps
             g1.edges().explode().iter().all(|e| { // all exploded edges exist in other
                 g2
                     .edge(e.src().id(), e.dst().id())
-                    .filter(|ee| ee.active(e.time().expect("exploded")))
+                    .filter(|ee| ee.at(e.time().expect("exploded")).is_active())
                     .is_some()
             })
     } else {
@@ -327,6 +327,10 @@ impl Graph {
         Self { inner }
     }
 
+    pub fn event_graph(&self) -> Graph {
+        self.clone()
+    }
+
     /// Get persistent graph
     pub fn persistent_graph(&self) -> PersistentGraph {
         PersistentGraph::from_storage(self.inner.clone())
@@ -351,7 +355,7 @@ mod db_tests {
                 view::{
                     internal::{CoreGraphOps, EdgeFilterOps, TimeSemantics},
                     time::internal::InternalTimeOps,
-                    EdgeViewOps, Layer, LayerOps, NodeViewOps, TimeOps,
+                    EdgeViewOps, IntoDynBoxed, Layer, LayerOps, NodeViewOps, TimeOps,
                 },
             },
             graph::{edge::EdgeView, edges::Edges, node::NodeView, path::PathFromNode},
@@ -2256,23 +2260,22 @@ mod db_tests {
         // checks that exploded edges are preserved with correct timestamps
         let mut edges: Vec<(GID, GID, Vec<i64>)> = edges
             .into_iter()
-            .filter_map(|(src, dst, ts)| {
+            .filter_map(|(src, dst, mut ts)| {
+                ts.sort();
+                ts.dedup();
+                let ts: Vec<_> = ts.into_iter().filter(|&t| t < i64::MAX).collect();
                 (!ts.is_empty()).then_some((GID::U64(src), GID::U64(dst), ts))
             })
             .collect();
-        // discard edges without timestamps
-        for e in edges.iter_mut() {
-            e.2.sort();
-            // FIXME: Should not have to do this, see issue https://github.com/Pometry/Raphtory/issues/973
-            e.2.dedup(); // add each timestamp only once (multi-edge per timestamp currently not implemented)
-        }
         edges.sort();
         edges.dedup_by_key(|(src, dst, _)| src.as_u64().zip(dst.as_u64()));
 
         let g = Graph::new();
         for (src, dst, times) in edges.iter() {
-            for t in times.iter() {
-                g.add_edge(*t, src, dst, NO_PROPS, None).unwrap();
+            for &t in times.iter() {
+                if t < i64::MAX {
+                    g.add_edge(t, src, dst, NO_PROPS, None).unwrap();
+                }
             }
         }
 
@@ -2292,17 +2295,13 @@ mod db_tests {
                             ); // times are the same for exploded edge
                             let t = ee.earliest_time().unwrap();
                             check(
-                                ee.active(t),
+                                ee.at(t).is_active(),
                                 format!("exploded edge {:?} inactive at {}", ee, t),
                             );
-                            if t < i64::MAX {
-                                // window is broken at MAX!
-                                check(e.active(t), format!("edge {:?} inactive at {}", e, t));
-                            }
                             let t_test = t.saturating_add(offset);
                             if t_test != t && t_test < i64::MAX && t_test > i64::MIN {
                                 check(
-                                    !ee.active(t_test),
+                                    !ee.at(t_test).is_active(),
                                     format!("exploded edge {:?} active at {}", ee, t_test),
                                 );
                             }
