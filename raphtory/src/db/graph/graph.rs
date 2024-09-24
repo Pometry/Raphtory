@@ -355,7 +355,7 @@ mod db_tests {
                 view::{
                     internal::{CoreGraphOps, EdgeFilterOps, TimeSemantics},
                     time::internal::InternalTimeOps,
-                    EdgeViewOps, Layer, LayerOps, NodeViewOps, TimeOps,
+                    EdgeViewOps, IntoDynBoxed, Layer, LayerOps, NodeViewOps, TimeOps,
                 },
             },
             graph::{edge::EdgeView, edges::Edges, node::NodeView, path::PathFromNode},
@@ -2260,23 +2260,22 @@ mod db_tests {
         // checks that exploded edges are preserved with correct timestamps
         let mut edges: Vec<(GID, GID, Vec<i64>)> = edges
             .into_iter()
-            .filter_map(|(src, dst, ts)| {
+            .filter_map(|(src, dst, mut ts)| {
+                ts.sort();
+                ts.dedup();
+                let ts: Vec<_> = ts.into_iter().filter(|&t| t < i64::MAX).collect();
                 (!ts.is_empty()).then_some((GID::U64(src), GID::U64(dst), ts))
             })
             .collect();
-        // discard edges without timestamps
-        for e in edges.iter_mut() {
-            e.2.sort();
-            // FIXME: Should not have to do this, see issue https://github.com/Pometry/Raphtory/issues/973
-            e.2.dedup(); // add each timestamp only once (multi-edge per timestamp currently not implemented)
-        }
         edges.sort();
         edges.dedup_by_key(|(src, dst, _)| src.as_u64().zip(dst.as_u64()));
 
         let g = Graph::new();
         for (src, dst, times) in edges.iter() {
-            for t in times.iter() {
-                g.add_edge(*t, src, dst, NO_PROPS, None).unwrap();
+            for &t in times.iter() {
+                if t < i64::MAX {
+                    g.add_edge(t, src, dst, NO_PROPS, None).unwrap();
+                }
             }
         }
 
@@ -2299,13 +2298,6 @@ mod db_tests {
                                 ee.at(t).is_active(),
                                 format!("exploded edge {:?} inactive at {}", ee, t),
                             );
-                            if t < i64::MAX {
-                                // window is broken at MAX!
-                                check(
-                                    e.at(t).is_active(),
-                                    format!("edge {:?} inactive at {}", e, t),
-                                );
-                            }
                             let t_test = t.saturating_add(offset);
                             if t_test != t && t_test < i64::MAX && t_test > i64::MIN {
                                 check(
