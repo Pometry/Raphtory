@@ -484,6 +484,7 @@ pub(crate) mod data_tests {
         let g3_path = work_dir.join("shivam/investigations/g3"); // Graph
         let g4_path = work_dir.join("shivam/investigations/g4"); // Disk graph dir
         let g5_path = work_dir.join("shivam/investigations/g5"); // Empty dir
+        let g6_path = work_dir.join("shivam/investigations/g6"); // File that is not a graph
 
         create_graph_folder(&g0_path);
         create_graph_folder(&g1_path);
@@ -494,6 +495,9 @@ pub(crate) mod data_tests {
         create_ipc_files_in_dir(&g4_path.join("graph")).unwrap();
 
         fs::create_dir_all(&g5_path).unwrap();
+
+        fs::create_dir_all(&g6_path).unwrap();
+        fs::write(g6_path.join("random-file"), "some-random-content").unwrap();
 
         let configs = AppConfigBuilder::new()
             .with_cache_capacity(1)

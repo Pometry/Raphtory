@@ -9,20 +9,13 @@ use crate::{
     routes::{graphql_playground, health},
 };
 use async_graphql_poem::GraphQL;
-use itertools::Itertools;
 use poem::{
     get,
     listener::TcpListener,
     middleware::{CookieJarManager, CookieJarManagerEndpoint, Cors, CorsEndpoint},
     EndpointExt, Route, Server,
 };
-use raphtory::{
-    db::api::view::IntoDynamic,
-    vectors::{
-        embedding_cache::EmbeddingCache, template::DocumentTemplate, vectorisable::Vectorisable,
-        EmbeddingFunction,
-    },
-};
+use raphtory::vectors::{template::DocumentTemplate, EmbeddingFunction};
 
 use crate::{
     config::app_config::{load_config, AppConfig},
