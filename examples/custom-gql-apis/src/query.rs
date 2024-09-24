@@ -8,12 +8,12 @@ use raphtory_core::core::utils::errors::GraphError;
 use raphtory_core::prelude::{CacheOps, GraphViewOps, ImportOps, NodeViewOps, PropertyAdditionOps};
 use raphtory_graphql::data::Data;
 use itertools::Itertools;
-use raphtory_graphql::model::plugins::query::Query;
+use raphtory_graphql::model::plugins::operation::Operation;
 use raphtory_graphql::model::plugins::query_plugin::QueryPlugin;
 
 pub(crate) struct HelloQuery;
 
-impl<'a> Query<'a, QueryPlugin> for HelloQuery {
+impl<'a> Operation<'a, QueryPlugin> for HelloQuery {
     type OutputType = String;
 
     fn output_type() -> TypeRef {
@@ -26,7 +26,7 @@ impl<'a> Query<'a, QueryPlugin> for HelloQuery {
         ]
     }
 
-    fn apply_query<'b>(
+    fn apply<'b>(
         entry_point: &QueryPlugin,
         ctx: ResolverContext,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {

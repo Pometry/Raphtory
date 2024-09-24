@@ -1,6 +1,6 @@
 use crate::model::{
     algorithms::document::GqlDocument,
-    plugins::{query::Query, vector_algorithm_plugins::VectorAlgorithmPlugins},
+    plugins::vector_algorithm_plugins::VectorAlgorithmPlugins,
 };
 use async_graphql::{
     dynamic::{FieldValue, ResolverContext, TypeRef},
@@ -9,10 +9,11 @@ use async_graphql::{
 use dynamic_graphql::internal::TypeName;
 use futures_util::future::BoxFuture;
 use raphtory::vectors::embeddings::openai_embedding;
+use crate::model::plugins::operation::Operation;
 
 pub(crate) struct SimilaritySearch;
 
-impl<'a> Query<'a, VectorAlgorithmPlugins> for SimilaritySearch {
+impl<'a> Operation<'a, VectorAlgorithmPlugins> for SimilaritySearch {
     type OutputType = GqlDocument;
 
     fn output_type() -> TypeRef {
@@ -26,7 +27,7 @@ impl<'a> Query<'a, VectorAlgorithmPlugins> for SimilaritySearch {
         ]
     }
 
-    fn apply_query<'b>(
+    fn apply<'b>(
         entry_point: &VectorAlgorithmPlugins,
         ctx: ResolverContext,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {

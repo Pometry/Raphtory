@@ -21,7 +21,7 @@ use raphtory::{
 
 use crate::{
     model::plugins::{
-        mutation::Mutation, mutation_entry_point::MutationEntryPoint, query::Query,
+        mutation_entry_point::MutationEntryPoint,
         query_entry_point::QueryEntryPoint,
     },
     server_config::{load_config, AppConfig, LoggingConfig},
@@ -46,6 +46,7 @@ use tracing_subscriber::{
     layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, FmtSubscriber, Registry,
 };
 use url::ParseError;
+use crate::model::plugins::operation::Operation;
 
 #[derive(Error, Debug)]
 pub enum ServerError {
@@ -153,25 +154,25 @@ impl GraphServer {
 
     pub fn register_query_plugin<
         'a,
-        E: QueryEntryPoint<'a> + 'static,
-        A: Query<'a, E> + 'static
+        E: QueryEntryPoint<'a> + 'static + Send,
+        A: Operation<'a, E> + 'static + Send
     >(
         self,
         name: &str,
     ) -> Self {
-        E::lock_plugins().insert(name.to_string(), Box::new(A::register_query));
+        E::lock_plugins().insert(name.to_string(), Box::new(A::register_operation));
         self
     }
 
     pub fn register_mutation_plugin<
         'a,
-        E: MutationEntryPoint<'a> + 'static,
-        A: Mutation<'a, E> + 'static,
+        E: MutationEntryPoint<'a> + 'static + Send,
+        A: Operation<'a, E> + 'static + Send,
     >(
         self,
         name: &str,
     ) -> Self {
-        E::lock_plugins().insert(name.to_string(), Box::new(A::register_mutation));
+        E::lock_plugins().insert(name.to_string(), Box::new(A::register_operation));
         self
     }
 

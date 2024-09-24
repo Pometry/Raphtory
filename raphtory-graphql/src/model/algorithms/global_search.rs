@@ -1,6 +1,6 @@
 use crate::model::{
     algorithms::document::GqlDocument,
-    plugins::{query::Query, query_plugin::QueryPlugin},
+    plugins::query_plugin::QueryPlugin,
 };
 use async_graphql::{
     dynamic::{FieldValue, ResolverContext, TypeRef},
@@ -10,10 +10,11 @@ use dynamic_graphql::internal::TypeName;
 use futures_util::future::BoxFuture;
 use raphtory::vectors::{embeddings::openai_embedding, vectorised_cluster::VectorisedCluster};
 use std::ops::Deref;
+use crate::model::plugins::operation::Operation;
 
 pub(crate) struct GlobalSearch;
 
-impl<'a> Query<'a, QueryPlugin> for GlobalSearch {
+impl<'a> Operation<'a, QueryPlugin> for GlobalSearch {
     type OutputType = GqlDocument;
 
     fn output_type() -> TypeRef {
@@ -27,7 +28,7 @@ impl<'a> Query<'a, QueryPlugin> for GlobalSearch {
         ]
     }
 
-    fn apply_query<'b>(
+    fn apply<'b>(
         entry_point: &QueryPlugin,
         ctx: ResolverContext,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {

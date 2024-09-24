@@ -3,7 +3,7 @@ use crate::model::{
         algorithms::{Pagerank, ShortestPath},
         RegisterFunction,
     },
-    plugins::{query::Query, query_entry_point::QueryEntryPoint},
+    plugins::query_entry_point::QueryEntryPoint,
 };
 use async_graphql::{dynamic::FieldValue, Context};
 use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName};
@@ -14,6 +14,7 @@ use std::{
     collections::HashMap,
     sync::{Mutex, MutexGuard},
 };
+use crate::model::plugins::operation::Operation;
 
 pub static GRAPH_ALGO_PLUGINS: Lazy<Mutex<HashMap<String, RegisterFunction>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
@@ -33,11 +34,11 @@ impl<'a> QueryEntryPoint<'a> for GraphAlgorithmPlugins {
         HashMap::from([
             (
                 "pagerank",
-                Box::new(Pagerank::register_query) as RegisterFunction,
+                Box::new(Pagerank::register_operation) as RegisterFunction,
             ),
             (
                 "shortest_path",
-                Box::new(ShortestPath::register_query) as RegisterFunction,
+                Box::new(ShortestPath::register_operation) as RegisterFunction,
             ),
         ])
     }

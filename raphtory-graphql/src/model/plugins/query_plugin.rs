@@ -1,6 +1,6 @@
 use crate::model::{
     algorithms::{global_search::GlobalSearch, RegisterFunction},
-    plugins::{query::Query, query_entry_point::QueryEntryPoint},
+    plugins::query_entry_point::QueryEntryPoint,
 };
 use async_graphql::{dynamic::FieldValue, Context};
 use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName};
@@ -15,6 +15,7 @@ use std::{
     collections::HashMap,
     sync::{Arc, Mutex, MutexGuard},
 };
+use crate::model::plugins::operation::Operation;
 
 pub static QUERY_PLUGINS: Lazy<Mutex<HashMap<String, RegisterFunction>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
@@ -29,7 +30,7 @@ impl<'a> QueryEntryPoint<'a> for QueryPlugin {
     fn predefined_queries() -> HashMap<&'static str, RegisterFunction> {
         HashMap::from([(
             "globalSearch",
-            Box::new(GlobalSearch::register_query) as RegisterFunction,
+            Box::new(GlobalSearch::register_operation) as RegisterFunction,
         )])
     }
 

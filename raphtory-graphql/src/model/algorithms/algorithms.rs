@@ -1,4 +1,4 @@
-use crate::model::plugins::{graph_algorithm_plugins::GraphAlgorithmPlugins, query::Query};
+use crate::model::plugins::graph_algorithm_plugins::GraphAlgorithmPlugins;
 use async_graphql::{
     dynamic::{FieldValue, ResolverContext, TypeRef},
     FieldResult,
@@ -12,6 +12,7 @@ use raphtory::algorithms::{
     pathing::dijkstra::dijkstra_single_source_shortest_paths,
 };
 use raphtory_api::core::Direction;
+use crate::model::plugins::operation::Operation;
 
 #[derive(SimpleObject)]
 pub(crate) struct PagerankOutput {
@@ -52,7 +53,7 @@ impl From<(&String, &OrderedFloat<f64>)> for PagerankOutput {
 
 pub(crate) struct Pagerank;
 
-impl<'a> Query<'a, GraphAlgorithmPlugins> for Pagerank {
+impl<'a> Operation<'a, GraphAlgorithmPlugins> for Pagerank {
     type OutputType = PagerankOutput;
 
     fn output_type() -> TypeRef {
@@ -68,7 +69,7 @@ impl<'a> Query<'a, GraphAlgorithmPlugins> for Pagerank {
         ]
     }
 
-    fn apply_query<'b>(
+    fn apply<'b>(
         entry_point: &GraphAlgorithmPlugins,
         ctx: ResolverContext,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
@@ -120,7 +121,7 @@ impl From<(String, Vec<String>)> for ShortestPathOutput {
     }
 }
 
-impl<'a> Query<'a, GraphAlgorithmPlugins> for ShortestPath {
+impl<'a> Operation<'a, GraphAlgorithmPlugins> for ShortestPath {
     type OutputType = ShortestPathOutput;
 
     fn output_type() -> TypeRef {
@@ -135,7 +136,7 @@ impl<'a> Query<'a, GraphAlgorithmPlugins> for ShortestPath {
         ]
     }
 
-    fn apply_query<'b>(
+    fn apply<'b>(
         entry_point: &GraphAlgorithmPlugins,
         ctx: ResolverContext,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {

@@ -1,4 +1,3 @@
-use crate::model::plugins::mutation_entry_point::MutationEntryPoint;
 use async_graphql::{
     dynamic::{Field, FieldFuture, FieldValue, InputValue, Object, ResolverContext, TypeRef},
     FieldResult,
@@ -7,26 +6,31 @@ use dynamic_graphql::internal::{Register, Registry};
 use futures_util::future::BoxFuture;
 use crate::model::plugins::mutation_plugin::MutationPlugin;
 
-pub trait Mutation<'a, A: MutationEntryPoint<'a> + 'static> {
+pub trait Operation<'a, A: Send + Sync + 'static> {
     type OutputType: Register + 'static;
 
     fn output_type() -> TypeRef;
 
     fn args<'b>() -> Vec<(&'b str, TypeRef)>;
 
-    fn apply_mutation<'b>(
+    fn apply<'b>(
         entry_point: &A,
         ctx: ResolverContext,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>>;
 
-    fn register_mutation(name: &str, registry: Registry, parent: Object) -> (Registry, Object) {
+    fn register_operation(
+        name: &str,
+        registry: Registry,
+        parent: Object,
+    ) -> (Registry, Object) {
         let registry = registry.register::<Self::OutputType>();
         let mut field = Field::new(name, Self::output_type(), |ctx| {
             FieldFuture::new(async move {
-                let algos: &A = ctx.parent_value.downcast_ref().unwrap();
-                Self::apply_mutation(&algos, ctx).await
+                let entry_point: &A = ctx.parent_value.downcast_ref().unwrap();
+                Self::apply(&entry_point, ctx).await
             })
         });
+
         for (name, type_ref) in Self::args() {
             field = field.argument(InputValue::new(name, type_ref));
         }
@@ -37,7 +41,7 @@ pub trait Mutation<'a, A: MutationEntryPoint<'a> + 'static> {
 
 pub(crate) struct NoOpMutation;
 
-impl<'a> Mutation<'a, MutationPlugin> for NoOpMutation {
+impl<'a> Operation<'a, MutationPlugin> for NoOpMutation {
     type OutputType = String;
 
     fn output_type() -> TypeRef {
@@ -48,7 +52,7 @@ impl<'a> Mutation<'a, MutationPlugin> for NoOpMutation {
         vec![]
     }
 
-    fn apply_mutation<'b>(
+    fn apply<'b>(
         entry_point: &MutationPlugin,
         ctx: ResolverContext
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {

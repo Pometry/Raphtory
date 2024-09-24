@@ -10,13 +10,13 @@ use std::{
     sync::{Mutex, MutexGuard},
 };
 use std::string::ToString;
-use crate::model::plugins::mutation::{Mutation, NoOpMutation};
+use crate::model::plugins::operation::{NoOpMutation, Operation};
 
 pub static MUTATION_PLUGINS: Lazy<Mutex<HashMap<String, RegisterFunction>>> =
     Lazy::new(|| Mutex::new(
         HashMap::from([(
             "NoOps".to_string(),
-            Box::new(NoOpMutation::register_mutation) as RegisterFunction,
+            Box::new(NoOpMutation::register_operation) as RegisterFunction,
         )])
     ));
 

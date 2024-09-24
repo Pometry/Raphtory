@@ -8,14 +8,13 @@ use raphtory_core::core::utils::errors::GraphError;
 use raphtory_core::prelude::{CacheOps, GraphViewOps, ImportOps, NodeViewOps, PropertyAdditionOps};
 use raphtory_graphql::data::Data;
 use itertools::Itertools;
-use raphtory_graphql::model::plugins::query::Query;
-use raphtory_graphql::model::plugins::mutation::Mutation;
+use raphtory_graphql::model::plugins::operation::Operation;
 use raphtory_graphql::model::plugins::query_plugin::QueryPlugin;
 use raphtory_graphql::model::plugins::mutation_plugin::MutationPlugin;
 
 pub(crate) struct HelloMutation;
 
-impl<'a> Mutation<'a, MutationPlugin> for HelloMutation {
+impl<'a> Operation<'a, MutationPlugin> for HelloMutation {
     type OutputType = String;
 
     fn output_type() -> TypeRef {
@@ -28,7 +27,7 @@ impl<'a> Mutation<'a, MutationPlugin> for HelloMutation {
         ]
     }
 
-    fn apply_mutation<'b>(
+    fn apply<'b>(
         entry_point: &MutationPlugin,
         ctx: ResolverContext,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
