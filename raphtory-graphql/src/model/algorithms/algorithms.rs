@@ -1,4 +1,4 @@
-use crate::model::plugins::graph_algorithm_plugins::GraphAlgorithmPlugins;
+use crate::model::plugins::{graph_algorithm_plugins::GraphAlgorithmPlugins, operation::Operation};
 use async_graphql::{
     dynamic::{FieldValue, ResolverContext, TypeRef},
     FieldResult,
@@ -12,7 +12,6 @@ use raphtory::algorithms::{
     pathing::dijkstra::dijkstra_single_source_shortest_paths,
 };
 use raphtory_api::core::Direction;
-use crate::model::plugins::operation::Operation;
 
 #[derive(SimpleObject)]
 pub(crate) struct PagerankOutput {

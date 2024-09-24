@@ -1,6 +1,6 @@
 use crate::model::{
     algorithms::document::GqlDocument,
-    plugins::query_plugin::QueryPlugin,
+    plugins::{operation::Operation, query_plugin::QueryPlugin},
 };
 use async_graphql::{
     dynamic::{FieldValue, ResolverContext, TypeRef},
@@ -10,7 +10,6 @@ use dynamic_graphql::internal::TypeName;
 use futures_util::future::BoxFuture;
 use raphtory::vectors::{embeddings::openai_embedding, vectorised_cluster::VectorisedCluster};
 use std::ops::Deref;
-use crate::model::plugins::operation::Operation;
 
 pub(crate) struct GlobalSearch;
 

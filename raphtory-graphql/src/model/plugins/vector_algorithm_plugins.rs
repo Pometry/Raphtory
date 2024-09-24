@@ -1,6 +1,6 @@
 use crate::model::{
     algorithms::{similarity_search::SimilaritySearch, RegisterFunction},
-    plugins::query_entry_point::QueryEntryPoint,
+    plugins::{operation::Operation, query_entry_point::QueryEntryPoint},
 };
 use async_graphql::{dynamic::FieldValue, Context};
 use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName};
@@ -11,7 +11,6 @@ use std::{
     collections::HashMap,
     sync::{Mutex, MutexGuard},
 };
-use crate::model::plugins::operation::Operation;
 
 pub static VECTOR_ALGO_PLUGINS: Lazy<Mutex<HashMap<String, RegisterFunction>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));

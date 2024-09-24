@@ -1,10 +1,10 @@
+use crate::model::plugins::mutation_plugin::MutationPlugin;
 use async_graphql::{
     dynamic::{Field, FieldFuture, FieldValue, InputValue, Object, ResolverContext, TypeRef},
     FieldResult,
 };
 use dynamic_graphql::internal::{Register, Registry};
 use futures_util::future::BoxFuture;
-use crate::model::plugins::mutation_plugin::MutationPlugin;
 
 pub trait Operation<'a, A: Send + Sync + 'static> {
     type OutputType: Register + 'static;
@@ -18,11 +18,7 @@ pub trait Operation<'a, A: Send + Sync + 'static> {
         ctx: ResolverContext,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>>;
 
-    fn register_operation(
-        name: &str,
-        registry: Registry,
-        parent: Object,
-    ) -> (Registry, Object) {
+    fn register_operation(name: &str, registry: Registry, parent: Object) -> (Registry, Object) {
         let registry = registry.register::<Self::OutputType>();
         let mut field = Field::new(name, Self::output_type(), |ctx| {
             FieldFuture::new(async move {
@@ -54,10 +50,8 @@ impl<'a> Operation<'a, MutationPlugin> for NoOpMutation {
 
     fn apply<'b>(
         entry_point: &MutationPlugin,
-        ctx: ResolverContext
+        ctx: ResolverContext,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
-        Box::pin(async move {
-            Ok(Some(FieldValue::value("no-op".to_owned())))
-        })
+        Box::pin(async move { Ok(Some(FieldValue::value("no-op".to_owned()))) })
     }
 }

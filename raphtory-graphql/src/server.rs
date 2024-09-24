@@ -21,7 +21,7 @@ use raphtory::{
 
 use crate::{
     model::plugins::{
-        mutation_entry_point::MutationEntryPoint,
+        mutation_entry_point::MutationEntryPoint, operation::Operation,
         query_entry_point::QueryEntryPoint,
     },
     server_config::{load_config, AppConfig, LoggingConfig},
@@ -46,7 +46,6 @@ use tracing_subscriber::{
     layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, FmtSubscriber, Registry,
 };
 use url::ParseError;
-use crate::model::plugins::operation::Operation;
 
 #[derive(Error, Debug)]
 pub enum ServerError {
@@ -155,7 +154,7 @@ impl GraphServer {
     pub fn register_query_plugin<
         'a,
         E: QueryEntryPoint<'a> + 'static + Send,
-        A: Operation<'a, E> + 'static + Send
+        A: Operation<'a, E> + 'static + Send,
     >(
         self,
         name: &str,

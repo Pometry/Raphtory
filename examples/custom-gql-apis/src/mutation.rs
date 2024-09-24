@@ -1,16 +1,21 @@
-use async_graphql::{dynamic::{FieldValue, ResolverContext, TypeRef}, FieldResult};
-use futures_util::future::BoxFuture;
-use std::path::Path;
-use std::sync::Arc;
+use async_graphql::{
+    dynamic::{FieldValue, ResolverContext, TypeRef},
+    FieldResult,
+};
 use chrono::Utc;
-use raphtory_core::core::Prop;
-use raphtory_core::core::utils::errors::GraphError;
-use raphtory_core::prelude::{CacheOps, GraphViewOps, ImportOps, NodeViewOps, PropertyAdditionOps};
-use raphtory_graphql::data::Data;
+use futures_util::future::BoxFuture;
 use itertools::Itertools;
-use raphtory_graphql::model::plugins::operation::Operation;
-use raphtory_graphql::model::plugins::query_plugin::QueryPlugin;
-use raphtory_graphql::model::plugins::mutation_plugin::MutationPlugin;
+use raphtory_core::{
+    core::{utils::errors::GraphError, Prop},
+    prelude::{CacheOps, GraphViewOps, ImportOps, NodeViewOps, PropertyAdditionOps},
+};
+use raphtory_graphql::{
+    data::Data,
+    model::plugins::{
+        mutation_plugin::MutationPlugin, operation::Operation, query_plugin::QueryPlugin,
+    },
+};
+use std::{path::Path, sync::Arc};
 
 pub(crate) struct HelloMutation;
 
@@ -22,9 +27,7 @@ impl<'a> Operation<'a, MutationPlugin> for HelloMutation {
     }
 
     fn args<'b>() -> Vec<(&'b str, TypeRef)> {
-        vec![
-            ("name", TypeRef::named_nn(TypeRef::STRING)),
-        ]
+        vec![("name", TypeRef::named_nn(TypeRef::STRING))]
     }
 
     fn apply<'b>(
@@ -33,12 +36,16 @@ impl<'a> Operation<'a, MutationPlugin> for HelloMutation {
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
         let name = ctx
             .args
-            .try_get("name").unwrap()
-            .string().unwrap()
+            .try_get("name")
+            .unwrap()
+            .string()
+            .unwrap()
             .to_owned();
 
         Box::pin(async move {
-            Ok(Some(FieldValue::value("Hello, ".to_owned() + name.as_str())))
+            Ok(Some(FieldValue::value(
+                "Hello, ".to_owned() + name.as_str(),
+            )))
         })
     }
 }

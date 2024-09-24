@@ -1,3 +1,4 @@
+use crate::python::py_add_custom_gql_apis;
 use ::raphtory_core::python::packages::base_modules::{
     add_raphtory_classes, base_algorithm_module, base_graph_gen_module, base_graph_loader_module,
     base_vectors_module,
@@ -5,7 +6,6 @@ use ::raphtory_core::python::packages::base_modules::{
 use pyo3::prelude::*;
 use raphtory_core::db::api::view::DynamicGraph;
 use raphtory_graphql::python::pymodule::base_graphql_module;
-use crate::python::py_add_custom_gql_apis;
 
 pub mod python;
 
@@ -15,7 +15,6 @@ mod query;
 #[pymodule]
 fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     let _ = add_raphtory_classes(m);
-
 
     let graphql_module = base_graphql_module(py)?;
     let algorithm_module = base_algorithm_module(py)?;
