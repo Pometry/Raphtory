@@ -4,7 +4,7 @@ use crate::{
     },
     db::api::{
         properties::{internal::PropertiesOps, Properties},
-        view::{DynamicGraph, MaterializedGraph, StaticGraphViewOps},
+        view::{MaterializedGraph, StaticGraphViewOps},
     },
     prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
     python::{
@@ -13,6 +13,7 @@ use crate::{
         utils::{execute_async_task, PyTime},
     },
     vectors::{
+        embedding_cache::EmbeddingCache,
         template::DocumentTemplate,
         vector_selection::DynamicVectorSelection,
         vectorisable::Vectorisable,
@@ -253,7 +254,7 @@ impl PyGraphView {
     ) -> DynamicVectorisedGraph {
         let embedding: Py<PyFunction> = embedding.into();
         let graph = self.graph.clone();
-        let cache = cache.map(PathBuf::from);
+        let cache = cache.map(|cache| cache.into()).into();
         let template = DocumentTemplate {
             graph_template,
             node_template,

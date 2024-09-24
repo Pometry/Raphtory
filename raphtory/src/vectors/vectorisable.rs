@@ -40,16 +40,6 @@ pub trait Vectorisable<G: StaticGraphViewOps> {
     async fn vectorise(
         &self,
         embedding: Box<dyn EmbeddingFunction>,
-        cache: Option<PathBuf>,
-        overwrite_cache: bool,
-        template: DocumentTemplate,
-        verbose: bool,
-    ) -> VectorisedGraph<G>;
-
-    // TODO: docs
-    async fn vectorise_with_cache(
-        &self,
-        embedding: Box<dyn EmbeddingFunction>,
         cache: Arc<Option<EmbeddingCache>>,
         overwrite_cache: bool,
         template: DocumentTemplate,
@@ -60,19 +50,6 @@ pub trait Vectorisable<G: StaticGraphViewOps> {
 #[async_trait]
 impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
     async fn vectorise(
-        &self,
-        embedding: Box<dyn EmbeddingFunction>,
-        cache: Option<PathBuf>,
-        overwrite_cache: bool,
-        template: DocumentTemplate,
-        verbose: bool,
-    ) -> VectorisedGraph<G> {
-        let cache: Arc<_> = cache.map(EmbeddingCache::from_path).into();
-        Self::vectorise_with_cache(&self, embedding, cache, overwrite_cache, template, verbose)
-            .await
-    }
-
-    async fn vectorise_with_cache(
         &self,
         embedding: Box<dyn EmbeddingFunction>,
         cache: Arc<Option<EmbeddingCache>>,

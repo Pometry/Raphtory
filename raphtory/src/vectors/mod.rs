@@ -119,7 +119,7 @@ mod vector_tests {
     };
     use dotenv::dotenv;
     use itertools::Itertools;
-    use std::{fs::remove_file, path::PathBuf};
+    use std::fs::remove_file;
     use template::DocumentTemplate;
     use tokio;
 
@@ -160,7 +160,7 @@ mod vector_tests {
         // the following succeeds with no cache set up
         g.vectorise(
             Box::new(fake_embedding),
-            None,
+            None.into(),
             true,
             template.clone(),
             false,
@@ -173,7 +173,7 @@ mod vector_tests {
         // the following creates the embeddings, and store them on the cache
         g.vectorise(
             Box::new(fake_embedding),
-            Some(PathBuf::from(path)),
+            Some(path.to_owned().into()).into(),
             true,
             template.clone(),
             false,
@@ -184,7 +184,7 @@ mod vector_tests {
         // embedding, which would make the test fail
         g.vectorise(
             Box::new(panicking_embedding),
-            Some(PathBuf::from(path)),
+            Some(path.to_owned().into()).into(),
             true,
             template,
             false,
@@ -196,9 +196,9 @@ mod vector_tests {
     async fn test_empty_graph() {
         let template = custom_template();
         let g = Graph::new();
-        let cache = PathBuf::from("/tmp/raphtory/vector-cache-lotr-test");
+        let cache = Some("/tmp/raphtory/vector-cache-lotr-test".to_owned().into()).into();
         let vectors = g
-            .vectorise(Box::new(fake_embedding), Some(cache), true, template, false)
+            .vectorise(Box::new(fake_embedding), cache, true, template, false)
             .await;
         let embedding: Embedding = fake_embedding(vec!["whatever".to_owned()]).await.remove(0);
 
@@ -416,7 +416,7 @@ mod vector_tests {
         let vectors = g
             .vectorise(
                 Box::new(openai_embedding),
-                Some(PathBuf::from("/tmp/raphtory/vector-cache-lotr-test")),
+                Some("/tmp/raphtory/vector-cache-lotr-test".to_owned().into()).into(),
                 true,
                 template,
                 false,
