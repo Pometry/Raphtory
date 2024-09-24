@@ -9,7 +9,8 @@ use crate::python::py_add_custom_gql_apis;
 
 pub mod python;
 
-mod hello_world;
+mod mutation;
+mod query;
 
 #[pymodule]
 fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {

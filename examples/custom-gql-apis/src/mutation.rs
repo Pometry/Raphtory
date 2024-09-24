@@ -9,11 +9,13 @@ use raphtory_core::prelude::{CacheOps, GraphViewOps, ImportOps, NodeViewOps, Pro
 use raphtory_graphql::data::Data;
 use itertools::Itertools;
 use raphtory_graphql::model::plugins::query::Query;
+use raphtory_graphql::model::plugins::mutation::Mutation;
 use raphtory_graphql::model::plugins::query_plugin::QueryPlugin;
+use raphtory_graphql::model::plugins::mutation_plugin::MutationPlugin;
 
-pub(crate) struct HelloWorld;
+pub(crate) struct HelloMutation;
 
-impl<'a> Query<'a, QueryPlugin> for HelloWorld {
+impl<'a> Mutation<'a, MutationPlugin> for HelloMutation {
     type OutputType = String;
 
     fn output_type() -> TypeRef {
@@ -26,8 +28,8 @@ impl<'a> Query<'a, QueryPlugin> for HelloWorld {
         ]
     }
 
-    fn apply_query<'b>(
-        entry_point: &QueryPlugin,
+    fn apply_mutation<'b>(
+        entry_point: &MutationPlugin,
         ctx: ResolverContext,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
         let name = ctx
