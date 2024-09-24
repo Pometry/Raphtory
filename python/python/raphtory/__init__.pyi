@@ -382,9 +382,79 @@ class Edge:
             Edge: The filtered view
         """
 
+    def filter_edges_ge(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value greater than or equal to a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Edge: The filtered view
+        """
+
     def filter_edges_gt(self, property, value):
         """
         Return a filtered view that only includes edges with a property value greater than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Edge: The filtered view
+        """
+
+    def filter_edges_has(self, property):
+        """
+        Return a filtered view that only includes edges that have a given property
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+
+        Returns:
+            Edge: The filtered view
+        """
+
+    def filter_edges_has_not(self, property):
+        """
+        Return a filtered view that only includes edges that do not have a given property
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+
+        Returns:
+            Edge: The filtered view
+        """
+
+    def filter_edges_in(self, property, set):
+        """
+        Return a filtered view that only includes edges with a property value in a set
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            set (set): The property values to compare with
+
+        Returns:
+            Edge: The filtered view
+        """
+
+    def filter_edges_le(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value less than or equal to a
         given value
 
         Arguments:
@@ -407,6 +477,34 @@ class Edge:
                             (looked up in temporal properties first and falls
                             back to constant properties
             value (Any): The property value to compare with
+
+        Returns:
+            Edge: The filtered view
+        """
+
+    def filter_edges_ne(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value not equal to a given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Edge: The filtered view
+        """
+
+    def filter_edges_not_in(self, property, set):
+        """
+        Return a filtered view that only includes edges with a property value not in a set
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            set (set): The property values to compare with
 
         Returns:
             Edge: The filtered view
@@ -827,9 +925,79 @@ class Edges:
             Edges: The filtered view
         """
 
+    def filter_edges_ge(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value greater than or equal to a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Edges: The filtered view
+        """
+
     def filter_edges_gt(self, property, value):
         """
         Return a filtered view that only includes edges with a property value greater than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Edges: The filtered view
+        """
+
+    def filter_edges_has(self, property):
+        """
+        Return a filtered view that only includes edges that have a given property
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+
+        Returns:
+            Edges: The filtered view
+        """
+
+    def filter_edges_has_not(self, property):
+        """
+        Return a filtered view that only includes edges that do not have a given property
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+
+        Returns:
+            Edges: The filtered view
+        """
+
+    def filter_edges_in(self, property, set):
+        """
+        Return a filtered view that only includes edges with a property value in a set
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            set (set): The property values to compare with
+
+        Returns:
+            Edges: The filtered view
+        """
+
+    def filter_edges_le(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value less than or equal to a
         given value
 
         Arguments:
@@ -852,6 +1020,34 @@ class Edges:
                             (looked up in temporal properties first and falls
                             back to constant properties
             value (Any): The property value to compare with
+
+        Returns:
+            Edges: The filtered view
+        """
+
+    def filter_edges_ne(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value not equal to a given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Edges: The filtered view
+        """
+
+    def filter_edges_not_in(self, property, set):
+        """
+        Return a filtered view that only includes edges with a property value not in a set
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            set (set): The property values to compare with
 
         Returns:
             Edges: The filtered view
@@ -1357,9 +1553,79 @@ class Graph:
             GraphView: The filtered view
         """
 
+    def filter_edges_ge(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value greater than or equal to a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            GraphView: The filtered view
+        """
+
     def filter_edges_gt(self, property, value):
         """
         Return a filtered view that only includes edges with a property value greater than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_edges_has(self, property):
+        """
+        Return a filtered view that only includes edges that have a given property
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_edges_has_not(self, property):
+        """
+        Return a filtered view that only includes edges that do not have a given property
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_edges_in(self, property, set):
+        """
+        Return a filtered view that only includes edges with a property value in a set
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            set (set): The property values to compare with
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_edges_le(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value less than or equal to a
         given value
 
         Arguments:
@@ -1382,6 +1648,34 @@ class Graph:
                             (looked up in temporal properties first and falls
                             back to constant properties
             value (Any): The property value to compare with
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_edges_ne(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value not equal to a given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_edges_not_in(self, property, set):
+        """
+        Return a filtered view that only includes edges with a property value not in a set
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            set (set): The property values to compare with
 
         Returns:
             GraphView: The filtered view
@@ -2339,9 +2633,79 @@ class MutableEdge:
             Edge: The filtered view
         """
 
+    def filter_edges_ge(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value greater than or equal to a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Edge: The filtered view
+        """
+
     def filter_edges_gt(self, property, value):
         """
         Return a filtered view that only includes edges with a property value greater than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Edge: The filtered view
+        """
+
+    def filter_edges_has(self, property):
+        """
+        Return a filtered view that only includes edges that have a given property
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+
+        Returns:
+            Edge: The filtered view
+        """
+
+    def filter_edges_has_not(self, property):
+        """
+        Return a filtered view that only includes edges that do not have a given property
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+
+        Returns:
+            Edge: The filtered view
+        """
+
+    def filter_edges_in(self, property, set):
+        """
+        Return a filtered view that only includes edges with a property value in a set
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            set (set): The property values to compare with
+
+        Returns:
+            Edge: The filtered view
+        """
+
+    def filter_edges_le(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value less than or equal to a
         given value
 
         Arguments:
@@ -2364,6 +2728,34 @@ class MutableEdge:
                             (looked up in temporal properties first and falls
                             back to constant properties
             value (Any): The property value to compare with
+
+        Returns:
+            Edge: The filtered view
+        """
+
+    def filter_edges_ne(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value not equal to a given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Edge: The filtered view
+        """
+
+    def filter_edges_not_in(self, property, set):
+        """
+        Return a filtered view that only includes edges with a property value not in a set
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            set (set): The property values to compare with
 
         Returns:
             Edge: The filtered view
@@ -2790,9 +3182,79 @@ class MutableNode:
             Node: The filtered view
         """
 
+    def filter_edges_ge(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value greater than or equal to a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Node: The filtered view
+        """
+
     def filter_edges_gt(self, property, value):
         """
         Return a filtered view that only includes edges with a property value greater than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Node: The filtered view
+        """
+
+    def filter_edges_has(self, property):
+        """
+        Return a filtered view that only includes edges that have a given property
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+
+        Returns:
+            Node: The filtered view
+        """
+
+    def filter_edges_has_not(self, property):
+        """
+        Return a filtered view that only includes edges that do not have a given property
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+
+        Returns:
+            Node: The filtered view
+        """
+
+    def filter_edges_in(self, property, set):
+        """
+        Return a filtered view that only includes edges with a property value in a set
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            set (set): The property values to compare with
+
+        Returns:
+            Node: The filtered view
+        """
+
+    def filter_edges_le(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value less than or equal to a
         given value
 
         Arguments:
@@ -2815,6 +3277,34 @@ class MutableNode:
                             (looked up in temporal properties first and falls
                             back to constant properties
             value (Any): The property value to compare with
+
+        Returns:
+            Node: The filtered view
+        """
+
+    def filter_edges_ne(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value not equal to a given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Node: The filtered view
+        """
+
+    def filter_edges_not_in(self, property, set):
+        """
+        Return a filtered view that only includes edges with a property value not in a set
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            set (set): The property values to compare with
 
         Returns:
             Node: The filtered view
@@ -3259,9 +3749,79 @@ class Node:
             Node: The filtered view
         """
 
+    def filter_edges_ge(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value greater than or equal to a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Node: The filtered view
+        """
+
     def filter_edges_gt(self, property, value):
         """
         Return a filtered view that only includes edges with a property value greater than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Node: The filtered view
+        """
+
+    def filter_edges_has(self, property):
+        """
+        Return a filtered view that only includes edges that have a given property
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+
+        Returns:
+            Node: The filtered view
+        """
+
+    def filter_edges_has_not(self, property):
+        """
+        Return a filtered view that only includes edges that do not have a given property
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+
+        Returns:
+            Node: The filtered view
+        """
+
+    def filter_edges_in(self, property, set):
+        """
+        Return a filtered view that only includes edges with a property value in a set
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            set (set): The property values to compare with
+
+        Returns:
+            Node: The filtered view
+        """
+
+    def filter_edges_le(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value less than or equal to a
         given value
 
         Arguments:
@@ -3284,6 +3844,34 @@ class Node:
                             (looked up in temporal properties first and falls
                             back to constant properties
             value (Any): The property value to compare with
+
+        Returns:
+            Node: The filtered view
+        """
+
+    def filter_edges_ne(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value not equal to a given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Node: The filtered view
+        """
+
+    def filter_edges_not_in(self, property, set):
+        """
+        Return a filtered view that only includes edges with a property value not in a set
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            set (set): The property values to compare with
 
         Returns:
             Node: The filtered view
@@ -3712,9 +4300,79 @@ class Nodes:
             Nodes: The filtered view
         """
 
+    def filter_edges_ge(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value greater than or equal to a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Nodes: The filtered view
+        """
+
     def filter_edges_gt(self, property, value):
         """
         Return a filtered view that only includes edges with a property value greater than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Nodes: The filtered view
+        """
+
+    def filter_edges_has(self, property):
+        """
+        Return a filtered view that only includes edges that have a given property
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+
+        Returns:
+            Nodes: The filtered view
+        """
+
+    def filter_edges_has_not(self, property):
+        """
+        Return a filtered view that only includes edges that do not have a given property
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+
+        Returns:
+            Nodes: The filtered view
+        """
+
+    def filter_edges_in(self, property, set):
+        """
+        Return a filtered view that only includes edges with a property value in a set
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            set (set): The property values to compare with
+
+        Returns:
+            Nodes: The filtered view
+        """
+
+    def filter_edges_le(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value less than or equal to a
         given value
 
         Arguments:
@@ -3737,6 +4395,34 @@ class Nodes:
                             (looked up in temporal properties first and falls
                             back to constant properties
             value (Any): The property value to compare with
+
+        Returns:
+            Nodes: The filtered view
+        """
+
+    def filter_edges_ne(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value not equal to a given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Nodes: The filtered view
+        """
+
+    def filter_edges_not_in(self, property, set):
+        """
+        Return a filtered view that only includes edges with a property value not in a set
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            set (set): The property values to compare with
 
         Returns:
             Nodes: The filtered view
@@ -4292,9 +4978,79 @@ class PersistentGraph:
             GraphView: The filtered view
         """
 
+    def filter_edges_ge(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value greater than or equal to a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            GraphView: The filtered view
+        """
+
     def filter_edges_gt(self, property, value):
         """
         Return a filtered view that only includes edges with a property value greater than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_edges_has(self, property):
+        """
+        Return a filtered view that only includes edges that have a given property
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_edges_has_not(self, property):
+        """
+        Return a filtered view that only includes edges that do not have a given property
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_edges_in(self, property, set):
+        """
+        Return a filtered view that only includes edges with a property value in a set
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            set (set): The property values to compare with
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_edges_le(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value less than or equal to a
         given value
 
         Arguments:
@@ -4317,6 +5073,34 @@ class PersistentGraph:
                             (looked up in temporal properties first and falls
                             back to constant properties
             value (Any): The property value to compare with
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_edges_ne(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value not equal to a given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_edges_not_in(self, property, set):
+        """
+        Return a filtered view that only includes edges with a property value not in a set
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            set (set): The property values to compare with
 
         Returns:
             GraphView: The filtered view
