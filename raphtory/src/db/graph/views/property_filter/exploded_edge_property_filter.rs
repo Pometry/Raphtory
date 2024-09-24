@@ -9,9 +9,8 @@ use crate::{
             },
             view::{
                 internal::{
-                    EdgeFilterOps, Immutable, InheritCoreOps, InheritEdgeFilterOps,
-                    InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeFilterOps,
-                    Static, TimeSemantics,
+                    EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps, InheritListOps,
+                    InheritMaterialize, InheritNodeFilterOps, Static, TimeSemantics,
                 },
                 Base, BoxedLIter, IntoDynBoxed,
             },
@@ -33,6 +32,9 @@ pub struct ExplodedEdgePropertyFilteredGraph<G> {
     filter: PropFilter,
 }
 
+impl<G> Static for ExplodedEdgePropertyFilteredGraph<G> {}
+impl<G> Immutable for ExplodedEdgePropertyFilteredGraph<G> {}
+
 impl<'graph, G: GraphViewOps<'graph>> ExplodedEdgePropertyFilteredGraph<G> {
     pub(crate) fn new(graph: G, prop_id: Option<usize>, filter: impl Into<PropFilter>) -> Self {
         Self {
@@ -50,9 +52,6 @@ impl<'graph, G: GraphViewOps<'graph>> ExplodedEdgePropertyFilteredGraph<G> {
         )
     }
 }
-
-impl<G> Static for ExplodedEdgePropertyFilteredGraph<G> {}
-impl<G> Immutable for ExplodedEdgePropertyFilteredGraph<G> {}
 
 impl<'graph, G> Base for ExplodedEdgePropertyFilteredGraph<G> {
     type Base = G;

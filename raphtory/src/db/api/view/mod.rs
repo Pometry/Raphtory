@@ -14,6 +14,7 @@ pub(crate) use edge::BaseEdgeViewOps;
 pub use edge::EdgeViewOps;
 
 pub use edge_property_filter::EdgePropertyFilterOps;
+pub use exploded_edge_property_filter::ExplodedEdgePropertyFilterOps;
 pub use graph::*;
 pub use internal::{
     Base, BoxableGraphView, DynamicGraph, InheritViewOps, IntoDynamic, MaterializedGraph,
