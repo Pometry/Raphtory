@@ -111,11 +111,7 @@ impl GqlGraph {
     }
 
     async fn latest(&self) -> GqlGraph {
-        GqlGraph::new(
-            self.work_dir.clone(),
-            self.path.clone(),
-            self.graph.latest(),
-        )
+        GqlGraph::new(self.path.clone(), self.graph.latest())
     }
 
     async fn before(&self, time: i64) -> GqlGraph {
