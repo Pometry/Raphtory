@@ -66,7 +66,7 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
         self.as_ref().dst()
     }
 
-    fn eid(self) -> EID{
+    fn eid(self) -> EID {
         self.as_ref().eid()
     }
 

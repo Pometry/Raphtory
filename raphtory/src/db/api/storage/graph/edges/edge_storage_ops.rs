@@ -4,10 +4,13 @@ use crate::{
             edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
             properties::{props::Props, tprop::TProp},
             LayerIds, VID,
-        }, storage::{
+        },
+        storage::{
             raw_edges::EdgeShard,
             timeindex::{TimeIndex, TimeIndexIntoOps, TimeIndexOps, TimeIndexWindow},
-        }, utils::iter::GenLockedIter, Prop
+        },
+        utils::iter::GenLockedIter,
+        Prop,
     },
     db::api::{
         storage::graph::{tprop_storage_ops::TPropOps, variants::layer_variants::LayerVariants},
@@ -337,7 +340,6 @@ impl<'a> MemEdge<'a> {
 }
 
 impl<'a> EdgeStorageOps<'a> for MemEdge<'a> {
-
     fn active(self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
         match layer_ids {
             LayerIds::None => false,
@@ -428,7 +430,7 @@ impl<'a> EdgeStorageOps<'a> for MemEdge<'a> {
         self.props(layer_id)
             .and_then(|props| props.const_prop(prop_id).cloned())
     }
-    
+
     fn eid(self) -> EID {
         self.eid()
     }

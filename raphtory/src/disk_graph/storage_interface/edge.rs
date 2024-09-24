@@ -4,7 +4,10 @@ use crate::{
         storage::timeindex::TimeIndexIntoOps,
         utils::iter::GenLockedIter,
     },
-    db::api::{storage::graph::edges::edge_storage_ops::{EdgeStorageIntoOps, EdgeStorageOps}, view::IntoDynBoxed},
+    db::api::{
+        storage::graph::edges::edge_storage_ops::{EdgeStorageIntoOps, EdgeStorageOps},
+        view::IntoDynBoxed,
+    },
     disk_graph::DiskGraphStorage,
 };
 use itertools::Itertools;
@@ -79,5 +82,5 @@ impl EdgeStorageIntoOps for DiskOwnedEdge {
                     }),
             )
         })
-   }
+    }
 }

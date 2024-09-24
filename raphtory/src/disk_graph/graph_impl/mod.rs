@@ -419,8 +419,6 @@ mod test {
             Some(&node_properties),
             chunk_size,
             t_props_chunk_size,
-            Some(read_chunk_size as usize),
-            Some(concurrent_files),
             num_threads,
             node_type_col,
         )

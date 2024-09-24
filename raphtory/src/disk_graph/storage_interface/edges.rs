@@ -66,21 +66,25 @@ impl DiskEdges {
                     .all_edge_ids_par(layer_id)
                     .map(move |e| (e, layer_id)),
             ),
-            LayerIds::All => LayerVariants::All((0..self.graph.inner.layers().len()).into_par_iter().flat_map(
-                move |layer_id| {
+            LayerIds::All => LayerVariants::All(
+                (0..self.graph.inner.layers().len())
+                    .into_par_iter()
+                    .flat_map(move |layer_id| {
+                        self.graph
+                            .inner
+                            .all_edge_ids_par(layer_id)
+                            .map(move |e| (e, layer_id))
+                    }),
+            ),
+            LayerIds::Multiple(ids) => {
+                LayerVariants::Multiple((0..ids.len()).into_par_iter().flat_map(move |i| {
+                    let layer_id = ids[i];
                     self.graph
                         .inner
                         .all_edge_ids_par(layer_id)
                         .map(move |e| (e, layer_id))
-                },
-            )),
-            LayerIds::Multiple(ids) => LayerVariants::Multiple((0..ids.len()).into_par_iter().flat_map(move |i| {
-                let layer_id = ids[i];
-                self.graph
-                    .inner
-                    .all_edge_ids_par(layer_id)
-                    .map(move |e| (e, layer_id))
-            })),
+                }))
+            }
         }
     }
 
