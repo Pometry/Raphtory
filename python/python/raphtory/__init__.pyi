@@ -510,6 +510,148 @@ class Edge:
             Edge: The filtered view
         """
 
+    def filter_exploded_edges_eq(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a given property value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Edge: The filtered view
+        """
+
+    def filter_exploded_edges_ge(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value greater than or equal to a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Edge: The filtered view
+        """
+
+    def filter_exploded_edges_gt(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value greater than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Edge: The filtered view
+        """
+
+    def filter_exploded_edges_has(self, property):
+        """
+        Return a filtered view that only includes exploded edges that have a given property
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+
+        Returns:
+            Edge: The filtered view
+        """
+
+    def filter_exploded_edges_has_not(self, property):
+        """
+        Return a filtered view that only includes exploded edges that do not have a given property
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+
+        Returns:
+            Edge: The filtered view
+        """
+
+    def filter_exploded_edges_in(self, property, set):
+        """
+        Return a filtered view that only includes exploded edges with a property value in a set
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            set (set): The property values to compare with
+
+        Returns:
+            Edge: The filtered view
+        """
+
+    def filter_exploded_edges_le(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value less than or equal to a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Edge: The filtered view
+        """
+
+    def filter_exploded_edges_lt(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value less than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Edge: The filtered view
+        """
+
+    def filter_exploded_edges_ne(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value not equal to a given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Edge: The filtered view
+        """
+
+    def filter_exploded_edges_not_in(self, property, set):
+        """
+        Return a filtered view that only includes exploded edges with a property value not in a set
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            set (set): The property values to compare with
+
+        Returns:
+            Edge: The filtered view
+        """
+
     def has_layer(self, name):
         """Check if Edge has the layer `"name"`"""
 
@@ -1057,6 +1199,148 @@ class Edges:
     def filter_edges_not_in(self, property, set):
         """
         Return a filtered view that only includes edges with a property value not in a set
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            set (set): The property values to compare with
+
+        Returns:
+            Edges: The filtered view
+        """
+
+    def filter_exploded_edges_eq(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a given property value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Edges: The filtered view
+        """
+
+    def filter_exploded_edges_ge(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value greater than or equal to a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Edges: The filtered view
+        """
+
+    def filter_exploded_edges_gt(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value greater than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Edges: The filtered view
+        """
+
+    def filter_exploded_edges_has(self, property):
+        """
+        Return a filtered view that only includes exploded edges that have a given property
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+
+        Returns:
+            Edges: The filtered view
+        """
+
+    def filter_exploded_edges_has_not(self, property):
+        """
+        Return a filtered view that only includes exploded edges that do not have a given property
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+
+        Returns:
+            Edges: The filtered view
+        """
+
+    def filter_exploded_edges_in(self, property, set):
+        """
+        Return a filtered view that only includes exploded edges with a property value in a set
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            set (set): The property values to compare with
+
+        Returns:
+            Edges: The filtered view
+        """
+
+    def filter_exploded_edges_le(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value less than or equal to a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Edges: The filtered view
+        """
+
+    def filter_exploded_edges_lt(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value less than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Edges: The filtered view
+        """
+
+    def filter_exploded_edges_ne(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value not equal to a given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Edges: The filtered view
+        """
+
+    def filter_exploded_edges_not_in(self, property, set):
+        """
+        Return a filtered view that only includes exploded edges with a property value not in a set
 
         Arguments:
             property (str): The name of the property to use for filtering
@@ -1695,6 +1979,148 @@ class Graph:
     def filter_edges_not_in(self, property, set):
         """
         Return a filtered view that only includes edges with a property value not in a set
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            set (set): The property values to compare with
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_exploded_edges_eq(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a given property value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_exploded_edges_ge(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value greater than or equal to a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_exploded_edges_gt(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value greater than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_exploded_edges_has(self, property):
+        """
+        Return a filtered view that only includes exploded edges that have a given property
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_exploded_edges_has_not(self, property):
+        """
+        Return a filtered view that only includes exploded edges that do not have a given property
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_exploded_edges_in(self, property, set):
+        """
+        Return a filtered view that only includes exploded edges with a property value in a set
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            set (set): The property values to compare with
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_exploded_edges_le(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value less than or equal to a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_exploded_edges_lt(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value less than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_exploded_edges_ne(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value not equal to a given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_exploded_edges_not_in(self, property, set):
+        """
+        Return a filtered view that only includes exploded edges with a property value not in a set
 
         Arguments:
             property (str): The name of the property to use for filtering
@@ -2794,6 +3220,148 @@ class MutableEdge:
             Edge: The filtered view
         """
 
+    def filter_exploded_edges_eq(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a given property value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Edge: The filtered view
+        """
+
+    def filter_exploded_edges_ge(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value greater than or equal to a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Edge: The filtered view
+        """
+
+    def filter_exploded_edges_gt(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value greater than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Edge: The filtered view
+        """
+
+    def filter_exploded_edges_has(self, property):
+        """
+        Return a filtered view that only includes exploded edges that have a given property
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+
+        Returns:
+            Edge: The filtered view
+        """
+
+    def filter_exploded_edges_has_not(self, property):
+        """
+        Return a filtered view that only includes exploded edges that do not have a given property
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+
+        Returns:
+            Edge: The filtered view
+        """
+
+    def filter_exploded_edges_in(self, property, set):
+        """
+        Return a filtered view that only includes exploded edges with a property value in a set
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            set (set): The property values to compare with
+
+        Returns:
+            Edge: The filtered view
+        """
+
+    def filter_exploded_edges_le(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value less than or equal to a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Edge: The filtered view
+        """
+
+    def filter_exploded_edges_lt(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value less than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Edge: The filtered view
+        """
+
+    def filter_exploded_edges_ne(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value not equal to a given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Edge: The filtered view
+        """
+
+    def filter_exploded_edges_not_in(self, property, set):
+        """
+        Return a filtered view that only includes exploded edges with a property value not in a set
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            set (set): The property values to compare with
+
+        Returns:
+            Edge: The filtered view
+        """
+
     def has_layer(self, name):
         """Check if Edge has the layer `"name"`"""
 
@@ -3347,6 +3915,148 @@ class MutableNode:
     def filter_edges_not_in(self, property, set):
         """
         Return a filtered view that only includes edges with a property value not in a set
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            set (set): The property values to compare with
+
+        Returns:
+            Node: The filtered view
+        """
+
+    def filter_exploded_edges_eq(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a given property value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Node: The filtered view
+        """
+
+    def filter_exploded_edges_ge(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value greater than or equal to a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Node: The filtered view
+        """
+
+    def filter_exploded_edges_gt(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value greater than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Node: The filtered view
+        """
+
+    def filter_exploded_edges_has(self, property):
+        """
+        Return a filtered view that only includes exploded edges that have a given property
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+
+        Returns:
+            Node: The filtered view
+        """
+
+    def filter_exploded_edges_has_not(self, property):
+        """
+        Return a filtered view that only includes exploded edges that do not have a given property
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+
+        Returns:
+            Node: The filtered view
+        """
+
+    def filter_exploded_edges_in(self, property, set):
+        """
+        Return a filtered view that only includes exploded edges with a property value in a set
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            set (set): The property values to compare with
+
+        Returns:
+            Node: The filtered view
+        """
+
+    def filter_exploded_edges_le(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value less than or equal to a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Node: The filtered view
+        """
+
+    def filter_exploded_edges_lt(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value less than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Node: The filtered view
+        """
+
+    def filter_exploded_edges_ne(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value not equal to a given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Node: The filtered view
+        """
+
+    def filter_exploded_edges_not_in(self, property, set):
+        """
+        Return a filtered view that only includes exploded edges with a property value not in a set
 
         Arguments:
             property (str): The name of the property to use for filtering
@@ -3934,6 +4644,148 @@ class Node:
             Node: The filtered view
         """
 
+    def filter_exploded_edges_eq(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a given property value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Node: The filtered view
+        """
+
+    def filter_exploded_edges_ge(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value greater than or equal to a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Node: The filtered view
+        """
+
+    def filter_exploded_edges_gt(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value greater than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Node: The filtered view
+        """
+
+    def filter_exploded_edges_has(self, property):
+        """
+        Return a filtered view that only includes exploded edges that have a given property
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+
+        Returns:
+            Node: The filtered view
+        """
+
+    def filter_exploded_edges_has_not(self, property):
+        """
+        Return a filtered view that only includes exploded edges that do not have a given property
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+
+        Returns:
+            Node: The filtered view
+        """
+
+    def filter_exploded_edges_in(self, property, set):
+        """
+        Return a filtered view that only includes exploded edges with a property value in a set
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            set (set): The property values to compare with
+
+        Returns:
+            Node: The filtered view
+        """
+
+    def filter_exploded_edges_le(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value less than or equal to a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Node: The filtered view
+        """
+
+    def filter_exploded_edges_lt(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value less than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Node: The filtered view
+        """
+
+    def filter_exploded_edges_ne(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value not equal to a given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Node: The filtered view
+        """
+
+    def filter_exploded_edges_not_in(self, property, set):
+        """
+        Return a filtered view that only includes exploded edges with a property value not in a set
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            set (set): The property values to compare with
+
+        Returns:
+            Node: The filtered view
+        """
+
     def has_layer(self, name):
         """Check if Node has the layer `"name"`"""
 
@@ -4483,6 +5335,148 @@ class Nodes:
     def filter_edges_not_in(self, property, set):
         """
         Return a filtered view that only includes edges with a property value not in a set
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            set (set): The property values to compare with
+
+        Returns:
+            Nodes: The filtered view
+        """
+
+    def filter_exploded_edges_eq(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a given property value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Nodes: The filtered view
+        """
+
+    def filter_exploded_edges_ge(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value greater than or equal to a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Nodes: The filtered view
+        """
+
+    def filter_exploded_edges_gt(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value greater than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Nodes: The filtered view
+        """
+
+    def filter_exploded_edges_has(self, property):
+        """
+        Return a filtered view that only includes exploded edges that have a given property
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+
+        Returns:
+            Nodes: The filtered view
+        """
+
+    def filter_exploded_edges_has_not(self, property):
+        """
+        Return a filtered view that only includes exploded edges that do not have a given property
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+
+        Returns:
+            Nodes: The filtered view
+        """
+
+    def filter_exploded_edges_in(self, property, set):
+        """
+        Return a filtered view that only includes exploded edges with a property value in a set
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            set (set): The property values to compare with
+
+        Returns:
+            Nodes: The filtered view
+        """
+
+    def filter_exploded_edges_le(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value less than or equal to a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Nodes: The filtered view
+        """
+
+    def filter_exploded_edges_lt(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value less than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Nodes: The filtered view
+        """
+
+    def filter_exploded_edges_ne(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value not equal to a given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Nodes: The filtered view
+        """
+
+    def filter_exploded_edges_not_in(self, property, set):
+        """
+        Return a filtered view that only includes exploded edges with a property value not in a set
 
         Arguments:
             property (str): The name of the property to use for filtering
@@ -5169,6 +6163,148 @@ class PersistentGraph:
     def filter_edges_not_in(self, property, set):
         """
         Return a filtered view that only includes edges with a property value not in a set
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            set (set): The property values to compare with
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_exploded_edges_eq(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a given property value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_exploded_edges_ge(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value greater than or equal to a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_exploded_edges_gt(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value greater than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_exploded_edges_has(self, property):
+        """
+        Return a filtered view that only includes exploded edges that have a given property
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_exploded_edges_has_not(self, property):
+        """
+        Return a filtered view that only includes exploded edges that do not have a given property
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_exploded_edges_in(self, property, set):
+        """
+        Return a filtered view that only includes exploded edges with a property value in a set
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            set (set): The property values to compare with
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_exploded_edges_le(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value less than or equal to a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_exploded_edges_lt(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value less than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_exploded_edges_ne(self, property, value):
+        """
+        Return a filtered view that only includes exploded edges with a property value not equal to a given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_exploded_edges_not_in(self, property, set):
+        """
+        Return a filtered view that only includes exploded edges with a property value not in a set
 
         Arguments:
             property (str): The name of the property to use for filtering
