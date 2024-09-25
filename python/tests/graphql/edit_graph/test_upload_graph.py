@@ -14,7 +14,7 @@ def test_upload_graph_succeeds_if_no_graph_found_with_same_name():
     g.add_edge(3, "ben", "haaroon")
     tmp_dir = tempfile.mkdtemp()
     g_file_path = tmp_dir + "/g"
-    g.save_to_file(g_file_path)
+    g.save_to_zip(g_file_path)
 
     tmp_work_dir = tempfile.mkdtemp()
     with GraphServer(tmp_work_dir).start():
@@ -38,7 +38,7 @@ def test_upload_graph_fails_if_graph_already_exists():
     g.add_edge(3, "ben", "haaroon")
     tmp_dir = tempfile.mkdtemp()
     g_file_path = tmp_dir + "/g"
-    g.save_to_file(g_file_path)
+    g.save_to_zip(g_file_path)
 
     tmp_work_dir = tempfile.mkdtemp()
     g.save_to_file(os.path.join(tmp_work_dir, "g"))
@@ -69,7 +69,7 @@ def test_upload_graph_succeeds_if_graph_already_exists_with_overwrite_enabled():
         g.add_edge(4, "ben", "shivam")
         tmp_dir = tempfile.mkdtemp()
         g_file_path = tmp_dir + "/g"
-        g.save_to_file(g_file_path)
+        g.save_to_zip(g_file_path)
 
         client.upload_graph(path="g", file_path=g_file_path, overwrite=True)
 
@@ -96,7 +96,7 @@ def test_upload_graph_succeeds_if_no_graph_found_with_same_name_at_namespace():
     g.add_edge(3, "ben", "haaroon")
     tmp_dir = tempfile.mkdtemp()
     g_file_path = tmp_dir + "/g"
-    g.save_to_file(g_file_path)
+    g.save_to_zip(g_file_path)
 
     tmp_work_dir = tempfile.mkdtemp()
     with GraphServer(tmp_work_dir).start():
@@ -120,7 +120,7 @@ def test_upload_graph_fails_if_graph_already_exists_at_namespace():
     g.add_edge(3, "ben", "haaroon")
     tmp_dir = tempfile.mkdtemp()
     g_file_path = tmp_dir + "/g"
-    g.save_to_file(g_file_path)
+    g.save_to_zip(g_file_path)
 
     tmp_work_dir = tempfile.mkdtemp()
     os.makedirs(os.path.join(tmp_work_dir, "shivam"), exist_ok=True)
@@ -139,7 +139,7 @@ def test_upload_graph_succeeds_if_graph_already_exists_at_namespace_with_overwri
     g.add_edge(2, "haaroon", "hamza")
     g.add_edge(3, "ben", "haaroon")
     os.makedirs(os.path.join(tmp_work_dir, "shivam"), exist_ok=True)
-    g.save_to_file(os.path.join(tmp_work_dir, "shivam", "g"))
+    g.save_to_zip(os.path.join(tmp_work_dir, "shivam", "g"))
 
     with GraphServer(tmp_work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
