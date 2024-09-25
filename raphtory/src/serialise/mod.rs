@@ -21,10 +21,10 @@ pub use serialise::{CacheOps, StableDecode, StableEncode};
 #[derive(Clone, Debug)]
 pub struct GraphFolder {
     path: PathBuf,
-    force_zip_format: bool, // TODO: rename to prefer_folder, because we ignore it in some instances
+    prefer_zip_format: bool,
 }
 
-enum GraphReader {
+pub enum GraphReader {
     Zip(Vec<u8>),
     Folder(Mmap),
 }
@@ -42,17 +42,10 @@ impl GraphFolder {
     pub fn new_as_zip(path: impl AsRef<Path>) -> Self {
         let folder: GraphFolder = path.into();
         Self {
-            force_zip_format: true,
+            prefer_zip_format: true,
             ..folder
         }
     }
-
-    // pub fn into_zip_format(self) -> Self {
-    //     Self {
-    //         force_zip_format: true,
-    //         ..self
-    //     }
-    // }
 
     // TODO: make it private again once we stop using it from the graphql crate
     pub fn get_graph_path(&self) -> PathBuf {
@@ -75,7 +68,7 @@ impl GraphFolder {
     }
 
     pub fn write_graph(&self, buf: &[u8]) -> Result<(), io::Error> {
-        if self.force_zip_format {
+        if self.prefer_zip_format {
             let file = File::create(&self.path)?;
             let mut zip = ZipWriter::new(file);
             zip.start_file::<_, ()>("graph", FileOptions::default())?;
@@ -86,11 +79,6 @@ impl GraphFolder {
             file.write_all(buf)
         }
     }
-
-    // fn create_graph_file(&self) -> Result<File, std::io::Error> {
-    //     let _ignored = fs::create_dir(&self.path);
-    //     File::create(self.get_graph_path())
-    // }
 
     fn get_appendable_graph_file(&self) -> Result<File, std::io::Error> {
         let _ignored = fs::create_dir(&self.path);
@@ -108,18 +96,12 @@ impl GraphFolder {
     }
 }
 
-// impl From<PathBuf> for GraphFolder {
-//     fn from(value: PathBuf) -> Self {
-//         Self { path: value }
-//     }
-// }
-
 impl<P: AsRef<Path>> From<P> for GraphFolder {
     fn from(value: P) -> Self {
         let path: &Path = value.as_ref();
         Self {
             path: path.to_path_buf(),
-            force_zip_format: false,
+            prefer_zip_format: false,
         }
     }
 }
@@ -144,27 +126,17 @@ mod zip_tests {
     #[test]
     fn test_zip() {
         let graph = Graph::new();
-        graph.add_node(0, 0, NO_PROPS, None);
+        graph.add_node(0, 0, NO_PROPS, None).unwrap();
         let temp_file = tempfile::NamedTempFile::new().unwrap();
-        graph.encode(GraphFolder::new_as_zip(&temp_file));
+        graph.encode(GraphFolder::new_as_zip(&temp_file)).unwrap();
         let graph = Graph::decode(&temp_file).unwrap();
         assert_eq!(graph.count_nodes(), 1);
     }
 
-    // #[test]
-    // fn test_folder_format() {
-    //     let graph = Graph::new();
-    //     graph.add_node(0, 0, NO_PROPS, None);
-    //     let tempdir = TempDir::new().unwrap();
-    //     graph.encode(GraphFolder::new_as_folder(&tempdir)).unwrap();
-    //     let graph = Graph::decode(&tempdir).unwrap();
-    //     assert_eq!(graph.count_nodes(), 1);
-    // }
-
     #[test]
     fn test_load_cached_from_zip() {
         let graph = Graph::new();
-        graph.add_node(0, 0, NO_PROPS, None);
+        graph.add_node(0, 0, NO_PROPS, None).unwrap();
         let temp_file = tempfile::NamedTempFile::new().unwrap();
         graph.encode(GraphFolder::new_as_zip(&temp_file)).unwrap();
         let result = Graph::load_cached(&temp_file);

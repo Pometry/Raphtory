@@ -38,7 +38,7 @@ pub struct VectorisedGraph<G: StaticGraphViewOps> {
 // This has to be here so it is shared between python and graphql
 pub type DynamicVectorisedGraph = VectorisedGraph<DynamicGraph>;
 
-#[async_trait] // this forces the async function in here to be Send
+#[async_trait]
 impl<G: StaticGraphViewOps> Clone for VectorisedGraph<G> {
     fn clone(&self) -> Self {
         Self::new(

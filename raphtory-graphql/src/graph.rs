@@ -33,8 +33,6 @@ pub struct GraphWithVectors {
     folder: OnceCell<GraphFolder>,
 }
 
-// TODO: I don't think Im using these anywhere
-// FIXME: need to also write to disk!!!!!!!!!
 impl GraphWithVectors {
     pub(crate) fn new(
         graph: IndexedGraph<MaterializedGraph>,
@@ -140,10 +138,9 @@ fn get_disk_graph_from_path(
 fn get_disk_graph_from_path(
     _path: &ExistingGraphFolder,
 ) -> Result<Option<MaterializedGraph>, GraphError> {
-    Ok(None) // FIXME: Return Err() instead of Ok(None) ????
+    Ok(None)
 }
 
-// TODO: review why this doesnt work
 impl Base for GraphWithVectors {
     type Base = MaterializedGraph;
     #[inline]

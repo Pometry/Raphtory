@@ -2451,7 +2451,7 @@ mod db_tests {
         let dir = tempfile::tempdir().unwrap();
         let file_path = dir.path().join("abcd11");
         g.encode(&file_path).unwrap();
-        let gg = Graph::decode(&file_path).unwrap();
+        let gg = Graph::decode(file_path).unwrap();
         assert_graph_equal(&g, &gg);
     }
 
