@@ -151,7 +151,7 @@ def test_upload_graph_succeeds_if_graph_already_exists_at_namespace_with_overwri
         g.add_edge(4, "ben", "shivam")
         tmp_dir = tempfile.mkdtemp()
         g_file_path = tmp_dir + "/g"
-        g.save_to_file(g_file_path)
+        g.save_to_zip(g_file_path)
 
         client.upload_graph(path="shivam/g", file_path=g_file_path, overwrite=True)
 
