@@ -5,10 +5,8 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use chrono::Duration;
 use raphtory::{
     core::utils::errors::{GraphError, InvalidPathReason, InvalidPathReason::*},
-    prelude::*,
     serialise::GraphFolder,
 };
 
@@ -37,16 +35,6 @@ impl From<ExistingGraphFolder> for GraphFolder {
     }
 }
 
-// const VECTORS_FILE_NAME: &str = "vectors";
-
-// struct VectorsPath(PathBuf);
-
-// impl VectorsPath {
-//     fn path(&self) -> &Path {
-//         &self.0
-//     }
-// }
-
 impl ExistingGraphFolder {
     pub(crate) fn try_from(base_path: PathBuf, relative_path: &str) -> Result<Self, GraphError> {
         let graph_folder = ValidGraphFolder::try_from(base_path, relative_path)?;
@@ -59,10 +47,6 @@ impl ExistingGraphFolder {
             Err(GraphError::GraphNotFound(graph_folder.to_error_path()))
         }
     }
-
-    // pub(crate) fn get_vector_path_to_write(&self) -> VectorsPath {
-    //     VectorsPath(self.base_path.join(VECTORS_FILE_NAME))
-    // }
 
     pub(crate) fn get_graph_name(&self) -> Result<String, GraphError> {
         let path = &self.get_base_path();
@@ -85,13 +69,8 @@ impl ExistingGraphFolder {
 
 #[derive(Clone, Debug)]
 pub(crate) struct ValidGraphFolder {
-    // TODO: make this not public so that we guarantee calling try_from is the only way of creating this struct
     original_path: String,
     folder: GraphFolder,
-    // pub(crate) user_facing_path: PathBuf,
-    // pub(crate) base_path: PathBuf,
-    // pub(crate) graph_path: PathBuf, // TODO: maybe these two can always be inferred from base_path
-    // pub(crate) vectors_path: PathBuf,
 }
 
 impl Deref for ValidGraphFolder {

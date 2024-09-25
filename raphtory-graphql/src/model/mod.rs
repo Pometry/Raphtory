@@ -275,26 +275,5 @@ impl Mut {
     }
 }
 
-// TODO: what is this for?
-pub(crate) fn create_dirs_if_not_present(path: &Path) -> Result<(), GraphError> {
-    if let Some(parent) = path.parent() {
-        if !parent.exists() {
-            fs::create_dir_all(parent)?;
-        }
-    }
-    Ok(())
-}
-
 #[derive(App)]
 pub struct App(QueryRoot, MutRoot, Mut);
-
-fn delete_graph(path: &Path) -> Result<()> {
-    if path.is_file() {
-        fs::remove_file(path)?;
-    } else if path.is_dir() {
-        fs::remove_dir_all(path)?;
-    } else {
-        return Err(GqlGraphError::GraphDoesNotExists(path.display().to_string()).into());
-    }
-    Ok(())
-}
