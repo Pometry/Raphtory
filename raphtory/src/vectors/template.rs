@@ -1,3 +1,12 @@
+use super::datetimeformat::datetimeformat;
+use crate::{
+    core::{DocumentInput, Prop},
+    db::{
+        api::properties::TemporalPropertyView,
+        graph::{edge::EdgeView, node::NodeView},
+    },
+    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
+};
 use minijinja::{
     value::{Enumerator, Object},
     Environment, Template, Value,
@@ -5,17 +14,7 @@ use minijinja::{
 use raphtory_api::core::storage::arc_str::ArcStr;
 use serde::Serialize;
 use std::sync::Arc;
-
-use crate::{
-    core::{DocumentInput, Prop},
-    db::{
-        api::{properties::TemporalPropertyView, view::StaticGraphViewOps},
-        graph::{edge::EdgeView, node::NodeView},
-    },
-    prelude::{EdgeViewOps, NodeViewOps},
-};
-
-use super::datetimeformat::datetimeformat;
+use tracing::error;
 
 #[derive(Debug)]
 struct PropUpdate {
@@ -23,7 +22,7 @@ struct PropUpdate {
     value: Value,
 }
 
-impl<G: StaticGraphViewOps> From<TemporalPropertyView<NodeView<G>>> for Value {
+impl<'graph, G: GraphViewOps<'graph>> From<TemporalPropertyView<NodeView<G>>> for Value {
     fn from(value: TemporalPropertyView<NodeView<G>>) -> Self {
         value
             .iter()
@@ -37,7 +36,7 @@ impl<G: StaticGraphViewOps> From<TemporalPropertyView<NodeView<G>>> for Value {
 }
 
 // FIXME: merge with the one above
-impl<G: StaticGraphViewOps> From<TemporalPropertyView<G>> for Value {
+impl<'graph, G: GraphViewOps<'graph>> From<TemporalPropertyView<G>> for Value {
     fn from(value: TemporalPropertyView<G>) -> Self {
         value
             .iter()
@@ -73,8 +72,8 @@ struct NodeTemplateContext {
     temporal_props: Value,
 }
 
-impl<G: StaticGraphViewOps> From<&NodeView<G>> for NodeTemplateContext {
-    fn from(value: &NodeView<G>) -> Self {
+impl<'graph, G: GraphViewOps<'graph>> From<NodeView<G>> for NodeTemplateContext {
+    fn from(value: NodeView<G>) -> Self {
         Self {
             name: value.name(),
             node_type: value.node_type(),
@@ -107,8 +106,8 @@ struct GraphTemplateContext {
 }
 
 // FIXME: boilerplate for the properties
-impl<G: StaticGraphViewOps> From<&G> for GraphTemplateContext {
-    fn from(value: &G) -> Self {
+impl<'graph, G: GraphViewOps<'graph>> From<G> for GraphTemplateContext {
+    fn from(value: G) -> Self {
         Self {
             props: value
                 .properties()
@@ -171,9 +170,9 @@ fn empty_iter() -> Box<dyn Iterator<Item = DocumentInput>> {
 }
 
 impl DocumentTemplate {
-    pub(crate) fn graph<G: StaticGraphViewOps>(
+    pub(crate) fn graph<'graph, G: GraphViewOps<'graph>>(
         &self,
-        graph: &G,
+        graph: G,
     ) -> Box<dyn Iterator<Item = DocumentInput>> {
         match &self.graph_template {
             Some(template) => {
@@ -183,7 +182,7 @@ impl DocumentTemplate {
                 match template.render(GraphTemplateContext::from(graph)) {
                     Ok(document) => Box::new(std::iter::once(document.into())),
                     Err(error) => {
-                        eprintln!("Template render failed for a node, skipping: {error}");
+                        error!("Template render failed for a node, skipping: {error}");
                         empty_iter()
                     }
                 }
@@ -193,9 +192,9 @@ impl DocumentTemplate {
     }
 
     /// A function that translate a node into an iterator of documents
-    pub(crate) fn node<G: StaticGraphViewOps>(
+    pub(crate) fn node<'graph, G: GraphViewOps<'graph>>(
         &self,
-        node: &NodeView<G>,
+        node: NodeView<G>,
     ) -> Box<dyn Iterator<Item = DocumentInput>> {
         match &self.node_template {
             Some(template) => {
@@ -204,7 +203,7 @@ impl DocumentTemplate {
                 match template.render(NodeTemplateContext::from(node)) {
                     Ok(document) => Box::new(std::iter::once(document.into())),
                     Err(error) => {
-                        eprintln!("Template render failed for a node, skipping: {error}");
+                        error!("Template render failed for a node, skipping: {error}");
                         empty_iter()
                     }
                 }
@@ -214,9 +213,9 @@ impl DocumentTemplate {
     }
 
     /// A function that translate an edge into an iterator of documents
-    pub(crate) fn edge<G: StaticGraphViewOps>(
+    pub(crate) fn edge<'graph, G: GraphViewOps<'graph>>(
         &self,
-        edge: &EdgeView<G, G>,
+        edge: EdgeView<G, G>,
     ) -> Box<dyn Iterator<Item = DocumentInput>> {
         match &self.edge_template {
             Some(template) => {
@@ -225,7 +224,7 @@ impl DocumentTemplate {
                 match template.render(EdgeTemplateContext::from(edge)) {
                     Ok(document) => Box::new(std::iter::once(document.into())),
                     Err(error) => {
-                        eprintln!("Template render failed for an edge, skipping: {error}");
+                        error!("Template render failed for an edge, skipping: {error}");
                         empty_iter()
                     }
                 }
@@ -255,11 +254,11 @@ struct EdgeTemplateContext {
     props: Value,
 }
 
-impl<G: StaticGraphViewOps> From<&EdgeView<G>> for EdgeTemplateContext {
-    fn from(value: &EdgeView<G>) -> Self {
+impl<'graph, G: GraphViewOps<'graph>> From<EdgeView<G>> for EdgeTemplateContext {
+    fn from(value: EdgeView<G>) -> Self {
         Self {
-            src: (&value.src()).into(),
-            dst: (&value.dst()).into(),
+            src: value.src().into(),
+            dst: value.dst().into(),
             history: value.history(),
             layers: value
                 .layer_names()
@@ -326,7 +325,7 @@ mod template_tests {
             edge_template: None,
         };
 
-        let mut docs = template.node(&graph.node("node1").unwrap());
+        let mut docs = template.node(graph.node("node1").unwrap());
         let rendered = docs.next().unwrap().content;
         let expected = indoc! {"
             node node1 is an unknown entity with the following props:
@@ -340,7 +339,7 @@ mod template_tests {
         "};
         assert_eq!(&rendered, expected);
 
-        let mut docs = template.node(&graph.node("node2").unwrap());
+        let mut docs = template.node(graph.node("node2").unwrap());
         let rendered = docs.next().unwrap().content;
         let expected = indoc! {"
             node node2 is a person with the following props:
@@ -364,7 +363,7 @@ mod template_tests {
             edge_template: None,
         };
 
-        let mut docs = template.node(&graph.node("node1").unwrap());
+        let mut docs = template.node(graph.node("node1").unwrap());
         let rendered = docs.next().unwrap().content;
         let expected = "September 9 2024 09:08:01";
         assert_eq!(&rendered, expected);

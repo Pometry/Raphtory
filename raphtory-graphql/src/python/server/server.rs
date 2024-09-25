@@ -1,9 +1,10 @@
 use crate::{
+    config::app_config::AppConfigBuilder,
     model::{
         algorithms::document::GqlDocument,
         plugins::{
-            query_entry_point::QueryEntryPoint, query_plugin::QueryPlugin,
-            vector_algorithm_plugins::VectorAlgorithmPlugins,
+            entry_point::EntryPoint, query_plugin::QueryPlugin,
+            vector_algorithm_plugin::VectorAlgorithmPlugin,
         },
     },
     python::{
@@ -13,7 +14,6 @@ use crate::{
             running_server::PyRunningGraphServer, take_server_ownership, wait_server, BridgeCommand,
         },
     },
-    server_config::AppConfigBuilder,
     GraphServer,
 };
 use async_graphql::dynamic::{Field, FieldFuture, FieldValue, InputValue, Object, TypeRef};
@@ -65,7 +65,7 @@ impl PyGraphServer {
 
     fn with_generic_document_search_function<
         'a,
-        E: QueryEntryPoint<'a> + 'static,
+        E: EntryPoint<'a> + 'static,
         F: Fn(&E, Python) -> PyObject + Send + Sync + 'static,
     >(
         slf: PyRefMut<Self>,
@@ -140,18 +140,35 @@ impl PyGraphServer {
 impl PyGraphServer {
     #[new]
     #[pyo3(
-        signature = (work_dir, cache_capacity = None, cache_tti_seconds = None, log_level = None, config_path = None)
+        signature = (work_dir, cache_capacity = None, cache_tti_seconds = None, log_level = None, tracing=None, otlp_agent_host=None, otlp_agent_port=None, otlp_tracing_service_name=None, config_path = None)
     )]
     fn py_new(
         work_dir: PathBuf,
         cache_capacity: Option<u64>,
         cache_tti_seconds: Option<u64>,
         log_level: Option<String>,
+        tracing: Option<bool>,
+        otlp_agent_host: Option<String>,
+        otlp_agent_port: Option<String>,
+        otlp_tracing_service_name: Option<String>,
         config_path: Option<PathBuf>,
     ) -> PyResult<Self> {
         let mut app_config_builder = AppConfigBuilder::new();
         if let Some(log_level) = log_level {
             app_config_builder = app_config_builder.with_log_level(log_level);
+        }
+        if let Some(tracing) = tracing {
+            app_config_builder = app_config_builder.with_tracing(tracing);
+        }
+        if let Some(otlp_agent_host) = otlp_agent_host {
+            app_config_builder = app_config_builder.with_otlp_agent_host(otlp_agent_host);
+        }
+        if let Some(otlp_agent_port) = otlp_agent_port {
+            app_config_builder = app_config_builder.with_otlp_agent_port(otlp_agent_port);
+        }
+        if let Some(otlp_tracing_service_name) = otlp_tracing_service_name {
+            app_config_builder =
+                app_config_builder.with_otlp_tracing_service_name(otlp_tracing_service_name);
         }
         if let Some(cache_capacity) = cache_capacity {
             app_config_builder = app_config_builder.with_cache_capacity(cache_capacity);
@@ -237,9 +254,8 @@ impl PyGraphServer {
         input: HashMap<String, String>,
         function: &PyFunction,
     ) -> PyResult<Self> {
-        let adapter = |entry_point: &VectorAlgorithmPlugins, py: Python| {
-            entry_point.graph.clone().into_py(py)
-        };
+        let adapter =
+            |entry_point: &VectorAlgorithmPlugin, py: Python| entry_point.graph.clone().into_py(py);
         PyGraphServer::with_generic_document_search_function(slf, name, input, function, adapter)
     }
 
@@ -312,7 +328,7 @@ impl PyGraphServer {
         });
 
         let mut server = PyRunningGraphServer::new(join_handle, sender, port)?;
-        if let Some(server_handler) = &server.server_handler {
+        if let Some(_server_handler) = &server.server_handler {
             let url = format!("http://localhost:{port}");
             match PyRunningGraphServer::wait_for_server_online(&url, timeout_ms) {
                 Ok(_) => return Ok(server),

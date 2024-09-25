@@ -1,6 +1,6 @@
 use crate::model::{
     algorithms::document::GqlDocument,
-    plugins::{operation::Operation, vector_algorithm_plugins::VectorAlgorithmPlugins},
+    plugins::{operation::Operation, vector_algorithm_plugin::VectorAlgorithmPlugin},
 };
 use async_graphql::{
     dynamic::{FieldValue, ResolverContext, TypeRef},
@@ -9,10 +9,11 @@ use async_graphql::{
 use dynamic_graphql::internal::TypeName;
 use futures_util::future::BoxFuture;
 use raphtory::vectors::embeddings::openai_embedding;
+use tracing::info;
 
 pub(crate) struct SimilaritySearch;
 
-impl<'a> Operation<'a, VectorAlgorithmPlugins> for SimilaritySearch {
+impl<'a> Operation<'a, VectorAlgorithmPlugin> for SimilaritySearch {
     type OutputType = GqlDocument;
 
     fn output_type() -> TypeRef {
@@ -27,7 +28,7 @@ impl<'a> Operation<'a, VectorAlgorithmPlugins> for SimilaritySearch {
     }
 
     fn apply<'b>(
-        entry_point: &VectorAlgorithmPlugins,
+        entry_point: &VectorAlgorithmPlugin,
         ctx: ResolverContext,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
         let query = ctx
@@ -42,7 +43,7 @@ impl<'a> Operation<'a, VectorAlgorithmPlugins> for SimilaritySearch {
 
         Box::pin(async move {
             let embedding = openai_embedding(vec![query.clone()]).await.remove(0);
-            println!("running similarity search for {query}");
+            info!("running similarity search for {query}");
 
             let documents = graph
                 .documents_by_similarity(&embedding, limit, None)

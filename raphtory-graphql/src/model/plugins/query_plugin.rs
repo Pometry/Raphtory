@@ -1,6 +1,6 @@
 use crate::model::{
     algorithms::{global_search::GlobalSearch, RegisterFunction},
-    plugins::{operation::Operation, query_entry_point::QueryEntryPoint},
+    plugins::{entry_point::EntryPoint, operation::Operation},
 };
 use async_graphql::{dynamic::FieldValue, Context};
 use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName};
@@ -25,8 +25,8 @@ pub struct QueryPlugin {
     pub vectorised_graphs: Arc<RwLock<HashMap<String, DynamicVectorisedGraph>>>,
 }
 
-impl<'a> QueryEntryPoint<'a> for QueryPlugin {
-    fn predefined_queries() -> HashMap<&'static str, RegisterFunction> {
+impl<'a> EntryPoint<'a> for QueryPlugin {
+    fn predefined_operations() -> HashMap<&'static str, RegisterFunction> {
         HashMap::from([(
             "globalSearch",
             Box::new(GlobalSearch::register_operation) as RegisterFunction,
@@ -40,13 +40,13 @@ impl<'a> QueryEntryPoint<'a> for QueryPlugin {
 
 impl Register for QueryPlugin {
     fn register(registry: Registry) -> Registry {
-        Self::register_queries(registry)
+        Self::register_operations(registry)
     }
 }
 
 impl TypeName for QueryPlugin {
     fn get_type_name() -> Cow<'static, str> {
-        "QueryPlugins".into()
+        "QueryPlugin".into()
     }
 }
 

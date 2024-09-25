@@ -91,13 +91,16 @@ impl<
         let ss = self.ss;
         let local_state_prev = self.local_state_prev;
         let storage = self.storage;
-        self.edges.iter().map(move |edge| EvalEdgeView {
-            ss,
-            edge,
-            storage,
-            node_state: node_state.clone(),
-            local_state_prev,
-        })
+        self.edges
+            .clone()
+            .into_iter()
+            .map(move |edge| EvalEdgeView {
+                ss,
+                edge,
+                storage,
+                node_state: node_state.clone(),
+                local_state_prev,
+            })
     }
 }
 
@@ -118,7 +121,7 @@ impl<
         let ss = self.ss;
         let local_state_prev = self.local_state_prev;
         let storage = self.storage;
-        Box::new(self.edges.iter().map(move |edge| EvalEdgeView {
+        Box::new(self.edges.into_iter().map(move |edge| EvalEdgeView {
             ss,
             edge,
             storage,
@@ -150,7 +153,10 @@ impl<
 {
     type BaseGraph = &'graph G;
     type Graph = GH;
-    type ValueType<T> = BoxedLIter<'graph, T> where T: 'graph;
+    type ValueType<T>
+        = BoxedLIter<'graph, T>
+    where
+        T: 'graph;
     type PropType = <Edges<'graph, &'graph G, GH> as BaseEdgeViewOps<'graph>>::PropType;
     type Nodes = EvalPathFromNode<'graph, 'a, G, &'graph G, CS, S>;
     type Exploded = EvalEdges<'graph, 'a, G, GH, CS, S>;

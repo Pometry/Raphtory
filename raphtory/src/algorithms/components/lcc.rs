@@ -1,4 +1,5 @@
 use raphtory_api::core::entities::GID;
+use tracing::warn;
 
 use crate::{
     algorithms::components::connected_components::weakly_connected_components,
@@ -49,7 +50,7 @@ impl LargestConnectedComponent for Graph {
             }
         }
         if is_tie {
-            println!("Warning: The graph has two or more connected components that are both the largest. \
+            warn!("Warning: The graph has two or more connected components that are both the largest. \
             The returned component has been picked arbitrarily.");
         }
         return match connected_components_map.remove(&lcc_key) {

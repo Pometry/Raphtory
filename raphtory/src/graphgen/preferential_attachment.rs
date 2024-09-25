@@ -12,6 +12,7 @@
 //! ba_preferential_attachment(&graph, 1000, 10, None);
 //! ```
 
+use super::next_id;
 use crate::{
     db::{
         api::{mutation::AdditionOps, view::*},
@@ -21,8 +22,7 @@ use crate::{
 };
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use std::collections::HashSet;
-
-use super::next_id;
+use tracing::error;
 
 /// Generates a graph using the preferential attachment model.
 ///
@@ -75,7 +75,7 @@ pub fn ba_preferential_attachment(
         max_id = next_id(view, Some(max_id));
         graph
             .add_node(latest_time, &max_id, NO_PROPS, None)
-            .map_err(|err| println!("{:?}", err))
+            .map_err(|err| error!("{:?}", err))
             .ok();
         degrees.push(0);
         ids.push(max_id.clone());
@@ -130,6 +130,7 @@ pub fn ba_preferential_attachment(
 mod preferential_attachment_tests {
     use super::*;
     use crate::graphgen::random_attachment::random_attachment;
+    use raphtory_api::core::utils::logging::global_info_logger;
     #[test]
     fn blank_graph() {
         let graph = Graph::new();
@@ -140,11 +141,12 @@ mod preferential_attachment_tests {
 
     #[test]
     fn only_nodes() {
+        global_info_logger();
         let graph = Graph::new();
         for i in 0..10 {
             graph
                 .add_node(i, i as u64, NO_PROPS, None)
-                .map_err(|err| println!("{:?}", err))
+                .map_err(|err| error!("{:?}", err))
                 .ok();
         }
 

@@ -19,3 +19,6 @@ mod node_state;
 
 #[macro_use]
 mod serialise;
+
+#[macro_use]
+mod edge_property_filter_ops;

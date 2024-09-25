@@ -353,7 +353,7 @@ fn produce_next_record(
     right_proj: Option<Vec<usize>>,
 ) -> Option<Result<RecordBatch, DataFusionError>> {
     // if let Some(VID(0)) = prev_node {
-    //     println!(
+    //     info!(
     //         "produce_next_record row: {row_pos} edge: {edge_pos} layer: {layer_pos} time: {time_pos} max_rows: {max_record_rows}, prev_node: {prev_node:?}",
     //     );
     // }

@@ -4,7 +4,7 @@ use crate::{
         graph::{
             edge::Edge, edges::GqlEdges, node::Node, nodes::GqlNodes, property::GqlProperties,
         },
-        plugins::graph_algorithm_plugins::GraphAlgorithmPlugins,
+        plugins::graph_algorithm_plugin::GraphAlgorithmPlugin,
         schema::graph_schema::GraphSchema,
     },
 };
@@ -26,14 +26,7 @@ use raphtory::{
     prelude::*,
     search::{into_indexed::DynamicIndexedGraph, IndexedGraph},
 };
-use std::{
-    collections::HashSet,
-    convert::Into,
-    fs, io,
-    path::{Path, PathBuf},
-    sync::Arc,
-    time::UNIX_EPOCH,
-};
+use std::{collections::HashSet, convert::Into, fs, path::PathBuf, sync::Arc, time::UNIX_EPOCH};
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlGraph {
@@ -146,6 +139,7 @@ impl GqlGraph {
     }
 
     /// Return a graph containing only the activity between `start` and `end` measured as milliseconds from epoch
+
     async fn window(&self, start: i64, end: i64) -> GqlGraph {
         GqlGraph::new(
             self.work_dir.clone(),
@@ -159,6 +153,14 @@ impl GqlGraph {
             self.work_dir.clone(),
             self.path.clone(),
             self.graph.at(time),
+        )
+    }
+
+    async fn latest(&self) -> GqlGraph {
+        GqlGraph::new(
+            self.work_dir.clone(),
+            self.path.clone(),
+            self.graph.latest(),
         )
     }
 
@@ -308,6 +310,7 @@ impl GqlGraph {
     async fn count_nodes(&self) -> usize {
         self.graph.count_nodes()
     }
+
     async fn search_node_count(&self, query: String) -> usize {
         self.graph.search_node_count(&query).unwrap_or(0)
     }
@@ -319,9 +322,11 @@ impl GqlGraph {
     async fn has_node(&self, name: String) -> bool {
         self.graph.has_node(name)
     }
+
     async fn has_node_id(&self, id: u64) -> bool {
         self.graph.has_node(id)
     }
+
     async fn has_edge(&self, src: String, dst: String, layer: Option<String>) -> bool {
         match layer {
             Some(name) => self
@@ -436,9 +441,11 @@ impl GqlGraph {
 
     //These name/path functions basically can only fail
     //if someone write non-utf characters as a filename
+
     async fn name(&self) -> Result<String, GraphError> {
         get_graph_name(&self.path)
     }
+
     async fn path(&self) -> Result<String, GraphError> {
         self.path
             .to_str()
@@ -450,7 +457,7 @@ impl GqlGraph {
         GraphSchema::new(self.graph.graph())
     }
 
-    async fn algorithms(&self) -> GraphAlgorithmPlugins {
+    async fn algorithms(&self) -> GraphAlgorithmPlugin {
         self.graph.graph().clone().into()
     }
 

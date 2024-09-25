@@ -1,6 +1,6 @@
 use crate::model::{
     algorithms::{similarity_search::SimilaritySearch, RegisterFunction},
-    plugins::{operation::Operation, query_entry_point::QueryEntryPoint},
+    plugins::{entry_point::EntryPoint, operation::Operation},
 };
 use async_graphql::{dynamic::FieldValue, Context};
 use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName};
@@ -15,18 +15,18 @@ use std::{
 pub static VECTOR_ALGO_PLUGINS: Lazy<Mutex<HashMap<String, RegisterFunction>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
-pub struct VectorAlgorithmPlugins {
+pub struct VectorAlgorithmPlugin {
     pub graph: DynamicVectorisedGraph,
 }
 
-impl From<DynamicVectorisedGraph> for VectorAlgorithmPlugins {
+impl From<DynamicVectorisedGraph> for VectorAlgorithmPlugin {
     fn from(graph: DynamicVectorisedGraph) -> Self {
         Self { graph }
     }
 }
 
-impl<'a> QueryEntryPoint<'a> for VectorAlgorithmPlugins {
-    fn predefined_queries() -> HashMap<&'static str, RegisterFunction> {
+impl<'a> EntryPoint<'a> for VectorAlgorithmPlugin {
+    fn predefined_operations() -> HashMap<&'static str, RegisterFunction> {
         HashMap::from([(
             "similaritySearch",
             Box::new(SimilaritySearch::register_operation) as RegisterFunction,
@@ -38,21 +38,21 @@ impl<'a> QueryEntryPoint<'a> for VectorAlgorithmPlugins {
     }
 }
 
-impl Register for VectorAlgorithmPlugins {
+impl Register for VectorAlgorithmPlugin {
     fn register(registry: Registry) -> Registry {
-        Self::register_queries(registry)
+        Self::register_operations(registry)
     }
 }
 
-impl TypeName for VectorAlgorithmPlugins {
+impl TypeName for VectorAlgorithmPlugin {
     fn get_type_name() -> Cow<'static, str> {
-        "VectorAlgorithmPlugins".into()
+        "VectorAlgorithmPlugin".into()
     }
 }
 
-impl OutputTypeName for VectorAlgorithmPlugins {}
+impl OutputTypeName for VectorAlgorithmPlugin {}
 
-impl<'a> ResolveOwned<'a> for VectorAlgorithmPlugins {
+impl<'a> ResolveOwned<'a> for VectorAlgorithmPlugin {
     fn resolve_owned(self, _ctx: &Context) -> dynamic_graphql::Result<Option<FieldValue<'a>>> {
         Ok(Some(FieldValue::owned_any(self)))
     }

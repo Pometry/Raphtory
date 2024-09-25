@@ -120,6 +120,12 @@ impl Default for Meta {
 }
 
 impl Meta {
+    pub fn set_const_prop_meta(&mut self, meta: PropMapper) {
+        self.meta_prop_constant = meta;
+    }
+    pub fn set_temporal_prop_meta(&mut self, meta: PropMapper) {
+        self.meta_prop_temporal = meta;
+    }
     pub fn const_prop_meta(&self) -> &PropMapper {
         &self.meta_prop_constant
     }
@@ -262,6 +268,13 @@ impl Deref for PropMapper {
 }
 
 impl PropMapper {
+    pub fn deep_clone(&self) -> Self {
+        let dtypes = self.dtypes.read().clone();
+        Self {
+            id_mapper: self.id_mapper.deep_clone(),
+            dtypes: Arc::new(RwLock::new(dtypes)),
+        }
+    }
     pub(crate) fn get_or_create_and_validate(
         &self,
         prop: &str,

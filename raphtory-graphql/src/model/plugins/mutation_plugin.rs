@@ -1,7 +1,7 @@
 use crate::model::{
     algorithms::RegisterFunction,
     plugins::{
-        mutation_entry_point::MutationEntryPoint,
+        entry_point::EntryPoint,
         operation::{NoOpMutation, Operation},
     },
 };
@@ -11,21 +11,23 @@ use once_cell::sync::Lazy;
 use std::{
     borrow::Cow,
     collections::HashMap,
-    string::ToString,
     sync::{Mutex, MutexGuard},
 };
 
-pub static MUTATION_PLUGINS: Lazy<Mutex<HashMap<String, RegisterFunction>>> = Lazy::new(|| {
-    Mutex::new(HashMap::from([(
-        "NoOps".to_string(),
-        Box::new(NoOpMutation::register_operation) as RegisterFunction,
-    )]))
-});
+pub static MUTATION_PLUGINS: Lazy<Mutex<HashMap<String, RegisterFunction>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
 
 #[derive(Clone, Default)]
 pub struct MutationPlugin {}
 
-impl<'a> MutationEntryPoint<'a> for MutationPlugin {
+impl<'a> EntryPoint<'a> for MutationPlugin {
+    fn predefined_operations() -> HashMap<&'static str, RegisterFunction> {
+        HashMap::from([(
+            "NoOps",
+            Box::new(NoOpMutation::register_operation) as RegisterFunction,
+        )])
+    }
+
     fn lock_plugins() -> MutexGuard<'static, HashMap<String, RegisterFunction>> {
         MUTATION_PLUGINS.lock().unwrap()
     }
@@ -33,13 +35,13 @@ impl<'a> MutationEntryPoint<'a> for MutationPlugin {
 
 impl Register for MutationPlugin {
     fn register(registry: Registry) -> Registry {
-        Self::register_mutations(registry)
+        Self::register_operations(registry)
     }
 }
 
 impl TypeName for MutationPlugin {
     fn get_type_name() -> Cow<'static, str> {
-        "MutationPlugins".into()
+        "MutationPlugin".into()
     }
 }
 

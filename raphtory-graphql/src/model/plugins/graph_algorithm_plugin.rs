@@ -3,7 +3,7 @@ use crate::model::{
         algorithms::{Pagerank, ShortestPath},
         RegisterFunction,
     },
-    plugins::{operation::Operation, query_entry_point::QueryEntryPoint},
+    plugins::{entry_point::EntryPoint, operation::Operation},
 };
 use async_graphql::{dynamic::FieldValue, Context};
 use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName};
@@ -18,18 +18,18 @@ use std::{
 pub static GRAPH_ALGO_PLUGINS: Lazy<Mutex<HashMap<String, RegisterFunction>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
-pub struct GraphAlgorithmPlugins {
+pub struct GraphAlgorithmPlugin {
     pub graph: DynamicGraph,
 }
 
-impl From<DynamicGraph> for GraphAlgorithmPlugins {
+impl From<DynamicGraph> for GraphAlgorithmPlugin {
     fn from(graph: DynamicGraph) -> Self {
         Self { graph }
     }
 }
 
-impl<'a> QueryEntryPoint<'a> for GraphAlgorithmPlugins {
-    fn predefined_queries() -> HashMap<&'static str, RegisterFunction> {
+impl<'a> EntryPoint<'a> for GraphAlgorithmPlugin {
+    fn predefined_operations() -> HashMap<&'static str, RegisterFunction> {
         HashMap::from([
             (
                 "pagerank",
@@ -47,21 +47,21 @@ impl<'a> QueryEntryPoint<'a> for GraphAlgorithmPlugins {
     }
 }
 
-impl Register for GraphAlgorithmPlugins {
+impl Register for GraphAlgorithmPlugin {
     fn register(registry: Registry) -> Registry {
-        Self::register_queries(registry)
+        Self::register_operations(registry)
     }
 }
 
-impl TypeName for GraphAlgorithmPlugins {
+impl TypeName for GraphAlgorithmPlugin {
     fn get_type_name() -> Cow<'static, str> {
-        "GraphAlgorithmPlugins".into()
+        "GraphAlgorithmPlugin".into()
     }
 }
 
-impl OutputTypeName for GraphAlgorithmPlugins {}
+impl OutputTypeName for GraphAlgorithmPlugin {}
 
-impl<'a> ResolveOwned<'a> for GraphAlgorithmPlugins {
+impl<'a> ResolveOwned<'a> for GraphAlgorithmPlugin {
     fn resolve_owned(self, _ctx: &Context) -> dynamic_graphql::Result<Option<FieldValue<'a>>> {
         Ok(Some(FieldValue::owned_any(self)))
     }

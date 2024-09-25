@@ -1198,14 +1198,15 @@ mod test {
 
     #[test]
     fn and_expression() {
+        global_info_logger();
         let input = "a.name = 'John' and 1 < a.age";
         let pairs = CypherParser::parse(Rule::Expression, input);
         assert!(pairs.is_ok());
-        println!("{:?}", pairs);
+        info!("{:?}", pairs);
 
         let expr = parse_expr(pairs.unwrap());
 
-        println!("{:?}", expr);
+        info!("{:?}", expr);
         assert_eq!(
             expr,
             Ok(Expr::and(
@@ -1297,6 +1298,8 @@ mod test {
     }
 
     use pretty_assertions::assert_eq;
+    use raphtory::logging::global_info_logger;
+    use tracing::info;
 
     #[test]
     fn parse_lanl_large_paths_with_expr() {

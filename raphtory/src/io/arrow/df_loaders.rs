@@ -606,30 +606,12 @@ mod tests {
             df_loaders::load_edges_from_df,
         },
         prelude::*,
+        test_utils::build_edge_list,
     };
     use itertools::Itertools;
     use polars_arrow::array::{MutableArray, MutablePrimitiveArray, MutableUtf8Array};
-    use proptest::{
-        prelude::{any, Strategy},
-        proptest,
-    };
+    use proptest::proptest;
     use tempfile::NamedTempFile;
-
-    fn build_edge_list(
-        len: usize,
-        num_nodes: u64,
-    ) -> impl Strategy<Value = Vec<(u64, u64, i64, String, i64)>> {
-        proptest::collection::vec(
-            (
-                0..num_nodes,
-                0..num_nodes,
-                any::<i64>(),
-                any::<String>(),
-                any::<i64>(),
-            ),
-            0..=len,
-        )
-    }
 
     fn build_df(
         chunk_size: usize,

@@ -1,4 +1,4 @@
-use crate::model::plugins::{graph_algorithm_plugins::GraphAlgorithmPlugins, operation::Operation};
+use crate::model::plugins::{graph_algorithm_plugin::GraphAlgorithmPlugin, operation::Operation};
 use async_graphql::{
     dynamic::{FieldValue, ResolverContext, TypeRef},
     FieldResult,
@@ -52,7 +52,7 @@ impl From<(&String, &OrderedFloat<f64>)> for PagerankOutput {
 
 pub(crate) struct Pagerank;
 
-impl<'a> Operation<'a, GraphAlgorithmPlugins> for Pagerank {
+impl<'a> Operation<'a, GraphAlgorithmPlugin> for Pagerank {
     type OutputType = PagerankOutput;
 
     fn output_type() -> TypeRef {
@@ -69,7 +69,7 @@ impl<'a> Operation<'a, GraphAlgorithmPlugins> for Pagerank {
     }
 
     fn apply<'b>(
-        entry_point: &GraphAlgorithmPlugins,
+        entry_point: &GraphAlgorithmPlugin,
         ctx: ResolverContext,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
         let result = apply_pagerank(entry_point, ctx);
@@ -78,7 +78,7 @@ impl<'a> Operation<'a, GraphAlgorithmPlugins> for Pagerank {
 }
 
 fn apply_pagerank<'b>(
-    entry_point: &GraphAlgorithmPlugins,
+    entry_point: &GraphAlgorithmPlugin,
     ctx: ResolverContext,
 ) -> FieldResult<Option<FieldValue<'b>>> {
     let iter_count = ctx.args.try_get("iterCount")?.u64()? as usize;
@@ -120,7 +120,7 @@ impl From<(String, Vec<String>)> for ShortestPathOutput {
     }
 }
 
-impl<'a> Operation<'a, GraphAlgorithmPlugins> for ShortestPath {
+impl<'a> Operation<'a, GraphAlgorithmPlugin> for ShortestPath {
     type OutputType = ShortestPathOutput;
 
     fn output_type() -> TypeRef {
@@ -136,7 +136,7 @@ impl<'a> Operation<'a, GraphAlgorithmPlugins> for ShortestPath {
     }
 
     fn apply<'b>(
-        entry_point: &GraphAlgorithmPlugins,
+        entry_point: &GraphAlgorithmPlugin,
         ctx: ResolverContext,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
         let result = apply_shortest_path(entry_point, ctx);
@@ -145,7 +145,7 @@ impl<'a> Operation<'a, GraphAlgorithmPlugins> for ShortestPath {
 }
 
 fn apply_shortest_path<'b>(
-    entry_point: &GraphAlgorithmPlugins,
+    entry_point: &GraphAlgorithmPlugin,
     ctx: ResolverContext,
 ) -> FieldResult<Option<FieldValue<'b>>> {
     let source = ctx.args.try_get("source")?.string()?;

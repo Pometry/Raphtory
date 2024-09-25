@@ -168,6 +168,8 @@ fn unzip_file(zip_file_path: &str, destination_path: &str) -> std::io::Result<()
 mod graph_loader_test {
     use crate::{graph_loader::fetch_file, prelude::*};
     use csv::StringRecord;
+    use raphtory_api::core::utils::logging::global_info_logger;
+    use tracing::info;
 
     #[test]
     fn test_fetch_file() {
@@ -268,6 +270,7 @@ mod graph_loader_test {
 
     #[test]
     fn test_all_neighbours_window() {
+        global_info_logger();
         let g = crate::graph_loader::lotr_graph::lotr_graph();
 
         assert_eq!(g.count_edges(), 701);
@@ -280,7 +283,7 @@ mod graph_loader_test {
             .neighbours()
             .iter()
         {
-            println!("{:?}", v.id())
+            info!("{:?}", v.id())
         }
         assert_eq!(
             g.node("Gandalf")

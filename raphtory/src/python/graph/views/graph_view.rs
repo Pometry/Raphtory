@@ -21,7 +21,9 @@ use crate::{
             nodes::Nodes,
             views::{
                 layer_graph::LayeredGraph, node_subgraph::NodeSubgraph,
-                node_type_filtered_subgraph::TypeFilteredSubgraph, window_graph::WindowedGraph,
+                node_type_filtered_subgraph::TypeFilteredSubgraph,
+                property_filter::edge_property_filter::EdgePropertyFilteredGraph,
+                window_graph::WindowedGraph,
             },
         },
     },
@@ -67,6 +69,7 @@ pub struct PyGraphView {
 
 impl_timeops!(PyGraphView, graph, DynamicGraph, "GraphView");
 impl_layerops!(PyGraphView, graph, DynamicGraph, "GraphView");
+impl_edge_property_filter_ops!(PyGraphView<DynamicGraph>, graph, "GraphView");
 
 /// Graph view is a read-only version of a graph at a certain point in time.
 impl<G: StaticGraphViewOps + IntoDynamic> From<G> for PyGraphView {
@@ -96,6 +99,12 @@ impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for NodeSubgraph<G> {
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for TypeFilteredSubgraph<G> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        PyGraphView::from(self).into_py(py)
+    }
+}
+
+impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for EdgePropertyFilteredGraph<G> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyGraphView::from(self).into_py(py)
     }

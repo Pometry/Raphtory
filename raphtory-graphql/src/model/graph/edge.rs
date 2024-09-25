@@ -29,6 +29,17 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
     }
 }
 
+impl Edge {
+    pub(crate) fn from_ref<
+        G: StaticGraphViewOps + IntoDynamic,
+        GH: StaticGraphViewOps + IntoDynamic,
+    >(
+        value: EdgeView<&G, &GH>,
+    ) -> Self {
+        value.cloned().into()
+    }
+}
+
 #[ResolvedObjectFields]
 impl Edge {
     ////////////////////////
@@ -57,6 +68,10 @@ impl Edge {
 
     async fn at(&self, time: i64) -> Edge {
         self.ee.at(time).into()
+    }
+
+    async fn latest(&self) -> Edge {
+        self.ee.latest().into()
     }
 
     async fn before(&self, time: i64) -> Edge {
@@ -153,6 +168,10 @@ impl Edge {
 
     async fn is_valid(&self) -> bool {
         self.ee.is_valid()
+    }
+
+    async fn is_active(&self) -> bool {
+        self.ee.is_active()
     }
 
     async fn is_deleted(&self) -> bool {

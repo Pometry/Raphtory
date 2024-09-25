@@ -1,1 +1,1 @@
-pub(crate) mod tracing;
+pub mod open_telemetry;

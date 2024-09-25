@@ -10,7 +10,11 @@ use crate::{
             nodes::node_ref::{AsNodeRef, NodeRef},
             EID, ELID, VID,
         },
-        storage::timeindex::{AsTime, TimeIndexEntry},
+        storage::{
+            raw_edges::WriteLockedEdges,
+            timeindex::{AsTime, TimeIndexEntry},
+            WriteLockedNodes,
+        },
         utils::errors::GraphError,
         PropType,
     },
@@ -764,8 +768,19 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
         self.graph.id_type()
     }
 
+    #[inline]
     fn write_lock(&self) -> Result<WriteLockedGraph, GraphError> {
         self.graph.write_lock()
+    }
+
+    #[inline]
+    fn write_lock_nodes(&self) -> Result<WriteLockedNodes, GraphError> {
+        self.graph.write_lock_nodes()
+    }
+
+    #[inline]
+    fn write_lock_edges(&self) -> Result<WriteLockedEdges, GraphError> {
+        self.graph.write_lock_edges()
     }
 
     #[inline]
@@ -776,6 +791,11 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
     #[inline]
     fn next_event_id(&self) -> Result<usize, GraphError> {
         self.graph.next_event_id()
+    }
+
+    #[inline]
+    fn read_event_id(&self) -> usize {
+        self.graph.read_event_id()
     }
 
     #[inline]
@@ -924,10 +944,11 @@ impl<G: DeletionOps> DeletionOps for IndexedGraph<G> {}
 
 #[cfg(test)]
 mod test {
+    use super::*;
+    use raphtory_api::core::utils::logging::global_info_logger;
     use std::time::SystemTime;
     use tantivy::{doc, DocAddress, Order};
-
-    use super::*;
+    use tracing::info;
 
     #[test]
     fn index_numeric_props() {
@@ -961,6 +982,7 @@ mod test {
     #[cfg(feature = "proto")]
     #[ignore = "this test is for experiments with the jira graph"]
     fn load_jira_graph() -> Result<(), GraphError> {
+        global_info_logger();
         let graph = Graph::decode("/tmp/graphs/jira").expect("failed to load graph");
         assert!(graph.count_nodes() > 0);
 
@@ -968,14 +990,14 @@ mod test {
 
         let index_graph: IndexedGraph<Graph> = graph.into();
         let elapsed = now.elapsed().unwrap().as_secs();
-        println!("indexing took: {:?}", elapsed);
+        info!("indexing took: {:?}", elapsed);
 
         let issues = index_graph.search_nodes("name:'DEV-1690'", 5, 0)?;
 
         assert!(!issues.is_empty());
 
         let names = issues.into_iter().map(|v| v.name()).collect::<Vec<_>>();
-        println!("names: {:?}", names);
+        info!("names: {:?}", names);
 
         Ok(())
     }

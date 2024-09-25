@@ -16,6 +16,7 @@ use std::{
     io::BufReader,
     path::{Path, PathBuf},
 };
+use tracing::{error, info};
 
 #[derive(Debug)]
 pub enum JsonErr {
@@ -269,7 +270,7 @@ impl<REC: DeserializeOwned + std::fmt::Debug + Sync> JsonLinesLoader<REC> {
     {
         let file_path: PathBuf = path.into();
         if self.print_file_name {
-            println!("Loading file: {:?}", file_path);
+            info!("Loading file: {:?}", file_path);
         }
 
         let json_reader = self.json_reader(file_path)?;
@@ -281,7 +282,7 @@ impl<REC: DeserializeOwned + std::fmt::Debug + Sync> JsonLinesLoader<REC> {
             if let Ok(record) = rec {
                 loader(record, g)?
             } else {
-                println!("Error parsing record: {:?}", rec);
+                error!("Error parsing record: {:?}", rec);
             }
         }
 

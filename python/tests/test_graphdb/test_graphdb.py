@@ -2446,7 +2446,7 @@ def test_type_filter():
             "3",
         ]
 
-        w = g.window(1, 3)
+        w = g.window(1, 4)
         assert [node.name for node in w.nodes.type_filter(["wallet"])] == ["1"]
         assert w.subgraph_node_types(["timer"]).nodes.name.collect() == ["2", "3"]
 

@@ -126,7 +126,8 @@ pub mod prelude {
                 mutation::{AdditionOps, DeletionOps, ImportOps, PropertyAdditionOps},
                 state::{AsOrderedNodeStateOps, NodeStateOps, OrderedNodeStateOps},
                 view::{
-                    EdgeViewOps, GraphViewOps, Layer, LayerOps, NodeViewOps, ResetFilter, TimeOps,
+                    EdgePropertyFilterOps, EdgeViewOps, GraphViewOps, Layer, LayerOps, NodeViewOps,
+                    ResetFilter, TimeOps,
                 },
             },
             graph::graph::Graph,
@@ -141,9 +142,12 @@ pub mod prelude {
 #[cfg(feature = "storage")]
 pub use polars_arrow as arrow2;
 
+pub use raphtory_api::core::utils::logging;
+
 #[cfg(test)]
 mod test_utils {
-    use crate::prelude::Graph;
+    use crate::prelude::*;
+    use proptest::{arbitrary::any, prelude::Strategy};
     #[cfg(feature = "storage")]
     use tempfile::TempDir;
 
@@ -167,5 +171,39 @@ mod test_utils {
             .unwrap()
             .into_graph();
         test(&disk_graph)
+    }
+
+    pub(crate) fn build_edge_list(
+        len: usize,
+        num_nodes: u64,
+    ) -> impl Strategy<Value = Vec<(u64, u64, i64, String, i64)>> {
+        proptest::collection::vec(
+            (
+                0..num_nodes,
+                0..num_nodes,
+                any::<i64>(),
+                any::<String>(),
+                any::<i64>(),
+            ),
+            0..=len,
+        )
+    }
+
+    pub(crate) fn build_graph_from_edge_list(edge_list: &[(u64, u64, i64, String, i64)]) -> Graph {
+        let g = Graph::new();
+        for (src, dst, time, str_prop, int_prop) in edge_list {
+            g.add_edge(
+                *time,
+                src,
+                dst,
+                [
+                    ("str_prop", str_prop.into_prop()),
+                    ("int_prop", int_prop.into_prop()),
+                ],
+                None,
+            )
+            .unwrap();
+        }
+        g
     }
 }

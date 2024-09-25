@@ -100,7 +100,7 @@ impl From<EdgeRef> for ELID {
     fn from(value: EdgeRef) -> Self {
         ELID {
             edge: value.pid(),
-            layer: value.layer().copied(),
+            layer: value.layer(),
         }
     }
 }
@@ -184,6 +184,13 @@ impl GID {
         match self {
             GID::U64(v) => Some(*v),
             GID::Str(v) => parse_u64_strict(v),
+        }
+    }
+
+    pub fn as_ref(&self) -> GidRef {
+        match self {
+            GID::U64(v) => GidRef::U64(*v),
+            GID::Str(v) => GidRef::Str(v),
         }
     }
 }

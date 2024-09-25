@@ -29,6 +29,7 @@ use core::panic;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
+    collections::HashSet,
     fmt::{Display, Formatter},
     sync::Arc,
 };
@@ -51,7 +52,7 @@ pub fn graph_equal<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps
             g1.edges().explode().iter().all(|e| { // all exploded edges exist in other
                 g2
                     .edge(e.src().id(), e.dst().id())
-                    .filter(|ee| ee.active(e.time().expect("exploded")))
+                    .filter(|ee| ee.at(e.time().expect("exploded")).is_active())
                     .is_some()
             })
     } else {
@@ -89,46 +90,173 @@ pub fn assert_graph_equal<
         g1.count_temporal_edges(),
         g2.count_temporal_edges()
     );
+    assert_eq!(
+        g1.earliest_time(),
+        g2.earliest_time(),
+        "mismatched earliest time: left {:?}, right {:?}",
+        g1.earliest_time(),
+        g2.earliest_time()
+    );
+    assert_eq!(
+        g1.latest_time(),
+        g2.latest_time(),
+        "mismatched latest time: left {:?}, right {:?}",
+        g1.latest_time(),
+        g2.latest_time()
+    );
+    assert_eq!(
+        g1.properties().constant().as_map(),
+        g2.properties().constant().as_map(),
+        "mismatched graph constant properties: left {:?}, right {:?}",
+        g1.properties().constant().as_map(),
+        g2.properties().constant().as_map()
+    );
+    assert_eq!(
+        g1.properties().temporal().as_map(),
+        g2.properties().temporal().as_map(),
+        "mismatched graph temporal properties: left {:?}, right {:?}",
+        g1.properties().temporal().as_map(),
+        g2.properties().temporal().as_map()
+    );
+
     for n1 in g1.nodes() {
-        assert!(g2.has_node(n1.id()), "missing node {:?}", n1.id());
-
-        let c1 = n1.properties().constant().into_iter().count();
-        let t1 = n1.properties().temporal().into_iter().count();
-        let check = g2
+        let n2 = g2
             .node(n1.id())
-            .filter(|node| {
-                c1 == node.properties().constant().into_iter().count()
-                    && t1 == node.properties().temporal().into_iter().count()
-            })
-            .is_some();
-
-        assert!(check, "node {:?} properties mismatch", n1.id());
+            .expect(&format!("missing node {:?}", n1.id()));
+        assert_eq!(
+            n1.name(),
+            n2.name(),
+            "mismatched node name: left {:?}, right {:?}",
+            n1.name(),
+            n2.name()
+        );
+        assert_eq!(
+            n1.earliest_time(),
+            n2.earliest_time(),
+            "mismatched node earliest time for node {:?}: left {:?}, right {:?}",
+            n1.id(),
+            n1.earliest_time(),
+            n2.earliest_time()
+        );
+        // This doesn't hold for materialised windowed PersistentGraph (node is still present after the end of the window)
+        // assert_eq!(
+        //     n1.latest_time(),
+        //     n2.latest_time(),
+        //     "mismatched node latest time for node {:?}: left {:?}, right {:?}",
+        //     n1.id(),
+        //     n1.latest_time(),
+        //     n2.latest_time()
+        // );
+        assert_eq!(
+            n1.properties().constant().as_map(),
+            n2.properties().constant().as_map(),
+            "mismatched constant properties for node {:?}: left {:?}, right {:?}",
+            n1.id(),
+            n1.properties().constant().as_map(),
+            n2.properties().constant().as_map()
+        );
+        assert_eq!(
+            n1.properties().temporal().as_map(),
+            n2.properties().temporal().as_map(),
+            "mismatched temporal properties for node {:?}: left {:?}, right {:?}",
+            n1.id(),
+            n1.properties().temporal().as_map(),
+            n2.properties().temporal().as_map()
+        );
+        assert_eq!(
+            n1.out_degree(),
+            n2.out_degree(),
+            "mismatched out-degree for node {:?}: left {}, right {}",
+            n1.id(),
+            n1.out_degree(),
+            n2.out_degree(),
+        );
+        assert_eq!(
+            n1.in_degree(),
+            n2.in_degree(),
+            "mismatched in-degree for node {:?}: left {}, right {}",
+            n1.id(),
+            n1.in_degree(),
+            n2.in_degree(),
+        );
+        assert_eq!(
+            n1.degree(),
+            n2.degree(),
+            "mismatched degree for node {:?}: left {}, right {}",
+            n1.id(),
+            n1.degree(),
+            n2.degree(),
+        );
+        assert_eq!(
+            n1.out_neighbours().id().collect::<HashSet<_>>(),
+            n2.out_neighbours().id().collect::<HashSet<_>>(),
+            "mismatched out-neighbours for node {:?}: left {:?}, right {:?}",
+            n1.id(),
+            n1.out_neighbours().id().collect::<HashSet<_>>(),
+            n2.out_neighbours().id().collect::<HashSet<_>>()
+        );
+        assert_eq!(
+            n1.in_neighbours().id().collect::<HashSet<_>>(),
+            n2.in_neighbours().id().collect::<HashSet<_>>(),
+            "mismatched in-neighbours for node {:?}: left {:?}, right {:?}",
+            n1.id(),
+            n1.in_neighbours().id().collect::<HashSet<_>>(),
+            n2.in_neighbours().id().collect::<HashSet<_>>()
+        )
     }
 
-    for e in g1.edges().explode() {
-        // all exploded edges exist in other
+    for e1 in g1.edges() {
         let e2 = g2
-            .edge(e.src().id(), e.dst().id())
-            .unwrap_or_else(|| panic!("missing edge {:?}", e.id()));
-        assert!(
-            e2.active(e.time().unwrap()),
-            "exploded edge {:?} not active as expected at time {}",
-            e2.id(),
-            e.time().unwrap()
+            .edge(e1.src().id(), e1.dst().id())
+            .unwrap_or_else(|| panic!("missing edge {:?}", e1.id()));
+        assert_eq!(
+            e1.earliest_time(),
+            e2.earliest_time(),
+            "mismatched earliest time for edge {:?}: left {:?}, right {:?}",
+            e1.id(),
+            e1.earliest_time(),
+            e2.earliest_time()
+        );
+        assert_eq!(
+            e1.properties().constant().as_map(),
+            e2.properties().constant().as_map(),
+            "mismatched constant properties for edge {:?}: left {:?}, right {:?}",
+            e1.id(),
+            e1.properties().constant().as_map(),
+            e2.properties().constant().as_map()
+        );
+        assert_eq!(
+            e1.properties().temporal().as_map(),
+            e2.properties().temporal().as_map(),
+            "mismatched temporal properties for edge {:?}: left {:?}, right {:?}",
+            e1.id(),
+            e1.properties().temporal().as_map(),
+            e2.properties().temporal().as_map(),
         );
 
-        let c1 = e.properties().constant().into_iter().count();
-        let t1 = e.properties().temporal().into_iter().count();
-        let check = g2
-            .edge(e.src().id(), e.dst().id())
-            .filter(|ee| {
-                ee.active(e.time().expect("exploded"))
-                    && c1 == e.properties().constant().into_iter().count()
-                    && t1 == e.properties().temporal().into_iter().count()
-            })
-            .is_some();
+        // FIXME: DiskGraph does not currently preserve secondary index
 
-        assert!(check, "edge {:?} properties mismatch", e.id());
+        let mut e1_updates: Vec<_> = e1
+            .explode()
+            .iter()
+            .map(|e| (e.layer_name().unwrap(), e.time().unwrap()))
+            .collect();
+        e1_updates.sort();
+
+        let mut e2_updates: Vec<_> = e2
+            .explode()
+            .iter()
+            .map(|e| (e.layer_name().unwrap(), e.time().unwrap()))
+            .collect();
+        e2_updates.sort();
+        assert_eq!(
+            e1_updates,
+            e2_updates,
+            "mismatched updates for edge {:?}: left {:?}, right {:?}",
+            e1.id(),
+            e1_updates,
+            e2_updates,
+        );
     }
 }
 
@@ -199,6 +327,10 @@ impl Graph {
         Self { inner }
     }
 
+    pub fn event_graph(&self) -> Graph {
+        self.clone()
+    }
+
     /// Get persistent graph
     pub fn persistent_graph(&self) -> PersistentGraph {
         PersistentGraph::from_storage(self.inner.clone())
@@ -223,7 +355,7 @@ mod db_tests {
                 view::{
                     internal::{CoreGraphOps, EdgeFilterOps, TimeSemantics},
                     time::internal::InternalTimeOps,
-                    EdgeViewOps, Layer, LayerOps, NodeViewOps, TimeOps,
+                    EdgeViewOps, IntoDynBoxed, Layer, LayerOps, NodeViewOps, TimeOps,
                 },
             },
             graph::{edge::EdgeView, edges::Edges, node::NodeView, path::PathFromNode},
@@ -239,10 +371,12 @@ mod db_tests {
     use raphtory_api::core::{
         entities::GID,
         storage::arc_str::{ArcStr, OptionAsStr},
+        utils::logging::global_info_logger,
     };
     use serde_json::Value;
     use std::collections::{HashMap, HashSet};
     use tempfile::TempDir;
+    use tracing::{error, info};
 
     #[test]
     fn test_empty_graph() {
@@ -323,7 +457,7 @@ mod db_tests {
         let expected_len = vs.iter().map(|(_, v)| v).sorted().dedup().count();
         for (t, v) in vs {
             g.add_node(t, v, NO_PROPS, None)
-                .map_err(|err| println!("{:?}", err))
+                .map_err(|err| error!("{:?}", err))
                 .ok();
         }
 
@@ -332,12 +466,13 @@ mod db_tests {
 
     #[quickcheck]
     fn add_node_gets_names(vs: Vec<String>) -> bool {
+        global_info_logger();
         let g = Graph::new();
 
         let expected_len = vs.iter().sorted().dedup().count();
         for (t, name) in vs.iter().enumerate() {
             g.add_node(t as i64, name.clone(), NO_PROPS, None)
-                .map_err(|err| println!("{:?}", err))
+                .map_err(|err| info!("{:?}", err))
                 .ok();
         }
 
@@ -516,16 +651,17 @@ mod db_tests {
 
     #[test]
     fn props_with_layers() {
+        global_info_logger();
         let g = Graph::new();
         g.add_edge(0, "A", "B", NO_PROPS, None).unwrap();
         let ed = g.edge("A", "B").unwrap();
         ed.add_constant_properties(vec![("CCC", Prop::str("RED"))], None)
             .unwrap();
-        println!("{:?}", ed.properties().constant().as_map());
+        info!("{:?}", ed.properties().constant().as_map());
         g.add_edge(0, "A", "B", NO_PROPS, Some("LAYERONE")).unwrap();
         ed.add_constant_properties(vec![("CCC", Prop::str("BLUE"))], Some("LAYERONE"))
             .unwrap();
-        println!("{:?}", ed.properties().constant().as_map());
+        info!("{:?}", ed.properties().constant().as_map());
     }
 
     #[test]
@@ -676,6 +812,7 @@ mod db_tests {
 
     #[test]
     fn test_explode_layers_time() {
+        global_info_logger();
         let g = Graph::new();
         g.add_edge(
             1,
@@ -684,7 +821,7 @@ mod db_tests {
             vec![("duration".to_string(), Prop::U32(5))],
             Some("a"),
         )
-        .map_err(|err| println!("{:?}", err))
+        .map_err(|err| error!("{:?}", err))
         .ok();
         g.add_edge(
             2,
@@ -693,7 +830,7 @@ mod db_tests {
             vec![("duration".to_string(), Prop::U32(5))],
             Some("a"),
         )
-        .map_err(|err| println!("{:?}", err))
+        .map_err(|err| error!("{:?}", err))
         .ok();
         g.add_edge(
             3,
@@ -702,7 +839,7 @@ mod db_tests {
             vec![("duration".to_string(), Prop::U32(5))],
             Some("a"),
         )
-        .map_err(|err| println!("{:?}", err))
+        .map_err(|err| error!("{:?}", err))
         .ok();
         g.add_edge(
             4,
@@ -711,10 +848,10 @@ mod db_tests {
             vec![("duration".to_string(), Prop::U32(6))],
             Some("b"),
         )
-        .map_err(|err| println!("{:?}", err))
+        .map_err(|err| error!("{:?}", err))
         .ok();
         g.add_edge(5, 1, 2, NO_PROPS, Some("c"))
-            .map_err(|err| println!("{:?}", err))
+            .map_err(|err| error!("{:?}", err))
             .ok();
 
         assert_eq!(g.latest_time(), Some(5));
@@ -742,13 +879,14 @@ mod db_tests {
 
     #[test]
     fn time_test() {
+        global_info_logger();
         let g = Graph::new();
 
         assert_eq!(g.latest_time(), None);
         assert_eq!(g.earliest_time(), None);
 
         g.add_node(5, 1, NO_PROPS, None)
-            .map_err(|err| println!("{:?}", err))
+            .map_err(|err| error!("{:?}", err))
             .ok();
 
         assert_eq!(g.latest_time(), Some(5));
@@ -761,7 +899,7 @@ mod db_tests {
         assert_eq!(g.earliest_time(), Some(10));
 
         g.add_node(5, 1, NO_PROPS, None)
-            .map_err(|err| println!("{:?}", err))
+            .map_err(|err| error!("{:?}", err))
             .ok();
         assert_eq!(g.latest_time(), Some(10));
         assert_eq!(g.earliest_time(), Some(5));
@@ -1578,6 +1716,7 @@ mod db_tests {
 
     #[quickcheck]
     fn test_graph_temporal_props(str_props: HashMap<String, String>) -> bool {
+        global_info_logger();
         let g = Graph::new();
 
         let (t0, t1) = (1, 2);
@@ -1611,7 +1750,7 @@ mod db_tests {
             g.properties().temporal().get(name).unwrap().at(t1) == Some(value.clone())
         });
         if !check {
-            println!("failed time-specific comparison for {:?}", str_props);
+            error!("failed time-specific comparison for {:?}", str_props);
             return false;
         }
         let check = check
@@ -1623,7 +1762,7 @@ mod db_tests {
                 .collect::<HashMap<_, _, _>>()
                 == t0_props;
         if !check {
-            println!("failed latest value comparison for {:?} at t0", str_props);
+            error!("failed latest value comparison for {:?} at t0", str_props);
             return false;
         }
         let check = check
@@ -1636,7 +1775,7 @@ mod db_tests {
                     == Some(ve.clone())
             });
         if !check {
-            println!("failed latest value comparison for {:?} at t1", str_props);
+            error!("failed latest value comparison for {:?} at t1", str_props);
             return false;
         }
         check
@@ -1655,7 +1794,13 @@ mod db_tests {
             .add_edge(3, 1, 2, vec![("weight".to_string(), Prop::I64(3))], None)
             .unwrap();
         test_storage!(&graph, |graph| {
-            let e = graph.node(1).unwrap().out_edges().iter().next().unwrap();
+            let e = graph
+                .node(1)
+                .unwrap()
+                .out_edges()
+                .into_iter()
+                .next()
+                .unwrap();
             let res: HashMap<ArcStr, Vec<(i64, Prop)>> = e
                 .window(1, 3)
                 .properties()
@@ -1843,7 +1988,7 @@ mod db_tests {
                 .explode_layers()
                 .iter()
                 .filter_map(|e| {
-                    e.edge.layer().copied().and_then(|layer| {
+                    e.edge.layer().and_then(|layer| {
                         Some((e.src().id().as_u64()?, e.dst().id().as_u64()?, layer))
                     })
                 })
@@ -1872,7 +2017,6 @@ mod db_tests {
                 .filter_map(|e| {
                     e.edge
                         .layer()
-                        .copied()
                         .map(|layer| (e.src().id(), e.dst().id(), layer))
                 })
                 .collect::<Vec<_>>();
@@ -1900,11 +2044,11 @@ mod db_tests {
                 .explode_layers()
                 .iter()
                 .flat_map(|e| {
-                    e.explode().iter().filter_map(|e| {
+                    e.explode().into_iter().filter_map(|e| {
                         e.edge
                             .layer()
                             .zip(e.time().ok())
-                            .map(|(layer, t)| (t, e.src().id(), e.dst().id(), *layer))
+                            .map(|(layer, t)| (t, e.src().id(), e.dst().id(), layer))
                     })
                 })
                 .collect::<Vec<_>>();
@@ -1936,11 +2080,11 @@ mod db_tests {
                 .explode_layers()
                 .iter()
                 .flat_map(|e| {
-                    e.explode().iter().filter_map(|e| {
+                    e.explode().into_iter().filter_map(|e| {
                         e.edge
                             .layer()
                             .zip(Some(e.time().unwrap()))
-                            .map(|(layer, t)| (t, e.src().id(), e.dst().id(), *layer))
+                            .map(|(layer, t)| (t, e.src().id(), e.dst().id(), layer))
                     })
                 })
                 .collect::<Vec<_>>();
@@ -2078,9 +2222,10 @@ mod db_tests {
 
     #[test]
     fn large_id_is_consistent() {
+        global_info_logger();
         let g = Graph::new();
         g.add_node(0, 10000000000000000006, NO_PROPS, None).unwrap();
-        println!("names: {:?}", g.nodes().name().collect_vec());
+        info!("names: {:?}", g.nodes().name().collect_vec());
         assert!(g
             .nodes()
             .name()
@@ -2104,33 +2249,33 @@ mod db_tests {
         edges: Vec<(u64, u64, Vec<i64>)>,
         offset: i64,
     ) -> bool {
+        global_info_logger();
         let mut correct = true;
         let mut check = |condition: bool, message: String| {
             if !condition {
-                println!("Failed: {}", message);
+                error!("Failed: {}", message);
             }
             correct = correct && condition;
         };
         // checks that exploded edges are preserved with correct timestamps
         let mut edges: Vec<(GID, GID, Vec<i64>)> = edges
             .into_iter()
-            .filter_map(|(src, dst, ts)| {
+            .filter_map(|(src, dst, mut ts)| {
+                ts.sort();
+                ts.dedup();
+                let ts: Vec<_> = ts.into_iter().filter(|&t| t < i64::MAX).collect();
                 (!ts.is_empty()).then_some((GID::U64(src), GID::U64(dst), ts))
             })
             .collect();
-        // discard edges without timestamps
-        for e in edges.iter_mut() {
-            e.2.sort();
-            // FIXME: Should not have to do this, see issue https://github.com/Pometry/Raphtory/issues/973
-            e.2.dedup(); // add each timestamp only once (multi-edge per timestamp currently not implemented)
-        }
         edges.sort();
         edges.dedup_by_key(|(src, dst, _)| src.as_u64().zip(dst.as_u64()));
 
         let g = Graph::new();
         for (src, dst, times) in edges.iter() {
-            for t in times.iter() {
-                g.add_edge(*t, src, dst, NO_PROPS, None).unwrap();
+            for &t in times.iter() {
+                if t < i64::MAX {
+                    g.add_edge(t, src, dst, NO_PROPS, None).unwrap();
+                }
             }
         }
 
@@ -2150,17 +2295,13 @@ mod db_tests {
                             ); // times are the same for exploded edge
                             let t = ee.earliest_time().unwrap();
                             check(
-                                ee.active(t),
+                                ee.at(t).is_active(),
                                 format!("exploded edge {:?} inactive at {}", ee, t),
                             );
-                            if t < i64::MAX {
-                                // window is broken at MAX!
-                                check(e.active(t), format!("edge {:?} inactive at {}", e, t));
-                            }
                             let t_test = t.saturating_add(offset);
                             if t_test != t && t_test < i64::MAX && t_test > i64::MIN {
                                 check(
-                                    !ee.active(t_test),
+                                    !ee.at(t_test).is_active(),
                                     format!("exploded edge {:?} active at {}", ee, t_test),
                                 );
                             }

@@ -43,7 +43,10 @@ impl<'a> TimeIndexRef<'a> {
 
 impl<'a> TimeIndexOps for TimeIndexRef<'a> {
     type IndexType = TimeIndexEntry;
-    type RangeType<'b> = TimeIndexRef<'b> where Self: 'b;
+    type RangeType<'b>
+        = TimeIndexRef<'b>
+    where
+        Self: 'b;
 
     #[inline(always)]
     fn active(&self, w: Range<TimeIndexEntry>) -> bool {

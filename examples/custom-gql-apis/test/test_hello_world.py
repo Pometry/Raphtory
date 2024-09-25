@@ -12,8 +12,8 @@ def test_hello_world():
         client = server.get_client()
         query = """query {
             plugins {
-                hello_world(name:"Shivam")
+                hello_query(name:"Shivam")
             }
         }"""
         result = client.query(query)
-        assert result["plugins"]["hello_world"] == "Hello, Shivam"
+        assert result["plugins"]["hello_query"] == "Hello, Shivam"

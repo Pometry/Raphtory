@@ -373,6 +373,10 @@ impl PyGraph {
         PyPersistentGraph::py_from_db_graph(self.graph.persistent_graph())
     }
 
+    pub fn event_graph<'py>(&'py self) -> PyResult<Py<PyGraph>> {
+        PyGraph::py_from_db_graph(self.graph.event_graph())
+    }
+
     /// Load nodes from a Pandas DataFrame into the graph.
     ///
     /// Arguments:

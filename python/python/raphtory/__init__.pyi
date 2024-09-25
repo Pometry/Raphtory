@@ -368,6 +368,50 @@ class Edge:
         """Explodes an edge and returns all instances it had been updated as seperate edges"""
 
     def explode_layers(self): ...
+    def filter_edges_eq(self, property, value):
+        """
+        Return a filtered view that only includes edges with a given property value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Edge: The filtered view
+        """
+
+    def filter_edges_gt(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value greater than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Edge: The filtered view
+        """
+
+    def filter_edges_lt(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value less than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Edge: The filtered view
+        """
+
     def has_layer(self, name):
         """Check if Edge has the layer `"name"`"""
 
@@ -393,6 +437,13 @@ class Edge:
     def id(self):
         """The id of the edge."""
 
+    def is_active(self):
+        """
+        Check if the edge is currently active (i.e., has at least one update within this period)
+        Returns:
+            bool
+        """
+
     def is_deleted(self):
         """
         Check if the edge is currently deleted
@@ -412,6 +463,14 @@ class Edge:
         Check if the edge is currently valid (i.e., not deleted)
         Returns:
             bool
+        """
+
+    def latest(self):
+        """
+         Create a view of the Edge including all events at the latest time.
+
+        Returns:
+             A Edge object.
         """
 
     @property
@@ -769,6 +828,50 @@ class Edges:
         """Explodes an edge and returns all instances it had been updated as seperate edges"""
 
     def explode_layers(self): ...
+    def filter_edges_eq(self, property, value):
+        """
+        Return a filtered view that only includes edges with a given property value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Edges: The filtered view
+        """
+
+    def filter_edges_gt(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value greater than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Edges: The filtered view
+        """
+
+    def filter_edges_lt(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value less than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Edges: The filtered view
+        """
+
     def has_layer(self, name):
         """Check if Edges has the layer `"name"`"""
 
@@ -794,6 +897,7 @@ class Edges:
     def id(self):
         """Returns all ids of the edges."""
 
+    def is_active(self): ...
     def is_deleted(self):
         """Check if the edges are deleted"""
 
@@ -802,6 +906,14 @@ class Edges:
 
     def is_valid(self):
         """Check if the edges are valid (i.e. not deleted)"""
+
+    def latest(self):
+        """
+         Create a view of the Edges including all events at the latest time.
+
+        Returns:
+             A Edges object.
+        """
 
     @property
     def latest_date_time(self):
@@ -995,7 +1107,7 @@ class Edges:
 class Graph:
     """A temporal graph."""
 
-    def __init__(self):
+    def __init__(self, num_shards=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
     def add_constant_properties(self, properties):
@@ -1187,6 +1299,7 @@ class Graph:
              The latest datetime that this GraphView is valid or None if the GraphView is valid for all times.
         """
 
+    def event_graph(self): ...
     def exclude_layer(self, name):
         """
          Return a view of GraphView containing all layers except the excluded `name`
@@ -1253,6 +1366,50 @@ class Graph:
 
         Returns:
             A `WindowSet` object.
+        """
+
+    def filter_edges_eq(self, property, value):
+        """
+        Return a filtered view that only includes edges with a given property value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_edges_gt(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value greater than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_edges_lt(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value less than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            GraphView: The filtered view
         """
 
     def find_edges(self, properties_dict):
@@ -1385,6 +1542,14 @@ class Graph:
         # Returns:
         Graph: sub-graph of the graph `g` containing the largest connected component
 
+        """
+
+    def latest(self):
+        """
+         Create a view of the GraphView including all events at the latest time.
+
+        Returns:
+             A GraphView object.
         """
 
     @property
@@ -1881,9 +2046,9 @@ class Graph:
         embedding,
         cache=None,
         overwrite_cache=False,
-        graph_document=None,
-        node_document=None,
-        edge_document=None,
+        graph_template=None,
+        node_template=None,
+        edge_template=None,
         verbose=False,
     ):
         """
@@ -1893,8 +2058,9 @@ class Graph:
           embedding (Callable[[list], list]): the embedding function to translate documents to embeddings
           cache (str): the file to be used as a cache to avoid calling the embedding function (optional)
           overwrite_cache (bool): whether or not to overwrite the cache if there are new embeddings (optional)
-          node_document (str): the property name to be used as document for nodes (optional)
-          edge_document (str): the property name to be used as document for edges (optional)
+          graph_template (str): the document template for the graphs (optional)
+          node_template (str): the document template for the nodes (optional)
+          edge_template (str): the document template for the edges (optional)
           verbose (bool): whether or not to print logs reporting the progress
 
         Returns:
@@ -2192,6 +2358,50 @@ class MutableEdge:
         """Explodes an edge and returns all instances it had been updated as seperate edges"""
 
     def explode_layers(self): ...
+    def filter_edges_eq(self, property, value):
+        """
+        Return a filtered view that only includes edges with a given property value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Edge: The filtered view
+        """
+
+    def filter_edges_gt(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value greater than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Edge: The filtered view
+        """
+
+    def filter_edges_lt(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value less than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Edge: The filtered view
+        """
+
     def has_layer(self, name):
         """Check if Edge has the layer `"name"`"""
 
@@ -2217,6 +2427,13 @@ class MutableEdge:
     def id(self):
         """The id of the edge."""
 
+    def is_active(self):
+        """
+        Check if the edge is currently active (i.e., has at least one update within this period)
+        Returns:
+            bool
+        """
+
     def is_deleted(self):
         """
         Check if the edge is currently deleted
@@ -2236,6 +2453,14 @@ class MutableEdge:
         Check if the edge is currently valid (i.e., not deleted)
         Returns:
             bool
+        """
+
+    def latest(self):
+        """
+         Create a view of the Edge including all events at the latest time.
+
+        Returns:
+             A Edge object.
         """
 
     @property
@@ -2599,6 +2824,50 @@ class MutableNode:
             A `WindowSet` object.
         """
 
+    def filter_edges_eq(self, property, value):
+        """
+        Return a filtered view that only includes edges with a given property value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Node: The filtered view
+        """
+
+    def filter_edges_gt(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value greater than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Node: The filtered view
+        """
+
+    def filter_edges_lt(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value less than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Node: The filtered view
+        """
+
     def has_layer(self, name):
         """Check if Node has the layer `"name"`"""
 
@@ -2655,6 +2924,15 @@ class MutableNode:
         Returns:
 
         An iterator over the neighbours of this node that point into this node.
+        """
+
+    def is_active(self): ...
+    def latest(self):
+        """
+         Create a view of the Node including all events at the latest time.
+
+        Returns:
+             A Node object.
         """
 
     @property
@@ -3024,6 +3302,50 @@ class Node:
             A `WindowSet` object.
         """
 
+    def filter_edges_eq(self, property, value):
+        """
+        Return a filtered view that only includes edges with a given property value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Node: The filtered view
+        """
+
+    def filter_edges_gt(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value greater than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Node: The filtered view
+        """
+
+    def filter_edges_lt(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value less than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Node: The filtered view
+        """
+
     def has_layer(self, name):
         """Check if Node has the layer `"name"`"""
 
@@ -3080,6 +3402,15 @@ class Node:
         Returns:
 
         An iterator over the neighbours of this node that point into this node.
+        """
+
+    def is_active(self): ...
+    def latest(self):
+        """
+         Create a view of the Node including all events at the latest time.
+
+        Returns:
+             A Node object.
         """
 
     @property
@@ -3433,6 +3764,50 @@ class Nodes:
             A `WindowSet` object.
         """
 
+    def filter_edges_eq(self, property, value):
+        """
+        Return a filtered view that only includes edges with a given property value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Nodes: The filtered view
+        """
+
+    def filter_edges_gt(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value greater than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Nodes: The filtered view
+        """
+
+    def filter_edges_lt(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value less than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            Nodes: The filtered view
+        """
+
     def has_layer(self, name):
         """Check if Nodes has the layer `"name"`"""
 
@@ -3484,6 +3859,14 @@ class Nodes:
         Returns:
 
         An iterator over the neighbours of this node that point into this node.
+        """
+
+    def latest(self):
+        """
+         Create a view of the Nodes including all events at the latest time.
+
+        Returns:
+             A Nodes object.
         """
 
     @property
@@ -3969,6 +4352,50 @@ class PersistentGraph:
             A `WindowSet` object.
         """
 
+    def filter_edges_eq(self, property, value):
+        """
+        Return a filtered view that only includes edges with a given property value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_edges_gt(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value greater than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_edges_lt(self, property, value):
+        """
+        Return a filtered view that only includes edges with a property value less than a
+        given value
+
+        Arguments:
+            property (str): The name of the property to use for filtering
+                            (looked up in temporal properties first and falls
+                            back to constant properties
+            value (Any): The property value to compare with
+
+        Returns:
+            GraphView: The filtered view
+        """
+
     def find_edges(self, properties_dict):
         """
         Get the edges that match the properties name and value
@@ -4088,6 +4515,14 @@ class PersistentGraph:
 
         Returns:
            GraphIndex - Returns a GraphIndex
+        """
+
+    def latest(self):
+        """
+         Create a view of the GraphView including all events at the latest time.
+
+        Returns:
+             A GraphView object.
         """
 
     @property
@@ -4460,6 +4895,7 @@ class PersistentGraph:
          the nodes in the graph
         """
 
+    def persistent_graph(self): ...
     @property
     def properties(self):
         """
@@ -4663,9 +5099,9 @@ class PersistentGraph:
         embedding,
         cache=None,
         overwrite_cache=False,
-        graph_document=None,
-        node_document=None,
-        edge_document=None,
+        graph_template=None,
+        node_template=None,
+        edge_template=None,
         verbose=False,
     ):
         """
@@ -4675,8 +5111,9 @@ class PersistentGraph:
           embedding (Callable[[list], list]): the embedding function to translate documents to embeddings
           cache (str): the file to be used as a cache to avoid calling the embedding function (optional)
           overwrite_cache (bool): whether or not to overwrite the cache if there are new embeddings (optional)
-          node_document (str): the property name to be used as document for nodes (optional)
-          edge_document (str): the property name to be used as document for edges (optional)
+          graph_template (str): the document template for the graphs (optional)
+          node_template (str): the document template for the nodes (optional)
+          edge_template (str): the document template for the edges (optional)
           verbose (bool): whether or not to print logs reporting the progress
 
         Returns:

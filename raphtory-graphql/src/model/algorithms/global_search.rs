@@ -10,6 +10,7 @@ use dynamic_graphql::internal::TypeName;
 use futures_util::future::BoxFuture;
 use raphtory::vectors::{embeddings::openai_embedding, vectorised_cluster::VectorisedCluster};
 use std::ops::Deref;
+use tracing::info;
 
 pub(crate) struct GlobalSearch;
 
@@ -43,7 +44,7 @@ impl<'a> Operation<'a, QueryPlugin> for GlobalSearch {
 
         Box::pin(async move {
             let embedding = openai_embedding(vec![query.clone()]).await.remove(0);
-            println!("running global search for {query}");
+            info!("running global search for {query}");
 
             let graphs = vectorised_graphs.read();
 

@@ -9,12 +9,14 @@ use raphtory::{
     io::csv_loader::CsvLoader,
     prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, NO_PROPS},
 };
+use raphtory_api::core::utils::logging::global_debug_logger;
 use std::{
     fs::File,
     io::{self, Read, Write},
     path::Path,
     time::Instant,
 };
+use tracing::{debug, info};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -57,7 +59,8 @@ struct Args {
 }
 
 fn main() {
-    println!(
+    global_debug_logger();
+    info!(
         "
 ██████╗ ███████╗███╗   ██╗ ██████╗██╗  ██╗███╗   ███╗ █████╗ ██████╗ ██╗  ██╗
 ██╔══██╗██╔════╝████╗  ██║██╔════╝██║  ██║████╗ ████║██╔══██╗██╔══██╗██║ ██╔╝
@@ -71,7 +74,7 @@ fn main() {
     // Set default values
     let debug = args.debug;
     if debug {
-        println!(
+        info!(
             "
   .___   .____  ____   .     .   ___        __   __   ___   .___   .____
  /   `  /      /   \\  /     / .'   \\       |    |  .'   `. /   `  /
@@ -80,7 +83,7 @@ fn main() {
  /---/  /----/ `----'  `._.'   `.___|      /    /   `.__.' /---/  /----/
             "
         );
-        println!("Debug mode enabled.\nArguments: {:?}", args);
+        info!("Debug mode enabled.\nArguments: {:?}", args);
     }
     let header = args.header;
     let delimiter = args.delimiter;
@@ -93,12 +96,12 @@ fn main() {
 
     if download {
         let url = "https://osf.io/download/nbq6h/";
-        println!("Downloading default file from url {}...", url);
+        info!("Downloading default file from url {}...", url);
         // make err msg from url and custom string
         let err_msg = format!("Failed to download file from {}", url);
         let path = fetch_file("simple-relationships.csv.gz", true, url, 1200).expect(&err_msg);
-        println!("Downloaded file to {}", path.to_str().unwrap());
-        println!("Unpacking file...");
+        info!("Downloaded file to {}", path.to_str().unwrap());
+        info!("Unpacking file...");
         // extract a file from a gz archive
         // Open the input .csv.gz file
         let input_file = File::open(&path).expect("Failed to open downloaded file");
@@ -124,29 +127,29 @@ fn main() {
         }
 
         // exit program
-        println!("Downloaded+Unpacked file, please run again without --download flag and with --file-path={}", dst_file);
+        info!("Downloaded+Unpacked file, please run again without --download flag and with --file-path={}", dst_file);
         return;
     }
 
     if file_path.is_empty() {
-        println!("You did not set a file path");
+        info!("You did not set a file path");
         return;
     }
     if !Path::new(&file_path).exists() {
-        println!("File path does not exist or is not a file {}", &file_path);
+        info!("File path does not exist or is not a file {}", &file_path);
         return;
     }
 
     if debug {
-        println!("Reading file {}", &file_path);
+        debug!("Reading file {}", &file_path);
     }
 
-    println!("Running setup...");
+    info!("Running setup...");
     let mut now = Instant::now();
     // Iterate over the CSV records
     let g = match num_shards {
         Some(num_shards) => {
-            println!("Constructing graph with {num_shards} shards.");
+            info!("Constructing graph with {num_shards} shards.");
             Graph::new_with_shards(num_shards)
         }
         None => Graph::new(),
@@ -167,16 +170,17 @@ fn main() {
                 1i64
             };
             if debug {
-                println!("Adding edge {} -> {} at time {}", src_id, dst_id, edge_time);
+                debug!("Adding edge {} -> {} at time {}", src_id, dst_id, edge_time);
             }
             g.add_edge(edge_time, src_id, dst_id, NO_PROPS, None)
                 .expect("Failed to add edge");
         })
         .expect("Failed to load graph from CSV data files");
-    println!("Setup took {} seconds", now.elapsed().as_secs_f64());
+    info!("Setup took {} seconds", now.elapsed().as_secs_f64());
 
     if debug {
-        println!(
+        //leaving this here for now, need to remove the flag and handle properly
+        debug!(
             "Graph has {} nodes and {} edges",
             g.count_nodes(),
             g.count_edges()
@@ -186,23 +190,23 @@ fn main() {
     // Degree of all nodes
     now = Instant::now();
     let _degree = g.nodes().iter().map(|v| v.degree()).collect::<Vec<_>>();
-    println!("Degree: {} seconds", now.elapsed().as_secs_f64());
+    info!("Degree: {} seconds", now.elapsed().as_secs_f64());
 
     // Out neighbours of all nodes with time
     now = Instant::now();
     let nodes = &g.nodes();
     let _out_neighbours = nodes.iter().map(|v| v.out_neighbours()).collect::<Vec<_>>();
-    println!("Out neighbours: {} seconds", now.elapsed().as_secs_f64());
+    info!("Out neighbours: {} seconds", now.elapsed().as_secs_f64());
 
     // page rank with time
     now = Instant::now();
     let _page_rank = unweighted_page_rank(&g, Some(1000), None, None, true, None);
-    println!("Page rank: {} seconds", now.elapsed().as_secs_f64());
+    info!("Page rank: {} seconds", now.elapsed().as_secs_f64());
 
     // connected community_detection with time
     now = Instant::now();
     let _cc = weakly_connected_components(&g, usize::MAX, None);
-    println!(
+    info!(
         "Connected community_detection: {} seconds",
         now.elapsed().as_secs_f64()
     );

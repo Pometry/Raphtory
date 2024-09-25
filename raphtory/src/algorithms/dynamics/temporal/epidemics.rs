@@ -250,10 +250,12 @@ mod test {
     };
     use rand::{rngs::SmallRng, Rng, SeedableRng};
     use rand_distr::{Distribution, Exp};
+    use raphtory_api::core::utils::logging::global_info_logger;
     use rayon::prelude::*;
     use stats::{mean, stddev};
     #[cfg(feature = "storage")]
     use tempfile::TempDir;
+    use tracing::info;
 
     fn correct_res(x: f64) -> f64 {
         (1176. * x.powi(10)
@@ -341,12 +343,13 @@ mod test {
         let mean = mean(actual.iter().copied());
         let dev = stddev(actual.iter().copied()) / (num_tries as f64).sqrt();
         let expected = correct_res(scaled_infection_rate);
-        println!("mean: {mean}, expected: {expected}, dev: {dev},  infection rate: {scaled_infection_rate}");
+        info!("mean: {mean}, expected: {expected}, dev: {dev},  infection rate: {scaled_infection_rate}");
         assert!((mean - expected).abs() < 2. * dev)
     }
 
     #[test]
     fn test_small_graph_medium() {
+        global_info_logger();
         let event_rate = 0.00000001;
         let recovery_rate = 0.000000001;
         let p = 0.3;
@@ -356,6 +359,7 @@ mod test {
 
     #[test]
     fn test_small_graph_high() {
+        global_info_logger();
         let event_rate = 0.00000001;
         let recovery_rate = 0.000000001;
         let p = 0.7;
@@ -365,6 +369,7 @@ mod test {
 
     #[test]
     fn test_small_graph_low() {
+        global_info_logger();
         let event_rate = 0.00000001;
         let recovery_rate = 0.00000001;
         let p = 0.1;

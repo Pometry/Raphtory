@@ -150,6 +150,7 @@ impl EdgesStorage {
     pub fn write_lock(&self) -> WriteLockedEdges {
         WriteLockedEdges {
             shards: self.shards.iter().map(|shard| shard.write()).collect(),
+            global_len: &self.len,
         }
     }
 
@@ -161,18 +162,6 @@ impl EdgesStorage {
     pub(crate) fn push(&self, mut value: EdgeStore) -> UninitialisedEdge {
         let index = self.len.fetch_add(1, atomic::Ordering::Relaxed);
         value.eid = EID(index);
-        let (bucket, offset) = self.resolve(index);
-        let guard = self.shards[bucket].write();
-        UninitialisedEdge {
-            guard,
-            offset,
-            value,
-        }
-    }
-
-    pub(crate) fn set(&self, value: EdgeStore) -> UninitialisedEdge {
-        let EID(index) = value.eid;
-        self.len.fetch_max(index + 1, atomic::Ordering::Relaxed);
         let (bucket, offset) = self.resolve(index);
         let guard = self.shards[bucket].write();
         UninitialisedEdge {
@@ -376,13 +365,17 @@ impl LockedEdges {
     }
 }
 
-pub struct EdgeShardWriter<'a> {
-    shard: &'a mut EdgeShard,
+pub struct EdgeShardWriter<'a, S> {
+    shard: S,
     shard_id: usize,
     num_shards: usize,
+    global_len: &'a AtomicUsize,
 }
 
-impl<'a> EdgeShardWriter<'a> {
+impl<'a, S> EdgeShardWriter<'a, S>
+where
+    S: DerefMut<Target = EdgeShard>,
+{
     /// Map an edge id to local offset if it is in the shard
     fn resolve(&self, eid: EID) -> Option<usize> {
         let EID(eid) = eid;
@@ -393,12 +386,13 @@ impl<'a> EdgeShardWriter<'a> {
     pub fn get_mut(&mut self, eid: EID) -> Option<MutEdge> {
         let offset = self.resolve(eid)?;
         if self.shard.edge_ids.len() <= offset {
+            self.global_len.fetch_max(eid.0 + 1, Ordering::Relaxed);
             self.shard
                 .edge_ids
                 .resize_with(offset + 1, EdgeStore::default)
         }
         Some(MutEdge {
-            guard: self.shard,
+            guard: self.shard.deref_mut(),
             i: offset,
         })
     }
@@ -410,16 +404,20 @@ impl<'a> EdgeShardWriter<'a> {
 
 pub struct WriteLockedEdges<'a> {
     shards: Vec<RwLockWriteGuard<'a, EdgeShard>>,
+    global_len: &'a AtomicUsize,
 }
 
 impl<'a> WriteLockedEdges<'a> {
-    pub fn par_iter_mut(&mut self) -> impl IndexedParallelIterator<Item = EdgeShardWriter> + '_ {
+    pub fn par_iter_mut(
+        &mut self,
+    ) -> impl IndexedParallelIterator<Item = EdgeShardWriter<&mut EdgeShard>> + '_ {
         let num_shards = self.shards.len();
         let shards: Vec<_> = self
             .shards
             .iter_mut()
             .map(|shard| shard.deref_mut())
             .collect();
+        let global_len = self.global_len;
         shards
             .into_par_iter()
             .enumerate()
@@ -427,6 +425,24 @@ impl<'a> WriteLockedEdges<'a> {
                 shard,
                 shard_id,
                 num_shards,
+                global_len,
+            })
+    }
+
+    pub fn into_par_iter_mut(
+        self,
+    ) -> impl IndexedParallelIterator<Item = EdgeShardWriter<'a, RwLockWriteGuard<'a, EdgeShard>>> + 'a
+    {
+        let num_shards = self.shards.len();
+        let global_len = self.global_len;
+        self.shards
+            .into_par_iter()
+            .enumerate()
+            .map(move |(shard_id, shard)| EdgeShardWriter {
+                shard,
+                shard_id,
+                num_shards,
+                global_len,
             })
     }
 

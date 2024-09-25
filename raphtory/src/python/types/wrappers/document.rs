@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::{
     core::{DocumentInput, Lifespan},
     vectors::Embedding,

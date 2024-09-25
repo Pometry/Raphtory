@@ -1,4 +1,6 @@
-use crate::core::{utils::time::error::ParseTimeError, Prop, PropType};
+use crate::core::{
+    storage::lazy_vec::IllegalSet, utils::time::error::ParseTimeError, Prop, PropType,
+};
 #[cfg(feature = "arrow")]
 use polars_arrow::{datatypes::ArrowDataType, legacy::error};
 #[cfg(feature = "storage")]
@@ -9,7 +11,7 @@ use raphtory_api::core::{
     entities::{GidType, GID},
     storage::arc_str::ArcStr,
 };
-use std::{io, path::PathBuf, time::SystemTimeError};
+use std::{fmt::Debug, io, path::PathBuf, time::SystemTimeError};
 #[cfg(feature = "search")]
 use tantivy;
 #[cfg(feature = "search")]
@@ -262,6 +264,12 @@ impl GraphError {
             invalid_layer,
             valid_layers,
         }
+    }
+}
+
+impl<A: Debug> From<IllegalSet<A>> for GraphError {
+    fn from(value: IllegalSet<A>) -> Self {
+        Self::IllegalSet(value.to_string())
     }
 }
 

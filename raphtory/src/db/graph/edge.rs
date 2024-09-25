@@ -12,6 +12,7 @@ use crate::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         storage::timeindex::AsTime,
         utils::{errors::GraphError, time::IntoTime},
+        PropType,
     },
     db::{
         api::{
@@ -40,7 +41,7 @@ use std::{
 };
 
 /// A view of an edge in the graph.
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 pub struct EdgeView<G, GH = G> {
     pub base_graph: G,
     /// A view of an edge in the graph.
@@ -55,6 +56,32 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeView<G, G> {
     pub fn new(graph: G, edge: EdgeRef) -> Self {
         let base_graph = graph.clone();
         Self {
+            base_graph,
+            graph,
+            edge,
+        }
+    }
+}
+
+impl<G: Clone, GH: Clone> EdgeView<&G, &GH> {
+    pub fn cloned(&self) -> EdgeView<G, GH> {
+        let graph = self.graph.clone();
+        let base_graph = self.base_graph.clone();
+        let edge = self.edge;
+        EdgeView {
+            base_graph,
+            graph,
+            edge,
+        }
+    }
+}
+
+impl<G, GH> EdgeView<G, GH> {
+    pub fn as_ref(&self) -> EdgeView<&G, &GH> {
+        let graph = &self.graph;
+        let base_graph = &self.base_graph;
+        let edge = self.edge;
+        EdgeView {
             base_graph,
             graph,
             edge,
@@ -117,7 +144,8 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<
     type BaseGraph = G;
     type Graph = GH;
 
-    type ValueType<T> = T
+    type ValueType<T>
+        = T
     where
         T: 'graph;
     type PropType = Self;
@@ -174,7 +202,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
                 Some(l_id) => self
                     .graph
                     .get_layer_id(name)
-                    .filter(|id| id == l_id)
+                    .filter(|&id| id == l_id)
                     .ok_or_else(|| {
                         GraphError::invalid_layer(
                             name.to_owned(),
@@ -194,7 +222,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
                     }
                 }
             },
-            None => Ok(self.edge.layer().copied().unwrap_or(0)),
+            None => Ok(self.edge.layer().unwrap_or(0)),
         }
     }
 
@@ -308,16 +336,24 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> ConstPropertiesO
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalPropertyViewOps
     for EdgeView<G, GH>
 {
+    fn dtype(&self, id: usize) -> PropType {
+        self.graph
+            .edge_meta()
+            .temporal_prop_meta()
+            .get_dtype(id)
+            .unwrap()
+    }
+
     fn temporal_history(&self, id: usize) -> Vec<i64> {
         self.graph
-            .temporal_edge_prop_vec(self.edge, id, &self.layer_ids())
+            .temporal_edge_prop_hist(self.edge, id, &self.layer_ids())
             .into_iter()
-            .map(|(t, _)| t)
+            .map(|(t, _)| t.t())
             .collect()
     }
     fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
         self.graph
-            .temporal_edge_prop_vec(self.edge, id, &self.layer_ids())
+            .temporal_edge_prop_hist(self.edge, id, &self.layer_ids())
             .into_iter()
             .map(|(t, _)| t.dt())
             .collect()
@@ -326,7 +362,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperty
     fn temporal_values(&self, id: usize) -> Vec<Prop> {
         let layer_ids = self.layer_ids();
         self.graph
-            .temporal_edge_prop_vec(self.edge, id, &layer_ids)
+            .temporal_edge_prop_hist(self.edge, id, &layer_ids)
             .into_iter()
             .map(|(_, v)| v)
             .collect()
@@ -414,7 +450,10 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'gr
 
 #[cfg(test)]
 mod test_edge {
-    use crate::{core::IntoPropMap, prelude::*, test_storage, test_utils::test_graph};
+    use crate::{
+        core::IntoPropMap, db::api::view::time::TimeOps, prelude::*, test_storage,
+        test_utils::test_graph,
+    };
     use itertools::Itertools;
     use raphtory_api::core::storage::arc_str::ArcStr;
     use std::collections::HashMap;

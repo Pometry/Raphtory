@@ -136,8 +136,6 @@ pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: AsNodeRef>(
     let step2 = ATask::new(move |evv| {
         let msgs = evv.read(&recv_tainted_msgs);
 
-        // println!("v = {}, msgs = {:?}, taint_history = {:?}", evv.global_id(), msgs, evv.read(&taint_history));
-
         if !msgs.is_empty() {
             evv.global_update(&tainted_nodes, evv.node);
 
@@ -147,8 +145,6 @@ pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: AsNodeRef>(
             msgs.iter().for_each(|msg| {
                 evv.update(&taint_history, msg.clone());
             });
-
-            // println!("v = {}, taint_history = {:?}", evv.global_id(), evv.read(&taint_history));
 
             if stop_nodes.is_empty() || !stop_nodes.contains(&evv.node) {
                 let earliest = evv.read(&earliest_taint_time);

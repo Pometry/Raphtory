@@ -109,7 +109,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
             .flat_map(|id| {
                 let node = self.graph.source_graph.node(id);
                 let opt =
-                    node.map(|node| self.graph.node_documents.get(&EntityId::from_node(&node)));
+                    node.map(|node| self.graph.node_documents.get(&EntityId::from_node(node)));
                 opt.flatten().unwrap_or(&self.graph.empty_vec)
             })
             .map(|doc| (doc.clone(), 0.0));
@@ -127,8 +127,11 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
             .into_iter()
             .flat_map(|(src, dst)| {
                 let edge = self.graph.source_graph.edge(src, dst);
-                let opt =
-                    edge.map(|edge| self.graph.edge_documents.get(&EntityId::from_edge(&edge)));
+                let opt = edge.map(|edge| {
+                    self.graph
+                        .edge_documents
+                        .get(&EntityId::from_edge(edge.as_ref()))
+                });
                 opt.flatten().unwrap_or(&self.graph.empty_vec)
             })
             .map(|doc| (doc.clone(), 0.0));
@@ -450,8 +453,8 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
                     None => Box::new(std::iter::empty()),
                     Some(node) => {
                         let edges = node.edges();
-                        let edge_docs = edges.iter().flat_map(|edge| {
-                            let edge_id = EntityId::from_edge(&edge);
+                        let edge_docs = edges.into_iter().flat_map(|edge| {
+                            let edge_id = EntityId::from_edge(edge);
                             self.graph
                                 .edge_documents
                                 .get(&edge_id)
@@ -474,8 +477,8 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
                 match windowed_graph.edge(src, dst) {
                     None => Box::new(std::iter::empty()),
                     Some(edge) => {
-                        let src_id = EntityId::from_node(&edge.src());
-                        let dst_id = EntityId::from_node(&edge.dst());
+                        let src_id = EntityId::from_node(edge.src());
+                        let dst_id = EntityId::from_node(edge.dst());
                         let src_docs = self
                             .graph
                             .node_documents
@@ -505,7 +508,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
     ) -> Box<dyn Iterator<Item = (EntityId, Vec<DocumentRef>)> + '_> {
         let groups = nodes
             .map(move |node| {
-                let entity_id = EntityId::from_node(&node);
+                let entity_id = EntityId::from_node(node);
                 self.graph.node_documents.get(&entity_id).map(|group| {
                     let docs = group
                         .iter()
@@ -528,7 +531,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
     ) -> Box<dyn Iterator<Item = (EntityId, Vec<DocumentRef>)> + '_> {
         let groups = edges
             .map(move |edge| {
-                let entity_id = EntityId::from_edge(&edge);
+                let entity_id = EntityId::from_edge(edge);
                 self.graph.edge_documents.get(&entity_id).map(|group| {
                     let docs = group
                         .iter()
@@ -579,15 +582,15 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
             EntityId::Node { id } => match windowed_graph.node(id) {
                 None => Box::new(std::iter::empty()),
                 Some(node) => {
-                    let edges = node.edges().iter();
-                    self.edges_into_document_groups(edges, windowed_graph, window)
+                    let edges = node.edges();
+                    self.edges_into_document_groups(edges.into_iter(), windowed_graph, window)
                 }
             },
             EntityId::Edge { src, dst } => match windowed_graph.edge(src, dst) {
                 None => Box::new(std::iter::empty()),
                 Some(edge) => {
-                    let src_edges = edge.src().edges().iter();
-                    let dst_edges = edge.dst().edges().iter();
+                    let src_edges = edge.src().edges().into_iter();
+                    let dst_edges = edge.dst().edges().into_iter();
                     let edges = chain!(src_edges, dst_edges);
                     self.edges_into_document_groups(edges, windowed_graph, window)
                 }
