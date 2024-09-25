@@ -240,18 +240,29 @@ impl Mut {
         overwrite: bool,
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
+        dbg!();
         let graph = {
+            dbg!();
             let in_file = graph.value(ctx)?.content;
+            dbg!();
             let mut archive = ZipArchive::new(in_file)?;
+            dbg!();
             let mut entry = archive.by_name("graph")?;
+            dbg!();
             let mut buf = vec![];
+            dbg!();
             entry.read_to_end(&mut buf)?;
+            dbg!();
             MaterializedGraph::decode_from_bytes(&buf)?
         };
+        dbg!();
         if overwrite {
+            dbg!();
             let _ignored = data.delete_graph(&path);
         }
+        dbg!();
         data.insert_graph(&path, graph).await?;
+        dbg!();
         Ok(path)
 
         // let full_path = data.construct_graph_full_path(path)?;
