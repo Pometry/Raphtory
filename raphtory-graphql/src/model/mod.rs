@@ -240,42 +240,19 @@ impl Mut {
         overwrite: bool,
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
-        dbg!();
         let graph = {
-            dbg!();
             let in_file = graph.value(ctx)?.content;
-            dbg!();
             let mut archive = ZipArchive::new(in_file)?;
-            dbg!();
             let mut entry = archive.by_name("graph")?;
-            dbg!();
             let mut buf = vec![];
-            dbg!();
             entry.read_to_end(&mut buf)?;
-            dbg!();
             MaterializedGraph::decode_from_bytes(&buf)?
         };
-        dbg!();
         if overwrite {
-            dbg!();
             let _ignored = data.delete_graph(&path);
         }
-        dbg!();
         data.insert_graph(&path, graph).await?;
-        dbg!();
         Ok(path)
-
-        // let full_path = data.construct_graph_full_path(path)?;
-        // if full_path.exists() && !overwrite {
-        //     return Err(GraphError::GraphNameAlreadyExists(path.to_path_buf()).into());
-        // }
-
-        // create_dirs_if_not_present(&full_path)?;
-        // let mut out_file = File::create(&full_path)?;
-        // copy(&mut in_file, &mut out_file)?;
-        // let g = MaterializedGraph::load_cached(&full_path)?;
-        // data.graphs.insert(path.to_path_buf(), g.into());
-        // Ok(path.display().to_string())
     }
 
     /// Send graph bincode as base64 encoded string

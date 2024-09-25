@@ -139,7 +139,7 @@ def test_upload_graph_succeeds_if_graph_already_exists_at_namespace_with_overwri
     g.add_edge(2, "haaroon", "hamza")
     g.add_edge(3, "ben", "haaroon")
     os.makedirs(os.path.join(tmp_work_dir, "shivam"), exist_ok=True)
-    g.save_to_zip(os.path.join(tmp_work_dir, "shivam", "g"))
+    g.save_to_file(os.path.join(tmp_work_dir, "shivam", "g"))
 
     with GraphServer(tmp_work_dir).start():
         client = RaphtoryClient("http://localhost:1736")

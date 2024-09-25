@@ -52,7 +52,8 @@ pub trait StableEncode {
 
     fn encode(&self, path: impl Into<GraphFolder>) -> Result<(), GraphError> {
         let bytes = self.encode_to_vec();
-        path.into().write_graph(&bytes)?;
+        let result = path.into().write_graph(&bytes);
+        result?;
         Ok(())
     }
 }

@@ -95,9 +95,13 @@ impl Data {
         path: &str,
         graph: MaterializedGraph,
     ) -> Result<(), GraphError> {
+        dbg!();
         let folder = ValidGraphFolder::try_from(self.work_dir.clone(), path)?;
+        dbg!();
         let vectors = self.vectorise(graph.clone(), &folder).await;
+        dbg!();
         let graph = GraphWithVectors::new(graph.into(), vectors);
+        dbg!();
         self.insert_graph_with_vectors(path, graph)
     }
 
@@ -113,7 +117,7 @@ impl Data {
         match ExistingGraphFolder::try_from(self.work_dir.clone(), path) {
             Ok(_) => Err(GraphError::GraphNameAlreadyExists(folder.to_error_path())),
             Err(_) => {
-                fs::create_dir_all(path)?;
+                fs::create_dir_all(folder.get_base_path())?;
                 graph.cache(folder)?;
                 self.cache.insert(path.into(), graph);
                 Ok(())
