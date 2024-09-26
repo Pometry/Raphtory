@@ -53,10 +53,10 @@ macro_rules! impl_edge_property_filter_ops {
                 <$base_type as crate::prelude::ExplodedEdgePropertyFilterOps<'static>>::FilteredViewType,
                 GraphError,
             > {
-                crate::prelude::ExplodedEdgePropertyFilterOps::filter_exploded_edges_eq(
+                crate::prelude::ExplodedEdgePropertyFilterOps::filter_exploded_edges(
                     &self.$field,
                     property,
-                    value,
+                    crate::prelude::PropertyFilter::eq(value),
                 )
             }
 
@@ -103,10 +103,10 @@ macro_rules! impl_edge_property_filter_ops {
                 <$base_type as crate::prelude::ExplodedEdgePropertyFilterOps<'static>>::FilteredViewType,
                 GraphError,
             > {
-                crate::prelude::ExplodedEdgePropertyFilterOps::filter_exploded_edges_ne(
+                crate::prelude::ExplodedEdgePropertyFilterOps::filter_exploded_edges(
                     &self.$field,
                     property,
-                    value,
+                    crate::prelude::PropertyFilter::ne(value),
                 )
             }
 
@@ -155,10 +155,10 @@ macro_rules! impl_edge_property_filter_ops {
                 <$base_type as crate::prelude::ExplodedEdgePropertyFilterOps<'static>>::FilteredViewType,
                 GraphError,
             > {
-                crate::prelude::ExplodedEdgePropertyFilterOps::filter_exploded_edges_lt(
+                crate::prelude::ExplodedEdgePropertyFilterOps::filter_exploded_edges(
                     &self.$field,
                     property,
-                    value,
+                    crate::prelude::PropertyFilter::lt(value),
                 )
             }
 
@@ -207,10 +207,10 @@ macro_rules! impl_edge_property_filter_ops {
                 <$base_type as crate::prelude::ExplodedEdgePropertyFilterOps<'static>>::FilteredViewType,
                 GraphError,
             > {
-                crate::prelude::ExplodedEdgePropertyFilterOps::filter_exploded_edges_le(
+                crate::prelude::ExplodedEdgePropertyFilterOps::filter_exploded_edges(
                     &self.$field,
                     property,
-                    value,
+                    crate::prelude::PropertyFilter::le(value),
                 )
             }
 
@@ -259,10 +259,10 @@ macro_rules! impl_edge_property_filter_ops {
                 <$base_type as crate::prelude::ExplodedEdgePropertyFilterOps<'static>>::FilteredViewType,
                 GraphError,
             > {
-                crate::prelude::ExplodedEdgePropertyFilterOps::filter_exploded_edges_gt(
+                crate::prelude::ExplodedEdgePropertyFilterOps::filter_exploded_edges(
                     &self.$field,
                     property,
-                    value,
+                    crate::prelude::PropertyFilter::gt(value),
                 )
             }
 
@@ -311,10 +311,10 @@ macro_rules! impl_edge_property_filter_ops {
                 <$base_type as crate::prelude::ExplodedEdgePropertyFilterOps<'static>>::FilteredViewType,
                 GraphError,
             > {
-                crate::prelude::ExplodedEdgePropertyFilterOps::filter_exploded_edges_ge(
+                crate::prelude::ExplodedEdgePropertyFilterOps::filter_exploded_edges(
                     &self.$field,
                     property,
-                    value,
+                    crate::prelude::PropertyFilter::ge(value),
                 )
             }
 
@@ -351,9 +351,9 @@ macro_rules! impl_edge_property_filter_ops {
                 &self,
                 property: &str,
                 set: std::collections::HashSet<Prop>,
-            ) -> <$base_type as crate::prelude::ExplodedEdgePropertyFilterOps<'static>>::FilteredViewType
+            ) -> Result<<$base_type as crate::prelude::ExplodedEdgePropertyFilterOps<'static>>::FilteredViewType, GraphError>
             {
-                crate::prelude::ExplodedEdgePropertyFilterOps::filter_exploded_edges_in(&self.$field, property, set)
+                crate::prelude::ExplodedEdgePropertyFilterOps::filter_exploded_edges(&self.$field, property, crate::prelude::PropertyFilter::any(set))
             }
 
             /// Return a filtered view that only includes edges with a property value not in a set
@@ -393,12 +393,12 @@ macro_rules! impl_edge_property_filter_ops {
                 &self,
                 property: &str,
                 set: std::collections::HashSet<Prop>,
-            ) -> <$base_type as crate::prelude::ExplodedEdgePropertyFilterOps<'static>>::FilteredViewType
+            ) -> Result<<$base_type as crate::prelude::ExplodedEdgePropertyFilterOps<'static>>::FilteredViewType, GraphError>
             {
-                crate::prelude::ExplodedEdgePropertyFilterOps::filter_exploded_edges_not_in(
+                crate::prelude::ExplodedEdgePropertyFilterOps::filter_exploded_edges(
                     &self.$field,
                     property,
-                    set,
+                    crate::prelude::PropertyFilter::not_any(set),
                 )
             }
 
@@ -431,9 +431,9 @@ macro_rules! impl_edge_property_filter_ops {
             fn filter_exploded_edges_has(
                 &self,
                 property: &str,
-            ) -> <$base_type as crate::prelude::ExplodedEdgePropertyFilterOps<'static>>::FilteredViewType
+            ) -> Result<<$base_type as crate::prelude::ExplodedEdgePropertyFilterOps<'static>>::FilteredViewType, GraphError>
             {
-                crate::prelude::ExplodedEdgePropertyFilterOps::filter_exploded_edges_has(&self.$field, property)
+                crate::prelude::ExplodedEdgePropertyFilterOps::filter_exploded_edges(&self.$field, property, crate::prelude::PropertyFilter::is_some())
             }
 
             /// Return a filtered view that only includes edges that do not have a given property
@@ -465,9 +465,9 @@ macro_rules! impl_edge_property_filter_ops {
             fn filter_exploded_edges_has_not(
                 &self,
                 property: &str,
-            ) -> <$base_type as crate::prelude::ExplodedEdgePropertyFilterOps<'static>>::FilteredViewType
+            ) -> Result<<$base_type as crate::prelude::ExplodedEdgePropertyFilterOps<'static>>::FilteredViewType, GraphError>
             {
-                crate::prelude::ExplodedEdgePropertyFilterOps::filter_exploded_edges_has_not(&self.$field, property)
+                crate::prelude::ExplodedEdgePropertyFilterOps::filter_exploded_edges(&self.$field, property, crate::prelude::PropertyFilter::is_none())
             }
         }
     };
