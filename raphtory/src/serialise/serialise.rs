@@ -31,7 +31,7 @@ use raphtory_api::core::{
     Direction,
 };
 use rayon::prelude::*;
-use std::{fs::File, io::Write, iter, path::Path, sync::Arc};
+use std::{iter, sync::Arc};
 
 use super::GraphFolder;
 

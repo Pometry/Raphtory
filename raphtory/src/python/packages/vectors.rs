@@ -29,7 +29,6 @@ use pyo3::{
     prelude::*,
     types::{PyFunction, PyList},
 };
-use std::path::PathBuf;
 
 pub type PyWindow = Option<(PyTime, PyTime)>;
 

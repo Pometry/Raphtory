@@ -21,11 +21,10 @@ use raphtory_api::core::{
 };
 use std::{
     fmt::Debug,
-    fs::{File, OpenOptions},
+    fs::File,
     io::{Seek, SeekFrom, Write},
     mem,
     ops::DerefMut,
-    path::Path,
     sync::Arc,
 };
 use tracing::instrument;

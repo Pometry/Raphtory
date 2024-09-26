@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     fs::File,
@@ -6,10 +7,6 @@ use std::{
     path::Path,
     sync::Arc,
 };
-
-use serde::{Deserialize, Serialize};
-
-use bincode::Error;
 
 use crate::db::api::view::StaticGraphViewOps;
 
@@ -57,7 +54,7 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
     pub fn write_to_path(&self, path: &Path) {
         let storage = VectorStorage {
             template: self.template.clone(),
-            graph_documents: self.graph_documents.deref().clone(),
+            graph_documents: self.graph_documents.read().clone(),
             node_documents: self.node_documents.read().clone(),
             edge_documents: self.edge_documents.read().clone(),
         };

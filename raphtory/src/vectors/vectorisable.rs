@@ -11,7 +11,7 @@ use crate::{
 use async_trait::async_trait;
 use itertools::Itertools;
 use parking_lot::RwLock;
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 use tracing::info;
 
 const CHUNK_SIZE: usize = 1000;
@@ -57,7 +57,7 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
         template: DocumentTemplate,
         verbose: bool,
     ) -> VectorisedGraph<G> {
-        let graph_docs = indexed_docs_for_graph(self, &template).into_iter();
+        let graph_docs = indexed_docs_for_graph(self, &template);
 
         let nodes = self.nodes().collect().into_iter();
         let nodes_docs = nodes.flat_map(|node| indexed_docs_for_node(node, &template));
@@ -89,11 +89,21 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
             template,
             embedding.into(),
             cache.into(),
-            graph_refs.into(),
+            RwLock::new(graph_refs).into(),
             RwLock::new(node_refs).into(),
             RwLock::new(edge_refs).into(),
         )
     }
+}
+
+pub(crate) async fn vectorise_graph<G: StaticGraphViewOps>(
+    graph: &G,
+    template: &DocumentTemplate,
+    embedding: &Arc<dyn EmbeddingFunction>,
+    cache_storage: &Option<EmbeddingCache>,
+) -> Vec<DocumentRef> {
+    let docs = indexed_docs_for_graph(graph, template);
+    compute_entity_embeddings(docs, embedding.as_ref(), &cache_storage).await
 }
 
 pub(crate) async fn vectorise_node<G: StaticGraphViewOps>(
@@ -119,7 +129,7 @@ pub(crate) async fn vectorise_edge<G: StaticGraphViewOps>(
 fn indexed_docs_for_graph<'a, G: StaticGraphViewOps>(
     graph: &'a G,
     template: &DocumentTemplate,
-) -> Vec<IndexedDocumentInput> {
+) -> impl Iterator<Item = IndexedDocumentInput> + Send + 'a {
     template
         .graph(graph)
         .enumerate()
@@ -129,7 +139,6 @@ fn indexed_docs_for_graph<'a, G: StaticGraphViewOps>(
             index,
             life: doc.life,
         })
-        .collect()
 }
 
 fn indexed_docs_for_node<G: StaticGraphViewOps>(

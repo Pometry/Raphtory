@@ -1,12 +1,9 @@
+use itertools::{chain, Itertools};
 use std::{
     collections::{HashMap, HashSet},
     ops::Deref,
     usize,
 };
-
-use itertools::{chain, Itertools};
-use lock_api::RwLockReadGuard;
-use parking_lot::RawRwLock;
 
 use crate::{
     core::entities::nodes::node_ref::AsNodeRef,

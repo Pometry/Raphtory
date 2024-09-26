@@ -20,7 +20,7 @@ use std::{collections::HashMap, ops::Deref, path::PathBuf, sync::Arc};
 use super::{
     similarity_search_utils::score_document_groups_by_highest,
     vector_selection::VectorSelection,
-    vectorisable::{vectorise_edge, vectorise_node},
+    vectorisable::{vectorise_edge, vectorise_graph, vectorise_node},
 };
 
 pub struct VectorisedGraph<G: StaticGraphViewOps> {
@@ -29,7 +29,7 @@ pub struct VectorisedGraph<G: StaticGraphViewOps> {
     pub(crate) embedding: Arc<dyn EmbeddingFunction>,
     pub(crate) cache_storage: Arc<Option<EmbeddingCache>>,
     // it is not the end of the world but we are storing the entity id twice
-    pub(crate) graph_documents: Arc<Vec<DocumentRef>>,
+    pub(crate) graph_documents: Arc<RwLock<Vec<DocumentRef>>>,
     pub(crate) node_documents: Arc<RwLock<HashMap<EntityId, Vec<DocumentRef>>>>, // TODO: replace with FxHashMap
     pub(crate) edge_documents: Arc<RwLock<HashMap<EntityId, Vec<DocumentRef>>>>,
     pub(crate) empty_vec: Vec<DocumentRef>,
@@ -73,7 +73,7 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         template: DocumentTemplate,
         embedding: Arc<dyn EmbeddingFunction>,
         cache_storage: Arc<Option<EmbeddingCache>>,
-        graph_documents: Arc<Vec<DocumentRef>>,
+        graph_documents: Arc<RwLock<Vec<DocumentRef>>>,
         node_documents: Arc<RwLock<HashMap<EntityId, Vec<DocumentRef>>>>,
         edge_documents: Arc<RwLock<HashMap<EntityId, Vec<DocumentRef>>>>,
     ) -> Self {
@@ -113,8 +113,19 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
                 self.cache_storage.as_ref(),
             )
             .await;
-            self.node_documents.write().insert(entity_id, refs);
+            self.edge_documents.write().insert(entity_id, refs);
         }
+    }
+
+    pub async fn update_graph(&self) {
+        let refs = vectorise_graph(
+            &self.source_graph,
+            &self.template,
+            &self.embedding,
+            self.cache_storage.as_ref(),
+        )
+        .await;
+        *self.graph_documents.write() = refs;
     }
 
     /// Save the embeddings present in this graph to `file` so they can be further used in a call to `vectorise`

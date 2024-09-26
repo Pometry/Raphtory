@@ -260,6 +260,32 @@ impl PyGraphServer {
         Ok(server.with_vectorised_graphs(graph_names, template))
     }
 
+    /// Register a function in the GraphQL schema for document search among all the graphs.
+    ///
+    /// The function needs to take a `GraphqlGraphs` object as the first argument followed by a
+    /// pre-defined set of keyword arguments. Supported types are `str`, `int`, and `float`.
+    /// They have to be specified using the `input` parameter as a dict where the keys are the
+    /// names of the parameters and the values are the types, expressed as strings.
+    ///
+    /// Arguments:
+    ///   name (str): the name of the function in the GraphQL schema.
+    ///   input (dict):  the keyword arguments expected by the function.
+    ///   function (Function): the function to run.
+    ///
+    /// Returns:
+    ///    GraphServer: A new server object with the function registered
+    pub fn with_global_search_function(
+        slf: PyRefMut<Self>,
+        name: String,
+        input: HashMap<String, String>,
+        function: &PyFunction,
+    ) -> PyResult<GraphServer> {
+        let adapter = |entry_point: &GlobalPlugins, py: Python| {
+            PyGlobalPlugins(entry_point.clone()).into_py(py)
+        };
+        PyGraphServer::with_generic_document_search_function(slf, name, input, function, adapter)
+    }
+
     /// Start the server and return a handle to it.
     ///
     /// Arguments:

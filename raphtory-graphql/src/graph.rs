@@ -45,6 +45,12 @@ impl GraphWithVectors {
         }
     }
 
+    pub(crate) async fn update_graph_embeddings(&self) {
+        if let Some(vectors) = &self.vectors {
+            vectors.update_graph().await
+        }
+    }
+
     pub(crate) async fn update_node_embeddings<T: AsNodeRef>(&self, node: T) {
         if let Some(vectors) = &self.vectors {
             vectors.update_node(node).await
@@ -84,16 +90,11 @@ impl GraphWithVectors {
     ) -> Result<Self, GraphError> {
         let graph_path = &folder.get_graph_path();
         let graph = if graph_path.is_dir() {
-            if is_disk_graph_dir(folder) {
-                get_disk_graph_from_path(folder)?.ok_or(GraphError::DiskGraphNotFound)?
-            } else {
-                Err(PathIsDirectory(graph_path.clone()))?
-            }
+            get_disk_graph_from_path(folder)?
         } else {
             MaterializedGraph::load_cached(folder.clone())?
         };
 
-        // TODO: use EmbeddingConf here
         let vectors = VectorisedGraph::read_from_path(
             &folder.get_vectors_path(),
             graph.clone(),
@@ -110,35 +111,18 @@ impl GraphWithVectors {
     }
 }
 
-// TODO: instead of defining is_disk_graph_dir, if it's a dir always call to
-// get_disk_graph_from_path and if there is no disk graph inside simply return
-// Err(PathIsDirectory(...))!
-
-/// Check if the directory contains files specific to disk_graph graphs
-fn is_disk_graph_dir(path: &ExistingGraphFolder) -> bool {
-    let files = fs::read_dir(path.get_graph_path()).unwrap();
-    files.into_iter().any(|file| {
-        let filename = file.unwrap().file_name().into_string().unwrap();
-        filename.ends_with(".ipc")
-    })
-}
-
 #[cfg(feature = "storage")]
-fn get_disk_graph_from_path(
-    path: &ExistingGraphFolder,
-) -> Result<Option<MaterializedGraph>, GraphError> {
+fn get_disk_graph_from_path(path: &ExistingGraphFolder) -> Result<MaterializedGraph, GraphError> {
     let disk_graph = DiskGraphStorage::load_from_dir(&path.get_graph_path())
         .map_err(|e| GraphError::LoadFailure(e.to_string()))?;
     let graph: MaterializedGraph = disk_graph.into_graph().into(); // TODO: We currently have no way to identify disk graphs as MaterializedGraphs
     println!("Disk Graph loaded = {}", path.get_original_path().display());
-    Ok(Some(graph))
+    Ok(graph)
 }
 
 #[cfg(not(feature = "storage"))]
-fn get_disk_graph_from_path(
-    _path: &ExistingGraphFolder,
-) -> Result<Option<MaterializedGraph>, GraphError> {
-    Ok(None)
+fn get_disk_graph_from_path(path: &ExistingGraphFolder) -> Result<MaterializedGraph, GraphError> {
+    Err(GraphError::GraphNotFound(path.to_error_path()))
 }
 
 impl Base for GraphWithVectors {
