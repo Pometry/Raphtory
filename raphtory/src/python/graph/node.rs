@@ -20,13 +20,19 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             path::{PathFromGraph, PathFromNode},
-            views::deletion_graph::PersistentGraph,
+            views::{deletion_graph::PersistentGraph, property_filter::internal::*},
         },
     },
     prelude::Graph,
     python::{
-        graph::properties::{PyNestedPropsIterable, PyPropsList},
-        types::{repr::StructReprBuilder, wrappers::iterables::*},
+        graph::{
+            node::internal::OneHopFilter,
+            properties::{PyNestedPropsIterable, PyPropsList},
+        },
+        types::{
+            repr::StructReprBuilder,
+            wrappers::{iterables::*, prop::PyPropertyFilter},
+        },
         utils::PyTime,
     },
     *,

@@ -18,12 +18,20 @@ macro_rules! impl_edge_property_filter_ops {
             ///
             /// Returns:
             #[doc=concat!("    ", $name, ": The filtered view")]
-            fn filter_edges(&self, filter: &$crate::python::types::wrappers::prop::PyPropertyFilter) -> Result<<$base_type as crate::prelude::EdgePropertyFilterOps<'static>>::FilteredViewType,
-                GraphError,> {
-                let $crate::python::types::wrappers::prop::PyPropertyFilter {name, filter} = filter;
-                $crate::prelude::EdgePropertyFilterOps::filter_edges(&self.$field, name, filter.clone())
+            fn filter_edges(
+                &self,
+                filter: $crate::python::types::wrappers::prop::PyPropertyFilter,
+            ) -> Result<
+                <$base_type as OneHopFilter<'static>>::Filtered<
+                    <PyPropertyFilter as InternalEdgeFilterOps>::EdgeFiltered<
+                        'static,
+                        <$base_type as OneHopFilter<'static>>::FilteredGraph,
+                    >,
+                >,
+                GraphError,
+            > {
+                self.$field.clone().filter_edges(filter)
             }
-
 
             /// Return a filtered view that only includes exploded edges that satisfy the filter
             ///
@@ -35,17 +43,17 @@ macro_rules! impl_edge_property_filter_ops {
             #[doc=concat!("    ", $name, ": The filtered view")]
             fn filter_exploded_edges(
                 &self,
-                filter: &$crate::python::types::wrappers::prop::PyPropertyFilter,
+                filter: $crate::python::types::wrappers::prop::PyPropertyFilter,
             ) -> Result<
-                <$base_type as crate::prelude::ExplodedEdgePropertyFilterOps<'static>>::FilteredViewType,
+                <$base_type as OneHopFilter<'static>>::Filtered<
+                    <PyPropertyFilter as InternalExplodedEdgeFilterOps>::ExplodedEdgeFiltered<
+                        'static,
+                        <$base_type as OneHopFilter<'static>>::FilteredGraph,
+                    >,
+                >,
                 GraphError,
             > {
-                let $crate::python::types::wrappers::prop::PyPropertyFilter {name, filter} = filter;
-                crate::prelude::ExplodedEdgePropertyFilterOps::filter_exploded_edges(
-                    &self.$field,
-                    name,
-                    filter.clone(),
-                )
+                self.$field.filter_exploded_edges(filter)
             }
         }
     };

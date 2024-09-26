@@ -1,60 +1,27 @@
 use crate::{
-    core::{entities::properties::props::Meta, utils::errors::GraphError, PropType},
+    core::utils::errors::GraphError,
     db::{
-        api::view::internal::{CoreGraphOps, OneHopFilter},
-        graph::views::property_filter::{
-            exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph, PropertyFilter,
-        },
+        api::view::internal::OneHopFilter,
+        graph::views::property_filter::internal::InternalExplodedEdgeFilterOps,
     },
 };
 
-pub trait ExplodedEdgePropertyFilterOps<'graph> {
-    type FilteredViewType;
-
-    fn filter_exploded_edges(
+pub trait ExplodedEdgePropertyFilterOps<'graph>: OneHopFilter<'graph> {
+    fn filter_exploded_edges<F: InternalExplodedEdgeFilterOps>(
         &self,
-        property: &str,
-        filter: PropertyFilter,
-    ) -> Result<Self::FilteredViewType, GraphError>;
-}
-
-fn get_id_and_check_type(
-    meta: &Meta,
-    property: &str,
-    dtype: PropType,
-) -> Result<Option<usize>, GraphError> {
-    let t_prop_id = meta
-        .temporal_prop_meta()
-        .get_and_validate(property, dtype)?;
-    Ok(t_prop_id)
-}
-
-fn get_id(meta: &Meta, property: &str) -> Option<usize> {
-    let t_prop_id = meta.temporal_prop_meta().get_id(property);
-    t_prop_id
+        filter: F,
+    ) -> Result<Self::Filtered<F::ExplodedEdgeFiltered<'graph, Self::FilteredGraph>>, GraphError>;
 }
 
 impl<'graph, G: OneHopFilter<'graph> + 'graph> ExplodedEdgePropertyFilterOps<'graph> for G {
-    type FilteredViewType = G::Filtered<ExplodedEdgePropertyFilteredGraph<G::FilteredGraph>>;
-
-    fn filter_exploded_edges(
+    fn filter_exploded_edges<F: InternalExplodedEdgeFilterOps>(
         &self,
-        property: &str,
-        filter: PropertyFilter,
-    ) -> Result<Self::FilteredViewType, GraphError> {
-        let t_prop_id = match &filter {
-            PropertyFilter::ByValue(filter) => {
-                get_id_and_check_type(self.current_filter().edge_meta(), property, filter.dtype())?
-            }
-            _ => get_id(self.current_filter().edge_meta(), property),
-        };
-        Ok(
-            self.one_hop_filtered(ExplodedEdgePropertyFilteredGraph::new(
-                self.current_filter().clone(),
-                t_prop_id,
-                filter,
-            )),
-        )
+        filter: F,
+    ) -> Result<Self::Filtered<F::ExplodedEdgeFiltered<'graph, Self::FilteredGraph>>, GraphError>
+    {
+        let graph = filter.create_exploded_edge_filter(self.current_filter().clone())?;
+
+        Ok(self.one_hop_filtered(graph))
     }
 }
 
@@ -104,7 +71,7 @@ mod test {
             edges in build_edge_list(100, 100), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter_exploded_edges("int_prop", PropertyFilter::gt(v)).unwrap();
+            let filtered = g.filter_exploded_edges(PropertyFilter::gt("int_prop", v)).unwrap();
             let expected_filtered_g = build_filtered_graph(&edges, |vv| vv > v);
             assert_graph_equal(&filtered, &expected_filtered_g);
         })
@@ -115,7 +82,7 @@ mod test {
         let g = Graph::new();
         g.add_edge(0, 1, 2, [("int_prop", 0i64)], None).unwrap();
         let filtered = g
-            .filter_exploded_edges("int_prop", PropertyFilter::gt(1i64))
+            .filter_exploded_edges(PropertyFilter::gt("int_prop", 1i64))
             .unwrap();
         let edges = filtered
             .edges()
@@ -137,7 +104,7 @@ mod test {
             edges in build_edge_list(100, 100), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter_exploded_edges("int_prop", PropertyFilter::ge(v)).unwrap();
+            let filtered = g.filter_exploded_edges(PropertyFilter::ge("int_prop", v)).unwrap();
             let expected_filtered_g = build_filtered_graph(&edges, |vv| vv >= v);
             assert_graph_equal(&filtered, &expected_filtered_g);
         })
@@ -149,7 +116,7 @@ mod test {
             edges in build_edge_list(100, 100), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter_exploded_edges("int_prop", PropertyFilter::lt(v)).unwrap();
+            let filtered = g.filter_exploded_edges( PropertyFilter::lt("int_prop", v)).unwrap();
             let expected_filtered_g = build_filtered_graph(&edges, |vv| vv < v);
             assert_graph_equal(&filtered, &expected_filtered_g);
         })
@@ -161,7 +128,7 @@ mod test {
             edges in build_edge_list(100, 100), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter_exploded_edges("int_prop", PropertyFilter::le(v)).unwrap();
+            let filtered = g.filter_exploded_edges(PropertyFilter::le("int_prop", v)).unwrap();
             let expected_filtered_g = build_filtered_graph(&edges, |vv| vv <= v);
             assert_graph_equal(&filtered, &expected_filtered_g);
         })
@@ -173,7 +140,7 @@ mod test {
             edges in build_edge_list(100, 100), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter_exploded_edges("int_prop", PropertyFilter::eq(v)).unwrap();
+            let filtered = g.filter_exploded_edges(PropertyFilter::eq("int_prop", v)).unwrap();
             let expected_filtered_g = build_filtered_graph(&edges, |vv| vv == v);
             assert_graph_equal(&filtered, &expected_filtered_g);
         })
@@ -185,7 +152,7 @@ mod test {
             edges in build_edge_list(100, 100), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter_exploded_edges("int_prop", PropertyFilter::ne(v)).unwrap();
+            let filtered = g.filter_exploded_edges( PropertyFilter::ne("int_prop", v)).unwrap();
             let expected_filtered_g = build_filtered_graph(&edges, |vv| vv != v);
             assert_graph_equal(&filtered, &expected_filtered_g);
         })

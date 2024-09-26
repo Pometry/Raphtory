@@ -3,82 +3,120 @@ use std::{collections::HashSet, sync::Arc};
 
 pub mod edge_property_filter;
 pub mod exploded_edge_property_filter;
+pub(crate) mod internal;
 
 #[derive(Debug, Clone)]
-pub struct PropValueFilter {
+pub(crate) struct PropValueCmp {
     value: Prop,
     filter: fn(&Prop, &Prop) -> bool,
 }
 
 #[derive(Debug, Clone)]
-pub enum PropertyFilter {
-    ByValue(PropValueFilter),
+pub(crate) enum PropertyValueFilter {
+    ByValue(PropValueCmp),
     Has,
     HasNot,
     In(Arc<HashSet<Prop>>),
     NotIn(Arc<HashSet<Prop>>),
 }
 
+#[derive(Debug, Clone)]
+pub struct PropertyFilter {
+    name: String,
+    filter: PropertyValueFilter,
+}
+
 impl PropertyFilter {
-    pub fn eq(value: impl Into<Prop>) -> Self {
-        Self::ByValue(PropValueFilter::new(value.into(), |left, right| {
-            left == right
-        }))
+    fn new(name: impl Into<String>, filter: PropertyValueFilter) -> Self {
+        Self {
+            name: name.into(),
+            filter,
+        }
+    }
+    pub fn eq(name: impl Into<String>, value: impl Into<Prop>) -> Self {
+        Self::new(
+            name,
+            PropertyValueFilter::ByValue(PropValueCmp::new(value.into(), |left, right| {
+                left == right
+            })),
+        )
     }
 
-    pub fn ne(value: impl Into<Prop>) -> Self {
-        Self::ByValue(PropValueFilter::new(value.into(), |left, right| {
-            left != right
-        }))
+    pub fn ne(name: impl Into<String>, value: impl Into<Prop>) -> Self {
+        Self::new(
+            name,
+            PropertyValueFilter::ByValue(PropValueCmp::new(value.into(), |left, right| {
+                left != right
+            })),
+        )
     }
 
-    pub fn le(value: impl Into<Prop>) -> Self {
-        Self::ByValue(PropValueFilter::new(value.into(), |left, right| {
-            left <= right
-        }))
+    pub fn le(name: impl Into<String>, value: impl Into<Prop>) -> Self {
+        let filter =
+            PropertyValueFilter::ByValue(PropValueCmp::new(value.into(), |left, right| {
+                left <= right
+            }));
+        Self::new(name, filter)
     }
 
-    pub fn ge(value: impl Into<Prop>) -> Self {
-        Self::ByValue(PropValueFilter::new(value.into(), |left, right| {
-            left >= right
-        }))
+    pub fn ge(name: impl Into<String>, value: impl Into<Prop>) -> Self {
+        let filter =
+            PropertyValueFilter::ByValue(PropValueCmp::new(value.into(), |left, right| {
+                left >= right
+            }));
+        Self::new(name, filter)
     }
 
-    pub fn lt(value: impl Into<Prop>) -> Self {
-        Self::ByValue(PropValueFilter::new(value.into(), |left, right| {
-            left < right
-        }))
+    pub fn lt(name: impl Into<String>, value: impl Into<Prop>) -> Self {
+        let filter =
+            PropertyValueFilter::ByValue(PropValueCmp::new(value.into(), |left, right| {
+                left < right
+            }));
+        Self::new(name, filter)
     }
 
-    pub fn gt(value: impl Into<Prop>) -> Self {
-        Self::ByValue(PropValueFilter::new(value.into(), |left, right| {
-            left > right
-        }))
+    pub fn gt(name: impl Into<String>, value: impl Into<Prop>) -> Self {
+        let filter =
+            PropertyValueFilter::ByValue(PropValueCmp::new(value.into(), |left, right| {
+                left > right
+            }));
+        Self::new(name, filter)
     }
 
-    pub fn any(values: impl IntoIterator<Item = impl Into<Prop>>) -> Self {
-        Self::In(Arc::new(values.into_iter().map(|v| v.into()).collect()))
+    pub fn any(name: impl Into<String>, values: impl IntoIterator<Item = impl Into<Prop>>) -> Self {
+        let filter =
+            PropertyValueFilter::In(Arc::new(values.into_iter().map(|v| v.into()).collect()));
+        Self::new(name, filter)
     }
 
-    pub fn not_any(values: impl IntoIterator<Item = impl Into<Prop>>) -> Self {
-        Self::NotIn(Arc::new(values.into_iter().map(|v| v.into()).collect()))
+    pub fn not_any(
+        name: impl Into<String>,
+        values: impl IntoIterator<Item = impl Into<Prop>>,
+    ) -> Self {
+        let filter =
+            PropertyValueFilter::NotIn(Arc::new(values.into_iter().map(|v| v.into()).collect()));
+        Self::new(name, filter)
     }
 
-    pub fn is_none() -> Self {
-        Self::HasNot
+    pub fn is_none(name: impl Into<String>) -> Self {
+        let filter = PropertyValueFilter::HasNot;
+        Self::new(name, filter)
     }
 
-    pub fn is_some() -> Self {
-        Self::Has
+    pub fn is_some(name: impl Into<String>) -> Self {
+        let filter = PropertyValueFilter::Has;
+        Self::new(name, filter)
     }
+}
 
+impl PropertyValueFilter {
     fn filter(&self, value: Option<&Prop>) -> bool {
         match self {
-            PropertyFilter::ByValue(filter) => value.filter(|&v| filter.filter(v)).is_some(),
-            PropertyFilter::Has => value.is_some(),
-            PropertyFilter::HasNot => value.is_none(),
-            PropertyFilter::In(set) => value.filter(|&v| set.contains(v)).is_some(),
-            PropertyFilter::NotIn(set) => match value {
+            PropertyValueFilter::ByValue(filter) => value.filter(|&v| filter.filter(v)).is_some(),
+            PropertyValueFilter::Has => value.is_some(),
+            PropertyValueFilter::HasNot => value.is_none(),
+            PropertyValueFilter::In(set) => value.filter(|&v| set.contains(v)).is_some(),
+            PropertyValueFilter::NotIn(set) => match value {
                 Some(value) => !set.contains(value),
                 None => true,
             },
@@ -86,13 +124,13 @@ impl PropertyFilter {
     }
 }
 
-impl From<PropValueFilter> for PropertyFilter {
-    fn from(value: PropValueFilter) -> Self {
+impl From<PropValueCmp> for PropertyValueFilter {
+    fn from(value: PropValueCmp) -> Self {
         Self::ByValue(value)
     }
 }
 
-impl PropValueFilter {
+impl PropValueCmp {
     /// Construct a property filter
     ///
     /// the first argument passed to `filter` is the property value from the node or edge, the second argument is `value`

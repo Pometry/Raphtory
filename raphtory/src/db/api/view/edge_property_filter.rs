@@ -1,62 +1,24 @@
 use crate::{
-    core::{entities::properties::props::Meta, utils::errors::GraphError, PropType},
+    core::utils::errors::GraphError,
     db::{
-        api::view::internal::{CoreGraphOps, OneHopFilter},
-        graph::views::property_filter::{
-            edge_property_filter::EdgePropertyFilteredGraph, PropertyFilter,
-        },
+        api::view::internal::OneHopFilter,
+        graph::views::property_filter::internal::InternalEdgeFilterOps,
     },
 };
 
-pub trait EdgePropertyFilterOps<'graph> {
-    type FilteredViewType;
-
-    fn filter_edges(
+pub trait EdgePropertyFilterOps<'graph>: OneHopFilter<'graph> {
+    fn filter_edges<F: InternalEdgeFilterOps>(
         &self,
-        property: &str,
-        filter: PropertyFilter,
-    ) -> Result<Self::FilteredViewType, GraphError>;
-}
-
-fn get_ids_and_check_type(
-    meta: &Meta,
-    property: &str,
-    dtype: PropType,
-) -> Result<(Option<usize>, Option<usize>), GraphError> {
-    let t_prop_id = meta
-        .temporal_prop_meta()
-        .get_and_validate(property, dtype)?;
-    let c_prop_id = meta.const_prop_meta().get_and_validate(property, dtype)?;
-    Ok((t_prop_id, c_prop_id))
-}
-
-fn get_ids(meta: &Meta, property: &str) -> (Option<usize>, Option<usize>) {
-    let t_prop_id = meta.temporal_prop_meta().get_id(property);
-    let c_prop_id = meta.const_prop_meta().get_id(property);
-    (t_prop_id, c_prop_id)
+        filter: F,
+    ) -> Result<Self::Filtered<F::EdgeFiltered<'graph, Self::FilteredGraph>>, GraphError>;
 }
 
 impl<'graph, G: OneHopFilter<'graph>> EdgePropertyFilterOps<'graph> for G {
-    type FilteredViewType = G::Filtered<EdgePropertyFilteredGraph<G::FilteredGraph>>;
-
-    fn filter_edges(
+    fn filter_edges<F: InternalEdgeFilterOps>(
         &self,
-        property: &str,
-        filter: PropertyFilter,
-    ) -> Result<Self::FilteredViewType, GraphError> {
-        let (t_prop_id, c_prop_id) = match &filter {
-            PropertyFilter::ByValue(filter) => {
-                get_ids_and_check_type(self.current_filter().edge_meta(), property, filter.dtype())?
-            }
-            _ => get_ids(self.current_filter().edge_meta(), property),
-        };
-
-        Ok(self.one_hop_filtered(EdgePropertyFilteredGraph::new(
-            self.current_filter().clone(),
-            t_prop_id,
-            c_prop_id,
-            filter,
-        )))
+        filter: F,
+    ) -> Result<Self::Filtered<F::EdgeFiltered<'graph, Self::FilteredGraph>>, GraphError> {
+        Ok(self.one_hop_filtered(filter.create_edge_filter(self.current_filter().clone())?))
     }
 }
 
@@ -81,7 +43,7 @@ mod test {
         let n1 = g
             .node(1)
             .unwrap()
-            .filter_edges("test", PropertyFilter::eq(1i64))
+            .filter_edges(PropertyFilter::eq("test", 1i64))
             .unwrap();
         assert_eq!(
             n1.edges().id().collect_vec(),
@@ -90,7 +52,7 @@ mod test {
         let n2 = g
             .node(2)
             .unwrap()
-            .filter_edges("test", PropertyFilter::gt(1i64))
+            .filter_edges(PropertyFilter::gt("test", 1i64))
             .unwrap();
         assert_eq!(
             n2.edges().id().collect_vec(),
@@ -104,12 +66,12 @@ mod test {
         g.add_edge(0, 1, 2, [("test", 1i64)], None).unwrap();
         g.add_edge(1, 2, 3, [("test", 2i64)], None).unwrap();
 
-        let gf = g.filter_edges("test", PropertyFilter::eq(1i64)).unwrap();
+        let gf = g.filter_edges(PropertyFilter::eq("test", 1i64)).unwrap();
         assert_eq!(
             gf.edges().id().collect_vec(),
             vec![(GID::U64(1), GID::U64(2))]
         );
-        let gf = g.filter_edges("test", PropertyFilter::gt(1i64)).unwrap();
+        let gf = g.filter_edges(PropertyFilter::gt("test", 1i64)).unwrap();
         assert_eq!(
             gf.edges().id().collect_vec(),
             vec![(GID::U64(2), GID::U64(3))]
@@ -122,7 +84,7 @@ mod test {
             edges in build_edge_list(100, 100), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter_edges("int_prop", PropertyFilter::gt(v)).unwrap();
+            let filtered = g.filter_edges(PropertyFilter::gt("int_prop", v)).unwrap();
             for e in g.edges().iter() {
                 if e.properties().get("int_prop").unwrap_i64() > v {
                     assert!(filtered.has_edge(e.src(), e.dst()));
@@ -139,7 +101,7 @@ mod test {
             edges in build_edge_list(100, 100), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter_edges("int_prop", PropertyFilter::ge(v)).unwrap();
+            let filtered = g.filter_edges( PropertyFilter::ge("int_prop", v)).unwrap();
             for e in g.edges().iter() {
                 if e.properties().get("int_prop").unwrap_i64() >= v {
                     assert!(filtered.has_edge(e.src(), e.dst()));
@@ -156,7 +118,7 @@ mod test {
             edges in build_edge_list(100, 100), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter_edges("int_prop", PropertyFilter::lt(v)).unwrap();
+            let filtered = g.filter_edges( PropertyFilter::lt("int_prop", v)).unwrap();
             for e in g.edges().iter() {
                 if e.properties().get("int_prop").unwrap_i64() < v {
                     assert!(filtered.has_edge(e.src(), e.dst()));
@@ -173,7 +135,7 @@ mod test {
             edges in build_edge_list(100, 100), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter_edges("int_prop", PropertyFilter::le(v)).unwrap();
+            let filtered = g.filter_edges(PropertyFilter::le("int_prop", v)).unwrap();
             for e in g.edges().iter() {
                 if e.properties().get("int_prop").unwrap_i64() <= v {
                     assert!(filtered.has_edge(e.src(), e.dst()));
@@ -190,7 +152,7 @@ mod test {
             edges in build_edge_list(100, 100), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter_edges("int_prop", PropertyFilter::eq(v)).unwrap();
+            let filtered = g.filter_edges(PropertyFilter::eq("int_prop", v)).unwrap();
             for e in g.edges().iter() {
                 if e.properties().get("int_prop").unwrap_i64() == v {
                     assert!(filtered.has_edge(e.src(), e.dst()));
@@ -207,7 +169,7 @@ mod test {
             edges in build_edge_list(100, 100), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter_edges("int_prop", PropertyFilter::ne(v)).unwrap();
+            let filtered = g.filter_edges(PropertyFilter::ne("int_prop", v)).unwrap();
             for e in g.edges().iter() {
                 if e.properties().get("int_prop").unwrap_i64() != v {
                     assert!(filtered.has_edge(e.src(), e.dst()));

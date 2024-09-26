@@ -1,5 +1,9 @@
 use crate::{
-    core::{entities::LayerIds, Prop},
+    core::{
+        entities::{properties::props::Meta, LayerIds},
+        utils::errors::GraphError,
+        Prop, PropType,
+    },
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
@@ -15,9 +19,11 @@ use crate::{
                 Base, BoxedLIter, IntoDynBoxed,
             },
         },
-        graph::views::property_filter::PropertyFilter,
+        graph::views::property_filter::{
+            internal::InternalExplodedEdgeFilterOps, PropertyValueFilter,
+        },
     },
-    prelude::GraphViewOps,
+    prelude::{GraphViewOps, PropertyFilter},
 };
 use raphtory_api::core::{
     entities::{edges::edge_ref::EdgeRef, VID},
@@ -29,14 +35,18 @@ use std::ops::Range;
 pub struct ExplodedEdgePropertyFilteredGraph<G> {
     graph: G,
     prop_id: Option<usize>,
-    filter: PropertyFilter,
+    filter: PropertyValueFilter,
 }
 
 impl<G> Static for ExplodedEdgePropertyFilteredGraph<G> {}
 impl<G> Immutable for ExplodedEdgePropertyFilteredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> ExplodedEdgePropertyFilteredGraph<G> {
-    pub(crate) fn new(graph: G, prop_id: Option<usize>, filter: impl Into<PropertyFilter>) -> Self {
+    pub(crate) fn new(
+        graph: G,
+        prop_id: Option<usize>,
+        filter: impl Into<PropertyValueFilter>,
+    ) -> Self {
         Self {
             graph,
             prop_id,
@@ -50,6 +60,44 @@ impl<'graph, G: GraphViewOps<'graph>> ExplodedEdgePropertyFilteredGraph<G> {
                 .and_then(|prop_id| self.graph.temporal_edge_prop_at(e, prop_id, t, layer_ids))
                 .as_ref(),
         )
+    }
+}
+
+fn get_id_and_check_type(
+    meta: &Meta,
+    property: &str,
+    dtype: PropType,
+) -> Result<Option<usize>, GraphError> {
+    let t_prop_id = meta
+        .temporal_prop_meta()
+        .get_and_validate(property, dtype)?;
+    Ok(t_prop_id)
+}
+
+fn get_id(meta: &Meta, property: &str) -> Option<usize> {
+    let t_prop_id = meta.temporal_prop_meta().get_id(property);
+    t_prop_id
+}
+
+impl InternalExplodedEdgeFilterOps for PropertyFilter {
+    type ExplodedEdgeFiltered<'graph, G: GraphViewOps<'graph>> =
+        ExplodedEdgePropertyFilteredGraph<G>;
+
+    fn create_exploded_edge_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::ExplodedEdgeFiltered<'graph, G>, GraphError> {
+        let t_prop_id = match &self.filter {
+            PropertyValueFilter::ByValue(filter) => {
+                get_id_and_check_type(graph.edge_meta(), &self.name, filter.dtype())?
+            }
+            _ => get_id(graph.edge_meta(), &self.name),
+        };
+        Ok(ExplodedEdgePropertyFilteredGraph::new(
+            graph.clone(),
+            t_prop_id,
+            self.filter,
+        ))
     }
 }
 
