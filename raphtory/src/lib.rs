@@ -130,7 +130,7 @@ pub mod prelude {
                     GraphViewOps, Layer, LayerOps, NodeViewOps, ResetFilter, TimeOps,
                 },
             },
-            graph::graph::Graph,
+            graph::{graph::Graph, views::property_filter::PropertyFilter},
         },
     };
     pub use raphtory_api::core::{entities::GID, input::input_node::InputNode};

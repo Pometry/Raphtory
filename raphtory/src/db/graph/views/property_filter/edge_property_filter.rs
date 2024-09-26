@@ -12,7 +12,7 @@ use crate::{
                 Base,
             },
         },
-        graph::{edge::EdgeView, views::property_filter::PropFilter},
+        graph::{edge::EdgeView, views::property_filter::PropertyFilter},
     },
     prelude::{EdgeViewOps, GraphViewOps},
 };
@@ -22,7 +22,7 @@ pub struct EdgePropertyFilteredGraph<G> {
     graph: G,
     t_prop_id: Option<usize>,
     c_prop_id: Option<usize>,
-    filter: PropFilter,
+    filter: PropertyFilter,
 }
 
 impl<'graph, G> EdgePropertyFilteredGraph<G> {
@@ -30,13 +30,13 @@ impl<'graph, G> EdgePropertyFilteredGraph<G> {
         graph: G,
         t_prop_id: Option<usize>,
         c_prop_id: Option<usize>,
-        filter: impl Into<PropFilter>,
+        filter: PropertyFilter,
     ) -> Self {
         Self {
             graph,
             t_prop_id,
             c_prop_id,
-            filter: filter.into(),
+            filter,
         }
     }
 }

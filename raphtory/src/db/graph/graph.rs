@@ -355,7 +355,7 @@ mod db_tests {
                 view::{
                     internal::{CoreGraphOps, EdgeFilterOps, TimeSemantics},
                     time::internal::InternalTimeOps,
-                    EdgeViewOps, IntoDynBoxed, Layer, LayerOps, NodeViewOps, TimeOps,
+                    EdgeViewOps, Layer, LayerOps, NodeViewOps, TimeOps,
                 },
             },
             graph::{edge::EdgeView, edges::Edges, node::NodeView, path::PathFromNode},

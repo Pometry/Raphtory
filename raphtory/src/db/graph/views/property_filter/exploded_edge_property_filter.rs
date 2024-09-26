@@ -15,7 +15,7 @@ use crate::{
                 Base, BoxedLIter, IntoDynBoxed,
             },
         },
-        graph::views::property_filter::PropFilter,
+        graph::views::property_filter::PropertyFilter,
     },
     prelude::GraphViewOps,
 };
@@ -29,14 +29,14 @@ use std::ops::Range;
 pub struct ExplodedEdgePropertyFilteredGraph<G> {
     graph: G,
     prop_id: Option<usize>,
-    filter: PropFilter,
+    filter: PropertyFilter,
 }
 
 impl<G> Static for ExplodedEdgePropertyFilteredGraph<G> {}
 impl<G> Immutable for ExplodedEdgePropertyFilteredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> ExplodedEdgePropertyFilteredGraph<G> {
-    pub(crate) fn new(graph: G, prop_id: Option<usize>, filter: impl Into<PropFilter>) -> Self {
+    pub(crate) fn new(graph: G, prop_id: Option<usize>, filter: impl Into<PropertyFilter>) -> Self {
         Self {
             graph,
             prop_id,

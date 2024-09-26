@@ -3,8 +3,8 @@ use crate::{
     db::{
         api::view::internal::{CoreGraphOps, OneHopFilter},
         graph::views::property_filter::{
-            exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph, PropFilter,
-            PropValueFilter,
+            exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph, PropValueFilter,
+            PropertyFilter,
         },
     },
 };
@@ -182,7 +182,7 @@ impl<'graph, G: OneHopFilter<'graph> + 'graph> ExplodedEdgePropertyFilterOps<'gr
         self.one_hop_filtered(ExplodedEdgePropertyFilteredGraph::new(
             self.current_filter().clone(),
             t_prop_id,
-            PropFilter::Has,
+            PropertyFilter::Has,
         ))
     }
 
@@ -191,7 +191,7 @@ impl<'graph, G: OneHopFilter<'graph> + 'graph> ExplodedEdgePropertyFilterOps<'gr
         self.one_hop_filtered(ExplodedEdgePropertyFilteredGraph::new(
             self.current_filter().clone(),
             t_prop_id,
-            PropFilter::HasNot,
+            PropertyFilter::HasNot,
         ))
     }
 
@@ -204,7 +204,7 @@ impl<'graph, G: OneHopFilter<'graph> + 'graph> ExplodedEdgePropertyFilterOps<'gr
         self.one_hop_filtered(ExplodedEdgePropertyFilteredGraph::new(
             self.current_filter().clone(),
             t_prop_id,
-            PropFilter::In(Arc::new(set)),
+            PropertyFilter::In(Arc::new(set)),
         ))
     }
 
@@ -217,7 +217,7 @@ impl<'graph, G: OneHopFilter<'graph> + 'graph> ExplodedEdgePropertyFilterOps<'gr
         self.one_hop_filtered(ExplodedEdgePropertyFilteredGraph::new(
             self.current_filter().clone(),
             t_prop_id,
-            PropFilter::NotIn(Arc::new(set)),
+            PropertyFilter::NotIn(Arc::new(set)),
         ))
     }
 }
