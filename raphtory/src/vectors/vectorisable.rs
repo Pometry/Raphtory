@@ -78,7 +78,7 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
         if verbose {
             info!("computing embeddings for edges");
         }
-        let edge_refs = compute_embedding_groups(edges_docs, embedding.as_ref(), &cache).await; // FIXME: re-enable
+        let edge_refs = compute_embedding_groups(edges_docs, embedding.as_ref(), &cache).await;
 
         if overwrite_cache {
             cache.iter().for_each(|cache| cache.dump_to_disk());
@@ -179,9 +179,7 @@ async fn compute_entity_embeddings<I>(
 where
     I: Iterator<Item = IndexedDocumentInput> + Send,
 {
-    // let documents = documents.collect_vec().into_iter();
     let map = compute_embedding_groups(documents, embedding, cache).await;
-    // vec![]
     map.into_iter()
         .next()
         .map(|(_, refs)| refs)
@@ -202,20 +200,22 @@ where
     for document in documents {
         buffer.push(document);
         if buffer.len() >= CHUNK_SIZE {
-            let doc_refs = compute_chunk(&buffer, embedding, cache).await;
-            for doc in doc_refs {
-                match embedding_groups.get_mut(&doc.entity_id) {
-                    Some(group) => group.push(doc),
-                    None => {
-                        embedding_groups.insert(doc.entity_id.clone(), vec![doc]);
-                    }
-                }
-            }
+            insert_chunk(&mut embedding_groups, &buffer, embedding, cache).await;
             buffer.clear();
         }
     }
+    if buffer.len() > 0 {
+        insert_chunk(&mut embedding_groups, &buffer, embedding, cache).await;
+    }
+    embedding_groups
+}
 
-    // FIXME: repeated code above
+async fn insert_chunk(
+    embedding_groups: &mut HashMap<EntityId, Vec<DocumentRef>>,
+    buffer: &Vec<IndexedDocumentInput>,
+    embedding: &dyn EmbeddingFunction,
+    cache: &Option<EmbeddingCache>,
+) {
     let doc_refs = compute_chunk(&buffer, embedding, cache).await;
     for doc in doc_refs {
         match embedding_groups.get_mut(&doc.entity_id) {
@@ -225,8 +225,6 @@ where
             }
         }
     }
-
-    embedding_groups
 }
 
 async fn compute_chunk(

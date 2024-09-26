@@ -2,7 +2,7 @@ use crate::{
     config::app_config::AppConfigBuilder,
     model::algorithms::{
         algorithm_entry_point::AlgorithmEntryPoint, document::GqlDocument,
-        global_plugins::GlobalPlugins, vector_algorithms::VectorAlgorithms,
+        global_plugins::GlobalPlugins,
     },
     python::{
         adapt_graphql_value,
@@ -20,14 +20,11 @@ use pyo3::{
     exceptions::{PyAttributeError, PyException},
     pyclass, pymethods,
     types::{IntoPyDict, PyFunction, PyList},
-    IntoPy, Py, PyObject, PyRefMut, PyResult, Python, ToPyObject,
+    IntoPy, Py, PyObject, PyRefMut, PyResult, Python,
 };
 use raphtory::{
-    python::{types::wrappers::document::PyDocument, utils::execute_async_task},
-    vectors::{
-        embedding_cache::EmbeddingCache, embeddings::openai_embedding, template::DocumentTemplate,
-        EmbeddingFunction,
-    },
+    python::types::wrappers::document::PyDocument,
+    vectors::{embeddings::openai_embedding, template::DocumentTemplate, EmbeddingFunction},
 };
 use std::{collections::HashMap, path::PathBuf, thread};
 
@@ -195,6 +192,9 @@ impl PyGraphServer {
         Ok(PyGraphServer::new(server))
     }
 
+    #[pyo3(
+        signature = (cache, embedding = None, graph_template = None, node_template = None, edge_template = None)
+    )]
     fn set_embeddings(
         slf: PyRefMut<Self>,
         cache: String,
@@ -243,6 +243,9 @@ impl PyGraphServer {
     ///
     /// Returns:
     ///    GraphServer: A new server object containing the vectorised graphs.
+    #[pyo3(
+        signature = (graph_names, graph_template = None, node_template = None, edge_template = None)
+    )]
     fn with_vectorised_graphs(
         slf: PyRefMut<Self>,
         graph_names: Vec<String>,

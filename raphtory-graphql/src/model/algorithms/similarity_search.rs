@@ -1,5 +1,8 @@
-use crate::model::algorithms::{
-    algorithm::Algorithm, document::GqlDocument, vector_algorithms::VectorAlgorithms,
+use crate::{
+    data::Data,
+    model::algorithms::{
+        algorithm::Algorithm, document::GqlDocument, vector_algorithms::VectorAlgorithms,
+    },
 };
 use async_graphql::{
     dynamic::{FieldValue, ResolverContext, TypeRef},
@@ -27,6 +30,7 @@ impl<'a> Algorithm<'a, VectorAlgorithms> for SimilaritySearch {
         entry_point: &VectorAlgorithms,
         ctx: ResolverContext,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
+        let data = ctx.data_unchecked::<Data>().clone();
         let query = ctx
             .args
             .try_get("query")
@@ -38,8 +42,8 @@ impl<'a> Algorithm<'a, VectorAlgorithms> for SimilaritySearch {
         let graph = entry_point.graph.clone();
 
         Box::pin(async move {
-            let embedding = openai_embedding(vec![query.clone()]).await.remove(0);
             info!("running similarity search for {query}");
+            let embedding = data.embed_query(query).await;
 
             let documents = graph
                 .documents_by_similarity(&embedding, limit, None)

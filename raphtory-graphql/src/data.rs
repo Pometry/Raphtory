@@ -11,7 +11,8 @@ use raphtory::{
     prelude::*,
     vectors::{
         embedding_cache::EmbeddingCache, embeddings::openai_embedding, template::DocumentTemplate,
-        vectorisable::Vectorisable, vectorised_graph::VectorisedGraph, EmbeddingFunction,
+        vectorisable::Vectorisable, vectorised_graph::VectorisedGraph, Embedding,
+        EmbeddingFunction,
     },
 };
 use std::{
@@ -31,26 +32,7 @@ pub struct EmbeddingConf {
     pub(crate) individual_templates: HashMap<PathBuf, DocumentTemplate>,
 }
 
-pub struct GraphEmbeddingConf {
-    function: Arc<dyn EmbeddingFunction>,
-    cache: Arc<Option<EmbeddingCache>>,
-    template: DocumentTemplate,
-}
-
-impl EmbeddingConf {
-    fn resolve_for_graph(&self, graph: &Path) -> Option<GraphEmbeddingConf> {
-        let template = self
-            .individual_templates
-            .get(graph)
-            .or(self.global_template.as_ref())?;
-        Some(GraphEmbeddingConf {
-            function: self.function.clone(),
-            cache: self.cache.clone(),
-            template: template.clone(),
-        })
-    }
-}
-
+#[derive(Clone)]
 pub struct Data {
     pub(crate) work_dir: PathBuf, // TODO: make private again!!!
     cache: Cache<PathBuf, GraphWithVectors>,
@@ -95,13 +77,9 @@ impl Data {
         path: &str,
         graph: MaterializedGraph,
     ) -> Result<(), GraphError> {
-        dbg!();
         let folder = ValidGraphFolder::try_from(self.work_dir.clone(), path)?;
-        dbg!();
         let vectors = self.vectorise(graph.clone(), &folder).await;
-        dbg!();
         let graph = GraphWithVectors::new(graph.into(), vectors);
-        dbg!();
         self.insert_graph_with_vectors(path, graph)
     }
 
@@ -133,10 +111,23 @@ impl Data {
         Ok(())
     }
 
-    fn get_embedding_conf(&self, graph: &Path) -> Option<GraphEmbeddingConf> {
-        self.embedding_conf
+    pub async fn embed_query(&self, query: String) -> Embedding {
+        let embedding_function = self
+            .embedding_conf
             .as_ref()
-            .and_then(|conf| conf.resolve_for_graph(graph))
+            .map(|conf| conf.function.clone());
+        if let Some(embedding_function) = embedding_function {
+            embedding_function.call(vec![query]).await.remove(0)
+        } else {
+            openai_embedding(vec![query]).await.remove(0)
+        }
+    }
+
+    fn resolve_template(&self, graph: &Path) -> Option<&DocumentTemplate> {
+        let conf = self.embedding_conf.as_ref()?;
+        conf.individual_templates
+            .get(graph)
+            .or(conf.global_template.as_ref())
     }
 
     async fn vectorise(
@@ -144,13 +135,14 @@ impl Data {
         graph: MaterializedGraph,
         folder: &ValidGraphFolder,
     ) -> Option<VectorisedGraph<MaterializedGraph>> {
-        let conf = self.get_embedding_conf(folder.get_original_path())?;
+        let conf = self.embedding_conf.as_ref()?;
+        let template = self.resolve_template(folder.get_original_path())?;
         let vectors = graph
             .vectorise(
                 Box::new(conf.function.clone()),
                 conf.cache.clone(),
-                true,
-                conf.template.clone(),
+                true, // overwrite
+                template.clone(),
                 true, // verbose
             )
             .await;
@@ -181,15 +173,7 @@ impl Data {
                 let relative = self.get_relative_path(path).ok()?;
                 let relative_str = relative.to_str()?; // potential UTF8 error here
                 let cleaned = relative_str.replace(r"\", "/");
-                let folder = ExistingGraphFolder::try_from(base_path.clone(), &cleaned)
-                    .map_err(|e| {
-                        dbg!(path);
-                        dbg!(relative_str);
-                        dbg!(cleaned);
-                        dbg!(&e);
-                        e
-                    })
-                    .ok()?;
+                let folder = ExistingGraphFolder::try_from(base_path.clone(), &cleaned).ok()?;
                 Some(folder)
             })
             .collect()
@@ -515,10 +499,6 @@ pub(crate) mod data_tests {
             .into_iter()
             .map(|folder| folder.get_base_path().to_path_buf())
             .collect_vec();
-
-        dbg!(&paths);
-
-        dbg!(&g0_path);
 
         assert_eq!(paths.len(), 5);
         assert!(paths.contains(&g0_path));

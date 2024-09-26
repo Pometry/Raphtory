@@ -87,7 +87,7 @@ impl GraphFolder {
 
     // TODO: make private once possible
     pub fn get_vectors_path(&self) -> PathBuf {
-        self.path.join("graph")
+        self.path.join("vectors")
     }
 
     // TODO: make private once possible
