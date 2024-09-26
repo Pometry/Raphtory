@@ -3,8 +3,7 @@ use crate::{
     db::{
         api::view::internal::{CoreGraphOps, OneHopFilter},
         graph::views::property_filter::{
-            exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph,
-            PropertyFilter,
+            exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph, PropertyFilter,
         },
     },
 };
