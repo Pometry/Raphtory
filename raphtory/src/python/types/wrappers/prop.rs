@@ -2,13 +2,14 @@ use super::document::PyDocument;
 use crate::{
     core::{DocumentInput, Prop},
     db::graph::views::deletion_graph::PersistentGraph,
+    prelude::PropertyFilter,
     python::{graph::views::graph_view::PyGraphView, types::repr::Repr},
 };
 use pyo3::{
-    exceptions::PyTypeError, types::PyBool, FromPyObject, IntoPy, PyAny, PyObject, PyResult,
-    Python, ToPyObject,
+    exceptions::PyTypeError, pyclass, pymethods, types::PyBool, FromPyObject, IntoPy, PyAny,
+    PyObject, PyResult, Python, ToPyObject,
 };
-use std::{ops::Deref, sync::Arc};
+use std::{collections::HashSet, ops::Deref, sync::Arc};
 
 impl ToPyObject for Prop {
     fn to_object(&self, py: Python) -> PyObject {
@@ -127,3 +128,105 @@ impl Repr for Prop {
 
 pub type PropValue = Option<Prop>;
 pub type PropHistItems = Vec<(i64, Prop)>;
+
+#[pyclass(frozen, name = "PropertyFilter")]
+#[derive(Clone)]
+pub struct PyPropertyFilter {
+    pub(crate) name: String,
+    pub(crate) filter: PropertyFilter,
+}
+
+#[pyclass(frozen, name = "Prop")]
+#[derive(Clone)]
+pub struct PyPropertyRef {
+    name: String,
+}
+
+#[pymethods]
+impl PyPropertyRef {
+    #[new]
+    fn new(name: String) -> Self {
+        PyPropertyRef { name }
+    }
+
+    /// Create a filter
+    fn __eq__(&self, value: Prop) -> PyPropertyFilter {
+        let filter = PropertyFilter::eq(value);
+        PyPropertyFilter {
+            name: self.name.clone(),
+            filter,
+        }
+    }
+
+    fn __ne__(&self, value: Prop) -> PyPropertyFilter {
+        let filter = PropertyFilter::ne(value);
+        PyPropertyFilter {
+            name: self.name.clone(),
+            filter,
+        }
+    }
+
+    fn __lt__(&self, value: Prop) -> PyPropertyFilter {
+        let filter = PropertyFilter::lt(value);
+        PyPropertyFilter {
+            name: self.name.clone(),
+            filter,
+        }
+    }
+
+    fn __le__(&self, value: Prop) -> PyPropertyFilter {
+        let filter = PropertyFilter::le(value);
+        PyPropertyFilter {
+            name: self.name.clone(),
+            filter,
+        }
+    }
+
+    fn __gt__(&self, value: Prop) -> PyPropertyFilter {
+        let filter = PropertyFilter::gt(value);
+        PyPropertyFilter {
+            name: self.name.clone(),
+            filter,
+        }
+    }
+
+    fn __ge__(&self, value: Prop) -> PyPropertyFilter {
+        let filter = PropertyFilter::ge(value);
+        PyPropertyFilter {
+            name: self.name.clone(),
+            filter,
+        }
+    }
+
+    fn is_some(&self) -> PyPropertyFilter {
+        let filter = PropertyFilter::is_some();
+        PyPropertyFilter {
+            name: self.name.clone(),
+            filter,
+        }
+    }
+
+    fn is_none(&self) -> PyPropertyFilter {
+        let filter = PropertyFilter::is_none();
+        PyPropertyFilter {
+            name: self.name.clone(),
+            filter,
+        }
+    }
+
+    fn any(&self, values: HashSet<Prop>) -> PyPropertyFilter {
+        let filter = PropertyFilter::any(values);
+        PyPropertyFilter {
+            name: self.name.clone(),
+            filter,
+        }
+    }
+
+    fn not_any(&self, values: HashSet<Prop>) -> PyPropertyFilter {
+        let filter = PropertyFilter::not_any(values);
+        PyPropertyFilter {
+            name: self.name.clone(),
+            filter,
+        }
+    }
+}
