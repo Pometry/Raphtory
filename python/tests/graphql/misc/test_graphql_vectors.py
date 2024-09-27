@@ -2,7 +2,7 @@ import tempfile
 from time import sleep
 from raphtory.graphql import GraphServer, RaphtoryClient
 
-def embedding(texts: list[str]) -> list[list[float]]:
+def embedding(texts):
     return [[text.count("a"), text.count("b")] for text in texts]
 
 def test_embedding():
