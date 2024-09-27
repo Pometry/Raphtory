@@ -1,11 +1,11 @@
 use crate::{
     data::Data,
     model::{
-        algorithms::global_plugins::GlobalPlugins,
         graph::{
             graph::GqlGraph, graphs::GqlGraphs, mutable_graph::GqlMutableGraph,
             vectorised_graph::GqlVectorisedGraph,
         },
+        plugins::{mutation_plugin::MutationPlugin, query_plugin::QueryPlugin},
     },
     url_encode::{url_decode_graph, url_encode_graph},
 };
@@ -36,6 +36,7 @@ use std::{
 
 pub mod algorithms;
 pub(crate) mod graph;
+pub mod plugins;
 pub(crate) mod schema;
 
 #[derive(Debug)]
@@ -102,7 +103,7 @@ impl QueryRoot {
     async fn vectorised_graph<'a>(ctx: &Context<'a>, path: String) -> Option<GqlVectorisedGraph> {
         let data = ctx.data_unchecked::<Data>();
         let g = data
-            .global_plugins
+            .global_plugin
             .vectorised_graphs
             .read()
             .get(&path)
@@ -117,9 +118,9 @@ impl QueryRoot {
         Ok(GqlGraphs::new(work_dir, paths))
     }
 
-    async fn plugins<'a>(ctx: &Context<'a>) -> GlobalPlugins {
+    async fn plugins<'a>(ctx: &Context<'a>) -> QueryPlugin {
         let data = ctx.data_unchecked::<Data>();
-        data.global_plugins.clone()
+        data.global_plugin.clone()
     }
 
     async fn receive_graph<'a>(ctx: &Context<'a>, path: String) -> Result<String, Arc<GraphError>> {
@@ -139,6 +140,10 @@ pub(crate) struct Mut(MutRoot);
 
 #[MutationFields]
 impl Mut {
+    async fn plugins<'a>(ctx: &Context<'a>) -> MutationPlugin {
+        MutationPlugin::default()
+    }
+
     // If namespace is not provided, it will be set to the current working directory.
     async fn delete_graph<'a>(ctx: &Context<'a>, path: String) -> Result<bool> {
         let path = Path::new(&path);
@@ -236,162 +241,6 @@ impl Mut {
         Ok(true)
     }
 
-    async fn create_graph<'a>(
-        ctx: &Context<'a>,
-        parent_graph_path: String,
-        new_graph_path: String,
-        props: String,
-        is_archive: u8,
-        graph_nodes: Vec<String>,
-    ) -> Result<bool> {
-        let parent_graph_path = Path::new(&parent_graph_path);
-        let new_graph_path = Path::new(&new_graph_path);
-        let data = ctx.data_unchecked::<Data>();
-
-        let parent_graph_full_path = data.construct_graph_full_path(parent_graph_path)?;
-        if !parent_graph_full_path.exists() {
-            return Err(GraphError::GraphNotFound(parent_graph_path.to_path_buf()).into());
-        }
-        let new_graph_full_path = data.construct_graph_full_path(new_graph_path)?;
-        if new_graph_full_path.exists() {
-            return Err(GraphError::GraphNameAlreadyExists(new_graph_path.to_path_buf()).into());
-        }
-
-        let timestamp: i64 = Utc::now().timestamp();
-        let node_ids = graph_nodes.iter().map(|key| key.as_str()).collect_vec();
-
-        // Creating a new graph (owner is user) from UI
-        // Graph is created from the parent graph. This means the new graph retains the character of the parent graph i.e.,
-        // the new graph is an event or persistent graph depending on if the parent graph is event or persistent graph, respectively.
-        let parent_graph = data.get_graph(&parent_graph_path.to_path_buf())?;
-        let new_subgraph = parent_graph.subgraph(node_ids.clone()).materialize()?;
-
-        new_subgraph.update_constant_properties([("creationTime", Prop::I64(timestamp * 1000))])?;
-        new_subgraph.update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
-        new_subgraph.update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
-        new_subgraph.update_constant_properties([("uiProps", Prop::Str(props.into()))])?;
-        new_subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
-
-        create_dirs_if_not_present(&new_graph_full_path)?;
-        new_subgraph.cache(new_graph_full_path)?;
-
-        data.graphs
-            .insert(new_graph_path.to_path_buf(), new_subgraph.into());
-
-        Ok(true)
-    }
-
-    async fn update_graph<'a>(
-        ctx: &Context<'a>,
-        parent_graph_path: String,
-        graph_path: String,
-        new_graph_path: String,
-        props: String,
-        is_archive: u8,
-        graph_nodes: Vec<String>,
-    ) -> Result<bool> {
-        let parent_graph_path = Path::new(&parent_graph_path);
-        let graph_path = Path::new(&graph_path);
-        let new_graph_path = Path::new(&new_graph_path);
-        let data = ctx.data_unchecked::<Data>();
-
-        let parent_graph_full_path = data.construct_graph_full_path(parent_graph_path)?;
-        if !parent_graph_full_path.exists() {
-            return Err(GraphError::GraphNotFound(parent_graph_path.to_path_buf()).into());
-        }
-
-        // Saving an existing graph
-        let graph_full_path = data.construct_graph_full_path(graph_path)?;
-        if !graph_full_path.exists() {
-            return Err(GraphError::GraphNotFound(graph_path.to_path_buf()).into());
-        }
-
-        let new_graph_full_path = data.construct_graph_full_path(new_graph_path)?;
-        if graph_path != new_graph_path {
-            // Save as
-            if new_graph_full_path.exists() {
-                return Err(
-                    GraphError::GraphNameAlreadyExists(new_graph_path.to_path_buf()).into(),
-                );
-            }
-        }
-
-        let current_graph = data.get_graph(graph_path)?;
-        #[cfg(feature = "storage")]
-        if current_graph.graph.storage().is_immutable() {
-            return Err(GqlGraphError::ImmutableDiskGraph.into());
-        }
-
-        let timestamp: i64 = Utc::now().timestamp();
-        let node_ids = graph_nodes.iter().map(|key| key.as_str()).collect_vec();
-
-        // Creating a new graph from the current graph instead of the parent graph preserves the character of the new graph
-        // i.e., the new graph is an event or persistent graph depending on if the current graph is event or persistent graph, respectively.
-        let new_subgraph = current_graph.subgraph(node_ids.clone()).materialize()?;
-
-        let parent_graph = data.get_graph(parent_graph_path)?;
-        let new_node_ids = node_ids
-            .iter()
-            .filter(|x| current_graph.graph.node(x).is_none())
-            .collect_vec();
-        let parent_subgraph = parent_graph.subgraph(new_node_ids);
-
-        let nodes = parent_subgraph.nodes();
-        new_subgraph.import_nodes(nodes, true)?;
-        let edges = parent_subgraph.edges();
-        new_subgraph.import_edges(edges, true)?;
-
-        if graph_path == new_graph_path {
-            // Save
-            let static_props: Vec<(ArcStr, Prop)> = current_graph
-                .properties()
-                .into_iter()
-                .filter(|(a, _)| a != "name" && a != "lastUpdated" && a != "uiProps")
-                .collect_vec();
-            new_subgraph.update_constant_properties(static_props)?;
-        } else {
-            // Save as
-            let static_props: Vec<(ArcStr, Prop)> = current_graph
-                .properties()
-                .into_iter()
-                .filter(|(a, _)| a != "name" && a != "creationTime" && a != "uiProps")
-                .collect_vec();
-            new_subgraph.update_constant_properties(static_props)?;
-            new_subgraph
-                .update_constant_properties([("creationTime", Prop::I64(timestamp * 1000))])?;
-        }
-
-        new_subgraph.update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
-        new_subgraph.update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
-        new_subgraph.update_constant_properties([("uiProps", Prop::Str(props.into()))])?;
-        new_subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
-
-        new_subgraph.cache(new_graph_full_path)?;
-
-        data.graphs.remove(&graph_path.to_path_buf());
-        data.graphs
-            .insert(new_graph_path.to_path_buf(), new_subgraph.into());
-
-        Ok(true)
-    }
-
-    // /// Load graph from path
-    // ///
-    // /// Returns::
-    // ///   list of names for newly added graphs
-    // async fn load_graph_from_path<'a>(
-    //     ctx: &Context<'a>,
-    //     path_on_server: String,
-    //     namespace: &Option<String>,
-    //     overwrite: bool,
-    // ) -> Result<String> {
-    //     let path_on_server = Path::new(&path_on_server);
-    //     let data = ctx.data_unchecked::<Data>();
-    //     let new_path = load_graph_from_path(&data.work_dir, path_on_server, namespace, overwrite)?;
-    //     data.graphs.remove(&new_path.to_path_buf());
-    //     Ok(new_path.display().to_string())
-    // }
-
     /// Use GQL multipart upload to send new graphs to server
     ///
     /// Returns::
@@ -443,7 +292,7 @@ impl Mut {
     }
 }
 
-pub(crate) fn create_dirs_if_not_present(path: &Path) -> Result<(), GraphError> {
+pub fn create_dirs_if_not_present(path: &Path) -> Result<(), GraphError> {
     if let Some(parent) = path.parent() {
         if !parent.exists() {
             fs::create_dir_all(parent)?;

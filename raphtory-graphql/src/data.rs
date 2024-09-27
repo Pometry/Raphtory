@@ -1,6 +1,6 @@
 use crate::{
     config::app_config::AppConfig,
-    model::{algorithms::global_plugins::GlobalPlugins, create_dirs_if_not_present, GqlGraphType},
+    model::{create_dirs_if_not_present, plugins::query_plugin::QueryPlugin, GqlGraphType},
 };
 use moka::sync::Cache;
 #[cfg(feature = "storage")]
@@ -30,9 +30,9 @@ use tracing::{error, info};
 use walkdir::WalkDir;
 
 pub struct Data {
-    pub(crate) work_dir: PathBuf,
-    pub(crate) graphs: Cache<PathBuf, IndexedGraph<MaterializedGraph>>,
-    pub(crate) global_plugins: GlobalPlugins,
+    pub work_dir: PathBuf,
+    pub graphs: Cache<PathBuf, IndexedGraph<MaterializedGraph>>,
+    pub global_plugin: QueryPlugin,
 }
 
 impl Data {
@@ -54,7 +54,7 @@ impl Data {
         Self {
             work_dir: work_dir.to_path_buf(),
             graphs: graphs_cache,
-            global_plugins: GlobalPlugins::default(),
+            global_plugin: QueryPlugin::default(),
         }
     }
 

@@ -1,49 +1,17 @@
-use crate::model::algorithms::{
-    algorithm_entry_point::AlgorithmEntryPoint, graph_algorithms::GraphAlgorithms,
-};
+use crate::model::plugins::{graph_algorithm_plugin::GraphAlgorithmPlugin, operation::Operation};
 use async_graphql::{
-    dynamic::{Field, FieldFuture, FieldValue, InputValue, Object, ResolverContext, TypeRef},
+    dynamic::{FieldValue, ResolverContext, TypeRef},
     FieldResult,
 };
-use dynamic_graphql::{
-    internal::{Register, Registry, TypeName},
-    SimpleObject,
-};
+use dynamic_graphql::{internal::TypeName, SimpleObject};
 use futures_util::future::BoxFuture;
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
-use raphtory::{
-    algorithms::{
-        centrality::pagerank::unweighted_page_rank,
-        pathing::dijkstra::dijkstra_single_source_shortest_paths,
-    },
-    core::Direction,
+use raphtory::algorithms::{
+    centrality::pagerank::unweighted_page_rank,
+    pathing::dijkstra::dijkstra_single_source_shortest_paths,
 };
-
-pub trait Algorithm<'a, A: AlgorithmEntryPoint<'a> + 'static> {
-    type OutputType: Register + 'static;
-
-    fn output_type() -> TypeRef;
-    fn args<'b>() -> Vec<(&'b str, TypeRef)>;
-    fn apply_algo<'b>(
-        entry_point: &A,
-        ctx: ResolverContext,
-    ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>>;
-    fn register_algo(name: &str, registry: Registry, parent: Object) -> (Registry, Object) {
-        let registry = registry.register::<Self::OutputType>();
-        let mut field = Field::new(name, Self::output_type(), |ctx| {
-            FieldFuture::new(async move {
-                let algos: &A = ctx.parent_value.downcast_ref().unwrap();
-                Self::apply_algo(&algos, ctx).await
-            })
-        });
-        for (name, type_ref) in Self::args() {
-            field = field.argument(InputValue::new(name, type_ref));
-        }
-        let parent = parent.field(field);
-        (registry, parent)
-    }
-}
+use raphtory_api::core::Direction;
 
 #[derive(SimpleObject)]
 pub(crate) struct PagerankOutput {
@@ -84,13 +52,14 @@ impl From<(&String, &OrderedFloat<f64>)> for PagerankOutput {
 
 pub(crate) struct Pagerank;
 
-impl<'a> Algorithm<'a, GraphAlgorithms> for Pagerank {
+impl<'a> Operation<'a, GraphAlgorithmPlugin> for Pagerank {
     type OutputType = PagerankOutput;
 
     fn output_type() -> TypeRef {
         // first _nn means that the list is never null, second _nn means no element is null
         TypeRef::named_nn_list_nn(PagerankOutput::get_type_name()) //
     }
+
     fn args<'b>() -> Vec<(&'b str, TypeRef)> {
         vec![
             ("iterCount", TypeRef::named_nn(TypeRef::INT)), // _nn stands for not null
@@ -98,8 +67,9 @@ impl<'a> Algorithm<'a, GraphAlgorithms> for Pagerank {
             ("tol", TypeRef::named(TypeRef::FLOAT)),
         ]
     }
-    fn apply_algo<'b>(
-        entry_point: &GraphAlgorithms,
+
+    fn apply<'b>(
+        entry_point: &GraphAlgorithmPlugin,
         ctx: ResolverContext,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
         let result = apply_pagerank(entry_point, ctx);
@@ -108,7 +78,7 @@ impl<'a> Algorithm<'a, GraphAlgorithms> for Pagerank {
 }
 
 fn apply_pagerank<'b>(
-    entry_point: &GraphAlgorithms,
+    entry_point: &GraphAlgorithmPlugin,
     ctx: ResolverContext,
 ) -> FieldResult<Option<FieldValue<'b>>> {
     let iter_count = ctx.args.try_get("iterCount")?.u64()? as usize;
@@ -137,6 +107,7 @@ fn apply_pagerank<'b>(
 }
 
 pub(crate) struct ShortestPath;
+
 #[derive(SimpleObject)]
 pub(crate) struct ShortestPathOutput {
     target: String,
@@ -149,12 +120,13 @@ impl From<(String, Vec<String>)> for ShortestPathOutput {
     }
 }
 
-impl<'a> Algorithm<'a, GraphAlgorithms> for ShortestPath {
+impl<'a> Operation<'a, GraphAlgorithmPlugin> for ShortestPath {
     type OutputType = ShortestPathOutput;
 
     fn output_type() -> TypeRef {
         TypeRef::named_nn_list_nn(ShortestPathOutput::get_type_name())
     }
+
     fn args<'b>() -> Vec<(&'b str, TypeRef)> {
         vec![
             ("source", TypeRef::named_nn(TypeRef::STRING)), // _nn stands for not null
@@ -162,8 +134,9 @@ impl<'a> Algorithm<'a, GraphAlgorithms> for ShortestPath {
             ("direction", TypeRef::named(TypeRef::STRING)),
         ]
     }
-    fn apply_algo<'b>(
-        entry_point: &GraphAlgorithms,
+
+    fn apply<'b>(
+        entry_point: &GraphAlgorithmPlugin,
         ctx: ResolverContext,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
         let result = apply_shortest_path(entry_point, ctx);
@@ -172,7 +145,7 @@ impl<'a> Algorithm<'a, GraphAlgorithms> for ShortestPath {
 }
 
 fn apply_shortest_path<'b>(
-    entry_point: &GraphAlgorithms,
+    entry_point: &GraphAlgorithmPlugin,
     ctx: ResolverContext,
 ) -> FieldResult<Option<FieldValue<'b>>> {
     let source = ctx.args.try_get("source")?.string()?;
