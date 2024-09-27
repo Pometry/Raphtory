@@ -20,7 +20,6 @@ impl<'graph, G: OneHopFilter<'graph> + 'graph> ExplodedEdgePropertyFilterOps<'gr
     ) -> Result<Self::Filtered<F::ExplodedEdgeFiltered<'graph, Self::FilteredGraph>>, GraphError>
     {
         let graph = filter.create_exploded_edge_filter(self.current_filter().clone())?;
-
         Ok(self.one_hop_filtered(graph))
     }
 }
