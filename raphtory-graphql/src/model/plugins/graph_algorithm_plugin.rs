@@ -1,7 +1,9 @@
-use crate::model::algorithms::{
-    algorithm::{Algorithm, Pagerank},
-    algorithm_entry_point::AlgorithmEntryPoint,
-    RegisterFunction,
+use crate::model::{
+    algorithms::{
+        algorithms::{Pagerank, ShortestPath},
+        RegisterFunction,
+    },
+    plugins::{entry_point::EntryPoint, operation::Operation},
 };
 use async_graphql::{dynamic::FieldValue, Context};
 use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName};
@@ -13,51 +15,53 @@ use std::{
     sync::{Mutex, MutexGuard},
 };
 
-use super::algorithm::ShortestPath;
-
 pub static GRAPH_ALGO_PLUGINS: Lazy<Mutex<HashMap<String, RegisterFunction>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
-pub struct GraphAlgorithms {
+pub struct GraphAlgorithmPlugin {
     pub graph: DynamicGraph,
 }
 
-impl From<DynamicGraph> for GraphAlgorithms {
+impl From<DynamicGraph> for GraphAlgorithmPlugin {
     fn from(graph: DynamicGraph) -> Self {
         Self { graph }
     }
 }
 
-impl<'a> AlgorithmEntryPoint<'a> for GraphAlgorithms {
-    fn predefined_algos() -> HashMap<&'static str, RegisterFunction> {
+impl<'a> EntryPoint<'a> for GraphAlgorithmPlugin {
+    fn predefined_operations() -> HashMap<&'static str, RegisterFunction> {
         HashMap::from([
             (
                 "pagerank",
-                Box::new(Pagerank::register_algo) as RegisterFunction,
+                Box::new(Pagerank::register_operation) as RegisterFunction,
             ),
             (
                 "shortest_path",
-                Box::new(ShortestPath::register_algo) as RegisterFunction,
+                Box::new(ShortestPath::register_operation) as RegisterFunction,
             ),
         ])
     }
+
     fn lock_plugins() -> MutexGuard<'static, HashMap<String, RegisterFunction>> {
         GRAPH_ALGO_PLUGINS.lock().unwrap()
     }
 }
 
-impl Register for GraphAlgorithms {
+impl Register for GraphAlgorithmPlugin {
     fn register(registry: Registry) -> Registry {
-        Self::register_algos(registry)
+        Self::register_operations(registry)
     }
 }
-impl TypeName for GraphAlgorithms {
+
+impl TypeName for GraphAlgorithmPlugin {
     fn get_type_name() -> Cow<'static, str> {
-        "GraphAlgorithms".into()
+        "GraphAlgorithmPlugin".into()
     }
 }
-impl OutputTypeName for GraphAlgorithms {}
-impl<'a> ResolveOwned<'a> for GraphAlgorithms {
+
+impl OutputTypeName for GraphAlgorithmPlugin {}
+
+impl<'a> ResolveOwned<'a> for GraphAlgorithmPlugin {
     fn resolve_owned(self, _ctx: &Context) -> dynamic_graphql::Result<Option<FieldValue<'a>>> {
         Ok(Some(FieldValue::owned_any(self)))
     }
