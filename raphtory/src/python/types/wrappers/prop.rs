@@ -166,6 +166,12 @@ impl InternalExplodedEdgeFilterOps for PyPropertyFilter {
     }
 }
 
+/// A reference to a property used for constructing filters
+///
+/// Use `==`, `!=`, `<`, `<=`, `>`, `>=` to filter based on
+/// property value (these filters always exclude entities that do not
+/// have the property) or use one of the methods to construct
+/// other kinds of filters.
 #[pyclass(frozen, name = "Prop")]
 #[derive(Clone)]
 pub struct PyPropertyRef {
@@ -179,7 +185,6 @@ impl PyPropertyRef {
         PyPropertyRef { name }
     }
 
-    /// Create a filter
     fn __eq__(&self, value: Prop) -> PyPropertyFilter {
         let filter = PropertyFilter::eq(&self.name, value);
         PyPropertyFilter(filter)
@@ -210,21 +215,26 @@ impl PyPropertyRef {
         PyPropertyFilter(filter)
     }
 
+    /// Create a filter that only keeps entities if they have the property
     fn is_some(&self) -> PyPropertyFilter {
         let filter = PropertyFilter::is_some(&self.name);
         PyPropertyFilter(filter)
     }
 
+    /// Create a filter that only keeps entities that do not have the property
     fn is_none(&self) -> PyPropertyFilter {
         let filter = PropertyFilter::is_none(&self.name);
         PyPropertyFilter(filter)
     }
 
+    /// Create a filter that keeps entities if their property value is in the set
     fn any(&self, values: HashSet<Prop>) -> PyPropertyFilter {
         let filter = PropertyFilter::any(&self.name, values);
         PyPropertyFilter(filter)
     }
 
+    /// Create a filter that keeps entities if their property value is not in the set or
+    /// if they don't have the property
     fn not_any(&self, values: HashSet<Prop>) -> PyPropertyFilter {
         let filter = PropertyFilter::not_any(&self.name, values);
         PyPropertyFilter(filter)

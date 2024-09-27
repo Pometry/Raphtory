@@ -4980,13 +4980,32 @@ class PersistentGraph:
         """Persist the new updates by appending them to the cache file."""
 
 class Prop:
+    """
+    A reference to a property used for constructing filters
+
+    Use `==`, `!=`, `<`, `<=`, `>`, `>=` to filter based on
+    property value (these filters always exclude entities that do not
+    have the property) or use one of the methods to construct
+    other kinds of filters.
+    """
+
     def __init__(self, name):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
-    def any(self, values): ...
-    def is_none(self): ...
-    def is_some(self): ...
-    def not_any(self, values): ...
+    def any(self, values):
+        """Create a filter that keeps entities if their property value is in the set"""
+
+    def is_none(self):
+        """Create a filter that only keeps entities that do not have the property"""
+
+    def is_some(self):
+        """Create a filter that only keeps entities if they have the property"""
+
+    def not_any(self, values):
+        """
+        Create a filter that keeps entities if their property value is not in the set or
+        if they don't have the property
+        """
 
 class Properties:
     """A view of the properties of an entity"""
