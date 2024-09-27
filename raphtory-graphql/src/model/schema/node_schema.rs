@@ -1,4 +1,6 @@
-use crate::model::schema::{merge_schemas, property_schema::PropertySchema, SchemaAggregate};
+use crate::model::schema::{
+    merge_schemas, property_schema::PropertySchema, SchemaAggregate, DEFAULT_NODE_TYPE,
+};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
@@ -35,7 +37,7 @@ impl NodeSchema {
     async fn properties(&self) -> Vec<PropertySchema> {
         let filter_type = |node: &NodeView<DynamicGraph>| match node.node_type() {
             Some(node_type) => node_type.to_string() == self.type_name,
-            None => false,
+            None => DEFAULT_NODE_TYPE == self.type_name,
         };
 
         let filtered_nodes = self.graph.nodes().iter_owned().filter(filter_type);
