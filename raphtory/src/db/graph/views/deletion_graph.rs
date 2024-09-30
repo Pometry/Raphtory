@@ -668,7 +668,7 @@ impl TimeSemantics for PersistentGraph {
         let res = entry
             .temporal_prop_iter(layer_ids, id)
             .filter_map(|(layer_id, prop)| {
-                prop.last_before(t)
+                prop.last_before(t.next()) // inclusive
                     .filter(|(last_t, _)| !entry.deletions(layer_id).active(*last_t..t.next())) // check with inclusive window
                     .map(|(_, v)| v)
             })

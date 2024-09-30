@@ -31,7 +31,7 @@ mod test {
             api::view::{
                 exploded_edge_property_filter::ExplodedEdgePropertyFilterOps, node::NodeViewOps,
             },
-            graph::graph::assert_graph_equal,
+            graph::{graph::assert_graph_equal, views::deletion_graph::PersistentGraph},
         },
         prelude::*,
         test_utils::{build_edge_list, build_graph_from_edge_list},
@@ -155,5 +155,25 @@ mod test {
             let expected_filtered_g = build_filtered_graph(&edges, |vv| vv != v);
             assert_graph_equal(&filtered, &expected_filtered_g);
         })
+    }
+
+    #[test]
+    fn test_persistent_graph() {
+        let g = PersistentGraph::new();
+        g.add_edge(0, 1, 2, [("int_prop", 0i64)], None).unwrap();
+        g.delete_edge(2, 1, 2, None).unwrap();
+        g.add_edge(5, 1, 2, [("int_prop", 5i64)], None).unwrap();
+
+        let edges = g
+            .node(1)
+            .unwrap()
+            .filter_exploded_edges(PropertyFilter::gt("int_prop", 1i64))
+            .unwrap()
+            .edges()
+            .explode()
+            .collect();
+        println!("{:?}", edges);
+
+        assert_eq!(edges.len(), 1);
     }
 }
