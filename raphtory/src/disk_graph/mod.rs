@@ -25,7 +25,7 @@ use polars_arrow::{
 };
 use pometry_storage::{
     graph::TemporalGraph, graph_fragment::TempColGraphFragment, load::ExternalEdgeList,
-    /* merge::merge_graph::merge_graphs,*/ RAError,
+    merge::merge_graph::merge_graphs, RAError,
 };
 use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
@@ -210,7 +210,7 @@ impl DiskGraphStorage {
         other: &DiskGraphStorage,
         new_graph_dir: impl AsRef<Path>,
     ) -> Result<DiskGraphStorage, GraphError> {
-        // let graph_dir = new_graph_dir.as_ref();
+        let graph_dir = new_graph_dir.as_ref();
         // let inner = merge_graphs(graph_dir, &self.inner, &other.inner)?;
         // Ok(DiskGraphStorage::new(inner))
         todo!()
