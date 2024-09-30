@@ -133,6 +133,15 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodeView<G, GH> 
     }
 }
 
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgePropertyFilterOps<'graph>
+    for NodeView<G, GH>
+{
+}
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
+    ExplodedEdgePropertyFilterOps<'graph> for NodeView<G, GH>
+{
+}
+
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'graph>
     for NodeView<G, GH>
 {

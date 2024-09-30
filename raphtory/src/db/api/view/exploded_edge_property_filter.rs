@@ -1,28 +1,30 @@
 use crate::{
     core::utils::errors::GraphError,
     db::{
-        api::view::internal::OneHopFilter,
-        graph::views::property_filter::internal::InternalExplodedEdgeFilterOps,
+        api::view::internal::{GraphType, InternalMaterialize, OneHopFilter},
+        graph::{node::NodeView, views::property_filter::internal::InternalExplodedEdgeFilterOps},
     },
+    prelude::{GraphViewOps, NodeViewOps},
 };
 
 pub trait ExplodedEdgePropertyFilterOps<'graph>: OneHopFilter<'graph> {
     fn filter_exploded_edges<F: InternalExplodedEdgeFilterOps>(
         &self,
         filter: F,
-    ) -> Result<Self::Filtered<F::ExplodedEdgeFiltered<'graph, Self::FilteredGraph>>, GraphError>;
-}
-
-impl<'graph, G: OneHopFilter<'graph> + 'graph> ExplodedEdgePropertyFilterOps<'graph> for G {
-    fn filter_exploded_edges<F: InternalExplodedEdgeFilterOps>(
-        &self,
-        filter: F,
     ) -> Result<Self::Filtered<F::ExplodedEdgeFiltered<'graph, Self::FilteredGraph>>, GraphError>
     {
+        if matches!(
+            self.current_filter().graph_type(),
+            GraphType::PersistentGraph
+        ) {
+            return Err(GraphError::PropertyFilteringNotImplemented);
+        }
         let graph = filter.create_exploded_edge_filter(self.current_filter().clone())?;
         Ok(self.one_hop_filtered(graph))
     }
 }
+
+impl<'graph, G: GraphViewOps<'graph>> ExplodedEdgePropertyFilterOps<'graph> for G {}
 
 #[cfg(test)]
 mod test {

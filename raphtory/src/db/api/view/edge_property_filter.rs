@@ -1,26 +1,28 @@
 use crate::{
     core::utils::errors::GraphError,
     db::{
-        api::view::internal::OneHopFilter,
+        api::view::internal::{GraphType, InternalMaterialize, OneHopFilter},
         graph::views::property_filter::internal::InternalEdgeFilterOps,
     },
+    prelude::GraphViewOps,
 };
 
 pub trait EdgePropertyFilterOps<'graph>: OneHopFilter<'graph> {
     fn filter_edges<F: InternalEdgeFilterOps>(
         &self,
         filter: F,
-    ) -> Result<Self::Filtered<F::EdgeFiltered<'graph, Self::FilteredGraph>>, GraphError>;
-}
-
-impl<'graph, G: OneHopFilter<'graph>> EdgePropertyFilterOps<'graph> for G {
-    fn filter_edges<F: InternalEdgeFilterOps>(
-        &self,
-        filter: F,
     ) -> Result<Self::Filtered<F::EdgeFiltered<'graph, Self::FilteredGraph>>, GraphError> {
+        if matches!(
+            self.current_filter().graph_type(),
+            GraphType::PersistentGraph
+        ) {
+            return Err(GraphError::PropertyFilteringNotImplemented);
+        }
         Ok(self.one_hop_filtered(filter.create_edge_filter(self.current_filter().clone())?))
     }
 }
+
+impl<'graph, G: GraphViewOps<'graph>> EdgePropertyFilterOps<'graph> for G {}
 
 #[cfg(test)]
 mod test {
