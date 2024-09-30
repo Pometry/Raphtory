@@ -21,7 +21,7 @@ impl From<Document> for GqlDocument {
                 embedding,
                 life,
             } => Self {
-                name: vec![name],
+                name: name.map(|name| vec![name]).unwrap_or(vec![]),
                 entity_type: "graph".to_owned(),
                 content,
                 embedding: embedding.to_vec(),

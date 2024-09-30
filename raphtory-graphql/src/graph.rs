@@ -45,9 +45,9 @@ impl GraphWithVectors {
         }
     }
 
-    pub(crate) async fn update_graph_embeddings(&self) {
+    pub(crate) async fn update_graph_embeddings(&self, graph_name: Option<String>) {
         if let Some(vectors) = &self.vectors {
-            vectors.update_graph().await
+            vectors.update_graph(graph_name).await
         }
     }
 

@@ -143,6 +143,7 @@ impl Data {
                 conf.cache.clone(),
                 true, // overwrite
                 template.clone(),
+                Some(folder.get_original_path_str().to_owned()),
                 true, // verbose
             )
             .await;

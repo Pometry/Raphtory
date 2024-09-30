@@ -98,7 +98,11 @@ impl PyDocument {
                 })
             } else if let Ok(graph) = graph {
                 Ok(Document::Graph {
-                    name: graph.graph.properties().get("name").unwrap().to_string(),
+                    name: graph
+                        .graph
+                        .properties()
+                        .get("name")
+                        .map(|prop| prop.to_string()),
                     content: self.content.clone(),
                     embedding: embedding.embedding(),
                     life: self.life,
@@ -240,7 +244,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///   A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
-    #[pyo3(signature = (embedding, cache = None, overwrite_cache = false, graph_template = None, node_template = None, edge_template = None, verbose = false))]
+    #[pyo3(signature = (embedding, cache = None, overwrite_cache = false, graph_template = None, node_template = None, edge_template = None, graph_name = None, verbose = false))]
     fn vectorise(
         &self,
         embedding: &PyFunction,
@@ -249,6 +253,7 @@ impl PyGraphView {
         graph_template: Option<String>,
         node_template: Option<String>,
         edge_template: Option<String>,
+        graph_name: Option<String>,
         verbose: bool,
     ) -> DynamicVectorisedGraph {
         let embedding: Py<PyFunction> = embedding.into();
@@ -266,6 +271,7 @@ impl PyGraphView {
                     cache,
                     overwrite_cache,
                     template,
+                    graph_name,
                     verbose,
                 )
                 .await

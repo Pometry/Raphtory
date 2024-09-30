@@ -43,6 +43,7 @@ pub trait Vectorisable<G: StaticGraphViewOps> {
         cache: Arc<Option<EmbeddingCache>>,
         overwrite_cache: bool,
         template: DocumentTemplate,
+        graph_name: Option<String>,
         verbose: bool,
     ) -> VectorisedGraph<G>;
 }
@@ -55,9 +56,10 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
         cache: Arc<Option<EmbeddingCache>>,
         overwrite_cache: bool,
         template: DocumentTemplate,
+        graph_name: Option<String>,
         verbose: bool,
     ) -> VectorisedGraph<G> {
-        let graph_docs = indexed_docs_for_graph(self, &template);
+        let graph_docs = indexed_docs_for_graph(self, graph_name, &template);
 
         let nodes = self.nodes().collect().into_iter();
         let nodes_docs = nodes.flat_map(|node| indexed_docs_for_node(node, &template));
@@ -98,11 +100,12 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
 
 pub(crate) async fn vectorise_graph<G: StaticGraphViewOps>(
     graph: &G,
+    graph_name: Option<String>,
     template: &DocumentTemplate,
     embedding: &Arc<dyn EmbeddingFunction>,
     cache_storage: &Option<EmbeddingCache>,
 ) -> Vec<DocumentRef> {
-    let docs = indexed_docs_for_graph(graph, template);
+    let docs = indexed_docs_for_graph(graph, graph_name, template);
     compute_entity_embeddings(docs, embedding.as_ref(), &cache_storage).await
 }
 
@@ -128,13 +131,14 @@ pub(crate) async fn vectorise_edge<G: StaticGraphViewOps>(
 
 fn indexed_docs_for_graph<'a, G: StaticGraphViewOps>(
     graph: &'a G,
+    name: Option<String>,
     template: &DocumentTemplate,
 ) -> impl Iterator<Item = IndexedDocumentInput> + Send + 'a {
     template
         .graph(graph)
         .enumerate()
         .map(move |(index, doc)| IndexedDocumentInput {
-            entity_id: EntityId::from_graph(graph),
+            entity_id: EntityId::for_graph(name.clone()),
             content: doc.content,
             index,
             life: doc.life,

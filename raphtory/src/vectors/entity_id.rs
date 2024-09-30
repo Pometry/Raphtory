@@ -11,20 +11,14 @@ use std::fmt::{Display, Formatter};
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub(crate) enum EntityId {
-    Graph { name: String },
+    Graph { name: Option<String> },
     Node { id: GID },
     Edge { src: GID, dst: GID },
 }
 
 impl EntityId {
-    pub(crate) fn from_graph<G: StaticGraphViewOps>(graph: &G) -> Self {
-        Self::Graph {
-            name: graph
-                .properties()
-                .get("name")
-                .expect("A graph should have a 'name' property in order to make a document for it")
-                .to_string(),
-        }
+    pub(crate) fn for_graph(name: Option<String>) -> Self {
+        Self::Graph { name }
     }
 
     pub(crate) fn from_node<'graph, G: GraphViewOps<'graph>>(node: NodeView<G>) -> Self {
@@ -67,7 +61,10 @@ impl EntityId {
 impl Display for EntityId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            EntityId::Graph { name } => f.write_str(&format!("graph:{name}")),
+            EntityId::Graph { name } => {
+                let graph_name = name.clone().unwrap_or("_unnamed".to_owned());
+                f.write_str(&format!("graph:{graph_name}"))
+            }
             EntityId::Node { id } => f.write_str(&id.to_str()),
             EntityId::Edge { src, dst } => {
                 f.write_str(&src.to_str())

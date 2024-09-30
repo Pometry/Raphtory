@@ -21,7 +21,7 @@ pub type Embedding = Arc<[f32]>;
 #[derive(Debug)]
 pub enum Document {
     Graph {
-        name: String,
+        name: Option<String>,
         content: String,
         embedding: Embedding,
         life: Lifespan,
@@ -163,6 +163,7 @@ mod vector_tests {
             None.into(),
             true,
             template.clone(),
+            None,
             false,
         )
         .await;
@@ -176,6 +177,7 @@ mod vector_tests {
             Some(path.to_owned().into()).into(),
             true,
             template.clone(),
+            None,
             false,
         )
         .await;
@@ -187,6 +189,7 @@ mod vector_tests {
             Some(path.to_owned().into()).into(),
             true,
             template,
+            None,
             false,
         )
         .await;
@@ -198,7 +201,7 @@ mod vector_tests {
         let g = Graph::new();
         let cache = Some("/tmp/raphtory/vector-cache-lotr-test".to_owned().into()).into();
         let vectors = g
-            .vectorise(Box::new(fake_embedding), cache, true, template, false)
+            .vectorise(Box::new(fake_embedding), cache, true, template, None, false)
             .await;
         let embedding: Embedding = fake_embedding(vec!["whatever".to_owned()]).await.remove(0);
 
@@ -419,6 +422,7 @@ mod vector_tests {
                 Some("/tmp/raphtory/vector-cache-lotr-test".to_owned().into()).into(),
                 true,
                 template,
+                None,
                 false,
             )
             .await;

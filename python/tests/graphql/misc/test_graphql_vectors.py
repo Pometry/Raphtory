@@ -12,26 +12,29 @@ def test_embedding():
 def test_add_constant_properties():
     work_dir = tempfile.mkdtemp()
     server = GraphServer(work_dir)
-    server = server.set_embeddings(cache="/tmp/graph-cache", embedding=embedding, node_template="{{ name }}")
+    server = server.set_embeddings(
+        cache="/tmp/graph-cache",
+        embedding=embedding,
+        node_template="{{ name }}",
+        graph_template="{{ props.name }}"
+    )
     with server.start():
         client = RaphtoryClient("http://localhost:1736")
-        client.new_graph("g1", "EVENT")
-        rg = client.remote_graph("g1")
-        print("before sending the edge")
+        client.new_graph("abb", "EVENT")
+        rg = client.remote_graph("abb")
+        rg.update_constant_properties({"name": "abb"})
         node = rg.add_node(1, "aab")
 
-        # query = """{
-        #   plugins {
-        #     globalSearch(query: "aab", limit: 1) {
-        #         entityType
-        #         name
-        #         content
-        #         embedding
-        #     }
-        #   }
-        # }"""
         query = """{
-        vectorisedGraph(path: "g1") {
+        plugins {
+            globalSearch(query: "aab", limit: 1) {
+                entityType
+                name
+                content
+                embedding
+            }
+        }
+        vectorisedGraph(path: "abb") {
             algorithms {
               similaritySearch(query:"ab", limit: 1) {
                 content
@@ -43,4 +46,24 @@ def test_add_constant_properties():
           }
         }"""
         result = client.query(query)
-        assert result == {'vectorisedGraph': {'algorithms': {'similaritySearch': [{'content': 'aab', 'embedding': [2.0, 1.0], 'entityType': 'node', 'name': ['aab']}]}}}
+        assert result == {
+            'plugins': {
+                'globalSearch': [
+                    {
+                        'content': 'abb',
+                        'embedding': [1.0, 2.0],
+                        'entityType': 'graph',
+                        'name': ['abb'],
+                    },
+                ],
+            },
+            'vectorisedGraph': {
+                'algorithms': {
+                    'similaritySearch': [{
+                        'content': 'aab',
+                        'embedding': [2.0, 1.0],
+                        'entityType': 'node',
+                        'name': ['aab']}]
+                }
+            }
+        }

@@ -117,9 +117,10 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         }
     }
 
-    pub async fn update_graph(&self) {
+    pub async fn update_graph(&self, graph_name: Option<String>) {
         let refs = vectorise_graph(
             &self.source_graph,
+            graph_name,
             &self.template,
             &self.embedding,
             self.cache_storage.as_ref(),

@@ -62,7 +62,7 @@ impl PyGlobalPlugins {
         documents.into_iter().map(|(doc, score)| {
             let graph = match &doc {
                 Document::Graph { name, .. } => {
-                    graphs.get(name).unwrap()
+                    graphs.get(name.as_ref().unwrap()).unwrap()
                 }
                 _ => panic!("search_graph_documents_with_scores returned a document that is not from a graph"),
             };
