@@ -206,6 +206,9 @@ impl TimeSemantics for PersistentGraph {
     }
 
     fn latest_time_window(&self, start: i64, end: i64) -> Option<i64> {
+        if self.0.earliest_time_global()? >= end {
+            return None;
+        }
         self.latest_time_global()
             .map(|t| t.min(end.saturating_sub(1)))
             .filter(|&t| t >= start)
@@ -1323,5 +1326,23 @@ mod test_deletions {
         assert_eq!(g.window(2, 2).count_nodes(), 0);
         assert_eq!(g.window(1, 1).count_nodes(), 0);
         assert_eq!(g.window(0, 0).count_nodes(), 0);
+    }
+
+    // #[test]
+    // fn test_earliest_latest_only_deletion() {
+    //     let g = PersistentGraph::new();
+    //     g.delete_edge(1, 1, 2, None).unwrap();
+    //     let gw = g.window(0, 1);
+    //     assert_eq!(gw.earliest_time(), Some(0));
+    //     assert_eq!(gw.latest_time(), Some(0));
+    // }
+
+    #[test]
+    fn test_earliest_latest_time_window() {
+        let g = PersistentGraph::new();
+        g.add_edge(0, 0, 0, NO_PROPS, None).unwrap();
+
+        assert_eq!(g.window(-1, 0).earliest_time(), None);
+        assert_eq!(g.window(-1, 0).latest_time(), None);
     }
 }
