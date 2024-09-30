@@ -368,50 +368,6 @@ class Edge:
         """Explodes an edge and returns all instances it had been updated as seperate edges"""
 
     def explode_layers(self): ...
-    def filter_edges_eq(self, property, value):
-        """
-        Return a filtered view that only includes edges with a given property value
-
-        Arguments:
-            property (str): The name of the property to use for filtering
-                            (looked up in temporal properties first and falls
-                            back to constant properties
-            value (Any): The property value to compare with
-
-        Returns:
-            Edge: The filtered view
-        """
-
-    def filter_edges_gt(self, property, value):
-        """
-        Return a filtered view that only includes edges with a property value greater than a
-        given value
-
-        Arguments:
-            property (str): The name of the property to use for filtering
-                            (looked up in temporal properties first and falls
-                            back to constant properties
-            value (Any): The property value to compare with
-
-        Returns:
-            Edge: The filtered view
-        """
-
-    def filter_edges_lt(self, property, value):
-        """
-        Return a filtered view that only includes edges with a property value less than a
-        given value
-
-        Arguments:
-            property (str): The name of the property to use for filtering
-                            (looked up in temporal properties first and falls
-                            back to constant properties
-            value (Any): The property value to compare with
-
-        Returns:
-            Edge: The filtered view
-        """
-
     def has_layer(self, name):
         """Check if Edge has the layer `"name"`"""
 
@@ -828,50 +784,6 @@ class Edges:
         """Explodes an edge and returns all instances it had been updated as seperate edges"""
 
     def explode_layers(self): ...
-    def filter_edges_eq(self, property, value):
-        """
-        Return a filtered view that only includes edges with a given property value
-
-        Arguments:
-            property (str): The name of the property to use for filtering
-                            (looked up in temporal properties first and falls
-                            back to constant properties
-            value (Any): The property value to compare with
-
-        Returns:
-            Edges: The filtered view
-        """
-
-    def filter_edges_gt(self, property, value):
-        """
-        Return a filtered view that only includes edges with a property value greater than a
-        given value
-
-        Arguments:
-            property (str): The name of the property to use for filtering
-                            (looked up in temporal properties first and falls
-                            back to constant properties
-            value (Any): The property value to compare with
-
-        Returns:
-            Edges: The filtered view
-        """
-
-    def filter_edges_lt(self, property, value):
-        """
-        Return a filtered view that only includes edges with a property value less than a
-        given value
-
-        Arguments:
-            property (str): The name of the property to use for filtering
-                            (looked up in temporal properties first and falls
-                            back to constant properties
-            value (Any): The property value to compare with
-
-        Returns:
-            Edges: The filtered view
-        """
-
     def has_layer(self, name):
         """Check if Edges has the layer `"name"`"""
 
@@ -1368,45 +1280,25 @@ class Graph:
             A `WindowSet` object.
         """
 
-    def filter_edges_eq(self, property, value):
+    def filter_edges(self, filter):
         """
-        Return a filtered view that only includes edges with a given property value
+        Return a filtered view that only includes edges that satisfy the filter
 
-        Arguments:
-            property (str): The name of the property to use for filtering
-                            (looked up in temporal properties first and falls
-                            back to constant properties
-            value (Any): The property value to compare with
+        Arguments
+            filter (PropertyFilter): The filter to apply to the edge properties. Construct a
+                                     filter using `Prop`.
 
         Returns:
             GraphView: The filtered view
         """
 
-    def filter_edges_gt(self, property, value):
+    def filter_exploded_edges(self, filter):
         """
-        Return a filtered view that only includes edges with a property value greater than a
-        given value
+        Return a filtered view that only includes exploded edges that satisfy the filter
 
         Arguments:
-            property (str): The name of the property to use for filtering
-                            (looked up in temporal properties first and falls
-                            back to constant properties
-            value (Any): The property value to compare with
-
-        Returns:
-            GraphView: The filtered view
-        """
-
-    def filter_edges_lt(self, property, value):
-        """
-        Return a filtered view that only includes edges with a property value less than a
-        given value
-
-        Arguments:
-            property (str): The name of the property to use for filtering
-                            (looked up in temporal properties first and falls
-                            back to constant properties
-            value (Any): The property value to compare with
+            filter (PropertyFilter): The filter to apply to the exploded edge properties. Construct a
+                                     filter using `Prop`.
 
         Returns:
             GraphView: The filtered view
@@ -2358,50 +2250,6 @@ class MutableEdge:
         """Explodes an edge and returns all instances it had been updated as seperate edges"""
 
     def explode_layers(self): ...
-    def filter_edges_eq(self, property, value):
-        """
-        Return a filtered view that only includes edges with a given property value
-
-        Arguments:
-            property (str): The name of the property to use for filtering
-                            (looked up in temporal properties first and falls
-                            back to constant properties
-            value (Any): The property value to compare with
-
-        Returns:
-            Edge: The filtered view
-        """
-
-    def filter_edges_gt(self, property, value):
-        """
-        Return a filtered view that only includes edges with a property value greater than a
-        given value
-
-        Arguments:
-            property (str): The name of the property to use for filtering
-                            (looked up in temporal properties first and falls
-                            back to constant properties
-            value (Any): The property value to compare with
-
-        Returns:
-            Edge: The filtered view
-        """
-
-    def filter_edges_lt(self, property, value):
-        """
-        Return a filtered view that only includes edges with a property value less than a
-        given value
-
-        Arguments:
-            property (str): The name of the property to use for filtering
-                            (looked up in temporal properties first and falls
-                            back to constant properties
-            value (Any): The property value to compare with
-
-        Returns:
-            Edge: The filtered view
-        """
-
     def has_layer(self, name):
         """Check if Edge has the layer `"name"`"""
 
@@ -2824,45 +2672,25 @@ class MutableNode:
             A `WindowSet` object.
         """
 
-    def filter_edges_eq(self, property, value):
+    def filter_edges(self, filter):
         """
-        Return a filtered view that only includes edges with a given property value
+        Return a filtered view that only includes edges that satisfy the filter
 
-        Arguments:
-            property (str): The name of the property to use for filtering
-                            (looked up in temporal properties first and falls
-                            back to constant properties
-            value (Any): The property value to compare with
+        Arguments
+            filter (PropertyFilter): The filter to apply to the edge properties. Construct a
+                                     filter using `Prop`.
 
         Returns:
             Node: The filtered view
         """
 
-    def filter_edges_gt(self, property, value):
+    def filter_exploded_edges(self, filter):
         """
-        Return a filtered view that only includes edges with a property value greater than a
-        given value
+        Return a filtered view that only includes exploded edges that satisfy the filter
 
         Arguments:
-            property (str): The name of the property to use for filtering
-                            (looked up in temporal properties first and falls
-                            back to constant properties
-            value (Any): The property value to compare with
-
-        Returns:
-            Node: The filtered view
-        """
-
-    def filter_edges_lt(self, property, value):
-        """
-        Return a filtered view that only includes edges with a property value less than a
-        given value
-
-        Arguments:
-            property (str): The name of the property to use for filtering
-                            (looked up in temporal properties first and falls
-                            back to constant properties
-            value (Any): The property value to compare with
+            filter (PropertyFilter): The filter to apply to the exploded edge properties. Construct a
+                                     filter using `Prop`.
 
         Returns:
             Node: The filtered view
@@ -3302,45 +3130,25 @@ class Node:
             A `WindowSet` object.
         """
 
-    def filter_edges_eq(self, property, value):
+    def filter_edges(self, filter):
         """
-        Return a filtered view that only includes edges with a given property value
+        Return a filtered view that only includes edges that satisfy the filter
 
-        Arguments:
-            property (str): The name of the property to use for filtering
-                            (looked up in temporal properties first and falls
-                            back to constant properties
-            value (Any): The property value to compare with
+        Arguments
+            filter (PropertyFilter): The filter to apply to the edge properties. Construct a
+                                     filter using `Prop`.
 
         Returns:
             Node: The filtered view
         """
 
-    def filter_edges_gt(self, property, value):
+    def filter_exploded_edges(self, filter):
         """
-        Return a filtered view that only includes edges with a property value greater than a
-        given value
+        Return a filtered view that only includes exploded edges that satisfy the filter
 
         Arguments:
-            property (str): The name of the property to use for filtering
-                            (looked up in temporal properties first and falls
-                            back to constant properties
-            value (Any): The property value to compare with
-
-        Returns:
-            Node: The filtered view
-        """
-
-    def filter_edges_lt(self, property, value):
-        """
-        Return a filtered view that only includes edges with a property value less than a
-        given value
-
-        Arguments:
-            property (str): The name of the property to use for filtering
-                            (looked up in temporal properties first and falls
-                            back to constant properties
-            value (Any): The property value to compare with
+            filter (PropertyFilter): The filter to apply to the exploded edge properties. Construct a
+                                     filter using `Prop`.
 
         Returns:
             Node: The filtered view
@@ -3764,45 +3572,25 @@ class Nodes:
             A `WindowSet` object.
         """
 
-    def filter_edges_eq(self, property, value):
+    def filter_edges(self, filter):
         """
-        Return a filtered view that only includes edges with a given property value
+        Return a filtered view that only includes edges that satisfy the filter
 
-        Arguments:
-            property (str): The name of the property to use for filtering
-                            (looked up in temporal properties first and falls
-                            back to constant properties
-            value (Any): The property value to compare with
+        Arguments
+            filter (PropertyFilter): The filter to apply to the edge properties. Construct a
+                                     filter using `Prop`.
 
         Returns:
             Nodes: The filtered view
         """
 
-    def filter_edges_gt(self, property, value):
+    def filter_exploded_edges(self, filter):
         """
-        Return a filtered view that only includes edges with a property value greater than a
-        given value
+        Return a filtered view that only includes exploded edges that satisfy the filter
 
         Arguments:
-            property (str): The name of the property to use for filtering
-                            (looked up in temporal properties first and falls
-                            back to constant properties
-            value (Any): The property value to compare with
-
-        Returns:
-            Nodes: The filtered view
-        """
-
-    def filter_edges_lt(self, property, value):
-        """
-        Return a filtered view that only includes edges with a property value less than a
-        given value
-
-        Arguments:
-            property (str): The name of the property to use for filtering
-                            (looked up in temporal properties first and falls
-                            back to constant properties
-            value (Any): The property value to compare with
+            filter (PropertyFilter): The filter to apply to the exploded edge properties. Construct a
+                                     filter using `Prop`.
 
         Returns:
             Nodes: The filtered view
@@ -4352,45 +4140,25 @@ class PersistentGraph:
             A `WindowSet` object.
         """
 
-    def filter_edges_eq(self, property, value):
+    def filter_edges(self, filter):
         """
-        Return a filtered view that only includes edges with a given property value
+        Return a filtered view that only includes edges that satisfy the filter
 
-        Arguments:
-            property (str): The name of the property to use for filtering
-                            (looked up in temporal properties first and falls
-                            back to constant properties
-            value (Any): The property value to compare with
+        Arguments
+            filter (PropertyFilter): The filter to apply to the edge properties. Construct a
+                                     filter using `Prop`.
 
         Returns:
             GraphView: The filtered view
         """
 
-    def filter_edges_gt(self, property, value):
+    def filter_exploded_edges(self, filter):
         """
-        Return a filtered view that only includes edges with a property value greater than a
-        given value
+        Return a filtered view that only includes exploded edges that satisfy the filter
 
         Arguments:
-            property (str): The name of the property to use for filtering
-                            (looked up in temporal properties first and falls
-                            back to constant properties
-            value (Any): The property value to compare with
-
-        Returns:
-            GraphView: The filtered view
-        """
-
-    def filter_edges_lt(self, property, value):
-        """
-        Return a filtered view that only includes edges with a property value less than a
-        given value
-
-        Arguments:
-            property (str): The name of the property to use for filtering
-                            (looked up in temporal properties first and falls
-                            back to constant properties
-            value (Any): The property value to compare with
+            filter (PropertyFilter): The filter to apply to the exploded edge properties. Construct a
+                                     filter using `Prop`.
 
         Returns:
             GraphView: The filtered view
@@ -5138,6 +4906,34 @@ class PersistentGraph:
 
     def write_updates(self):
         """Persist the new updates by appending them to the cache file."""
+
+class Prop:
+    """
+    A reference to a property used for constructing filters
+
+    Use `==`, `!=`, `<`, `<=`, `>`, `>=` to filter based on
+    property value (these filters always exclude entities that do not
+    have the property) or use one of the methods to construct
+    other kinds of filters.
+    """
+
+    def __init__(self, name):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+
+    def any(self, values):
+        """Create a filter that keeps entities if their property value is in the set"""
+
+    def is_none(self):
+        """Create a filter that only keeps entities that do not have the property"""
+
+    def is_some(self):
+        """Create a filter that only keeps entities if they have the property"""
+
+    def not_any(self, values):
+        """
+        Create a filter that keeps entities if their property value is not in the set or
+        if they don't have the property
+        """
 
 class Properties:
     """A view of the properties of an entity"""

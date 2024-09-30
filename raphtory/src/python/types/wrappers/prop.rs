@@ -1,14 +1,18 @@
 use super::document::PyDocument;
 use crate::{
-    core::{DocumentInput, Prop},
-    db::graph::views::deletion_graph::PersistentGraph,
+    core::{utils::errors::GraphError, DocumentInput, Prop},
+    db::graph::views::{
+        deletion_graph::PersistentGraph,
+        property_filter::internal::{InternalEdgeFilterOps, InternalExplodedEdgeFilterOps},
+    },
+    prelude::{GraphViewOps, PropertyFilter},
     python::{graph::views::graph_view::PyGraphView, types::repr::Repr},
 };
 use pyo3::{
-    exceptions::PyTypeError, types::PyBool, FromPyObject, IntoPy, PyAny, PyObject, PyResult,
-    Python, ToPyObject,
+    exceptions::PyTypeError, pyclass, pymethods, types::PyBool, FromPyObject, IntoPy, PyAny,
+    PyObject, PyResult, Python, ToPyObject,
 };
-use std::{ops::Deref, sync::Arc};
+use std::{collections::HashSet, ops::Deref, sync::Arc};
 
 impl ToPyObject for Prop {
     fn to_object(&self, py: Python) -> PyObject {
@@ -127,3 +131,112 @@ impl Repr for Prop {
 
 pub type PropValue = Option<Prop>;
 pub type PropHistItems = Vec<(i64, Prop)>;
+
+#[pyclass(frozen, name = "PropertyFilter")]
+#[derive(Clone)]
+pub struct PyPropertyFilter(PropertyFilter);
+
+impl InternalEdgeFilterOps for PyPropertyFilter {
+    type EdgeFiltered<'graph, G>
+        = <PropertyFilter as InternalEdgeFilterOps>::EdgeFiltered<'graph, G>
+    where
+        G: GraphViewOps<'graph>,
+        Self: 'graph;
+
+    fn create_edge_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::EdgeFiltered<'graph, G>, GraphError> {
+        self.0.create_edge_filter(graph)
+    }
+}
+
+impl InternalExplodedEdgeFilterOps for PyPropertyFilter {
+    type ExplodedEdgeFiltered<'graph, G>
+        = <PropertyFilter as InternalExplodedEdgeFilterOps>::ExplodedEdgeFiltered<'graph, G>
+    where
+        G: GraphViewOps<'graph>,
+        Self: 'graph;
+
+    fn create_exploded_edge_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::ExplodedEdgeFiltered<'graph, G>, GraphError> {
+        self.0.create_exploded_edge_filter(graph)
+    }
+}
+
+/// A reference to a property used for constructing filters
+///
+/// Use `==`, `!=`, `<`, `<=`, `>`, `>=` to filter based on
+/// property value (these filters always exclude entities that do not
+/// have the property) or use one of the methods to construct
+/// other kinds of filters.
+#[pyclass(frozen, name = "Prop")]
+#[derive(Clone)]
+pub struct PyPropertyRef {
+    name: String,
+}
+
+#[pymethods]
+impl PyPropertyRef {
+    #[new]
+    fn new(name: String) -> Self {
+        PyPropertyRef { name }
+    }
+
+    fn __eq__(&self, value: Prop) -> PyPropertyFilter {
+        let filter = PropertyFilter::eq(&self.name, value);
+        PyPropertyFilter(filter)
+    }
+
+    fn __ne__(&self, value: Prop) -> PyPropertyFilter {
+        let filter = PropertyFilter::ne(&self.name, value);
+        PyPropertyFilter(filter)
+    }
+
+    fn __lt__(&self, value: Prop) -> PyPropertyFilter {
+        let filter = PropertyFilter::lt(&self.name, value);
+        PyPropertyFilter(filter)
+    }
+
+    fn __le__(&self, value: Prop) -> PyPropertyFilter {
+        let filter = PropertyFilter::le(&self.name, value);
+        PyPropertyFilter(filter)
+    }
+
+    fn __gt__(&self, value: Prop) -> PyPropertyFilter {
+        let filter = PropertyFilter::gt(&self.name, value);
+        PyPropertyFilter(filter)
+    }
+
+    fn __ge__(&self, value: Prop) -> PyPropertyFilter {
+        let filter = PropertyFilter::ge(&self.name, value);
+        PyPropertyFilter(filter)
+    }
+
+    /// Create a filter that only keeps entities if they have the property
+    fn is_some(&self) -> PyPropertyFilter {
+        let filter = PropertyFilter::is_some(&self.name);
+        PyPropertyFilter(filter)
+    }
+
+    /// Create a filter that only keeps entities that do not have the property
+    fn is_none(&self) -> PyPropertyFilter {
+        let filter = PropertyFilter::is_none(&self.name);
+        PyPropertyFilter(filter)
+    }
+
+    /// Create a filter that keeps entities if their property value is in the set
+    fn any(&self, values: HashSet<Prop>) -> PyPropertyFilter {
+        let filter = PropertyFilter::any(&self.name, values);
+        PyPropertyFilter(filter)
+    }
+
+    /// Create a filter that keeps entities if their property value is not in the set or
+    /// if they don't have the property
+    fn not_any(&self, values: HashSet<Prop>) -> PyPropertyFilter {
+        let filter = PropertyFilter::not_any(&self.name, values);
+        PyPropertyFilter(filter)
+    }
+}

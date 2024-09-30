@@ -122,16 +122,16 @@ impl<A: Clone + Debug + PartialEq + Send + Sync> TCell<A> {
         }
     }
 
-    pub fn last_before(&self, t: i64) -> Option<(TimeIndexEntry, &A)> {
+    pub fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, &A)> {
         match self {
             TCell::Empty => None,
-            TCell::TCell1(t2, v) => (t2.t() < t).then_some((*t2, v)),
+            TCell::TCell1(t2, v) => (*t2 < t).then_some((*t2, v)),
             TCell::TCellCap(map) => map
-                .range(TimeIndexEntry::range(i64::MIN..t))
+                .range(TimeIndexEntry::MIN..t)
                 .last()
                 .map(|(ti, v)| (*ti, v)),
             TCell::TCellN(map) => map
-                .range(TimeIndexEntry::range(i64::MIN..t))
+                .range(TimeIndexEntry::MIN..t)
                 .last()
                 .map(|(ti, v)| (*ti, v)),
         }

@@ -3,7 +3,7 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - protobuf>=4.25.3
+  - protobuf>=4.25.3,<5
   - ca-certificates>=2021.10.8
   - certifi>=2021.10.8
   - ipykernel

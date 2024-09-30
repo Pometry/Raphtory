@@ -2,9 +2,7 @@ use crate::core::{
     entities::{edges::edge_store::EdgeStore, nodes::node_store::NodeStore, EID, VID},
     storage::{
         self,
-        raw_edges::{
-            EdgeArcGuard, EdgeRGuard, EdgeWGuard, EdgesStorage, LockedEdges, UninitialisedEdge,
-        },
+        raw_edges::{EdgeRGuard, EdgeWGuard, EdgesStorage, LockedEdges, UninitialisedEdge},
         Entry, EntryMut, NodeStorage, PairEntryMut, UninitialisedEntry,
     },
 };
@@ -73,11 +71,6 @@ impl GraphStorage {
     #[inline]
     pub(crate) fn edge_entry(&self, eid: EID) -> EdgeRGuard {
         self.edges.get_edge(eid)
-    }
-
-    #[inline]
-    pub(crate) fn get_edge_arc(&self, eid: EID) -> EdgeArcGuard {
-        self.edges.get_edge_arc(eid)
     }
 
     #[inline]
