@@ -33,7 +33,10 @@ mod test {
             api::view::{
                 exploded_edge_property_filter::ExplodedEdgePropertyFilterOps, node::NodeViewOps,
             },
-            graph::{graph::assert_graph_equal, views::deletion_graph::PersistentGraph},
+            graph::{
+                graph::{assert_graph_equal, assert_node_equal, assert_nodes_equal},
+                views::deletion_graph::PersistentGraph,
+            },
         },
         prelude::*,
         test_utils::{
@@ -182,6 +185,32 @@ mod test {
             let g = build_graph_from_edge_list(&edges);
             let filtered = g.filter_exploded_edges(PropertyFilter::eq("int_prop", v)).unwrap();
             assert_graph_equal(&filtered, &filtered.materialize().unwrap());
+        })
+    }
+
+    #[test]
+    fn test_filter_on_nodes() {
+        proptest!(|(
+            edges in build_edge_list(100, 100), v in any::<i64>()
+        )| {
+            let g = build_graph_from_edge_list(&edges);
+            let filtered_nodes = g.nodes().filter_exploded_edges(PropertyFilter::eq("int_prop", v)).unwrap();
+            let expected_filtered_g = build_filtered_graph(&edges, |vv| vv == v);
+            assert_nodes_equal(&filtered_nodes, &expected_filtered_g.nodes());
+        })
+    }
+
+    #[test]
+    fn test_filter_on_node() {
+        proptest!(|(
+            edges in build_edge_list(100, 2), v in any::<i64>()
+        )| {
+            let g = build_graph_from_edge_list(&edges);
+            if let Some(node) = g.node(0) {
+                let filtered_node = node.filter_exploded_edges(PropertyFilter::eq("int_prop", v)).unwrap();
+                let expected_filtered_g = build_filtered_graph(&edges, |vv| vv == v);
+                assert_node_equal(filtered_node, expected_filtered_g.node(0).unwrap())
+            }
         })
     }
 
