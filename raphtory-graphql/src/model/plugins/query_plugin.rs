@@ -1,6 +1,6 @@
-use crate::model::algorithms::{
-    algorithm::Algorithm, algorithm_entry_point::AlgorithmEntryPoint, global_search::GlobalSearch,
-    RegisterFunction,
+use crate::model::{
+    algorithms::{global_search::GlobalSearch, RegisterFunction},
+    plugins::{entry_point::EntryPoint, operation::Operation},
 };
 use async_graphql::{dynamic::FieldValue, Context};
 use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName};
@@ -16,39 +16,43 @@ use std::{
     sync::{Arc, Mutex, MutexGuard},
 };
 
-pub static GLOBAL_PLUGINS: Lazy<Mutex<HashMap<String, RegisterFunction>>> =
+pub static QUERY_PLUGINS: Lazy<Mutex<HashMap<String, RegisterFunction>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
 #[derive(Clone, Default)]
-pub struct GlobalPlugins {
+pub struct QueryPlugin {
     pub graphs: Arc<RwLock<HashMap<String, IndexedGraph<MaterializedGraph>>>>,
     pub vectorised_graphs: Arc<RwLock<HashMap<String, DynamicVectorisedGraph>>>,
 }
 
-impl<'a> AlgorithmEntryPoint<'a> for GlobalPlugins {
-    fn predefined_algos() -> HashMap<&'static str, RegisterFunction> {
+impl<'a> EntryPoint<'a> for QueryPlugin {
+    fn predefined_operations() -> HashMap<&'static str, RegisterFunction> {
         HashMap::from([(
             "globalSearch",
-            Box::new(GlobalSearch::register_algo) as RegisterFunction,
+            Box::new(GlobalSearch::register_operation) as RegisterFunction,
         )])
     }
+
     fn lock_plugins() -> MutexGuard<'static, HashMap<String, RegisterFunction>> {
-        GLOBAL_PLUGINS.lock().unwrap()
+        QUERY_PLUGINS.lock().unwrap()
     }
 }
 
-impl Register for GlobalPlugins {
+impl Register for QueryPlugin {
     fn register(registry: Registry) -> Registry {
-        Self::register_algos(registry)
+        Self::register_operations(registry)
     }
 }
-impl TypeName for GlobalPlugins {
+
+impl TypeName for QueryPlugin {
     fn get_type_name() -> Cow<'static, str> {
-        "GlobalPlugins".into()
+        "QueryPlugin".into()
     }
 }
-impl OutputTypeName for GlobalPlugins {}
-impl<'a> ResolveOwned<'a> for GlobalPlugins {
+
+impl OutputTypeName for QueryPlugin {}
+
+impl<'a> ResolveOwned<'a> for QueryPlugin {
     fn resolve_owned(self, _ctx: &Context) -> dynamic_graphql::Result<Option<FieldValue<'a>>> {
         Ok(Some(FieldValue::owned_any(self)))
     }

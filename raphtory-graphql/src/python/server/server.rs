@@ -1,8 +1,11 @@
 use crate::{
     config::app_config::AppConfigBuilder,
-    model::algorithms::{
-        algorithm_entry_point::AlgorithmEntryPoint, document::GqlDocument,
-        global_plugins::GlobalPlugins, vector_algorithms::VectorAlgorithms,
+    model::{
+        algorithms::document::GqlDocument,
+        plugins::{
+            entry_point::EntryPoint, query_plugin::QueryPlugin,
+            vector_algorithm_plugin::VectorAlgorithmPlugin,
+        },
     },
     python::{
         adapt_graphql_value,
@@ -30,10 +33,10 @@ use std::{collections::HashMap, path::PathBuf, thread};
 
 /// A class for defining and running a Raphtory GraphQL server
 #[pyclass(name = "GraphServer")]
-pub struct PyGraphServer(pub(crate) Option<GraphServer>);
+pub struct PyGraphServer(pub Option<GraphServer>);
 
 impl PyGraphServer {
-    fn new(server: GraphServer) -> Self {
+    pub fn new(server: GraphServer) -> Self {
         Self(Some(server))
     }
 
@@ -62,7 +65,7 @@ impl PyGraphServer {
 
     fn with_generic_document_search_function<
         'a,
-        E: AlgorithmEntryPoint<'a> + 'static,
+        E: EntryPoint<'a> + 'static,
         F: Fn(&E, Python) -> PyObject + Send + Sync + 'static,
     >(
         slf: PyRefMut<Self>,
@@ -252,7 +255,7 @@ impl PyGraphServer {
         function: &PyFunction,
     ) -> PyResult<Self> {
         let adapter =
-            |entry_point: &VectorAlgorithms, py: Python| entry_point.graph.clone().into_py(py);
+            |entry_point: &VectorAlgorithmPlugin, py: Python| entry_point.graph.clone().into_py(py);
         PyGraphServer::with_generic_document_search_function(slf, name, input, function, adapter)
     }
 
@@ -276,7 +279,7 @@ impl PyGraphServer {
         input: HashMap<String, String>,
         function: &PyFunction,
     ) -> PyResult<Self> {
-        let adapter = |entry_point: &GlobalPlugins, py: Python| {
+        let adapter = |entry_point: &QueryPlugin, py: Python| {
             PyGlobalPlugins(entry_point.clone()).into_py(py)
         };
         PyGraphServer::with_generic_document_search_function(slf, name, input, function, adapter)

@@ -4628,6 +4628,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "raphtory_custom_gql_apis"
+version = "0.9.3"
+dependencies = [
+ "async-graphql",
+ "chrono",
+ "display-error-chain",
+ "dynamic-graphql",
+ "futures-util",
+ "itertools 0.13.0",
+ "pyo3",
+ "pyo3-build-config",
+ "raphtory",
+ "raphtory-api",
+ "raphtory-graphql",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "raphtory_netflow"
 version = "0.11.3"
 dependencies = [
