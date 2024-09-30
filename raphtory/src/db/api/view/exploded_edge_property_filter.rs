@@ -2,9 +2,9 @@ use crate::{
     core::utils::errors::GraphError,
     db::{
         api::view::internal::{GraphType, InternalMaterialize, OneHopFilter},
-        graph::{node::NodeView, views::property_filter::internal::InternalExplodedEdgeFilterOps},
+        graph::views::property_filter::internal::InternalExplodedEdgeFilterOps,
     },
-    prelude::{GraphViewOps, NodeViewOps},
+    prelude::GraphViewOps,
 };
 
 pub trait ExplodedEdgePropertyFilterOps<'graph>: OneHopFilter<'graph> {

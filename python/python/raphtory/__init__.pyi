@@ -368,30 +368,6 @@ class Edge:
         """Explodes an edge and returns all instances it had been updated as seperate edges"""
 
     def explode_layers(self): ...
-    def filter_edges(self, filter):
-        """
-        Return a filtered view that only includes edges that satisfy the filter
-
-        Arguments
-            filter (PropertyFilter): The filter to apply to the edge properties. Construct a
-                                     filter using `Prop`.
-
-        Returns:
-            Edge: The filtered view
-        """
-
-    def filter_exploded_edges(self, filter):
-        """
-        Return a filtered view that only includes exploded edges that satisfy the filter
-
-        Arguments:
-            filter (PropertyFilter): The filter to apply to the exploded edge properties. Construct a
-                                     filter using `Prop`.
-
-        Returns:
-            Edge: The filtered view
-        """
-
     def has_layer(self, name):
         """Check if Edge has the layer `"name"`"""
 
@@ -808,30 +784,6 @@ class Edges:
         """Explodes an edge and returns all instances it had been updated as seperate edges"""
 
     def explode_layers(self): ...
-    def filter_edges(self, filter):
-        """
-        Return a filtered view that only includes edges that satisfy the filter
-
-        Arguments
-            filter (PropertyFilter): The filter to apply to the edge properties. Construct a
-                                     filter using `Prop`.
-
-        Returns:
-            Edges: The filtered view
-        """
-
-    def filter_exploded_edges(self, filter):
-        """
-        Return a filtered view that only includes exploded edges that satisfy the filter
-
-        Arguments:
-            filter (PropertyFilter): The filter to apply to the exploded edge properties. Construct a
-                                     filter using `Prop`.
-
-        Returns:
-            Edges: The filtered view
-        """
-
     def has_layer(self, name):
         """Check if Edges has the layer `"name"`"""
 
@@ -2298,30 +2250,6 @@ class MutableEdge:
         """Explodes an edge and returns all instances it had been updated as seperate edges"""
 
     def explode_layers(self): ...
-    def filter_edges(self, filter):
-        """
-        Return a filtered view that only includes edges that satisfy the filter
-
-        Arguments
-            filter (PropertyFilter): The filter to apply to the edge properties. Construct a
-                                     filter using `Prop`.
-
-        Returns:
-            Edge: The filtered view
-        """
-
-    def filter_exploded_edges(self, filter):
-        """
-        Return a filtered view that only includes exploded edges that satisfy the filter
-
-        Arguments:
-            filter (PropertyFilter): The filter to apply to the exploded edge properties. Construct a
-                                     filter using `Prop`.
-
-        Returns:
-            Edge: The filtered view
-        """
-
     def has_layer(self, name):
         """Check if Edge has the layer `"name"`"""
 

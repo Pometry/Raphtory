@@ -53,8 +53,7 @@ use crate::{
             view::{
                 internal::{
                     Base, EdgeFilterOps, EdgeList, Immutable, InheritCoreOps, InheritLayerOps,
-                    InheritListOps, InheritMaterialize, ListOps, NodeFilterOps, NodeList, Static,
-                    TimeSemantics,
+                    InheritMaterialize, ListOps, NodeFilterOps, NodeList, Static, TimeSemantics,
                 },
                 BoxedLIter, IntoDynBoxed,
             },

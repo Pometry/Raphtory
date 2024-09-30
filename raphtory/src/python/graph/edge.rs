@@ -10,25 +10,14 @@ use crate::{
         api::{
             properties::Properties,
             view::{
-                internal::{
-                    DynamicGraph, Immutable, IntoDynamic, MaterializedGraph, OneHopFilter, Static,
-                },
+                internal::{DynamicGraph, Immutable, IntoDynamic, MaterializedGraph, Static},
                 StaticGraphViewOps,
             },
         },
-        graph::{
-            edge::EdgeView,
-            views::{
-                deletion_graph::PersistentGraph,
-                property_filter::internal::{InternalEdgeFilterOps, InternalExplodedEdgeFilterOps},
-            },
-        },
+        graph::{edge::EdgeView, views::deletion_graph::PersistentGraph},
     },
     prelude::*,
-    python::{
-        types::{repr::Repr, wrappers::prop::PyPropertyFilter},
-        utils::PyTime,
-    },
+    python::{types::repr::Repr, utils::PyTime},
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
