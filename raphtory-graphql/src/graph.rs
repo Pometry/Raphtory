@@ -67,16 +67,16 @@ impl GraphWithVectors {
         let folder = path.into();
         self.folder
             .get_or_try_init(|| Ok::<_, GraphError>(folder.clone()))?;
-        self.dump_vectors()?;
+        self.dump_vectors_to_disk()?;
         self.graph.cache(folder)
     }
 
     pub(crate) fn write_updates(&self) -> Result<(), GraphError> {
-        self.dump_vectors()?;
+        self.dump_vectors_to_disk()?;
         self.graph.write_updates()
     }
 
-    fn dump_vectors(&self) -> Result<(), GraphError> {
+    fn dump_vectors_to_disk(&self) -> Result<(), GraphError> {
         if let Some(vectors) = &self.vectors {
             vectors.write_to_path(
                 &self
@@ -84,7 +84,7 @@ impl GraphWithVectors {
                     .get()
                     .ok_or(GraphError::CacheNotInnitialised)?
                     .get_vectors_path(),
-            );
+            )?;
         }
         Ok(())
     }

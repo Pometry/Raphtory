@@ -18,6 +18,11 @@ use std::{
 pub use proto::Graph as ProtoGraph;
 pub use serialise::{CacheOps, StableDecode, StableEncode};
 
+use crate::core::utils::errors::GraphError;
+
+const GRAPH_FILE_NAME: &str = "graph";
+const META_FILE_NAME: &str = ".raph";
+
 #[derive(Clone, Debug)]
 pub struct GraphFolder {
     root_folder: PathBuf,
@@ -49,40 +54,11 @@ impl GraphFolder {
 
     // TODO: make it private again once we stop using it from the graphql crate
     pub fn get_graph_path(&self) -> PathBuf {
-        self.root_folder.join("graph")
+        self.root_folder.join(GRAPH_FILE_NAME)
     }
 
-    pub fn read_graph(&self) -> Result<GraphReader, io::Error> {
-        if self.root_folder.is_file() {
-            let file = File::open(&self.root_folder)?;
-            let mut archive = ZipArchive::new(file)?;
-            let mut entry = archive.by_name("graph")?;
-            let mut buf = vec![];
-            entry.read_to_end(&mut buf)?;
-            Ok(GraphReader::Zip(buf))
-        } else {
-            let file = File::open(self.get_graph_path())?;
-            let buf = unsafe { memmap2::MmapOptions::new().map(&file)? };
-            Ok(GraphReader::Folder(buf))
-        }
-    }
-
-    pub fn write_graph(&self, buf: &[u8]) -> Result<(), io::Error> {
-        if self.prefer_zip_format {
-            let file = File::create(&self.root_folder)?;
-            let mut zip = ZipWriter::new(file);
-            zip.start_file::<_, ()>("graph", FileOptions::default())?;
-            zip.write_all(buf)
-        } else {
-            let _ignored = fs::create_dir(&self.root_folder);
-            let mut file = File::create(self.get_graph_path())?;
-            file.write_all(buf)
-        }
-    }
-
-    fn get_appendable_graph_file(&self) -> Result<File, std::io::Error> {
-        let _ignored = fs::create_dir(&self.root_folder);
-        OpenOptions::new().append(true).open(self.get_graph_path())
+    pub fn get_meta_path(&self) -> PathBuf {
+        self.root_folder.join(META_FILE_NAME)
     }
 
     // TODO: make private once possible
@@ -93,6 +69,52 @@ impl GraphFolder {
     // TODO: make private once possible
     pub fn get_base_path(&self) -> &Path {
         &self.root_folder
+    }
+
+    pub fn read_graph(&self) -> Result<GraphReader, io::Error> {
+        if self.root_folder.is_file() {
+            let file = File::open(&self.root_folder)?;
+            let mut archive = ZipArchive::new(file)?;
+            let mut entry = archive.by_name(GRAPH_FILE_NAME)?;
+            let mut buf = vec![];
+            entry.read_to_end(&mut buf)?;
+            Ok(GraphReader::Zip(buf))
+        } else {
+            let file = File::open(self.get_graph_path())?;
+            let buf = unsafe { memmap2::MmapOptions::new().map(&file)? };
+            Ok(GraphReader::Folder(buf))
+        }
+    }
+
+    pub fn write_graph(&self, buf: &[u8]) -> Result<(), GraphError> {
+        if self.prefer_zip_format {
+            let file = File::create(&self.root_folder)?;
+            let mut zip = ZipWriter::new(file);
+            zip.start_file::<_, ()>(GRAPH_FILE_NAME, FileOptions::default())?;
+            Ok(zip.write_all(buf)?)
+        } else {
+            self.ensure_clean_root_dir()?;
+            let mut file = File::create(self.get_graph_path())?;
+            Ok(file.write_all(buf)?)
+        }
+    }
+
+    fn get_appendable_graph_file(&self) -> Result<File, GraphError> {
+        let path = self.get_graph_path();
+        Ok(OpenOptions::new().append(true).open(path)?)
+    }
+
+    fn ensure_clean_root_dir(&self) -> Result<(), GraphError> {
+        if self.root_folder.exists() {
+            let non_empty = self.root_folder.read_dir()?.next().is_some();
+            if non_empty {
+                return Err(GraphError::NonEmptyGraphFolder(self.root_folder.clone()));
+            }
+        } else {
+            fs::create_dir(&self.root_folder)?
+        }
+        File::create_new(self.root_folder.join(META_FILE_NAME))?;
+        Ok(())
     }
 }
 

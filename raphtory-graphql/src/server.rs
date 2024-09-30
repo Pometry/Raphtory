@@ -99,7 +99,7 @@ impl GraphServer {
 
     pub fn set_embeddings<F: EmbeddingFunction + Clone + 'static>(
         mut self,
-        embedding: F, // TODO: make this optional
+        embedding: F,
         cache: &Path, // TODO: maybe now that we are storing vectors we could bin the cache!!!
         // or maybe it could be in a standard location like /tmp/raphtory/embedding_cache
         global_template: Option<DocumentTemplate>,
@@ -158,7 +158,7 @@ impl GraphServer {
 
     /// Start the server on the port `port` and return a handle to it.
     pub async fn start_with_port(self, port: u16) -> IoResult<RunningGraphServer> {
-        self.data.vectorise_all_graphs_that_are_not().await;
+        self.data.vectorise_all_graphs_that_are_not().await; // is it ok ignoring this error?
 
         let config = &self.config;
         let filter = config.logging.get_log_env();

@@ -38,7 +38,7 @@ impl From<ExistingGraphFolder> for GraphFolder {
 impl ExistingGraphFolder {
     pub(crate) fn try_from(base_path: PathBuf, relative_path: &str) -> Result<Self, GraphError> {
         let graph_folder = ValidGraphFolder::try_from(base_path, relative_path)?;
-        if graph_folder.get_graph_path().exists() {
+        if graph_folder.get_meta_path().exists() {
             Ok(Self {
                 folder: graph_folder,
             })
@@ -96,7 +96,7 @@ impl ValidGraphFolder {
             return Err(DoubleForwardSlash(user_facing_path));
         }
 
-        let mut full_path = base_path;
+        let mut full_path = base_path.clone();
         // fail if any component is a Prefix (C://), tries to access root,
         // tries to access a parent dir or is a symlink which could break out of the working dir
         for component in user_facing_path.components() {
@@ -106,6 +106,15 @@ impl ValidGraphFolder {
                 Component::CurDir => return Err(CurDirNotAllowed(user_facing_path)),
                 Component::ParentDir => return Err(ParentDirNotAllowed(user_facing_path)),
                 Component::Normal(component) => {
+                    // check if some intermediate path is already a graph
+                    let result = ExistingGraphFolder::try_from(
+                        base_path.clone(),
+                        full_path.to_str().unwrap(),
+                    );
+                    if result.is_ok() {
+                        return Err(ParentIsGraph(user_facing_path));
+                    }
+
                     //check for symlinks
                     full_path.push(component);
                     if full_path.is_symlink() {

@@ -8,7 +8,7 @@ use std::{
     sync::Arc,
 };
 
-use crate::db::api::view::StaticGraphViewOps;
+use crate::{core::utils::errors::GraphError, db::api::view::StaticGraphViewOps};
 
 use super::{
     document_ref::DocumentRef, embedding_cache::EmbeddingCache, entity_id::EntityId,
@@ -51,15 +51,16 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         ))
     }
 
-    pub fn write_to_path(&self, path: &Path) {
+    pub fn write_to_path(&self, path: &Path) -> Result<(), GraphError> {
         let storage = VectorStorage {
             template: self.template.clone(),
             graph_documents: self.graph_documents.read().clone(),
             node_documents: self.node_documents.read().clone(),
             edge_documents: self.edge_documents.read().clone(),
         };
-        let file = File::create(path).expect("Couldn't create file to store the vectorised graph");
+        let file = File::create(path)?;
         let mut writer = BufWriter::new(file);
-        bincode::serialize_into(&mut writer, &storage).expect("Couldn't serialize vectorise graph");
+        bincode::serialize_into(&mut writer, &storage)?;
+        Ok(())
     }
 }

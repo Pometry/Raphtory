@@ -138,38 +138,38 @@ def test_namespaces():
         path = "../shivam/g"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
-        assert "Invalid path: ParentDirNotAllowed" in str(
+        assert "References to the parent dir are not allowed within the path:" in str(
             excinfo.value
         )
 
         path = "./shivam/g"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
-        assert "Invalid path: CurDirNotAllowed" in str(
+        assert "References to the current dir are not allowed within the path" in str(
             excinfo.value
         )
 
         path = "shivam/../../../../investigation/g"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
-        assert "Invalid path: ParentDirNotAllowed" in str(
+        assert "References to the parent dir are not allowed within the path:" in str(
             excinfo.value
         )
 
         path = "//shivam/investigation/g"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
-        assert "Invalid path: DoubleForwardSlash" in str(excinfo.value)
+        assert "Double forward slashes are not allowed in path" in str(excinfo.value)
 
         path = "shivam/investigation//2024-12-12/g"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
-        assert "Invalid path: DoubleForwardSlash" in str(excinfo.value)
+        assert "Double forward slashes are not allowed in path" in str(excinfo.value)
 
         path = r"shivam/investigation\2024-12-12"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
-        assert "Invalid path: BackslashError" in str(excinfo.value)
+        assert "Backslash not allowed in path" in str(excinfo.value)
 
         # Test if we can escape through a symlink
         tmp_dir2 = tempfile.mkdtemp()
@@ -181,7 +181,7 @@ def test_namespaces():
         path = "shivam/graphs/not_a_symlink_i_promise/escaped"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
-        assert "Invalid path: SymlinkNotAllowed" in str(excinfo.value)
+        assert "A component of the given path was a symlink" in str(excinfo.value)
 
 
 def test_graph_windows_and_layers_query():

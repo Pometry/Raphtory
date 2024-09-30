@@ -149,17 +149,18 @@ impl Data {
         Some(vectors)
     }
 
-    pub(crate) async fn vectorise_all_graphs_that_are_not(&self) {
+    pub(crate) async fn vectorise_all_graphs_that_are_not(&self) -> Result<(), GraphError> {
         for folder in self.get_all_graph_folders() {
             if !folder.get_vectors_path().exists() {
                 if let Ok(graph) = self.read_graph_from_folder(&folder) {
                     let vectors = self.vectorise(graph.graph.graph, &folder).await;
                     if let Some(vectors) = vectors {
-                        vectors.write_to_path(&folder.get_vectors_path());
+                        vectors.write_to_path(&folder.get_vectors_path())?;
                     }
                 }
             }
         }
+        Ok(())
     }
 
     // TODO: return iter
