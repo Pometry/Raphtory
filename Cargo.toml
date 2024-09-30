@@ -77,7 +77,6 @@ thiserror = "1.0.57"
 dotenv = "0.15.0"
 csv = "1.3.0"
 flate2 = "1.0.28"
-tar = "0.4.41"
 regex = "1.10.3"
 num-traits = "0.2.18"
 num-integer = "0.1"
@@ -114,7 +113,7 @@ base64 = "0.22.1"
 poem = { version = "3.0.1", features = ["cookie"] }
 opentelemetry = "0.25.0"
 opentelemetry_sdk = { version = "0.25.0", features = ["rt-tokio"] }
-opentelemetry-otlp = { version = "0.25.0"}
+opentelemetry-otlp = { version = "0.25.0" }
 tracing = "0.1.37"
 tracing-opentelemetry = "0.26.0"
 tracing-subscriber = { version = "0.3.16", features = ["std", "env-filter"] }

@@ -1,22 +1,17 @@
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::core::utils::errors::GraphError;
-use std::path::PathBuf;
 
 use crate::paths::ExistingGraphFolder;
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlGraphs {
-    work_dir: PathBuf,
     folders: Vec<ExistingGraphFolder>,
 }
 
 impl GqlGraphs {
-    pub fn new(work_dir: PathBuf, paths: Vec<ExistingGraphFolder>) -> Self {
-        Self {
-            work_dir,
-            folders: paths,
-        }
+    pub fn new(paths: Vec<ExistingGraphFolder>) -> Self {
+        Self { folders: paths }
     }
 }
 

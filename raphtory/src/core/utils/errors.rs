@@ -89,7 +89,7 @@ pub enum GraphError {
     #[cfg(feature = "arrow")]
     #[error("Arrow error: {0}")]
     Arrow(#[from] error::PolarsError),
-    #[error("Invalid path: {source:?}")]
+    #[error("Invalid path: {source}")]
     InvalidPath {
         #[from]
         source: InvalidPathReason,

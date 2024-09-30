@@ -20,7 +20,7 @@ pub use serialise::{CacheOps, StableDecode, StableEncode};
 
 #[derive(Clone, Debug)]
 pub struct GraphFolder {
-    path: PathBuf,
+    root_folder: PathBuf,
     prefer_zip_format: bool,
 }
 
@@ -49,12 +49,12 @@ impl GraphFolder {
 
     // TODO: make it private again once we stop using it from the graphql crate
     pub fn get_graph_path(&self) -> PathBuf {
-        self.path.join("graph")
+        self.root_folder.join("graph")
     }
 
     pub fn read_graph(&self) -> Result<GraphReader, io::Error> {
-        if self.path.is_file() {
-            let file = File::open(&self.path)?;
+        if self.root_folder.is_file() {
+            let file = File::open(&self.root_folder)?;
             let mut archive = ZipArchive::new(file)?;
             let mut entry = archive.by_name("graph")?;
             let mut buf = vec![];
@@ -69,30 +69,30 @@ impl GraphFolder {
 
     pub fn write_graph(&self, buf: &[u8]) -> Result<(), io::Error> {
         if self.prefer_zip_format {
-            let file = File::create(&self.path)?;
+            let file = File::create(&self.root_folder)?;
             let mut zip = ZipWriter::new(file);
             zip.start_file::<_, ()>("graph", FileOptions::default())?;
             zip.write_all(buf)
         } else {
-            let _ignored = fs::create_dir(&self.path);
+            let _ignored = fs::create_dir(&self.root_folder);
             let mut file = File::create(self.get_graph_path())?;
             file.write_all(buf)
         }
     }
 
     fn get_appendable_graph_file(&self) -> Result<File, std::io::Error> {
-        let _ignored = fs::create_dir(&self.path);
+        let _ignored = fs::create_dir(&self.root_folder);
         OpenOptions::new().append(true).open(self.get_graph_path())
     }
 
     // TODO: make private once possible
     pub fn get_vectors_path(&self) -> PathBuf {
-        self.path.join("vectors")
+        self.root_folder.join("vectors")
     }
 
     // TODO: make private once possible
     pub fn get_base_path(&self) -> &Path {
-        &self.path
+        &self.root_folder
     }
 }
 
@@ -100,7 +100,7 @@ impl<P: AsRef<Path>> From<P> for GraphFolder {
     fn from(value: P) -> Self {
         let path: &Path = value.as_ref();
         Self {
-            path: path.to_path_buf(),
+            root_folder: path.to_path_buf(),
             prefer_zip_format: false,
         }
     }

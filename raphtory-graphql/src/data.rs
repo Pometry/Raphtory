@@ -34,7 +34,7 @@ pub struct EmbeddingConf {
 
 #[derive(Clone)]
 pub struct Data {
-    pub(crate) work_dir: PathBuf, // TODO: make private again!!!
+    work_dir: PathBuf,
     cache: Cache<PathBuf, GraphWithVectors>,
     pub(crate) embedding_conf: Option<EmbeddingConf>,
 }
@@ -46,9 +46,8 @@ impl Data {
         let cache = Cache::<PathBuf, GraphWithVectors>::builder()
             .max_capacity(cache_configs.capacity)
             .time_to_idle(std::time::Duration::from_secs(cache_configs.tti_seconds))
-            .eviction_listener(|_, value, _| {
-                value
-                    .graph
+            .eviction_listener(|_, graph, _| {
+                graph
                     .write_updates()
                     .unwrap_or_else(|err| error!("Write on eviction failed: {err:?}"))
                 // FIXME: don't have currently a way to know which embedding updates are pending
@@ -221,31 +220,9 @@ impl Data {
     }
 }
 
-// TODO: review if we are using this
-// #[cfg(feature = "storage")]
-// fn load_disk_graph_from_path(
-//     path_on_server: &Path,
-//     target_path: &Path,
-//     overwrite: bool,
-// ) -> Result<Option<PathBuf>, GraphError> {
-//     let _ = load_disk_graph(path_on_server)?;
-//     if target_path.exists() {
-//         if overwrite {
-//             fs::remove_dir_all(&target_path)?;
-//             copy_dir_recursive(path_on_server, &target_path)?;
-//             println!("Disk Graph loaded = {}", target_path.display());
-//         } else {
-//             return Err(GraphError::GraphNameAlreadyExists(target_path.to_path_buf()).into());
-//         }
-//     } else {
-//         copy_dir_recursive(path_on_server, &target_path)?;
-//         println!("Disk Graph loaded = {}", target_path.display());
-//     }
-//     Ok(Some(target_path.to_path_buf()))
-// }
 #[cfg(test)]
 pub(crate) mod data_tests {
-    use crate::{data::Data, graph::GraphWithVectors, paths::ExistingGraphFolder};
+    use crate::data::Data;
     use itertools::Itertools;
     use raphtory::{db::api::view::MaterializedGraph, prelude::*};
     use std::{
@@ -257,8 +234,6 @@ pub(crate) mod data_tests {
     };
 
     use crate::config::app_config::{AppConfig, AppConfigBuilder};
-    // #[cfg(feature = "storage")]
-    // use crate::data::copy_dir_recursive;
     use raphtory::core::utils::errors::{GraphError, InvalidPathReason};
     #[cfg(feature = "storage")]
     use raphtory::{
@@ -303,7 +278,6 @@ pub(crate) mod data_tests {
         Ok(())
     }
 
-    // TODO: this is only used for testing, should be under some test flag
     pub(crate) fn save_graphs_to_work_dir(
         work_dir: &Path,
         graphs: &HashMap<String, MaterializedGraph>,
@@ -345,12 +319,10 @@ pub(crate) mod data_tests {
 
         let data = Data::new(&base_path, &Default::default());
         let res = data.get_graph("test_dg").unwrap().0;
-        // let res = read_graph_from_path(base_path.clone(), "test_dg").unwrap();
         assert_eq!(res.graph.graph.into_events().unwrap().count_edges(), 2);
 
         // Dir path doesn't exists
         let res = data.get_graph("test_dg1");
-        // let res = read_graph_from_path(base_path.clone(), "test_dg1");
         assert!(res.is_err());
         if let Err(err) = res {
             assert!(err.to_string().contains("Graph not found"));

@@ -7,7 +7,6 @@ use crate::{
             vectorised_graph::GqlVectorisedGraph,
         },
     },
-    paths::ExistingGraphFolder,
     url_encode::{url_decode_graph, url_encode_graph},
 };
 use async_graphql::Context;
@@ -24,13 +23,10 @@ use raphtory::{
     db::{api::view::MaterializedGraph, graph::views::deletion_graph::PersistentGraph},
     prelude::*,
 };
-use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{
     error::Error,
     fmt::{Display, Formatter},
-    fs::{self, File},
-    io::{copy, Read},
-    path::Path,
+    io::Read,
     sync::Arc,
 };
 use zip::ZipArchive;
@@ -105,8 +101,7 @@ impl QueryRoot {
     async fn graphs<'a>(ctx: &Context<'a>) -> Result<GqlGraphs> {
         let data = ctx.data_unchecked::<Data>();
         let paths = data.get_all_graph_folders();
-        let work_dir = data.work_dir.clone();
-        Ok(GqlGraphs::new(work_dir, paths))
+        Ok(GqlGraphs::new(paths))
     }
 
     async fn plugins<'a>(ctx: &Context<'a>) -> GlobalPlugins {
@@ -164,6 +159,9 @@ impl Mut {
     // If namespace is not provided, it will be set to the current working directory.
     // This applies to both the graph namespace and new graph namespace.
     async fn copy_graph<'a>(ctx: &Context<'a>, path: &str, new_path: &str) -> Result<bool> {
+        // doing this in a more efficient way is not trivial, this at least is correct
+        // there are questions like, maybe the new vectorised graph have different rules
+        // for the templates or if it needs to be vectorised at all
         let data = ctx.data_unchecked::<Data>();
         let graph = data.get_graph(path)?.0.graph.materialize()?;
 
@@ -171,14 +169,6 @@ impl Mut {
         if let GraphStorage::Disk(_) = graph.core_graph() {
             return Err(GqlGraphError::ImmutableDiskGraph.into());
         }
-        // TODO: review, can't we do here as well:
-        // if graph.graph.storage().is_immutable() {
-        //     return Err(GqlGraphError::ImmutableDiskGraph.into());
-        // }
-        let timestamp: i64 = Utc::now().timestamp();
-        graph.update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
-        graph.update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
-        // TODO: make sure that further calls to graph.write_updates() will target the new path!!!!
         data.insert_graph(new_path, graph).await?;
 
         Ok(true)

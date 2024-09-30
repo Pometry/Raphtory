@@ -47,13 +47,10 @@ impl<'a, G: StaticGraphViewOps> VectorisedCluster<'a, G> {
         let scored_documents = score_documents(query, documents);
         let top_k = find_top_k(scored_documents, limit);
 
-        dbg!(&self.graphs.keys());
-
         top_k
             .map(|(doc, score)| match &doc.entity_id {
                 EntityId::Graph { name } => {
                     let name = name.clone().unwrap();
-                    dbg!(&name);
                     let graph = self.graphs.get(&name).unwrap();
                     (doc.regenerate(&graph.source_graph, &graph.template), score)
                 }
