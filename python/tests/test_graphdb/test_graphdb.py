@@ -352,8 +352,8 @@ def test_getitem():
     @with_disk_graph
     def check(g):
         assert (
-            g.node(1).properties.temporal.get("cost")
-            == g.node(1).properties.temporal["cost"]
+                g.node(1).properties.temporal.get("cost")
+                == g.node(1).properties.temporal["cost"]
         )
 
     check(g)
@@ -606,7 +606,7 @@ def test_node_properties():
                 assert g.at(time).node(1).properties.temporal.get(key) is None
                 assert g.at(time).nodes.properties.temporal.get(key) is None
                 assert (
-                    g.at(time).nodes.out_neighbours.properties.temporal.get(key) is None
+                        g.at(time).nodes.out_neighbours.properties.temporal.get(key) is None
                 )
             else:
                 assert g.at(time).node(1).properties.temporal.get(key).items() == value
@@ -811,22 +811,22 @@ def test_node_properties():
         assert sorted(g.node(1).properties.temporal.keys()) == expected_names_no_static
         assert sorted(g.nodes.properties.temporal.keys()) == expected_names_no_static
         assert (
-            sorted(g.nodes.out_neighbours.properties.temporal.keys())
-            == expected_names_no_static
+                sorted(g.nodes.out_neighbours.properties.temporal.keys())
+                == expected_names_no_static
         )
 
         expected_names_no_static_at_1 = sorted(["prop 4", "prop 1", "prop 3"])
         assert (
-            sorted(g.at(1).node(1).properties.temporal.keys())
-            == expected_names_no_static_at_1
+                sorted(g.at(1).node(1).properties.temporal.keys())
+                == expected_names_no_static_at_1
         )
         assert (
-            sorted(g.at(1).nodes.properties.temporal.keys())
-            == expected_names_no_static_at_1
+                sorted(g.at(1).nodes.properties.temporal.keys())
+                == expected_names_no_static_at_1
         )
         assert (
-            sorted(g.at(1).nodes.out_neighbours.properties.temporal.keys())
-            == expected_names_no_static_at_1
+                sorted(g.at(1).nodes.out_neighbours.properties.temporal.keys())
+                == expected_names_no_static_at_1
         )
 
         # testing has_property
@@ -1324,11 +1324,11 @@ def test_constant_property_update():
     def updates(v):
         v.update_constant_properties({"prop1": "value1", "prop2": 123})
         assert (
-            v.properties.get("prop1") == "value1" and v.properties.get("prop2") == 123
+                v.properties.get("prop1") == "value1" and v.properties.get("prop2") == 123
         )
         v.update_constant_properties({"prop1": "value2", "prop2": 345})
         assert (
-            v.properties.get("prop1") == "value2" and v.properties.get("prop2") == 345
+                v.properties.get("prop1") == "value2" and v.properties.get("prop2") == 345
         )
 
         v.add_constant_properties({"name": "value1"})
@@ -1655,18 +1655,18 @@ def test_layer():
         assert g.exclude_layer("layer2").count_edges() == 4
 
         with pytest.raises(
-            Exception,
-            match=re.escape(
-                "Invalid layer: test_layer. Valid layers: _default, layer1, layer2"
-            ),
+                Exception,
+                match=re.escape(
+                    "Invalid layer: test_layer. Valid layers: _default, layer1, layer2"
+                ),
         ):
             g.layers(["test_layer"])
 
         with pytest.raises(
-            Exception,
-            match=re.escape(
-                "Invalid layer: test_layer. Valid layers: _default, layer1, layer2"
-            ),
+                Exception,
+                match=re.escape(
+                    "Invalid layer: test_layer. Valid layers: _default, layer1, layer2"
+                ),
         ):
             g.edge(1, 2).layers(["test_layer"])
 
@@ -1743,20 +1743,20 @@ def test_layer_name():
     assert str(e.value) == error_msg
 
     assert [
-        list(iterator) for iterator in g.nodes.neighbours.edges.explode().layer_name
-    ] == [
-        ["_default", "awesome layer"],
-        ["_default", "awesome layer"],
-        ["_default", "awesome layer"],
-    ]
+               list(iterator) for iterator in g.nodes.neighbours.edges.explode().layer_name
+           ] == [
+               ["_default", "awesome layer"],
+               ["_default", "awesome layer"],
+               ["_default", "awesome layer"],
+           ]
     assert [
-        list(iterator)
-        for iterator in g.nodes.neighbours.edges.explode_layers().layer_name
-    ] == [
-        ["_default", "awesome layer"],
-        ["_default", "awesome layer"],
-        ["_default", "awesome layer"],
-    ]
+               list(iterator)
+               for iterator in g.nodes.neighbours.edges.explode_layers().layer_name
+           ] == [
+               ["_default", "awesome layer"],
+               ["_default", "awesome layer"],
+               ["_default", "awesome layer"],
+           ]
 
 
 def test_time():
@@ -1790,12 +1790,12 @@ def test_time():
         # assert str(e.value) == error_msg
 
         assert [
-            list(iterator) for iterator in g.nodes.neighbours.edges.explode().time
-        ] == [
-            [0, 0, 1],
-            [0, 0, 1],
-            [0, 0, 1],
-        ]
+                   list(iterator) for iterator in g.nodes.neighbours.edges.explode().time
+               ] == [
+                   [0, 0, 1],
+                   [0, 0, 1],
+                   [0, 0, 1],
+               ]
 
     check(g)
 
@@ -1880,6 +1880,19 @@ def test_date_time():
         assert g.node(1).latest_date_time == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
 
     check(g)
+    
+
+def test_float_ts():
+    g = Graph()
+    g.add_node(1e-3, 1)
+    assert g.node(1).earliest_time == 1
+
+    with pytest.raises(RuntimeError):
+        # don't silently loose precision
+        g.add_node(1e-4, 2)
+
+    g.add_node(0.0, 3)
+    assert g.node(3).earliest_time == 0
 
 
 def test_date_time_window():
@@ -2344,8 +2357,8 @@ def test_weird_windows():
     @with_disk_graph
     def check(g):
         with pytest.raises(
-            Exception,
-            match="'ddd' is not a valid datetime, valid formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%, %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%",
+                Exception,
+                match="'ddd' is not a valid datetime, valid formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%, %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%",
         ):
             g.window("ddd", "aaa")
 
@@ -2521,9 +2534,9 @@ def test_type_filter():
         assert g.nodes.type_filter(["a"]).neighbours.type_filter(
             ["c"]
         ).name.collect() == [
-            [],
-            ["5"],
-        ]
+                   [],
+                   ["5"],
+               ]
         assert g.nodes.type_filter(["a"]).neighbours.type_filter([]).name.collect() == [
             [],
             [],
@@ -2534,9 +2547,9 @@ def test_type_filter():
         assert g.nodes.type_filter(["a"]).neighbours.type_filter(
             ["d"]
         ).name.collect() == [
-            [],
-            [],
-        ]
+                   [],
+                   [],
+               ]
         assert g.nodes.type_filter(["a"]).neighbours.neighbours.name.collect() == [
             ["1", "3", "4"],
             ["1", "3", "4", "4", "6"],
@@ -2591,20 +2604,20 @@ def test_time_exploded_edges():
             for edge in edges:
                 time_nested.append(edge.time)
         assert [
-            item
-            for sublist in g.nodes.edges.explode().time.collect()
-            for item in sublist
-        ] == time_nested
+                   item
+                   for sublist in g.nodes.edges.explode().time.collect()
+                   for item in sublist
+               ] == time_nested
 
         date_time_nested = []
         for edges in g.nodes.edges.explode():
             for edge in edges:
                 date_time_nested.append(edge.date_time)
         assert [
-            item
-            for sublist in g.nodes.edges.explode().date_time.collect()
-            for item in sublist
-        ] == date_time_nested
+                   item
+                   for sublist in g.nodes.edges.explode().date_time.collect()
+                   for item in sublist
+               ] == date_time_nested
 
     check(g)
 
@@ -2918,44 +2931,44 @@ def test_fuzzy_search():
 
         assert len(index.fuzzy_search_nodes("name:habza", levenshtein_distance=1)) == 1
         assert (
-            len(
-                index.fuzzy_search_nodes(
-                    "name:haa", levenshtein_distance=1, prefix=True
+                len(
+                    index.fuzzy_search_nodes(
+                        "name:haa", levenshtein_distance=1, prefix=True
+                    )
                 )
-            )
-            == 2
+                == 2
         )
         assert (
-            len(
-                index.fuzzy_search_nodes(
-                    "value_str:abc123", levenshtein_distance=2, prefix=True
+                len(
+                    index.fuzzy_search_nodes(
+                        "value_str:abc123", levenshtein_distance=2, prefix=True
+                    )
                 )
-            )
-            == 2
+                == 2
         )
         assert (
-            len(
-                index.fuzzy_search_nodes(
-                    "value_str:dsss312", levenshtein_distance=2, prefix=False
+                len(
+                    index.fuzzy_search_nodes(
+                        "value_str:dsss312", levenshtein_distance=2, prefix=False
+                    )
                 )
-            )
-            == 1
+                == 1
         )
 
         assert len(index.fuzzy_search_edges("from:bon", levenshtein_distance=1)) == 2
         assert (
-            len(
-                index.fuzzy_search_edges("from:bo", levenshtein_distance=1, prefix=True)
-            )
-            == 2
+                len(
+                    index.fuzzy_search_edges("from:bo", levenshtein_distance=1, prefix=True)
+                )
+                == 2
         )
         assert (
-            len(
-                index.fuzzy_search_edges(
-                    "from:eon", levenshtein_distance=2, prefix=True
+                len(
+                    index.fuzzy_search_edges(
+                        "from:eon", levenshtein_distance=2, prefix=True
+                    )
                 )
-            )
-            == 2
+                == 2
         )
 
     check(g)
@@ -2972,7 +2985,6 @@ def datadir(tmpdir, request):
         except Exception as e:
             raise e
     return tmpdir
-
 
 # def currently_broken_fuzzy_search(): #TODO: Fix fuzzy searching for properties
 # g = Graph()
