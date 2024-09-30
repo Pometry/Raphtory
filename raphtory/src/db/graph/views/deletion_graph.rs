@@ -1315,4 +1315,13 @@ mod test_deletions {
             [Some(1)]
         )
     }
+
+    #[test]
+    fn test_empty_window_has_no_nodes() {
+        let g = PersistentGraph::new();
+        g.add_node(1, 1, NO_PROPS, None).unwrap();
+        assert_eq!(g.window(2, 2).count_nodes(), 0);
+        assert_eq!(g.window(1, 1).count_nodes(), 0);
+        assert_eq!(g.window(0, 0).count_nodes(), 0);
+    }
 }

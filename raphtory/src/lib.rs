@@ -181,12 +181,23 @@ mod test_utils {
             (
                 0..num_nodes,
                 0..num_nodes,
-                any::<i64>(),
+                i64::MIN..i64::MAX,
                 any::<String>(),
                 any::<i64>(),
             ),
             0..=len,
         )
+    }
+
+    pub(crate) fn build_edge_deletions(
+        len: usize,
+        num_nodes: u64,
+    ) -> impl Strategy<Value = Vec<(u64, u64, i64)>> {
+        proptest::collection::vec((0..num_nodes, 0..num_nodes, i64::MIN..i64::MAX), 0..=len)
+    }
+
+    pub(crate) fn build_window() -> impl Strategy<Value = (i64, i64)> {
+        (i64::MIN..i64::MAX, i64::MIN..i64::MAX)
     }
 
     pub(crate) fn build_graph_from_edge_list(edge_list: &[(u64, u64, i64, String, i64)]) -> Graph {

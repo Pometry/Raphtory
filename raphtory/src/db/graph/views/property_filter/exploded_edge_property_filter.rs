@@ -357,7 +357,10 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
         e: EdgeRef,
         layer_ids: &'a LayerIds,
     ) -> BoxedLIter<'a, TimeIndexEntry> {
-        self.graph.edge_deletion_history(e, layer_ids)
+        self.graph
+            .edge_deletion_history(e, layer_ids)
+            .filter(move |t| self.filter(e, t.previous(), layer_ids))
+            .into_dyn_boxed()
     }
 
     fn edge_deletion_history_window<'a>(
@@ -366,7 +369,10 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
         w: Range<i64>,
         layer_ids: &'a LayerIds,
     ) -> BoxedLIter<'a, TimeIndexEntry> {
-        self.graph.edge_deletion_history_window(e, w, layer_ids)
+        self.graph
+            .edge_deletion_history_window(e, w, layer_ids)
+            .filter(move |t| self.filter(e, t.previous(), layer_ids))
+            .into_dyn_boxed()
     }
 
     fn edge_is_valid(&self, e: EdgeRef, layer_ids: &LayerIds) -> bool {
