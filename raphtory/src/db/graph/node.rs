@@ -100,13 +100,13 @@ impl<
     > PartialOrd<NodeView<G2, G2H>> for NodeView<G1, G1H>
 {
     fn partial_cmp(&self, other: &NodeView<G2, G2H>) -> Option<std::cmp::Ordering> {
-        self.node.0.partial_cmp(&other.node.0)
+        self.id().partial_cmp(&other.id())
     }
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Ord for NodeView<G, GH> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.node.0.cmp(&other.node.0)
+        self.id().cmp(&other.id())
     }
 }
 
