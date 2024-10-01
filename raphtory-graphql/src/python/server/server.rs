@@ -2,9 +2,7 @@ use crate::{
     config::app_config::AppConfigBuilder,
     model::{
         algorithms::document::GqlDocument,
-        plugins::{
-            entry_point::EntryPoint, query_plugin::QueryPlugin,
-        },
+        plugins::{entry_point::EntryPoint, query_plugin::QueryPlugin},
     },
     python::{
         adapt_graphql_value,

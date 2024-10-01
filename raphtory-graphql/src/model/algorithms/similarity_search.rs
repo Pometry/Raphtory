@@ -2,7 +2,7 @@ use crate::{
     data::Data,
     model::{
         algorithms::document::GqlDocument,
-    plugins::{operation::Operation, vector_algorithm_plugin::VectorAlgorithmPlugin},
+        plugins::{operation::Operation, vector_algorithm_plugin::VectorAlgorithmPlugin},
     },
 };
 use async_graphql::{
