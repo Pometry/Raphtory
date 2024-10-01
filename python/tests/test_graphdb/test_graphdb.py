@@ -1882,6 +1882,22 @@ def test_date_time():
     check(g)
 
 
+def test_float_ts():
+    g = Graph()
+    g.add_node(1e-3, 1)
+    assert g.node(1).earliest_time == 1
+
+    with pytest.raises(RuntimeError):
+        # don't silently loose precision
+        g.add_node(1e-4, 2)
+
+    g.add_node(0.0, 3)
+    assert g.node(3).earliest_time == 0
+
+    g.add_node(1001 / 1000, 4)
+    assert g.node(4).earliest_time == 1001
+
+
 def test_date_time_window():
     g = Graph()
 
