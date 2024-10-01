@@ -3,7 +3,6 @@ use std::{
     collections::HashMap,
     fs::File,
     io::{BufReader, BufWriter},
-    ops::Deref,
     path::Path,
     sync::Arc,
 };

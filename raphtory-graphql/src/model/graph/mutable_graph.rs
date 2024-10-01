@@ -190,7 +190,7 @@ impl GqlMutableGraph {
         dst: String,
         layer: Option<String>,
     ) -> Result<GqlMutableEdge, GraphError> {
-        let edge = self.graph.delete_edge(time, &src, &dst, layer.as_str())?;
+        let edge = self.graph.delete_edge(time, src, dst, layer.as_str())?;
         edge.update_embeddings().await;
         self.graph.write_updates()?;
         Ok(edge.into())
