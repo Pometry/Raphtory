@@ -1891,13 +1891,10 @@ def test_float_ts():
         # don't silently loose precision
         g.add_node(1e-4, 2)
 
-    g.add_node(1000 / 1001, 4)
-    assert g.node(4).earliest_time == 1
-
     g.add_node(0.0, 3)
     assert g.node(3).earliest_time == 0
 
-    g.add_node(1000 / 1001, 4)
+    g.add_node(1001 / 1000, 4)
     assert g.node(4).earliest_time == 1
 
 
