@@ -10,7 +10,6 @@ use crate::{
     url_encode::{url_decode_graph, url_encode_graph},
 };
 use async_graphql::Context;
-use chrono::Utc;
 use dynamic_graphql::{
     App, Enum, Mutation, MutationFields, MutationRoot, ResolvedObject, ResolvedObjectFields,
     Result, Upload,
@@ -18,7 +17,7 @@ use dynamic_graphql::{
 #[cfg(feature = "storage")]
 use raphtory::db::api::{storage::graph::storage_ops::GraphStorage, view::internal::CoreGraphOps};
 use raphtory::{
-    core::{utils::errors::GraphError, Prop},
+    core::utils::errors::GraphError,
     db::{api::view::MaterializedGraph, graph::views::deletion_graph::PersistentGraph},
     prelude::*,
 };

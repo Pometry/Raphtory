@@ -105,20 +105,12 @@ impl GraphFolder {
     }
 
     fn ensure_clean_root_dir(&self) -> Result<(), GraphError> {
-        dbg!(self.get_base_path());
         if self.root_folder.exists() {
-            dbg!("folder already exists");
-            dbg!(self
-                .root_folder
-                .read_dir()?
-                .filter_map(|entry| Some(entry.ok()?.path()))
-                .collect::<Vec<_>>());
             let non_empty = self.root_folder.read_dir()?.next().is_some();
             if non_empty {
                 return Err(GraphError::NonEmptyGraphFolder(self.root_folder.clone()));
             }
         } else {
-            dbg!("folder doesnt exists");
             fs::create_dir(&self.root_folder)?
         }
         File::create_new(self.root_folder.join(META_FILE_NAME))?;

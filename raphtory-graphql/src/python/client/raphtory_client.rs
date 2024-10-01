@@ -193,14 +193,16 @@ impl PyRaphtoryClient {
     ///    The `data` field from the graphQL response after executing the mutation.
     #[pyo3(signature = (path, file_path, overwrite = false))]
     fn upload_graph(&self, path: String, file_path: String, overwrite: bool) -> PyResult<()> {
-        let rt = Runtime::new()?;
-        rt.block_on(async {
+        let remote_client = self.clone();
+        execute_async_task(move || async move {
             let client = Client::new();
 
-            let mut file = File::open(Path::new(&file_path)).map_err(|err| adapt_err_value(&err))?;
+            let mut file =
+                File::open(Path::new(&file_path)).map_err(|err| adapt_err_value(&err))?;
 
             let mut buffer = Vec::new();
-            file.read_to_end(&mut buffer).map_err(|err| adapt_err_value(&err))?;
+            file.read_to_end(&mut buffer)
+                .map_err(|err| adapt_err_value(&err))?;
 
             let variables = format!(
                 r#""path": "{}", "overwrite": {}, "graph": null"#,
@@ -221,7 +223,7 @@ impl PyRaphtoryClient {
                 .part("0", Part::bytes(buffer).file_name(file_path.clone()));
 
             let response = client
-                .post(&self.url)
+                .post(&remote_client.url)
                 .multipart(form)
                 .send()
                 .await
@@ -237,17 +239,16 @@ impl PyRaphtoryClient {
                 )));
             }
 
-            let mut data: HashMap<String, JsonValue> = serde_json::from_str(&text).map_err(|err| {
-                PyException::new_err(format!(
-                    "Failed to parse JSON response: {}. Response text: {}",
-                    err, text
-                ))
-            })?;
+            let mut data: HashMap<String, JsonValue> =
+                serde_json::from_str(&text).map_err(|err| {
+                    PyException::new_err(format!(
+                        "Failed to parse JSON response: {}. Response text: {}",
+                        err, text
+                    ))
+                })?;
 
             match data.remove("data") {
-                Some(JsonValue::Object(_)) => {
-                    Ok(())
-                }
+                Some(JsonValue::Object(_)) => Ok(()),
                 _ => match data.remove("errors") {
                     Some(JsonValue::Array(errors)) => Err(PyException::new_err(format!(
                         "Error Uploading Graph. Got errors:\n\t{:#?}",
@@ -260,6 +261,10 @@ impl PyRaphtoryClient {
                 },
             }
         })
+
+        // rt.block_on(async {
+
+        // })
     }
 
     /// Copy graph from a path `path` on the server to a `new_path` on the server
