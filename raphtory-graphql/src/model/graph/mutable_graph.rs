@@ -105,18 +105,17 @@ impl GqlMutableGraph {
                     None,
                 )?;
             }
-            let node_view = self
-                .graph
-                .node(name)
-                .ok_or_else(|| GraphError::NodeMissingError(GID::Str(node.name)))?;
             if let Some(node_type) = node.node_type.as_str() {
-                node_view.set_node_type(node_type)?;
+                self.get_node_view(name)?.set_node_type(node_type)?;
             }
             let constant_props = node.constant_properties.unwrap_or(vec![]);
             if !constant_props.is_empty() {
-                node_view.add_constant_properties(as_properties(constant_props))?;
+                self.get_node_view(name)?
+                    .add_constant_properties(as_properties(constant_props))?;
             }
-            node_view.update_embeddings().await; // FIXME: can't write to disk once per node, shold write only once!!
+            if let Ok(node) = self.get_node_view(name) {
+                node.update_embeddings().await; // FIXME: ideally this should call the embedding function just once!!
+            }
         }
         self.graph.write_updates()?;
         Ok(true)
@@ -165,17 +164,13 @@ impl GqlMutableGraph {
                 )?;
             }
             let constant_props = edge.constant_properties.unwrap_or(vec![]);
-            let edge_view = self
-                .graph
-                .edge(src, dst)
-                .ok_or(GraphError::EdgeMissingError {
-                    src: GID::Str(edge.src),
-                    dst: GID::Str(edge.dst),
-                })?;
             if !constant_props.is_empty() {
-                edge_view.add_constant_properties(as_properties(constant_props), layer)?;
+                self.get_edge_view(src, dst)?
+                    .add_constant_properties(as_properties(constant_props), layer)?;
             }
-            edge_view.update_embeddings().await; // FIXME: ideally this should call the embedding function just once!!
+            if let Ok(edge) = self.get_edge_view(src, dst) {
+                edge.update_embeddings().await; // FIXME: ideally this should call the embedding function just once!!
+            }
         }
         self.graph.write_updates()?;
         Ok(true)
@@ -238,6 +233,25 @@ impl GqlMutableGraph {
         self.graph
             .update_graph_embeddings(Some(self.path.get_original_path_str().to_owned()))
             .await;
+    }
+
+    fn get_node_view(&self, name: &str) -> Result<NodeView<GraphWithVectors>, GraphError> {
+        self.graph
+            .node(name)
+            .ok_or_else(|| GraphError::NodeMissingError(GID::Str(name.to_owned())))
+    }
+
+    fn get_edge_view(
+        &self,
+        src: &str,
+        dst: &str,
+    ) -> Result<EdgeView<GraphWithVectors>, GraphError> {
+        self.graph
+            .edge(&src, &dst)
+            .ok_or(GraphError::EdgeMissingError {
+                src: GID::Str(src.to_owned()),
+                dst: GID::Str(dst.to_owned()),
+            })
     }
 }
 

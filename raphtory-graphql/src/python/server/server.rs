@@ -192,6 +192,17 @@ impl PyGraphServer {
         Ok(PyGraphServer::new(server))
     }
 
+    /// Setup the server to vectorise graphs with a default template.
+    ///
+    /// Arguments:
+    ///   cache (str):  the directory to use as cache for the embeddings.
+    ///   embedding (Function):  the embedding function to translate documents to embeddings.
+    ///   graph_template (String):  the template to use for graphs.
+    ///   node_template (String):  the template to use for nodes.
+    ///   edge_template (String):  the template to use for edges.
+    ///
+    /// Returns:
+    ///    GraphServer: A new server object with embeddings setup.
     #[pyo3(
         signature = (cache, embedding = None, graph_template = None, node_template = None, edge_template = None)
     )]
@@ -228,15 +239,8 @@ impl PyGraphServer {
 
     /// Vectorise a subset of the graphs of the server.
     ///
-    /// Note:
-    ///   If no embedding function is provided, the server will attempt to use the OpenAI API
-    ///   embedding model, which will only work if the env variable OPENAI_API_KEY is set
-    ///   appropriately
-    ///
     /// Arguments:
     ///   graph_names (List[str]): the names of the graphs to vectorise. All by default.
-    ///   cache (str):  the directory to use as cache for the embeddings.
-    ///   embedding (Function):  the embedding function to translate documents to embeddings.
     ///   graph_template (String):  the template to use for graphs.
     ///   node_template (String):  the template to use for nodes.
     ///   edge_template (String):  the template to use for edges.

@@ -312,6 +312,8 @@ pub(crate) mod data_tests {
 
         let base_path = tmp_graph_dir.path().to_owned();
         let graph_path = base_path.join("test_dg");
+        fs::create_dir(&graph_path).unwrap();
+        File::create(graph_path.join(".raph")).unwrap();
         let _ = DiskGraphStorage::from_graph(&graph, &graph_path.join("graph")).unwrap();
 
         let data = Data::new(&base_path, &Default::default());
@@ -400,8 +402,12 @@ pub(crate) mod data_tests {
             .unwrap();
 
         graph.encode(&tmp_work_dir.path().join("test_g")).unwrap();
-        let _ = DiskGraphStorage::from_graph(&graph, &tmp_work_dir.path().join("test_dg/graph"))
-            .unwrap();
+
+        let disk_graph_path = tmp_work_dir.path().join("test_dg");
+        fs::create_dir(&disk_graph_path).unwrap();
+        File::create(disk_graph_path.join(".raph")).unwrap();
+        let _ = DiskGraphStorage::from_graph(&graph, disk_graph_path.join("graph")).unwrap();
+
         graph.encode(&tmp_work_dir.path().join("test_g2")).unwrap();
 
         let configs = AppConfigBuilder::new()

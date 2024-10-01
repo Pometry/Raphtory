@@ -7,7 +7,7 @@ use rand::{distributions::Uniform, seq::*, Rng, SeedableRng};
 use raphtory::{db::api::view::StaticGraphViewOps, prelude::*};
 use raphtory_api::core::utils::logging::global_info_logger;
 use std::collections::HashSet;
-use tempfile::{NamedTempFile, TempDir};
+use tempfile::TempDir;
 use tracing::info;
 
 fn make_index_gen() -> Box<dyn Iterator<Item = u64>> {
@@ -576,9 +576,12 @@ pub fn run_graph_ops_benches(
 
 pub fn run_proto_encode_benchmark(group: &mut BenchmarkGroup<WallTime>, graph: Graph) {
     println!("graph: {graph}");
-    let f = TempDir::new().unwrap();
     bench(group, "proto_encode", None, |b: &mut Bencher| {
-        b.iter(|| graph.encode(f.path()).unwrap())
+        b.iter_batched(
+            || TempDir::new().unwrap(),
+            |f| graph.encode(f.path()).unwrap(),
+            BatchSize::NumIterations(100),
+        );
     });
 }
 

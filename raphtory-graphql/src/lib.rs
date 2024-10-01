@@ -916,7 +916,11 @@ mod graphql_test {
 
         let tmp_work_dir = tempdir().unwrap();
         let tmp_work_dir = tmp_work_dir.path();
-        let _ = DiskGraphStorage::from_graph(&graph, &tmp_work_dir.join("graph/graph")).unwrap();
+
+        let disk_graph_path = tmp_work_dir.join("graph");
+        fs::create_dir(&disk_graph_path).unwrap();
+        File::create(disk_graph_path.join(".raph")).unwrap();
+        let _ = DiskGraphStorage::from_graph(&graph, disk_graph_path.join("graph")).unwrap();
 
         let data = Data::new(&tmp_work_dir, &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
