@@ -15,7 +15,7 @@ pub(crate) enum BridgeCommand {
     StopServer,
     StopListening,
 }
-pub(crate) fn take_server_ownership(mut server: PyRefMut<PyGraphServer>) -> PyResult<GraphServer> {
+pub fn take_server_ownership(mut server: PyRefMut<PyGraphServer>) -> PyResult<GraphServer> {
     let new_server = server.0.take().ok_or_else(|| {
         PyException::new_err(
             "Server object has already been used, please create another one from scratch",

@@ -7,13 +7,13 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
-        utils::errors::GraphError,
+        utils::{errors::GraphError, iter::GenLockedIter},
     },
     db::api::{
         properties::{internal::PropertiesOps, Properties},
         view::{
             internal::{CoreGraphOps, InternalLayerOps, TimeSemantics},
-            BoxedIter, IntoDynBoxed,
+            IntoDynBoxed,
         },
     },
     prelude::{GraphViewOps, LayerOps, NodeViewOps, TimeOps},
@@ -128,7 +128,7 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     fn time_and_index(&self) -> Self::ValueType<Option<TimeIndexEntry>>;
 
     /// Gets the name of the layer this edge belongs to
-    fn layer_names(&self) -> Self::ValueType<BoxedIter<ArcStr>>;
+    fn layer_names(&self) -> Self::ValueType<Vec<ArcStr>>;
 }
 
 impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
@@ -145,16 +145,11 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
 
     /// list the activation timestamps for the edge
     fn history(&self) -> Self::ValueType<Vec<i64>> {
-        self.map(|g, e| g.edge_history(e, g.layer_ids().constrain_from_edge(e)))
+        self.map(|g, e| g.edge_history(e, g.layer_ids()).map(|ti| ti.t()).collect())
     }
 
     fn history_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>> {
-        self.map(move |g, e| {
-            g.edge_history(e, g.layer_ids().constrain_from_edge(e))
-                .into_iter()
-                .map(|t| t.dt())
-                .collect()
-        })
+        self.map(move |g, e| g.edge_history(e, g.layer_ids()).map(|t| t.dt()).collect())
     }
 
     fn deletions(&self) -> Self::ValueType<Vec<i64>> {
@@ -222,14 +217,20 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     fn explode(&self) -> Self::Exploded {
         self.map_exploded(|g, e| match e.time() {
             Some(_) => Box::new(iter::once(e)),
-            None => g.edge_exploded(e, &g.layer_ids().constrain_from_edge(e)),
+            None => {
+                let g = g.clone();
+                GenLockedIter::from(g, move |g| g.edge_exploded(e, g.layer_ids())).into_dyn_boxed()
+            }
         })
     }
 
     fn explode_layers(&self) -> Self::Exploded {
         self.map_exploded(|g, e| match e.layer() {
             Some(_) => Box::new(iter::once(e)),
-            None => g.edge_layers(e, g.layer_ids()),
+            None => {
+                let g = g.clone();
+                GenLockedIter::from(g, move |g| g.edge_layers(e, g.layer_ids())).into_dyn_boxed()
+            }
         })
     }
 
@@ -281,14 +282,14 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     }
 
     /// Gets the name of the layer this edge belongs to
-    fn layer_names(&self) -> Self::ValueType<BoxedIter<ArcStr>> {
+    fn layer_names(&self) -> Self::ValueType<Vec<ArcStr>> {
         self.map(|g, e| {
             let layer_names = g.edge_meta().layer_meta().get_keys();
             g.edge_layers(e, &g.layer_ids().constrain_from_edge(e))
                 .map(move |ee| {
                     layer_names[ee.layer().expect("exploded edge should have layer")].clone()
                 })
-                .into_dyn_boxed()
+                .collect()
         })
     }
 }

@@ -30,6 +30,15 @@ pub struct PathFromGraph<'graph, G, GH> {
     pub(crate) op: Arc<dyn Fn(VID) -> BoxedLIter<'graph, VID> + Send + Sync + 'graph>,
 }
 
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgePropertyFilterOps<'graph>
+    for PathFromGraph<'graph, G, GH>
+{
+}
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
+    ExplodedEdgePropertyFilterOps<'graph> for PathFromGraph<'graph, G, GH>
+{
+}
+
 impl<'graph, G: GraphViewOps<'graph>> PathFromGraph<'graph, G, G> {
     pub fn new<OP: Fn(VID) -> BoxedLIter<'graph, VID> + Send + Sync + 'graph>(
         graph: G,
@@ -284,6 +293,15 @@ pub struct PathFromNode<'graph, G, GH> {
     pub graph: GH,
     pub(crate) base_graph: G,
     pub(crate) op: Arc<dyn Fn() -> BoxedLIter<'graph, VID> + Send + Sync + 'graph>,
+}
+
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgePropertyFilterOps<'graph>
+    for PathFromNode<'graph, G, GH>
+{
+}
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
+    ExplodedEdgePropertyFilterOps<'graph> for PathFromNode<'graph, G, GH>
+{
 }
 
 impl<'graph, G: GraphViewOps<'graph>> PathFromNode<'graph, G, G> {

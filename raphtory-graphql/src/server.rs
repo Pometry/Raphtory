@@ -1,37 +1,31 @@
 #![allow(dead_code)]
 
 use crate::{
-    data::Data,
+    config::app_config::{load_config, AppConfig},
+    data::{Data, EmbeddingConf},
     model::{
-        algorithms::{algorithm::Algorithm, algorithm_entry_point::AlgorithmEntryPoint},
+        plugins::{entry_point::EntryPoint, operation::Operation},
         App,
     },
+    observability::open_telemetry::OpenTelemetry,
     routes::{graphql_playground, health},
+    server::ServerError::SchemaError,
 };
 use async_graphql_poem::GraphQL;
-use itertools::Itertools;
+use config::ConfigError;
+use opentelemetry::trace::TracerProvider;
+use opentelemetry_sdk::trace::{Tracer, TracerProvider as TP};
 use poem::{
     get,
     listener::TcpListener,
     middleware::{CookieJarManager, CookieJarManagerEndpoint, Cors, CorsEndpoint},
     EndpointExt, Route, Server,
 };
-use raphtory::{
-    db::api::view::IntoDynamic,
-    vectors::{template::DocumentTemplate, vectorisable::Vectorisable, EmbeddingFunction},
-};
-
-use crate::{
-    config::app_config::{load_config, AppConfig},
-    observability::open_telemetry::OpenTelemetry,
-    server::ServerError::SchemaError,
-};
-use config::ConfigError;
-use opentelemetry::trace::TracerProvider;
-use opentelemetry_sdk::trace::{Tracer, TracerProvider as TP};
+use raphtory::vectors::{template::DocumentTemplate, EmbeddingFunction};
 use std::{
     fs,
     path::{Path, PathBuf},
+    sync::Arc,
 };
 use thiserror::Error;
 use tokio::{
@@ -100,6 +94,23 @@ impl GraphServer {
         Ok(Self { data, config })
     }
 
+    pub fn set_embeddings<F: EmbeddingFunction + Clone + 'static>(
+        mut self,
+        embedding: F,
+        cache: &Path, // TODO: maybe now that we are storing vectors we could bin the cache!!!
+        // or maybe it could be in a standard location like /tmp/raphtory/embedding_cache
+        global_template: Option<DocumentTemplate>,
+    ) -> Self {
+        let cache = Some(PathBuf::from(cache).into()).into();
+        self.data.embedding_conf = Some(EmbeddingConf {
+            function: Arc::new(embedding),
+            cache,
+            global_template,
+            individual_templates: Default::default(),
+        });
+        self
+    }
+
     /// Vectorise a subset of the graphs of the server.
     ///
     /// Arguments:
@@ -110,63 +121,42 @@ impl GraphServer {
     ///
     /// Returns:
     ///    A new server object containing the vectorised graphs.
-    pub async fn with_vectorised<F: EmbeddingFunction + Clone + 'static>(
-        self,
-        graph_names: Option<Vec<String>>,
-        embedding: F,
-        cache: &Path,
+    pub fn with_vectorised_graphs(
+        mut self,
+        graph_names: Vec<String>,
         template: DocumentTemplate,
-    ) -> IoResult<Self> {
-        let graphs = &self.data.global_plugins.graphs;
-        let stores = &self.data.global_plugins.vectorised_graphs;
-
-        graphs.write().extend(
-            self.data
-                .get_graphs_from_work_dir()
-                .map_err(|err| ServerError::CacheError(err.to_string()))?,
-        );
-
-        let graph_names = graph_names.unwrap_or_else(|| {
-            let all_graph_names = {
-                let read_guard = graphs.read();
-                read_guard
-                    .iter()
-                    .map(|(graph_name, _)| graph_name.to_string())
-                    .collect_vec()
-            };
-            all_graph_names
-        });
-
-        for graph_name in graph_names {
-            let graph_cache = cache.join(&graph_name);
-            let graph = graphs.read().get(&graph_name).unwrap().clone();
-            info!("Loading embeddings for {graph_name} using cache from {graph_cache:?}");
-            let vectorised = graph
-                .into_dynamic()
-                .vectorise(
-                    Box::new(embedding.clone()),
-                    Some(graph_cache),
-                    true,
-                    template.clone(),
-                    true,
-                )
-                .await;
-            stores.write().insert(graph_name, vectorised);
+    ) -> Self {
+        if let Some(embedding_conf) = &mut self.data.embedding_conf {
+            for graph_name in graph_names {
+                embedding_conf
+                    .individual_templates
+                    .insert(graph_name.into(), template.clone());
+            }
         }
-        info!("Embeddings were loaded successfully");
-
-        Ok(self)
+        self
     }
 
-    pub fn register_algorithm<
+    pub fn register_query_plugin<
         'a,
-        E: AlgorithmEntryPoint<'a> + 'static,
-        A: Algorithm<'a, E> + 'static,
+        E: EntryPoint<'a> + 'static + Send,
+        A: Operation<'a, E> + 'static + Send,
     >(
         self,
         name: &str,
     ) -> Self {
-        E::lock_plugins().insert(name.to_string(), Box::new(A::register_algo));
+        E::lock_plugins().insert(name.to_string(), Box::new(A::register_operation));
+        self
+    }
+
+    pub fn register_mutation_plugin<
+        'a,
+        E: EntryPoint<'a> + 'static + Send,
+        A: Operation<'a, E> + 'static + Send,
+    >(
+        self,
+        name: &str,
+    ) -> Self {
+        E::lock_plugins().insert(name.to_string(), Box::new(A::register_operation));
         self
     }
 
@@ -177,6 +167,8 @@ impl GraphServer {
 
     /// Start the server on the port `port` and return a handle to it.
     pub async fn start_with_port(self, port: u16) -> IoResult<RunningGraphServer> {
+        self.data.vectorise_all_graphs_that_are_not().await?;
+
         let config = &self.config;
         let filter = config.logging.get_log_env();
         let tracer_name = config.tracing.otlp_tracing_service_name.clone();

@@ -59,6 +59,18 @@ where
     }
 }
 
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgePropertyFilterOps<'graph>
+    for Nodes<'graph, G, GH>
+{
+}
+impl<
+        'graph,
+        G: GraphViewOps<'graph>,
+        GH: GraphViewOps<'graph> + ExplodedEdgePropertyFilterOps<'graph>,
+    > ExplodedEdgePropertyFilterOps<'graph> for Nodes<'graph, G, GH>
+{
+}
+
 impl<'graph, G, GH> Nodes<'graph, G, GH>
 where
     G: GraphViewOps<'graph> + 'graph,

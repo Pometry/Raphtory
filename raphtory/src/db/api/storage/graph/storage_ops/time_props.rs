@@ -1,7 +1,5 @@
 use std::ops::Deref;
 
-use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::AsTime};
-
 use super::GraphStorage;
 use crate::{
     core::PropType,
@@ -10,6 +8,10 @@ use crate::{
         storage::graph::tprop_storage_ops::TPropOps,
     },
     prelude::Prop,
+};
+use raphtory_api::core::storage::{
+    arc_str::ArcStr,
+    timeindex::{AsTime, TimeIndexEntry},
 };
 
 impl TemporalPropertyViewOps for GraphStorage {
@@ -31,9 +33,11 @@ impl TemporalPropertyViewOps for GraphStorage {
     }
 
     fn temporal_value(&self, id: usize) -> Option<Prop> {
-        self.graph_meta()
-            .get_temporal_prop(id)
-            .and_then(|prop| prop.deref().last_before(i64::MAX).map(|(_, v)| v))
+        self.graph_meta().get_temporal_prop(id).and_then(|prop| {
+            prop.deref()
+                .last_before(TimeIndexEntry::MAX)
+                .map(|(_, v)| v)
+        })
     }
 
     fn temporal_history_date_time(&self, id: usize) -> Option<Vec<chrono::DateTime<chrono::Utc>>> {
@@ -45,7 +49,7 @@ impl TemporalPropertyViewOps for GraphStorage {
     fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop> {
         self.graph_meta().get_temporal_prop(id).and_then(|prop| {
             prop.deref()
-                .last_before(t.saturating_add(1))
+                .last_before(TimeIndexEntry::start(t.saturating_add(1)))
                 .map(|(_, v)| v)
         })
     }

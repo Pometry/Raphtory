@@ -12,7 +12,11 @@ use crate::{
     python::graph::node::PyNode,
 };
 use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
-use pyo3::{exceptions::PyTypeError, prelude::*, types::PyDateTime};
+use pyo3::{
+    exceptions::{PyRuntimeError, PyTypeError},
+    prelude::*,
+    types::PyDateTime,
+};
 use serde::Serialize;
 use std::{future::Future, thread};
 
@@ -72,6 +76,18 @@ impl<'source> FromPyObject<'source> for PyTime {
         if let Ok(number) = time.extract::<i64>() {
             return Ok(PyTime::new(number.into_time()));
         }
+        if let Ok(float_time) = time.extract::<f64>() {
+            // seconds since Unix epoch as returned by python `timestamp`
+            let float_ms = float_time * 1000.0;
+            let float_ms_trunc = float_ms.round();
+            let rel_err = (float_ms - float_ms_trunc).abs() / (float_ms.abs() + f64::EPSILON);
+            if rel_err > 4.0 * f64::EPSILON {
+                return Err(PyRuntimeError::new_err(
+                    "Float timestamps with more than millisecond precision are not supported.",
+                ));
+            }
+            return Ok(PyTime::new(float_ms_trunc as i64));
+        }
         if let Ok(parsed_datetime) = time.extract::<DateTime<FixedOffset>>() {
             return Ok(PyTime::new(parsed_datetime.into_time()));
         }
@@ -83,7 +99,7 @@ impl<'source> FromPyObject<'source> for PyTime {
             let time = (py_datetime.call_method0("timestamp")?.extract::<f64>()? * 1000.0) as i64;
             return Ok(PyTime::new(time));
         }
-        let message = format!("time '{time}' must be a str, datetime or an integer");
+        let message = format!("time '{time}' must be a str, datetime, float, or an integer");
         Err(PyTypeError::new_err(message))
     }
 }

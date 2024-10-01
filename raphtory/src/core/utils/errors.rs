@@ -31,16 +31,12 @@ pub enum InvalidPathReason {
     ParentDirNotAllowed(PathBuf),
     #[error("A component of the given path was a symlink: {0}")]
     SymlinkNotAllowed(PathBuf),
-    #[error("Could not strip working_dir prefix when getting relative path: {0}")]
-    StripPrefixError(PathBuf),
     #[error("The give path does not exist: {0}")]
     PathDoesNotExist(PathBuf),
     #[error("Could not parse Path: {0}")]
     PathNotParsable(PathBuf),
-    #[error("Path is not valid UTF8: {0}")]
-    PathNotUTF8(PathBuf),
-    #[error("The give path is a directory, but should be a file or not exist: {0}")]
-    PathIsDirectory(PathBuf),
+    #[error("The path to the graph contains a subpath to an existing graph: {0}")]
+    ParentIsGraph(PathBuf),
 }
 
 #[cfg(feature = "arrow")]
@@ -89,7 +85,7 @@ pub enum GraphError {
     #[cfg(feature = "arrow")]
     #[error("Arrow error: {0}")]
     Arrow(#[from] error::PolarsError),
-    #[error("Invalid path: {source:?}")]
+    #[error("Invalid path: {source}")]
     InvalidPath {
         #[from]
         source: InvalidPathReason,
@@ -175,6 +171,20 @@ pub enum GraphError {
         source: io::Error,
     },
 
+    #[cfg(feature = "proto")]
+    #[error("zip operation failed")]
+    ZipError {
+        #[from]
+        source: zip::result::ZipError,
+    },
+
+    #[cfg(feature = "vectors")]
+    #[error("bincode operation failed")]
+    BincodeError {
+        #[from]
+        source: bincode::Error,
+    },
+
     #[cfg(feature = "arrow")]
     #[error("Failed to load graph: {0}")]
     LoadFailure(String),
@@ -234,6 +244,10 @@ pub enum GraphError {
     EncodeError(#[from] prost::EncodeError),
 
     #[cfg(feature = "proto")]
+    #[error("Cannot write graph into non empty folder {0}")]
+    NonEmptyGraphFolder(PathBuf),
+
+    #[cfg(feature = "proto")]
     #[error("Failed to deserialise graph: {0}")]
     DeserialisationError(String),
 
@@ -255,6 +269,8 @@ pub enum GraphError {
     SerdeError,
     #[error("System time error: {0}")]
     SystemTimeError(#[from] SystemTimeError),
+    #[error("Property filtering not implemented on PersistentGraph yet")]
+    PropertyFilteringNotImplemented,
 }
 
 impl GraphError {
@@ -270,6 +286,12 @@ impl GraphError {
 impl<A: Debug> From<IllegalSet<A>> for GraphError {
     fn from(value: IllegalSet<A>) -> Self {
         Self::IllegalSet(value.to_string())
+    }
+}
+
+impl From<GraphError> for io::Error {
+    fn from(error: GraphError) -> Self {
+        io::Error::new(io::ErrorKind::Other, error)
     }
 }
 

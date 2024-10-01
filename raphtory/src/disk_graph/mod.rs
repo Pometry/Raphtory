@@ -30,6 +30,7 @@ use pometry_storage::{
 use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::borrow::Borrow;
 use tracing::warn;
 
 pub mod graph_impl;
@@ -156,8 +157,8 @@ impl DiskGraphStorage {
         e: EdgeRef,
         layer_ids: &LayerIds,
     ) -> Box<dyn Iterator<Item = usize> + '_> {
-        let layer_id = match layer_ids.constrain_from_edge(e) {
-            LayerIds::One(id) => id,
+        let layer_id = match layer_ids.constrain_from_edge(e).borrow() {
+            LayerIds::One(id) => *id,
             _ => panic!("Only one layer is supported"),
         };
         Box::new(1..self.inner.edges_data_type(layer_id).len())

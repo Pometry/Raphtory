@@ -18,10 +18,13 @@
 
 use super::views::deletion_graph::PersistentGraph;
 use crate::{
-    db::api::{
-        mutation::internal::InheritMutationOps,
-        storage::{graph::storage_ops::GraphStorage, storage::Storage},
-        view::internal::{Base, InheritViewOps, Static},
+    db::{
+        api::{
+            mutation::internal::InheritMutationOps,
+            storage::{graph::storage_ops::GraphStorage, storage::Storage},
+            view::internal::{Base, InheritViewOps, Static},
+        },
+        graph::{node::NodeView, nodes::Nodes},
     },
     prelude::*,
 };
@@ -57,6 +60,133 @@ pub fn graph_equal<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps
             })
     } else {
         false
+    }
+}
+
+pub fn assert_node_equal<
+    'graph1,
+    'graph2,
+    G1: GraphViewOps<'graph1>,
+    GH1: GraphViewOps<'graph1>,
+    G2: GraphViewOps<'graph2>,
+    GH2: GraphViewOps<'graph2>,
+>(
+    n1: NodeView<G1, GH1>,
+    n2: NodeView<G2, GH2>,
+) {
+    assert_eq!(
+        n1.id(),
+        n2.id(),
+        "mismatched node id: left {:?}, right {:?}",
+        n1.id(),
+        n2.id()
+    );
+    assert_eq!(
+        n1.name(),
+        n2.name(),
+        "mismatched node name: left {:?}, right {:?}",
+        n1.name(),
+        n2.name()
+    );
+    assert_eq!(
+        n1.earliest_time(),
+        n2.earliest_time(),
+        "mismatched node earliest time for node {:?}: left {:?}, right {:?}",
+        n1.id(),
+        n1.earliest_time(),
+        n2.earliest_time()
+    );
+    // This doesn't hold for materialised windowed PersistentGraph (node is still present after the end of the window)
+    // assert_eq!(
+    //     n1.latest_time(),
+    //     n2.latest_time(),
+    //     "mismatched node latest time for node {:?}: left {:?}, right {:?}",
+    //     n1.id(),
+    //     n1.latest_time(),
+    //     n2.latest_time()
+    // );
+    assert_eq!(
+        n1.properties().constant().as_map(),
+        n2.properties().constant().as_map(),
+        "mismatched constant properties for node {:?}: left {:?}, right {:?}",
+        n1.id(),
+        n1.properties().constant().as_map(),
+        n2.properties().constant().as_map()
+    );
+    assert_eq!(
+        n1.properties().temporal().as_map(),
+        n2.properties().temporal().as_map(),
+        "mismatched temporal properties for node {:?}: left {:?}, right {:?}",
+        n1.id(),
+        n1.properties().temporal().as_map(),
+        n2.properties().temporal().as_map()
+    );
+    assert_eq!(
+        n1.out_degree(),
+        n2.out_degree(),
+        "mismatched out-degree for node {:?}: left {}, right {}",
+        n1.id(),
+        n1.out_degree(),
+        n2.out_degree(),
+    );
+    assert_eq!(
+        n1.in_degree(),
+        n2.in_degree(),
+        "mismatched in-degree for node {:?}: left {}, right {}",
+        n1.id(),
+        n1.in_degree(),
+        n2.in_degree(),
+    );
+    assert_eq!(
+        n1.degree(),
+        n2.degree(),
+        "mismatched degree for node {:?}: left {}, right {}",
+        n1.id(),
+        n1.degree(),
+        n2.degree(),
+    );
+    assert_eq!(
+        n1.out_neighbours().id().collect::<HashSet<_>>(),
+        n2.out_neighbours().id().collect::<HashSet<_>>(),
+        "mismatched out-neighbours for node {:?}: left {:?}, right {:?}",
+        n1.id(),
+        n1.out_neighbours().id().collect::<HashSet<_>>(),
+        n2.out_neighbours().id().collect::<HashSet<_>>()
+    );
+    assert_eq!(
+        n1.in_neighbours().id().collect::<HashSet<_>>(),
+        n2.in_neighbours().id().collect::<HashSet<_>>(),
+        "mismatched in-neighbours for node {:?}: left {:?}, right {:?}",
+        n1.id(),
+        n1.in_neighbours().id().collect::<HashSet<_>>(),
+        n2.in_neighbours().id().collect::<HashSet<_>>()
+    )
+}
+
+pub fn assert_nodes_equal<
+    'graph1,
+    'graph2,
+    G1: GraphViewOps<'graph1>,
+    GH1: GraphViewOps<'graph1>,
+    G2: GraphViewOps<'graph2>,
+    GH2: GraphViewOps<'graph2>,
+>(
+    nodes1: &Nodes<'graph1, G1, GH1>,
+    nodes2: &Nodes<'graph2, G2, GH2>,
+) {
+    let mut nodes1: Vec<_> = nodes1.collect();
+    nodes1.sort();
+    let mut nodes2: Vec<_> = nodes2.collect();
+    nodes2.sort();
+    assert_eq!(
+        nodes1.len(),
+        nodes2.len(),
+        "mismatched number of nodes: left {}, right {}",
+        nodes1.len(),
+        nodes2.len()
+    );
+    for (n1, n2) in nodes1.into_iter().zip(nodes2) {
+        assert_node_equal(n1, n2);
     }
 }
 
@@ -118,92 +248,7 @@ pub fn assert_graph_equal<
         g1.properties().temporal().as_map(),
         g2.properties().temporal().as_map()
     );
-
-    for n1 in g1.nodes() {
-        let n2 = g2
-            .node(n1.id())
-            .expect(&format!("missing node {:?}", n1.id()));
-        assert_eq!(
-            n1.name(),
-            n2.name(),
-            "mismatched node name: left {:?}, right {:?}",
-            n1.name(),
-            n2.name()
-        );
-        assert_eq!(
-            n1.earliest_time(),
-            n2.earliest_time(),
-            "mismatched node earliest time for node {:?}: left {:?}, right {:?}",
-            n1.id(),
-            n1.earliest_time(),
-            n2.earliest_time()
-        );
-        // This doesn't hold for materialised windowed PersistentGraph (node is still present after the end of the window)
-        // assert_eq!(
-        //     n1.latest_time(),
-        //     n2.latest_time(),
-        //     "mismatched node latest time for node {:?}: left {:?}, right {:?}",
-        //     n1.id(),
-        //     n1.latest_time(),
-        //     n2.latest_time()
-        // );
-        assert_eq!(
-            n1.properties().constant().as_map(),
-            n2.properties().constant().as_map(),
-            "mismatched constant properties for node {:?}: left {:?}, right {:?}",
-            n1.id(),
-            n1.properties().constant().as_map(),
-            n2.properties().constant().as_map()
-        );
-        assert_eq!(
-            n1.properties().temporal().as_map(),
-            n2.properties().temporal().as_map(),
-            "mismatched temporal properties for node {:?}: left {:?}, right {:?}",
-            n1.id(),
-            n1.properties().temporal().as_map(),
-            n2.properties().temporal().as_map()
-        );
-        assert_eq!(
-            n1.out_degree(),
-            n2.out_degree(),
-            "mismatched out-degree for node {:?}: left {}, right {}",
-            n1.id(),
-            n1.out_degree(),
-            n2.out_degree(),
-        );
-        assert_eq!(
-            n1.in_degree(),
-            n2.in_degree(),
-            "mismatched in-degree for node {:?}: left {}, right {}",
-            n1.id(),
-            n1.in_degree(),
-            n2.in_degree(),
-        );
-        assert_eq!(
-            n1.degree(),
-            n2.degree(),
-            "mismatched degree for node {:?}: left {}, right {}",
-            n1.id(),
-            n1.degree(),
-            n2.degree(),
-        );
-        assert_eq!(
-            n1.out_neighbours().id().collect::<HashSet<_>>(),
-            n2.out_neighbours().id().collect::<HashSet<_>>(),
-            "mismatched out-neighbours for node {:?}: left {:?}, right {:?}",
-            n1.id(),
-            n1.out_neighbours().id().collect::<HashSet<_>>(),
-            n2.out_neighbours().id().collect::<HashSet<_>>()
-        );
-        assert_eq!(
-            n1.in_neighbours().id().collect::<HashSet<_>>(),
-            n2.in_neighbours().id().collect::<HashSet<_>>(),
-            "mismatched in-neighbours for node {:?}: left {:?}, right {:?}",
-            n1.id(),
-            n1.in_neighbours().id().collect::<HashSet<_>>(),
-            n2.in_neighbours().id().collect::<HashSet<_>>()
-        )
-    }
+    assert_nodes_equal(&g1.nodes(), &g2.nodes());
 
     for e1 in g1.edges() {
         let e2 = g2
@@ -355,7 +400,7 @@ mod db_tests {
                 view::{
                     internal::{CoreGraphOps, EdgeFilterOps, TimeSemantics},
                     time::internal::InternalTimeOps,
-                    EdgeViewOps, IntoDynBoxed, Layer, LayerOps, NodeViewOps, TimeOps,
+                    EdgeViewOps, Layer, LayerOps, NodeViewOps, TimeOps,
                 },
             },
             graph::{edge::EdgeView, edges::Edges, node::NodeView, path::PathFromNode},
@@ -691,8 +736,6 @@ mod db_tests {
         let g2 = Graph::decode(&graph_path).unwrap();
 
         assert_eq!(g, g2);
-
-        let _ = tmp_raphtory_path.close();
     }
 
     #[test]
@@ -2479,14 +2522,8 @@ mod db_tests {
 
         // FIXME: Needs multilayer support (Issue #47)
         test_graph(&graph, |graph| {
-            assert_eq!(
-                graph.edge(0, 1).unwrap().layer_names().collect_vec(),
-                ["_default"]
-            );
-            assert_eq!(
-                graph.edge(0, 2).unwrap().layer_names().collect_vec(),
-                ["awesome layer"]
-            );
+            assert_eq!(graph.edge(0, 1).unwrap().layer_names(), ["_default"]);
+            assert_eq!(graph.edge(0, 2).unwrap().layer_names(), ["awesome layer"]);
         });
     }
 

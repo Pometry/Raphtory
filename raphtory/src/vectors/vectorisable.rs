@@ -1,5 +1,8 @@
 use crate::{
-    db::api::view::{internal::IntoDynamic, StaticGraphViewOps},
+    db::{
+        api::view::{internal::IntoDynamic, StaticGraphViewOps},
+        graph::{edge::EdgeView, node::NodeView},
+    },
     vectors::{
         document_ref::DocumentRef, embedding_cache::EmbeddingCache, entity_id::EntityId,
         template::DocumentTemplate, vectorised_graph::VectorisedGraph, EmbeddingFunction, Lifespan,
@@ -7,7 +10,8 @@ use crate::{
 };
 use async_trait::async_trait;
 use itertools::Itertools;
-use std::{collections::HashMap, path::PathBuf};
+use parking_lot::RwLock;
+use std::{collections::HashMap, sync::Arc};
 use tracing::info;
 
 const CHUNK_SIZE: usize = 1000;
@@ -20,7 +24,7 @@ struct IndexedDocumentInput {
     life: Lifespan,
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 pub trait Vectorisable<G: StaticGraphViewOps> {
     /// Create a VectorisedGraph from the current graph
     ///
@@ -36,96 +40,154 @@ pub trait Vectorisable<G: StaticGraphViewOps> {
     async fn vectorise(
         &self,
         embedding: Box<dyn EmbeddingFunction>,
-        cache: Option<PathBuf>,
-        override_cache: bool,
+        cache: Arc<Option<EmbeddingCache>>,
+        overwrite_cache: bool,
         template: DocumentTemplate,
+        graph_name: Option<String>,
         verbose: bool,
     ) -> VectorisedGraph<G>;
 }
 
-#[async_trait(?Send)]
-impl<G: StaticGraphViewOps + IntoDynamic> Vectorisable<G> for G {
+#[async_trait]
+impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
     async fn vectorise(
         &self,
         embedding: Box<dyn EmbeddingFunction>,
-        cache: Option<PathBuf>,
+        cache: Arc<Option<EmbeddingCache>>,
         overwrite_cache: bool,
         template: DocumentTemplate,
+        graph_name: Option<String>,
         verbose: bool,
     ) -> VectorisedGraph<G> {
-        let graph_docs =
-            template
-                .graph(self)
-                .enumerate()
-                .map(move |(index, doc)| IndexedDocumentInput {
-                    entity_id: EntityId::from_graph(self),
-                    content: doc.content,
-                    index,
-                    life: doc.life,
-                });
-        let nodes = self.nodes();
-        let nodes_iter = nodes.iter().flat_map(|node| {
-            template
-                .node(node)
-                .enumerate()
-                .map(move |(index, doc)| IndexedDocumentInput {
-                    entity_id: EntityId::from_node(node),
-                    content: doc.content,
-                    index,
-                    life: doc.life,
-                })
-        });
-        let edges = self.edges();
-        let edges_iter = edges.iter().flat_map(|edge| {
-            template
-                .edge(edge)
-                .enumerate()
-                .map(move |(index, doc)| IndexedDocumentInput {
-                    entity_id: EntityId::from_edge(edge),
-                    content: doc.content,
-                    index,
-                    life: doc.life,
-                })
-        });
+        let graph_docs = indexed_docs_for_graph(self, graph_name, &template);
 
-        let cache_storage = cache.map(EmbeddingCache::from_path);
+        let nodes = self.nodes().collect().into_iter();
+        let nodes_docs = nodes.flat_map(|node| indexed_docs_for_node(node, &template));
+
+        let edges = self.edges().collect().into_iter();
+        let edges_docs = edges.flat_map(|edge| indexed_docs_for_edge(edge, &template));
 
         if verbose {
             info!("computing embeddings for graph");
         }
-        let graph_ref_map =
-            compute_embedding_groups(graph_docs, embedding.as_ref(), &cache_storage).await;
-        let graph_refs = graph_ref_map
-            .into_iter()
-            .next()
-            .map(|(_, graph_refs)| graph_refs)
-            .unwrap_or_else(|| vec![]); // there should be only one value here, TODO: check that's true
+        let graph_refs = compute_entity_embeddings(graph_docs, embedding.as_ref(), &cache).await;
 
         if verbose {
             info!("computing embeddings for nodes");
         }
-        let node_refs =
-            compute_embedding_groups(nodes_iter, embedding.as_ref(), &cache_storage).await;
+        let node_refs = compute_embedding_groups(nodes_docs, embedding.as_ref(), &cache).await;
 
         if verbose {
             info!("computing embeddings for edges");
         }
-        let edge_refs =
-            compute_embedding_groups(edges_iter, embedding.as_ref(), &cache_storage).await; // FIXME: re-enable
+        let edge_refs = compute_embedding_groups(edges_docs, embedding.as_ref(), &cache).await;
 
         if overwrite_cache {
-            cache_storage.iter().for_each(|cache| cache.dump_to_disk());
+            cache.iter().for_each(|cache| cache.dump_to_disk());
         }
 
         VectorisedGraph::new(
             self.clone(),
             template,
             embedding.into(),
-            graph_refs.into(),
-            node_refs.into(),
-            edge_refs.into(),
+            cache.into(),
+            RwLock::new(graph_refs).into(),
+            RwLock::new(node_refs).into(),
+            RwLock::new(edge_refs).into(),
         )
     }
+}
+
+pub(crate) async fn vectorise_graph<G: StaticGraphViewOps>(
+    graph: &G,
+    graph_name: Option<String>,
+    template: &DocumentTemplate,
+    embedding: &Arc<dyn EmbeddingFunction>,
+    cache_storage: &Option<EmbeddingCache>,
+) -> Vec<DocumentRef> {
+    let docs = indexed_docs_for_graph(graph, graph_name, template);
+    compute_entity_embeddings(docs, embedding.as_ref(), &cache_storage).await
+}
+
+pub(crate) async fn vectorise_node<G: StaticGraphViewOps>(
+    node: NodeView<G>,
+    template: &DocumentTemplate,
+    embedding: &Arc<dyn EmbeddingFunction>,
+    cache_storage: &Option<EmbeddingCache>,
+) -> Vec<DocumentRef> {
+    let docs = indexed_docs_for_node(node, template);
+    compute_entity_embeddings(docs, embedding.as_ref(), &cache_storage).await
+}
+
+pub(crate) async fn vectorise_edge<G: StaticGraphViewOps>(
+    edge: EdgeView<G>,
+    template: &DocumentTemplate,
+    embedding: &Arc<dyn EmbeddingFunction>,
+    cache_storage: &Option<EmbeddingCache>,
+) -> Vec<DocumentRef> {
+    let docs = indexed_docs_for_edge(edge, template);
+    compute_entity_embeddings(docs, embedding.as_ref(), &cache_storage).await
+}
+
+fn indexed_docs_for_graph<'a, G: StaticGraphViewOps>(
+    graph: &'a G,
+    name: Option<String>,
+    template: &DocumentTemplate,
+) -> impl Iterator<Item = IndexedDocumentInput> + Send + 'a {
+    template
+        .graph(graph)
+        .enumerate()
+        .map(move |(index, doc)| IndexedDocumentInput {
+            entity_id: EntityId::for_graph(name.clone()),
+            content: doc.content,
+            index,
+            life: doc.life,
+        })
+}
+
+fn indexed_docs_for_node<G: StaticGraphViewOps>(
+    node: NodeView<G>,
+    template: &DocumentTemplate,
+) -> impl Iterator<Item = IndexedDocumentInput> + Send {
+    template
+        .node(node.clone())
+        .enumerate()
+        .map(move |(index, doc)| IndexedDocumentInput {
+            entity_id: EntityId::from_node(node.clone()),
+            content: doc.content,
+            index,
+            life: doc.life,
+        })
+}
+
+fn indexed_docs_for_edge<G: StaticGraphViewOps>(
+    edge: EdgeView<G>,
+    template: &DocumentTemplate,
+) -> impl Iterator<Item = IndexedDocumentInput> + Send {
+    template
+        .edge(edge.clone())
+        .enumerate()
+        .map(move |(index, doc)| IndexedDocumentInput {
+            entity_id: EntityId::from_edge(edge.clone()),
+            content: doc.content,
+            index,
+            life: doc.life,
+        })
+}
+
+async fn compute_entity_embeddings<I>(
+    documents: I,
+    embedding: &dyn EmbeddingFunction,
+    cache: &Option<EmbeddingCache>,
+) -> Vec<DocumentRef>
+where
+    I: Iterator<Item = IndexedDocumentInput> + Send,
+{
+    let map = compute_embedding_groups(documents, embedding, cache).await;
+    map.into_iter()
+        .next()
+        .map(|(_, refs)| refs)
+        .unwrap_or_else(|| vec![]) // there should be only one value here, TODO: check that's true
 }
 
 async fn compute_embedding_groups<I>(
@@ -137,28 +199,43 @@ where
     I: Iterator<Item = IndexedDocumentInput>,
 {
     let mut embedding_groups: HashMap<EntityId, Vec<DocumentRef>> = HashMap::new();
-    for chunk in documents.chunks(CHUNK_SIZE).into_iter() {
-        let doc_refs = compute_chunk(chunk, embedding, cache).await;
-        for doc in doc_refs {
-            match embedding_groups.get_mut(&doc.entity_id) {
-                Some(group) => group.push(doc),
-                None => {
-                    embedding_groups.insert(doc.entity_id.clone(), vec![doc]);
-                }
-            }
+    let mut buffer = Vec::with_capacity(CHUNK_SIZE);
+
+    for document in documents {
+        buffer.push(document);
+        if buffer.len() >= CHUNK_SIZE {
+            insert_chunk(&mut embedding_groups, &buffer, embedding, cache).await;
+            buffer.clear();
         }
+    }
+    if buffer.len() > 0 {
+        insert_chunk(&mut embedding_groups, &buffer, embedding, cache).await;
     }
     embedding_groups
 }
 
-async fn compute_chunk<I>(
-    documents: I,
+async fn insert_chunk(
+    embedding_groups: &mut HashMap<EntityId, Vec<DocumentRef>>,
+    buffer: &Vec<IndexedDocumentInput>,
     embedding: &dyn EmbeddingFunction,
     cache: &Option<EmbeddingCache>,
-) -> Vec<DocumentRef>
-where
-    I: Iterator<Item = IndexedDocumentInput>,
-{
+) {
+    let doc_refs = compute_chunk(&buffer, embedding, cache).await;
+    for doc in doc_refs {
+        match embedding_groups.get_mut(&doc.entity_id) {
+            Some(group) => group.push(doc),
+            None => {
+                embedding_groups.insert(doc.entity_id.clone(), vec![doc]);
+            }
+        }
+    }
+}
+
+async fn compute_chunk(
+    documents: &Vec<IndexedDocumentInput>,
+    embedding: &dyn EmbeddingFunction,
+    cache: &Option<EmbeddingCache>,
+) -> Vec<DocumentRef> {
     let mut misses = vec![];
     let mut embedded = vec![];
     match cache {
@@ -167,7 +244,7 @@ where
                 let embedding = cache.get_embedding(&doc.content);
                 match embedding {
                     Some(embedding) => embedded.push(DocumentRef::new(
-                        doc.entity_id,
+                        doc.entity_id.clone(),
                         doc.index,
                         embedding,
                         doc.life,
@@ -176,7 +253,7 @@ where
                 }
             }
         }
-        None => misses = documents.collect_vec(),
+        None => misses = documents.iter().collect(),
     };
 
     let texts = misses.iter().map(|doc| doc.content.clone()).collect_vec();
@@ -191,7 +268,7 @@ where
             cache.upsert_embedding(&doc.content, embedding.clone())
         };
         embedded.push(DocumentRef::new(
-            doc.entity_id,
+            doc.entity_id.clone(),
             doc.index,
             embedding,
             doc.life,

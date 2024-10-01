@@ -1,7 +1,9 @@
 pub use crate::server::GraphServer;
-mod data;
+pub mod data;
+mod graph;
 pub mod model;
 pub mod observability;
+mod paths;
 mod routes;
 pub mod server;
 pub mod url_encode;
@@ -19,6 +21,8 @@ mod graphql_test {
         url_encode::{url_decode_graph, url_encode_graph},
     };
     use async_graphql::UploadValue;
+    use serde_json::Value;
+
     use dynamic_graphql::{Request, Variables};
     #[cfg(feature = "storage")]
     use raphtory::disk_graph::DiskGraphStorage;
@@ -28,9 +32,14 @@ mod graphql_test {
             graph::views::deletion_graph::PersistentGraph,
         },
         prelude::*,
+        serialise::GraphFolder,
     };
+    use raphtory_api::core::storage::arc_str::ArcStr;
     use serde_json::json;
-    use std::collections::{HashMap, HashSet};
+    use std::{
+        collections::{HashMap, HashSet},
+        fs,
+    };
     use tempfile::tempdir;
 
     #[tokio::test]
@@ -137,6 +146,146 @@ mod graphql_test {
                 }
             }),
         );
+    }
+
+    #[tokio::test]
+    async fn test_graph_properties_schema() {
+        let graph = Graph::new();
+        graph
+            .add_node(
+                0,
+                1,
+                [
+                    ("type", Prop::Str(ArcStr::from("wallet"))),
+                    ("cost", Prop::F32(99.5)),
+                ],
+                Some("a"),
+            )
+            .unwrap();
+        graph
+            .add_node(
+                1,
+                2,
+                [
+                    ("type", Prop::Str(ArcStr::from("wallet"))),
+                    ("cost", Prop::F32(10.0)),
+                ],
+                Some("a"),
+            )
+            .unwrap();
+        graph
+            .add_node(
+                5,
+                3,
+                [
+                    ("type", Prop::Str(ArcStr::from("wallet"))),
+                    ("cost", Prop::F32(76.0)),
+                ],
+                Some("a"),
+            )
+            .unwrap();
+        graph
+            .node(1)
+            .unwrap()
+            .add_constant_properties([("lol", "smile")])
+            .unwrap();
+
+        let edges = vec![
+            (1, 1, 2),
+            (2, 1, 3),
+            (-1, 2, 1),
+            (0, 1, 1),
+            (7, 3, 2),
+            (1, 1, 1),
+        ];
+        for e in &edges {
+            graph
+                .add_edge(
+                    e.0,
+                    e.1,
+                    e.2,
+                    [
+                        ("prop1", Prop::I32(1)),
+                        ("prop2", Prop::F32(9.8)),
+                        ("prop3", Prop::Str(ArcStr::from("test"))),
+                    ],
+                    None,
+                )
+                .unwrap();
+        }
+        graph
+            .edge(edges[0].1, edges[0].2)
+            .unwrap()
+            .add_constant_properties([("static", "test")], None)
+            .unwrap();
+        let graph: MaterializedGraph = graph.into();
+
+        let graphs = HashMap::from([("graph".to_string(), graph)]);
+        let tmp_dir = tempdir().unwrap();
+        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+
+        let data = Data::new(tmp_dir.path(), &AppConfig::default());
+        let schema = App::create_schema().data(data).finish().unwrap();
+        let prop_has_key_filter = r#"
+        {
+          graph(path: "graph") {
+            schema {
+              layers {
+                edges {
+                  properties {
+                    key
+                    propertyType
+                    variants
+                  }
+                }
+              }
+              nodes {
+                properties {
+                    key
+                    propertyType
+                    variants
+                }
+              }
+            }
+          }
+        }
+        "#;
+
+        let req = Request::new(prop_has_key_filter);
+        let res = schema.execute(req).await;
+        let data = res.data.into_json().unwrap();
+
+        fn sort_properties(properties: &mut Vec<Value>) {
+            properties.sort_by(|a, b| {
+                let a_type = a["propertyType"].as_str().unwrap_or("");
+                let b_type = b["propertyType"].as_str().unwrap_or("");
+                a_type.cmp(b_type)
+            });
+        }
+
+        if let Value::Array(mut node_properties) =
+            data["graph"]["schema"]["nodes"][0]["properties"].clone()
+        {
+            sort_properties(&mut node_properties);
+
+            assert_eq!(node_properties[0]["propertyType"].as_str().unwrap(), "F32");
+            assert_eq!(node_properties[1]["propertyType"].as_str().unwrap(), "Str");
+            assert_eq!(node_properties[2]["propertyType"].as_str().unwrap(), "Str");
+        }
+
+        if let Value::Array(mut edge_properties) =
+            data["graph"]["schema"]["layers"][0]["edges"][0]["properties"].clone()
+        {
+            sort_properties(&mut edge_properties);
+
+            assert_eq!(edge_properties[0]["propertyType"].as_str().unwrap(), "F32");
+            assert_eq!(edge_properties[1]["propertyType"].as_str().unwrap(), "I32");
+            assert_eq!(edge_properties[2]["propertyType"].as_str().unwrap(), "Str");
+            assert_eq!(edge_properties[3]["propertyType"].as_str().unwrap(), "Str");
+        }
+
+        // let pretty_data = serde_json::to_string_pretty(&data).unwrap();
+        // println!("data = {}", pretty_data);
     }
 
     #[tokio::test]
@@ -663,9 +812,8 @@ mod graphql_test {
         let g = PersistentGraph::new();
         g.add_node(0, 1, NO_PROPS, None).unwrap();
         let tmp_file = tempfile::NamedTempFile::new().unwrap();
-        let path = tmp_file.path();
-        g.encode(path).unwrap();
-        let file = std::fs::File::open(path).unwrap();
+        g.encode(GraphFolder::new_as_zip(tmp_file.path())).unwrap();
+        let file = fs::File::open(&tmp_file).unwrap();
         let upload_val = UploadValue {
             filename: "test".into(),
             content_type: Some("application/octet-stream".into()),
@@ -914,7 +1062,11 @@ mod graphql_test {
 
         let tmp_work_dir = tempdir().unwrap();
         let tmp_work_dir = tmp_work_dir.path();
-        let _ = DiskGraphStorage::from_graph(&graph, &tmp_work_dir.join("graph")).unwrap();
+
+        let disk_graph_path = tmp_work_dir.join("graph");
+        fs::create_dir(&disk_graph_path).unwrap();
+        fs::File::create(disk_graph_path.join(".raph")).unwrap();
+        let _ = DiskGraphStorage::from_graph(&graph, disk_graph_path.join("graph")).unwrap();
 
         let data = Data::new(&tmp_work_dir, &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();

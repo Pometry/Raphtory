@@ -9,7 +9,7 @@ use crate::{
         api::{
             properties::Properties,
             view::{
-                internal::{DynamicGraph, IntoDynamic, MaterializedGraph},
+                internal::{DynamicGraph, IntoDynamic, MaterializedGraph, OneHopFilter},
                 LayerOps, StaticGraphViewOps,
             },
         },
@@ -20,9 +20,13 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             views::{
-                layer_graph::LayeredGraph, node_subgraph::NodeSubgraph,
+                layer_graph::LayeredGraph,
+                node_subgraph::NodeSubgraph,
                 node_type_filtered_subgraph::TypeFilteredSubgraph,
-                property_filter::edge_property_filter::EdgePropertyFilteredGraph,
+                property_filter::{
+                    edge_property_filter::EdgePropertyFilteredGraph,
+                    exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph, internal::*,
+                },
                 window_graph::WindowedGraph,
             },
         },
@@ -30,7 +34,10 @@ use crate::{
     prelude::*,
     python::{
         graph::{edge::PyEdge, node::PyNode},
-        types::repr::{Repr, StructReprBuilder},
+        types::{
+            repr::{Repr, StructReprBuilder},
+            wrappers::prop::PyPropertyFilter,
+        },
         utils::PyTime,
     },
 };
@@ -105,6 +112,14 @@ impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for TypeFilteredSubgr
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for EdgePropertyFilteredGraph<G> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        PyGraphView::from(self).into_py(py)
+    }
+}
+
+impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject>
+    for ExplodedEdgePropertyFilteredGraph<G>
+{
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyGraphView::from(self).into_py(py)
     }

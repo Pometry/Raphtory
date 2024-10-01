@@ -127,27 +127,6 @@ impl<'a> TimeIndexIntoOps for TimeIndexRef<'a> {
     }
 }
 
-pub trait EdgeStorageIntoOps {
-    fn into_layers(
-        self,
-        layer_ids: LayerIds,
-        eref: EdgeRef,
-    ) -> impl Iterator<Item = EdgeRef> + Send;
-
-    fn into_exploded(
-        self,
-        layer_ids: LayerIds,
-        eref: EdgeRef,
-    ) -> impl Iterator<Item = EdgeRef> + Send;
-
-    fn into_exploded_window(
-        self,
-        layer_ids: LayerIds,
-        w: Range<TimeIndexEntry>,
-        eref: EdgeRef,
-    ) -> impl Iterator<Item = EdgeRef> + Send;
-}
-
 pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn in_ref(self) -> EdgeRef;
 
