@@ -13,7 +13,11 @@ readme.workspace = true
 homepage.workspace = true
 
 [dependencies]
-raphtory = { path = "../raphtory", version = "0.11.3", features = ['vectors', 'search', "io"] }
+raphtory = { path = "../raphtory", version = "0.11.3", features = [
+    'vectors',
+    'search',
+    "io",
+] }
 raphtory-api = { path = "../raphtory-api", version = "0.11.3" }
 base64 = { workspace = true }
 thiserror = { workspace = true }
@@ -49,6 +53,8 @@ moka = { workspace = true }
 pyo3 = { workspace = true, optional = true }
 crossbeam-channel = { workspace = true }
 minijinja = { workspace = true }
+zip = { workspace = true }
+
 [dev-dependencies]
 tempfile = { workspace = true }
 

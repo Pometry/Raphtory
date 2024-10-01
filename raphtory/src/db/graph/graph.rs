@@ -736,8 +736,6 @@ mod db_tests {
         let g2 = Graph::decode(&graph_path).unwrap();
 
         assert_eq!(g, g2);
-
-        let _ = tmp_raphtory_path.close();
     }
 
     #[test]

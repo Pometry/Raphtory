@@ -1,16 +1,17 @@
 use crate::core::{DocumentInput, Lifespan};
 use futures_util::future::BoxFuture;
-use std::{future::Future, sync::Arc};
+use std::{future::Future, ops::Deref, sync::Arc};
 
 pub mod datetimeformat;
 mod document_ref;
-mod embedding_cache;
+pub mod embedding_cache;
 pub mod embeddings;
 mod entity_id;
 mod similarity_search_utils;
 pub mod splitting;
 pub mod template;
 pub mod vector_selection;
+mod vector_storage;
 pub mod vectorisable;
 pub mod vectorised_cluster;
 pub mod vectorised_graph;
@@ -20,7 +21,7 @@ pub type Embedding = Arc<[f32]>;
 #[derive(Debug)]
 pub enum Document {
     Graph {
-        name: String,
+        name: Option<String>,
         content: String,
         embedding: Embedding,
         life: Lifespan,
@@ -102,6 +103,12 @@ where
     }
 }
 
+impl EmbeddingFunction for Arc<dyn EmbeddingFunction> {
+    fn call(&self, texts: Vec<String>) -> BoxFuture<'static, Vec<Embedding>> {
+        Box::pin(self.deref().call(texts))
+    }
+}
+
 #[cfg(test)]
 mod vector_tests {
     use super::*;
@@ -112,7 +119,7 @@ mod vector_tests {
     };
     use dotenv::dotenv;
     use itertools::Itertools;
-    use std::{fs::remove_file, path::PathBuf};
+    use std::fs::remove_file;
     use template::DocumentTemplate;
     use tokio;
 
@@ -153,9 +160,10 @@ mod vector_tests {
         // the following succeeds with no cache set up
         g.vectorise(
             Box::new(fake_embedding),
-            None,
+            None.into(),
             true,
             template.clone(),
+            None,
             false,
         )
         .await;
@@ -166,9 +174,10 @@ mod vector_tests {
         // the following creates the embeddings, and store them on the cache
         g.vectorise(
             Box::new(fake_embedding),
-            Some(PathBuf::from(path)),
+            Some(path.to_owned().into()).into(),
             true,
             template.clone(),
+            None,
             false,
         )
         .await;
@@ -177,9 +186,10 @@ mod vector_tests {
         // embedding, which would make the test fail
         g.vectorise(
             Box::new(panicking_embedding),
-            Some(PathBuf::from(path)),
+            Some(path.to_owned().into()).into(),
             true,
             template,
+            None,
             false,
         )
         .await;
@@ -189,9 +199,9 @@ mod vector_tests {
     async fn test_empty_graph() {
         let template = custom_template();
         let g = Graph::new();
-        let cache = PathBuf::from("/tmp/raphtory/vector-cache-lotr-test");
+        let cache = Some("/tmp/raphtory/vector-cache-lotr-test".to_owned().into()).into();
         let vectors = g
-            .vectorise(Box::new(fake_embedding), Some(cache), true, template, false)
+            .vectorise(Box::new(fake_embedding), cache, true, template, None, false)
             .await;
         let embedding: Embedding = fake_embedding(vec!["whatever".to_owned()]).await.remove(0);
 
@@ -409,9 +419,10 @@ mod vector_tests {
         let vectors = g
             .vectorise(
                 Box::new(openai_embedding),
-                Some(PathBuf::from("/tmp/raphtory/vector-cache-lotr-test")),
+                Some("/tmp/raphtory/vector-cache-lotr-test".to_owned().into()).into(),
                 true,
                 template,
+                None,
                 false,
             )
             .await;

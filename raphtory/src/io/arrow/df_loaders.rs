@@ -611,7 +611,7 @@ mod tests {
     use itertools::Itertools;
     use polars_arrow::array::{MutableArray, MutablePrimitiveArray, MutableUtf8Array};
     use proptest::proptest;
-    use tempfile::NamedTempFile;
+    use tempfile::{NamedTempFile, TempDir};
 
     fn build_df(
         chunk_size: usize,
@@ -678,7 +678,7 @@ mod tests {
         proptest!(|(edges in build_edge_list(100, 100), chunk_size in 1usize..=100)| {
             let df_view = build_df(chunk_size, &edges);
             let g = Graph::new();
-            let cache_file = NamedTempFile::new().unwrap();
+            let cache_file = TempDir::new().unwrap();
             g.cache(cache_file.path()).unwrap();
             let props = ["str_prop", "int_prop"];
             load_edges_from_df(df_view, "time", "src", "dst", Some(&props), None, None, None, None, &g).unwrap();

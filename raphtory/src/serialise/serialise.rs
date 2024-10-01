@@ -31,7 +31,9 @@ use raphtory_api::core::{
     Direction,
 };
 use rayon::prelude::*;
-use std::{fs::File, io::Write, iter, path::Path, sync::Arc};
+use std::{iter, sync::Arc};
+
+use super::GraphFolder;
 
 macro_rules! zip_tprop_updates {
     ($iter:expr) => {
@@ -48,10 +50,10 @@ pub trait StableEncode {
         self.encode_to_proto().encode_to_vec()
     }
 
-    fn encode(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
-        let mut file = File::create(path)?;
+    fn encode(&self, path: impl Into<GraphFolder>) -> Result<(), GraphError> {
         let bytes = self.encode_to_vec();
-        file.write_all(&bytes)?;
+        let result = path.into().write_graph(&bytes);
+        result?;
         Ok(())
     }
 }
@@ -62,11 +64,9 @@ pub trait StableDecode: Sized {
         let graph = proto::Graph::decode(bytes)?;
         Self::decode_from_proto(&graph)
     }
-    fn decode(path: impl AsRef<Path>) -> Result<Self, GraphError> {
-        let file = File::open(path)?;
-        let buf = unsafe { memmap2::MmapOptions::new().map(&file)? };
-        let bytes = buf.as_ref();
-        Self::decode_from_bytes(bytes)
+    fn decode(path: impl Into<GraphFolder>) -> Result<Self, GraphError> {
+        let bytes = path.into().read_graph()?;
+        Self::decode_from_bytes(bytes.as_ref())
     }
 }
 
@@ -74,13 +74,13 @@ pub trait CacheOps: Sized {
     /// Write graph to file and append future updates to the same file.
     ///
     /// If the file already exists, it's contents are overwritten
-    fn cache(&self, path: impl AsRef<Path>) -> Result<(), GraphError>;
+    fn cache(&self, path: impl Into<GraphFolder>) -> Result<(), GraphError>;
 
     /// Persist the new updates by appending them to the cache file.
     fn write_updates(&self) -> Result<(), GraphError>;
 
     /// Load graph from file and append future updates to the same file
-    fn load_cached(path: impl AsRef<Path>) -> Result<Self, GraphError>;
+    fn load_cached(path: impl Into<GraphFolder>) -> Result<Self, GraphError>;
 }
 
 impl StableEncode for GraphStorage {
@@ -528,6 +528,8 @@ impl StableDecode for PersistentGraph {
 
 #[cfg(test)]
 mod proto_test {
+    use tempfile::TempDir;
+
     use super::*;
     use crate::{
         core::{DocumentInput, Lifespan},
@@ -546,7 +548,8 @@ mod proto_test {
 
     #[test]
     fn node_no_props() {
-        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let tempdir = TempDir::new().unwrap();
+        let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new();
         g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
         g1.encode(&temp_file).unwrap();
@@ -556,7 +559,8 @@ mod proto_test {
 
     #[test]
     fn node_with_props() {
-        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let tempdir = TempDir::new().unwrap();
+        let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new();
         g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
         g1.add_node(2, "Bob", [("age", Prop::U32(47))], None)
@@ -573,7 +577,7 @@ mod proto_test {
         g.add_edge(1, "ben", "hamza", NO_PROPS, None).unwrap();
         g.add_edge(2, "haaroon", "hamza", NO_PROPS, None).unwrap();
         g.add_edge(3, "ben", "haaroon", NO_PROPS, None).unwrap();
-        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let temp_file = TempDir::new().unwrap();
 
         g.encode(&temp_file).unwrap();
         let g2 = MaterializedGraph::load_cached(&temp_file).unwrap();
@@ -589,6 +593,8 @@ mod proto_test {
         assert_eq!(g3.nodes().name().collect_vec(), ["ben", "hamza", "haaroon"]);
         let node_names: Vec<_> = g3.nodes().iter().map(|n| n.name()).collect();
         assert_eq!(node_names, ["ben", "hamza", "haaroon"]);
+
+        let temp_file = TempDir::new().unwrap();
         g3.encode(&temp_file).unwrap();
         let g4 = MaterializedGraph::decode(&temp_file).unwrap();
         assert_eq!(g4.nodes().name().collect_vec(), ["ben", "hamza", "haaroon"]);
@@ -598,7 +604,8 @@ mod proto_test {
 
     #[test]
     fn node_with_const_props() {
-        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let tempdir = TempDir::new().unwrap();
+        let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new();
         g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
         let n1 = g1
@@ -615,7 +622,8 @@ mod proto_test {
 
     #[test]
     fn edge_no_props() {
-        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let tempdir = TempDir::new().unwrap();
+        let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new();
         g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
         g1.add_node(2, "Bob", NO_PROPS, None).unwrap();
@@ -627,7 +635,8 @@ mod proto_test {
 
     #[test]
     fn edge_no_props_delete() {
-        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let tempdir = TempDir::new().unwrap();
+        let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new().persistent_graph();
         g1.add_edge(3, "Alice", "Bob", NO_PROPS, None).unwrap();
         g1.delete_edge(19, "Alice", "Bob", None).unwrap();
@@ -642,7 +651,8 @@ mod proto_test {
 
     #[test]
     fn edge_t_props() {
-        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let tempdir = TempDir::new().unwrap();
+        let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new();
         g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
         g1.add_node(2, "Bob", NO_PROPS, None).unwrap();
@@ -655,7 +665,8 @@ mod proto_test {
 
     #[test]
     fn edge_const_props() {
-        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let tempdir = TempDir::new().unwrap();
+        let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new();
         let e1 = g1.add_edge(3, "Alice", "Bob", NO_PROPS, None).unwrap();
         e1.update_constant_properties([("friends", true)], None)
@@ -667,7 +678,8 @@ mod proto_test {
 
     #[test]
     fn edge_layers() {
-        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let tempdir = TempDir::new().unwrap();
+        let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new();
         g1.add_edge(7, "Alice", "Bob", NO_PROPS, Some("one"))
             .unwrap();
@@ -683,7 +695,8 @@ mod proto_test {
         let mut props = vec![];
         write_props_to_vec(&mut props);
 
-        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let tempdir = TempDir::new().unwrap();
+        let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new();
         g1.add_node(1, "Alice", props.clone(), None).unwrap();
         g1.encode(&temp_file).unwrap();
@@ -709,7 +722,8 @@ mod proto_test {
         let mut props = vec![];
         write_props_to_vec(&mut props);
 
-        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let tempdir = TempDir::new().unwrap();
+        let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new();
         g1.add_edge(1, "Alice", "Bob", props.clone(), None).unwrap();
         g1.encode(&temp_file).unwrap();
@@ -735,7 +749,8 @@ mod proto_test {
         let mut props = vec![];
         write_props_to_vec(&mut props);
 
-        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let tempdir = TempDir::new().unwrap();
+        let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new();
         let e = g1.add_edge(1, "Alice", "Bob", NO_PROPS, Some("a")).unwrap();
         e.update_constant_properties(props.clone(), Some("a"))
@@ -761,7 +776,8 @@ mod proto_test {
         let mut props = vec![];
         write_props_to_vec(&mut props);
 
-        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let tempdir = TempDir::new().unwrap();
+        let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new();
         let n = g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
         n.update_constant_properties(props.clone())
@@ -790,7 +806,8 @@ mod proto_test {
         g1.add_constant_properties(props.clone())
             .expect("Failed to add constant properties");
 
-        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let tempdir = TempDir::new().unwrap();
+        let temp_file = tempdir.path().join("graph");
         g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
@@ -812,7 +829,8 @@ mod proto_test {
                 .expect("Failed to add constant properties");
         }
 
-        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let tempdir = TempDir::new().unwrap();
+        let temp_file = tempdir.path().join("graph");
         g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
@@ -917,9 +935,9 @@ mod proto_test {
         let g = Graph::new();
         let mut props = vec![];
         write_props_to_vec(&mut props);
-        let temp_cache_file = tempfile::NamedTempFile::new().unwrap();
+        let temp_cache_file = tempfile::tempdir().unwrap();
 
-        g.cache(temp_cache_file.path()).unwrap();
+        g.cache(&temp_cache_file).unwrap();
 
         for t in 0..props.len() {
             g.add_properties(t as i64, (&props[t..t + 1]).to_vec())
@@ -952,7 +970,7 @@ mod proto_test {
         g.write_updates().unwrap();
         info!("{g:?}");
 
-        let g2 = Graph::decode(temp_cache_file.path()).unwrap();
+        let g2 = Graph::decode(&temp_cache_file).unwrap();
         info!("{g2:?}");
 
         assert_graph_equal(&g, &g2);
@@ -964,9 +982,9 @@ mod proto_test {
         let g = PersistentGraph::new();
         let mut props = vec![];
         write_props_to_vec(&mut props);
-        let temp_cache_file = tempfile::NamedTempFile::new().unwrap();
+        let temp_cache_file = tempfile::tempdir().unwrap();
 
-        g.cache(temp_cache_file.path()).unwrap();
+        g.cache(&temp_cache_file).unwrap();
 
         for t in 0..props.len() {
             g.add_properties(t as i64, (&props[t..t + 1]).to_vec())
@@ -999,7 +1017,7 @@ mod proto_test {
         g.write_updates().unwrap();
         info!("{g:?}");
 
-        let g2 = PersistentGraph::decode(temp_cache_file.path()).unwrap();
+        let g2 = PersistentGraph::decode(&temp_cache_file).unwrap();
         info!("{g2:?}");
 
         assert_graph_equal(&g, &g2);

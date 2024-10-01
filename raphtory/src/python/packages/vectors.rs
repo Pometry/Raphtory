@@ -2,7 +2,10 @@ use crate::{
     core::{
         entities::nodes::node_ref::NodeRef, utils::time::IntoTime, DocumentInput, Lifespan, Prop,
     },
-    db::api::properties::{internal::PropertiesOps, Properties},
+    db::api::{
+        properties::{internal::PropertiesOps, Properties},
+        view::{MaterializedGraph, StaticGraphViewOps},
+    },
     prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
     python::{
         graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
@@ -10,9 +13,12 @@ use crate::{
         utils::{execute_async_task, PyTime},
     },
     vectors::{
-        template::DocumentTemplate, vector_selection::DynamicVectorSelection,
-        vectorisable::Vectorisable, vectorised_graph::DynamicVectorisedGraph, Document, Embedding,
-        EmbeddingFunction,
+        embedding_cache::EmbeddingCache,
+        template::DocumentTemplate,
+        vector_selection::DynamicVectorSelection,
+        vectorisable::Vectorisable,
+        vectorised_graph::{DynamicVectorisedGraph, VectorisedGraph},
+        Document, Embedding, EmbeddingFunction,
     },
 };
 use chrono::DateTime;
@@ -23,7 +29,6 @@ use pyo3::{
     prelude::*,
     types::{PyFunction, PyList},
 };
-use std::path::PathBuf;
 
 pub type PyWindow = Option<(PyTime, PyTime)>;
 
@@ -93,7 +98,11 @@ impl PyDocument {
                 })
             } else if let Ok(graph) = graph {
                 Ok(Document::Graph {
-                    name: graph.graph.properties().get("name").unwrap().to_string(),
+                    name: graph
+                        .graph
+                        .properties()
+                        .get("name")
+                        .map(|prop| prop.to_string()),
                     content: self.content.clone(),
                     embedding: embedding.embedding(),
                     life: self.life,
@@ -235,7 +244,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///   A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
-    #[pyo3(signature = (embedding, cache = None, overwrite_cache = false, graph_template = None, node_template = None, edge_template = None, verbose = false))]
+    #[pyo3(signature = (embedding, cache = None, overwrite_cache = false, graph_template = None, node_template = None, edge_template = None, graph_name = None, verbose = false))]
     fn vectorise(
         &self,
         embedding: &PyFunction,
@@ -244,11 +253,12 @@ impl PyGraphView {
         graph_template: Option<String>,
         node_template: Option<String>,
         edge_template: Option<String>,
+        graph_name: Option<String>,
         verbose: bool,
     ) -> DynamicVectorisedGraph {
         let embedding: Py<PyFunction> = embedding.into();
         let graph = self.graph.clone();
-        let cache = cache.map(PathBuf::from);
+        let cache = cache.map(|cache| cache.into()).into();
         let template = DocumentTemplate {
             graph_template,
             node_template,
@@ -261,6 +271,7 @@ impl PyGraphView {
                     cache,
                     overwrite_cache,
                     template,
+                    graph_name,
                     verbose,
                 )
                 .await
@@ -274,6 +285,12 @@ pub struct PyVectorisedGraph(DynamicVectorisedGraph);
 impl From<DynamicVectorisedGraph> for PyVectorisedGraph {
     fn from(value: DynamicVectorisedGraph) -> Self {
         PyVectorisedGraph(value)
+    }
+}
+
+impl From<VectorisedGraph<MaterializedGraph>> for PyVectorisedGraph {
+    fn from(value: VectorisedGraph<MaterializedGraph>) -> Self {
+        PyVectorisedGraph(value.into_dynamic())
     }
 }
 
@@ -573,7 +590,10 @@ impl PyVectorSelection {
     }
 }
 
-pub fn compute_embedding(vectors: &DynamicVectorisedGraph, query: PyQuery) -> Embedding {
+pub fn compute_embedding<G: StaticGraphViewOps>(
+    vectors: &VectorisedGraph<G>,
+    query: PyQuery,
+) -> Embedding {
     let embedding = vectors.embedding.clone();
     execute_async_task(move || async move { query.into_embedding(embedding.as_ref()).await })
 }

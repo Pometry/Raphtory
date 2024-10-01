@@ -1,6 +1,9 @@
-use crate::model::{
-    algorithms::document::GqlDocument,
-    plugins::{operation::Operation, query_plugin::QueryPlugin},
+use crate::{
+    data::Data,
+    model::{
+        algorithms::document::GqlDocument,
+        plugins::{operation::Operation, query_plugin::QueryPlugin},
+    },
 };
 use async_graphql::{
     dynamic::{FieldValue, ResolverContext, TypeRef},
@@ -32,6 +35,7 @@ impl<'a> Operation<'a, QueryPlugin> for GlobalSearch {
         entry_point: &QueryPlugin,
         ctx: ResolverContext,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
+        let data = ctx.data_unchecked::<Data>().clone();
         let query = ctx
             .args
             .try_get("query")
@@ -40,13 +44,11 @@ impl<'a> Operation<'a, QueryPlugin> for GlobalSearch {
             .unwrap()
             .to_owned();
         let limit = ctx.args.try_get("limit").unwrap().u64().unwrap() as usize;
-        let vectorised_graphs = entry_point.vectorised_graphs.clone();
+        let graphs = entry_point.graphs.clone();
 
         Box::pin(async move {
-            let embedding = openai_embedding(vec![query.clone()]).await.remove(0);
             info!("running global search for {query}");
-
-            let graphs = vectorised_graphs.read();
+            let embedding = data.embed_query(query).await;
 
             let cluster = VectorisedCluster::new(graphs.deref());
             let documents = cluster.search_graph_documents(&embedding, limit, None); // TODO: add window

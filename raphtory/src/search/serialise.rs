@@ -4,10 +4,9 @@ use crate::{
     search::IndexedGraph,
     serialise::{
         incremental::{GraphWriter, InternalCache},
-        ProtoGraph,
+        GraphFolder, ProtoGraph,
     },
 };
-use std::path::Path;
 
 impl<G: StableEncode> StableEncode for IndexedGraph<G> {
     fn encode_to_proto(&self) -> ProtoGraph {
@@ -24,7 +23,7 @@ impl<'graph, G: StableDecode + GraphViewOps<'graph>> StableDecode for IndexedGra
 }
 
 impl<G: InternalCache> InternalCache for IndexedGraph<G> {
-    fn init_cache(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
+    fn init_cache(&self, path: &GraphFolder) -> Result<(), GraphError> {
         self.graph.init_cache(path)
     }
 

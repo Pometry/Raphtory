@@ -60,6 +60,15 @@ macro_rules! impl_serialise {
                 $crate::serialise::StableEncode::encode(&self.$field, path)
             }
 
+            #[doc = concat!(" Saves the ", $name, " to the given path.")]
+            ///
+            /// Arguments:
+            ///  path (str): The path to the file.
+            fn save_to_zip(&self, path: &str) -> Result<(), GraphError> {
+                let folder = $crate::serialise::GraphFolder::new_as_zip(path);
+                $crate::serialise::StableEncode::encode(&self.$field, folder)
+            }
+
             #[doc = concat!(" Load ", $name, " from serialised bytes.")]
             ///
             /// Arguments:

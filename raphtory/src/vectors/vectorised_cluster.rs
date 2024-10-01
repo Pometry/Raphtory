@@ -41,16 +41,17 @@ impl<'a, G: StaticGraphViewOps> VectorisedCluster<'a, G> {
         let documents = self
             .graphs
             .iter()
-            .flat_map(|(_name, graph)| graph.graph_documents.iter().cloned())
+            .flat_map(|(_name, graph)| graph.graph_documents.read().clone())
             .filter(|doc| doc.exists_on_window::<Graph>(None, &window))
             .collect_vec();
         let scored_documents = score_documents(query, documents);
         let top_k = find_top_k(scored_documents, limit);
 
         top_k
-            .map(|(doc, score)| match doc.entity_id {
-                EntityId::Graph { ref name } => {
-                    let graph = self.graphs.get(name).unwrap();
+            .map(|(doc, score)| match &doc.entity_id {
+                EntityId::Graph { name } => {
+                    let name = name.clone().unwrap();
+                    let graph = self.graphs.get(&name).unwrap();
                     (doc.regenerate(&graph.source_graph, &graph.template), score)
                 }
                 _ => panic!("got document that is not related to any graph"),

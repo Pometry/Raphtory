@@ -5,11 +5,7 @@ use crate::model::{
 use async_graphql::{dynamic::FieldValue, Context};
 use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName};
 use once_cell::sync::Lazy;
-use parking_lot::RwLock;
-use raphtory::{
-    db::api::view::MaterializedGraph, search::IndexedGraph,
-    vectors::vectorised_graph::DynamicVectorisedGraph,
-};
+use raphtory::{db::api::view::MaterializedGraph, vectors::vectorised_graph::VectorisedGraph};
 use std::{
     borrow::Cow,
     collections::HashMap,
@@ -19,10 +15,9 @@ use std::{
 pub static QUERY_PLUGINS: Lazy<Mutex<HashMap<String, RegisterFunction>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct QueryPlugin {
-    pub graphs: Arc<RwLock<HashMap<String, IndexedGraph<MaterializedGraph>>>>,
-    pub vectorised_graphs: Arc<RwLock<HashMap<String, DynamicVectorisedGraph>>>,
+    pub graphs: Arc<HashMap<String, VectorisedGraph<MaterializedGraph>>>,
 }
 
 impl<'a> EntryPoint<'a> for QueryPlugin {

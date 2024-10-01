@@ -12,7 +12,7 @@ use minijinja::{
     Environment, Template, Value,
 };
 use raphtory_api::core::storage::arc_str::ArcStr;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::error;
 
@@ -158,14 +158,14 @@ impl From<Prop> for Value {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct DocumentTemplate {
     pub graph_template: Option<String>,
     pub node_template: Option<String>,
     pub edge_template: Option<String>,
 }
 
-fn empty_iter() -> Box<dyn Iterator<Item = DocumentInput>> {
+fn empty_iter() -> Box<dyn Iterator<Item = DocumentInput> + Send> {
     Box::new(std::iter::empty())
 }
 
@@ -173,7 +173,7 @@ impl DocumentTemplate {
     pub(crate) fn graph<'graph, G: GraphViewOps<'graph>>(
         &self,
         graph: G,
-    ) -> Box<dyn Iterator<Item = DocumentInput>> {
+    ) -> Box<dyn Iterator<Item = DocumentInput> + Send> {
         match &self.graph_template {
             Some(template) => {
                 // TODO: create the environment only once and store it on the DocumentTemplate struct
@@ -195,7 +195,7 @@ impl DocumentTemplate {
     pub(crate) fn node<'graph, G: GraphViewOps<'graph>>(
         &self,
         node: NodeView<G>,
-    ) -> Box<dyn Iterator<Item = DocumentInput>> {
+    ) -> Box<dyn Iterator<Item = DocumentInput> + Send> {
         match &self.node_template {
             Some(template) => {
                 let mut env = Environment::new();
@@ -216,7 +216,7 @@ impl DocumentTemplate {
     pub(crate) fn edge<'graph, G: GraphViewOps<'graph>>(
         &self,
         edge: EdgeView<G, G>,
-    ) -> Box<dyn Iterator<Item = DocumentInput>> {
+    ) -> Box<dyn Iterator<Item = DocumentInput> + Send> {
         match &self.edge_template {
             Some(template) => {
                 let mut env = Environment::new();

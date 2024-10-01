@@ -1,5 +1,5 @@
 use crate::{
-    data::{get_graph_name, Data},
+    data::Data,
     model::{
         graph::{
             edge::Edge, edges::GqlEdges, node::Node, nodes::GqlNodes, property::GqlProperties,
@@ -7,6 +7,7 @@ use crate::{
         plugins::graph_algorithm_plugin::GraphAlgorithmPlugin,
         schema::graph_schema::GraphSchema,
     },
+    paths::ExistingGraphFolder,
 };
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
@@ -26,19 +27,17 @@ use raphtory::{
     prelude::*,
     search::{into_indexed::DynamicIndexedGraph, IndexedGraph},
 };
-use std::{collections::HashSet, convert::Into, fs, path::PathBuf, sync::Arc, time::UNIX_EPOCH};
+use std::{collections::HashSet, convert::Into, sync::Arc};
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlGraph {
-    work_dir: PathBuf,
-    path: PathBuf,
+    path: ExistingGraphFolder,
     graph: IndexedGraph<DynamicGraph>,
 }
 
 impl GqlGraph {
-    pub fn new<G: DynamicIndexedGraph>(work_dir: PathBuf, path: PathBuf, graph: G) -> Self {
+    pub fn new<G: DynamicIndexedGraph>(path: ExistingGraphFolder, graph: G) -> Self {
         Self {
-            work_dir,
             path,
             graph: graph.into_dynamic_indexed(),
         }
@@ -56,65 +55,36 @@ impl GqlGraph {
     }
 
     async fn default_layer(&self) -> GqlGraph {
-        GqlGraph::new(
-            self.work_dir.clone(),
-            self.path.clone(),
-            self.graph.default_layer(),
-        )
+        GqlGraph::new(self.path.clone(), self.graph.default_layer())
     }
 
     async fn layers(&self, names: Vec<String>) -> GqlGraph {
-        GqlGraph::new(
-            self.work_dir.clone(),
-            self.path.clone(),
-            self.graph.valid_layers(names),
-        )
+        GqlGraph::new(self.path.clone(), self.graph.valid_layers(names))
     }
 
     async fn exclude_layers(&self, names: Vec<String>) -> GqlGraph {
-        GqlGraph::new(
-            self.work_dir.clone(),
-            self.path.clone(),
-            self.graph.exclude_valid_layers(names),
-        )
+        GqlGraph::new(self.path.clone(), self.graph.exclude_valid_layers(names))
     }
 
     async fn layer(&self, name: String) -> GqlGraph {
-        GqlGraph::new(
-            self.work_dir.clone(),
-            self.path.clone(),
-            self.graph.valid_layers(name),
-        )
+        GqlGraph::new(self.path.clone(), self.graph.valid_layers(name))
     }
 
     async fn exclude_layer(&self, name: String) -> GqlGraph {
-        GqlGraph::new(
-            self.work_dir.clone(),
-            self.path.clone(),
-            self.graph.exclude_valid_layers(name),
-        )
+        GqlGraph::new(self.path.clone(), self.graph.exclude_valid_layers(name))
     }
 
     async fn subgraph(&self, nodes: Vec<String>) -> GqlGraph {
-        GqlGraph::new(
-            self.work_dir.clone(),
-            self.path.clone(),
-            self.graph.subgraph(nodes),
-        )
+        GqlGraph::new(self.path.clone(), self.graph.subgraph(nodes))
     }
 
     async fn subgraph_id(&self, nodes: Vec<u64>) -> GqlGraph {
         let nodes: Vec<NodeRef> = nodes.iter().map(|v| v.as_node_ref()).collect();
-        GqlGraph::new(
-            self.work_dir.clone(),
-            self.path.clone(),
-            self.graph.subgraph(nodes),
-        )
+        GqlGraph::new(self.path.clone(), self.graph.subgraph(nodes))
     }
 
     async fn subgraph_node_types(&self, node_types: Vec<String>) -> GqlGraph {
         GqlGraph::new(
-            self.work_dir.clone(),
             self.path.clone(),
             self.graph.subgraph_node_types(node_types),
         )
@@ -122,86 +92,46 @@ impl GqlGraph {
 
     async fn exclude_nodes(&self, nodes: Vec<String>) -> GqlGraph {
         let nodes: Vec<NodeRef> = nodes.iter().map(|v| v.as_node_ref()).collect();
-        GqlGraph::new(
-            self.work_dir.clone(),
-            self.path.clone(),
-            self.graph.exclude_nodes(nodes),
-        )
+        GqlGraph::new(self.path.clone(), self.graph.exclude_nodes(nodes))
     }
 
     async fn exclude_nodes_id(&self, nodes: Vec<u64>) -> GqlGraph {
         let nodes: Vec<NodeRef> = nodes.iter().map(|v| v.as_node_ref()).collect();
-        GqlGraph::new(
-            self.work_dir.clone(),
-            self.path.clone(),
-            self.graph.exclude_nodes(nodes),
-        )
+        GqlGraph::new(self.path.clone(), self.graph.exclude_nodes(nodes))
     }
 
     /// Return a graph containing only the activity between `start` and `end` measured as milliseconds from epoch
 
     async fn window(&self, start: i64, end: i64) -> GqlGraph {
-        GqlGraph::new(
-            self.work_dir.clone(),
-            self.path.clone(),
-            self.graph.window(start, end),
-        )
+        GqlGraph::new(self.path.clone(), self.graph.window(start, end))
     }
 
     async fn at(&self, time: i64) -> GqlGraph {
-        GqlGraph::new(
-            self.work_dir.clone(),
-            self.path.clone(),
-            self.graph.at(time),
-        )
+        GqlGraph::new(self.path.clone(), self.graph.at(time))
     }
 
     async fn latest(&self) -> GqlGraph {
-        GqlGraph::new(
-            self.work_dir.clone(),
-            self.path.clone(),
-            self.graph.latest(),
-        )
+        GqlGraph::new(self.path.clone(), self.graph.latest())
     }
 
     async fn before(&self, time: i64) -> GqlGraph {
-        GqlGraph::new(
-            self.work_dir.clone(),
-            self.path.clone(),
-            self.graph.before(time),
-        )
+        GqlGraph::new(self.path.clone(), self.graph.before(time))
     }
 
     async fn after(&self, time: i64) -> GqlGraph {
-        GqlGraph::new(
-            self.work_dir.clone(),
-            self.path.clone(),
-            self.graph.after(time),
-        )
+        GqlGraph::new(self.path.clone(), self.graph.after(time))
     }
 
     async fn shrink_window(&self, start: i64, end: i64) -> Self {
-        GqlGraph::new(
-            self.work_dir.clone(),
-            self.path.clone(),
-            self.graph.shrink_window(start, end),
-        )
+        GqlGraph::new(self.path.clone(), self.graph.shrink_window(start, end))
     }
 
     async fn shrink_start(&self, start: i64) -> Self {
-        GqlGraph::new(
-            self.work_dir.clone(),
-            self.path.clone(),
-            self.graph.shrink_start(start),
-        )
+        GqlGraph::new(self.path.clone(), self.graph.shrink_start(start))
     }
 
     async fn shrink_end(&self, end: i64) -> Self {
-        GqlGraph::new(
-            self.work_dir.clone(),
-            self.path.clone(),
-            self.graph.shrink_end(end),
-        )
+        GqlGraph::new(self.path.clone(), self.graph.shrink_end(end))
     }
 
     ////////////////////////
@@ -209,45 +139,15 @@ impl GqlGraph {
     ////////////////////////
 
     async fn created(&self) -> Result<i64, GraphError> {
-        let full_path = std::env::current_dir()?
-            .join(self.work_dir.clone())
-            .join(self.path.clone());
-
-        let metadata = fs::metadata(full_path)?;
-
-        let created_time = metadata.created()?;
-        let created_time_duration = created_time.duration_since(UNIX_EPOCH)?;
-        let created_time_millis = created_time_duration.as_millis() as i64;
-
-        Ok(created_time_millis)
+        self.path.created()
     }
 
     async fn last_opened(&self) -> Result<i64, GraphError> {
-        let full_path = std::env::current_dir()?
-            .join(self.work_dir.clone())
-            .join(self.path.clone());
-
-        let metadata = fs::metadata(full_path)?;
-
-        let accessed_time = metadata.accessed()?;
-        let accessed_time_duration = accessed_time.duration_since(UNIX_EPOCH)?;
-        let accessed_time_millis = accessed_time_duration.as_millis() as i64;
-
-        Ok(accessed_time_millis)
+        self.path.last_opened()
     }
 
     async fn last_updated(&self) -> Result<i64, GraphError> {
-        let full_path = std::env::current_dir()?
-            .join(self.work_dir.clone())
-            .join(self.path.clone());
-
-        let metadata = fs::metadata(full_path)?;
-
-        let modified_time = metadata.modified()?;
-        let modified_time_duration = modified_time.duration_since(UNIX_EPOCH)?;
-        let modified_time_millis = modified_time_duration.as_millis() as i64;
-
-        Ok(modified_time_millis)
+        self.path.last_updated()
     }
 
     async fn earliest_time(&self) -> Option<i64> {
@@ -443,14 +343,16 @@ impl GqlGraph {
     //if someone write non-utf characters as a filename
 
     async fn name(&self) -> Result<String, GraphError> {
-        get_graph_name(&self.path)
+        self.path.get_graph_name()
     }
 
     async fn path(&self) -> Result<String, GraphError> {
-        self.path
+        Ok(self
+            .path
+            .get_original_path()
             .to_str()
-            .map(|s| s.to_string())
-            .ok_or(PathNotParsable(self.path.to_path_buf()).into())
+            .ok_or(PathNotParsable(self.path.to_error_path()))?
+            .to_owned())
     }
 
     async fn schema(&self) -> GraphSchema {
@@ -495,7 +397,7 @@ impl GqlGraph {
         path: String,
     ) -> Result<bool, Arc<GraphError>> {
         let data = ctx.data_unchecked::<Data>();
-        let other_g = data.get_graph(path.as_ref())?;
+        let other_g = data.get_graph(path.as_ref())?.0;
         other_g.import_nodes(self.graph.nodes(), true)?;
         other_g.import_edges(self.graph.edges(), true)?;
         other_g.write_updates()?;
