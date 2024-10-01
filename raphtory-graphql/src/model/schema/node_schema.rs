@@ -5,7 +5,7 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
     db::{
-        api::view::{internal::CoreGraphOps, Base, DynamicGraph},
+        api::view::{internal::CoreGraphOps, DynamicGraph},
         graph::node::NodeView,
     },
     prelude::{GraphViewOps, NodeViewOps},

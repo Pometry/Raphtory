@@ -24,11 +24,14 @@
 //!    * `macOS`
 //!
 
+#[cfg(feature = "storage")]
+use crate::arrow2::datatypes::ArrowDataType as DataType;
 use crate::{
     db::graph::{graph::Graph, views::deletion_graph::PersistentGraph},
     prelude::GraphViewOps,
 };
 use chrono::{DateTime, NaiveDateTime, Utc};
+use itertools::Itertools;
 use raphtory_api::core::storage::arc_str::ArcStr;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -40,9 +43,6 @@ use std::{
     hash::{Hash, Hasher},
     sync::Arc,
 };
-
-#[cfg(feature = "storage")]
-use crate::arrow2::datatypes::ArrowDataType as DataType;
 
 #[cfg(test)]
 extern crate core;
@@ -682,7 +682,7 @@ impl PropUnwrap for Prop {
 impl Display for Prop {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            Prop::Str(value) => write!(f, "{}", value),
+            Prop::Str(value) => write!(f, "{}", value.0.to_string()),
             Prop::U8(value) => write!(f, "{}", value),
             Prop::U16(value) => write!(f, "{}", value),
             Prop::I32(value) => write!(f, "{}", value),
@@ -707,10 +707,42 @@ impl Display for Prop {
                 value.count_edges()
             ),
             Prop::List(value) => {
-                write!(f, "{:?}", value)
+                write!(
+                    f,
+                    "[{}]",
+                    value
+                        .iter()
+                        .map(|item| {
+                            match item {
+                                Prop::Str(_) => {
+                                    format!("\"{}\"", item)
+                                }
+                                _ => {
+                                    format!("{}", item)
+                                }
+                            }
+                        })
+                        .join(", ")
+                )
             }
             Prop::Map(value) => {
-                write!(f, "{:?}", value)
+                write!(
+                    f,
+                    "{{{}}}",
+                    value
+                        .iter()
+                        .map(|(key, val)| {
+                            match val {
+                                Prop::Str(_) => {
+                                    format!("\"{}\": \"{}\"", key, val)
+                                }
+                                _ => {
+                                    format!("\"{}\": {}", key, val)
+                                }
+                            }
+                        })
+                        .join(", ")
+                )
             }
             Prop::Document(value) => write!(f, "{}", value),
         }

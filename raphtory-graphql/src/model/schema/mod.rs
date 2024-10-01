@@ -15,9 +15,10 @@ const ENUM_BOUNDARY: usize = 20;
 const DEFAULT_NODE_TYPE: &'static str = "default_node_type";
 
 fn get_node_type<'graph, G: GraphViewOps<'graph>>(node: NodeView<G>) -> String {
-    let prop = node.properties().get("type");
-    prop.map(|prop| prop.to_string())
-        .unwrap_or_else(|| "NONE".to_string())
+    match node.node_type() {
+        None => "None".into(),
+        Some(n) => n.to_string(),
+    }
 }
 
 type SchemaAggregate = HashMap<(String, String), HashSet<String>>;
