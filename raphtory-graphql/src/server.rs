@@ -167,7 +167,7 @@ impl GraphServer {
 
     /// Start the server on the port `port` and return a handle to it.
     pub async fn start_with_port(self, port: u16) -> IoResult<RunningGraphServer> {
-        self.data.vectorise_all_graphs_that_are_not().await; // is it ok ignoring this error?
+        self.data.vectorise_all_graphs_that_are_not().await?;
 
         let config = &self.config;
         let filter = config.logging.get_log_env();

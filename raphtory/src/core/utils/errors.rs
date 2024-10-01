@@ -289,6 +289,12 @@ impl<A: Debug> From<IllegalSet<A>> for GraphError {
     }
 }
 
+impl From<GraphError> for io::Error {
+    fn from(error: GraphError) -> Self {
+        io::Error::new(io::ErrorKind::Other, error)
+    }
+}
+
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum MutateGraphError {
     #[error("Create node '{node_id}' first before adding static properties to it")]
