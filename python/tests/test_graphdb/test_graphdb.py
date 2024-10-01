@@ -1895,7 +1895,7 @@ def test_float_ts():
     assert g.node(3).earliest_time == 0
 
     g.add_node(1001 / 1000, 4)
-    assert g.node(4).earliest_time == 1
+    assert g.node(4).earliest_time == 1001
 
 
 def test_date_time_window():
