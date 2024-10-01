@@ -33,8 +33,10 @@ mod graphql_test {
         serialise::GraphFolder,
     };
     use serde_json::json;
-    use std::collections::{HashMap, HashSet};
-    use std::fs;
+    use std::{
+        collections::{HashMap, HashSet},
+        fs,
+    };
     use tempfile::tempdir;
 
     #[tokio::test]
