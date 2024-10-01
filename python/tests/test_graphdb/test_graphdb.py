@@ -1880,7 +1880,7 @@ def test_date_time():
         assert g.node(1).latest_date_time == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
 
     check(g)
-    
+
 
 def test_float_ts():
     g = Graph()
@@ -1891,8 +1891,14 @@ def test_float_ts():
         # don't silently loose precision
         g.add_node(1e-4, 2)
 
+    g.add_node(1000 / 1001, 4)
+    assert g.node(4).earliest_time == 1
+
     g.add_node(0.0, 3)
     assert g.node(3).earliest_time == 0
+
+    g.add_node(1000 / 1001, 4)
+    assert g.node(4).earliest_time == 1
 
 
 def test_date_time_window():
