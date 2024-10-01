@@ -1,14 +1,13 @@
 use crate::{
     config::app_config::AppConfig,
     graph::GraphWithVectors,
-    model::algorithms::global_plugins::GlobalPlugins,
+    model::plugins::query_plugin::QueryPlugin,
     paths::{ExistingGraphFolder, ValidGraphFolder},
 };
 use moka::sync::Cache;
 use raphtory::{
     core::utils::errors::GraphError,
     db::api::view::MaterializedGraph,
-    prelude::*,
     vectors::{
         embedding_cache::EmbeddingCache, embeddings::openai_embedding, template::DocumentTemplate,
         vectorisable::Vectorisable, vectorised_graph::VectorisedGraph, Embedding,
@@ -184,7 +183,7 @@ impl Data {
         Ok(path.strip_prefix(&self.work_dir)?.to_path_buf())
     }
 
-    pub(crate) fn get_global_plugins(&self) -> GlobalPlugins {
+    pub(crate) fn get_global_plugins(&self) -> QueryPlugin {
         let graphs = self
             .get_all_graph_folders()
             .into_iter()
@@ -195,7 +194,7 @@ impl Data {
                 ))
             })
             .collect::<HashMap<_, _>>();
-        GlobalPlugins {
+        QueryPlugin {
             graphs: graphs.into(),
         }
     }

@@ -1,21 +1,14 @@
-use crate::{
-    graph::GraphWithVectors,
-    model::{
-        algorithms::{global_search::GlobalSearch, RegisterFunction},
-        plugins::{entry_point::EntryPoint, operation::Operation},
-    },
+use crate::model::{
+    algorithms::{global_search::GlobalSearch, RegisterFunction},
+    plugins::{entry_point::EntryPoint, operation::Operation},
 };
 use async_graphql::{dynamic::FieldValue, Context};
 use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName};
 use once_cell::sync::Lazy;
-use raphtory::{
-    db::api::view::MaterializedGraph,
-    vectors::{vectorised_graph::VectorisedGraph, EmbeddingFunction},
-};
+use raphtory::{db::api::view::MaterializedGraph, vectors::vectorised_graph::VectorisedGraph};
 use std::{
     borrow::Cow,
     collections::HashMap,
-    path::PathBuf,
     sync::{Arc, Mutex, MutexGuard},
 };
 
