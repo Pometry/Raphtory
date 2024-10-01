@@ -79,8 +79,9 @@ impl<'source> FromPyObject<'source> for PyTime {
         if let Ok(float_time) = time.extract::<f64>() {
             // seconds since Unix epoch as returned by python `timestamp`
             let float_ms = float_time * 1000.0;
-            let float_ms_trunc = float_ms.trunc();
-            if float_ms != float_ms_trunc {
+            let float_ms_trunc = float_ms.round();
+            let rel_err = (float_ms - float_ms_trunc).abs() / (float_ms.abs() + f64::EPSILON);
+            if rel_err > 4.0 * f64::EPSILON {
                 return Err(PyRuntimeError::new_err(
                     "Float timestamps with more than millisecond precision are not supported.",
                 ));
