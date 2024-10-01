@@ -5,9 +5,7 @@ use crate::{
     algorithms::algorithm_result::AlgorithmResult,
     core::{entities::VID, state::compute_state::ComputeStateVec},
     db::{
-        api::view::{
-            NodeViewOps, StaticGraphViewOps,
-        },
+        api::view::{NodeViewOps, StaticGraphViewOps},
         graph::node::NodeView,
         task::{
             context::Context,

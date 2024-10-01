@@ -169,7 +169,7 @@ impl<
     ) -> impl Iterator<
         Item = (
             NodeView<&'a Self::BaseGraph, &'a Self::Graph>,
-            Self::Value<'_>,
+            Self::Value<'a>,
         ),
     > + 'a
     where
@@ -191,7 +191,7 @@ impl<
     ) -> impl ParallelIterator<
         Item = (
             NodeView<&'a Self::BaseGraph, &'a Self::Graph>,
-            Self::Value<'_>,
+            Self::Value<'a>,
         ),
     >
     where

@@ -32,6 +32,28 @@ class GraphServer:
           port (int): The port to use (defaults to 1736).
         """
 
+    def set_embeddings(
+        self,
+        cache,
+        embedding=None,
+        graph_template=None,
+        node_template=None,
+        edge_template=None,
+    ):
+        """
+        Setup the server to vectorise graphs with a default template.
+
+        Arguments:
+          cache (str):  the directory to use as cache for the embeddings.
+          embedding (Function):  the embedding function to translate documents to embeddings.
+          graph_template (String):  the template to use for graphs.
+          node_template (String):  the template to use for nodes.
+          edge_template (String):  the template to use for edges.
+
+        Returns:
+           GraphServer: A new server object with embeddings setup.
+        """
+
     def start(self, port=1736, timeout_ms=None):
         """
         Start the server and return a handle to it.
@@ -39,24 +61,6 @@ class GraphServer:
         Arguments:
           port (int):  the port to use (defaults to 1736).
           timeout_ms (int): wait for server to be online (defaults to 5000). The server is stopped if not online within timeout_ms but manages to come online as soon as timeout_ms finishes!
-        """
-
-    def with_document_search_function(self, name, input, function):
-        """
-        Register a function in the GraphQL schema for document search over a graph.
-
-        The function needs to take a `VectorisedGraph` as the first argument followed by a
-        pre-defined set of keyword arguments. Supported types are `str`, `int`, and `float`.
-        They have to be specified using the `input` parameter as a dict where the keys are the
-        names of the parameters and the values are the types, expressed as strings.
-
-        Arguments:
-          name (str): The name of the function in the GraphQL schema.
-          input (dict): The keyword arguments expected by the function.
-          function (Function): the function to run.
-
-        Returns:
-           GraphServer: A new server object containing the vectorised graphs.
         """
 
     def with_global_search_function(self, name, input, function):
@@ -74,30 +78,17 @@ class GraphServer:
           function (Function): the function to run.
 
         Returns:
-           GraphServer: A new server object containing the vectorised graphs.
+           GraphServer: A new server object with the function registered
         """
 
-    def with_vectorised(
-        self,
-        cache,
-        graph_names=None,
-        embedding=None,
-        graph_template=None,
-        node_template=None,
-        edge_template=None,
+    def with_vectorised_graphs(
+        self, graph_names, graph_template=None, node_template=None, edge_template=None
     ):
         """
         Vectorise a subset of the graphs of the server.
 
-        Note:
-          If no embedding function is provided, the server will attempt to use the OpenAI API
-          embedding model, which will only work if the env variable OPENAI_API_KEY is set
-          appropriately
-
         Arguments:
           graph_names (List[str]): the names of the graphs to vectorise. All by default.
-          cache (str):  the directory to use as cache for the embeddings.
-          embedding (Function):  the embedding function to translate documents to embeddings.
           graph_template (String):  the template to use for graphs.
           node_template (String):  the template to use for nodes.
           edge_template (String):  the template to use for edges.

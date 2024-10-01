@@ -467,7 +467,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         edge_documents: &'a HashMap<EntityId, Vec<DocumentRef>>,
         windowed_graph: &'a W,
         window: Option<(i64, i64)>,
-    ) -> Box<dyn Iterator<Item = &DocumentRef> + '_> {
+    ) -> Box<dyn Iterator<Item = &DocumentRef> + 'a> {
         match &document.entity_id {
             EntityId::Graph { .. } => Box::new(std::iter::empty()),
             EntityId::Node { id } => {
@@ -519,7 +519,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         nodes: impl Iterator<Item = NodeView<W>> + 'static,
         windowed_graph: &'a W,
         window: Option<(i64, i64)>,
-    ) -> Box<dyn Iterator<Item = (EntityId, Vec<DocumentRef>)> + '_> {
+    ) -> Box<dyn Iterator<Item = (EntityId, Vec<DocumentRef>)> + 'a> {
         let groups = nodes
             .map(move |node| {
                 let entity_id = EntityId::from_node(node);
@@ -546,7 +546,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         edges: impl Iterator<Item = EdgeView<W>> + 'a,
         windowed_graph: &'a W,
         window: Option<(i64, i64)>,
-    ) -> Box<dyn Iterator<Item = (EntityId, Vec<DocumentRef>)> + '_> {
+    ) -> Box<dyn Iterator<Item = (EntityId, Vec<DocumentRef>)> + 'a> {
         let groups = edges
             .map(move |edge| {
                 let entity_id = EntityId::from_edge(edge);
@@ -573,7 +573,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         document: &'a DocumentRef,
         windowed_graph: &'a W,
         window: Option<(i64, i64)>,
-    ) -> Box<dyn Iterator<Item = (EntityId, Vec<DocumentRef>)> + '_> {
+    ) -> Box<dyn Iterator<Item = (EntityId, Vec<DocumentRef>)> + 'a> {
         match &document.entity_id {
             EntityId::Graph { .. } => Box::new(std::iter::empty()),
             EntityId::Node { id } => match windowed_graph.node(id) {
@@ -598,7 +598,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         document: &DocumentRef,
         windowed_graph: &'a W,
         window: Option<(i64, i64)>,
-    ) -> Box<dyn Iterator<Item = (EntityId, Vec<DocumentRef>)> + '_> {
+    ) -> Box<dyn Iterator<Item = (EntityId, Vec<DocumentRef>)> + 'a> {
         match &document.entity_id {
             EntityId::Graph { .. } => Box::new(std::iter::empty()),
             EntityId::Node { id } => match windowed_graph.node(id) {

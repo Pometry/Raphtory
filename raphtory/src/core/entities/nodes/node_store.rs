@@ -204,7 +204,7 @@ impl NodeStore {
         layer: &'a Adj,
         d: Direction,
         self_id: VID,
-    ) -> impl Iterator<Item = EdgeRef> + Send + '_ {
+    ) -> impl Iterator<Item = EdgeRef> + Send + 'a {
         let iter: Box<dyn Iterator<Item = EdgeRef> + Send> = match d {
             Direction::IN => Box::new(
                 layer
@@ -291,7 +291,7 @@ impl NodeStore {
         &'a self,
         layer: &'a Adj,
         d: Direction,
-    ) -> Box<dyn Iterator<Item = VID> + Send + '_> {
+    ) -> Box<dyn Iterator<Item = VID> + Send + 'a> {
         let iter: Box<dyn Iterator<Item = VID> + Send> = match d {
             Direction::IN => Box::new(layer.iter(d).map(|(from_v, _)| from_v)),
             Direction::OUT => Box::new(layer.iter(d).map(|(to_v, _)| to_v)),

@@ -638,7 +638,7 @@ impl GraphStorage {
         node: VID,
         dir: Direction,
         view: &'a G,
-    ) -> impl Iterator<Item = VID> + Send + '_ {
+    ) -> impl Iterator<Item = VID> + Send + 'a {
         self.node_edges_iter(node, dir, view)
             .map(|e| e.remote())
             .dedup()

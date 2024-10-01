@@ -1768,6 +1768,14 @@ class Graph:
          path (str): The path to the file.
         """
 
+    def save_to_zip(self, path):
+        """
+         Saves the Graph to the given path.
+
+        Arguments:
+         path (str): The path to the file.
+        """
+
     def serialise(self):
         """
          Serialise Graph to bytes.
@@ -1941,6 +1949,7 @@ class Graph:
         graph_template=None,
         node_template=None,
         edge_template=None,
+        graph_name=None,
         verbose=False,
     ):
         """
@@ -4696,6 +4705,14 @@ class PersistentGraph:
          path (str): The path to the file.
         """
 
+    def save_to_zip(self, path):
+        """
+         Saves the PersistentGraph to the given path.
+
+        Arguments:
+         path (str): The path to the file.
+        """
+
     def serialise(self):
         """
          Serialise PersistentGraph to bytes.
@@ -4870,6 +4887,7 @@ class PersistentGraph:
         graph_template=None,
         node_template=None,
         edge_template=None,
+        graph_name=None,
         verbose=False,
     ):
         """

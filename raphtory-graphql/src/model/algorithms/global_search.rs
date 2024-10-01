@@ -11,7 +11,7 @@ use async_graphql::{
 };
 use dynamic_graphql::internal::TypeName;
 use futures_util::future::BoxFuture;
-use raphtory::vectors::{embeddings::openai_embedding, vectorised_cluster::VectorisedCluster};
+use raphtory::vectors::vectorised_cluster::VectorisedCluster;
 use std::ops::Deref;
 use tracing::info;
 

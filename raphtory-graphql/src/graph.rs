@@ -1,13 +1,10 @@
-use std::{sync::Arc};
+use std::sync::Arc;
 
 use once_cell::sync::OnceCell;
 #[cfg(feature = "storage")]
 use raphtory::disk_graph::DiskGraphStorage;
 use raphtory::{
-    core::{
-        entities::nodes::node_ref::AsNodeRef,
-        utils::errors::{GraphError},
-    },
+    core::{entities::nodes::node_ref::AsNodeRef, utils::errors::GraphError},
     db::{
         api::{
             mutation::internal::InheritMutationOps,
@@ -19,8 +16,7 @@ use raphtory::{
     search::IndexedGraph,
     serialise::GraphFolder,
     vectors::{
-        embedding_cache::EmbeddingCache,
-        vectorised_graph::VectorisedGraph, EmbeddingFunction,
+        embedding_cache::EmbeddingCache, vectorised_graph::VectorisedGraph, EmbeddingFunction,
     },
 };
 

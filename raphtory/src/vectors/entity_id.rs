@@ -1,7 +1,5 @@
 use crate::{
-    db::{
-        graph::{edge::EdgeView, node::NodeView},
-    },
+    db::graph::{edge::EdgeView, node::NodeView},
     prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
 };
 use raphtory_api::core::entities::GID;

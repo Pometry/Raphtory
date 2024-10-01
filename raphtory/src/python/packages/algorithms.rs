@@ -180,7 +180,7 @@ pub fn out_components(g: &PyGraphView) -> AlgorithmResult<DynamicGraph, Vec<GID>
 ///    An array containing the Nodes within the given nodes out-component
 #[pyfunction]
 #[pyo3(signature = (node))]
-pub fn out_component(node: &PyNode) ->Vec<NodeView<DynamicGraph>> {
+pub fn out_component(node: &PyNode) -> Vec<NodeView<DynamicGraph>> {
     components::out_component(node.node.clone())
 }
 
