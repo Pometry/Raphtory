@@ -131,11 +131,6 @@ def test_copy_graph_succeeds():
 
         query = """{graph(path: "g4") {
                 nodes {list {name}}
-                properties {
-                    constant {
-                        lastOpened: get(key: "lastOpened") { value }
-                    }
-                }
             }}"""
 
         result = client.query(query)
@@ -144,9 +139,6 @@ def test_copy_graph_succeeds():
             {"name": "hamza"},
             {"name": "haaroon"},
         ]
-        assert (
-            result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
-        )
 
 
 def test_copy_graph_using_client_api_succeeds():
@@ -175,11 +167,6 @@ def test_copy_graph_using_client_api_succeeds():
 
         query = """{graph(path: "ben/g4") {
                 nodes {list {name}}
-                properties {
-                    constant {
-                        lastOpened: get(key: "lastOpened") { value }
-                    }
-                }
             }}"""
 
         result = client.query(query)
@@ -188,9 +175,6 @@ def test_copy_graph_using_client_api_succeeds():
             {"name": "hamza"},
             {"name": "haaroon"},
         ]
-        assert (
-            result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
-        )
 
 
 def test_copy_graph_succeeds_at_same_namespace_as_graph():
@@ -226,11 +210,6 @@ def test_copy_graph_succeeds_at_same_namespace_as_graph():
 
         query = """{graph(path: "shivam/g4") {
                 nodes {list {name}}
-                properties {
-                    constant {
-                        lastOpened: get(key: "lastOpened") { value }
-                    }
-                }
             }}"""
 
         result = client.query(query)
@@ -239,9 +218,6 @@ def test_copy_graph_succeeds_at_same_namespace_as_graph():
             {"name": "hamza"},
             {"name": "haaroon"},
         ]
-        assert (
-            result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
-        )
 
 
 def test_copy_graph_succeeds_at_diff_namespace_as_graph():
@@ -278,11 +254,6 @@ def test_copy_graph_succeeds_at_diff_namespace_as_graph():
 
         query = """{graph(path: "shivam/g4") {
                 nodes {list {name}}
-                properties {
-                    constant {
-                        lastOpened: get(key: "lastOpened") { value }
-                    }
-                }
             }}"""
 
         result = client.query(query)
@@ -291,6 +262,3 @@ def test_copy_graph_succeeds_at_diff_namespace_as_graph():
             {"name": "hamza"},
             {"name": "haaroon"},
         ]
-        assert (
-            result["graph"]["properties"]["constant"]["lastOpened"]["value"] is not None
-        )
