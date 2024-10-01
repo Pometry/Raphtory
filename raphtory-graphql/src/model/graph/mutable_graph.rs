@@ -190,16 +190,10 @@ impl GqlMutableGraph {
         dst: String,
         layer: Option<String>,
     ) -> Result<GqlMutableEdge, GraphError> {
-        // TODO: review why DeletionOps is not implemented for GraphWithVectors!!
-        let edge = self
-            .graph
-            .graph
-            .delete_edge(time, &src, &dst, layer.as_str())?;
-        self.graph // TODO: should be able to do edge.update_embeddings!!!
-            .update_edge_embeddings(edge.src().name(), edge.dst().name())
-            .await;
+        let edge = self.graph.delete_edge(time, &src, &dst, layer.as_str())?;
+        edge.update_embeddings().await;
         self.graph.write_updates()?;
-        Ok(self.graph.edge(src, dst).unwrap().into()) // TODO: should be able to do edge.into()
+        Ok(edge.into())
     }
 
     /// Add temporal properties to graph

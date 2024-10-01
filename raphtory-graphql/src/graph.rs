@@ -15,7 +15,7 @@ use raphtory::{
         },
         graph::{edge::EdgeView, node::NodeView},
     },
-    prelude::{CacheOps, EdgeViewOps, NodeViewOps},
+    prelude::{CacheOps, DeletionOps, EdgeViewOps, NodeViewOps},
     search::IndexedGraph,
     serialise::GraphFolder,
     vectors::{
@@ -143,6 +143,8 @@ impl Static for GraphWithVectors {}
 
 impl InheritViewOps for GraphWithVectors {}
 impl InheritMutationOps for GraphWithVectors {}
+
+impl DeletionOps for GraphWithVectors {}
 
 pub(crate) trait UpdateEmbeddings {
     async fn update_embeddings(&self);
