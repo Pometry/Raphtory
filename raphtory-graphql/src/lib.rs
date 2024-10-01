@@ -34,6 +34,7 @@ mod graphql_test {
     };
     use serde_json::json;
     use std::collections::{HashMap, HashSet};
+    use std::fs;
     use tempfile::tempdir;
 
     #[tokio::test]
@@ -667,7 +668,7 @@ mod graphql_test {
         g.add_node(0, 1, NO_PROPS, None).unwrap();
         let tmp_file = tempfile::NamedTempFile::new().unwrap();
         g.encode(GraphFolder::new_as_zip(tmp_file.path())).unwrap();
-        let file = std::fs::File::open(&tmp_file).unwrap();
+        let file = fs::File::open(&tmp_file).unwrap();
         let upload_val = UploadValue {
             filename: "test".into(),
             content_type: Some("application/octet-stream".into()),
@@ -919,7 +920,7 @@ mod graphql_test {
 
         let disk_graph_path = tmp_work_dir.join("graph");
         fs::create_dir(&disk_graph_path).unwrap();
-        File::create(disk_graph_path.join(".raph")).unwrap();
+        fs::File::create(disk_graph_path.join(".raph")).unwrap();
         let _ = DiskGraphStorage::from_graph(&graph, disk_graph_path.join("graph")).unwrap();
 
         let data = Data::new(&tmp_work_dir, &AppConfig::default());
