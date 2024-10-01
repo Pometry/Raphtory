@@ -178,6 +178,7 @@ pub enum GraphError {
         source: zip::result::ZipError,
     },
 
+    #[cfg(feature = "vectors")]
     #[error("bincode operation failed")]
     BincodeError {
         #[from]

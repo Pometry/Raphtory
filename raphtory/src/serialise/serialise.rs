@@ -593,6 +593,8 @@ mod proto_test {
         assert_eq!(g3.nodes().name().collect_vec(), ["ben", "hamza", "haaroon"]);
         let node_names: Vec<_> = g3.nodes().iter().map(|n| n.name()).collect();
         assert_eq!(node_names, ["ben", "hamza", "haaroon"]);
+
+        let temp_file = TempDir::new().unwrap();
         g3.encode(&temp_file).unwrap();
         let g4 = MaterializedGraph::decode(&temp_file).unwrap();
         assert_eq!(g4.nodes().name().collect_vec(), ["ben", "hamza", "haaroon"]);
