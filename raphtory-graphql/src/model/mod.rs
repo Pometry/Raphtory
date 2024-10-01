@@ -1,11 +1,11 @@
 use crate::{
     data::Data,
     model::{
-        algorithms::global_plugins::GlobalPlugins,
         graph::{
             graph::GqlGraph, graphs::GqlGraphs, mutable_graph::GqlMutableGraph,
             vectorised_graph::GqlVectorisedGraph,
         },
+        plugins::{mutation_plugin::MutationPlugin, query_plugin::QueryPlugin},
     },
     url_encode::{url_decode_graph, url_encode_graph},
 };
@@ -32,6 +32,7 @@ use zip::ZipArchive;
 
 pub mod algorithms;
 pub(crate) mod graph;
+pub mod plugins;
 pub(crate) mod schema;
 
 #[derive(Debug)]
@@ -103,7 +104,7 @@ impl QueryRoot {
         Ok(GqlGraphs::new(paths))
     }
 
-    async fn plugins<'a>(ctx: &Context<'a>) -> GlobalPlugins {
+    async fn plugins<'a>(ctx: &Context<'a>) -> QueryPlugin {
         let data = ctx.data_unchecked::<Data>();
         data.get_global_plugins()
     }
@@ -125,6 +126,10 @@ pub(crate) struct Mut(MutRoot);
 
 #[MutationFields]
 impl Mut {
+    async fn plugins<'a>(ctx: &Context<'a>) -> MutationPlugin {
+        MutationPlugin::default()
+    }
+
     // If namespace is not provided, it will be set to the current working directory.
     async fn delete_graph<'a>(ctx: &Context<'a>, path: String) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
@@ -169,34 +174,6 @@ impl Mut {
             return Err(GqlGraphError::ImmutableDiskGraph.into());
         }
         data.insert_graph(new_path, graph).await?;
-
-        Ok(true)
-    }
-
-    async fn create_graph<'a>(
-        ctx: &Context<'a>,
-        parent_graph_path: &str,
-        new_graph_path: &str,
-        props: String,
-        is_archive: u8,
-        graph_nodes: Vec<String>,
-    ) -> Result<bool> {
-        let data = ctx.data_unchecked::<Data>();
-
-        // Creating a new graph (owner is user) from UI
-        // Graph is created from the parent graph. This means the new graph retains the character of the parent graph i.e.,
-        // the new graph is an event or persistent graph depending on if the parent graph is event or persistent graph, respectively.
-        let parent_graph = data.get_graph(parent_graph_path)?.0.graph;
-        let new_subgraph = parent_graph.subgraph(graph_nodes).materialize()?;
-
-        let now: Prop = Prop::I64(Utc::now().timestamp_millis());
-        new_subgraph.update_constant_properties([("creationTime", now.clone())])?;
-        new_subgraph.update_constant_properties([("lastUpdated", now.clone())])?;
-        new_subgraph.update_constant_properties([("lastOpened", now)])?;
-        new_subgraph.update_constant_properties([("uiProps", Prop::Str(props.into()))])?;
-        new_subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
-
-        data.insert_graph(new_graph_path, new_subgraph).await?;
 
         Ok(true)
     }

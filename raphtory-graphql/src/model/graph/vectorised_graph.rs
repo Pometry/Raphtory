@@ -1,4 +1,4 @@
-use crate::model::algorithms::vector_algorithms::VectorAlgorithms;
+use crate::model::plugins::vector_algorithm_plugin::VectorAlgorithmPlugin;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{db::api::view::MaterializedGraph, vectors::vectorised_graph::VectorisedGraph};
 
@@ -17,7 +17,7 @@ impl From<VectorisedGraph<MaterializedGraph>> for GqlVectorisedGraph {
 
 #[ResolvedObjectFields]
 impl GqlVectorisedGraph {
-    async fn algorithms(&self) -> VectorAlgorithms {
+    async fn algorithms(&self) -> VectorAlgorithmPlugin {
         self.graph.clone().into()
     }
 }

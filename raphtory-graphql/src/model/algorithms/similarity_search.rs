@@ -1,7 +1,8 @@
 use crate::{
     data::Data,
-    model::algorithms::{
-        algorithm::Algorithm, document::GqlDocument, vector_algorithms::VectorAlgorithms,
+    model::{
+        algorithms::document::GqlDocument,
+    plugins::{operation::Operation, vector_algorithm_plugin::VectorAlgorithmPlugin},
     },
 };
 use async_graphql::{
@@ -15,19 +16,22 @@ use tracing::info;
 
 pub(crate) struct SimilaritySearch;
 
-impl<'a> Algorithm<'a, VectorAlgorithms> for SimilaritySearch {
+impl<'a> Operation<'a, VectorAlgorithmPlugin> for SimilaritySearch {
     type OutputType = GqlDocument;
+
     fn output_type() -> TypeRef {
         TypeRef::named_nn_list_nn(GqlDocument::get_type_name())
     }
+
     fn args<'b>() -> Vec<(&'b str, TypeRef)> {
         vec![
             ("query", TypeRef::named_nn(TypeRef::STRING)),
             ("limit", TypeRef::named_nn(TypeRef::INT)),
         ]
     }
-    fn apply_algo<'b>(
-        entry_point: &VectorAlgorithms,
+
+    fn apply<'b>(
+        entry_point: &VectorAlgorithmPlugin,
         ctx: ResolverContext,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
         let data = ctx.data_unchecked::<Data>().clone();

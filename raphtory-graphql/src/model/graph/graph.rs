@@ -1,10 +1,10 @@
 use crate::{
     data::Data,
     model::{
-        algorithms::graph_algorithms::GraphAlgorithms,
         graph::{
             edge::Edge, edges::GqlEdges, node::Node, nodes::GqlNodes, property::GqlProperties,
         },
+        plugins::graph_algorithm_plugin::GraphAlgorithmPlugin,
         schema::graph_schema::GraphSchema,
     },
     paths::ExistingGraphFolder,
@@ -359,7 +359,7 @@ impl GqlGraph {
         GraphSchema::new(self.graph.graph())
     }
 
-    async fn algorithms(&self) -> GraphAlgorithms {
+    async fn algorithms(&self) -> GraphAlgorithmPlugin {
         self.graph.graph().clone().into()
     }
 

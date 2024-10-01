@@ -100,7 +100,10 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeView<G, GH> 
 
     #[allow(dead_code)]
     fn layer_ids(&self) -> LayerIds {
-        self.graph.layer_ids().constrain_from_edge(self.edge)
+        self.graph
+            .layer_ids()
+            .constrain_from_edge(self.edge)
+            .into_owned()
     }
 }
 

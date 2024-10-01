@@ -1,7 +1,8 @@
 use crate::{
     data::Data,
-    model::algorithms::{
-        algorithm::Algorithm, document::GqlDocument, global_plugins::GlobalPlugins,
+    model::{
+        algorithms::document::GqlDocument,
+    plugins::{operation::Operation, query_plugin::QueryPlugin},
     },
 };
 use async_graphql::{
@@ -16,19 +17,22 @@ use tracing::info;
 
 pub(crate) struct GlobalSearch;
 
-impl<'a> Algorithm<'a, GlobalPlugins> for GlobalSearch {
+impl<'a> Operation<'a, QueryPlugin> for GlobalSearch {
     type OutputType = GqlDocument;
+
     fn output_type() -> TypeRef {
         TypeRef::named_nn_list_nn(GqlDocument::get_type_name())
     }
+
     fn args<'b>() -> Vec<(&'b str, TypeRef)> {
         vec![
             ("query", TypeRef::named_nn(TypeRef::STRING)),
             ("limit", TypeRef::named_nn(TypeRef::INT)),
         ]
     }
-    fn apply_algo<'b>(
-        entry_point: &GlobalPlugins,
+
+    fn apply<'b>(
+        entry_point: &QueryPlugin,
         ctx: ResolverContext,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
         let data = ctx.data_unchecked::<Data>().clone();

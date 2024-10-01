@@ -268,6 +268,8 @@ pub enum GraphError {
     SerdeError,
     #[error("System time error: {0}")]
     SystemTimeError(#[from] SystemTimeError),
+    #[error("Property filtering not implemented on PersistentGraph yet")]
+    PropertyFilteringNotImplemented,
 }
 
 impl GraphError {

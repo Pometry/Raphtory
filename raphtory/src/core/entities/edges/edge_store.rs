@@ -1,27 +1,16 @@
-use crate::{
-    core::{
-        entities::{
-            properties::{props::Props, tprop::TProp},
-            LayerIds, EID, VID,
-        },
-        storage::{
-            lazy_vec::IllegalSet,
-            raw_edges::EdgeArcGuard,
-            timeindex::{TimeIndexEntry, TimeIndexIntoOps},
-        },
-        utils::{errors::GraphError, iter::GenLockedIter},
-        Prop,
+use crate::core::{
+    entities::{
+        properties::{props::Props, tprop::TProp},
+        EID, VID,
     },
-    db::api::{
-        storage::graph::edges::edge_storage_ops::{EdgeStorageIntoOps, EdgeStorageOps},
-        view::IntoDynBoxed,
-    },
+    storage::{lazy_vec::IllegalSet, timeindex::TimeIndexEntry},
+    utils::{errors::GraphError, iter::GenLockedIter},
+    Prop,
 };
-use itertools::Itertools;
 use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
 pub use raphtory_api::core::entities::edges::*;
 use serde::{Deserialize, Serialize};
-use std::ops::{Deref, Range};
+use std::ops::Deref;
 
 #[derive(Clone, Serialize, Deserialize, Debug, Default, PartialEq)]
 pub struct EdgeStore {
@@ -121,57 +110,5 @@ impl EdgeStore {
 
     pub fn as_edge_ref(&self) -> EdgeRef {
         EdgeRef::new_outgoing(self.eid, self.src, self.dst)
-    }
-}
-
-impl EdgeStorageIntoOps for EdgeArcGuard {
-    fn into_layers(
-        self,
-        layer_ids: LayerIds,
-        eref: EdgeRef,
-    ) -> impl Iterator<Item = EdgeRef> + Send {
-        let layer_ids = layer_ids.constrain_from_edge(eref);
-        GenLockedIter::from((self, layer_ids), |(edge, layers)| {
-            Box::new(
-                edge.as_mem_edge()
-                    .layer_ids_iter(layers)
-                    .map(move |l| eref.at_layer(l)),
-            )
-        })
-    }
-
-    fn into_exploded(
-        self,
-        layer_ids: LayerIds,
-        eref: EdgeRef,
-    ) -> impl Iterator<Item = EdgeRef> + Send {
-        let layer_ids = layer_ids.constrain_from_edge(eref);
-        GenLockedIter::from((self, layer_ids, eref), |(edge, layers, eref)| {
-            edge.as_mem_edge()
-                .additions_iter(layers)
-                .map(move |(l, a)| a.into_iter().map(move |t| eref.at(t).at_layer(l)))
-                .kmerge_by(|e1, e2| e1.time() <= e2.time())
-                .into_dyn_boxed()
-        })
-    }
-
-    fn into_exploded_window(
-        self,
-        layer_ids: LayerIds,
-        w: Range<TimeIndexEntry>,
-        eref: EdgeRef,
-    ) -> impl Iterator<Item = EdgeRef> + Send {
-        let layer_ids = layer_ids.constrain_from_edge(eref);
-        GenLockedIter::from((self, layer_ids, w), |(edge, layers, w)| {
-            Box::new(
-                edge.as_mem_edge()
-                    .additions_iter(layers)
-                    .flat_map(move |(l, a)| {
-                        a.into_range(w.clone())
-                            .into_iter()
-                            .map(move |t| eref.at(t).at_layer(l))
-                    }),
-            )
-        })
     }
 }

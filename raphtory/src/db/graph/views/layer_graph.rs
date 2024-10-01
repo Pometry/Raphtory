@@ -219,10 +219,7 @@ mod test_layers {
             // layers with non-existing layers errors
             assert!(e.layers(["1", "3"]).is_err());
             // valid_layers ignores non-existing layers
-            assert_eq!(
-                e.valid_layers(["1", "3"]).layer_names().collect_vec(),
-                ["1"]
-            );
+            assert_eq!(e.valid_layers(["1", "3"]).layer_names(), ["1"]);
             assert!(e.has_layer("1"));
             assert!(e.has_layer("2"));
             assert!(!e.has_layer("3"));

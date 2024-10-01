@@ -32,7 +32,8 @@ use raphtory_api::core::{
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashMap, fmt::Debug, hash::BuildHasherDefault, iter, sync::atomic::AtomicUsize,
+    borrow::Borrow, collections::HashMap, fmt::Debug, hash::BuildHasherDefault, iter,
+    sync::atomic::AtomicUsize,
 };
 
 pub(crate) type FxDashSet<K> = DashSet<K, BuildHasherDefault<FxHasher>>;
@@ -229,7 +230,7 @@ impl TemporalGraph {
         // // FIXME: revisit the locking scheme so we don't have to collect all the ids
         let layer_ids = layer_ids.constrain_from_edge(e);
         let entry = self.storage.edge_entry(e.pid());
-        let ids: Vec<_> = match layer_ids {
+        let ids: Vec<_> = match layer_ids.borrow() {
             LayerIds::None => vec![],
             LayerIds::All => entry
                 .layer_iter()
@@ -237,7 +238,7 @@ impl TemporalGraph {
                 .kmerge()
                 .dedup()
                 .collect(),
-            LayerIds::One(id) => match entry.layer(id) {
+            LayerIds::One(id) => match entry.layer(*id) {
                 Some(l) => l.const_prop_ids().collect(),
                 None => vec![],
             },
@@ -259,7 +260,7 @@ impl TemporalGraph {
     ) -> Option<Prop> {
         let layer_ids = layer_ids.constrain_from_edge(e);
         let entry = self.storage.edge_entry(e.pid());
-        match layer_ids {
+        match layer_ids.borrow() {
             LayerIds::None => None,
             LayerIds::All => {
                 if self.num_layers() == 1 {
@@ -283,7 +284,9 @@ impl TemporalGraph {
                     }
                 }
             }
-            LayerIds::One(id) => entry.layer(id).and_then(|l| l.const_prop(prop_id).cloned()),
+            LayerIds::One(id) => entry
+                .layer(*id)
+                .and_then(|l| l.const_prop(prop_id).cloned()),
             LayerIds::Multiple(ids) => {
                 let prop_map: HashMap<_, _> = ids
                     .iter()

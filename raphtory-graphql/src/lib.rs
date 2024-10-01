@@ -1,5 +1,5 @@
 pub use crate::server::GraphServer;
-mod data;
+pub mod data;
 mod graph;
 pub mod model;
 pub mod observability;

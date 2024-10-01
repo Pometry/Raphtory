@@ -1,14 +1,20 @@
 #![allow(dead_code)]
 
 use crate::{
+    config::app_config::{load_config, AppConfig},
     data::{Data, EmbeddingConf},
     model::{
-        algorithms::{algorithm::Algorithm, algorithm_entry_point::AlgorithmEntryPoint},
+        plugins::{entry_point::EntryPoint, operation::Operation},
         App,
     },
+    observability::open_telemetry::OpenTelemetry,
     routes::{graphql_playground, health},
+    server::ServerError::SchemaError,
 };
 use async_graphql_poem::GraphQL;
+use config::ConfigError;
+use opentelemetry::trace::TracerProvider;
+use opentelemetry_sdk::trace::{Tracer, TracerProvider as TP};
 use poem::{
     get,
     listener::TcpListener,
@@ -16,15 +22,6 @@ use poem::{
     EndpointExt, Route, Server,
 };
 use raphtory::vectors::{template::DocumentTemplate, EmbeddingFunction};
-
-use crate::{
-    config::app_config::{load_config, AppConfig},
-    observability::open_telemetry::OpenTelemetry,
-    server::ServerError::SchemaError,
-};
-use config::ConfigError;
-use opentelemetry::trace::TracerProvider;
-use opentelemetry_sdk::trace::{Tracer, TracerProvider as TP};
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -139,15 +136,27 @@ impl GraphServer {
         self
     }
 
-    pub fn register_algorithm<
+    pub fn register_query_plugin<
         'a,
-        E: AlgorithmEntryPoint<'a> + 'static,
-        A: Algorithm<'a, E> + 'static,
+        E: EntryPoint<'a> + 'static + Send,
+        A: Operation<'a, E> + 'static + Send,
     >(
         self,
         name: &str,
     ) -> Self {
-        E::lock_plugins().insert(name.to_string(), Box::new(A::register_algo));
+        E::lock_plugins().insert(name.to_string(), Box::new(A::register_operation));
+        self
+    }
+
+    pub fn register_mutation_plugin<
+        'a,
+        E: EntryPoint<'a> + 'static + Send,
+        A: Operation<'a, E> + 'static + Send,
+    >(
+        self,
+        name: &str,
+    ) -> Self {
+        E::lock_plugins().insert(name.to_string(), Box::new(A::register_operation));
         self
     }
 

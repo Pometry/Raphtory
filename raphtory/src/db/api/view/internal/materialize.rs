@@ -23,14 +23,10 @@ use crate::{
             },
             storage::graph::{
                 edges::{
-                    edge_entry::EdgeStorageEntry, edge_owned_entry::EdgeOwnedEntry,
-                    edge_ref::EdgeStorageRef, edges::EdgesStorage,
+                    edge_entry::EdgeStorageEntry, edge_ref::EdgeStorageRef, edges::EdgesStorage,
                 },
                 locked::WriteLockedGraph,
-                nodes::{
-                    node_entry::NodeStorageEntry, node_owned_entry::NodeOwnedEntry,
-                    nodes::NodesStorage,
-                },
+                nodes::{node_entry::NodeStorageEntry, nodes::NodesStorage},
                 storage_ops::GraphStorage,
             },
             view::{internal::*, BoxedIter},

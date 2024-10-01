@@ -14,12 +14,9 @@ use crate::{
     },
     db::api::{
         storage::graph::{
-            edges::{
-                edge_entry::EdgeStorageEntry, edge_owned_entry::EdgeOwnedEntry, edges::EdgesStorage,
-            },
+            edges::{edge_entry::EdgeStorageEntry, edges::EdgesStorage},
             nodes::{
-                node_entry::NodeStorageEntry, node_owned_entry::NodeOwnedEntry,
-                node_storage_ops::NodeStorageOps, nodes::NodesStorage,
+                node_entry::NodeStorageEntry, node_storage_ops::NodeStorageOps, nodes::NodesStorage,
             },
             storage_ops::GraphStorage,
         },
@@ -68,10 +65,6 @@ pub trait CoreGraphOps {
     }
 
     #[inline]
-    fn core_edge_arc(&self, eid: ELID) -> EdgeOwnedEntry {
-        self.core_graph().edge_owned(eid)
-    }
-    #[inline]
     fn core_nodes(&self) -> NodesStorage {
         self.core_graph().owned_nodes()
     }
@@ -79,11 +72,6 @@ pub trait CoreGraphOps {
     #[inline]
     fn core_node_entry(&self, vid: VID) -> NodeStorageEntry {
         self.core_graph().node_entry(vid)
-    }
-
-    #[inline]
-    fn core_node_arc(&self, vid: VID) -> NodeOwnedEntry {
-        self.core_graph().owned_node(vid)
     }
 
     #[inline]

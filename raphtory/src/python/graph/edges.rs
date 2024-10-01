@@ -9,7 +9,7 @@ use crate::{
             edges::{Edges, NestedEdges},
         },
     },
-    prelude::{EdgeViewOps, GraphViewOps, LayerOps, NodeViewOps, TimeOps},
+    prelude::*,
     python::{
         graph::properties::{PyNestedPropsIterable, PyPropsList},
         types::{
@@ -28,7 +28,6 @@ use crate::{
         },
     },
 };
-use itertools::Itertools;
 use pyo3::{
     prelude::PyModule, pyclass, pymethods, types::PyDict, IntoPy, PyObject, PyResult, Python,
     ToPyObject,
@@ -52,7 +51,6 @@ impl_iterable_mixin!(
     "edge",
     |edges: &Edges<'static, DynamicGraph>| edges.clone().into_iter()
 );
-impl_edge_property_filter_ops!(PyEdges<Edges<'static, DynamicGraph>>, edges, "Edges");
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for Edges<'graph, G, GH> {
     fn repr(&self) -> String {
@@ -248,7 +246,7 @@ impl PyEdges {
     #[getter]
     fn layer_names(&self) -> ArcStringVecIterable {
         let edges = self.edges.clone();
-        (move || edges.layer_names().map(|e| e.collect_vec())).into()
+        (move || edges.layer_names()).into()
     }
 
     /// Converts the graph's edges into a Pandas DataFrame.
@@ -362,11 +360,6 @@ impl_iterable_mixin!(
     "list[list[Edges]]",
     "edge"
 );
-impl_edge_property_filter_ops!(
-    PyNestedEdges<NestedEdges<'static, DynamicGraph>>,
-    edges,
-    "NestedEdges"
-);
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject>
     for NestedEdges<'static, G, GH>
@@ -464,14 +457,7 @@ impl PyNestedEdges {
     #[getter]
     fn layer_names(&self) -> NestedArcStringVecIterable {
         let edges = self.edges.clone();
-        (move || {
-            edges.layer_names().map(
-                |e: Box<dyn Iterator<Item = Box<dyn Iterator<Item = ArcStr> + Send>> + Send>| {
-                    e.map(|e| e.collect_vec())
-                },
-            )
-        })
-        .into()
+        (move || edges.layer_names()).into()
     }
 
     // FIXME: needs a view that allows indexing into the properties
