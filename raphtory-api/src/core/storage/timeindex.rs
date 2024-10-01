@@ -51,6 +51,16 @@ impl TimeIndexEntry {
         }
     }
 
+    pub fn previous(&self) -> Self {
+        if self.1 > 0 {
+            Self(self.0, self.1 - 1)
+        } else if self.0 > i64::MIN {
+            Self(self.0 - 1, 0)
+        } else {
+            *self
+        }
+    }
+
     pub fn end(t: i64) -> Self {
         Self(t, usize::MAX)
     }

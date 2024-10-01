@@ -16,7 +16,7 @@ use crate::{
             properties::{PyConstProperties, PyProperties, PyTemporalProp, PyTemporalProperties},
         },
         packages::{algorithms::*, graph_gen::*, graph_loader::*, vectors::PyVectorisedGraph},
-        types::wrappers::document::PyDocument,
+        types::wrappers::{document::PyDocument, prop::PyPropertyRef},
     },
 };
 use pyo3::{prelude::PyModule, PyErr, PyResult, Python};
@@ -39,6 +39,7 @@ pub fn add_raphtory_classes(m: &PyModule) -> PyResult<()> {
         PyTemporalProperties,
         PyTemporalProp,
         PyDirection,
+        PyPropertyRef,
         AlgorithmResult,
         GraphIndex
     );

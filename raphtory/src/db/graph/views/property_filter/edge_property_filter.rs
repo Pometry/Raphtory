@@ -1,5 +1,9 @@
 use crate::{
-    core::entities::LayerIds,
+    core::{
+        entities::{properties::props::Meta, LayerIds},
+        utils::errors::GraphError,
+        PropType,
+    },
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
@@ -12,9 +16,12 @@ use crate::{
                 Base,
             },
         },
-        graph::{edge::EdgeView, views::property_filter::PropFilter},
+        graph::{
+            edge::EdgeView,
+            views::property_filter::{internal::InternalEdgeFilterOps, PropertyValueFilter},
+        },
     },
-    prelude::{EdgeViewOps, GraphViewOps},
+    prelude::{EdgeViewOps, GraphViewOps, PropertyFilter},
 };
 
 #[derive(Debug, Clone)]
@@ -22,7 +29,7 @@ pub struct EdgePropertyFilteredGraph<G> {
     graph: G,
     t_prop_id: Option<usize>,
     c_prop_id: Option<usize>,
-    filter: PropFilter,
+    filter: PropertyValueFilter,
 }
 
 impl<'graph, G> EdgePropertyFilteredGraph<G> {
@@ -30,7 +37,7 @@ impl<'graph, G> EdgePropertyFilteredGraph<G> {
         graph: G,
         t_prop_id: Option<usize>,
         c_prop_id: Option<usize>,
-        filter: PropFilter,
+        filter: PropertyValueFilter,
     ) -> Self {
         Self {
             graph,
@@ -38,6 +45,46 @@ impl<'graph, G> EdgePropertyFilteredGraph<G> {
             c_prop_id,
             filter,
         }
+    }
+}
+
+fn get_ids_and_check_type(
+    meta: &Meta,
+    property: &str,
+    dtype: PropType,
+) -> Result<(Option<usize>, Option<usize>), GraphError> {
+    let t_prop_id = meta
+        .temporal_prop_meta()
+        .get_and_validate(property, dtype)?;
+    let c_prop_id = meta.const_prop_meta().get_and_validate(property, dtype)?;
+    Ok((t_prop_id, c_prop_id))
+}
+
+fn get_ids(meta: &Meta, property: &str) -> (Option<usize>, Option<usize>) {
+    let t_prop_id = meta.temporal_prop_meta().get_id(property);
+    let c_prop_id = meta.const_prop_meta().get_id(property);
+    (t_prop_id, c_prop_id)
+}
+
+impl InternalEdgeFilterOps for PropertyFilter {
+    type EdgeFiltered<'graph, G: GraphViewOps<'graph>> = EdgePropertyFilteredGraph<G>;
+
+    fn create_edge_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::EdgeFiltered<'graph, G>, GraphError> {
+        let (t_prop_id, c_prop_id) = match &self.filter {
+            PropertyValueFilter::ByValue(filter) => {
+                get_ids_and_check_type(graph.edge_meta(), &self.name, filter.dtype())?
+            }
+            _ => get_ids(graph.edge_meta(), &self.name),
+        };
+        Ok(EdgePropertyFilteredGraph::new(
+            graph,
+            t_prop_id,
+            c_prop_id,
+            self.filter,
+        ))
     }
 }
 
@@ -88,35 +135,9 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for EdgePropertyFilteredGrap
                     self.c_prop_id
                         .and_then(|prop_id| props.constant().get_by_id(prop_id))
                 });
-            prop_value.filter(|v| self.filter.filter(v)).is_some()
+            self.filter.filter(prop_value.as_ref())
         } else {
             false
         }
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use crate::{db::api::view::internal::CoreGraphOps, prelude::*};
-    use itertools::Itertools;
-    use std::cmp::Ordering::{Equal, Greater};
-
-    #[test]
-    fn test_filter() {
-        let g = Graph::new();
-        g.add_edge(0, 1, 2, [("test", 1i64)], None).unwrap();
-        g.add_edge(1, 2, 3, [("test", 2i64)], None).unwrap();
-        let prop_id = g.edge_meta().get_prop_id("test", false).unwrap();
-        let gf = g.filter_edges_eq("test", Prop::I64(1));
-        assert_eq!(
-            gf.edges().id().collect_vec(),
-            vec![(GID::U64(1), GID::U64(2))]
-        );
-        let gf = g.filter_edges_gt("test", Prop::I64(1));
-        assert_eq!(
-            gf.edges().id().collect_vec(),
-            vec![(GID::U64(2), GID::U64(3))]
-        );
     }
 }

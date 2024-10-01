@@ -186,24 +186,6 @@ impl EdgesStorage {
             offset,
         }
     }
-
-    pub fn get_edge_arc(&self, eid: EID) -> EdgeArcGuard {
-        let (bucket, offset) = self.resolve(eid.into());
-        let guard = Arc::new(self.shards[bucket].read_arc());
-        EdgeArcGuard { guard, offset }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct EdgeArcGuard {
-    guard: Arc<ArcRwLockReadGuard<parking_lot::RawRwLock, EdgeShard>>,
-    offset: usize,
-}
-
-impl EdgeArcGuard {
-    pub fn as_mem_edge(&self) -> MemEdge {
-        MemEdge::new(&self.guard, self.offset)
-    }
 }
 
 pub struct EdgeWGuard<'a> {
@@ -330,14 +312,6 @@ impl LockedEdges {
     pub fn get_mem(&self, eid: EID) -> MemEdge {
         let (bucket, offset) = resolve(eid.into(), self.shards.len());
         MemEdge::new(&self.shards[bucket], offset)
-    }
-
-    pub fn get_edge_arc(&self, eid: EID) -> EdgeArcGuard {
-        let (bucket, offset) = resolve(eid.into(), self.shards.len());
-        EdgeArcGuard {
-            guard: self.shards[bucket].clone(),
-            offset,
-        }
     }
 
     pub fn len(&self) -> usize {

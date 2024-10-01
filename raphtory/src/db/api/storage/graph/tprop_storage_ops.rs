@@ -46,7 +46,7 @@ pub trait TPropOps<'a>: Sized + 'a + Send {
     fn active(self, w: Range<i64>) -> bool {
         self.iter_window_t(w).next().is_some()
     }
-    fn last_before(&self, t: i64) -> Option<(TimeIndexEntry, Prop)>;
+    fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, Prop)>;
 
     fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a;
     fn iter_t(self) -> impl Iterator<Item = (i64, Prop)> + Send + 'a {
@@ -78,7 +78,7 @@ pub trait TPropOps<'a>: Sized + 'a + Send {
 }
 
 impl<'a> TPropOps<'a> for TPropRef<'a> {
-    fn last_before(&self, t: i64) -> Option<(TimeIndexEntry, Prop)> {
+    fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, Prop)> {
         for_all!(self, tprop => tprop.last_before(t))
     }
 

@@ -135,7 +135,11 @@ impl Edge {
     }
 
     async fn layer_names(&self) -> Vec<String> {
-        self.ee.layer_names().map(|x| x.into()).collect()
+        self.ee
+            .layer_names()
+            .into_iter()
+            .map(|x| x.into())
+            .collect()
     }
 
     async fn layer_name(&self) -> Result<String, GraphError> {

@@ -5,7 +5,7 @@ use crate::{
     },
     db::api::{
         storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
-        view::{internal::Base, BoxedIter, BoxedLIter, MaterializedGraph},
+        view::{internal::Base, BoxedLIter, MaterializedGraph},
     },
 };
 use enum_dispatch::enum_dispatch;
@@ -59,9 +59,18 @@ pub trait TimeSemantics {
     /// Get the timestamps at which a node `v` is active in window `w` (i.e has an edge addition)
     fn node_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64>;
 
-    fn edge_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64>;
+    fn edge_history<'a>(
+        &'a self,
+        e: EdgeRef,
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, TimeIndexEntry>;
 
-    fn edge_history_window(&self, e: EdgeRef, layer_ids: LayerIds, w: Range<i64>) -> Vec<i64>;
+    fn edge_history_window<'a>(
+        &'a self,
+        e: EdgeRef,
+        layer_ids: &'a LayerIds,
+        w: Range<i64>,
+    ) -> BoxedLIter<'a, TimeIndexEntry>;
 
     /// The number of exploded edge events for the `edge`
     fn edge_exploded_count(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> usize;
@@ -75,26 +84,26 @@ pub trait TimeSemantics {
     ) -> usize;
 
     /// Exploded edge iterator for edge `e`
-    fn edge_exploded(&self, e: EdgeRef, layer_ids: &LayerIds) -> BoxedIter<EdgeRef>;
+    fn edge_exploded<'a>(&'a self, e: EdgeRef, layer_ids: &'a LayerIds) -> BoxedLIter<'a, EdgeRef>;
 
     /// Explode edge iterator for edge `e` for every layer
-    fn edge_layers(&self, e: EdgeRef, layer_ids: &LayerIds) -> BoxedIter<EdgeRef>;
+    fn edge_layers<'a>(&'a self, e: EdgeRef, layer_ids: &'a LayerIds) -> BoxedLIter<'a, EdgeRef>;
 
     /// Exploded edge iterator for edge`e` over window `w`
-    fn edge_window_exploded(
-        &self,
+    fn edge_window_exploded<'a>(
+        &'a self,
         e: EdgeRef,
         w: Range<i64>,
-        layer_ids: &LayerIds,
-    ) -> BoxedIter<EdgeRef>;
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, EdgeRef>;
 
     /// Exploded edge iterator for edge `e` over window `w` for every layer
-    fn edge_window_layers(
-        &self,
+    fn edge_window_layers<'a>(
+        &'a self,
         e: EdgeRef,
         w: Range<i64>,
-        layer_ids: &LayerIds,
-    ) -> BoxedIter<EdgeRef>;
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, EdgeRef>;
 
     /// Get the time of the earliest activity of an edge
     fn edge_earliest_time(&self, e: EdgeRef, layer_ids: &LayerIds) -> Option<i64>;
@@ -277,6 +286,15 @@ pub trait TimeSemantics {
         layer_ids: &'a LayerIds,
     ) -> BoxedLIter<'a, (TimeIndexEntry, Prop)>;
 
+    /// Return the value of an edge temporal property at a given point in time if it exists
+    fn temporal_edge_prop_at(
+        &self,
+        e: EdgeRef,
+        id: usize,
+        t: TimeIndexEntry,
+        layer_ids: &LayerIds,
+    ) -> Option<Prop>;
+
     /// Check if edge has temporal property with the given id
     ///
     /// # Arguments
@@ -397,12 +415,21 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
     }
 
     #[inline]
-    fn edge_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64> {
+    fn edge_history<'a>(
+        &'a self,
+        e: EdgeRef,
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, TimeIndexEntry> {
         self.graph().edge_history(e, layer_ids)
     }
 
     #[inline]
-    fn edge_history_window(&self, e: EdgeRef, layer_ids: LayerIds, w: Range<i64>) -> Vec<i64> {
+    fn edge_history_window<'a>(
+        &'a self,
+        e: EdgeRef,
+        layer_ids: &'a LayerIds,
+        w: Range<i64>,
+    ) -> BoxedLIter<'a, TimeIndexEntry> {
         self.graph().edge_history_window(e, layer_ids, w)
     }
 
@@ -422,36 +449,32 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
     }
 
     #[inline]
-    fn edge_exploded(
-        &self,
-        e: EdgeRef,
-        layer_ids: &LayerIds,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+    fn edge_exploded<'a>(&'a self, e: EdgeRef, layer_ids: &'a LayerIds) -> BoxedLIter<'a, EdgeRef> {
         self.graph().edge_exploded(e, layer_ids)
     }
 
     #[inline]
-    fn edge_layers(&self, e: EdgeRef, layer_ids: &LayerIds) -> BoxedIter<EdgeRef> {
+    fn edge_layers<'a>(&'a self, e: EdgeRef, layer_ids: &'a LayerIds) -> BoxedLIter<'a, EdgeRef> {
         self.graph().edge_layers(e, layer_ids)
     }
 
     #[inline]
-    fn edge_window_exploded(
-        &self,
+    fn edge_window_exploded<'a>(
+        &'a self,
         e: EdgeRef,
         w: Range<i64>,
-        layer_ids: &LayerIds,
-    ) -> BoxedIter<EdgeRef> {
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, EdgeRef> {
         self.graph().edge_window_exploded(e, w, layer_ids)
     }
 
     #[inline]
-    fn edge_window_layers(
-        &self,
+    fn edge_window_layers<'a>(
+        &'a self,
         e: EdgeRef,
         w: Range<i64>,
-        layer_ids: &LayerIds,
-    ) -> BoxedIter<EdgeRef> {
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, EdgeRef> {
         self.graph().edge_window_layers(e, w, layer_ids)
     }
 
@@ -587,6 +610,17 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
     ) -> BoxedLIter<'a, (TimeIndexEntry, Prop)> {
         self.graph()
             .temporal_edge_prop_hist_window(e, prop_id, start, end, layer_ids)
+    }
+
+    #[inline]
+    fn temporal_edge_prop_at(
+        &self,
+        e: EdgeRef,
+        id: usize,
+        t: TimeIndexEntry,
+        layer_ids: &LayerIds,
+    ) -> Option<Prop> {
+        self.graph().temporal_edge_prop_at(e, id, t, layer_ids)
     }
 
     #[inline]

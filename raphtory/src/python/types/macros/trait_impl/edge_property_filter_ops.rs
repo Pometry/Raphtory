@@ -10,75 +10,50 @@ macro_rules! impl_edge_property_filter_ops {
     ($obj:ident<$base_type:ty>, $field:ident, $name:literal) => {
         #[pyo3::pymethods]
         impl $obj {
-            /// Return a filtered view that only includes edges with a given property value
+            /// Return a filtered view that only includes edges that satisfy the filter
             ///
-            /// Arguments:
-            ///     property (str): The name of the property to use for filtering
-            ///                     (looked up in temporal properties first and falls
-            ///                     back to constant properties
-            ///     value (Any): The property value to compare with
+            /// Arguments
+            ///     filter (PropertyFilter): The filter to apply to the edge properties. Construct a
+            ///                              filter using `Prop`.
             ///
             /// Returns:
             #[doc=concat!("    ", $name, ": The filtered view")]
-            fn filter_edges_eq(
+            fn filter_edges(
                 &self,
-                property: &str,
-                value: Prop,
-            ) -> <$base_type as crate::prelude::EdgePropertyFilterOps<'static>>::FilteredViewType
-            {
-                crate::prelude::EdgePropertyFilterOps::filter_edges_eq(
-                    &self.$field,
-                    property,
-                    value,
-                )
+                filter: $crate::python::types::wrappers::prop::PyPropertyFilter,
+            ) -> Result<
+                <$base_type as OneHopFilter<'static>>::Filtered<
+                    <PyPropertyFilter as InternalEdgeFilterOps>::EdgeFiltered<
+                        'static,
+                        <$base_type as OneHopFilter<'static>>::FilteredGraph,
+                    >,
+                >,
+                GraphError,
+            > {
+                self.$field.clone().filter_edges(filter)
             }
 
-            /// Return a filtered view that only includes edges with a property value less than a
-            /// given value
+            /// Return a filtered view that only includes exploded edges that satisfy the filter
             ///
             /// Arguments:
-            ///     property (str): The name of the property to use for filtering
-            ///                     (looked up in temporal properties first and falls
-            ///                     back to constant properties
-            ///     value (Any): The property value to compare with
+            ///     filter (PropertyFilter): The filter to apply to the exploded edge properties. Construct a
+            ///                              filter using `Prop`.
             ///
             /// Returns:
             #[doc=concat!("    ", $name, ": The filtered view")]
-            fn filter_edges_lt(
+            fn filter_exploded_edges(
                 &self,
-                property: &str,
-                value: Prop,
-            ) -> <$base_type as crate::prelude::EdgePropertyFilterOps<'static>>::FilteredViewType
-            {
-                crate::prelude::EdgePropertyFilterOps::filter_edges_lt(
-                    &self.$field,
-                    property,
-                    value,
-                )
-            }
-
-            /// Return a filtered view that only includes edges with a property value greater than a
-            /// given value
-            ///
-            /// Arguments:
-            ///     property (str): The name of the property to use for filtering
-            ///                     (looked up in temporal properties first and falls
-            ///                     back to constant properties
-            ///     value (Any): The property value to compare with
-            ///
-            /// Returns:
-            #[doc=concat!("    ", $name, ": The filtered view")]
-            fn filter_edges_gt(
-                &self,
-                property: &str,
-                value: Prop,
-            ) -> <$base_type as crate::prelude::EdgePropertyFilterOps<'static>>::FilteredViewType
-            {
-                crate::prelude::EdgePropertyFilterOps::filter_edges_gt(
-                    &self.$field,
-                    property,
-                    value,
-                )
+                filter: $crate::python::types::wrappers::prop::PyPropertyFilter,
+            ) -> Result<
+                <$base_type as OneHopFilter<'static>>::Filtered<
+                    <PyPropertyFilter as InternalExplodedEdgeFilterOps>::ExplodedEdgeFiltered<
+                        'static,
+                        <$base_type as OneHopFilter<'static>>::FilteredGraph,
+                    >,
+                >,
+                GraphError,
+            > {
+                self.$field.filter_exploded_edges(filter)
             }
         }
     };
