@@ -1,6 +1,5 @@
 use crate::{
     db::{
-        api::view::StaticGraphViewOps,
         graph::{edge::EdgeView, node::NodeView},
     },
     prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},

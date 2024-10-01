@@ -55,7 +55,6 @@ use crate::{
         utils::PyTime,
     },
 };
-use itertools::Itertools;
 use ordered_float::OrderedFloat;
 #[cfg(feature = "storage")]
 use pometry_storage::algorithms::connected_components::connected_components as connected_components_rs;
@@ -155,11 +154,8 @@ pub fn in_components(g: &PyGraphView) -> AlgorithmResult<DynamicGraph, Vec<GID>,
 ///    An array containing the Nodes within the given nodes in-component
 #[pyfunction]
 #[pyo3(signature = (node))]
-pub fn in_component(node: &PyNode) -> Vec<PyNode> {
+pub fn in_component(node: &PyNode) -> Vec<NodeView<DynamicGraph>> {
     components::in_component(node.node.clone())
-        .iter()
-        .map(|n| n.clone().into())
-        .collect()
 }
 
 /// Out components -- Finding the "out-component" of a node in a directed graph involves identifying all nodes that can be reached following only outgoing edges.
@@ -184,11 +180,8 @@ pub fn out_components(g: &PyGraphView) -> AlgorithmResult<DynamicGraph, Vec<GID>
 ///    An array containing the Nodes within the given nodes out-component
 #[pyfunction]
 #[pyo3(signature = (node))]
-pub fn out_component(node: &PyNode) -> Vec<PyNode> {
+pub fn out_component(node: &PyNode) ->Vec<NodeView<DynamicGraph>> {
     components::out_component(node.node.clone())
-        .iter()
-        .map(|n| n.clone().into())
-        .collect()
 }
 
 /// Pagerank -- pagerank centrality value of the nodes in a graph

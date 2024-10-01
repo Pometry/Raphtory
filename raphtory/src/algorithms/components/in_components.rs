@@ -6,7 +6,6 @@ use crate::{
     core::{entities::VID, state::compute_state::ComputeStateVec},
     db::{
         api::view::{
-            internal::{CoreGraphOps, DelegateCoreOps},
             NodeViewOps, StaticGraphViewOps,
         },
         graph::node::NodeView,
@@ -47,15 +46,15 @@ where
         let mut to_check_stack = Vec::new();
         vv.in_neighbours().iter().for_each(|node| {
             let id = node.node;
-            in_components.insert(id);
-            to_check_stack.push(id);
+            if in_components.insert(id) {
+                to_check_stack.push(id);
+            }
         });
         while let Some(neighbour_id) = to_check_stack.pop() {
             if let Some(neighbour) = vv.graph().node(neighbour_id) {
                 neighbour.in_neighbours().iter().for_each(|node| {
                     let id = node.node;
-                    if !in_components.contains(&id) {
-                        in_components.insert(id);
+                    if in_components.insert(id) {
                         to_check_stack.push(id);
                     }
                 });
@@ -111,15 +110,15 @@ pub fn in_component<'graph, G: GraphViewOps<'graph>>(node: NodeView<G>) -> Vec<N
     let mut to_check_stack = Vec::new();
     node.in_neighbours().iter().for_each(|node| {
         let id = node.node;
-        in_components.insert(id);
-        to_check_stack.push(id);
+        if in_components.insert(id) {
+            to_check_stack.push(id);
+        }
     });
     while let Some(neighbour_id) = to_check_stack.pop() {
         if let Some(neighbour) = &node.graph.node(neighbour_id) {
             neighbour.in_neighbours().iter().for_each(|node| {
                 let id = node.node;
-                if !in_components.contains(&id) {
-                    in_components.insert(id);
+                if in_components.insert(id) {
                     to_check_stack.push(id);
                 }
             });
@@ -155,7 +154,7 @@ mod components_test {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
-        fn check_node(graph: Graph, node_id: u64, mut correct: Vec<u64>) {
+        fn check_node(graph: &Graph, node_id: u64, mut correct: Vec<u64>) {
             let mut results: Vec<u64> = in_component(graph.node(node_id).unwrap())
                 .iter()
                 .map(|n| n.id().as_u64().unwrap())
@@ -165,14 +164,14 @@ mod components_test {
             assert_eq!(results, correct);
         }
 
-        check_node(graph.clone(), 1, vec![]);
-        check_node(graph.clone(), 2, vec![1]);
-        check_node(graph.clone(), 3, vec![1]);
-        check_node(graph.clone(), 4, vec![1, 2, 5]);
-        check_node(graph.clone(), 5, vec![1, 2]);
-        check_node(graph.clone(), 6, vec![1, 2, 4, 5]);
-        check_node(graph.clone(), 7, vec![1, 2, 4, 5]);
-        check_node(graph.clone(), 8, vec![1, 2, 5]);
+        check_node(&graph, 1, vec![]);
+        check_node(&graph, 2, vec![1]);
+        check_node(&graph, 3, vec![1]);
+        check_node(&graph, 4, vec![1, 2, 5]);
+        check_node(&graph, 5, vec![1, 2]);
+        check_node(&graph, 6, vec![1, 2, 4, 5]);
+        check_node(&graph, 7, vec![1, 2, 4, 5]);
+        check_node(&graph, 8, vec![1, 2, 5]);
     }
 
     #[test]

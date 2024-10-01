@@ -46,15 +46,15 @@ where
         let mut to_check_stack = Vec::new();
         vv.out_neighbours().iter().for_each(|node| {
             let id = node.node;
-            out_components.insert(id);
-            to_check_stack.push(id);
+            if out_components.insert(id) {
+                to_check_stack.push(id);
+            }
         });
         while let Some(neighbour_id) = to_check_stack.pop() {
             if let Some(neighbour) = vv.graph().node(neighbour_id) {
                 neighbour.out_neighbours().iter().for_each(|node| {
                     let id = node.node;
-                    if !out_components.contains(&id) {
-                        out_components.insert(id);
+                    if out_components.insert(id) {
                         to_check_stack.push(id);
                     }
                 });
@@ -111,15 +111,15 @@ pub fn out_component<'graph, G: GraphViewOps<'graph>>(node: NodeView<G>) -> Vec<
     let mut to_check_stack = Vec::new();
     node.out_neighbours().iter().for_each(|node| {
         let id = node.node;
-        out_components.insert(id);
-        to_check_stack.push(id);
+        if out_components.insert(id) {
+            to_check_stack.push(id);
+        }
     });
     while let Some(neighbour_id) = to_check_stack.pop() {
         if let Some(neighbour) = &node.graph.node(neighbour_id) {
             neighbour.out_neighbours().iter().for_each(|node| {
                 let id = node.node;
-                if !out_components.contains(&id) {
-                    out_components.insert(id);
+                if out_components.insert(id) {
                     to_check_stack.push(id);
                 }
             });
@@ -158,7 +158,7 @@ mod components_test {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
-        fn check_node(graph: Graph, node_id: u64, mut correct: Vec<u64>) {
+        fn check_node(graph: &Graph, node_id: u64, mut correct: Vec<u64>) {
             let mut results: Vec<u64> = out_component(graph.node(node_id).unwrap())
                 .iter()
                 .map(|n| n.id().as_u64().unwrap())
@@ -168,14 +168,14 @@ mod components_test {
             assert_eq!(results, correct);
         }
 
-        check_node(graph.clone(), 1, vec![2, 3, 4, 5, 6, 7, 8]);
-        check_node(graph.clone(), 2, vec![4, 5, 6, 7, 8]);
-        check_node(graph.clone(), 3, vec![]);
-        check_node(graph.clone(), 4, vec![6, 7]);
-        check_node(graph.clone(), 5, vec![4, 6, 7, 8]);
-        check_node(graph.clone(), 6, vec![]);
-        check_node(graph.clone(), 7, vec![]);
-        check_node(graph.clone(), 8, vec![]);
+        check_node(&graph, 1, vec![2, 3, 4, 5, 6, 7, 8]);
+        check_node(&graph, 2, vec![4, 5, 6, 7, 8]);
+        check_node(&graph, 3, vec![]);
+        check_node(&graph, 4, vec![6, 7]);
+        check_node(&graph, 5, vec![4, 6, 7, 8]);
+        check_node(&graph, 6, vec![]);
+        check_node(&graph, 7, vec![]);
+        check_node(&graph, 8, vec![]);
     }
 
     #[test]

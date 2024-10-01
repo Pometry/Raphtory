@@ -2,7 +2,6 @@ use crate::model::graph::{
     edges::GqlEdges, path_from_node::GqlPathFromNode, property::GqlProperties,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
-use itertools::Itertools;
 use raphtory::{
     algorithms::components::{in_component, out_component},
     db::{

@@ -11,7 +11,6 @@ use async_graphql::{
 };
 use dynamic_graphql::internal::TypeName;
 use futures_util::future::BoxFuture;
-use raphtory::vectors::embeddings::openai_embedding;
 use tracing::info;
 
 pub(crate) struct SimilaritySearch;
