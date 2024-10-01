@@ -43,7 +43,6 @@ impl ExistingGraphFolder {
                 folder: graph_folder,
             })
         } else {
-            // TODO: review if it is ok using GraphError::GraphNotFound instead of PathDoesNotExist here
             Err(GraphError::GraphNotFound(graph_folder.to_error_path()))
         }
     }

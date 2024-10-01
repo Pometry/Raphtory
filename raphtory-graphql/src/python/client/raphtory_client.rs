@@ -261,10 +261,6 @@ impl PyRaphtoryClient {
                 },
             }
         })
-
-        // rt.block_on(async {
-
-        // })
     }
 
     /// Copy graph from a path `path` on the server to a `new_path` on the server

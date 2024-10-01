@@ -87,15 +87,12 @@ def test_upload_graph():
     temp_dir = tempfile.mkdtemp()
     server = setup_server(work_dir)
     with server.start():
-        print("test_upload_graph1")
         client = RaphtoryClient("http://localhost:1736")
         g = Graph()
         setup_graph(g)
         g_path = temp_dir + "/abb"
         g.save_to_zip(g_path)
-        print("test_upload_graph2")
         client.upload_graph(path="abb", file_path=g_path, overwrite=True)
-        print("test_upload_graph3")
         assert_correct_documents(client)
 
 def test_include_graph():
@@ -104,11 +101,8 @@ def test_include_graph():
     g = Graph()
     setup_graph(g)
     g.save_to_file(g_path)
-    print("1")
     server = setup_server(work_dir)
-    print("2")
     with server.start():
-        print("3")
         client = RaphtoryClient("http://localhost:1736")
         assert_correct_documents(client)
 

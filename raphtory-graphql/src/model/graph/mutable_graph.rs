@@ -175,7 +175,7 @@ impl GqlMutableGraph {
             if !constant_props.is_empty() {
                 edge_view.add_constant_properties(as_properties(constant_props), layer)?;
             }
-            edge_view.update_embeddings().await; // FIXME: can't write to disk once per edge, shold write only once!!
+            edge_view.update_embeddings().await; // FIXME: ideally this should call the embedding function just once!!
         }
         self.graph.write_updates()?;
         Ok(true)

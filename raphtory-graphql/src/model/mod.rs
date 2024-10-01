@@ -219,7 +219,7 @@ impl Mut {
             let _ignored = data.delete_graph(path);
         }
         data.insert_graph(path, g).await?;
-        Ok(path.to_owned()) // TODO: review if this is ok?
+        Ok(path.to_owned())
     }
 }
 

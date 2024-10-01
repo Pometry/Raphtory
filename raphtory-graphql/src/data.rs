@@ -103,7 +103,6 @@ impl Data {
 
     pub fn delete_graph(&self, path: &str) -> Result<(), GraphError> {
         let graph_folder = ExistingGraphFolder::try_from(self.work_dir.clone(), path)?;
-        // TODO: double check that paths actuallt refers to a graph dir, not any arbitrary dir
         fs::remove_dir_all(graph_folder.get_base_path())?;
         self.cache.remove(&PathBuf::from(path));
         Ok(())
@@ -203,8 +202,6 @@ impl Data {
         &self,
         folder: &ExistingGraphFolder,
     ) -> Result<GraphWithVectors, GraphError> {
-        // TODO: I should have a way to get the global embedding conf from self that takes care of providing defaults
-        // I don't think this is the only place I need smth like that
         let embedding = self
             .embedding_conf
             .as_ref()
@@ -432,6 +429,7 @@ pub(crate) mod data_tests {
 
     fn create_graph_folder(path: &Path) {
         fs::create_dir_all(path).unwrap();
+        File::create(path.join(".raph")).unwrap();
         File::create(path.join("graph")).unwrap();
     }
 
@@ -453,6 +451,7 @@ pub(crate) mod data_tests {
         create_graph_folder(&g3_path);
 
         fs::create_dir_all(&g4_path.join("graph")).unwrap();
+        File::create(g4_path.join(".raph")).unwrap();
         create_ipc_files_in_dir(&g4_path.join("graph")).unwrap();
 
         fs::create_dir_all(&g5_path).unwrap();
