@@ -239,7 +239,7 @@ def test_node_edge_properties_schema():
                             ],
                         },
                         {
-                            "typeName": "default_node_type",
+                            "typeName": "None",
                             "properties": [
                                 {
                                     "key": "t",

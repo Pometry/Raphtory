@@ -12,7 +12,7 @@ pub(crate) mod property_schema;
 
 const ENUM_BOUNDARY: usize = 20;
 
-const DEFAULT_NODE_TYPE: &'static str = "default_node_type";
+const DEFAULT_NODE_TYPE: &'static str = "None";
 
 fn get_node_type<'graph, G: GraphViewOps<'graph>>(node: NodeView<G>) -> String {
     match node.node_type() {
