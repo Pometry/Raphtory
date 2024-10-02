@@ -1,4 +1,6 @@
 #![allow(non_snake_case)]
+#[cfg(feature = "storage")]
+use crate::python::graph::disk_graph::PyDiskGraph;
 use crate::{
     algorithms::{
         algorithm_result::AlgorithmResult,
@@ -51,7 +53,7 @@ use crate::{
     core::{entities::nodes::node_ref::NodeRef, Prop},
     db::{api::view::internal::DynamicGraph, graph::node::NodeView},
     python::{
-        graph::{edge::PyDirection, views::graph_view::PyGraphView},
+        graph::{edge::PyDirection, node::PyNode, views::graph_view::PyGraphView},
         utils::PyTime,
     },
 };
@@ -62,10 +64,6 @@ use pyo3::{prelude::*, types::PyIterator};
 use rand::{prelude::StdRng, SeedableRng};
 use raphtory_api::core::entities::GID;
 use std::collections::{HashMap, HashSet};
-
-#[cfg(feature = "storage")]
-use crate::python::graph::disk_graph::PyDiskGraph;
-use crate::python::graph::node::PyNode;
 
 /// Implementations of various graph algorithms that can be run on a graph.
 ///
