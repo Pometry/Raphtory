@@ -11,7 +11,7 @@ use raphtory::{
 };
 
 #[derive(Clone)]
-pub(crate) struct ExistingGraphFolder {
+pub struct ExistingGraphFolder {
     folder: ValidGraphFolder,
 }
 
@@ -67,7 +67,7 @@ impl ExistingGraphFolder {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct ValidGraphFolder {
+pub struct ValidGraphFolder {
     original_path: String,
     folder: GraphFolder,
 }
