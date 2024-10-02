@@ -43,7 +43,7 @@ pub trait NodeStateOps<'graph>: IntoIterator<Item = Self::OwnedValue> {
     ) -> impl Iterator<
         Item = (
             NodeView<&'a Self::BaseGraph, &'a Self::Graph>,
-            Self::Value<'_>,
+            Self::Value<'a>,
         ),
     > + 'a
     where
@@ -63,7 +63,7 @@ pub trait NodeStateOps<'graph>: IntoIterator<Item = Self::OwnedValue> {
     ) -> impl ParallelIterator<
         Item = (
             NodeView<&'a Self::BaseGraph, &'a Self::Graph>,
-            Self::Value<'_>,
+            Self::Value<'a>,
         ),
     >
     where

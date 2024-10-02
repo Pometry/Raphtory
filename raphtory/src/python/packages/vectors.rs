@@ -13,7 +13,6 @@ use crate::{
         utils::{execute_async_task, PyTime},
     },
     vectors::{
-        embedding_cache::EmbeddingCache,
         template::DocumentTemplate,
         vector_selection::DynamicVectorSelection,
         vectorisable::Vectorisable,

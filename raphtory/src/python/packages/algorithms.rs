@@ -1,4 +1,6 @@
 #![allow(non_snake_case)]
+#[cfg(feature = "storage")]
+use crate::python::graph::disk_graph::PyDiskGraph;
 use crate::{
     algorithms::{
         algorithm_result::AlgorithmResult,
@@ -51,21 +53,17 @@ use crate::{
     core::{entities::nodes::node_ref::NodeRef, Prop},
     db::{api::view::internal::DynamicGraph, graph::node::NodeView},
     python::{
-        graph::{edge::PyDirection, views::graph_view::PyGraphView},
+        graph::{edge::PyDirection, node::PyNode, views::graph_view::PyGraphView},
         utils::PyTime,
     },
 };
 use ordered_float::OrderedFloat;
+#[cfg(feature = "storage")]
+use pometry_storage::algorithms::connected_components::connected_components as connected_components_rs;
 use pyo3::{prelude::*, types::PyIterator};
 use rand::{prelude::StdRng, SeedableRng};
 use raphtory_api::core::entities::GID;
 use std::collections::{HashMap, HashSet};
-
-#[cfg(feature = "storage")]
-use pometry_storage::algorithms::connected_components::connected_components as connected_components_rs;
-
-#[cfg(feature = "storage")]
-use crate::python::graph::disk_graph::PyDiskGraph;
 
 /// Implementations of various graph algorithms that can be run on a graph.
 ///
@@ -145,6 +143,19 @@ pub fn in_components(g: &PyGraphView) -> AlgorithmResult<DynamicGraph, Vec<GID>,
     components::in_components(&g.graph, None)
 }
 
+/// In component -- Finding the "in-component" of a node in a directed graph involves identifying all nodes that can be reached following only incoming edges.
+///
+/// Arguments:
+///     node (Node) : The node whose in-component we wish to calculate
+///
+/// Returns:
+///    An array containing the Nodes within the given nodes in-component
+#[pyfunction]
+#[pyo3(signature = (node))]
+pub fn in_component(node: &PyNode) -> Vec<NodeView<DynamicGraph>> {
+    components::in_component(node.node.clone())
+}
+
 /// Out components -- Finding the "out-component" of a node in a directed graph involves identifying all nodes that can be reached following only outgoing edges.
 ///
 /// Arguments:
@@ -156,6 +167,19 @@ pub fn in_components(g: &PyGraphView) -> AlgorithmResult<DynamicGraph, Vec<GID>,
 #[pyo3(signature = (g))]
 pub fn out_components(g: &PyGraphView) -> AlgorithmResult<DynamicGraph, Vec<GID>, Vec<GID>> {
     components::out_components(&g.graph, None)
+}
+
+/// Out component -- Finding the "out-component" of a node in a directed graph involves identifying all nodes that can be reached following only outgoing edges.
+///
+/// Arguments:
+///     node (Node) : The node whose out-component we wish to calculate
+///
+/// Returns:
+///    An array containing the Nodes within the given nodes out-component
+#[pyfunction]
+#[pyo3(signature = (node))]
+pub fn out_component(node: &PyNode) -> Vec<NodeView<DynamicGraph>> {
+    components::out_component(node.node.clone())
 }
 
 /// Pagerank -- pagerank centrality value of the nodes in a graph
