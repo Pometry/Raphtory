@@ -106,14 +106,9 @@ impl ValidGraphFolder {
                 Component::ParentDir => return Err(ParentDirNotAllowed(user_facing_path)),
                 Component::Normal(component) => {
                     // check if some intermediate path is already a graph
-                    let result = ExistingGraphFolder::try_from(
-                        base_path.clone(),
-                        full_path.to_str().unwrap(),
-                    );
-                    if result.is_ok() {
+                    if full_path.join(".raph").exists() {
                         return Err(ParentIsGraph(user_facing_path));
                     }
-
                     //check for symlinks
                     full_path.push(component);
                     if full_path.is_symlink() {
