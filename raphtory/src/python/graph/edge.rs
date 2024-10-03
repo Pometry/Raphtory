@@ -333,13 +333,17 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for EdgeVie
         let target = self.dst().name();
         let earliest_time = self.earliest_time().repr();
         let latest_time = self.latest_time().repr();
+        let layer_names = self.layer_names().into_iter().take(11).collect_vec();
+        let layer_names_prev = if layer_names.len() < 11 {layer_names.join(", ") } else { layer_names[0..10].join(",")+"..."};
+
         if properties.is_empty() {
             format!(
-                "Edge(source={}, target={}, earliest_time={}, latest_time={})",
+                "Edge(source={}, target={}, earliest_time={}, latest_time={}, layer(s)={})",
                 source.trim_matches('"'),
                 target.trim_matches('"'),
                 earliest_time,
                 latest_time,
+                layer_names_prev
             )
         } else {
             format!(
