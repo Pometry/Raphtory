@@ -7,10 +7,15 @@ use crate::{
     core::utils::errors::GraphError,
     db::graph::views::deletion_graph::PersistentGraph,
     disk_graph::{graph_impl::ParquetLayerCols, DiskGraphStorage},
+    io::{
+        arrow::dataframe::{DFChunk, DFView},
+        parquet_loaders::{get_parquet_file_paths, process_parquet_file_to_df, read_parquet_file, read_struct_arrays},
+    },
     prelude::Graph,
     python::{graph::graph::PyGraph, types::repr::StructReprBuilder},
 };
 use itertools::Itertools;
+use pometry_storage::{graph::load_node_const_properties, RAError};
 /// A columnar temporal graph.
 use pyo3::{
     prelude::*,
@@ -238,6 +243,19 @@ impl PyDiskGraph {
         .map_err(|err| {
             GraphError::LoadFailure(format!("Failed to load graph from parquet files: {err:?}"))
         })
+    }
+
+    pub fn load_node_const_properties(
+        &self,
+        location: &str,
+        col_names: Option<Vec<&str>>,
+        chunk_size: Option<usize>,
+    ) -> Result<DiskGraphStorage, GraphError> {
+        let path = PathBuf::from_str(location).unwrap();
+        let chunks = read_struct_arrays(&path, col_names.as_deref())?;
+        let _ = load_node_const_properties(chunk_size.unwrap_or(200_000), self.graph_dir(), chunks)?;
+        Self::load_from_dir(self.graph_dir().to_string_lossy().as_ref())
+
     }
 
     /// Merge this graph with another `DiskGraph`. Note that both graphs should have nodes that are
