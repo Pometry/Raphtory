@@ -6,7 +6,7 @@ use crate::{
 };
 use moka::sync::Cache;
 use raphtory::{
-    core::utils::errors::GraphError,
+    core::utils::errors::{GraphError, GraphResult},
     db::api::view::MaterializedGraph,
     vectors::{
         embedding_cache::EmbeddingCache, embeddings::openai_embedding, template::DocumentTemplate,
@@ -108,16 +108,17 @@ impl Data {
         Ok(())
     }
 
-    pub async fn embed_query(&self, query: String) -> Embedding {
+    pub async fn embed_query(&self, query: String) -> GraphResult<Embedding> {
         let embedding_function = self
             .embedding_conf
             .as_ref()
             .map(|conf| conf.function.clone());
-        if let Some(embedding_function) = embedding_function {
-            embedding_function.call(vec![query]).await.remove(0)
+        let embedding = if let Some(embedding_function) = embedding_function {
+            embedding_function.call(vec![query]).await?.remove(0)
         } else {
-            openai_embedding(vec![query]).await.remove(0)
-        }
+            openai_embedding(vec![query]).await?.remove(0)
+        };
+        Ok(embedding)
     }
 
     fn resolve_template(&self, graph: &Path) -> Option<&DocumentTemplate> {
@@ -143,7 +144,8 @@ impl Data {
                 Some(folder.get_original_path_str().to_owned()),
                 true, // verbose
             )
-            .await;
+            .await
+            .ok()?;
         Some(vectors)
     }
 

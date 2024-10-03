@@ -1,6 +1,6 @@
 use crate::core::{DocumentInput, Lifespan};
 use futures_util::future::BoxFuture;
-use std::{future::Future, ops::Deref, sync::Arc};
+use std::{error, future::Future, ops::Deref, sync::Arc};
 
 pub mod datetimeformat;
 mod document_ref;
@@ -89,22 +89,25 @@ impl From<&str> for DocumentInput {
     }
 }
 
+pub(crate) type EmbeddingError = Box<dyn error::Error + Send + Sync>;
+pub(crate) type EmbeddingResult<T> = Result<T, EmbeddingError>;
+
 pub trait EmbeddingFunction: Send + Sync {
-    fn call(&self, texts: Vec<String>) -> BoxFuture<'static, Vec<Embedding>>;
+    fn call(&self, texts: Vec<String>) -> BoxFuture<'static, EmbeddingResult<Vec<Embedding>>>;
 }
 
 impl<T, F> EmbeddingFunction for T
 where
     T: Fn(Vec<String>) -> F + Send + Sync,
-    F: Future<Output = Vec<Embedding>> + Send + 'static,
+    F: Future<Output = EmbeddingResult<Vec<Embedding>>> + Send + 'static,
 {
-    fn call(&self, texts: Vec<String>) -> BoxFuture<'static, Vec<Embedding>> {
+    fn call(&self, texts: Vec<String>) -> BoxFuture<'static, EmbeddingResult<Vec<Embedding>>> {
         Box::pin(self(texts))
     }
 }
 
 impl EmbeddingFunction for Arc<dyn EmbeddingFunction> {
-    fn call(&self, texts: Vec<String>) -> BoxFuture<'static, Vec<Embedding>> {
+    fn call(&self, texts: Vec<String>) -> BoxFuture<'static, EmbeddingResult<Vec<Embedding>>> {
         Box::pin(self.deref().call(texts))
     }
 }
