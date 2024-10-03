@@ -342,7 +342,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for EdgeVie
 
         if properties.is_empty() {
             format!(
-                "Edge(source={}, target={}, earliest_time={}, latest_time={}, layer(s)={})",
+                "Edge(source={}, target={}, earliest_time={}, latest_time={}, layer(s)=[{}])",
                 source.trim_matches('"'),
                 target.trim_matches('"'),
                 earliest_time,
@@ -351,7 +351,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for EdgeVie
             )
         } else {
             format!(
-                "Edge(source={}, target={}, earliest_time={}, latest_time={}, properties={}, layer(s)={})",
+                "Edge(source={}, target={}, earliest_time={}, latest_time={}, properties={}, layer(s)=[{}])",
                 source.trim_matches('"'),
                 target.trim_matches('"'),
                 earliest_time,
