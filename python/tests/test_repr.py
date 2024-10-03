@@ -12,6 +12,12 @@ G.add_edge(1, "A", "B", layer = "layer 1")
 G.add_edge(1, "A", "B", layer = "layer 2")
 print(G.edge("A","B"))
 
+# edge with more than 11 layers
+G = Graph()
+for i in range(20):
+    G.add_edge(i, "A", "B", layer = f"layer {i}")
+print(G.edge("A","B"))
+
 # event graph with two layers and properties
 G = Graph()
 G.add_edge(1, "A", "B", layer = "layer 1", properties={"greeting":"howdy"})
