@@ -337,7 +337,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for EdgeVie
         let layer_names_prev = if layer_names.len() < 11 {
             layer_names.join(", ")
         } else {
-            layer_names[0..10].join(",") + "..."
+            layer_names[0..10].join(",") + ", ..."
         };
 
         if properties.is_empty() {
