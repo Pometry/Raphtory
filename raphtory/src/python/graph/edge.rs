@@ -351,12 +351,13 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for EdgeVie
             )
         } else {
             format!(
-                "Edge(source={}, target={}, earliest_time={}, latest_time={}, properties={})",
+                "Edge(source={}, target={}, earliest_time={}, latest_time={}, properties={}, layer(s)={})",
                 source.trim_matches('"'),
                 target.trim_matches('"'),
                 earliest_time,
                 latest_time,
-                format!("{{{properties}}}")
+                format!("{{{properties}}}"),
+                layer_names_prev
             )
         }
     }
