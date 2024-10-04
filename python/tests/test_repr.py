@@ -34,7 +34,7 @@ class PyReprTest(TestCase):
         G = Graph()
         for i in range(20):
             G.add_edge(i, "A", "B", layer = f"layer {i}")
-        expected_out = "Edge(source=A, target=B, earliest_time=0, latest_time=19, layer(s)=[layer 0,layer 1,layer 2,layer 3,layer 4,layer 5,layer 6,layer 7,layer 8,layer 9...])\n"
+        expected_out = "Edge(source=A, target=B, earliest_time=0, latest_time=19, layer(s)=[layer 0,layer 1,layer 2,layer 3,layer 4,layer 5,layer 6,layer 7,layer 8,layer 9, ...])\n"
         
         with patch('sys.stdout', new = StringIO()) as fake_out:
             print(G.edge("A","B"))
