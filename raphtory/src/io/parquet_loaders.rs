@@ -12,7 +12,10 @@ use crate::{
     serialise::incremental::InternalCache,
 };
 use itertools::Itertools;
-use polars_arrow::{array::StructArray, datatypes::{ArrowDataType as DataType, ArrowSchema, Field}};
+use polars_arrow::{
+    array::StructArray,
+    datatypes::{ArrowDataType as DataType, ArrowSchema, Field},
+};
 use polars_parquet::{
     read,
     read::{read_metadata, FileMetaData, FileReader},
@@ -88,7 +91,7 @@ pub(crate) fn load_edges_from_parquet<
     }
 
     for path in get_parquet_file_paths(parquet_path)? {
-        let df_view = process_parquet_file_to_df(path.as_path(), Some( &cols_to_check ))?;
+        let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check))?;
         df_view.check_cols_exist(&cols_to_check)?;
         load_edges_from_df(
             df_view,
@@ -126,7 +129,7 @@ pub fn load_node_props_from_parquet<
     }
 
     for path in get_parquet_file_paths(parquet_path)? {
-        let df_view = process_parquet_file_to_df(path.as_path(), Some( &cols_to_check ))?;
+        let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check))?;
         df_view.check_cols_exist(&cols_to_check)?;
 
         load_node_props_from_df(
@@ -163,7 +166,7 @@ pub fn load_edge_props_from_parquet<
     cols_to_check.extend(constant_properties.unwrap_or(&Vec::new()));
 
     for path in get_parquet_file_paths(parquet_path)? {
-        let df_view = process_parquet_file_to_df(path.as_path(), Some( &cols_to_check ))?;
+        let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check))?;
         df_view.check_cols_exist(&cols_to_check)?;
         load_edges_props_from_df(
             df_view,
@@ -198,7 +201,7 @@ pub fn load_edge_deletions_from_parquet<
     }
 
     for path in get_parquet_file_paths(parquet_path)? {
-        let df_view = process_parquet_file_to_df(path.as_path(), Some( &cols_to_check ))?;
+        let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check))?;
         df_view.check_cols_exist(&cols_to_check)?;
         load_edge_deletions_from_df(df_view, time, src, dst, layer, layer_col, graph)
             .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
@@ -298,32 +301,33 @@ pub fn get_parquet_file_paths(parquet_path: &Path) -> Result<Vec<PathBuf>, Graph
     Ok(parquet_files)
 }
 
-pub fn read_struct_arrays(path: &Path, col_names: Option<&[&str]>) -> Result<impl Iterator<Item = Result<StructArray, RAError>>, GraphError>{
-        let readers = get_parquet_file_paths(&path)?
-            .into_iter()
-            .map(|path| {
-                read_parquet_file(path, col_names.as_deref())
-                    .map(|(col_names, reader, _)| (col_names, reader))
-            })
-            .collect::<Result<Vec<_>, _>>()?;
+pub fn read_struct_arrays(
+    path: &Path,
+    col_names: Option<&[&str]>,
+) -> Result<impl Iterator<Item = Result<StructArray, RAError>>, GraphError> {
+    let readers = get_parquet_file_paths(&path)?
+        .into_iter()
+        .map(|path| {
+            read_parquet_file(path, col_names.as_deref())
+                .map(|(col_names, reader, _)| (col_names, reader))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
 
-        let chunks = readers.into_iter().flat_map(|(field_names, iter)| {
-            iter.map(move |cols| {
-                cols.map(|col| {
-                    let values = col.into_arrays();
-                    let fields = values
-                        .iter()
-                        .zip(field_names.iter())
-                        .map(|(arr, field_name)| {
-                            Field::new(field_name, arr.data_type().clone(), true)
-                        })
-                        .collect::<Vec<_>>();
-                    StructArray::new(DataType::Struct(fields), values, None)
-                }).map_err(RAError::Arrow)
+    let chunks = readers.into_iter().flat_map(|(field_names, iter)| {
+        iter.map(move |cols| {
+            cols.map(|col| {
+                let values = col.into_arrays();
+                let fields = values
+                    .iter()
+                    .zip(field_names.iter())
+                    .map(|(arr, field_name)| Field::new(field_name, arr.data_type().clone(), true))
+                    .collect::<Vec<_>>();
+                StructArray::new(DataType::Struct(fields), values, None)
             })
-        });
-        Ok(chunks)
-
+            .map_err(RAError::Arrow)
+        })
+    });
+    Ok(chunks)
 }
 
 #[cfg(test)]
