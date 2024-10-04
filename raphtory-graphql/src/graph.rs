@@ -4,7 +4,10 @@ use once_cell::sync::OnceCell;
 #[cfg(feature = "storage")]
 use raphtory::disk_graph::DiskGraphStorage;
 use raphtory::{
-    core::{entities::nodes::node_ref::AsNodeRef, utils::errors::GraphError},
+    core::{
+        entities::nodes::node_ref::AsNodeRef,
+        utils::errors::{GraphError, GraphResult},
+    },
     db::{
         api::{
             mutation::internal::InheritMutationOps,
@@ -41,22 +44,32 @@ impl GraphWithVectors {
         }
     }
 
-    pub(crate) async fn update_graph_embeddings(&self, graph_name: Option<String>) {
+    pub(crate) async fn update_graph_embeddings(
+        &self,
+        graph_name: Option<String>,
+    ) -> GraphResult<()> {
         if let Some(vectors) = &self.vectors {
-            vectors.update_graph(graph_name).await
+            vectors.update_graph(graph_name).await?;
         }
+        Ok(())
     }
 
-    pub(crate) async fn update_node_embeddings<T: AsNodeRef>(&self, node: T) {
+    pub(crate) async fn update_node_embeddings<T: AsNodeRef>(&self, node: T) -> GraphResult<()> {
         if let Some(vectors) = &self.vectors {
-            vectors.update_node(node).await
+            vectors.update_node(node).await?;
         }
+        Ok(())
     }
 
-    pub(crate) async fn update_edge_embeddings<T: AsNodeRef>(&self, src: T, dst: T) {
+    pub(crate) async fn update_edge_embeddings<T: AsNodeRef>(
+        &self,
+        src: T,
+        dst: T,
+    ) -> GraphResult<()> {
         if let Some(vectors) = &self.vectors {
-            vectors.update_edge(src, dst).await
+            vectors.update_edge(src, dst).await?;
         }
+        Ok(())
     }
 
     pub(crate) fn cache(&self, path: impl Into<GraphFolder>) -> Result<(), GraphError> {
@@ -143,17 +156,17 @@ impl InheritMutationOps for GraphWithVectors {}
 impl DeletionOps for GraphWithVectors {}
 
 pub(crate) trait UpdateEmbeddings {
-    async fn update_embeddings(&self);
+    async fn update_embeddings(&self) -> GraphResult<()>;
 }
 
 impl UpdateEmbeddings for NodeView<GraphWithVectors> {
-    async fn update_embeddings(&self) {
+    async fn update_embeddings(&self) -> GraphResult<()> {
         self.graph.update_node_embeddings(self.name()).await
     }
 }
 
 impl UpdateEmbeddings for EdgeView<GraphWithVectors> {
-    async fn update_embeddings(&self) {
+    async fn update_embeddings(&self) -> GraphResult<()> {
         self.graph
             .update_edge_embeddings(self.src().name(), self.dst().name())
             .await

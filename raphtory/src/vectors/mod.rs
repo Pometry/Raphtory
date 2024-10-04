@@ -1,6 +1,6 @@
 use crate::core::{DocumentInput, Lifespan};
 use futures_util::future::BoxFuture;
-use std::{future::Future, ops::Deref, sync::Arc};
+use std::{error, future::Future, ops::Deref, sync::Arc};
 
 pub mod datetimeformat;
 mod document_ref;
@@ -89,22 +89,25 @@ impl From<&str> for DocumentInput {
     }
 }
 
+pub(crate) type EmbeddingError = Box<dyn error::Error + Send + Sync>;
+pub type EmbeddingResult<T> = Result<T, EmbeddingError>;
+
 pub trait EmbeddingFunction: Send + Sync {
-    fn call(&self, texts: Vec<String>) -> BoxFuture<'static, Vec<Embedding>>;
+    fn call(&self, texts: Vec<String>) -> BoxFuture<'static, EmbeddingResult<Vec<Embedding>>>;
 }
 
 impl<T, F> EmbeddingFunction for T
 where
     T: Fn(Vec<String>) -> F + Send + Sync,
-    F: Future<Output = Vec<Embedding>> + Send + 'static,
+    F: Future<Output = EmbeddingResult<Vec<Embedding>>> + Send + 'static,
 {
-    fn call(&self, texts: Vec<String>) -> BoxFuture<'static, Vec<Embedding>> {
+    fn call(&self, texts: Vec<String>) -> BoxFuture<'static, EmbeddingResult<Vec<Embedding>>> {
         Box::pin(self(texts))
     }
 }
 
 impl EmbeddingFunction for Arc<dyn EmbeddingFunction> {
-    fn call(&self, texts: Vec<String>) -> BoxFuture<'static, Vec<Embedding>> {
+    fn call(&self, texts: Vec<String>) -> BoxFuture<'static, EmbeddingResult<Vec<Embedding>>> {
         Box::pin(self.deref().call(texts))
     }
 }
@@ -129,14 +132,14 @@ mod vector_tests {
         format!("line {time}")
     }
 
-    async fn fake_embedding(texts: Vec<String>) -> Vec<Embedding> {
-        texts
+    async fn fake_embedding(texts: Vec<String>) -> EmbeddingResult<Vec<Embedding>> {
+        Ok(texts
             .into_iter()
             .map(|_| vec![1.0, 0.0, 0.0].into())
-            .collect_vec()
+            .collect_vec())
     }
 
-    async fn panicking_embedding(_texts: Vec<String>) -> Vec<Embedding> {
+    async fn panicking_embedding(_texts: Vec<String>) -> EmbeddingResult<Vec<Embedding>> {
         panic!("embedding function was called")
     }
 
@@ -202,8 +205,12 @@ mod vector_tests {
         let cache = Some("/tmp/raphtory/vector-cache-lotr-test".to_owned().into()).into();
         let vectors = g
             .vectorise(Box::new(fake_embedding), cache, true, template, None, false)
-            .await;
-        let embedding: Embedding = fake_embedding(vec!["whatever".to_owned()]).await.remove(0);
+            .await
+            .unwrap();
+        let embedding: Embedding = fake_embedding(vec!["whatever".to_owned()])
+            .await
+            .unwrap()
+            .remove(0);
 
         let mut selection = vectors.documents_by_similarity(&embedding, 10, None);
         selection.expand_documents_by_similarity(&embedding, 10, None);
@@ -425,10 +432,12 @@ mod vector_tests {
                 None,
                 false,
             )
-            .await;
+            .await
+            .unwrap();
 
         let embedding = openai_embedding(vec!["Find a magician".to_owned()])
             .await
+            .unwrap()
             .remove(0);
         let docs = vectors
             .nodes_by_similarity(&embedding, 1, None)
@@ -438,6 +447,7 @@ mod vector_tests {
 
         let embedding = openai_embedding(vec!["Find a young person".to_owned()])
             .await
+            .unwrap()
             .remove(0);
         let docs = vectors
             .nodes_by_similarity(&embedding, 1, None)
@@ -447,6 +457,7 @@ mod vector_tests {
         // with window!
         let embedding = openai_embedding(vec!["Find a young person".to_owned()])
             .await
+            .unwrap()
             .remove(0);
         let docs = vectors
             .nodes_by_similarity(&embedding, 1, Some((1, 3)))
@@ -455,6 +466,7 @@ mod vector_tests {
 
         let embedding = openai_embedding(vec!["Has anyone appeared with anyone else?".to_owned()])
             .await
+            .unwrap()
             .remove(0);
 
         let docs = vectors
