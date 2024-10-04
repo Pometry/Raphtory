@@ -20,7 +20,7 @@ use std::{
     path::{Path, PathBuf, StripPrefixError},
     sync::Arc,
 };
-use tracing::error;
+use tracing::{error, warn};
 use walkdir::WalkDir;
 
 #[derive(Clone)]
@@ -144,9 +144,15 @@ impl Data {
                 Some(folder.get_original_path_str().to_owned()),
                 true, // verbose
             )
-            .await
-            .ok()?;
-        Some(vectors)
+            .await;
+        match vectors {
+            Ok(vectors) => Some(vectors),
+            Err(error) => {
+                let name = folder.get_original_path_str();
+                warn!("An error occurred when trying to vectorise graph {name}: {error}");
+                None
+            }
+        }
     }
 
     pub(crate) async fn vectorise_all_graphs_that_are_not(&self) -> Result<(), GraphError> {
