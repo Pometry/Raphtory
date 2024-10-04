@@ -9,10 +9,7 @@ use crate::{
     disk_graph::{graph_impl::ParquetLayerCols, DiskGraphStorage},
     io::{
         arrow::dataframe::{DFChunk, DFView},
-        parquet_loaders::{
-            get_parquet_file_paths, process_parquet_file_to_df, read_parquet_file,
-            read_struct_arrays,
-        },
+        parquet_loaders::read_struct_arrays,
     },
     prelude::Graph,
     python::{graph::graph::PyGraph, types::repr::StructReprBuilder},

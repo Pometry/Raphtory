@@ -20,6 +20,7 @@ use polars_parquet::{
     read,
     read::{read_metadata, FileMetaData, FileReader},
 };
+#[cfg(feature = "storage")]
 use pometry_storage::RAError;
 use std::{
     collections::HashMap,
@@ -301,6 +302,7 @@ pub fn get_parquet_file_paths(parquet_path: &Path) -> Result<Vec<PathBuf>, Graph
     Ok(parquet_files)
 }
 
+#[cfg(feature = "storage")]
 pub fn read_struct_arrays(
     path: &Path,
     col_names: Option<&[&str]>,
