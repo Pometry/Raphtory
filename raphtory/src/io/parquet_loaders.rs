@@ -282,9 +282,8 @@ pub fn get_parquet_file_paths(parquet_path: &Path) -> Result<Vec<PathBuf>, Graph
     if parquet_path.is_file() {
         parquet_files.push(parquet_path.to_path_buf());
     } else if parquet_path.is_dir() {
-        for entry in fs::read_dir(parquet_path).expect("Directory not found") {
-            let entry = entry.expect("Unable to read entry");
-            let path = entry.path();
+        for entry in fs::read_dir(parquet_path)? {
+            let path = entry?.path();
             if path.extension().map_or(false, |ext| ext == "parquet") {
                 parquet_files.push(path);
             }
@@ -294,6 +293,7 @@ pub fn get_parquet_file_paths(parquet_path: &Path) -> Result<Vec<PathBuf>, Graph
             parquet_path.to_path_buf(),
         )));
     }
+    parquet_files.sort();
 
     Ok(parquet_files)
 }
