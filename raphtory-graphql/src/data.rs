@@ -6,7 +6,7 @@ use crate::{
 };
 use moka::sync::Cache;
 use raphtory::{
-    core::utils::errors::GraphError,
+    core::utils::errors::{GraphError, GraphResult},
     db::api::view::MaterializedGraph,
     vectors::{
         embedding_cache::EmbeddingCache, embeddings::openai_embedding, template::DocumentTemplate,
@@ -20,7 +20,7 @@ use std::{
     path::{Path, PathBuf, StripPrefixError},
     sync::Arc,
 };
-use tracing::error;
+use tracing::{error, warn};
 use walkdir::WalkDir;
 
 #[derive(Clone)]
@@ -108,16 +108,17 @@ impl Data {
         Ok(())
     }
 
-    pub async fn embed_query(&self, query: String) -> Embedding {
+    pub async fn embed_query(&self, query: String) -> GraphResult<Embedding> {
         let embedding_function = self
             .embedding_conf
             .as_ref()
             .map(|conf| conf.function.clone());
-        if let Some(embedding_function) = embedding_function {
-            embedding_function.call(vec![query]).await.remove(0)
+        let embedding = if let Some(embedding_function) = embedding_function {
+            embedding_function.call(vec![query]).await?.remove(0)
         } else {
-            openai_embedding(vec![query]).await.remove(0)
-        }
+            openai_embedding(vec![query]).await?.remove(0)
+        };
+        Ok(embedding)
     }
 
     fn resolve_template(&self, graph: &Path) -> Option<&DocumentTemplate> {
@@ -144,7 +145,14 @@ impl Data {
                 true, // verbose
             )
             .await;
-        Some(vectors)
+        match vectors {
+            Ok(vectors) => Some(vectors),
+            Err(error) => {
+                let name = folder.get_original_path_str();
+                warn!("An error occurred when trying to vectorise graph {name}: {error}");
+                None
+            }
+        }
     }
 
     pub(crate) async fn vectorise_all_graphs_that_are_not(&self) -> Result<(), GraphError> {

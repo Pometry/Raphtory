@@ -46,7 +46,7 @@ impl<'a> Operation<'a, VectorAlgorithmPlugin> for SimilaritySearch {
 
         Box::pin(async move {
             info!("running similarity search for {query}");
-            let embedding = data.embed_query(query).await;
+            let embedding = data.embed_query(query).await?;
 
             let documents = graph
                 .documents_by_similarity(&embedding, limit, None)

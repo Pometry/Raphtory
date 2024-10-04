@@ -1,4 +1,5 @@
 use crate::{
+    core::utils::errors::GraphResult,
     db::{
         api::view::{internal::IntoDynamic, StaticGraphViewOps},
         graph::{edge::EdgeView, node::NodeView},
@@ -45,7 +46,7 @@ pub trait Vectorisable<G: StaticGraphViewOps> {
         template: DocumentTemplate,
         graph_name: Option<String>,
         verbose: bool,
-    ) -> VectorisedGraph<G>;
+    ) -> GraphResult<VectorisedGraph<G>>;
 }
 
 #[async_trait]
@@ -58,7 +59,7 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
         template: DocumentTemplate,
         graph_name: Option<String>,
         verbose: bool,
-    ) -> VectorisedGraph<G> {
+    ) -> GraphResult<VectorisedGraph<G>> {
         let graph_docs = indexed_docs_for_graph(self, graph_name, &template);
 
         let nodes = self.nodes().collect().into_iter();
@@ -70,23 +71,23 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
         if verbose {
             info!("computing embeddings for graph");
         }
-        let graph_refs = compute_entity_embeddings(graph_docs, embedding.as_ref(), &cache).await;
+        let graph_refs = compute_entity_embeddings(graph_docs, embedding.as_ref(), &cache).await?;
 
         if verbose {
             info!("computing embeddings for nodes");
         }
-        let node_refs = compute_embedding_groups(nodes_docs, embedding.as_ref(), &cache).await;
+        let node_refs = compute_embedding_groups(nodes_docs, embedding.as_ref(), &cache).await?;
 
         if verbose {
             info!("computing embeddings for edges");
         }
-        let edge_refs = compute_embedding_groups(edges_docs, embedding.as_ref(), &cache).await;
+        let edge_refs = compute_embedding_groups(edges_docs, embedding.as_ref(), &cache).await?;
 
         if overwrite_cache {
             cache.iter().for_each(|cache| cache.dump_to_disk());
         }
 
-        VectorisedGraph::new(
+        Ok(VectorisedGraph::new(
             self.clone(),
             template,
             embedding.into(),
@@ -94,7 +95,7 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
             RwLock::new(graph_refs).into(),
             RwLock::new(node_refs).into(),
             RwLock::new(edge_refs).into(),
-        )
+        ))
     }
 }
 
@@ -104,7 +105,7 @@ pub(crate) async fn vectorise_graph<G: StaticGraphViewOps>(
     template: &DocumentTemplate,
     embedding: &Arc<dyn EmbeddingFunction>,
     cache_storage: &Option<EmbeddingCache>,
-) -> Vec<DocumentRef> {
+) -> GraphResult<Vec<DocumentRef>> {
     let docs = indexed_docs_for_graph(graph, graph_name, template);
     compute_entity_embeddings(docs, embedding.as_ref(), &cache_storage).await
 }
@@ -114,7 +115,7 @@ pub(crate) async fn vectorise_node<G: StaticGraphViewOps>(
     template: &DocumentTemplate,
     embedding: &Arc<dyn EmbeddingFunction>,
     cache_storage: &Option<EmbeddingCache>,
-) -> Vec<DocumentRef> {
+) -> GraphResult<Vec<DocumentRef>> {
     let docs = indexed_docs_for_node(node, template);
     compute_entity_embeddings(docs, embedding.as_ref(), &cache_storage).await
 }
@@ -124,7 +125,7 @@ pub(crate) async fn vectorise_edge<G: StaticGraphViewOps>(
     template: &DocumentTemplate,
     embedding: &Arc<dyn EmbeddingFunction>,
     cache_storage: &Option<EmbeddingCache>,
-) -> Vec<DocumentRef> {
+) -> GraphResult<Vec<DocumentRef>> {
     let docs = indexed_docs_for_edge(edge, template);
     compute_entity_embeddings(docs, embedding.as_ref(), &cache_storage).await
 }
@@ -179,22 +180,23 @@ async fn compute_entity_embeddings<I>(
     documents: I,
     embedding: &dyn EmbeddingFunction,
     cache: &Option<EmbeddingCache>,
-) -> Vec<DocumentRef>
+) -> GraphResult<Vec<DocumentRef>>
 where
     I: Iterator<Item = IndexedDocumentInput> + Send,
 {
-    let map = compute_embedding_groups(documents, embedding, cache).await;
-    map.into_iter()
+    let map = compute_embedding_groups(documents, embedding, cache).await?;
+    Ok(map
+        .into_iter()
         .next()
         .map(|(_, refs)| refs)
-        .unwrap_or_else(|| vec![]) // there should be only one value here, TODO: check that's true
+        .unwrap_or_else(|| vec![])) // there should be only one value here, TODO: check that's true
 }
 
 async fn compute_embedding_groups<I>(
     documents: I,
     embedding: &dyn EmbeddingFunction,
     cache: &Option<EmbeddingCache>,
-) -> HashMap<EntityId, Vec<DocumentRef>>
+) -> GraphResult<HashMap<EntityId, Vec<DocumentRef>>>
 where
     I: Iterator<Item = IndexedDocumentInput>,
 {
@@ -204,14 +206,14 @@ where
     for document in documents {
         buffer.push(document);
         if buffer.len() >= CHUNK_SIZE {
-            insert_chunk(&mut embedding_groups, &buffer, embedding, cache).await;
+            insert_chunk(&mut embedding_groups, &buffer, embedding, cache).await?;
             buffer.clear();
         }
     }
     if buffer.len() > 0 {
-        insert_chunk(&mut embedding_groups, &buffer, embedding, cache).await;
+        insert_chunk(&mut embedding_groups, &buffer, embedding, cache).await?;
     }
-    embedding_groups
+    Ok(embedding_groups)
 }
 
 async fn insert_chunk(
@@ -219,8 +221,8 @@ async fn insert_chunk(
     buffer: &Vec<IndexedDocumentInput>,
     embedding: &dyn EmbeddingFunction,
     cache: &Option<EmbeddingCache>,
-) {
-    let doc_refs = compute_chunk(&buffer, embedding, cache).await;
+) -> GraphResult<()> {
+    let doc_refs = compute_chunk(&buffer, embedding, cache).await?;
     for doc in doc_refs {
         match embedding_groups.get_mut(&doc.entity_id) {
             Some(group) => group.push(doc),
@@ -229,13 +231,14 @@ async fn insert_chunk(
             }
         }
     }
+    Ok(())
 }
 
 async fn compute_chunk(
     documents: &Vec<IndexedDocumentInput>,
     embedding: &dyn EmbeddingFunction,
     cache: &Option<EmbeddingCache>,
-) -> Vec<DocumentRef> {
+) -> GraphResult<Vec<DocumentRef>> {
     let mut misses = vec![];
     let mut embedded = vec![];
     match cache {
@@ -260,7 +263,7 @@ async fn compute_chunk(
     let embeddings = if texts.is_empty() {
         vec![]
     } else {
-        embedding.call(texts).await
+        embedding.call(texts).await?
     };
 
     for (doc, embedding) in misses.into_iter().zip(embeddings) {
@@ -275,5 +278,5 @@ async fn compute_chunk(
         ));
     }
 
-    embedded
+    Ok(embedded)
 }

@@ -48,7 +48,7 @@ impl<'a> Operation<'a, QueryPlugin> for GlobalSearch {
 
         Box::pin(async move {
             info!("running global search for {query}");
-            let embedding = data.embed_query(query).await;
+            let embedding = data.embed_query(query).await?;
 
             let cluster = VectorisedCluster::new(graphs.deref());
             let documents = cluster.search_graph_documents(&embedding, limit, None); // TODO: add window
