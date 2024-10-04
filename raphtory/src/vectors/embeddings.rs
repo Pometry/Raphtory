@@ -3,10 +3,11 @@ use async_openai::{
     types::{CreateEmbeddingRequest, EmbeddingInput},
     Client,
 };
-use itertools::Itertools;
 use tracing::info;
 
-pub async fn openai_embedding(texts: Vec<String>) -> Vec<Embedding> {
+use super::EmbeddingResult;
+
+pub async fn openai_embedding(texts: Vec<String>) -> EmbeddingResult<Vec<Embedding>> {
     info!("computing embeddings for {} texts", texts.len());
     let client = Client::new();
     let request = CreateEmbeddingRequest {
@@ -16,13 +17,13 @@ pub async fn openai_embedding(texts: Vec<String>) -> Vec<Embedding> {
         encoding_format: None,
         dimensions: None,
     };
-    let response = client.embeddings().create(request).await.unwrap();
+    let response = client.embeddings().create(request).await?;
     info!("Generated embeddings successfully");
-    response
+    Ok(response
         .data
         .into_iter()
         .map(|e| e.embedding.into())
-        .collect_vec()
+        .collect())
 }
 
 // this is currently commented out so we don't need to add any new dependencies
