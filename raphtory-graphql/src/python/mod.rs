@@ -1,6 +1,11 @@
 use crate::url_encode::{url_encode_graph, UrlDecodeError};
 use async_graphql::{dynamic::ValueAccessor, Value as GraphqlValue};
-use pyo3::{exceptions::{PyTypeError, PyValueError}, types::PyDict, IntoPy, PyErr, PyObject, PyResult, Python, ToPyObject, pyfunction};
+use pyo3::{
+    exceptions::{PyTypeError, PyValueError},
+    pyfunction,
+    types::PyDict,
+    IntoPy, PyErr, PyObject, PyResult, Python, ToPyObject,
+};
 use raphtory::{db::api::view::MaterializedGraph, python::utils::errors::adapt_err_value};
 use serde_json::{Map, Number, Value as JsonValue};
 use std::collections::HashMap;

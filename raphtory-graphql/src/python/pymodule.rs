@@ -3,11 +3,11 @@ use crate::python::{
         raphtory_client::PyRaphtoryClient, remote_edge::PyRemoteEdge, remote_graph::PyRemoteGraph,
         remote_node::PyRemoteNode, PyEdgeAddition, PyNodeAddition, PyUpdate,
     },
+    encode_graph,
     global_plugins::PyGlobalPlugins,
     server::{running_server::PyRunningGraphServer, server::PyGraphServer},
 };
-use pyo3::{prelude::PyModule, PyErr, Python, wrap_pyfunction};
-use crate::python::encode_graph;
+use pyo3::{prelude::PyModule, wrap_pyfunction, PyErr, Python};
 
 pub fn base_graphql_module(py: Python<'_>) -> Result<&PyModule, PyErr> {
     let graphql_module = PyModule::new(py, "graphql")?;
