@@ -328,10 +328,10 @@ impl DiskGraphStorage {
         Ok(Self::new(inner))
     }
 
-    pub fn load_from_parquets(
-        graph_dir: impl AsRef<Path>,
+    pub fn load_from_parquets<P: AsRef<Path>>(
+        graph_dir: P,
         layer_parquet_cols: Vec<ParquetLayerCols>,
-        node_properties: Option<impl AsRef<Path>>,
+        node_properties: Option<P>,
         chunk_size: usize,
         t_props_chunk_size: usize,
         read_chunk_size: Option<usize>,
