@@ -155,7 +155,7 @@ impl PyGraph {
     }
 
     #[cfg(feature = "storage")]
-    pub fn to_disk_graph(&self, graph_dir: String) -> Result<Graph, GraphError> {
+    pub fn to_disk_graph(&self, graph_dir: PathBuf) -> Result<Graph, GraphError> {
         use crate::db::api::storage::graph::storage_ops::GraphStorage;
         use std::sync::Arc;
 
