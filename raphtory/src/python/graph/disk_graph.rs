@@ -17,7 +17,7 @@ use pyo3::{
     prelude::*,
     types::{PyDict, PyList, PyString},
 };
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 #[derive(Clone)]
 #[pyclass(name = "DiskGraphStorage")]
@@ -158,9 +158,12 @@ impl PyDiskGraph {
     }
 
     #[staticmethod]
-    fn load_from_dir(graph_dir: &str) -> Result<DiskGraphStorage, GraphError> {
-        DiskGraphStorage::load_from_dir(graph_dir).map_err(|err| {
-            GraphError::LoadFailure(format!("Failed to load graph {err:?} from dir {graph_dir}"))
+    fn load_from_dir(graph_dir: PathBuf) -> Result<DiskGraphStorage, GraphError> {
+        DiskGraphStorage::load_from_dir(&graph_dir).map_err(|err| {
+            GraphError::LoadFailure(format!(
+                "Failed to load graph {err:?} from dir {}",
+                graph_dir.display()
+            ))
         })
     }
 
