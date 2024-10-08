@@ -42,6 +42,8 @@ pub mod prelude {
     pub use pometry_storage::chunked_array::array_ops::*;
 }
 
+pub use pometry_storage as disk_storage;
+
 #[derive(Clone, Debug)]
 pub struct DiskGraphStorage {
     pub(crate) inner: Arc<TemporalGraph>,
