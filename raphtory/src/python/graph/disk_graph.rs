@@ -7,21 +7,21 @@ use crate::{
     core::utils::errors::GraphError,
     db::graph::views::deletion_graph::PersistentGraph,
     disk_graph::{graph_impl::ParquetLayerCols, DiskGraphStorage},
-    io::{
-        arrow::dataframe::{DFChunk, DFView},
-        parquet_loaders::read_struct_arrays,
-    },
+    io::parquet_loaders::read_struct_arrays,
     prelude::Graph,
     python::{graph::graph::PyGraph, types::repr::StructReprBuilder},
 };
 use itertools::Itertools;
-use pometry_storage::{graph::load_node_const_properties, RAError};
+use pometry_storage::graph::load_node_const_properties;
 /// A columnar temporal graph.
 use pyo3::{
     prelude::*,
     types::{PyDict, PyList, PyString},
 };
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 
 #[derive(Clone)]
 #[pyclass(name = "DiskGraphStorage")]
@@ -255,7 +255,7 @@ impl PyDiskGraph {
         let chunks = read_struct_arrays(&path, col_names.as_deref())?;
         let _ =
             load_node_const_properties(chunk_size.unwrap_or(200_000), self.graph_dir(), chunks)?;
-        Self::load_from_dir(self.graph_dir().to_string_lossy().as_ref())
+        Self::load_from_dir(self.graph_dir().to_path_buf())
     }
 
     /// Merge this graph with another `DiskGraph`. Note that both graphs should have nodes that are
