@@ -204,21 +204,21 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
             Direction::OUT => match single_layer {
                 None => self
                     .out_edges(layers)
-                    .dedup_by(|e1, e2| e1.remote() <= e2.remote())
+                    .dedup_by(|e1, e2| e1.remote() == e2.remote())
                     .count(),
                 Some(layer) => layer.nodes_storage().out_degree(self.vid),
             },
             Direction::IN => match single_layer {
                 None => self
                     .in_edges(layers)
-                    .dedup_by(|e1, e2| e1.remote() <= e2.remote())
+                    .dedup_by(|e1, e2| e1.remote() == e2.remote())
                     .count(),
                 Some(layer) => layer.nodes_storage().in_degree(self.vid),
             },
             Direction::BOTH => match single_layer {
                 None => self
                     .edges(layers)
-                    .dedup_by(|e1, e2| e1.remote() <= e2.remote())
+                    .dedup_by(|e1, e2| e1.remote() == e2.remote())
                     .count(),
                 Some(layer) => layer
                     .nodes_storage()

@@ -12,11 +12,16 @@ use crate::{
     serialise::incremental::InternalCache,
 };
 use itertools::Itertools;
-use polars_arrow::datatypes::{ArrowDataType as DataType, ArrowSchema, Field};
+use polars_arrow::{
+    array::StructArray,
+    datatypes::{ArrowDataType as DataType, ArrowSchema, Field},
+};
 use polars_parquet::{
     read,
     read::{read_metadata, FileMetaData, FileReader},
 };
+#[cfg(feature = "storage")]
+use pometry_storage::RAError;
 use std::{
     collections::HashMap,
     fs,
@@ -45,7 +50,7 @@ pub fn load_nodes_from_parquet<
     }
 
     for path in get_parquet_file_paths(parquet_path)? {
-        let df_view = process_parquet_file_to_df(path.as_path(), &cols_to_check)?;
+        let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check))?;
         df_view.check_cols_exist(&cols_to_check)?;
         load_nodes_from_df(
             df_view,
@@ -87,7 +92,7 @@ pub(crate) fn load_edges_from_parquet<
     }
 
     for path in get_parquet_file_paths(parquet_path)? {
-        let df_view = process_parquet_file_to_df(path.as_path(), &cols_to_check)?;
+        let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check))?;
         df_view.check_cols_exist(&cols_to_check)?;
         load_edges_from_df(
             df_view,
@@ -125,7 +130,7 @@ pub fn load_node_props_from_parquet<
     }
 
     for path in get_parquet_file_paths(parquet_path)? {
-        let df_view = process_parquet_file_to_df(path.as_path(), &cols_to_check)?;
+        let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check))?;
         df_view.check_cols_exist(&cols_to_check)?;
 
         load_node_props_from_df(
@@ -162,7 +167,7 @@ pub fn load_edge_props_from_parquet<
     cols_to_check.extend(constant_properties.unwrap_or(&Vec::new()));
 
     for path in get_parquet_file_paths(parquet_path)? {
-        let df_view = process_parquet_file_to_df(path.as_path(), &cols_to_check)?;
+        let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check))?;
         df_view.check_cols_exist(&cols_to_check)?;
         load_edges_props_from_df(
             df_view,
@@ -197,7 +202,7 @@ pub fn load_edge_deletions_from_parquet<
     }
 
     for path in get_parquet_file_paths(parquet_path)? {
-        let df_view = process_parquet_file_to_df(path.as_path(), &cols_to_check)?;
+        let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check))?;
         df_view.check_cols_exist(&cols_to_check)?;
         load_edge_deletions_from_df(df_view, time, src, dst, layer, layer_col, graph)
             .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
@@ -207,13 +212,13 @@ pub fn load_edge_deletions_from_parquet<
 
 pub(crate) fn process_parquet_file_to_df(
     parquet_file_path: &Path,
-    col_names: &[&str],
+    col_names: Option<&[&str]>,
 ) -> Result<DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>, GraphError> {
     let (names, chunks, num_rows) = read_parquet_file(parquet_file_path, col_names)?;
 
     let names: Vec<String> = names
         .into_iter()
-        .filter(|x| col_names.contains(&x.as_str()))
+        .filter(|x| col_names.map(|cn| cn.contains(&x.as_str())).unwrap_or(true))
         .collect();
 
     let chunks = chunks.into_iter().map(move |result| {
@@ -233,9 +238,9 @@ pub(crate) fn process_parquet_file_to_df(
     })
 }
 
-fn read_parquet_file(
+pub fn read_parquet_file(
     path: impl AsRef<Path>,
-    col_names: &[&str],
+    col_names: Option<&[&str]>,
 ) -> Result<(Vec<String>, FileReader<File>, usize), GraphError> {
     let read_schema = |metadata: &FileMetaData| -> Result<(ArrowSchema, usize), GraphError> {
         let schema = read::infer_schema(metadata)?;
@@ -251,7 +256,9 @@ fn read_parquet_file(
             })
             .filter(|f| {
                 // Filtered fields to avoid loading data that is not needed
-                col_names.contains(&f.name.as_str())
+                col_names
+                    .map(|cn| cn.contains(&f.name.as_str()))
+                    .unwrap_or(true)
             })
             .collect::<Vec<_>>();
 
@@ -274,14 +281,13 @@ fn read_parquet_file(
     Ok((names, reader, num_rows))
 }
 
-fn get_parquet_file_paths(parquet_path: &Path) -> Result<Vec<PathBuf>, GraphError> {
+pub fn get_parquet_file_paths(parquet_path: &Path) -> Result<Vec<PathBuf>, GraphError> {
     let mut parquet_files = Vec::new();
     if parquet_path.is_file() {
         parquet_files.push(parquet_path.to_path_buf());
     } else if parquet_path.is_dir() {
-        for entry in fs::read_dir(parquet_path).expect("Directory not found") {
-            let entry = entry.expect("Unable to read entry");
-            let path = entry.path();
+        for entry in fs::read_dir(parquet_path)? {
+            let path = entry?.path();
             if path.extension().map_or(false, |ext| ext == "parquet") {
                 parquet_files.push(path);
             }
@@ -291,8 +297,39 @@ fn get_parquet_file_paths(parquet_path: &Path) -> Result<Vec<PathBuf>, GraphErro
             parquet_path.to_path_buf(),
         )));
     }
+    parquet_files.sort();
 
     Ok(parquet_files)
+}
+
+#[cfg(feature = "storage")]
+pub fn read_struct_arrays(
+    path: &Path,
+    col_names: Option<&[&str]>,
+) -> Result<impl Iterator<Item = Result<StructArray, RAError>>, GraphError> {
+    let readers = get_parquet_file_paths(&path)?
+        .into_iter()
+        .map(|path| {
+            read_parquet_file(path, col_names.as_deref())
+                .map(|(col_names, reader, _)| (col_names, reader))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let chunks = readers.into_iter().flat_map(|(field_names, iter)| {
+        iter.map(move |cols| {
+            cols.map(|col| {
+                let values = col.into_arrays();
+                let fields = values
+                    .iter()
+                    .zip(field_names.iter())
+                    .map(|(arr, field_name)| Field::new(field_name, arr.data_type().clone(), true))
+                    .collect::<Vec<_>>();
+                StructArray::new(DataType::Struct(fields), values, None)
+            })
+            .map_err(RAError::Arrow)
+        })
+    });
+    Ok(chunks)
 }
 
 #[cfg(test)]
@@ -307,7 +344,7 @@ mod test {
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources/test/test_data.parquet");
 
         let col_names: &[&str] = &["src", "dst", "time", "weight", "marbles"];
-        let df = process_parquet_file_to_df(parquet_file_path.as_path(), col_names).unwrap();
+        let df = process_parquet_file_to_df(parquet_file_path.as_path(), Some(col_names)).unwrap();
 
         let expected_names: Vec<String> = vec!["src", "dst", "time", "weight", "marbles"]
             .iter()
