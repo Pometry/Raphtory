@@ -263,8 +263,8 @@ impl DiskGraphStorage {
             }
         }
 
-        for l_name in inner_graph.layer_names() {
-            edge_meta.layer_meta().get_or_create_id(l_name);
+        for (l_id, l_name) in inner_graph.layer_names().into_iter().enumerate() {
+            edge_meta.layer_meta().set_id(l_name.as_str(), l_id);
         }
 
         if let Some(props) = &inner_graph.node_properties().const_props {

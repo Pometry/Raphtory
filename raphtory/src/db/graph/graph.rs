@@ -2143,6 +2143,38 @@ mod db_tests {
     }
 
     #[test]
+    fn test_multi_layer_degree() {
+        let graph = Graph::new();
+        graph.add_node(1, 2, NO_PROPS, None).unwrap();
+        graph.add_node(1, 3, NO_PROPS, None).unwrap();
+        graph.add_node(1, 4, NO_PROPS, None).unwrap();
+
+        graph.add_edge(1, 1, 4, NO_PROPS, None).expect("failed");
+        graph
+            .add_edge(1, 1, 2, NO_PROPS, "eth".into())
+            .expect("failed");
+        graph
+            .add_edge(1, 1, 3, NO_PROPS, "eth".into())
+            .expect("failed");
+
+        graph
+            .add_edge(1, 2, 3, NO_PROPS, "eth".into())
+            .expect("failed");
+        graph.add_edge(1, 4, 3, NO_PROPS, None).expect("failed");
+
+        test_storage!(&graph, |graph| {
+            let actual = graph.node(1u64).map(|n| n.out_degree());
+            assert_eq!(actual, Some(3));
+
+            let actual = graph.node(3u64).map(|n| n.in_degree());
+            assert_eq!(actual, Some(3));
+
+            let actual = graph.node(3u64).map(|n| n.degree());
+            assert_eq!(actual, Some(3));
+        });
+    }
+
+    #[test]
     fn test_multiple_layers_fundamentals() {
         let graph = Graph::new();
 
