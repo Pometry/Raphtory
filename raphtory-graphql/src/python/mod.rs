@@ -1,4 +1,4 @@
-use crate::url_encode::{url_encode_graph, UrlDecodeError};
+use crate::url_encode::{url_decode_graph, url_encode_graph, UrlDecodeError};
 use async_graphql::{dynamic::ValueAccessor, Value as GraphqlValue};
 use pyo3::{
     exceptions::{PyTypeError, PyValueError},
@@ -9,6 +9,9 @@ use pyo3::{
 use raphtory::{db::api::view::MaterializedGraph, python::utils::errors::adapt_err_value};
 use serde_json::{Map, Number, Value as JsonValue};
 use std::collections::HashMap;
+use base64::prelude::BASE64_URL_SAFE;
+use raphtory::core::utils::errors::GraphError;
+use raphtory::prelude::StableEncode;
 
 pub mod client;
 pub mod global_plugins;
@@ -114,6 +117,15 @@ pub(crate) fn encode_graph(graph: MaterializedGraph) -> PyResult<String> {
     match result {
         Ok(s) => Ok(s),
         Err(e) => Err(PyValueError::new_err(format!("Error encoding: {:?}", e))),
+    }
+}
+
+#[pyfunction]
+pub(crate) fn decode_graph(graph: String) -> PyResult<MaterializedGraph> {
+    let result = url_decode_graph(graph);
+    match result {
+        Ok(s) => Ok(s),
+        Err(e) => Err(PyValueError::new_err(format!("Error decoding: {:?}", e))),
     }
 }
 
