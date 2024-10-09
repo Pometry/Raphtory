@@ -3,7 +3,7 @@ import tempfile
 
 import pytest
 
-from raphtory.graphql import GraphServer, RaphtoryClient
+from raphtory.graphql import GraphServer, RaphtoryClient, encode_graph
 from raphtory import graph_loader
 from raphtory import Graph
 import json
@@ -11,6 +11,16 @@ import json
 
 def normalize_path(path):
     return path.replace("\\", "/")
+
+
+def test_encode_graph():
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+
+    encoded = encode_graph(g)
+    assert encoded == "EgxaCgoIX2RlZmF1bHQSDBIKCghfZGVmYXVsdBoFCgNiZW4aCQoFaGFtemEYARoLCgdoYWFyb29uGAIiAhABIgYIAhABGAEiBBACGAIqAhoAKgQSAhABKgQSAhADKgIKACoGEgQIARABKgYSBAgBEAIqBAoCCAEqBhIECAIQAioGEgQIAhADKgQKAggCKgQ6AhABKgIyACoIOgYIARACGAEqBDICCAEqCDoGCAIQAxgCKgQyAggC"
 
 
 def test_failed_server_start_in_time():
