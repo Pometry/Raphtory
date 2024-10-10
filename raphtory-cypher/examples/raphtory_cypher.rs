@@ -116,6 +116,7 @@ mod cypher {
         src_col: String,
         dst_col: String,
         time_col: String,
+        exclude: Option<Vec<String>>,
     }
 
     impl std::str::FromStr for ArgLayer {
@@ -182,6 +183,7 @@ mod cypher {
                                 src_col,
                                 dst_col,
                                 time_col,
+                                exclude: exclude_edge_props,
                             },
                         ) = &layers[layer_id];
                         ParquetLayerCols {
@@ -190,6 +192,11 @@ mod cypher {
                             src_col: &src_col,
                             dst_col: &dst_col,
                             time_col: &time_col,
+                            exclude_edge_props: exclude_edge_props
+                                .into_iter()
+                                .flatten()
+                                .map(|s| s.as_str())
+                                .collect(),
                         }
                     })
                     .collect();

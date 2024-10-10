@@ -337,6 +337,7 @@ mod cypher {
                         src_col: "source",
                         dst_col: "destination",
                         time_col: "time",
+                        exclude_edge_props: vec!["destination_port"],
                     },
                     ParquetLayerCols {
                         parquet_dir: v1_layer_path.to_str().unwrap(),
@@ -344,6 +345,7 @@ mod cypher {
                         src_col: "src",
                         dst_col: "dst",
                         time_col: "epoch_time",
+                        exclude_edge_props: vec![]
                     },
                 ];
 
