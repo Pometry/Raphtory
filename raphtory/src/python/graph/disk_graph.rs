@@ -90,6 +90,10 @@ impl<'a> FromPyObject<'a> for ParquetLayerCols<'a> {
                 .get_item("time_col")
                 .and_then(|item| item.expect("time_col is required").extract::<&PyString>())
                 .and_then(|s| s.to_str())?,
+            exclude_edge_props: dict.get_item("exclude_edge_props").and_then(|item| {
+                item.map(|item| item.extract::<Vec<&str>>())
+                    .unwrap_or_else(|| Ok(vec![]))
+            })?,
         })
     }
 }
