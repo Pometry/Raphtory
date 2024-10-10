@@ -345,7 +345,7 @@ mod cypher {
                         src_col: "src",
                         dst_col: "dst",
                         time_col: "epoch_time",
-                        exclude_edge_props: vec![]
+                        exclude_edge_props: vec![],
                     },
                 ];
 

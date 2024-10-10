@@ -350,8 +350,15 @@ impl DiskGraphStorage {
                      time_col,
                      exclude_edge_props,
                  }| {
-                    ExternalEdgeList::new(layer, parquet_dir.as_ref(), src_col, dst_col, time_col, exclude_edge_props)
-                        .expect("Failed to load events")
+                    ExternalEdgeList::new(
+                        layer,
+                        parquet_dir.as_ref(),
+                        src_col,
+                        dst_col,
+                        time_col,
+                        exclude_edge_props,
+                    )
+                    .expect("Failed to load events")
                 },
             )
             .collect::<Vec<_>>();
