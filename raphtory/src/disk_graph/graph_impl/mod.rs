@@ -377,8 +377,6 @@ mod test {
         let chunk_size = 268_435_456;
         let num_threads = 4;
         let t_props_chunk_size = chunk_size / 8;
-        let read_chunk_size = 4_000_000;
-        let concurrent_files = 1;
 
         let netflow_layer_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .parent()

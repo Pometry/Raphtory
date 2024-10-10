@@ -613,6 +613,100 @@ mod tests {
     use proptest::proptest;
     use tempfile::{NamedTempFile, TempDir};
 
+    #[cfg(feature = "storage")]
+    mod load_multi_layer {
+
+        use std::{
+            fs::File,
+            path::{Path, PathBuf},
+        };
+
+        use polars_arrow::{
+            array::{PrimitiveArray, Utf8Array},
+            types::NativeType,
+        };
+        use polars_core::{frame::DataFrame, prelude::*};
+        use polars_io::prelude::{ParquetCompression, ParquetWriter};
+        use pometry_storage::{graph::TemporalGraph, load::ExternalEdgeList};
+        use prop::sample::SizeRange;
+        use proptest::prelude::*;
+        use tempfile::TempDir;
+
+        fn build_edge_list_df(
+            len: usize,
+            num_nodes: impl Strategy<Value = u64>,
+            num_layers: impl Into<SizeRange>,
+        ) -> impl Strategy<Value = Vec<DataFrame>> {
+            let layer = num_nodes
+                .prop_flat_map(move |num_nodes| build_edge_list(len, num_nodes))
+                .prop_map(move |mut rows| {
+                    rows.sort_by_key(|(src, dst, time, _, _)| (*src, *dst, *time));
+                    let src = native_series("str", rows.iter().map(|(src, _, _, _, _)| *src));
+                    let dst = native_series("dst", rows.iter().map(|(_, dst, _, _, _)| *dst));
+                    let time = native_series("time", rows.iter().map(|(_, _, time, _, _)| *time));
+                    let int_prop = native_series(
+                        "int_prop",
+                        rows.iter().map(|(_, _, _, _, int_prop)| *int_prop),
+                    );
+
+                    let str_prop = Series::from_arrow(
+                        "str_prop",
+                        Utf8Array::<i64>::from_iter(
+                            rows.iter()
+                                .map(|(_, _, _, str_prop, _)| Some(str_prop.clone())),
+                        )
+                        .boxed(),
+                    )
+                    .unwrap();
+
+                    DataFrame::new(vec![src, dst, time, str_prop, int_prop]).unwrap()
+                });
+            proptest::collection::vec(layer, num_layers)
+        }
+
+        fn native_series<T: NativeType>(name: &str, is: impl IntoIterator<Item = T>) -> Series {
+            let is = PrimitiveArray::from_vec(is.into_iter().collect());
+            Series::from_arrow(name, is.boxed()).unwrap()
+        }
+
+        #[test]
+        fn load_from_multiple_layers() {
+            proptest!(|(input in build_edge_list_df(50, 1u64..23, 1..10,  ), num_threads in 1usize..10)| {
+                let root_dir = TempDir::new().unwrap();
+                let graph_dir = TempDir::new().unwrap();
+                let layers = input.into_iter().enumerate().map(|(i, df)| (i.to_string(), df)).collect::<Vec<_>>();
+                let edge_lists = write_layers(&layers, root_dir.path());
+
+                let graph = TemporalGraph::from_parquets(num_threads, 13, 23, graph_dir.path(), edge_lists, &[], None, None).unwrap();
+            });
+        }
+
+        fn write_layers<'a>(
+            layers: &'a [(String, DataFrame)],
+            root_dir: &Path,
+        ) -> Vec<ExternalEdgeList<'a, PathBuf>> {
+            let mut paths = vec![];
+            for (name, df) in layers.into_iter() {
+                let layer_dir = root_dir.join(name);
+                std::fs::create_dir_all(&layer_dir).unwrap();
+                let layer_path = layer_dir.join("edges.parquet");
+
+                paths.push(
+                    ExternalEdgeList::new(name, layer_path.to_path_buf(), "src", "dst", "time")
+                        .unwrap(),
+                );
+
+                let file = File::create(layer_path).unwrap();
+                let mut df = df.clone();
+                ParquetWriter::new(file)
+                    .with_compression(ParquetCompression::Snappy)
+                    .finish(&mut df)
+                    .unwrap();
+            }
+            paths
+        }
+    }
+
     fn build_df(
         chunk_size: usize,
         edges: &[(u64, u64, i64, String, i64)],

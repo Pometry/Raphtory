@@ -156,9 +156,86 @@ impl PyDiskGraph {
 
             let df_view = process_pandas_py_df(edge_df, py, df_columns)?;
             df_view.check_cols_exist(&cols_to_check)?;
-            let src_index = df_view.get_index(src_col)?;
-            let dst_index = df_view.get_index(dst_col)?;
-            let time_index = df_view.get_index(time_col)?;
+            let graph = Self::from_pandas(graph_dir, df_view, time_col, src_col, dst_col)?;
+
+            Ok::<_, GraphError>(graph)
+        });
+
+        graph.map_err(|e| {
+            GraphError::LoadFailure(format!(
+                "Failed to load graph {e:?} from pandas data frames"
+            ))
+        })
+    }
+
+    #[staticmethod]
+    fn load_from_dir(graph_dir: &str) -> Result<DiskGraphStorage, GraphError> {
+        DiskGraphStorage::load_from_dir(graph_dir).map_err(|err| {
+            GraphError::LoadFailure(format!("Failed to load graph {err:?} from dir {graph_dir}"))
+        })
+    }
+
+    #[staticmethod]
+    #[pyo3(
+        signature = (graph_dir, layer_parquet_cols, node_properties, chunk_size, t_props_chunk_size, num_threads, node_type_col)
+    )]
+    fn load_from_parquets(
+        graph_dir: &str,
+        layer_parquet_cols: ParquetLayerColsList,
+        node_properties: Option<&str>,
+        chunk_size: usize,
+        t_props_chunk_size: usize,
+        num_threads: usize,
+        node_type_col: Option<&str>,
+    ) -> Result<DiskGraphStorage, GraphError> {
+        let graph = Self::from_parquets(
+            graph_dir,
+            layer_parquet_cols.0,
+            node_properties,
+            chunk_size,
+            t_props_chunk_size,
+            num_threads,
+            node_type_col,
+        );
+        graph.map_err(|e| {
+            GraphError::LoadFailure(format!("Failed to load graph {e:?} from parquet files"))
+        })
+    }
+
+    /// Merge this graph with another `DiskGraph`. Note that both graphs should have nodes that are
+    /// sorted by their global ids or the resulting graph will be nonsense!
+    fn merge_by_sorted_gids(
+        &self,
+        other: &Self,
+        graph_dir: &str,
+    ) -> Result<DiskGraphStorage, GraphError> {
+        self.graph.merge_by_sorted_gids(&other.graph, graph_dir)
+    }
+
+    fn __repr__(&self) -> String {
+        StructReprBuilder::new("DiskGraph")
+            .add_field("number_of_nodes", self.graph.inner.num_nodes())
+            .add_field(
+                "number_of_temporal_edges",
+                self.graph.inner.count_temporal_edges(),
+            )
+            .add_field("earliest_time", self.graph.inner.earliest())
+            .add_field("latest_time", self.graph.inner.latest())
+            .finish()
+    }
+}
+
+impl PyDiskGraph {
+    fn from_pandas(
+        graph_dir: &str,
+        df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
+        time: &str,
+        src: &str,
+        dst: &str,
+    ) -> Result<DiskGraphStorage, GraphError> {
+        let src_index = df_view.get_index(src)?;
+        let dst_index = df_view.get_index(dst)?;
+        let time_index = df_view.get_index(time)?;
 
             let mut chunks_iter = df_view.chunks.peekable();
             let chunk_size = if let Some(result) = chunks_iter.peek() {
@@ -228,8 +305,6 @@ impl PyDiskGraph {
         node_properties: Option<PathBuf>,
         chunk_size: usize,
         t_props_chunk_size: usize,
-        read_chunk_size: Option<usize>,
-        concurrent_files: Option<usize>,
         num_threads: usize,
         node_type_col: Option<&str>,
     ) -> Result<DiskGraphStorage, GraphError> {
@@ -239,8 +314,6 @@ impl PyDiskGraph {
             node_properties,
             chunk_size,
             t_props_chunk_size,
-            read_chunk_size,
-            concurrent_files,
             num_threads,
             node_type_col,
         )

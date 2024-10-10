@@ -211,9 +211,8 @@ impl DiskGraphStorage {
         new_graph_dir: impl AsRef<Path>,
     ) -> Result<DiskGraphStorage, GraphError> {
         let graph_dir = new_graph_dir.as_ref();
-        // let inner = merge_graphs(graph_dir, &self.inner, &other.inner)?;
-        // Ok(DiskGraphStorage::new(inner))
-        todo!()
+        let inner = merge_graphs(graph_dir, &self.inner, &other.inner)?;
+        Ok(DiskGraphStorage::new(inner))
     }
 
     fn new(inner_graph: TemporalGraph) -> Self {
@@ -408,7 +407,8 @@ mod test {
     use tempfile::TempDir;
 
     use pometry_storage::{
-        global_order::GlobalMap, graph::TemporalGraph, graph_fragment::TempColGraphFragment, interop::GraphLike, RAError
+        global_order::GlobalMap, graph::TemporalGraph, graph_fragment::TempColGraphFragment,
+        interop::GraphLike, RAError,
     };
     use raphtory_api::core::{
         entities::{EID, ELID, VID},
@@ -416,7 +416,16 @@ mod test {
     };
 
     use crate::{
-        arrow2::datatypes::{ArrowDataType as DataType, ArrowSchema as Schema}, core::{entities::LayerIds, storage::timeindex::TimeIndexOps}, db::{api::{storage::graph::edges::edge_storage_ops::EdgeStorageOps, view::internal::{CoreGraphOps, TimeSemantics}}, graph::graph::assert_graph_equal}, prelude::*
+        arrow2::datatypes::{ArrowDataType as DataType, ArrowSchema as Schema},
+        core::{entities::LayerIds, storage::timeindex::TimeIndexOps},
+        db::{
+            api::{
+                storage::graph::edges::edge_storage_ops::EdgeStorageOps,
+                view::internal::{CoreGraphOps, TimeSemantics},
+            },
+            graph::graph::assert_graph_equal,
+        },
+        prelude::*,
     };
 
     fn edges_sanity_node_list(edges: &[(u64, u64, i64)]) -> Vec<u64> {

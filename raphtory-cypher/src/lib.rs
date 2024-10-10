@@ -355,8 +355,6 @@ mod cypher {
                     None,
                     100,
                     100,
-                    None,
-                    None,
                     1,
                     None,
                 )

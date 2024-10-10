@@ -155,11 +155,9 @@ impl GraphLike<TimeIndexEntry> for Graph {
         self.edge_meta().layer_meta().get_id(name)
     }
 
-
     fn out_neighbours(&self, vid: VID) -> impl Iterator<Item = (VID, EID)> + '_ {
         self.core_node_arc(vid)
-            .into_edges_iter(LayerIds::All, Direction::OUT).map(|e_ref| {
-                (e_ref.dst(), e_ref.pid())
-            })
+            .into_edges_iter(LayerIds::All, Direction::OUT)
+            .map(|e_ref| (e_ref.dst(), e_ref.pid()))
     }
 }
