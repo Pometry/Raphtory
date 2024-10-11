@@ -10,6 +10,7 @@
 
 from typing import *
 from raphtory import *
+from raphtory.typing import *
 from datetime import datetime
 
 def karate_club_graph():

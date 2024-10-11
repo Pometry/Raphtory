@@ -112,7 +112,7 @@ impl PyPersistentGraph {
     /// Adds a new node with the given id and properties to the graph.
     ///
     /// Arguments:
-    ///    timestamp (int, str, or datetime(utc)): The timestamp of the node.
+    ///    timestamp (TimeInput): The timestamp of the node.
     ///    id (str or int): The id of the node.
     ///    properties (dict): The properties of the node.
     ///    node_type (str) : The optional string which will be used as a node type
@@ -134,7 +134,7 @@ impl PyPersistentGraph {
     /// Adds properties to the graph.
     ///
     /// Arguments:
-    ///    timestamp (int, str, or datetime(utc)): The timestamp of the temporal property.
+    ///    timestamp (TimeInput): The timestamp of the temporal property.
     ///    properties (dict): The temporal properties of the graph.
     ///
     /// Returns:

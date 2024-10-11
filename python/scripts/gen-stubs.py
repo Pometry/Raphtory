@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
 import inspect
+import logging
 import textwrap
+import types
 from importlib import import_module
 from pathlib import Path
 from types import (
@@ -13,6 +15,7 @@ from types import (
 )
 from typing import *
 from raphtory import *
+from raphtory.typing import *
 from docstring_parser import parse, DocstringStyle, DocstringParam, ParseError
 from datetime import datetime
 
@@ -35,23 +38,62 @@ comment = """###################################################################
 imports = """
 from typing import *
 from raphtory import *
+from raphtory.typing import *
 from datetime import datetime
 """
 
 
+def format_type(obj) -> str:
+    if isinstance(obj, type):
+        return obj.__qualname__
+    if obj is ...:
+        return "..."
+    if isinstance(obj, types.FunctionType):
+        return obj.__name__
+    if isinstance(obj, tuple):
+        # Special case for `repr` of types with `ParamSpec`:
+        return "[" + ", ".join(format_type(t) for t in obj) + "]"
+    return repr(obj)
+
+
+def format_param(param: inspect.Parameter) -> str:
+    if param.kind == param.VAR_KEYWORD:
+        name = f"**{param.name}"
+    elif param.kind == param.VAR_POSITIONAL:
+        name = f"*{param.name}"
+    else:
+        name = param.name
+    if param.annotation is not param.empty:
+        annotation = param.annotation
+        if not isinstance(annotation, str):
+            annotation = format_type(annotation)
+        if param.default is not param.empty:
+            return f"{name}: {annotation} = {param.default}"
+        else:
+            return f"{name}: {annotation}"
+    else:
+        if param.default is param.empty:
+            return name
+        else:
+            return f"{name}={param.default}"
+
+
 def format_signature(sig: inspect.Signature) -> str:
-    sig = str(sig)
-    return sig.replace("Ellipsis", "...")
+    return (
+        "(" + ", ".join(format_param(param) for param in sig.parameters.values()) + ")"
+    )
 
 
 def clean_parameter(
     param: inspect.Parameter, type_annotations: dict[str, dict[str, Any]]
 ):
+    if param.default is not inspect.Parameter.empty:
+        param = param.replace(default=format_type(param.default))
     if param.name not in type_annotations:
         return param
     else:
         annotations = type_annotations[param.name]
-        if param.default is not inspect.Parameter.empty:
+        if param.default is not inspect.Parameter.empty and param.default is not ...:
             annotations["default"] = param.default
         return param.replace(**annotations)
 
@@ -70,11 +112,8 @@ def clean_signature(
         if "self" in sig.parameters:
             decorator = None
 
-    if type_annotations:
-        new_params = [
-            clean_parameter(p, type_annotations) for p in sig.parameters.values()
-        ]
-        sig = sig.replace(parameters=new_params)
+    new_params = [clean_parameter(p, type_annotations) for p in sig.parameters.values()]
+    sig = sig.replace(parameters=new_params)
     if return_type is not None:
         sig.replace(return_annotation=return_type)
     return format_signature(sig), decorator
@@ -115,24 +154,21 @@ def extract_param_annotation(param: DocstringParam) -> dict:
     if param.type_name is None:
         res["annotation"] = Any
     else:
-        type_name = param.type_name
-        try:
-            type_val = eval(type_name, globals(), None)
-        except Exception:
-            type_val = type_name
+        type_val = param.type_name
         if param.is_optional:
-            type_val = Optional[type_val]
+            type_val = f"Optional[{type_val}]"
         res["annotation"] = type_val
     if param.default is not None or param.is_optional:
         res["default"] = param.default
     return res
 
 
-def extract_types(docstr: Optional[str]) -> (dict[str, dict], Optional[str]):
+def extract_types(obj) -> (dict[str, dict], Optional[str]):
     """
     Extract types from documentation
     """
     try:
+        docstr = obj.__doc__
         if docstr is not None:
             parse_result = parse(docstr, DocstringStyle.GOOGLE)
             type_annotations = {
@@ -147,7 +183,7 @@ def extract_types(docstr: Optional[str]) -> (dict[str, dict], Optional[str]):
         else:
             return dict(), None
     except Exception as e:
-        print(e)
+        logging.warning(f"failed to parse docstring for {obj}: {e}")
         return dict(), None
 
 
@@ -158,7 +194,7 @@ def gen_fn(
 ) -> str:
     init_tab = TAB if is_method else ""
     fn_tab = TAB * 2 if is_method else TAB
-    type_annotations, return_type = extract_types(function.__doc__)
+    type_annotations, return_type = extract_types(function)
     docstr = format_docstring(function.__doc__, tab=fn_tab, ellipsis=True)
     signature = signature_overwrite or inspect.signature(function)
     signature, decorator = clean_signature(

@@ -330,7 +330,7 @@ impl PyVectorisedGraph {
     /// Search the top scoring documents according to `query` with no more than `limit` documents
     ///
     /// Args:
-    ///   query (str or list): the text or the embedding to score against
+    ///   query (str | list): the text or the embedding to score against
     ///   limit (int): the maximum number of documents to search
     ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
     ///
@@ -352,7 +352,7 @@ impl PyVectorisedGraph {
     /// Search the top scoring entities according to `query` with no more than `limit` entities
     ///
     /// Args:
-    ///   query (str or list): the text or the embedding to score against
+    ///   query (str | list): the text or the embedding to score against
     ///   limit (int): the maximum number of new entities to search
     ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
     ///
@@ -374,7 +374,7 @@ impl PyVectorisedGraph {
     /// Search the top scoring nodes according to `query` with no more than `limit` nodes
     ///
     /// Args:
-    ///   query (str or list): the text or the embedding to score against
+    ///   query (str | list): the text or the embedding to score against
     ///   limit (int): the maximum number of new nodes to search
     ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
     ///
@@ -396,7 +396,7 @@ impl PyVectorisedGraph {
     /// Search the top scoring edges according to `query` with no more than `limit` edges
     ///
     /// Args:
-    ///   query (str or list): the text or the embedding to score against
+    ///   query (str | list): the text or the embedding to score against
     ///   limit (int): the maximum number of new edges to search
     ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
     ///
@@ -498,7 +498,7 @@ impl PyVectorSelection {
     ///
     /// Args:
     ///   hops (int): the number of hops to carry out the expansion
-    ///   window ((int | str, int | str)): the window where documents need to belong to in order to be considered
+    ///   window (Tuple[int | str, int | str]): the window where documents need to belong to in order to be considered
     #[pyo3(signature = (hops, window=None))]
     fn expand(mut self_: PyRefMut<'_, Self>, hops: usize, window: PyWindow) {
         self_.0.expand(hops, translate_window(window))
@@ -516,8 +516,8 @@ impl PyVectorSelection {
     /// until no more documents are available
     ///
     /// Args:
-    ///   query (str or list): the text or the embedding to score against
-    ///   window ((int | str, int | str)): the window where documents need to belong to in order to be considered
+    ///   query (str | list): the text or the embedding to score against
+    ///   window (Tuple[int | str, int | str]): the window where documents need to belong to in order to be considered
     #[pyo3(signature = (query, limit, window=None))]
     fn expand_documents_by_similarity(
         mut self_: PyRefMut<'_, Self>,
@@ -544,8 +544,8 @@ impl PyVectorSelection {
     /// entities or until no more documents are available
     ///
     /// Args:
-    ///   query (str or list): the text or the embedding to score against
-    ///   window ((int | str, int | str)): the window where documents need to belong to in order to be considered
+    ///   query (str | list): the text or the embedding to score against
+    ///   window (Tuple[int | str, int | str]): the window where documents need to belong to in order to be considered
     #[pyo3(signature = (query, limit, window=None))]
     fn expand_entities_by_similarity(
         mut self_: PyRefMut<'_, Self>,
@@ -565,9 +565,9 @@ impl PyVectorSelection {
     /// This function has the same behavior as expand_entities_by_similarity but it only considers nodes.
     ///
     /// Args:
-    ///   query (str or list): the text or the embedding to score against
+    ///   query (str | list): the text or the embedding to score against
     ///   limit (int): the maximum number of new nodes to add
-    ///   window ((int | str, int | str)): the window where documents need to belong to in order to be considered
+    ///   window (Tuple[int | str, int | str]): the window where documents need to belong to in order to be considered
     #[pyo3(signature = (query, limit, window=None))]
     fn expand_nodes_by_similarity(
         mut self_: PyRefMut<'_, Self>,
@@ -587,9 +587,9 @@ impl PyVectorSelection {
     /// This function has the same behavior as expand_entities_by_similarity but it only considers edges.
     ///
     /// Args:
-    ///   query (str or list): the text or the embedding to score against
+    ///   query (str | list): the text or the embedding to score against
     ///   limit (int): the maximum number of new edges to add
-    ///   window ((int | str, int | str)): the window where documents need to belong to in order to be considered
+    ///   window (Tuple[int | str, int | str]): the window where documents need to belong to in order to be considered
     #[pyo3(signature = (query, limit, window=None))]
     fn expand_edges_by_similarity(
         mut self_: PyRefMut<'_, Self>,

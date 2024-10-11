@@ -14,6 +14,7 @@ use crate::{
             index::GraphIndex,
             node::{PyMutableNode, PyNode, PyNodes},
             properties::{PyConstProperties, PyProperties, PyTemporalProp, PyTemporalProperties},
+            views::graph_view::PyGraphView,
         },
         packages::{algorithms::*, graph_gen::*, graph_loader::*, vectors::PyVectorisedGraph},
         types::wrappers::{document::PyDocument, prop::PyPropertyRef},
@@ -26,6 +27,7 @@ pub fn add_raphtory_classes(m: &PyModule) -> PyResult<()> {
     add_classes!(
         m,
         PyGraph,
+        PyGraphView,
         PyGraphEncoder,
         PyPersistentGraph,
         PyNode,
