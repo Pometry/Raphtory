@@ -314,8 +314,14 @@ async fn server_termination(mut internal_signal: Receiver<()>, tp: Option<TP>) {
 mod server_tests {
     extern crate chrono;
 
+    use std::path::Path;
+
     use crate::server::GraphServer;
     use chrono::prelude::*;
+    use raphtory::{
+        prelude::{AdditionOps, Graph, StableEncode, NO_PROPS},
+        vectors::{template::DocumentTemplate, Embedding, EmbeddingResult},
+    };
     use raphtory_api::core::utils::logging::global_info_logger;
     use tokio::time::{sleep, Duration};
     use tracing::info;
@@ -329,6 +335,37 @@ mod server_tests {
         let handler = server.start_with_port(0);
         sleep(Duration::from_secs(1)).await;
         info!("Calling stop at time {}", Local::now());
+        handler.await.unwrap().stop().await
+    }
+
+    #[derive(thiserror::Error, Debug)]
+    enum SomeError {
+        #[error("A variant of this error")]
+        Variant,
+    }
+
+    async fn failing_embedding(_texts: Vec<String>) -> EmbeddingResult<Vec<Embedding>> {
+        Err(SomeError::Variant.into())
+    }
+
+    #[tokio::test]
+    async fn test_server_start_with_failing_embedding() {
+        let tmp_dir = tempfile::tempdir().unwrap();
+        let graph = Graph::new();
+        graph.add_node(0, 0, NO_PROPS, None).unwrap();
+        graph.encode(tmp_dir.path().join("g")).unwrap();
+
+        global_info_logger();
+        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, None).unwrap();
+        let template = DocumentTemplate {
+            node_template: Some("{{ name }}".to_owned()),
+            ..Default::default()
+        };
+        let cache = Path::new("/tmp/graph-cache");
+        let handler = server
+            .set_embeddings(failing_embedding, cache, Some(template))
+            .start_with_port(0);
+        sleep(Duration::from_secs(5)).await;
         handler.await.unwrap().stop().await
     }
 }

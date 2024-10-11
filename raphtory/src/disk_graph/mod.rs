@@ -263,8 +263,8 @@ impl DiskGraphStorage {
             }
         }
 
-        for l_name in inner_graph.layer_names() {
-            edge_meta.layer_meta().get_or_create_id(l_name);
+        for (l_id, l_name) in inner_graph.layer_names().into_iter().enumerate() {
+            edge_meta.layer_meta().set_id(l_name.as_str(), l_id);
         }
 
         if let Some(props) = &inner_graph.node_properties().const_props {
@@ -340,7 +340,7 @@ impl DiskGraphStorage {
         node_type_col: Option<&str>,
     ) -> Result<DiskGraphStorage, RAError> {
         let layered_edge_list: Vec<ExternalEdgeList<&Path>> = layer_parquet_cols
-            .iter()
+            .into_iter()
             .map(
                 |ParquetLayerCols {
                      parquet_dir,
@@ -348,9 +348,17 @@ impl DiskGraphStorage {
                      src_col,
                      dst_col,
                      time_col,
+                     exclude_edge_props,
                  }| {
-                    ExternalEdgeList::new(layer, parquet_dir.as_ref(), src_col, dst_col, time_col)
-                        .expect("Failed to load events")
+                    ExternalEdgeList::new(
+                        layer,
+                        parquet_dir.as_ref(),
+                        src_col,
+                        dst_col,
+                        time_col,
+                        exclude_edge_props,
+                    )
+                    .expect("Failed to load events")
                 },
             )
             .collect::<Vec<_>>();

@@ -15,6 +15,7 @@ pub struct ParquetLayerCols<'a> {
     pub src_col: &'a str,
     pub dst_col: &'a str,
     pub time_col: &'a str,
+    pub exclude_edge_props: Vec<&'a str>,
 }
 
 impl Graph {
@@ -401,6 +402,7 @@ mod test {
                 src_col: "source",
                 dst_col: "destination",
                 time_col: "time",
+                exclude_edge_props: vec![],
             },
             ParquetLayerCols {
                 parquet_dir: v1_layer_path.to_str().unwrap(),
@@ -408,6 +410,7 @@ mod test {
                 src_col: "src",
                 dst_col: "dst",
                 time_col: "Time",
+                exclude_edge_props: vec![],
             },
         ];
 

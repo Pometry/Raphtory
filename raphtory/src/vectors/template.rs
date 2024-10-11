@@ -158,7 +158,7 @@ impl From<Prop> for Value {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Default)]
 pub struct DocumentTemplate {
     pub graph_template: Option<String>,
     pub node_template: Option<String>,

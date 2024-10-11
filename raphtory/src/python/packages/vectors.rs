@@ -1,6 +1,8 @@
 use crate::{
     core::{
-        entities::nodes::node_ref::NodeRef, utils::time::IntoTime, DocumentInput, Lifespan, Prop,
+        entities::nodes::node_ref::NodeRef,
+        utils::{errors::GraphError, time::IntoTime},
+        DocumentInput, Lifespan, Prop,
     },
     db::api::{
         properties::{internal::PropertiesOps, Properties},
@@ -17,7 +19,7 @@ use crate::{
         vector_selection::DynamicVectorSelection,
         vectorisable::Vectorisable,
         vectorised_graph::{DynamicVectorisedGraph, VectorisedGraph},
-        Document, Embedding, EmbeddingFunction,
+        Document, Embedding, EmbeddingFunction, EmbeddingResult,
     },
 };
 use chrono::DateTime;
@@ -42,10 +44,16 @@ pub enum PyQuery {
 }
 
 impl PyQuery {
-    async fn into_embedding<E: EmbeddingFunction + ?Sized>(self, embedding: &E) -> Embedding {
+    async fn into_embedding<E: EmbeddingFunction + ?Sized>(
+        self,
+        embedding: &E,
+    ) -> PyResult<Embedding> {
         match self {
-            Self::Raw(query) => embedding.call(vec![query]).await.remove(0),
-            Self::Computed(embedding) => embedding,
+            Self::Raw(query) => {
+                let result = embedding.call(vec![query]).await;
+                Ok(result.map_err(GraphError::from)?.remove(0))
+            }
+            Self::Computed(embedding) => Ok(embedding),
         }
     }
 }
@@ -254,7 +262,7 @@ impl PyGraphView {
         edge_template: Option<String>,
         graph_name: Option<String>,
         verbose: bool,
-    ) -> DynamicVectorisedGraph {
+    ) -> PyResult<DynamicVectorisedGraph> {
         let embedding: Py<PyFunction> = embedding.into();
         let graph = self.graph.clone();
         let cache = cache.map(|cache| cache.into()).into();
@@ -264,7 +272,7 @@ impl PyGraphView {
             edge_template,
         };
         execute_async_task(move || async move {
-            graph
+            Ok(graph
                 .vectorise(
                     Box::new(embedding.clone()),
                     cache,
@@ -273,7 +281,7 @@ impl PyGraphView {
                     graph_name,
                     verbose,
                 )
-                .await
+                .await?)
         })
     }
 }
@@ -334,10 +342,11 @@ impl PyVectorisedGraph {
         query: PyQuery,
         limit: usize,
         window: PyWindow,
-    ) -> DynamicVectorSelection {
-        let embedding = compute_embedding(&self.0, query);
-        self.0
-            .documents_by_similarity(&embedding, limit, translate_window(window))
+    ) -> PyResult<DynamicVectorSelection> {
+        let embedding = compute_embedding(&self.0, query)?;
+        Ok(self
+            .0
+            .documents_by_similarity(&embedding, limit, translate_window(window)))
     }
 
     /// Search the top scoring entities according to `query` with no more than `limit` entities
@@ -355,10 +364,11 @@ impl PyVectorisedGraph {
         query: PyQuery,
         limit: usize,
         window: PyWindow,
-    ) -> DynamicVectorSelection {
-        let embedding = compute_embedding(&self.0, query);
-        self.0
-            .entities_by_similarity(&embedding, limit, translate_window(window))
+    ) -> PyResult<DynamicVectorSelection> {
+        let embedding = compute_embedding(&self.0, query)?;
+        Ok(self
+            .0
+            .entities_by_similarity(&embedding, limit, translate_window(window)))
     }
 
     /// Search the top scoring nodes according to `query` with no more than `limit` nodes
@@ -376,10 +386,11 @@ impl PyVectorisedGraph {
         query: PyQuery,
         limit: usize,
         window: PyWindow,
-    ) -> DynamicVectorSelection {
-        let embedding = compute_embedding(&self.0, query);
-        self.0
-            .nodes_by_similarity(&embedding, limit, translate_window(window))
+    ) -> PyResult<DynamicVectorSelection> {
+        let embedding = compute_embedding(&self.0, query)?;
+        Ok(self
+            .0
+            .nodes_by_similarity(&embedding, limit, translate_window(window)))
     }
 
     /// Search the top scoring edges according to `query` with no more than `limit` edges
@@ -397,10 +408,11 @@ impl PyVectorisedGraph {
         query: PyQuery,
         limit: usize,
         window: PyWindow,
-    ) -> DynamicVectorSelection {
-        let embedding = compute_embedding(&self.0, query);
-        self.0
-            .edges_by_similarity(&embedding, limit, translate_window(window))
+    ) -> PyResult<DynamicVectorSelection> {
+        let embedding = compute_embedding(&self.0, query)?;
+        Ok(self
+            .0
+            .edges_by_similarity(&embedding, limit, translate_window(window)))
     }
 }
 
@@ -512,11 +524,12 @@ impl PyVectorSelection {
         query: PyQuery,
         limit: usize,
         window: PyWindow,
-    ) {
-        let embedding = compute_embedding(&self_.0.graph, query);
+    ) -> PyResult<()> {
+        let embedding = compute_embedding(&self_.0.graph, query)?;
         self_
             .0
-            .expand_documents_by_similarity(&embedding, limit, translate_window(window))
+            .expand_documents_by_similarity(&embedding, limit, translate_window(window));
+        Ok(())
     }
 
     /// Add the top `limit` adjacent entities with higher score for `query` to the selection
@@ -539,11 +552,12 @@ impl PyVectorSelection {
         query: PyQuery,
         limit: usize,
         window: PyWindow,
-    ) {
-        let embedding = compute_embedding(&self_.0.graph, query);
+    ) -> PyResult<()> {
+        let embedding = compute_embedding(&self_.0.graph, query)?;
         self_
             .0
-            .expand_entities_by_similarity(&embedding, limit, translate_window(window))
+            .expand_entities_by_similarity(&embedding, limit, translate_window(window));
+        Ok(())
     }
 
     /// Add the top `limit` adjacent nodes with higher score for `query` to the selection
@@ -560,11 +574,12 @@ impl PyVectorSelection {
         query: PyQuery,
         limit: usize,
         window: PyWindow,
-    ) {
-        let embedding = compute_embedding(&self_.0.graph, query);
+    ) -> PyResult<()> {
+        let embedding = compute_embedding(&self_.0.graph, query)?;
         self_
             .0
-            .expand_nodes_by_similarity(&embedding, limit, translate_window(window))
+            .expand_nodes_by_similarity(&embedding, limit, translate_window(window));
+        Ok(())
     }
 
     /// Add the top `limit` adjacent edges with higher score for `query` to the selection
@@ -581,41 +596,50 @@ impl PyVectorSelection {
         query: PyQuery,
         limit: usize,
         window: PyWindow,
-    ) {
-        let embedding = compute_embedding(&self_.0.graph, query);
+    ) -> PyResult<()> {
+        let embedding = compute_embedding(&self_.0.graph, query)?;
         self_
             .0
-            .expand_edges_by_similarity(&embedding, limit, translate_window(window))
+            .expand_edges_by_similarity(&embedding, limit, translate_window(window));
+        Ok(())
     }
 }
 
 pub fn compute_embedding<G: StaticGraphViewOps>(
     vectors: &VectorisedGraph<G>,
     query: PyQuery,
-) -> Embedding {
+) -> PyResult<Embedding> {
     let embedding = vectors.embedding.clone();
     execute_async_task(move || async move { query.into_embedding(embedding.as_ref()).await })
 }
 
 impl EmbeddingFunction for Py<PyFunction> {
-    fn call(&self, texts: Vec<String>) -> BoxFuture<'static, Vec<Embedding>> {
+    fn call(&self, texts: Vec<String>) -> BoxFuture<'static, EmbeddingResult<Vec<Embedding>>> {
         let embedding_function = self.clone();
         Box::pin(async move {
             Python::with_gil(|py| {
                 let python_texts = PyList::new(py, texts);
-                let result = embedding_function.call1(py, (python_texts,)).unwrap();
-                let embeddings: &PyList = result.downcast(py).unwrap();
+                let result = embedding_function.call1(py, (python_texts,))?;
+                let embeddings: &PyList = result.downcast(py).map_err(|_| {
+                    PyTypeError::new_err(
+                        "value returned by the embedding function was not a python list",
+                    )
+                })?;
 
-                embeddings
+                let embeddings: EmbeddingResult<Vec<_>> = embeddings
                     .iter()
                     .map(|embedding| {
-                        let pylist: &PyList = embedding.downcast().unwrap();
-                        pylist
+                        let pylist: &PyList = embedding.downcast().map_err(|_| {
+                            PyTypeError::new_err("one of the values in the list returned by the embedding function was not a python list")
+                        })?;
+                        let embedding: EmbeddingResult<Embedding> = pylist
                             .iter()
-                            .map(|element| element.extract::<f32>().unwrap())
-                            .collect()
+                            .map(|element| Ok(element.extract::<f32>()?))
+                            .collect();
+                        Ok(embedding?)
                     })
-                    .collect_vec()
+                    .collect();
+                Ok(embeddings?)
             })
         })
     }

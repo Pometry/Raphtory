@@ -16,7 +16,7 @@ macro_rules! impl_serialise {
             ///
             /// Arguments:
             ///     path (str): The path to the cache file
-            fn cache(&self, path: &str) -> Result<(), GraphError> {
+            fn cache(&self, path: std::path::PathBuf) -> Result<(), GraphError> {
                 $crate::serialise::CacheOps::cache(&self.$field, path)
             }
 
@@ -36,7 +36,7 @@ macro_rules! impl_serialise {
             /// Returns:
             #[doc = concat!("   ", $name)]
             #[staticmethod]
-            fn load_cached(path: &str) -> Result<$base_type, GraphError> {
+            fn load_cached(path: PathBuf) -> Result<$base_type, GraphError> {
                 <$base_type as $crate::serialise::CacheOps>::load_cached(path)
             }
 
@@ -48,7 +48,7 @@ macro_rules! impl_serialise {
             /// Returns:
             #[doc = concat!("   ", $name)]
             #[staticmethod]
-            fn load_from_file(path: &str) -> Result<$base_type, GraphError> {
+            fn load_from_file(path: PathBuf) -> Result<$base_type, GraphError> {
                 <$base_type as $crate::serialise::StableDecode>::decode(path)
             }
 
@@ -56,7 +56,7 @@ macro_rules! impl_serialise {
             ///
             /// Arguments:
             ///  path (str): The path to the file.
-            fn save_to_file(&self, path: &str) -> Result<(), GraphError> {
+            fn save_to_file(&self, path: PathBuf) -> Result<(), GraphError> {
                 $crate::serialise::StableEncode::encode(&self.$field, path)
             }
 
@@ -64,7 +64,7 @@ macro_rules! impl_serialise {
             ///
             /// Arguments:
             ///  path (str): The path to the file.
-            fn save_to_zip(&self, path: &str) -> Result<(), GraphError> {
+            fn save_to_zip(&self, path: PathBuf) -> Result<(), GraphError> {
                 let folder = $crate::serialise::GraphFolder::new_as_zip(path);
                 $crate::serialise::StableEncode::encode(&self.$field, folder)
             }

@@ -78,6 +78,8 @@ pub enum WriteError {
     WriteError(io::Error),
 }
 
+pub type GraphResult<T> = Result<T, GraphError>;
+
 #[derive(thiserror::Error, Debug)]
 pub enum GraphError {
     #[error("You cannot set ‘{0}’ and ‘{1}’ at the same time. Please pick one or the other.")]
@@ -204,6 +206,13 @@ pub enum GraphError {
     IndexError {
         #[from]
         source: tantivy::TantivyError,
+    },
+
+    #[cfg(feature = "vectors")]
+    #[error("Embedding operation failed")]
+    EmbeddingError {
+        #[from]
+        source: Box<dyn std::error::Error + Send + Sync>,
     },
 
     #[cfg(feature = "search")]

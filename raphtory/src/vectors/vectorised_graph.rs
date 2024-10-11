@@ -1,6 +1,6 @@
 use crate::{
     // core::entities::nodes::node_ref::AsNodeRef,
-    core::entities::nodes::node_ref::AsNodeRef,
+    core::{entities::nodes::node_ref::AsNodeRef, utils::errors::GraphResult},
     db::api::view::{DynamicGraph, IntoDynamic, StaticGraphViewOps},
     prelude::*,
     vectors::{
@@ -89,7 +89,7 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         }
     }
 
-    pub async fn update_node<T: AsNodeRef>(&self, node: T) {
+    pub async fn update_node<T: AsNodeRef>(&self, node: T) -> GraphResult<()> {
         if let Some(node) = self.source_graph.node(node) {
             let entity_id = EntityId::from_node(node.clone());
             let refs = vectorise_node(
@@ -98,12 +98,13 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
                 &self.embedding,
                 self.cache_storage.as_ref(),
             )
-            .await;
+            .await?;
             self.node_documents.write().insert(entity_id, refs);
         }
+        Ok(())
     }
 
-    pub async fn update_edge<T: AsNodeRef>(&self, src: T, dst: T) {
+    pub async fn update_edge<T: AsNodeRef>(&self, src: T, dst: T) -> GraphResult<()> {
         if let Some(edge) = self.source_graph.edge(src, dst) {
             let entity_id = EntityId::from_edge(edge.clone());
             let refs = vectorise_edge(
@@ -112,12 +113,13 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
                 &self.embedding,
                 self.cache_storage.as_ref(),
             )
-            .await;
+            .await?;
             self.edge_documents.write().insert(entity_id, refs);
         }
+        Ok(())
     }
 
-    pub async fn update_graph(&self, graph_name: Option<String>) {
+    pub async fn update_graph(&self, graph_name: Option<String>) -> GraphResult<()> {
         let refs = vectorise_graph(
             &self.source_graph,
             graph_name,
@@ -125,8 +127,9 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
             &self.embedding,
             self.cache_storage.as_ref(),
         )
-        .await;
+        .await?;
         *self.graph_documents.write() = refs;
+        Ok(())
     }
 
     /// Save the embeddings present in this graph to `file` so they can be further used in a call to `vectorise`
