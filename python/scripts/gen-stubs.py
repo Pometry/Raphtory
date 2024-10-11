@@ -11,7 +11,9 @@ from types import (
     MethodDescriptorType,
     ModuleType,
 )
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union, Any
+from docstring_parser import parse, DocstringStyle, DocstringParam, ParseError
+
 
 TARGET_MODULES = ["raphtory", "builtins"]
 TAB = " " * 4
@@ -29,31 +31,46 @@ comment = """###################################################################
 ###############################################################################\n"""
 
 
-def clean_signature(sig: str, is_method: bool = False) -> Tuple[str, Optional[str]]:
-    sig = sig.replace("$self", "self")
-    sig = sig.replace("$cls", "cls")
-
+def clean_signature(
+    sig: inspect.Signature,
+    is_method: bool = False,
+    type_annotations: dict[str, dict[str, Any]] = {},
+    return_type: Optional[str] = None,
+) -> Tuple[str, Optional[str]]:
     decorator = None
     if is_method:
         decorator = "@staticmethod"
-        if "cls" in sig:
+        if "cls" in sig.parameters:
             decorator = "@classmethod"
-        if "self" in sig:
+        if "self" in sig.parameters:
             decorator = None
 
-    return sig, decorator
+    if type_annotations:
+        new_params = [
+            (
+                p
+                if p.name not in type_annotations
+                else p.replace(**type_annotations[p.name])
+            )
+            for p in sig.parameters.values()
+        ]
+        sig = sig.replace(parameters=new_params)
+    if return_type is not None:
+        sig.replace(return_annotation=return_type)
+    return str(sig), decorator
 
 
-def insert_self(signature: str) -> str:
-    # Remove the class name if present
-    params = signature.strip("()")
+def insert_self(signature: inspect.Signature) -> inspect.Signature:
+    self_param = inspect.Parameter("self", kind=inspect.Parameter.POSITIONAL_OR_KEYWORD)
+    return signature.replace(parameters=[self_param, *signature.parameters.values()])
 
-    if params == "":
-        new_params = "self"
-    else:
-        new_params = f"self, {params}"
 
-    return f"({new_params})"
+def cls_signature(cls: type) -> inspect.Signature:
+    try:
+        cls_signature = inspect.signature(cls)
+    except ValueError:
+        cls_signature = inspect.Signature()
+    return cls_signature
 
 
 def from_raphtory(obj) -> bool:
@@ -73,17 +90,55 @@ def format_docstring(docstr: Optional[str], tab: str, ellipsis: bool) -> str:
         return f"{tab}...\n" if ellipsis else ""
 
 
+def extract_param_annotation(param: DocstringParam) -> dict:
+    res = {}
+    if param.type_name is None:
+        res["annotation"] = "Any"
+    else:
+        res["annotation"] = param.type_name
+    if param.default is not None or param.is_optional:
+        res["default"] = param.default
+    return res
+
+
+def extract_types(docstr: Optional[str]) -> (dict[str, dict], Optional[str]):
+    """
+    Extract types from documentation
+    """
+    try:
+        if docstr is not None:
+            parse_result = parse(docstr, DocstringStyle.GOOGLE)
+            type_annotations = {
+                param.arg_name: extract_param_annotation(param)
+                for param in parse_result.params
+            }
+            if parse_result.returns is not None:
+                return_type = parse_result.returns.type_name
+            else:
+                return_type = "Any"
+            return type_annotations, return_type
+        else:
+            return dict(), None
+    except Exception as e:
+        print(e)
+        return dict(), None
+
+
 def gen_fn(
     function: Union[BuiltinFunctionType, BuiltinMethodType, MethodDescriptorType],
     is_method: bool = False,
-    signature_overwrite: Optional[str] = None,
+    signature_overwrite: Optional[inspect.Signature] = None,
 ) -> str:
     init_tab = TAB if is_method else ""
     fn_tab = TAB * 2 if is_method else TAB
+    type_annotations, return_type = extract_types(function.__doc__)
     docstr = format_docstring(function.__doc__, tab=fn_tab, ellipsis=True)
+    signature = signature_overwrite or inspect.signature(function)
     signature, decorator = clean_signature(
-        signature_overwrite or function.__text_signature__,  # type: ignore
+        signature,  # type: ignore
         is_method,
+        type_annotations,
+        return_type,
     )
 
     fn_str = f"{init_tab}def {function.__name__}{signature}:\n{docstr}"
@@ -108,7 +163,7 @@ def gen_class(cls: type) -> str:
 
         if entity.__name__ == "__init__":
             # Get __init__ signature from class info
-            signature = insert_self(cls.__text_signature__ or "()")
+            signature = insert_self(cls_signature(cls))
             entities.append(
                 gen_fn(entity, is_method=True, signature_overwrite=signature)
             )

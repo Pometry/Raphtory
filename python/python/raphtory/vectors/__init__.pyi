@@ -8,23 +8,32 @@
 ###############################################################################
 
 class Document:
+
     def __init__(self, content, life=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
     @property
-    def content(self): ...
+    def content(self):
+        ...
+
     @property
-    def embedding(self): ...
+    def embedding(self):
+        ...
+
     @property
-    def entity(self): ...
+    def entity(self):
+        ...
+
     @property
-    def life(self): ...
+    def life(self):
+        ...
 
 class VectorisedGraph:
+
     def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
-    def documents_by_similarity(self, query, limit, window=None):
+    def documents_by_similarity(self, /, query: 'str or list', limit: 'int', window: '(int | str, int | str)' = None):
         """
         Search the top scoring documents according to `query` with no more than `limit` documents
 
@@ -37,7 +46,7 @@ class VectorisedGraph:
           The vector selection resulting from the search
         """
 
-    def edges_by_similarity(self, query, limit, window=None):
+    def edges_by_similarity(self, /, query: 'str or list', limit: 'int', window: '(int | str, int | str)' = None):
         """
         Search the top scoring edges according to `query` with no more than `limit` edges
 
@@ -50,10 +59,10 @@ class VectorisedGraph:
           The vector selection resulting from the search
         """
 
-    def empty_selection(self):
+    def empty_selection(self, /):
         """Return an empty selection of documents"""
 
-    def entities_by_similarity(self, query, limit, window=None):
+    def entities_by_similarity(self, /, query: 'str or list', limit: 'int', window: '(int | str, int | str)' = None):
         """
         Search the top scoring entities according to `query` with no more than `limit` entities
 
@@ -66,7 +75,7 @@ class VectorisedGraph:
           The vector selection resulting from the search
         """
 
-    def nodes_by_similarity(self, query, limit, window=None):
+    def nodes_by_similarity(self, /, query: 'str or list', limit: 'int', window: '(int | str, int | str)' = None):
         """
         Search the top scoring nodes according to `query` with no more than `limit` nodes
 
@@ -79,5 +88,5 @@ class VectorisedGraph:
           The vector selection resulting from the search
         """
 
-    def save_embeddings(self, file):
+    def save_embeddings(self, /, file):
         """Save the embeddings present in this graph to `file` so they can be further used in a call to `vectorise`"""

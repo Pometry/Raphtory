@@ -7,7 +7,7 @@
 #                                                                             #
 ###############################################################################
 
-def all_local_reciprocity(g):
+def all_local_reciprocity(g: 'Raphtory graph'):
     """
     Local reciprocity - measure of the symmetry of relationships associated with a node
 
@@ -21,7 +21,7 @@ def all_local_reciprocity(g):
 
     """
 
-def average_degree(g):
+def average_degree(g: 'Raphtory graph'):
     """
     The average (undirected) degree of all nodes in the graph.
 
@@ -35,7 +35,7 @@ def average_degree(g):
         float : the average degree of the nodes in the graph
     """
 
-def balance(g, name=..., direction=..., threads=None):
+def balance(g: 'Raphtory Graph', name: 'str, default = "weight"' = '"weight" if not provided', direction: '`PyDirection`, default = PyDirection("BOTH")' = Ellipsis, threads: 'int, default = `None`' = 'single-threaded operation if not provided'):
     """
     Sums the weights of edges in the graph based on the specified direction.
 
@@ -55,7 +55,7 @@ def balance(g, name=..., direction=..., threads=None):
 
     """
 
-def betweenness_centrality(g, k=None, normalized=True):
+def betweenness_centrality(g: 'Raphtory Graph', k: 'int' = 'all nodes if `None`', normalized: 'boolean' = None):
     """
     Computes the betweenness centrality for nodes in a given graph.
 
@@ -68,13 +68,13 @@ def betweenness_centrality(g, k=None, normalized=True):
         AlgorithmResult[float]: Returns an `AlgorithmResult` containing the betweenness centrality of each node.
     """
 
-def cohesive_fruchterman_reingold(
-    graph, iterations=100, scale=1.0, node_start_size=1.0, cooloff_factor=0.95, dt=0.1
-):
+def cohesive_fruchterman_reingold(graph, iterations=100, scale=1.0, node_start_size=1.0, cooloff_factor=0.95, dt=0.1):
     """Cohesive version of `fruchterman_reingold` that adds virtual edges between isolated nodes"""
 
-def connected_components(g): ...
-def degree_centrality(g, threads=None):
+def connected_components(g):
+    ...
+
+def degree_centrality(g: 'Raphtory Graph', threads: '`Option<usize>`, default = `None`' = 'single-threaded operation if not provided'):
     """
     Computes the degree centrality of all nodes in the graph. The values are normalized
     by dividing each result with the maximum possible degree. Graphs with self-loops can have
@@ -88,9 +88,7 @@ def degree_centrality(g, threads=None):
         AlgorithmResult<String, OrderedFloat<f64>>: A result containing a mapping of node names to the computed sum of their associated degree centrality.
     """
 
-def dijkstra_single_source_shortest_paths(
-    g, source, targets, direction=..., weight=...
-):
+def dijkstra_single_source_shortest_paths(g: 'Raphtory Graph', source: 'InputNode', targets: 'List(InputNodes)', direction: 'PyDirection, Optional' = '"BOTH". Options are "OUT", "IN", and "BOTH"', weight: 'String, Optional' = Ellipsis):
     """
     Finds the shortest paths from a single source to multiple targets in a graph.
 
@@ -106,7 +104,7 @@ def dijkstra_single_source_shortest_paths(
 
     """
 
-def directed_graph_density(g):
+def directed_graph_density(g: 'Raphtory graph'):
     """
     Graph density - measures how dense or sparse a graph is.
 
@@ -120,9 +118,7 @@ def directed_graph_density(g):
         float : Directed graph density of G.
     """
 
-def fruchterman_reingold(
-    graph, iterations=100, scale=1.0, node_start_size=1.0, cooloff_factor=0.95, dt=0.1
-):
+def fruchterman_reingold(graph: 'GraphView', iterations: 'int | None' = 100, scale: 'float | None' = 1.0, node_start_size: 'float | None' = 1.0, cooloff_factor: 'float | None' = 0.95, dt: 'float | None' = 0.1):
     """
     Fruchterman Reingold layout algorithm
 
@@ -138,7 +134,7 @@ def fruchterman_reingold(
         a dict with the position for each node as a list with two numbers [x, y]
     """
 
-def global_clustering_coefficient(g):
+def global_clustering_coefficient(g: 'Raphtory graph'):
     """
     Computes the global clustering coefficient of a graph. The global clustering coefficient is
     defined as the number of triangles in the graph divided by the number of triplets in the graph.
@@ -155,7 +151,7 @@ def global_clustering_coefficient(g):
         [`Triplet Count`](triplet_count)
     """
 
-def global_reciprocity(g):
+def global_reciprocity(g: 'Raphtory graph'):
     """
     Reciprocity - measure of the symmetry of relationships in a graph, the global reciprocity of
     the entire graph.
@@ -169,7 +165,7 @@ def global_reciprocity(g):
         float : reciprocity of the graph between 0 and 1.
     """
 
-def global_temporal_three_node_motif(g, delta):
+def global_temporal_three_node_motif(g: 'raphtory graph', delta: 'int'):
     """
     Computes the number of three edge, up-to-three node delta-temporal motifs in the graph, using the algorithm of Paranjape et al, Motifs in Temporal Networks (2017).
     We point the reader to this reference for more information on the algorithm and background, but provide a short summary below.
@@ -217,7 +213,7 @@ def global_temporal_three_node_motif(g, delta):
 
     """
 
-def global_temporal_three_node_motif_multi(g, deltas):
+def global_temporal_three_node_motif_multi(g: 'raphtory graph', deltas: 'list(int)'):
     """
     Computes the global counts of three-edge up-to-three node temporal motifs for a range of timescales. See `global_temporal_three_node_motif` for an interpretation of each row returned.
 
@@ -229,7 +225,7 @@ def global_temporal_three_node_motif_multi(g, deltas):
         list(list(int)) : A list of 40d arrays, each array is the motif count for a particular value of delta, returned in the order that the deltas were given as input.
     """
 
-def hits(g, iter_count=20, threads=None):
+def hits(g: 'Raphtory Graph', iter_count: 'int' = 20, threads: 'int' = None):
     """
     HITS (Hubs and Authority) Algorithm:
     AuthScore of a node (A) = Sum of HubScore of all nodes pointing at node (A) from previous iteration /
@@ -247,7 +243,7 @@ def hits(g, iter_count=20, threads=None):
         An AlgorithmResult object containing the mapping from node ID to the hub and authority score of the node
     """
 
-def in_component(node):
+def in_component(node: 'Node'):
     """
     In component -- Finding the "in-component" of a node in a directed graph involves identifying all nodes that can be reached following only incoming edges.
 
@@ -258,7 +254,7 @@ def in_component(node):
        An array containing the Nodes within the given nodes in-component
     """
 
-def in_components(g):
+def in_components(g: 'Raphtory graph'):
     """
     In components -- Finding the "in-component" of a node in a directed graph involves identifying all nodes that can be reached following only incoming edges.
 
@@ -282,7 +278,7 @@ def label_propagation(g, seed=None):
 
     """
 
-def local_clustering_coefficient(g, v):
+def local_clustering_coefficient(g: 'Raphtory graph', v: 'int or str'):
     """
     Local clustering coefficient - measures the degree to which nodes in a graph tend to cluster together.
 
@@ -296,7 +292,7 @@ def local_clustering_coefficient(g, v):
         float : the local clustering coefficient of node v in g.
     """
 
-def local_temporal_three_node_motifs(g, delta):
+def local_temporal_three_node_motifs(g: 'raphtory graph', delta: 'int'):
     """
     Computes the number of each type of motif that each node participates in. See global_temporal_three_node_motifs for a summary of the motifs involved.
 
@@ -312,7 +308,7 @@ def local_temporal_three_node_motifs(g, delta):
        the motif. For two node motifs, both constituent nodes count the motif. For triangles, all three constituent nodes count the motif.
     """
 
-def local_triangle_count(g, v):
+def local_triangle_count(g: 'Raphtory graph', v: 'int or str'):
     """
     Implementations of various graph algorithms that can be run on a graph.
 
@@ -331,7 +327,7 @@ def local_triangle_count(g, v):
 
     """
 
-def louvain(graph, resolution=1.0, weight_prop=None, tol=None):
+def louvain(graph: 'GraphView', resolution: 'float' = 1.0, weight_prop: 'str | None' = None, tol: 'None | float' = None):
     """
     Louvain algorithm for community detection
 
@@ -342,7 +338,7 @@ def louvain(graph, resolution=1.0, weight_prop=None, tol=None):
         tol (None | float): the floating point tolerance for deciding if improvements are significant (default: 1e-8)
     """
 
-def max_degree(g):
+def max_degree(g: 'Raphtory Graph'):
     """
     Returns the largest degree found in the graph
 
@@ -353,7 +349,7 @@ def max_degree(g):
         usize: The largest degree
     """
 
-def max_in_degree(g):
+def max_in_degree(g: 'Raphtory graph'):
     """
     The maximum in degree of any node in the graph.
 
@@ -364,7 +360,7 @@ def max_in_degree(g):
         int : value of the largest indegree
     """
 
-def max_out_degree(g):
+def max_out_degree(g: 'Raphtory graph'):
     """
     The maximum out degree of any node in the graph.
 
@@ -375,7 +371,7 @@ def max_out_degree(g):
         int : value of the largest outdegree
     """
 
-def min_degree(g):
+def min_degree(g: 'Raphtory Graph'):
     """
     Returns the smallest degree found in the graph
 
@@ -386,7 +382,7 @@ def min_degree(g):
         usize: The smallest degree found
     """
 
-def min_in_degree(g):
+def min_in_degree(g: 'Raphtory graph'):
     """
     The minimum in degree of any node in the graph.
 
@@ -397,7 +393,7 @@ def min_in_degree(g):
         int : value of the smallest indegree
     """
 
-def min_out_degree(g):
+def min_out_degree(g: 'Raphtory graph'):
     """
     The minimum out degree of any node in the graph.
 
@@ -408,7 +404,7 @@ def min_out_degree(g):
         int : value of the smallest outdegree
     """
 
-def out_component(node):
+def out_component(node: 'Node'):
     """
     Out component -- Finding the "out-component" of a node in a directed graph involves identifying all nodes that can be reached following only outgoing edges.
 
@@ -419,7 +415,7 @@ def out_component(node):
        An array containing the Nodes within the given nodes out-component
     """
 
-def out_components(g):
+def out_components(g: 'Raphtory graph'):
     """
     Out components -- Finding the "out-component" of a node in a directed graph involves identifying all nodes that can be reached following only outgoing edges.
 
@@ -430,7 +426,7 @@ def out_components(g):
         AlgorithmResult : AlgorithmResult object mapping each node to an array containing the ids of all nodes within their 'out-component'
     """
 
-def pagerank(g, iter_count=20, max_diff=None, use_l2_norm=True, damping_factor=0.85):
+def pagerank(g: 'Raphtory graph', iter_count: 'int' = 20, max_diff: 'float' = None, use_l2_norm=True, damping_factor=0.85):
     """
     Pagerank -- pagerank centrality value of the nodes in a graph
 
@@ -448,7 +444,7 @@ def pagerank(g, iter_count=20, max_diff=None, use_l2_norm=True, damping_factor=0
         AlgorithmResult : AlgorithmResult with string keys and float values mapping node names to their pagerank value.
     """
 
-def single_source_shortest_path(g, source, cutoff=None):
+def single_source_shortest_path(g: 'Raphtory Graph', source: 'InputNode', cutoff: 'Int, Optional' = None):
     """
     Calculates the single source shortest paths from a given source node.
 
@@ -462,7 +458,7 @@ def single_source_shortest_path(g, source, cutoff=None):
 
     """
 
-def strongly_connected_components(g):
+def strongly_connected_components(g: 'Raphtory graph'):
     """
     Strongly connected components
 
@@ -475,15 +471,7 @@ def strongly_connected_components(g):
         Vec<Vec<u64>> : List of strongly connected nodes identified by ids
     """
 
-def temporal_SEIR(
-    graph,
-    seeds,
-    infection_prob,
-    initial_infection,
-    recovery_rate=None,
-    incubation_rate=None,
-    rng_seed=None,
-):
+def temporal_SEIR(graph: 'GraphView', seeds: 'int | float | list[Node]', infection_prob: 'float', initial_infection: 'int | str | DateTime', recovery_rate: 'float | None' = None, incubation_rate: 'float | None' = None, rng_seed: 'int | None' = None):
     """
     Simulate an SEIR dynamic on the network
 
@@ -507,7 +495,7 @@ def temporal_SEIR(
 
     Returns:
         AlgorithmResult[Infected]: Returns an `Infected` object for each infected node with attributes
-
+    
         `infected`: the time stamp of the infection event
 
         `active`: the time stamp at which the node actively starts spreading the infection (i.e., the end of the incubation period)
@@ -516,7 +504,7 @@ def temporal_SEIR(
 
     """
 
-def temporal_bipartite_graph_projection(g, delta, pivot_type):
+def temporal_bipartite_graph_projection(g: 'raphtory graph', delta: 'int', pivot_type):
     """
     Projects a temporal bipartite graph into an undirected temporal graph over the pivot node type. Let G be a bipartite graph with node types A and B. Given delta > 0, the projection graph G' pivoting over type B nodes,
     will make a connection between nodes n1 and n2 (of type A) at time (t1 + t2)/2 if they respectively have an edge at time t1, t2 with the same node of type B in G, and |t2-t1| < delta.
@@ -530,7 +518,7 @@ def temporal_bipartite_graph_projection(g, delta, pivot_type):
         raphtory graph : Projected (unipartite) temporal graph.
     """
 
-def temporally_reachable_nodes(g, max_hops, start_time, seed_nodes, stop_nodes=None):
+def temporally_reachable_nodes(g: 'Raphtory graph', max_hops: 'int', start_time: 'int', seed_nodes: 'list(str) or list(int)', stop_nodes: 'list(str) or list(int)' = None):
     """
     Temporally reachable nodes -- the nodes that are reachable by a time respecting path followed out from a set of seed nodes at a starting time.
 
@@ -549,7 +537,7 @@ def temporally_reachable_nodes(g, max_hops, start_time, seed_nodes, stop_nodes=N
         AlgorithmResult : AlgorithmResult with string keys and float values mapping node names to their pagerank value.
     """
 
-def triplet_count(g):
+def triplet_count(g: 'Raphtory graph'):
     """
     Computes the number of connected triplets within a graph
 
@@ -563,7 +551,7 @@ def triplet_count(g):
         int : the number of triplets in the graph
     """
 
-def weakly_connected_components(g, iter_count=9223372036854775807):
+def weakly_connected_components(g: 'Raphtory graph', iter_count: 'int' = 9223372036854775807):
     """
     Weakly connected components -- partitions the graph into node sets which are mutually reachable by an undirected path
 

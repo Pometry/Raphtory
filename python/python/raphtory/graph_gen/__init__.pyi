@@ -7,7 +7,7 @@
 #                                                                             #
 ###############################################################################
 
-def ba_preferential_attachment(g, nodes_to_add, edges_per_step, seed=None):
+def ba_preferential_attachment(g: 'Any', nodes_to_add: 'Any', edges_per_step: 'Any', seed: 'Any' = None):
     """
     Generates a graph using the preferential attachment model.
 
@@ -33,7 +33,7 @@ def ba_preferential_attachment(g, nodes_to_add, edges_per_step, seed=None):
     None
     """
 
-def random_attachment(g, nodes_to_add, edges_per_step, seed=None):
+def random_attachment(g: 'Any', nodes_to_add: 'Any', edges_per_step: 'Any', seed: 'Any' = None):
     """
     Generates a graph using the random attachment model
 
