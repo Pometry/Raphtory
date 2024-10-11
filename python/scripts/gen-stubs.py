@@ -11,7 +11,8 @@ from types import (
     MethodDescriptorType,
     ModuleType,
 )
-from typing import List, Optional, Tuple, Union, Any
+from typing import *
+from raphtory import *
 from docstring_parser import parse, DocstringStyle, DocstringParam, ParseError
 
 
@@ -29,6 +30,11 @@ comment = """###################################################################
 #    Any changes made here may be lost when the file is regenerated.          #
 #                                                                             #
 ###############################################################################\n"""
+
+imports = """
+from typing import *
+from raphtory import *
+"""
 
 
 def clean_signature(
@@ -93,9 +99,14 @@ def format_docstring(docstr: Optional[str], tab: str, ellipsis: bool) -> str:
 def extract_param_annotation(param: DocstringParam) -> dict:
     res = {}
     if param.type_name is None:
-        res["annotation"] = "Any"
+        res["annotation"] = Any
     else:
-        res["annotation"] = param.type_name
+        type_name = param.type_name
+        try:
+            type_val = eval(type_name, globals(), None)
+        except Exception:
+            type_val = type_name
+        res["annotation"] = type_val
     if param.default is not None or param.is_optional:
         res["default"] = param.default
     return res
@@ -193,7 +204,7 @@ def gen_module(module: ModuleType, base: bool = False) -> None:
         elif isinstance(obj, ModuleType) and obj.__loader__ is None:
             modules.append(obj)
 
-    stub_file = "\n".join([comment, *sorted(stubs)])
+    stub_file = "\n".join([comment, imports, *sorted(stubs)])
 
     if base:
         path = Path(".", "python", "raphtory", "__init__.pyi")
