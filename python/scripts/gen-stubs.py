@@ -14,6 +14,7 @@ from types import (
 from typing import *
 from raphtory import *
 from docstring_parser import parse, DocstringStyle, DocstringParam, ParseError
+from datetime import datetime
 
 
 TARGET_MODULES = ["raphtory", "builtins"]
@@ -34,13 +35,31 @@ comment = """###################################################################
 imports = """
 from typing import *
 from raphtory import *
+from datetime import datetime
 """
+
+
+def format_signature(sig: inspect.Signature) -> str:
+    sig = str(sig)
+    return sig.replace("Ellipsis", "...")
+
+
+def clean_parameter(
+    param: inspect.Parameter, type_annotations: dict[str, dict[str, Any]]
+):
+    if param.name not in type_annotations:
+        return param
+    else:
+        annotations = type_annotations[param.name]
+        if param.default is not inspect.Parameter.empty:
+            annotations["default"] = param.default
+        return param.replace(**annotations)
 
 
 def clean_signature(
     sig: inspect.Signature,
-    is_method: bool = False,
-    type_annotations: dict[str, dict[str, Any]] = {},
+    is_method: bool,
+    type_annotations: dict[str, dict[str, Any]],
     return_type: Optional[str] = None,
 ) -> Tuple[str, Optional[str]]:
     decorator = None
@@ -53,17 +72,12 @@ def clean_signature(
 
     if type_annotations:
         new_params = [
-            (
-                p
-                if p.name not in type_annotations
-                else p.replace(**type_annotations[p.name])
-            )
-            for p in sig.parameters.values()
+            clean_parameter(p, type_annotations) for p in sig.parameters.values()
         ]
         sig = sig.replace(parameters=new_params)
     if return_type is not None:
         sig.replace(return_annotation=return_type)
-    return str(sig), decorator
+    return format_signature(sig), decorator
 
 
 def insert_self(signature: inspect.Signature) -> inspect.Signature:
@@ -106,6 +120,8 @@ def extract_param_annotation(param: DocstringParam) -> dict:
             type_val = eval(type_name, globals(), None)
         except Exception:
             type_val = type_name
+        if param.is_optional:
+            type_val = Optional[type_val]
         res["annotation"] = type_val
     if param.default is not None or param.is_optional:
         res["default"] = param.default

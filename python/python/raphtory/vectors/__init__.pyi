@@ -7,6 +7,11 @@
 #                                                                             #
 ###############################################################################
 
+
+from typing import *
+from raphtory import *
+from datetime import datetime
+
 class Document:
 
     def __init__(self, content, life=None):
@@ -33,59 +38,59 @@ class VectorisedGraph:
     def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
-    def documents_by_similarity(self, /, query: 'str or list', limit: 'int', window: '(int | str, int | str)' = None):
+    def documents_by_similarity(self, /, query: str, limit: int, window: Optional[Tuple[int | str, int | str]] = None):
         """
         Search the top scoring documents according to `query` with no more than `limit` documents
 
         Args:
           query (str or list): the text or the embedding to score against
           limit (int): the maximum number of documents to search
-          window ((int | str, int | str)): the window where documents need to belong to in order to be considered
+          window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
 
         Returns:
-          The vector selection resulting from the search
+          VectorSelection: The vector selection resulting from the search
         """
 
-    def edges_by_similarity(self, /, query: 'str or list', limit: 'int', window: '(int | str, int | str)' = None):
+    def edges_by_similarity(self, /, query: str, limit: int, window: Optional[Tuple[int | str, int | str]] = None):
         """
         Search the top scoring edges according to `query` with no more than `limit` edges
 
         Args:
           query (str or list): the text or the embedding to score against
           limit (int): the maximum number of new edges to search
-          window ((int | str, int | str)): the window where documents need to belong to in order to be considered
+          window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
 
         Returns:
-          The vector selection resulting from the search
+          VectorSelection: The vector selection resulting from the search
         """
 
     def empty_selection(self, /):
         """Return an empty selection of documents"""
 
-    def entities_by_similarity(self, /, query: 'str or list', limit: 'int', window: '(int | str, int | str)' = None):
+    def entities_by_similarity(self, /, query: str, limit: int, window: Optional[Tuple[int | str, int | str]] = None):
         """
         Search the top scoring entities according to `query` with no more than `limit` entities
 
         Args:
           query (str or list): the text or the embedding to score against
           limit (int): the maximum number of new entities to search
-          window ((int | str, int | str)): the window where documents need to belong to in order to be considered
+          window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
 
         Returns:
-          The vector selection resulting from the search
+          VectorSelection: The vector selection resulting from the search
         """
 
-    def nodes_by_similarity(self, /, query: 'str or list', limit: 'int', window: '(int | str, int | str)' = None):
+    def nodes_by_similarity(self, /, query: str, limit: int, window: Optional[Tuple[int | str, int | str]] = None):
         """
         Search the top scoring nodes according to `query` with no more than `limit` nodes
 
         Args:
           query (str or list): the text or the embedding to score against
           limit (int): the maximum number of new nodes to search
-          window ((int | str, int | str)): the window where documents need to belong to in order to be considered
+          window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
 
         Returns:
-          The vector selection resulting from the search
+          VectorSelection: The vector selection resulting from the search
         """
 
     def save_embeddings(self, /, file):

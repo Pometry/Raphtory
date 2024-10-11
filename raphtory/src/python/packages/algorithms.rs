@@ -627,14 +627,14 @@ pub fn single_source_shortest_path(
 /// Finds the shortest paths from a single source to multiple targets in a graph.
 ///
 /// Arguments:
-///     g (Raphtory Graph): The graph to search in.
+///     g (GraphView): The graph to search in.
 ///     source (InputNode): The source node.
-///     targets (List(InputNodes)): A list of target nodes.
-///     direction (PyDirection, Optional): The direction of the edges to be considered for the shortest path. Defaults to "BOTH". Options are "OUT", "IN", and "BOTH".
-///     weight (String, Optional): The name of the weight property for the edges ("weight" is default).
+///     targets (list[InputNodes]): A list of target nodes.
+///     direction (Literal["OUT", "IN", "BOTH"]): The direction of the edges to be considered for the shortest path. Defaults to "BOTH".
+///     weight (str): The name of the weight property for the edges. Defaults to "weight".
 ///
 /// Returns:
-///     Returns a `Dict` where the key is the target node and the value is a tuple containing the total cost and a vector of nodes representing the shortest path.
+///     dict: Returns a `Dict` where the key is the target node and the value is a tuple containing the total cost and a vector of nodes representing the shortest path.
 ///
 #[pyfunction]
 #[pyo3[signature = (g, source, targets, direction=PyDirection::new("BOTH"), weight="weight".to_string())]]

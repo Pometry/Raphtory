@@ -7,7 +7,12 @@
 #                                                                             #
 ###############################################################################
 
-def ba_preferential_attachment(g: 'Any', nodes_to_add: 'Any', edges_per_step: 'Any', seed: 'Any' = None):
+
+from typing import *
+from raphtory import *
+from datetime import datetime
+
+def ba_preferential_attachment(g: Any, nodes_to_add: Any, edges_per_step: Any, seed: Any = None):
     """
     Generates a graph using the preferential attachment model.
 
@@ -33,7 +38,7 @@ def ba_preferential_attachment(g: 'Any', nodes_to_add: 'Any', edges_per_step: 'A
     None
     """
 
-def random_attachment(g: 'Any', nodes_to_add: 'Any', edges_per_step: 'Any', seed: 'Any' = None):
+def random_attachment(g: Any, nodes_to_add: Any, edges_per_step: Any, seed: Any = None):
     """
     Generates a graph using the random attachment model
 

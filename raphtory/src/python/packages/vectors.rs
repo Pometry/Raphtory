@@ -332,10 +332,10 @@ impl PyVectorisedGraph {
     /// Args:
     ///   query (str or list): the text or the embedding to score against
     ///   limit (int): the maximum number of documents to search
-    ///   window ((int | str, int | str)): the window where documents need to belong to in order to be considered
+    ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
     ///
     /// Returns:
-    ///   The vector selection resulting from the search
+    ///   VectorSelection: The vector selection resulting from the search
     #[pyo3(signature = (query, limit, window=None))]
     pub fn documents_by_similarity(
         &self,
@@ -354,10 +354,10 @@ impl PyVectorisedGraph {
     /// Args:
     ///   query (str or list): the text or the embedding to score against
     ///   limit (int): the maximum number of new entities to search
-    ///   window ((int | str, int | str)): the window where documents need to belong to in order to be considered
+    ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
     ///
     /// Returns:
-    ///   The vector selection resulting from the search
+    ///   VectorSelection: The vector selection resulting from the search
     #[pyo3(signature = (query, limit, window=None))]
     pub fn entities_by_similarity(
         &self,
@@ -376,10 +376,10 @@ impl PyVectorisedGraph {
     /// Args:
     ///   query (str or list): the text or the embedding to score against
     ///   limit (int): the maximum number of new nodes to search
-    ///   window ((int | str, int | str)): the window where documents need to belong to in order to be considered
+    ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
     ///
     /// Returns:
-    ///   The vector selection resulting from the search
+    ///   VectorSelection: The vector selection resulting from the search
     #[pyo3(signature = (query, limit, window=None))]
     pub fn nodes_by_similarity(
         &self,
@@ -398,10 +398,10 @@ impl PyVectorisedGraph {
     /// Args:
     ///   query (str or list): the text or the embedding to score against
     ///   limit (int): the maximum number of new edges to search
-    ///   window ((int | str, int | str)): the window where documents need to belong to in order to be considered
+    ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
     ///
     /// Returns:
-    ///   The vector selection resulting from the search
+    ///   VectorSelection: The vector selection resulting from the search
     #[pyo3(signature = (query, limit, window=None))]
     pub fn edges_by_similarity(
         &self,
