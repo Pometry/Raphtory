@@ -26,3 +26,8 @@ pub(crate) async fn graphql_playground() -> impl IntoResponse {
             .with_setting("request.credentials", "include"),
     ))
 }
+
+#[handler]
+pub(crate) async fn ui() -> impl IntoResponse {
+    Html(include_str!("../resources/index.html"))
+}
