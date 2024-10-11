@@ -231,7 +231,7 @@ def global_temporal_three_node_motif_multi(g: GraphView, deltas: list[int]):
         list[list[int]] : A list of 40d arrays, each array is the motif count for a particular value of delta, returned in the order that the deltas were given as input.
     """
 
-def hits(g: GraphView, iter_count: int = 20, threads: int = None):
+def hits(g: GraphView, iter_count: int = 20, threads: Optional[int] = None):
     """
     HITS (Hubs and Authority) Algorithm:
     AuthScore of a node (A) = Sum of HubScore of all nodes pointing at node (A) from previous iteration /
@@ -243,7 +243,7 @@ def hits(g: GraphView, iter_count: int = 20, threads: int = None):
     Arguments:
         g (GraphView): Graph to run the algorithm on
         iter_count (int): How many iterations to run the algorithm
-        threads (int): Number of threads to use (optional)
+        threads (int, optional): Number of threads to use
 
     Returns
         An AlgorithmResult object containing the mapping from node ID to the hub and authority score of the node
@@ -271,20 +271,20 @@ def in_components(g: GraphView):
         AlgorithmResult : AlgorithmResult object mapping each node to an array containing the ids of all nodes within their 'in-component'
     """
 
-def label_propagation(g, seed=None):
+def label_propagation(g: GraphView, seed: Optional[bytes] = None):
     """
     Computes components using a label propagation algorithm
 
     Arguments:
         g (GraphView): A reference to the graph
-        seed (bytes, optional) Array of 32 bytes of u8 which is set as the rng seed
+        seed (bytes, optional): Array of 32 bytes of u8 which is set as the rng seed
 
     Returns:
         list[set[Node]]: A list of sets each containing nodes that have been grouped
 
     """
 
-def local_clustering_coefficient(g: GraphView, v: int or str):
+def local_clustering_coefficient(g: GraphView, v: InputNode):
     """
     Local clustering coefficient - measures the degree to which nodes in a graph tend to cluster together.
 
@@ -292,7 +292,7 @@ def local_clustering_coefficient(g: GraphView, v: int or str):
 
     Arguments:
         g (GraphView) : Raphtory graph, can be directed or undirected but will be treated as undirected.
-        v (int or str): node id or name
+        v (InputNode): node id or name
 
     Returns:
         float : the local clustering coefficient of node v in g.
@@ -314,7 +314,7 @@ def local_temporal_three_node_motifs(g: GraphView, delta: int):
        the motif. For two node motifs, both constituent nodes count the motif. For triangles, all three constituent nodes count the motif.
     """
 
-def local_triangle_count(g: GraphView, v: int or str):
+def local_triangle_count(g: GraphView, v: InputNode):
     """
     Implementations of various graph algorithms that can be run on a graph.
 
@@ -326,7 +326,7 @@ def local_triangle_count(g: GraphView, v: int or str):
 
     Arguments:
         g (GraphView) : Raphtory graph, this can be directed or undirected but will be treated as undirected
-        v (int or str) : node id or name
+        v (InputNode) : node id or name
 
     Returns:
         int : number of triangles associated with node v
@@ -432,7 +432,7 @@ def out_components(g: GraphView):
         AlgorithmResult : AlgorithmResult object mapping each node to an array containing the ids of all nodes within their 'out-component'
     """
 
-def pagerank(g: GraphView, iter_count: int = 20, max_diff: float = None, use_l2_norm=True, damping_factor=0.85):
+def pagerank(g: GraphView, iter_count: int = 20, max_diff: Optional[float] = None, use_l2_norm=True, damping_factor=0.85):
     """
     Pagerank -- pagerank centrality value of the nodes in a graph
 
@@ -443,8 +443,9 @@ def pagerank(g: GraphView, iter_count: int = 20, max_diff: float = None, use_l2_
     Arguments:
         g (GraphView) : Raphtory graph
         iter_count (int) : Maximum number of iterations to run. Note that this will terminate early if convergence is reached.
-        max_diff (float) : Optional parameter providing an alternative stopping condition. The algorithm will terminate if the sum of the absolute difference in pagerank values between iterations
-    is less than the max diff value given.
+        max_diff (Optional[float]) : Optional parameter providing an alternative stopping condition.
+            The algorithm will terminate if the sum of the absolute difference in pagerank values between iterations
+            is less than the max diff value given.
 
     Returns:
         AlgorithmResult : AlgorithmResult with string keys and float values mapping node names to their pagerank value.
@@ -524,7 +525,7 @@ def temporal_bipartite_graph_projection(g: GraphView, delta: int, pivot_type):
         raphtory graph : Projected (unipartite) temporal graph.
     """
 
-def temporally_reachable_nodes(g: GraphView, max_hops: int, start_time: int, seed_nodes: list[str] or list[int], stop_nodes: list[str] or list[int] = None):
+def temporally_reachable_nodes(g: GraphView, max_hops: int, start_time: int, seed_nodes: list[InputNode], stop_nodes: Optional[list[InputNode]] = None):
     """
     Temporally reachable nodes -- the nodes that are reachable by a time respecting path followed out from a set of seed nodes at a starting time.
 
@@ -536,8 +537,8 @@ def temporally_reachable_nodes(g: GraphView, max_hops: int, start_time: int, see
         g (GraphView) : directed Raphtory graph
         max_hops (int) : maximum number of hops to propagate out
         start_time (int) : time at which to start the path (such that t_1 > start_time for any path starting from these seed nodes)
-        seed_nodes (list[str] or list[int]) : list of node names or ids which should be the starting nodes
-        stop_nodes (list[str] or list[int]) : nodes at which a path shouldn't go any further
+        seed_nodes (list[InputNode]) : list of node names or ids which should be the starting nodes
+        stop_nodes (Optional[list[InputNode]]) : nodes at which a path shouldn't go any further
 
     Returns:
         AlgorithmResult : AlgorithmResult with string keys and float values mapping node names to their pagerank value.

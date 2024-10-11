@@ -76,7 +76,7 @@ use std::collections::{HashMap, HashSet};
 ///
 /// Arguments:
 ///     g (GraphView) : Raphtory graph, this can be directed or undirected but will be treated as undirected
-///     v (int or str) : node id or name
+///     v (InputNode) : node id or name
 ///
 /// Returns:
 ///     int : number of triangles associated with node v
@@ -191,8 +191,9 @@ pub fn out_component(node: &PyNode) -> Vec<NodeView<DynamicGraph>> {
 /// Arguments:
 ///     g (GraphView) : Raphtory graph
 ///     iter_count (int) : Maximum number of iterations to run. Note that this will terminate early if convergence is reached.
-///     max_diff (float) : Optional parameter providing an alternative stopping condition. The algorithm will terminate if the sum of the absolute difference in pagerank values between iterations
-/// is less than the max diff value given.
+///     max_diff (Optional[float]) : Optional parameter providing an alternative stopping condition.
+///         The algorithm will terminate if the sum of the absolute difference in pagerank values between iterations
+///         is less than the max diff value given.
 ///
 /// Returns:
 ///     AlgorithmResult : AlgorithmResult with string keys and float values mapping node names to their pagerank value.
@@ -225,8 +226,8 @@ pub fn pagerank(
 ///     g (GraphView) : directed Raphtory graph
 ///     max_hops (int) : maximum number of hops to propagate out
 ///     start_time (int) : time at which to start the path (such that t_1 > start_time for any path starting from these seed nodes)
-///     seed_nodes (list[str] or list[int]) : list of node names or ids which should be the starting nodes
-///     stop_nodes (list[str] or list[int]) : nodes at which a path shouldn't go any further
+///     seed_nodes (list[InputNode]) : list of node names or ids which should be the starting nodes
+///     stop_nodes (Optional[list[InputNode]]) : nodes at which a path shouldn't go any further
 ///
 /// Returns:
 ///     AlgorithmResult : AlgorithmResult with string keys and float values mapping node names to their pagerank value.
@@ -235,8 +236,8 @@ pub fn temporally_reachable_nodes(
     g: &PyGraphView,
     max_hops: usize,
     start_time: i64,
-    seed_nodes: Vec<GID>,
-    stop_nodes: Option<Vec<GID>>,
+    seed_nodes: Vec<NodeRef>,
+    stop_nodes: Option<Vec<NodeRef>>,
 ) -> AlgorithmResult<DynamicGraph, Vec<(i64, String)>, Vec<(i64, String)>> {
     temporal_reachability_rs(&g.graph, None, max_hops, start_time, seed_nodes, stop_nodes)
 }
@@ -247,7 +248,7 @@ pub fn temporally_reachable_nodes(
 ///
 /// Arguments:
 ///     g (GraphView) : Raphtory graph, can be directed or undirected but will be treated as undirected.
-///     v (int or str): node id or name
+///     v (InputNode): node id or name
 ///
 /// Returns:
 ///     float : the local clustering coefficient of node v in g.
@@ -518,7 +519,7 @@ pub fn local_temporal_three_node_motifs(
 /// Arguments:
 ///     g (GraphView): Graph to run the algorithm on
 ///     iter_count (int): How many iterations to run the algorithm
-///     threads (int): Number of threads to use (optional)
+///     threads (int, optional): Number of threads to use
 ///
 /// Returns
 ///     An AlgorithmResult object containing the mapping from node ID to the hub and authority score of the node
@@ -680,7 +681,7 @@ pub fn betweenness_centrality(
 ///
 /// Arguments:
 ///     g (GraphView): A reference to the graph
-///     seed (bytes, optional) Array of 32 bytes of u8 which is set as the rng seed
+///     seed (bytes, optional): Array of 32 bytes of u8 which is set as the rng seed
 ///
 /// Returns:
 ///     list[set[Node]]: A list of sets each containing nodes that have been grouped

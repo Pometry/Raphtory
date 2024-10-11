@@ -74,15 +74,15 @@ class AlgorithmResult:
             A sorted list of tuples containing node names and values.
         """
 
-    def sort_by_node_name(self, reverse=True):
+    def sort_by_node_name(self, reverse: bool = True):
         """
         The function `sort_by_node_name` sorts a vector of tuples containing a node and an optional
         value by the node name in either ascending or descending order.
 
         Arguments:
             reverse (bool): A boolean value indicating whether the sorting should be done in reverse order or not.
-            If reverse is true, the sorting will be done in descending order, otherwise it will be done in
-            ascending order.
+                If reverse is true, the sorting will be done in descending order, otherwise it will be done in
+                ascending order.
 
         Returns:
             The function sort_by_node_name returns a vector of tuples. Each tuple contains a Node and value
@@ -211,34 +211,34 @@ class Edge:
     def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
-    def after(self, start: int | DateTime | str):
+    def after(self, start: TimeInput):
         """
          Create a view of the Edge including all events after `start` (exclusive).
 
         Arguments:
-            start (int | DateTime | str): The start time of the window.
+            start (TimeInput): The start time of the window.
 
         Returns:
              A Edge object.
         """
 
-    def at(self, time: int | DateTime | str):
+    def at(self, time: TimeInput):
         """
          Create a view of the Edge including all events at `time`.
 
         Arguments:
-            time (int | DateTime | str): The time of the window.
+            time (TimeInput): The time of the window.
 
         Returns:
              A Edge object.
         """
 
-    def before(self, end: int | DateTime | str):
+    def before(self, end: TimeInput):
         """
          Create a view of the Edge including all events before `end` (exclusive).
 
         Arguments:
-            end (int | DateTime | str): The end time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
              A Edge object.
@@ -370,7 +370,7 @@ class Edge:
             step (int | str): The step size of the window.
 
         Returns:
-            A `WindowSet` object.
+            WindowSet: A `WindowSet` object.
         """
 
     def explode(self):
@@ -518,38 +518,41 @@ class Edge:
 
         Arguments:
             window (int | str): The size of the window.
-            step (int | str | None): The step size of the window. Defaults to `window`.
+            step (int | str | None): The step size of the window.
+                `step` defaults to `window`.
 
         Returns:
-            A `WindowSet` object.
+            WindowSet: A `WindowSet` object.
         """
 
-    def shrink_end(self, end: int | DateTime | str):
+    def shrink_end(self, end: TimeInput):
         """
         Set the end of the window to the smaller of `end` and `self.end()`
 
         Arguments:
-            end (int | DateTime | str): the new end time of the window
+            end (TimeInput): the new end time of the window
         Returns:
              A Edge object.
         """
 
-    def shrink_start(self, start: int | DateTime | str):
+    def shrink_start(self, start: TimeInput):
         """
         Set the start of the window to the larger of `start` and `self.start()`
 
         Arguments:
-           start (int | DateTime | str): the new start time of the window
+           start (TimeInput): the new start time of the window
 
         Returns:
              A Edge object.
         """
 
-    def shrink_window(self, start, end):
+    def shrink_window(self, start: TimeInput, end: TimeInput):
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
 
         Arguments:
+            start (TimeInput): the new start time for the window
+            end (TimeInput): the new end time for the window
 
         """
 
@@ -596,13 +599,13 @@ class Edge:
              Edge: The layered view
         """
 
-    def window(self, start: int | DateTime | str | None, end: int | DateTime | str | None):
+    def window(self, start: TimeInput | None, end: TimeInput | None):
         """
          Create a view of the Edge including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (int | DateTime | str | None): The start time of the window (unbounded if `None`).
-            end (int | DateTime | str | None): The end time of the window (unbounded if `None`).
+            start (TimeInput | None): The start time of the window (unbounded if `None`).
+            end (TimeInput | None): The end time of the window (unbounded if `None`).
 
         Returns:
         r    A Edge object.
@@ -618,34 +621,34 @@ class Edges:
     def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
-    def after(self, start: int | DateTime | str):
+    def after(self, start: TimeInput):
         """
          Create a view of the Edges including all events after `start` (exclusive).
 
         Arguments:
-            start (int | DateTime | str): The start time of the window.
+            start (TimeInput): The start time of the window.
 
         Returns:
              A Edges object.
         """
 
-    def at(self, time: int | DateTime | str):
+    def at(self, time: TimeInput):
         """
          Create a view of the Edges including all events at `time`.
 
         Arguments:
-            time (int | DateTime | str): The time of the window.
+            time (TimeInput): The time of the window.
 
         Returns:
              A Edges object.
         """
 
-    def before(self, end: int | DateTime | str):
+    def before(self, end: TimeInput):
         """
          Create a view of the Edges including all events before `end` (exclusive).
 
         Arguments:
-            end (int | DateTime | str): The end time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
              A Edges object.
@@ -788,7 +791,7 @@ class Edges:
             step (int | str): The step size of the window.
 
         Returns:
-            A `WindowSet` object.
+            WindowSet: A `WindowSet` object.
         """
 
     def explode(self):
@@ -915,38 +918,41 @@ class Edges:
 
         Arguments:
             window (int | str): The size of the window.
-            step (int | str | None): The step size of the window. Defaults to `window`.
+            step (int | str | None): The step size of the window.
+                `step` defaults to `window`.
 
         Returns:
-            A `WindowSet` object.
+            WindowSet: A `WindowSet` object.
         """
 
-    def shrink_end(self, end: int | DateTime | str):
+    def shrink_end(self, end: TimeInput):
         """
         Set the end of the window to the smaller of `end` and `self.end()`
 
         Arguments:
-            end (int | DateTime | str): the new end time of the window
+            end (TimeInput): the new end time of the window
         Returns:
              A Edges object.
         """
 
-    def shrink_start(self, start: int | DateTime | str):
+    def shrink_start(self, start: TimeInput):
         """
         Set the start of the window to the larger of `start` and `self.start()`
 
         Arguments:
-           start (int | DateTime | str): the new start time of the window
+           start (TimeInput): the new start time of the window
 
         Returns:
              A Edges object.
         """
 
-    def shrink_window(self, start, end):
+    def shrink_window(self, start: TimeInput, end: TimeInput):
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
 
         Arguments:
+            start (TimeInput): the new start time for the window
+            end (TimeInput): the new end time for the window
 
         """
 
@@ -1013,13 +1019,13 @@ class Edges:
              Edges: The layered view
         """
 
-    def window(self, start: int | DateTime | str | None, end: int | DateTime | str | None):
+    def window(self, start: TimeInput | None, end: TimeInput | None):
         """
          Create a view of the Edges including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (int | DateTime | str | None): The start time of the window (unbounded if `None`).
-            end (int | DateTime | str | None): The end time of the window (unbounded if `None`).
+            start (TimeInput | None): The start time of the window (unbounded if `None`).
+            end (TimeInput | None): The end time of the window (unbounded if `None`).
 
         Returns:
         r    A Edges object.
@@ -1080,34 +1086,34 @@ class Graph:
            properties (dict): The temporal properties of the graph.
         """
 
-    def after(self, start: int | DateTime | str):
+    def after(self, start: TimeInput):
         """
          Create a view of the GraphView including all events after `start` (exclusive).
 
         Arguments:
-            start (int | DateTime | str): The start time of the window.
+            start (TimeInput): The start time of the window.
 
         Returns:
              A GraphView object.
         """
 
-    def at(self, time: int | DateTime | str):
+    def at(self, time: TimeInput):
         """
          Create a view of the GraphView including all events at `time`.
 
         Arguments:
-            time (int | DateTime | str): The time of the window.
+            time (TimeInput): The time of the window.
 
         Returns:
              A GraphView object.
         """
 
-    def before(self, end: int | DateTime | str):
+    def before(self, end: TimeInput):
         """
          Create a view of the GraphView including all events before `end` (exclusive).
 
         Arguments:
-            end (int | DateTime | str): The end time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
              A GraphView object.
@@ -1292,7 +1298,7 @@ class Graph:
             step (int | str): The step size of the window.
 
         Returns:
-            A `WindowSet` object.
+            WindowSet: A `WindowSet` object.
         """
 
     def filter_edges(self, filter):
@@ -1371,7 +1377,7 @@ class Graph:
           true if the graph contains the specified node, false otherwise
         """
 
-    def import_edge(self, edge: Edge, force: boolean = False):
+    def import_edge(self, edge: Edge, force: bool = False):
         """
         Import a single edge into the graph.
 
@@ -1381,13 +1387,13 @@ class Graph:
         Arguments:
 
             edge (Edge): A PyEdge object representing the edge to be imported.
-            force (boolean): An optional boolean flag indicating whether to force the import of the edge.
+            force (bool): An optional boolean flag indicating whether to force the import of the edge.
 
         Returns:
             Edge: A Result object which is Ok if the edge was successfully imported, and Err otherwise.
         """
 
-    def import_edges(self, edges: List[Edge], force: boolean = False):
+    def import_edges(self, edges: List[Edge], force: bool = False):
         """
         Import multiple edges into the graph.
 
@@ -1397,10 +1403,10 @@ class Graph:
         Arguments:
 
             edges (List[Edge]): A list of Edge objects representing the edges to be imported.
-            force (boolean): An optional boolean flag indicating whether to force the import of the edges.
+            force (bool): An optional boolean flag indicating whether to force the import of the edges.
         """
 
-    def import_node(self, node: Node, force: boolean = False):
+    def import_node(self, node: Node, force: bool = False):
         """
         Import a single node into the graph.
 
@@ -1409,13 +1415,13 @@ class Graph:
 
         Arguments:
             node (Node): A Node object representing the node to be imported.
-            force (boolean): An optional boolean flag indicating whether to force the import of the node.
+            force (bool): An optional boolean flag indicating whether to force the import of the node.
 
         Returns:
             Node: A Result object which is Ok if the node was successfully imported, and Err otherwise.
         """
 
-    def import_nodes(self, nodes: List[Node], force: boolean = False):
+    def import_nodes(self, nodes: List[Node], force: bool = False):
         """
         Import multiple nodes into the graph.
 
@@ -1425,7 +1431,7 @@ class Graph:
         Arguments:
 
             nodes (List[Node]): A vector of PyNode objects representing the nodes to be imported.
-            force (boolean): An optional boolean flag indicating whether to force the import of the nodes.
+            force (bool): An optional boolean flag indicating whether to force the import of the nodes.
 
         """
 
@@ -1693,10 +1699,11 @@ class Graph:
 
         Arguments:
             window (int | str): The size of the window.
-            step (int | str | None): The step size of the window. Defaults to `window`.
+            step (int | str | None): The step size of the window.
+                `step` defaults to `window`.
 
         Returns:
-            A `WindowSet` object.
+            WindowSet: A `WindowSet` object.
         """
 
     def save_to_file(self, path: str):
@@ -1723,32 +1730,34 @@ class Graph:
           Bytes
         """
 
-    def shrink_end(self, end: int | DateTime | str):
+    def shrink_end(self, end: TimeInput):
         """
         Set the end of the window to the smaller of `end` and `self.end()`
 
         Arguments:
-            end (int | DateTime | str): the new end time of the window
+            end (TimeInput): the new end time of the window
         Returns:
              A GraphView object.
         """
 
-    def shrink_start(self, start: int | DateTime | str):
+    def shrink_start(self, start: TimeInput):
         """
         Set the start of the window to the larger of `start` and `self.start()`
 
         Arguments:
-           start (int | DateTime | str): the new start time of the window
+           start (TimeInput): the new start time of the window
 
         Returns:
              A GraphView object.
         """
 
-    def shrink_window(self, start, end):
+    def shrink_window(self, start: TimeInput, end: TimeInput):
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
 
         Arguments:
+            start (TimeInput): the new start time for the window
+            end (TimeInput): the new end time for the window
 
         """
 
@@ -1881,13 +1890,13 @@ class Graph:
           A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
         """
 
-    def window(self, start: int | DateTime | str | None, end: int | DateTime | str | None):
+    def window(self, start: TimeInput | None, end: TimeInput | None):
         """
          Create a view of the GraphView including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (int | DateTime | str | None): The start time of the window (unbounded if `None`).
-            end (int | DateTime | str | None): The end time of the window (unbounded if `None`).
+            start (TimeInput | None): The start time of the window (unbounded if `None`).
+            end (TimeInput | None): The end time of the window (unbounded if `None`).
 
         Returns:
         r    A GraphView object.
@@ -1973,34 +1982,34 @@ class GraphView:
     def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
-    def after(self, start: int | DateTime | str):
+    def after(self, start: TimeInput):
         """
          Create a view of the GraphView including all events after `start` (exclusive).
 
         Arguments:
-            start (int | DateTime | str): The start time of the window.
+            start (TimeInput): The start time of the window.
 
         Returns:
              A GraphView object.
         """
 
-    def at(self, time: int | DateTime | str):
+    def at(self, time: TimeInput):
         """
          Create a view of the GraphView including all events at `time`.
 
         Arguments:
-            time (int | DateTime | str): The time of the window.
+            time (TimeInput): The time of the window.
 
         Returns:
              A GraphView object.
         """
 
-    def before(self, end: int | DateTime | str):
+    def before(self, end: TimeInput):
         """
          Create a view of the GraphView including all events before `end` (exclusive).
 
         Arguments:
-            end (int | DateTime | str): The end time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
              A GraphView object.
@@ -2159,7 +2168,7 @@ class GraphView:
             step (int | str): The step size of the window.
 
         Returns:
-            A `WindowSet` object.
+            WindowSet: A `WindowSet` object.
         """
 
     def filter_edges(self, filter):
@@ -2333,38 +2342,41 @@ class GraphView:
 
         Arguments:
             window (int | str): The size of the window.
-            step (int | str | None): The step size of the window. Defaults to `window`.
+            step (int | str | None): The step size of the window.
+                `step` defaults to `window`.
 
         Returns:
-            A `WindowSet` object.
+            WindowSet: A `WindowSet` object.
         """
 
-    def shrink_end(self, end: int | DateTime | str):
+    def shrink_end(self, end: TimeInput):
         """
         Set the end of the window to the smaller of `end` and `self.end()`
 
         Arguments:
-            end (int | DateTime | str): the new end time of the window
+            end (TimeInput): the new end time of the window
         Returns:
              A GraphView object.
         """
 
-    def shrink_start(self, start: int | DateTime | str):
+    def shrink_start(self, start: TimeInput):
         """
         Set the start of the window to the larger of `start` and `self.start()`
 
         Arguments:
-           start (int | DateTime | str): the new start time of the window
+           start (TimeInput): the new start time of the window
 
         Returns:
              A GraphView object.
         """
 
-    def shrink_window(self, start, end):
+    def shrink_window(self, start: TimeInput, end: TimeInput):
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
 
         Arguments:
+            start (TimeInput): the new start time for the window
+            end (TimeInput): the new end time for the window
 
         """
 
@@ -2485,13 +2497,13 @@ class GraphView:
           A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
         """
 
-    def window(self, start: int | DateTime | str | None, end: int | DateTime | str | None):
+    def window(self, start: TimeInput | None, end: TimeInput | None):
         """
          Create a view of the GraphView including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (int | DateTime | str | None): The start time of the window (unbounded if `None`).
-            end (int | DateTime | str | None): The end time of the window (unbounded if `None`).
+            start (TimeInput | None): The start time of the window (unbounded if `None`).
+            end (TimeInput | None): The end time of the window (unbounded if `None`).
 
         Returns:
         r    A GraphView object.
@@ -2528,34 +2540,34 @@ class MutableEdge:
             layer (str): The layer you want these properties to be added on to.
         """
 
-    def after(self, start: int | DateTime | str):
+    def after(self, start: TimeInput):
         """
          Create a view of the Edge including all events after `start` (exclusive).
 
         Arguments:
-            start (int | DateTime | str): The start time of the window.
+            start (TimeInput): The start time of the window.
 
         Returns:
              A Edge object.
         """
 
-    def at(self, time: int | DateTime | str):
+    def at(self, time: TimeInput):
         """
          Create a view of the Edge including all events at `time`.
 
         Arguments:
-            time (int | DateTime | str): The time of the window.
+            time (TimeInput): The time of the window.
 
         Returns:
              A Edge object.
         """
 
-    def before(self, end: int | DateTime | str):
+    def before(self, end: TimeInput):
         """
          Create a view of the Edge including all events before `end` (exclusive).
 
         Arguments:
-            end (int | DateTime | str): The end time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
              A Edge object.
@@ -2696,7 +2708,7 @@ class MutableEdge:
             step (int | str): The step size of the window.
 
         Returns:
-            A `WindowSet` object.
+            WindowSet: A `WindowSet` object.
         """
 
     def explode(self):
@@ -2844,38 +2856,41 @@ class MutableEdge:
 
         Arguments:
             window (int | str): The size of the window.
-            step (int | str | None): The step size of the window. Defaults to `window`.
+            step (int | str | None): The step size of the window.
+                `step` defaults to `window`.
 
         Returns:
-            A `WindowSet` object.
+            WindowSet: A `WindowSet` object.
         """
 
-    def shrink_end(self, end: int | DateTime | str):
+    def shrink_end(self, end: TimeInput):
         """
         Set the end of the window to the smaller of `end` and `self.end()`
 
         Arguments:
-            end (int | DateTime | str): the new end time of the window
+            end (TimeInput): the new end time of the window
         Returns:
              A Edge object.
         """
 
-    def shrink_start(self, start: int | DateTime | str):
+    def shrink_start(self, start: TimeInput):
         """
         Set the start of the window to the larger of `start` and `self.start()`
 
         Arguments:
-           start (int | DateTime | str): the new start time of the window
+           start (TimeInput): the new start time of the window
 
         Returns:
              A Edge object.
         """
 
-    def shrink_window(self, start, end):
+    def shrink_window(self, start: TimeInput, end: TimeInput):
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
 
         Arguments:
+            start (TimeInput): the new start time for the window
+            end (TimeInput): the new end time for the window
 
         """
 
@@ -2933,13 +2948,13 @@ class MutableEdge:
              Edge: The layered view
         """
 
-    def window(self, start: int | DateTime | str | None, end: int | DateTime | str | None):
+    def window(self, start: TimeInput | None, end: TimeInput | None):
         """
          Create a view of the Edge including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (int | DateTime | str | None): The start time of the window (unbounded if `None`).
-            end (int | DateTime | str | None): The end time of the window (unbounded if `None`).
+            start (TimeInput | None): The start time of the window (unbounded if `None`).
+            end (TimeInput | None): The end time of the window (unbounded if `None`).
 
         Returns:
         r    A Edge object.
@@ -2977,34 +2992,34 @@ class MutableNode:
             Result: A result object indicating success or failure. On failure, it contains a GraphError.
         """
 
-    def after(self, start: int | DateTime | str):
+    def after(self, start: TimeInput):
         """
          Create a view of the Node including all events after `start` (exclusive).
 
         Arguments:
-            start (int | DateTime | str): The start time of the window.
+            start (TimeInput): The start time of the window.
 
         Returns:
              A Node object.
         """
 
-    def at(self, time: int | DateTime | str):
+    def at(self, time: TimeInput):
         """
          Create a view of the Node including all events at `time`.
 
         Arguments:
-            time (int | DateTime | str): The time of the window.
+            time (TimeInput): The time of the window.
 
         Returns:
              A Node object.
         """
 
-    def before(self, end: int | DateTime | str):
+    def before(self, end: TimeInput):
         """
          Create a view of the Node including all events before `end` (exclusive).
 
         Arguments:
-            end (int | DateTime | str): The end time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
              A Node object.
@@ -3125,7 +3140,7 @@ class MutableNode:
             step (int | str): The step size of the window.
 
         Returns:
-            A `WindowSet` object.
+            WindowSet: A `WindowSet` object.
         """
 
     def filter_edges(self, filter):
@@ -3331,10 +3346,11 @@ class MutableNode:
 
         Arguments:
             window (int | str): The size of the window.
-            step (int | str | None): The step size of the window. Defaults to `window`.
+            step (int | str | None): The step size of the window.
+                `step` defaults to `window`.
 
         Returns:
-            A `WindowSet` object.
+            WindowSet: A `WindowSet` object.
         """
 
     def set_node_type(self, new_type: str):
@@ -3346,32 +3362,34 @@ class MutableNode:
             new_type (str): The new type to be set
         """
 
-    def shrink_end(self, end: int | DateTime | str):
+    def shrink_end(self, end: TimeInput):
         """
         Set the end of the window to the smaller of `end` and `self.end()`
 
         Arguments:
-            end (int | DateTime | str): the new end time of the window
+            end (TimeInput): the new end time of the window
         Returns:
              A Node object.
         """
 
-    def shrink_start(self, start: int | DateTime | str):
+    def shrink_start(self, start: TimeInput):
         """
         Set the start of the window to the larger of `start` and `self.start()`
 
         Arguments:
-           start (int | DateTime | str): the new start time of the window
+           start (TimeInput): the new start time of the window
 
         Returns:
              A Node object.
         """
 
-    def shrink_window(self, start, end):
+    def shrink_window(self, start: TimeInput, end: TimeInput):
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
 
         Arguments:
+            start (TimeInput): the new start time for the window
+            end (TimeInput): the new end time for the window
 
         """
 
@@ -3415,13 +3433,13 @@ class MutableNode:
              Node: The layered view
         """
 
-    def window(self, start: int | DateTime | str | None, end: int | DateTime | str | None):
+    def window(self, start: TimeInput | None, end: TimeInput | None):
         """
          Create a view of the Node including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (int | DateTime | str | None): The start time of the window (unbounded if `None`).
-            end (int | DateTime | str | None): The end time of the window (unbounded if `None`).
+            start (TimeInput | None): The start time of the window (unbounded if `None`).
+            end (TimeInput | None): The end time of the window (unbounded if `None`).
 
         Returns:
         r    A Node object.
@@ -3437,34 +3455,34 @@ class Node:
     def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
-    def after(self, start: int | DateTime | str):
+    def after(self, start: TimeInput):
         """
          Create a view of the Node including all events after `start` (exclusive).
 
         Arguments:
-            start (int | DateTime | str): The start time of the window.
+            start (TimeInput): The start time of the window.
 
         Returns:
              A Node object.
         """
 
-    def at(self, time: int | DateTime | str):
+    def at(self, time: TimeInput):
         """
          Create a view of the Node including all events at `time`.
 
         Arguments:
-            time (int | DateTime | str): The time of the window.
+            time (TimeInput): The time of the window.
 
         Returns:
              A Node object.
         """
 
-    def before(self, end: int | DateTime | str):
+    def before(self, end: TimeInput):
         """
          Create a view of the Node including all events before `end` (exclusive).
 
         Arguments:
-            end (int | DateTime | str): The end time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
              A Node object.
@@ -3585,7 +3603,7 @@ class Node:
             step (int | str): The step size of the window.
 
         Returns:
-            A `WindowSet` object.
+            WindowSet: A `WindowSet` object.
         """
 
     def filter_edges(self, filter):
@@ -3791,38 +3809,41 @@ class Node:
 
         Arguments:
             window (int | str): The size of the window.
-            step (int | str | None): The step size of the window. Defaults to `window`.
+            step (int | str | None): The step size of the window.
+                `step` defaults to `window`.
 
         Returns:
-            A `WindowSet` object.
+            WindowSet: A `WindowSet` object.
         """
 
-    def shrink_end(self, end: int | DateTime | str):
+    def shrink_end(self, end: TimeInput):
         """
         Set the end of the window to the smaller of `end` and `self.end()`
 
         Arguments:
-            end (int | DateTime | str): the new end time of the window
+            end (TimeInput): the new end time of the window
         Returns:
              A Node object.
         """
 
-    def shrink_start(self, start: int | DateTime | str):
+    def shrink_start(self, start: TimeInput):
         """
         Set the start of the window to the larger of `start` and `self.start()`
 
         Arguments:
-           start (int | DateTime | str): the new start time of the window
+           start (TimeInput): the new start time of the window
 
         Returns:
              A Node object.
         """
 
-    def shrink_window(self, start, end):
+    def shrink_window(self, start: TimeInput, end: TimeInput):
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
 
         Arguments:
+            start (TimeInput): the new start time for the window
+            end (TimeInput): the new end time for the window
 
         """
 
@@ -3856,13 +3877,13 @@ class Node:
              Node: The layered view
         """
 
-    def window(self, start: int | DateTime | str | None, end: int | DateTime | str | None):
+    def window(self, start: TimeInput | None, end: TimeInput | None):
         """
          Create a view of the Node including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (int | DateTime | str | None): The start time of the window (unbounded if `None`).
-            end (int | DateTime | str | None): The end time of the window (unbounded if `None`).
+            start (TimeInput | None): The start time of the window (unbounded if `None`).
+            end (TimeInput | None): The end time of the window (unbounded if `None`).
 
         Returns:
         r    A Node object.
@@ -3878,34 +3899,34 @@ class Nodes:
     def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
-    def after(self, start: int | DateTime | str):
+    def after(self, start: TimeInput):
         """
          Create a view of the Nodes including all events after `start` (exclusive).
 
         Arguments:
-            start (int | DateTime | str): The start time of the window.
+            start (TimeInput): The start time of the window.
 
         Returns:
              A Nodes object.
         """
 
-    def at(self, time: int | DateTime | str):
+    def at(self, time: TimeInput):
         """
          Create a view of the Nodes including all events at `time`.
 
         Arguments:
-            time (int | DateTime | str): The time of the window.
+            time (TimeInput): The time of the window.
 
         Returns:
              A Nodes object.
         """
 
-    def before(self, end: int | DateTime | str):
+    def before(self, end: TimeInput):
         """
          Create a view of the Nodes including all events before `end` (exclusive).
 
         Arguments:
-            end (int | DateTime | str): The end time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
              A Nodes object.
@@ -4029,7 +4050,7 @@ class Nodes:
             step (int | str): The step size of the window.
 
         Returns:
-            A `WindowSet` object.
+            WindowSet: A `WindowSet` object.
         """
 
     def filter_edges(self, filter):
@@ -4214,38 +4235,41 @@ class Nodes:
 
         Arguments:
             window (int | str): The size of the window.
-            step (int | str | None): The step size of the window. Defaults to `window`.
+            step (int | str | None): The step size of the window.
+                `step` defaults to `window`.
 
         Returns:
-            A `WindowSet` object.
+            WindowSet: A `WindowSet` object.
         """
 
-    def shrink_end(self, end: int | DateTime | str):
+    def shrink_end(self, end: TimeInput):
         """
         Set the end of the window to the smaller of `end` and `self.end()`
 
         Arguments:
-            end (int | DateTime | str): the new end time of the window
+            end (TimeInput): the new end time of the window
         Returns:
              A Nodes object.
         """
 
-    def shrink_start(self, start: int | DateTime | str):
+    def shrink_start(self, start: TimeInput):
         """
         Set the start of the window to the larger of `start` and `self.start()`
 
         Arguments:
-           start (int | DateTime | str): the new start time of the window
+           start (TimeInput): the new start time of the window
 
         Returns:
              A Nodes object.
         """
 
-    def shrink_window(self, start, end):
+    def shrink_window(self, start: TimeInput, end: TimeInput):
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
 
         Arguments:
+            start (TimeInput): the new start time for the window
+            end (TimeInput): the new end time for the window
 
         """
 
@@ -4299,13 +4323,13 @@ class Nodes:
              Nodes: The layered view
         """
 
-    def window(self, start: int | DateTime | str | None, end: int | DateTime | str | None):
+    def window(self, start: TimeInput | None, end: TimeInput | None):
         """
          Create a view of the Nodes including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (int | DateTime | str | None): The start time of the window (unbounded if `None`).
-            end (int | DateTime | str | None): The end time of the window (unbounded if `None`).
+            start (TimeInput | None): The start time of the window (unbounded if `None`).
+            end (TimeInput | None): The end time of the window (unbounded if `None`).
 
         Returns:
         r    A Nodes object.
@@ -4332,14 +4356,14 @@ class PersistentGraph:
            None
         """
 
-    def add_edge(self, timestamp: int, src: str or int, dst: str or int, properties: dict = None, layer: str = None):
+    def add_edge(self, timestamp: int, src: str | int, dst: str | int, properties: dict = None, layer: str = None):
         """
         Adds a new edge with the given source and destination nodes and properties to the graph.
 
         Arguments:
            timestamp (int): The timestamp of the edge.
-           src (str or int): The id of the source node.
-           dst (str or int): The id of the destination node.
+           src (str | int): The id of the source node.
+           dst (str | int): The id of the destination node.
            properties (dict): The properties of the edge, as a dict of string and properties
            layer (str): The layer of the edge.
 
@@ -4347,13 +4371,13 @@ class PersistentGraph:
           None
         """
 
-    def add_node(self, timestamp: TimeInput, id: str or int, properties: dict = None, node_type: str = None):
+    def add_node(self, timestamp: TimeInput, id: str | int, properties: dict = None, node_type: str = None):
         """
         Adds a new node with the given id and properties to the graph.
 
         Arguments:
            timestamp (TimeInput): The timestamp of the node.
-           id (str or int): The id of the node.
+           id (str | int): The id of the node.
            properties (dict): The properties of the node.
            node_type (str) : The optional string which will be used as a node type
 
@@ -4373,34 +4397,34 @@ class PersistentGraph:
            None
         """
 
-    def after(self, start: int | DateTime | str):
+    def after(self, start: TimeInput):
         """
          Create a view of the GraphView including all events after `start` (exclusive).
 
         Arguments:
-            start (int | DateTime | str): The start time of the window.
+            start (TimeInput): The start time of the window.
 
         Returns:
              A GraphView object.
         """
 
-    def at(self, time: int | DateTime | str):
+    def at(self, time: TimeInput):
         """
          Create a view of the GraphView including all events at `time`.
 
         Arguments:
-            time (int | DateTime | str): The time of the window.
+            time (TimeInput): The time of the window.
 
         Returns:
              A GraphView object.
         """
 
-    def before(self, end: int | DateTime | str):
+    def before(self, end: TimeInput):
         """
          Create a view of the GraphView including all events before `end` (exclusive).
 
         Arguments:
-            end (int | DateTime | str): The end time of the window.
+            end (TimeInput): The end time of the window.
 
         Returns:
              A GraphView object.
@@ -4448,14 +4472,14 @@ class PersistentGraph:
              GraphView: The layered view
         """
 
-    def delete_edge(self, timestamp: int, src: str or int, dst: str or int, layer: str = None):
+    def delete_edge(self, timestamp: int, src: str | int, dst: str | int, layer: str = None):
         """
         Deletes an edge given the timestamp, src and dst nodes and layer (optional)
 
         Arguments:
           timestamp (int): The timestamp of the edge.
-          src (str or int): The id of the source node.
-          dst (str or int): The id of the destination node.
+          src (str | int): The id of the source node.
+          dst (str | int): The id of the destination node.
           layer (str): The layer of the edge. (optional)
 
         Returns:
@@ -4492,13 +4516,13 @@ class PersistentGraph:
             the timestamp of the earliest activity in the graph
         """
 
-    def edge(self, src: str or int, dst: str or int):
+    def edge(self, src: str | int, dst: str | int):
         """
         Gets the edge with the specified source and destination nodes
 
         Arguments:
-            src (str or int): the source node id
-            dst (str or int): the destination node id
+            src (str | int): the source node id
+            dst (str | int): the destination node id
 
         Returns:
             the edge with the specified source and destination nodes, or None if the edge does not exist
@@ -4599,7 +4623,7 @@ class PersistentGraph:
             step (int | str): The step size of the window.
 
         Returns:
-            A `WindowSet` object.
+            WindowSet: A `WindowSet` object.
         """
 
     def filter_edges(self, filter):
@@ -4649,7 +4673,7 @@ class PersistentGraph:
         Returns all the node types in the graph.
 
         Returns:
-        A list of node types
+            A list of node types
         """
 
     def has_edge(self, src: str or int, dst: str or int):
@@ -4678,7 +4702,7 @@ class PersistentGraph:
           true if the graph contains the specified node, false otherwise
         """
 
-    def import_edge(self, edge, force=False):
+    def import_edge(self, edge: Edge, force: bool = False):
         """
         Import a single edge into the graph.
 
@@ -4687,14 +4711,14 @@ class PersistentGraph:
 
         Arguments:
 
-            edge (Edge) - A PyEdge object representing the edge to be imported.
-            force (boolean) - An optional boolean flag indicating whether to force the import of the edge.
+            edge (Edge): A PyEdge object representing the edge to be imported.
+            force (bool): An optional boolean flag indicating whether to force the import of the edge.
 
         Returns:
-            Result<EdgeView<Graph, Graph>, GraphError> - A Result object which is Ok if the edge was successfully imported, and Err otherwise.
+            Edge: The imported edge.
         """
 
-    def import_edges(self, edges, force=False):
+    def import_edges(self, edges: List(edges), force: bool = False):
         """
         Import multiple edges into the graph.
 
@@ -4703,12 +4727,12 @@ class PersistentGraph:
 
         Arguments:
 
-            edges (List(edges)) - A vector of PyEdge objects representing the edges to be imported.
-            force (boolean) - An optional boolean flag indicating whether to force the import of the edges.
+            edges (List(edges)): A vector of PyEdge objects representing the edges to be imported.
+            force (bool): An optional boolean flag indicating whether to force the import of the edges.
 
         """
 
-    def import_node(self, node, force=False):
+    def import_node(self, node: Node, force: bool = False):
         """
         Import a single node into the graph.
 
@@ -4716,14 +4740,14 @@ class PersistentGraph:
         the function will force the import of the node even if it already exists in the graph.
 
         Arguments:
-            node (Node) - A PyNode object representing the node to be imported.
-            force (boolean) - An optional boolean flag indicating whether to force the import of the node.
+            node (Node): A PyNode object representing the node to be imported.
+            force (bool): An optional boolean flag indicating whether to force the import of the node.
 
         Returns:
             Result<NodeView<Graph, Graph>, GraphError> - A Result object which is Ok if the node was successfully imported, and Err otherwise.
         """
 
-    def import_nodes(self, nodes, force=False):
+    def import_nodes(self, nodes: List(Node), force: bool = False):
         """
         Import multiple nodes into the graph.
 
@@ -4732,8 +4756,8 @@ class PersistentGraph:
 
         Arguments:
 
-            nodes (List(Node))- A vector of PyNode objects representing the nodes to be imported.
-            force (boolean) - An optional boolean flag indicating whether to force the import of the nodes.
+            nodes (List(Node)):  A vector of PyNode objects representing the nodes to be imported.
+            force (bool): An optional boolean flag indicating whether to force the import of the nodes.
 
         """
 
@@ -5025,12 +5049,12 @@ class PersistentGraph:
            GraphView - Returns a graph clone
         """
 
-    def node(self, id: str or int):
+    def node(self, id: str | int):
         """
         Gets the node with the specified id
 
         Arguments:
-          id (str or int): the node id
+          id (str | int): the node id
 
         Returns:
           the node with the specified id, or None if the node does not exist
@@ -5066,10 +5090,11 @@ class PersistentGraph:
 
         Arguments:
             window (int | str): The size of the window.
-            step (int | str | None): The step size of the window. Defaults to `window`.
+            step (int | str | None): The step size of the window.
+                `step` defaults to `window`.
 
         Returns:
-            A `WindowSet` object.
+            WindowSet: A `WindowSet` object.
         """
 
     def save_to_file(self, path: str):
@@ -5096,32 +5121,34 @@ class PersistentGraph:
           Bytes
         """
 
-    def shrink_end(self, end: int | DateTime | str):
+    def shrink_end(self, end: TimeInput):
         """
         Set the end of the window to the smaller of `end` and `self.end()`
 
         Arguments:
-            end (int | DateTime | str): the new end time of the window
+            end (TimeInput): the new end time of the window
         Returns:
              A GraphView object.
         """
 
-    def shrink_start(self, start: int | DateTime | str):
+    def shrink_start(self, start: TimeInput):
         """
         Set the start of the window to the larger of `start` and `self.start()`
 
         Arguments:
-           start (int | DateTime | str): the new start time of the window
+           start (TimeInput): the new start time of the window
 
         Returns:
              A GraphView object.
         """
 
-    def shrink_window(self, start, end):
+    def shrink_window(self, start: TimeInput, end: TimeInput):
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
 
         Arguments:
+            start (TimeInput): the new start time for the window
+            end (TimeInput): the new end time for the window
 
         """
 
@@ -5253,13 +5280,13 @@ class PersistentGraph:
           A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
         """
 
-    def window(self, start: int | DateTime | str | None, end: int | DateTime | str | None):
+    def window(self, start: TimeInput | None, end: TimeInput | None):
         """
          Create a view of the GraphView including all events between `start` (inclusive) and `end` (exclusive)
 
         Arguments:
-            start (int | DateTime | str | None): The start time of the window (unbounded if `None`).
-            end (int | DateTime | str | None): The end time of the window (unbounded if `None`).
+            start (TimeInput | None): The start time of the window (unbounded if `None`).
+            end (TimeInput | None): The end time of the window (unbounded if `None`).
 
         Returns:
         r    A GraphView object.

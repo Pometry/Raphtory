@@ -113,7 +113,7 @@ impl PyPersistentGraph {
     ///
     /// Arguments:
     ///    timestamp (TimeInput): The timestamp of the node.
-    ///    id (str or int): The id of the node.
+    ///    id (str | int): The id of the node.
     ///    properties (dict): The properties of the node.
     ///    node_type (str) : The optional string which will be used as a node type
     ///
@@ -179,8 +179,8 @@ impl PyPersistentGraph {
     ///
     /// Arguments:
     ///    timestamp (int): The timestamp of the edge.
-    ///    src (str or int): The id of the source node.
-    ///    dst (str or int): The id of the destination node.
+    ///    src (str | int): The id of the source node.
+    ///    dst (str | int): The id of the destination node.
     ///    properties (dict): The properties of the edge, as a dict of string and properties
     ///    layer (str): The layer of the edge.
     ///
@@ -203,8 +203,8 @@ impl PyPersistentGraph {
     ///
     /// Arguments:
     ///   timestamp (int): The timestamp of the edge.
-    ///   src (str or int): The id of the source node.
-    ///   dst (str or int): The id of the destination node.
+    ///   src (str | int): The id of the source node.
+    ///   dst (str | int): The id of the destination node.
     ///   layer (str): The layer of the edge. (optional)
     ///
     /// Returns:
@@ -223,7 +223,7 @@ impl PyPersistentGraph {
     /// Gets the node with the specified id
     ///
     /// Arguments:
-    ///   id (str or int): the node id
+    ///   id (str | int): the node id
     ///
     /// Returns:
     ///   the node with the specified id, or None if the node does not exist
@@ -235,8 +235,8 @@ impl PyPersistentGraph {
     /// Gets the edge with the specified source and destination nodes
     ///
     /// Arguments:
-    ///     src (str or int): the source node id
-    ///     dst (str or int): the destination node id
+    ///     src (str | int): the source node id
+    ///     dst (str | int): the destination node id
     ///
     /// Returns:
     ///     the edge with the specified source and destination nodes, or None if the edge does not exist
@@ -255,8 +255,8 @@ impl PyPersistentGraph {
     /// the function will force the import of the node even if it already exists in the graph.
     ///
     /// Arguments:
-    ///     node (Node) - A PyNode object representing the node to be imported.
-    ///     force (boolean) - An optional boolean flag indicating whether to force the import of the node.
+    ///     node (Node): A PyNode object representing the node to be imported.
+    ///     force (bool): An optional boolean flag indicating whether to force the import of the node.
     ///
     /// Returns:
     ///     Result<NodeView<Graph, Graph>, GraphError> - A Result object which is Ok if the node was successfully imported, and Err otherwise.
@@ -276,8 +276,8 @@ impl PyPersistentGraph {
     ///
     /// Arguments:
     ///
-    ///     nodes (List(Node))- A vector of PyNode objects representing the nodes to be imported.
-    ///     force (boolean) - An optional boolean flag indicating whether to force the import of the nodes.
+    ///     nodes (List(Node)):  A vector of PyNode objects representing the nodes to be imported.
+    ///     force (bool): An optional boolean flag indicating whether to force the import of the nodes.
     ///
     #[pyo3(signature = (nodes, force = false))]
     pub fn import_nodes(&self, nodes: Vec<PyNode>, force: bool) -> Result<(), GraphError> {
@@ -292,11 +292,11 @@ impl PyPersistentGraph {
     ///
     /// Arguments:
     ///
-    ///     edge (Edge) - A PyEdge object representing the edge to be imported.
-    ///     force (boolean) - An optional boolean flag indicating whether to force the import of the edge.
+    ///     edge (Edge): A PyEdge object representing the edge to be imported.
+    ///     force (bool): An optional boolean flag indicating whether to force the import of the edge.
     ///
     /// Returns:
-    ///     Result<EdgeView<Graph, Graph>, GraphError> - A Result object which is Ok if the edge was successfully imported, and Err otherwise.
+    ///     Edge: The imported edge.
     #[pyo3(signature = (edge, force = false))]
     pub fn import_edge(
         &self,
@@ -313,8 +313,8 @@ impl PyPersistentGraph {
     ///
     /// Arguments:
     ///
-    ///     edges (List(edges)) - A vector of PyEdge objects representing the edges to be imported.
-    ///     force (boolean) - An optional boolean flag indicating whether to force the import of the edges.
+    ///     edges (List(edges)): A vector of PyEdge objects representing the edges to be imported.
+    ///     force (bool): An optional boolean flag indicating whether to force the import of the edges.
     ///
     #[pyo3(signature = (edges, force = false))]
     pub fn import_edges(&self, edges: Vec<PyEdge>, force: bool) -> Result<(), GraphError> {
@@ -329,7 +329,7 @@ impl PyPersistentGraph {
     /// Returns all the node types in the graph.
     ///
     /// Returns:
-    /// A list of node types
+    ///     A list of node types
     pub fn get_all_node_types(&self) -> Vec<ArcStr> {
         self.graph.get_all_node_types()
     }

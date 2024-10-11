@@ -253,7 +253,7 @@ impl PyGraph {
     ///
     /// Arguments:
     ///     node (Node): A Node object representing the node to be imported.
-    ///     force (boolean): An optional boolean flag indicating whether to force the import of the node.
+    ///     force (bool): An optional boolean flag indicating whether to force the import of the node.
     ///
     /// Returns:
     ///     Node: A Result object which is Ok if the node was successfully imported, and Err otherwise.
@@ -274,7 +274,7 @@ impl PyGraph {
     /// Arguments:
     ///
     ///     nodes (List[Node]): A vector of PyNode objects representing the nodes to be imported.
-    ///     force (boolean): An optional boolean flag indicating whether to force the import of the nodes.
+    ///     force (bool): An optional boolean flag indicating whether to force the import of the nodes.
     ///
     #[pyo3(signature = (nodes, force = false))]
     pub fn import_nodes(&self, nodes: Vec<PyNode>, force: bool) -> Result<(), GraphError> {
@@ -290,7 +290,7 @@ impl PyGraph {
     /// Arguments:
     ///
     ///     edge (Edge): A PyEdge object representing the edge to be imported.
-    ///     force (boolean): An optional boolean flag indicating whether to force the import of the edge.
+    ///     force (bool): An optional boolean flag indicating whether to force the import of the edge.
     ///
     /// Returns:
     ///     Edge: A Result object which is Ok if the edge was successfully imported, and Err otherwise.
@@ -311,7 +311,7 @@ impl PyGraph {
     /// Arguments:
     ///
     ///     edges (List[Edge]): A list of Edge objects representing the edges to be imported.
-    ///     force (boolean): An optional boolean flag indicating whether to force the import of the edges.
+    ///     force (bool): An optional boolean flag indicating whether to force the import of the edges.
     #[pyo3(signature = (edges, force = false))]
     pub fn import_edges(&self, edges: Vec<PyEdge>, force: bool) -> Result<(), GraphError> {
         let edge_views = edges.iter().map(|edge| &edge.edge);
