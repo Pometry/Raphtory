@@ -295,33 +295,32 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
     fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef> {
         match layer_ids {
             LayerIds::None => None,
-            LayerIds::All => match self.graph.layers().len() {
-                0 => None,
-                1 => {
-                    let eid = self.graph.layers()[0]
+            LayerIds::All => self
+                .graph
+                .layers()
+                .iter()
+                .filter_map(|layer| {
+                    layer
                         .nodes_storage()
-                        .find_edge(self.vid, dst)?;
-                    Some(EdgeRef::new_outgoing(eid, self.vid, dst).at_layer(0))
-                }
-                _ => todo!("multilayer edge views not implemented in diskgraph yet"),
-            },
+                        .find_edge(self.vid, dst)
+                        .map(|eid| EdgeRef::new_outgoing(eid, self.vid, dst))
+                })
+                .next(),
             LayerIds::One(id) => {
                 let eid = self.graph.layers()[*id]
                     .nodes_storage()
                     .find_edge(self.vid, dst)?;
                 Some(EdgeRef::new_outgoing(eid, self.vid, dst).at_layer(*id))
             }
-            LayerIds::Multiple(ids) => match ids.len() {
-                0 => None,
-                1 => {
-                    let layer = ids[0];
-                    let eid = self.graph.layers()[layer]
+            LayerIds::Multiple(ids) => ids
+                .iter()
+                .filter_map(|&layer_id| {
+                    self.graph.layers()[layer_id]
                         .nodes_storage()
-                        .find_edge(self.vid, dst)?;
-                    Some(EdgeRef::new_outgoing(eid, self.vid, dst).at_layer(layer))
-                }
-                _ => todo!("multtilayer edge views not implemented in diskgraph yet"),
-            },
+                        .find_edge(self.vid, dst)
+                        .map(|eid| EdgeRef::new_outgoing(eid, self.vid, dst).at_layer(layer_id))
+                })
+                .next(),
         }
     }
 }

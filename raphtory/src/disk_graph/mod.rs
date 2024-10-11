@@ -10,7 +10,7 @@ use crate::{
             properties::{graph_meta::GraphMeta, props::Meta},
             LayerIds,
         },
-        utils::errors::GraphError,
+        utils::{errors::GraphError, iter::GenLockedIter},
     },
     db::{
         api::{storage::graph::storage_ops, view::internal::CoreGraphOps},
@@ -19,6 +19,7 @@ use crate::{
     disk_graph::graph_impl::{prop_conversion::make_node_properties_from_graph, ParquetLayerCols},
     prelude::{Graph, Layer},
 };
+use itertools::Itertools;
 use polars_arrow::{
     array::{PrimitiveArray, StructArray},
     datatypes::{ArrowDataType as DataType, Field},
@@ -27,11 +28,10 @@ use pometry_storage::{
     graph::TemporalGraph, graph_fragment::TempColGraphFragment, load::ExternalEdgeList,
     merge::merge_graph::merge_graphs, RAError,
 };
-use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
+use raphtory_api::core::{entities::edges::edge_ref::EdgeRef, storage::dict_mapper::MaybeNew};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::borrow::Borrow;
-use tracing::warn;
 
 pub mod graph_impl;
 pub mod storage_interface;
@@ -42,11 +42,12 @@ pub mod prelude {
     pub use pometry_storage::chunked_array::array_ops::*;
 }
 
+type LayerId = usize;
+type PropId = usize;
+
 #[derive(Clone, Debug)]
 pub struct DiskGraphStorage {
     pub(crate) inner: Arc<TemporalGraph>,
-    node_meta: Arc<Meta>,
-    edge_meta: Arc<Meta>,
     graph_props: Arc<GraphMeta>,
 }
 
@@ -157,11 +158,19 @@ impl DiskGraphStorage {
         e: EdgeRef,
         layer_ids: &LayerIds,
     ) -> Box<dyn Iterator<Item = usize> + '_> {
-        let layer_id = match layer_ids.constrain_from_edge(e).borrow() {
-            LayerIds::One(id) => *id,
-            _ => panic!("Only one layer is supported"),
-        };
-        Box::new(1..self.inner.edges_data_type(layer_id).len())
+        match layer_ids.constrain_from_edge(e).into_owned() {
+            LayerIds::None => Box::new(std::iter::empty()),
+            LayerIds::All => Box::new(0..self.edge_meta().temporal_prop_meta().len()),
+            LayerIds::One(id) => Box::new(self.inner().edge_global_mapping(id)),
+            LayerIds::Multiple(arc) => Box::new(GenLockedIter::from((self, arc), |(dg, arc)| {
+                Box::new(
+                    arc.iter()
+                        .map(|layer_id| dg.inner().edge_global_mapping(*layer_id))
+                        .kmerge()
+                        .dedup(),
+                )
+            })),
+        }
     }
 
     pub fn make_simple_graph(
@@ -215,10 +224,11 @@ impl DiskGraphStorage {
         Ok(DiskGraphStorage::new(inner))
     }
 
-    fn new(inner_graph: TemporalGraph) -> Self {
+    pub fn new(inner_graph: TemporalGraph) -> Self {
         let node_meta = Meta::new();
-        let mut edge_meta = Meta::new();
+        let edge_meta = Meta::new();
         let graph_meta = GraphMeta::new();
+        let mut edge_global_mapping: Vec<Vec<(LayerId, PropId)>> = vec![]; // map the global prop ids to the layer prop ids
 
         for node_type in inner_graph.node_types().into_iter().flatten() {
             if let Some(node_type) = node_type {
@@ -228,23 +238,30 @@ impl DiskGraphStorage {
             }
         }
 
-        for layer in inner_graph.layers() {
+        for (layer_id, layer) in inner_graph.layers().into_iter().enumerate() {
             let edge_props_fields = layer.edges_data_type();
 
-            for (id, field) in edge_props_fields.iter().enumerate() {
+            for (local_prop_id, field) in edge_props_fields.iter().enumerate().skip(1) {
+                // we assume the first field is the timestamp
                 let prop_name = &field.name;
                 let data_type = field.data_type();
 
                 let resolved_id = edge_meta
                     .resolve_prop_id(prop_name, data_type.into(), false)
                     .expect("Arrow data types should without failing");
-                if resolved_id != id {
-                    warn!("Warning: Layers with different edge properties are not supported by the high-level apis on top of the disk_graph graph yet, edge properties will not be available to high-level apis");
-                    edge_meta = Meta::new();
-                    break;
+
+                match resolved_id {
+                    MaybeNew::New(_) => edge_global_mapping.push(vec![(layer_id, local_prop_id)]),
+                    MaybeNew::Existing(id) => {
+                        edge_global_mapping[id].push((layer_id, local_prop_id))
+                    }
                 }
             }
         }
+
+        edge_global_mapping
+            .iter_mut()
+            .for_each(|mapping| mapping.sort());
 
         for (l_id, l_name) in inner_graph.layer_names().into_iter().enumerate() {
             edge_meta.layer_meta().set_id(l_name.as_str(), l_id);
@@ -270,8 +287,6 @@ impl DiskGraphStorage {
 
         Self {
             inner: Arc::new(inner_graph),
-            node_meta: Arc::new(node_meta),
-            edge_meta: Arc::new(edge_meta),
             graph_props: Arc::new(graph_meta),
         }
     }
@@ -382,11 +397,11 @@ impl DiskGraphStorage {
     }
 
     pub fn node_meta(&self) -> &Meta {
-        &self.node_meta
+        self.inner.node_meta()
     }
 
     pub fn edge_meta(&self) -> &Meta {
-        &self.edge_meta
+        self.inner.edge_meta()
     }
 
     pub fn graph_meta(&self) -> &GraphMeta {

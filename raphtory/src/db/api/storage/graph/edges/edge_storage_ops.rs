@@ -202,7 +202,7 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn deletions(self, layer_id: usize) -> TimeIndexRef<'a>;
 
     fn has_temporal_prop(self, layer_ids: &'a LayerIds, prop_id: usize) -> bool {
-        self.layer_ids_par_iter(layer_ids)
+        self.layer_ids_iter(layer_ids)
             .any(move |id| !self.temporal_prop_layer(id, prop_id).is_empty())
     }
 

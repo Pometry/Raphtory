@@ -16,10 +16,13 @@ use crate::{
             timeindex::{AsTime, TimeIndexEntry},
             PairEntryMut,
         },
-        utils::errors::GraphError,
+        utils::{errors::GraphError, iter::GenLockedIter},
         Direction, Prop,
     },
-    db::api::{storage::graph::edges::edge_storage_ops::EdgeStorageOps, view::Layer},
+    db::api::{
+        storage::graph::edges::edge_storage_ops::EdgeStorageOps,
+        view::{IntoDynBoxed, Layer},
+    },
 };
 use dashmap::DashSet;
 use either::Either;
@@ -205,21 +208,23 @@ impl TemporalGraph {
         e: EdgeRef,
         layer_ids: &LayerIds,
     ) -> Box<dyn Iterator<Item = usize> + '_> {
-        // // FIXME: revisit the locking scheme so we don't have to collect the ids
         let entry = self.storage.edge_entry(e.pid());
-        match layer_ids {
-            LayerIds::None => Box::new(iter::empty()),
-            LayerIds::All => Box::new(entry.temp_prop_ids(None).collect_vec().into_iter()),
-            LayerIds::One(id) => Box::new(entry.temp_prop_ids(Some(*id)).collect_vec().into_iter()),
-            LayerIds::Multiple(ids) => Box::new(
-                ids.iter()
-                    .map(|id| entry.temp_prop_ids(Some(*id)))
-                    .kmerge()
-                    .dedup()
-                    .collect_vec()
-                    .into_iter(),
-            ),
-        }
+        let layer_ids = layer_ids.constrain_from_edge(e).into_owned();
+        GenLockedIter::from((entry, layer_ids), |(entry, layer_ids)| {
+            let iter: Box<dyn Iterator<Item = usize> + Send> = match layer_ids {
+                LayerIds::None => Box::new(iter::empty()),
+                LayerIds::All => entry.temp_prop_ids(None),
+                LayerIds::One(id) => entry.temp_prop_ids(Some(*id)),
+                LayerIds::Multiple(ids) => Box::new(
+                    ids.iter()
+                        .map(|id| entry.temp_prop_ids(Some(*id)))
+                        .kmerge()
+                        .dedup(),
+                ),
+            };
+            iter
+        })
+        .into_dyn_boxed()
     }
 
     pub(crate) fn core_const_edge_prop_ids(
@@ -227,29 +232,30 @@ impl TemporalGraph {
         e: EdgeRef,
         layer_ids: LayerIds,
     ) -> Box<dyn Iterator<Item = usize> + '_> {
-        // // FIXME: revisit the locking scheme so we don't have to collect all the ids
-        let layer_ids = layer_ids.constrain_from_edge(e);
         let entry = self.storage.edge_entry(e.pid());
-        let ids: Vec<_> = match layer_ids.borrow() {
-            LayerIds::None => vec![],
-            LayerIds::All => entry
-                .layer_iter()
-                .map(|(_, data)| data.const_prop_ids())
-                .kmerge()
-                .dedup()
-                .collect(),
-            LayerIds::One(id) => match entry.layer(*id) {
-                Some(l) => l.const_prop_ids().collect(),
-                None => vec![],
-            },
-            LayerIds::Multiple(ids) => ids
-                .iter()
-                .flat_map(|id| entry.layer(*id).map(|l| l.const_prop_ids()))
-                .kmerge()
-                .dedup()
-                .collect(),
-        };
-        Box::new(ids.into_iter())
+        GenLockedIter::from((entry, layer_ids), |(entry, layer_ids)| {
+            let layer_ids = layer_ids.constrain_from_edge(e);
+            match layer_ids.as_ref() {
+                LayerIds::None => Box::new(iter::empty()),
+                LayerIds::All => entry
+                    .layer_iter()
+                    .map(|(_, data)| data.const_prop_ids())
+                    .kmerge()
+                    .dedup()
+                    .into_dyn_boxed(),
+                LayerIds::One(id) => match entry.layer(*id) {
+                    Some(l) => l.const_prop_ids().into_dyn_boxed(),
+                    None => Box::new(iter::empty()),
+                },
+                LayerIds::Multiple(ids) => ids
+                    .iter()
+                    .flat_map(|id| entry.layer(*id).map(|l| l.const_prop_ids()))
+                    .kmerge()
+                    .dedup()
+                    .into_dyn_boxed(),
+            }
+        })
+        .into_dyn_boxed()
     }
 
     pub(crate) fn core_get_const_edge_prop(

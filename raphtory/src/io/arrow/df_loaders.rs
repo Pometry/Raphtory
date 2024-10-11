@@ -90,6 +90,7 @@ pub(crate) fn load_nodes_from_df<
             graph.resolve_node_property(key, dtype, true)
         })?;
 
+    #[cfg(feature = "python")]
     let mut pb = build_progress_bar("Loading nodes".to_string(), df_view.num_rows)?;
 
     let mut start_id = graph.reserve_event_ids(df_view.num_rows)?;
@@ -137,6 +138,7 @@ pub(crate) fn load_nodes_from_df<
                 }
                 Ok::<(), GraphError>(())
             })?;
+        #[cfg(feature = "python")]
         let _ = pb.update(df.len());
         start_id += df.len();
     }
@@ -183,7 +185,9 @@ pub(crate) fn load_edges_from_df<
             graph.resolve_edge_property(key, dtype, true)
         })?;
 
+    #[cfg(feature = "python")]
     let mut pb = build_progress_bar("Loading edges".to_string(), df_view.num_rows)?;
+    #[cfg(feature = "python")]
     let _ = pb.update(0);
     let mut start_idx = graph.reserve_event_ids(df_view.num_rows)?;
 
@@ -383,6 +387,7 @@ pub(crate) fn load_edges_from_df<
         }
 
         start_idx += df.len();
+        #[cfg(feature = "python")]
         let _ = pb.update(df.len());
     }
     Ok(())
@@ -611,16 +616,24 @@ mod tests {
     use itertools::Itertools;
     use polars_arrow::array::{MutableArray, MutablePrimitiveArray, MutableUtf8Array};
     use proptest::proptest;
-    use tempfile::{NamedTempFile, TempDir};
+    use tempfile::TempDir;
 
     #[cfg(feature = "storage")]
     mod load_multi_layer {
-
         use std::{
             fs::File,
             path::{Path, PathBuf},
         };
 
+        use crate::{
+            db::{
+                api::storage::graph::storage_ops::GraphStorage, graph::graph::assert_graph_equal,
+            },
+            disk_graph::DiskGraphStorage,
+            io::parquet_loaders::load_edges_from_parquet,
+            prelude::{Graph, GraphViewOps},
+            test_utils::build_edge_list,
+        };
         use polars_arrow::{
             array::{PrimitiveArray, Utf8Array},
             types::NativeType,
@@ -638,30 +651,37 @@ mod tests {
             num_layers: impl Into<SizeRange>,
         ) -> impl Strategy<Value = Vec<DataFrame>> {
             let layer = num_nodes
-                .prop_flat_map(move |num_nodes| build_edge_list(len, num_nodes))
+                .prop_flat_map(move |num_nodes| {
+                    build_edge_list(len, num_nodes)
+                        .prop_filter("no empty edge lists", |el| !el.is_empty())
+                })
                 .prop_map(move |mut rows| {
                     rows.sort_by_key(|(src, dst, time, _, _)| (*src, *dst, *time));
-                    let src = native_series("str", rows.iter().map(|(src, _, _, _, _)| *src));
-                    let dst = native_series("dst", rows.iter().map(|(_, dst, _, _, _)| *dst));
-                    let time = native_series("time", rows.iter().map(|(_, _, time, _, _)| *time));
-                    let int_prop = native_series(
-                        "int_prop",
-                        rows.iter().map(|(_, _, _, _, int_prop)| *int_prop),
-                    );
-
-                    let str_prop = Series::from_arrow(
-                        "str_prop",
-                        Utf8Array::<i64>::from_iter(
-                            rows.iter()
-                                .map(|(_, _, _, str_prop, _)| Some(str_prop.clone())),
-                        )
-                        .boxed(),
-                    )
-                    .unwrap();
-
-                    DataFrame::new(vec![src, dst, time, str_prop, int_prop]).unwrap()
+                    new_df_from_rows(&rows)
                 });
             proptest::collection::vec(layer, num_layers)
+        }
+
+        fn new_df_from_rows(rows: &[(u64, u64, i64, String, i64)]) -> DataFrame {
+            let src = native_series("src", rows.iter().map(|(src, _, _, _, _)| *src));
+            let dst = native_series("dst", rows.iter().map(|(_, dst, _, _, _)| *dst));
+            let time = native_series("time", rows.iter().map(|(_, _, time, _, _)| *time));
+            let int_prop = native_series(
+                "int_prop",
+                rows.iter().map(|(_, _, _, _, int_prop)| *int_prop),
+            );
+
+            let str_prop = Series::from_arrow(
+                "str_prop",
+                Utf8Array::<i64>::from_iter(
+                    rows.iter()
+                        .map(|(_, _, _, str_prop, _)| Some(str_prop.clone())),
+                )
+                .boxed(),
+            )
+            .unwrap();
+
+            DataFrame::new(vec![src, dst, time, str_prop, int_prop]).unwrap()
         }
 
         fn native_series<T: NativeType>(name: &str, is: impl IntoIterator<Item = T>) -> Series {
@@ -669,16 +689,61 @@ mod tests {
             Series::from_arrow(name, is.boxed()).unwrap()
         }
 
+        fn check_layers_from_df(input: Vec<DataFrame>, num_threads: usize) {
+            let root_dir = TempDir::new().unwrap();
+            let graph_dir = TempDir::new().unwrap();
+            let layers = input
+                .into_iter()
+                .enumerate()
+                .map(|(i, df)| (i.to_string(), df))
+                .collect::<Vec<_>>();
+            let edge_lists = write_layers(&layers, root_dir.path());
+
+            let expected = Graph::new();
+            for edge_list in &edge_lists {
+                load_edges_from_parquet(
+                    &expected,
+                    &edge_list.path,
+                    "time",
+                    "src",
+                    "dst",
+                    Some(&["int_prop", "str_prop"]),
+                    None,
+                    None,
+                    Some(edge_list.layer),
+                    None,
+                )
+                .unwrap();
+            }
+
+            let g = TemporalGraph::from_parquets(
+                num_threads,
+                13,
+                23,
+                graph_dir.path(),
+                edge_lists,
+                &[],
+                None,
+                None,
+            )
+            .unwrap();
+            let actual =
+                Graph::from_internal_graph(GraphStorage::Disk(DiskGraphStorage::new(g).into()));
+
+            assert_graph_equal(&expected, &actual);
+        }
+
         #[test]
         fn load_from_multiple_layers() {
-            proptest!(|(input in build_edge_list_df(50, 1u64..23, 1..10,  ), num_threads in 1usize..10)| {
-                let root_dir = TempDir::new().unwrap();
-                let graph_dir = TempDir::new().unwrap();
-                let layers = input.into_iter().enumerate().map(|(i, df)| (i.to_string(), df)).collect::<Vec<_>>();
-                let edge_lists = write_layers(&layers, root_dir.path());
-
-                let graph = TemporalGraph::from_parquets(num_threads, 13, 23, graph_dir.path(), edge_lists, &[], None, None).unwrap();
+            proptest!(|(input in build_edge_list_df(50, 1u64..23, 1..10,  ), num_threads in 1usize..2)| {
+                check_layers_from_df(input, num_threads)
             });
+        }
+
+        #[test]
+        fn single_layer_single_edge() {
+            let df = new_df_from_rows(&[(0, 0, 1, "".to_owned(), 2)]);
+            check_layers_from_df(vec![df], 1)
         }
 
         fn write_layers<'a>(
@@ -692,8 +757,15 @@ mod tests {
                 let layer_path = layer_dir.join("edges.parquet");
 
                 paths.push(
-                    ExternalEdgeList::new(name, layer_path.to_path_buf(), "src", "dst", "time")
-                        .unwrap(),
+                    ExternalEdgeList::new(
+                        name,
+                        layer_path.to_path_buf(),
+                        "src",
+                        "dst",
+                        "time",
+                        vec![],
+                    )
+                    .unwrap(),
                 );
 
                 let file = File::create(layer_path).unwrap();

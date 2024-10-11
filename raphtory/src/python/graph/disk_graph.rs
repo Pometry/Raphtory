@@ -156,8 +156,48 @@ impl PyDiskGraph {
 
             let df_view = process_pandas_py_df(edge_df, py, df_columns)?;
             df_view.check_cols_exist(&cols_to_check)?;
-            let graph = Self::from_pandas(graph_dir, df_view, time_col, src_col, dst_col)?;
+            let src_index = df_view.get_index(src_col)?;
+            let dst_index = df_view.get_index(dst_col)?;
+            let time_index = df_view.get_index(time_col)?;
 
+            let mut chunks_iter = df_view.chunks.peekable();
+            let chunk_size = if let Some(result) = chunks_iter.peek() {
+                match result {
+                    Ok(df) => df.chunk.len(),
+                    Err(e) => {
+                        return Err(GraphError::LoadFailure(format!(
+                            "Failed to load graph {e:?}"
+                        )))
+                    }
+                }
+            } else {
+                return Err(GraphError::LoadFailure("No chunks available".to_string()));
+            };
+
+            let edge_lists = chunks_iter
+                .map_ok(|df| {
+                    let fields = df
+                        .chunk
+                        .iter()
+                        .zip(df_view.names.iter())
+                        .map(|(arr, col_name)| {
+                            Field::new(col_name, arr.data_type().clone(), arr.null_count() > 0)
+                        })
+                        .collect_vec();
+                    let s_array = StructArray::new(DataType::Struct(fields), df.chunk, None);
+                    s_array
+                })
+                .collect::<Result<Vec<_>, GraphError>>()?;
+
+            let graph = DiskGraphStorage::load_from_edge_lists(
+                &edge_lists,
+                chunk_size,
+                chunk_size,
+                graph_dir,
+                time_index,
+                src_index,
+                dst_index,
+            )?;
             Ok::<_, GraphError>(graph)
         });
 
@@ -226,65 +266,6 @@ impl PyDiskGraph {
 }
 
 impl PyDiskGraph {
-    fn from_pandas(
-        graph_dir: &str,
-        df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
-        time: &str,
-        src: &str,
-        dst: &str,
-    ) -> Result<DiskGraphStorage, GraphError> {
-        let src_index = df_view.get_index(src)?;
-        let dst_index = df_view.get_index(dst)?;
-        let time_index = df_view.get_index(time)?;
-
-            let mut chunks_iter = df_view.chunks.peekable();
-            let chunk_size = if let Some(result) = chunks_iter.peek() {
-                match result {
-                    Ok(df) => df.chunk.len(),
-                    Err(e) => {
-                        return Err(GraphError::LoadFailure(format!(
-                            "Failed to load graph {e:?}"
-                        )))
-                    }
-                }
-            } else {
-                return Err(GraphError::LoadFailure("No chunks available".to_string()));
-            };
-
-            let edge_lists = chunks_iter
-                .map_ok(|df| {
-                    let fields = df
-                        .chunk
-                        .iter()
-                        .zip(df_view.names.iter())
-                        .map(|(arr, col_name)| {
-                            Field::new(col_name, arr.data_type().clone(), arr.null_count() > 0)
-                        })
-                        .collect_vec();
-                    let s_array = StructArray::new(DataType::Struct(fields), df.chunk, None);
-                    s_array
-                })
-                .collect::<Result<Vec<_>, GraphError>>()?;
-
-            let graph = DiskGraphStorage::load_from_edge_lists(
-                &edge_lists,
-                chunk_size,
-                chunk_size,
-                graph_dir,
-                time_index,
-                src_index,
-                dst_index,
-            )?;
-            Ok::<_, GraphError>(graph)
-        });
-
-        graph.map_err(|e| {
-            GraphError::LoadFailure(format!(
-                "Failed to load graph {e:?} from pandas data frames"
-            ))
-        })
-    }
-
     #[staticmethod]
     fn load_from_dir(graph_dir: PathBuf) -> Result<DiskGraphStorage, GraphError> {
         DiskGraphStorage::load_from_dir(&graph_dir).map_err(|err| {

@@ -8,7 +8,7 @@ use pometry_storage::RAError;
 #[cfg(feature = "python")]
 use pyo3::PyErr;
 use raphtory_api::core::{
-    entities::{GidType, GID},
+    entities::{properties::PropError, GidType, GID},
     storage::arc_str::ArcStr,
 };
 use std::{fmt::Debug, io, path::PathBuf, time::SystemTimeError};
@@ -120,12 +120,8 @@ pub enum GraphError {
     #[error("Failed to mutate graph property")]
     FailedToMutateGraphProperty { source: MutateGraphError },
 
-    #[error("Wrong type for property {name}: expected {expected:?} but actual type is {actual:?}")]
-    PropertyTypeError {
-        name: String,
-        expected: PropType,
-        actual: PropType,
-    },
+    #[error("PropertyType Error: {0}")]
+    PropertyTypeError(#[from] PropError),
 
     #[error("Tried to mutate constant property {name}: old value {old:?}, new value {new:?}")]
     ConstantPropertyMutationError { name: ArcStr, old: Prop, new: Prop },

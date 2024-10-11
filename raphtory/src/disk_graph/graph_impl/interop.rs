@@ -1,17 +1,19 @@
 use crate::{
     core::{
         entities::{LayerIds, ELID},
-        storage::timeindex::{TimeIndexIntoOps, TimeIndexOps},
+        storage::timeindex::TimeIndexIntoOps,
         utils::iter::GenLockedIter,
         Direction,
     },
     db::api::{
         storage::graph::{
-            edges::edge_storage_ops::EdgeStorageOps,
-            nodes::node_storage_ops::{NodeStorageIntoOps, NodeStorageOps},
+            edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
             tprop_storage_ops::TPropOps,
         },
-        view::{internal::CoreGraphOps, IntoDynBoxed, TimeSemantics},
+        view::{
+            internal::{CoreGraphOps, TimeSemantics},
+            IntoDynBoxed,
+        },
     },
     disk_graph::graph_impl::prop_conversion::arrow_array_from_props,
     prelude::*,
@@ -100,7 +102,7 @@ impl GraphLike<TimeIndexEntry> for Graph {
 
     fn edge_additions(&self, eid: EID, layer: usize) -> impl Iterator<Item = TimeIndexEntry> + '_ {
         let el_id = ELID::new(eid.0.into(), Some(layer));
-        let edge = self.core_edge_arc(el_id);
+        let edge = self.core_edge(el_id);
         GenLockedIter::from(edge, |edge| {
             edge.additions(layer).into_iter().into_dyn_boxed()
         })
@@ -156,8 +158,8 @@ impl GraphLike<TimeIndexEntry> for Graph {
     }
 
     fn out_neighbours(&self, vid: VID) -> impl Iterator<Item = (VID, EID)> + '_ {
-        self.core_node_arc(vid)
-            .into_edges_iter(LayerIds::All, Direction::OUT)
+        self.core_node_entry(vid)
+            .into_edges_iter(&LayerIds::All, Direction::OUT)
             .map(|e_ref| (e_ref.dst(), e_ref.pid()))
     }
 }

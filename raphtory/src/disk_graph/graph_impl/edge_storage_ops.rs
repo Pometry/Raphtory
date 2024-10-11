@@ -113,8 +113,13 @@ impl<'a> EdgeStorageOps<'a> for Edge<'a> {
     }
 
     fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> impl TPropOps<'a> + Sync + 'a {
-        self.temporal_prop_layer_inner(layer_id, prop_id)
-            .and_then(|field| read_tprop_column(self, prop_id, layer_id, field))
+        self.graph()
+            .localize_edge_prop_id(layer_id, prop_id)
+            .and_then(|local_id| {
+                self.temporal_prop_layer_inner(layer_id, local_id)
+                    .map(|field| (field, local_id))
+            })
+            .and_then(|(field, prop_id)| read_tprop_column(self, prop_id, layer_id, field))
             .unwrap_or(DiskTProp::empty())
     }
 

@@ -9,6 +9,7 @@ use std::{
 };
 
 pub mod edges;
+pub mod properties;
 
 // the only reason this is public is because the physical ids of the nodes don't move
 #[repr(transparent)]

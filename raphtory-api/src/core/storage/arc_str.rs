@@ -36,11 +36,11 @@ impl From<&ArcStr> for String {
 }
 
 impl Deref for ArcStr {
-    type Target = Arc<str>;
+    type Target = str;
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        &self.0
+        self.0.as_ref()
     }
 }
 
@@ -51,13 +51,9 @@ impl Borrow<str> for ArcStr {
     }
 }
 
-impl<T> AsRef<T> for ArcStr
-where
-    T: ?Sized,
-    <ArcStr as Deref>::Target: AsRef<T>,
-{
-    fn as_ref(&self) -> &T {
-        self.deref().as_ref()
+impl AsRef<str> for ArcStr {
+    fn as_ref(&self) -> &str {
+        self.0.as_ref()
     }
 }
 
