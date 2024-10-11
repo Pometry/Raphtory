@@ -7,13 +7,15 @@
 #                                                                             #
 ###############################################################################
 
-
 from typing import *
 from raphtory import *
+from raphtory.vectors import *
 from raphtory.typing import *
 from datetime import datetime
 
-def ba_preferential_attachment(g: Any, nodes_to_add: Any, edges_per_step: Any, seed: Any = None):
+def ba_preferential_attachment(
+    g: Any, nodes_to_add: Any, edges_per_step: Any, seed: Any = None
+):
     """
     Generates a graph using the preferential attachment model.
 

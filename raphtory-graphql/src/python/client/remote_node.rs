@@ -32,9 +32,6 @@ impl PyRemoteNode {
     ///
     /// Parameters:
     ///     new_type (str): The new type to be set
-    ///
-    /// Returns:
-    ///     Result: A result object indicating success or failure.
     pub fn set_node_type(&self, py: Python, new_type: &str) -> Result<(), GraphError> {
         let template = r#"
             {

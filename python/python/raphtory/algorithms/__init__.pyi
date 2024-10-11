@@ -7,9 +7,9 @@
 #                                                                             #
 ###############################################################################
 
-
 from typing import *
 from raphtory import *
+from raphtory.vectors import *
 from raphtory.typing import *
 from datetime import datetime
 
@@ -41,7 +41,12 @@ def average_degree(g: GraphView):
         float : the average degree of the nodes in the graph
     """
 
-def balance(g: GraphView, name: str = ..., direction: Direction = ..., threads: Optional[int] = None):
+def balance(
+    g: GraphView,
+    name: str = ...,
+    direction: Direction = ...,
+    threads: Optional[int] = None,
+) -> AlgorithmResult:
     """
     Sums the weights of edges in the graph based on the specified direction.
 
@@ -61,7 +66,9 @@ def balance(g: GraphView, name: str = ..., direction: Direction = ..., threads: 
 
     """
 
-def betweenness_centrality(g: GraphView, k: Optional[int] = None, normalized: Optional[bool] = True):
+def betweenness_centrality(
+    g: GraphView, k: Optional[int] = None, normalized: Optional[bool] = True
+) -> AlgorithmResult:
     """
     Computes the betweenness centrality for nodes in a given graph.
 
@@ -71,16 +78,16 @@ def betweenness_centrality(g: GraphView, k: Optional[int] = None, normalized: Op
         normalized (bool, optional): Indicates whether to normalize the centrality values.
 
     Returns:
-        AlgorithmResult[float]: Returns an `AlgorithmResult` containing the betweenness centrality of each node.
+        AlgorithmResult: Returns an `AlgorithmResult` containing the betweenness centrality of each node.
     """
 
-def cohesive_fruchterman_reingold(graph, iterations=100, scale=1.0, node_start_size=1.0, cooloff_factor=0.95, dt=0.1):
+def cohesive_fruchterman_reingold(
+    graph, iterations=100, scale=1.0, node_start_size=1.0, cooloff_factor=0.95, dt=0.1
+):
     """Cohesive version of `fruchterman_reingold` that adds virtual edges between isolated nodes"""
 
-def connected_components(g):
-    ...
-
-def degree_centrality(g: GraphView, threads: Optional[int] = None):
+def connected_components(g): ...
+def degree_centrality(g: GraphView, threads: Optional[int] = None) -> AlgorithmResult:
     """
     Computes the degree centrality of all nodes in the graph. The values are normalized
     by dividing each result with the maximum possible degree. Graphs with self-loops can have
@@ -94,7 +101,13 @@ def degree_centrality(g: GraphView, threads: Optional[int] = None):
         AlgorithmResult: A result containing a mapping of node names to the computed sum of their associated degree centrality.
     """
 
-def dijkstra_single_source_shortest_paths(g: GraphView, source: InputNode, targets: list[InputNode], direction: Direction = ..., weight: str = ...):
+def dijkstra_single_source_shortest_paths(
+    g: GraphView,
+    source: InputNode,
+    targets: list[InputNode],
+    direction: Direction = ...,
+    weight: str = ...,
+) -> dict:
     """
     Finds the shortest paths from a single source to multiple targets in a graph.
 
@@ -124,7 +137,14 @@ def directed_graph_density(g: GraphView):
         float : Directed graph density of G.
     """
 
-def fruchterman_reingold(graph: GraphView, iterations: int | None = 100, scale: float | None = 1.0, node_start_size: float | None = 1.0, cooloff_factor: float | None = 0.95, dt: float | None = 0.1):
+def fruchterman_reingold(
+    graph: GraphView,
+    iterations: int | None = 100,
+    scale: float | None = 1.0,
+    node_start_size: float | None = 1.0,
+    cooloff_factor: float | None = 0.95,
+    dt: float | None = 0.1,
+):
     """
     Fruchterman Reingold layout algorithm
 
@@ -271,7 +291,7 @@ def in_components(g: GraphView):
         AlgorithmResult : AlgorithmResult object mapping each node to an array containing the ids of all nodes within their 'in-component'
     """
 
-def label_propagation(g: GraphView, seed: Optional[bytes] = None):
+def label_propagation(g: GraphView, seed: Optional[bytes] = None) -> list[set[Node]]:
     """
     Computes components using a label propagation algorithm
 
@@ -333,7 +353,12 @@ def local_triangle_count(g: GraphView, v: InputNode):
 
     """
 
-def louvain(graph: GraphView, resolution: float = 1.0, weight_prop: str | None = None, tol: None | float = None):
+def louvain(
+    graph: GraphView,
+    resolution: float = 1.0,
+    weight_prop: str | None = None,
+    tol: None | float = None,
+):
     """
     Louvain algorithm for community detection
 
@@ -344,7 +369,7 @@ def louvain(graph: GraphView, resolution: float = 1.0, weight_prop: str | None =
         tol (None | float): the floating point tolerance for deciding if improvements are significant (default: 1e-8)
     """
 
-def max_degree(g: GraphView):
+def max_degree(g: GraphView) -> int:
     """
     Returns the largest degree found in the graph
 
@@ -352,7 +377,7 @@ def max_degree(g: GraphView):
         g (GraphView): The graph view on which the operation is to be performed.
 
     Returns:
-        usize: The largest degree
+        int: The largest degree
     """
 
 def max_in_degree(g: GraphView):
@@ -377,7 +402,7 @@ def max_out_degree(g: GraphView):
         int : value of the largest outdegree
     """
 
-def min_degree(g: GraphView):
+def min_degree(g: GraphView) -> int:
     """
     Returns the smallest degree found in the graph
 
@@ -385,7 +410,7 @@ def min_degree(g: GraphView):
         g (GraphView): The graph view on which the operation is to be performed.
 
     Returns:
-        usize: The smallest degree found
+        int: The smallest degree found
     """
 
 def min_in_degree(g: GraphView):
@@ -432,7 +457,13 @@ def out_components(g: GraphView):
         AlgorithmResult : AlgorithmResult object mapping each node to an array containing the ids of all nodes within their 'out-component'
     """
 
-def pagerank(g: GraphView, iter_count: int = 20, max_diff: Optional[float] = None, use_l2_norm=True, damping_factor=0.85):
+def pagerank(
+    g: GraphView,
+    iter_count: int = 20,
+    max_diff: Optional[float] = None,
+    use_l2_norm=True,
+    damping_factor=0.85,
+):
     """
     Pagerank -- pagerank centrality value of the nodes in a graph
 
@@ -451,7 +482,9 @@ def pagerank(g: GraphView, iter_count: int = 20, max_diff: Optional[float] = Non
         AlgorithmResult : AlgorithmResult with string keys and float values mapping node names to their pagerank value.
     """
 
-def single_source_shortest_path(g: GraphView, source: InputNode, cutoff: Optional[int] = None):
+def single_source_shortest_path(
+    g: GraphView, source: InputNode, cutoff: Optional[int] = None
+) -> AlgorithmResult:
     """
     Calculates the single source shortest paths from a given source node.
 
@@ -478,7 +511,15 @@ def strongly_connected_components(g: GraphView):
         list[list[int]] : List of strongly connected nodes identified by ids
     """
 
-def temporal_SEIR(graph: GraphView, seeds: int | float | list[Node], infection_prob: float, initial_infection: int | str | datetime, recovery_rate: float | None = None, incubation_rate: float | None = None, rng_seed: int | None = None):
+def temporal_SEIR(
+    graph: GraphView,
+    seeds: int | float | list[Node],
+    infection_prob: float,
+    initial_infection: int | str | datetime,
+    recovery_rate: float | None = None,
+    incubation_rate: float | None = None,
+    rng_seed: int | None = None,
+) -> AlgorithmResult:
     """
     Simulate an SEIR dynamic on the network
 
@@ -501,8 +542,8 @@ def temporal_SEIR(graph: GraphView, seeds: int | float | list[Node], infection_p
         rng_seed (int | None): optional seed for the random number generator
 
     Returns:
-        AlgorithmResult[Infected]: Returns an `Infected` object for each infected node with attributes
-    
+        AlgorithmResult: Returns an `Infected` object for each infected node with attributes
+
         `infected`: the time stamp of the infection event
 
         `active`: the time stamp at which the node actively starts spreading the infection (i.e., the end of the incubation period)
@@ -525,7 +566,13 @@ def temporal_bipartite_graph_projection(g: GraphView, delta: int, pivot_type):
         raphtory graph : Projected (unipartite) temporal graph.
     """
 
-def temporally_reachable_nodes(g: GraphView, max_hops: int, start_time: int, seed_nodes: list[InputNode], stop_nodes: Optional[list[InputNode]] = None):
+def temporally_reachable_nodes(
+    g: GraphView,
+    max_hops: int,
+    start_time: int,
+    seed_nodes: list[InputNode],
+    stop_nodes: Optional[list[InputNode]] = None,
+):
     """
     Temporally reachable nodes -- the nodes that are reachable by a time respecting path followed out from a set of seed nodes at a starting time.
 

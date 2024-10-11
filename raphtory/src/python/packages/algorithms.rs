@@ -585,7 +585,7 @@ pub fn degree_centrality(
 ///     g (GraphView): The graph view on which the operation is to be performed.
 ///
 /// Returns:
-///     usize: The largest degree
+///     int: The largest degree
 #[pyfunction]
 #[pyo3[signature = (g)]]
 pub fn max_degree(g: &PyGraphView) -> usize {
@@ -598,7 +598,7 @@ pub fn max_degree(g: &PyGraphView) -> usize {
 ///     g (GraphView): The graph view on which the operation is to be performed.
 ///
 /// Returns:
-///     usize: The smallest degree found
+///     int: The smallest degree found
 #[pyfunction]
 #[pyo3[signature = (g)]]
 pub fn min_degree(g: &PyGraphView) -> usize {
@@ -666,7 +666,7 @@ pub fn dijkstra_single_source_shortest_paths(
 ///     normalized (bool, optional): Indicates whether to normalize the centrality values.
 ///
 /// Returns:
-///     AlgorithmResult[float]: Returns an `AlgorithmResult` containing the betweenness centrality of each node.
+///     AlgorithmResult: Returns an `AlgorithmResult` containing the betweenness centrality of each node.
 #[pyfunction]
 #[pyo3[signature = (g, k=None, normalized=true)]]
 pub fn betweenness_centrality(
@@ -719,7 +719,7 @@ pub fn label_propagation(
 ///     rng_seed (int | None): optional seed for the random number generator
 ///
 /// Returns:
-///     AlgorithmResult[Infected]: Returns an `Infected` object for each infected node with attributes
+///     AlgorithmResult: Returns an `Infected` object for each infected node with attributes
 ///     
 ///     `infected`: the time stamp of the infection event
 ///

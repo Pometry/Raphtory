@@ -16,7 +16,12 @@ use crate::{
             properties::{PyConstProperties, PyProperties, PyTemporalProp, PyTemporalProperties},
             views::graph_view::PyGraphView,
         },
-        packages::{algorithms::*, graph_gen::*, graph_loader::*, vectors::PyVectorisedGraph},
+        packages::{
+            algorithms::*,
+            graph_gen::*,
+            graph_loader::*,
+            vectors::{PyVectorSelection, PyVectorisedGraph},
+        },
         types::wrappers::{document::PyDocument, prop::PyPropertyRef},
     },
 };
@@ -127,5 +132,6 @@ pub fn base_vectors_module(py: Python<'_>) -> Result<&PyModule, PyErr> {
     let vectors_module = PyModule::new(py, "vectors")?;
     vectors_module.add_class::<PyVectorisedGraph>()?;
     vectors_module.add_class::<PyDocument>()?;
+    vectors_module.add_class::<PyVectorSelection>()?;
     return Ok(vectors_module);
 }

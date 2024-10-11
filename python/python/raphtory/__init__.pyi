@@ -7,14 +7,13 @@
 #                                                                             #
 ###############################################################################
 
-
 from typing import *
 from raphtory import *
+from raphtory.vectors import *
 from raphtory.typing import *
 from datetime import datetime
 
 class AlgorithmResult:
-
     def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
@@ -171,36 +170,35 @@ class ConstProperties:
         """
 
 class DiskGraphStorage:
-
     def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
-    def graph_dir(self):
-        ...
-
+    def graph_dir(self): ...
     @staticmethod
-    def load_from_dir(graph_dir):
-        ...
-
+    def load_from_dir(graph_dir): ...
     @staticmethod
-    def load_from_pandas(graph_dir, edge_df, time_col, src_col, dst_col):
-        ...
-
+    def load_from_pandas(graph_dir, edge_df, time_col, src_col, dst_col): ...
     @staticmethod
-    def load_from_parquets(graph_dir, layer_parquet_cols, node_properties, chunk_size, t_props_chunk_size, read_chunk_size, concurrent_files, num_threads, node_type_col):
-        ...
-
+    def load_from_parquets(
+        graph_dir,
+        layer_parquet_cols,
+        node_properties,
+        chunk_size,
+        t_props_chunk_size,
+        read_chunk_size,
+        concurrent_files,
+        num_threads,
+        node_type_col,
+    ): ...
+    def load_node_const_properties(self, location, col_names=None, chunk_size=None): ...
     def merge_by_sorted_gids(self, other, graph_dir):
         """
         Merge this graph with another `DiskGraph`. Note that both graphs should have nodes that are
         sorted by their global ids or the resulting graph will be nonsense!
         """
 
-    def to_events(self):
-        ...
-
-    def to_persistent(self):
-        ...
+    def to_events(self): ...
+    def to_persistent(self): ...
 
 class Edge:
     """
@@ -253,14 +251,14 @@ class Edge:
             Datetime: the datetime of an exploded edge
         """
 
-    def default_layer(self):
+    def default_layer(self) -> Edge:
         """
          Return a view of Edge containing only the default edge layer
         Returns:
              Edge: The layered view
         """
 
-    def deletions(self):
+    def deletions(self) -> List[int]:
         """
         Returns a list of timestamps of when an edge is deleted
 
@@ -316,7 +314,7 @@ class Edge:
              The latest datetime that this Edge is valid or None if the Edge is valid for all times.
         """
 
-    def exclude_layer(self, name: str):
+    def exclude_layer(self, name: str) -> Edge:
         """
          Return a view of Edge containing all layers except the excluded `name`
         Errors if any of the layers do not exist.
@@ -328,7 +326,7 @@ class Edge:
              Edge: The layered view
         """
 
-    def exclude_layers(self, names: list[str]):
+    def exclude_layers(self, names: list[str]) -> Edge:
         """
          Return a view of Edge containing all layers except the excluded `names`
         Errors if any of the layers do not exist.
@@ -340,7 +338,7 @@ class Edge:
              Edge: The layered view
         """
 
-    def exclude_valid_layer(self, name: str):
+    def exclude_valid_layer(self, name: str) -> Edge:
         """
          Return a view of Edge containing all layers except the excluded `name`
         Arguments:
@@ -350,7 +348,7 @@ class Edge:
              Edge: The layered view
         """
 
-    def exclude_valid_layers(self, names: list[str]):
+    def exclude_valid_layers(self, names: list[str]) -> Edge:
         """
          Return a view of Edge containing all layers except the excluded `names`
         Arguments:
@@ -360,7 +358,7 @@ class Edge:
              Edge: The layered view
         """
 
-    def expanding(self, step: int | str):
+    def expanding(self, step: int | str) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -376,13 +374,11 @@ class Edge:
     def explode(self):
         """Explodes an edge and returns all instances it had been updated as seperate edges"""
 
-    def explode_layers(self):
-        ...
-
+    def explode_layers(self): ...
     def has_layer(self, name):
-        """ Check if Edge has the layer `"name"`"""
+        """Check if Edge has the layer `"name"`"""
 
-    def history(self):
+    def history(self) -> List[int]:
         """
         Returns a list of timestamps of when an edge is added or change to an edge is made.
 
@@ -458,7 +454,7 @@ class Edge:
             int: The latest time of an edge
         """
 
-    def layer(self, name):
+    def layer(self, name) -> Edge:
         """
          Return a view of Edge containing the layer `"name"`
         Errors if the layer does not exist
@@ -485,7 +481,7 @@ class Edge:
             List[str]-  The name of the layer
         """
 
-    def layers(self, names: list[str]):
+    def layers(self, names: list[str]) -> Edge:
         """
          Return a view of Edge containing all layers `names`
         Errors if any of the layers do not exist.
@@ -510,7 +506,7 @@ class Edge:
           Properties on the Edge.
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None):
+    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
 
@@ -587,7 +583,7 @@ class Edge:
             int: The time of an exploded edge
         """
 
-    def valid_layers(self, names: list[str]):
+    def valid_layers(self, names: list[str]) -> Edge:
         """
          Return a view of Edge containing all layers `names`
         Any layers that do not exist are ignored
@@ -613,7 +609,7 @@ class Edge:
 
     @property
     def window_size(self):
-        """ Get the window size (difference between start and end) for this Edge"""
+        """Get the window size (difference between start and end) for this Edge"""
 
 class Edges:
     """A list of edges that can be iterated over."""
@@ -654,7 +650,7 @@ class Edges:
              A Edges object.
         """
 
-    def collect(self):
+    def collect(self) -> list[Edge]:
         """
          Collect all edges into a list
 
@@ -674,7 +670,7 @@ class Edges:
            A list of date times.
         """
 
-    def default_layer(self):
+    def default_layer(self) -> Edges:
         """
          Return a view of Edges containing only the default edge layer
         Returns:
@@ -737,7 +733,7 @@ class Edges:
              The latest datetime that this Edges is valid or None if the Edges is valid for all times.
         """
 
-    def exclude_layer(self, name: str):
+    def exclude_layer(self, name: str) -> Edges:
         """
          Return a view of Edges containing all layers except the excluded `name`
         Errors if any of the layers do not exist.
@@ -749,7 +745,7 @@ class Edges:
              Edges: The layered view
         """
 
-    def exclude_layers(self, names: list[str]):
+    def exclude_layers(self, names: list[str]) -> Edges:
         """
          Return a view of Edges containing all layers except the excluded `names`
         Errors if any of the layers do not exist.
@@ -761,7 +757,7 @@ class Edges:
              Edges: The layered view
         """
 
-    def exclude_valid_layer(self, name: str):
+    def exclude_valid_layer(self, name: str) -> Edges:
         """
          Return a view of Edges containing all layers except the excluded `name`
         Arguments:
@@ -771,7 +767,7 @@ class Edges:
              Edges: The layered view
         """
 
-    def exclude_valid_layers(self, names: list[str]):
+    def exclude_valid_layers(self, names: list[str]) -> Edges:
         """
          Return a view of Edges containing all layers except the excluded `names`
         Arguments:
@@ -781,7 +777,7 @@ class Edges:
              Edges: The layered view
         """
 
-    def expanding(self, step: int | str):
+    def expanding(self, step: int | str) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -797,11 +793,9 @@ class Edges:
     def explode(self):
         """Explodes an edge and returns all instances it had been updated as seperate edges"""
 
-    def explode_layers(self):
-        ...
-
+    def explode_layers(self): ...
     def has_layer(self, name):
-        """ Check if Edges has the layer `"name"`"""
+        """Check if Edges has the layer `"name"`"""
 
     def history(self):
         """
@@ -825,9 +819,7 @@ class Edges:
     def id(self):
         """Returns all ids of the edges."""
 
-    def is_active(self):
-        ...
-
+    def is_active(self): ...
     def is_deleted(self):
         """Check if the edges are deleted"""
 
@@ -863,7 +855,7 @@ class Edges:
          Latest time of the edges.
         """
 
-    def layer(self, name):
+    def layer(self, name) -> Edges:
         """
          Return a view of Edges containing the layer `"name"`
         Errors if the layer does not exist
@@ -890,7 +882,7 @@ class Edges:
           A list of layer names
         """
 
-    def layers(self, names: list[str]):
+    def layers(self, names: list[str]) -> Edges:
         """
          Return a view of Edges containing all layers `names`
         Errors if any of the layers do not exist.
@@ -910,7 +902,7 @@ class Edges:
     def properties(self):
         """Returns all properties of the edges"""
 
-    def rolling(self, window: int | str, step: int | str | None = None):
+    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
 
@@ -987,7 +979,12 @@ class Edges:
           Time of edge
         """
 
-    def to_df(self, include_property_history: bool = True, convert_datetime: bool = False, explode: bool = False):
+    def to_df(
+        self,
+        include_property_history: bool = True,
+        convert_datetime: bool = False,
+        explode: bool = False,
+    ):
         """
         Converts the graph's edges into a Pandas DataFrame.
 
@@ -1007,7 +1004,7 @@ class Edges:
             If successful, this PyObject will be a Pandas DataFrame.
         """
 
-    def valid_layers(self, names: list[str]):
+    def valid_layers(self, names: list[str]) -> Edges:
         """
          Return a view of Edges containing all layers `names`
         Any layers that do not exist are ignored
@@ -1033,7 +1030,7 @@ class Edges:
 
     @property
     def window_size(self):
-        """ Get the window size (difference between start and end) for this Edges"""
+        """Get the window size (difference between start and end) for this Edges"""
 
 class Graph:
     """A temporal graph."""
@@ -1049,7 +1046,14 @@ class Graph:
             properties (dict): The static properties of the graph.
         """
 
-    def add_edge(self, timestamp: int|str|Datetime, src: str|int, dst: str|int, properties: dict = None, layer: str = None):
+    def add_edge(
+        self,
+        timestamp: int | str | Datetime,
+        src: str | int,
+        dst: str | int,
+        properties: dict = None,
+        layer: str = None,
+    ) -> Edge:
         """
         Adds a new edge with the given source and destination nodes and properties to the graph.
 
@@ -1064,7 +1068,13 @@ class Graph:
           Edge: The added edge
         """
 
-    def add_node(self, timestamp: int|str|Datetime, id: str|int, properties: dict = None, node_type: str = None):
+    def add_node(
+        self,
+        timestamp: int | str | Datetime,
+        id: str | int,
+        properties: dict = None,
+        node_type: str = None,
+    ) -> Node:
         """
         Adds a new node with the given id and properties to the graph.
 
@@ -1077,7 +1087,7 @@ class Graph:
           Node: The added node
         """
 
-    def add_property(self, timestamp: int|str|Datetime, properties: dict):
+    def add_property(self, timestamp: int | str | Datetime, properties: dict):
         """
         Adds properties to the graph.
 
@@ -1154,7 +1164,7 @@ class Graph:
            the number of temporal edges in the graph
         """
 
-    def default_layer(self):
+    def default_layer(self) -> GraphView:
         """
          Return a view of GraphView containing only the default edge layer
         Returns:
@@ -1191,7 +1201,7 @@ class Graph:
             the timestamp of the earliest activity in the graph
         """
 
-    def edge(self, src: str|int, dst: str|int):
+    def edge(self, src: str | int, dst: str | int) -> Edge:
         """
         Gets the edge with the specified source and destination nodes
 
@@ -1230,10 +1240,8 @@ class Graph:
              The latest datetime that this GraphView is valid or None if the GraphView is valid for all times.
         """
 
-    def event_graph(self):
-        ...
-
-    def exclude_layer(self, name: str):
+    def event_graph(self): ...
+    def exclude_layer(self, name: str) -> GraphView:
         """
          Return a view of GraphView containing all layers except the excluded `name`
         Errors if any of the layers do not exist.
@@ -1245,7 +1253,7 @@ class Graph:
              GraphView: The layered view
         """
 
-    def exclude_layers(self, names: list[str]):
+    def exclude_layers(self, names: list[str]) -> GraphView:
         """
          Return a view of GraphView containing all layers except the excluded `names`
         Errors if any of the layers do not exist.
@@ -1268,7 +1276,7 @@ class Graph:
            GraphView - Returns the subgraph
         """
 
-    def exclude_valid_layer(self, name: str):
+    def exclude_valid_layer(self, name: str) -> GraphView:
         """
          Return a view of GraphView containing all layers except the excluded `name`
         Arguments:
@@ -1278,7 +1286,7 @@ class Graph:
              GraphView: The layered view
         """
 
-    def exclude_valid_layers(self, names: list[str]):
+    def exclude_valid_layers(self, names: list[str]) -> GraphView:
         """
          Return a view of GraphView containing all layers except the excluded `names`
         Arguments:
@@ -1288,7 +1296,7 @@ class Graph:
              GraphView: The layered view
         """
 
-    def expanding(self, step: int | str):
+    def expanding(self, step: int | str) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -1301,7 +1309,7 @@ class Graph:
             WindowSet: A `WindowSet` object.
         """
 
-    def filter_edges(self, filter):
+    def filter_edges(self, filter) -> GraphView:
         """
         Return a filtered view that only includes edges that satisfy the filter
 
@@ -1313,7 +1321,7 @@ class Graph:
             GraphView: The filtered view
         """
 
-    def filter_exploded_edges(self, filter: PropertyFilter):
+    def filter_exploded_edges(self, filter: PropertyFilter) -> GraphView:
         """
         Return a filtered view that only includes exploded edges that satisfy the filter
 
@@ -1364,7 +1372,7 @@ class Graph:
         """
 
     def has_layer(self, name):
-        """ Check if GraphView has the layer `"name"`"""
+        """Check if GraphView has the layer `"name"`"""
 
     def has_node(self, id: str or int):
         """
@@ -1377,7 +1385,7 @@ class Graph:
           true if the graph contains the specified node, false otherwise
         """
 
-    def import_edge(self, edge: Edge, force: bool = False):
+    def import_edge(self, edge: Edge, force: bool = False) -> Edge:
         """
         Import a single edge into the graph.
 
@@ -1406,7 +1414,7 @@ class Graph:
             force (bool): An optional boolean flag indicating whether to force the import of the edges.
         """
 
-    def import_node(self, node: Node, force: bool = False):
+    def import_node(self, node: Node, force: bool = False) -> Node:
         """
         Import a single node into the graph.
 
@@ -1483,7 +1491,7 @@ class Graph:
             the timestamp of the latest activity in the graph
         """
 
-    def layer(self, name):
+    def layer(self, name) -> GraphView:
         """
          Return a view of GraphView containing the layer `"name"`
         Errors if the layer does not exist
@@ -1492,7 +1500,7 @@ class Graph:
              GraphView: The layered view
         """
 
-    def layers(self, names: list[str]):
+    def layers(self, names: list[str]) -> GraphView:
         """
          Return a view of GraphView containing all layers `names`
         Errors if any of the layers do not exist.
@@ -1519,7 +1527,16 @@ class Graph:
            Graph
         """
 
-    def load_edge_props_from_pandas(self, df: Dataframe, src: str, dst: str, constant_properties: List[str] = None, shared_constant_properties: dict = None, layer: str = None, layer_col: str = None):
+    def load_edge_props_from_pandas(
+        self,
+        df: Dataframe,
+        src: str,
+        dst: str,
+        constant_properties: List[str] = None,
+        shared_constant_properties: dict = None,
+        layer: str = None,
+        layer_col: str = None,
+    ):
         """
         Load edge properties from a Pandas DataFrame.
 
@@ -1533,7 +1550,16 @@ class Graph:
             layer_col (str): The edge layer col name in dataframe (optional) Defaults to None.
         """
 
-    def load_edge_props_from_parquet(self, parquet_path: str, src: str, dst: str, constant_properties: List[str] = None, shared_constant_properties: dict = None, layer: str = None, layer_col: str = None):
+    def load_edge_props_from_parquet(
+        self,
+        parquet_path: str,
+        src: str,
+        dst: str,
+        constant_properties: List[str] = None,
+        shared_constant_properties: dict = None,
+        layer: str = None,
+        layer_col: str = None,
+    ):
         """
         Load edge properties from parquet file
 
@@ -1547,7 +1573,18 @@ class Graph:
             layer_col (str): The edge layer col name in dataframe (optional) Defaults to None.
         """
 
-    def load_edges_from_pandas(self, df: Dataframe, time: str, src: str, dst: str, properties: List[str] = None, constant_properties: List[str] = None, shared_constant_properties: dict = None, layer: str = None, layer_col: str = None):
+    def load_edges_from_pandas(
+        self,
+        df: Dataframe,
+        time: str,
+        src: str,
+        dst: str,
+        properties: List[str] = None,
+        constant_properties: List[str] = None,
+        shared_constant_properties: dict = None,
+        layer: str = None,
+        layer_col: str = None,
+    ):
         """
         Load edges from a Pandas DataFrame into the graph.
 
@@ -1563,7 +1600,18 @@ class Graph:
             layer_col (str): The edge layer col name in dataframe (optional) Defaults to None. (cannot be used in combination with layer)
         """
 
-    def load_edges_from_parquet(self, parquet_path: str, time: str, src: str, dst: str, properties: List[str] = None, constant_properties: List[str] = None, shared_constant_properties: dict = None, layer: str = None, layer_col: str = None):
+    def load_edges_from_parquet(
+        self,
+        parquet_path: str,
+        time: str,
+        src: str,
+        dst: str,
+        properties: List[str] = None,
+        constant_properties: List[str] = None,
+        shared_constant_properties: dict = None,
+        layer: str = None,
+        layer_col: str = None,
+    ):
         """
         Load edges from a Parquet file into the graph.
 
@@ -1591,7 +1639,15 @@ class Graph:
            Graph
         """
 
-    def load_node_props_from_pandas(self, df: Dataframe, id: str, node_type: str = None, node_type_col: str = None, constant_properties: List[str] = None, shared_constant_properties: dict = None):
+    def load_node_props_from_pandas(
+        self,
+        df: Dataframe,
+        id: str,
+        node_type: str = None,
+        node_type_col: str = None,
+        constant_properties: List[str] = None,
+        shared_constant_properties: dict = None,
+    ):
         """
         Load node properties from a Pandas DataFrame.
 
@@ -1604,7 +1660,15 @@ class Graph:
             shared_constant_properties (dict): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
         """
 
-    def load_node_props_from_parquet(self, parquet_path: str, id: str, node_type: str = None, node_type_col: str = None, constant_properties: List[str] = None, shared_constant_properties: dict = None):
+    def load_node_props_from_parquet(
+        self,
+        parquet_path: str,
+        id: str,
+        node_type: str = None,
+        node_type_col: str = None,
+        constant_properties: List[str] = None,
+        shared_constant_properties: dict = None,
+    ):
         """
         Load node properties from a parquet file.
 
@@ -1617,7 +1681,17 @@ class Graph:
             shared_constant_properties (dict): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
         """
 
-    def load_nodes_from_pandas(self, df: pandas.DataFrame, time: str, id: str, node_type: str = None, node_type_col: str = None, properties: List[str] = None, constant_properties: List[str] = None, shared_constant_properties: dict = None):
+    def load_nodes_from_pandas(
+        self,
+        df: pandas.DataFrame,
+        time: str,
+        id: str,
+        node_type: str = None,
+        node_type_col: str = None,
+        properties: List[str] = None,
+        constant_properties: List[str] = None,
+        shared_constant_properties: dict = None,
+    ):
         """
         Load nodes from a Pandas DataFrame into the graph.
 
@@ -1632,7 +1706,17 @@ class Graph:
             shared_constant_properties (dict): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
         """
 
-    def load_nodes_from_parquet(self, parquet_path: str, time: str, id: str, node_type: str = None, node_type_col: str = None, properties: List[str] = None, constant_properties: List[str] = None, shared_constant_properties: dict = None):
+    def load_nodes_from_parquet(
+        self,
+        parquet_path: str,
+        time: str,
+        id: str,
+        node_type: str = None,
+        node_type_col: str = None,
+        properties: List[str] = None,
+        constant_properties: List[str] = None,
+        shared_constant_properties: dict = None,
+    ):
         """
         Load nodes from a Parquet file into the graph.
 
@@ -1655,7 +1739,7 @@ class Graph:
            GraphView - Returns a graph clone
         """
 
-    def node(self, id: str|int):
+    def node(self, id: str | int) -> Node:
         """
         Gets the node with the specified id
 
@@ -1691,7 +1775,7 @@ class Graph:
            HashMap<String, Prop> - Properties paired with their names
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None):
+    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
 
@@ -1801,10 +1885,15 @@ class Graph:
            GraphView - Returns the subgraph
         """
 
-    def to_disk_graph(self, graph_dir):
-        ...
-
-    def to_networkx(self, explode_edges: bool = False, include_node_properties: bool = True, include_edge_properties: bool = True, include_update_history: bool = True, include_property_history: bool = True):
+    def to_disk_graph(self, graph_dir): ...
+    def to_networkx(
+        self,
+        explode_edges: bool = False,
+        include_node_properties: bool = True,
+        include_edge_properties: bool = True,
+        include_update_history: bool = True,
+        include_property_history: bool = True,
+    ):
         """
         Returns a graph with NetworkX.
 
@@ -1823,7 +1912,18 @@ class Graph:
                 A Networkx MultiDiGraph.
         """
 
-    def to_pyvis(self, explode_edges=False, edge_color='#000000', shape=None, node_image=None, edge_weight=None, edge_label=None, colour_nodes_by_type=False, notebook=False, **kwargs):
+    def to_pyvis(
+        self,
+        explode_edges=False,
+        edge_color="#000000",
+        shape=None,
+        node_image=None,
+        edge_weight=None,
+        edge_label=None,
+        colour_nodes_by_type=False,
+        notebook=False,
+        **kwargs
+    ):
         """
         Draw a graph with PyVis.
         Pyvis is a required dependency. If you intend to use this function make sure that you install Pyvis
@@ -1861,7 +1961,7 @@ class Graph:
 
         """
 
-    def valid_layers(self, names: list[str]):
+    def valid_layers(self, names: list[str]) -> GraphView:
         """
          Return a view of GraphView containing all layers `names`
         Any layers that do not exist are ignored
@@ -1873,7 +1973,17 @@ class Graph:
              GraphView: The layered view
         """
 
-    def vectorise(self, embedding: Callable[[list], list], cache: str = None, overwrite_cache: bool = False, graph_template: str = None, node_template: str = None, edge_template: str = None, graph_name=None, verbose: bool = False):
+    def vectorise(
+        self,
+        embedding: Callable[[list], list],
+        cache: str = None,
+        overwrite_cache: bool = False,
+        graph_template: str = None,
+        node_template: str = None,
+        edge_template: str = None,
+        graph_name=None,
+        verbose: bool = False,
+    ):
         """
         Create a VectorisedGraph from the current graph
 
@@ -1904,7 +2014,7 @@ class Graph:
 
     @property
     def window_size(self):
-        """ Get the window size (difference between start and end) for this GraphView"""
+        """Get the window size (difference between start and end) for this GraphView"""
 
     def write_updates(self):
         """Persist the new updates by appending them to the cache file."""
@@ -1919,7 +2029,14 @@ class GraphIndex:
     def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
-    def fuzzy_search_edges(self, query: str, limit: int = 25, offset: int = 0, prefix: bool = False, levenshtein_distance: int = 0):
+    def fuzzy_search_edges(
+        self,
+        query: str,
+        limit: int = 25,
+        offset: int = 0,
+        prefix: bool = False,
+        levenshtein_distance: int = 0,
+    ):
         """
         Searches for edges which match the given query. This uses Tantivy's fuzzy search.
 
@@ -1934,7 +2051,14 @@ class GraphIndex:
            A list of edges which match the query. The list will be empty if no edges match the query.
         """
 
-    def fuzzy_search_nodes(self, query: str, limit: int = 25, offset: int = 0, prefix: bool = False, levenshtein_distance: int = 0):
+    def fuzzy_search_nodes(
+        self,
+        query: str,
+        limit: int = 25,
+        offset: int = 0,
+        prefix: bool = False,
+        levenshtein_distance: int = 0,
+    ):
         """
         Searches for nodes which match the given query. This uses Tantivy's fuzzy search.
         If you would like to better understand the query syntax, please visit our documentation at https://docs.raphtory.com
@@ -2039,7 +2163,7 @@ class GraphView:
            the number of temporal edges in the graph
         """
 
-    def default_layer(self):
+    def default_layer(self) -> GraphView:
         """
          Return a view of GraphView containing only the default edge layer
         Returns:
@@ -2103,7 +2227,7 @@ class GraphView:
              The latest datetime that this GraphView is valid or None if the GraphView is valid for all times.
         """
 
-    def exclude_layer(self, name: str):
+    def exclude_layer(self, name: str) -> GraphView:
         """
          Return a view of GraphView containing all layers except the excluded `name`
         Errors if any of the layers do not exist.
@@ -2115,7 +2239,7 @@ class GraphView:
              GraphView: The layered view
         """
 
-    def exclude_layers(self, names: list[str]):
+    def exclude_layers(self, names: list[str]) -> GraphView:
         """
          Return a view of GraphView containing all layers except the excluded `names`
         Errors if any of the layers do not exist.
@@ -2138,7 +2262,7 @@ class GraphView:
            GraphView - Returns the subgraph
         """
 
-    def exclude_valid_layer(self, name: str):
+    def exclude_valid_layer(self, name: str) -> GraphView:
         """
          Return a view of GraphView containing all layers except the excluded `name`
         Arguments:
@@ -2148,7 +2272,7 @@ class GraphView:
              GraphView: The layered view
         """
 
-    def exclude_valid_layers(self, names: list[str]):
+    def exclude_valid_layers(self, names: list[str]) -> GraphView:
         """
          Return a view of GraphView containing all layers except the excluded `names`
         Arguments:
@@ -2158,7 +2282,7 @@ class GraphView:
              GraphView: The layered view
         """
 
-    def expanding(self, step: int | str):
+    def expanding(self, step: int | str) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -2171,7 +2295,7 @@ class GraphView:
             WindowSet: A `WindowSet` object.
         """
 
-    def filter_edges(self, filter):
+    def filter_edges(self, filter) -> GraphView:
         """
         Return a filtered view that only includes edges that satisfy the filter
 
@@ -2183,7 +2307,7 @@ class GraphView:
             GraphView: The filtered view
         """
 
-    def filter_exploded_edges(self, filter: PropertyFilter):
+    def filter_exploded_edges(self, filter: PropertyFilter) -> GraphView:
         """
         Return a filtered view that only includes exploded edges that satisfy the filter
 
@@ -2226,7 +2350,7 @@ class GraphView:
         """
 
     def has_layer(self, name):
-        """ Check if GraphView has the layer `"name"`"""
+        """Check if GraphView has the layer `"name"`"""
 
     def has_node(self, id: str or int):
         """
@@ -2275,7 +2399,7 @@ class GraphView:
             the timestamp of the latest activity in the graph
         """
 
-    def layer(self, name):
+    def layer(self, name) -> GraphView:
         """
          Return a view of GraphView containing the layer `"name"`
         Errors if the layer does not exist
@@ -2284,7 +2408,7 @@ class GraphView:
              GraphView: The layered view
         """
 
-    def layers(self, names: list[str]):
+    def layers(self, names: list[str]) -> GraphView:
         """
          Return a view of GraphView containing all layers `names`
         Errors if any of the layers do not exist.
@@ -2334,7 +2458,7 @@ class GraphView:
            HashMap<String, Prop> - Properties paired with their names
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None):
+    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
 
@@ -2420,7 +2544,14 @@ class GraphView:
            GraphView - Returns the subgraph
         """
 
-    def to_networkx(self, explode_edges: bool = False, include_node_properties: bool = True, include_edge_properties: bool = True, include_update_history: bool = True, include_property_history: bool = True):
+    def to_networkx(
+        self,
+        explode_edges: bool = False,
+        include_node_properties: bool = True,
+        include_edge_properties: bool = True,
+        include_update_history: bool = True,
+        include_property_history: bool = True,
+    ):
         """
         Returns a graph with NetworkX.
 
@@ -2439,7 +2570,18 @@ class GraphView:
                 A Networkx MultiDiGraph.
         """
 
-    def to_pyvis(self, explode_edges=False, edge_color='#000000', shape=None, node_image=None, edge_weight=None, edge_label=None, colour_nodes_by_type=False, notebook=False, **kwargs):
+    def to_pyvis(
+        self,
+        explode_edges=False,
+        edge_color="#000000",
+        shape=None,
+        node_image=None,
+        edge_weight=None,
+        edge_label=None,
+        colour_nodes_by_type=False,
+        notebook=False,
+        **kwargs
+    ):
         """
         Draw a graph with PyVis.
         Pyvis is a required dependency. If you intend to use this function make sure that you install Pyvis
@@ -2468,7 +2610,7 @@ class GraphView:
     def unique_layers(self):
         """Return all the layer ids in the graph"""
 
-    def valid_layers(self, names: list[str]):
+    def valid_layers(self, names: list[str]) -> GraphView:
         """
          Return a view of GraphView containing all layers `names`
         Any layers that do not exist are ignored
@@ -2480,7 +2622,17 @@ class GraphView:
              GraphView: The layered view
         """
 
-    def vectorise(self, embedding: Callable[[list], list], cache: str = None, overwrite_cache: bool = False, graph_template: str = None, node_template: str = None, edge_template: str = None, graph_name=None, verbose: bool = False):
+    def vectorise(
+        self,
+        embedding: Callable[[list], list],
+        cache: str = None,
+        overwrite_cache: bool = False,
+        graph_template: str = None,
+        node_template: str = None,
+        edge_template: str = None,
+        graph_name=None,
+        verbose: bool = False,
+    ):
         """
         Create a VectorisedGraph from the current graph
 
@@ -2511,14 +2663,15 @@ class GraphView:
 
     @property
     def window_size(self):
-        """ Get the window size (difference between start and end) for this GraphView"""
+        """Get the window size (difference between start and end) for this GraphView"""
 
 class MutableEdge:
-
     def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
-    def add_constant_properties(self, properties: Dict[str, Property], layer: str = None):
+    def add_constant_properties(
+        self, properties: Dict[str, Property], layer: str = None
+    ):
         """
         Add constant properties to an edge in the graph.
         This function is used to add properties to an edge that remain constant and do not
@@ -2529,7 +2682,12 @@ class MutableEdge:
             layer (str): The layer you want these properties to be added on to.
         """
 
-    def add_updates(self, t: int | str | DateTime, properties: [Dict[str, Prop]] = None, layer: str = None):
+    def add_updates(
+        self,
+        t: int | str | DateTime,
+        properties: [Dict[str, Prop]] = None,
+        layer: str = None,
+    ):
         """
         Add updates to an edge in the graph at a specified time.
         This function allows for the addition of property updates to an edge within the graph. The updates are time-stamped, meaning they are applied at the specified time.
@@ -2582,7 +2740,7 @@ class MutableEdge:
             Datetime: the datetime of an exploded edge
         """
 
-    def default_layer(self):
+    def default_layer(self) -> Edge:
         """
          Return a view of Edge containing only the default edge layer
         Returns:
@@ -2598,7 +2756,7 @@ class MutableEdge:
             layer (str): The layer you want the deletion applied to .
         """
 
-    def deletions(self):
+    def deletions(self) -> List[int]:
         """
         Returns a list of timestamps of when an edge is deleted
 
@@ -2654,7 +2812,7 @@ class MutableEdge:
              The latest datetime that this Edge is valid or None if the Edge is valid for all times.
         """
 
-    def exclude_layer(self, name: str):
+    def exclude_layer(self, name: str) -> Edge:
         """
          Return a view of Edge containing all layers except the excluded `name`
         Errors if any of the layers do not exist.
@@ -2666,7 +2824,7 @@ class MutableEdge:
              Edge: The layered view
         """
 
-    def exclude_layers(self, names: list[str]):
+    def exclude_layers(self, names: list[str]) -> Edge:
         """
          Return a view of Edge containing all layers except the excluded `names`
         Errors if any of the layers do not exist.
@@ -2678,7 +2836,7 @@ class MutableEdge:
              Edge: The layered view
         """
 
-    def exclude_valid_layer(self, name: str):
+    def exclude_valid_layer(self, name: str) -> Edge:
         """
          Return a view of Edge containing all layers except the excluded `name`
         Arguments:
@@ -2688,7 +2846,7 @@ class MutableEdge:
              Edge: The layered view
         """
 
-    def exclude_valid_layers(self, names: list[str]):
+    def exclude_valid_layers(self, names: list[str]) -> Edge:
         """
          Return a view of Edge containing all layers except the excluded `names`
         Arguments:
@@ -2698,7 +2856,7 @@ class MutableEdge:
              Edge: The layered view
         """
 
-    def expanding(self, step: int | str):
+    def expanding(self, step: int | str) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -2714,13 +2872,11 @@ class MutableEdge:
     def explode(self):
         """Explodes an edge and returns all instances it had been updated as seperate edges"""
 
-    def explode_layers(self):
-        ...
-
+    def explode_layers(self): ...
     def has_layer(self, name):
-        """ Check if Edge has the layer `"name"`"""
+        """Check if Edge has the layer `"name"`"""
 
-    def history(self):
+    def history(self) -> List[int]:
         """
         Returns a list of timestamps of when an edge is added or change to an edge is made.
 
@@ -2796,7 +2952,7 @@ class MutableEdge:
             int: The latest time of an edge
         """
 
-    def layer(self, name):
+    def layer(self, name) -> Edge:
         """
          Return a view of Edge containing the layer `"name"`
         Errors if the layer does not exist
@@ -2823,7 +2979,7 @@ class MutableEdge:
             List[str]-  The name of the layer
         """
 
-    def layers(self, names: list[str]):
+    def layers(self, names: list[str]) -> Edge:
         """
          Return a view of Edge containing all layers `names`
         Errors if any of the layers do not exist.
@@ -2848,7 +3004,7 @@ class MutableEdge:
           Properties on the Edge.
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None):
+    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
 
@@ -2925,7 +3081,9 @@ class MutableEdge:
             int: The time of an exploded edge
         """
 
-    def update_constant_properties(self, properties: Dict[str, Property], layer: str = None):
+    def update_constant_properties(
+        self, properties: Dict[str, Property], layer: str = None
+    ):
         """
         Update constant properties of an edge in the graph overwriting existing values.
         This function is used to add properties to an edge that remains constant and does not
@@ -2936,7 +3094,7 @@ class MutableEdge:
             layer (str): The layer you want these properties to be added on to.
         """
 
-    def valid_layers(self, names: list[str]):
+    def valid_layers(self, names: list[str]) -> Edge:
         """
          Return a view of Edge containing all layers `names`
         Any layers that do not exist are ignored
@@ -2962,10 +3120,9 @@ class MutableEdge:
 
     @property
     def window_size(self):
-        """ Get the window size (difference between start and end) for this Edge"""
+        """Get the window size (difference between start and end) for this Edge"""
 
 class MutableNode:
-
     def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
@@ -2979,7 +3136,9 @@ class MutableNode:
             properties (Dict[str, Prop]): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
         """
 
-    def add_updates(self, t: int | str | DateTime, properties: Dict[str, Prop] = None):
+    def add_updates(
+        self, t: int | str | DateTime, properties: Dict[str, Prop] = None
+    ) -> Result:
         """
         Add updates to a node in the graph at a specified time.
         This function allows for the addition of property updates to a node within the graph. The updates are time-stamped, meaning they are applied at the specified time.
@@ -3025,7 +3184,7 @@ class MutableNode:
              A Node object.
         """
 
-    def default_layer(self):
+    def default_layer(self) -> Node:
         """
          Return a view of Node containing only the default edge layer
         Returns:
@@ -3086,7 +3245,7 @@ class MutableNode:
              The latest datetime that this Node is valid or None if the Node is valid for all times.
         """
 
-    def exclude_layer(self, name: str):
+    def exclude_layer(self, name: str) -> Node:
         """
          Return a view of Node containing all layers except the excluded `name`
         Errors if any of the layers do not exist.
@@ -3098,7 +3257,7 @@ class MutableNode:
              Node: The layered view
         """
 
-    def exclude_layers(self, names: list[str]):
+    def exclude_layers(self, names: list[str]) -> Node:
         """
          Return a view of Node containing all layers except the excluded `names`
         Errors if any of the layers do not exist.
@@ -3110,7 +3269,7 @@ class MutableNode:
              Node: The layered view
         """
 
-    def exclude_valid_layer(self, name: str):
+    def exclude_valid_layer(self, name: str) -> Node:
         """
          Return a view of Node containing all layers except the excluded `name`
         Arguments:
@@ -3120,7 +3279,7 @@ class MutableNode:
              Node: The layered view
         """
 
-    def exclude_valid_layers(self, names: list[str]):
+    def exclude_valid_layers(self, names: list[str]) -> Node:
         """
          Return a view of Node containing all layers except the excluded `names`
         Arguments:
@@ -3130,7 +3289,7 @@ class MutableNode:
              Node: The layered view
         """
 
-    def expanding(self, step: int | str):
+    def expanding(self, step: int | str) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -3143,7 +3302,7 @@ class MutableNode:
             WindowSet: A `WindowSet` object.
         """
 
-    def filter_edges(self, filter):
+    def filter_edges(self, filter) -> Node:
         """
         Return a filtered view that only includes edges that satisfy the filter
 
@@ -3155,7 +3314,7 @@ class MutableNode:
             Node: The filtered view
         """
 
-    def filter_exploded_edges(self, filter: PropertyFilter):
+    def filter_exploded_edges(self, filter: PropertyFilter) -> Node:
         """
         Return a filtered view that only includes exploded edges that satisfy the filter
 
@@ -3168,9 +3327,9 @@ class MutableNode:
         """
 
     def has_layer(self, name):
-        """ Check if Node has the layer `"name"`"""
+        """Check if Node has the layer `"name"`"""
 
-    def history(self):
+    def history(self) -> List[int]:
         """
         Returns the history of a node, including node additions and changes made to node.
 
@@ -3178,7 +3337,7 @@ class MutableNode:
             List[int]: A list of unix timestamps of the event history of node.
         """
 
-    def history_date_time(self):
+    def history_date_time(self) -> List[Datetime]:
         """
         Returns the history of a node, including node additions and changes made to node.
 
@@ -3197,7 +3356,7 @@ class MutableNode:
            (str|int): The id of the node.
         """
 
-    def in_degree(self):
+    def in_degree(self) -> int:
         """
         Get the in-degree of this node (i.e., the number of edges that are incident to it from other nodes).
 
@@ -3225,9 +3384,7 @@ class MutableNode:
         An iterator over the neighbours of this node that point into this node.
         """
 
-    def is_active(self):
-        ...
-
+    def is_active(self): ...
     def latest(self):
         """
          Create a view of the Node including all events at the latest time.
@@ -3257,7 +3414,7 @@ class MutableNode:
            int:  The latest time that the node exists as an integer.
         """
 
-    def layer(self, name):
+    def layer(self, name) -> Node:
         """
          Return a view of Node containing the layer `"name"`
         Errors if the layer does not exist
@@ -3266,7 +3423,7 @@ class MutableNode:
              Node: The layered view
         """
 
-    def layers(self, names: list[str]):
+    def layers(self, names: list[str]) -> Node:
         """
          Return a view of Node containing all layers `names`
         Errors if any of the layers do not exist.
@@ -3301,7 +3458,7 @@ class MutableNode:
     def node_type(self):
         """Returns the type of node"""
 
-    def out_degree(self):
+    def out_degree(self) -> int:
         """
         Get the out-degree of this node (i.e., the number of edges that are incident to it from this node).
 
@@ -3338,7 +3495,7 @@ class MutableNode:
             Properties: A list of properties.
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None):
+    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
 
@@ -3421,7 +3578,7 @@ class MutableNode:
             properties (Dict[str, Prop]): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
         """
 
-    def valid_layers(self, names: list[str]):
+    def valid_layers(self, names: list[str]) -> Node:
         """
          Return a view of Node containing all layers `names`
         Any layers that do not exist are ignored
@@ -3447,7 +3604,7 @@ class MutableNode:
 
     @property
     def window_size(self):
-        """ Get the window size (difference between start and end) for this Node"""
+        """Get the window size (difference between start and end) for this Node"""
 
 class Node:
     """A node (or node) in the graph."""
@@ -3488,7 +3645,7 @@ class Node:
              A Node object.
         """
 
-    def default_layer(self):
+    def default_layer(self) -> Node:
         """
          Return a view of Node containing only the default edge layer
         Returns:
@@ -3549,7 +3706,7 @@ class Node:
              The latest datetime that this Node is valid or None if the Node is valid for all times.
         """
 
-    def exclude_layer(self, name: str):
+    def exclude_layer(self, name: str) -> Node:
         """
          Return a view of Node containing all layers except the excluded `name`
         Errors if any of the layers do not exist.
@@ -3561,7 +3718,7 @@ class Node:
              Node: The layered view
         """
 
-    def exclude_layers(self, names: list[str]):
+    def exclude_layers(self, names: list[str]) -> Node:
         """
          Return a view of Node containing all layers except the excluded `names`
         Errors if any of the layers do not exist.
@@ -3573,7 +3730,7 @@ class Node:
              Node: The layered view
         """
 
-    def exclude_valid_layer(self, name: str):
+    def exclude_valid_layer(self, name: str) -> Node:
         """
          Return a view of Node containing all layers except the excluded `name`
         Arguments:
@@ -3583,7 +3740,7 @@ class Node:
              Node: The layered view
         """
 
-    def exclude_valid_layers(self, names: list[str]):
+    def exclude_valid_layers(self, names: list[str]) -> Node:
         """
          Return a view of Node containing all layers except the excluded `names`
         Arguments:
@@ -3593,7 +3750,7 @@ class Node:
              Node: The layered view
         """
 
-    def expanding(self, step: int | str):
+    def expanding(self, step: int | str) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -3606,7 +3763,7 @@ class Node:
             WindowSet: A `WindowSet` object.
         """
 
-    def filter_edges(self, filter):
+    def filter_edges(self, filter) -> Node:
         """
         Return a filtered view that only includes edges that satisfy the filter
 
@@ -3618,7 +3775,7 @@ class Node:
             Node: The filtered view
         """
 
-    def filter_exploded_edges(self, filter: PropertyFilter):
+    def filter_exploded_edges(self, filter: PropertyFilter) -> Node:
         """
         Return a filtered view that only includes exploded edges that satisfy the filter
 
@@ -3631,9 +3788,9 @@ class Node:
         """
 
     def has_layer(self, name):
-        """ Check if Node has the layer `"name"`"""
+        """Check if Node has the layer `"name"`"""
 
-    def history(self):
+    def history(self) -> List[int]:
         """
         Returns the history of a node, including node additions and changes made to node.
 
@@ -3641,7 +3798,7 @@ class Node:
             List[int]: A list of unix timestamps of the event history of node.
         """
 
-    def history_date_time(self):
+    def history_date_time(self) -> List[Datetime]:
         """
         Returns the history of a node, including node additions and changes made to node.
 
@@ -3660,7 +3817,7 @@ class Node:
            (str|int): The id of the node.
         """
 
-    def in_degree(self):
+    def in_degree(self) -> int:
         """
         Get the in-degree of this node (i.e., the number of edges that are incident to it from other nodes).
 
@@ -3688,9 +3845,7 @@ class Node:
         An iterator over the neighbours of this node that point into this node.
         """
 
-    def is_active(self):
-        ...
-
+    def is_active(self): ...
     def latest(self):
         """
          Create a view of the Node including all events at the latest time.
@@ -3720,7 +3875,7 @@ class Node:
            int:  The latest time that the node exists as an integer.
         """
 
-    def layer(self, name):
+    def layer(self, name) -> Node:
         """
          Return a view of Node containing the layer `"name"`
         Errors if the layer does not exist
@@ -3729,7 +3884,7 @@ class Node:
              Node: The layered view
         """
 
-    def layers(self, names: list[str]):
+    def layers(self, names: list[str]) -> Node:
         """
          Return a view of Node containing all layers `names`
         Errors if any of the layers do not exist.
@@ -3764,7 +3919,7 @@ class Node:
     def node_type(self):
         """Returns the type of node"""
 
-    def out_degree(self):
+    def out_degree(self) -> int:
         """
         Get the out-degree of this node (i.e., the number of edges that are incident to it from this node).
 
@@ -3801,7 +3956,7 @@ class Node:
             Properties: A list of properties.
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None):
+    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
 
@@ -3865,7 +4020,7 @@ class Node:
              The earliest datetime that this Node is valid or None if the Node is valid for all times.
         """
 
-    def valid_layers(self, names: list[str]):
+    def valid_layers(self, names: list[str]) -> Node:
         """
          Return a view of Node containing all layers `names`
         Any layers that do not exist are ignored
@@ -3891,7 +4046,7 @@ class Node:
 
     @property
     def window_size(self):
-        """ Get the window size (difference between start and end) for this Node"""
+        """Get the window size (difference between start and end) for this Node"""
 
 class Nodes:
     """A list of nodes that can be iterated over."""
@@ -3932,7 +4087,7 @@ class Nodes:
              A Nodes object.
         """
 
-    def collect(self):
+    def collect(self) -> list[Node]:
         """
          Collect all nodes into a list
 
@@ -3940,7 +4095,7 @@ class Nodes:
              list[Node]: the list of nodes
         """
 
-    def default_layer(self):
+    def default_layer(self) -> Nodes:
         """
          Return a view of Nodes containing only the default edge layer
         Returns:
@@ -3996,7 +4151,7 @@ class Nodes:
              The latest datetime that this Nodes is valid or None if the Nodes is valid for all times.
         """
 
-    def exclude_layer(self, name: str):
+    def exclude_layer(self, name: str) -> Nodes:
         """
          Return a view of Nodes containing all layers except the excluded `name`
         Errors if any of the layers do not exist.
@@ -4008,7 +4163,7 @@ class Nodes:
              Nodes: The layered view
         """
 
-    def exclude_layers(self, names: list[str]):
+    def exclude_layers(self, names: list[str]) -> Nodes:
         """
          Return a view of Nodes containing all layers except the excluded `names`
         Errors if any of the layers do not exist.
@@ -4020,7 +4175,7 @@ class Nodes:
              Nodes: The layered view
         """
 
-    def exclude_valid_layer(self, name: str):
+    def exclude_valid_layer(self, name: str) -> Nodes:
         """
          Return a view of Nodes containing all layers except the excluded `name`
         Arguments:
@@ -4030,7 +4185,7 @@ class Nodes:
              Nodes: The layered view
         """
 
-    def exclude_valid_layers(self, names: list[str]):
+    def exclude_valid_layers(self, names: list[str]) -> Nodes:
         """
          Return a view of Nodes containing all layers except the excluded `names`
         Arguments:
@@ -4040,7 +4195,7 @@ class Nodes:
              Nodes: The layered view
         """
 
-    def expanding(self, step: int | str):
+    def expanding(self, step: int | str) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -4053,7 +4208,7 @@ class Nodes:
             WindowSet: A `WindowSet` object.
         """
 
-    def filter_edges(self, filter):
+    def filter_edges(self, filter) -> Nodes:
         """
         Return a filtered view that only includes edges that satisfy the filter
 
@@ -4065,7 +4220,7 @@ class Nodes:
             Nodes: The filtered view
         """
 
-    def filter_exploded_edges(self, filter: PropertyFilter):
+    def filter_exploded_edges(self, filter: PropertyFilter) -> Nodes:
         """
         Return a filtered view that only includes exploded edges that satisfy the filter
 
@@ -4078,7 +4233,7 @@ class Nodes:
         """
 
     def has_layer(self, name):
-        """ Check if Nodes has the layer `"name"`"""
+        """Check if Nodes has the layer `"name"`"""
 
     def history(self):
         """
@@ -4151,7 +4306,7 @@ class Nodes:
     def latest_time(self):
         """Returns an iterator over the nodes latest time"""
 
-    def layer(self, name):
+    def layer(self, name) -> Nodes:
         """
          Return a view of Nodes containing the layer `"name"`
         Errors if the layer does not exist
@@ -4160,7 +4315,7 @@ class Nodes:
              Nodes: The layered view
         """
 
-    def layers(self, names: list[str]):
+    def layers(self, names: list[str]) -> Nodes:
         """
          Return a view of Nodes containing all layers `names`
         Errors if any of the layers do not exist.
@@ -4227,7 +4382,7 @@ class Nodes:
             A List of properties
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None):
+    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
 
@@ -4291,7 +4446,9 @@ class Nodes:
              The earliest datetime that this Nodes is valid or None if the Nodes is valid for all times.
         """
 
-    def to_df(self, include_property_history: bool = False, convert_datetime: bool = False):
+    def to_df(
+        self, include_property_history: bool = False, convert_datetime: bool = False
+    ):
         """
         Converts the graph's nodes into a Pandas DataFrame.
 
@@ -4308,10 +4465,8 @@ class Nodes:
             If successful, this PyObject will be a Pandas DataFrame.
         """
 
-    def type_filter(self, node_types):
-        ...
-
-    def valid_layers(self, names: list[str]):
+    def type_filter(self, node_types): ...
+    def valid_layers(self, names: list[str]) -> Nodes:
         """
          Return a view of Nodes containing all layers `names`
         Any layers that do not exist are ignored
@@ -4337,7 +4492,7 @@ class Nodes:
 
     @property
     def window_size(self):
-        """ Get the window size (difference between start and end) for this Nodes"""
+        """Get the window size (difference between start and end) for this Nodes"""
 
 class PersistentGraph:
     """A temporal graph that allows edges and nodes to be deleted."""
@@ -4356,7 +4511,14 @@ class PersistentGraph:
            None
         """
 
-    def add_edge(self, timestamp: int, src: str | int, dst: str | int, properties: dict = None, layer: str = None):
+    def add_edge(
+        self,
+        timestamp: int,
+        src: str | int,
+        dst: str | int,
+        properties: dict = None,
+        layer: str = None,
+    ):
         """
         Adds a new edge with the given source and destination nodes and properties to the graph.
 
@@ -4371,7 +4533,13 @@ class PersistentGraph:
           None
         """
 
-    def add_node(self, timestamp: TimeInput, id: str | int, properties: dict = None, node_type: str = None):
+    def add_node(
+        self,
+        timestamp: TimeInput,
+        id: str | int,
+        properties: dict = None,
+        node_type: str = None,
+    ):
         """
         Adds a new node with the given id and properties to the graph.
 
@@ -4465,14 +4633,16 @@ class PersistentGraph:
            the number of temporal edges in the graph
         """
 
-    def default_layer(self):
+    def default_layer(self) -> GraphView:
         """
          Return a view of GraphView containing only the default edge layer
         Returns:
              GraphView: The layered view
         """
 
-    def delete_edge(self, timestamp: int, src: str | int, dst: str | int, layer: str = None):
+    def delete_edge(
+        self, timestamp: int, src: str | int, dst: str | int, layer: str = None
+    ):
         """
         Deletes an edge given the timestamp, src and dst nodes and layer (optional)
 
@@ -4558,7 +4728,7 @@ class PersistentGraph:
     def event_graph(self):
         """Get event graph"""
 
-    def exclude_layer(self, name: str):
+    def exclude_layer(self, name: str) -> GraphView:
         """
          Return a view of GraphView containing all layers except the excluded `name`
         Errors if any of the layers do not exist.
@@ -4570,7 +4740,7 @@ class PersistentGraph:
              GraphView: The layered view
         """
 
-    def exclude_layers(self, names: list[str]):
+    def exclude_layers(self, names: list[str]) -> GraphView:
         """
          Return a view of GraphView containing all layers except the excluded `names`
         Errors if any of the layers do not exist.
@@ -4593,7 +4763,7 @@ class PersistentGraph:
            GraphView - Returns the subgraph
         """
 
-    def exclude_valid_layer(self, name: str):
+    def exclude_valid_layer(self, name: str) -> GraphView:
         """
          Return a view of GraphView containing all layers except the excluded `name`
         Arguments:
@@ -4603,7 +4773,7 @@ class PersistentGraph:
              GraphView: The layered view
         """
 
-    def exclude_valid_layers(self, names: list[str]):
+    def exclude_valid_layers(self, names: list[str]) -> GraphView:
         """
          Return a view of GraphView containing all layers except the excluded `names`
         Arguments:
@@ -4613,7 +4783,7 @@ class PersistentGraph:
              GraphView: The layered view
         """
 
-    def expanding(self, step: int | str):
+    def expanding(self, step: int | str) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -4626,7 +4796,7 @@ class PersistentGraph:
             WindowSet: A `WindowSet` object.
         """
 
-    def filter_edges(self, filter):
+    def filter_edges(self, filter) -> GraphView:
         """
         Return a filtered view that only includes edges that satisfy the filter
 
@@ -4638,7 +4808,7 @@ class PersistentGraph:
             GraphView: The filtered view
         """
 
-    def filter_exploded_edges(self, filter: PropertyFilter):
+    def filter_exploded_edges(self, filter: PropertyFilter) -> GraphView:
         """
         Return a filtered view that only includes exploded edges that satisfy the filter
 
@@ -4689,7 +4859,7 @@ class PersistentGraph:
         """
 
     def has_layer(self, name):
-        """ Check if GraphView has the layer `"name"`"""
+        """Check if GraphView has the layer `"name"`"""
 
     def has_node(self, id: str or int):
         """
@@ -4702,7 +4872,7 @@ class PersistentGraph:
           true if the graph contains the specified node, false otherwise
         """
 
-    def import_edge(self, edge: Edge, force: bool = False):
+    def import_edge(self, edge: Edge, force: bool = False) -> Edge:
         """
         Import a single edge into the graph.
 
@@ -4797,7 +4967,7 @@ class PersistentGraph:
             the timestamp of the latest activity in the graph
         """
 
-    def layer(self, name):
+    def layer(self, name) -> GraphView:
         """
          Return a view of GraphView containing the layer `"name"`
         Errors if the layer does not exist
@@ -4806,7 +4976,7 @@ class PersistentGraph:
              GraphView: The layered view
         """
 
-    def layers(self, names: list[str]):
+    def layers(self, names: list[str]) -> GraphView:
         """
          Return a view of GraphView containing all layers `names`
         Errors if any of the layers do not exist.
@@ -4833,7 +5003,15 @@ class PersistentGraph:
            PersistentGraph
         """
 
-    def load_edge_deletions_from_pandas(self, df: Dataframe, time: str, src: str, dst: str, layer: str = None, layer_col: str = None):
+    def load_edge_deletions_from_pandas(
+        self,
+        df: Dataframe,
+        time: str,
+        src: str,
+        dst: str,
+        layer: str = None,
+        layer_col: str = None,
+    ) -> None:
         """
         Load edges deletions from a Pandas DataFrame into the graph.
 
@@ -4851,7 +5029,15 @@ class PersistentGraph:
             GraphError: If the operation fails.
         """
 
-    def load_edge_deletions_from_parquet(self, parquet_path: str, time: str, src: str, dst: str, layer: str = None, layer_col: str = None):
+    def load_edge_deletions_from_parquet(
+        self,
+        parquet_path: str,
+        time: str,
+        src: str,
+        dst: str,
+        layer: str = None,
+        layer_col: str = None,
+    ) -> None:
         """
         Load edges deletions from a Parquet file into the graph.
 
@@ -4869,7 +5055,16 @@ class PersistentGraph:
             GraphError: If the operation fails.
         """
 
-    def load_edge_props_from_pandas(self, df: Dataframe, src: str, dst: str, constant_properties: List[str] = None, shared_constant_properties: dict = None, layer: str = None, layer_col: str = None):
+    def load_edge_props_from_pandas(
+        self,
+        df: Dataframe,
+        src: str,
+        dst: str,
+        constant_properties: List[str] = None,
+        shared_constant_properties: dict = None,
+        layer: str = None,
+        layer_col: str = None,
+    ) -> None:
         """
         Load edge properties from a Pandas DataFrame.
 
@@ -4889,7 +5084,16 @@ class PersistentGraph:
             GraphError: If the operation fails.
         """
 
-    def load_edge_props_from_parquet(self, parquet_path: str, src: str, dst: str, constant_properties: List[str] = None, shared_constant_properties: dict = None, layer: str = None, layer_col: str = None):
+    def load_edge_props_from_parquet(
+        self,
+        parquet_path: str,
+        src: str,
+        dst: str,
+        constant_properties: List[str] = None,
+        shared_constant_properties: dict = None,
+        layer: str = None,
+        layer_col: str = None,
+    ) -> None:
         """
         Load edge properties from parquet file
 
@@ -4909,7 +5113,18 @@ class PersistentGraph:
             GraphError: If the operation fails.
         """
 
-    def load_edges_from_pandas(self, df: Dataframe, time: str, src: str, dst: str, properties: List[str] = None, constant_properties: List[str] = None, shared_constant_properties: dict = None, layer: str = None, layer_col: str = None):
+    def load_edges_from_pandas(
+        self,
+        df: Dataframe,
+        time: str,
+        src: str,
+        dst: str,
+        properties: List[str] = None,
+        constant_properties: List[str] = None,
+        shared_constant_properties: dict = None,
+        layer: str = None,
+        layer_col: str = None,
+    ) -> None:
         """
         Load edges from a Pandas DataFrame into the graph.
 
@@ -4930,7 +5145,18 @@ class PersistentGraph:
             GraphError: If the operation fails.
         """
 
-    def load_edges_from_parquet(self, parquet_path: str, time: str, src: str, dst: str, properties: List[str] = None, constant_properties: List[str] = None, shared_constant_properties: dict = None, layer: str = None, layer_col: str = None):
+    def load_edges_from_parquet(
+        self,
+        parquet_path: str,
+        time: str,
+        src: str,
+        dst: str,
+        properties: List[str] = None,
+        constant_properties: List[str] = None,
+        shared_constant_properties: dict = None,
+        layer: str = None,
+        layer_col: str = None,
+    ) -> None:
         """
         Load edges from a Parquet file into the graph.
 
@@ -4963,7 +5189,15 @@ class PersistentGraph:
            PersistentGraph
         """
 
-    def load_node_props_from_pandas(self, df: Dataframe, id: str, node_type: str = None, node_type_col: str = None, constant_properties: List[str] = None, shared_constant_properties: dict = None):
+    def load_node_props_from_pandas(
+        self,
+        df: Dataframe,
+        id: str,
+        node_type: str = None,
+        node_type_col: str = None,
+        constant_properties: List[str] = None,
+        shared_constant_properties: dict = None,
+    ) -> None:
         """
         Load node properties from a Pandas DataFrame.
 
@@ -4982,7 +5216,15 @@ class PersistentGraph:
             GraphError: If the operation fails.
         """
 
-    def load_node_props_from_parquet(self, parquet_path: str, id: str, node_type: str = None, node_type_col: str = None, constant_properties: List[str] = None, shared_constant_properties: dict = None):
+    def load_node_props_from_parquet(
+        self,
+        parquet_path: str,
+        id: str,
+        node_type: str = None,
+        node_type_col: str = None,
+        constant_properties: List[str] = None,
+        shared_constant_properties: dict = None,
+    ) -> None:
         """
         Load node properties from a parquet file.
 
@@ -5001,7 +5243,17 @@ class PersistentGraph:
             GraphError: If the operation fails.
         """
 
-    def load_nodes_from_pandas(self, df: pandas.DataFrame, time: str, id: str, node_type: str = None, node_type_col: str = None, properties: List[str] = None, constant_properties: List[str] = None, shared_constant_properties: dict = None):
+    def load_nodes_from_pandas(
+        self,
+        df: pandas.DataFrame,
+        time: str,
+        id: str,
+        node_type: str = None,
+        node_type_col: str = None,
+        properties: List[str] = None,
+        constant_properties: List[str] = None,
+        shared_constant_properties: dict = None,
+    ) -> None:
         """
         Load nodes from a Pandas DataFrame into the graph.
 
@@ -5021,7 +5273,17 @@ class PersistentGraph:
             GraphError: If the operation fails.
         """
 
-    def load_nodes_from_parquet(self, parquet_path: str, time: str, id: str, node_type: str = None, node_type_col: str = None, properties: List[str] = None, constant_properties: List[str] = None, shared_constant_properties: dict = None):
+    def load_nodes_from_parquet(
+        self,
+        parquet_path: str,
+        time: str,
+        id: str,
+        node_type: str = None,
+        node_type_col: str = None,
+        properties: List[str] = None,
+        constant_properties: List[str] = None,
+        shared_constant_properties: dict = None,
+    ) -> None:
         """
         Load nodes from a Parquet file into the graph.
 
@@ -5069,9 +5331,7 @@ class PersistentGraph:
          the nodes in the graph
         """
 
-    def persistent_graph(self):
-        ...
-
+    def persistent_graph(self): ...
     @property
     def properties(self):
         """
@@ -5082,7 +5342,7 @@ class PersistentGraph:
            HashMap<String, Prop> - Properties paired with their names
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None):
+    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
 
@@ -5192,7 +5452,14 @@ class PersistentGraph:
            GraphView - Returns the subgraph
         """
 
-    def to_networkx(self, explode_edges: bool = False, include_node_properties: bool = True, include_edge_properties: bool = True, include_update_history: bool = True, include_property_history: bool = True):
+    def to_networkx(
+        self,
+        explode_edges: bool = False,
+        include_node_properties: bool = True,
+        include_edge_properties: bool = True,
+        include_update_history: bool = True,
+        include_property_history: bool = True,
+    ):
         """
         Returns a graph with NetworkX.
 
@@ -5211,7 +5478,18 @@ class PersistentGraph:
                 A Networkx MultiDiGraph.
         """
 
-    def to_pyvis(self, explode_edges=False, edge_color='#000000', shape=None, node_image=None, edge_weight=None, edge_label=None, colour_nodes_by_type=False, notebook=False, **kwargs):
+    def to_pyvis(
+        self,
+        explode_edges=False,
+        edge_color="#000000",
+        shape=None,
+        node_image=None,
+        edge_weight=None,
+        edge_label=None,
+        colour_nodes_by_type=False,
+        notebook=False,
+        **kwargs
+    ):
         """
         Draw a graph with PyVis.
         Pyvis is a required dependency. If you intend to use this function make sure that you install Pyvis
@@ -5251,7 +5529,7 @@ class PersistentGraph:
            None
         """
 
-    def valid_layers(self, names: list[str]):
+    def valid_layers(self, names: list[str]) -> GraphView:
         """
          Return a view of GraphView containing all layers `names`
         Any layers that do not exist are ignored
@@ -5263,7 +5541,17 @@ class PersistentGraph:
              GraphView: The layered view
         """
 
-    def vectorise(self, embedding: Callable[[list], list], cache: str = None, overwrite_cache: bool = False, graph_template: str = None, node_template: str = None, edge_template: str = None, graph_name=None, verbose: bool = False):
+    def vectorise(
+        self,
+        embedding: Callable[[list], list],
+        cache: str = None,
+        overwrite_cache: bool = False,
+        graph_template: str = None,
+        node_template: str = None,
+        edge_template: str = None,
+        graph_name=None,
+        verbose: bool = False,
+    ):
         """
         Create a VectorisedGraph from the current graph
 
@@ -5294,7 +5582,7 @@ class PersistentGraph:
 
     @property
     def window_size(self):
-        """ Get the window size (difference between start and end) for this GraphView"""
+        """Get the window size (difference between start and end) for this GraphView"""
 
     def write_updates(self):
         """Persist the new updates by appending them to the cache file."""
@@ -5372,11 +5660,9 @@ class PyDirection:
     def __init__(self, direction):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
-    def as_str(self):
-        ...
+    def as_str(self): ...
 
 class PyGraphEncoder:
-
     def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
@@ -5389,7 +5675,7 @@ class TemporalProp:
     def at(self, t):
         """Get the value of the property at time `t`"""
 
-    def average(self):
+    def average(self) -> Prop:
         """
         Compute the average of all property values. Alias for mean().
 
@@ -5397,7 +5683,7 @@ class TemporalProp:
             Prop: The average of each property values, or None if count is zero.
         """
 
-    def count(self):
+    def count(self) -> int:
         """
         Count the number of properties.
 
@@ -5425,7 +5711,7 @@ class TemporalProp:
             (i64, Prop): A tuple containing the time and the maximum property value.
         """
 
-    def mean(self):
+    def mean(self) -> Prop:
         """
         Compute the mean of all property values. Alias for mean().
 
@@ -5449,10 +5735,8 @@ class TemporalProp:
             (i64, Prop): A tuple containing the time and the minimum property value.
         """
 
-    def ordered_dedupe(self, latest_time):
-        ...
-
-    def sum(self):
+    def ordered_dedupe(self, latest_time): ...
+    def sum(self) -> Prop:
         """
         Compute the sum of all property values.
 
@@ -5460,9 +5744,7 @@ class TemporalProp:
             Prop: The sum of all property values.
         """
 
-    def unique(self):
-        ...
-
+    def unique(self): ...
     def value(self):
         """Get the latest value of the property"""
 
@@ -5485,7 +5767,7 @@ class TemporalProperties:
             the property view if it exists, otherwise `None`
         """
 
-    def histories(self):
+    def histories(self) -> dict[str, list[(int, Any)]]:
         """
         Get the histories of all properties
 
@@ -5493,7 +5775,7 @@ class TemporalProperties:
             dict[str, list[(int, Any)]]: the mapping of property keys to histories
         """
 
-    def histories_date_time(self):
+    def histories_date_time(self) -> dict[str, list[(datetime, Any)]]:
         """
         Get the histories of all properties
 
@@ -5507,7 +5789,7 @@ class TemporalProperties:
     def keys(self):
         """List the available property keys"""
 
-    def latest(self):
+    def latest(self) -> dict[str, Any]:
         """
         Get the latest value of all properties
 
@@ -5515,7 +5797,7 @@ class TemporalProperties:
             dict[str, Any]: the mapping of property keys to latest values
         """
 
-    def values(self):
+    def values(self) -> list[TemporalProp]:
         """
         List the values of the properties
 

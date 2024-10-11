@@ -7,9 +7,9 @@
 #                                                                             #
 ###############################################################################
 
-
 from typing import *
 from raphtory import *
+from raphtory.vectors import *
 from raphtory.typing import *
 from datetime import datetime
 
@@ -60,9 +60,7 @@ def lotr_graph():
       A Graph containing the LOTR dataset
     """
 
-def neo4j_movie_graph(uri, username, password, database=...):
-    ...
-
+def neo4j_movie_graph(uri, username, password, database=...): ...
 def reddit_hyperlink_graph(timeout_seconds: Any = 600):
     """
     Load (a subset of) Reddit hyperlinks dataset into a graph.
@@ -102,8 +100,5 @@ def reddit_hyperlink_graph(timeout_seconds: Any = 600):
      A Graph containing the Reddit hyperlinks dataset
     """
 
-def reddit_hyperlink_graph_local(file_path):
-    ...
-
-def stable_coin_graph(path=None, subset=None):
-    ...
+def reddit_hyperlink_graph_local(file_path): ...
+def stable_coin_graph(path=None, subset=None): ...

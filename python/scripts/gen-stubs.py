@@ -38,6 +38,7 @@ comment = """###################################################################
 imports = """
 from typing import *
 from raphtory import *
+from raphtory.vectors import *
 from raphtory.typing import *
 from datetime import datetime
 """
@@ -79,9 +80,12 @@ def format_param(param: inspect.Parameter) -> str:
 
 
 def format_signature(sig: inspect.Signature) -> str:
-    return (
+    sig_str = (
         "(" + ", ".join(format_param(param) for param in sig.parameters.values()) + ")"
     )
+    if sig.return_annotation is not sig.empty:
+        sig_str += f" -> {sig.return_annotation}"
+    return sig_str
 
 
 def clean_parameter(
@@ -115,7 +119,7 @@ def clean_signature(
     new_params = [clean_parameter(p, type_annotations) for p in sig.parameters.values()]
     sig = sig.replace(parameters=new_params)
     if return_type is not None:
-        sig.replace(return_annotation=return_type)
+        sig = sig.replace(return_annotation=return_type)
     return format_signature(sig), decorator
 
 
@@ -178,7 +182,7 @@ def extract_types(obj) -> (dict[str, dict], Optional[str]):
             if parse_result.returns is not None:
                 return_type = parse_result.returns.type_name
             else:
-                return_type = "Any"
+                return_type = None
             return type_annotations, return_type
         else:
             return dict(), None
