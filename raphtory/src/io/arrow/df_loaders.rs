@@ -631,7 +631,7 @@ mod tests {
             },
             disk_graph::DiskGraphStorage,
             io::parquet_loaders::load_edges_from_parquet,
-            prelude::{Graph, GraphViewOps},
+            prelude::Graph,
             test_utils::build_edge_list,
         };
         use polars_arrow::{

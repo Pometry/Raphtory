@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
+        entities::{LayerIds, VID},
         storage::timeindex::{TimeIndex, TimeIndexOps},
         Prop,
     },

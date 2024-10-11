@@ -209,64 +209,6 @@ impl PyDiskGraph {
     }
 
     #[staticmethod]
-    fn load_from_dir(graph_dir: &str) -> Result<DiskGraphStorage, GraphError> {
-        DiskGraphStorage::load_from_dir(graph_dir).map_err(|err| {
-            GraphError::LoadFailure(format!("Failed to load graph {err:?} from dir {graph_dir}"))
-        })
-    }
-
-    #[staticmethod]
-    #[pyo3(
-        signature = (graph_dir, layer_parquet_cols, node_properties, chunk_size, t_props_chunk_size, num_threads, node_type_col)
-    )]
-    fn load_from_parquets(
-        graph_dir: &str,
-        layer_parquet_cols: ParquetLayerColsList,
-        node_properties: Option<&str>,
-        chunk_size: usize,
-        t_props_chunk_size: usize,
-        num_threads: usize,
-        node_type_col: Option<&str>,
-    ) -> Result<DiskGraphStorage, GraphError> {
-        let graph = Self::from_parquets(
-            graph_dir,
-            layer_parquet_cols.0,
-            node_properties,
-            chunk_size,
-            t_props_chunk_size,
-            num_threads,
-            node_type_col,
-        );
-        graph.map_err(|e| {
-            GraphError::LoadFailure(format!("Failed to load graph {e:?} from parquet files"))
-        })
-    }
-
-    /// Merge this graph with another `DiskGraph`. Note that both graphs should have nodes that are
-    /// sorted by their global ids or the resulting graph will be nonsense!
-    fn merge_by_sorted_gids(
-        &self,
-        other: &Self,
-        graph_dir: &str,
-    ) -> Result<DiskGraphStorage, GraphError> {
-        self.graph.merge_by_sorted_gids(&other.graph, graph_dir)
-    }
-
-    fn __repr__(&self) -> String {
-        StructReprBuilder::new("DiskGraph")
-            .add_field("number_of_nodes", self.graph.inner.num_nodes())
-            .add_field(
-                "number_of_temporal_edges",
-                self.graph.inner.count_temporal_edges(),
-            )
-            .add_field("earliest_time", self.graph.inner.earliest())
-            .add_field("latest_time", self.graph.inner.latest())
-            .finish()
-    }
-}
-
-impl PyDiskGraph {
-    #[staticmethod]
     fn load_from_dir(graph_dir: PathBuf) -> Result<DiskGraphStorage, GraphError> {
         DiskGraphStorage::load_from_dir(&graph_dir).map_err(|err| {
             GraphError::LoadFailure(format!(
@@ -278,7 +220,7 @@ impl PyDiskGraph {
 
     #[staticmethod]
     #[pyo3(
-        signature = (graph_dir, layer_parquet_cols, node_properties, chunk_size, t_props_chunk_size, read_chunk_size, concurrent_files, num_threads, node_type_col)
+        signature = (graph_dir, layer_parquet_cols, node_properties, chunk_size, t_props_chunk_size, num_threads, node_type_col)
     )]
     fn load_from_parquets(
         graph_dir: PathBuf,

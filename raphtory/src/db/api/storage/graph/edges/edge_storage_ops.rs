@@ -9,7 +9,6 @@ use crate::{
             raw_edges::EdgeShard,
             timeindex::{TimeIndex, TimeIndexIntoOps, TimeIndexOps, TimeIndexWindow},
         },
-        utils::iter::GenLockedIter,
         Prop,
     },
     db::api::{

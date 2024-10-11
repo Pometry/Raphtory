@@ -1,6 +1,4 @@
-use crate::core::{
-    storage::lazy_vec::IllegalSet, utils::time::error::ParseTimeError, Prop, PropType,
-};
+use crate::core::{storage::lazy_vec::IllegalSet, utils::time::error::ParseTimeError, Prop};
 #[cfg(feature = "arrow")]
 use polars_arrow::{datatypes::ArrowDataType, legacy::error};
 #[cfg(feature = "storage")]

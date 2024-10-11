@@ -6,18 +6,12 @@ use crate::{
             timeindex::TimeIndexEntry,
         },
         utils::errors::GraphError,
-        Prop, PropType,
+        Prop,
     },
     db::api::storage::graph::tprop_storage_ops::TPropOps,
 };
-use parking_lot::RwLock;
-use raphtory_api::core::storage::{
-    arc_str::ArcStr,
-    dict_mapper::{DictMapper, MaybeNew},
-    locked_vec::ArcReadLockedVec,
-};
 use serde::{Deserialize, Serialize};
-use std::{fmt::Debug, hash::Hash, ops::Deref, sync::Arc};
+use std::{fmt::Debug, hash::Hash};
 
 pub use raphtory_api::core::entities::properties::props::*;
 

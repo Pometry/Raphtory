@@ -31,7 +31,6 @@ use pometry_storage::{
 use raphtory_api::core::{entities::edges::edge_ref::EdgeRef, storage::dict_mapper::MaybeNew};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::borrow::Borrow;
 
 pub mod graph_impl;
 pub mod storage_interface;
@@ -421,25 +420,12 @@ mod test {
     use proptest::{prelude::*, sample::size_range};
     use tempfile::TempDir;
 
-    use pometry_storage::{
-        global_order::GlobalMap, graph::TemporalGraph, graph_fragment::TempColGraphFragment,
-        interop::GraphLike, RAError,
-    };
-    use raphtory_api::core::{
-        entities::{EID, ELID, VID},
-        Direction,
-    };
+    use pometry_storage::{graph::TemporalGraph, RAError};
+    use raphtory_api::core::entities::{EID, VID};
 
     use crate::{
         arrow2::datatypes::{ArrowDataType as DataType, ArrowSchema as Schema},
-        core::{entities::LayerIds, storage::timeindex::TimeIndexOps},
-        db::{
-            api::{
-                storage::graph::edges::edge_storage_ops::EdgeStorageOps,
-                view::internal::{CoreGraphOps, TimeSemantics},
-            },
-            graph::graph::assert_graph_equal,
-        },
+        db::graph::graph::assert_graph_equal,
         prelude::*,
     };
 

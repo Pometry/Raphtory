@@ -88,7 +88,7 @@ impl DiskEdges {
         }
     }
 
-    pub fn get(&self, eid: EID, layer_id: usize) -> DiskEdge {
+    pub fn get(&self, eid: EID) -> DiskEdge {
         self.graph.inner.edge(eid)
     }
 }
