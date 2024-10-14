@@ -48,9 +48,8 @@ impl PyRunningGraphServer {
         }
     }
 
-    pub(crate) fn wait_for_server_online(url: &String, timeout_ms: Option<u64>) -> PyResult<()> {
-        let millis = timeout_ms.unwrap_or(5000);
-        let num_intervals = millis / WAIT_CHECK_INTERVAL_MILLIS;
+    pub(crate) fn wait_for_server_online(url: &String, timeout_ms: u64) -> PyResult<()> {
+        let num_intervals = timeout_ms / WAIT_CHECK_INTERVAL_MILLIS;
 
         for _ in 0..num_intervals {
             if is_online(url) {
@@ -62,7 +61,7 @@ impl PyRunningGraphServer {
 
         Err(PyException::new_err(format!(
             "Failed to start server in {} milliseconds",
-            millis
+            timeout_ms
         )))
     }
 

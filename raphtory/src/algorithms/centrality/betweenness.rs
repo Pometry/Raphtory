@@ -13,7 +13,7 @@ use std::collections::{HashMap, VecDeque};
 ///
 /// - `g`: A reference to the graph.
 /// - `k`: An `Option<usize>` specifying the number of nodes to consider for the centrality computation. Defaults to all nodes if `None`.
-/// - `normalized`: A `Option<bool>` indicating whether to normalize the centrality values.
+/// - `normalized`: If `true` normalize the centrality values.
 ///
 /// # Returns
 ///
@@ -21,7 +21,7 @@ use std::collections::{HashMap, VecDeque};
 pub fn betweenness_centrality<'graph, G: GraphViewOps<'graph>>(
     g: &'graph G,
     k: Option<usize>,
-    normalized: Option<bool>,
+    normalized: bool,
 ) -> AlgorithmResult<G, f64, OrderedFloat<f64>> {
     // Initialize a hashmap to store betweenness centrality values.
     let mut betweenness: HashMap<usize, f64> = HashMap::new();
@@ -93,7 +93,7 @@ pub fn betweenness_centrality<'graph, G: GraphViewOps<'graph>>(
     }
 
     // Normalization
-    if let Some(true) = normalized {
+    if normalized {
         let factor = 1.0 / ((n as f64 - 1.0) * (n as f64 - 2.0));
         for node in nodes.iter() {
             betweenness
@@ -147,7 +147,7 @@ mod betweenness_centrality_test {
             expected.insert("5".to_string(), 0.0);
             expected.insert("6".to_string(), 0.0);
 
-            let res = betweenness_centrality(graph, None, Some(false));
+            let res = betweenness_centrality(graph, None, false);
             assert_eq!(res.get_all_with_names(), expected);
 
             let mut expected: HashMap<String, f64> = HashMap::new();
@@ -157,7 +157,7 @@ mod betweenness_centrality_test {
             expected.insert("4".to_string(), 0.05);
             expected.insert("5".to_string(), 0.0);
             expected.insert("6".to_string(), 0.0);
-            let res = betweenness_centrality(graph, None, Some(true));
+            let res = betweenness_centrality(graph, None, true);
             assert_eq!(res.get_all_with_names(), expected);
         });
     }

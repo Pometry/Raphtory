@@ -368,7 +368,7 @@ impl PyMutableNode {
     /// This function allows for the addition of property updates to a node within the graph. The updates are time-stamped, meaning they are applied at the specified time.
     ///
     /// Parameters:
-    ///     t (int | str | DateTime): The timestamp at which the updates should be applied.
+    ///     t (TimeInput): The timestamp at which the updates should be applied.
     ///     properties (Dict[str, Prop]): A dictionary of properties to update. Each key is a string representing the property name, and each value is of type Prop representing the property value. If None, no properties are updated.
     ///
     /// Returns:
