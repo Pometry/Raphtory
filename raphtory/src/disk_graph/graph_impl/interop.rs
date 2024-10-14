@@ -134,9 +134,10 @@ impl GraphLike<TimeIndexEntry> for Graph {
             .get_dtype(prop_id)
             .unwrap();
         arrow_array_from_props(
-            edges.iter().enumerate().flat_map(|(index, &eid)| {
-                let ts = &edge_ts[edge_t_offsets[index]..edge_t_offsets[index + 1]];
-                let el_id = ELID::new((eid as usize).into(), Some(layer));
+            edges.iter().flat_map(|&eid| {
+                let eid = eid as usize;
+                let ts = &edge_ts[edge_t_offsets[eid]..edge_t_offsets[eid + 1]];
+                let el_id = ELID::new(eid.into(), Some(layer));
                 let edge = self.core_edge(el_id);
                 ts.iter()
                     .map(move |t| edge.temporal_prop_layer(layer, prop_id).at(t))

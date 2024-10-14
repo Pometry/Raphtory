@@ -1209,7 +1209,7 @@ mod db_tests {
         graph.add_edge(0, 11, 44, NO_PROPS, Some("layer2"))?;
 
         // FIXME: needs multilayer support (Issue #47)
-        test_graph(&graph, |graph| {
+        test_storage!(&graph, |graph| {
             assert!(graph.has_edge(11, 22));
             assert!(graph.default_layer().has_edge(11, 22));
             assert!(!graph.default_layer().has_edge(11, 44));

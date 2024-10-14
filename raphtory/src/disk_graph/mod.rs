@@ -28,7 +28,7 @@ use pometry_storage::{
     graph::TemporalGraph, graph_fragment::TempColGraphFragment, load::ExternalEdgeList,
     merge::merge_graph::merge_graphs, RAError,
 };
-use raphtory_api::core::{entities::edges::edge_ref::EdgeRef, storage::dict_mapper::MaybeNew};
+use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -40,9 +40,6 @@ pub type Time = i64;
 pub mod prelude {
     pub use pometry_storage::chunked_array::array_ops::*;
 }
-
-type LayerId = usize;
-type PropId = usize;
 
 #[derive(Clone, Debug)]
 pub struct DiskGraphStorage {
@@ -224,65 +221,7 @@ impl DiskGraphStorage {
     }
 
     pub fn new(inner_graph: TemporalGraph) -> Self {
-        let node_meta = Meta::new();
-        let edge_meta = Meta::new();
         let graph_meta = GraphMeta::new();
-        let mut edge_global_mapping: Vec<Vec<(LayerId, PropId)>> = vec![]; // map the global prop ids to the layer prop ids
-
-        for node_type in inner_graph.node_types().into_iter().flatten() {
-            if let Some(node_type) = node_type {
-                node_meta.get_or_create_node_type_id(node_type);
-            } else {
-                panic!("Node types cannot be null");
-            }
-        }
-
-        for (layer_id, layer) in inner_graph.layers().into_iter().enumerate() {
-            let edge_props_fields = layer.edges_data_type();
-
-            for (local_prop_id, field) in edge_props_fields.iter().enumerate().skip(1) {
-                // we assume the first field is the timestamp
-                let prop_name = &field.name;
-                let data_type = field.data_type();
-
-                let resolved_id = edge_meta
-                    .resolve_prop_id(prop_name, data_type.into(), false)
-                    .expect("Arrow data types should without failing");
-
-                match resolved_id {
-                    MaybeNew::New(_) => edge_global_mapping.push(vec![(layer_id, local_prop_id)]),
-                    MaybeNew::Existing(id) => {
-                        edge_global_mapping[id].push((layer_id, local_prop_id))
-                    }
-                }
-            }
-        }
-
-        edge_global_mapping
-            .iter_mut()
-            .for_each(|mapping| mapping.sort());
-
-        for (l_id, l_name) in inner_graph.layer_names().into_iter().enumerate() {
-            edge_meta.layer_meta().set_id(l_name.as_str(), l_id);
-        }
-
-        if let Some(props) = &inner_graph.node_properties().const_props {
-            let node_const_props_fields = props.prop_dtypes();
-            for field in node_const_props_fields {
-                node_meta
-                    .resolve_prop_id(&field.name, field.data_type().into(), true)
-                    .expect("Initial resolve should not fail");
-            }
-        }
-
-        if let Some(props) = &inner_graph.node_properties().temporal_props {
-            let node_temporal_props_fields = props.prop_dtypes();
-            for field in node_temporal_props_fields {
-                node_meta
-                    .resolve_prop_id(&field.name, field.data_type().into(), false)
-                    .expect("Initial resolve should not fail");
-            }
-        }
 
         Self {
             inner: Arc::new(inner_graph),
