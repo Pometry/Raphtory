@@ -7,7 +7,17 @@
 #                                                                             #
 ###############################################################################
 
-def ba_preferential_attachment(g, nodes_to_add, edges_per_step, seed=None):
+from typing import *
+from raphtory import *
+from raphtory.vectors import *
+from raphtory.graphql import *
+from raphtory.typing import *
+from datetime import datetime
+from pandas import DataFrame
+
+def ba_preferential_attachment(
+    g: Any, nodes_to_add: Any, edges_per_step: Any, seed: Any = None
+):
     """
     Generates a graph using the preferential attachment model.
 
@@ -33,7 +43,7 @@ def ba_preferential_attachment(g, nodes_to_add, edges_per_step, seed=None):
     None
     """
 
-def random_attachment(g, nodes_to_add, edges_per_step, seed=None):
+def random_attachment(g: Any, nodes_to_add: Any, edges_per_step: Any, seed: Any = None):
     """
     Generates a graph using the random attachment model
 

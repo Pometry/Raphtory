@@ -171,8 +171,8 @@ macro_rules! py_algorithm_result_partial_ord {
             ///
             /// Arguments:
             ///     reverse (bool): A boolean value indicating whether the sorting should be done in reverse order or not.
-            ///     If reverse is true, the sorting will be done in descending order, otherwise it will be done in
-            ///     ascending order.
+            ///         If reverse is true, the sorting will be done in descending order, otherwise it will be done in
+            ///         ascending order.
             ///
             /// Returns:
             ///     The function sort_by_node_name returns a vector of tuples. Each tuple contains a Node and value

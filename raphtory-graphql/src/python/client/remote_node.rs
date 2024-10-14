@@ -32,9 +32,6 @@ impl PyRemoteNode {
     ///
     /// Parameters:
     ///     new_type (str): The new type to be set
-    ///
-    /// Returns:
-    ///     Result: A result object indicating success or failure.
     pub fn set_node_type(&self, py: Python, new_type: &str) -> Result<(), GraphError> {
         let template = r#"
             {
@@ -61,8 +58,8 @@ impl PyRemoteNode {
     /// This function allows for the addition of property updates to a node within the graph. The updates are time-stamped, meaning they are applied at the specified time.
     ///
     /// Parameters:
-    ///     t (int | str | DateTime): The timestamp at which the updates should be applied.
-    ///     properties (Dict[str, Prop]): A dictionary of properties to update.
+    ///     t (int | str | datetime): The timestamp at which the updates should be applied.
+    ///     properties (Dict[str, Prop], optional): A dictionary of properties to update.
     pub fn add_updates(
         &self,
         py: Python,

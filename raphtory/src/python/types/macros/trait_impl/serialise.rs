@@ -72,7 +72,7 @@ macro_rules! impl_serialise {
             #[doc = concat!(" Load ", $name, " from serialised bytes.")]
             ///
             /// Arguments:
-            ///   bytes (Bytes): The serialised bytes to decode
+            ///   bytes (bytes): The serialised bytes to decode
             ///
             /// Returns:
             #[doc = concat!("   ", $name)]
@@ -84,7 +84,7 @@ macro_rules! impl_serialise {
             #[doc = concat!(" Serialise ", $name, " to bytes.")]
             ///
             /// Returns:
-            ///   Bytes
+            ///   bytes
             fn serialise<'py>(&self, py: Python<'py>) -> &'py pyo3::types::PyBytes {
                 let bytes = $crate::serialise::StableEncode::encode_to_vec(&self.$field);
                 pyo3::types::PyBytes::new(py, &bytes)

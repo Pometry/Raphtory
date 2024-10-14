@@ -7,6 +7,14 @@
 #                                                                             #
 ###############################################################################
 
+from typing import *
+from raphtory import *
+from raphtory.vectors import *
+from raphtory.graphql import *
+from raphtory.typing import *
+from datetime import datetime
+from pandas import DataFrame
+
 def karate_club_graph():
     """
     `karate_club_graph` constructs a karate club graph.
@@ -55,7 +63,7 @@ def lotr_graph():
     """
 
 def neo4j_movie_graph(uri, username, password, database=...): ...
-def reddit_hyperlink_graph(timeout_seconds=600):
+def reddit_hyperlink_graph(timeout_seconds: Any = 600):
     """
     Load (a subset of) Reddit hyperlinks dataset into a graph.
     The dataset is available at http://snap.stanford.edu/data/soc-redditHyperlinks-title.tsv

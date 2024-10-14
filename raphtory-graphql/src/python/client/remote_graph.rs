@@ -195,10 +195,10 @@ impl PyRemoteGraph {
     /// Adds a new node with the given id and properties to the remote graph.
     ///
     /// Arguments:
-    ///    timestamp (int|str|Datetime): The timestamp of the node.
+    ///    timestamp (int|str|datetime): The timestamp of the node.
     ///    id (str|int): The id of the node.
-    ///    properties (dict): The properties of the node (optional).
-    ///    node_type (str): The optional string which will be used as a node type
+    ///    properties (dict, optional): The properties of the node.
+    ///    node_type (str, optional): The optional string which will be used as a node type
     /// Returns:
     ///   RemoteNode
     #[pyo3(signature = (timestamp, id, properties = None, node_type = None))]
@@ -241,7 +241,7 @@ impl PyRemoteGraph {
     /// Adds properties to the remote graph.
     ///
     /// Arguments:
-    ///    timestamp (int|str|Datetime): The timestamp of the temporal property.
+    ///    timestamp (int|str|datetime): The timestamp of the temporal property.
     ///    properties (dict): The temporal properties of the graph.
     pub fn add_property(
         &self,
@@ -328,11 +328,11 @@ impl PyRemoteGraph {
     /// Adds a new edge with the given source and destination nodes and properties to the remote graph.
     ///
     /// Arguments:
-    ///    timestamp (int|str|Datetime): The timestamp of the edge.
-    ///    src (str|int): The id of the source node.
-    ///    dst (str|int): The id of the destination node.
-    ///    properties (dict): The properties of the edge, as a dict of string and properties (optional).
-    ///    layer (str): The layer of the edge (optional).
+    ///    timestamp (int |str | datetime): The timestamp of the edge.
+    ///    src (str | int): The id of the source node.
+    ///    dst (str | int): The id of the destination node.
+    ///    properties (dict, optional): The properties of the edge, as a dict of string and properties.
+    ///    layer (str, optional): The layer of the edge.
     ///
     /// Returns:
     ///   RemoteEdge
@@ -381,7 +381,7 @@ impl PyRemoteGraph {
     ///   timestamp (int): The timestamp of the edge.
     ///   src (str|int): The id of the source node.
     ///   dst (str|int): The id of the destination node.
-    ///   layer (str): The layer of the edge. (optional)
+    ///   layer (str, optional): The layer of the edge.
     ///
     /// Returns:
     ///   RemoteEdge
