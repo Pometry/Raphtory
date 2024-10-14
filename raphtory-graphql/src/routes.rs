@@ -20,11 +20,15 @@ pub(crate) async fn health() -> impl IntoResponse {
 
 #[handler]
 pub(crate) async fn graphql_playground() -> impl IntoResponse {
-    Html(playground_source(
-        GraphQLPlaygroundConfig::new("/")
-            .subscription_endpoint("/ws")
-            .with_setting("request.credentials", "include"),
-    ))
+    let config = GraphQLPlaygroundConfig::new("/")
+        .subscription_endpoint("/ws")
+        .with_setting("request.credentials", "include");
+    let source = playground_source(config);
+    let corrected = source.replace(
+        "<meta charset=utf-8 />",
+        r##"<meta charset=utf-8 /><meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;">"##
+    );
+    Html(corrected)
 }
 
 #[handler]
