@@ -276,7 +276,7 @@ impl PyPersistentGraph {
     ///
     /// Arguments:
     ///
-    ///     nodes (List(Node)):  A vector of PyNode objects representing the nodes to be imported.
+    ///     nodes (List[Node]):  A vector of PyNode objects representing the nodes to be imported.
     ///     force (bool): An optional boolean flag indicating whether to force the import of the nodes.
     ///
     #[pyo3(signature = (nodes, force = false))]
@@ -313,7 +313,7 @@ impl PyPersistentGraph {
     ///
     /// Arguments:
     ///
-    ///     edges (List(edges)): A vector of PyEdge objects representing the edges to be imported.
+    ///     edges (List[Edge]): A vector of PyEdge objects representing the edges to be imported.
     ///     force (bool): An optional boolean flag indicating whether to force the import of the edges.
     ///
     #[pyo3(signature = (edges, force = false))]
@@ -346,7 +346,7 @@ impl PyPersistentGraph {
     /// Load nodes from a Pandas DataFrame into the graph.
     ///
     /// Arguments:
-    ///     df (pandas.DataFrame): The Pandas DataFrame containing the nodes.
+    ///     df (DataFrame): The Pandas DataFrame containing the nodes.
     ///     time (str): The column name for the timestamps.
     ///     id (str): The column name for the node IDs.
     ///     node_type (str): A constant value to use as the node type for all nodes (optional). Defaults to None. (cannot be used in combination with node_type_col)
@@ -428,7 +428,7 @@ impl PyPersistentGraph {
     /// Load edges from a Pandas DataFrame into the graph.
     ///
     /// Arguments:
-    ///     df (Dataframe): The Pandas DataFrame containing the edges.
+    ///     df (DataFrame): The Pandas DataFrame containing the edges.
     ///     time (str): The column name for the update timestamps.
     ///     src (str): The column name for the source node ids.
     ///     dst (str): The column name for the destination node ids.
@@ -516,7 +516,7 @@ impl PyPersistentGraph {
     /// Load edges deletions from a Pandas DataFrame into the graph.
     ///
     /// Arguments:
-    ///     df (Dataframe): The Pandas DataFrame containing the edges.
+    ///     df (DataFrame): The Pandas DataFrame containing the edges.
     ///     time (str): The column name for the update timestamps.
     ///     src (str): The column name for the source node ids.
     ///     dst (str): The column name for the destination node ids.
@@ -578,7 +578,7 @@ impl PyPersistentGraph {
     /// Load node properties from a Pandas DataFrame.
     ///
     /// Arguments:
-    ///     df (Dataframe): The Pandas DataFrame containing node information.
+    ///     df (DataFrame): The Pandas DataFrame containing node information.
     ///     id(str): The column name for the node IDs.
     ///     node_type (str): A constant value to use as the node type for all nodes (optional). Defaults to None. (cannot be used in combination with node_type_col)
     ///     node_type_col (str): The node type col name in dataframe (optional) Defaults to None. (cannot be used in combination with node_type)
@@ -650,7 +650,7 @@ impl PyPersistentGraph {
     /// Load edge properties from a Pandas DataFrame.
     ///
     /// Arguments:
-    ///     df (Dataframe): The Pandas DataFrame containing edge information.
+    ///     df (DataFrame): The Pandas DataFrame containing edge information.
     ///     src (str): The column name for the source node.
     ///     dst (str): The column name for the destination node.
     ///     constant_properties (List[str]): List of constant edge property column names. Defaults to None. (optional)

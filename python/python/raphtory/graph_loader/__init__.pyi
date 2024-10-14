@@ -10,8 +10,10 @@
 from typing import *
 from raphtory import *
 from raphtory.vectors import *
+from raphtory.graphql import *
 from raphtory.typing import *
 from datetime import datetime
+from pandas import DataFrame
 
 def karate_club_graph():
     """

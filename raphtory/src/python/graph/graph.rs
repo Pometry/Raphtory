@@ -168,7 +168,7 @@ impl PyGraph {
     /// Adds a new node with the given id and properties to the graph.
     ///
     /// Arguments:
-    ///    timestamp (int|str|Datetime): The timestamp of the node.
+    ///    timestamp (TimeInput): The timestamp of the node.
     ///    id (str|int): The id of the node.
     ///    properties (dict): The properties of the node (optional).
     ///    node_type (str): The optional string which will be used as a node type
@@ -189,7 +189,7 @@ impl PyGraph {
     /// Adds properties to the graph.
     ///
     /// Arguments:
-    ///    timestamp (int|str|Datetime): The timestamp of the temporal property.
+    ///    timestamp (TimeInput): The timestamp of the temporal property.
     ///    properties (dict): The temporal properties of the graph.
     pub fn add_property(
         &self,
@@ -225,7 +225,7 @@ impl PyGraph {
     /// Adds a new edge with the given source and destination nodes and properties to the graph.
     ///
     /// Arguments:
-    ///    timestamp (int|str|Datetime): The timestamp of the edge.
+    ///    timestamp (TimeInput): The timestamp of the edge.
     ///    src (str|int): The id of the source node.
     ///    dst (str|int): The id of the destination node.
     ///    properties (dict): The properties of the edge, as a dict of string and properties (optional).
@@ -380,7 +380,7 @@ impl PyGraph {
     /// Load nodes from a Pandas DataFrame into the graph.
     ///
     /// Arguments:
-    ///     df (pandas.DataFrame): The Pandas DataFrame containing the nodes.
+    ///     df (DataFrame): The Pandas DataFrame containing the nodes.
     ///     time (str): The column name for the timestamps.
     ///     id (str): The column name for the node IDs.
     ///     node_type (str): A constant value to use as the node type for all nodes (optional). Defaults to None. (cannot be used in combination with node_type_col)
@@ -456,7 +456,7 @@ impl PyGraph {
     /// Load edges from a Pandas DataFrame into the graph.
     ///
     /// Arguments:
-    ///     df (Dataframe): The Pandas DataFrame containing the edges.
+    ///     df (DataFrame): The Pandas DataFrame containing the edges.
     ///     time (str): The column name for the update timestamps.
     ///     src (str): The column name for the source node ids.
     ///     dst (str): The column name for the destination node ids.
@@ -538,7 +538,7 @@ impl PyGraph {
     /// Load node properties from a Pandas DataFrame.
     ///
     /// Arguments:
-    ///     df (Dataframe): The Pandas DataFrame containing node information.
+    ///     df (DataFrame): The Pandas DataFrame containing node information.
     ///     id(str): The column name for the node IDs.
     ///     node_type (str): A constant value to use as the node type for all nodes (optional). Defaults to None. (cannot be used in combination with node_type_col)
     ///     node_type_col (str): The node type col name in dataframe (optional) Defaults to None. (cannot be used in combination with node_type)
@@ -598,7 +598,7 @@ impl PyGraph {
     /// Load edge properties from a Pandas DataFrame.
     ///
     /// Arguments:
-    ///     df (Dataframe): The Pandas DataFrame containing edge information.
+    ///     df (DataFrame): The Pandas DataFrame containing edge information.
     ///     src (str): The column name for the source node.
     ///     dst (str): The column name for the destination node.
     ///     constant_properties (List[str]): List of constant edge property column names. Defaults to None. (optional)

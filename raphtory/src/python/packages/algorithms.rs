@@ -456,10 +456,10 @@ pub fn global_temporal_three_node_motif(g: &PyGraphView, delta: i64) -> [usize; 
 /// Arguments:
 ///     g (GraphView) : A directed raphtory graph
 ///     delta (int): Time period
-///     pivot (string) : node type to pivot over. If a bipartite graph has types A and B, and B is the pivot type, the new graph will consist of type A nodes.
+///     pivot (str) : node type to pivot over. If a bipartite graph has types A and B, and B is the pivot type, the new graph will consist of type A nodes.
 ///
 /// Returns:
-///     raphtory graph : Projected (unipartite) temporal graph.
+///     GraphView: Projected (unipartite) temporal graph.
 #[pyfunction]
 #[pyo3(signature = (g, delta, pivot_type))]
 pub fn temporal_bipartite_graph_projection(
@@ -544,7 +544,7 @@ pub fn hits(
 ///             * "OUT": Only consider outgoing edges.
 ///             * "IN": Only consider incoming edges.
 ///             * "BOTH": Consider both outgoing and incoming edges. This is the default.
-///     threads (int, optional): The number of threads to be used for parallel execution. Defaults to single-threaded operation if not provided.
+///     threads (int, optional): The number of threads to be used for parallel execution.
 ///
 /// Returns:
 ///     AlgorithmResult: A result containing a mapping of node names to the computed sum of their associated edge weights.
@@ -662,8 +662,9 @@ pub fn dijkstra_single_source_shortest_paths(
 ///
 /// Arguments:
 ///     g (GraphView): A reference to the graph.
-///     k (int, optional): Specifies the number of nodes to consider for the centrality computation. Defaults to all nodes if `None`.
-///     normalized (bool, optional): Indicates whether to normalize the centrality values.
+///     k (int, optional): Specifies the number of nodes to consider for the centrality computation.
+///         All nodes are considered by default.
+///     normalized (bool): Indicates whether to normalize the centrality values.
 ///
 /// Returns:
 ///     AlgorithmResult: Returns an `AlgorithmResult` containing the betweenness centrality of each node.
@@ -672,7 +673,7 @@ pub fn dijkstra_single_source_shortest_paths(
 pub fn betweenness_centrality(
     g: &PyGraphView,
     k: Option<usize>,
-    normalized: Option<bool>,
+    normalized: bool,
 ) -> AlgorithmResult<DynamicGraph, f64, OrderedFloat<f64>> {
     betweenness_rs(&g.graph, k, normalized)
 }

@@ -10,8 +10,10 @@
 from typing import *
 from raphtory import *
 from raphtory.vectors import *
+from raphtory.graphql import *
 from raphtory.typing import *
 from datetime import datetime
+from pandas import DataFrame
 
 class AlgorithmResult:
     def __init__(self):
@@ -984,7 +986,7 @@ class Edges:
         include_property_history: bool = True,
         convert_datetime: bool = False,
         explode: bool = False,
-    ):
+    ) -> DataFrame:
         """
         Converts the graph's edges into a Pandas DataFrame.
 
@@ -996,12 +998,12 @@ class Edges:
         - "update_history": The update history of the edge. This column will be included if `include_update_history` is set to `true`.
 
         Args:
-            include_property_history (bool): A boolean, if set to `true`, the history of each property is included, if `false`, only the latest value is shown. Ignored if exploded. Defaults to `false`.
-            convert_datetime (bool): A boolean, if set to `true` will convert the timestamp to python datetimes, defaults to `false`
-            explode (bool): A boolean, if set to `true`, will explode each edge update into its own row. Defaults to `false`
+            include_property_history (bool): A boolean, if set to `True`, the history of each property is included, if `False`, only the latest value is shown. Ignored if exploded. Defaults to True.
+            convert_datetime (bool): A boolean, if set to `True` will convert the timestamp to python datetimes. Defaults to False.
+            explode (bool): A boolean, if set to `True`, will explode each edge update into its own row. Defaults to False.
 
         Returns:
-            If successful, this PyObject will be a Pandas DataFrame.
+            DataFrame: If successful, this PyObject will be a Pandas DataFrame.
         """
 
     def valid_layers(self, names: list[str]) -> Edges:
@@ -1048,7 +1050,7 @@ class Graph:
 
     def add_edge(
         self,
-        timestamp: int | str | Datetime,
+        timestamp: TimeInput,
         src: str | int,
         dst: str | int,
         properties: dict = None,
@@ -1058,7 +1060,7 @@ class Graph:
         Adds a new edge with the given source and destination nodes and properties to the graph.
 
         Arguments:
-           timestamp (int|str|Datetime): The timestamp of the edge.
+           timestamp (TimeInput): The timestamp of the edge.
            src (str|int): The id of the source node.
            dst (str|int): The id of the destination node.
            properties (dict): The properties of the edge, as a dict of string and properties (optional).
@@ -1070,7 +1072,7 @@ class Graph:
 
     def add_node(
         self,
-        timestamp: int | str | Datetime,
+        timestamp: TimeInput,
         id: str | int,
         properties: dict = None,
         node_type: str = None,
@@ -1079,7 +1081,7 @@ class Graph:
         Adds a new node with the given id and properties to the graph.
 
         Arguments:
-           timestamp (int|str|Datetime): The timestamp of the node.
+           timestamp (TimeInput): The timestamp of the node.
            id (str|int): The id of the node.
            properties (dict): The properties of the node (optional).
            node_type (str): The optional string which will be used as a node type
@@ -1087,12 +1089,12 @@ class Graph:
           Node: The added node
         """
 
-    def add_property(self, timestamp: int | str | Datetime, properties: dict):
+    def add_property(self, timestamp: TimeInput, properties: dict):
         """
         Adds properties to the graph.
 
         Arguments:
-           timestamp (int|str|Datetime): The timestamp of the temporal property.
+           timestamp (TimeInput): The timestamp of the temporal property.
            properties (dict): The temporal properties of the graph.
         """
 
@@ -1172,12 +1174,12 @@ class Graph:
         """
 
     @staticmethod
-    def deserialise(bytes: Bytes):
+    def deserialise(bytes: bytes):
         """
          Load Graph from serialised bytes.
 
         Arguments:
-          bytes (Bytes): The serialised bytes to decode
+          bytes (bytes): The serialised bytes to decode
 
         Returns:
            Graph
@@ -1529,7 +1531,7 @@ class Graph:
 
     def load_edge_props_from_pandas(
         self,
-        df: Dataframe,
+        df: DataFrame,
         src: str,
         dst: str,
         constant_properties: List[str] = None,
@@ -1541,7 +1543,7 @@ class Graph:
         Load edge properties from a Pandas DataFrame.
 
         Arguments:
-            df (Dataframe): The Pandas DataFrame containing edge information.
+            df (DataFrame): The Pandas DataFrame containing edge information.
             src (str): The column name for the source node.
             dst (str): The column name for the destination node.
             constant_properties (List[str]): List of constant edge property column names. Defaults to None. (optional)
@@ -1575,7 +1577,7 @@ class Graph:
 
     def load_edges_from_pandas(
         self,
-        df: Dataframe,
+        df: DataFrame,
         time: str,
         src: str,
         dst: str,
@@ -1589,7 +1591,7 @@ class Graph:
         Load edges from a Pandas DataFrame into the graph.
 
         Arguments:
-            df (Dataframe): The Pandas DataFrame containing the edges.
+            df (DataFrame): The Pandas DataFrame containing the edges.
             time (str): The column name for the update timestamps.
             src (str): The column name for the source node ids.
             dst (str): The column name for the destination node ids.
@@ -1641,7 +1643,7 @@ class Graph:
 
     def load_node_props_from_pandas(
         self,
-        df: Dataframe,
+        df: DataFrame,
         id: str,
         node_type: str = None,
         node_type_col: str = None,
@@ -1652,7 +1654,7 @@ class Graph:
         Load node properties from a Pandas DataFrame.
 
         Arguments:
-            df (Dataframe): The Pandas DataFrame containing node information.
+            df (DataFrame): The Pandas DataFrame containing node information.
             id(str): The column name for the node IDs.
             node_type (str): A constant value to use as the node type for all nodes (optional). Defaults to None. (cannot be used in combination with node_type_col)
             node_type_col (str): The node type col name in dataframe (optional) Defaults to None. (cannot be used in combination with node_type)
@@ -1683,7 +1685,7 @@ class Graph:
 
     def load_nodes_from_pandas(
         self,
-        df: pandas.DataFrame,
+        df: DataFrame,
         time: str,
         id: str,
         node_type: str = None,
@@ -1696,7 +1698,7 @@ class Graph:
         Load nodes from a Pandas DataFrame into the graph.
 
         Arguments:
-            df (pandas.DataFrame): The Pandas DataFrame containing the nodes.
+            df (DataFrame): The Pandas DataFrame containing the nodes.
             time (str): The column name for the timestamps.
             id (str): The column name for the node IDs.
             node_type (str): A constant value to use as the node type for all nodes (optional). Defaults to None. (cannot be used in combination with node_type_col)
@@ -1811,7 +1813,7 @@ class Graph:
          Serialise Graph to bytes.
 
         Returns:
-          Bytes
+          bytes
         """
 
     def shrink_end(self, end: TimeInput):
@@ -2036,19 +2038,20 @@ class GraphIndex:
         offset: int = 0,
         prefix: bool = False,
         levenshtein_distance: int = 0,
-    ):
+    ) -> list[Edge]:
         """
         Searches for edges which match the given query. This uses Tantivy's fuzzy search.
 
         Arguments:
            query(str): The query to search for.
            limit(int): The maximum number of results to return. Defaults to 25.
-           offset(int): The number of results to skip. This is useful for pagination. Defaults to 0 i.e. the first page of results.
-           prefix(bool):  If prefix is set to true, the fuzzy matching will be applied as a prefix search, meaning it matches terms that start with the query term. Defaults to false.
-           levenshtein_distance(int): The levenshtein_distance parameter defines the maximum edit distance allowed for fuzzy matching. It specifies the number of changes (insertions, deletions, or substitutions) required to match the query term. Defaults to 0 (exact matching).
+           offset(int): The number of results to skip. This is useful for pagination. Returns the first page of results by default.
+           prefix(bool):  If prefix is set to true, the fuzzy matching will be applied as a prefix search, meaning it matches terms that start with the query term. Defaults to False.
+           levenshtein_distance(int): The levenshtein_distance parameter defines the maximum edit distance allowed for fuzzy matching. It specifies the number of changes (insertions, deletions, or substitutions) required to match the query term. Defaults to 0.
+                The default value corresponds to exact matching.
 
         Returns:
-           A list of edges which match the query. The list will be empty if no edges match the query.
+           list[Edge]: A list of edges which match the query. The list will be empty if no edges match the query.
         """
 
     def fuzzy_search_nodes(
@@ -2058,7 +2061,7 @@ class GraphIndex:
         offset: int = 0,
         prefix: bool = False,
         levenshtein_distance: int = 0,
-    ):
+    ) -> list[Node]:
         """
         Searches for nodes which match the given query. This uses Tantivy's fuzzy search.
         If you would like to better understand the query syntax, please visit our documentation at https://docs.raphtory.com
@@ -2066,38 +2069,40 @@ class GraphIndex:
         Arguments:
            query(str): The query to search for.
            limit(int): The maximum number of results to return. Defaults to 25.
-           offset(int): The number of results to skip. This is useful for pagination. Defaults to 0 i.e. the first page of results.
-           prefix(bool):  If prefix is set to true, the fuzzy matching will be applied as a prefix search, meaning it matches terms that start with the query term. Defaults to false.
-           levenshtein_distance(int): The levenshtein_distance parameter defines the maximum edit distance allowed for fuzzy matching. It specifies the number of changes (insertions, deletions, or substitutions) required to match the query term. Defaults to 0 (exact matching).
+           offset(int): The number of results to skip. This is useful for pagination.
+                Returns the first page of results by default.
+           prefix(bool):  If prefix is set to true, the fuzzy matching will be applied as a prefix search, meaning it matches terms that start with the query term. Defaults to False.
+           levenshtein_distance(int): The levenshtein_distance parameter defines the maximum edit distance allowed for fuzzy matching. It specifies the number of changes (insertions, deletions, or substitutions) required to match the query term. Defaults to 0.
+                The default corresponds to exact matching.
 
         Returns:
-           A list of nodes which match the query. The list will be empty if no nodes match.
+           list[Node]: A list of nodes which match the query. The list will be empty if no nodes match.
         """
 
-    def search_edges(self, query: str, limit: int = 25, offset: int = 0):
+    def search_edges(self, query: str, limit: int = 25, offset: int = 0) -> list[Edge]:
         """
         Searches for edges which match the given query. This uses Tantivy's exact search.
 
         Arguments:
            query(str): The query to search for.
            limit(int): The maximum number of results to return. Defaults to 25.
-           offset(int): The number of results to skip. This is useful for pagination. Defaults to 0 i.e. the first page of results.
+           offset(int): The number of results to skip. This is useful for pagination. Defaults to 0.
 
         Returns:
-           A list of edges which match the query. The list will be empty if no edges match the query.
+           list[Edge]: A list of edges which match the query. The list will be empty if no edges match the query.
         """
 
-    def search_nodes(self, query: str, limit: int = 25, offset: int = 0):
+    def search_nodes(self, query: str, limit: int = 25, offset: int = 0) -> list[Node]:
         """
         Searches for nodes which match the given query. This uses Tantivy's exact search.
 
         Arguments:
            query(str): The query to search for.
            limit(int): The maximum number of results to return. Defaults to 25.
-           offset(int): The number of results to skip. This is useful for pagination. Defaults to 0 i.e. the first page of results.
+           offset(int): The number of results to skip. This is useful for pagination. Defaults to 0.
 
         Returns:
-           A list of nodes which match the query. The list will be empty if no nodes match.
+           list[Node]: A list of nodes which match the query. The list will be empty if no nodes match.
         """
 
 class GraphView:
@@ -2669,31 +2674,26 @@ class MutableEdge:
     def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
-    def add_constant_properties(
-        self, properties: Dict[str, Property], layer: str = None
-    ):
+    def add_constant_properties(self, properties: Dict[str, Prop], layer: str = None):
         """
         Add constant properties to an edge in the graph.
         This function is used to add properties to an edge that remain constant and do not
         change over time. These properties are fundamental attributes of the edge.
 
         Parameters:
-            properties (Dict[str, Property]): A dictionary of properties to be added to the edge.
+            properties (Dict[str, Prop]): A dictionary of properties to be added to the edge.
             layer (str): The layer you want these properties to be added on to.
         """
 
     def add_updates(
-        self,
-        t: int | str | DateTime,
-        properties: [Dict[str, Prop]] = None,
-        layer: str = None,
+        self, t: TimeInput, properties: [Dict[str, Prop]] = None, layer: str = None
     ):
         """
         Add updates to an edge in the graph at a specified time.
         This function allows for the addition of property updates to an edge within the graph. The updates are time-stamped, meaning they are applied at the specified time.
 
         Parameters:
-            t (int | str | DateTime): The timestamp at which the updates should be applied.
+            t (TimeInput): The timestamp at which the updates should be applied.
             properties ([Dict[str, Prop]]): A dictionary of properties to update.
             layer (str): The layer you want these properties to be added on to.
         """
@@ -2747,12 +2747,12 @@ class MutableEdge:
              Edge: The layered view
         """
 
-    def delete(self, t: int | str | DateTime, layer: str = None):
+    def delete(self, t: TimeInput, layer: str = None):
         """
         Mark the edge as deleted at the specified time.
 
         Parameters:
-            t (int | str | DateTime): The timestamp at which the deletion should be applied.
+            t (TimeInput): The timestamp at which the deletion should be applied.
             layer (str): The layer you want the deletion applied to .
         """
 
@@ -3082,7 +3082,7 @@ class MutableEdge:
         """
 
     def update_constant_properties(
-        self, properties: Dict[str, Property], layer: str = None
+        self, properties: Dict[str, Prop], layer: str = None
     ):
         """
         Update constant properties of an edge in the graph overwriting existing values.
@@ -3090,7 +3090,7 @@ class MutableEdge:
         change over time. These properties are fundamental attributes of the edge.
 
         Parameters:
-            properties (Dict[str, Property]): A dictionary of properties to be added to the edge.
+            properties (Dict[str, Prop]): A dictionary of properties to be added to the edge.
             layer (str): The layer you want these properties to be added on to.
         """
 
@@ -3136,15 +3136,13 @@ class MutableNode:
             properties (Dict[str, Prop]): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
         """
 
-    def add_updates(
-        self, t: int | str | DateTime, properties: Dict[str, Prop] = None
-    ) -> Result:
+    def add_updates(self, t: TimeInput, properties: Dict[str, Prop] = None) -> Result:
         """
         Add updates to a node in the graph at a specified time.
         This function allows for the addition of property updates to a node within the graph. The updates are time-stamped, meaning they are applied at the specified time.
 
         Parameters:
-            t (int | str | DateTime): The timestamp at which the updates should be applied.
+            t (TimeInput): The timestamp at which the updates should be applied.
             properties (Dict[str, Prop]): A dictionary of properties to update. Each key is a string representing the property name, and each value is of type Prop representing the property value. If None, no properties are updated.
 
         Returns:
@@ -4657,12 +4655,12 @@ class PersistentGraph:
         """
 
     @staticmethod
-    def deserialise(bytes: Bytes):
+    def deserialise(bytes: bytes):
         """
          Load PersistentGraph from serialised bytes.
 
         Arguments:
-          bytes (Bytes): The serialised bytes to decode
+          bytes (bytes): The serialised bytes to decode
 
         Returns:
            PersistentGraph
@@ -4888,7 +4886,7 @@ class PersistentGraph:
             Edge: The imported edge.
         """
 
-    def import_edges(self, edges: List(edges), force: bool = False):
+    def import_edges(self, edges: List[Edge], force: bool = False):
         """
         Import multiple edges into the graph.
 
@@ -4897,7 +4895,7 @@ class PersistentGraph:
 
         Arguments:
 
-            edges (List(edges)): A vector of PyEdge objects representing the edges to be imported.
+            edges (List[Edge]): A vector of PyEdge objects representing the edges to be imported.
             force (bool): An optional boolean flag indicating whether to force the import of the edges.
 
         """
@@ -4917,7 +4915,7 @@ class PersistentGraph:
             Result<NodeView<Graph, Graph>, GraphError> - A Result object which is Ok if the node was successfully imported, and Err otherwise.
         """
 
-    def import_nodes(self, nodes: List(Node), force: bool = False):
+    def import_nodes(self, nodes: List[Node], force: bool = False):
         """
         Import multiple nodes into the graph.
 
@@ -4926,7 +4924,7 @@ class PersistentGraph:
 
         Arguments:
 
-            nodes (List(Node)):  A vector of PyNode objects representing the nodes to be imported.
+            nodes (List[Node]):  A vector of PyNode objects representing the nodes to be imported.
             force (bool): An optional boolean flag indicating whether to force the import of the nodes.
 
         """
@@ -5005,7 +5003,7 @@ class PersistentGraph:
 
     def load_edge_deletions_from_pandas(
         self,
-        df: Dataframe,
+        df: DataFrame,
         time: str,
         src: str,
         dst: str,
@@ -5016,7 +5014,7 @@ class PersistentGraph:
         Load edges deletions from a Pandas DataFrame into the graph.
 
         Arguments:
-            df (Dataframe): The Pandas DataFrame containing the edges.
+            df (DataFrame): The Pandas DataFrame containing the edges.
             time (str): The column name for the update timestamps.
             src (str): The column name for the source node ids.
             dst (str): The column name for the destination node ids.
@@ -5057,7 +5055,7 @@ class PersistentGraph:
 
     def load_edge_props_from_pandas(
         self,
-        df: Dataframe,
+        df: DataFrame,
         src: str,
         dst: str,
         constant_properties: List[str] = None,
@@ -5069,7 +5067,7 @@ class PersistentGraph:
         Load edge properties from a Pandas DataFrame.
 
         Arguments:
-            df (Dataframe): The Pandas DataFrame containing edge information.
+            df (DataFrame): The Pandas DataFrame containing edge information.
             src (str): The column name for the source node.
             dst (str): The column name for the destination node.
             constant_properties (List[str]): List of constant edge property column names. Defaults to None. (optional)
@@ -5115,7 +5113,7 @@ class PersistentGraph:
 
     def load_edges_from_pandas(
         self,
-        df: Dataframe,
+        df: DataFrame,
         time: str,
         src: str,
         dst: str,
@@ -5129,7 +5127,7 @@ class PersistentGraph:
         Load edges from a Pandas DataFrame into the graph.
 
         Arguments:
-            df (Dataframe): The Pandas DataFrame containing the edges.
+            df (DataFrame): The Pandas DataFrame containing the edges.
             time (str): The column name for the update timestamps.
             src (str): The column name for the source node ids.
             dst (str): The column name for the destination node ids.
@@ -5191,7 +5189,7 @@ class PersistentGraph:
 
     def load_node_props_from_pandas(
         self,
-        df: Dataframe,
+        df: DataFrame,
         id: str,
         node_type: str = None,
         node_type_col: str = None,
@@ -5202,7 +5200,7 @@ class PersistentGraph:
         Load node properties from a Pandas DataFrame.
 
         Arguments:
-            df (Dataframe): The Pandas DataFrame containing node information.
+            df (DataFrame): The Pandas DataFrame containing node information.
             id(str): The column name for the node IDs.
             node_type (str): A constant value to use as the node type for all nodes (optional). Defaults to None. (cannot be used in combination with node_type_col)
             node_type_col (str): The node type col name in dataframe (optional) Defaults to None. (cannot be used in combination with node_type)
@@ -5245,7 +5243,7 @@ class PersistentGraph:
 
     def load_nodes_from_pandas(
         self,
-        df: pandas.DataFrame,
+        df: DataFrame,
         time: str,
         id: str,
         node_type: str = None,
@@ -5258,7 +5256,7 @@ class PersistentGraph:
         Load nodes from a Pandas DataFrame into the graph.
 
         Arguments:
-            df (pandas.DataFrame): The Pandas DataFrame containing the nodes.
+            df (DataFrame): The Pandas DataFrame containing the nodes.
             time (str): The column name for the timestamps.
             id (str): The column name for the node IDs.
             node_type (str): A constant value to use as the node type for all nodes (optional). Defaults to None. (cannot be used in combination with node_type_col)
@@ -5378,7 +5376,7 @@ class PersistentGraph:
          Serialise PersistentGraph to bytes.
 
         Returns:
-          Bytes
+          bytes
         """
 
     def shrink_end(self, end: TimeInput):
@@ -5653,6 +5651,10 @@ class Properties:
         If a property exists as both temporal and static, temporal properties take priority with
         fallback to the static property if the temporal value does not exist.
         """
+
+class PropertyFilter:
+    def __init__(self):
+        """Initialize self.  See help(type(self)) for accurate signature."""
 
 class PyDirection:
     """A direction used by an edge, being incoming or outgoing"""

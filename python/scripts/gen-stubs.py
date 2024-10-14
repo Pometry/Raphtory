@@ -15,10 +15,14 @@ from types import (
 )
 from typing import *
 from raphtory import *
+from raphtory.graphql import *
 from raphtory.typing import *
 from docstring_parser import parse, DocstringStyle, DocstringParam, ParseError
 from datetime import datetime
+from pandas import DataFrame
 
+logger = logging.getLogger(__name__)
+fn_logger = logger
 
 TARGET_MODULES = ["raphtory", "builtins"]
 TAB = " " * 4
@@ -39,8 +43,10 @@ imports = """
 from typing import *
 from raphtory import *
 from raphtory.vectors import *
+from raphtory.graphql import *
 from raphtory.typing import *
 from datetime import datetime
+from pandas import DataFrame
 """
 
 
@@ -88,18 +94,35 @@ def format_signature(sig: inspect.Signature) -> str:
     return sig_str
 
 
+def same_default(doc_default: Optional[str], param_default: Any) -> bool:
+    if doc_default is None:
+        return param_default is None
+    else:
+        doc_val = eval(doc_default)
+        if doc_val is None:
+            return param_default is None
+        return doc_val == param_default
+
+
 def clean_parameter(
     param: inspect.Parameter, type_annotations: dict[str, dict[str, Any]]
 ):
+    annotations = {}
     if param.default is not inspect.Parameter.empty:
-        param = param.replace(default=format_type(param.default))
-    if param.name not in type_annotations:
-        return param
-    else:
-        annotations = type_annotations[param.name]
-        if param.default is not inspect.Parameter.empty and param.default is not ...:
-            annotations["default"] = param.default
-        return param.replace(**annotations)
+        annotations["default"] = format_type(param.default)
+
+    if param.name in type_annotations:
+        annotations["annotation"] = type_annotations[param.name]["annotation"]
+        if "default" in type_annotations[param.name]:
+            default_from_docs = type_annotations[param.name]["default"]
+            if param.default is not param.empty and param.default is not ...:
+                if not same_default(default_from_docs, param.default):
+                    fn_logger.warning(
+                        f"mismatched default value: docs={repr(default_from_docs)}, signature={param.default}"
+                    )
+            else:
+                annotations["default"] = default_from_docs
+    return param.replace(**annotations)
 
 
 def clean_signature(
@@ -159,10 +182,20 @@ def extract_param_annotation(param: DocstringParam) -> dict:
         res["annotation"] = Any
     else:
         type_val = param.type_name
+        try:
+            eval(type_val)
+        except Exception as e:
+            raise ParseError(f"Invalid type name {type_val}: {e}")
+
         if param.is_optional:
             type_val = f"Optional[{type_val}]"
         res["annotation"] = type_val
     if param.default is not None or param.is_optional:
+        if param.default is not None:
+            try:
+                eval(param.default)
+            except Exception as e:
+                raise ParseError(f"Invalid default value {param.default}: {e}")
         res["default"] = param.default
     return res
 
@@ -187,7 +220,7 @@ def extract_types(obj) -> (dict[str, dict], Optional[str]):
         else:
             return dict(), None
     except Exception as e:
-        logging.warning(f"failed to parse docstring for {obj}: {e}")
+        fn_logger.error(f"failed to parse docstring: {e}")
         return dict(), None
 
 
@@ -196,6 +229,8 @@ def gen_fn(
     is_method: bool = False,
     signature_overwrite: Optional[inspect.Signature] = None,
 ) -> str:
+    global fn_logger
+    fn_logger = logging.getLogger(repr(function))
     init_tab = TAB if is_method else ""
     fn_tab = TAB * 2 if is_method else TAB
     type_annotations, return_type = extract_types(function)
@@ -247,6 +282,7 @@ def gen_class(cls: type) -> str:
 
 
 def gen_module(module: ModuleType, base: bool = False) -> None:
+    logging.info("starting")
     objs = [getattr(module, obj) for obj in dir(module)]
 
     stubs: List[str] = []

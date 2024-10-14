@@ -10,8 +10,10 @@
 from typing import *
 from raphtory import *
 from raphtory.vectors import *
+from raphtory.graphql import *
 from raphtory.typing import *
 from datetime import datetime
+from pandas import DataFrame
 
 def all_local_reciprocity(g: GraphView):
     """
@@ -43,8 +45,8 @@ def average_degree(g: GraphView):
 
 def balance(
     g: GraphView,
-    name: str = ...,
-    direction: Direction = ...,
+    name: str = "weight",
+    direction: Direction = "BOTH",
     threads: Optional[int] = None,
 ) -> AlgorithmResult:
     """
@@ -59,7 +61,7 @@ def balance(
                 * "OUT": Only consider outgoing edges.
                 * "IN": Only consider incoming edges.
                 * "BOTH": Consider both outgoing and incoming edges. This is the default.
-        threads (int, optional): The number of threads to be used for parallel execution. Defaults to single-threaded operation if not provided.
+        threads (int, optional): The number of threads to be used for parallel execution.
 
     Returns:
         AlgorithmResult: A result containing a mapping of node names to the computed sum of their associated edge weights.
@@ -67,15 +69,16 @@ def balance(
     """
 
 def betweenness_centrality(
-    g: GraphView, k: Optional[int] = None, normalized: Optional[bool] = True
+    g: GraphView, k: Optional[int] = None, normalized: bool = True
 ) -> AlgorithmResult:
     """
     Computes the betweenness centrality for nodes in a given graph.
 
     Arguments:
         g (GraphView): A reference to the graph.
-        k (int, optional): Specifies the number of nodes to consider for the centrality computation. Defaults to all nodes if `None`.
-        normalized (bool, optional): Indicates whether to normalize the centrality values.
+        k (int, optional): Specifies the number of nodes to consider for the centrality computation.
+            All nodes are considered by default.
+        normalized (bool): Indicates whether to normalize the centrality values.
 
     Returns:
         AlgorithmResult: Returns an `AlgorithmResult` containing the betweenness centrality of each node.
@@ -105,8 +108,8 @@ def dijkstra_single_source_shortest_paths(
     g: GraphView,
     source: InputNode,
     targets: list[InputNode],
-    direction: Direction = ...,
-    weight: str = ...,
+    direction: Direction = "BOTH",
+    weight: str = "weight",
 ) -> dict:
     """
     Finds the shortest paths from a single source to multiple targets in a graph.
@@ -552,7 +555,9 @@ def temporal_SEIR(
 
     """
 
-def temporal_bipartite_graph_projection(g: GraphView, delta: int, pivot_type):
+def temporal_bipartite_graph_projection(
+    g: GraphView, delta: int, pivot_type
+) -> GraphView:
     """
     Projects a temporal bipartite graph into an undirected temporal graph over the pivot node type. Let G be a bipartite graph with node types A and B. Given delta > 0, the projection graph G' pivoting over type B nodes,
     will make a connection between nodes n1 and n2 (of type A) at time (t1 + t2)/2 if they respectively have an edge at time t1, t2 with the same node of type B in G, and |t2-t1| < delta.
@@ -560,10 +565,10 @@ def temporal_bipartite_graph_projection(g: GraphView, delta: int, pivot_type):
     Arguments:
         g (GraphView) : A directed raphtory graph
         delta (int): Time period
-        pivot (string) : node type to pivot over. If a bipartite graph has types A and B, and B is the pivot type, the new graph will consist of type A nodes.
+        pivot (str) : node type to pivot over. If a bipartite graph has types A and B, and B is the pivot type, the new graph will consist of type A nodes.
 
     Returns:
-        raphtory graph : Projected (unipartite) temporal graph.
+        GraphView: Projected (unipartite) temporal graph.
     """
 
 def temporally_reachable_nodes(

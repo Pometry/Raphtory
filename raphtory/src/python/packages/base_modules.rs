@@ -22,7 +22,10 @@ use crate::{
             graph_loader::*,
             vectors::{PyVectorSelection, PyVectorisedGraph},
         },
-        types::wrappers::{document::PyDocument, prop::PyPropertyRef},
+        types::wrappers::{
+            document::PyDocument,
+            prop::{PyPropertyFilter, PyPropertyRef},
+        },
     },
 };
 use pyo3::{prelude::PyModule, PyErr, PyResult, Python};
@@ -47,6 +50,7 @@ pub fn add_raphtory_classes(m: &PyModule) -> PyResult<()> {
         PyTemporalProp,
         PyDirection,
         PyPropertyRef,
+        PyPropertyFilter,
         AlgorithmResult,
         GraphIndex
     );
