@@ -121,7 +121,8 @@ impl GraphLike<TimeIndexEntry> for Graph {
 
     fn prop_as_arrow<S: AsRef<str>>(
         &self,
-        edges: &[u64],
+        disk_edges: &[u64],
+        edge_id_map: &[usize],
         edge_ts: &[TimeIndexEntry],
         edge_t_offsets: &[usize],
         layer: usize,
@@ -134,9 +135,10 @@ impl GraphLike<TimeIndexEntry> for Graph {
             .get_dtype(prop_id)
             .unwrap();
         arrow_array_from_props(
-            edges.iter().flat_map(|&eid| {
-                let eid = eid as usize;
-                let ts = &edge_ts[edge_t_offsets[eid]..edge_t_offsets[eid + 1]];
+            disk_edges.iter().flat_map(|&disk_eid| {
+                let disk_eid = disk_eid as usize;
+                let eid = edge_id_map[disk_eid];
+                let ts = &edge_ts[edge_t_offsets[disk_eid]..edge_t_offsets[disk_eid + 1]];
                 let el_id = ELID::new(eid.into(), Some(layer));
                 let edge = self.core_edge(el_id);
                 ts.iter()

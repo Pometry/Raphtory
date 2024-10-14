@@ -28,13 +28,14 @@ use datafusion::{
 };
 use futures::Stream;
 use pometry_storage::prelude::*;
-use raphtory::disk_graph::DiskGraphStorage;
+use raphtory::{
+    core::entities::EID, db::api::storage::graph::edges::edge_storage_ops::EdgeStorageOps,
+    disk_graph::DiskGraphStorage,
+};
 
 use crate::executor::{arrow2_to_arrow_buf, ExecError};
 
 use super::plan_properties;
-
-// use super::plan_properties;
 
 pub struct EdgeListTableProvider {
     layer_id: usize,
@@ -218,8 +219,17 @@ fn produce_record_batch(
 
     let offsets: OffsetBuffer<i64> = OffsetBuffer::new(local_offsets.into());
 
-    let srcs = edges.srcs().sliced(start..end);
-    let dsts = edges.dsts().sliced(start..end);
+    let dsts = layer
+        .nodes_storage()
+        .outbound_neighbours()
+        .values()
+        .sliced(start..end);
+
+    let edges = layer
+        .nodes_storage()
+        .outbound_edges()
+        .values()
+        .sliced(start..end);
 
     let ids_builder: Vec<u64> = (start_offset as u64..end_offset as u64).collect();
     let mut srcs_builder = Vec::with_capacity(time_values_chunks.len());
@@ -228,7 +238,7 @@ fn produce_record_batch(
 
     // take every chunk here and surface the primitive arrays
     // convert from arrow2 to disk_graph-rs then to polars
-    for (i, ((src, dst), layer_id)) in srcs
+    for (i, ((edge_id, dst), layer_id)) in edges
         .iter_chunks()
         .zip(dsts.iter_chunks())
         .flat_map(|(srcs, dsts)| srcs.iter().zip(dsts.iter()))
@@ -236,8 +246,9 @@ fn produce_record_batch(
         .enumerate()
     {
         let length = (offsets[i + 1] - offsets[i]) as usize;
+        let src = graph.inner().edge(EID(*edge_id as usize)).src().0 as u64;
         for _ in 0..length {
-            srcs_builder.push(*src);
+            srcs_builder.push(src);
             dsts_builder.push(*dst);
             layer_id_builder.push(layer_id);
         }
@@ -262,7 +273,8 @@ fn produce_record_batch(
         None,
     ));
 
-    let column_ids = edges
+    let column_ids = layer
+        .edges_t_props()
         .data_type()
         .iter()
         .enumerate()

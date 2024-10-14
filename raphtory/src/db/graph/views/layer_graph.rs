@@ -129,9 +129,39 @@ impl<'graph, G: GraphViewOps<'graph>> InternalLayerOps for LayeredGraph<G> {
 
 #[cfg(test)]
 mod test_layers {
-    use crate::{prelude::*, test_utils::test_graph};
+    use crate::{prelude::*, test_storage, test_utils::test_graph};
     use itertools::Itertools;
     use raphtory_api::core::entities::GID;
+
+    #[test]
+    fn test_floats() {
+        let graph = Graph::new();
+
+        let edges = vec![(0, 1, 2.0f64), (1, 0, 3.0f64), (0, 2, 8.5f64)];
+
+        for (src, dst, w) in edges {
+            graph.add_edge(1, src, dst, [("w", w)], None).unwrap();
+        }
+
+        let check = |g: &Graph| {
+            let actual = g
+                .nodes()
+                .into_iter()
+                .flat_map(|node| {
+                    node.edges()
+                        .iter()
+                        .map(|e| e.properties().get("w").unwrap_f64())
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>();
+
+            assert!(!actual.is_empty());
+        };
+
+        test_storage!(&graph, |graph| {
+            check(graph);
+        });
+    }
 
     #[test]
     fn test_layer_node() {
