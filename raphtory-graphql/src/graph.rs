@@ -15,7 +15,7 @@ use raphtory::{
         },
         graph::{edge::EdgeView, node::NodeView},
     },
-    prelude::{CacheOps, DeletionOps, EdgeViewOps, NodeViewOps},
+    prelude::{CacheOps, DeletionOps, EdgeViewOps, GraphViewOps, NodeViewOps},
     search::IndexedGraph,
     serialise::GraphFolder,
     vectors::{
