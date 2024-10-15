@@ -172,7 +172,7 @@ mod test_layers {
         graph.add_edge(3, 2, 4, NO_PROPS, Some("layer1")).unwrap();
 
         // FIXME: Needs multilayer support (Issue #47)
-        test_graph(&graph, |graph| {
+        test_storage!(&graph, |graph| {
             let neighbours = graph
                 .layers(vec!["layer1", "layer2"])
                 .unwrap()

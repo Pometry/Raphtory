@@ -7,7 +7,7 @@ use crate::{
         edges::edge_storage_ops::EdgeStorageOps, variants::storage_variants3::StorageVariants,
     },
 };
-use raphtory_api::core::entities::ELID;
+use raphtory_api::core::entities::EID;
 use rayon::iter::ParallelIterator;
 use std::sync::Arc;
 
@@ -137,14 +137,14 @@ impl<'a> EdgesStorageRef<'a> {
     }
 
     #[inline]
-    pub fn edge(self, edge: ELID) -> EdgeStorageEntry<'a> {
+    pub fn edge(self, edge: EID) -> EdgeStorageEntry<'a> {
         match self {
-            EdgesStorageRef::Mem(storage) => EdgeStorageEntry::Mem(storage.get_mem(edge.pid())),
+            EdgesStorageRef::Mem(storage) => EdgeStorageEntry::Mem(storage.get_mem(edge)),
             EdgesStorageRef::Unlocked(storage) => {
-                EdgeStorageEntry::Unlocked(storage.0.edge_entry(edge.pid()))
+                EdgeStorageEntry::Unlocked(storage.0.edge_entry(edge))
             }
             #[cfg(feature = "storage")]
-            EdgesStorageRef::Disk(storage) => EdgeStorageEntry::Disk(storage.edge(edge.pid())),
+            EdgesStorageRef::Disk(storage) => EdgeStorageEntry::Disk(storage.edge(edge)),
         }
     }
 

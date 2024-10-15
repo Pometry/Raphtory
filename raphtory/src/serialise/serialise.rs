@@ -26,7 +26,7 @@ use crate::{
 use itertools::Itertools;
 use prost::Message;
 use raphtory_api::core::{
-    entities::{GidRef, EID, ELID, VID},
+    entities::{GidRef, EID, VID},
     storage::timeindex::TimeIndexEntry,
     Direction,
 };
@@ -215,7 +215,7 @@ impl StableEncode for GraphStorage {
         let edges = storage.edges();
         for eid in 0..edges.len() {
             let eid = EID(eid);
-            let edge = edges.edge(ELID::new(eid, Some(0))); // This works for DiskStorage as long as it has a single layer
+            let edge = edges.edge(eid); // This works for DiskStorage as long as it has a single layer
             let edge = edge.as_ref();
             graph.new_edge(edge.src(), edge.dst(), eid);
             for layer_id in 0..storage.unfiltered_num_layers() {

@@ -76,35 +76,6 @@ impl From<usize> for EID {
     }
 }
 
-#[derive(
-    Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Default,
-)]
-pub struct ELID {
-    edge: EID,
-    layer: Option<usize>,
-}
-
-impl ELID {
-    pub fn new(edge: EID, layer: Option<usize>) -> Self {
-        Self { edge, layer }
-    }
-    pub fn pid(&self) -> EID {
-        self.edge
-    }
-
-    pub fn layer(&self) -> Option<usize> {
-        self.layer
-    }
-}
-
-impl From<EdgeRef> for ELID {
-    fn from(value: EdgeRef) -> Self {
-        ELID {
-            edge: value.pid(),
-            layer: value.layer(),
-        }
-    }
-}
 impl EID {
     pub fn from_u64(id: u64) -> Self {
         EID(id as usize)

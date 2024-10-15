@@ -1,8 +1,6 @@
 use crate::{
     core::{
-        entities::{LayerIds, ELID},
-        storage::timeindex::TimeIndexIntoOps,
-        utils::iter::GenLockedIter,
+        entities::LayerIds, storage::timeindex::TimeIndexIntoOps, utils::iter::GenLockedIter,
         Direction,
     },
     db::api::{
@@ -101,8 +99,7 @@ impl GraphLike<TimeIndexEntry> for Graph {
     }
 
     fn edge_additions(&self, eid: EID, layer: usize) -> impl Iterator<Item = TimeIndexEntry> + '_ {
-        let el_id = ELID::new(eid.0.into(), Some(layer));
-        let edge = self.core_edge(el_id);
+        let edge = self.core_edge(eid);
         GenLockedIter::from(edge, |edge| {
             edge.additions(layer).into_iter().into_dyn_boxed()
         })
@@ -139,8 +136,7 @@ impl GraphLike<TimeIndexEntry> for Graph {
                 let disk_eid = disk_eid as usize;
                 let eid = edge_id_map[disk_eid];
                 let ts = &edge_ts[edge_t_offsets[disk_eid]..edge_t_offsets[disk_eid + 1]];
-                let el_id = ELID::new(eid.into(), Some(layer));
-                let edge = self.core_edge(el_id);
+                let edge = self.core_edge(EID(eid));
                 ts.iter()
                     .map(move |t| edge.temporal_prop_layer(layer, prop_id).at(t))
             }),

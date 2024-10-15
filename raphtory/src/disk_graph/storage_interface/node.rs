@@ -310,7 +310,7 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
                 let eid = self.graph.layers()[*id]
                     .nodes_storage()
                     .find_edge(self.vid, dst)?;
-                Some(EdgeRef::new_outgoing(eid, self.vid, dst).at_layer(*id))
+                Some(EdgeRef::new_outgoing(eid, self.vid, dst))
             }
             LayerIds::Multiple(ids) => ids
                 .iter()
@@ -318,7 +318,7 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
                     self.graph.layers()[layer_id]
                         .nodes_storage()
                         .find_edge(self.vid, dst)
-                        .map(|eid| EdgeRef::new_outgoing(eid, self.vid, dst).at_layer(layer_id))
+                        .map(|eid| EdgeRef::new_outgoing(eid, self.vid, dst))
                 })
                 .next(),
         }

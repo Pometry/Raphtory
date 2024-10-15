@@ -247,7 +247,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
         let input_layer_id = self.resolve_layer(layer, false)?;
         if !self
             .graph
-            .core_edge(self.edge.into())
+            .core_edge(self.edge.pid())
             .has_layer(&LayerIds::One(input_layer_id))
         {
             return Err(GraphError::InvalidEdgeLayer {

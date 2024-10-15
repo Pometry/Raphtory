@@ -125,7 +125,7 @@ impl DiskGraphStorage {
             }
             Layer::None => Ok(LayerIds::None),
             Layer::Multiple(names) => {
-                let ids = names
+                let mut new_layers = names
                     .iter()
                     .map(|name| {
                         self.inner.find_layer_id(name).ok_or_else(|| {
@@ -136,7 +136,20 @@ impl DiskGraphStorage {
                         })
                     })
                     .collect::<Result<Vec<_>, _>>()?;
-                Ok(LayerIds::Multiple(ids.into()))
+
+                let num_layers = self.inner.num_layers();
+                let num_new_layers = new_layers.len();
+                if num_new_layers == 0 {
+                    Ok(LayerIds::None)
+                } else if num_new_layers == 1 {
+                    Ok(LayerIds::One(new_layers[0]))
+                } else if num_new_layers == num_layers {
+                    Ok(LayerIds::All)
+                } else {
+                    new_layers.sort_unstable();
+                    new_layers.dedup();
+                    Ok(LayerIds::Multiple(new_layers.into()))
+                }
             }
         }
     }
