@@ -7,7 +7,7 @@ use crate::{
     python::{
         graph::{
             algorithm_result::AlgorithmResult,
-            edge::{PyDirection, PyEdge, PyMutableEdge},
+            edge::{PyEdge, PyMutableEdge},
             edges::PyEdges,
             graph::{PyGraph, PyGraphEncoder},
             graph_with_deletions::PyPersistentGraph,
@@ -48,7 +48,6 @@ pub fn add_raphtory_classes(m: &PyModule) -> PyResult<()> {
         PyConstProperties,
         PyTemporalProperties,
         PyTemporalProp,
-        PyDirection,
         PyPropertyRef,
         PyPropertyFilter,
         AlgorithmResult,

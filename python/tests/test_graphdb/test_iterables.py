@@ -4,7 +4,7 @@ import sys
 import pandas as pd
 import pandas.core.frame
 import pytest
-from raphtory import Graph, PersistentGraph, PyDirection
+from raphtory import Graph, PersistentGraph
 from raphtory import algorithms
 from raphtory import graph_loader
 import tempfile

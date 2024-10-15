@@ -5,7 +5,7 @@
 //! edge as it existed at a particular point in time, or as it existed over a particular time range.
 //!
 use crate::{
-    core::{utils::errors::GraphError, Direction},
+    core::utils::errors::GraphError,
     db::{
         api::{
             properties::Properties,
@@ -428,68 +428,5 @@ impl PyMutableEdge {
 
     fn __repr__(&self) -> String {
         self.repr()
-    }
-}
-
-/// A direction used by an edge, being incoming or outgoing
-#[pyclass]
-#[derive(Clone)]
-pub struct PyDirection {
-    inner: Direction,
-}
-
-#[pymethods]
-impl PyDirection {
-    #[new]
-    pub fn new(direction: &str) -> Self {
-        match direction {
-            "OUT" => PyDirection {
-                inner: Direction::OUT,
-            },
-            "IN" => PyDirection {
-                inner: Direction::IN,
-            },
-            "BOTH" => PyDirection {
-                inner: Direction::BOTH,
-            },
-            _ => panic!("Invalid direction"),
-        }
-    }
-
-    fn as_str(&self) -> &str {
-        match self.inner {
-            Direction::OUT => "OUT",
-            Direction::IN => "IN",
-            Direction::BOTH => "BOTH",
-        }
-    }
-}
-
-impl Into<Direction> for PyDirection {
-    fn into(self) -> Direction {
-        self.inner
-    }
-}
-
-impl From<Direction> for PyDirection {
-    fn from(d: Direction) -> Self {
-        PyDirection { inner: d }
-    }
-}
-
-impl From<String> for PyDirection {
-    fn from(s: String) -> Self {
-        match s.to_uppercase().as_str() {
-            "OUT" => PyDirection {
-                inner: Direction::OUT,
-            },
-            "IN" => PyDirection {
-                inner: Direction::IN,
-            },
-            "BOTH" => PyDirection {
-                inner: Direction::BOTH,
-            },
-            _ => panic!("Invalid direction string"),
-        }
     }
 }

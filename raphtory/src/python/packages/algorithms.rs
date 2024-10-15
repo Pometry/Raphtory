@@ -53,7 +53,7 @@ use crate::{
     core::{entities::nodes::node_ref::NodeRef, Prop},
     db::{api::view::internal::DynamicGraph, graph::node::NodeView},
     python::{
-        graph::{edge::PyDirection, node::PyNode, views::graph_view::PyGraphView},
+        graph::{node::PyNode, views::graph_view::PyGraphView},
         utils::PyTime,
     },
 };
@@ -62,7 +62,7 @@ use ordered_float::OrderedFloat;
 use pometry_storage::algorithms::connected_components::connected_components as connected_components_rs;
 use pyo3::{prelude::*, types::PyIterator};
 use rand::{prelude::StdRng, SeedableRng};
-use raphtory_api::core::entities::GID;
+use raphtory_api::core::{entities::GID, Direction};
 use std::collections::{HashMap, HashSet};
 
 /// Implementations of various graph algorithms that can be run on a graph.
@@ -540,7 +540,7 @@ pub fn hits(
 /// Arguments:
 ///     g (GraphView): The graph view on which the operation is to be performed.
 ///     name (str): The name of the edge property used as the weight. Defaults to "weight".
-///     direction (Direction): Specifies the direction of the edges to be considered for summation. Defaults to "BOTH".
+///     direction (Direction): Specifies the direction of the edges to be considered for summation. Defaults to "both".
 ///             * "OUT": Only consider outgoing edges.
 ///             * "IN": Only consider incoming edges.
 ///             * "BOTH": Consider both outgoing and incoming edges. This is the default.
@@ -550,14 +550,14 @@ pub fn hits(
 ///     AlgorithmResult: A result containing a mapping of node names to the computed sum of their associated edge weights.
 ///
 #[pyfunction]
-#[pyo3[signature = (g, name="weight".to_string(), direction=PyDirection::new("BOTH"),  threads=None)]]
+#[pyo3[signature = (g, name="weight".to_string(), direction=Direction::BOTH,  threads=None)]]
 pub fn balance(
     g: &PyGraphView,
     name: String,
-    direction: PyDirection,
+    direction: Direction,
     threads: Option<usize>,
 ) -> AlgorithmResult<DynamicGraph, f64, OrderedFloat<f64>> {
-    balance_rs(&g.graph, name.clone(), direction.into(), threads)
+    balance_rs(&g.graph, name.clone(), direction, threads)
 }
 
 /// Computes the degree centrality of all nodes in the graph. The values are normalized
@@ -631,28 +631,22 @@ pub fn single_source_shortest_path(
 ///     g (GraphView): The graph to search in.
 ///     source (InputNode): The source node.
 ///     targets (list[InputNode]): A list of target nodes.
-///     direction (Direction): The direction of the edges to be considered for the shortest path. Defaults to "BOTH".
+///     direction (Direction): The direction of the edges to be considered for the shortest path. Defaults to "both".
 ///     weight (str): The name of the weight property for the edges. Defaults to "weight".
 ///
 /// Returns:
 ///     dict: Returns a `Dict` where the key is the target node and the value is a tuple containing the total cost and a vector of nodes representing the shortest path.
 ///
 #[pyfunction]
-#[pyo3[signature = (g, source, targets, direction=PyDirection::new("BOTH"), weight="weight".to_string())]]
+#[pyo3[signature = (g, source, targets, direction=Direction::BOTH, weight="weight".to_string())]]
 pub fn dijkstra_single_source_shortest_paths(
     g: &PyGraphView,
     source: NodeRef,
     targets: Vec<NodeRef>,
-    direction: PyDirection,
+    direction: Direction,
     weight: Option<String>,
 ) -> PyResult<HashMap<String, (Prop, Vec<String>)>> {
-    match dijkstra_single_source_shortest_paths_rs(
-        &g.graph,
-        source,
-        targets,
-        weight,
-        direction.into(),
-    ) {
+    match dijkstra_single_source_shortest_paths_rs(&g.graph, source, targets, weight, direction) {
         Ok(result) => Ok(result),
         Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
     }

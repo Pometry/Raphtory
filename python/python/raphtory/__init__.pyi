@@ -5656,14 +5656,6 @@ class PropertyFilter:
     def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
 
-class PyDirection:
-    """A direction used by an edge, being incoming or outgoing"""
-
-    def __init__(self, direction):
-        """Initialize self.  See help(type(self)) for accurate signature."""
-
-    def as_str(self): ...
-
 class PyGraphEncoder:
     def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
