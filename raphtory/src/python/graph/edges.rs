@@ -270,7 +270,7 @@ impl PyEdges {
         &self,
         include_property_history: bool,
         convert_datetime: bool,
-        explode: bool,
+        mut explode: bool,
     ) -> PyResult<PyObject> {
         let mut column_names = vec![
             String::from("src"),
@@ -284,6 +284,13 @@ impl PyEdges {
         if explode == true {
             edges = self.edges.explode_layers().explode();
         }
+
+        explode = explode
+            || edges
+                .iter()
+                .next()
+                .filter(|e| e.edge.time().is_some())
+                .is_some();
 
         let edge_tuples: Vec<_> = edges
             .collect()
