@@ -7,16 +7,25 @@ use crate::{
     python::{
         graph::{
             algorithm_result::AlgorithmResult,
-            edge::{PyDirection, PyEdge, PyMutableEdge},
+            edge::{PyEdge, PyMutableEdge},
             edges::PyEdges,
             graph::{PyGraph, PyGraphEncoder},
             graph_with_deletions::PyPersistentGraph,
             index::GraphIndex,
             node::{PyMutableNode, PyNode, PyNodes},
             properties::{PyConstProperties, PyProperties, PyTemporalProp, PyTemporalProperties},
+            views::graph_view::PyGraphView,
         },
-        packages::{algorithms::*, graph_gen::*, graph_loader::*, vectors::PyVectorisedGraph},
-        types::wrappers::{document::PyDocument, prop::PyPropertyRef},
+        packages::{
+            algorithms::*,
+            graph_gen::*,
+            graph_loader::*,
+            vectors::{PyVectorSelection, PyVectorisedGraph},
+        },
+        types::wrappers::{
+            document::PyDocument,
+            prop::{PyPropertyFilter, PyPropertyRef},
+        },
     },
 };
 use pyo3::{prelude::PyModule, PyErr, PyResult, Python};
@@ -26,6 +35,7 @@ pub fn add_raphtory_classes(m: &PyModule) -> PyResult<()> {
     add_classes!(
         m,
         PyGraph,
+        PyGraphView,
         PyGraphEncoder,
         PyPersistentGraph,
         PyNode,
@@ -38,8 +48,8 @@ pub fn add_raphtory_classes(m: &PyModule) -> PyResult<()> {
         PyConstProperties,
         PyTemporalProperties,
         PyTemporalProp,
-        PyDirection,
         PyPropertyRef,
+        PyPropertyFilter,
         AlgorithmResult,
         GraphIndex
     );
@@ -125,5 +135,6 @@ pub fn base_vectors_module(py: Python<'_>) -> Result<&PyModule, PyErr> {
     let vectors_module = PyModule::new(py, "vectors")?;
     vectors_module.add_class::<PyVectorisedGraph>()?;
     vectors_module.add_class::<PyDocument>()?;
+    vectors_module.add_class::<PyVectorSelection>()?;
     return Ok(vectors_module);
 }

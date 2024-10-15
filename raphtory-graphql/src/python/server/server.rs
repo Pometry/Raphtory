@@ -196,10 +196,10 @@ impl PyGraphServer {
     ///
     /// Arguments:
     ///   cache (str):  the directory to use as cache for the embeddings.
-    ///   embedding (Function):  the embedding function to translate documents to embeddings.
-    ///   graph_template (String):  the template to use for graphs.
-    ///   node_template (String):  the template to use for nodes.
-    ///   edge_template (String):  the template to use for edges.
+    ///   embedding (Callable, optional):  the embedding function to translate documents to embeddings.
+    ///   graph_template (str, optional):  the template to use for graphs.
+    ///   node_template (str, optional):  the template to use for nodes.
+    ///   edge_template (str, optional):  the template to use for edges.
     ///
     /// Returns:
     ///    GraphServer: A new server object with embeddings setup.
@@ -240,10 +240,10 @@ impl PyGraphServer {
     /// Vectorise a subset of the graphs of the server.
     ///
     /// Arguments:
-    ///   graph_names (List[str]): the names of the graphs to vectorise. All by default.
-    ///   graph_template (String):  the template to use for graphs.
-    ///   node_template (String):  the template to use for nodes.
-    ///   edge_template (String):  the template to use for edges.
+    ///   graph_names (list[str]): the names of the graphs to vectorise. All by default.
+    ///   graph_template (str, optional):  the template to use for graphs.
+    ///   node_template (str, optional):  the template to use for nodes.
+    ///   edge_template (str, optional):  the template to use for edges.
     ///
     /// Returns:
     ///    GraphServer: A new server object containing the vectorised graphs.
@@ -277,7 +277,7 @@ impl PyGraphServer {
     /// Arguments:
     ///   name (str): the name of the function in the GraphQL schema.
     ///   input (dict):  the keyword arguments expected by the function.
-    ///   function (Function): the function to run.
+    ///   function (Callable): the function to run.
     ///
     /// Returns:
     ///    GraphServer: A new server object with the function registered
@@ -296,16 +296,20 @@ impl PyGraphServer {
     /// Start the server and return a handle to it.
     ///
     /// Arguments:
-    ///   port (int):  the port to use (defaults to 1736).
-    ///   timeout_ms (int): wait for server to be online (defaults to 5000). The server is stopped if not online within timeout_ms but manages to come online as soon as timeout_ms finishes!
+    ///   port (int):  the port to use. Defaults to 1736.
+    ///   timeout_ms (int): wait for server to be online. Defaults to 5000.
+    ///     The server is stopped if not online within timeout_ms but manages to come online as soon as timeout_ms finishes!
+    ///
+    /// Returns:
+    ///   RunningGraphServer: The running server
     #[pyo3(
-        signature = (port = 1736, timeout_ms = None)
+        signature = (port = 1736, timeout_ms = 5000)
     )]
     pub fn start(
         slf: PyRefMut<Self>,
         py: Python,
         port: u16,
-        timeout_ms: Option<u64>,
+        timeout_ms: u64,
     ) -> PyResult<PyRunningGraphServer> {
         let (sender, receiver) = crossbeam_channel::bounded::<BridgeCommand>(1);
         let server = take_server_ownership(slf)?;
@@ -353,16 +357,12 @@ impl PyGraphServer {
     /// Run the server until completion.
     ///
     /// Arguments:
-    ///   port (int): The port to use (defaults to 1736).
+    ///   port (int): The port to use. Defaults to 1736.
+    ///   timeout_ms (int): Timeout for waiting for the server to start. Defaults to 180000.
     #[pyo3(
-        signature = (port = 1736, timeout_ms = Some(180000))
+        signature = (port = 1736, timeout_ms = 180000)
     )]
-    pub fn run(
-        slf: PyRefMut<Self>,
-        py: Python,
-        port: u16,
-        timeout_ms: Option<u64>,
-    ) -> PyResult<()> {
+    pub fn run(slf: PyRefMut<Self>, py: Python, port: u16, timeout_ms: u64) -> PyResult<()> {
         let mut server = Self::start(slf, py, port, timeout_ms)?.server_handler;
         py.allow_threads(|| wait_server(&mut server))
     }

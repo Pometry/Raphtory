@@ -45,12 +45,14 @@ impl GraphIndex {
     /// Arguments:
     ///    query(str): The query to search for.
     ///    limit(int): The maximum number of results to return. Defaults to 25.
-    ///    offset(int): The number of results to skip. This is useful for pagination. Defaults to 0 i.e. the first page of results.
-    ///    prefix(bool):  If prefix is set to true, the fuzzy matching will be applied as a prefix search, meaning it matches terms that start with the query term. Defaults to false.
-    ///    levenshtein_distance(int): The levenshtein_distance parameter defines the maximum edit distance allowed for fuzzy matching. It specifies the number of changes (insertions, deletions, or substitutions) required to match the query term. Defaults to 0 (exact matching).
+    ///    offset(int): The number of results to skip. This is useful for pagination.
+    ///         Returns the first page of results by default.
+    ///    prefix(bool):  If prefix is set to true, the fuzzy matching will be applied as a prefix search, meaning it matches terms that start with the query term. Defaults to False.
+    ///    levenshtein_distance(int): The levenshtein_distance parameter defines the maximum edit distance allowed for fuzzy matching. It specifies the number of changes (insertions, deletions, or substitutions) required to match the query term. Defaults to 0.
+    ///         The default corresponds to exact matching.
     ///
     /// Returns:
-    ///    A list of nodes which match the query. The list will be empty if no nodes match.
+    ///    list[Node]: A list of nodes which match the query. The list will be empty if no nodes match.
     #[pyo3(signature = (query, limit=25, offset=0, prefix=false, levenshtein_distance=0))]
     fn fuzzy_search_nodes(
         &self,
@@ -70,12 +72,13 @@ impl GraphIndex {
     /// Arguments:
     ///    query(str): The query to search for.
     ///    limit(int): The maximum number of results to return. Defaults to 25.
-    ///    offset(int): The number of results to skip. This is useful for pagination. Defaults to 0 i.e. the first page of results.
-    ///    prefix(bool):  If prefix is set to true, the fuzzy matching will be applied as a prefix search, meaning it matches terms that start with the query term. Defaults to false.
-    ///    levenshtein_distance(int): The levenshtein_distance parameter defines the maximum edit distance allowed for fuzzy matching. It specifies the number of changes (insertions, deletions, or substitutions) required to match the query term. Defaults to 0 (exact matching).
+    ///    offset(int): The number of results to skip. This is useful for pagination. Returns the first page of results by default.
+    ///    prefix(bool):  If prefix is set to true, the fuzzy matching will be applied as a prefix search, meaning it matches terms that start with the query term. Defaults to False.
+    ///    levenshtein_distance(int): The levenshtein_distance parameter defines the maximum edit distance allowed for fuzzy matching. It specifies the number of changes (insertions, deletions, or substitutions) required to match the query term. Defaults to 0.
+    ///         The default value corresponds to exact matching.
     ///
     /// Returns:
-    ///    A list of edges which match the query. The list will be empty if no edges match the query.
+    ///    list[Edge]: A list of edges which match the query. The list will be empty if no edges match the query.
     #[pyo3(signature = (query, limit=25, offset=0, prefix=false, levenshtein_distance=0))]
     fn fuzzy_search_edges(
         &self,
@@ -95,10 +98,10 @@ impl GraphIndex {
     /// Arguments:
     ///    query(str): The query to search for.
     ///    limit(int): The maximum number of results to return. Defaults to 25.
-    ///    offset(int): The number of results to skip. This is useful for pagination. Defaults to 0 i.e. the first page of results.
+    ///    offset(int): The number of results to skip. This is useful for pagination. Defaults to 0.
     ///
     /// Returns:
-    ///    A list of nodes which match the query. The list will be empty if no nodes match.
+    ///    list[Node]: A list of nodes which match the query. The list will be empty if no nodes match.
     #[pyo3(signature = (query, limit=25, offset=0))]
     fn search_nodes(
         &self,
@@ -116,10 +119,10 @@ impl GraphIndex {
     /// Arguments:
     ///    query(str): The query to search for.
     ///    limit(int): The maximum number of results to return. Defaults to 25.
-    ///    offset(int): The number of results to skip. This is useful for pagination. Defaults to 0 i.e. the first page of results.
+    ///    offset(int): The number of results to skip. This is useful for pagination. Defaults to 0.
     ///
     /// Returns:
-    ///    A list of edges which match the query. The list will be empty if no edges match the query.
+    ///    list[Edge]: A list of edges which match the query. The list will be empty if no edges match the query.
     #[pyo3(signature = (query, limit=25, offset=0))]
     fn search_edges(
         &self,

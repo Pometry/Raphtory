@@ -5,7 +5,7 @@
 //! edge as it existed at a particular point in time, or as it existed over a particular time range.
 //!
 use crate::{
-    core::{utils::errors::GraphError, Direction},
+    core::utils::errors::GraphError,
     db::{
         api::{
             properties::Properties,
@@ -374,7 +374,7 @@ impl PyMutableEdge {
     /// This function allows for the addition of property updates to an edge within the graph. The updates are time-stamped, meaning they are applied at the specified time.
     ///
     /// Parameters:
-    ///     t (int | str | DateTime): The timestamp at which the updates should be applied.
+    ///     t (TimeInput): The timestamp at which the updates should be applied.
     ///     properties ([Dict[str, Prop]]): A dictionary of properties to update.
     ///     layer (str): The layer you want these properties to be added on to.
     fn add_updates(
@@ -390,9 +390,8 @@ impl PyMutableEdge {
     /// Mark the edge as deleted at the specified time.
     ///
     /// Parameters:
-    ///     t (int | str | DateTime): The timestamp at which the deletion should be applied.
+    ///     t (TimeInput): The timestamp at which the deletion should be applied.
     ///     layer (str): The layer you want the deletion applied to .
-
     fn delete(&self, t: PyTime, layer: Option<&str>) -> Result<(), GraphError> {
         self.edge.delete(t, layer)
     }
@@ -402,7 +401,7 @@ impl PyMutableEdge {
     /// change over time. These properties are fundamental attributes of the edge.
     ///
     /// Parameters:
-    ///     properties (Dict[str, Property]): A dictionary of properties to be added to the edge.
+    ///     properties (Dict[str, Prop]): A dictionary of properties to be added to the edge.
     ///     layer (str): The layer you want these properties to be added on to.
     fn add_constant_properties(
         &self,
@@ -417,7 +416,7 @@ impl PyMutableEdge {
     /// change over time. These properties are fundamental attributes of the edge.
     ///
     /// Parameters:
-    ///     properties (Dict[str, Property]): A dictionary of properties to be added to the edge.
+    ///     properties (Dict[str, Prop]): A dictionary of properties to be added to the edge.
     ///     layer (str): The layer you want these properties to be added on to.
     pub fn update_constant_properties(
         &self,
@@ -429,68 +428,5 @@ impl PyMutableEdge {
 
     fn __repr__(&self) -> String {
         self.repr()
-    }
-}
-
-/// A direction used by an edge, being incoming or outgoing
-#[pyclass]
-#[derive(Clone)]
-pub struct PyDirection {
-    inner: Direction,
-}
-
-#[pymethods]
-impl PyDirection {
-    #[new]
-    pub fn new(direction: &str) -> Self {
-        match direction {
-            "OUT" => PyDirection {
-                inner: Direction::OUT,
-            },
-            "IN" => PyDirection {
-                inner: Direction::IN,
-            },
-            "BOTH" => PyDirection {
-                inner: Direction::BOTH,
-            },
-            _ => panic!("Invalid direction"),
-        }
-    }
-
-    fn as_str(&self) -> &str {
-        match self.inner {
-            Direction::OUT => "OUT",
-            Direction::IN => "IN",
-            Direction::BOTH => "BOTH",
-        }
-    }
-}
-
-impl Into<Direction> for PyDirection {
-    fn into(self) -> Direction {
-        self.inner
-    }
-}
-
-impl From<Direction> for PyDirection {
-    fn from(d: Direction) -> Self {
-        PyDirection { inner: d }
-    }
-}
-
-impl From<String> for PyDirection {
-    fn from(s: String) -> Self {
-        match s.to_uppercase().as_str() {
-            "OUT" => PyDirection {
-                inner: Direction::OUT,
-            },
-            "IN" => PyDirection {
-                inner: Direction::IN,
-            },
-            "BOTH" => PyDirection {
-                inner: Direction::BOTH,
-            },
-            _ => panic!("Invalid direction string"),
-        }
     }
 }

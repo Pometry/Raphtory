@@ -259,18 +259,18 @@ impl PyEdges {
     /// - "update_history": The update history of the edge. This column will be included if `include_update_history` is set to `true`.
     ///
     /// Args:
-    ///     include_property_history (bool): A boolean, if set to `true`, the history of each property is included, if `false`, only the latest value is shown. Ignored if exploded. Defaults to `false`.
-    ///     convert_datetime (bool): A boolean, if set to `true` will convert the timestamp to python datetimes, defaults to `false`
-    ///     explode (bool): A boolean, if set to `true`, will explode each edge update into its own row. Defaults to `false`
+    ///     include_property_history (bool): A boolean, if set to `True`, the history of each property is included, if `False`, only the latest value is shown. Ignored if exploded. Defaults to True.
+    ///     convert_datetime (bool): A boolean, if set to `True` will convert the timestamp to python datetimes. Defaults to False.
+    ///     explode (bool): A boolean, if set to `True`, will explode each edge update into its own row. Defaults to False.
     ///
     /// Returns:
-    ///     If successful, this PyObject will be a Pandas DataFrame.
+    ///     DataFrame: If successful, this PyObject will be a Pandas DataFrame.
     #[pyo3(signature = (include_property_history = true, convert_datetime = false, explode = false))]
     pub fn to_df(
         &self,
         include_property_history: bool,
         convert_datetime: bool,
-        explode: bool,
+        mut explode: bool,
     ) -> PyResult<PyObject> {
         let mut column_names = vec![
             String::from("src"),
@@ -284,6 +284,13 @@ impl PyEdges {
         if explode == true {
             edges = self.edges.explode_layers().explode();
         }
+
+        explode = explode
+            || edges
+                .iter()
+                .next()
+                .filter(|e| e.edge.time().is_some())
+                .is_some();
 
         let edge_tuples: Vec<_> = edges
             .collect()

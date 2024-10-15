@@ -33,6 +33,7 @@ youtube = "https://www.youtube.com/@pometry8546/videos"
 
 [project.optional-dependencies]
 plot = ["seaborn >= 0.11.2"]
+dev = ["docstring_parser >= 0.16", "pandas-stubs"]
 
 [tool.maturin]
 features = ["pyo3/extension-module"]

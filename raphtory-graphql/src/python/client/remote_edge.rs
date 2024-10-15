@@ -36,9 +36,9 @@ impl PyRemoteEdge {
     /// This function allows for the addition of property updates to an edge within the graph. The updates are time-stamped, meaning they are applied at the specified time.
     ///
     /// Parameters:
-    ///     t (int | str | DateTime): The timestamp at which the updates should be applied.
+    ///     t (int | str | datetime): The timestamp at which the updates should be applied.
     ///     properties (Optional[Dict[str, Prop]]): A dictionary of properties to update.
-    ///     layer (str): The layer you want the updates to be applied.
+    ///     layer (str, optional): The layer you want the updates to be applied.
     fn add_updates(
         &self,
         py: Python,
@@ -74,8 +74,8 @@ impl PyRemoteEdge {
     /// Mark the edge as deleted at the specified time.
     ///
     /// Parameters:
-    ///     t (int | str | DateTime): The timestamp at which the deletion should be applied.
-    ///     layer (str): The layer you want the deletion applied to.
+    ///     t (int | str | datetime): The timestamp at which the deletion should be applied.
+    ///     layer (str, optional): The layer you want the deletion applied to.
     fn delete(&self, py: Python, t: PyTime, layer: Option<&str>) -> Result<(), GraphError> {
         let template = r#"
             {
@@ -107,7 +107,7 @@ impl PyRemoteEdge {
     ///
     /// Parameters:
     ///     properties (Dict[str, Prop]): A dictionary of properties to be added to the edge.
-    ///     layer (str): The layer you want these properties to be added on to.
+    ///     layer (str, optional): The layer you want these properties to be added on to.
     fn add_constant_properties(
         &self,
         py: Python,
@@ -144,7 +144,7 @@ impl PyRemoteEdge {
     ///
     /// Parameters:
     ///     properties (Dict[str, Prop]): A dictionary of properties to be added to the edge.
-    ///     layer (str): The layer you want these properties to be added on to.
+    ///     layer (str, optional): The layer you want these properties to be added on to.
     pub fn update_constant_properties(
         &self,
         py: Python,
