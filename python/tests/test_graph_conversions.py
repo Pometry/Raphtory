@@ -1124,6 +1124,11 @@ def test_to_df():
         pd.read_json(base_dir / "expected/dataframe_output/edge_df_explode.json"),
     )
 
+    compare_df(
+        g.edges.explode().to_df(),
+        pd.read_json(base_dir / "expected/dataframe_output/edge_df_explode.json"),
+    )
+
     # compare_df(
     #     g.edges.to_df(explode=True, convert_datetime=True),
     #     pd.read_json(base_dir / "expected/dataframe_output/edge_df_explode_datetime.json")

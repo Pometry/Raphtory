@@ -100,12 +100,12 @@ class AlgorithmResult:
             A sorted vector of tuples containing keys of type `H` and values of type `Y`.
         """
 
-    def to_df(self):
+    def to_df(self) -> DataFrame:
         """
         Creates a dataframe from the result
 
         Returns:
-            A `pandas.DataFrame` containing the result
+            DataFrame: A `pandas.DataFrame` containing the result
         """
 
     def to_string(self):
@@ -5655,14 +5655,6 @@ class Properties:
 class PropertyFilter:
     def __init__(self):
         """Initialize self.  See help(type(self)) for accurate signature."""
-
-class PyDirection:
-    """A direction used by an edge, being incoming or outgoing"""
-
-    def __init__(self, direction):
-        """Initialize self.  See help(type(self)) for accurate signature."""
-
-    def as_str(self): ...
 
 class PyGraphEncoder:
     def __init__(self):

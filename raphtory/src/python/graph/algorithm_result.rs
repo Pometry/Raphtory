@@ -1,5 +1,6 @@
 use crate::{
     algorithms::algorithm_result::AlgorithmResult as AlgorithmResultRs,
+    core::entities::VID,
     db::api::view::{internal::DynamicGraph, StaticGraphViewOps},
     python::types::repr::{Repr, StructReprBuilder},
 };
@@ -121,18 +122,22 @@ macro_rules! py_algorithm_result_base {
             /// Creates a dataframe from the result
             ///
             /// Returns:
-            ///     A `pandas.DataFrame` containing the result
+            ///     DataFrame: A `pandas.DataFrame` containing the result
             fn to_df(&self) -> PyResult<PyObject> {
                 let hashmap = &self.0.result;
                 let mut keys = Vec::new();
                 let mut values = Vec::new();
                 Python::with_gil(|py| {
                     for (key, value) in hashmap.iter() {
-                        keys.push(key.to_object(py));
+                        let node = $crate::db::api::view::internal::core_ops::CoreGraphOps::node_id(
+                            &self.0.graph,
+                            VID(*key),
+                        );
+                        keys.push(node.into_py(py));
                         values.push(value.to_object(py));
                     }
                     let dict = pyo3::types::PyDict::new(py);
-                    dict.set_item("Key", pyo3::types::PyList::new(py, keys.as_slice()))?;
+                    dict.set_item("Node", pyo3::types::PyList::new(py, keys.as_slice()))?;
                     dict.set_item("Value", pyo3::types::PyList::new(py, values.as_slice()))?;
                     let pandas = pyo3::types::PyModule::import(py, "pandas")?;
                     let df: &PyAny = pandas.getattr("DataFrame")?.call1((dict,))?;

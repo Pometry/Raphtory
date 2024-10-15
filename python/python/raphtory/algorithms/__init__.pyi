@@ -46,7 +46,7 @@ def average_degree(g: GraphView):
 def balance(
     g: GraphView,
     name: str = "weight",
-    direction: Direction = "BOTH",
+    direction: Direction = "both",
     threads: Optional[int] = None,
 ) -> AlgorithmResult:
     """
@@ -57,7 +57,7 @@ def balance(
     Arguments:
         g (GraphView): The graph view on which the operation is to be performed.
         name (str): The name of the edge property used as the weight. Defaults to "weight".
-        direction (Direction): Specifies the direction of the edges to be considered for summation. Defaults to "BOTH".
+        direction (Direction): Specifies the direction of the edges to be considered for summation. Defaults to "both".
                 * "OUT": Only consider outgoing edges.
                 * "IN": Only consider incoming edges.
                 * "BOTH": Consider both outgoing and incoming edges. This is the default.
@@ -108,7 +108,7 @@ def dijkstra_single_source_shortest_paths(
     g: GraphView,
     source: InputNode,
     targets: list[InputNode],
-    direction: Direction = "BOTH",
+    direction: Direction = "both",
     weight: str = "weight",
 ) -> dict:
     """
@@ -118,7 +118,7 @@ def dijkstra_single_source_shortest_paths(
         g (GraphView): The graph to search in.
         source (InputNode): The source node.
         targets (list[InputNode]): A list of target nodes.
-        direction (Direction): The direction of the edges to be considered for the shortest path. Defaults to "BOTH".
+        direction (Direction): The direction of the edges to be considered for the shortest path. Defaults to "both".
         weight (str): The name of the weight property for the edges. Defaults to "weight".
 
     Returns:

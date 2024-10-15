@@ -13,7 +13,7 @@ Prop = Union[
     dict[str, "Prop"],
 ]
 
-Direction = Literal["IN", "OUT", "BOTH"]
+Direction = Literal["in", "out", "both"]
 
 InputNode = Union[int, str, "Node"]
 
