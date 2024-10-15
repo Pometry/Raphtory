@@ -492,7 +492,6 @@ mod test_edge {
             .add_constant_properties([("test_prop", "test_val")], Some("layer 2"))
             .unwrap();
 
-        // FIXME: multilayer edge views are not supported yet (Issue #47, )
         // FIXME: #18 constant prop for edges
         test_graph(&graph, |graph| {
             assert_eq!(

@@ -1,4 +1,3 @@
-use self::edges::edge_ref::EdgeRef;
 use super::input::input_node::parse_u64_strict;
 use bytemuck::{Pod, Zeroable};
 use num_traits::ToPrimitive;

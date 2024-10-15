@@ -98,18 +98,34 @@ impl DiskGraphStorage {
 
     pub fn valid_layer_ids_from_names(&self, key: Layer) -> LayerIds {
         match key {
-            Layer::All | Layer::Default => LayerIds::One(0), // FIXME: need to handle all correctly
-            Layer::One(name) => {
-                let name = name.as_ref();
-                self.inner
-                    .layer_names()
+            Layer::All => LayerIds::All,
+            Layer::Default => LayerIds::One(0),
+            Layer::One(name) => self
+                .inner
+                .find_layer_id(&name)
+                .map(|id| LayerIds::One(id))
+                .unwrap_or(LayerIds::None),
+            Layer::None => LayerIds::None,
+            Layer::Multiple(names) => {
+                let mut new_layers = names
                     .iter()
-                    .enumerate()
-                    .find(move |(_, ref n)| n == &name)
-                    .map(|(i, _)| LayerIds::One(i))
-                    .unwrap_or(LayerIds::None)
+                    .filter_map(|name| self.inner.find_layer_id(name))
+                    .collect::<Vec<_>>();
+
+                let num_layers = self.inner.num_layers();
+                let num_new_layers = new_layers.len();
+                if num_new_layers == 0 {
+                    LayerIds::None
+                } else if num_new_layers == 1 {
+                    LayerIds::One(new_layers[0])
+                } else if num_new_layers == num_layers {
+                    LayerIds::All
+                } else {
+                    new_layers.sort_unstable();
+                    new_layers.dedup();
+                    LayerIds::Multiple(new_layers.into())
+                }
             }
-            _ => todo!("Layer ids for multiple names not implemented for Diskgraph"),
         }
     }
 
