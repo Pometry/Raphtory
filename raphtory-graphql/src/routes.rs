@@ -20,9 +20,10 @@ pub(crate) async fn health() -> impl IntoResponse {
 
 #[handler]
 pub(crate) async fn graphql_playground() -> impl IntoResponse {
-    Html(playground_source(
-        GraphQLPlaygroundConfig::new("/")
-            .subscription_endpoint("/ws")
-            .with_setting("request.credentials", "include"),
-    ))
+    Html(include_str!("../resources/playground.html"))
+}
+
+#[handler]
+pub(crate) async fn ui() -> impl IntoResponse {
+    Html(include_str!("../resources/index.html"))
 }
