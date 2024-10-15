@@ -1,7 +1,7 @@
 import pytest
 import pandas as pd
 import pandas.core.frame
-from raphtory import Graph, PersistentGraph, PyDirection
+from raphtory import Graph, PersistentGraph
 from raphtory import algorithms
 from raphtory import graph_loader
 
@@ -223,8 +223,8 @@ def test_algo_result():
     assert len(actual.group_by()[1]) == 8
     assert type(actual.to_df()) == pandas.core.frame.DataFrame
     df = actual.to_df()
-    expected_result = pd.DataFrame({"Key": [1], "Value": [1]})
-    row_with_one = df[df["Key"] == 1]
+    expected_result = pd.DataFrame({"Node": g.node("1"), "Value": [1]})
+    row_with_one = df[df["Node"] == g.node("1")]
     row_with_one.reset_index(inplace=True, drop=True)
     assert row_with_one.equals(expected_result)
     # Algo Str u64
@@ -254,7 +254,7 @@ def test_algo_result():
         "8": 0.11786468661230831,
     }
     assert actual.get_all_with_names() == expected_result
-    assert actual.get("Not a node") == None
+    assert actual.get("Not a node") is None
     assert len(actual.to_df()) == 8
     # algo str vector
     actual = algorithms.temporally_reachable_nodes(g, 20, 11, [1, 2], [4, 5])
@@ -463,19 +463,13 @@ def test_balance_algorithm():
     ]
     for src, dst, val, time in edges_str:
         g.add_edge(time, src, dst, {"value_dec": val})
-    result = algorithms.balance(
-        g, "value_dec", PyDirection("BOTH"), None
-    ).get_all_with_names()
+    result = algorithms.balance(g, "value_dec", "both", None).get_all_with_names()
     assert result == {"1": -26.0, "2": 7.0, "3": 12.0, "4": 5.0, "5": 2.0}
 
-    result = algorithms.balance(
-        g, "value_dec", PyDirection("IN"), None
-    ).get_all_with_names()
+    result = algorithms.balance(g, "value_dec", "in", None).get_all_with_names()
     assert result == {"1": 6.0, "2": 12.0, "3": 15.0, "4": 20.0, "5": 2.0}
 
-    result = algorithms.balance(
-        g, "value_dec", PyDirection("OUT"), None
-    ).get_all_with_names()
+    result = algorithms.balance(g, "value_dec", "out", None).get_all_with_names()
     assert result == {"1": -32.0, "2": -5.0, "3": -3.0, "4": -15.0, "5": 0.0}
 
 
