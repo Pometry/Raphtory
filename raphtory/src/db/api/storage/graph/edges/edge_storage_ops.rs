@@ -128,20 +128,13 @@ impl<'a> TimeIndexIntoOps for TimeIndexRef<'a> {
 }
 
 pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
-    fn in_ref(self) -> EdgeRef {
-        EdgeRef::new_incoming(self.eid(), self.src(), self.dst())
-    }
-
-    fn out_ref(self) -> EdgeRef {
-        EdgeRef::new_outgoing(self.eid(), self.src(), self.dst())
-    }
+    fn out_ref(self) -> EdgeRef;
 
     fn active(self, layer_ids: &LayerIds, w: Range<i64>) -> bool;
 
     fn has_layer(self, layer_ids: &LayerIds) -> bool;
     fn src(self) -> VID;
     fn dst(self) -> VID;
-    fn eid(self) -> EID;
 
     fn layer_ids_iter(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = usize> + 'a;
 
@@ -201,7 +194,7 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn deletions(self, layer_id: usize) -> TimeIndexRef<'a>;
 
     fn has_temporal_prop(self, layer_ids: &'a LayerIds, prop_id: usize) -> bool {
-        self.layer_ids_iter(layer_ids)
+        self.layer_ids_par_iter(layer_ids)
             .any(move |id| !self.temporal_prop_layer(id, prop_id).is_empty())
     }
 
@@ -320,6 +313,10 @@ impl<'a> EdgeStorageOps<'a> for MemEdge<'a> {
         self.edge_store().dst
     }
 
+    fn out_ref(self) -> EdgeRef {
+        EdgeRef::new_outgoing(self.eid(), self.src(), self.dst())
+    }
+
     fn layer_ids_iter(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = usize> + 'a {
         match layer_ids {
             LayerIds::None => LayerVariants::None(std::iter::empty()),
@@ -376,9 +373,5 @@ impl<'a> EdgeStorageOps<'a> for MemEdge<'a> {
     fn constant_prop_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
         self.props(layer_id)
             .and_then(|props| props.const_prop(prop_id).cloned())
-    }
-
-    fn eid(self) -> EID {
-        self.eid()
     }
 }

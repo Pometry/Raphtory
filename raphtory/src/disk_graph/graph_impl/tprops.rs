@@ -228,6 +228,10 @@ pub fn read_tprop_column(
             let timestamps = TimeStamps::new(edge.timestamp_slice(layer_id), None);
             Some(DiskTProp::Str64(TPropColumn::new(props, timestamps)))
         }
+        DataType::Date64 => new_tprop_column::<i64>(edge, id, layer_id).map(DiskTProp::I64),
+        DataType::Timestamp(_, _) => {
+            new_tprop_column::<i64>(edge, id, layer_id).map(DiskTProp::I64)
+        }
         _ => todo!(),
     }
 }

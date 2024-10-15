@@ -12,21 +12,23 @@ use crate::{
     disk_graph::graph_impl::tprops::read_tprop_column,
 };
 use pometry_storage::{edge::Edge, tprops::DiskTProp};
-use raphtory_api::core::{entities::EID, storage::timeindex::TimeIndexEntry};
+use raphtory_api::core::{entities::edges::edge_ref::EdgeRef, storage::timeindex::TimeIndexEntry};
 use rayon::prelude::*;
 use std::{iter, ops::Range};
 
 impl<'a> EdgeStorageOps<'a> for Edge<'a> {
     fn active(self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
-        match layer_ids {
-            LayerIds::None => false,
-            LayerIds::All => self
-                .additions_iter(layer_ids)
-                .any(|(_, t_index)| t_index.active_t(w.clone())),
-            LayerIds::One(l_id) => self.get_additions::<i64>(*l_id).active_t(w),
-            LayerIds::Multiple(layers) => layers
-                .iter()
-                .any(|l_id| self.active(&LayerIds::One(*l_id), w.clone())),
+        self.has_layer(layer_ids) && {
+            match layer_ids {
+                LayerIds::None => false,
+                LayerIds::All => self
+                    .additions_iter(layer_ids)
+                    .any(|(_, t_index)| t_index.active_t(w.clone())),
+                LayerIds::One(l_id) => self.get_additions::<i64>(*l_id).active_t(w),
+                LayerIds::Multiple(layers) => layers
+                    .iter()
+                    .any(|l_id| self.active(&LayerIds::One(*l_id), w.clone())),
+            }
         }
     }
 
@@ -47,8 +49,8 @@ impl<'a> EdgeStorageOps<'a> for Edge<'a> {
         self.dst_id()
     }
 
-    fn eid(self) -> EID {
-        self.eidx()
+    fn out_ref(self) -> EdgeRef {
+        EdgeRef::new_outgoing(self.eid(), self.src_id(), self.dst_id())
     }
 
     fn layer_ids_iter(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = usize> + 'a {

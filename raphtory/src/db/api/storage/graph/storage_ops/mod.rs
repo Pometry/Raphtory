@@ -449,12 +449,10 @@ impl GraphStorage {
                 let edges_clone = edges.clone();
                 let iter = edges_clone.into_iter_refs(view.layer_ids().clone());
                 let filtered = match view.filter_state() {
-                    FilterState::Neither => {
-                        FilterVariants::Neither(iter.map(move |(eid, _)| edges.get(eid).out_ref()))
-                    }
-                    FilterState::Both => FilterVariants::Both(iter.filter_map(move |(eid, _)| {
-                        let e = EdgeStorageRef::Disk(edges.get(eid));
-                        if !view.filter_edge(e, view.layer_ids()) {
+                    FilterState::Neither => FilterVariants::Neither(iter),
+                    FilterState::Both => FilterVariants::Both(iter.filter_map(move |e| {
+                        let edge = EdgeStorageRef::Disk(edges.get(e.pid()));
+                        if !view.filter_edge(edge, view.layer_ids()) {
                             return None;
                         }
                         let src = nodes.node_entry(e.src());
@@ -465,29 +463,26 @@ impl GraphStorage {
                         if !view.filter_node(dst, view.layer_ids()) {
                             return None;
                         }
-                        Some(e.out_ref())
+                        Some(e)
                     })),
-                    FilterState::Nodes => {
-                        FilterVariants::Nodes(iter.filter_map(move |(eid, _)| {
-                            let e = EdgeStorageRef::Disk(edges.get(eid));
-                            let src = nodes.node_entry(e.src());
-                            if !view.filter_node(src, view.layer_ids()) {
-                                return None;
-                            }
-                            let dst = nodes.node_entry(e.dst());
-                            if !view.filter_node(dst, view.layer_ids()) {
-                                return None;
-                            }
-                            Some(e.out_ref())
-                        }))
-                    }
+                    FilterState::Nodes => FilterVariants::Nodes(iter.filter_map(move |e| {
+                        let src = nodes.node_entry(e.src());
+                        if !view.filter_node(src, view.layer_ids()) {
+                            return None;
+                        }
+                        let dst = nodes.node_entry(e.dst());
+                        if !view.filter_node(dst, view.layer_ids()) {
+                            return None;
+                        }
+                        Some(e)
+                    })),
                     FilterState::Edges | FilterState::BothIndependent => {
-                        FilterVariants::Edges(iter.filter_map(move |(eid, _)| {
-                            let e = EdgeStorageRef::Disk(edges.get(eid));
-                            if !view.filter_edge(e, view.layer_ids()) {
+                        FilterVariants::Edges(iter.filter_map(move |e| {
+                            let edge = EdgeStorageRef::Disk(edges.get(e.pid()));
+                            if !view.filter_edge(edge, view.layer_ids()) {
                                 return None;
                             }
-                            Some(e.out_ref())
+                            Some(e)
                         }))
                     }
                 };
@@ -575,9 +570,9 @@ impl GraphStorage {
                 let iter = edges_clone.into_par_iter_refs(view.layer_ids().clone());
                 let filtered = match view.filter_state() {
                     FilterState::Neither => FilterVariants::Neither(
-                        iter.map(move |(eid, _)| EdgeStorageRef::Disk(edges.get(eid)).out_ref()),
+                        iter.map(move |eid| EdgeStorageRef::Disk(edges.get(eid)).out_ref()),
                     ),
-                    FilterState::Both => FilterVariants::Both(iter.filter_map(move |(eid, _)| {
+                    FilterState::Both => FilterVariants::Both(iter.filter_map(move |eid| {
                         let e = EdgeStorageRef::Disk(edges.get(eid));
                         if !view.filter_edge(e, view.layer_ids()) {
                             return None;
@@ -592,22 +587,20 @@ impl GraphStorage {
                         }
                         Some(e.out_ref())
                     })),
-                    FilterState::Nodes => {
-                        FilterVariants::Nodes(iter.filter_map(move |(eid, _)| {
-                            let e = EdgeStorageRef::Disk(edges.get(eid));
-                            let src = nodes.node_entry(e.src());
-                            if !view.filter_node(src, view.layer_ids()) {
-                                return None;
-                            }
-                            let dst = nodes.node_entry(e.dst());
-                            if !view.filter_node(dst, view.layer_ids()) {
-                                return None;
-                            }
-                            Some(e.out_ref())
-                        }))
-                    }
+                    FilterState::Nodes => FilterVariants::Nodes(iter.filter_map(move |eid| {
+                        let e = EdgeStorageRef::Disk(edges.get(eid));
+                        let src = nodes.node_entry(e.src());
+                        if !view.filter_node(src, view.layer_ids()) {
+                            return None;
+                        }
+                        let dst = nodes.node_entry(e.dst());
+                        if !view.filter_node(dst, view.layer_ids()) {
+                            return None;
+                        }
+                        Some(e.out_ref())
+                    })),
                     FilterState::Edges | FilterState::BothIndependent => {
-                        FilterVariants::Edges(iter.filter_map(move |(eid, _)| {
+                        FilterVariants::Edges(iter.filter_map(move |eid| {
                             let e = EdgeStorageRef::Disk(edges.get(eid));
                             if !view.filter_edge(e, view.layer_ids()) {
                                 return None;

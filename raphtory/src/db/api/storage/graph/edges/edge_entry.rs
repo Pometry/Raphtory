@@ -42,10 +42,6 @@ impl<'a> EdgeStorageEntry<'a> {
 }
 
 impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
-    fn in_ref(self) -> EdgeRef {
-        self.as_ref().in_ref()
-    }
-
     fn out_ref(self) -> EdgeRef {
         self.as_ref().out_ref()
     }
@@ -64,10 +60,6 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
 
     fn dst(self) -> VID {
         self.as_ref().dst()
-    }
-
-    fn eid(self) -> EID {
-        self.as_ref().eid()
     }
 
     fn layer_ids_iter(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = usize> + 'a {

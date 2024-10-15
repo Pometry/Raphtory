@@ -1,7 +1,7 @@
 use super::edge_storage_ops::MemEdge;
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, LayerIds, EID, VID},
+        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         Prop,
     },
     db::api::storage::graph::{
@@ -53,22 +53,7 @@ pub enum EdgeStorageRef<'a> {
     Disk(DiskEdge<'a>),
 }
 
-impl<'a> EdgeStorageRef<'a> {
-    #[inline]
-    pub fn eid(&self) -> EID {
-        match self {
-            EdgeStorageRef::Mem(e) => e.eid(),
-            #[cfg(feature = "storage")]
-            EdgeStorageRef::Disk(e) => e.eid(),
-        }
-    }
-}
-
 impl<'a> EdgeStorageOps<'a> for EdgeStorageRef<'a> {
-    fn in_ref(self) -> EdgeRef {
-        for_all!(self, edge => EdgeStorageOps::in_ref(edge))
-    }
-
     fn out_ref(self) -> EdgeRef {
         for_all!(self, edge => EdgeStorageOps::out_ref(edge))
     }
@@ -87,10 +72,6 @@ impl<'a> EdgeStorageOps<'a> for EdgeStorageRef<'a> {
 
     fn dst(self) -> VID {
         for_all!(self, edge => edge.dst())
-    }
-
-    fn eid(self) -> EID {
-        for_all!(self, edge => edge.eid())
     }
 
     fn layer_ids_iter(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = usize> + 'a {
