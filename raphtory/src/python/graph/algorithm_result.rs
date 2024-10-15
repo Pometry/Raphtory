@@ -1,10 +1,7 @@
 use crate::{
     algorithms::algorithm_result::AlgorithmResult as AlgorithmResultRs,
     core::entities::VID,
-    db::{
-        api::view::{internal::DynamicGraph, StaticGraphViewOps},
-        graph::node::NodeView,
-    },
+    db::api::view::{internal::DynamicGraph, StaticGraphViewOps},
     python::types::repr::{Repr, StructReprBuilder},
 };
 use ordered_float::OrderedFloat;
@@ -132,7 +129,10 @@ macro_rules! py_algorithm_result_base {
                 let mut values = Vec::new();
                 Python::with_gil(|py| {
                     for (key, value) in hashmap.iter() {
-                        let node = NodeView::new_internal(self.0.graph.clone(), VID(*key));
+                        let node = $crate::db::api::view::internal::core_ops::CoreGraphOps::node_id(
+                            &self.0.graph,
+                            VID(*key),
+                        );
                         keys.push(node.into_py(py));
                         values.push(value.to_object(py));
                     }

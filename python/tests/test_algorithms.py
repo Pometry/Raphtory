@@ -223,8 +223,8 @@ def test_algo_result():
     assert len(actual.group_by()[1]) == 8
     assert type(actual.to_df()) == pandas.core.frame.DataFrame
     df = actual.to_df()
-    expected_result = pd.DataFrame({"Node": g.node("1"), "Value": [1]})
-    row_with_one = df[df["Node"] == g.node("1")]
+    expected_result = pd.DataFrame({"Node": 1, "Value": [1]})
+    row_with_one = df[df["Node"] == 1]
     row_with_one.reset_index(inplace=True, drop=True)
     assert row_with_one.equals(expected_result)
     # Algo Str u64
