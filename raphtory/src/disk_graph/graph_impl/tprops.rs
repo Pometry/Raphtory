@@ -222,7 +222,11 @@ pub fn read_tprop_column(id: usize, field: Field, edge: Edge) -> Option<DiskTPro
             let timestamps = TimeStamps::new(edge.timestamp_slice(), None);
             Some(DiskTProp::Str64(TPropColumn::new(props, timestamps)))
         }
-        _ => todo!(),
+        DataType::Date64 => new_tprop_column::<i64>(edge, id).map(DiskTProp::I64),
+        otherwise => {
+            dbg!(otherwise);
+            todo!()
+        }
     }
 }
 
