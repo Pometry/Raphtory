@@ -100,12 +100,12 @@ class AlgorithmResult:
             A sorted vector of tuples containing keys of type `H` and values of type `Y`.
         """
 
-    def to_df(self):
+    def to_df(self) -> DataFrame:
         """
         Creates a dataframe from the result
 
         Returns:
-            A `pandas.DataFrame` containing the result
+            DataFrame: A `pandas.DataFrame` containing the result
         """
 
     def to_string(self):

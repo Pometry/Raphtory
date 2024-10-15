@@ -3,7 +3,10 @@ use crate::{
         Infected, IntoSeeds, Number, Probability, SeedError,
     },
     core::entities::{nodes::node_ref::NodeRef, VID},
-    db::api::view::{DynamicGraph, StaticGraphViewOps},
+    db::{
+        api::view::{DynamicGraph, StaticGraphViewOps},
+        graph::node::NodeView,
+    },
     py_algorithm_result, py_algorithm_result_new_ord_hash_eq,
     python::{
         types::repr::{Repr, StructReprBuilder},

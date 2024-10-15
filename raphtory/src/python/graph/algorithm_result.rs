@@ -1,6 +1,10 @@
 use crate::{
     algorithms::algorithm_result::AlgorithmResult as AlgorithmResultRs,
-    db::api::view::{internal::DynamicGraph, StaticGraphViewOps},
+    core::entities::VID,
+    db::{
+        api::view::{internal::DynamicGraph, StaticGraphViewOps},
+        graph::node::NodeView,
+    },
     python::types::repr::{Repr, StructReprBuilder},
 };
 use ordered_float::OrderedFloat;
@@ -121,18 +125,19 @@ macro_rules! py_algorithm_result_base {
             /// Creates a dataframe from the result
             ///
             /// Returns:
-            ///     A `pandas.DataFrame` containing the result
+            ///     DataFrame: A `pandas.DataFrame` containing the result
             fn to_df(&self) -> PyResult<PyObject> {
                 let hashmap = &self.0.result;
                 let mut keys = Vec::new();
                 let mut values = Vec::new();
                 Python::with_gil(|py| {
                     for (key, value) in hashmap.iter() {
-                        keys.push(key.to_object(py));
+                        let node = NodeView::new_internal(self.0.graph.clone(), VID(*key));
+                        keys.push(node.into_py(py));
                         values.push(value.to_object(py));
                     }
                     let dict = pyo3::types::PyDict::new(py);
-                    dict.set_item("Key", pyo3::types::PyList::new(py, keys.as_slice()))?;
+                    dict.set_item("Node", pyo3::types::PyList::new(py, keys.as_slice()))?;
                     dict.set_item("Value", pyo3::types::PyList::new(py, values.as_slice()))?;
                     let pandas = pyo3::types::PyModule::import(py, "pandas")?;
                     let df: &PyAny = pandas.getattr("DataFrame")?.call1((dict,))?;
