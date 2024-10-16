@@ -1,9 +1,10 @@
-use crate::core::{Prop, PropType};
+use crate::core::{entities::properties::props::Meta, utils::errors::GraphError, Prop, PropType};
 use std::{collections::HashSet, sync::Arc};
 
 pub mod edge_property_filter;
 pub mod exploded_edge_property_filter;
 pub(crate) mod internal;
+mod node_property_filter;
 
 #[derive(Debug, Clone)]
 pub(crate) struct PropValueCmp {
@@ -146,4 +147,22 @@ impl PropValueCmp {
     fn filter(&self, other: &Prop) -> bool {
         (self.filter)(&other, &self.value)
     }
+}
+
+fn get_ids_and_check_type(
+    meta: &Meta,
+    property: &str,
+    dtype: PropType,
+) -> Result<(Option<usize>, Option<usize>), GraphError> {
+    let t_prop_id = meta
+        .temporal_prop_meta()
+        .get_and_validate(property, dtype)?;
+    let c_prop_id = meta.const_prop_meta().get_and_validate(property, dtype)?;
+    Ok((t_prop_id, c_prop_id))
+}
+
+fn get_ids(meta: &Meta, property: &str) -> (Option<usize>, Option<usize>) {
+    let t_prop_id = meta.temporal_prop_meta().get_id(property);
+    let c_prop_id = meta.const_prop_meta().get_id(property);
+    (t_prop_id, c_prop_id)
 }
