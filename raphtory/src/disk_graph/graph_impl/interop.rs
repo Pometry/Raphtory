@@ -152,10 +152,6 @@ impl GraphLike<TimeIndexEntry> for Graph {
         self.latest_time_global().unwrap_or(i64::MIN)
     }
 
-    fn resolve_layer(&self, name: &str) -> Option<usize> {
-        self.edge_meta().layer_meta().get_id(name)
-    }
-
     fn out_neighbours(&self, vid: VID) -> impl Iterator<Item = (VID, EID)> + '_ {
         self.core_node_entry(vid)
             .into_edges_iter(&LayerIds::All, Direction::OUT)
