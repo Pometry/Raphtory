@@ -1,5 +1,6 @@
 use crate::{
     data::Data,
+    graph::GraphWithVectors,
     model::{
         graph::{
             edge::Edge, edges::GqlEdges, node::Node, nodes::GqlNodes, property::GqlProperties,
@@ -20,7 +21,10 @@ use raphtory::{
     db::{
         api::{
             properties::dyn_props::DynProperties,
-            view::{DynamicGraph, NodeViewOps, TimeOps},
+            view::{
+                DynamicGraph, IntoDynamic, MaterializedGraph, NodeViewOps, StaticGraphViewOps,
+                TimeOps,
+            },
         },
         graph::node::NodeView,
     },
@@ -32,14 +36,37 @@ use std::{collections::HashSet, convert::Into, sync::Arc};
 #[derive(ResolvedObject)]
 pub(crate) struct GqlGraph {
     path: ExistingGraphFolder,
-    graph: IndexedGraph<DynamicGraph>,
+    graph: DynamicGraph,
+    index: Option<IndexedGraph<DynamicGraph>>,
 }
 
 impl GqlGraph {
-    pub fn new<G: DynamicIndexedGraph>(path: ExistingGraphFolder, graph: G) -> Self {
+    pub fn new<G: StaticGraphViewOps + IntoDynamic, I: DynamicIndexedGraph>(
+        path: ExistingGraphFolder,
+        graph: G,
+        index: Option<I>,
+    ) -> Self {
         Self {
             path,
-            graph: graph.into_dynamic_indexed(),
+            graph: graph.into_dynamic(),
+            index: index.map(|index| index.into_dynamic_indexed()),
+        }
+    }
+
+    fn apply<F, G, I, Y>(&self, graph_operation: F, index_operation: I) -> Self
+    where
+        F: Fn(&DynamicGraph) -> G,
+        G: StaticGraphViewOps + IntoDynamic,
+        I: Fn(&IndexedGraph<DynamicGraph>) -> Y,
+        Y: DynamicIndexedGraph,
+    {
+        Self {
+            path: self.path.clone(),
+            graph: graph_operation(&self.graph).into_dynamic(),
+            index: self
+                .index
+                .as_ref()
+                .map(|index| index_operation(index).into_dynamic_indexed()),
         }
     }
 }
@@ -55,27 +82,39 @@ impl GqlGraph {
     }
 
     async fn default_layer(&self) -> GqlGraph {
-        GqlGraph::new(self.path.clone(), self.graph.default_layer())
+        self.apply(|g| g.default_layer(), |g| g.default_layer())
     }
 
     async fn layers(&self, names: Vec<String>) -> GqlGraph {
-        GqlGraph::new(self.path.clone(), self.graph.valid_layers(names))
+        self.apply(
+            |g| g.valid_layers(names.clone()),
+            |g| g.valid_layers(names.clone()),
+        )
     }
 
     async fn exclude_layers(&self, names: Vec<String>) -> GqlGraph {
-        GqlGraph::new(self.path.clone(), self.graph.exclude_valid_layers(names))
+        self.apply(
+            |g| g.exclude_valid_layers(names.clone()),
+            |g| g.exclude_valid_layers(names.clone()),
+        )
     }
 
     async fn layer(&self, name: String) -> GqlGraph {
-        GqlGraph::new(self.path.clone(), self.graph.valid_layers(name))
+        self.apply(
+            |g| g.valid_layers(name.clone()),
+            |g| g.valid_layers(name.clone()),
+        )
     }
 
     async fn exclude_layer(&self, name: String) -> GqlGraph {
-        GqlGraph::new(self.path.clone(), self.graph.exclude_valid_layers(name))
+        self.apply(
+            |g| g.exclude_valid_layers(name.clone()),
+            |g| g.exclude_valid_layers(name.clone()),
+        )
     }
 
     async fn subgraph(&self, nodes: Vec<String>) -> GqlGraph {
-        GqlGraph::new(self.path.clone(), self.graph.subgraph(nodes))
+        self.apply(|g| g.subgraph(nodes.clone()), |g| g.subgraph(nodes.clone()))
     }
 
     async fn subgraph_id(&self, nodes: Vec<u64>) -> GqlGraph {
