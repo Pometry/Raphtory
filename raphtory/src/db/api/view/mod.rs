@@ -9,12 +9,14 @@ mod layer;
 pub(crate) mod node;
 mod reset_filter;
 pub(crate) mod time;
+mod node_property_filter;
 
 pub(crate) use edge::BaseEdgeViewOps;
 pub use edge::EdgeViewOps;
 
 pub use edge_property_filter::EdgePropertyFilterOps;
 pub use exploded_edge_property_filter::ExplodedEdgePropertyFilterOps;
+pub use node_property_filter::NodePropertyFilterOps;
 pub use graph::*;
 pub use internal::{
     Base, BoxableGraphView, DynamicGraph, InheritViewOps, IntoDynamic, MaterializedGraph,
