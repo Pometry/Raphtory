@@ -261,7 +261,7 @@ fn produce_record_batch(
     ));
 
     let column_ids = layer
-        .edges_t_props()
+        .edges_storage()
         .data_type()
         .iter()
         .enumerate()

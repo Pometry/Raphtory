@@ -505,7 +505,7 @@ mod test {
 
         let exploded_edges: Vec<_> = graph
             .exploded_edges()
-            .map(|edge| (nodes[edge.src().0], nodes[edge.dst().0], edge.timestamp()))
+            .map(|(src, dst, time)| (nodes[src.0], nodes[dst.0], time))
             .collect();
         assert_eq!(exploded_edges, edges);
 
@@ -704,10 +704,7 @@ mod test {
         let disk_graph = graph.persist_as_disk_graph(graph_dir.path()).unwrap();
         let graph = disk_graph.inner;
 
-        let all_exploded: Vec<_> = graph
-            .exploded_edges()
-            .map(|ee| (ee.src(), ee.dst(), ee.timestamp()))
-            .collect();
+        let all_exploded: Vec<_> = graph.exploded_edges().collect();
         let expected: Vec<_> = vec![
             (VID(0), VID(1), 0),
             (VID(0), VID(1), 1),

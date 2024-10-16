@@ -215,7 +215,7 @@ impl StableEncode for GraphStorage {
         let edges = storage.edges();
         for eid in 0..edges.len() {
             let eid = EID(eid);
-            let edge = edges.edge(eid); // This works for DiskStorage as long as it has a single layer
+            let edge = edges.edge(eid);
             let edge = edge.as_ref();
             graph.new_edge(edge.src(), edge.dst(), eid);
             for layer_id in 0..storage.unfiltered_num_layers() {
