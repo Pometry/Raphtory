@@ -94,6 +94,12 @@ impl GraphServer {
         Ok(Self { data, config })
     }
 
+    /// Turn off index for all graphs
+    pub fn turn_off_index(mut self) -> Self {
+        self.data.index = false;
+        self
+    }
+
     pub fn set_embeddings<F: EmbeddingFunction + Clone + 'static>(
         mut self,
         embedding: F,
