@@ -58,9 +58,9 @@ def balance(
         g (GraphView): The graph view on which the operation is to be performed.
         name (str): The name of the edge property used as the weight. Defaults to "weight".
         direction (Direction): Specifies the direction of the edges to be considered for summation. Defaults to "both".
-                * "OUT": Only consider outgoing edges.
-                * "IN": Only consider incoming edges.
-                * "BOTH": Consider both outgoing and incoming edges. This is the default.
+                * "out": Only consider outgoing edges.
+                * "in": Only consider incoming edges.
+                * "both": Consider both outgoing and incoming edges. This is the default.
         threads (int, optional): The number of threads to be used for parallel execution.
 
     Returns:
