@@ -1,0 +1,33 @@
+[package]
+name = "raphtory-memstorage"
+version.workspace = true
+documentation.workspace = true
+repository.workspace = true
+license.workspace = true
+readme.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+edition.workspace = true
+
+[dependencies]
+raphtory-api = { path = "../raphtory-api",version = "0.13.0" }
+thiserror = {workspace = true}
+serde = {workspace = true}
+dashmap = {workspace = true}
+parking_lot = {workspace = true}
+rayon = {workspace = true}
+lock_api = {workspace = true}
+sorted_vector_map = {workspace = true}
+itertools = {workspace = true}
+either = {workspace = true}
+once_cell = {workspace = true}
+rustc-hash = {workspace = true}
+chrono = {workspace = true}
+serde_json = {workspace = true}
+
+[dev-dependencies]
+pretty_assertions = {workspace = true}
+quickcheck_macros = {workspace = true}
+quickcheck = {workspace = true}

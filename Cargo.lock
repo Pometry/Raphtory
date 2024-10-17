@@ -4636,6 +4636,7 @@ dependencies = [
  "dashmap 6.0.1",
  "lock_api",
  "num-traits",
+ "ouroboros",
  "parking_lot",
  "polars-arrow",
  "proptest",
@@ -4742,6 +4743,29 @@ dependencies = [
  "uuid",
  "walkdir",
  "zip",
+]
+
+[[package]]
+name = "raphtory-memstorage"
+version = "0.13.0"
+dependencies = [
+ "chrono",
+ "dashmap 6.0.1",
+ "either",
+ "itertools 0.13.0",
+ "lock_api",
+ "once_cell",
+ "parking_lot",
+ "pretty_assertions",
+ "quickcheck",
+ "quickcheck_macros",
+ "raphtory-api",
+ "rayon",
+ "rustc-hash 2.0.0",
+ "serde",
+ "serde_json",
+ "sorted_vector_map",
+ "thiserror",
 ]
 
 [[package]]

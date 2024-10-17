@@ -37,11 +37,6 @@ use std::{
     sync::Arc,
 };
 
-#[repr(transparent)]
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct Graph {
-    pub(crate) inner: Arc<Storage>,
-}
 
 impl Static for Graph {}
 

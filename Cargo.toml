@@ -10,7 +10,7 @@ members = [
     "python",
     "js-raphtory",
     "raphtory-graphql",
-    "raphtory-api",
+    "raphtory-api", "raphtory-memstorage",
 ]
 default-members = ["raphtory"]
 resolver = "2"

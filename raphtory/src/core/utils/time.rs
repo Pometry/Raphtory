@@ -8,26 +8,6 @@ pub mod error {
     use chrono::ParseError;
     use std::num::ParseIntError;
 
-    #[derive(thiserror::Error, Debug, Clone, PartialEq)]
-    pub enum ParseTimeError {
-        #[error("the interval string doesn't contain a complete number of number-unit pairs")]
-        InvalidPairs,
-        #[error(
-            "one of the tokens in the interval string supposed to be a number couldn't be parsed"
-        )]
-        ParseInt {
-            #[from]
-            source: ParseIntError,
-        },
-        #[error("'{0}' is not a valid unit")]
-        InvalidUnit(String),
-        #[error(transparent)]
-        ParseError(#[from] ParseError),
-        #[error("negative interval is not supported")]
-        NegativeInt,
-        #[error("'{0}' is not a valid datetime, valid formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%, %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%")]
-        InvalidDateTimeString(String),
-    }
 }
 
 pub trait IntoTime {
