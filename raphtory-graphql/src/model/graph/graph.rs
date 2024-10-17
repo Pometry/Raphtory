@@ -73,7 +73,7 @@ impl GqlGraph {
     fn get_index(&self) -> Result<&IndexedGraph<DynamicGraph>, GraphError> {
         match self.index.as_ref() {
             Some(index) => Ok(index),
-            None => Err(GraphError::DiskGraphNotFound), // TODO: create proper error
+            None => Err(GraphError::IndexMissing), // TODO: create proper error
         }
     }
 }
