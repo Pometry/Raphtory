@@ -1,5 +1,6 @@
 use std::ops::Range;
 
+use raphtory_api::core::entities::EID;
 use rayon::prelude::*;
 
 use super::edge_storage_ops::MemEdge;
@@ -41,10 +42,6 @@ impl<'a> EdgeStorageEntry<'a> {
 }
 
 impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
-    fn in_ref(self) -> EdgeRef {
-        self.as_ref().in_ref()
-    }
-
     fn out_ref(self) -> EdgeRef {
         self.as_ref().out_ref()
     }

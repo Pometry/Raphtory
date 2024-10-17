@@ -280,7 +280,7 @@ impl<'a> EdgeRGuard<'a> {
     pub(crate) fn temp_prop_ids(
         &self,
         layer_id: Option<usize>,
-    ) -> Box<dyn Iterator<Item = usize> + '_> {
+    ) -> Box<dyn Iterator<Item = usize> + Send + '_> {
         if let Some(layer_id) = layer_id {
             Box::new(
                 self.guard

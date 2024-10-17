@@ -544,7 +544,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                     return None;
                 }
                 let edge_ref = src_node.find_edge(dst, layer_ids)?;
-                if !self.filter_edge(self.core_edge(edge_ref.into()).as_ref(), layer_ids) {
+                if !self.filter_edge(self.core_edge(edge_ref.pid()).as_ref(), layer_ids) {
                     return None;
                 }
                 if !self.filter_node(self.core_node_entry(dst).as_ref(), layer_ids) {
@@ -564,7 +564,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
             }
             FilterState::Edges | FilterState::BothIndependent => {
                 let edge_ref = src_node.find_edge(dst, layer_ids)?;
-                if !self.filter_edge(self.core_edge(edge_ref.into()).as_ref(), layer_ids) {
+                if !self.filter_edge(self.core_edge(edge_ref.pid()).as_ref(), layer_ids) {
                     return None;
                 }
                 Some(EdgeView::new(self.clone(), edge_ref))

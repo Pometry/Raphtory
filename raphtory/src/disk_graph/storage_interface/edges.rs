@@ -1,81 +1,93 @@
 use crate::{
-    core::entities::{LayerIds, EID},
-    db::api::storage::graph::variants::layer_variants::LayerVariants,
-    disk_graph::storage_interface::{edge::DiskEdge, edges_ref::DiskEdgesRef},
+    core::{
+        entities::{LayerIds, EID},
+        utils::iter::GenLockedIter,
+    },
+    db::api::{storage::graph::variants::layer_variants::LayerVariants, view::IntoDynBoxed},
+    disk_graph::{
+        storage_interface::{edge::DiskEdge, edges_ref::DiskEdgesRef},
+        DiskGraphStorage,
+    },
 };
-use pometry_storage::{graph::TemporalGraph, graph_fragment::TempColGraphFragment};
+use itertools::Itertools;
+use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{iter, sync::Arc};
 
 #[derive(Clone, Debug)]
 pub struct DiskEdges {
-    layers: Arc<[TempColGraphFragment]>,
+    graph: Arc<DiskGraphStorage>,
 }
 
 impl DiskEdges {
-    pub(crate) fn new(graph: &TemporalGraph) -> Self {
+    pub(crate) fn new(graph: &DiskGraphStorage) -> Self {
         Self {
-            layers: graph.arc_layers().clone(),
+            graph: Arc::new(graph.clone()),
         }
     }
+
     pub fn as_ref(&self) -> DiskEdgesRef {
         DiskEdgesRef {
-            layers: &self.layers,
+            graph: &self.graph.inner,
         }
     }
 
-    pub fn into_iter_refs(self, layer_ids: LayerIds) -> impl Iterator<Item = (EID, usize)> {
+    pub fn into_iter_refs(self, layer_ids: LayerIds) -> impl Iterator<Item = EdgeRef> {
         match layer_ids {
             LayerIds::None => LayerVariants::None(iter::empty()),
-            LayerIds::All => LayerVariants::All((0..self.layers.len()).flat_map(move |layer_id| {
-                self.layers[layer_id]
+            LayerIds::All => LayerVariants::All(GenLockedIter::from(self.graph, |graph| {
+                graph
+                    .inner
                     .all_edge_ids()
-                    .map(move |e| (e, layer_id))
+                    .map(|(eid, src, dst)| EdgeRef::new_outgoing(eid, src, dst))
+                    .into_dyn_boxed()
             })),
-            LayerIds::One(layer_id) => LayerVariants::One(
-                self.layers[layer_id]
-                    .all_edge_ids()
-                    .map(move |e| (e, layer_id)),
-            ),
-            LayerIds::Multiple(ids) => LayerVariants::Multiple((0..ids.len()).flat_map(move |i| {
-                let layer_id = ids[i];
-                self.layers[layer_id]
-                    .all_edge_ids()
-                    .map(move |e| (e, layer_id))
-            })),
-        }
-    }
-
-    pub fn into_par_iter_refs(
-        self,
-        layer_ids: LayerIds,
-    ) -> impl ParallelIterator<Item = (EID, usize)> {
-        match layer_ids {
-            LayerIds::None => LayerVariants::None(rayon::iter::empty()),
-            LayerIds::All => LayerVariants::All((0..self.layers.len()).into_par_iter().flat_map(
-                move |layer_id| {
-                    self.layers[layer_id]
-                        .all_edge_ids_par()
-                        .map(move |e| (e, layer_id))
-                },
-            )),
-            LayerIds::One(layer_id) => LayerVariants::One(
-                self.layers[layer_id]
-                    .all_edge_ids_par()
-                    .map(move |e| (e, layer_id)),
-            ),
-            LayerIds::Multiple(ids) => {
-                LayerVariants::Multiple((0..ids.len()).into_par_iter().flat_map(move |i| {
-                    let layer_id = ids[i];
-                    self.layers[layer_id]
-                        .all_edge_ids_par()
-                        .map(move |e| (e, layer_id))
+            LayerIds::One(layer_id) => {
+                LayerVariants::One(GenLockedIter::from(self.graph, move |graph| {
+                    graph
+                        .inner
+                        .layer_edge_ids(layer_id)
+                        .map(|(eid, src, dst)| EdgeRef::new_outgoing(eid, src, dst))
+                        .into_dyn_boxed()
                 }))
             }
+            LayerIds::Multiple(ids) => LayerVariants::Multiple(
+                (0..ids.len())
+                    .map(move |i| {
+                        let layer_id = ids[i];
+                        GenLockedIter::from(self.graph.clone(), move |graph| {
+                            graph.inner.layer_edge_ids(layer_id).into_dyn_boxed()
+                        })
+                    })
+                    .kmerge_by(|(eid1, _, _), (eid2, _, _)| eid1 < eid2)
+                    .dedup()
+                    .map(move |(eid, src, dst)| EdgeRef::new_outgoing(eid, src, dst)),
+            ),
         }
     }
 
-    pub fn get(&self, eid: EID, layer_id: usize) -> DiskEdge {
-        self.layers[layer_id].edge(eid)
+    pub fn into_par_iter_refs(self, layer_ids: LayerIds) -> impl ParallelIterator<Item = EID> {
+        match layer_ids {
+            LayerIds::None => LayerVariants::None(rayon::iter::empty()),
+            LayerIds::One(layer_id) => {
+                LayerVariants::One(self.graph.inner.all_edge_ids_par(layer_id))
+            }
+            LayerIds::All => {
+                LayerVariants::All((0..self.graph.inner.num_edges()).into_par_iter().map(EID))
+            }
+            LayerIds::Multiple(ids) => LayerVariants::Multiple(
+                (0..self.graph.inner.num_edges())
+                    .into_par_iter()
+                    .map(EID)
+                    .filter(move |e| {
+                        ids.iter()
+                            .any(|&layer_id| self.graph.inner.edge(*e).has_layer_inner(layer_id))
+                    }),
+            ),
+        }
+    }
+
+    pub fn get(&self, eid: EID) -> DiskEdge {
+        self.graph.inner.edge(eid)
     }
 }

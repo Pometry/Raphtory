@@ -220,7 +220,7 @@ impl PyDiskGraph {
 
     #[staticmethod]
     #[pyo3(
-        signature = (graph_dir, layer_parquet_cols, node_properties, chunk_size, t_props_chunk_size, read_chunk_size, concurrent_files, num_threads, node_type_col)
+        signature = (graph_dir, layer_parquet_cols, node_properties, chunk_size, t_props_chunk_size, num_threads, node_type_col)
     )]
     fn load_from_parquets(
         graph_dir: PathBuf,
@@ -228,8 +228,6 @@ impl PyDiskGraph {
         node_properties: Option<PathBuf>,
         chunk_size: usize,
         t_props_chunk_size: usize,
-        read_chunk_size: Option<usize>,
-        concurrent_files: Option<usize>,
         num_threads: usize,
         node_type_col: Option<&str>,
     ) -> Result<DiskGraphStorage, GraphError> {
@@ -239,8 +237,6 @@ impl PyDiskGraph {
             node_properties,
             chunk_size,
             t_props_chunk_size,
-            read_chunk_size,
-            concurrent_files,
             num_threads,
             node_type_col,
         )

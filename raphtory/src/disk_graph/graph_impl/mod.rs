@@ -292,7 +292,7 @@ mod test {
             TemporalGraph::from_graph(&mem_graph, test_dir.path(), || Ok(Properties::default()))
                 .unwrap();
         assert_eq!(disk_graph.num_nodes(), 2);
-        assert_eq!(disk_graph.num_edges(0), 1);
+        assert_eq!(disk_graph.num_edges(), 1);
     }
 
     #[test]
@@ -377,8 +377,6 @@ mod test {
         let chunk_size = 268_435_456;
         let num_threads = 4;
         let t_props_chunk_size = chunk_size / 8;
-        let read_chunk_size = 4_000_000;
-        let concurrent_files = 1;
 
         let netflow_layer_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .parent()
@@ -422,8 +420,6 @@ mod test {
             Some(&node_properties),
             chunk_size,
             t_props_chunk_size,
-            Some(read_chunk_size as usize),
-            Some(concurrent_files),
             num_threads,
             node_type_col,
         )

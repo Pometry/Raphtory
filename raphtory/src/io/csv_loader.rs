@@ -482,7 +482,7 @@ mod csv_loader_test {
     use regex::Regex;
     use serde::Deserialize;
     use std::path::{Path, PathBuf};
-    use tracing::{error, info};
+    use tracing::error;
 
     #[test]
     fn regex_match() {
@@ -578,7 +578,6 @@ mod csv_loader_test {
             .iter()
             .collect();
 
-        info!("path = {}", csv_path.as_path().to_str().unwrap());
         let csv_loader = CsvLoader::new(Path::new(&csv_path));
         let has_header = true;
         let r = Regex::new(r".+(lotr.csv)").unwrap();

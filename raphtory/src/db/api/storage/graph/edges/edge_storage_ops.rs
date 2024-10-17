@@ -128,10 +128,10 @@ impl<'a> TimeIndexIntoOps for TimeIndexRef<'a> {
 }
 
 pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
-    fn in_ref(self) -> EdgeRef;
-
     fn out_ref(self) -> EdgeRef;
+
     fn active(self, layer_ids: &LayerIds, w: Range<i64>) -> bool;
+
     fn has_layer(self, layer_ids: &LayerIds) -> bool;
     fn src(self) -> VID;
     fn dst(self) -> VID;
@@ -280,14 +280,6 @@ impl<'a> MemEdge<'a> {
 }
 
 impl<'a> EdgeStorageOps<'a> for MemEdge<'a> {
-    fn in_ref(self) -> EdgeRef {
-        EdgeRef::new_incoming(self.eid(), self.src(), self.dst())
-    }
-
-    fn out_ref(self) -> EdgeRef {
-        EdgeRef::new_outgoing(self.eid(), self.src(), self.dst())
-    }
-
     fn active(self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
         match layer_ids {
             LayerIds::None => false,
@@ -319,6 +311,10 @@ impl<'a> EdgeStorageOps<'a> for MemEdge<'a> {
 
     fn dst(self) -> VID {
         self.edge_store().dst
+    }
+
+    fn out_ref(self) -> EdgeRef {
+        EdgeRef::new_outgoing(self.eid(), self.src(), self.dst())
     }
 
     fn layer_ids_iter(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = usize> + 'a {

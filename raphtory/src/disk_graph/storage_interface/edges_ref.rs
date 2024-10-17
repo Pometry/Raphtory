@@ -1,95 +1,66 @@
 use crate::{
     core::entities::{LayerIds, EID},
-    db::api::storage::graph::variants::layer_variants::LayerVariants,
+    db::api::storage::graph::{
+        edges::edge_storage_ops::EdgeStorageOps, variants::layer_variants::LayerVariants,
+    },
     disk_graph::storage_interface::edge::DiskEdge,
 };
-use pometry_storage::{graph::TemporalGraph, graph_fragment::TempColGraphFragment};
-use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use pometry_storage::graph::TemporalGraph;
+use rayon::prelude::*;
 use std::iter;
 
 #[derive(Copy, Clone, Debug)]
 pub struct DiskEdgesRef<'a> {
-    pub(super) layers: &'a [TempColGraphFragment],
+    pub(super) graph: &'a TemporalGraph,
 }
 
 impl<'a> DiskEdgesRef<'a> {
     pub(crate) fn new(storage: &'a TemporalGraph) -> Self {
-        Self {
-            layers: storage.layers(),
-        }
+        Self { graph: storage }
     }
 
-    pub fn edge(self, eid: EID, layer_id: usize) -> DiskEdge<'a> {
-        self.layers[layer_id].edge(eid)
+    pub fn edge(self, eid: EID) -> DiskEdge<'a> {
+        self.graph.edge(eid)
     }
 
     pub fn iter(self, layers: LayerIds) -> impl Iterator<Item = DiskEdge<'a>> {
         match layers {
             LayerIds::None => LayerVariants::None(iter::empty()),
-            LayerIds::All => LayerVariants::All(
-                self.layers
-                    .iter()
-                    .flat_map(|layer| layer.edges_storage().iter()),
+            LayerIds::All => LayerVariants::All(self.graph.edges_iter()),
+            LayerIds::One(layer_id) => LayerVariants::One(self.graph.edges_layer_iter(layer_id)),
+            layer_ids => LayerVariants::Multiple(
+                self.graph
+                    .edges_iter()
+                    .filter(move |e| e.has_layer(&layer_ids)),
             ),
-            LayerIds::One(layer_id) => {
-                LayerVariants::One(self.layers[layer_id].edges_storage().iter())
-            }
-            LayerIds::Multiple(ids) => {
-                let ids = ids.clone();
-                LayerVariants::Multiple(
-                    (0..ids.len()).flat_map(move |i| self.layers[ids[i]].edges_storage().iter()),
-                )
-            }
         }
     }
 
     pub fn par_iter(self, layers: LayerIds) -> impl ParallelIterator<Item = DiskEdge<'a>> {
         match layers {
             LayerIds::None => LayerVariants::None(rayon::iter::empty()),
-            LayerIds::All => LayerVariants::All(
-                self.layers
-                    .par_iter()
-                    .flat_map(|layer| layer.edges_storage().par_iter()),
-            ),
+            LayerIds::All => LayerVariants::All(self.graph.edges_par_iter()),
             LayerIds::One(layer_id) => {
-                LayerVariants::One(self.layers[layer_id].edges_storage().par_iter())
+                LayerVariants::One(self.graph.edges_layer_par_iter(layer_id))
             }
-            LayerIds::Multiple(ids) => {
-                let ids = ids.clone();
-                LayerVariants::Multiple(
-                    (0..ids.len())
-                        .into_par_iter()
-                        .flat_map(move |i| self.layers[ids[i]].edges_storage().par_iter()),
-                )
-            }
+            layer_ids => LayerVariants::Multiple(
+                self.graph
+                    .edges_par_iter()
+                    .filter(move |e| e.has_layer(&layer_ids)),
+            ),
         }
     }
 
     pub fn count(self, layers: &LayerIds) -> usize {
         match layers {
             LayerIds::None => 0,
-            LayerIds::All => self.layers.par_iter().map(|layer| layer.num_edges()).sum(),
-            LayerIds::One(id) => self.layers[*id].num_edges(),
-            LayerIds::Multiple(ids) => ids
-                .par_iter()
-                .map(|layer| self.layers[*layer].num_edges())
-                .sum(),
-        }
-    }
-
-    pub fn exploded_count(self, layers: &LayerIds) -> usize {
-        match layers {
-            LayerIds::None => 0,
-            LayerIds::All => self
-                .layers
-                .par_iter()
-                .map(|layer| layer.num_temporal_edges())
-                .sum(),
-            LayerIds::One(id) => self.layers[*id].num_temporal_edges(),
-            LayerIds::Multiple(ids) => ids
-                .par_iter()
-                .map(|layer| self.layers[*layer].num_temporal_edges())
-                .sum(),
+            LayerIds::All => self.graph.num_edges(),
+            LayerIds::One(id) => self.graph.layer(*id).num_edges(),
+            layer_ids => self
+                .graph
+                .edges_par_iter()
+                .filter(|e| e.has_layer(layer_ids))
+                .count(),
         }
     }
 
