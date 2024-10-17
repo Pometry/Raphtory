@@ -2,11 +2,8 @@ use crate::{
     core::utils::errors::GraphError,
     db::{
         api::view::internal::OneHopFilter,
-        graph::views::property_filter::internal::{
-            InternalEdgeFilterOps, InternalNodePropertyFilterOps,
-        },
+        graph::views::property_filter::internal::InternalNodePropertyFilterOps,
     },
-    prelude::GraphViewOps,
 };
 
 pub trait NodePropertyFilterOps<'graph>: OneHopFilter<'graph> {
@@ -25,10 +22,7 @@ impl<'graph, G: OneHopFilter<'graph>> NodePropertyFilterOps<'graph> for G {}
 #[cfg(test)]
 mod test {
     use crate::{
-        db::graph::{
-            graph::{assert_edges_equal, assert_graph_equal, assert_nodes_equal},
-            views::property_filter::PropertyFilter,
-        },
+        db::graph::{graph::assert_edges_equal, views::property_filter::PropertyFilter},
         prelude::*,
         test_utils::{
             add_node_props, build_edge_list, build_graph_from_edge_list, build_node_props,
@@ -127,7 +121,7 @@ mod test {
             let g = build_graph_from_edge_list(&edges);
             add_node_props(&g, &nodes);
             let filtered = g.filter_nodes(PropertyFilter::gt("int_prop", v)).unwrap();
-            let expected_g = node_filtered_graph(&edges, &nodes, |str_v, int_v| {int_v.filter(|&vv| *vv > v ).is_some()});
+            let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {int_v.filter(|&vv| *vv > v ).is_some()});
             assert_edges_equal(&filtered.edges(), &expected_g.edges());
             // FIXME: history filtering not working properly
             // assert_graph_equal(&filtered, &expected_g);
@@ -142,7 +136,7 @@ mod test {
             let g = build_graph_from_edge_list(&edges);
             add_node_props(&g, &nodes);
             let filtered = g.filter_nodes(PropertyFilter::ge("int_prop", v)).unwrap();
-            let expected_g = node_filtered_graph(&edges, &nodes, |str_v, int_v| {int_v.filter(|&vv| *vv >= v ).is_some()});
+            let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {int_v.filter(|&vv| *vv >= v ).is_some()});
             assert_edges_equal(&filtered.edges(), &expected_g.edges());
             // FIXME: history filtering not working properly
             // assert_graph_equal(&filtered, &expected_g);
@@ -157,7 +151,7 @@ mod test {
             let g = build_graph_from_edge_list(&edges);
             add_node_props(&g, &nodes);
             let filtered = g.filter_nodes(PropertyFilter::lt("int_prop", v)).unwrap();
-            let expected_g = node_filtered_graph(&edges, &nodes, |str_v, int_v| {int_v.filter(|&vv| *vv < v ).is_some()});
+            let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {int_v.filter(|&vv| *vv < v ).is_some()});
             assert_edges_equal(&filtered.edges(), &expected_g.edges());
             // FIXME: history filtering not working properly
             // assert_graph_equal(&filtered, &expected_g);
@@ -172,7 +166,7 @@ mod test {
             let g = build_graph_from_edge_list(&edges);
             add_node_props(&g, &nodes);
             let filtered = g.filter_nodes(PropertyFilter::le("int_prop", v)).unwrap();
-            let expected_g = node_filtered_graph(&edges, &nodes, |str_v, int_v| {int_v.filter(|&vv| *vv <= v ).is_some()});
+            let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {int_v.filter(|&vv| *vv <= v ).is_some()});
             assert_edges_equal(&filtered.edges(), &expected_g.edges());
             // FIXME: history filtering not working properly
             // assert_graph_equal(&filtered, &expected_g);
@@ -187,7 +181,7 @@ mod test {
             let g = build_graph_from_edge_list(&edges);
             add_node_props(&g, &nodes);
             let filtered = g.filter_nodes(PropertyFilter::eq("int_prop", v)).unwrap();
-            let expected_g = node_filtered_graph(&edges, &nodes, |str_v, int_v| {int_v.filter(|&vv| *vv == v ).is_some()});
+            let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {int_v.filter(|&vv| *vv == v ).is_some()});
             assert_edges_equal(&filtered.edges(), &expected_g.edges());
             // FIXME: history filtering not working properly
             // assert_graph_equal(&filtered, &expected_g);
@@ -202,7 +196,7 @@ mod test {
             let g = build_graph_from_edge_list(&edges);
             add_node_props(&g, &nodes);
             let filtered = g.filter_nodes(PropertyFilter::ne("int_prop", v)).unwrap();
-            let expected_g = node_filtered_graph(&edges, &nodes, |str_v, int_v| {int_v.filter(|&vv| *vv != v ).is_some()});
+            let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {int_v.filter(|&vv| *vv != v ).is_some()});
             assert_edges_equal(&filtered.edges(), &expected_g.edges());
             // FIXME: history filtering not working properly
             // assert_graph_equal(&filtered, &expected_g);
@@ -212,12 +206,12 @@ mod test {
     #[test]
     fn test_filter_is_some() {
         proptest!(|(
-            edges in build_edge_list(100, 100), nodes in build_node_props(100), v in any::<i64>()
+            edges in build_edge_list(100, 100), nodes in build_node_props(100),
         )| {
             let g = build_graph_from_edge_list(&edges);
             add_node_props(&g, &nodes);
             let filtered = g.filter_nodes(PropertyFilter::is_some("int_prop")).unwrap();
-            let expected_g = node_filtered_graph(&edges, &nodes, |str_v, int_v| {int_v.is_some()});
+            let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {int_v.is_some()});
             assert_edges_equal(&filtered.edges(), &expected_g.edges());
             // FIXME: history filtering not working properly
             // assert_graph_equal(&filtered, &expected_g);
@@ -227,12 +221,12 @@ mod test {
     #[test]
     fn test_filter_is_none() {
         proptest!(|(
-            edges in build_edge_list(100, 100), nodes in build_node_props(100), v in any::<i64>()
+            edges in build_edge_list(100, 100), nodes in build_node_props(100)
         )| {
             let g = build_graph_from_edge_list(&edges);
             add_node_props(&g, &nodes);
             let filtered = g.filter_nodes(PropertyFilter::is_none("int_prop")).unwrap();
-            let expected_g = node_filtered_graph(&edges, &nodes, |str_v, int_v| {int_v.is_none()});
+            let expected_g = node_filtered_graph(&edges, &nodes, |_, int_v| {int_v.is_none()});
             assert_edges_equal(&filtered.edges(), &expected_g.edges());
             // FIXME: history filtering not working properly
             // assert_graph_equal(&filtered, &expected_g);

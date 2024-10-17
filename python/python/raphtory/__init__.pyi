@@ -377,6 +377,18 @@ class Edge:
         """Explodes an edge and returns all instances it had been updated as seperate edges"""
 
     def explode_layers(self): ...
+    def filter_nodes(self, filter) -> Edge:
+        """
+        Return a filtered view that only includes nodes that satisfy the filter
+
+        Arguments
+            filter (PropertyFilter): The filter to apply to the node properties. Construct a
+                                     filter using `Prop`.
+
+        Returns:
+            Edge: The filtered view
+        """
+
     def has_layer(self, name):
         """Check if Edge has the layer `"name"`"""
 
@@ -796,6 +808,18 @@ class Edges:
         """Explodes an edge and returns all instances it had been updated as seperate edges"""
 
     def explode_layers(self): ...
+    def filter_nodes(self, filter) -> Edges:
+        """
+        Return a filtered view that only includes nodes that satisfy the filter
+
+        Arguments
+            filter (PropertyFilter): The filter to apply to the node properties. Construct a
+                                     filter using `Prop`.
+
+        Returns:
+            Edges: The filtered view
+        """
+
     def has_layer(self, name):
         """Check if Edges has the layer `"name"`"""
 
@@ -1329,6 +1353,18 @@ class Graph:
 
         Arguments:
             filter (PropertyFilter): The filter to apply to the exploded edge properties. Construct a
+                                     filter using `Prop`.
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_nodes(self, filter) -> GraphView:
+        """
+        Return a filtered view that only includes nodes that satisfy the filter
+
+        Arguments
+            filter (PropertyFilter): The filter to apply to the node properties. Construct a
                                      filter using `Prop`.
 
         Returns:
@@ -2324,6 +2360,18 @@ class GraphView:
             GraphView: The filtered view
         """
 
+    def filter_nodes(self, filter) -> GraphView:
+        """
+        Return a filtered view that only includes nodes that satisfy the filter
+
+        Arguments
+            filter (PropertyFilter): The filter to apply to the node properties. Construct a
+                                     filter using `Prop`.
+
+        Returns:
+            GraphView: The filtered view
+        """
+
     def find_edges(self, properties_dict):
         """
         Get the edges that match the properties name and value
@@ -2873,6 +2921,18 @@ class MutableEdge:
         """Explodes an edge and returns all instances it had been updated as seperate edges"""
 
     def explode_layers(self): ...
+    def filter_nodes(self, filter) -> Edge:
+        """
+        Return a filtered view that only includes nodes that satisfy the filter
+
+        Arguments
+            filter (PropertyFilter): The filter to apply to the node properties. Construct a
+                                     filter using `Prop`.
+
+        Returns:
+            Edge: The filtered view
+        """
+
     def has_layer(self, name):
         """Check if Edge has the layer `"name"`"""
 
@@ -3318,6 +3378,18 @@ class MutableNode:
 
         Arguments:
             filter (PropertyFilter): The filter to apply to the exploded edge properties. Construct a
+                                     filter using `Prop`.
+
+        Returns:
+            Node: The filtered view
+        """
+
+    def filter_nodes(self, filter) -> Node:
+        """
+        Return a filtered view that only includes nodes that satisfy the filter
+
+        Arguments
+            filter (PropertyFilter): The filter to apply to the node properties. Construct a
                                      filter using `Prop`.
 
         Returns:
@@ -3785,6 +3857,18 @@ class Node:
             Node: The filtered view
         """
 
+    def filter_nodes(self, filter) -> Node:
+        """
+        Return a filtered view that only includes nodes that satisfy the filter
+
+        Arguments
+            filter (PropertyFilter): The filter to apply to the node properties. Construct a
+                                     filter using `Prop`.
+
+        Returns:
+            Node: The filtered view
+        """
+
     def has_layer(self, name):
         """Check if Node has the layer `"name"`"""
 
@@ -4224,6 +4308,18 @@ class Nodes:
 
         Arguments:
             filter (PropertyFilter): The filter to apply to the exploded edge properties. Construct a
+                                     filter using `Prop`.
+
+        Returns:
+            Nodes: The filtered view
+        """
+
+    def filter_nodes(self, filter) -> Nodes:
+        """
+        Return a filtered view that only includes nodes that satisfy the filter
+
+        Arguments
+            filter (PropertyFilter): The filter to apply to the node properties. Construct a
                                      filter using `Prop`.
 
         Returns:
@@ -4812,6 +4908,18 @@ class PersistentGraph:
 
         Arguments:
             filter (PropertyFilter): The filter to apply to the exploded edge properties. Construct a
+                                     filter using `Prop`.
+
+        Returns:
+            GraphView: The filtered view
+        """
+
+    def filter_nodes(self, filter) -> GraphView:
+        """
+        Return a filtered view that only includes nodes that satisfy the filter
+
+        Arguments
+            filter (PropertyFilter): The filter to apply to the node properties. Construct a
                                      filter using `Prop`.
 
         Returns:

@@ -4,7 +4,7 @@ use std::{collections::HashSet, sync::Arc};
 pub mod edge_property_filter;
 pub mod exploded_edge_property_filter;
 pub(crate) mod internal;
-mod node_property_filter;
+pub mod node_property_filter;
 
 #[derive(Debug, Clone)]
 pub(crate) struct PropValueCmp {
