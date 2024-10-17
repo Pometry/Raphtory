@@ -247,7 +247,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
         let input_layer_id = self.resolve_layer(layer, false)?;
         if !self
             .graph
-            .core_edge(self.edge.into())
+            .core_edge(self.edge.pid())
             .has_layer(&LayerIds::One(input_layer_id))
         {
             return Err(GraphError::InvalidEdgeLayer {
@@ -492,7 +492,7 @@ mod test_edge {
             .add_constant_properties([("test_prop", "test_val")], Some("layer 2"))
             .unwrap();
 
-        // FIXME: multilayer edge views are not supported yet (Issue #47)
+        // FIXME: #18 constant prop for edges
         test_graph(&graph, |graph| {
             assert_eq!(
                 graph

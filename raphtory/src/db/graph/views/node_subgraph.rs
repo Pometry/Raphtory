@@ -103,7 +103,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for NodeSubgraph<G> {
 mod subgraph_tests {
     use crate::{
         algorithms::motifs::triangle_count::triangle_count, db::graph::graph::assert_graph_equal,
-        prelude::*, test_storage, test_utils::test_graph,
+        prelude::*, test_storage,
     };
     use itertools::Itertools;
 
@@ -114,8 +114,7 @@ mod subgraph_tests {
         graph.add_node(1, 1, NO_PROPS, None).unwrap();
         graph.add_node(2, 2, NO_PROPS, None).unwrap();
 
-        // FIXME: Needs multilayer support (Issue #47)
-        test_graph(&graph, |graph| {
+        test_storage!(&graph, |graph| {
             let sg = graph.subgraph([1, 2]);
 
             let actual = sg.materialize().unwrap().into_events().unwrap();
@@ -168,8 +167,7 @@ mod subgraph_tests {
         graph.add_edge(0, 1, 2, NO_PROPS, Some("1")).unwrap();
         graph.add_edge(0, 3, 4, NO_PROPS, Some("2")).unwrap();
 
-        // FIXME: Needs multilayer support (Issue #47)
-        test_graph(&graph, |graph| {
+        test_storage!(&graph, |graph| {
             let sg = graph.subgraph([1, 2]);
             let sgm = sg.materialize().unwrap();
             assert_eq!(

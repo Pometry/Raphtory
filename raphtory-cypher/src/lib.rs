@@ -236,7 +236,7 @@ mod cypher {
         #[tokio::test]
         async fn select_table() {
             let graph_dir = tempdir().unwrap();
-            let graph = DiskGraphStorage::make_simple_graph(graph_dir, &EDGES, 3, 2);
+            let graph = DiskGraphStorage::make_simple_graph(&graph_dir, &EDGES, 3, 2);
 
             let df = run_cypher("match ()-[e]->() RETURN *", &graph, true)
                 .await
@@ -355,8 +355,6 @@ mod cypher {
                     None,
                     100,
                     100,
-                    None,
-                    None,
                     1,
                     None,
                 )

@@ -101,6 +101,8 @@ num = "0.4.1"
 display-error-chain = "0.2.0"
 polars-arrow = "0.39.2"
 polars-parquet = "0.39.2"
+polars-core = "0.39.2"
+polars-io = "0.39.2"
 polars-utils = "0.39.2"
 kdam = { version = "0.5.1" }
 pretty_assertions = "1.4.0"

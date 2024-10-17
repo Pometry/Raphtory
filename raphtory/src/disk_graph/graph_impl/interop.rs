@@ -1,7 +1,6 @@
 use crate::{
     core::{
-        entities::{LayerIds, ELID},
-        storage::timeindex::TimeIndexOps,
+        entities::LayerIds, storage::timeindex::TimeIndexIntoOps, utils::iter::GenLockedIter,
         Direction,
     },
     db::api::{
@@ -9,7 +8,10 @@ use crate::{
             edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
             tprop_storage_ops::TPropOps,
         },
-        view::internal::{CoreGraphOps, TimeSemantics},
+        view::{
+            internal::{CoreGraphOps, TimeSemantics},
+            IntoDynBoxed,
+        },
     },
     disk_graph::graph_impl::prop_conversion::arrow_array_from_props,
     prelude::*,
@@ -96,11 +98,11 @@ impl GraphLike<TimeIndexEntry> for Graph {
         edges
     }
 
-    fn edge_additions(&self, eid: EID, layer: usize) -> Vec<TimeIndexEntry> {
-        let el_id = ELID::new(eid.0.into(), Some(layer));
-        let edge = self.core_edge(el_id);
-        let timestamps: Vec<_> = edge.additions(layer).iter().collect();
-        timestamps
+    fn edge_additions(&self, eid: EID, layer: usize) -> impl Iterator<Item = TimeIndexEntry> + '_ {
+        let edge = self.core_edge(eid);
+        GenLockedIter::from(edge, |edge| {
+            edge.additions(layer).into_iter().into_dyn_boxed()
+        })
     }
 
     fn edge_prop_keys(&self) -> Vec<String> {
@@ -116,7 +118,8 @@ impl GraphLike<TimeIndexEntry> for Graph {
 
     fn prop_as_arrow<S: AsRef<str>>(
         &self,
-        edges: &[u64],
+        disk_edges: &[u64],
+        edge_id_map: &[usize],
         edge_ts: &[TimeIndexEntry],
         edge_t_offsets: &[usize],
         layer: usize,
@@ -129,10 +132,11 @@ impl GraphLike<TimeIndexEntry> for Graph {
             .get_dtype(prop_id)
             .unwrap();
         arrow_array_from_props(
-            edges.iter().enumerate().flat_map(|(index, &eid)| {
-                let ts = &edge_ts[edge_t_offsets[index]..edge_t_offsets[index + 1]];
-                let el_id = ELID::new((eid as usize).into(), Some(layer));
-                let edge = self.core_edge(el_id);
+            disk_edges.iter().flat_map(|&disk_eid| {
+                let disk_eid = disk_eid as usize;
+                let eid = edge_id_map[disk_eid];
+                let ts = &edge_ts[edge_t_offsets[disk_eid]..edge_t_offsets[disk_eid + 1]];
+                let edge = self.core_edge(EID(eid));
                 ts.iter()
                     .map(move |t| edge.temporal_prop_layer(layer, prop_id).at(t))
             }),
@@ -146,5 +150,11 @@ impl GraphLike<TimeIndexEntry> for Graph {
 
     fn latest_time(&self) -> i64 {
         self.latest_time_global().unwrap_or(i64::MIN)
+    }
+
+    fn out_neighbours(&self, vid: VID) -> impl Iterator<Item = (VID, EID)> + '_ {
+        self.core_node_entry(vid)
+            .into_edges_iter(&LayerIds::All, Direction::OUT)
+            .map(|e_ref| (e_ref.dst(), e_ref.pid()))
     }
 }

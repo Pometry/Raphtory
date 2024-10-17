@@ -169,7 +169,6 @@ mod graph_loader_test {
     use crate::{graph_loader::fetch_file, prelude::*};
     use csv::StringRecord;
     use raphtory_api::core::utils::logging::global_info_logger;
-    use tracing::info;
 
     #[test]
     fn test_fetch_file() {
@@ -276,15 +275,6 @@ mod graph_loader_test {
         assert_eq!(g.count_edges(), 701);
         assert_eq!(g.node("Gandalf").unwrap().neighbours().iter().count(), 49);
 
-        for v in g
-            .node("Gandalf")
-            .unwrap()
-            .window(1356, 24792)
-            .neighbours()
-            .iter()
-        {
-            info!("{:?}", v.id())
-        }
         assert_eq!(
             g.node("Gandalf")
                 .unwrap()

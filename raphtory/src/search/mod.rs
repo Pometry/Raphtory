@@ -8,7 +8,7 @@ use crate::{
     core::{
         entities::{
             nodes::node_ref::{AsNodeRef, NodeRef},
-            EID, ELID, VID,
+            EID, VID,
         },
         storage::{
             raw_edges::WriteLockedEdges,
@@ -600,7 +600,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
             .and_then(|value| value.as_u64())?
             .try_into()
             .ok()?;
-        let core_edge = self.graph.core_edge(ELID::new(EID(edge_id), None));
+        let core_edge = self.graph.core_edge(EID(edge_id));
         let layer_ids = self.graph.layer_ids();
         if !self.graph.filter_edge(core_edge.as_ref(), layer_ids) {
             return None;

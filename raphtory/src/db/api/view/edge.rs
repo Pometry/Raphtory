@@ -360,7 +360,7 @@ mod test_edge_view {
                 .add_edge(0, 1, 2, [("test", *v)], Some((v % 2).to_string().as_str()))
                 .unwrap();
         }
-        // FIXME: Needs multilayer support (Issue #47)
+        // FIXME: Needs support for secondary time index in disk storage (Issue #30)
         test_graph(&graph, |graph| {
             let prop_values: Vec<_> = graph
                 .edge(1, 2)

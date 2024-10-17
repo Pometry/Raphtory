@@ -420,6 +420,7 @@ mod db_tests {
     };
     use serde_json::Value;
     use std::collections::{HashMap, HashSet};
+    #[cfg(feature = "proto")]
     use tempfile::TempDir;
     use tracing::{error, info};
 
@@ -1207,8 +1208,7 @@ mod db_tests {
         graph.add_edge(0, 11, 33, NO_PROPS, Some("layer2"))?;
         graph.add_edge(0, 11, 44, NO_PROPS, Some("layer2"))?;
 
-        // FIXME: needs multilayer support (Issue #47)
-        test_graph(&graph, |graph| {
+        test_storage!(&graph, |graph| {
             assert!(graph.has_edge(11, 22));
             assert!(graph.default_layer().has_edge(11, 22));
             assert!(!graph.default_layer().has_edge(11, 44));
@@ -1912,8 +1912,7 @@ mod db_tests {
         graph.add_edge(0, 0, 1, NO_PROPS, None)?;
         graph.add_edge(0, 0, 1, NO_PROPS, Some("awesome name"))?;
 
-        // FIXME: Needs multilayer support (Issue #47)
-        test_graph(&graph, |graph| {
+        test_storage!(&graph, |graph| {
             let what = graph.edges().id().collect_vec();
             assert_eq!(what, vec![(0u64.into(), 1u64.into())]);
 
@@ -1928,8 +1927,7 @@ mod db_tests {
         let graph = Graph::new();
         graph.add_edge(0, 1, 2, NO_PROPS, Some("layer")).unwrap();
 
-        // FIXME: Needs multilayer support (Issue #47)
-        test_graph(&graph, |graph| {
+        test_storage!(&graph, |graph| {
             assert!(graph.edge(1, 2).is_some());
             assert!(graph.layers("layer").unwrap().edge(1, 2).is_some())
         });
@@ -1947,8 +1945,7 @@ mod db_tests {
             .expect("add edge");
         graph.add_edge(1, 1, 4, NO_PROPS, None).expect("add edge");
 
-        // FIXME: Needs multilayer support (Issue #47)
-        test_graph(&graph, |graph| {
+        test_storage!(&graph, |graph| {
             let g_layers = graph.layers(vec!["layer1", "layer3"]).expect("layer");
 
             assert!(g_layers.layers("layer1").unwrap().edge(1, 2).is_some());
@@ -2023,8 +2020,7 @@ mod db_tests {
         graph.add_edge(2, 1, 2, NO_PROPS, Some("layer1")).unwrap();
         graph.add_edge(3, 1, 2, NO_PROPS, None).unwrap();
 
-        // FIXME: Needs multilayer support (Issue #47)
-        test_graph(&graph, |graph| {
+        test_storage!(&graph, |graph| {
             let e = graph.edge(1, 2).expect("edge");
 
             let layer_exploded = e
@@ -2049,8 +2045,7 @@ mod db_tests {
         graph.add_edge(2, 1, 2, NO_PROPS, Some("layer1")).unwrap();
         graph.add_edge(3, 1, 2, NO_PROPS, None).unwrap();
 
-        // FIXME: Needs multilayer support (Issue #47)
-        test_graph(&graph, |graph| {
+        test_storage!(&graph, |graph| {
             let g = graph.window(0, 3);
             let e = g.edge(1, 2).expect("edge");
 
@@ -2079,8 +2074,7 @@ mod db_tests {
         graph.add_edge(2, 1, 2, NO_PROPS, Some("layer1")).unwrap();
         graph.add_edge(3, 1, 2, NO_PROPS, None).unwrap();
 
-        // FIXME: Needs multilayer support (Issue #47)
-        test_graph(&graph, |graph| {
+        test_storage!(&graph, |graph| {
             let e = graph.edge(1, 2).expect("edge");
 
             let layer_exploded = e
@@ -2114,8 +2108,7 @@ mod db_tests {
         graph.add_edge(2, 1, 2, NO_PROPS, Some("layer1")).unwrap();
         graph.add_edge(3, 1, 2, NO_PROPS, None).unwrap();
 
-        // FIXME: Needs multilayer support (Issue #47)
-        test_graph(&graph, |graph| {
+        test_storage!(&graph, |graph| {
             let g = graph.window(0, 3);
             let e = g.edge(1, 2).expect("edge");
 
@@ -2188,8 +2181,7 @@ mod db_tests {
             .add_edge(1, 1, 2, [("tx_sent", 70u64)], "tether".into())
             .expect("failed");
 
-        // FIXME: Needs multilayer support (Issue #47)
-        test_graph(&graph, |graph| {
+        test_storage!(&graph, |graph| {
             let e = graph.edge(1, 2).expect("failed to get edge");
             let sum: u64 = e
                 .properties()
@@ -2464,10 +2456,7 @@ mod db_tests {
                 .id()
                 .collect();
             assert!(out_out_2.is_empty());
-        });
 
-        // FIXME: requires multilayer edge view (Issue #47)
-        test_graph(&graph, |graph| {
             let v = graph.node(1).unwrap();
             let out_out: Vec<_> = v
                 .at(0)
@@ -2510,8 +2499,7 @@ mod db_tests {
         graph.add_edge(2, 3, 4, [("layer", 2)], Some("2")).unwrap();
         graph.add_edge(0, 1, 3, [("layer", 2)], Some("2")).unwrap();
 
-        // FIXME: Requires mutlilayer edge views
-        test_graph(&graph, |graph| {
+        test_storage!(&graph, |graph| {
             let wl = graph.window(0, 3).layers(vec!["1", "2"]).unwrap();
             assert_eq!(
                 weakly_connected_components(&wl, 10, None).get_all_values(),
@@ -2552,8 +2540,7 @@ mod db_tests {
             .add_edge(0, 0, 2, NO_PROPS, Some("awesome layer"))
             .unwrap();
 
-        // FIXME: Needs multilayer support (Issue #47)
-        test_graph(&graph, |graph| {
+        test_storage!(&graph, |graph| {
             assert_eq!(graph.edge(0, 1).unwrap().layer_names(), ["_default"]);
             assert_eq!(graph.edge(0, 2).unwrap().layer_names(), ["awesome layer"]);
         });

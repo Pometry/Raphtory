@@ -16,12 +16,14 @@ edition.workspace = true
 
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }
 bytemuck = { workspace = true }
 chrono.workspace = true
 dashmap = { workspace = true }
 rustc-hash = { workspace = true }
 lock_api = { workspace = true }
 parking_lot = { workspace = true }
+polars-arrow = { workspace = true, optional = true}
 pyo3 = { workspace = true, optional = true }
 rayon = { workspace = true }
 rand = { workspace = true }
@@ -40,4 +42,8 @@ default = []
 # Enables generating the pyo3 python bindings
 python = [
     "dep:pyo3",
+]
+
+storage = [
+    "dep:polars-arrow",
 ]
