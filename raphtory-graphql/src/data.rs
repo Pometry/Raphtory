@@ -348,7 +348,7 @@ pub(crate) mod data_tests {
 
         let data = Data::new(&base_path, &Default::default());
         let res = data.get_graph("test_dg").unwrap().0;
-        assert_eq!(res.graph.graph.into_events().unwrap().count_edges(), 2);
+        assert_eq!(res.graph.into_events().unwrap().count_edges(), 2);
 
         // Dir path doesn't exists
         let res = data.get_graph("test_dg1");
