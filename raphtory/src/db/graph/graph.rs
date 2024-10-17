@@ -24,7 +24,7 @@ use crate::{
             storage::{graph::storage_ops::GraphStorage, storage::Storage},
             view::internal::{Base, InheritViewOps, Static},
         },
-        graph::{node::NodeView, nodes::Nodes},
+        graph::{edges::Edges, node::NodeView, nodes::Nodes},
     },
     prelude::*,
 };
@@ -190,6 +190,88 @@ pub fn assert_nodes_equal<
     }
 }
 
+pub fn assert_edges_equal<
+    'graph1,
+    'graph2,
+    G1: GraphViewOps<'graph1>,
+    GH1: GraphViewOps<'graph1>,
+    G2: GraphViewOps<'graph2>,
+    GH2: GraphViewOps<'graph2>,
+>(
+    edges1: &Edges<'graph1, G1, GH1>,
+    edges2: &Edges<'graph2, G2, GH2>,
+) {
+    let mut edges1: Vec<_> = edges1.collect();
+    let mut edges2: Vec<_> = edges2.collect();
+    assert_eq!(
+        edges1.len(),
+        edges2.len(),
+        "mismatched number of edges: left {}, right {}",
+        edges1.len(),
+        edges2.len()
+    );
+    edges1.sort_by(|e1, e2| e1.id().cmp(&e2.id()));
+    edges2.sort_by(|e1, e2| e1.id().cmp(&e2.id()));
+
+    for (e1, e2) in edges1.into_iter().zip(edges2) {
+        assert_eq!(
+            e1.id(),
+            e2.id(),
+            "mismatched edge ids: left {:?}, right {:?}",
+            e1.id(),
+            e2.id()
+        );
+        assert_eq!(
+            e1.earliest_time(),
+            e2.earliest_time(),
+            "mismatched earliest time for edge {:?}: left {:?}, right {:?}",
+            e1.id(),
+            e1.earliest_time(),
+            e2.earliest_time()
+        );
+        assert_eq!(
+            e1.properties().constant().as_map(),
+            e2.properties().constant().as_map(),
+            "mismatched constant properties for edge {:?}: left {:?}, right {:?}",
+            e1.id(),
+            e1.properties().constant().as_map(),
+            e2.properties().constant().as_map()
+        );
+        assert_eq!(
+            e1.properties().temporal().as_map(),
+            e2.properties().temporal().as_map(),
+            "mismatched temporal properties for edge {:?}: left {:?}, right {:?}",
+            e1.id(),
+            e1.properties().temporal().as_map(),
+            e2.properties().temporal().as_map(),
+        );
+
+        // FIXME: DiskGraph does not currently preserve secondary index
+
+        let mut e1_updates: Vec<_> = e1
+            .explode()
+            .iter()
+            .map(|e| (e.layer_name().unwrap(), e.time().unwrap()))
+            .collect();
+        e1_updates.sort();
+
+        let mut e2_updates: Vec<_> = e2
+            .explode()
+            .iter()
+            .map(|e| (e.layer_name().unwrap(), e.time().unwrap()))
+            .collect();
+        e2_updates.sort();
+        assert_eq!(
+            e1_updates,
+            e2_updates,
+            "mismatched updates for edge {:?}: left {:?}, right {:?}",
+            e1.id(),
+            e1_updates,
+            e2_updates,
+        );
+    }
+}
+
 pub fn assert_graph_equal<
     'graph1,
     'graph2,
@@ -249,60 +331,7 @@ pub fn assert_graph_equal<
         g2.properties().temporal().as_map()
     );
     assert_nodes_equal(&g1.nodes(), &g2.nodes());
-
-    for e1 in g1.edges() {
-        let e2 = g2
-            .edge(e1.src().id(), e1.dst().id())
-            .unwrap_or_else(|| panic!("missing edge {:?}", e1.id()));
-        assert_eq!(
-            e1.earliest_time(),
-            e2.earliest_time(),
-            "mismatched earliest time for edge {:?}: left {:?}, right {:?}",
-            e1.id(),
-            e1.earliest_time(),
-            e2.earliest_time()
-        );
-        assert_eq!(
-            e1.properties().constant().as_map(),
-            e2.properties().constant().as_map(),
-            "mismatched constant properties for edge {:?}: left {:?}, right {:?}",
-            e1.id(),
-            e1.properties().constant().as_map(),
-            e2.properties().constant().as_map()
-        );
-        assert_eq!(
-            e1.properties().temporal().as_map(),
-            e2.properties().temporal().as_map(),
-            "mismatched temporal properties for edge {:?}: left {:?}, right {:?}",
-            e1.id(),
-            e1.properties().temporal().as_map(),
-            e2.properties().temporal().as_map(),
-        );
-
-        // FIXME: DiskGraph does not currently preserve secondary index
-
-        let mut e1_updates: Vec<_> = e1
-            .explode()
-            .iter()
-            .map(|e| (e.layer_name().unwrap(), e.time().unwrap()))
-            .collect();
-        e1_updates.sort();
-
-        let mut e2_updates: Vec<_> = e2
-            .explode()
-            .iter()
-            .map(|e| (e.layer_name().unwrap(), e.time().unwrap()))
-            .collect();
-        e2_updates.sort();
-        assert_eq!(
-            e1_updates,
-            e2_updates,
-            "mismatched updates for edge {:?}: left {:?}, right {:?}",
-            e1.id(),
-            e1_updates,
-            e2_updates,
-        );
-    }
+    assert_edges_equal(&g1.edges(), &g2.edges());
 }
 
 impl Display for Graph {

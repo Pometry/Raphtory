@@ -10,6 +10,7 @@ use crate::{
                     InheritListOps, InheritMaterialize, InheritTimeSemantics, NodeFilterOps,
                     Static,
                 },
+                node::NodeViewOps,
                 Base,
             },
         },

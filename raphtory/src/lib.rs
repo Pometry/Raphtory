@@ -127,7 +127,8 @@ pub mod prelude {
                 state::{AsOrderedNodeStateOps, NodeStateOps, OrderedNodeStateOps},
                 view::{
                     EdgePropertyFilterOps, EdgeViewOps, ExplodedEdgePropertyFilterOps,
-                    GraphViewOps, Layer, LayerOps, NodeViewOps, ResetFilter, TimeOps,
+                    GraphViewOps, Layer, LayerOps, NodePropertyFilterOps, NodeViewOps, ResetFilter,
+                    TimeOps,
                 },
             },
             graph::{graph::Graph, views::property_filter::PropertyFilter},
@@ -147,7 +148,9 @@ pub use raphtory_api::{atomic_extra, core::utils::logging};
 #[cfg(test)]
 mod test_utils {
     use crate::prelude::*;
+    use itertools::Itertools;
     use proptest::{arbitrary::any, prelude::Strategy};
+    use std::collections::{HashMap, HashSet};
     #[cfg(feature = "storage")]
     use tempfile::TempDir;
 
@@ -189,6 +192,22 @@ mod test_utils {
         )
     }
 
+    pub(crate) fn build_node_props(
+        max_num_nodes: u64,
+    ) -> impl Strategy<Value = Vec<(u64, Option<String>, Option<i64>)>> {
+        (0..max_num_nodes).prop_flat_map(|num_nodes| {
+            (0..num_nodes)
+                .map(|node| {
+                    (
+                        proptest::strategy::Just(node),
+                        any::<Option<String>>(),
+                        any::<Option<i64>>(),
+                    )
+                })
+                .collect_vec()
+        })
+    }
+
     pub(crate) fn build_edge_deletions(
         len: usize,
         num_nodes: u64,
@@ -200,7 +219,9 @@ mod test_utils {
         (i64::MIN..i64::MAX, i64::MIN..i64::MAX)
     }
 
-    pub(crate) fn build_graph_from_edge_list(edge_list: &[(u64, u64, i64, String, i64)]) -> Graph {
+    pub(crate) fn build_graph_from_edge_list<'a>(
+        edge_list: impl IntoIterator<Item = &'a (u64, u64, i64, String, i64)>,
+    ) -> Graph {
         let g = Graph::new();
         for (src, dst, time, str_prop, int_prop) in edge_list {
             g.add_edge(
@@ -215,6 +236,44 @@ mod test_utils {
             )
             .unwrap();
         }
+        g
+    }
+
+    pub(crate) fn add_node_props<'a>(
+        graph: &'a Graph,
+        nodes: impl IntoIterator<Item = &'a (u64, Option<String>, Option<i64>)>,
+    ) {
+        for (node, str_prop, int_prop) in nodes {
+            let props = [
+                str_prop.as_ref().map(|v| ("str_prop", v.into_prop())),
+                int_prop.as_ref().map(|v| ("int_prop", (*v).into())),
+            ]
+            .into_iter()
+            .flatten();
+            graph.add_node(0, *node, props, None).unwrap();
+        }
+    }
+
+    pub(crate) fn node_filtered_graph(
+        edge_list: &[(u64, u64, i64, String, i64)],
+        nodes: &[(u64, Option<String>, Option<i64>)],
+        filter: impl Fn(Option<&String>, Option<&i64>) -> bool,
+    ) -> Graph {
+        let node_map: HashMap<_, _> = nodes
+            .iter()
+            .map(|(n, str_v, int_v)| (n, (str_v.as_ref(), int_v.as_ref())))
+            .collect();
+        let g = build_graph_from_edge_list(edge_list.iter().filter(|(src, dst, ..)| {
+            let (src_str_v, src_int_v) = node_map.get(src).copied().unwrap_or_default();
+            let (dst_str_v, dst_int_v) = node_map.get(dst).copied().unwrap_or_default();
+            filter(src_str_v, src_int_v) && filter(dst_str_v, dst_int_v)
+        }));
+        add_node_props(
+            &g,
+            nodes
+                .iter()
+                .filter(|(_, str_v, int_v)| filter(str_v.as_ref(), int_v.as_ref())),
+        );
         g
     }
 }
