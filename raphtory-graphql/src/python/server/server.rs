@@ -192,6 +192,12 @@ impl PyGraphServer {
         Ok(PyGraphServer::new(server))
     }
 
+    /// Turn off index for all graphs
+    fn turn_off_index(slf: PyRefMut<Self>) -> PyResult<GraphServer> {
+        let server = take_server_ownership(slf)?;
+        Ok(server.turn_off_index())
+    }
+
     /// Setup the server to vectorise graphs with a default template.
     ///
     /// Arguments:

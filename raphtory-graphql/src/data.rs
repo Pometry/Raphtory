@@ -36,7 +36,7 @@ pub struct EmbeddingConf {
 pub struct Data {
     work_dir: PathBuf,
     cache: Cache<PathBuf, GraphWithVectors>,
-    index: bool,
+    pub(crate) index: bool,
     pub(crate) embedding_conf: Option<EmbeddingConf>,
 }
 

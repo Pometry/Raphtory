@@ -94,6 +94,12 @@ impl GraphServer {
         Ok(Self { data, config })
     }
 
+    /// Turn off index for all graphs
+    pub fn turn_off_index(mut self) -> Self {
+        self.data.index = false;
+        self
+    }
+
     pub fn set_embeddings<F: EmbeddingFunction + Clone + 'static>(
         mut self,
         embedding: F,
@@ -326,6 +332,13 @@ mod server_tests {
     use tokio::time::{sleep, Duration};
     use tracing::info;
 
+    fn setup_working_dir_with_test_graph() -> TempDir {
+        let tmp_dir = tempfile::tempdir().unwrap();
+        let graph = Graph::new();
+        graph.add_node(0, 0, NO_PROPS, None).unwrap();
+        graph.encode(tmp_dir.path().join("g")).unwrap();
+    }
+
     #[tokio::test]
     async fn test_server_start_stop() {
         global_info_logger();
@@ -350,10 +363,7 @@ mod server_tests {
 
     #[tokio::test]
     async fn test_server_start_with_failing_embedding() {
-        let tmp_dir = tempfile::tempdir().unwrap();
-        let graph = Graph::new();
-        graph.add_node(0, 0, NO_PROPS, None).unwrap();
-        graph.encode(tmp_dir.path().join("g")).unwrap();
+        let tmp_dir = setup_working_dir_with_test_graph();
 
         global_info_logger();
         let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, None).unwrap();
