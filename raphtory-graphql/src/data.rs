@@ -4,7 +4,6 @@ use crate::{
     model::plugins::query_plugin::QueryPlugin,
     paths::{ExistingGraphFolder, ValidGraphFolder},
 };
-use futures_util::future::ok;
 use moka::sync::Cache;
 use raphtory::{
     core::utils::errors::{GraphError, GraphResult},

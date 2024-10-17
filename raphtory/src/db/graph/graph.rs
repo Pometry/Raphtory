@@ -28,7 +28,6 @@ use crate::{
     },
     prelude::*,
 };
-use core::panic;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
