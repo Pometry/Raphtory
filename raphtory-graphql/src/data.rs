@@ -58,7 +58,7 @@ impl Data {
         Self {
             work_dir: work_dir.to_path_buf(),
             cache,
-            index: false,
+            index: true,
             embedding_conf: Default::default(),
         }
     }
