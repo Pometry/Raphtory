@@ -137,7 +137,7 @@ impl GqlGraph {
     }
 
     async fn exclude_nodes(&self, nodes: Vec<String>) -> GqlGraph {
-        // let nodes: Vec<NodeRef> = nodes.iter().map(|v| v.as_node_ref()).collect(); // TODO: review if this is really not needed
+        let nodes: Vec<NodeRef> = nodes.iter().map(|v| v.as_node_ref()).collect();
         self.apply(
             |g| g.exclude_nodes(nodes.clone()),
             |g| g.exclude_nodes(nodes.clone()),
