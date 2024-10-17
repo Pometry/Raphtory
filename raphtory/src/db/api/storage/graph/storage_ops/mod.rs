@@ -412,9 +412,10 @@ impl GraphStorage {
             EdgesStorage::Mem(edges) => {
                 let iter = (0..edges.len()).map(EID);
                 let filtered = match view.filter_state() {
-                    FilterState::Neither => FilterVariants::Neither(
-                        iter.map(move |eid| edges.get_mem(eid).as_edge_ref()),
-                    ),
+                    FilterState::Neither => FilterVariants::Neither(iter.filter_map(move |eid| {
+                        let e = EdgeStorageRef::Mem(edges.get_mem(eid));
+                        e.has_layer(view.layer_ids()).then(|| e.out_ref())
+                    })),
                     FilterState::Both => FilterVariants::Both(iter.filter_map(move |e| {
                         let e = EdgeStorageRef::Mem(edges.get_mem(e));
                         (view.filter_edge(e, view.layer_ids())
