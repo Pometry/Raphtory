@@ -369,9 +369,9 @@ mod time_tests {
                 mutation::AdditionOps,
                 view::{time::internal::InternalTimeOps, WindowSet},
             },
-            graph::graph::Graph,
+            graph::{graph::Graph, views::deletion_graph::PersistentGraph},
         },
-        prelude::{GraphViewOps, TimeOps, NO_PROPS},
+        prelude::{DeletionOps, GraphViewOps, TimeOps, NO_PROPS},
         test_storage,
     };
     use itertools::Itertools;
@@ -394,6 +394,37 @@ mod time_tests {
     {
         let window_bounds = windows.map(|w| (w.start(), w.end())).collect_vec();
         assert_eq!(window_bounds, expected)
+    }
+
+    #[test]
+    fn snapshot() {
+        let graph = PersistentGraph::new();
+        graph.add_edge(3, 0, 1, NO_PROPS, None).unwrap();
+        graph.add_edge(5, 0, 2, NO_PROPS, None).unwrap();
+        graph.delete_edge(7, 0, 1, None).unwrap();
+
+        let snapshot = graph.snapshot_at(2);
+        assert_eq!(snapshot.count_edges(), 0);
+
+        let snapshot = graph.snapshot_at(3);
+        assert_eq!(snapshot.count_edges(), 1);
+        assert!(snapshot.has_edge(0, 1));
+
+        let snapshot = graph.snapshot_latest();
+        assert_eq!(snapshot.count_edges(), 1);
+        assert!(snapshot.has_edge(0, 2));
+
+        let graph = graph.event_graph();
+
+        let snapshot = graph.snapshot_at(2);
+        assert_eq!(snapshot.count_edges(), 0);
+
+        let snapshot = graph.snapshot_at(3);
+        assert_eq!(snapshot.count_edges(), 1);
+        assert!(snapshot.has_edge(0, 1));
+
+        let snapshot = graph.snapshot_latest();
+        assert_eq!(snapshot.count_edges(), 2);
     }
 
     #[test]
