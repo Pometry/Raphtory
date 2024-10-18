@@ -1,11 +1,10 @@
-use crate::db::api::view::internal::InternalMaterialize;
 use crate::{
     core::{
         storage::timeindex::AsTime,
         utils::time::{error::ParseTimeError, Interval, IntoTime},
     },
     db::api::view::{
-        internal::{OneHopFilter, TimeSemantics},
+        internal::{InternalMaterialize, OneHopFilter, TimeSemantics},
         time::internal::InternalTimeOps,
     },
 };
