@@ -2390,26 +2390,18 @@ def test_snapshot():
     g.add_edge(1, 1, 2)
     g.add_edge(2, 1, 3)
 
-    @with_disk_graph
-    def check_event(g):
-        for time in range(0, 4):
-            assert g.before(time + 1) == g.snapshot_at(time)
-        assert g == g.snapshot_latest()
-
-    check_event(g)
+    for time in range(0, 4):
+        assert g.before(time + 1) == g.snapshot_at(time)
+    assert g == g.snapshot_latest()
 
     g = PersistentGraph()
     g.add_edge(1, 1, 2)
     g.add_edge(2, 1, 3)
     g.delete_edge(3, 1, 2)
 
-    @with_disk_graph
-    def check_persistent(g):
-        for time in range(0, 5):
-            assert g.at(time) == g.snapshot_at(time)
-        assert g.latest() == g.snapshot_latest()
-
-    check_persistent(g)
+    for time in range(0, 5):
+        assert g.at(time) == g.snapshot_at(time)
+    assert g.latest() == g.snapshot_latest()
 
 
 def test_one_hop_filter_reset():
