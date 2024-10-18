@@ -64,3 +64,10 @@ debug-python: activate-storage
 
 python-docs:
 	cd docs && make html
+
+docker-base-build:
+	cd docker/base && docker build --platform linux/amd64 -t pometry/raphtory_base .
+
+docker-build:
+	./scripts/deactivate_private_storage.py
+	docker build --platform linux/amd64 -t pometry/raphtory -f docker/dockerfile .
