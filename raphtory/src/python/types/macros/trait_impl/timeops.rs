@@ -120,20 +120,22 @@ macro_rules! impl_timeops {
                 self.$field.latest()
             }
 
-            // TODO: docs
-            #[doc = concat!(r" Create a view of the ", $name, r" including all events after `start` (exclusive).")]
+            #[doc = concat!(r" Create a view of the ", $name, r" including all events that have not been explicitly deleted at `time`.")]
+            ///
+            /// This is equivalent to `before(time + 1)` for `EventGraph`s and `at(time)` for `PersitentGraph`s
             ///
             /// Arguments:
-            ///     start (TimeInput): The start time of the window.
+            ///     time (TimeInput): The time of the window.
             ///
             /// Returns:
             #[doc = concat!(r"     A ", $name, r" object.")]
             pub fn snapshot_at(&self, time: PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
-                self.$field.after(time)
+                self.$field.snapshot_at(time)
             }
 
-            // TODO: docs
-            #[doc = concat!(r" Create a view of the ", $name, r" including all events at the latest time.")]
+            #[doc = concat!(r" Create a view of the ", $name, r" including all events that have not been explicitly deleted at the latest time.")]
+            ///
+            /// This is equivalent to a no-op for `EventGraph`s and `latest()` for `PersitentGraph`s
             ///
             /// Returns:
             #[doc = concat!(r"     A ", $name, r" object.")]

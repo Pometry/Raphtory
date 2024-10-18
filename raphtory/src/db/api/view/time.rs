@@ -120,10 +120,14 @@ pub trait TimeOps<'graph>:
     /// Create a view that only includes events at the latest time
     fn latest(&self) -> Self::WindowedViewType;
 
-    // TODO: add docs
+    /// Create a view including all events that have not been explicitly deleted at `time`
+    ///
+    /// This is equivalent to `before(time + 1)` for `EventGraph`s and `at(time)` for `PersitentGraph`s
     fn snapshot_at<T: IntoTime>(&self, time: T) -> Self::WindowedViewType;
 
-    // TODO: add docs
+    /// Create a view including all events that have not been explicitly deleted at the latest time
+    ///
+    /// This is equivalent to a no-op for `EventGraph`s and `latest()` for `PersitentGraph`s
     fn snapshot_latest(&self) -> Self::WindowedViewType;
 
     /// Create a view that only includes events after `start` (exclusive)
@@ -221,7 +225,7 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
     fn snapshot_latest(&self) -> Self::WindowedViewType {
         match self.latest_t() {
             Some(latest) => self.snapshot_at(latest),
-            None => self.internal_window(None, None),
+            None => self.snapshot_at(i64::MIN),
         }
     }
 
