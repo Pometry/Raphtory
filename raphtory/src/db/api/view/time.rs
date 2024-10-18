@@ -403,14 +403,14 @@ mod time_tests {
         graph.add_edge(4, 0, 2, [("b", "b")], None).unwrap();
         graph.delete_edge(5, 0, 1, None).unwrap();
 
-        for time in 2..6 {
+        for time in 2..7 {
             assert_eq!(graph.at(time), graph.snapshot_at(time));
         }
         assert_eq!(graph.latest(), graph.snapshot_latest());
 
         let graph = graph.event_graph();
 
-        for time in 2..6 {
+        for time in 2..7 {
             assert_eq!(graph.before(time + 1), graph.snapshot_at(time));
         }
         assert_eq!(graph, graph.snapshot_latest());
