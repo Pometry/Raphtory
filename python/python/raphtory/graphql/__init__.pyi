@@ -76,6 +76,9 @@ class GraphServer:
           RunningGraphServer: The running server
         """
 
+    def turn_off_index(self):
+        """Turn off index for all graphs"""
+
     def with_global_search_function(
         self, name: str, input: dict, function: Callable
     ) -> GraphServer:

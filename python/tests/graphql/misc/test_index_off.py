@@ -22,4 +22,7 @@ def test_latest_and_active():
         client = RaphtoryClient("http://localhost:1736")
         with pytest.raises(Exception) as excinfo:
             client.query(query)
-        assert "An operation tried to make use of the graph index but indexing has been turned off for the server" in str(excinfo.value)
+        assert (
+            "An operation tried to make use of the graph index but indexing has been turned off for the server"
+            in str(excinfo.value)
+        )

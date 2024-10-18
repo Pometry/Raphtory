@@ -2,11 +2,13 @@ use crate::{
     core::{utils::errors::GraphError, Prop},
     db::{
         api::view::{
-            internal::CoreGraphOps, DynamicGraph, IntoDynBoxed, IntoDynamic, StaticGraphViewOps,
+            internal::{CoreGraphOps, OneHopFilter},
+            DynamicGraph, IntoDynBoxed, IntoDynamic, StaticGraphViewOps,
         },
         graph::{
             edge::EdgeView,
             edges::{Edges, NestedEdges},
+            views::property_filter::internal::InternalNodePropertyFilterOps,
         },
     },
     prelude::*,
@@ -14,12 +16,16 @@ use crate::{
         graph::properties::{PyNestedPropsIterable, PyPropsList},
         types::{
             repr::{iterator_repr, Repr},
-            wrappers::iterables::{
-                ArcStringIterable, ArcStringVecIterable, BoolIterable, GIDGIDIterable, I64Iterable,
-                I64VecIterable, NestedArcStringIterable, NestedArcStringVecIterable,
-                NestedBoolIterable, NestedGIDGIDIterable, NestedI64VecIterable,
-                NestedOptionI64Iterable, NestedUtcDateTimeIterable, NestedVecUtcDateTimeIterable,
-                OptionI64Iterable, OptionUtcDateTimeIterable, OptionVecUtcDateTimeIterable,
+            wrappers::{
+                iterables::{
+                    ArcStringIterable, ArcStringVecIterable, BoolIterable, GIDGIDIterable,
+                    I64Iterable, I64VecIterable, NestedArcStringIterable,
+                    NestedArcStringVecIterable, NestedBoolIterable, NestedGIDGIDIterable,
+                    NestedI64VecIterable, NestedOptionI64Iterable, NestedUtcDateTimeIterable,
+                    NestedVecUtcDateTimeIterable, OptionI64Iterable, OptionUtcDateTimeIterable,
+                    OptionVecUtcDateTimeIterable,
+                },
+                prop::PyPropertyFilter,
             },
         },
         utils::{
