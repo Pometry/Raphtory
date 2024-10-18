@@ -2535,6 +2535,23 @@ mod db_tests {
     }
 
     #[test]
+    fn test_layer_degree() {
+        let g = Graph::new();
+        g.add_edge(0, 1, 2, NO_PROPS, Some("layer1")).unwrap();
+        g.add_edge(1, 1, 2, NO_PROPS, Some("layer2")).unwrap();
+        g.add_edge(2, 1, 3, NO_PROPS, Some("layer1")).unwrap();
+        g.add_edge(3, 1, 2, NO_PROPS, None).unwrap();
+
+        test_storage!(&g, |g| {
+            let n = g.node(1).unwrap();
+            let n_layer = n.layers("layer1").unwrap();
+            assert_eq!(n_layer.out_degree(), 2);
+            assert_eq!(n_layer.in_degree(), 0);
+            assert_eq!(n_layer.degree(), 2);
+        });
+    }
+
+    #[test]
     fn test_layer_name() {
         let graph = Graph::new();
 
