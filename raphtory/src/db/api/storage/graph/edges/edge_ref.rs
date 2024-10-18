@@ -1,4 +1,3 @@
-use super::edge_storage_ops::MemEdge;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
@@ -9,6 +8,7 @@ use crate::{
         tprop_storage_ops::TPropOps,
     },
 };
+use raphtory_memstorage::db::api::storage::graph::edges::edge_ref::EdgeStorageRef;
 use rayon::prelude::*;
 use std::ops::Range;
 

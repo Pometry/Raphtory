@@ -103,4 +103,12 @@ impl EdgeStore {
     pub fn as_edge_ref(&self) -> EdgeRef {
         EdgeRef::new_outgoing(self.eid, self.src, self.dst)
     }
+
+    pub fn src(&self) -> VID {
+        self.src
+    }   
+
+    pub fn dst(&self) -> VID {
+        self.dst
+    }
 }

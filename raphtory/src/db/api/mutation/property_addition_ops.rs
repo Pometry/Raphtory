@@ -1,5 +1,7 @@
+use raphtory_api::core::utils::errors::GraphError;
+
 use crate::{
-    core::utils::{errors::GraphError, time::TryIntoTime},
+    core::utils::time::TryIntoTime,
     db::api::mutation::{
         internal::{InternalAdditionOps, InternalPropertyAdditionOps},
         TryIntoInputTime,

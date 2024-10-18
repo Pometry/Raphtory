@@ -6,15 +6,11 @@ use std::{
 
 use rand::{distributions::Bernoulli, seq::IteratorRandom, Rng};
 use rand_distr::{Distribution, Exp};
+use raphtory_api::core::entities::VID;
+use raphtory_memstorage::core::entities::nodes::node_ref::AsNodeRef;
 
 use crate::{
-    algorithms::algorithm_result::AlgorithmResult,
-    core::{
-        entities::{nodes::node_ref::AsNodeRef, VID},
-        utils::time::{error::ParseTimeError, TryIntoTime},
-    },
-    db::api::view::StaticGraphViewOps,
-    prelude::*,
+    algorithms::algorithm_result::AlgorithmResult, core::utils::time::TryIntoTime, db::api::view::StaticGraphViewOps, prelude::*
 };
 
 #[repr(transparent)]
@@ -38,28 +34,12 @@ pub struct Infected {
 
 #[derive(thiserror::Error, Debug)]
 pub enum SeedError {
-    #[error("Invalid seed fraction")]
-    InvalidFraction {
-        #[from]
-        source: ProbabilityError,
-    },
     #[error("Invalid node {0}")]
     InvalidNode(String),
 
     #[error("Requested {num_seeds} seeds for graph with {num_nodes} nodes")]
     TooManyNodes { num_seeds: usize, num_nodes: usize },
 
-    #[error("Invalid recovery rate")]
-    InvalidRecoveryRate {
-        #[from]
-        source: rand_distr::ExpError,
-    },
-
-    #[error("Invalid initial time")]
-    InvalidTime {
-        #[from]
-        source: ParseTimeError,
-    },
 }
 #[allow(unused)]
 trait NotIterator {}

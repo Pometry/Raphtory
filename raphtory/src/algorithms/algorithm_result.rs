@@ -1,5 +1,6 @@
 use crate::prelude::NodeViewOps;
 use ordered_float::OrderedFloat;
+use raphtory_memstorage::core::entities::nodes::node_ref::AsNodeRef;
 use std::{
     collections::{hash_map::Iter, HashMap},
     hash::Hash,
@@ -364,11 +365,7 @@ where
     }
 }
 
-use crate::{
-    core::entities::{nodes::node_ref::AsNodeRef, VID},
-    db::graph::node::NodeView,
-    prelude::GraphViewOps,
-};
+use crate::{core::entities::VID, db::graph::node::NodeView, prelude::GraphViewOps};
 use num_traits::float::FloatCore;
 use std::fmt;
 

@@ -1,22 +1,17 @@
 use std::ops::Range;
 
-use raphtory_api::core::entities::EID;
+use raphtory_memstorage::db::api::storage::graph::edges::edge_entry::EdgeStorageEntry;
 use rayon::prelude::*;
 
-use super::edge_storage_ops::MemEdge;
 #[cfg(feature = "storage")]
 use crate::disk_graph::storage_interface::edge::DiskEdge;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
-        storage::raw_edges::EdgeRGuard,
         Prop,
     },
     db::api::storage::graph::{
-        edges::{
-            edge_ref::EdgeStorageRef,
-            edge_storage_ops::{EdgeStorageOps, TimeIndexRef},
-        },
+        edges::edge_storage_ops::{EdgeStorageOps, TimeIndexRef},
         tprop_storage_ops::TPropOps,
     },
 };

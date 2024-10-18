@@ -53,11 +53,11 @@ impl<'a> MemEdge<'a> {
         self.edges.internal_num_layers()
     }
 
-    fn get_additions(self, layer_id: usize) -> Option<&'a TimeIndex<TimeIndexEntry>> {
+    pub fn get_additions(self, layer_id: usize) -> Option<&'a TimeIndex<TimeIndexEntry>> {
         self.edges.additions(self.offset, layer_id)
     }
 
-    fn get_deletions(self, layer_id: usize) -> Option<&'a TimeIndex<TimeIndexEntry>> {
+    pub fn get_deletions(self, layer_id: usize) -> Option<&'a TimeIndex<TimeIndexEntry>> {
         self.edges.deletions(self.offset, layer_id)
     }
 

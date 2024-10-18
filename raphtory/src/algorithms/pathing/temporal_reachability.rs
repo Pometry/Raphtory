@@ -1,11 +1,8 @@
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
-    core::{
-        entities::nodes::node_ref::AsNodeRef,
-        state::{
-            accumulator_id::accumulators::{hash_set, min, or},
-            compute_state::ComputeStateVec,
-        },
+    core::state::{
+        accumulator_id::accumulators::{hash_set, min, or},
+        compute_state::ComputeStateVec,
     },
     db::{
         api::view::StaticGraphViewOps,
@@ -21,6 +18,7 @@ use crate::{
 use itertools::Itertools;
 use num_traits::Zero;
 use raphtory_api::core::entities::VID;
+use raphtory_memstorage::core::entities::nodes::node_ref::AsNodeRef;
 use std::{collections::HashMap, ops::Add};
 
 #[derive(Eq, Hash, PartialEq, Clone, Debug, Default)]

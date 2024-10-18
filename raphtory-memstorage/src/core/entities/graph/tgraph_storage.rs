@@ -9,7 +9,7 @@ use raphtory_api::core::entities::{EID, VID};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
-pub(crate) struct GraphStorage {
+pub struct GraphStorage {
     // node storage with having (id, time_index, properties, adj list for each layer)
     pub(crate) nodes: NodeStorage,
 
@@ -17,6 +17,15 @@ pub(crate) struct GraphStorage {
 }
 
 impl GraphStorage {
+
+    pub fn nodes(&self) -> &NodeStorage {
+        &self.nodes
+    }
+
+    pub fn edges(&self) -> &EdgesStorage {
+        &self.edges
+    }
+
     pub(crate) fn new(num_locks: usize) -> Self {
         Self {
             nodes: storage::NodeStorage::new(num_locks),
@@ -45,7 +54,7 @@ impl GraphStorage {
     }
 
     #[inline]
-    pub(crate) fn push_node(&self, node: NodeStore) -> UninitialisedEntry<NodeStore> {
+    pub fn push_node(&self, node: NodeStore) -> UninitialisedEntry<NodeStore> {
         self.nodes.push(node)
     }
     #[inline]
@@ -54,12 +63,12 @@ impl GraphStorage {
     }
 
     #[inline]
-    pub(crate) fn get_node_mut(&self, id: VID) -> EntryMut<'_, NodeStore> {
+    pub fn get_node_mut(&self, id: VID) -> EntryMut<'_, NodeStore> {
         self.nodes.entry_mut(id)
     }
 
     #[inline]
-    pub(crate) fn get_edge_mut(&self, eid: EID) -> EdgeWGuard {
+    pub fn get_edge_mut(&self, eid: EID) -> EdgeWGuard {
         self.edges.get_edge_mut(eid)
     }
 

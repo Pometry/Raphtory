@@ -30,15 +30,6 @@ impl<'a> From<DiskNode<'a>> for NodeStorageRef<'a> {
     }
 }
 
-macro_rules! for_all {
-    ($value:expr, $pattern:pat => $result:expr) => {
-        match $value {
-            NodeStorageRef::Mem($pattern) => $result,
-            #[cfg(feature = "storage")]
-            NodeStorageRef::Disk($pattern) => $result,
-        }
-    };
-}
 
 impl <'a> NodeStorageRef<'a> {
     pub fn node_type_id(self) -> usize {
@@ -50,25 +41,10 @@ impl <'a> NodeStorageRef<'a> {
     }
 
     pub fn degree(self, layer_ids: &LayerIds, direction: Direction) -> usize {
-        for_all!(self, node => node.degree(layer_ids, direction))
+        match self {
+            NodeStorageRef::Mem(node) => node.degree(layer_ids, direction),
+            #[cfg(feature = "storage")]
+            NodeStorageRef::Disk(node) => node.degree(layer_ids, direction),
+        }
     }
-}
-
-#[cfg(feature = "storage")]
-macro_rules! for_all_iter {
-    ($value:expr, $pattern:pat => $result:expr) => {{
-        match $value {
-            NodeStorageRef::Mem($pattern) => StorageVariants::Mem($result),
-            NodeStorageRef::Disk($pattern) => StorageVariants::Disk($result),
-        }
-    }};
-}
-
-#[cfg(not(feature = "storage"))]
-macro_rules! for_all_iter {
-    ($value:expr, $pattern:pat => $result:expr) => {{
-        match $value {
-            NodeStorageRef::Mem($pattern) => $result,
-        }
-    }};
 }

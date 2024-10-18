@@ -48,9 +48,11 @@
 //! println!("local clustering coefficient of all nodes: {:?}", actual);
 //! ```
 
+use raphtory_memstorage::core::entities::nodes::node_ref::AsNodeRef;
+
 use crate::{
     algorithms::motifs::local_triangle_count::local_triangle_count,
-    core::entities::nodes::node_ref::AsNodeRef, db::api::view::*,
+    db::api::view::*,
 };
 
 /// measures the degree to which nodes in a graph tend to cluster together

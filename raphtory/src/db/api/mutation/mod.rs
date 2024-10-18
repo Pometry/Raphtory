@@ -1,10 +1,6 @@
 use crate::{
     core::{
-        utils::{
-            errors::GraphError,
-            time::{error::ParseTimeError, TryIntoTime},
-        },
-        PropType,
+        utils::time::TryIntoTime, PropType
     },
     prelude::Prop,
 };
@@ -19,7 +15,7 @@ pub use addition_ops::AdditionOps;
 pub use deletion_ops::DeletionOps;
 pub use import_ops::ImportOps;
 pub use property_addition_ops::PropertyAdditionOps;
-use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+use raphtory_api::core::{storage::timeindex::TimeIndexEntry, utils::errors::{GraphError, ParseTimeError}};
 
 use self::internal::InternalAdditionOps;
 

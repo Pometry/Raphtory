@@ -5,8 +5,8 @@ use rayon::prelude::*;
 
 #[derive(Clone, Debug)]
 pub struct Index<K> {
-    keys: Arc<[K]>,
-    map: Arc<HashMap<K, usize>>,
+    pub keys: Arc<[K]>,
+    pub map: Arc<HashMap<K, usize>>,
 }
 
 impl<K: Copy + Hash + Eq> From<Vec<K>> for Index<K> {

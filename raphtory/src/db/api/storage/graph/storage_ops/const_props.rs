@@ -1,8 +1,7 @@
 use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_memstorage::db::api::storage::graph::GraphStorage;
 
 use crate::{db::api::properties::internal::ConstPropertiesOps, prelude::Prop};
-
-use super::GraphStorage;
 
 impl ConstPropertiesOps for GraphStorage {
     fn get_const_prop_id(&self, name: &str) -> Option<usize> {

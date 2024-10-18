@@ -21,7 +21,6 @@ use crate::{
     db::{
         api::{
             mutation::internal::InheritMutationOps,
-            storage::{graph::storage_ops::GraphStorage, storage::Storage},
             view::internal::{Base, InheritViewOps, Static},
         },
         graph::{node::NodeView, nodes::Nodes},
@@ -37,6 +36,7 @@ use std::{
     sync::Arc,
 };
 
+pub type Graph = raphtory_memstorage::db::graph::views::graph::Graph;
 
 impl Static for Graph {}
 

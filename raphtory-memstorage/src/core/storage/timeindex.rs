@@ -105,7 +105,7 @@ impl<T: AsTime> TimeIndex<T> {
         Box::new(self.range_iter(w))
     }
 
-    pub(crate) fn range_inner(&self, w: Range<T>) -> TimeIndexWindow<T> {
+    pub fn range_inner(&self, w: Range<T>) -> TimeIndexWindow<T> {
         match &self {
             TimeIndex::Empty => TimeIndexWindow::Empty,
             TimeIndex::One(t) => {

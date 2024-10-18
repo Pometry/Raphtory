@@ -1,29 +1,25 @@
 use std::{iter, ops::Range};
 
 use itertools::{kmerge, Itertools};
-use raphtory_api::core::{
-    entities::{edges::edge_ref::EdgeRef, VID},
-    storage::timeindex::{AsTime, TimeIndexEntry},
+use raphtory_api::{
+    core::{
+        entities::{edges::edge_ref::EdgeRef, VID},
+        storage::timeindex::{AsTime, TimeIndexEntry},
+        utils::iter::GenLockedIter,
+    },
+    BoxedLIter,
+};
+use raphtory_memstorage::db::api::storage::graph::{
+    edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef,
 };
 use rayon::iter::ParallelIterator;
 
 use super::GraphStorage;
 use crate::{
-    core::{
-        entities::LayerIds,
-        storage::timeindex::{TimeIndexIntoOps, TimeIndexOps},
-        utils::iter::GenLockedIter,
-    },
+    core::entities::LayerIds,
     db::api::{
-        storage::graph::{
-            edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-            nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-            tprop_storage_ops::TPropOps,
-        },
-        view::{
-            internal::{CoreGraphOps, TimeSemantics},
-            BoxedLIter, IntoDynBoxed,
-        },
+        storage::graph::edges::edge_storage_ops::EdgeStorageOps,
+        view::internal::{CoreGraphOps, TimeSemantics},
     },
     prelude::Prop,
 };
@@ -47,7 +43,7 @@ impl TimeSemantics for GraphStorage {
 
     fn earliest_time_global(&self) -> Option<i64> {
         match self {
-            GraphStorage::Mem(storage) => storage.graph.graph_earliest_time(),
+            GraphStorage::Mem(storage) => storage.graph().graph_earliest_time(),
             GraphStorage::Unlocked(storage) => storage.graph_earliest_time(),
             #[cfg(feature = "storage")]
             GraphStorage::Disk(storage) => storage.inner.earliest(),
@@ -56,7 +52,7 @@ impl TimeSemantics for GraphStorage {
 
     fn latest_time_global(&self) -> Option<i64> {
         match self {
-            GraphStorage::Mem(storage) => storage.graph.graph_latest_time(),
+            GraphStorage::Mem(storage) => storage.graph().graph_latest_time(),
             GraphStorage::Unlocked(storage) => storage.graph_latest_time(),
             #[cfg(feature = "storage")]
             GraphStorage::Disk(storage) => storage.inner.latest(),

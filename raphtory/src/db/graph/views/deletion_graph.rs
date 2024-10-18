@@ -35,18 +35,13 @@ use std::{
     sync::Arc,
 };
 
+pub type PersistentGraph = raphtory_memstorage::db::graph::views::deletion_graph::PersistentGraph;
 
 impl Static for PersistentGraph {}
 
 impl From<GraphStorage> for PersistentGraph {
     fn from(value: GraphStorage) -> Self {
         Self(Arc::new(Storage::from_inner(value)))
-    }
-}
-
-impl Display for PersistentGraph {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        Display::fmt(&self.0, f)
     }
 }
 

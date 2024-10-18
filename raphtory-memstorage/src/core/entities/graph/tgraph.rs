@@ -75,6 +75,31 @@ impl Default for TemporalGraph {
 }
 
 impl TemporalGraph {
+
+    pub fn logical_to_physical(&self) -> &Mapping {
+        &self.logical_to_physical
+    }
+
+    pub fn storage(&self) -> &GraphStorage {
+        &self.storage
+    }
+
+    pub fn event_counter(&self) -> &AtomicUsize {
+        &self.event_counter
+    }
+
+    pub fn edge_meta(&self) -> &Meta {
+        &self.edge_meta
+    }
+
+    pub fn node_meta(&self) -> &Meta {
+        &self.node_meta
+    }
+
+    pub fn graph_meta(&self) -> &GraphMeta {
+        &self.graph_meta
+    }
+
     pub fn new(num_locks: usize) -> Self {
         TemporalGraph {
             logical_to_physical: Mapping::new(),
@@ -89,7 +114,7 @@ impl TemporalGraph {
         }
     }
 
-    pub(crate) fn process_prop_value(&self, prop: &Prop) -> Prop {
+    pub fn process_prop_value(&self, prop: &Prop) -> Prop {
         match prop {
             Prop::Str(value) => Prop::Str(self.resolve_str(value)),
             _ => prop.clone(),
@@ -109,7 +134,7 @@ impl TemporalGraph {
         self.edge_meta.layer_meta().len()
     }
 
-    pub(crate) fn layer_ids(&self, key: Layer) -> Result<LayerIds, GraphError> {
+    pub fn layer_ids(&self, key: Layer) -> Result<LayerIds, GraphError> {
         match key {
             Layer::None => Ok(LayerIds::None),
             Layer::All => Ok(LayerIds::All),
@@ -150,7 +175,7 @@ impl TemporalGraph {
         }
     }
 
-    pub(crate) fn valid_layer_ids(&self, key: Layer) -> LayerIds {
+    pub fn valid_layer_ids(&self, key: Layer) -> LayerIds {
         match key {
             Layer::None => LayerIds::None,
             Layer::All => LayerIds::All,
@@ -185,11 +210,11 @@ impl TemporalGraph {
         self.edge_meta.get_layer_name_by_id(layer)
     }
 
-    pub(crate) fn graph_earliest_time(&self) -> Option<i64> {
+    pub fn graph_earliest_time(&self) -> Option<i64> {
         Some(self.earliest_time.get()).filter(|t| *t != i64::MAX)
     }
 
-    pub(crate) fn graph_latest_time(&self) -> Option<i64> {
+    pub fn graph_latest_time(&self) -> Option<i64> {
         Some(self.latest_time.get()).filter(|t| *t != i64::MIN)
     }
 
@@ -308,7 +333,7 @@ impl TemporalGraph {
     }
 
     #[inline]
-    pub(crate) fn update_time(&self, time: TimeIndexEntry) {
+    pub fn update_time(&self, time: TimeIndexEntry) {
         let t = time.t();
         self.earliest_time.update(t);
         self.latest_time.update(t);
@@ -333,7 +358,7 @@ impl TemporalGraph {
         Ok(())
     }
 
-    pub(crate) fn link_edge(
+    pub fn link_edge(
         &self,
         eid: EID,
         t: TimeIndexEntry,
@@ -354,7 +379,7 @@ impl TemporalGraph {
         edge_fn(edge_w.as_mut())
     }
 
-    pub(crate) fn link_nodes<F: FnOnce(MutEdge) -> Result<(), GraphError>>(
+    pub fn link_nodes<F: FnOnce(MutEdge) -> Result<(), GraphError>>(
         &self,
         src_id: VID,
         dst_id: VID,

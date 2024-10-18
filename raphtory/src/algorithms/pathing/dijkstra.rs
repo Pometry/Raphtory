@@ -3,8 +3,10 @@ use std::{
     collections::{BinaryHeap, HashMap, HashSet},
 };
 
+use raphtory_memstorage::core::entities::nodes::node_ref::AsNodeRef;
+
 /// Dijkstra's algorithm
-use crate::{core::entities::nodes::node_ref::AsNodeRef, db::api::view::StaticGraphViewOps};
+use crate::db::api::view::StaticGraphViewOps;
 use crate::{
     core::{Direction, PropType},
     prelude::{EdgeViewOps, NodeViewOps, Prop},

@@ -1,9 +1,6 @@
-use crate::core::{entities::properties::tprop::TProp, storage::timeindex::AsTime, Prop};
-#[cfg(feature = "storage")]
-use crate::db::api::storage::graph::variants::storage_variants::StorageVariants;
-#[cfg(feature = "storage")]
-use pometry_storage::tprops::DiskTProp;
+use crate::core::{storage::timeindex::AsTime, Prop};
 use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+use raphtory_memstorage::core::entities::properties::tprop::TProp;
 use std::ops::Range;
 
 #[derive(Copy, Clone, Debug)]
@@ -13,7 +10,7 @@ pub enum TPropRef<'a> {
     Disk(DiskTProp<'a, TimeIndexEntry>),
 }
 
-macro_rules! for_all {
+macro_rules! for_all_tp {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
             TPropRef::Mem($pattern) => $result,
@@ -24,7 +21,7 @@ macro_rules! for_all {
 }
 
 #[cfg(feature = "storage")]
-macro_rules! for_all_variants {
+macro_rules! for_all_variants_tp {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
             TPropRef::Mem($pattern) => StorageVariants::Mem($result),
@@ -34,7 +31,7 @@ macro_rules! for_all_variants {
 }
 
 #[cfg(not(feature = "storage"))]
-macro_rules! for_all_variants {
+macro_rules! for_all_variants_tp {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
             TPropRef::Mem($pattern) => $result,
@@ -77,69 +74,161 @@ pub trait TPropOps<'a>: Sized + 'a + Send {
     }
 }
 
+use raphtory_memstorage::db::api::storage::graph::variants::storage_variants;
+use raphtory_memstorage::db::api::storage::graph::variants::storage_variants3;
+
+#[cfg(feature = "storage")]
+macro_rules! SelfType2 {
+    ($Mem:ident, $Disk:ident) => {
+        StorageVariants<$Mem, $Disk>
+    };
+}
+
+#[cfg(not(feature = "storage"))]
+macro_rules! SelfType2 {
+    ($Mem:ident, $Disk:ident) => {
+        storage_variants::StorageVariants<$Mem>
+    };
+}
+
+macro_rules! for_all2 {
+    ($value:expr, $pattern:pat => $result:expr) => {
+        match $value {
+            storage_variants::StorageVariants::Mem($pattern) => $result,
+            #[cfg(feature = "storage")]
+            storage_variants::StorageVariants::Disk($pattern) => $result,
+        }
+    };
+}
+
+#[cfg(feature = "storage")]
+macro_rules! for_all_iter2 {
+    ($value:expr, $pattern:pat => $result:expr) => {
+        match $value {
+            storage_variants::StorageVariants::Mem($pattern) => StorageVariants::Mem($result),
+            storage_variants::StorageVariants::Disk($pattern) => StorageVariants::Disk($result),
+        }
+    };
+}
+
+#[cfg(not(feature = "storage"))]
+macro_rules! for_all_iter2 {
+    ($value:expr, $pattern:pat => $result:expr) => {
+        match $value {
+            storage_variants::StorageVariants::Mem($pattern) => $result,
+        }
+    };
+}
+
+#[cfg(feature = "storage")]
+macro_rules! SelfType3 {
+    ($Mem:ident, $Unlocked:ident, $Disk:ident) => {
+        StorageVariants<$Mem, $Unlocked, $Disk>
+    };
+}
+
+#[cfg(not(feature = "storage"))]
+macro_rules! SelfType3 {
+    ($Mem:ident, $Unlocked:ident, $Disk:ident) => {
+        storage_variants3::StorageVariants<$Mem, $Unlocked>
+    };
+}
+
+macro_rules! for_all3 {
+    ($value:expr, $pattern:pat => $result:expr) => {
+        match $value {
+            storage_variants3::StorageVariants::Mem($pattern) => $result,
+            storage_variants3::StorageVariants::Unlocked($pattern) => $result,
+            #[cfg(feature = "storage")]
+            storage_variants3::StorageVariants::Disk($pattern) => $result,
+        }
+    };
+}
+
+#[cfg(feature = "storage")]
+macro_rules! for_all_iter3 {
+    ($value:expr, $pattern:pat => $result:expr) => {
+        match $value {
+            storage_variants3::StorageVariants::Mem($pattern) => StorageVariants::Mem($result),
+            storage_variants3::torageVariants::Unlocked($pattern) => StorageVariants::Unlocked($result),
+            storage_variants3::torageVariants::Disk($pattern) => StorageVariants::Disk($result),
+        }
+    };
+}
+
+#[cfg(not(feature = "storage"))]
+macro_rules! for_all_iter3 {
+    ($value:expr, $pattern:pat => $result:expr) => {
+        match $value {
+            storage_variants3::StorageVariants::Mem($pattern) => storage_variants3::StorageVariants::Mem($result),
+            storage_variants3::StorageVariants::Unlocked($pattern) => storage_variants3::StorageVariants::Unlocked($result),
+        }
+    };
+}
+
 impl<
         'a,
         Mem: TPropOps<'a> + 'a,
         Unlocked: TPropOps<'a> + 'a,
         #[cfg(feature = "storage")] Disk: TPropOps<'a> + 'a,
-    > TPropOps<'a> for SelfType!(Mem, Unlocked, Disk)
+    > TPropOps<'a> for SelfType3!(Mem, Unlocked, Disk)
 {
     fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, Prop)> {
-        for_all!(self, props => props.last_before(t))
+        for_all3!(self, props => props.last_before(t))
     }
 
     fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
-        for_all_iter!(self, props => props.iter())
+        for_all_iter3!(self, props => props.iter())
     }
 
     fn iter_window(
         self,
         r: Range<TimeIndexEntry>,
     ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
-        for_all_iter!(self, props => props.iter_window(r))
+        for_all_iter3!(self, props => props.iter_window(r))
     }
 
     fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
-        for_all!(self, props => props.at(ti))
+        for_all3!(self, props => props.at(ti))
     }
 
     fn len(self) -> usize {
-        for_all!(self, props=> props.len())
+        for_all3!(self, props=> props.len())
     }
 
     fn is_empty(self) -> bool {
-        for_all!(self, props => props.is_empty())
+        for_all3!(self, props => props.is_empty())
     }
 }
 
 impl<'a, Mem: TPropOps<'a> + 'a, #[cfg(feature = "storage")] Disk: TPropOps<'a> + 'a> TPropOps<'a>
-    for SelfType!(Mem, Disk)
+    for SelfType2!(Mem, Disk)
 {
     fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, Prop)> {
-        for_all!(self, props => props.last_before(t))
+        for_all2!(self, props => props.last_before(t))
     }
 
     fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
-        for_all_iter!(self, props => props.iter())
+        for_all_iter2!(self, props => props.iter())
     }
 
     fn iter_window(
         self,
         r: Range<TimeIndexEntry>,
     ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
-        for_all_iter!(self, props => props.iter_window(r))
+        for_all_iter2!(self, props => props.iter_window(r))
     }
 
     fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
-        for_all!(self, props => props.at(ti))
+        for_all2!(self, props => props.at(ti))
     }
 
     fn len(self) -> usize {
-        for_all!(self, props=> props.len())
+        for_all2!(self, props=> props.len())
     }
 
     fn is_empty(self) -> bool {
-        for_all!(self, props => props.is_empty())
+        for_all2!(self, props => props.is_empty())
     }
 }
 
@@ -233,31 +322,32 @@ impl<'a> TPropOps<'a> for &'a TProp {
 
 impl<'a> TPropOps<'a> for TPropRef<'a> {
     fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, Prop)> {
-        for_all!(self, tprop => tprop.last_before(t))
+        for_all_tp!(self, tprop => tprop.last_before(t))
     }
 
     fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
-        for_all_variants!(self, tprop => tprop.iter())
+        for_all_variants_tp!(self, tprop => tprop.iter())
     }
 
     fn iter_window(
         self,
         r: Range<TimeIndexEntry>,
     ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
-        for_all_variants!(self, tprop => tprop.iter_window(r))
+        for_all_variants_tp!(self, tprop => tprop.iter_window(r))
     }
 
     fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
-        for_all!(self, tprop => tprop.at(ti))
+        for_all_tp!(self, tprop => tprop.at(ti))
     }
 
     fn len(self) -> usize {
-        for_all!(self, tprop => tprop.len())
+        for_all_tp!(self, tprop => tprop.len())
     }
 }
 
 #[cfg(test)]
 mod test {
+    use raphtory_memstorage::core::entities::{properties::tprop::TProp, Prop};
 
     #[test]
     fn updates_to_prop_can_be_window_iterated() {

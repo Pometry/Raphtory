@@ -1,5 +1,4 @@
 use crate::{
-    core::entities::nodes::node_ref::AsNodeRef,
     db::{
         api::state::{node_state::NodeState, ord_ops, Index},
         graph::node::NodeView,
@@ -7,6 +6,7 @@ use crate::{
     prelude::{GraphViewOps, NodeViewOps},
 };
 use num_traits::AsPrimitive;
+use raphtory_memstorage::core::entities::nodes::node_ref::AsNodeRef;
 use rayon::{
     iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator},
     prelude::ParallelSliceMut,

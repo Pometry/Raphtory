@@ -47,11 +47,11 @@ extern crate core;
 
 pub mod entities;
 pub mod state;
-pub mod storage;
 pub mod utils;
 
 pub use raphtory_api::core::*;
-
+pub use raphtory_memstorage::core::storage::*;
+pub use raphtory_memstorage::core::entities::*;
 
 pub trait PropUnwrap: Sized {
     fn into_u8(self) -> Option<u8>;
@@ -335,7 +335,7 @@ impl PropUnwrap for Prop {
 mod serde_value_into_prop {
     use std::collections::HashMap;
 
-    use super::{IntoPropMap, Prop};
+    use super::Prop;
     use serde_json::Value;
 
     impl TryFrom<Value> for Prop {

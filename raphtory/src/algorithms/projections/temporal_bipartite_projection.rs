@@ -1,8 +1,8 @@
 use itertools::Itertools;
 use num_integer::average_floor;
+use raphtory_memstorage::core::entities::nodes::node_ref::AsNodeRef;
 extern crate num_integer;
 use crate::{
-    core::entities::nodes::node_ref::AsNodeRef,
     db::{
         api::{mutation::AdditionOps, view::*},
         graph::graph::Graph,

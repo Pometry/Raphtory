@@ -1,22 +1,6 @@
-use crate::{
-    core::{
-        entities::{
-            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-            properties::{props::Props, tprop::TProp},
-            LayerIds, VID,
-        },
-        storage::{
-            raw_edges::EdgeShard,
-            timeindex::{TimeIndex, TimeIndexIntoOps, TimeIndexOps, TimeIndexWindow},
-        },
-        Prop,
-    },
-    db::api::{
-        storage::graph::{tprop_storage_ops::TPropOps, variants::layer_variants::LayerVariants},
-        view::IntoDynBoxed,
-    },
-};
-use raphtory_api::core::{entities::EID, storage::timeindex::TimeIndexEntry};
+use crate::{core::Prop, db::api::storage::graph::tprop_storage_ops::TPropOps};
+use raphtory_api::core::{entities::{edges::edge_ref::EdgeRef, LayerIds, EID, VID}, storage::timeindex::TimeIndexEntry};
+use raphtory_memstorage::{core::{entities::properties::tprop::TProp, storage::timeindex::{TimeIndex, TimeIndexIntoOps, TimeIndexOps, TimeIndexWindow}}, db::api::storage::graph::{edges::mem_edge::MemEdge, variants::layer_variants::LayerVariants}};
 use rayon::prelude::*;
 use std::ops::Range;
 
@@ -221,7 +205,6 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn constant_prop_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop>;
 }
 
-
 impl<'a> EdgeStorageOps<'a> for MemEdge<'a> {
     fn active(self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
         match layer_ids {
@@ -244,11 +227,11 @@ impl<'a> EdgeStorageOps<'a> for MemEdge<'a> {
     }
 
     fn src(self) -> VID {
-        self.edge_store().src
+        self.edge_store().src()
     }
 
     fn dst(self) -> VID {
-        self.edge_store().dst
+        self.edge_store().dst()
     }
 
     fn out_ref(self) -> EdgeRef {

@@ -1,14 +1,8 @@
-use crate::core::utils::time::error::{ParseTimeError::InvalidDateTimeString, *};
 use chrono::{DateTime, Duration, Months, NaiveDate, NaiveDateTime, TimeZone};
 use itertools::{Either, Itertools};
+use raphtory_api::core::utils::errors::ParseTimeError;
 use regex::Regex;
 use std::ops::{Add, Sub};
-
-pub mod error {
-    use chrono::ParseError;
-    use std::num::ParseIntError;
-
-}
 
 pub trait IntoTime {
     fn into_time(self) -> i64;
@@ -85,7 +79,7 @@ impl TryIntoTime for &str {
             return Ok(datetime.and_utc().timestamp_millis());
         }
 
-        Err(InvalidDateTimeString(self.to_string()))
+        Err(ParseTimeError::InvalidDateTimeString(self.to_string()))
     }
 }
 

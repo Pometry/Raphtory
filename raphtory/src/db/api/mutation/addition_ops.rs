@@ -1,8 +1,11 @@
+use raphtory_api::core::utils::errors::GraphError;
+use raphtory_memstorage::core::entities::nodes::node_ref::AsNodeRef;
+
 use super::time_from_input;
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, nodes::node_ref::AsNodeRef},
-        utils::{errors::GraphError, time::IntoTimeWithFormat},
+        entities::{edges::edge_ref::EdgeRef},
+        utils::{time::IntoTimeWithFormat},
         Prop,
     },
     db::{

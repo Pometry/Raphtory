@@ -58,7 +58,7 @@ impl TProp {
         }
     }
 
-    pub(crate) fn from(t: TimeIndexEntry, prop: Prop) -> Self {
+    pub fn from(t: TimeIndexEntry, prop: Prop) -> Self {
         match prop {
             Prop::Str(value) => TProp::Str(TCell::new(t, value)),
             Prop::I32(value) => TProp::I32(TCell::new(t, value)),
@@ -80,7 +80,7 @@ impl TProp {
         }
     }
 
-    pub(crate) fn set(&mut self, t: TimeIndexEntry, prop: Prop) -> Result<(), GraphError> {
+    pub fn set(&mut self, t: TimeIndexEntry, prop: Prop) -> Result<(), GraphError> {
         if matches!(self, TProp::Empty) {
             *self = TProp::from(t, prop);
         } else {
@@ -144,7 +144,7 @@ impl TProp {
         Ok(())
     }
 
-    pub(crate) fn iter_inner(
+    pub fn iter_inner(
         &self,
     ) -> Box<dyn Iterator<Item = (TimeIndexEntry, Prop)> + Send + '_> {
         match self {
@@ -187,7 +187,7 @@ impl TProp {
         }
     }
 
-    pub(crate) fn iter_t(&self) -> Box<dyn Iterator<Item = (i64, Prop)> + Send + '_> {
+    pub fn iter_t(&self) -> Box<dyn Iterator<Item = (i64, Prop)> + Send + '_> {
         match self {
             TProp::Empty => Box::new(iter::empty()),
             TProp::Str(cell) => Box::new(
@@ -232,7 +232,7 @@ impl TProp {
         }
     }
 
-    pub(crate) fn iter_window_inner(
+    pub fn iter_window_inner(
         &self,
         r: Range<TimeIndexEntry>,
     ) -> Box<dyn Iterator<Item = (TimeIndexEntry, Prop)> + Send + '_> {

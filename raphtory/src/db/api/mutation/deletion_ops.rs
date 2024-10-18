@@ -1,9 +1,6 @@
 use super::time_from_input;
 use crate::{
-    core::{
-        entities::nodes::node_ref::AsNodeRef,
-        utils::{errors::GraphError, time::IntoTimeWithFormat},
-    },
+    core::utils::time::IntoTimeWithFormat,
     db::{
         api::{
             mutation::{
@@ -15,7 +12,8 @@ use crate::{
         graph::edge::EdgeView,
     },
 };
-use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
+use raphtory_api::core::{entities::edges::edge_ref::EdgeRef, utils::errors::GraphError};
+use raphtory_memstorage::core::entities::nodes::node_ref::AsNodeRef;
 
 pub trait DeletionOps:
     InternalDeletionOps + InternalAdditionOps + StaticGraphViewOps + Sized

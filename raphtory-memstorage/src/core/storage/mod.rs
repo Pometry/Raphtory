@@ -192,7 +192,7 @@ impl NodeStorage {
         }
     }
 
-    pub(crate) fn write_lock(&self) -> WriteLockedNodes {
+    pub fn write_lock(&self) -> WriteLockedNodes {
         WriteLockedNodes {
             guards: self.data.iter().map(|lock| lock.data.write()).collect(),
             global_len: &self.len,
@@ -300,6 +300,10 @@ impl NodeStorage {
 
     pub fn next_id(&self) -> VID {
         VID(self.len.fetch_add(1, Ordering::Relaxed))
+    }
+
+    pub fn shards(&self) -> &[LockVec<NodeStore>] {
+        &self.data
     }
 }
 

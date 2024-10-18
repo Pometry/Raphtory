@@ -33,6 +33,11 @@ impl serde::Serialize for LockedGraph {
 }
 
 impl LockedGraph {
+
+    pub fn graph(&self) -> &TemporalGraph {
+        &self.graph
+    }
+
     pub fn new(graph: Arc<TemporalGraph>) -> Self {
         let nodes = Arc::new(graph.storage.nodes_read_lock());
         let edges = Arc::new(graph.storage.edges_read_lock());
@@ -61,7 +66,7 @@ pub struct WriteLockedGraph<'a> {
 }
 
 impl<'a> WriteLockedGraph<'a> {
-    pub(crate) fn new(graph: &'a TemporalGraph) -> Self {
+    pub fn new(graph: &'a TemporalGraph) -> Self {
         let nodes = graph.storage.nodes.write_lock();
         let edges = graph.storage.edges.write_lock();
         Self {

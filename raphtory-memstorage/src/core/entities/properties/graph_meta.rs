@@ -56,7 +56,7 @@ impl GraphMeta {
     }
 
     #[inline]
-    pub(crate) fn resolve_property(
+    pub fn resolve_property(
         &self,
         name: &str,
         dtype: PropType,
@@ -71,7 +71,7 @@ impl GraphMeta {
         }
     }
 
-    pub(crate) fn add_constant_prop(
+    pub fn add_constant_prop(
         &self,
         prop_id: usize,
         prop: Prop,
@@ -94,7 +94,7 @@ impl GraphMeta {
         Ok(())
     }
 
-    pub(crate) fn update_constant_prop(
+    pub fn update_constant_prop(
         &self,
         prop_id: usize,
         prop: Prop,
@@ -104,7 +104,7 @@ impl GraphMeta {
         Ok(())
     }
 
-    pub(crate) fn add_prop(
+    pub fn add_prop(
         &self,
         t: TimeIndexEntry,
         prop_id: usize,
@@ -114,12 +114,12 @@ impl GraphMeta {
         (*prop_entry).set(t, prop)
     }
 
-    pub(crate) fn get_constant(&self, id: usize) -> Option<Prop> {
+    pub fn get_constant(&self, id: usize) -> Option<Prop> {
         let entry = self.constant.get(&id)?;
         entry.as_ref().cloned()
     }
 
-    pub(crate) fn get_temporal_prop(&self, prop_id: usize) -> Option<LockedView<'_, TProp>> {
+    pub fn get_temporal_prop(&self, prop_id: usize) -> Option<LockedView<'_, TProp>> {
         let entry = self.temporal.get(&prop_id)?;
         Some(LockedView::DashMap(entry))
     }
@@ -150,11 +150,11 @@ impl GraphMeta {
         self.temporal_mapper.get_dtype(prop_id)
     }
 
-    pub(crate) fn constant_names(&self) -> ArcReadLockedVec<ArcStr> {
+    pub fn constant_names(&self) -> ArcReadLockedVec<ArcStr> {
         self.constant_mapper.get_keys()
     }
 
-    pub(crate) fn const_prop_ids(&self) -> impl Iterator<Item = usize> {
+    pub fn const_prop_ids(&self) -> impl Iterator<Item = usize> {
         0..self.constant_mapper.len()
     }
 

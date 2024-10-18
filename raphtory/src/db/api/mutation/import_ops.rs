@@ -1,13 +1,7 @@
 use std::borrow::Borrow;
 
 use crate::{
-    core::{
-        entities::LayerIds,
-        utils::errors::{
-            GraphError,
-            GraphError::{EdgeExistsError, NodeExistsError},
-        },
-    },
+    core::entities::LayerIds,
     db::{
         api::{
             mutation::internal::{
@@ -19,7 +13,7 @@ use crate::{
     },
     prelude::{AdditionOps, EdgeViewOps, GraphViewOps, NodeViewOps},
 };
-use raphtory_api::core::storage::{arc_str::OptionAsStr, timeindex::AsTime};
+use raphtory_api::core::{storage::{arc_str::OptionAsStr, timeindex::AsTime}, utils::errors::GraphError};
 
 use super::time_from_input;
 
@@ -125,7 +119,7 @@ impl<
         force: bool,
     ) -> Result<NodeView<G, G>, GraphError> {
         if !force && self.node(node.id()).is_some() {
-            return Err(NodeExistsError(node.id()));
+            return Err(GraphError::NodeExistsError(node.id()));
         }
         let node_internal = match node.node_type().as_str() {
             None => self.resolve_node(node.id())?.inner(),
@@ -187,7 +181,7 @@ impl<
             self.resolve_layer(Some(&layer))?;
         }
         if !force && self.has_edge(edge.src().id(), edge.dst().id()) {
-            return Err(EdgeExistsError(edge.src().id(), edge.dst().id()));
+            return Err(GraphError::EdgeExistsError(edge.src().id(), edge.dst().id()));
         }
         // Add edges first so we definitely have all associated nodes (important in case of persistent edges)
         // FIXME: this needs to be verified

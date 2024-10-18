@@ -16,6 +16,7 @@ homepage.workspace = true
 
 [dependencies]
 raphtory-api = { path = "../raphtory-api", version = "0.13.0" }
+raphtory-memstorage = { path = "../raphtory-memstorage", version = "0.13.0" }
 chrono = { workspace = true }
 itertools = { workspace = true }
 num-traits = { workspace = true }

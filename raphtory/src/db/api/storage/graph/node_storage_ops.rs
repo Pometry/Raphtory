@@ -2,17 +2,17 @@ use std::borrow::Cow;
 
 use crate::{
     core::{
-        entities::{
-            edges::edge_ref::EdgeRef, nodes::node_store::NodeStore, properties::tprop::TProp,
-            GidRef, LayerIds, VID,
-        },
-        storage::ArcEntry,
+        entities::{edges::edge_ref::EdgeRef, GidRef, LayerIds, VID},
         Direction,
     },
     db::api::{storage::graph::tprop_storage_ops::TPropOps, view::internal::NodeAdditions},
     prelude::Prop,
 };
 use itertools::Itertools;
+use raphtory_memstorage::{
+    core::{entities::{nodes::node_store::NodeStore, properties::tprop::TProp}, storage::ArcEntry},
+    db::api::storage::graph::nodes::node_ref::NodeStorageRef,
+};
 
 pub trait NodeStorageOps<'a>: Sized {
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize;
@@ -37,6 +37,34 @@ pub trait NodeStorageOps<'a>: Sized {
     fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef>;
 }
 
+macro_rules! for_all {
+    ($value:expr, $pattern:pat => $result:expr) => {
+        match $value {
+            NodeStorageRef::Mem($pattern) => $result,
+            #[cfg(feature = "storage")]
+            NodeStorageRef::Disk($pattern) => $result,
+        }
+    };
+}
+
+#[cfg(not(feature = "storage"))]
+macro_rules! for_all_iter {
+    ($value:expr, $pattern:pat => $result:expr) => {{
+        match $value {
+            NodeStorageRef::Mem($pattern) => $result,
+        }
+    }};
+}
+
+#[cfg(feature = "storage")]
+macro_rules! for_all_iter {
+    ($value:expr, $pattern:pat => $result:expr) => {{
+        match $value {
+            NodeStorageRef::Mem($pattern) => StorageVariants::Mem($result),
+            NodeStorageRef::Disk($pattern) => StorageVariants::Disk($result),
+        }
+    }};
+}
 
 impl<'a> NodeStorageOps<'a> for NodeStorageRef<'a> {
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize {
@@ -114,20 +142,20 @@ impl<'a> NodeStorageOps<'a> for &'a NodeStore {
     }
 
     fn vid(self) -> VID {
-        self.vid
+        self.vid()
     }
 
     fn id(self) -> GidRef<'a> {
-        (&self.global_id).into()
+        (self.global_id()).into()
     }
 
     fn name(self) -> Option<Cow<'a, str>> {
-        self.global_id.as_str().map(Cow::from)
+        self.global_id().as_str().map(Cow::from)
     }
 
     fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef> {
         let eid = NodeStore::find_edge_eid(self, dst, layer_ids)?;
-        Some(EdgeRef::new_outgoing(eid, self.vid, dst))
+        Some(EdgeRef::new_outgoing(eid, self.vid(), dst))
     }
 }
 

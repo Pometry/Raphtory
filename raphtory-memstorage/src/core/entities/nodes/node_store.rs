@@ -32,10 +32,21 @@ pub struct NodeStore {
     pub(crate) layers: Vec<Adj>,
     // props for node
     pub(crate) props: Option<Props>,
-    pub(crate) node_type: usize,
+    pub node_type: usize,
 }
 
 impl NodeStore {
+
+    #[inline]
+    pub fn vid(&self) -> VID {
+        self.vid
+    }
+
+    #[inline]
+    pub fn global_id(&self) -> &GID {
+        &self.global_id
+    }
+
     #[inline]
     pub fn is_initialised(&self) -> bool {
         self.vid != VID::default()
@@ -73,10 +84,6 @@ impl NodeStore {
         }
     }
 
-    pub fn global_id(&self) -> &GID {
-        &self.global_id
-    }
-
     pub fn timestamps(&self) -> &TimeIndex<i64> {
         &self.timestamps
     }
@@ -111,7 +118,7 @@ impl NodeStore {
     }
 
     #[inline(always)]
-    pub(crate) fn find_edge_eid(&self, dst: VID, layer_id: &LayerIds) -> Option<EID> {
+    pub fn find_edge_eid(&self, dst: VID, layer_id: &LayerIds) -> Option<EID> {
         match layer_id {
             LayerIds::All => match self.layers.len() {
                 0 => None,
@@ -147,7 +154,7 @@ impl NodeStore {
     }
 
     #[inline]
-    pub(crate) fn edge_tuples<'a>(
+    pub fn edge_tuples<'a>(
         &'a self,
         layers: &LayerIds,
         d: Direction,
@@ -221,7 +228,7 @@ impl NodeStore {
         iter
     }
 
-    pub(crate) fn degree(&self, layers: &LayerIds, d: Direction) -> usize {
+    pub fn degree(&self, layers: &LayerIds, d: Direction) -> usize {
         match layers {
             LayerIds::All => match self.layers.len() {
                 0 => 0,
@@ -311,11 +318,11 @@ impl NodeStore {
             .flat_map(|ps| ps.const_prop_ids())
     }
 
-    pub(crate) fn temporal_property(&self, prop_id: usize) -> Option<&TProp> {
+    pub fn temporal_property(&self, prop_id: usize) -> Option<&TProp> {
         self.props.as_ref().and_then(|ps| ps.temporal_prop(prop_id))
     }
 
-    pub(crate) fn constant_property(&self, prop_id: usize) -> Option<&Prop> {
+    pub fn constant_property(&self, prop_id: usize) -> Option<&Prop> {
         self.props.as_ref().and_then(|ps| ps.const_prop(prop_id))
     }
 

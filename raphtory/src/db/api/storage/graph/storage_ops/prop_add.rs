@@ -1,14 +1,12 @@
 use raphtory_api::core::{
     entities::{EID, VID},
     storage::timeindex::TimeIndexEntry,
+    utils::errors::GraphError,
 };
+use raphtory_memstorage::core::entities::graph::tgraph::TemporalGraph;
 
 use super::GraphStorage;
-use crate::{
-    core::{entities::graph::tgraph::TemporalGraph, utils::errors::GraphError},
-    db::api::mutation::internal::InternalPropertyAdditionOps,
-    prelude::Prop,
-};
+use crate::{db::api::mutation::internal::InternalPropertyAdditionOps, prelude::Prop};
 
 impl InternalPropertyAdditionOps for TemporalGraph {
     fn internal_add_properties(
@@ -18,7 +16,7 @@ impl InternalPropertyAdditionOps for TemporalGraph {
     ) -> Result<(), GraphError> {
         for (prop_id, prop) in props {
             let prop = self.process_prop_value(prop);
-            self.graph_meta.add_prop(t, *prop_id, prop)?;
+            self.graph_meta().add_prop(t, *prop_id, prop)?;
         }
         self.update_time(t);
         Ok(())
@@ -27,7 +25,7 @@ impl InternalPropertyAdditionOps for TemporalGraph {
     fn internal_add_constant_properties(&self, props: &[(usize, Prop)]) -> Result<(), GraphError> {
         for (id, prop) in props {
             let prop = self.process_prop_value(prop);
-            self.graph_meta.add_constant_prop(*id, prop)?;
+            self.graph_meta().add_constant_prop(*id, prop)?;
         }
         Ok(())
     }
@@ -38,7 +36,7 @@ impl InternalPropertyAdditionOps for TemporalGraph {
     ) -> Result<(), GraphError> {
         for (id, prop) in props {
             let prop = self.process_prop_value(prop);
-            self.graph_meta.update_constant_prop(*id, prop)?;
+            self.graph_meta().update_constant_prop(*id, prop)?;
         }
         Ok(())
     }
@@ -48,11 +46,11 @@ impl InternalPropertyAdditionOps for TemporalGraph {
         vid: VID,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
-        let mut node = self.storage.get_node_mut(vid);
+        let mut node = self.storage().get_node_mut(vid);
         for (prop_id, prop) in props {
             let prop = self.process_prop_value(prop);
             node.add_constant_prop(*prop_id, prop).map_err(|err| {
-                let name = self.node_meta.get_prop_name(*prop_id, true);
+                let name = self.node_meta().get_prop_name(*prop_id, true);
                 GraphError::ConstantPropertyMutationError {
                     name,
                     new: err.new_value.expect("new value exists"),
@@ -70,7 +68,7 @@ impl InternalPropertyAdditionOps for TemporalGraph {
         vid: VID,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
-        let mut node = self.storage.get_node_mut(vid);
+        let mut node = self.storage().get_node_mut(vid);
         for (prop_id, prop) in props {
             let prop = self.process_prop_value(prop);
             node.update_constant_prop(*prop_id, prop)?;
@@ -84,7 +82,7 @@ impl InternalPropertyAdditionOps for TemporalGraph {
         layer: usize,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
-        let mut edge = self.storage.get_edge_mut(eid);
+        let mut edge = self.storage().get_edge_mut(eid);
         let mut edge = edge.as_mut();
         let edge_layer = edge.layer_mut(layer);
         for (prop_id, prop) in props {
@@ -92,7 +90,7 @@ impl InternalPropertyAdditionOps for TemporalGraph {
             edge_layer
                 .add_constant_prop(*prop_id, prop)
                 .map_err(|err| {
-                    let name = self.edge_meta.get_prop_name(*prop_id, true);
+                    let name = self.edge_meta().get_prop_name(*prop_id, true);
                     GraphError::ConstantPropertyMutationError {
                         name,
                         new: err.new_value.expect("new value exists"),
@@ -111,7 +109,7 @@ impl InternalPropertyAdditionOps for TemporalGraph {
         layer: usize,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
-        let mut edge = self.storage.get_edge_mut(eid);
+        let mut edge = self.storage().get_edge_mut(eid);
         let mut edge = edge.as_mut();
         let edge_layer = edge.layer_mut(layer);
         for (prop_id, prop) in props {

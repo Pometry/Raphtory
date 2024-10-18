@@ -2,12 +2,12 @@ use crate::{
     core::{
         entities::{EID, VID},
         storage::timeindex::TimeIndexEntry,
-        utils::errors::GraphError,
         Prop,
     },
     db::api::view::internal::Base,
 };
 use enum_dispatch::enum_dispatch;
+use raphtory_api::core::utils::errors::GraphError;
 
 /// internal (dyn friendly) methods for adding properties
 #[enum_dispatch]

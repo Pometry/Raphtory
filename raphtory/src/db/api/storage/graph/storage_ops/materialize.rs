@@ -1,4 +1,5 @@
-use super::GraphStorage;
+use raphtory_memstorage::db::api::storage::graph::GraphStorage;
+
 use crate::db::api::view::internal::{GraphType, InternalMaterialize};
 
 impl InternalMaterialize for GraphStorage {

@@ -41,7 +41,7 @@ impl Default for Map {
 }
 
 #[derive(Debug)]
-pub(crate) struct Mapping {
+pub struct Mapping {
     map: OnceCell<Map>,
 }
 

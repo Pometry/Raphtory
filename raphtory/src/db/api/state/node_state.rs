@@ -1,11 +1,12 @@
 use crate::{
-    core::entities::{nodes::node_ref::AsNodeRef, VID},
+    core::entities::{ VID},
     db::{
-        api::{state::ops::NodeStateOps, view::IntoDynBoxed},
+        api::{state::ops::NodeStateOps},
         graph::node::NodeView,
     },
     prelude::GraphViewOps,
 };
+use raphtory_memstorage::{core::entities::nodes::node_ref::AsNodeRef, db::api::list_ops::Index};
 use rayon::{iter::Either, prelude::*};
 use std::{
     borrow::Borrow, collections::HashMap, fmt::Debug, hash::Hash, marker::PhantomData, sync::Arc,

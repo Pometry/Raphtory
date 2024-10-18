@@ -1,6 +1,9 @@
-use crate::db::api::view::internal::{EdgeList, ListOps, NodeList};
+use raphtory_memstorage::db::api::{
+    list_ops::{EdgeList, NodeList},
+    storage::graph::GraphStorage,
+};
 
-use super::GraphStorage;
+use crate::db::api::view::internal::ListOps;
 
 impl ListOps for GraphStorage {
     fn node_list(&self) -> NodeList {
