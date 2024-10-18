@@ -399,32 +399,21 @@ mod time_tests {
     #[test]
     fn snapshot() {
         let graph = PersistentGraph::new();
-        graph.add_edge(3, 0, 1, NO_PROPS, None).unwrap();
-        graph.add_edge(5, 0, 2, NO_PROPS, None).unwrap();
-        graph.delete_edge(7, 0, 1, None).unwrap();
+        graph.add_edge(3, 0, 1, [("a", "a")], None).unwrap();
+        graph.add_edge(4, 0, 2, [("b", "b")], None).unwrap();
+        graph.delete_edge(5, 0, 1, None).unwrap();
 
-        let snapshot = graph.snapshot_at(2);
-        assert_eq!(snapshot.count_edges(), 0);
-
-        let snapshot = graph.snapshot_at(3);
-        assert_eq!(snapshot.count_edges(), 1);
-        assert!(snapshot.has_edge(0, 1));
-
-        let snapshot = graph.snapshot_latest();
-        assert_eq!(snapshot.count_edges(), 1);
-        assert!(snapshot.has_edge(0, 2));
+        for time in 2..6 {
+            assert_eq!(graph.at(time), graph.snapshot_at(time));
+        }
+        assert_eq!(graph.latest(), graph.snapshot_latest());
 
         let graph = graph.event_graph();
 
-        let snapshot = graph.snapshot_at(2);
-        assert_eq!(snapshot.count_edges(), 0);
-
-        let snapshot = graph.snapshot_at(3);
-        assert_eq!(snapshot.count_edges(), 1);
-        assert!(snapshot.has_edge(0, 1));
-
-        let snapshot = graph.snapshot_latest();
-        assert_eq!(snapshot.count_edges(), 2);
+        for time in 2..6 {
+            assert_eq!(graph.before(time + 1), graph.snapshot_at(time));
+        }
+        assert_eq!(graph, graph.snapshot_latest());
     }
 
     #[test]
