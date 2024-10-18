@@ -21,26 +21,6 @@ use crate::{
     },
 };
 
-#[derive(Debug)]
-pub enum EdgeStorageEntry<'a> {
-    Mem(MemEdge<'a>),
-    Unlocked(EdgeRGuard<'a>),
-    #[cfg(feature = "storage")]
-    Disk(DiskEdge<'a>),
-}
-
-impl<'a> EdgeStorageEntry<'a> {
-    #[inline]
-    pub fn as_ref(&self) -> EdgeStorageRef {
-        match self {
-            EdgeStorageEntry::Mem(edge) => EdgeStorageRef::Mem(*edge),
-            EdgeStorageEntry::Unlocked(edge) => EdgeStorageRef::Mem(edge.as_mem_edge()),
-            #[cfg(feature = "storage")]
-            EdgeStorageEntry::Disk(edge) => EdgeStorageRef::Disk(*edge),
-        }
-    }
-}
-
 impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
     fn out_ref(self) -> EdgeRef {
         self.as_ref().out_ref()

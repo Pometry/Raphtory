@@ -342,7 +342,7 @@ impl LayerIds {
 
     pub fn diff<'a>(
         &self,
-        unique_layers: impl IntoIterator<Item = (usize)>,
+        unique_layers: impl IntoIterator<Item = usize>,
         other: &LayerIds,
     ) -> LayerIds {
         match (self, other) {

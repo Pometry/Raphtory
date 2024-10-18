@@ -302,42 +302,42 @@ impl<'a> EdgeRGuard<'a> {
     }
 }
 
-#[derive(Debug)]
-pub struct LockedEdges {
-    shards: Arc<[Arc<ArcRwLockReadGuard<parking_lot::RawRwLock, EdgeShard>>]>,
-    len: usize,
-}
+// #[derive(Debug)]
+// pub struct LockedEdges {
+//     shards: Arc<[Arc<ArcRwLockReadGuard<parking_lot::RawRwLock, EdgeShard>>]>,
+//     len: usize,
+// }
 
-impl LockedEdges {
-    pub fn get_mem(&self, eid: EID) -> MemEdge {
-        let (bucket, offset) = resolve(eid.into(), self.shards.len());
-        MemEdge::new(&self.shards[bucket], offset)
-    }
+// impl LockedEdges {
+//     pub fn get_mem(&self, eid: EID) -> MemEdge {
+//         let (bucket, offset) = resolve(eid.into(), self.shards.len());
+//         MemEdge::new(&self.shards[bucket], offset)
+//     }
 
-    pub fn len(&self) -> usize {
-        self.len
-    }
+//     pub fn len(&self) -> usize {
+//         self.len
+//     }
 
-    pub fn iter(&self) -> impl Iterator<Item = MemEdge> + '_ {
-        self.shards.iter().flat_map(|shard| {
-            shard
-                .edge_ids
-                .iter()
-                .enumerate()
-                .map(move |(offset, _)| MemEdge::new(shard, offset))
-        })
-    }
+//     pub fn iter(&self) -> impl Iterator<Item = MemEdge> + '_ {
+//         self.shards.iter().flat_map(|shard| {
+//             shard
+//                 .edge_ids
+//                 .iter()
+//                 .enumerate()
+//                 .map(move |(offset, _)| MemEdge::new(shard, offset))
+//         })
+//     }
 
-    pub fn par_iter(&self) -> impl ParallelIterator<Item = MemEdge> + '_ {
-        self.shards.par_iter().flat_map(|shard| {
-            shard
-                .edge_ids
-                .par_iter()
-                .enumerate()
-                .map(move |(offset, _)| MemEdge::new(shard, offset))
-        })
-    }
-}
+//     pub fn par_iter(&self) -> impl ParallelIterator<Item = MemEdge> + '_ {
+//         self.shards.par_iter().flat_map(|shard| {
+//             shard
+//                 .edge_ids
+//                 .par_iter()
+//                 .enumerate()
+//                 .map(move |(offset, _)| MemEdge::new(shard, offset))
+//         })
+//     }
+// }
 
 pub struct EdgeShardWriter<'a, S> {
     shard: S,

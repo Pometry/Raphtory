@@ -1,13 +1,5 @@
 use crate::db::api::view::internal::{EdgeFilterOps, NodeFilterOps};
 
-pub enum FilterState {
-    Neither,
-    Both,
-    BothIndependent,
-    Nodes,
-    Edges,
-}
-
 pub trait FilterOps {
     fn filter_state(&self) -> FilterState;
 }

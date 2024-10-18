@@ -1,6 +1,7 @@
 use crate::core::entities::nodes::node_store::NodeStore;
 use raphtory_api::core::entities::{GidRef, LayerIds};
 use raphtory_api::core::Direction;
+use std::any::Any;
 use std::borrow::Cow;
 
 #[cfg(feature = "storage")]
@@ -14,6 +15,7 @@ pub enum NodeStorageRef<'a> {
     #[cfg(feature = "storage")]
     Disk(DiskNode<'a>),
 }
+
 
 impl<'a> From<&'a NodeStore> for NodeStorageRef<'a> {
     fn from(value: &'a NodeStore) -> Self {
@@ -38,6 +40,20 @@ macro_rules! for_all {
     };
 }
 
+impl <'a> NodeStorageRef<'a> {
+    pub fn node_type_id(self) -> usize {
+        match self {
+            NodeStorageRef::Mem(node) => node.node_type,
+            #[cfg(feature = "storage")]
+            NodeStorageRef::Disk(node) => node.node_type_id(),
+        }
+    }
+
+    pub fn degree(self, layer_ids: &LayerIds, direction: Direction) -> usize {
+        for_all!(self, node => node.degree(layer_ids, direction))
+    }
+}
+
 #[cfg(feature = "storage")]
 macro_rules! for_all_iter {
     ($value:expr, $pattern:pat => $result:expr) => {{
@@ -56,49 +72,3 @@ macro_rules! for_all_iter {
         }
     }};
 }
-
-// impl<'a> NodeStorageOps<'a> for NodeStorageRef<'a> {
-//     fn degree(self, layers: &LayerIds, dir: Direction) -> usize {
-//         for_all!(self, node => node.degree(layers, dir))
-//     }
-
-//     fn additions(self) -> NodeAdditions<'a> {
-//         for_all!(self, node => node.additions())
-//     }
-
-//     fn tprop(self, prop_id: usize) -> impl TPropOps<'a> {
-//         for_all_iter!(self, node => node.tprop(prop_id))
-//     }
-
-//     fn edges_iter(
-//         self,
-//         layers: &'a LayerIds,
-//         dir: Direction,
-//     ) -> impl Iterator<Item = EdgeRef> + 'a {
-//         for_all_iter!(self, node => node.edges_iter(layers, dir))
-//     }
-
-//     fn node_type_id(self) -> usize {
-//         for_all!(self, node => node.node_type_id())
-//     }
-
-//     fn vid(self) -> VID {
-//         for_all!(self, node => node.vid())
-//     }
-
-//     fn id(self) -> GidRef<'a> {
-//         for_all!(self, node => node.id())
-//     }
-
-//     fn name(self) -> Option<Cow<'a, str>> {
-//         for_all!(self, node => node.name())
-//     }
-
-//     fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef> {
-//         for_all!(self, node => NodeStorageOps::find_edge(node, dst, layer_ids))
-//     }
-
-//     fn prop(self, prop_id: usize) -> Option<Prop> {
-//         for_all!(self, node => node.prop(prop_id))
-//     }
-// }

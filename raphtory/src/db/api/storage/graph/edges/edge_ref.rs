@@ -46,13 +46,6 @@ macro_rules! for_all_iter {
     };
 }
 
-#[derive(Copy, Clone, Debug)]
-pub enum EdgeStorageRef<'a> {
-    Mem(MemEdge<'a>),
-    #[cfg(feature = "storage")]
-    Disk(DiskEdge<'a>),
-}
-
 impl<'a> EdgeStorageOps<'a> for EdgeStorageRef<'a> {
     fn out_ref(self) -> EdgeRef {
         for_all!(self, edge => EdgeStorageOps::out_ref(edge))

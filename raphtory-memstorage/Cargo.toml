@@ -13,6 +13,7 @@ edition.workspace = true
 
 [dependencies]
 raphtory-api = { path = "../raphtory-api",version = "0.13.0" }
+pometry-storage = {workspace = true, optional = true}
 thiserror = {workspace = true}
 serde = {workspace = true}
 dashmap = {workspace = true}
@@ -31,3 +32,10 @@ serde_json = {workspace = true}
 pretty_assertions = {workspace = true}
 quickcheck_macros = {workspace = true}
 quickcheck = {workspace = true}
+
+[features]
+
+storage = [
+    "raphtory-api/storage",
+    "pometry-storage"
+]

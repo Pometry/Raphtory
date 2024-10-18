@@ -1,5 +1,5 @@
 use raphtory_api::core::{
-    entities::{edges::edge_ref::EdgeRef, EID, VID},
+    entities::{edges::edge_ref::EdgeRef, LayerIds, EID, VID},
     storage::timeindex::TimeIndexEntry,
 };
 
@@ -69,6 +69,15 @@ impl<'a> MemEdge<'a> {
                 .get_deletions(layer_id)
                 .filter(|t_index| !t_index.is_empty())
                 .is_some()
+    }
+
+    pub fn has_layers(self, layer_ids: &LayerIds) -> bool {
+        match layer_ids {
+            LayerIds::None => false,
+            LayerIds::All => true,
+            LayerIds::One(id) => self.has_layer_inner(*id),
+            LayerIds::Multiple(ids) => ids.iter().any(|id| self.has_layer_inner(*id)),
+        }
     }
 
     pub fn temporal_prop_layer_inner(self, layer_id: usize, prop_id: usize) -> Option<&'a TProp> {

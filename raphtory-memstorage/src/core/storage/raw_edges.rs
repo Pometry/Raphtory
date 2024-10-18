@@ -265,7 +265,7 @@ impl<'a> EdgeRGuard<'a> {
     }
 
     pub fn has_layer(&self, layers: &LayerIds) -> bool {
-        self.as_mem_edge().has_layer(layers)
+        self.as_mem_edge().has_layers(layers)
     }
 
     pub fn layer_iter(

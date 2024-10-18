@@ -4756,6 +4756,7 @@ dependencies = [
  "lock_api",
  "once_cell",
  "parking_lot",
+ "pometry-storage",
  "pretty_assertions",
  "quickcheck",
  "quickcheck_macros",
