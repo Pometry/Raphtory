@@ -1,3 +1,4 @@
+use crate::db::api::view::internal::InternalMaterialize;
 use crate::{
     core::{
         storage::timeindex::AsTime,
@@ -13,6 +14,8 @@ use std::{
     cmp::{max, min},
     marker::PhantomData,
 };
+
+use super::internal::GraphType;
 
 pub(crate) mod internal {
     use crate::{
@@ -118,6 +121,12 @@ pub trait TimeOps<'graph>:
     /// Create a view that only includes events at the latest time
     fn latest(&self) -> Self::WindowedViewType;
 
+    // TODO: add docs
+    fn snapshot_at<T: IntoTime>(&self, time: T) -> Self::WindowedViewType;
+
+    // TODO: add docs
+    fn snapshot_latest(&self) -> Self::WindowedViewType;
+
     /// Create a view that only includes events after `start` (exclusive)
     fn after<T: IntoTime>(&self, start: T) -> Self::WindowedViewType;
 
@@ -201,6 +210,20 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
     fn latest(&self) -> Self::WindowedViewType {
         let time = self.latest_t();
         self.internal_window(time, time.map(|t| t.saturating_add(1)))
+    }
+
+    fn snapshot_at<T: IntoTime>(&self, time: T) -> Self::WindowedViewType {
+        match self.current_filter().graph_type() {
+            GraphType::EventGraph => self.before(time.into_time() + 1),
+            GraphType::PersistentGraph => self.at(time),
+        }
+    }
+
+    fn snapshot_latest(&self) -> Self::WindowedViewType {
+        match self.latest_t() {
+            Some(latest) => self.snapshot_at(latest),
+            None => self.internal_window(None, None),
+        }
     }
 
     fn after<T: IntoTime>(&self, start: T) -> Self::WindowedViewType {

@@ -120,6 +120,27 @@ macro_rules! impl_timeops {
                 self.$field.latest()
             }
 
+            // TODO: docs
+            #[doc = concat!(r" Create a view of the ", $name, r" including all events after `start` (exclusive).")]
+            ///
+            /// Arguments:
+            ///     start (TimeInput): The start time of the window.
+            ///
+            /// Returns:
+            #[doc = concat!(r"     A ", $name, r" object.")]
+            pub fn snapshot_at(&self, time: PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
+                self.$field.after(time)
+            }
+
+            // TODO: docs
+            #[doc = concat!(r" Create a view of the ", $name, r" including all events at the latest time.")]
+            ///
+            /// Returns:
+            #[doc = concat!(r"     A ", $name, r" object.")]
+            pub fn snapshot_latest(&self) -> <$base_type as TimeOps<'static>>::WindowedViewType {
+                self.$field.snapshot_latest()
+            }
+
             #[doc = concat!(r" Create a view of the ", $name, r" including all events before `end` (exclusive).")]
             ///
             /// Arguments:
