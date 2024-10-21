@@ -7,6 +7,7 @@ use opentelemetry_sdk::{
 };
 use serde::Deserialize;
 use std::time::Duration;
+use opentelemetry_sdk::trace::BatchConfigBuilder;
 use tracing::{error, info};
 
 #[derive(Clone, Deserialize, Debug, PartialEq)]
@@ -48,6 +49,11 @@ impl TracingConfig {
                             "service.name",
                             self.otlp_tracing_service_name.clone(),
                         )])),
+                )
+                .with_batch_config(
+                    BatchConfigBuilder::default()
+                        .with_max_queue_size(10_000_000)
+                        .build(),
                 )
                 .install_batch(opentelemetry_sdk::runtime::Tokio)
             {
