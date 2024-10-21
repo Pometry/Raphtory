@@ -27,18 +27,21 @@ use crate::paths::ExistingGraphFolder;
 
 #[derive(Clone)]
 pub struct GraphWithVectors {
-    pub graph: IndexedGraph<MaterializedGraph>,
+    pub graph: MaterializedGraph,
+    pub index: Option<IndexedGraph<MaterializedGraph>>,
     pub vectors: Option<VectorisedGraph<MaterializedGraph>>,
     folder: OnceCell<GraphFolder>,
 }
 
 impl GraphWithVectors {
     pub(crate) fn new(
-        graph: IndexedGraph<MaterializedGraph>,
+        graph: MaterializedGraph,
+        index: Option<IndexedGraph<MaterializedGraph>>,
         vectors: Option<VectorisedGraph<MaterializedGraph>>,
     ) -> Self {
         Self {
             graph,
+            index,
             vectors,
             folder: Default::default(),
         }
@@ -100,6 +103,7 @@ impl GraphWithVectors {
 
     pub(crate) fn read_from_folder(
         folder: &ExistingGraphFolder,
+        index: bool,
         embedding: Arc<dyn EmbeddingFunction>,
         cache: Arc<Option<EmbeddingCache>>,
     ) -> Result<Self, GraphError> {
@@ -119,7 +123,8 @@ impl GraphWithVectors {
 
         println!("Graph loaded = {}", folder.get_original_path_str());
         Ok(Self {
-            graph: IndexedGraph::from_graph(&graph)?,
+            graph: graph.clone(),
+            index: index.then(|| graph.into()),
             vectors,
             folder: OnceCell::with_value(folder.clone().into()),
         })
@@ -144,7 +149,7 @@ impl Base for GraphWithVectors {
     type Base = MaterializedGraph;
     #[inline]
     fn base(&self) -> &Self::Base {
-        &self.graph.graph
+        &self.graph
     }
 }
 

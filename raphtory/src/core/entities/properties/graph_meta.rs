@@ -60,7 +60,9 @@ impl GraphMeta {
         if is_static {
             Ok(self.constant_mapper.get_or_create_id(name))
         } else {
-            self.temporal_mapper.get_or_create_and_validate(name, dtype)
+            self.temporal_mapper
+                .get_or_create_and_validate(name, dtype)
+                .map_err(|e| e.into())
         }
     }
 

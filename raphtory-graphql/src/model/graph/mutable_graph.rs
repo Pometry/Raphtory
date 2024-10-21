@@ -64,7 +64,11 @@ impl GqlMutableGraph {
     /// Get the non-mutable graph
 
     async fn graph(&self) -> GqlGraph {
-        GqlGraph::new(self.path.clone(), self.graph.graph.clone())
+        GqlGraph::new(
+            self.path.clone(),
+            self.graph.graph.clone(),
+            self.graph.index.clone(),
+        )
     }
 
     /// Get mutable existing node

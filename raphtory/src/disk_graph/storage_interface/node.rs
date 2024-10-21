@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, LayerIds, EID, VID},
+        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         Direction,
     },
     db::api::{
@@ -295,33 +295,32 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
     fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef> {
         match layer_ids {
             LayerIds::None => None,
-            LayerIds::All => match self.graph.layers().len() {
-                0 => None,
-                1 => {
-                    let eid = self.graph.layers()[0]
+            LayerIds::All => self
+                .graph
+                .layers()
+                .iter()
+                .filter_map(|layer| {
+                    layer
                         .nodes_storage()
-                        .find_edge(self.vid, dst)?;
-                    Some(EdgeRef::new_outgoing(eid, self.vid, dst).at_layer(0))
-                }
-                _ => todo!("multilayer edge views not implemented in diskgraph yet"),
-            },
+                        .find_edge(self.vid, dst)
+                        .map(|eid| EdgeRef::new_outgoing(eid, self.vid, dst))
+                })
+                .next(),
             LayerIds::One(id) => {
                 let eid = self.graph.layers()[*id]
                     .nodes_storage()
                     .find_edge(self.vid, dst)?;
-                Some(EdgeRef::new_outgoing(eid, self.vid, dst).at_layer(*id))
+                Some(EdgeRef::new_outgoing(eid, self.vid, dst))
             }
-            LayerIds::Multiple(ids) => match ids.len() {
-                0 => None,
-                1 => {
-                    let layer = ids[0];
-                    let eid = self.graph.layers()[layer]
+            LayerIds::Multiple(ids) => ids
+                .iter()
+                .filter_map(|&layer_id| {
+                    self.graph.layers()[layer_id]
                         .nodes_storage()
-                        .find_edge(self.vid, dst)?;
-                    Some(EdgeRef::new_outgoing(eid, self.vid, dst).at_layer(layer))
-                }
-                _ => todo!("multtilayer edge views not implemented in diskgraph yet"),
-            },
+                        .find_edge(self.vid, dst)
+                        .map(|eid| EdgeRef::new_outgoing(eid, self.vid, dst))
+                })
+                .next(),
         }
     }
 }
@@ -352,49 +351,37 @@ impl DiskOwnedNode {
                     (0..layers.len())
                         .map(move |layer_id| {
                             let layer = &layers[layer_id];
-                            let adj = layer
-                                .nodes_storage()
-                                .adj_out()
-                                .clone()
-                                .into_value(self.vid.index());
-                            let eids = adj.range().clone().map(EID);
-                            let nbrs = adj.map(|i| VID(i as usize));
-                            eids.zip(nbrs).map(move |(eid, dst)| {
-                                EdgeRef::new_outgoing(eid, self.vid, dst).at_layer(layer_id)
-                            })
+                            let eids = layer.nodes_storage().into_out_edges_iter(self.vid);
+                            let nbrs = layer.nodes_storage().into_out_neighbours_iter(self.vid);
+                            eids.zip(nbrs)
+                                .map(move |(eid, dst)| EdgeRef::new_outgoing(eid, self.vid, dst))
                         })
-                        .kmerge_by(|e1, e2| e1.remote() <= e2.remote()),
+                        .kmerge_by(|e1, e2| e1.remote() <= e2.remote())
+                        .dedup_by(|e1, e2| e1.remote() == e2.remote()),
                 )
             }
             LayerIds::One(layer_id) => {
-                let adj = self.graph.layers()[layer_id]
-                    .nodes_storage()
-                    .adj_out()
-                    .clone()
-                    .into_value(self.vid.index());
-                let eids = adj.range().clone().map(EID);
-                let nbrs = adj.map(|i| VID(i as usize));
-                LayerVariants::One(eids.zip(nbrs).map(move |(eid, dst)| {
-                    EdgeRef::new_outgoing(eid, self.vid, dst).at_layer(layer_id)
-                }))
+                let layer = self.graph.layer(layer_id);
+                let eids = layer.nodes_storage().into_out_edges_iter(self.vid);
+                let nbrs = layer.nodes_storage().into_out_neighbours_iter(self.vid);
+                LayerVariants::One(
+                    eids.zip(nbrs)
+                        .map(move |(eid, dst)| EdgeRef::new_outgoing(eid, self.vid, dst)),
+                )
             }
             LayerIds::Multiple(ids) => LayerVariants::Multiple(
                 (0..ids.len())
                     .map(move |i| {
                         let layer_id = ids[i];
-                        let adj = self.graph.layers()[layer_id]
-                            .nodes_storage()
-                            .adj_out()
-                            .clone()
-                            .into_value(self.vid.index());
-                        let eids = adj.range().clone().map(EID);
-                        let nbrs = adj.map(|i| VID(i as usize));
+                        let layer = self.graph.layer(layer_id);
+                        let eids = layer.nodes_storage().into_out_edges_iter(self.vid);
+                        let nbrs = layer.nodes_storage().into_out_neighbours_iter(self.vid);
                         let src = self.vid;
-                        eids.zip(nbrs).map(move |(eid, dst)| {
-                            EdgeRef::new_outgoing(eid, src, dst).at_layer(layer_id)
-                        })
+                        eids.zip(nbrs)
+                            .map(move |(eid, dst)| EdgeRef::new_outgoing(eid, src, dst))
                     })
-                    .kmerge_by(|e1, e2| e1.remote() <= e2.remote()),
+                    .kmerge_by(|e1, e2| e1.remote() <= e2.remote())
+                    .dedup_by(|e1, e2| e1.remote() == e2.remote()),
             ),
         }
     }
@@ -408,45 +395,24 @@ impl DiskOwnedNode {
                     (0..layers.len())
                         .map(move |layer_id| {
                             let layer = &layers[layer_id];
-                            let eids = layer
-                                .nodes_storage()
-                                .adj_in_edges()
-                                .clone()
-                                .into_value(self.vid.index())
-                                .map(|i| EID(i as usize));
-                            let nbrs = layer
-                                .nodes_storage()
-                                .adj_in_neighbours()
-                                .clone()
-                                .into_value(self.vid.index())
-                                .map(|i| VID(i as usize));
+                            let eids = layer.nodes_storage().into_in_edges_iter(self.vid);
+                            let nbrs = layer.nodes_storage().into_in_neighbours_iter(self.vid);
                             let dst = self.vid;
-                            eids.zip(nbrs).map(move |(eid, src)| {
-                                EdgeRef::new_incoming(eid, src, dst).at_layer(layer_id)
-                            })
+                            eids.zip(nbrs)
+                                .map(move |(eid, src)| EdgeRef::new_incoming(eid, src, dst))
                         })
-                        .kmerge_by(|e1, e2| e1.remote() <= e2.remote()),
+                        .kmerge_by(|e1, e2| e1.remote() <= e2.remote())
+                        .dedup_by(|e1, e2| e1.remote() == e2.remote()),
                 )
             }
             LayerIds::One(layer_id) => {
                 let layer = self.graph.layer(layer_id);
-                let eids = layer
-                    .nodes_storage()
-                    .adj_in_edges()
-                    .clone()
-                    .into_value(self.vid.index())
-                    .map(|i| EID(i as usize));
-                let nbrs = layer
-                    .nodes_storage()
-                    .adj_in_neighbours()
-                    .clone()
-                    .into_value(self.vid.index())
-                    .map(|i| VID(i as usize));
+                let eids = layer.nodes_storage().into_in_edges_iter(self.vid);
+                let nbrs = layer.nodes_storage().into_in_neighbours_iter(self.vid);
                 let dst = self.vid;
                 LayerVariants::One(
-                    eids.zip(nbrs).map(move |(eid, src)| {
-                        EdgeRef::new_incoming(eid, src, dst).at_layer(layer_id)
-                    }),
+                    eids.zip(nbrs)
+                        .map(move |(eid, src)| EdgeRef::new_incoming(eid, src, dst)),
                 )
             }
             LayerIds::Multiple(ids) => LayerVariants::Multiple(
@@ -454,24 +420,14 @@ impl DiskOwnedNode {
                     .map(move |i| {
                         let layer_id = ids[i];
                         let layer = self.graph.layer(layer_id);
-                        let eids = layer
-                            .nodes_storage()
-                            .adj_in_edges()
-                            .clone()
-                            .into_value(self.vid.index())
-                            .map(|i| EID(i as usize));
-                        let nbrs = layer
-                            .nodes_storage()
-                            .adj_in_neighbours()
-                            .clone()
-                            .into_value(self.vid.index())
-                            .map(|i| VID(i as usize));
+                        let eids = layer.nodes_storage().into_in_edges_iter(self.vid);
+                        let nbrs = layer.nodes_storage().into_in_neighbours_iter(self.vid);
                         let dst = self.vid;
-                        eids.zip(nbrs).map(move |(eid, src)| {
-                            EdgeRef::new_incoming(eid, src, dst).at_layer(layer_id)
-                        })
+                        eids.zip(nbrs)
+                            .map(move |(eid, src)| EdgeRef::new_incoming(eid, src, dst))
                     })
-                    .kmerge_by(|e1, e2| e1.remote() <= e2.remote()),
+                    .kmerge_by(|e1, e2| e1.remote() <= e2.remote())
+                    .dedup_by(|e1, e2| e1.remote() == e2.remote()),
             ),
         }
     }

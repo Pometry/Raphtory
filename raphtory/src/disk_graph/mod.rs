@@ -10,7 +10,7 @@ use crate::{
             properties::{graph_meta::GraphMeta, props::Meta},
             LayerIds,
         },
-        utils::errors::GraphError,
+        utils::{errors::GraphError, iter::GenLockedIter},
     },
     db::{
         api::{storage::graph::storage_ops, view::internal::CoreGraphOps},
@@ -19,19 +19,18 @@ use crate::{
     disk_graph::graph_impl::{prop_conversion::make_node_properties_from_graph, ParquetLayerCols},
     prelude::{Graph, Layer},
 };
+use itertools::Itertools;
 use polars_arrow::{
     array::{PrimitiveArray, StructArray},
     datatypes::{ArrowDataType as DataType, Field},
 };
 use pometry_storage::{
-    disk_hmap::DiskHashMap, graph::TemporalGraph, graph_fragment::TempColGraphFragment,
-    load::ExternalEdgeList, merge::merge_graph::merge_graphs, RAError,
+    graph::TemporalGraph, graph_fragment::TempColGraphFragment, load::ExternalEdgeList,
+    merge::merge_graph::merge_graphs, RAError,
 };
 use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::borrow::Borrow;
-use tracing::warn;
 
 pub mod graph_impl;
 pub mod storage_interface;
@@ -47,8 +46,6 @@ pub use pometry_storage as disk_storage;
 #[derive(Clone, Debug)]
 pub struct DiskGraphStorage {
     pub(crate) inner: Arc<TemporalGraph>,
-    node_meta: Arc<Meta>,
-    edge_meta: Arc<Meta>,
     graph_props: Arc<GraphMeta>,
 }
 
@@ -103,18 +100,34 @@ impl DiskGraphStorage {
 
     pub fn valid_layer_ids_from_names(&self, key: Layer) -> LayerIds {
         match key {
-            Layer::All | Layer::Default => LayerIds::One(0), // FIXME: need to handle all correctly
-            Layer::One(name) => {
-                let name = name.as_ref();
-                self.inner
-                    .layer_names()
+            Layer::All => LayerIds::All,
+            Layer::Default => LayerIds::One(0),
+            Layer::One(name) => self
+                .inner
+                .find_layer_id(&name)
+                .map(|id| LayerIds::One(id))
+                .unwrap_or(LayerIds::None),
+            Layer::None => LayerIds::None,
+            Layer::Multiple(names) => {
+                let mut new_layers = names
                     .iter()
-                    .enumerate()
-                    .find(move |(_, ref n)| n == &name)
-                    .map(|(i, _)| LayerIds::One(i))
-                    .unwrap_or(LayerIds::None)
+                    .filter_map(|name| self.inner.find_layer_id(name))
+                    .collect::<Vec<_>>();
+
+                let num_layers = self.inner.num_layers();
+                let num_new_layers = new_layers.len();
+                if num_new_layers == 0 {
+                    LayerIds::None
+                } else if num_new_layers == 1 {
+                    LayerIds::One(new_layers[0])
+                } else if num_new_layers == num_layers {
+                    LayerIds::All
+                } else {
+                    new_layers.sort_unstable();
+                    new_layers.dedup();
+                    LayerIds::Multiple(new_layers.into())
+                }
             }
-            _ => todo!("Layer ids for multiple names not implemented for Diskgraph"),
         }
     }
 
@@ -130,7 +143,7 @@ impl DiskGraphStorage {
             }
             Layer::None => Ok(LayerIds::None),
             Layer::Multiple(names) => {
-                let ids = names
+                let mut new_layers = names
                     .iter()
                     .map(|name| {
                         self.inner.find_layer_id(name).ok_or_else(|| {
@@ -141,7 +154,20 @@ impl DiskGraphStorage {
                         })
                     })
                     .collect::<Result<Vec<_>, _>>()?;
-                Ok(LayerIds::Multiple(ids.into()))
+
+                let num_layers = self.inner.num_layers();
+                let num_new_layers = new_layers.len();
+                if num_new_layers == 0 {
+                    Ok(LayerIds::None)
+                } else if num_new_layers == 1 {
+                    Ok(LayerIds::One(new_layers[0]))
+                } else if num_new_layers == num_layers {
+                    Ok(LayerIds::All)
+                } else {
+                    new_layers.sort_unstable();
+                    new_layers.dedup();
+                    Ok(LayerIds::Multiple(new_layers.into()))
+                }
             }
         }
     }
@@ -159,27 +185,18 @@ impl DiskGraphStorage {
         e: EdgeRef,
         layer_ids: &LayerIds,
     ) -> Box<dyn Iterator<Item = usize> + '_> {
-        let layer_id = match layer_ids.constrain_from_edge(e).borrow() {
-            LayerIds::One(id) => *id,
-            _ => panic!("Only one layer is supported"),
-        };
-        Box::new(1..self.inner.edges_data_type(layer_id).len())
-    }
-
-    pub fn layer_from_ids(&self, layer_ids: &LayerIds) -> Option<usize> {
-        match layer_ids {
-            LayerIds::One(layer_id) => Some(*layer_id),
-            LayerIds::None => None,
-            LayerIds::All => match self.inner.layers().len() {
-                0 => None,
-                1 => Some(0),
-                _ => todo!("multilayer edge views not yet supported in Diskgraph"),
-            },
-            LayerIds::Multiple(ids) => match ids.len() {
-                0 => None,
-                1 => Some(ids[0]),
-                _ => todo!("multilayer edge views not yet supported in Diskgraph"),
-            },
+        match layer_ids.constrain_from_edge(e).into_owned() {
+            LayerIds::None => Box::new(std::iter::empty()),
+            LayerIds::All => Box::new(0..self.edge_meta().temporal_prop_meta().len()),
+            LayerIds::One(id) => Box::new(self.inner().edge_global_mapping(id)),
+            LayerIds::Multiple(arc) => Box::new(GenLockedIter::from((self, arc), |(dg, arc)| {
+                Box::new(
+                    arc.iter()
+                        .map(|layer_id| dg.inner().edge_global_mapping(*layer_id))
+                        .kmerge()
+                        .dedup(),
+                )
+            })),
         }
     }
 
@@ -234,63 +251,11 @@ impl DiskGraphStorage {
         Ok(DiskGraphStorage::new(inner))
     }
 
-    fn new(inner_graph: TemporalGraph) -> Self {
-        let node_meta = Meta::new();
-        let mut edge_meta = Meta::new();
+    pub fn new(inner_graph: TemporalGraph) -> Self {
         let graph_meta = GraphMeta::new();
-
-        for node_type in inner_graph.node_types().into_iter().flatten() {
-            if let Some(node_type) = node_type {
-                node_meta.get_or_create_node_type_id(node_type);
-            } else {
-                panic!("Node types cannot be null");
-            }
-        }
-
-        for layer in inner_graph.layers() {
-            let edge_props_fields = layer.edges_data_type();
-
-            for (id, field) in edge_props_fields.iter().enumerate() {
-                let prop_name = &field.name;
-                let data_type = field.data_type();
-
-                let resolved_id = edge_meta
-                    .resolve_prop_id(prop_name, data_type.into(), false)
-                    .expect("Arrow data types should without failing");
-                if resolved_id != id {
-                    warn!("Warning: Layers with different edge properties are not supported by the high-level apis on top of the disk_graph graph yet, edge properties will not be available to high-level apis");
-                    edge_meta = Meta::new();
-                    break;
-                }
-            }
-        }
-
-        for (l_id, l_name) in inner_graph.layer_names().into_iter().enumerate() {
-            edge_meta.layer_meta().set_id(l_name.as_str(), l_id);
-        }
-
-        if let Some(props) = &inner_graph.node_properties().const_props {
-            let node_const_props_fields = props.prop_dtypes();
-            for field in node_const_props_fields {
-                node_meta
-                    .resolve_prop_id(&field.name, field.data_type().into(), true)
-                    .expect("Initial resolve should not fail");
-            }
-        }
-
-        if let Some(props) = &inner_graph.node_properties().temporal_props {
-            let node_temporal_props_fields = props.prop_dtypes();
-            for field in node_temporal_props_fields {
-                node_meta
-                    .resolve_prop_id(&field.name, field.data_type().into(), false)
-                    .expect("Initial resolve should not fail");
-            }
-        }
 
         Self {
             inner: Arc::new(inner_graph),
-            node_meta: Arc::new(node_meta),
-            edge_meta: Arc::new(edge_meta),
             graph_props: Arc::new(graph_meta),
         }
     }
@@ -336,12 +301,10 @@ impl DiskGraphStorage {
         node_properties: Option<P>,
         chunk_size: usize,
         t_props_chunk_size: usize,
-        read_chunk_size: Option<usize>,
-        concurrent_files: Option<usize>,
         num_threads: usize,
         node_type_col: Option<&str>,
     ) -> Result<DiskGraphStorage, RAError> {
-        let layered_edge_list: Vec<ExternalEdgeList<&Path>> = layer_parquet_cols
+        let edge_lists: Vec<ExternalEdgeList<&Path>> = layer_parquet_cols
             .into_iter()
             .map(
                 |ParquetLayerCols {
@@ -369,10 +332,9 @@ impl DiskGraphStorage {
             num_threads,
             chunk_size,
             t_props_chunk_size,
-            read_chunk_size,
-            concurrent_files,
             graph_dir.as_ref(),
-            layered_edge_list,
+            edge_lists,
+            &[],
             node_properties.as_ref().map(|p| p.as_ref()),
             node_type_col,
         )?;
@@ -403,29 +365,12 @@ impl DiskGraphStorage {
             .map(|(_, layer)| layer)
     }
 
-    pub fn from_layer(layer: TempColGraphFragment) -> Self {
-        let path = layer.graph_dir().to_path_buf();
-        let global_ordering = layer.nodes_storage().gids().clone();
-
-        let global_order = DiskHashMap::from_sorted_dedup(global_ordering.clone())
-            .expect("Failed to create global order");
-
-        let inner = TemporalGraph::new_from_layers(
-            path,
-            global_ordering,
-            Arc::new(global_order),
-            vec![layer],
-            vec!["_default".to_string()],
-        );
-        Self::new(inner)
-    }
-
     pub fn node_meta(&self) -> &Meta {
-        &self.node_meta
+        self.inner.node_meta()
     }
 
     pub fn edge_meta(&self) -> &Meta {
-        &self.edge_meta
+        self.inner.edge_meta()
     }
 
     pub fn graph_meta(&self) -> &GraphMeta {
@@ -445,11 +390,8 @@ mod test {
     use proptest::{prelude::*, sample::size_range};
     use tempfile::TempDir;
 
-    use pometry_storage::{global_order::GlobalMap, graph_fragment::TempColGraphFragment, RAError};
-    use raphtory_api::core::{
-        entities::{EID, VID},
-        Direction,
-    };
+    use pometry_storage::{graph::TemporalGraph, RAError};
+    use raphtory_api::core::entities::{EID, VID};
 
     use crate::{
         arrow2::datatypes::{ArrowDataType as DataType, ArrowSchema as Schema},
@@ -470,11 +412,10 @@ mod test {
     pub fn edges_sanity_check_build_graph<P: AsRef<Path>>(
         test_dir: P,
         edges: &[(u64, u64, i64)],
-        nodes: &[u64],
         input_chunk_size: u64,
         chunk_size: usize,
         t_props_chunk_size: usize,
-    ) -> Result<TempColGraphFragment, RAError> {
+    ) -> Result<TemporalGraph, RAError> {
         let chunks = edges
             .iter()
             .map(|(src, _, _)| *src)
@@ -503,34 +444,30 @@ mod test {
             Field::new("time", DataType::Int64, false),
         ]);
 
-        let triples = srcs.zip(dsts).zip(times).map(move |((a, b), c)| {
-            StructArray::new(
-                DataType::Struct(schema.fields.clone()),
-                vec![a.boxed(), b.boxed(), c.boxed()],
-                None,
-            )
-        });
+        let triples = srcs
+            .zip(dsts)
+            .zip(times)
+            .map(move |((a, b), c)| {
+                StructArray::new(
+                    DataType::Struct(schema.fields.clone()),
+                    vec![a.boxed(), b.boxed(), c.boxed()],
+                    None,
+                )
+            })
+            .collect::<Vec<_>>();
 
-        let go: GlobalMap = nodes.iter().copied().collect();
-        let node_gids = PrimitiveArray::from_slice(nodes).boxed();
-
-        let mut graph = TempColGraphFragment::load_from_edge_list(
+        TemporalGraph::from_sorted_edge_list(
             test_dir.as_ref(),
-            0,
-            chunk_size,
-            t_props_chunk_size,
-            go.into(),
-            node_gids,
             0,
             1,
             2,
-            triples,
-        )?;
-        graph.build_node_additions(chunk_size)?;
-        Ok(graph)
+            chunk_size,
+            t_props_chunk_size,
+            &triples,
+        )
     }
 
-    fn check_graph_sanity(edges: &[(u64, u64, i64)], nodes: &[u64], graph: &TempColGraphFragment) {
+    fn check_graph_sanity(edges: &[(u64, u64, i64)], nodes: &[u64], graph: &TemporalGraph) {
         let expected_graph = Graph::new();
         for (src, dst, t) in edges {
             expected_graph
@@ -550,26 +487,27 @@ mod test {
         let g_num_verts = graph.num_nodes();
         assert_eq!(actual_num_verts, g_num_verts);
         assert!(graph
-            .all_edges_iter()
-            .all(|e| e.src().0 < g_num_verts && e.dst().0 < g_num_verts));
+            .edges_iter()
+            .map(|edge| (edge.src_id(), edge.dst_id()))
+            .all(|(VID(src), VID(dst))| src < g_num_verts && dst < g_num_verts));
 
         for v in 0..g_num_verts {
             let v = VID(v);
             assert!(graph
-                .edges(v, Direction::OUT)
-                .map(|(_, v)| v)
+                .node(v, 0)
+                .out_neighbours()
                 .tuple_windows()
                 .all(|(v1, v2)| v1 <= v2));
             assert!(graph
-                .edges(v, Direction::IN)
-                .map(|(_, v)| v)
+                .node(v, 0)
+                .in_neighbours()
                 .tuple_windows()
                 .all(|(v1, v2)| v1 <= v2));
         }
 
         let exploded_edges: Vec<_> = graph
             .exploded_edges()
-            .map(|e| (nodes[e.src().0], nodes[e.dst().0], e.timestamp()))
+            .map(|(src, dst, time)| (nodes[src.0], nodes[dst.0], time))
             .collect();
         assert_eq!(exploded_edges, edges);
 
@@ -580,8 +518,9 @@ mod test {
             expected_inbound.sort();
 
             let actual_inbound = graph
-                .edges(VID(v_id), Direction::IN)
-                .map(|(_, v)| GID::U64(nodes[v.0]))
+                .node(VID(v_id), 0)
+                .in_neighbours()
+                .map(|v| GID::U64(nodes[v.0]))
                 .collect::<Vec<_>>();
 
             assert_eq!(expected_inbound, actual_inbound);
@@ -591,8 +530,8 @@ mod test {
 
         for (e_id, (src, dst)) in unique_edges.enumerate() {
             let edge = graph.edge(EID(e_id));
-            let VID(src_id) = edge.src();
-            let VID(dst_id) = edge.dst();
+            let VID(src_id) = edge.src_id();
+            let VID(dst_id) = edge.dst_id();
 
             assert_eq!(nodes[src_id], src);
             assert_eq!(nodes[dst_id], dst);
@@ -610,7 +549,6 @@ mod test {
         match edges_sanity_check_build_graph(
             test_dir.path(),
             &edges,
-            &nodes,
             input_chunk_size,
             chunk_size,
             t_props_chunk_size,
@@ -618,11 +556,9 @@ mod test {
             Ok(graph) => {
                 // check graph is sane
                 check_graph_sanity(&edges, &nodes, &graph);
-                let node_gids = PrimitiveArray::from_slice(&nodes).boxed();
 
                 // check that reloading from graph dir works
-                let reloaded_graph =
-                    TempColGraphFragment::new(test_dir.path(), true, 0, node_gids).unwrap();
+                let reloaded_graph = TemporalGraph::new(&test_dir).unwrap();
                 check_graph_sanity(&edges, &nodes, &reloaded_graph)
             }
             Err(RAError::NoEdgeLists | RAError::EmptyChunk) => assert!(edges.is_empty()),
@@ -649,6 +585,12 @@ mod test {
     }
 
     #[test]
+    fn edge_sanity_fail1() {
+        let edges = vec![(0, 17, 0), (1, 0, -1), (17, 0, 0)];
+        edges_sanity_check_inner(edges, 4, 4, 4)
+    }
+
+    #[test]
     fn edge_sanity_bad() {
         let edges = vec![
             (0, 85, -8744527736816607775),
@@ -662,7 +604,7 @@ mod test {
             (0, 85, -5577061971106014565),
             (0, 85, -5484794766797320810),
         ];
-        edges_sanity_check_inner(edges, 3, 5, 6)
+        edges_sanity_check_inner(edges, 3, 5, 12)
     }
 
     #[test]
@@ -762,12 +704,9 @@ mod test {
         graph.add_edge(2, 0, 1, [("weight", 2.)], None).unwrap();
         graph.add_edge(3, 1, 2, [("weight", 3.)], None).unwrap();
         let disk_graph = graph.persist_as_disk_graph(graph_dir.path()).unwrap();
-        let graph = disk_graph.inner.layer(0);
+        let graph = disk_graph.inner;
 
-        let all_exploded: Vec<_> = graph
-            .exploded_edges()
-            .map(|e| (e.src(), e.dst(), e.timestamp()))
-            .collect();
+        let all_exploded: Vec<_> = graph.exploded_edges().collect();
         let expected: Vec<_> = vec![
             (VID(0), VID(1), 0),
             (VID(0), VID(1), 1),
@@ -776,9 +715,7 @@ mod test {
         ];
         assert_eq!(all_exploded, expected);
 
-        let node_gids = PrimitiveArray::from_slice([0u64, 1, 2]).boxed();
-        let reloaded_graph =
-            TempColGraphFragment::new(graph.graph_dir(), true, 0, node_gids).unwrap();
+        let reloaded_graph = TemporalGraph::new(graph.graph_dir()).unwrap();
 
         check_graph_sanity(
             &[(0, 1, 0), (0, 1, 1), (0, 1, 2), (1, 2, 3)],
@@ -795,8 +732,7 @@ mod test {
         use raphtory_api::core::entities::VID;
 
         use super::{
-            edges_sanity_check_build_graph, AdditionOps, Graph, GraphViewOps, NodeViewOps,
-            TempColGraphFragment, NO_PROPS,
+            edges_sanity_check_build_graph, AdditionOps, Graph, GraphViewOps, NodeViewOps, NO_PROPS,
         };
 
         fn compare_raphtory_graph(edges: Vec<(u64, u64, i64)>, chunk_size: usize) {
@@ -815,10 +751,9 @@ mod test {
             }
 
             let test_dir = TempDir::new().unwrap();
-            let graph: TempColGraphFragment = edges_sanity_check_build_graph(
+            let graph = edges_sanity_check_build_graph(
                 test_dir.path(),
                 &edges,
-                &nodes,
                 edges.len() as u64,
                 chunk_size,
                 chunk_size,
@@ -828,7 +763,7 @@ mod test {
             for (v_id, node) in nodes.into_iter().enumerate() {
                 let node = rg.node(node).expect("failed to get node id");
                 let expected = node.history();
-                let node = graph.node(VID(v_id));
+                let node = graph.node(VID(v_id), 0);
                 let actual = node.timestamps().into_iter_t().collect::<Vec<_>>();
                 assert_eq!(actual, expected);
             }

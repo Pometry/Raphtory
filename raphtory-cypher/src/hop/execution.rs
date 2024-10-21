@@ -430,13 +430,13 @@ fn produce_next_record(
     // );
 
     let min_layer_pos = *layer_pos;
-    'top: for (l, layer) in &layers[*layer_pos..] {
+    'top: for (layer_id, layer) in &layers[*layer_pos..] {
         for (col_id, v_id) in hop_col.into_iter().map(|n| VID(*n as usize)).enumerate() {
             for (edge, u_id) in layer
                 .out_edges_from(v_id, *edge_pos)
-                .map(|(e_id, u_id)| (layer.edge(e_id), u_id))
+                .map(|(e_id, u_id)| (graph.edge(e_id), u_id))
             {
-                let slice = edge.timestamp_slice();
+                let slice = edge.timestamp_slice(*layer_id);
                 let time_slice = slice.slice(*time_pos..);
                 let start = time_slice.range().start;
                 let mut end = start;
@@ -445,18 +445,18 @@ fn produce_next_record(
                     edge_timestamps.push(t);
                     dst_indices.push(u_id.0 as u64);
                     edge_ids.push(end as u64);
-                    layer_ids.push(edge.layer_id() as u64);
+                    layer_ids.push(*layer_id as u64);
 
                     *time_pos += 1;
                     end += 1;
 
                     if take_indices.len() >= max_record_rows {
-                        prop_ranges[*l].push(start..end);
+                        prop_ranges[*layer_id].push(start..end);
                         prev_node.replace(v_id);
                         break 'top;
                     }
                 }
-                prop_ranges[*l].push(start..end);
+                prop_ranges[*layer_id].push(start..end);
                 *time_pos = 0;
                 *edge_pos += 1;
             }

@@ -134,10 +134,7 @@ pub fn out_component<'graph, G: GraphViewOps<'graph>>(node: NodeView<G>) -> Vec<
 #[cfg(test)]
 mod components_test {
     use super::*;
-    use crate::{
-        algorithms::components::in_components::in_component, db::api::mutation::AdditionOps,
-        prelude::*, test_storage,
-    };
+    use crate::{db::api::mutation::AdditionOps, prelude::*, test_storage};
     use std::collections::HashMap;
 
     #[test]

@@ -4,7 +4,7 @@ use crate::{
             edges::edge_ref::EdgeRef,
             nodes::node_ref::NodeRef,
             properties::{graph_meta::GraphMeta, props::Meta, tprop::TProp},
-            LayerIds, ELID, VID,
+            LayerIds, VID,
         },
         storage::{
             locked_view::LockedView,
@@ -24,7 +24,10 @@ use crate::{
     },
 };
 use enum_dispatch::enum_dispatch;
-use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
+use raphtory_api::core::{
+    entities::{EID, GID},
+    storage::arc_str::ArcStr,
+};
 use std::{iter, ops::Range};
 
 #[cfg(feature = "storage")]
@@ -60,7 +63,7 @@ pub trait CoreGraphOps {
         self.core_graph().owned_edges()
     }
     #[inline]
-    fn core_edge(&self, eid: ELID) -> EdgeStorageEntry {
+    fn core_edge(&self, eid: EID) -> EdgeStorageEntry {
         self.core_graph().edge_entry(eid)
     }
 

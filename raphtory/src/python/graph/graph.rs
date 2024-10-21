@@ -29,7 +29,10 @@ use std::{
     path::PathBuf,
 };
 
-/// A temporal graph.
+/// A temporal graph with event semantics.
+///
+/// Arguments:
+///     num_shards (int, optional): The number of locks to use in the storage to allow for multithreaded updates.
 #[derive(Clone)]
 #[pyclass(name = "Graph", extends = PyGraphView, module = "raphtory")]
 pub struct PyGraph {
@@ -170,10 +173,10 @@ impl PyGraph {
     /// Arguments:
     ///    timestamp (TimeInput): The timestamp of the node.
     ///    id (str|int): The id of the node.
-    ///    properties (dict): The properties of the node (optional).
-    ///    node_type (str): The optional string which will be used as a node type
+    ///    properties (PropInput, optional): The properties of the node.
+    ///    node_type (str, optional): The optional string which will be used as a node type
     /// Returns:
-    ///   Node: The added node
+    ///   MutableNode: The added node
     #[pyo3(signature = (timestamp, id, properties = None, node_type = None))]
     pub fn add_node(
         &self,
@@ -190,7 +193,7 @@ impl PyGraph {
     ///
     /// Arguments:
     ///    timestamp (TimeInput): The timestamp of the temporal property.
-    ///    properties (dict): The temporal properties of the graph.
+    ///    properties (PropInput): The temporal properties of the graph.
     pub fn add_property(
         &self,
         timestamp: PyTime,
@@ -202,7 +205,7 @@ impl PyGraph {
     /// Adds static properties to the graph.
     ///
     /// Arguments:
-    ///     properties (dict): The static properties of the graph.
+    ///     properties (PropInput): The static properties of the graph.
     pub fn add_constant_properties(
         &self,
         properties: HashMap<String, Prop>,
@@ -213,7 +216,7 @@ impl PyGraph {
     /// Updates static properties to the graph.
     ///
     /// Arguments:
-    ///     properties (dict): The static properties of the graph.
+    ///     properties (PropInput): The static properties of the graph.
     ///
     pub fn update_constant_properties(
         &self,
@@ -228,11 +231,11 @@ impl PyGraph {
     ///    timestamp (TimeInput): The timestamp of the edge.
     ///    src (str|int): The id of the source node.
     ///    dst (str|int): The id of the destination node.
-    ///    properties (dict): The properties of the edge, as a dict of string and properties (optional).
-    ///    layer (str): The layer of the edge (optional).
+    ///    properties (PropInput, optional): The properties of the edge, as a dict of string and properties.
+    ///    layer (str, optional): The layer of the edge.
     ///
     /// Returns:
-    ///   Edge: The added edge
+    ///   MutableEdge: The added edge
     #[pyo3(signature = (timestamp, src, dst, properties = None, layer = None))]
     pub fn add_edge(
         &self,
@@ -387,7 +390,7 @@ impl PyGraph {
     ///     node_type_col (str): The node type col name in dataframe (optional) Defaults to None. (cannot be used in combination with node_type)
     ///     properties (List[str]): List of node property column names. Defaults to None. (optional)
     ///     constant_properties (List[str]): List of constant node property column names. Defaults to None.  (optional)
-    ///     shared_constant_properties (dict): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
+    ///     shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
     #[pyo3(
         signature = (df,time, id, node_type = None, node_type_col = None, properties = None, constant_properties = None, shared_constant_properties = None)
     )]
@@ -425,7 +428,7 @@ impl PyGraph {
     ///     node_type_col (str): The node type col name in dataframe (optional) Defaults to None. (cannot be used in combination with node_type)
     ///     properties (List[str]): List of node property column names. Defaults to None. (optional)
     ///     constant_properties (List[str]): List of constant node property column names. Defaults to None.  (optional)
-    ///     shared_constant_properties (dict): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
+    ///     shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
     #[pyo3(
         signature = (parquet_path, time, id, node_type = None, node_type_col = None, properties = None, constant_properties = None, shared_constant_properties = None)
     )]
@@ -462,7 +465,7 @@ impl PyGraph {
     ///     dst (str): The column name for the destination node ids.
     ///     properties (List[str]): List of edge property column names. Defaults to None. (optional)
     ///     constant_properties (List[str]): List of constant edge property column names. Defaults to None. (optional)
-    ///     shared_constant_properties (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
+    ///     shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
     ///     layer (str): A constant value to use as the layer for all edges (optional) Defaults to None. (cannot be used in combination with layer_col)
     ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None. (cannot be used in combination with layer)
     #[pyo3(
@@ -503,7 +506,7 @@ impl PyGraph {
     ///     dst (str): The column name for the destination node ids.
     ///     properties (List[str]): List of edge property column names. Defaults to None. (optional)
     ///     constant_properties (List[str]): List of constant edge property column names. Defaults to None. (optional)
-    ///     shared_constant_properties (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
+    ///     shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
     ///     layer (str): A constant value to use as the layer for all edges (optional) Defaults to None. (cannot be used in combination with layer_col)
     ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None. (cannot be used in combination with layer)
     #[pyo3(
@@ -543,7 +546,7 @@ impl PyGraph {
     ///     node_type (str): A constant value to use as the node type for all nodes (optional). Defaults to None. (cannot be used in combination with node_type_col)
     ///     node_type_col (str): The node type col name in dataframe (optional) Defaults to None. (cannot be used in combination with node_type)
     ///     constant_properties (List[str]): List of constant node property column names. Defaults to None. (optional)
-    ///     shared_constant_properties (dict): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
+    ///     shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
     #[pyo3(signature = (df, id, node_type=None, node_type_col=None, constant_properties = None, shared_constant_properties = None))]
     fn load_node_props_from_pandas(
         &self,
@@ -573,7 +576,7 @@ impl PyGraph {
     ///     node_type (str): A constant value to use as the node type for all nodes (optional). Defaults to None. (cannot be used in combination with node_type_col)
     ///     node_type_col (str): The node type col name in dataframe (optional) Defaults to None. (cannot be used in combination with node_type)
     ///     constant_properties (List[str]): List of constant node property column names. Defaults to None. (optional)
-    ///     shared_constant_properties (dict): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
+    ///     shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
     #[pyo3(signature = (parquet_path, id, node_type=None,node_type_col=None, constant_properties = None, shared_constant_properties = None))]
     fn load_node_props_from_parquet(
         &self,
@@ -602,7 +605,7 @@ impl PyGraph {
     ///     src (str): The column name for the source node.
     ///     dst (str): The column name for the destination node.
     ///     constant_properties (List[str]): List of constant edge property column names. Defaults to None. (optional)
-    ///     shared_constant_properties (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
+    ///     shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
     ///     layer (str): The edge layer name (optional) Defaults to None.
     ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None.
     #[pyo3(
@@ -637,7 +640,7 @@ impl PyGraph {
     ///     src (str): The column name for the source node.
     ///     dst (str): The column name for the destination node.
     ///     constant_properties (List[str]): List of constant edge property column names. Defaults to None. (optional)
-    ///     shared_constant_properties (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
+    ///     shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
     ///     layer (str): The edge layer name (optional) Defaults to None.
     ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None.
     #[pyo3(

@@ -369,7 +369,7 @@ impl PyMutableNode {
     ///
     /// Parameters:
     ///     t (TimeInput): The timestamp at which the updates should be applied.
-    ///     properties (Dict[str, Prop]): A dictionary of properties to update. Each key is a string representing the property name, and each value is of type Prop representing the property value. If None, no properties are updated.
+    ///     properties (PropInput): A dictionary of properties to update. Each key is a string representing the property name, and each value is of type Prop representing the property value. If None, no properties are updated.
     ///
     /// Returns:
     ///     Result: A result object indicating success or failure. On failure, it contains a GraphError.
@@ -386,7 +386,7 @@ impl PyMutableNode {
     /// change over time. These properties are fundamental attributes of the node.
     ///
     /// Parameters:
-    ///     properties (Dict[str, Prop]): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
+    ///     properties (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
     pub fn add_constant_properties(
         &self,
         properties: HashMap<String, Prop>,
@@ -399,7 +399,7 @@ impl PyMutableNode {
     /// change over time. These properties are fundamental attributes of the node.
     ///
     /// Parameters:
-    ///     properties (Dict[str, Prop]): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
+    ///     properties (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
     pub fn update_constant_properties(
         &self,
         properties: HashMap<String, Prop>,

@@ -61,17 +61,9 @@ mod cypher {
         #[arg(short, long, default_value_t = 5000000)]
         t_prop_chunk_size: usize,
 
-        /// Chunk size of the parquet edge list
-        #[arg(short, long)]
-        read_chunk_size: Option<usize>,
-
         /// Number of threads to use when loading temporal properties
         #[arg(short, long, default_value_t = 8)]
         num_threads: usize,
-
-        /// Number of concurrent files to read when loading temporal properties
-        #[arg(short, long)]
-        concurrent_files: Option<usize>,
 
         /// Node properties to load
         #[arg(short, long)]
@@ -206,8 +198,6 @@ mod cypher {
                     args.node_props.as_deref(),
                     args.chunk_size,
                     args.t_prop_chunk_size,
-                    args.read_chunk_size,
-                    args.concurrent_files,
                     args.num_threads,
                     args.node_type_col.as_deref(),
                 )

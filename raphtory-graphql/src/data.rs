@@ -36,6 +36,7 @@ pub struct EmbeddingConf {
 pub struct Data {
     work_dir: PathBuf,
     cache: Cache<PathBuf, GraphWithVectors>,
+    pub(crate) index: bool,
     pub(crate) embedding_conf: Option<EmbeddingConf>,
 }
 
@@ -57,6 +58,7 @@ impl Data {
         Self {
             work_dir: work_dir.to_path_buf(),
             cache,
+            index: true,
             embedding_conf: Default::default(),
         }
     }
@@ -78,7 +80,8 @@ impl Data {
     ) -> Result<(), GraphError> {
         let folder = ValidGraphFolder::try_from(self.work_dir.clone(), path)?;
         let vectors = self.vectorise(graph.clone(), &folder).await;
-        let graph = GraphWithVectors::new(graph.into(), vectors);
+        let index = self.index.then(|| graph.clone().into());
+        let graph = GraphWithVectors::new(graph, index, vectors);
         self.insert_graph_with_vectors(path, graph)
     }
 
@@ -172,7 +175,7 @@ impl Data {
         // it's important that we check if there is a valid template set for this graph path
         // before actually loading the graph, otherwise we are loading the graph for no reason
         let template = self.resolve_template(folder.get_original_path())?;
-        let graph = self.read_graph_from_folder(folder).ok()?.graph.graph;
+        let graph = self.read_graph_from_folder(folder).ok()?.graph;
         self.vectorise_with_template(graph, folder, template).await
     }
 
@@ -240,7 +243,7 @@ impl Data {
             .map(|conf| conf.cache.clone())
             .unwrap_or(Arc::new(None));
 
-        GraphWithVectors::read_from_folder(folder, embedding, cache)
+        GraphWithVectors::read_from_folder(folder, self.index, embedding, cache)
     }
 }
 
@@ -345,7 +348,7 @@ pub(crate) mod data_tests {
 
         let data = Data::new(&base_path, &Default::default());
         let res = data.get_graph("test_dg").unwrap().0;
-        assert_eq!(res.graph.graph.into_events().unwrap().count_edges(), 2);
+        assert_eq!(res.graph.into_events().unwrap().count_edges(), 2);
 
         // Dir path doesn't exists
         let res = data.get_graph("test_dg1");

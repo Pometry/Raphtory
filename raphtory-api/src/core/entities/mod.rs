@@ -1,4 +1,3 @@
-use self::edges::edge_ref::EdgeRef;
 use super::input::input_node::parse_u64_strict;
 use bytemuck::{Pod, Zeroable};
 use num_traits::ToPrimitive;
@@ -9,6 +8,7 @@ use std::{
 };
 
 pub mod edges;
+pub mod properties;
 
 // the only reason this is public is because the physical ids of the nodes don't move
 #[repr(transparent)]
@@ -75,35 +75,6 @@ impl From<usize> for EID {
     }
 }
 
-#[derive(
-    Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Default,
-)]
-pub struct ELID {
-    edge: EID,
-    layer: Option<usize>,
-}
-
-impl ELID {
-    pub fn new(edge: EID, layer: Option<usize>) -> Self {
-        Self { edge, layer }
-    }
-    pub fn pid(&self) -> EID {
-        self.edge
-    }
-
-    pub fn layer(&self) -> Option<usize> {
-        self.layer
-    }
-}
-
-impl From<EdgeRef> for ELID {
-    fn from(value: EdgeRef) -> Self {
-        ELID {
-            edge: value.pid(),
-            layer: value.layer(),
-        }
-    }
-}
 impl EID {
     pub fn from_u64(id: u64) -> Self {
         EID(id as usize)

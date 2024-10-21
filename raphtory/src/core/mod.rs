@@ -17,15 +17,13 @@
 //!
 //! `raphtory` supports  support for the following platforms:
 //!
-//! **Note** they must have Rust 1.53 or later.
+//! **Note** they must have Rust 1.80 or later.
 //!
 //!    * `Linux`
 //!    * `Windows`
 //!    * `macOS`
 //!
 
-#[cfg(feature = "storage")]
-use crate::arrow2::datatypes::ArrowDataType as DataType;
 use crate::{
     db::graph::{graph::Graph, views::deletion_graph::PersistentGraph},
     prelude::GraphViewOps,
@@ -72,117 +70,6 @@ pub struct DocumentInput {
 impl Display for DocumentInput {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.write_str(&self.content)
-    }
-}
-
-#[derive(Copy, Clone, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
-pub enum PropType {
-    #[default]
-    Empty,
-    Str,
-    U8,
-    U16,
-    I32,
-    I64,
-    U32,
-    U64,
-    F32,
-    F64,
-    Bool,
-    List,
-    Map,
-    NDTime,
-    Graph,
-    PersistentGraph,
-    Document,
-    DTime,
-}
-
-impl Display for PropType {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let type_str = match self {
-            PropType::Empty => "Empty",
-            PropType::Str => "Str",
-            PropType::U8 => "U8",
-            PropType::U16 => "U16",
-            PropType::I32 => "I32",
-            PropType::I64 => "I64",
-            PropType::U32 => "U32",
-            PropType::U64 => "U64",
-            PropType::F32 => "F32",
-            PropType::F64 => "F64",
-            PropType::Bool => "Bool",
-            PropType::List => "List",
-            PropType::Map => "Map",
-            PropType::NDTime => "NDTime",
-            PropType::Graph => "Graph",
-            PropType::PersistentGraph => "PersistentGraph",
-            PropType::Document => "Document",
-            PropType::DTime => "DTime",
-        };
-
-        write!(f, "{}", type_str)
-    }
-}
-
-impl PropType {
-    pub fn is_numeric(&self) -> bool {
-        matches!(
-            self,
-            PropType::U8
-                | PropType::U16
-                | PropType::U32
-                | PropType::U64
-                | PropType::I32
-                | PropType::I64
-                | PropType::F32
-                | PropType::F64
-        )
-    }
-
-    pub fn is_str(&self) -> bool {
-        matches!(self, PropType::Str)
-    }
-
-    pub fn is_bool(&self) -> bool {
-        matches!(self, PropType::Bool)
-    }
-
-    pub fn is_date(&self) -> bool {
-        matches!(self, PropType::DTime | PropType::NDTime)
-    }
-
-    pub fn has_add(&self) -> bool {
-        self.is_numeric() || self.is_str()
-    }
-
-    pub fn has_divide(&self) -> bool {
-        self.is_numeric()
-    }
-
-    pub fn has_cmp(&self) -> bool {
-        self.is_bool() || self.is_numeric() || self.is_str() || self.is_date()
-    }
-}
-
-#[cfg(feature = "storage")]
-impl From<&DataType> for PropType {
-    fn from(value: &DataType) -> Self {
-        match value {
-            DataType::Utf8 => PropType::Str,
-            DataType::LargeUtf8 => PropType::Str,
-            DataType::UInt8 => PropType::U8,
-            DataType::UInt16 => PropType::U16,
-            DataType::Int32 => PropType::I32,
-            DataType::Int64 => PropType::I64,
-            DataType::UInt32 => PropType::U32,
-            DataType::UInt64 => PropType::U64,
-            DataType::Float32 => PropType::F32,
-            DataType::Float64 => PropType::F64,
-            DataType::Boolean => PropType::Bool,
-
-            _ => PropType::Empty,
-        }
     }
 }
 
@@ -353,7 +240,7 @@ impl Prop {
             (Prop::U64(a), Prop::U64(b)) => Some(Prop::U64(a + b)),
             (Prop::F32(a), Prop::F32(b)) => Some(Prop::F32(a + b)),
             (Prop::F64(a), Prop::F64(b)) => Some(Prop::F64(a + b)),
-            (Prop::Str(a), Prop::Str(b)) => Some(Prop::Str((a.to_string() + &b).into())),
+            (Prop::Str(a), Prop::Str(b)) => Some(Prop::Str((a.to_string() + b.as_ref()).into())),
             _ => None,
         }
     }

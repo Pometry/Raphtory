@@ -190,39 +190,48 @@ impl<'a, I: Offset> TPropOps<'a> for TPropColumn<'a, StringCol<'a, I>, TimeIndex
 fn new_tprop_column<T: NativeType>(
     edge: Edge,
     id: usize,
+    layer_id: usize,
 ) -> Option<TPropColumn<ChunkedPrimitiveCol<T>, TimeIndexEntry>>
 where
     Prop: From<T>,
 {
-    let props = edge.prop_values::<T>(id)?;
-    let timestamps = TimeStamps::new(edge.timestamp_slice(), None);
+    let props = edge.prop_values::<T>(id, layer_id)?;
+    let timestamps = TimeStamps::new(edge.timestamp_slice(layer_id), None);
     Some(TPropColumn::new(props, timestamps))
 }
 
-pub fn read_tprop_column(id: usize, field: Field, edge: Edge) -> Option<DiskTProp<TimeIndexEntry>> {
+pub fn read_tprop_column(
+    edge: Edge,
+    id: usize,
+    layer_id: usize,
+    field: Field,
+) -> Option<DiskTProp<TimeIndexEntry>> {
     match field.data_type() {
         DataType::Boolean => {
-            let props = edge.prop_bool_values(id)?;
-            let timestamps = TimeStamps::new(edge.timestamp_slice(), None);
+            let props = edge.prop_bool_values(id, layer_id)?;
+            let timestamps = TimeStamps::new(edge.timestamp_slice(layer_id), None);
             Some(DiskTProp::Bool(TPropColumn::new(props, timestamps)))
         }
-        DataType::Int64 => new_tprop_column::<i64>(edge, id).map(DiskTProp::I64),
-        DataType::Int32 => new_tprop_column::<i32>(edge, id).map(DiskTProp::I32),
-        DataType::UInt32 => new_tprop_column::<u32>(edge, id).map(DiskTProp::U32),
-        DataType::UInt64 => new_tprop_column::<u64>(edge, id).map(DiskTProp::U64),
-        DataType::Float32 => new_tprop_column::<f32>(edge, id).map(DiskTProp::F32),
-        DataType::Float64 => new_tprop_column::<f64>(edge, id).map(DiskTProp::F64),
+        DataType::Int64 => new_tprop_column::<i64>(edge, id, layer_id).map(DiskTProp::I64),
+        DataType::Int32 => new_tprop_column::<i32>(edge, id, layer_id).map(DiskTProp::I32),
+        DataType::UInt32 => new_tprop_column::<u32>(edge, id, layer_id).map(DiskTProp::U32),
+        DataType::UInt64 => new_tprop_column::<u64>(edge, id, layer_id).map(DiskTProp::U64),
+        DataType::Float32 => new_tprop_column::<f32>(edge, id, layer_id).map(DiskTProp::F32),
+        DataType::Float64 => new_tprop_column::<f64>(edge, id, layer_id).map(DiskTProp::F64),
         DataType::Utf8 => {
-            let props = edge.prop_str_values::<i32>(id)?;
-            let timestamps = TimeStamps::new(edge.timestamp_slice(), None);
+            let props = edge.prop_str_values::<i32>(id, layer_id)?;
+            let timestamps = TimeStamps::new(edge.timestamp_slice(layer_id), None);
             Some(DiskTProp::Str32(TPropColumn::new(props, timestamps)))
         }
         DataType::LargeUtf8 => {
-            let props = edge.prop_str_values::<i64>(id)?;
-            let timestamps = TimeStamps::new(edge.timestamp_slice(), None);
+            let props = edge.prop_str_values::<i64>(id, layer_id)?;
+            let timestamps = TimeStamps::new(edge.timestamp_slice(layer_id), None);
             Some(DiskTProp::Str64(TPropColumn::new(props, timestamps)))
         }
-        DataType::Date64 => new_tprop_column::<i64>(edge, id).map(DiskTProp::I64),
+        DataType::Date64 => new_tprop_column::<i64>(edge, id, layer_id).map(DiskTProp::I64),
+        DataType::Timestamp(_, _) => {
+            new_tprop_column::<i64>(edge, id, layer_id).map(DiskTProp::I64)
+        }
         _ => todo!(),
     }
 }

@@ -6,11 +6,11 @@ use crate::{
     core::{entities::LayerIds, utils::errors::GraphError},
     db::api::{
         properties::internal::InheritPropertiesOps,
-        storage::graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
         view::{
             internal::{
-                Base, EdgeFilterOps, Immutable, InheritCoreOps, InheritListOps, InheritMaterialize,
-                InheritNodeFilterOps, InheritTimeSemantics, InternalLayerOps, Static,
+                Base, Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritListOps,
+                InheritMaterialize, InheritNodeFilterOps, InheritTimeSemantics, InternalLayerOps,
+                Static,
             },
             Layer,
         },
@@ -59,27 +59,7 @@ impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for LayeredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for LayeredGraph<G> {
-    #[inline]
-    fn edges_filtered(&self) -> bool {
-        true
-    }
-
-    #[inline]
-    fn edge_list_trusted(&self) -> bool {
-        false
-    }
-
-    #[inline]
-    fn edge_filter_includes_node_filter(&self) -> bool {
-        self.graph.edge_filter_includes_node_filter()
-    }
-
-    #[inline]
-    fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
-        self.graph.filter_edge(edge, layer_ids) && edge.has_layer(&self.layers)
-    }
-}
+impl<'graph, G: GraphViewOps<'graph>> InheritEdgeFilterOps for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> LayeredGraph<G> {
     pub fn new(graph: G, layers: LayerIds) -> Self {
@@ -129,7 +109,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalLayerOps for LayeredGraph<G> {
 
 #[cfg(test)]
 mod test_layers {
-    use crate::{prelude::*, test_utils::test_graph};
+    use crate::{prelude::*, test_storage};
     use itertools::Itertools;
     use raphtory_api::core::entities::GID;
 
@@ -140,9 +120,9 @@ mod test_layers {
         graph.add_edge(0, 1, 2, NO_PROPS, Some("layer1")).unwrap();
         graph.add_edge(0, 2, 3, NO_PROPS, Some("layer2")).unwrap();
         graph.add_edge(3, 2, 4, NO_PROPS, Some("layer1")).unwrap();
+        graph.add_edge(1, 4, 1, NO_PROPS, Some("layer3")).unwrap();
 
-        // FIXME: Needs multilayer support (Issue #47)
-        test_graph(&graph, |graph| {
+        test_storage!(&graph, |graph| {
             let neighbours = graph
                 .layers(vec!["layer1", "layer2"])
                 .unwrap()
@@ -200,6 +180,17 @@ mod test_layers {
                 .collect_vec();
             edges.sort();
             assert_eq!(edges, vec![(1, 2), (2, 3), (2, 4)]);
+
+            let mut edges = graph
+                .layers(["layer1", "layer3"])
+                .unwrap()
+                .window(0, 2)
+                .edges()
+                .id()
+                .filter_map(|(a, b)| a.to_u64().zip(b.to_u64()))
+                .collect_vec();
+            edges.sort();
+            assert_eq!(edges, vec![(1, 2), (4, 1)]);
         });
     }
 
@@ -213,8 +204,7 @@ mod test_layers {
         assert!(e1.has_layer("2"));
         assert!(e1.layers("2").unwrap().history().is_empty());
 
-        // FIXME: Needs multilayer support (Issue #47)
-        test_graph(&graph, |graph| {
+        test_storage!(&graph, |graph| {
             let e = graph.edge(1, 2).unwrap();
             // layers with non-existing layers errors
             assert!(e.layers(["1", "3"]).is_err());

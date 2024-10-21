@@ -61,6 +61,14 @@ impl GqlNodes {
         self.update(self.nn.latest())
     }
 
+    async fn snapshot_at(&self, time: i64) -> Self {
+        self.update(self.nn.snapshot_at(time))
+    }
+
+    async fn snapshot_latest(&self) -> Self {
+        self.update(self.nn.snapshot_latest())
+    }
+
     async fn before(&self, time: i64) -> Self {
         self.update(self.nn.before(time))
     }

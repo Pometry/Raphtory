@@ -34,8 +34,6 @@ use crate::executor::{arrow2_to_arrow_buf, ExecError};
 
 use super::plan_properties;
 
-// use super::plan_properties;
-
 pub struct EdgeListTableProvider {
     layer_id: usize,
     layer_name: String,
@@ -218,8 +216,8 @@ fn produce_record_batch(
 
     let offsets: OffsetBuffer<i64> = OffsetBuffer::new(local_offsets.into());
 
-    let srcs = edges.srcs().sliced(start..end);
-    let dsts = edges.dsts().sliced(start..end);
+    let srcs = graph.inner().global_src_ids().slice(start..end);
+    let dsts = graph.inner().global_dst_ids().slice(start..end);
 
     let ids_builder: Vec<u64> = (start_offset as u64..end_offset as u64).collect();
     let mut srcs_builder = Vec::with_capacity(time_values_chunks.len());
@@ -262,7 +260,8 @@ fn produce_record_batch(
         None,
     ));
 
-    let column_ids = edges
+    let column_ids = layer
+        .edges_storage()
         .data_type()
         .iter()
         .enumerate()

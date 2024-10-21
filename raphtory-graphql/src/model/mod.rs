@@ -80,7 +80,7 @@ impl QueryRoot {
         let data = ctx.data_unchecked::<Data>();
         Ok(data
             .get_graph(path)
-            .map(|(g, folder)| GqlGraph::new(folder, g.graph))?)
+            .map(|(g, folder)| GqlGraph::new(folder, g.graph, g.index))?)
     }
 
     async fn update_graph<'a>(ctx: &Context<'a>, path: String) -> Result<GqlMutableGraph> {
@@ -111,7 +111,7 @@ impl QueryRoot {
     async fn receive_graph<'a>(ctx: &Context<'a>, path: String) -> Result<String, Arc<GraphError>> {
         let path = path.as_ref();
         let data = ctx.data_unchecked::<Data>();
-        let g = data.get_graph(path)?.0.graph.graph.clone();
+        let g = data.get_graph(path)?.0.graph.clone();
         let res = url_encode_graph(g)?;
         Ok(res)
     }

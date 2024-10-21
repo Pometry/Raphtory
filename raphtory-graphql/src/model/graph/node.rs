@@ -70,6 +70,14 @@ impl Node {
         self.vv.latest().into()
     }
 
+    async fn snapshot_at(&self, time: i64) -> Node {
+        self.vv.snapshot_at(time).into()
+    }
+
+    async fn snapshot_latest(&self) -> Node {
+        self.vv.snapshot_latest().into()
+    }
+
     async fn before(&self, time: i64) -> Node {
         self.vv.before(time).into()
     }

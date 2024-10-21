@@ -98,8 +98,6 @@ def test_disk_graph():
         chunk_size = 268_435_456
         num_threads = 4
         t_props_chunk_size = int(chunk_size / 8)
-        read_chunk_size = 4_000_000
-        concurrent_files = 1
 
         g = measure(
             "Graph load from parquets",
@@ -109,8 +107,6 @@ def test_disk_graph():
             None,
             chunk_size,
             t_props_chunk_size,
-            read_chunk_size,
-            concurrent_files,
             num_threads,
             None,
             print_result=False,
@@ -164,8 +160,6 @@ def test_disk_graph_type_filter():
     chunk_size = 268_435_456
     num_threads = 4
     t_props_chunk_size = int(chunk_size / 8)
-    read_chunk_size = 4_000_000
-    concurrent_files = 1
 
     g = DiskGraphStorage.load_from_parquets(
         graph_dir.name,
@@ -173,8 +167,6 @@ def test_disk_graph_type_filter():
         rsc_dir + "/netflowsorted/props/props.parquet",
         chunk_size,
         t_props_chunk_size,
-        read_chunk_size,
-        concurrent_files,
         num_threads,
         "node_type",
     ).to_events()

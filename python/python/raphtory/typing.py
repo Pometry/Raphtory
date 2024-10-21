@@ -1,9 +1,10 @@
 from datetime import datetime
-from typing import Union, Literal
+from typing import Union, Literal, Mapping
 
-Prop = Union[
+PropValue = Union[
     bool,
     int,
+    float,
     datetime,
     str,
     "Graph",
@@ -13,8 +14,10 @@ Prop = Union[
     dict[str, "Prop"],
 ]
 
+PropInput = Mapping[str, PropValue]
+
 Direction = Literal["in", "out", "both"]
 
 InputNode = Union[int, str, "Node"]
 
-TimeInput = Union[int, str, datetime]
+TimeInput = Union[int, str, float, datetime]

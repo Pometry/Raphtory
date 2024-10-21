@@ -33,19 +33,13 @@ mod test {
             api::view::{
                 exploded_edge_property_filter::ExplodedEdgePropertyFilterOps, node::NodeViewOps,
             },
-            graph::{
-                graph::{assert_graph_equal, assert_node_equal, assert_nodes_equal},
-                views::deletion_graph::PersistentGraph,
-            },
+            graph::graph::{assert_graph_equal, assert_node_equal, assert_nodes_equal},
         },
         prelude::*,
-        test_utils::{
-            build_edge_deletions, build_edge_list, build_graph_from_edge_list, build_window,
-        },
+        test_utils::{build_edge_list, build_graph_from_edge_list, build_window},
     };
     use itertools::Itertools;
     use proptest::{arbitrary::any, proptest};
-    use std::ops::Range;
 
     fn build_filtered_graph(
         edges: &[(u64, u64, i64, String, i64)],

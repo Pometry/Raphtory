@@ -4,7 +4,7 @@ use crate::{
             edges::edge_ref::EdgeRef,
             nodes::node_ref::{AsNodeRef, NodeRef},
             properties::{graph_meta::GraphMeta, props::Meta, tprop::TProp},
-            LayerIds, EID, ELID, GID, VID,
+            LayerIds, EID, GID, VID,
         },
         storage::{
             locked_view::LockedView, raw_edges::WriteLockedEdges, timeindex::TimeIndexEntry,
