@@ -4178,19 +4178,22 @@ version = "0.13.0"
 
 [[package]]
 name = "pometry-storage-private"
-version = "0.8.1"
+version = "0.12.1"
 dependencies = [
  "ahash",
  "bincode",
  "bytemuck",
  "criterion",
  "itertools 0.12.1",
- "memmap2",
+ "memmap2 0.9.4",
  "once_cell",
  "parking_lot",
  "polars-arrow",
+ "polars-core",
+ "polars-io",
  "polars-parquet",
  "polars-utils",
+ "pretty_assertions",
  "proptest",
  "rand",
  "raphtory-api",
