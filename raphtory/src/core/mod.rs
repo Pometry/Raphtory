@@ -50,8 +50,7 @@ pub mod state;
 pub mod utils;
 
 pub use raphtory_api::core::*;
-pub use raphtory_memstorage::core::storage::*;
-pub use raphtory_memstorage::core::entities::*;
+pub use raphtory_memstorage::core::{entities::*, storage::*};
 
 pub trait PropUnwrap: Sized {
     fn into_u8(self) -> Option<u8>;
@@ -328,8 +327,6 @@ impl PropUnwrap for Prop {
         }
     }
 }
-
-
 
 #[cfg(feature = "io")]
 mod serde_value_into_prop {

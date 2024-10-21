@@ -4635,12 +4635,14 @@ dependencies = [
  "bytemuck",
  "chrono",
  "dashmap 6.0.1",
+ "either",
  "lock_api",
  "num-traits",
  "ouroboros",
  "parking_lot",
  "polars-arrow",
  "proptest",
+ "prost",
  "pyo3",
  "quickcheck",
  "quickcheck_macros",
@@ -4652,6 +4654,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "twox-hash",
+ "zip",
 ]
 
 [[package]]

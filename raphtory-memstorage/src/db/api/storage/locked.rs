@@ -1,10 +1,17 @@
 use std::sync::Arc;
 
-use raphtory_api::core::{entities::{GidRef, VID}, storage::dict_mapper::MaybeNew, utils::errors::GraphError};
+use raphtory_api::core::{
+    entities::{GidRef, VID},
+    storage::dict_mapper::MaybeNew,
+    utils::errors::GraphError,
+};
 
 use crate::core::{
     entities::{graph::tgraph::TemporalGraph, nodes::node_store::NodeStore},
-    storage::{raw_edges::{LockedEdges, WriteLockedEdges}, ReadLockedStorage, WriteLockedNodes},
+    storage::{
+        raw_edges::{LockedEdges, WriteLockedEdges},
+        ReadLockedStorage, WriteLockedNodes,
+    },
 };
 
 #[derive(Debug)]
@@ -33,7 +40,6 @@ impl serde::Serialize for LockedGraph {
 }
 
 impl LockedGraph {
-
     pub fn graph(&self) -> &TemporalGraph {
         &self.graph
     }

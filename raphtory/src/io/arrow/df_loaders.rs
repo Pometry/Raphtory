@@ -1,9 +1,5 @@
 use crate::{
-    core::{
-        entities::LayerIds,
-        utils::errors::{GraphError, LoadError},
-        PropType,
-    },
+    core::{entities::LayerIds, PropType},
     db::api::{mutation::internal::*, view::StaticGraphViewOps},
     io::arrow::{
         dataframe::{DFChunk, DFView},
@@ -21,6 +17,7 @@ use raphtory_api::{
     core::{
         entities::EID,
         storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
+        utils::errors::{GraphError, LoadError},
         Direction,
     },
 };
@@ -266,7 +263,7 @@ pub(crate) fn load_edges_from_df<
         eid_col_resolved.resize_with(df.len(), Default::default);
         let eid_col_shared = atomic_usize_from_mut_slice(cast_slice_mut(&mut eid_col_resolved));
         let g = write_locked_graph.graph;
-        let next_edge_id = || g.storage.edges.next_id();
+        let next_edge_id = || g.storage().edges().next_id();
         let update_time = |time| g.update_time(time);
         write_locked_graph
             .nodes
@@ -604,7 +601,6 @@ pub(crate) fn load_edges_props_from_df<
 #[cfg(test)]
 mod tests {
     use crate::{
-        core::utils::errors::GraphError,
         db::graph::graph::assert_graph_equal,
         io::arrow::{
             dataframe::{DFChunk, DFView},
@@ -616,6 +612,7 @@ mod tests {
     use itertools::Itertools;
     use polars_arrow::array::{MutableArray, MutablePrimitiveArray, MutableUtf8Array};
     use proptest::proptest;
+    use raphtory_api::core::utils::errors::GraphError;
     use tempfile::TempDir;
 
     #[cfg(feature = "storage")]

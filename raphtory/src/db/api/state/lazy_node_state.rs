@@ -6,7 +6,8 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
-use raphtory_memstorage::{core::entities::nodes::node_ref::AsNodeRef, db::api::{list_ops::NodeList, storage::graph::GraphStorage}};
+use raphtory_api::core::entities::AsNodeRef;
+use raphtory_memstorage::db::api::{list_ops::NodeList, storage::graph::GraphStorage};
 use rayon::prelude::*;
 use std::{marker::PhantomData, sync::Arc};
 

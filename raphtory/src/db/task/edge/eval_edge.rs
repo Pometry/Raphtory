@@ -1,3 +1,5 @@
+use raphtory_memstorage::db::api::storage::graph::GraphStorage;
+
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
@@ -18,7 +20,7 @@ use crate::{
 
 use crate::db::task::edge::eval_edges::EvalEdges;
 
-use crate::db::{api::storage::graph::storage_ops::GraphStorage, task::eval_graph::EvalGraph};
+use crate::db::task::eval_graph::EvalGraph;
 use std::{cell::RefCell, rc::Rc};
 
 pub struct EvalEdgeView<'graph, 'a, G, GH, CS: Clone, S> {

@@ -1,16 +1,7 @@
 use crate::{
     core::{
-        entities::{
-            edges::edge_ref::EdgeRef,
-            nodes::node_ref::{AsNodeRef, NodeRef},
-            properties::{graph_meta::GraphMeta, props::Meta, tprop::TProp},
-            LayerIds, EID, GID, VID,
-        },
-        storage::{
-            locked_view::LockedView, raw_edges::WriteLockedEdges, timeindex::TimeIndexEntry,
-            WriteLockedNodes,
-        },
-        utils::errors::{GraphError, GraphError::EventGraphDeletionsNotSupported},
+        entities::{edges::edge_ref::EdgeRef, AsNodeRef, LayerIds, NodeRef, EID, GID, VID},
+        storage::timeindex::TimeIndexEntry,
         PropType,
     },
     db::{
@@ -21,25 +12,41 @@ use crate::{
             properties::internal::{
                 ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
-            storage::graph::{
-                edges::{
-                    edge_entry::EdgeStorageEntry, edge_ref::EdgeStorageRef, edges::EdgesStorage,
-                },
-                locked::WriteLockedGraph,
-                nodes::{node_entry::NodeStorageEntry, nodes::NodesStorage},
-                storage_ops::GraphStorage,
-            },
-            view::{internal::*, BoxedIter},
+            view::internal::*,
         },
         graph::{graph::Graph, views::deletion_graph::PersistentGraph},
     },
     prelude::*,
 };
+
 use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
-use raphtory_api::core::{
-    entities::GidType,
-    storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
+use raphtory_api::{
+    core::{
+        entities::{properties::props::Meta, GidType},
+        storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
+        utils::errors::GraphError,
+    },
+    BoxedIter,
+};
+use raphtory_memstorage::{
+    core::{
+        entities::properties::{graph_meta::GraphMeta, tprop::TProp},
+        storage::{locked_view::LockedView, raw_edges::WriteLockedEdges, WriteLockedNodes},
+    },
+    db::api::{
+        list_ops::{EdgeList, NodeList},
+        storage::{
+            graph::{
+                edges::{
+                    edge_entry::EdgeStorageEntry, edge_ref::EdgeStorageRef, edges::EdgesStorage,
+                },
+                nodes::{node_entry::NodeStorageEntry, nodes::NodesStorage},
+                GraphStorage,
+            },
+            locked::WriteLockedGraph,
+        },
+    },
 };
 use serde::{Deserialize, Serialize};
 
@@ -99,7 +106,7 @@ impl InternalDeletionOps for MaterializedGraph {
         layer: usize,
     ) -> Result<MaybeNew<EID>, GraphError> {
         match self {
-            MaterializedGraph::EventGraph(_) => Err(EventGraphDeletionsNotSupported),
+            MaterializedGraph::EventGraph(_) => Err(GraphError::EventGraphDeletionsNotSupported),
             MaterializedGraph::PersistentGraph(g) => g.internal_delete_edge(t, src, dst, layer),
         }
     }
@@ -111,7 +118,7 @@ impl InternalDeletionOps for MaterializedGraph {
         layer: usize,
     ) -> Result<(), GraphError> {
         match self {
-            MaterializedGraph::EventGraph(_) => Err(EventGraphDeletionsNotSupported),
+            MaterializedGraph::EventGraph(_) => Err(GraphError::EventGraphDeletionsNotSupported),
             MaterializedGraph::PersistentGraph(g) => g.internal_delete_existing_edge(t, eid, layer),
         }
     }

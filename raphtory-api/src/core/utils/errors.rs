@@ -1,14 +1,16 @@
+use crate::core::{
+    entities::{properties::PropError, GidType, GID},
+    storage::arc_str::ArcStr,
+};
 #[cfg(feature = "arrow")]
 use polars_arrow::{datatypes::ArrowDataType, legacy::error};
 #[cfg(feature = "storage")]
 use pometry_storage::RAError;
 #[cfg(feature = "python")]
 use pyo3::PyErr;
-use crate::core::{
-    entities::{properties::PropError, GidType, GID},
-    storage::arc_str::ArcStr,
+use std::{
+    fmt::Debug, io, num::ParseIntError, path::PathBuf, string::ParseError, time::SystemTimeError,
 };
-use std::{fmt::Debug, io, num::ParseIntError, path::PathBuf, string::ParseError, time::SystemTimeError};
 #[cfg(feature = "search")]
 use tantivy;
 #[cfg(feature = "search")]
@@ -158,7 +160,11 @@ pub enum GraphError {
     PropertyTypeError(#[from] PropError),
 
     #[error("Tried to mutate constant property {name}: old value {old:?}, new value {new:?}")]
-    ConstantPropertyMutationError { name: ArcStr, old: String, new: String },
+    ConstantPropertyMutationError {
+        name: ArcStr,
+        old: String,
+        new: String,
+    },
 
     #[error("Failed to parse time string")]
     ParseTime {
@@ -350,7 +356,11 @@ pub enum MutateGraphError {
     InvalidNodeId(GID),
 }
 impl MutateGraphError {
-    pub fn illegal_graph_property_change<A: Debug>(name: &str, old_value: &A, new_value: &A) -> MutateGraphError {
+    pub fn illegal_graph_property_change<A: Debug>(
+        name: &str,
+        old_value: &A,
+        new_value: &A,
+    ) -> MutateGraphError {
         MutateGraphError::IllegalGraphPropertyChange {
             name: name.to_string(),
             old_value: format!("{:?}", old_value),

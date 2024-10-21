@@ -74,8 +74,7 @@ pub trait TPropOps<'a>: Sized + 'a + Send {
     }
 }
 
-use raphtory_memstorage::db::api::storage::graph::variants::storage_variants;
-use raphtory_memstorage::db::api::storage::graph::variants::storage_variants3;
+use raphtory_memstorage::db::api::storage::graph::variants::{storage_variants, storage_variants3};
 
 #[cfg(feature = "storage")]
 macro_rules! SelfType2 {
@@ -150,7 +149,9 @@ macro_rules! for_all_iter3 {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
             storage_variants3::StorageVariants::Mem($pattern) => StorageVariants::Mem($result),
-            storage_variants3::torageVariants::Unlocked($pattern) => StorageVariants::Unlocked($result),
+            storage_variants3::torageVariants::Unlocked($pattern) => {
+                StorageVariants::Unlocked($result)
+            }
             storage_variants3::torageVariants::Disk($pattern) => StorageVariants::Disk($result),
         }
     };
@@ -160,8 +161,12 @@ macro_rules! for_all_iter3 {
 macro_rules! for_all_iter3 {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
-            storage_variants3::StorageVariants::Mem($pattern) => storage_variants3::StorageVariants::Mem($result),
-            storage_variants3::StorageVariants::Unlocked($pattern) => storage_variants3::StorageVariants::Unlocked($result),
+            storage_variants3::StorageVariants::Mem($pattern) => {
+                storage_variants3::StorageVariants::Mem($result)
+            }
+            storage_variants3::StorageVariants::Unlocked($pattern) => {
+                storage_variants3::StorageVariants::Unlocked($result)
+            }
         }
     };
 }

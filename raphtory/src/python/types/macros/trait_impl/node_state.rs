@@ -1,5 +1,4 @@
 use crate::{
-    core::entities::nodes::node_ref::NodeRef,
     db::{
         api::{
             state::{LazyNodeState, NodeState, NodeStateOps, OrderedNodeStateOps},
@@ -16,7 +15,10 @@ use pyo3::{
     prelude::*,
     types::PyNotImplemented,
 };
-use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
+use raphtory_api::core::{
+    entities::{NodeRef, GID},
+    storage::arc_str::ArcStr,
+};
 use std::{collections::HashMap, sync::Arc};
 
 macro_rules! impl_node_state_ops {

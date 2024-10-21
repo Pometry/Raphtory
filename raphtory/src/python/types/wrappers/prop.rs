@@ -1,6 +1,6 @@
 use super::document::PyDocument;
 use crate::{
-    core::{utils::errors::GraphError, DocumentInput, Prop},
+    core::{DocumentInput, Prop},
     db::graph::views::{
         deletion_graph::PersistentGraph,
         property_filter::internal::{InternalEdgeFilterOps, InternalExplodedEdgeFilterOps},
@@ -12,6 +12,7 @@ use pyo3::{
     exceptions::PyTypeError, pyclass, pymethods, types::PyBool, FromPyObject, IntoPy, PyAny,
     PyObject, PyResult, Python, ToPyObject,
 };
+use raphtory_api::core::utils::errors::GraphError;
 use std::{collections::HashSet, ops::Deref, sync::Arc};
 
 impl ToPyObject for Prop {

@@ -1,7 +1,7 @@
-use crate::core::utils::errors::GraphError;
 use bzip2::read::BzDecoder;
 use flate2; // 1.0
 use flate2::read::GzDecoder;
+use raphtory_api::core::utils::errors::GraphError;
 use rayon::prelude::*;
 use regex::Regex;
 use serde::de::DeserializeOwned;

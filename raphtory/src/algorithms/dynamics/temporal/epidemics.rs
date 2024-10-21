@@ -6,11 +6,11 @@ use std::{
 
 use rand::{distributions::Bernoulli, seq::IteratorRandom, Rng};
 use rand_distr::{Distribution, Exp};
-use raphtory_api::core::entities::VID;
-use raphtory_memstorage::core::entities::nodes::node_ref::AsNodeRef;
+use raphtory_api::core::entities::{AsNodeRef, VID};
 
 use crate::{
-    algorithms::algorithm_result::AlgorithmResult, core::utils::time::TryIntoTime, db::api::view::StaticGraphViewOps, prelude::*
+    algorithms::algorithm_result::AlgorithmResult, core::utils::time::TryIntoTime,
+    db::api::view::StaticGraphViewOps, prelude::*,
 };
 
 #[repr(transparent)]
@@ -39,7 +39,6 @@ pub enum SeedError {
 
     #[error("Requested {num_seeds} seeds for graph with {num_nodes} nodes")]
     TooManyNodes { num_seeds: usize, num_nodes: usize },
-
 }
 #[allow(unused)]
 trait NotIterator {}

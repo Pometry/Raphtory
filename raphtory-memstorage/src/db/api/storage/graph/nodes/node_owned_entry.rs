@@ -3,11 +3,12 @@ use crate::disk_graph::storage_interface::node::DiskOwnedNode;
 
 #[cfg(feature = "storage")]
 use either::Either;
-use raphtory_api::core::{entities::{edges::edge_ref::EdgeRef, LayerIds}, Direction};
+use raphtory_api::core::{
+    entities::{edges::edge_ref::EdgeRef, LayerIds},
+    Direction,
+};
 
-use crate::core::{
-        entities::nodes::node_store::NodeStore, storage::ArcEntry
-    };
+use crate::core::{entities::nodes::node_store::NodeStore, storage::ArcEntry};
 
 pub enum NodeOwnedEntry {
     Mem(ArcEntry<NodeStore>),
@@ -35,7 +36,11 @@ macro_rules! for_all_iter {
 }
 
 impl NodeOwnedEntry {
-    pub fn into_edges_iter(self, layers: &LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> {
+    pub fn into_edges_iter(
+        self,
+        layers: &LayerIds,
+        dir: Direction,
+    ) -> impl Iterator<Item = EdgeRef> {
         for_all_iter!(self, node => node.into_edges(layers, dir))
     }
 }

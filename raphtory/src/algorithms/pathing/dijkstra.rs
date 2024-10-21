@@ -3,7 +3,7 @@ use std::{
     collections::{BinaryHeap, HashMap, HashSet},
 };
 
-use raphtory_memstorage::core::entities::nodes::node_ref::AsNodeRef;
+use raphtory_api::core::entities::AsNodeRef;
 
 /// Dijkstra's algorithm
 use crate::db::api::view::StaticGraphViewOps;

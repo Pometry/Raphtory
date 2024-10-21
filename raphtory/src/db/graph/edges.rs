@@ -1,3 +1,5 @@
+use raphtory_api::BoxedLIter;
+
 use crate::{
     core::entities::{edges::edge_ref::EdgeRef, VID},
     db::{
@@ -5,8 +7,7 @@ use crate::{
             properties::Properties,
             view::{
                 internal::{OneHopFilter, Static},
-                BaseEdgeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
-                StaticGraphViewOps,
+                BaseEdgeViewOps, DynamicGraph, IntoDynamic, StaticGraphViewOps,
             },
         },
         graph::{

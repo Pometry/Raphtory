@@ -1,9 +1,6 @@
-use crate::{
-    core::{entities::LayerIds, utils::errors::GraphError},
-    db::api::view::internal::Base,
-    prelude::Layer,
-};
+use crate::{core::entities::LayerIds, db::api::view::internal::Base};
 use enum_dispatch::enum_dispatch;
+use raphtory_api::core::{entities::Layer, utils::errors::GraphError};
 
 #[enum_dispatch]
 pub trait InternalLayerOps {

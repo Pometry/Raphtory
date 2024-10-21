@@ -108,6 +108,7 @@ io = [
     "dep:csv",
     "dep:reqwest",
     "dep:tokio",
+    "raphtory-api/arrow",
     "proto",
 ]
 
@@ -160,4 +161,5 @@ proto = [
     "dep:prost-build",
     "dep:memmap2",
     "dep:zip",
+    "raphtory-api/proto"
 ]

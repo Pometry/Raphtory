@@ -2,7 +2,9 @@ use std::{hash::Hash, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 
-use crate::db::api::storage::storage::Storage;
+use crate::db::api::storage::{graph::GraphStorage, storage::Storage};
+
+use super::graph::Graph;
 
 /// A graph view where an edge remains active from the time it is added until it is explicitly marked as deleted.
 ///
@@ -12,6 +14,31 @@ use crate::db::api::storage::storage::Storage;
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct PersistentGraph(pub(crate) Arc<Storage>);
 
+impl PersistentGraph {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn from_storage(storage: Arc<Storage>) -> Self {
+        Self(storage)
+    }
+
+    pub fn from_internal_graph(internal_graph: GraphStorage) -> Self {
+        Self(Arc::new(Storage::from_inner(internal_graph)))
+    }
+
+    /// Get event graph
+    pub fn event_graph(&self) -> Graph {
+        Graph::from_storage(self.0.clone())
+    }
+    pub fn persistent_graph(&self) -> PersistentGraph {
+        self.clone()
+    }
+
+    pub fn inner(&self) -> &Storage {
+        &self.0
+    }
+}
 
 impl PartialEq for PersistentGraph {
     fn eq(&self, other: &Self) -> bool {

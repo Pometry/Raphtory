@@ -1,8 +1,5 @@
 use crate::{
-    core::{
-        utils::errors::{GraphError, InvalidPathReason::PathDoesNotExist},
-        Prop,
-    },
+    core::Prop,
     db::api::{
         mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
         view::StaticGraphViewOps,
@@ -12,16 +9,16 @@ use crate::{
     serialise::incremental::InternalCache,
 };
 use itertools::Itertools;
-use polars_arrow::{
-    array::StructArray,
-    datatypes::{ArrowDataType as DataType, ArrowSchema, Field},
-};
+#[cfg(feature = "storage")]
+use polars_arrow::array::StructArray;
+use polars_arrow::datatypes::{ArrowDataType as DataType, ArrowSchema, Field};
 use polars_parquet::{
     read,
     read::{read_metadata, FileMetaData, FileReader},
 };
 #[cfg(feature = "storage")]
 use pometry_storage::RAError;
+use raphtory_api::core::utils::errors::{GraphError, InvalidPathReason};
 use std::{
     collections::HashMap,
     fs,
@@ -293,7 +290,7 @@ pub fn get_parquet_file_paths(parquet_path: &Path) -> Result<Vec<PathBuf>, Graph
             }
         }
     } else {
-        return Err(GraphError::from(PathDoesNotExist(
+        return Err(GraphError::from(InvalidPathReason::PathDoesNotExist(
             parquet_path.to_path_buf(),
         )));
     }

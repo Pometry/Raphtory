@@ -2,7 +2,6 @@ use raphtory_api::core::utils::errors::{GraphError, IllegalSet};
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, iter};
 
-
 #[derive(Default, Debug, PartialEq, Serialize, Deserialize)]
 pub(crate) enum LazyVec<A> {
     #[default]

@@ -144,9 +144,7 @@ impl TProp {
         Ok(())
     }
 
-    pub fn iter_inner(
-        &self,
-    ) -> Box<dyn Iterator<Item = (TimeIndexEntry, Prop)> + Send + '_> {
+    pub fn iter_inner(&self) -> Box<dyn Iterator<Item = (TimeIndexEntry, Prop)> + Send + '_> {
         match self {
             TProp::Empty => Box::new(iter::empty()),
             TProp::Str(cell) => {
@@ -309,7 +307,6 @@ impl TProp {
     }
 }
 
-
 #[cfg(test)]
 mod tprop_tests {
     use super::*;
@@ -433,5 +430,4 @@ mod tprop_tests {
             vec![(1, Prop::Bool(true)), (2, Prop::Bool(true))]
         );
     }
-
 }

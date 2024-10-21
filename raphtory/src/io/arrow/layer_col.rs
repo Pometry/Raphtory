@@ -1,9 +1,6 @@
-use crate::{
-    core::utils::errors::{GraphError, LoadError},
-    db::api::mutation::internal::InternalAdditionOps,
-    io::arrow::dataframe::DFChunk,
-};
+use crate::{db::api::mutation::internal::InternalAdditionOps, io::arrow::dataframe::DFChunk};
 use polars_arrow::array::Utf8Array;
+use raphtory_api::core::utils::errors::{GraphError, LoadError};
 use rayon::{
     iter::{
         plumbing::{Consumer, ProducerCallback, UnindexedConsumer},

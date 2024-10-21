@@ -2,7 +2,9 @@ use crate::{
     core::{entities::VID, storage::timeindex::TimeIndexEntry},
     db::api::view::internal::Base,
 };
-use raphtory_api::core::{entities::EID, storage::dict_mapper::MaybeNew, utils::errors::GraphError};
+use raphtory_api::core::{
+    entities::EID, storage::dict_mapper::MaybeNew, utils::errors::GraphError,
+};
 
 pub trait InternalDeletionOps {
     fn internal_delete_edge(

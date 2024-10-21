@@ -1,32 +1,31 @@
 use crate::{
     core::{
-        entities::{
-            edges::edge_ref::EdgeRef,
-            nodes::node_ref::NodeRef,
-            properties::{graph_meta::GraphMeta, props::Meta, tprop::TProp},
-            LayerIds, VID,
-        },
+        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
+        Prop,
+    },
+    db::api::view::internal::Base,
+};
+use enum_dispatch::enum_dispatch;
+use raphtory_api::{
+    core::{
+        entities::{properties::props::Meta, AsNodeRef, NodeRef, EID, GID},
+        storage::arc_str::ArcStr,
+    },
+    BoxedIter,
+};
+use raphtory_memstorage::{
+    core::{
+        entities::properties::{graph_meta::GraphMeta, tprop::TProp},
         storage::{
             locked_view::LockedView,
             timeindex::{TimeIndex, TimeIndexOps, TimeIndexWindow},
         },
-        Prop,
     },
-    db::api::{
-        storage::graph::{
-            edges::{edge_entry::EdgeStorageEntry, edges::EdgesStorage},
-            nodes::{
-                node_entry::NodeStorageEntry, node_storage_ops::NodeStorageOps, nodes::NodesStorage,
-            },
-            storage_ops::GraphStorage,
-        },
-        view::{internal::Base, BoxedIter},
+    db::api::storage::graph::{
+        edges::{edge_entry::EdgeStorageEntry, edges::EdgesStorage},
+        nodes::{node_entry::NodeStorageEntry, nodes::NodesStorage},
+        GraphStorage,
     },
-};
-use enum_dispatch::enum_dispatch;
-use raphtory_api::core::{
-    entities::{EID, GID},
-    storage::arc_str::ArcStr,
 };
 use std::{iter, ops::Range};
 
@@ -252,7 +251,9 @@ pub trait CoreGraphOps {
     /// A property if it exists
     fn get_const_edge_prop(&self, e: EdgeRef, id: usize, layer_ids: LayerIds) -> Option<Prop> {
         match self.core_graph() {
-            GraphStorage::Mem(storage) => storage.graph.core_get_const_edge_prop(e, id, layer_ids),
+            GraphStorage::Mem(storage) => {
+                storage.graph().core_get_const_edge_prop(e, id, layer_ids)
+            }
             GraphStorage::Unlocked(storage) => storage.core_get_const_edge_prop(e, id, layer_ids),
             #[cfg(feature = "storage")]
             GraphStorage::Disk(_) => None,
@@ -274,7 +275,7 @@ pub trait CoreGraphOps {
         layer_ids: LayerIds,
     ) -> Box<dyn Iterator<Item = usize> + '_> {
         match self.core_graph() {
-            GraphStorage::Mem(storage) => storage.graph.core_const_edge_prop_ids(e, layer_ids),
+            GraphStorage::Mem(storage) => storage.graph().core_const_edge_prop_ids(e, layer_ids),
             GraphStorage::Unlocked(storage) => storage.core_const_edge_prop_ids(e, layer_ids),
             #[cfg(feature = "storage")]
             GraphStorage::Disk(_) => Box::new(std::iter::empty()),
@@ -297,7 +298,7 @@ pub trait CoreGraphOps {
     ) -> Box<dyn Iterator<Item = usize> + '_> {
         // FIXME once the disk storage can handle multiple layers this can be implemented generically over the EdgeStorageEntry
         match self.core_graph() {
-            GraphStorage::Mem(storage) => storage.graph.core_temporal_edge_prop_ids(e, layer_ids),
+            GraphStorage::Mem(storage) => storage.graph().core_temporal_edge_prop_ids(e, layer_ids),
             GraphStorage::Unlocked(storage) => storage.core_temporal_edge_prop_ids(e, layer_ids),
             #[cfg(feature = "storage")]
             GraphStorage::Disk(storage) => storage.core_temporal_edge_prop_ids(e, layer_ids),

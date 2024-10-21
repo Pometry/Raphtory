@@ -1,4 +1,5 @@
 use memmap2::Mmap;
+use raphtory_api::core::utils::errors::GraphError;
 use zip::{write::FileOptions, ZipArchive, ZipWriter};
 
 pub(crate) mod incremental;
@@ -17,8 +18,6 @@ use std::{
 
 pub use proto::Graph as ProtoGraph;
 pub use serialise::{CacheOps, StableDecode, StableEncode};
-
-use crate::core::utils::errors::GraphError;
 
 const GRAPH_FILE_NAME: &str = "graph";
 const META_FILE_NAME: &str = ".raph";

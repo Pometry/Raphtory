@@ -1,9 +1,5 @@
 use crate::{
-    core::{
-        entities::nodes::node_ref::NodeRef,
-        utils::{errors::GraphError, time::IntoTime},
-        DocumentInput, Lifespan, Prop,
-    },
+    core::{utils::time::IntoTime, DocumentInput, Lifespan, Prop},
     db::api::{
         properties::{internal::PropertiesOps, Properties},
         view::{MaterializedGraph, StaticGraphViewOps},
@@ -30,6 +26,7 @@ use pyo3::{
     prelude::*,
     types::{PyFunction, PyList},
 };
+use raphtory_api::core::{entities::NodeRef, utils::errors::GraphError};
 
 pub type PyWindow = Option<(PyTime, PyTime)>;
 
@@ -197,15 +194,6 @@ fn get_documents_from_props<P: PropertiesOps + Clone>(
             ),
             _ => Box::new(std::iter::empty()),
         },
-    }
-}
-
-impl Lifespan {
-    fn overwrite_inherited(&self, default_lifespan: Lifespan) -> Self {
-        match self {
-            Lifespan::Inherited => default_lifespan,
-            other => other.clone(),
-        }
     }
 }
 

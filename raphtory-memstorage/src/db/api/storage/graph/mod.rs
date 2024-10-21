@@ -12,7 +12,7 @@ use nodes::{
     nodes_ref::NodesStorageEntry,
 };
 use raphtory_api::core::{
-    entities::{edges::edge_ref::EdgeRef, properties::props::Meta, LayerIds, EID, VID},
+    entities::{edges::edge_ref::EdgeRef, properties::props::Meta, LayerIds, NodeRef, EID, VID},
     utils::errors::GraphError,
     Direction,
 };
@@ -21,9 +21,7 @@ use serde::{Deserialize, Serialize};
 use variants::filter_variants::FilterVariants;
 
 use crate::{
-    core::entities::{
-        graph::tgraph::TemporalGraph, nodes::node_ref::NodeRef, properties::graph_meta::GraphMeta,
-    },
+    core::entities::{graph::tgraph::TemporalGraph, properties::graph_meta::GraphMeta},
     db::api::list_ops::NodeList,
     FilterState,
 };
@@ -335,7 +333,7 @@ impl GraphStorage {
         })
     }
 
-    pub fn edges_iter<'a, G: StorageGraphViewOps + 'a >(
+    pub fn edges_iter<'a, G: StorageGraphViewOps + 'a>(
         &'a self,
         view: G,
     ) -> impl Iterator<Item = EdgeRef> + Send + '_ {

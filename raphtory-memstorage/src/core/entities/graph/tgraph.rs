@@ -6,7 +6,9 @@ use crate::core::{
             tgraph_storage::GraphStorage,
             timer::{MaxCounter, MinCounter, TimeCounterTrait},
         },
-        nodes::{node_ref::NodeRef, node_store::NodeStore}, properties::graph_meta::GraphMeta, Prop,
+        nodes::node_store::NodeStore,
+        properties::graph_meta::GraphMeta,
+        Prop,
     },
     storage::{
         raw_edges::MutEdge,
@@ -17,11 +19,19 @@ use crate::core::{
 use dashmap::DashSet;
 use either::Either;
 use itertools::Itertools;
-use raphtory_api::{core::{
-    entities::{edges::edge_ref::EdgeRef, properties::props::Meta, GidRef, Layer, LayerIds, EID, VID},
-    input::input_node::InputNode,
-    storage::{arc_str::ArcStr, dict_mapper::MaybeNew}, utils::{errors::GraphError, iter::GenLockedIter}, Direction,
-}, IntoDynBoxed};
+use raphtory_api::{
+    core::{
+        entities::{
+            edges::edge_ref::EdgeRef, properties::props::Meta, GidRef, Layer, LayerIds, NodeRef,
+            EID, VID,
+        },
+        input::input_node::InputNode,
+        storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
+        utils::{errors::GraphError, iter::GenLockedIter},
+        Direction,
+    },
+    IntoDynBoxed,
+};
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -75,6 +85,10 @@ impl Default for TemporalGraph {
 }
 
 impl TemporalGraph {
+    pub fn with_graph_meta(mut self, graph_meta: GraphMeta) -> Self {
+        self.graph_meta = graph_meta;
+        self
+    }
 
     pub fn logical_to_physical(&self) -> &Mapping {
         &self.logical_to_physical
@@ -218,7 +232,7 @@ impl TemporalGraph {
         Some(self.latest_time.get()).filter(|t| *t != i64::MIN)
     }
 
-    pub(crate) fn core_temporal_edge_prop_ids(
+    pub fn core_temporal_edge_prop_ids(
         &self,
         e: EdgeRef,
         layer_ids: &LayerIds,
@@ -242,7 +256,7 @@ impl TemporalGraph {
         .into_dyn_boxed()
     }
 
-    pub(crate) fn core_const_edge_prop_ids(
+    pub fn core_const_edge_prop_ids(
         &self,
         e: EdgeRef,
         layer_ids: LayerIds,
@@ -273,7 +287,7 @@ impl TemporalGraph {
         .into_dyn_boxed()
     }
 
-    pub(crate) fn core_get_const_edge_prop(
+    pub fn core_get_const_edge_prop(
         &self,
         e: EdgeRef,
         prop_id: usize,

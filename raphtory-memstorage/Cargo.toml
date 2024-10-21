@@ -39,3 +39,5 @@ storage = [
     "raphtory-api/storage",
     "pometry-storage"
 ]
+
+proto = []

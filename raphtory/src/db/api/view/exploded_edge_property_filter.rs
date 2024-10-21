@@ -1,5 +1,6 @@
+use raphtory_api::core::utils::errors::GraphError;
+
 use crate::{
-    core::utils::errors::GraphError,
     db::{
         api::view::internal::{GraphType, InternalMaterialize, OneHopFilter},
         graph::views::property_filter::internal::InternalExplodedEdgeFilterOps,

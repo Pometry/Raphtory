@@ -1,8 +1,9 @@
 use crate::core::entities::nodes::node_store::NodeStore;
-use raphtory_api::core::entities::{GidRef, LayerIds};
-use raphtory_api::core::Direction;
-use std::any::Any;
-use std::borrow::Cow;
+use raphtory_api::core::{
+    entities::{GidRef, LayerIds},
+    Direction,
+};
+use std::{any::Any, borrow::Cow};
 
 #[cfg(feature = "storage")]
 use crate::db::api::storage::graph::variants::storage_variants::StorageVariants;
@@ -15,7 +16,6 @@ pub enum NodeStorageRef<'a> {
     #[cfg(feature = "storage")]
     Disk(DiskNode<'a>),
 }
-
 
 impl<'a> From<&'a NodeStore> for NodeStorageRef<'a> {
     fn from(value: &'a NodeStore) -> Self {
@@ -30,8 +30,7 @@ impl<'a> From<DiskNode<'a>> for NodeStorageRef<'a> {
     }
 }
 
-
-impl <'a> NodeStorageRef<'a> {
+impl<'a> NodeStorageRef<'a> {
     pub fn node_type_id(self) -> usize {
         match self {
             NodeStorageRef::Mem(node) => node.node_type,

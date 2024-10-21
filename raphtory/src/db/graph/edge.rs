@@ -11,7 +11,7 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         storage::timeindex::AsTime,
-        utils::{errors::GraphError, time::IntoTime},
+        utils::time::IntoTime,
         PropType,
     },
     db::{
@@ -27,14 +27,14 @@ use crate::{
             storage::graph::edges::edge_storage_ops::EdgeStorageOps,
             view::{
                 internal::{OneHopFilter, Static},
-                BaseEdgeViewOps, IntoDynBoxed, StaticGraphViewOps,
+                BaseEdgeViewOps, StaticGraphViewOps,
             },
         },
         graph::{edges::Edges, node::NodeView},
     },
     prelude::*,
 };
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::{storage::arc_str::ArcStr, utils::errors::GraphError};
 use std::{
     fmt::{Debug, Formatter},
     sync::Arc,

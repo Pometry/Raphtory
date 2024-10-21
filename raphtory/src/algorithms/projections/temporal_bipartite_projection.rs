@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use num_integer::average_floor;
-use raphtory_memstorage::core::entities::nodes::node_ref::AsNodeRef;
+use raphtory_api::core::entities::AsNodeRef;
 extern crate num_integer;
 use crate::{
     db::{

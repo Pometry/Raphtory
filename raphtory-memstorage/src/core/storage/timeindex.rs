@@ -290,13 +290,13 @@ pub trait TimeIndexOps: Send + Sync {
     fn active(&self, w: Range<Self::IndexType>) -> bool;
 
     fn active_t(&self, w: Range<i64>) -> bool {
-        self.active(Self::IndexType::range(w))
+        self.active(<Self::IndexType as AsTime>::range(w))
     }
 
     fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType<'_>;
 
     fn range_t(&self, w: Range<i64>) -> Self::RangeType<'_> {
-        self.range(Self::IndexType::range(w))
+        self.range(<Self::IndexType as AsTime>::range(w))
     }
 
     fn first_t(&self) -> Option<i64> {
@@ -327,7 +327,7 @@ pub trait TimeIndexIntoOps: Sized {
     fn into_range(self, w: Range<Self::IndexType>) -> Self::RangeType;
 
     fn into_range_t(self, w: Range<i64>) -> Self::RangeType {
-        self.into_range(Self::IndexType::range(w))
+        self.into_range(<Self::IndexType as AsTime>::range(w))
     }
 
     fn into_iter(self) -> impl Iterator<Item = Self::IndexType> + Send;

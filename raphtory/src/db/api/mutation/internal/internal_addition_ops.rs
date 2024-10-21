@@ -3,8 +3,15 @@ use crate::{
     db::api::view::internal::Base,
 };
 use enum_dispatch::enum_dispatch;
-use raphtory_api::core::{entities::{GidType, EID, VID}, storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry}, utils::errors::GraphError};
-use raphtory_memstorage::{core::{entities::nodes::node_ref::AsNodeRef, storage::{raw_edges::WriteLockedEdges, WriteLockedNodes}}, db::api::storage::locked::WriteLockedGraph};
+use raphtory_api::core::{
+    entities::{AsNodeRef, GidType, EID, VID},
+    storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
+    utils::errors::GraphError,
+};
+use raphtory_memstorage::{
+    core::storage::{raw_edges::WriteLockedEdges, WriteLockedNodes},
+    db::api::storage::locked::WriteLockedGraph,
+};
 
 #[enum_dispatch]
 pub trait InternalAdditionOps {

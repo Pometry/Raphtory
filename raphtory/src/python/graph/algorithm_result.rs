@@ -78,10 +78,7 @@ macro_rules! py_algorithm_result_base {
             ///
             /// Arguments:
             ///     key: The key of type `H` for which the value is to be retrieved.
-            fn get(
-                &self,
-                key: $crate::core::entities::nodes::node_ref::NodeRef,
-            ) -> Option<$rustValue> {
+            fn get(&self, key: $crate::core::entities::NodeRef) -> Option<$rustValue> {
                 self.0.get(key).cloned()
             }
 

@@ -1,5 +1,8 @@
 use itertools::Itertools;
-use raphtory_api::core::{entities::{edges::edge_ref::Dir, EID, VID}, Direction};
+use raphtory_api::core::{
+    entities::{edges::edge_ref::Dir, EID, VID},
+    Direction,
+};
 use serde::{Deserialize, Serialize};
 
 use super::adjset::AdjSet;

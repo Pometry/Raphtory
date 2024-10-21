@@ -3,13 +3,13 @@ use crate::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         Prop,
     },
-    db::api::{
-        storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
-        view::{internal::Base, BoxedLIter, MaterializedGraph},
-    },
+    db::api::view::{internal::Base, MaterializedGraph},
 };
 use enum_dispatch::enum_dispatch;
-use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+use raphtory_api::{core::storage::timeindex::TimeIndexEntry, BoxedLIter};
+use raphtory_memstorage::db::api::storage::graph::{
+    edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef,
+};
 use std::ops::Range;
 
 /// Methods for defining time windowing semantics for a graph

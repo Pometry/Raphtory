@@ -1,10 +1,18 @@
 use crate::{db::api::mutation::internal::InternalAdditionOps, prelude::Prop};
 use either::Either;
 use raphtory_api::core::{
-    entities::{GidType, EID, VID},
-    storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry}, utils::errors::GraphError, PropType,
+    entities::{AsNodeRef, GidType, EID, VID},
+    storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
+    utils::errors::GraphError,
+    PropType,
 };
-use raphtory_memstorage::{core::{entities::{graph::tgraph::TemporalGraph, nodes::{node_ref::AsNodeRef, node_store::NodeStore}}, storage::{raw_edges::WriteLockedEdges, WriteLockedNodes}}, db::api::storage::{graph::GraphStorage, locked::WriteLockedGraph}};
+use raphtory_memstorage::{
+    core::{
+        entities::{graph::tgraph::TemporalGraph, nodes::node_store::NodeStore},
+        storage::{raw_edges::WriteLockedEdges, WriteLockedNodes},
+    },
+    db::api::storage::{graph::GraphStorage, locked::WriteLockedGraph},
+};
 use std::sync::atomic::Ordering;
 
 impl InternalAdditionOps for TemporalGraph {

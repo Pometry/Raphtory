@@ -1,6 +1,15 @@
 use crate::{core::Prop, db::api::storage::graph::tprop_storage_ops::TPropOps};
-use raphtory_api::core::{entities::{edges::edge_ref::EdgeRef, LayerIds, EID, VID}, storage::timeindex::TimeIndexEntry};
-use raphtory_memstorage::{core::{entities::properties::tprop::TProp, storage::timeindex::{TimeIndex, TimeIndexIntoOps, TimeIndexOps, TimeIndexWindow}}, db::api::storage::graph::{edges::mem_edge::MemEdge, variants::layer_variants::LayerVariants}};
+use raphtory_api::core::{
+    entities::{edges::edge_ref::EdgeRef, LayerIds, EID, VID},
+    storage::timeindex::TimeIndexEntry,
+};
+use raphtory_memstorage::{
+    core::{
+        entities::properties::tprop::TProp,
+        storage::timeindex::{TimeIndex, TimeIndexIntoOps, TimeIndexOps, TimeIndexWindow},
+    },
+    db::api::storage::graph::{edges::mem_edge::MemEdge, variants::layer_variants::LayerVariants},
+};
 use rayon::prelude::*;
 use std::ops::Range;
 

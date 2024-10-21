@@ -1,14 +1,24 @@
-use crate::core::entities::{properties::{props::Props, tprop::TProp}, Prop};
+use crate::core::entities::{
+    properties::{props::Props, tprop::TProp},
+    Prop,
+};
 pub use raphtory_api::core::entities::edges::*;
-use raphtory_api::core::{entities::{edges::edge_ref::EdgeRef, EID, VID}, storage::timeindex::TimeIndexEntry, utils::{errors::{GraphError, IllegalSet}, iter::GenLockedIter}};
+use raphtory_api::core::{
+    entities::{edges::edge_ref::EdgeRef, EID, VID},
+    storage::timeindex::TimeIndexEntry,
+    utils::{
+        errors::{GraphError, IllegalSet},
+        iter::GenLockedIter,
+    },
+};
 use serde::{Deserialize, Serialize};
 use std::ops::Deref;
 
 #[derive(Clone, Serialize, Deserialize, Debug, Default, PartialEq)]
 pub struct EdgeStore {
-    pub(crate) eid: EID,
-    pub(crate) src: VID,
-    pub(crate) dst: VID,
+    pub eid: EID,
+    pub src: VID,
+    pub dst: VID,
 }
 
 pub trait EdgeDataLike<'a> {
@@ -64,11 +74,7 @@ impl EdgeLayer {
         props.add_prop(t, prop_id, prop)
     }
 
-    pub fn add_constant_prop(
-        &mut self,
-        prop_id: usize,
-        prop: Prop,
-    ) -> Result<(), IllegalSet>{
+    pub fn add_constant_prop(&mut self, prop_id: usize, prop: Prop) -> Result<(), IllegalSet> {
         let props = self.props.get_or_insert_with(Props::new);
         props.add_constant_prop(prop_id, prop)
     }
@@ -106,7 +112,7 @@ impl EdgeStore {
 
     pub fn src(&self) -> VID {
         self.src
-    }   
+    }
 
     pub fn dst(&self) -> VID {
         self.dst

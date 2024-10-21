@@ -5,7 +5,10 @@ use crate::{
 };
 use lock_api::ArcRwLockReadGuard;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use raphtory_api::core::{entities::{LayerIds, EID}, storage::timeindex::TimeIndexEntry};
+use raphtory_api::core::{
+    entities::{LayerIds, EID},
+    storage::timeindex::TimeIndexEntry,
+};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{

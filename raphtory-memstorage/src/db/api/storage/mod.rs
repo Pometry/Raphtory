@@ -9,7 +9,7 @@ pub mod graph;
 pub mod locked;
 pub mod storage;
 
-pub trait StorageGraphViewOps:Send + Sync{
+pub trait StorageGraphViewOps: Send + Sync {
     fn layer_ids(&self) -> &LayerIds;
     fn unfiltered_num_layers(&self) -> usize;
 

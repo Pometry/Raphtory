@@ -1,13 +1,11 @@
-use crate::core::{
-    entities::nodes::node_store::NodeStore,
-    storage::UninitialisedEntry,
-};
+use crate::core::{entities::nodes::node_store::NodeStore, storage::UninitialisedEntry};
 use dashmap::mapref::entry::Entry;
 use either::Either;
 use once_cell::sync::OnceCell;
 use raphtory_api::core::{
     entities::{GidRef, GidType, VID},
-    storage::{dict_mapper::MaybeNew, FxDashMap}, utils::errors::{GraphError, MutateGraphError},
+    storage::{dict_mapper::MaybeNew, FxDashMap},
+    utils::errors::{GraphError, MutateGraphError},
 };
 use serde::{Deserialize, Deserializer, Serialize};
 use std::hash::Hash;

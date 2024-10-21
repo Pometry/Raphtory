@@ -10,7 +10,10 @@ use crate::{
 };
 use itertools::Itertools;
 use raphtory_memstorage::{
-    core::{entities::{nodes::node_store::NodeStore, properties::tprop::TProp}, storage::ArcEntry},
+    core::{
+        entities::{nodes::node_store::NodeStore, properties::tprop::TProp},
+        storage::ArcEntry,
+    },
     db::api::storage::graph::nodes::node_ref::NodeStorageRef,
 };
 

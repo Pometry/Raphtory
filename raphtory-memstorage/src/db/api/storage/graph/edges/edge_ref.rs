@@ -9,8 +9,7 @@ pub enum EdgeStorageRef<'a> {
     Disk(DiskEdge<'a>),
 }
 
-impl <'a> EdgeStorageRef<'a> {
-
+impl<'a> EdgeStorageRef<'a> {
     pub fn src(self) -> VID {
         match self {
             EdgeStorageRef::Mem(edge) => edge.src(),
@@ -46,5 +45,4 @@ impl <'a> EdgeStorageRef<'a> {
             EdgeStorageRef::Disk(edge) => edge.has_layer(layer_id),
         }
     }
-
 }

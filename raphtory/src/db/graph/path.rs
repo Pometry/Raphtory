@@ -1,12 +1,12 @@
+use raphtory_api::BoxedLIter;
+use raphtory_memstorage::db::api::storage::graph::GraphStorage;
+
 use crate::{
     core::entities::{edges::edge_ref::EdgeRef, VID},
     db::{
         api::{
             properties::Properties,
-            storage::graph::storage_ops::GraphStorage,
-            view::{
-                internal::OneHopFilter, BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed,
-            },
+            view::{internal::OneHopFilter, BaseNodeViewOps, DynamicGraph},
         },
         graph::{
             create_node_type_filter,

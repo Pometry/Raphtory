@@ -1,22 +1,18 @@
 use crate::{
     core::{
         entities::{properties::props::Meta, LayerIds},
-        utils::errors::GraphError,
         Prop, PropType,
     },
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
-            storage::graph::{
-                edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-                nodes::node_ref::NodeStorageRef,
-            },
+            storage::graph::edges::edge_storage_ops::EdgeStorageOps,
             view::{
                 internal::{
                     EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps, InheritListOps,
                     InheritMaterialize, InheritNodeFilterOps, Static, TimeSemantics,
                 },
-                Base, BoxedLIter, IntoDynBoxed,
+                Base,
             },
         },
         graph::views::property_filter::{
@@ -25,9 +21,16 @@ use crate::{
     },
     prelude::{GraphViewOps, PropertyFilter},
 };
-use raphtory_api::core::{
-    entities::{edges::edge_ref::EdgeRef, VID},
-    storage::timeindex::TimeIndexEntry,
+use raphtory_api::{
+    core::{
+        entities::{edges::edge_ref::EdgeRef, VID},
+        storage::timeindex::TimeIndexEntry,
+        utils::errors::GraphError,
+    },
+    BoxedLIter,
+};
+use raphtory_memstorage::db::api::storage::graph::{
+    edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef,
 };
 use std::ops::Range;
 

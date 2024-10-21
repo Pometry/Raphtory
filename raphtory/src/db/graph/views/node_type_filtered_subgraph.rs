@@ -1,8 +1,10 @@
+use raphtory_memstorage::db::api::storage::graph::nodes::node_ref::NodeStorageRef;
+
 use crate::{
     core::entities::LayerIds,
     db::api::{
         properties::internal::InheritPropertiesOps,
-        storage::graph::nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+        storage::graph::node_storage_ops::NodeStorageOps,
         view::internal::{
             Base, Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritLayerOps, InheritListOps,
             InheritMaterialize, InheritTimeSemantics, NodeFilterOps, Static,

@@ -1,6 +1,6 @@
 use crate::prelude::NodeViewOps;
 use ordered_float::OrderedFloat;
-use raphtory_memstorage::core::entities::nodes::node_ref::AsNodeRef;
+use raphtory_api::core::entities::AsNodeRef;
 use std::{
     collections::{hash_map::Iter, HashMap},
     hash::Hash,

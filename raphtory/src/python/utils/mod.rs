@@ -4,9 +4,9 @@
 //! These functions are not part of the public API and are not exported to the Python module.
 use crate::{
     core::{
-        entities::{nodes::node_ref::NodeRef, GidRef},
+        entities::{GidRef, NodeRef},
         storage::timeindex::AsTime,
-        utils::time::{error::ParseTimeError, Interval, IntoTime, TryIntoTime},
+        utils::time::{Interval, IntoTime, TryIntoTime},
     },
     db::api::view::*,
     python::graph::node::PyNode,
@@ -17,6 +17,7 @@ use pyo3::{
     prelude::*,
     types::PyDateTime,
 };
+use raphtory_api::{core::utils::errors::ParseTimeError, BoxedIter};
 use serde::Serialize;
 use std::{future::Future, thread};
 

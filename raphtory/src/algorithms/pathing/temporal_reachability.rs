@@ -17,8 +17,7 @@ use crate::{
 };
 use itertools::Itertools;
 use num_traits::Zero;
-use raphtory_api::core::entities::VID;
-use raphtory_memstorage::core::entities::nodes::node_ref::AsNodeRef;
+use raphtory_api::core::entities::{AsNodeRef, VID};
 use std::{collections::HashMap, ops::Add};
 
 #[derive(Eq, Hash, PartialEq, Clone, Debug, Default)]

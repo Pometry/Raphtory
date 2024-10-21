@@ -1,15 +1,12 @@
+use raphtory_api::core::entities::AsNodeRef;
+use raphtory_memstorage::db::api::storage::graph::GraphStorage;
+
 use crate::{
-    core::{
-        entities::nodes::node_ref::AsNodeRef,
-        state::compute_state::{ComputeState, ComputeStateVec},
-    },
-    db::{
-        api::storage::graph::storage_ops::GraphStorage,
-        task::{
-            edge::eval_edge::EvalEdgeView,
-            node::{eval_node::EvalNodeView, eval_node_state::EVState},
-            task_state::PrevLocalState,
-        },
+    core::state::compute_state::{ComputeState, ComputeStateVec},
+    db::task::{
+        edge::eval_edge::EvalEdgeView,
+        node::{eval_node::EvalNodeView, eval_node_state::EVState},
+        task_state::PrevLocalState,
     },
     prelude::GraphViewOps,
 };

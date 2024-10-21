@@ -4,7 +4,6 @@ use rayon::prelude::*;
 use std::collections::HashMap;
 
 use crate::{
-    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError},
     db::{
         api::{
             properties::Properties,
@@ -43,7 +42,7 @@ use crate::{
 };
 use chrono::prelude::*;
 use pyo3::prelude::*;
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::{entities::NodeRef, storage::arc_str::ArcStr, utils::errors::GraphError};
 
 impl IntoPy<PyObject> for MaterializedGraph {
     fn into_py(self, py: Python<'_>) -> PyObject {

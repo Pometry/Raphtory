@@ -1,20 +1,20 @@
 use std::iter;
 
 use chrono::{DateTime, Utc};
-use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
+use raphtory_api::core::{
+    entities::GID,
+    storage::arc_str::ArcStr,
+    utils::{errors::GraphError, iter::GenLockedIter},
+};
 
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
-        utils::{errors::GraphError, iter::GenLockedIter},
     },
     db::api::{
         properties::{internal::PropertiesOps, Properties},
-        view::{
-            internal::{CoreGraphOps, InternalLayerOps, TimeSemantics},
-            IntoDynBoxed,
-        },
+        view::internal::{CoreGraphOps, InternalLayerOps, TimeSemantics},
     },
     prelude::{GraphViewOps, LayerOps, NodeViewOps, TimeOps},
 };

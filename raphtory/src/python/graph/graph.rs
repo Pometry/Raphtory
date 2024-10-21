@@ -5,7 +5,6 @@
 //! In Python, this class wraps around the rust graph.
 use crate::{
     algorithms::components::LargestConnectedComponent,
-    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError},
     db::{
         api::view::internal::{CoreGraphOps, DynamicGraph, IntoDynamic, MaterializedGraph},
         graph::{edge::EdgeView, node::NodeView, views::node_subgraph::NodeSubgraph},
@@ -22,7 +21,11 @@ use crate::{
     serialise::{StableDecode, StableEncode},
 };
 use pyo3::prelude::*;
-use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
+use raphtory_api::core::{
+    entities::{NodeRef, GID},
+    storage::arc_str::ArcStr,
+    utils::errors::GraphError,
+};
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},

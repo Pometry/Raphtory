@@ -1,12 +1,6 @@
 use crate::{
-    core::{
-        utils::errors::{GraphError, WriteError},
-        Prop, PropType,
-    },
-    db::{
-        api::{storage::storage::Storage, view::MaterializedGraph},
-        graph::views::deletion_graph::PersistentGraph,
-    },
+    core::{Prop, PropType},
+    db::{api::view::MaterializedGraph, graph::views::deletion_graph::PersistentGraph},
     prelude::Graph,
     serialise::{
         serialise::{CacheOps, StableDecode, StableEncode},
@@ -18,6 +12,7 @@ use prost::Message;
 use raphtory_api::core::{
     entities::{GidRef, EID, VID},
     storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
+    utils::errors::{GraphError, WriteError},
 };
 use std::{
     fmt::Debug,
@@ -257,21 +252,21 @@ impl InternalCache for Storage {
 
 impl InternalCache for Graph {
     fn init_cache(&self, path: &GraphFolder) -> Result<(), GraphError> {
-        self.inner.init_cache(path)
+        self.inner().init_cache(path)
     }
 
     fn get_cache(&self) -> Option<&GraphWriter> {
-        self.inner.get_cache()
+        self.inner().get_cache()
     }
 }
 
 impl InternalCache for PersistentGraph {
     fn init_cache(&self, path: &GraphFolder) -> Result<(), GraphError> {
-        self.0.init_cache(path)
+        self.inner().init_cache(path)
     }
 
     fn get_cache(&self) -> Option<&GraphWriter> {
-        self.0.get_cache()
+        self.inner().get_cache()
     }
 }
 

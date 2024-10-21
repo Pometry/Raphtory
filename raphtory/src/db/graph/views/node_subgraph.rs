@@ -3,8 +3,7 @@ use crate::{
     db::api::{
         properties::internal::InheritPropertiesOps,
         storage::graph::{
-            edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-            nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+            edges::edge_storage_ops::EdgeStorageOps, node_storage_ops::NodeStorageOps,
         },
         view::internal::{
             Base, EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps, InheritListOps,
@@ -12,6 +11,9 @@ use crate::{
         },
     },
     prelude::GraphViewOps,
+};
+use raphtory_memstorage::db::api::storage::graph::{
+    edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef,
 };
 use rustc_hash::FxHashSet;
 use std::{
@@ -30,7 +32,7 @@ impl<G> Static for NodeSubgraph<G> {}
 impl<'graph, G: Debug + 'graph> Debug for NodeSubgraph<G> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("NodeSubgraph")
-            .field("graph", &self.graph)
+            .field("graph", &self.graph as &dyn Debug)
             .field("nodes", &self.nodes)
             .finish()
     }

@@ -1,13 +1,11 @@
-use crate::{
-    core::utils::errors::{GraphError, LoadError},
-    io::arrow::node_col::{lift_node_col, NodeCol},
-};
+use crate::io::arrow::node_col::{lift_node_col, NodeCol};
 use itertools::Itertools;
 use polars_arrow::{
     array::{Array, PrimitiveArray, StaticArray},
     compute::cast::{self, CastOptions},
     datatypes::{ArrowDataType as DataType, TimeUnit},
 };
+use raphtory_api::core::utils::errors::{GraphError, LoadError};
 use rayon::prelude::*;
 use std::fmt::{Debug, Formatter};
 

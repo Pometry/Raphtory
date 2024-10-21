@@ -1,18 +1,16 @@
 use std::fmt::{Debug, Formatter};
 
 use itertools::Itertools;
+use raphtory_api::core::{entities::Layer, utils::errors::GraphError};
 
 use crate::{
-    core::{entities::LayerIds, utils::errors::GraphError},
+    core::entities::LayerIds,
     db::api::{
         properties::internal::InheritPropertiesOps,
-        view::{
-            internal::{
-                Base, Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritListOps,
-                InheritMaterialize, InheritNodeFilterOps, InheritTimeSemantics, InternalLayerOps,
-                Static,
-            },
-            Layer,
+        view::internal::{
+            Base, Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritListOps,
+            InheritMaterialize, InheritNodeFilterOps, InheritTimeSemantics, InternalLayerOps,
+            Static,
         },
     },
     prelude::GraphViewOps,
@@ -33,7 +31,7 @@ impl<G> Static for LayeredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph> + Debug> Debug for LayeredGraph<G> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("LayeredGraph")
-            .field("graph", &self.graph)
+            .field("graph", &self.graph as &dyn Debug)
             .field("layers", &self.layers)
             .finish()
     }

@@ -1,3 +1,5 @@
+use raphtory_memstorage::FilterState;
+
 use crate::db::api::view::internal::{EdgeFilterOps, NodeFilterOps};
 
 pub trait FilterOps {

@@ -1,9 +1,10 @@
 use crate::core::{
-    entities::{edges::edge_store::EdgeStore, nodes::node_store::NodeStore}, storage::{
+    entities::{edges::edge_store::EdgeStore, nodes::node_store::NodeStore},
+    storage::{
         self,
         raw_edges::{EdgeRGuard, EdgeWGuard, EdgesStorage, LockedEdges, UninitialisedEdge},
         Entry, EntryMut, NodeStorage, PairEntryMut, UninitialisedEntry,
-    }
+    },
 };
 use raphtory_api::core::entities::{EID, VID};
 use serde::{Deserialize, Serialize};
@@ -17,7 +18,6 @@ pub struct GraphStorage {
 }
 
 impl GraphStorage {
-
     pub fn nodes(&self) -> &NodeStorage {
         &self.nodes
     }

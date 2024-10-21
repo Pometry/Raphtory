@@ -1,6 +1,6 @@
-use crate::db::api::view::{BoxedLIter, IntoDynBoxed};
 use ouroboros::self_referencing;
 use pyo3::{pyclass, pymethods, IntoPy, PyObject, PyRef, Python};
+use raphtory_api::{BoxedLIter, IntoDynBoxed};
 
 #[pyclass]
 #[self_referencing]
@@ -8,7 +8,7 @@ pub struct PyBorrowingIterator {
     inner: Box<dyn PyIter>,
     #[borrows(inner)]
     #[covariant]
-    iter: BoxedLIter<'this, PyObject>,
+    iter: raphtory_api::BoxedLIter<'this, PyObject>,
 }
 
 #[pymethods]

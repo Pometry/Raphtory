@@ -50,7 +50,7 @@ use crate::{
         },
         projections::temporal_bipartite_projection::temporal_bipartite_projection as temporal_bipartite_rs,
     },
-    core::{entities::nodes::node_ref::NodeRef, Prop},
+    core::Prop,
     db::{api::view::internal::DynamicGraph, graph::node::NodeView},
     python::{
         graph::{node::PyNode, views::graph_view::PyGraphView},
@@ -62,7 +62,10 @@ use ordered_float::OrderedFloat;
 use pometry_storage::algorithms::connected_components::connected_components as connected_components_rs;
 use pyo3::{prelude::*, types::PyIterator};
 use rand::{prelude::StdRng, SeedableRng};
-use raphtory_api::core::{entities::GID, Direction};
+use raphtory_api::core::{
+    entities::{NodeRef, GID},
+    Direction,
+};
 use std::collections::{HashMap, HashSet};
 
 /// Implementations of various graph algorithms that can be run on a graph.

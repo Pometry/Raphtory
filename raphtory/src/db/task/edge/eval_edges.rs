@@ -1,3 +1,6 @@
+use raphtory_api::BoxedLIter;
+use raphtory_memstorage::db::api::storage::graph::GraphStorage;
+
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
@@ -6,8 +9,7 @@ use crate::{
     db::{
         api::{
             properties::Properties,
-            storage::graph::storage_ops::GraphStorage,
-            view::{internal::OneHopFilter, BaseEdgeViewOps, BoxedLIter},
+            view::{internal::OneHopFilter, BaseEdgeViewOps},
         },
         graph::edges::Edges,
         task::{

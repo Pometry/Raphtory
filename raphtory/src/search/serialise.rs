@@ -1,5 +1,6 @@
+use raphtory_api::core::utils::errors::GraphError;
+
 use crate::{
-    core::utils::errors::GraphError,
     prelude::{GraphViewOps, StableDecode, StableEncode},
     search::IndexedGraph,
     serialise::{

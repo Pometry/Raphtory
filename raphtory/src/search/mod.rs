@@ -6,16 +6,8 @@ mod serialise;
 
 use crate::{
     core::{
-        entities::{
-            nodes::node_ref::{AsNodeRef, NodeRef},
-            EID, VID,
-        },
-        storage::{
-            raw_edges::WriteLockedEdges,
-            timeindex::{AsTime, TimeIndexEntry},
-            WriteLockedNodes,
-        },
-        utils::errors::GraphError,
+        entities::{AsNodeRef, NodeRef, EID, VID},
+        storage::timeindex::{AsTime, TimeIndexEntry},
         PropType,
     },
     db::{
@@ -23,7 +15,7 @@ use crate::{
             mutation::internal::{
                 InheritPropertyAdditionOps, InternalAdditionOps, InternalDeletionOps,
             },
-            storage::graph::{edges::edge_storage_ops::EdgeStorageOps, locked::WriteLockedGraph},
+            storage::graph::edges::edge_storage_ops::EdgeStorageOps,
             view::{
                 internal::{DynamicGraph, InheritViewOps, IntoDynamic, Static},
                 Base, StaticGraphViewOps,
@@ -36,6 +28,11 @@ use crate::{
 use raphtory_api::core::{
     entities::GidType,
     storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
+    utils::errors::GraphError,
+};
+use raphtory_memstorage::{
+    core::storage::{raw_edges::WriteLockedEdges, WriteLockedNodes},
+    db::api::storage::locked::WriteLockedGraph,
 };
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
 use std::{collections::HashSet, ops::Deref, sync::Arc};

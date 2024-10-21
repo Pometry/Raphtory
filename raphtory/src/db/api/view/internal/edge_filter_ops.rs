@@ -1,8 +1,6 @@
-use crate::{
-    core::entities::LayerIds,
-    db::api::{storage::graph::edges::edge_ref::EdgeStorageRef, view::internal::Base},
-};
+use crate::{core::entities::LayerIds, db::api::view::internal::Base};
 use enum_dispatch::enum_dispatch;
+use raphtory_memstorage::db::api::storage::graph::edges::edge_ref::EdgeStorageRef;
 
 #[enum_dispatch]
 pub trait EdgeFilterOps {

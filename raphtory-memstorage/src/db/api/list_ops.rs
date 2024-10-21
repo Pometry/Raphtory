@@ -1,7 +1,7 @@
-use std::{borrow::Borrow, collections::HashMap, hash::Hash, sync::Arc};
 use either::Either;
 use raphtory_api::core::entities::{EID, VID};
 use rayon::prelude::*;
+use std::{borrow::Borrow, collections::HashMap, hash::Hash, sync::Arc};
 
 #[derive(Clone, Debug)]
 pub struct Index<K> {
@@ -69,7 +69,6 @@ impl<K: Copy + Hash + Eq + Send + Sync> Index<K> {
         self.keys.par_iter()
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub enum NodeList {

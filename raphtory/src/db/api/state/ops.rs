@@ -6,7 +6,7 @@ use crate::{
     prelude::{GraphViewOps, NodeViewOps},
 };
 use num_traits::AsPrimitive;
-use raphtory_memstorage::core::entities::nodes::node_ref::AsNodeRef;
+use raphtory_api::core::entities::AsNodeRef;
 use rayon::{
     iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator},
     prelude::ParallelSliceMut,

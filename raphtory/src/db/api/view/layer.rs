@@ -1,11 +1,8 @@
-use crate::{
-    core::utils::errors::GraphError,
-    db::{
-        api::view::internal::{InternalLayerOps, OneHopFilter},
-        graph::views::layer_graph::LayeredGraph,
-    },
+use crate::db::{
+    api::view::internal::{InternalLayerOps, OneHopFilter},
+    graph::views::layer_graph::LayeredGraph,
 };
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::{entities::Layer, storage::arc_str::ArcStr, utils::errors::GraphError};
 use std::sync::Arc;
 
 /// Trait defining layer operations
@@ -89,4 +86,3 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph> LayerOps<'graph> for V {
         self.one_hop_filtered(LayeredGraph::new(self.current_filter().clone(), ids))
     }
 }
-

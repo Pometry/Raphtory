@@ -49,13 +49,9 @@ use crate::{
                 InheritStaticPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
             state::Index,
-            storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
-            view::{
-                internal::{
-                    Base, EdgeFilterOps, EdgeList, Immutable, InheritCoreOps, InheritLayerOps,
-                    InheritMaterialize, ListOps, NodeFilterOps, NodeList, Static, TimeSemantics,
-                },
-                BoxedLIter, IntoDynBoxed,
+            view::internal::{
+                Base, EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps,
+                InheritMaterialize, ListOps, NodeFilterOps, Static, TimeSemantics,
             },
         },
         graph::graph::graph_equal,
@@ -63,7 +59,14 @@ use crate::{
     prelude::GraphViewOps,
 };
 use chrono::{DateTime, Utc};
-use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry};
+use raphtory_api::{
+    core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+    BoxedLIter,
+};
+use raphtory_memstorage::db::api::{
+    list_ops::{EdgeList, NodeList},
+    storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
+};
 use std::{
     fmt::{Debug, Formatter},
     iter,

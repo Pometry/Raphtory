@@ -1,8 +1,5 @@
 use super::node_ref::NodeStorageRef;
-use crate::core::{
-    entities::{nodes::node_store::NodeStore},
-    storage::ReadLockedStorage,
-};
+use crate::core::{entities::nodes::node_store::NodeStore, storage::ReadLockedStorage};
 use raphtory_api::core::entities::VID;
 use rayon::iter::ParallelIterator;
 

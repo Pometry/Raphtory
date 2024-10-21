@@ -12,8 +12,10 @@ use crate::{
         graph::edge::EdgeView,
     },
 };
-use raphtory_api::core::{entities::edges::edge_ref::EdgeRef, utils::errors::GraphError};
-use raphtory_memstorage::core::entities::nodes::node_ref::AsNodeRef;
+use raphtory_api::core::{
+    entities::{edges::edge_ref::EdgeRef, AsNodeRef},
+    utils::errors::GraphError,
+};
 
 pub trait DeletionOps:
     InternalDeletionOps + InternalAdditionOps + StaticGraphViewOps + Sized

@@ -6,7 +6,6 @@ use crate::{
     },
     db::api::{
         properties::{internal::PropertiesOps, Properties},
-        storage::graph::{nodes::node_storage_ops::NodeStorageOps, storage_ops::GraphStorage},
         view::{
             internal::{CoreGraphOps, OneHopFilter, TimeSemantics},
             reset_filter::ResetFilter,
@@ -17,6 +16,7 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
+use raphtory_memstorage::db::api::storage::graph::GraphStorage;
 
 pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     type BaseGraph: GraphViewOps<'graph>;

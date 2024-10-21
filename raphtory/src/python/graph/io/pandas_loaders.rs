@@ -1,5 +1,5 @@
 use crate::{
-    core::{utils::errors::GraphError, Prop},
+    core::Prop,
     db::api::{
         mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
         view::StaticGraphViewOps,
@@ -14,6 +14,7 @@ use pyo3::{
     prelude::*,
     types::{IntoPyDict, PyDict},
 };
+use raphtory_api::core::utils::errors::GraphError;
 use std::collections::HashMap;
 use tracing::error;
 

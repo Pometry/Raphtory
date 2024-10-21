@@ -1,10 +1,7 @@
 //! Defines the `Node` struct, which represents a node in the graph.
 
 use crate::{
-    core::{
-        entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef, VID},
-        utils::errors::GraphError,
-    },
+    core::entities::{edges::edge_ref::EdgeRef, VID},
     db::{
         api::{
             mutation::{
@@ -17,7 +14,7 @@ use crate::{
             },
             view::{
                 internal::{CoreGraphOps, OneHopFilter, Static, TimeSemantics},
-                BaseNodeViewOps, IntoDynBoxed, StaticGraphViewOps,
+                BaseNodeViewOps, StaticGraphViewOps,
             },
         },
         graph::path::PathFromNode,
@@ -26,11 +23,16 @@ use crate::{
 };
 
 use crate::{
-    core::{entities::nodes::node_ref::AsNodeRef, storage::timeindex::AsTime, PropType},
-    db::{api::storage::graph::storage_ops::GraphStorage, graph::edges::Edges},
+    core::{storage::timeindex::AsTime, PropType},
+    db::graph::edges::Edges,
 };
 use chrono::{DateTime, Utc};
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::{
+    entities::{AsNodeRef, NodeRef},
+    storage::arc_str::ArcStr,
+    utils::errors::GraphError,
+};
+use raphtory_memstorage::db::api::storage::graph::GraphStorage;
 use std::{
     fmt,
     fmt::Debug,
@@ -74,7 +76,7 @@ impl<'graph, G, GH: GraphViewOps<'graph> + Debug> fmt::Debug for NodeView<G, GH>
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("NodeView")
             .field("node", &self.node)
-            .field("graph", &self.graph)
+            .field("graph", &self.graph as &dyn Debug)
             .finish()
     }
 }

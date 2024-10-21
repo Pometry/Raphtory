@@ -36,7 +36,6 @@ pub struct NodeStore {
 }
 
 impl NodeStore {
-
     #[inline]
     pub fn vid(&self) -> VID {
         self.vid
@@ -141,7 +140,7 @@ impl NodeStore {
         }
     }
 
-    pub(crate) fn add_edge(&mut self, v_id: VID, dir: Direction, layer: usize, edge_id: EID) {
+    pub fn add_edge(&mut self, v_id: VID, dir: Direction, layer: usize, edge_id: EID) {
         if layer >= self.layers.len() {
             self.layers.resize_with(layer + 1, || Adj::Solo);
         }

@@ -5,7 +5,6 @@
 //! edge as it existed at a particular point in time, or as it existed over a particular time range.
 //!
 use crate::{
-    core::utils::errors::GraphError,
     db::{
         api::{
             properties::Properties,
@@ -22,7 +21,7 @@ use crate::{
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use pyo3::{prelude::*, pyclass::CompareOp};
-use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
+use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr, utils::errors::GraphError};
 use std::{
     collections::{hash_map::DefaultHasher, HashMap},
     hash::{Hash, Hasher},

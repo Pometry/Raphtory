@@ -1,13 +1,13 @@
-use crate::{
-    core::utils::errors::LoadError, db::api::mutation::internal::InternalAdditionOps,
-    io::arrow::dataframe::DFChunk,
-};
+use crate::{db::api::mutation::internal::InternalAdditionOps, io::arrow::dataframe::DFChunk};
 use polars_arrow::{
     array::{Array, PrimitiveArray, StaticArray, Utf8Array},
     datatypes::ArrowDataType,
     offset::Offset,
 };
-use raphtory_api::core::entities::{GidRef, GidType};
+use raphtory_api::core::{
+    entities::{GidRef, GidType},
+    utils::errors::LoadError,
+};
 use rayon::prelude::{IndexedParallelIterator, *};
 
 trait NodeColOps: Array + Send + Sync {

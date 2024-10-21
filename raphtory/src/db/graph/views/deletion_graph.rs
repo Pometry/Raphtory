@@ -1,39 +1,34 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
-        storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexIntoOps, TimeIndexOps},
-        utils::iter::GenLockedIter,
+        storage::timeindex::{AsTime, TimeIndexEntry},
         Prop,
     },
     db::{
         api::{
             mutation::internal::InheritMutationOps,
             properties::internal::InheritPropertiesOps,
-            storage::{
-                graph::{
-                    edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-                    nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-                    storage_ops::GraphStorage,
-                    tprop_storage_ops::TPropOps,
-                },
-                storage::Storage,
+            storage::graph::{
+                edges::edge_storage_ops::EdgeStorageOps, node_storage_ops::NodeStorageOps,
+                tprop_storage_ops::TPropOps,
             },
-            view::{internal::*, BoxedLIter, IntoDynBoxed},
+            view::internal::*,
         },
         graph::graph::graph_equal,
     },
     prelude::*,
 };
 use itertools::Itertools;
-use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
-use std::{
-    cmp::min,
-    fmt::{Display, Formatter},
-    iter,
-    ops::Range,
-    sync::Arc,
+use raphtory_api::{core::utils::iter::GenLockedIter, BoxedLIter};
+use raphtory_memstorage::{
+    core::storage::timeindex::TimeIndexOps,
+    db::api::storage::{
+        graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef, GraphStorage},
+        storage::Storage,
+    },
 };
+use rayon::prelude::*;
+use std::{cmp::min, iter, ops::Range, sync::Arc};
 
 pub type PersistentGraph = raphtory_memstorage::db::graph::views::deletion_graph::PersistentGraph;
 
@@ -98,28 +93,6 @@ fn edge_alive_at_start(e: EdgeStorageRef, t: i64, layer_ids: &LayerIds) -> bool 
         .any(|(_, additions, deletions)| alive_at(&additions, &deletions, t))
 }
 
-impl PersistentGraph {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn from_storage(storage: Arc<Storage>) -> Self {
-        Self(storage)
-    }
-
-    pub fn from_internal_graph(internal_graph: GraphStorage) -> Self {
-        Self(Arc::new(Storage::from_inner(internal_graph)))
-    }
-
-    /// Get event graph
-    pub fn event_graph(&self) -> Graph {
-        Graph::from_storage(self.0.clone())
-    }
-    pub fn persistent_graph(&self) -> PersistentGraph {
-        self.clone()
-    }
-}
-
 impl<'graph, G: GraphViewOps<'graph>> PartialEq<G> for PersistentGraph {
     fn eq(&self, other: &G) -> bool {
         graph_equal(self, other)
@@ -130,7 +103,7 @@ impl Base for PersistentGraph {
     type Base = Storage;
     #[inline(always)]
     fn base(&self) -> &Self::Base {
-        &self.0
+        self.inner()
     }
 }
 
@@ -164,7 +137,7 @@ impl InheritNodeFilterOps for PersistentGraph {}
 
 impl TimeSemantics for PersistentGraph {
     fn node_earliest_time(&self, v: VID) -> Option<i64> {
-        self.0.node_earliest_time(v)
+        self.inner().node_earliest_time(v)
     }
 
     fn node_latest_time(&self, _v: VID) -> Option<i64> {
@@ -172,19 +145,19 @@ impl TimeSemantics for PersistentGraph {
     }
 
     fn view_start(&self) -> Option<i64> {
-        self.0.view_start()
+        self.inner().view_start()
     }
 
     fn view_end(&self) -> Option<i64> {
-        self.0.view_end()
+        self.inner().view_end()
     }
 
     fn earliest_time_global(&self) -> Option<i64> {
-        self.0.earliest_time_global()
+        self.inner().earliest_time_global()
     }
 
     fn latest_time_global(&self) -> Option<i64> {
-        self.0.latest_time_global()
+        self.inner().latest_time_global()
     }
 
     fn earliest_time_window(&self, start: i64, end: i64) -> Option<i64> {
@@ -194,7 +167,7 @@ impl TimeSemantics for PersistentGraph {
     }
 
     fn latest_time_window(&self, start: i64, end: i64) -> Option<i64> {
-        if self.0.earliest_time_global()? >= end {
+        if self.inner().earliest_time_global()? >= end {
             return None;
         }
         self.latest_time_global()
@@ -241,11 +214,11 @@ impl TimeSemantics for PersistentGraph {
     }
 
     fn node_history(&self, v: VID) -> Vec<i64> {
-        self.0.node_history(v)
+        self.inner().node_history(v)
     }
 
     fn node_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
-        self.0.node_history_window(v, w)
+        self.inner().node_history_window(v, w)
     }
 
     fn edge_history<'a>(
@@ -253,7 +226,7 @@ impl TimeSemantics for PersistentGraph {
         e: EdgeRef,
         layer_ids: &'a LayerIds,
     ) -> BoxedLIter<'a, TimeIndexEntry> {
-        self.0.edge_history(e, layer_ids)
+        self.inner().edge_history(e, layer_ids)
     }
 
     fn edge_history_window<'a>(
@@ -262,7 +235,7 @@ impl TimeSemantics for PersistentGraph {
         layer_ids: &'a LayerIds,
         w: Range<i64>,
     ) -> BoxedLIter<'a, TimeIndexEntry> {
-        self.0.edge_history_window(e, layer_ids, w)
+        self.inner().edge_history_window(e, layer_ids, w)
     }
 
     fn edge_exploded_count(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> usize {
@@ -319,7 +292,7 @@ impl TimeSemantics for PersistentGraph {
     }
 
     fn edge_exploded<'a>(&'a self, e: EdgeRef, layer_ids: &'a LayerIds) -> BoxedLIter<'a, EdgeRef> {
-        let edge = self.0.core_edge(e.pid());
+        let edge = self.inner().core_edge(e.pid());
 
         let alive_layers: Vec<_> = edge
             .updates_iter(&layer_ids.constrain_from_edge(e))
@@ -334,12 +307,12 @@ impl TimeSemantics for PersistentGraph {
         alive_layers
             .into_iter()
             .map(move |l| e.at(i64::MIN.into()).at_layer(l))
-            .chain(self.0.edge_exploded(e, layer_ids))
+            .chain(self.inner().edge_exploded(e, layer_ids))
             .into_dyn_boxed()
     }
 
     fn edge_layers<'a>(&'a self, e: EdgeRef, layer_ids: &'a LayerIds) -> BoxedLIter<'a, EdgeRef> {
-        self.0.edge_layers(e, layer_ids)
+        self.inner().edge_layers(e, layer_ids)
     }
 
     fn edge_window_exploded<'a>(
@@ -351,7 +324,7 @@ impl TimeSemantics for PersistentGraph {
         if w.end <= w.start {
             return Box::new(iter::empty());
         }
-        let edge = self.0.core_edge(e.pid());
+        let edge = self.inner().core_edge(e.pid());
 
         let alive_layers: Vec<_> = edge
             .updates_iter(&layer_ids.constrain_from_edge(e))
@@ -362,7 +335,7 @@ impl TimeSemantics for PersistentGraph {
         alive_layers
             .into_iter()
             .map(move |l| e.at(w.start.into()).at_layer(l))
-            .chain(self.0.edge_window_exploded(e, w, layer_ids))
+            .chain(self.inner().edge_window_exploded(e, w, layer_ids))
             .into_dyn_boxed()
     }
 
@@ -517,7 +490,7 @@ impl TimeSemantics for PersistentGraph {
     }
 
     fn edge_is_valid(&self, e: EdgeRef, layer_ids: &LayerIds) -> bool {
-        let edge = self.0.core_edge(e.pid());
+        let edge = self.inner().core_edge(e.pid());
         let res = edge
             .updates_iter(layer_ids)
             .any(|(_, additions, deletions)| additions.last() > deletions.last());
@@ -525,31 +498,31 @@ impl TimeSemantics for PersistentGraph {
     }
 
     fn edge_is_valid_at_end(&self, e: EdgeRef, layer_ids: &LayerIds, end: i64) -> bool {
-        let edge = self.0.core_edge(e.pid());
+        let edge = self.inner().core_edge(e.pid());
         edge_alive_at_end(edge.as_ref(), end, layer_ids)
     }
 
     #[inline]
     fn has_temporal_prop(&self, prop_id: usize) -> bool {
-        self.0.has_temporal_prop(prop_id)
+        self.inner().has_temporal_prop(prop_id)
     }
 
     fn temporal_prop_vec(&self, prop_id: usize) -> Vec<(i64, Prop)> {
-        self.0.temporal_prop_vec(prop_id)
+        self.inner().temporal_prop_vec(prop_id)
     }
 
     #[inline]
     fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
-        self.0.has_temporal_prop_window(prop_id, w)
+        self.inner().has_temporal_prop_window(prop_id, w)
     }
 
     fn temporal_prop_vec_window(&self, prop_id: usize, start: i64, end: i64) -> Vec<(i64, Prop)> {
-        self.0.temporal_prop_vec_window(prop_id, start, end)
+        self.inner().temporal_prop_vec_window(prop_id, start, end)
     }
 
     #[inline]
     fn has_temporal_node_prop(&self, v: VID, prop_id: usize) -> bool {
-        self.0.has_temporal_node_prop(v, prop_id)
+        self.inner().has_temporal_node_prop(v, prop_id)
     }
 
     fn temporal_node_prop_hist(
@@ -557,11 +530,11 @@ impl TimeSemantics for PersistentGraph {
         v: VID,
         prop_id: usize,
     ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
-        self.0.temporal_node_prop_hist(v, prop_id)
+        self.inner().temporal_node_prop_hist(v, prop_id)
     }
 
     fn has_temporal_node_prop_window(&self, v: VID, prop_id: usize, w: Range<i64>) -> bool {
-        self.0
+        self.inner()
             .has_temporal_node_prop_window(v, prop_id, i64::MIN..w.end)
     }
 
@@ -668,7 +641,7 @@ impl TimeSemantics for PersistentGraph {
     }
 
     fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: &LayerIds) -> bool {
-        self.0.has_temporal_edge_prop(e, prop_id, layer_ids)
+        self.inner().has_temporal_edge_prop(e, prop_id, layer_ids)
     }
 
     fn temporal_edge_prop_hist<'a>(
@@ -677,7 +650,7 @@ impl TimeSemantics for PersistentGraph {
         prop_id: usize,
         layer_ids: &'a LayerIds,
     ) -> BoxedLIter<'a, (TimeIndexEntry, Prop)> {
-        self.0.temporal_edge_prop_hist(e, prop_id, layer_ids)
+        self.inner().temporal_edge_prop_hist(e, prop_id, layer_ids)
     }
 }
 

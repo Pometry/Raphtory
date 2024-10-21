@@ -1,13 +1,12 @@
 use crate::{
-    core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::AsNodeRef, VID},
+    core::entities::{edges::edge_ref::EdgeRef, VID},
     db::{
         api::{
             properties::Properties,
             state::LazyNodeState,
-            storage::graph::storage_ops::GraphStorage,
             view::{
                 internal::{OneHopFilter, Static},
-                BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
+                BaseNodeViewOps, DynamicGraph, IntoDynamic,
             },
         },
         graph::{edges::NestedEdges, node::NodeView, path::PathFromGraph},
@@ -16,6 +15,8 @@ use crate::{
 };
 
 use crate::db::graph::create_node_type_filter;
+use raphtory_api::{core::entities::AsNodeRef, BoxedLIter};
+use raphtory_memstorage::db::api::storage::graph::GraphStorage;
 use rayon::iter::ParallelIterator;
 use std::{marker::PhantomData, sync::Arc};
 

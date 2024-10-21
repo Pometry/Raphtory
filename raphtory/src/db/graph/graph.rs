@@ -28,6 +28,7 @@ use crate::{
     prelude::*,
 };
 use core::panic;
+use raphtory_memstorage::db::api::storage::storage::Storage;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -300,12 +301,6 @@ pub fn assert_graph_equal<
     }
 }
 
-impl Display for Graph {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.inner)
-    }
-}
-
 impl<'graph, G: GraphViewOps<'graph>> PartialEq<G> for Graph
 where
     Self: 'graph,
@@ -320,7 +315,7 @@ impl Base for Graph {
 
     #[inline(always)]
     fn base(&self) -> &Self::Base {
-        &self.inner
+        self.inner()
     }
 }
 
@@ -328,74 +323,19 @@ impl InheritMutationOps for Graph {}
 
 impl InheritViewOps for Graph {}
 
-impl Graph {
-    /// Create a new graph
-    ///
-    /// Returns:
-    ///
-    /// A raphtory graph
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use raphtory::prelude::Graph;
-    /// let g = Graph::new();
-    /// ```
-    pub fn new() -> Self {
-        Self {
-            inner: Arc::new(Storage::default()),
-        }
-    }
-
-    /// Create a new graph with specified number of shards
-    ///
-    /// Returns:
-    ///
-    /// A raphtory graph
-    pub fn new_with_shards(num_shards: usize) -> Self {
-        Self {
-            inner: Arc::new(Storage::new(num_shards)),
-        }
-    }
-
-    pub(crate) fn from_storage(inner: Arc<Storage>) -> Self {
-        Self { inner }
-    }
-
-    pub(crate) fn from_internal_graph(graph_storage: GraphStorage) -> Self {
-        let inner = Arc::new(Storage::from_inner(graph_storage));
-        Self { inner }
-    }
-
-    pub fn event_graph(&self) -> Graph {
-        self.clone()
-    }
-
-    /// Get persistent graph
-    pub fn persistent_graph(&self) -> PersistentGraph {
-        PersistentGraph::from_storage(self.inner.clone())
-    }
-}
-
 #[cfg(test)]
 mod db_tests {
     use super::*;
     use crate::{
         algorithms::components::weakly_connected_components,
-        core::{
-            utils::{
-                errors::GraphError,
-                time::{error::ParseTimeError, TryIntoTime},
-            },
-            Prop,
-        },
+        core::{utils::time::TryIntoTime, Prop},
         db::{
             api::{
                 properties::internal::ConstPropertiesOps,
                 view::{
                     internal::{CoreGraphOps, EdgeFilterOps, TimeSemantics},
                     time::internal::InternalTimeOps,
-                    EdgeViewOps, Layer, LayerOps, NodeViewOps, TimeOps,
+                    EdgeViewOps, LayerOps, NodeViewOps, TimeOps,
                 },
             },
             graph::{edge::EdgeView, edges::Edges, node::NodeView, path::PathFromNode},
@@ -411,7 +351,10 @@ mod db_tests {
     use raphtory_api::core::{
         entities::GID,
         storage::arc_str::{ArcStr, OptionAsStr},
-        utils::logging::global_info_logger,
+        utils::{
+            errors::{GraphError, ParseTimeError},
+            logging::global_info_logger,
+        },
     };
     use serde_json::Value;
     use std::collections::{HashMap, HashSet};
@@ -2527,7 +2470,7 @@ mod db_tests {
     }
 
     #[test]
-    fn test_layer_degree(){
+    fn test_layer_degree() {
         let g = Graph::new();
         g.add_edge(0, 1, 2, NO_PROPS, Some("layer1")).unwrap();
         g.add_edge(1, 1, 2, NO_PROPS, Some("layer2")).unwrap();
@@ -2541,7 +2484,6 @@ mod db_tests {
             assert_eq!(n_layer.in_degree(), 0);
             assert_eq!(n_layer.degree(), 2);
         });
-
     }
 
     #[test]

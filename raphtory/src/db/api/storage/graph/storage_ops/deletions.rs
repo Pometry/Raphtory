@@ -1,9 +1,12 @@
 use crate::db::api::mutation::internal::InternalDeletionOps;
 use raphtory_api::core::{
     entities::{EID, VID},
-    storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry}, utils::errors::GraphError,
+    storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
+    utils::errors::GraphError,
 };
-use raphtory_memstorage::{core::entities::graph::tgraph::TemporalGraph, db::api::storage::graph::GraphStorage};
+use raphtory_memstorage::{
+    core::entities::graph::tgraph::TemporalGraph, db::api::storage::graph::GraphStorage,
+};
 
 impl InternalDeletionOps for TemporalGraph {
     fn internal_delete_edge(

@@ -1,10 +1,6 @@
-use crate::{
-    core::entities::{EID, VID},
-    db::api::{state::Index, view::Base},
-};
+use crate::db::api::view::Base;
 use enum_dispatch::enum_dispatch;
-use rayon::{iter::Either, prelude::*};
-use std::sync::Arc;
+use raphtory_memstorage::db::api::list_ops::{EdgeList, NodeList};
 
 #[enum_dispatch]
 pub trait ListOps {
@@ -27,4 +23,3 @@ where
         self.base().edge_list()
     }
 }
-

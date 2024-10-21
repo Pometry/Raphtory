@@ -1,4 +1,10 @@
-use std::{cmp::Ordering, collections::HashMap, fmt::{self, Display, Formatter}, hash::{Hash, Hasher}, sync::Arc};
+use std::{
+    cmp::Ordering,
+    collections::HashMap,
+    fmt::{self, Display, Formatter},
+    hash::{Hash, Hasher},
+    sync::Arc,
+};
 
 use chrono::{DateTime, NaiveDateTime, Utc};
 use itertools::Itertools;
@@ -8,9 +14,9 @@ use serde_json::Value;
 
 use crate::db::graph::views::{deletion_graph::PersistentGraph, graph::Graph};
 
-pub mod nodes;
 pub mod edges;
 pub mod graph;
+pub mod nodes;
 pub mod properties;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Hash)]
@@ -18,6 +24,15 @@ pub enum Lifespan {
     Interval { start: i64, end: i64 },
     Event { time: i64 },
     Inherited,
+}
+
+impl Lifespan {
+    pub fn overwrite_inherited(&self, default_lifespan: Lifespan) -> Self {
+        match self {
+            Lifespan::Inherited => default_lifespan,
+            other => other.clone(),
+        }
+    }
 }
 
 /// struct containing all the necessary information to allow Raphtory creating a document and
@@ -268,7 +283,7 @@ impl Display for Prop {
             Prop::Bool(value) => write!(f, "{}", value),
             Prop::DTime(value) => write!(f, "{}", value),
             Prop::NDTime(value) => write!(f, "{}", value),
-            Prop::Graph(value) => todo!(),// write!( f, "Graph(num_nodes={}, num_edges={})", value.count_nodes(), value.count_edges()),
+            Prop::Graph(value) => todo!(), // write!( f, "Graph(num_nodes={}, num_edges={})", value.count_nodes(), value.count_edges()),
             Prop::PersistentGraph(value) => todo!(), //write!( f, "Graph(num_nodes={}, num_edges={})", value.count_nodes(), value.count_edges()),
             Prop::List(value) => {
                 write!(

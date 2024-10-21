@@ -1,8 +1,7 @@
 use crate::{
     core::{
-        entities::{graph::tgraph::TemporalGraph, nodes::node_ref::AsNodeRef, LayerIds, VID},
+        entities::{LayerIds, VID},
         storage::timeindex::AsTime,
-        utils::errors::GraphError,
     },
     db::{
         api::{
@@ -11,9 +10,7 @@ use crate::{
                 internal::{ConstPropertiesOps, TemporalPropertiesOps},
                 Properties,
             },
-            storage::graph::{
-                edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
-            },
+            storage::graph::edges::edge_storage_ops::EdgeStorageOps,
             view::{internal::*, *},
         },
         graph::{
@@ -32,10 +29,15 @@ use itertools::Itertools;
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
     core::{
-        entities::EID,
+        entities::{AsNodeRef, EID},
         storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+        utils::errors::GraphError,
         Direction,
     },
+    BoxedIter,
+};
+use raphtory_memstorage::{
+    core::entities::graph::tgraph::TemporalGraph, db::api::list_ops::NodeList, FilterState,
 };
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
@@ -147,19 +149,16 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 
     fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
         let storage = self.core_graph().lock();
-        let mut g = TemporalGraph::default();
-
-        // Copy all graph properties
-        g.graph_meta = self.graph_meta().deep_clone();
+        let mut g = TemporalGraph::default().with_graph_meta(self.graph_meta().deep_clone());
 
         // preserve all property mappings
-        g.node_meta
+        g.node_meta()
             .set_const_prop_meta(self.node_meta().const_prop_meta().deep_clone());
-        g.node_meta
+        g.node_meta()
             .set_temporal_prop_meta(self.node_meta().temporal_prop_meta().deep_clone());
-        g.edge_meta
+        g.edge_meta()
             .set_const_prop_meta(self.edge_meta().const_prop_meta().deep_clone());
-        g.edge_meta
+        g.edge_meta()
             .set_temporal_prop_meta(self.edge_meta().temporal_prop_meta().deep_clone());
 
         if let Some(earliest) = self.earliest_time() {
@@ -208,7 +207,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
             }
         };
         // Set event counter to be the same as old graph to avoid any possibility for duplicate event ids
-        g.event_counter
+        g.event_counter()
             .fetch_max(storage.read_event_id(), Ordering::Relaxed);
 
         {
@@ -228,13 +227,13 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                         node_map_shared[node.node.index()].store(index, Ordering::Relaxed);
                         if let Some(node_type) = node.node_type() {
                             let new_type_id = g
-                                .node_meta
+                                .node_meta()
                                 .node_type_meta()
                                 .get_or_create_id(&node_type)
                                 .inner();
                             new_node.node_type = new_type_id;
                         }
-                        g.logical_to_physical.set(gid.as_ref(), new_id)?;
+                        g.logical_to_physical().set(gid.as_ref(), new_id)?;
 
                         if let Some(earliest) = node.earliest_time() {
                             // explicitly add node earliest_time to handle PersistentGraph

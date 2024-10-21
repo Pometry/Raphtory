@@ -2,11 +2,7 @@
 //! A node is a node in the graph, and can have properties and edges.
 //! It can also be used to navigate the graph.
 use crate::{
-    core::{
-        entities::nodes::node_ref::{AsNodeRef, NodeRef},
-        utils::errors::GraphError,
-        Prop,
-    },
+    core::Prop,
     db::{
         api::{
             properties::Properties,
@@ -54,7 +50,11 @@ use python::{
         PyGenericIterator,
     },
 };
-use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr, utils::hashing::calculate_hash};
+use raphtory_api::core::{
+    entities::{AsNodeRef, NodeRef, GID},
+    storage::arc_str::ArcStr,
+    utils::{errors::GraphError, hashing::calculate_hash},
+};
 use rayon::{iter::IntoParallelIterator, prelude::*};
 use std::collections::HashMap;
 

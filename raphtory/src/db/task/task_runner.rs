@@ -14,13 +14,14 @@ use crate::{
         },
     },
     db::{
-        api::{storage::graph::storage_ops::GraphStorage, view::StaticGraphViewOps},
+        api::view::StaticGraphViewOps,
         task::{
             eval_graph::EvalGraph,
             node::{eval_node::EvalNodeView, eval_node_state::EVState},
         },
     },
 };
+use raphtory_memstorage::db::api::storage::graph::GraphStorage;
 use rayon::{prelude::*, ThreadPool};
 use std::{
     borrow::Cow,

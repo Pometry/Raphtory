@@ -13,7 +13,10 @@ use crate::{
     },
     prelude::{AdditionOps, EdgeViewOps, GraphViewOps, NodeViewOps},
 };
-use raphtory_api::core::{storage::{arc_str::OptionAsStr, timeindex::AsTime}, utils::errors::GraphError};
+use raphtory_api::core::{
+    storage::{arc_str::OptionAsStr, timeindex::AsTime},
+    utils::errors::GraphError,
+};
 
 use super::time_from_input;
 
@@ -181,7 +184,10 @@ impl<
             self.resolve_layer(Some(&layer))?;
         }
         if !force && self.has_edge(edge.src().id(), edge.dst().id()) {
-            return Err(GraphError::EdgeExistsError(edge.src().id(), edge.dst().id()));
+            return Err(GraphError::EdgeExistsError(
+                edge.src().id(),
+                edge.dst().id(),
+            ));
         }
         // Add edges first so we definitely have all associated nodes (important in case of persistent edges)
         // FIXME: this needs to be verified

@@ -1,4 +1,6 @@
-use crate::{core::utils::errors::GraphError, prelude::GraphViewOps};
+use raphtory_api::core::utils::errors::GraphError;
+
+use crate::prelude::GraphViewOps;
 
 pub trait InternalEdgeFilterOps: Sized {
     type EdgeFiltered<'graph, G>: GraphViewOps<'graph>

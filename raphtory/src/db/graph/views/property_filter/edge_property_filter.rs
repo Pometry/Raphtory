@@ -1,13 +1,15 @@
+use raphtory_api::core::utils::errors::GraphError;
+use raphtory_memstorage::db::api::storage::graph::edges::edge_ref::EdgeStorageRef;
+
 use crate::{
     core::{
         entities::{properties::props::Meta, LayerIds},
-        utils::errors::GraphError,
         PropType,
     },
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
-            storage::graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+            storage::graph::edges::edge_storage_ops::EdgeStorageOps,
             view::{
                 internal::{
                     EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps, InheritListOps,

@@ -1,8 +1,6 @@
-use crate::{
-    core::utils::{errors::GraphError, time::error::ParseTimeError},
-    io::csv_loader::CsvErr,
-};
+use crate::io::csv_loader::CsvErr;
 use pyo3::{exceptions::PyException, PyErr};
+use raphtory_api::core::utils::errors::{GraphError, ParseTimeError};
 use std::error::Error;
 
 impl From<ParseTimeError> for PyErr {

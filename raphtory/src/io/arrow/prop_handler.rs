@@ -1,8 +1,5 @@
 use crate::{
-    core::{
-        utils::errors::{GraphError, LoadError},
-        IntoPropList, PropType,
-    },
+    core::{IntoPropList, PropType},
     io::arrow::dataframe::DFChunk,
     prelude::Prop,
 };
@@ -14,7 +11,10 @@ use polars_arrow::{
     datatypes::{ArrowDataType as DataType, TimeUnit},
     offset::Offset,
 };
-use raphtory_api::core::storage::dict_mapper::MaybeNew;
+use raphtory_api::core::{
+    storage::dict_mapper::MaybeNew,
+    utils::errors::{GraphError, LoadError},
+};
 use rayon::prelude::*;
 
 pub struct PropCols {

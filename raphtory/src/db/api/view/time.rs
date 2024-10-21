@@ -1,7 +1,7 @@
 use crate::{
     core::{
         storage::timeindex::AsTime,
-        utils::time::{error::ParseTimeError, Interval, IntoTime},
+        utils::time::{Interval, IntoTime},
     },
     db::api::view::{
         internal::{OneHopFilter, TimeSemantics},
@@ -9,6 +9,7 @@ use crate::{
     },
 };
 use chrono::{DateTime, Utc};
+use raphtory_api::core::utils::errors::ParseTimeError;
 use std::{
     cmp::{max, min},
     marker::PhantomData,

@@ -1,9 +1,7 @@
 use crate::{
-    core::{utils::errors::GraphError, Prop},
+    core::Prop,
     db::{
-        api::view::{
-            internal::CoreGraphOps, DynamicGraph, IntoDynBoxed, IntoDynamic, StaticGraphViewOps,
-        },
+        api::view::{internal::CoreGraphOps, DynamicGraph, IntoDynamic, StaticGraphViewOps},
         graph::{
             edge::EdgeView,
             edges::{Edges, NestedEdges},
@@ -32,7 +30,7 @@ use pyo3::{
     prelude::PyModule, pyclass, pymethods, types::PyDict, IntoPy, PyObject, PyResult, Python,
     ToPyObject,
 };
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::{storage::arc_str::ArcStr, utils::errors::GraphError};
 use rayon::{iter::IntoParallelIterator, prelude::*};
 use std::collections::HashMap;
 
