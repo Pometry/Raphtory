@@ -15,10 +15,10 @@ from raphtory.typing import *
 from datetime import datetime
 from pandas import DataFrame
 
-class GraphServer:
+class GraphServer(object):
     """A class for defining and running a Raphtory GraphQL server"""
 
-    def __init__(
+    def __new__(
         self,
         work_dir,
         cache_capacity=None,
@@ -30,7 +30,7 @@ class GraphServer:
         otlp_tracing_service_name=None,
         config_path=None,
     ):
-        """Initialize self.  See help(type(self)) for accurate signature."""
+        """Create and return a new object.  See help(type) for accurate signature."""
 
     def run(self, port: int = 1736, timeout_ms: int = 180000):
         """
@@ -76,6 +76,9 @@ class GraphServer:
           RunningGraphServer: The running server
         """
 
+    def turn_off_index(self):
+        """Turn off index for all graphs"""
+
     def with_global_search_function(
         self, name: str, input: dict, function: Callable
     ) -> GraphServer:
@@ -116,14 +119,11 @@ class GraphServer:
            GraphServer: A new server object containing the vectorised graphs.
         """
 
-class GraphqlGraphs:
+class GraphqlGraphs(object):
     """
     A class for accessing graphs hosted in a Raphtory GraphQL server and running global search for
     graph documents
     """
-
-    def __init__(self):
-        """Initialize self.  See help(type(self)) for accurate signature."""
 
     def get(self, name):
         """Return the `VectorisedGraph` with name `name` or `None` if it doesn't exist"""
@@ -144,11 +144,11 @@ class GraphqlGraphs:
     def search_graph_documents_with_scores(self, query, limit, window):
         """Same as `search_graph_documents` but it also returns the scores alongside the documents"""
 
-class RaphtoryClient:
+class RaphtoryClient(object):
     """A client for handling GraphQL operations in the context of Raphtory."""
 
-    def __init__(self, url):
-        """Initialize self.  See help(type(self)) for accurate signature."""
+    def __new__(self, url):
+        """Create and return a new object.  See help(type) for accurate signature."""
 
     def copy_graph(self, path, new_path):
         """
@@ -267,9 +267,9 @@ class RaphtoryClient:
            The `data` field from the graphQL response after executing the mutation.
         """
 
-class RemoteEdge:
-    def __init__(self, path, client, src, dst):
-        """Initialize self.  See help(type(self)) for accurate signature."""
+class RemoteEdge(object):
+    def __new__(self, path, client, src, dst):
+        """Create and return a new object.  See help(type) for accurate signature."""
 
     def add_constant_properties(
         self, properties: Dict[str, Prop], layer: Optional[str] = None
@@ -322,13 +322,13 @@ class RemoteEdge:
             layer (str, optional): The layer you want these properties to be added on to.
         """
 
-class RemoteEdgeAddition:
-    def __init__(self, src, dst, layer=None, constant_properties=None, updates=None):
-        """Initialize self.  See help(type(self)) for accurate signature."""
+class RemoteEdgeAddition(object):
+    def __new__(self, src, dst, layer=None, constant_properties=None, updates=None):
+        """Create and return a new object.  See help(type) for accurate signature."""
 
-class RemoteGraph:
-    def __init__(self, path, client):
-        """Initialize self.  See help(type(self)) for accurate signature."""
+class RemoteGraph(object):
+    def __new__(self, path, client):
+        """Create and return a new object.  See help(type) for accurate signature."""
 
     def add_constant_properties(self, properties: dict):
         """
@@ -455,9 +455,9 @@ class RemoteGraph:
             properties (dict): The constant properties of the graph.
         """
 
-class RemoteNode:
-    def __init__(self, path, client, id):
-        """Initialize self.  See help(type(self)) for accurate signature."""
+class RemoteNode(object):
+    def __new__(self, path, client, id):
+        """Create and return a new object.  See help(type) for accurate signature."""
 
     def add_constant_properties(self, properties: Dict[str, Prop]):
         """
@@ -500,20 +500,19 @@ class RemoteNode:
             properties (Dict[str, Prop]): A dictionary of properties to be added to the node.
         """
 
-class RemoteNodeAddition:
-    def __init__(self, name, node_type=None, constant_properties=None, updates=None):
-        """Initialize self.  See help(type(self)) for accurate signature."""
+class RemoteNodeAddition(object):
+    def __new__(self, name, node_type=None, constant_properties=None, updates=None):
+        """Create and return a new object.  See help(type) for accurate signature."""
 
-class RemoteUpdate:
-    def __init__(self, time, properties=None):
-        """Initialize self.  See help(type(self)) for accurate signature."""
+class RemoteUpdate(object):
+    def __new__(self, time, properties=None):
+        """Create and return a new object.  See help(type) for accurate signature."""
 
-class RunningGraphServer:
+class RunningGraphServer(object):
     """A Raphtory server handler that also enables querying the server"""
 
-    def __init__(self):
-        """Initialize self.  See help(type(self)) for accurate signature."""
-
+    def __enter__(self): ...
+    def __exit__(self, _exc_type, _exc_val, _exc_tb): ...
     def get_client(self): ...
     def stop(self):
         """Stop the server and wait for it to finish"""

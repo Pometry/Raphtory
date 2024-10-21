@@ -166,6 +166,14 @@ impl GqlGraph {
         self.apply(|g| g.latest(), |g| g.latest())
     }
 
+    async fn snapshot_at(&self, time: i64) -> GqlGraph {
+        self.apply(|g| g.snapshot_at(time), |g| g.snapshot_at(time))
+    }
+
+    async fn snapshot_latest(&self) -> GqlGraph {
+        self.apply(|g| g.snapshot_latest(), |g| g.snapshot_latest())
+    }
+
     async fn before(&self, time: i64) -> GqlGraph {
         self.apply(|g| g.before(time), |g| g.before(time))
     }

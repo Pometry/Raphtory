@@ -60,6 +60,13 @@ impl GqlEdges {
         self.update(self.ee.latest())
     }
 
+    async fn snapshot_at(&self, time: i64) -> Self {
+        self.update(self.ee.snapshot_at(time))
+    }
+    async fn snapshot_latest(&self) -> Self {
+        self.update(self.ee.snapshot_latest())
+    }
+
     async fn before(&self, time: i64) -> Self {
         self.update(self.ee.before(time))
     }

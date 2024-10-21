@@ -398,7 +398,10 @@ mod db_tests {
             api::{
                 properties::internal::ConstPropertiesOps,
                 view::{
-                    internal::{CoreGraphOps, EdgeFilterOps, TimeSemantics},
+                    internal::{
+                        CoreGraphOps, EdgeFilterOps, InternalMaterialize, OneHopFilter,
+                        TimeSemantics,
+                    },
                     time::internal::InternalTimeOps,
                     EdgeViewOps, Layer, LayerOps, NodeViewOps, TimeOps,
                 },
@@ -3191,5 +3194,15 @@ mod db_tests {
             .unwrap();
         let graph = pool.install(|| Graph::new());
         assert_eq!(graph.core_graph().internal_num_nodes(), 0);
+    }
+
+    // TODO: remove this
+    fn test_event() {
+        let g = Graph::new();
+        let m = g.materialize().unwrap();
+        let w = g.window(1, 3).layers("asa").unwrap().window(2, 3);
+        let b = w.base();
+        let b = w.base_graph();
+        let t = w.graph_type();
     }
 }

@@ -375,8 +375,8 @@ impl PyMutableEdge {
     ///
     /// Parameters:
     ///     t (TimeInput): The timestamp at which the updates should be applied.
-    ///     properties ([Dict[str, Prop]]): A dictionary of properties to update.
-    ///     layer (str): The layer you want these properties to be added on to.
+    ///     properties (PropInput, optional): A dictionary of properties to update.
+    ///     layer (str, optional): The layer you want these properties to be added on to.
     fn add_updates(
         &self,
         t: PyTime,
@@ -391,7 +391,7 @@ impl PyMutableEdge {
     ///
     /// Parameters:
     ///     t (TimeInput): The timestamp at which the deletion should be applied.
-    ///     layer (str): The layer you want the deletion applied to .
+    ///     layer (str, optional): The layer you want the deletion applied to .
     fn delete(&self, t: PyTime, layer: Option<&str>) -> Result<(), GraphError> {
         self.edge.delete(t, layer)
     }
@@ -401,8 +401,8 @@ impl PyMutableEdge {
     /// change over time. These properties are fundamental attributes of the edge.
     ///
     /// Parameters:
-    ///     properties (Dict[str, Prop]): A dictionary of properties to be added to the edge.
-    ///     layer (str): The layer you want these properties to be added on to.
+    ///     properties (PropInput): A dictionary of properties to be added to the edge.
+    ///     layer (str, optional): The layer you want these properties to be added on to.
     fn add_constant_properties(
         &self,
         properties: HashMap<String, Prop>,
@@ -416,8 +416,8 @@ impl PyMutableEdge {
     /// change over time. These properties are fundamental attributes of the edge.
     ///
     /// Parameters:
-    ///     properties (Dict[str, Prop]): A dictionary of properties to be added to the edge.
-    ///     layer (str): The layer you want these properties to be added on to.
+    ///     properties (PropInput): A dictionary of properties to be added to the edge.
+    ///     layer (str, optional): The layer you want these properties to be added on to.
     pub fn update_constant_properties(
         &self,
         properties: HashMap<String, Prop>,
