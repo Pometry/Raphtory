@@ -78,6 +78,7 @@ dependencies = [
  "const-random",
  "getrandom",
  "once_cell",
+ "serde",
  "version_check",
  "zerocopy",
 ]
@@ -3072,6 +3073,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0e7465ac9959cc2b1404e8e2367b43684a6d13790fe23056cc8c6c5a6b7bcb94"
 
 [[package]]
+name = "matrixmultiply"
+version = "0.3.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9380b911e3e96d10c1f415da0876389aaf1b56759054eeb0de7df940c456ba1a"
+dependencies = [
+ "autocfg",
+ "rawpointer",
+]
+
+[[package]]
 name = "md-5"
 version = "0.10.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3277,6 +3288,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2195bf6aa996a481483b29d62a7663eed3fe39600c460e323f8ff41e90bdd89b"
 
 [[package]]
+name = "ndarray"
+version = "0.15.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "adb12d4e967ec485a5f71c6311fe28158e9d6f4bc4a447b474184d0f91a8fa32"
+dependencies = [
+ "matrixmultiply",
+ "num-complex",
+ "num-integer",
+ "num-traits",
+ "rawpointer",
+]
+
+[[package]]
 name = "neo4rs"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3434,6 +3458,21 @@ checksum = "4161fcb6d602d4d2081af7c3a45852d875a03dd337a6bfdd6e06407b61342a43"
 dependencies = [
  "hermit-abi 0.3.9",
  "libc",
+]
+
+[[package]]
+name = "numpy"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bef41cbb417ea83b30525259e30ccef6af39b31c240bda578889494c5392d331"
+dependencies = [
+ "libc",
+ "ndarray",
+ "num-complex",
+ "num-integer",
+ "num-traits",
+ "pyo3",
+ "rustc-hash 1.1.0",
 ]
 
 [[package]]
@@ -4176,6 +4215,38 @@ name = "pometry-storage"
 version = "0.13.0"
 
 [[package]]
+name = "pometry-storage-private"
+version = "0.12.1"
+dependencies = [
+ "ahash",
+ "bincode",
+ "bytemuck",
+ "criterion",
+ "itertools 0.12.1",
+ "memmap2 0.9.4",
+ "once_cell",
+ "parking_lot",
+ "polars-arrow",
+ "polars-core",
+ "polars-io",
+ "polars-parquet",
+ "polars-utils",
+ "pretty_assertions",
+ "proptest",
+ "rand",
+ "raphtory-api",
+ "rayon",
+ "serde",
+ "serde_json",
+ "strum",
+ "tempfile",
+ "thiserror",
+ "tracing",
+ "tracing-subscriber",
+ "twox-hash",
+]
+
+[[package]]
 name = "portable-atomic"
 version = "1.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4589,6 +4660,7 @@ dependencies = [
  "num",
  "num-integer",
  "num-traits",
+ "numpy",
  "once_cell",
  "ordered-float 4.2.2",
  "ouroboros",
@@ -4597,7 +4669,7 @@ dependencies = [
  "polars-core",
  "polars-io",
  "polars-parquet",
- "pometry-storage",
+ "pometry-storage-private",
  "pretty_assertions",
  "proptest",
  "prost",
@@ -4660,7 +4732,7 @@ dependencies = [
  "criterion",
  "csv",
  "flate2",
- "pometry-storage",
+ "pometry-storage-private",
  "rand",
  "raphtory",
  "raphtory-api",
@@ -4687,7 +4759,7 @@ dependencies = [
  "pest",
  "pest_derive",
  "polars-arrow",
- "pometry-storage",
+ "pometry-storage-private",
  "pretty_assertions",
  "proptest",
  "raphtory",
@@ -4793,6 +4865,12 @@ checksum = "cb9ee317cfe3fbd54b36a511efc1edd42e216903c9cd575e686dd68a2ba90d8d"
 dependencies = [
  "bitflags 2.6.0",
 ]
+
+[[package]]
+name = "rawpointer"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "60a357793950651c4ed0f3f52338f53b2f809f32d83a07f72909fa13e4c6c1e3"
 
 [[package]]
 name = "rayon"

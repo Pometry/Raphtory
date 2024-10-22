@@ -19,6 +19,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 = { workspace = true }
+# numpy = { workspace = true }
 raphtory_core = { path = "../raphtory", version = "0.13.0", features = [
     "python",
     "search",

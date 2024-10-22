@@ -21,6 +21,7 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
+use numpy::{IntoPyArray, Ix1, PyArray};
 use pyo3::{prelude::*, pyclass::CompareOp};
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 use std::{
@@ -176,8 +177,9 @@ impl PyEdge {
     /// Returns:
     ///    List[int]:  A list of unix timestamps.
     ///
-    pub fn history(&self) -> Vec<i64> {
-        self.edge.history()
+    pub fn history<'py>(&self, py: Python<'py>) -> &'py PyArray<i64, Ix1> {
+        let history = self.edge.history();
+        history.into_pyarray(py)
     }
 
     /// Returns a list of timestamps of when an edge is added or change to an edge is made.

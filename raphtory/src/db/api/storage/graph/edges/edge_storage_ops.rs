@@ -4,15 +4,13 @@ use crate::{
             edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
             properties::{props::Props, tprop::TProp},
             LayerIds, VID,
-        },
-        storage::{
+        }, storage::{
             raw_edges::EdgeShard,
             timeindex::{TimeIndex, TimeIndexIntoOps, TimeIndexOps, TimeIndexWindow},
-        },
-        Prop,
+        }, utils::iter::GenLockedIter, Prop
     },
     db::api::{
-        storage::graph::{tprop_storage_ops::TPropOps, variants::layer_variants::LayerVariants},
+        storage::graph::{tprop_storage_ops::TPropOps, variants::{layer_variants::LayerVariants, storage_variants3::StorageVariants}},
         view::IntoDynBoxed,
     },
 };
@@ -37,6 +35,15 @@ impl<'a> TimeIndexRef<'a> {
             TimeIndexRef::Range(ts) => ts.len(),
             #[cfg(feature = "storage")]
             TimeIndexRef::External(ts) => ts.len(),
+        }
+    }
+
+    pub fn iter(self) -> impl Iterator<Item = TimeIndexEntry> +'a {
+        match self {
+            TimeIndexRef::Ref(t) => StorageVariants::Mem(t.iter()),
+            TimeIndexRef::Range(t) => StorageVariants::Unlocked(GenLockedIter::from(t, |t| t.iter())),
+            #[cfg(feature = "storage")]
+            TimeIndexRef::External(t) => StorageVariants::Disk(GenLockedIter::from(t, |t| t.iter())),
         }
     }
 }

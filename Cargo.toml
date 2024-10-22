@@ -40,9 +40,9 @@ debug = 0
 
 [workspace.dependencies]
 #[public-storage]
-pometry-storage = { version = ">=0.8.1", path = "pometry-storage" }
+# pometry-storage = { version = ">=0.8.1", path = "pometry-storage" }
 #[private-storage]
-# pometry-storage = { path = "pometry-storage-private", package = "pometry-storage-private" }
+pometry-storage = { path = "pometry-storage-private", package = "pometry-storage-private" }
 async-graphql = { version = ">=7.0.5, <7.0.8", features = [
     "dynamic-schema",
 ] } # 7.0.8+ is borked, see https://github.com/async-graphql/async-graphql/issues/1586
@@ -59,6 +59,7 @@ serde = { version = "1.0.197", features = ["derive", "rc"] }
 serde_json = "1.0.114"
 pyo3 = { version = "0.20.0", features = ["multiple-pymethods", "chrono"] }
 pyo3-build-config = "0.20.0"
+numpy = "0.20.0"
 itertools = "0.13.0"
 rand = "0.8.5"
 rayon = "1.8.1"
