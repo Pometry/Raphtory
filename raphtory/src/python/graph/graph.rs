@@ -6,7 +6,7 @@
 use crate::{
     algorithms::components::LargestConnectedComponent,
     db::{
-        api::view::internal::{CoreGraphOps, DynamicGraph, IntoDynamic, MaterializedGraph},
+        api::view::internal::{DynamicGraph, IntoDynamic, MaterializedGraph},
         graph::{edge::EdgeView, node::NodeView, views::node_subgraph::NodeSubgraph},
     },
     io::parquet_loaders::*,

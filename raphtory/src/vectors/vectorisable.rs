@@ -1,5 +1,4 @@
 use crate::{
-    core::utils::errors::GraphResult,
     db::{
         api::view::{internal::IntoDynamic, StaticGraphViewOps},
         graph::{edge::EdgeView, node::NodeView},
@@ -12,6 +11,7 @@ use crate::{
 use async_trait::async_trait;
 use itertools::Itertools;
 use parking_lot::RwLock;
+use raphtory_api::core::utils::errors::GraphResult;
 use std::{collections::HashMap, sync::Arc};
 use tracing::info;
 

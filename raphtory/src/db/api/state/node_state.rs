@@ -6,9 +6,7 @@ use crate::{
 use raphtory_api::core::entities::AsNodeRef;
 use raphtory_memstorage::db::api::list_ops::Index;
 use rayon::{iter::Either, prelude::*};
-use std::{
-    borrow::Borrow, collections::HashMap, fmt::Debug, hash::Hash, marker::PhantomData, sync::Arc,
-};
+use std::marker::PhantomData;
 
 pub struct NodeState<'graph, V, G, GH = G> {
     base_graph: G,

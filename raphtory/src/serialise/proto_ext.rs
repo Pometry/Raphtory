@@ -1,5 +1,5 @@
 use crate::{
-    core::{utils::errors::GraphError, DocumentInput, Lifespan, Prop, PropType},
+    core::{ DocumentInput, Lifespan, Prop, PropType},
     db::graph::views::deletion_graph::PersistentGraph,
     prelude::{Graph, StableDecode, StableEncode},
     serialise::{
@@ -25,7 +25,7 @@ use raphtory_api::core::{
     storage::{
         arc_str::ArcStr,
         timeindex::{AsTime, TimeIndexEntry},
-    },
+    }, utils::errors::GraphError,
 };
 use std::{borrow::Borrow, sync::Arc};
 

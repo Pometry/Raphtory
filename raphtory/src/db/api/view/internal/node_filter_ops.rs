@@ -1,9 +1,6 @@
-use crate::{
-    core::entities::LayerIds,
-    db::api::view::{Base, MaterializedGraph},
-};
+use crate::{core::entities::LayerIds, db::api::view::MaterializedGraph};
 use enum_dispatch::enum_dispatch;
-use raphtory_memstorage::db::api::storage::graph::nodes::node_ref::NodeStorageRef;
+use raphtory_memstorage::db::api::{storage::graph::nodes::node_ref::NodeStorageRef, view::internal::inherit::Base};
 
 #[enum_dispatch]
 pub trait NodeFilterOps {

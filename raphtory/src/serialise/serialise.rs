@@ -1,16 +1,10 @@
 use crate::{
-    core::{
-        entities::{graph::tgraph::TemporalGraph, LayerIds},
-        storage::timeindex::TimeIndexOps,
-        utils::errors::GraphError,
-        Prop,
-    },
+    core::{entities::LayerIds, Prop},
     db::{
         api::{
             mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
             storage::graph::{
-                edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
-                storage_ops::GraphStorage, tprop_storage_ops::TPropOps,
+                edges::edge_storage_ops::EdgeStorageOps, tprop_storage_ops::TPropOps,
             },
             view::{internal::CoreGraphOps, MaterializedGraph},
         },
@@ -26,10 +20,9 @@ use crate::{
 use itertools::Itertools;
 use prost::Message;
 use raphtory_api::core::{
-    entities::{GidRef, EID, VID},
-    storage::timeindex::TimeIndexEntry,
-    Direction,
+    entities::{GidRef, EID, VID}, storage::timeindex::TimeIndexEntry, utils::errors::GraphError, Direction
 };
+use raphtory_memstorage::{core::entities::graph::tgraph::TemporalGraph, db::api::storage::graph::GraphStorage};
 use rayon::prelude::*;
 use std::{iter, sync::Arc};
 
@@ -112,7 +105,7 @@ impl StableEncode for GraphStorage {
         {
             graph.new_graph_tprop(key, id, dtype);
         }
-        for (t, group) in &graph_meta
+        for (t, group) in graph_meta
             .temporal_props()
             .map(|(key, values)| {
                 values
@@ -277,48 +270,48 @@ impl StableDecode for TemporalGraph {
                 match meta {
                     Meta::NewNodeType(node_type) => {
                         storage
-                            .node_meta
+                            .node_meta()
                             .node_type_meta()
                             .set_id(node_type.name.as_str(), node_type.id as usize);
                     }
                     Meta::NewNodeCprop(node_cprop) => {
-                        storage.node_meta.const_prop_meta().set_id_and_dtype(
+                        storage.node_meta().const_prop_meta().set_id_and_dtype(
                             node_cprop.name.as_str(),
                             node_cprop.id as usize,
                             proto_ext::as_prop_type(node_cprop.p_type()),
                         )
                     }
                     Meta::NewNodeTprop(node_tprop) => {
-                        storage.node_meta.temporal_prop_meta().set_id_and_dtype(
+                        storage.node_meta().temporal_prop_meta().set_id_and_dtype(
                             node_tprop.name.as_str(),
                             node_tprop.id as usize,
                             proto_ext::as_prop_type(node_tprop.p_type()),
                         )
                     }
                     Meta::NewGraphCprop(graph_cprop) => storage
-                        .graph_meta
+                        .graph_meta()
                         .const_prop_meta()
                         .set_id(graph_cprop.name.as_str(), graph_cprop.id as usize),
                     Meta::NewGraphTprop(graph_tprop) => {
-                        storage.graph_meta.temporal_prop_meta().set_id_and_dtype(
+                        storage.graph_meta().temporal_prop_meta().set_id_and_dtype(
                             graph_tprop.name.as_str(),
                             graph_tprop.id as usize,
                             proto_ext::as_prop_type(graph_tprop.p_type()),
                         )
                     }
                     Meta::NewLayer(new_layer) => storage
-                        .edge_meta
+                        .edge_meta()
                         .layer_meta()
                         .set_id(new_layer.name.as_str(), new_layer.id as usize),
                     Meta::NewEdgeCprop(edge_cprop) => {
-                        storage.edge_meta.const_prop_meta().set_id_and_dtype(
+                        storage.edge_meta().const_prop_meta().set_id_and_dtype(
                             edge_cprop.name.as_str(),
                             edge_cprop.id as usize,
                             proto_ext::as_prop_type(edge_cprop.p_type()),
                         )
                     }
                     Meta::NewEdgeTprop(edge_tprop) => {
-                        storage.edge_meta.temporal_prop_meta().set_id_and_dtype(
+                        storage.edge_meta().temporal_prop_meta().set_id_and_dtype(
                             edge_tprop.name.as_str(),
                             edge_tprop.id as usize,
                             proto_ext::as_prop_type(edge_tprop.p_type()),
@@ -393,11 +386,11 @@ impl StableDecode for TemporalGraph {
                         Gid::GidU64(gid) => GidRef::U64(*gid),
                     };
                     if let Some(node_store) = shard.set(vid, gid) {
-                        storage.logical_to_physical.set(gid, vid)?;
+                        storage.logical_to_physical().set(gid, vid)?;
                         node_store.node_type = node.type_id as usize;
                     }
                 }
-                let edges = storage.storage.edges.read_lock();
+                let edges = storage.storage().edges().read_lock();
                 for edge in edges.iter() {
                     if let Some(src) = shard.get_mut(edge.src()) {
                         for layer in edge.layer_ids_iter(&LayerIds::All) {

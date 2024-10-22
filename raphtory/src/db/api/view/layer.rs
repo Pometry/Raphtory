@@ -2,8 +2,7 @@ use crate::db::{
     api::view::internal::{InternalLayerOps, OneHopFilter},
     graph::views::layer_graph::LayeredGraph,
 };
-use raphtory_api::core::{entities::Layer, storage::arc_str::ArcStr, utils::errors::GraphError};
-use std::sync::Arc;
+use raphtory_api::core::{entities::Layer, utils::errors::GraphError};
 
 /// Trait defining layer operations
 pub trait LayerOps<'graph> {

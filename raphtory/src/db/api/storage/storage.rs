@@ -6,11 +6,9 @@ use crate::{
         mutation::internal::{
             InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
         },
-        view::{Base, InheritViewOps},
+        view::{InheritViewOps},
     },
 };
-#[cfg(feature = "proto")]
-use once_cell::sync::OnceCell;
 use raphtory_api::core::{
     entities::{AsNodeRef, GidType, NodeRef, EID, VID},
     storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
@@ -20,20 +18,6 @@ use raphtory_memstorage::{
     core::storage::{raw_edges::WriteLockedEdges, WriteLockedNodes},
     db::api::storage::{graph::GraphStorage, locked::WriteLockedGraph, storage::Storage},
 };
-use serde::{Deserialize, Serialize};
-use std::{
-    fmt::{Display, Formatter},
-    sync::Arc,
-};
-
-impl Base for Storage {
-    type Base = GraphStorage;
-
-    #[inline]
-    fn base(&self) -> &Self::Base {
-        self.graph()
-    }
-}
 
 impl InheritViewOps for Storage {}
 

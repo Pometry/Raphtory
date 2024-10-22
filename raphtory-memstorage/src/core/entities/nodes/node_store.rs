@@ -331,6 +331,11 @@ impl NodeStore {
             .into_iter()
             .flat_map(|ps| ps.temporal_prop_ids())
     }
+
+    pub fn node_type_id(&self) -> usize {
+        self.node_type
+    }
+
 }
 
 impl ArcEntry<NodeStore> {

@@ -64,3 +64,5 @@ search = [
 arrow = [
     "dep:polars-arrow",
 ]
+
+vectors = []

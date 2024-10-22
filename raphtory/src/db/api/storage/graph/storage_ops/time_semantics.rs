@@ -19,7 +19,7 @@ use crate::{
     core::entities::LayerIds,
     db::api::{
         storage::graph::edges::edge_storage_ops::EdgeStorageOps,
-        view::internal::{CoreGraphOps, TimeSemantics},
+        view::internal::TimeSemantics,
     },
     prelude::Prop,
 };

@@ -14,7 +14,7 @@ use crate::{
     },
     db::api::{
         properties::{internal::PropertiesOps, Properties},
-        view::internal::{CoreGraphOps, InternalLayerOps, TimeSemantics},
+        view::internal::{InternalLayerOps, TimeSemantics},
     },
     prelude::{GraphViewOps, LayerOps, NodeViewOps, TimeOps},
 };

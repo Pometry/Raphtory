@@ -1,7 +1,10 @@
+#[cfg(feature = "arrow")]
+use crate::core::entities::GidType;
 use crate::core::{
-    entities::{properties::PropError, GidType, GID},
+    entities::{properties::PropError, GID},
     storage::arc_str::ArcStr,
 };
+
 #[cfg(feature = "arrow")]
 use polars_arrow::{datatypes::ArrowDataType, legacy::error};
 #[cfg(feature = "storage")]

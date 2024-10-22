@@ -13,7 +13,7 @@ use crate::{
                 Properties,
             },
             view::{
-                internal::{CoreGraphOps, OneHopFilter, Static, TimeSemantics},
+                internal::{OneHopFilter, Static, TimeSemantics},
                 BaseNodeViewOps, StaticGraphViewOps,
             },
         },
@@ -32,7 +32,7 @@ use raphtory_api::core::{
     storage::arc_str::ArcStr,
     utils::errors::GraphError,
 };
-use raphtory_memstorage::db::api::storage::graph::GraphStorage;
+use raphtory_memstorage::db::api::{storage::graph::GraphStorage, view::internal::core_ops::CoreGraphOps};
 use std::{
     fmt,
     fmt::Debug,

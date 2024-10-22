@@ -27,6 +27,7 @@ once_cell = {workspace = true}
 rustc-hash = {workspace = true}
 chrono = {workspace = true}
 serde_json = {workspace = true}
+enum_dispatch = {workspace = true}
 
 [dev-dependencies]
 pretty_assertions = {workspace = true}

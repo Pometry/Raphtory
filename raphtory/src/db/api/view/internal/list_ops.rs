@@ -1,6 +1,5 @@
-use crate::db::api::view::Base;
 use enum_dispatch::enum_dispatch;
-use raphtory_memstorage::db::api::list_ops::{EdgeList, NodeList};
+use raphtory_memstorage::db::api::{list_ops::{EdgeList, NodeList}, view::internal::inherit::Base};
 
 #[enum_dispatch]
 pub trait ListOps {

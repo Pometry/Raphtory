@@ -22,10 +22,10 @@ use itertools::Itertools;
 use raphtory_api::{core::utils::iter::GenLockedIter, BoxedLIter};
 use raphtory_memstorage::{
     core::storage::timeindex::TimeIndexOps,
-    db::api::storage::{
+    db::api::{storage::{
         graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef, GraphStorage},
         storage::Storage,
-    },
+    }, view::internal::inherit::Base},
 };
 use rayon::prelude::*;
 use std::{cmp::min, iter, ops::Range, sync::Arc};

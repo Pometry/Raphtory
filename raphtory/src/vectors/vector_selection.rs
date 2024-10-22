@@ -1,4 +1,5 @@
 use itertools::{chain, Itertools};
+use raphtory_api::core::entities::AsNodeRef;
 use std::{
     collections::{HashMap, HashSet},
     ops::Deref,
@@ -6,7 +7,6 @@ use std::{
 };
 
 use crate::{
-    core::entities::nodes::node_ref::AsNodeRef,
     db::{
         api::view::{DynamicGraph, StaticGraphViewOps},
         graph::{edge::EdgeView, node::NodeView},

@@ -1,7 +1,5 @@
-use std::borrow::Cow;
-
 use raphtory_api::core::{
-    entities::{edges::edge_ref::EdgeRef, LayerIds},
+    entities::{edges::edge_ref::EdgeRef, GidRef, LayerIds, GID},
     utils::iter::GenLockedIter,
     Direction,
 };
@@ -9,7 +7,7 @@ use raphtory_api::core::{
 #[cfg(feature = "storage")]
 use crate::disk_graph::storage_interface::node::DiskNode;
 use crate::{
-    core::{entities::nodes::node_store::NodeStore, storage::Entry},
+    core::{entities::{nodes::node_store::NodeStore, Prop}, storage::Entry},
     db::api::storage::graph::{
         nodes::node_ref::NodeStorageRef, variants::storage_variants3::StorageVariants,
     },
@@ -96,50 +94,36 @@ impl<'b> NodeStorageEntry<'b> {
             NodeStorageEntry::Disk(node) => Box::new(node.temporal_node_prop_ids()),
         }
     }
+
+
+    pub fn id(&self) -> GID {
+        match self {
+            NodeStorageEntry::Mem(entry) => entry.global_id().clone(),
+            NodeStorageEntry::Unlocked(entry) => entry.global_id().clone(),
+            #[cfg(feature = "storage")]
+            NodeStorageEntry::Disk(node) => node.id(),
+        }
+    }
+
+    pub fn name(&self) -> String {
+        self.id().to_str().as_ref().to_string()
+    }
+
+    pub fn node_type_id(&self) -> usize {
+        match self {
+            NodeStorageEntry::Mem(entry) => entry.node_type_id(),
+            NodeStorageEntry::Unlocked(entry) => entry.node_type_id(),
+            #[cfg(feature = "storage")]
+            NodeStorageEntry::Disk(node) => node.node_type_id(),
+        }
+    }
+
+    pub fn prop(&self, id: usize) -> Option<Prop> {
+        match self {
+            NodeStorageEntry::Mem(entry) => entry.constant_property(id).cloned(),
+            NodeStorageEntry::Unlocked(entry) => entry.constant_property(id).cloned(),
+            #[cfg(feature = "storage")]
+            NodeStorageEntry::Disk(node) => node.get_const_prop(id),
+        }
+    }
 }
-
-// impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
-//     fn degree(self, layers: &LayerIds, dir: Direction) -> usize {
-//         self.as_ref().degree(layers, dir)
-//     }
-
-//     fn additions(self) -> NodeAdditions<'a> {
-//         self.as_ref().additions()
-//     }
-
-//     fn tprop(self, prop_id: usize) -> impl TPropOps<'a> {
-//         self.as_ref().tprop(prop_id)
-//     }
-
-//     fn edges_iter(
-//         self,
-//         layers: &'a LayerIds,
-//         dir: Direction,
-//     ) -> impl Iterator<Item = EdgeRef> + 'a {
-//         self.as_ref().edges_iter(layers, dir)
-//     }
-
-//     fn node_type_id(self) -> usize {
-//         self.as_ref().node_type_id()
-//     }
-
-//     fn vid(self) -> VID {
-//         self.as_ref().vid()
-//     }
-
-//     fn id(self) -> GidRef<'a> {
-//         self.as_ref().id()
-//     }
-
-//     fn name(self) -> Option<Cow<'a, str>> {
-//         self.as_ref().name()
-//     }
-
-//     fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef> {
-//         self.as_ref().find_edge(dst, layer_ids)
-//     }
-
-//     fn prop(self, prop_id: usize) -> Option<Prop> {
-//         self.as_ref().prop(prop_id)
-//     }
-// }

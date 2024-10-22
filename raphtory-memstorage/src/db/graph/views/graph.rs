@@ -6,7 +6,7 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::db::api::storage::{graph::GraphStorage, storage::Storage};
+use crate::db::api::{storage::{graph::GraphStorage, storage::Storage}, view::internal::inherit::Base};
 
 use super::deletion_graph::PersistentGraph;
 
@@ -14,6 +14,15 @@ use super::deletion_graph::PersistentGraph;
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Graph {
     pub(crate) inner: Arc<Storage>,
+}
+
+impl Base for Graph {
+    type Base = Storage;
+
+    #[inline(always)]
+    fn base(&self) -> &Self::Base {
+        self.inner()
+    }
 }
 
 impl Display for Graph {
@@ -40,13 +49,6 @@ impl Graph {
     /// Returns:
     ///
     /// A raphtory graph
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use raphtory::prelude::Graph;
-    /// let g = Graph::new();
-    /// ```
     pub fn new() -> Self {
         Self {
             inner: Arc::new(Storage::default()),

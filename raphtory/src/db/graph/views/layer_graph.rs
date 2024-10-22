@@ -2,13 +2,14 @@ use std::fmt::{Debug, Formatter};
 
 use itertools::Itertools;
 use raphtory_api::core::{entities::Layer, utils::errors::GraphError};
+use raphtory_memstorage::db::api::view::internal::inherit::Base;
 
 use crate::{
     core::entities::LayerIds,
     db::api::{
         properties::internal::InheritPropertiesOps,
         view::internal::{
-            Base, Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritListOps,
+            Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritListOps,
             InheritMaterialize, InheritNodeFilterOps, InheritTimeSemantics, InternalLayerOps,
             Static,
         },

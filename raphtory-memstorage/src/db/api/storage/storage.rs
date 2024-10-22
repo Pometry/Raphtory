@@ -5,7 +5,7 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::core::entities::graph::tgraph::TemporalGraph;
+use crate::{core::entities::graph::tgraph::TemporalGraph, db::api::view::internal::inherit::Base};
 
 use super::graph::GraphStorage;
 
@@ -17,6 +17,15 @@ pub struct Storage {
     pub(crate) cache: OnceCell<GraphWriter>,
     // search index (tantivy)
     // vector index
+}
+
+impl Base for Storage {
+    type Base = GraphStorage;
+
+    #[inline]
+    fn base(&self) -> &Self::Base {
+        self.graph()
+    }
 }
 
 impl Storage {

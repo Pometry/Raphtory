@@ -7,7 +7,7 @@ use crate::{
     db::api::{
         properties::{internal::PropertiesOps, Properties},
         view::{
-            internal::{CoreGraphOps, OneHopFilter, TimeSemantics},
+            internal::{OneHopFilter, TimeSemantics},
             reset_filter::ResetFilter,
             TimeOps,
         },

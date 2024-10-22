@@ -1,7 +1,4 @@
-use crate::{
-    core::{Prop, PropType},
-    db::api::view::internal::Base,
-};
+use crate::core::{Prop, PropType};
 use enum_dispatch::enum_dispatch;
 use raphtory_api::core::{
     entities::{AsNodeRef, GidType, EID, VID},
@@ -10,7 +7,7 @@ use raphtory_api::core::{
 };
 use raphtory_memstorage::{
     core::storage::{raw_edges::WriteLockedEdges, WriteLockedNodes},
-    db::api::storage::locked::WriteLockedGraph,
+    db::api::{storage::locked::WriteLockedGraph, view::internal::inherit::Base},
 };
 
 #[enum_dispatch]

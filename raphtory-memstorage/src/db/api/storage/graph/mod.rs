@@ -22,7 +22,7 @@ use variants::filter_variants::FilterVariants;
 
 use crate::{
     core::entities::{graph::tgraph::TemporalGraph, properties::graph_meta::GraphMeta},
-    db::api::list_ops::NodeList,
+    db::api::{list_ops::NodeList, view::internal::core_ops::CoreGraphOps},
     FilterState,
 };
 
@@ -41,6 +41,13 @@ pub enum GraphStorage {
     Unlocked(Arc<TemporalGraph>),
     #[cfg(feature = "storage")]
     Disk(Arc<DiskGraphStorage>),
+}
+
+impl CoreGraphOps for GraphStorage {
+    #[inline(always)]
+    fn core_graph(&self) -> &GraphStorage {
+        self
+    }
 }
 
 impl Default for GraphStorage {

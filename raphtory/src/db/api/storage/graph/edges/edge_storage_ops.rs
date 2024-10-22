@@ -1,6 +1,6 @@
 use crate::{core::Prop, db::api::storage::graph::tprop_storage_ops::TPropOps};
 use raphtory_api::core::{
-    entities::{edges::edge_ref::EdgeRef, LayerIds, EID, VID},
+    entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
     storage::timeindex::TimeIndexEntry,
 };
 use raphtory_memstorage::{

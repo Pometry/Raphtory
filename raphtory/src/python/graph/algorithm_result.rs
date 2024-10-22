@@ -126,7 +126,7 @@ macro_rules! py_algorithm_result_base {
                 let mut values = Vec::new();
                 Python::with_gil(|py| {
                     for (key, value) in hashmap.iter() {
-                        let node = $crate::db::api::view::internal::core_ops::CoreGraphOps::node_id(
+                        let node = raphtory_memstorage::db::api::view::internal::core_ops::CoreGraphOps::node_id(
                             &self.0.graph,
                             VID(*key),
                         );

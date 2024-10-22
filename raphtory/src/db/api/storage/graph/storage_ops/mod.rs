@@ -1,6 +1,6 @@
 use raphtory_memstorage::db::api::storage::graph::GraphStorage;
 
-use crate::db::api::{mutation::DeletionOps, view::internal::CoreGraphOps};
+use crate::db::api::mutation::DeletionOps;
 #[cfg(feature = "storage")]
 use crate::{
     db::api::storage::graph::variants::storage_variants::StorageVariants,
@@ -29,10 +29,3 @@ pub mod time_props;
 pub mod time_semantics;
 
 impl DeletionOps for GraphStorage {}
-
-impl CoreGraphOps for GraphStorage {
-    #[inline(always)]
-    fn core_graph(&self) -> &GraphStorage {
-        self
-    }
-}

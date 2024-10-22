@@ -1,9 +1,7 @@
 use opentelemetry::KeyValue;
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::{
-    trace,
-    trace::{Sampler, TracerProvider},
-    Resource,
+    logs::BatchConfigBuilder, trace::{self, Sampler, TracerProvider}, Resource
 };
 use serde::Deserialize;
 use std::time::Duration;

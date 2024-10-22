@@ -8,7 +8,7 @@ use crate::{
             properties::Properties,
             state::{LazyNodeState, NodeStateOps},
             view::{
-                internal::{CoreGraphOps, DynamicGraph, Immutable, IntoDynamic, MaterializedGraph},
+                internal::{DynamicGraph, Immutable, IntoDynamic, MaterializedGraph},
                 *,
             },
         },

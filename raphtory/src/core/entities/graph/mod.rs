@@ -1,5 +1,7 @@
 #[cfg(test)]
 mod test {
+    use raphtory_api::core::entities::Layer;
+
     use crate::{core::PropType, db::api::mutation::internal::InternalAdditionOps, prelude::*};
 
     #[test]

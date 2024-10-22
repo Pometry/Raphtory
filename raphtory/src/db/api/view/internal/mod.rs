@@ -3,7 +3,7 @@ mod core_deletion_ops;
 pub mod core_ops;
 mod edge_filter_ops;
 mod filter_ops;
-mod inherit;
+// mod inherit;
 mod into_dynamic;
 mod layer_ops;
 mod list_ops;
@@ -26,13 +26,13 @@ pub use core_deletion_ops::*;
 pub use core_ops::*;
 pub use edge_filter_ops::*;
 pub use filter_ops::*;
-pub use inherit::Base;
 pub use into_dynamic::IntoDynamic;
 pub use layer_ops::{DelegateLayerOps, InheritLayerOps, InternalLayerOps};
 pub use list_ops::*;
 pub use materialize::*;
 pub use node_filter_ops::*;
 pub use one_hop_filter::*;
+use raphtory_memstorage::db::api::view::internal::{core_ops::CoreGraphOps, inherit::Base};
 pub use time_semantics::*;
 
 /// Marker trait to indicate that an object is a valid graph view

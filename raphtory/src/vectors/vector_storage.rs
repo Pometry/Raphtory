@@ -1,3 +1,4 @@
+use raphtory_api::core::utils::errors::GraphError;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
@@ -7,7 +8,7 @@ use std::{
     sync::Arc,
 };
 
-use crate::{core::utils::errors::GraphError, db::api::view::StaticGraphViewOps};
+use crate::db::api::view::StaticGraphViewOps;
 
 use super::{
     document_ref::DocumentRef, embedding_cache::EmbeddingCache, entity_id::EntityId,

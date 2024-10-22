@@ -158,13 +158,13 @@ impl GraphMeta {
         0..self.temporal_mapper.len()
     }
 
-    pub(crate) fn const_props(&self) -> impl Iterator<Item = (usize, Prop)> + '_ {
+    pub fn const_props(&self) -> impl Iterator<Item = (usize, Prop)> + '_ {
         self.constant
             .iter()
             .filter_map(|kv| kv.value().as_ref().map(|v| (*kv.key(), v.clone())))
     }
 
-    pub(crate) fn temporal_props(
+    pub fn temporal_props(
         &self,
     ) -> impl Iterator<Item = (usize, impl Deref<Target = TProp> + '_)> + '_ {
         (0..self.temporal_mapper.len()).filter_map(|id| self.temporal.get(&id).map(|v| (id, v)))

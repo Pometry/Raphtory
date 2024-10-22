@@ -1,13 +1,11 @@
-use crate::{
-    core::{
-        entities::{EID, VID},
-        storage::timeindex::TimeIndexEntry,
-        Prop,
-    },
-    db::api::view::internal::Base,
+use crate::core::{
+    entities::{EID, VID},
+    storage::timeindex::TimeIndexEntry,
+    Prop,
 };
 use enum_dispatch::enum_dispatch;
 use raphtory_api::core::utils::errors::GraphError;
+use raphtory_memstorage::db::api::view::internal::inherit::Base;
 
 /// internal (dyn friendly) methods for adding properties
 #[enum_dispatch]

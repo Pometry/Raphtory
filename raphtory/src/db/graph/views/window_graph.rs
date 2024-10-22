@@ -50,7 +50,7 @@ use crate::{
             },
             state::Index,
             view::internal::{
-                Base, EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps,
+                EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps,
                 InheritMaterialize, ListOps, NodeFilterOps, Static, TimeSemantics,
             },
         },
@@ -65,7 +65,7 @@ use raphtory_api::{
 };
 use raphtory_memstorage::db::api::{
     list_ops::{EdgeList, NodeList},
-    storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
+    storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef}, view::internal::inherit::Base,
 };
 use std::{
     fmt::{Debug, Formatter},

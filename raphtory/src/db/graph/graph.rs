@@ -16,12 +16,11 @@
 //! ```
 //!
 
-use super::views::deletion_graph::PersistentGraph;
 use crate::{
     db::{
         api::{
             mutation::internal::InheritMutationOps,
-            view::internal::{Base, InheritViewOps, Static},
+            view::internal::{InheritViewOps, Static},
         },
         graph::{node::NodeView, nodes::Nodes},
     },
@@ -30,12 +29,7 @@ use crate::{
 use core::panic;
 use raphtory_memstorage::db::api::storage::storage::Storage;
 use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashSet,
-    fmt::{Display, Formatter},
-    sync::Arc,
-};
+use std::collections::HashSet;
 
 pub type Graph = raphtory_memstorage::db::graph::views::graph::Graph;
 
@@ -310,15 +304,6 @@ where
     }
 }
 
-impl Base for Graph {
-    type Base = Storage;
-
-    #[inline(always)]
-    fn base(&self) -> &Self::Base {
-        self.inner()
-    }
-}
-
 impl InheritMutationOps for Graph {}
 
 impl InheritViewOps for Graph {}
@@ -333,12 +318,12 @@ mod db_tests {
             api::{
                 properties::internal::ConstPropertiesOps,
                 view::{
-                    internal::{CoreGraphOps, EdgeFilterOps, TimeSemantics},
+                    internal::{EdgeFilterOps, TimeSemantics},
                     time::internal::InternalTimeOps,
                     EdgeViewOps, LayerOps, NodeViewOps, TimeOps,
                 },
             },
-            graph::{edge::EdgeView, edges::Edges, node::NodeView, path::PathFromNode},
+            graph::{edge::EdgeView, edges::Edges, node::NodeView, path::PathFromNode, views::deletion_graph::PersistentGraph},
         },
         graphgen::random_attachment::random_attachment,
         prelude::{AdditionOps, PropertyAdditionOps},
@@ -349,7 +334,7 @@ mod db_tests {
     use itertools::Itertools;
     use quickcheck_macros::quickcheck;
     use raphtory_api::core::{
-        entities::GID,
+        entities::{Layer, GID},
         storage::arc_str::{ArcStr, OptionAsStr},
         utils::{
             errors::{GraphError, ParseTimeError},
@@ -357,7 +342,7 @@ mod db_tests {
         },
     };
     use serde_json::Value;
-    use std::collections::{HashMap, HashSet};
+    use std::{collections::{HashMap, HashSet}, sync::Arc};
     #[cfg(feature = "proto")]
     use tempfile::TempDir;
     use tracing::{error, info};

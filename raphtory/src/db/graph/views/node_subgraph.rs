@@ -6,15 +6,15 @@ use crate::{
             edges::edge_storage_ops::EdgeStorageOps, node_storage_ops::NodeStorageOps,
         },
         view::internal::{
-            Base, EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps, InheritListOps,
+            EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps, InheritListOps,
             InheritMaterialize, InheritTimeSemantics, NodeFilterOps, Static,
         },
     },
     prelude::GraphViewOps,
 };
-use raphtory_memstorage::db::api::storage::graph::{
+use raphtory_memstorage::db::api::{storage::graph::{
     edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef,
-};
+}, view::internal::inherit::Base};
 use rustc_hash::FxHashSet;
 use std::{
     fmt::{Debug, Formatter},

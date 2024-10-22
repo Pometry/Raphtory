@@ -283,8 +283,18 @@ impl Display for Prop {
             Prop::Bool(value) => write!(f, "{}", value),
             Prop::DTime(value) => write!(f, "{}", value),
             Prop::NDTime(value) => write!(f, "{}", value),
-            Prop::Graph(value) => todo!(), // write!( f, "Graph(num_nodes={}, num_edges={})", value.count_nodes(), value.count_edges()),
-            Prop::PersistentGraph(value) => todo!(), //write!( f, "Graph(num_nodes={}, num_edges={})", value.count_nodes(), value.count_edges()),
+            Prop::Graph(value) => write!(
+                f,
+                "Graph(num_nodes={}, num_edges={})",
+                value.inner().graph().internal_num_nodes(),
+                value.inner().graph().internal_num_edges()
+            ),
+            Prop::PersistentGraph(value) => write!(
+                f,
+                "Graph(num_nodes={}, num_edges={})",
+                value.inner().graph().internal_num_nodes(),
+                value.inner().graph().internal_num_edges()
+            ),
             Prop::List(value) => {
                 write!(
                     f,

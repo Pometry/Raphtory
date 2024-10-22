@@ -10,7 +10,6 @@ use crate::{
     db::{
         api::{
             mutation::{AdditionOps, PropertyAdditionOps},
-            view::internal::CoreGraphOps,
         },
         graph::{edge::EdgeView, node::NodeView, views::deletion_graph::PersistentGraph},
     },

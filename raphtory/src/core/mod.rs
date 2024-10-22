@@ -24,21 +24,11 @@
 //!    * `macOS`
 //!
 
-use crate::{
-    db::graph::{graph::Graph, views::deletion_graph::PersistentGraph},
-    prelude::GraphViewOps,
-};
-use chrono::{DateTime, NaiveDateTime, Utc};
-use itertools::Itertools;
+use crate::db::graph::{graph::Graph, views::deletion_graph::PersistentGraph};
+use chrono::NaiveDateTime;
 use raphtory_api::core::storage::arc_str::ArcStr;
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::{
-    cmp::Ordering,
     collections::HashMap,
-    fmt,
-    fmt::{Display, Formatter},
-    hash::{Hash, Hasher},
     sync::Arc,
 };
 

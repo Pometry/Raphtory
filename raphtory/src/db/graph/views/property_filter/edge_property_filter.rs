@@ -1,5 +1,5 @@
 use raphtory_api::core::utils::errors::GraphError;
-use raphtory_memstorage::db::api::storage::graph::edges::edge_ref::EdgeStorageRef;
+use raphtory_memstorage::db::api::{storage::graph::edges::edge_ref::EdgeStorageRef, view::internal::inherit::Base};
 
 use crate::{
     core::{
@@ -15,7 +15,6 @@ use crate::{
                     EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps, InheritListOps,
                     InheritMaterialize, InheritNodeFilterOps, InheritTimeSemantics, Static,
                 },
-                Base,
             },
         },
         graph::{

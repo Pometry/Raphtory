@@ -17,8 +17,9 @@ pub use edge_property_filter::EdgePropertyFilterOps;
 pub use exploded_edge_property_filter::ExplodedEdgePropertyFilterOps;
 pub use graph::*;
 pub use internal::{
-    Base, BoxableGraphView, DynamicGraph, InheritViewOps, IntoDynamic, MaterializedGraph,
+    BoxableGraphView, DynamicGraph, InheritViewOps, IntoDynamic, MaterializedGraph,
 };
+pub use raphtory_memstorage::db::api::view::internal::core_ops::CoreGraphOps;
 pub use layer::*;
 pub(crate) use node::BaseNodeViewOps;
 pub use node::NodeViewOps;

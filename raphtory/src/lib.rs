@@ -127,7 +127,7 @@ pub mod prelude {
                 state::{AsOrderedNodeStateOps, NodeStateOps, OrderedNodeStateOps},
                 view::{
                     EdgePropertyFilterOps, EdgeViewOps, ExplodedEdgePropertyFilterOps,
-                    GraphViewOps, Layer, LayerOps, NodeViewOps, ResetFilter, TimeOps,
+                    GraphViewOps, LayerOps, NodeViewOps, ResetFilter, TimeOps,
                 },
             },
             graph::{graph::Graph, views::property_filter::PropertyFilter},

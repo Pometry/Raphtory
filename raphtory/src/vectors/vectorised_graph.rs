@@ -1,6 +1,4 @@
 use crate::{
-    // core::entities::nodes::node_ref::AsNodeRef,
-    core::{entities::nodes::node_ref::AsNodeRef, utils::errors::GraphResult},
     db::api::view::{DynamicGraph, IntoDynamic, StaticGraphViewOps},
     prelude::*,
     vectors::{
@@ -15,6 +13,7 @@ use crate::{
 use async_trait::async_trait;
 use itertools::{chain, Itertools};
 use parking_lot::RwLock;
+use raphtory_api::core::{entities::AsNodeRef, utils::errors::GraphResult};
 use std::{collections::HashMap, ops::Deref, path::PathBuf, sync::Arc};
 
 use super::{

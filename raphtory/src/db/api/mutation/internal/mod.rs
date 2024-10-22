@@ -2,10 +2,10 @@ mod internal_addition_ops;
 mod internal_deletion_ops;
 mod internal_property_additions_ops;
 
-use crate::db::api::view::internal::Base;
 pub use internal_addition_ops::*;
 pub use internal_deletion_ops::*;
 pub use internal_property_additions_ops::*;
+use raphtory_memstorage::db::api::view::internal::inherit::Base;
 
 pub trait InheritMutationOps: Base {}
 

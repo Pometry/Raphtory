@@ -3,7 +3,6 @@ use raphtory_api::core::{
     entities::{GidRef, LayerIds},
     Direction,
 };
-use std::{any::Any, borrow::Cow};
 
 #[cfg(feature = "storage")]
 use crate::db::api::storage::graph::variants::storage_variants::StorageVariants;

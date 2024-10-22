@@ -23,7 +23,7 @@ use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
 use raphtory_api::{
     core::{
-        entities::{properties::props::Meta, GidType},
+        entities::{properties::props::Meta, GidType, Layer},
         storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
         utils::errors::GraphError,
     },
@@ -45,7 +45,7 @@ use raphtory_memstorage::{
                 GraphStorage,
             },
             locked::WriteLockedGraph,
-        },
+        }, view::internal::inherit::Base,
     },
 };
 use serde::{Deserialize, Serialize};

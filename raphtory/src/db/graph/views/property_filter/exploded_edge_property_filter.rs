@@ -12,7 +12,6 @@ use crate::{
                     EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps, InheritListOps,
                     InheritMaterialize, InheritNodeFilterOps, Static, TimeSemantics,
                 },
-                Base,
             },
         },
         graph::views::property_filter::{
@@ -29,9 +28,9 @@ use raphtory_api::{
     },
     BoxedLIter,
 };
-use raphtory_memstorage::db::api::storage::graph::{
+use raphtory_memstorage::db::api::{storage::graph::{
     edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef,
-};
+}, view::internal::inherit::Base};
 use std::ops::Range;
 
 #[derive(Debug, Clone)]

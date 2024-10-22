@@ -1,7 +1,7 @@
 use crate::{
     core::Prop,
     db::{
-        api::view::{internal::CoreGraphOps, DynamicGraph, IntoDynamic, StaticGraphViewOps},
+        api::view::{DynamicGraph, IntoDynamic, StaticGraphViewOps},
         graph::{
             edge::EdgeView,
             edges::{Edges, NestedEdges},

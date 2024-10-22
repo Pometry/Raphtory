@@ -14,6 +14,7 @@ use raphtory_api::core::{
     storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
     utils::errors::{GraphError, WriteError},
 };
+use raphtory_memstorage::db::api::storage::storage::Storage;
 use std::{
     fmt::Debug,
     fs::File,
