@@ -78,7 +78,7 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for NodeSubgraph<G> {
     }
 
     #[inline]
-    fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
+    fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: LayerIds) -> bool {
         self.graph.filter_edge(edge, layer_ids)
             && self.nodes.contains(&edge.src())
             && self.nodes.contains(&edge.dst())
@@ -94,7 +94,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for NodeSubgraph<G> {
         false
     }
 
-    fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
+    fn filter_node(&self, node: NodeStorageRef, layer_ids: LayerIds) -> bool {
         self.graph.filter_node(node, layer_ids) && self.nodes.contains(&node.vid())
     }
 }

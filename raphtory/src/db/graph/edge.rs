@@ -102,14 +102,8 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeView<G, GH> 
         self.graph
             .layer_ids()
             .constrain_from_edge(self.edge)
-            .into_owned()
     }
 
-    fn layer_ids2(&self) -> Cow<'_, LayerIds>{
-        self.graph
-            .layer_ids()
-            .constrain_from_edge(self.edge)
-    }
 }
 
 impl<
@@ -253,7 +247,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
         if !self
             .graph
             .core_edge(self.edge.pid())
-            .has_layer(&LayerIds::One(input_layer_id))
+            .has_layer(LayerIds::One(input_layer_id))
         {
             return Err(GraphError::InvalidEdgeLayer {
                 layer: layer.unwrap_or("_default").to_string(),
@@ -354,14 +348,14 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperty
 
     fn temporal_history(&self, id: usize) -> Vec<i64> {
         self.graph
-            .temporal_edge_prop_hist(self.edge, id, &self.layer_ids())
+            .temporal_edge_prop_hist(self.edge, id, self.layer_ids())
             .into_iter()
             .map(|(t, _)| t.t())
             .collect()
     }
     fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
         self.graph
-            .temporal_edge_prop_hist(self.edge, id, &self.layer_ids())
+            .temporal_edge_prop_hist(self.edge, id, self.layer_ids())
             .into_iter()
             .map(|(t, _)| t.dt())
             .collect()
@@ -370,7 +364,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperty
     fn temporal_values(&self, id: usize) -> Vec<Prop> {
         let layer_ids = self.layer_ids();
         self.graph
-            .temporal_edge_prop_hist(self.edge, id, &layer_ids)
+            .temporal_edge_prop_hist(self.edge, id, layer_ids)
             .into_iter()
             .map(|(_, v)| v)
             .collect()
@@ -389,7 +383,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperti
             .get_id(name)
             .filter(move |id| {
                 self.graph
-                    .has_temporal_edge_prop(self.edge, *id, &layer_ids)
+                    .has_temporal_edge_prop(self.edge, *id, layer_ids)
             })
     }
 
@@ -405,10 +399,10 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperti
         let layer_ids = self.layer_ids();
         Box::new(
             self.graph
-                .temporal_edge_prop_ids(self.edge, &layer_ids)
+                .temporal_edge_prop_ids(self.edge, layer_ids.clone())
                 .filter(move |id| {
                     self.graph
-                        .has_temporal_edge_prop(self.edge, *id, &layer_ids)
+                        .has_temporal_edge_prop(self.edge, *id, layer_ids.clone())
                 }),
         )
     }

@@ -183,16 +183,16 @@ impl DiskGraphStorage {
     pub(crate) fn core_temporal_edge_prop_ids(
         &self,
         e: EdgeRef,
-        layer_ids: &LayerIds,
+        layer_ids: LayerIds,
     ) -> Box<dyn Iterator<Item = usize> + '_> {
-        match layer_ids.constrain_from_edge(e).into_owned() {
+        match layer_ids.constrain_from_edge(e) {
             LayerIds::None => Box::new(std::iter::empty()),
             LayerIds::All => Box::new(0..self.edge_meta().temporal_prop_meta().len()),
             LayerIds::One(id) => Box::new(self.inner().edge_global_mapping(id)),
-            LayerIds::Multiple(arc) => Box::new(GenLockedIter::from((self, arc), |(dg, arc)| {
+            LayerIds::Multiple(arc) => Box::new(GenLockedIter::from(self, |dg| {
                 Box::new(
                     arc.iter()
-                        .map(|layer_id| dg.inner().edge_global_mapping(*layer_id))
+                        .map(|layer_id| dg.inner().edge_global_mapping(layer_id))
                         .kmerge()
                         .dedup(),
                 )
@@ -343,25 +343,25 @@ impl DiskGraphStorage {
 
     pub fn filtered_layers_par<'a>(
         &'a self,
-        layer_ids: &'a LayerIds,
+        layer_ids: LayerIds,
     ) -> impl ParallelIterator<Item = &'a TempColGraphFragment> + 'a {
         self.inner
             .layers()
             .par_iter()
             .enumerate()
-            .filter(|(l_id, _)| layer_ids.contains(l_id))
+            .filter(move |(l_id, _)| layer_ids.contains(l_id))
             .map(|(_, layer)| layer)
     }
 
     pub fn filtered_layers_iter<'a>(
         &'a self,
-        layer_ids: &'a LayerIds,
+        layer_ids: LayerIds,
     ) -> impl Iterator<Item = &'a TempColGraphFragment> + 'a {
         self.inner
             .layers()
             .iter()
             .enumerate()
-            .filter(|(l_id, _)| layer_ids.contains(l_id))
+            .filter(move |(l_id, _)| layer_ids.contains(l_id))
             .map(|(_, layer)| layer)
     }
 

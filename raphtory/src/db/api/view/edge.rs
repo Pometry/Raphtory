@@ -154,7 +154,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
 
     fn deletions(&self) -> Self::ValueType<Vec<i64>> {
         self.map(move |g, e| {
-            g.edge_deletion_history(e, &g.layer_ids().constrain_from_edge(e))
+            g.edge_deletion_history(e, g.layer_ids().constrain_from_edge(e))
                 .map(|t| t.t())
                 .collect()
         })
@@ -162,7 +162,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
 
     fn deletions_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>> {
         self.map(|g, e| {
-            g.edge_deletion_history(e, &g.layer_ids().constrain_from_edge(e))
+            g.edge_deletion_history(e, g.layer_ids().constrain_from_edge(e))
                 .into_iter()
                 .map(|t| t.dt())
                 .collect()
@@ -170,11 +170,11 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     }
 
     fn is_valid(&self) -> Self::ValueType<bool> {
-        self.map(|g, e| g.edge_is_valid(e, &g.layer_ids().constrain_from_edge(e)))
+        self.map(|g, e| g.edge_is_valid(e, g.layer_ids().constrain_from_edge(e)))
     }
 
     fn is_deleted(&self) -> Self::ValueType<bool> {
-        self.map(|g, e| !g.edge_is_valid(e, &g.layer_ids().constrain_from_edge(e)))
+        self.map(|g, e| !g.edge_is_valid(e, g.layer_ids().constrain_from_edge(e)))
     }
 
     fn is_self_loop(&self) -> Self::ValueType<bool> {
@@ -203,7 +203,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     /// Check if edge is active (i.e. has some update within the current bound)
     fn is_active(&self) -> Self::ValueType<bool> {
         self.map(move |g, e| {
-            g.edge_exploded(e, &g.layer_ids().constrain_from_edge(e))
+            g.edge_exploded(e, g.layer_ids().constrain_from_edge(e))
                 .next()
                 .is_some()
         })
@@ -236,26 +236,26 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
 
     /// Gets the first time an edge was seen
     fn earliest_time(&self) -> Self::ValueType<Option<i64>> {
-        self.map(|g, e| g.edge_earliest_time(e, &g.layer_ids().constrain_from_edge(e)))
+        self.map(|g, e| g.edge_earliest_time(e, g.layer_ids().constrain_from_edge(e)))
     }
 
     fn earliest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>> {
         self.map(|g, e| {
-            g.edge_earliest_time(e, &g.layer_ids().constrain_from_edge(e))?
+            g.edge_earliest_time(e, g.layer_ids().constrain_from_edge(e))?
                 .dt()
         })
     }
 
     fn latest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>> {
         self.map(|g, e| {
-            g.edge_latest_time(e, &g.layer_ids().constrain_from_edge(e))?
+            g.edge_latest_time(e, g.layer_ids().constrain_from_edge(e))?
                 .dt()
         })
     }
 
     /// Gets the latest time an edge was updated
     fn latest_time(&self) -> Self::ValueType<Option<i64>> {
-        self.map(|g, e| g.edge_latest_time(e, &g.layer_ids().constrain_from_edge(e)))
+        self.map(|g, e| g.edge_latest_time(e, g.layer_ids().constrain_from_edge(e)))
     }
 
     /// Gets the time stamp of the edge if it is exploded
@@ -285,7 +285,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     fn layer_names(&self) -> Self::ValueType<Vec<ArcStr>> {
         self.map(|g, e| {
             let layer_names = g.edge_meta().layer_meta().get_keys();
-            g.edge_layers(e, &g.layer_ids().constrain_from_edge(e))
+            g.edge_layers(e, g.layer_ids().constrain_from_edge(e))
                 .map(move |ee| {
                     layer_names[ee.layer().expect("exploded edge should have layer")].clone()
                 })

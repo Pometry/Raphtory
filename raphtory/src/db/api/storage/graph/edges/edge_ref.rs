@@ -58,11 +58,11 @@ impl<'a> EdgeStorageOps<'a> for EdgeStorageRef<'a> {
         for_all!(self, edge => EdgeStorageOps::out_ref(edge))
     }
 
-    fn active(self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
+    fn active(self, layer_ids: LayerIds, w: Range<i64>) -> bool {
         for_all!(self, edge => EdgeStorageOps::active(edge, layer_ids, w))
     }
 
-    fn has_layer(self, layer_ids: &LayerIds) -> bool {
+    fn has_layer(self, layer_ids: LayerIds) -> bool {
         for_all!(self, edge => EdgeStorageOps::has_layer(edge, layer_ids))
     }
 
@@ -74,55 +74,55 @@ impl<'a> EdgeStorageOps<'a> for EdgeStorageRef<'a> {
         for_all!(self, edge => edge.dst())
     }
 
-    fn layer_ids_iter(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = usize> + 'a {
+    fn layer_ids_iter(self, layer_ids: LayerIds) -> impl Iterator<Item = usize> + 'a {
         for_all_iter!(self, edge => EdgeStorageOps::layer_ids_iter(edge, layer_ids))
     }
 
     fn layer_ids_par_iter(
         self,
-        layer_ids: &'a LayerIds,
+        layer_ids: LayerIds,
     ) -> impl ParallelIterator<Item = usize> + 'a {
         for_all_iter!(self, edge => EdgeStorageOps::layer_ids_par_iter(edge, layer_ids))
     }
 
     fn additions_iter(
         self,
-        layer_ids: &'a LayerIds,
+        layer_ids: LayerIds,
     ) -> impl Iterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
         for_all_iter!(self, edge => EdgeStorageOps::additions_iter(edge, layer_ids))
     }
 
     fn additions_par_iter(
         self,
-        layer_ids: &'a LayerIds,
+        layer_ids: LayerIds,
     ) -> impl ParallelIterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
         for_all_iter!(self, edge => EdgeStorageOps::additions_par_iter(edge, layer_ids))
     }
 
     fn deletions_iter(
         self,
-        layer_ids: &'a LayerIds,
+        layer_ids: LayerIds,
     ) -> impl Iterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
         for_all_iter!(self, edge => EdgeStorageOps::deletions_iter(edge, layer_ids))
     }
 
     fn deletions_par_iter(
         self,
-        layer_ids: &'a LayerIds,
+        layer_ids: LayerIds,
     ) -> impl ParallelIterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
         for_all_iter!(self, edge => EdgeStorageOps::deletions_par_iter(edge, layer_ids))
     }
 
     fn updates_iter(
         self,
-        layer_ids: &'a LayerIds,
+        layer_ids: LayerIds,
     ) -> impl Iterator<Item = (usize, TimeIndexRef<'a>, TimeIndexRef<'a>)> + 'a {
         for_all_iter!(self, edge => EdgeStorageOps::updates_iter(edge, layer_ids))
     }
 
     fn updates_par_iter(
         self,
-        layer_ids: &'a LayerIds,
+        layer_ids: LayerIds,
     ) -> impl ParallelIterator<Item = (usize, TimeIndexRef<'a>, TimeIndexRef<'a>)> + 'a {
         for_all_iter!(self, edge => EdgeStorageOps::updates_par_iter(edge, layer_ids))
     }
@@ -135,7 +135,7 @@ impl<'a> EdgeStorageOps<'a> for EdgeStorageRef<'a> {
         for_all!(self, edge => EdgeStorageOps::deletions(edge, layer_id))
     }
 
-    fn has_temporal_prop(self, layer_ids: &LayerIds, prop_id: usize) -> bool {
+    fn has_temporal_prop(self, layer_ids: LayerIds, prop_id: usize) -> bool {
         for_all!(self, edge => EdgeStorageOps::has_temporal_prop(edge, layer_ids, prop_id))
     }
 

@@ -18,7 +18,7 @@ pub trait NodeFilterOps {
     fn node_list_trusted(&self) -> bool;
 
     /// If `true`, node is included in the graph
-    fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool;
+    fn filter_node(&self, node: NodeStorageRef, layer_ids: LayerIds) -> bool;
 }
 
 pub trait InheritNodeFilterOps: Base {}
@@ -38,7 +38,7 @@ where
     }
 
     #[inline]
-    fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
+    fn filter_node(&self, node: NodeStorageRef, layer_ids: LayerIds) -> bool {
         self.base().filter_node(node, layer_ids)
     }
 }

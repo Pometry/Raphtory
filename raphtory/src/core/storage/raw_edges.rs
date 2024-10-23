@@ -267,7 +267,7 @@ impl<'a> EdgeRGuard<'a> {
         MemEdge::new(&self.guard, self.offset)
     }
 
-    pub fn has_layer(&self, layers: &LayerIds) -> bool {
+    pub fn has_layer(&self, layers: LayerIds) -> bool {
         self.as_mem_edge().has_layer(layers)
     }
 

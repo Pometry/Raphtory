@@ -1,4 +1,5 @@
 use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{borrow::Cow, sync::Arc};
 
 pub mod edges;
@@ -26,6 +27,12 @@ impl Default for BitMultiple {
 }
 
 impl BitMultiple {
+
+    // Not qute binary_search but will rename_later
+    pub fn binary_search(&self, pos: &usize) -> Option<usize>{
+        self.0.get(*pos).filter(|b| *b).map(|_| *pos)
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = usize> {
         self.0
             .clone()
@@ -34,27 +41,57 @@ impl BitMultiple {
             .filter_map(|(i, b)| if b { Some(i) } else { None })
     }
 
+    pub fn find(&self, id: usize) -> Option<usize> {
+        self.iter().find(|i| *i == id)
+    }
+
+    pub fn par_iter(self) -> impl rayon::iter::ParallelIterator<Item = usize> {
+        (0..self.0.len())
+            .into_par_iter()
+            .filter_map(move |i| self.0.get(i).filter(|b| *b).map(|_| i))
+    }
+
     pub fn set(&mut self, id: usize, value: bool) {
         if id >= self.0.len() {
             self.0.grow(id + 1, false);
         }
         self.0.set(id, value);
     }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
+impl FromIterator<usize> for BitMultiple {
+    fn from_iter<I: IntoIterator<Item = usize>>(iter: I) -> Self {
+        let mut bm = BitMultiple::default();
+        for i in iter {
+            bm.set(i, true);
+        }
+        bm
+    }
+}
+
+impl From<Vec<usize>> for BitMultiple {
+    fn from(v: Vec<usize>) -> Self {
+        v.into_iter().collect()
+    }
 }
 
 #[cfg(test)]
-mod test{
-    
+mod test {
+
     #[test]
     fn empty_bit_multiple() {
-        let  bm = super::BitMultiple::default();
+        let bm = super::BitMultiple::default();
         let actual = bm.iter().collect::<Vec<_>>();
-        let expected:Vec<usize> = vec![];
+        let expected: Vec<usize> = vec![];
         assert_eq!(actual, expected);
     }
 
     #[test]
-    fn set_one(){
+    fn set_one() {
         let mut bm = super::BitMultiple::default();
         bm.set(1, true);
         let actual = bm.iter().collect::<Vec<_>>();
@@ -70,8 +107,6 @@ mod test{
         let actual = bm.iter().collect::<Vec<_>>();
         assert_eq!(actual, vec![1usize, 67]);
     }
-
-
 }
 
 impl LayerIds {
@@ -85,12 +120,12 @@ impl LayerIds {
                     None
                 }
             }
-            LayerIds::Multiple(ids) => ids.binary_search(&layer_id).ok().map(|_| layer_id),
+            LayerIds::Multiple(ids) => ids.binary_search(&layer_id).map(|_| layer_id),
             LayerIds::None => None,
         }
     }
 
-    pub fn intersect(&self, other: &LayerIds) -> LayerIds {
+    pub fn intersect(&self, other: LayerIds) -> LayerIds {
         match (self, other) {
             (LayerIds::None, _) => LayerIds::None,
             (_, LayerIds::None) => LayerIds::None,
@@ -107,7 +142,6 @@ impl LayerIds {
                 let ids: Vec<usize> = ids
                     .iter()
                     .filter(|id| other.contains(id))
-                    .copied()
                     .collect();
                 match ids.len() {
                     0 => LayerIds::None,
@@ -121,7 +155,7 @@ impl LayerIds {
     pub fn diff<'a>(
         &self,
         graph: impl crate::prelude::GraphViewOps<'a>,
-        other: &LayerIds,
+        other: LayerIds,
     ) -> LayerIds {
         match (self, other) {
             (LayerIds::None, _) => LayerIds::None,
@@ -138,7 +172,6 @@ impl LayerIds {
                 let ids: Vec<usize> = ids
                     .iter()
                     .filter(|id| !other.contains(id))
-                    .copied()
                     .collect();
                 match ids.len() {
                     0 => LayerIds::None,
@@ -161,13 +194,13 @@ impl LayerIds {
         }
     }
 
-    pub fn constrain_from_edge(&self, e: EdgeRef) -> Cow<LayerIds> {
+    pub fn constrain_from_edge(&self, e: EdgeRef) -> LayerIds {
         match e.layer() {
-            None => Cow::Borrowed(self),
+            None => self.clone(),
             Some(l) => self
                 .find(l)
-                .map(|id| Cow::Owned(LayerIds::One(id)))
-                .unwrap_or(Cow::Owned(LayerIds::None)),
+                .map(|id| LayerIds::One(id))
+                .unwrap_or(LayerIds::None),
         }
     }
 
@@ -212,11 +245,5 @@ impl<const N: usize> From<[usize; N]> for LayerIds {
 impl From<usize> for LayerIds {
     fn from(id: usize) -> Self {
         LayerIds::One(id)
-    }
-}
-
-impl From<Arc<[usize]>> for LayerIds {
-    fn from(id: Arc<[usize]>) -> Self {
-        LayerIds::Multiple(id)
     }
 }

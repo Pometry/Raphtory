@@ -43,13 +43,13 @@ impl<'a> EdgesStorageRef<'a> {
             EdgesStorageRef::Mem(storage) => StorageVariants::Mem(
                 storage
                     .iter()
-                    .filter(move |e| e.has_layer(&layers))
+                    .filter(move |e| e.has_layer(layers.clone()))
                     .map(EdgeStorageEntry::Mem),
             ),
             EdgesStorageRef::Unlocked(edges) => StorageVariants::Unlocked(
                 edges
                     .iter()
-                    .filter(move |e| e.has_layer(&layers))
+                    .filter(move |e| e.has_layer(layers.clone()))
                     .map(EdgeStorageEntry::Unlocked),
             ),
             EdgesStorageRef::Disk(storage) => {
@@ -64,13 +64,13 @@ impl<'a> EdgesStorageRef<'a> {
             EdgesStorageRef::Mem(storage) => StorageVariants::Mem(
                 storage
                     .iter()
-                    .filter(move |e| e.has_layer(&layers))
+                    .filter(move |e| e.has_layer(layers.clone()))
                     .map(EdgeStorageEntry::Mem),
             ),
             EdgesStorageRef::Unlocked(edges) => StorageVariants::Unlocked(
                 edges
                     .iter()
-                    .filter(move |e| e.as_mem_edge().has_layer(&layers))
+                    .filter(move |e| e.as_mem_edge().has_layer(layers.clone))
                     .map(EdgeStorageEntry::Unlocked),
             ),
         }
@@ -82,13 +82,13 @@ impl<'a> EdgesStorageRef<'a> {
             EdgesStorageRef::Mem(storage) => StorageVariants::Mem(
                 storage
                     .par_iter()
-                    .filter(move |e| e.has_layer(&layers))
+                    .filter(move |e| e.has_layer(layers.clone()))
                     .map(EdgeStorageEntry::Mem),
             ),
             EdgesStorageRef::Unlocked(edges) => StorageVariants::Unlocked(
                 edges
                     .par_iter()
-                    .filter(move |e| e.has_layer(&layers))
+                    .filter(move |e| e.has_layer(layers.clone()))
                     .map(EdgeStorageEntry::Unlocked),
             ),
             EdgesStorageRef::Disk(storage) => {
@@ -103,32 +103,32 @@ impl<'a> EdgesStorageRef<'a> {
             EdgesStorageRef::Mem(storage) => StorageVariants::Mem(
                 storage
                     .par_iter()
-                    .filter(move |e| e.has_layer(&layers))
+                    .filter(move |e| e.has_layer(layers.clone()))
                     .map(EdgeStorageEntry::Mem),
             ),
             EdgesStorageRef::Unlocked(edges) => StorageVariants::Unlocked(
                 edges
                     .par_iter()
-                    .filter(move |e| e.as_mem_edge().has_layer(&layers))
+                    .filter(move |e| e.as_mem_edge().has_layer(layers.clone()))
                     .map(EdgeStorageEntry::Unlocked),
             ),
         }
     }
 
     #[inline]
-    pub fn count(self, layers: &LayerIds) -> usize {
+    pub fn count(self, layers: LayerIds) -> usize {
         match self {
             EdgesStorageRef::Mem(storage) => match layers {
                 LayerIds::None => 0,
                 LayerIds::All => storage.len(),
-                _ => storage.par_iter().filter(|e| e.has_layer(layers)).count(),
+                _ => storage.par_iter().filter(|e| e.has_layer(layers.clone())).count(),
             },
             EdgesStorageRef::Unlocked(edges) => match layers {
                 LayerIds::None => 0,
                 LayerIds::All => edges.len(),
                 _ => edges
                     .par_iter()
-                    .filter(|e| e.as_mem_edge().has_layer(layers))
+                    .filter(|e| e.as_mem_edge().has_layer(layers.clone()))
                     .count(),
             },
             #[cfg(feature = "storage")]

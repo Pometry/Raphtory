@@ -206,18 +206,18 @@ impl TemporalGraph {
     pub(crate) fn core_temporal_edge_prop_ids(
         &self,
         e: EdgeRef,
-        layer_ids: &LayerIds,
+        layer_ids: LayerIds,
     ) -> Box<dyn Iterator<Item = usize> + '_> {
         let entry = self.storage.edge_entry(e.pid());
-        let layer_ids = layer_ids.constrain_from_edge(e).into_owned();
-        GenLockedIter::from((entry, layer_ids), |(entry, layer_ids)| {
+        let layer_ids = layer_ids.constrain_from_edge(e);
+        GenLockedIter::from(entry, |entry| {
             let iter: Box<dyn Iterator<Item = usize> + Send> = match layer_ids {
                 LayerIds::None => Box::new(iter::empty()),
                 LayerIds::All => entry.temp_prop_ids(None),
-                LayerIds::One(id) => entry.temp_prop_ids(Some(*id)),
+                LayerIds::One(id) => entry.temp_prop_ids(Some(id)),
                 LayerIds::Multiple(ids) => Box::new(
                     ids.iter()
-                        .map(|id| entry.temp_prop_ids(Some(*id)))
+                        .map(|id| entry.temp_prop_ids(Some(id)))
                         .kmerge()
                         .dedup(),
                 ),
@@ -233,9 +233,9 @@ impl TemporalGraph {
         layer_ids: LayerIds,
     ) -> Box<dyn Iterator<Item = usize> + '_> {
         let entry = self.storage.edge_entry(e.pid());
-        GenLockedIter::from((entry, layer_ids), |(entry, layer_ids)| {
+        GenLockedIter::from(entry, |entry| {
             let layer_ids = layer_ids.constrain_from_edge(e);
-            match layer_ids.as_ref() {
+            match layer_ids {
                 LayerIds::None => Box::new(iter::empty()),
                 LayerIds::All => entry
                     .layer_iter()
@@ -243,13 +243,13 @@ impl TemporalGraph {
                     .kmerge()
                     .dedup()
                     .into_dyn_boxed(),
-                LayerIds::One(id) => match entry.layer(*id) {
+                LayerIds::One(id) => match entry.layer(id) {
                     Some(l) => l.const_prop_ids().into_dyn_boxed(),
                     None => Box::new(iter::empty()),
                 },
                 LayerIds::Multiple(ids) => ids
                     .iter()
-                    .flat_map(|id| entry.layer(*id).map(|l| l.const_prop_ids()))
+                    .flat_map(|id| entry.layer(id).map(|l| l.const_prop_ids()))
                     .kmerge()
                     .dedup()
                     .into_dyn_boxed(),
@@ -296,7 +296,7 @@ impl TemporalGraph {
             LayerIds::Multiple(ids) => {
                 let prop_map: HashMap<_, _> = ids
                     .iter()
-                    .flat_map(|&id| {
+                    .flat_map(|id| {
                         entry.layer(id).and_then(|data| {
                             data.const_prop(prop_id)
                                 .map(|p| (self.get_layer_name(id), p.clone()))
@@ -375,7 +375,7 @@ impl TemporalGraph {
         let edge = {
             let mut node_pair = self.storage.pair_node_mut(src_id, dst_id);
             let src = node_pair.get_i();
-            let mut edge = match src.find_edge_eid(dst_id, &LayerIds::All) {
+            let mut edge = match src.find_edge_eid(dst_id, LayerIds::All) {
                 Some(edge_id) => Either::Left(self.storage.get_edge_mut(edge_id)),
                 None => Either::Right(self.storage.push_edge(EdgeStore::new(src_id, dst_id))),
             };

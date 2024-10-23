@@ -284,7 +284,7 @@ pub(crate) fn load_edges_from_df<
                         src_node.init(*src, src_gid);
                         update_time(TimeIndexEntry(time, start_idx + row));
                         src_node.update_time(TimeIndexEntry(time, start_idx + row));
-                        let EID(eid) = match src_node.find_edge_eid(*dst, &LayerIds::All) {
+                        let EID(eid) = match src_node.find_edge_eid(*dst, LayerIds::All) {
                             None => {
                                 let eid = next_edge_id();
                                 src_node.add_edge(*dst, Direction::OUT, *layer, eid);

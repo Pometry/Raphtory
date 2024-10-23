@@ -112,7 +112,7 @@ impl NodeStore {
     }
 
     #[inline(always)]
-    pub(crate) fn find_edge_eid(&self, dst: VID, layer_id: &LayerIds) -> Option<EID> {
+    pub(crate) fn find_edge_eid(&self, dst: VID, layer_id: LayerIds) -> Option<EID> {
         match layer_id {
             LayerIds::All => match self.layers.len() {
                 0 => None,
@@ -124,11 +124,11 @@ impl NodeStore {
             },
             LayerIds::One(layer_id) => self
                 .layers
-                .get(*layer_id)
+                .get(layer_id)
                 .and_then(|layer| layer.get_edge(dst, Direction::OUT)),
             LayerIds::Multiple(layers) => layers.iter().find_map(|layer_id| {
                 self.layers
-                    .get(*layer_id)
+                    .get(layer_id)
                     .and_then(|layer| layer.get_edge(dst, Direction::OUT))
             }),
             LayerIds::None => None,
@@ -158,7 +158,7 @@ impl NodeStore {
             Direction::OUT => self.merge_layers(layers, Direction::OUT, self_id),
             Direction::IN => self.merge_layers(layers, Direction::IN, self_id),
             Direction::BOTH => Box::new(
-                self.edge_tuples(layers, Direction::OUT)
+                self.edge_tuples(layers.clone(), Direction::OUT)
                     .filter(|e| e.src() != e.dst())
                     .merge_by(self.edge_tuples(layers, Direction::IN), |e1, e2| {
                         e1.remote() < e2.remote()
@@ -183,7 +183,7 @@ impl NodeStore {
                     .dedup(),
             ),
             LayerIds::One(id) => {
-                if let Some(layer) = self.layers.get(*id) {
+                if let Some(layer) = self.layers.get(id) {
                     Box::new(self.iter_adj(layer, d, self_id))
                 } else {
                     Box::new(iter::empty())
@@ -191,7 +191,7 @@ impl NodeStore {
             }
             LayerIds::Multiple(ids) => Box::new(
                 ids.iter()
-                    .filter_map(|id| self.layers.get(*id))
+                    .filter_map(|id| self.layers.get(id))
                     .map(|layer| self.iter_adj(layer, d, self_id))
                     .kmerge_by(|e1, e2| e1.remote() < e2.remote())
                     .dedup(),
@@ -222,7 +222,7 @@ impl NodeStore {
         iter
     }
 
-    pub(crate) fn degree(&self, layers: &LayerIds, d: Direction) -> usize {
+    pub(crate) fn degree(&self, layers: LayerIds, d: Direction) -> usize {
         match layers {
             LayerIds::All => match self.layers.len() {
                 0 => 0,
@@ -237,13 +237,13 @@ impl NodeStore {
             },
             LayerIds::One(l) => self
                 .layers
-                .get(*l)
+                .get(l)
                 .map(|layer| layer.degree(d))
                 .unwrap_or(0),
             LayerIds::None => 0,
             LayerIds::Multiple(ids) => ids
                 .iter()
-                .flat_map(|l_id| self.layers.get(*l_id).map(|layer| layer.node_iter(d)))
+                .flat_map(|l_id| self.layers.get(l_id).map(|layer| layer.node_iter(d)))
                 .kmerge()
                 .dedup()
                 .count(),
@@ -270,7 +270,7 @@ impl NodeStore {
             LayerIds::One(one) => {
                 let iter = self
                     .layers
-                    .get(*one)
+                    .get(one)
                     .map(|layer| self.neighbours_from_adj(layer, d))
                     .unwrap_or(Box::new(iter::empty()));
                 Box::new(iter)
@@ -278,7 +278,7 @@ impl NodeStore {
             LayerIds::Multiple(layers) => {
                 let iter = layers
                     .iter()
-                    .filter_map(|l| self.layers.get(*l))
+                    .filter_map(|l| self.layers.get(l))
                     .map(|layer| self.neighbours_from_adj(layer, d))
                     .kmerge()
                     .dedup();

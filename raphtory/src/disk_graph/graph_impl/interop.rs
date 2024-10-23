@@ -70,24 +70,24 @@ impl GraphLike<TimeIndexEntry> for Graph {
 
     fn out_degree(&self, vid: VID, layer: usize) -> usize {
         self.core_node_entry(vid.0.into())
-            .degree(&LayerIds::One(layer), Direction::OUT)
+            .degree(LayerIds::One(layer), Direction::OUT)
     }
 
     fn in_degree(&self, vid: VID, layer: usize) -> usize {
         self.core_node_entry(vid.0.into())
-            .degree(&LayerIds::One(layer), Direction::IN)
+            .degree(LayerIds::One(layer), Direction::IN)
     }
 
     fn in_edges<B>(&self, vid: VID, layer: usize, map: impl Fn(VID, EID) -> B) -> Vec<B> {
         let node = self.core_node_entry(vid.0.into());
-        node.edges_iter(&LayerIds::One(layer), Direction::IN)
+        node.edges_iter(LayerIds::One(layer), Direction::IN)
             .map(|edge| map(edge.src(), edge.pid()))
             .collect()
     }
     fn out_edges(&self, vid: VID, layer: usize) -> Vec<(VID, VID, EID)> {
         let node = self.core_node_entry(vid.0.into());
         let edges = node
-            .edges_iter(&LayerIds::One(layer), Direction::OUT)
+            .edges_iter(LayerIds::One(layer), Direction::OUT)
             .map(|edge| {
                 let src = edge.src();
                 let dst = edge.dst();
@@ -154,7 +154,7 @@ impl GraphLike<TimeIndexEntry> for Graph {
 
     fn out_neighbours(&self, vid: VID) -> impl Iterator<Item = (VID, EID)> + '_ {
         self.core_node_entry(vid)
-            .into_edges_iter(&LayerIds::All, Direction::OUT)
+            .into_edges_iter(LayerIds::All, Direction::OUT)
             .map(|e_ref| (e_ref.dst(), e_ref.pid()))
     }
 }

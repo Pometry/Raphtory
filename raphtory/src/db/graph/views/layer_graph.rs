@@ -33,7 +33,7 @@ impl<G> Static for LayeredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph> + Debug> Debug for LayeredGraph<G> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("LayeredGraph")
-            .field("graph", &self.graph)
+            .field("graph", &self.graph as &dyn Debug)
             .field("layers", &self.layers)
             .finish()
     }
@@ -80,7 +80,7 @@ impl<'graph, G: GraphViewOps<'graph>> LayeredGraph<G> {
                 },
                 LayerIds::Multiple(ids) => {
                     // intersect the layers
-                    let new_layers = ids.iter().filter_map(|id| layers.find(*id)).collect_vec();
+                    let new_layers = ids.iter().filter_map(|id| layers.find(id)).collect_vec();
                     match new_layers.len() {
                         0 => LayerIds::None,
                         1 => LayerIds::One(new_layers[0]),
@@ -94,8 +94,8 @@ impl<'graph, G: GraphViewOps<'graph>> LayeredGraph<G> {
 }
 
 impl<'graph, G: GraphViewOps<'graph>> InternalLayerOps for LayeredGraph<G> {
-    fn layer_ids(&self) -> &LayerIds {
-        &self.layers
+    fn layer_ids(&self) -> LayerIds {
+        self.layers.clone()
     }
 
     fn layer_ids_from_names(&self, key: Layer) -> Result<LayerIds, GraphError> {

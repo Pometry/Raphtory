@@ -67,7 +67,7 @@ impl<'a, 'b: 'a> From<&'a NodeStorageEntry<'b>> for NodeStorageRef<'a> {
 impl<'b> NodeStorageEntry<'b> {
     pub fn into_edges_iter(
         self,
-        layers: &'b LayerIds,
+        layers: LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + 'b {
         match self {
@@ -104,7 +104,7 @@ impl<'b> NodeStorageEntry<'b> {
 }
 
 impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
-    fn degree(self, layers: &LayerIds, dir: Direction) -> usize {
+    fn degree(self, layers: LayerIds, dir: Direction) -> usize {
         self.as_ref().degree(layers, dir)
     }
 
@@ -118,7 +118,7 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
 
     fn edges_iter(
         self,
-        layers: &'a LayerIds,
+        layers: LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + 'a {
         self.as_ref().edges_iter(layers, dir)
@@ -140,7 +140,7 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
         self.as_ref().name()
     }
 
-    fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef> {
+    fn find_edge(self, dst: VID, layer_ids: LayerIds) -> Option<EdgeRef> {
         self.as_ref().find_edge(dst, layer_ids)
     }
 
