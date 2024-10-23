@@ -20,6 +20,11 @@ pub trait TemporalPropertyViewOps {
             .collect::<Option<Vec<_>>>()
     }
     fn temporal_values(&self, id: usize) -> Vec<Prop>;
+    
+    fn temporal_values_iter(&self, id: usize) -> Box<dyn Iterator<Item = Prop> + '_>{
+        Box::new(self.temporal_values(id).into_iter())
+    }
+
     fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop> {
         let history = self.temporal_history(id);
         match history.binary_search(&t) {

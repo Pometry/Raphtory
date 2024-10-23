@@ -17,6 +17,7 @@ use itertools::Itertools;
 use raphtory_api::core::entities::GidRef;
 use serde::{Deserialize, Serialize};
 use std::{iter, ops::Deref};
+use rayon::prelude::*;
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub struct NodeStore {
@@ -149,7 +150,7 @@ impl NodeStore {
     #[inline]
     pub(crate) fn edge_tuples<'a>(
         &'a self,
-        layers: &LayerIds,
+        layers: LayerIds,
         d: Direction,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send + 'a> {
         let self_id = self.vid;
@@ -169,7 +170,7 @@ impl NodeStore {
 
     fn merge_layers(
         &self,
-        layers: &LayerIds,
+        layers: LayerIds,
         d: Direction,
         self_id: VID,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send + '_> {
@@ -253,7 +254,7 @@ impl NodeStore {
     // this is important because it calculates degree
     pub(crate) fn neighbours<'a>(
         &'a self,
-        layers: &LayerIds,
+        layers: LayerIds,
         d: Direction,
     ) -> Box<dyn Iterator<Item = VID> + Send + 'a> {
         match layers {
@@ -328,11 +329,11 @@ impl NodeStore {
 }
 
 impl ArcEntry<NodeStore> {
-    pub fn into_edges(self, layers: &LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> {
+    pub fn into_edges(self, layers: LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> {
         GenLockedIter::from(self, |node| node.edge_tuples(layers, dir))
     }
 
-    pub fn into_neighbours(self, layers: &LayerIds, dir: Direction) -> impl Iterator<Item = VID> {
+    pub fn into_neighbours(self, layers: LayerIds, dir: Direction) -> impl Iterator<Item = VID> {
         GenLockedIter::from(self, |node| node.neighbours(layers, dir))
     }
 
@@ -356,7 +357,7 @@ impl ArcEntry<NodeStore> {
 impl<'a> Entry<'a, NodeStore> {
     pub fn into_neighbours(
         self,
-        layers: &LayerIds,
+        layers: LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = VID> + 'a {
         GenLockedIter::from(self, |node| node.neighbours(layers, dir))
@@ -364,7 +365,7 @@ impl<'a> Entry<'a, NodeStore> {
 
     pub fn into_edges(
         self,
-        layers: &LayerIds,
+        layers: LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + 'a {
         GenLockedIter::from(self, |node| node.edge_tuples(layers, dir))
@@ -372,7 +373,7 @@ impl<'a> Entry<'a, NodeStore> {
 
     pub fn into_edges_iter(
         self,
-        layers: &'a LayerIds,
+        layers: LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + 'a {
         GenLockedIter::from(self, |node| Box::new(node.edge_tuples(layers, dir)))

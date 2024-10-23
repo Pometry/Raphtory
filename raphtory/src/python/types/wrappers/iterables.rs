@@ -4,6 +4,7 @@ use num::cast::AsPrimitive;
 use pyo3::prelude::*;
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 use std::{i64, iter::Sum};
+use numpy::{PyArray, Ix1};
 
 pub(crate) trait MeanExt<V>: Iterator<Item = V>
 where
@@ -146,6 +147,7 @@ py_iterable_comp!(
 );
 
 py_iterable!(I64VecIterable, Vec<i64>);
+// py_iterable!(I64NumpyIterable, Py<PyArray<i64, Ix1>>);
 py_iterable_comp!(I64VecIterable, Vec<i64>, I64VecIterableCmp);
 py_nested_iterable!(NestedI64VecIterable, Vec<i64>);
 py_iterable_comp!(

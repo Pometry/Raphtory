@@ -18,6 +18,14 @@ impl<P: ConstPropertiesOps> ConstProperties<P> {
         self.props.const_prop_values()
     }
 
+    pub fn values_iter(&self) -> impl Iterator<Item = Prop> + '_ {
+        self.props.const_prop_ids().map(move |id| {
+            self.props
+                .get_const_prop(id)
+                .expect("ids that come from the internal iterator should exist")
+        })
+    }
+
     pub fn iter(&self) -> Box<dyn Iterator<Item = (ArcStr, Prop)> + '_> {
         Box::new(self.into_iter())
     }

@@ -23,13 +23,12 @@ use crate::{
             },
         },
         utils::{
-            export::{create_row, extract_properties, get_column_names_from_props},
-            PyTime,
+            export::{create_row, extract_properties, get_column_names_from_props}, NumpyArray, PyGenericIterable, PyTime
         },
     },
 };
 use pyo3::{
-    prelude::PyModule, pyclass, pymethods, types::PyDict, IntoPy, PyObject, PyResult, Python,
+    prelude::*, pyclass, pymethods, types::PyDict, IntoPy, PyObject, PyResult, Python,
     ToPyObject,
 };
 use raphtory_api::core::storage::arc_str::ArcStr;
@@ -167,9 +166,9 @@ impl PyEdges {
     /// Returns:
     ///    A list of lists unix timestamps.
     ///
-    fn history(&self) -> I64VecIterable {
+    fn history(&self) -> PyGenericIterable {
         let edges = self.edges.clone();
-        (move || edges.history()).into()
+        (move || edges.history().map(NumpyArray::I64)).into()
     }
 
     /// Returns all timestamps of edges, when an edge is added or change to an edge is made.
@@ -186,9 +185,9 @@ impl PyEdges {
     ///
     /// Returns:
     ///     A list of lists of unix timestamps
-    fn deletions(&self) -> I64VecIterable {
+    fn deletions(&self) -> PyGenericIterable {
         let edges = self.edges.clone();
-        (move || edges.deletions()).into()
+        (move || edges.deletions().map(NumpyArray::I64)).into()
     }
 
     /// Returns all timestamps of edges where an edge is deleted

@@ -177,9 +177,9 @@ impl PyEdge {
     /// Returns:
     ///    List[int]:  A list of unix timestamps.
     ///
-    pub fn history<'py>(&self, py: Python<'py>) -> &'py PyArray<i64, Ix1> {
+    pub fn history<'py>(&self, py: Python<'py>) -> Py<PyArray<i64, Ix1>> {
         let history = self.edge.history();
-        history.into_pyarray(py)
+        history.into_pyarray(py).to_owned()
     }
 
     /// Returns a list of timestamps of when an edge is added or change to an edge is made.

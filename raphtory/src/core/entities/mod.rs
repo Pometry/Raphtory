@@ -13,7 +13,65 @@ pub enum LayerIds {
     None,
     All,
     One(usize),
-    Multiple(Arc<[usize]>),
+    Multiple(BitMultiple),
+}
+
+#[derive(Clone, Debug)]
+pub struct BitMultiple(bit_vec::BitVec);
+
+impl Default for BitMultiple {
+    fn default() -> Self {
+        BitMultiple(bit_vec::BitVec::with_capacity(32))
+    }
+}
+
+impl BitMultiple {
+    pub fn iter(&self) -> impl Iterator<Item = usize> {
+        self.0
+            .clone()
+            .into_iter()
+            .enumerate()
+            .filter_map(|(i, b)| if b { Some(i) } else { None })
+    }
+
+    pub fn set(&mut self, id: usize, value: bool) {
+        if id >= self.0.len() {
+            self.0.grow(id + 1, false);
+        }
+        self.0.set(id, value);
+    }
+}
+
+#[cfg(test)]
+mod test{
+    
+    #[test]
+    fn empty_bit_multiple() {
+        let  bm = super::BitMultiple::default();
+        let actual = bm.iter().collect::<Vec<_>>();
+        let expected:Vec<usize> = vec![];
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn set_one(){
+        let mut bm = super::BitMultiple::default();
+        bm.set(1, true);
+        let actual = bm.iter().collect::<Vec<_>>();
+        assert_eq!(actual, vec![1usize]);
+    }
+
+    #[test]
+    fn set_two() {
+        let mut bm = super::BitMultiple::default();
+        bm.set(1, true);
+        bm.set(67, true);
+
+        let actual = bm.iter().collect::<Vec<_>>();
+        assert_eq!(actual, vec![1usize, 67]);
+    }
+
+
 }
 
 impl LayerIds {

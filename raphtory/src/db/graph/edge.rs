@@ -36,8 +36,7 @@ use crate::{
 };
 use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{
-    fmt::{Debug, Formatter},
-    sync::Arc,
+    borrow::Cow, fmt::{Debug, Formatter}, sync::Arc
 };
 
 /// A view of an edge in the graph.
@@ -104,6 +103,12 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeView<G, GH> 
             .layer_ids()
             .constrain_from_edge(self.edge)
             .into_owned()
+    }
+
+    fn layer_ids2(&self) -> Cow<'_, LayerIds>{
+        self.graph
+            .layer_ids()
+            .constrain_from_edge(self.edge)
     }
 }
 
@@ -370,6 +375,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperty
             .map(|(_, v)| v)
             .collect()
     }
+
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalPropertiesOps

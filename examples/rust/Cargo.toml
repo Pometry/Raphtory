@@ -7,12 +7,14 @@ keywords = ["graph", "temporal-graph", "temporal", "examples"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-raphtory = { path = "../../raphtory", features = ["io"] }
+raphtory = { path = "../../raphtory", features = ["io", "storage"] }
+# pometry-storage = {workspace = true}
 chrono = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true }
 itertools = { workspace = true }
 tracing = { workspace = true }
+tqdm = { workspace = true }
 
 [[bin]]
 name = "btc"
@@ -31,3 +33,6 @@ name = "crypto"
 
 [[bin]]
 name = "pokec"
+
+[[bin]]
+name = "coin"
