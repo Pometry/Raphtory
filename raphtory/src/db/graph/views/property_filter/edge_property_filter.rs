@@ -120,7 +120,7 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for EdgePropertyFilteredGrap
         self.graph.edge_filter_includes_node_filter()
     }
 
-    fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: LayerIds) -> bool {
+    fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
         if self.graph.filter_edge(edge, layer_ids) {
             let props = EdgeView::new(&self.graph, edge.out_ref()).properties();
             let prop_value = self

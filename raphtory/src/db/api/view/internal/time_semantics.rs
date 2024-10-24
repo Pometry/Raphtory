@@ -58,24 +58,24 @@ pub trait TimeSemantics {
     fn edge_history<'a>(
         &'a self,
         e: EdgeRef,
-        layer_ids: LayerIds,
+        layer_ids: &'a LayerIds,
     ) -> BoxedLIter<'a, TimeIndexEntry>;
 
     fn edge_history_window<'a>(
         &'a self,
         e: EdgeRef,
-        layer_ids: LayerIds,
+        layer_ids: &'a LayerIds,
         w: Range<i64>,
     ) -> BoxedLIter<'a, TimeIndexEntry>;
 
     /// The number of exploded edge events for the `edge`
-    fn edge_exploded_count(&self, edge: EdgeStorageRef, layer_ids: LayerIds) -> usize;
+    fn edge_exploded_count(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> usize;
 
     /// The number of exploded edge events for the edge in the window `w`
     fn edge_exploded_count_window(
         &self,
         edge: EdgeStorageRef,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
         w: Range<i64>,
     ) -> usize;
 
@@ -430,7 +430,7 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
     fn edge_history<'a>(
         &'a self,
         e: EdgeRef,
-        layer_ids: LayerIds,
+        layer_ids: &'a LayerIds,
     ) -> BoxedLIter<'a, TimeIndexEntry> {
         self.graph().edge_history(e, layer_ids)
     }
@@ -439,14 +439,14 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
     fn edge_history_window<'a>(
         &'a self,
         e: EdgeRef,
-        layer_ids: LayerIds,
+        layer_ids: &'a LayerIds,
         w: Range<i64>,
     ) -> BoxedLIter<'a, TimeIndexEntry> {
         self.graph().edge_history_window(e, layer_ids, w)
     }
 
     #[inline]
-    fn edge_exploded_count(&self, edge: EdgeStorageRef, layer_ids: LayerIds) -> usize {
+    fn edge_exploded_count(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> usize {
         self.graph().edge_exploded_count(edge, layer_ids)
     }
 
@@ -454,7 +454,7 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
     fn edge_exploded_count_window(
         &self,
         edge: EdgeStorageRef,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
         w: Range<i64>,
     ) -> usize {
         self.graph().edge_exploded_count_window(edge, layer_ids, w)

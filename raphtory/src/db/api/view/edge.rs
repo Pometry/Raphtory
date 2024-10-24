@@ -219,7 +219,8 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
             Some(_) => Box::new(iter::once(e)),
             None => {
                 let g = g.clone();
-                GenLockedIter::from(g, move |g| g.edge_exploded(e, g.layer_ids())).into_dyn_boxed()
+                GenLockedIter::from(g, move |g| g.edge_exploded(e, g.layer_ids().clone()))
+                    .into_dyn_boxed()
             }
         })
     }
@@ -229,7 +230,8 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
             Some(_) => Box::new(iter::once(e)),
             None => {
                 let g = g.clone();
-                GenLockedIter::from(g, move |g| g.edge_layers(e, g.layer_ids())).into_dyn_boxed()
+                GenLockedIter::from(g, move |g| g.edge_layers(e, g.layer_ids().clone()))
+                    .into_dyn_boxed()
             }
         })
     }

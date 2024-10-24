@@ -109,7 +109,7 @@ impl TimeSemantics for GraphStorage {
     fn edge_history<'a>(
         &'a self,
         e: EdgeRef,
-        layer_ids: LayerIds,
+        layer_ids: &'a LayerIds,
     ) -> BoxedLIter<'a, TimeIndexEntry> {
         let core_edge = self.edge_entry(e.pid());
         let layer_ids = layer_ids.constrain_from_edge(e);
@@ -133,7 +133,7 @@ impl TimeSemantics for GraphStorage {
     fn edge_history_window<'a>(
         &'a self,
         e: EdgeRef,
-        layer_ids: LayerIds,
+        layer_ids: &'a LayerIds,
         w: Range<i64>,
     ) -> BoxedLIter<'a, TimeIndexEntry> {
         let core_edge = self.edge_entry(e.pid());
@@ -149,8 +149,8 @@ impl TimeSemantics for GraphStorage {
         .into_dyn_boxed()
     }
 
-    fn edge_exploded_count(&self, edge: EdgeStorageRef, layer_ids: LayerIds) -> usize {
-        edge.additions_par_iter(layer_ids)
+    fn edge_exploded_count(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> usize {
+        edge.additions_par_iter(layer_ids.clone())
             .map(|(_, a)| a.len())
             .sum()
     }
@@ -158,10 +158,10 @@ impl TimeSemantics for GraphStorage {
     fn edge_exploded_count_window(
         &self,
         edge: EdgeStorageRef,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
         w: Range<i64>,
     ) -> usize {
-        edge.additions_par_iter(layer_ids)
+        edge.additions_par_iter(layer_ids.clone())
             .map(|(_, a)| a.range_t(w.clone()).len())
             .sum()
     }

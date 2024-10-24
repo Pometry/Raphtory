@@ -17,7 +17,7 @@ impl EdgeFilterOps for GraphStorage {
         true
     }
 
-    fn filter_edge(&self, _edge: EdgeStorageRef, _layer_ids: LayerIds) -> bool {
+    fn filter_edge(&self, _edge: EdgeStorageRef, _layer_ids: &LayerIds) -> bool {
         true
     }
 }

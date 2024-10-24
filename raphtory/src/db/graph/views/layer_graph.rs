@@ -94,8 +94,8 @@ impl<'graph, G: GraphViewOps<'graph>> LayeredGraph<G> {
 }
 
 impl<'graph, G: GraphViewOps<'graph>> InternalLayerOps for LayeredGraph<G> {
-    fn layer_ids(&self) -> LayerIds {
-        self.layers.clone()
+    fn layer_ids(&self) -> &LayerIds {
+        &self.layers
     }
 
     fn layer_ids_from_names(&self, key: Layer) -> Result<LayerIds, GraphError> {

@@ -149,7 +149,7 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
 
     fn active(self, layer_ids: LayerIds, w: Range<i64>) -> bool;
 
-    fn has_layer(self, layer_ids: LayerIds) -> bool;
+    fn has_layer(self, layer_ids: &LayerIds) -> bool;
     fn src(self) -> VID;
     fn dst(self) -> VID;
 
@@ -307,11 +307,11 @@ impl<'a> EdgeStorageOps<'a> for MemEdge<'a> {
         }
     }
 
-    fn has_layer(self, layer_ids: LayerIds) -> bool {
+    fn has_layer(self, layer_ids: &LayerIds) -> bool {
         match layer_ids {
             LayerIds::None => false,
             LayerIds::All => true,
-            LayerIds::One(id) => self.has_layer_inner(id),
+            LayerIds::One(id) => self.has_layer_inner(*id),
             LayerIds::Multiple(ids) => ids.iter().any(|id| self.has_layer_inner(id)),
         }
     }

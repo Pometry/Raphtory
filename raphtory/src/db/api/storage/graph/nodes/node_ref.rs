@@ -67,7 +67,7 @@ macro_rules! for_all_iter {
 }
 
 impl<'a> NodeStorageOps<'a> for NodeStorageRef<'a> {
-    fn degree(self, layers: LayerIds, dir: Direction) -> usize {
+    fn degree(self, layers: &LayerIds, dir: Direction) -> usize {
         for_all!(self, node => node.degree(layers, dir))
     }
 
@@ -79,7 +79,7 @@ impl<'a> NodeStorageOps<'a> for NodeStorageRef<'a> {
         for_all_iter!(self, node => node.tprop(prop_id))
     }
 
-    fn edges_iter(self, layers: LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> + 'a {
+    fn edges_iter(self, layers: &LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> + 'a {
         for_all_iter!(self, node => node.edges_iter(layers, dir))
     }
 
@@ -99,7 +99,7 @@ impl<'a> NodeStorageOps<'a> for NodeStorageRef<'a> {
         for_all!(self, node => node.name())
     }
 
-    fn find_edge(self, dst: VID, layer_ids: LayerIds) -> Option<EdgeRef> {
+    fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef> {
         for_all!(self, node => NodeStorageOps::find_edge(node, dst, layer_ids))
     }
 

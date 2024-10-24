@@ -263,7 +263,7 @@ impl TimeSemantics for PersistentGraph {
     fn edge_history<'a>(
         &'a self,
         e: EdgeRef,
-        layer_ids: LayerIds,
+        layer_ids: &'a LayerIds,
     ) -> BoxedLIter<'a, TimeIndexEntry> {
         self.0.edge_history(e, layer_ids)
     }
@@ -271,22 +271,22 @@ impl TimeSemantics for PersistentGraph {
     fn edge_history_window<'a>(
         &'a self,
         e: EdgeRef,
-        layer_ids: LayerIds,
+        layer_ids: &'a LayerIds,
         w: Range<i64>,
     ) -> BoxedLIter<'a, TimeIndexEntry> {
         self.0.edge_history_window(e, layer_ids, w)
     }
 
-    fn edge_exploded_count(&self, edge: EdgeStorageRef, layer_ids: LayerIds) -> usize {
+    fn edge_exploded_count(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> usize {
         match layer_ids {
             LayerIds::None => 0,
             LayerIds::All => (0..self.unfiltered_num_layers())
                 .into_par_iter()
-                .map(|id| self.edge_exploded_count(edge, LayerIds::One(id)))
+                .map(|id| self.edge_exploded_count(edge, &LayerIds::One(id)))
                 .sum(),
             LayerIds::One(id) => {
-                let additions = edge.additions(id);
-                let deletions = edge.deletions(id);
+                let additions = edge.additions(*id);
+                let deletions = edge.deletions(*id);
                 let a_first = additions.first().unwrap_or(TimeIndexEntry::MAX);
                 let d_first = deletions.first().unwrap_or(TimeIndexEntry::MAX);
                 if d_first < a_first {
@@ -296,8 +296,9 @@ impl TimeSemantics for PersistentGraph {
                 }
             }
             LayerIds::Multiple(layers) => layers
+                .clone()
                 .par_iter()
-                .map(|id| self.edge_exploded_count(edge, LayerIds::One(id)))
+                .map(|id| self.edge_exploded_count(edge, &LayerIds::One(id)))
                 .sum(),
         }
     }
@@ -305,18 +306,18 @@ impl TimeSemantics for PersistentGraph {
     fn edge_exploded_count_window(
         &self,
         edge: EdgeStorageRef,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
         w: Range<i64>,
     ) -> usize {
         match layer_ids {
             LayerIds::None => 0,
             LayerIds::All => (0..self.unfiltered_num_layers())
                 .into_par_iter()
-                .map(|id| self.edge_exploded_count_window(edge, LayerIds::One(id), w.clone()))
+                .map(|id| self.edge_exploded_count_window(edge, &LayerIds::One(id), w.clone()))
                 .sum(),
             LayerIds::One(id) => {
-                let additions = edge.additions(id);
-                let deletions = edge.deletions(id);
+                let additions = edge.additions(*id);
+                let deletions = edge.deletions(*id);
                 let mut len = additions.range_t(w.clone()).len();
                 if alive_at(&additions, &deletions, w.start) {
                     len += 1
@@ -324,8 +325,9 @@ impl TimeSemantics for PersistentGraph {
                 len
             }
             LayerIds::Multiple(layers) => layers
+                .clone()
                 .par_iter()
-                .map(|id| self.edge_exploded_count(edge, LayerIds::One(id)))
+                .map(|id| self.edge_exploded_count(edge, &LayerIds::One(id)))
                 .sum(),
         }
     }

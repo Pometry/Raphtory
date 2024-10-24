@@ -170,12 +170,14 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for WindowedGraph<G> {
     }
 
     #[inline]
-    fn filter_node(&self, node: NodeStorageRef, layer_ids: LayerIds) -> bool {
+    fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
         !self.window_is_empty()
-            && self.graph.filter_node(node, layer_ids.clone())
-            && self
-                .graph
-                .include_node_window(node, self.start_bound()..self.end_bound(), layer_ids)
+            && self.graph.filter_node(node, layer_ids)
+            && self.graph.include_node_window(
+                node,
+                self.start_bound()..self.end_bound(),
+                layer_ids.clone(),
+            )
     }
 }
 
@@ -336,7 +338,7 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
     fn edge_history<'a>(
         &'a self,
         e: EdgeRef,
-        layer_ids: LayerIds,
+        layer_ids: &'a LayerIds,
     ) -> BoxedLIter<'a, TimeIndexEntry> {
         if self.window_is_empty() {
             return iter::empty().into_dyn_boxed();
@@ -348,13 +350,13 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
     fn edge_history_window<'a>(
         &'a self,
         e: EdgeRef,
-        layer_ids: LayerIds,
+        layer_ids: &'a LayerIds,
         w: Range<i64>,
     ) -> BoxedLIter<'a, TimeIndexEntry> {
         self.graph.edge_history_window(e, layer_ids, w)
     }
 
-    fn edge_exploded_count(&self, edge: EdgeStorageRef, layer_ids: LayerIds) -> usize {
+    fn edge_exploded_count(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> usize {
         if self.window_is_empty() {
             return 0;
         }
@@ -365,7 +367,7 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
     fn edge_exploded_count_window(
         &self,
         edge: EdgeStorageRef,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
         w: Range<i64>,
     ) -> usize {
         self.graph.edge_exploded_count_window(edge, layer_ids, w)
@@ -632,12 +634,14 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for WindowedGraph<G> {
     }
 
     #[inline]
-    fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: LayerIds) -> bool {
+    fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
         !self.window_is_empty()
-            && self.graph.filter_edge(edge, layer_ids.clone())
-            && self
-                .graph
-                .include_edge_window(edge, self.start_bound()..self.end_bound(), layer_ids)
+            && self.graph.filter_edge(edge, layer_ids)
+            && self.graph.include_edge_window(
+                edge,
+                self.start_bound()..self.end_bound(),
+                layer_ids.clone(),
+            )
     }
 }
 

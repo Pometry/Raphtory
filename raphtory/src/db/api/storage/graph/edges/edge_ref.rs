@@ -62,7 +62,7 @@ impl<'a> EdgeStorageOps<'a> for EdgeStorageRef<'a> {
         for_all!(self, edge => EdgeStorageOps::active(edge, layer_ids, w))
     }
 
-    fn has_layer(self, layer_ids: LayerIds) -> bool {
+    fn has_layer(self, layer_ids: &LayerIds) -> bool {
         for_all!(self, edge => EdgeStorageOps::has_layer(edge, layer_ids))
     }
 

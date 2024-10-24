@@ -602,19 +602,16 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
             .ok()?;
         let core_edge = self.graph.core_edge(EID(edge_id));
         let layer_ids = self.graph.layer_ids();
-        if !self
-            .graph
-            .filter_edge(core_edge.as_ref(), layer_ids.clone())
-        {
+        if !self.graph.filter_edge(core_edge.as_ref(), layer_ids) {
             return None;
         }
         if self.graph.nodes_filtered() {
             if !self.graph.filter_node(
                 self.graph.core_node_entry(core_edge.src()).as_ref(),
-                layer_ids.clone(),
+                layer_ids,
             ) || !self.graph.filter_node(
                 self.graph.core_node_entry(core_edge.dst()).as_ref(),
-                layer_ids.clone(),
+                layer_ids,
             ) {
                 return None;
             }

@@ -111,7 +111,7 @@ impl NodeStore {
     }
 
     #[inline(always)]
-    pub(crate) fn find_edge_eid(&self, dst: VID, layer_id: LayerIds) -> Option<EID> {
+    pub(crate) fn find_edge_eid(&self, dst: VID, layer_id: &LayerIds) -> Option<EID> {
         match layer_id {
             LayerIds::All => match self.layers.len() {
                 0 => None,
@@ -123,7 +123,7 @@ impl NodeStore {
             },
             LayerIds::One(layer_id) => self
                 .layers
-                .get(layer_id)
+                .get(*layer_id)
                 .and_then(|layer| layer.get_edge(dst, Direction::OUT)),
             LayerIds::Multiple(layers) => layers.iter().find_map(|layer_id| {
                 self.layers
@@ -149,7 +149,7 @@ impl NodeStore {
     #[inline]
     pub(crate) fn edge_tuples<'a>(
         &'a self,
-        layers: LayerIds,
+        layers: &LayerIds,
         d: Direction,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send + 'a> {
         let self_id = self.vid;
@@ -157,7 +157,7 @@ impl NodeStore {
             Direction::OUT => self.merge_layers(layers, Direction::OUT, self_id),
             Direction::IN => self.merge_layers(layers, Direction::IN, self_id),
             Direction::BOTH => Box::new(
-                self.edge_tuples(layers.clone(), Direction::OUT)
+                self.edge_tuples(layers, Direction::OUT)
                     .filter(|e| e.src() != e.dst())
                     .merge_by(self.edge_tuples(layers, Direction::IN), |e1, e2| {
                         e1.remote() < e2.remote()
@@ -169,7 +169,7 @@ impl NodeStore {
 
     fn merge_layers(
         &self,
-        layers: LayerIds,
+        layers: &LayerIds,
         d: Direction,
         self_id: VID,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send + '_> {
@@ -182,7 +182,7 @@ impl NodeStore {
                     .dedup(),
             ),
             LayerIds::One(id) => {
-                if let Some(layer) = self.layers.get(id) {
+                if let Some(layer) = self.layers.get(*id) {
                     Box::new(self.iter_adj(layer, d, self_id))
                 } else {
                     Box::new(iter::empty())
@@ -221,7 +221,7 @@ impl NodeStore {
         iter
     }
 
-    pub(crate) fn degree(&self, layers: LayerIds, d: Direction) -> usize {
+    pub(crate) fn degree(&self, layers: &LayerIds, d: Direction) -> usize {
         match layers {
             LayerIds::All => match self.layers.len() {
                 0 => 0,
@@ -234,7 +234,11 @@ impl NodeStore {
                     .dedup()
                     .count(),
             },
-            LayerIds::One(l) => self.layers.get(l).map(|layer| layer.degree(d)).unwrap_or(0),
+            LayerIds::One(l) => self
+                .layers
+                .get(*l)
+                .map(|layer| layer.degree(d))
+                .unwrap_or(0),
             LayerIds::None => 0,
             LayerIds::Multiple(ids) => ids
                 .iter()
@@ -249,7 +253,7 @@ impl NodeStore {
     // this is important because it calculates degree
     pub(crate) fn neighbours<'a>(
         &'a self,
-        layers: LayerIds,
+        layers: &LayerIds,
         d: Direction,
     ) -> Box<dyn Iterator<Item = VID> + Send + 'a> {
         match layers {
@@ -265,7 +269,7 @@ impl NodeStore {
             LayerIds::One(one) => {
                 let iter = self
                     .layers
-                    .get(one)
+                    .get(*one)
                     .map(|layer| self.neighbours_from_adj(layer, d))
                     .unwrap_or(Box::new(iter::empty()));
                 Box::new(iter)
@@ -325,11 +329,15 @@ impl NodeStore {
 
 impl ArcEntry<NodeStore> {
     pub fn into_edges(self, layers: LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> {
-        GenLockedIter::from(self, |node| node.edge_tuples(layers, dir))
+        GenLockedIter::from((self, layers), |(node, layers)| {
+            node.edge_tuples(layers, dir)
+        })
     }
 
     pub fn into_neighbours(self, layers: LayerIds, dir: Direction) -> impl Iterator<Item = VID> {
-        GenLockedIter::from(self, |node| node.neighbours(layers, dir))
+        GenLockedIter::from((self, layers), |(node, layers)| {
+            node.neighbours(layers, dir)
+        })
     }
 
     pub fn into_layers(self) -> LockedLayers {
@@ -355,7 +363,9 @@ impl<'a> Entry<'a, NodeStore> {
         layers: LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = VID> + 'a {
-        GenLockedIter::from(self, |node| node.neighbours(layers, dir))
+        GenLockedIter::from((self, layers), |(node, layers)| {
+            node.neighbours(layers, dir)
+        })
     }
 
     pub fn into_edges(
@@ -363,7 +373,9 @@ impl<'a> Entry<'a, NodeStore> {
         layers: LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + 'a {
-        GenLockedIter::from(self, |node| node.edge_tuples(layers, dir))
+        GenLockedIter::from((self, layers), |(node, layers)| {
+            node.edge_tuples(layers, dir)
+        })
     }
 
     pub fn into_edges_iter(
@@ -371,7 +383,9 @@ impl<'a> Entry<'a, NodeStore> {
         layers: LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + 'a {
-        GenLockedIter::from(self, |node| Box::new(node.edge_tuples(layers, dir)))
+        GenLockedIter::from((self, layers), |(node, layers)| {
+            Box::new(node.edge_tuples(layers, dir))
+        })
     }
 }
 

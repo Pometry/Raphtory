@@ -15,7 +15,7 @@ use crate::{
 use itertools::Itertools;
 
 pub trait NodeStorageOps<'a>: Sized {
-    fn degree(self, layers: LayerIds, dir: Direction) -> usize;
+    fn degree(self, layers: &LayerIds, dir: Direction) -> usize;
 
     fn additions(self) -> NodeAdditions<'a>;
 
@@ -23,7 +23,7 @@ pub trait NodeStorageOps<'a>: Sized {
 
     fn prop(self, prop_id: usize) -> Option<Prop>;
 
-    fn edges_iter(self, layers: LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> + 'a;
+    fn edges_iter(self, layers: &LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> + 'a;
 
     fn node_type_id(self) -> usize;
 
@@ -33,11 +33,11 @@ pub trait NodeStorageOps<'a>: Sized {
 
     fn name(self) -> Option<Cow<'a, str>>;
 
-    fn find_edge(self, dst: VID, layer_ids: LayerIds) -> Option<EdgeRef>;
+    fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef>;
 }
 
 impl<'a> NodeStorageOps<'a> for &'a NodeStore {
-    fn degree(self, layers: LayerIds, dir: Direction) -> usize {
+    fn degree(self, layers: &LayerIds, dir: Direction) -> usize {
         self.degree(layers, dir)
     }
 
@@ -53,7 +53,7 @@ impl<'a> NodeStorageOps<'a> for &'a NodeStore {
         self.constant_property(prop_id).cloned()
     }
 
-    fn edges_iter(self, layers: LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> + 'a {
+    fn edges_iter(self, layers: &LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> + 'a {
         self.edge_tuples(layers, dir)
     }
 
@@ -73,7 +73,7 @@ impl<'a> NodeStorageOps<'a> for &'a NodeStore {
         self.global_id.as_str().map(Cow::from)
     }
 
-    fn find_edge(self, dst: VID, layer_ids: LayerIds) -> Option<EdgeRef> {
+    fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef> {
         let eid = NodeStore::find_edge_eid(self, dst, layer_ids)?;
         Some(EdgeRef::new_outgoing(eid, self.vid, dst))
     }

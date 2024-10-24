@@ -104,7 +104,7 @@ pub trait CoreGraphOps {
 
     /// Get the layer name for a given id
     #[inline]
-    fn get_layer_names_from_ids(&self, layer_ids: LayerIds) -> BoxedIter<ArcStr> {
+    fn get_layer_names_from_ids(&self, layer_ids: &LayerIds) -> BoxedIter<ArcStr> {
         let layer_ids = layer_ids.clone();
         match layer_ids {
             LayerIds::None => Box::new(iter::empty()),

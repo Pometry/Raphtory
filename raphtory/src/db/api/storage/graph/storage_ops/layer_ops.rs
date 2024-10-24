@@ -7,8 +7,8 @@ use crate::{
 use super::GraphStorage;
 
 impl InternalLayerOps for GraphStorage {
-    fn layer_ids(&self) -> LayerIds {
-        LayerIds::All
+    fn layer_ids(&self) -> &LayerIds {
+        &LayerIds::All
     }
 
     fn layer_ids_from_names(&self, key: Layer) -> Result<LayerIds, GraphError> {

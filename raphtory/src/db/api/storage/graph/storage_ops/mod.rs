@@ -101,7 +101,7 @@ impl std::fmt::Display for GraphStorage {
             f,
             "Graph(num_nodes={}, num_edges={})",
             self.nodes().len(),
-            self.edges().count(LayerIds::All),
+            self.edges().count(&LayerIds::All),
         )
     }
 }
@@ -299,15 +299,13 @@ impl GraphStorage {
                 NodeList::All { .. } => self
                     .nodes()
                     .par_iter()
-                    .filter(|node| view.filter_node(*node, layer_ids.clone()))
+                    .filter(|node| view.filter_node(*node, layer_ids))
                     .count(),
                 NodeList::List { nodes } => {
                     let nodes_storage = self.nodes();
                     nodes
                         .par_iter()
-                        .filter(|vid| {
-                            view.filter_node(nodes_storage.node(**vid), layer_ids.clone())
-                        })
+                        .filter(|vid| view.filter_node(nodes_storage.node(**vid), layer_ids))
                         .count()
                 }
             }
@@ -377,7 +375,7 @@ impl GraphStorage {
         &'graph self,
         view: &'graph G,
     ) -> impl Iterator<Item = EdgeRef> + Send + 'graph {
-        let iter = self.edges().iter(view.layer_ids().clone());
+        let iter = self.edges().iter(view.layer_ids());
 
         let filtered = match view.filter_state() {
             FilterState::Neither => FilterVariants::Neither(iter),
@@ -499,7 +497,7 @@ impl GraphStorage {
         view: &'graph G,
     ) -> impl ParallelIterator<Item = EdgeRef> + 'graph {
         self.edges()
-            .par_iter(view.layer_ids().clone())
+            .par_iter(view.layer_ids())
             .filter(|edge| match view.filter_state() {
                 FilterState::Neither => true,
                 FilterState::Both => {
@@ -659,7 +657,7 @@ impl GraphStorage {
     ) -> impl Iterator<Item = EdgeRef> + 'a {
         let source = self.node_entry(node);
         let layers = view.layer_ids();
-        let iter = source.into_edges_iter(layers, dir);
+        let iter = source.into_edges_iter(layers.clone(), dir);
         match view.filter_state() {
             FilterState::Neither => FilterVariants::Neither(iter),
             FilterState::Both => FilterVariants::Both(iter.filter(|&e| {

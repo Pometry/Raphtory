@@ -71,7 +71,11 @@ impl<'b> NodeStorageEntry<'b> {
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + 'b {
         match self {
-            NodeStorageEntry::Mem(entry) => StorageVariants::Mem(entry.edges_iter(layers, dir)),
+            NodeStorageEntry::Mem(entry) => {
+                StorageVariants::Mem(GenLockedIter::from((entry, layers), |(entry, layers)| {
+                    Box::new(entry.edges_iter(layers, dir))
+                }))
+            }
             NodeStorageEntry::Unlocked(entry) => {
                 StorageVariants::Unlocked(entry.into_edges_iter(layers, dir))
             }
@@ -104,7 +108,7 @@ impl<'b> NodeStorageEntry<'b> {
 }
 
 impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
-    fn degree(self, layers: LayerIds, dir: Direction) -> usize {
+    fn degree(self, layers: &LayerIds, dir: Direction) -> usize {
         self.as_ref().degree(layers, dir)
     }
 
@@ -116,7 +120,7 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
         self.as_ref().tprop(prop_id)
     }
 
-    fn edges_iter(self, layers: LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> + 'a {
+    fn edges_iter(self, layers: &LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> + 'a {
         self.as_ref().edges_iter(layers, dir)
     }
 
@@ -136,7 +140,7 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
         self.as_ref().name()
     }
 
-    fn find_edge(self, dst: VID, layer_ids: LayerIds) -> Option<EdgeRef> {
+    fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef> {
         self.as_ref().find_edge(dst, layer_ids)
     }
 

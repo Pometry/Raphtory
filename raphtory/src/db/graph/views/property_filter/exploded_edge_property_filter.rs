@@ -134,10 +134,10 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for ExplodedEdgePropertyFilt
         self.graph.edge_filter_includes_node_filter()
     }
 
-    fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: LayerIds) -> bool {
-        self.graph.filter_edge(edge, layer_ids.clone())
+    fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
+        self.graph.filter_edge(edge, layer_ids)
             && self
-                .edge_exploded(edge.out_ref(), layer_ids)
+                .edge_exploded(edge.out_ref(), layer_ids.clone())
                 .next()
                 .is_some()
     }
@@ -224,10 +224,10 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
     fn edge_history<'a>(
         &'a self,
         e: EdgeRef,
-        layer_ids: LayerIds,
+        layer_ids: &'a LayerIds,
     ) -> BoxedLIter<'a, TimeIndexEntry> {
         self.graph
-            .edge_history(e, layer_ids.clone())
+            .edge_history(e, layer_ids)
             .filter(move |t| self.filter(e, *t, layer_ids.clone()))
             .into_dyn_boxed()
     }
@@ -235,26 +235,27 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
     fn edge_history_window<'a>(
         &'a self,
         e: EdgeRef,
-        layer_ids: LayerIds,
+        layer_ids: &'a LayerIds,
         w: Range<i64>,
     ) -> BoxedLIter<'a, TimeIndexEntry> {
         self.graph
-            .edge_history_window(e, layer_ids.clone(), w)
+            .edge_history_window(e, layer_ids, w)
             .filter(move |t| self.filter(e, *t, layer_ids.clone()))
             .into_dyn_boxed()
     }
 
-    fn edge_exploded_count(&self, edge: EdgeStorageRef, layer_ids: LayerIds) -> usize {
-        self.edge_exploded(edge.out_ref(), layer_ids).count()
+    fn edge_exploded_count(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> usize {
+        self.edge_exploded(edge.out_ref(), layer_ids.clone())
+            .count()
     }
 
     fn edge_exploded_count_window(
         &self,
         edge: EdgeStorageRef,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
         w: Range<i64>,
     ) -> usize {
-        self.edge_window_exploded(edge.out_ref(), w, layer_ids)
+        self.edge_window_exploded(edge.out_ref(), w, layer_ids.clone())
             .count()
     }
 
