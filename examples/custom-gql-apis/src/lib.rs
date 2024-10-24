@@ -4,7 +4,6 @@ use ::raphtory_core::python::packages::base_modules::{
     base_vectors_module,
 };
 use pyo3::prelude::*;
-use raphtory_core::db::api::view::DynamicGraph;
 use raphtory_graphql::python::pymodule::base_graphql_module;
 
 pub mod python;

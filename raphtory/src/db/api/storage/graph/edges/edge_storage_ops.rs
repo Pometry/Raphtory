@@ -9,10 +9,14 @@ use crate::{
             raw_edges::EdgeShard,
             timeindex::{TimeIndex, TimeIndexIntoOps, TimeIndexOps, TimeIndexWindow},
         },
+        utils::iter::GenLockedIter,
         Prop,
     },
     db::api::{
-        storage::graph::{tprop_storage_ops::TPropOps, variants::layer_variants::LayerVariants},
+        storage::graph::{
+            tprop_storage_ops::TPropOps,
+            variants::{layer_variants::LayerVariants, storage_variants3::StorageVariants},
+        },
         view::IntoDynBoxed,
     },
 };
@@ -37,6 +41,19 @@ impl<'a> TimeIndexRef<'a> {
             TimeIndexRef::Range(ts) => ts.len(),
             #[cfg(feature = "storage")]
             TimeIndexRef::External(ts) => ts.len(),
+        }
+    }
+
+    pub fn iter(self) -> impl Iterator<Item = TimeIndexEntry> + 'a {
+        match self {
+            TimeIndexRef::Ref(t) => StorageVariants::Mem(t.iter()),
+            TimeIndexRef::Range(t) => {
+                StorageVariants::Unlocked(GenLockedIter::from(t, |t| t.iter()))
+            }
+            #[cfg(feature = "storage")]
+            TimeIndexRef::External(t) => {
+                StorageVariants::Disk(GenLockedIter::from(t, |t| t.iter()))
+            }
         }
     }
 }
@@ -130,22 +147,19 @@ impl<'a> TimeIndexIntoOps for TimeIndexRef<'a> {
 pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn out_ref(self) -> EdgeRef;
 
-    fn active(self, layer_ids: &LayerIds, w: Range<i64>) -> bool;
+    fn active(self, layer_ids: LayerIds, w: Range<i64>) -> bool;
 
     fn has_layer(self, layer_ids: &LayerIds) -> bool;
     fn src(self) -> VID;
     fn dst(self) -> VID;
 
-    fn layer_ids_iter(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = usize> + 'a;
+    fn layer_ids_iter(self, layer_ids: LayerIds) -> impl Iterator<Item = usize> + 'a;
 
-    fn layer_ids_par_iter(
-        self,
-        layer_ids: &'a LayerIds,
-    ) -> impl ParallelIterator<Item = usize> + 'a;
+    fn layer_ids_par_iter(self, layer_ids: LayerIds) -> impl ParallelIterator<Item = usize> + 'a;
 
     fn additions_iter(
         self,
-        layer_ids: &'a LayerIds,
+        layer_ids: LayerIds,
     ) -> impl Iterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
         self.layer_ids_iter(layer_ids)
             .map(move |id| (id, self.additions(id)))
@@ -153,14 +167,14 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
 
     fn additions_par_iter(
         self,
-        layer_ids: &'a LayerIds,
+        layer_ids: LayerIds,
     ) -> impl ParallelIterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
         self.layer_ids_par_iter(layer_ids)
             .map(move |id| (id, self.additions(id)))
     }
     fn deletions_iter(
         self,
-        layer_ids: &'a LayerIds,
+        layer_ids: LayerIds,
     ) -> impl Iterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
         self.layer_ids_iter(layer_ids)
             .map(move |id| (id, self.deletions(id)))
@@ -168,7 +182,7 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
 
     fn deletions_par_iter(
         self,
-        layer_ids: &'a LayerIds,
+        layer_ids: LayerIds,
     ) -> impl ParallelIterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
         self.layer_ids_par_iter(layer_ids)
             .map(move |id| (id, self.deletions(id)))
@@ -176,7 +190,7 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
 
     fn updates_iter(
         self,
-        layer_ids: &'a LayerIds,
+        layer_ids: LayerIds,
     ) -> impl Iterator<Item = (usize, TimeIndexRef<'a>, TimeIndexRef<'a>)> + 'a {
         self.layer_ids_iter(layer_ids)
             .map(move |id| (id, self.additions(id), self.deletions(id)))
@@ -184,7 +198,7 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
 
     fn updates_par_iter(
         self,
-        layer_ids: &'a LayerIds,
+        layer_ids: LayerIds,
     ) -> impl ParallelIterator<Item = (usize, TimeIndexRef<'a>, TimeIndexRef<'a>)> + 'a {
         self.layer_ids_par_iter(layer_ids)
             .map(move |id| (id, self.additions(id), self.deletions(id)))
@@ -193,7 +207,7 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn additions(self, layer_id: usize) -> TimeIndexRef<'a>;
     fn deletions(self, layer_id: usize) -> TimeIndexRef<'a>;
 
-    fn has_temporal_prop(self, layer_ids: &'a LayerIds, prop_id: usize) -> bool {
+    fn has_temporal_prop(self, layer_ids: LayerIds, prop_id: usize) -> bool {
         self.layer_ids_par_iter(layer_ids)
             .any(move |id| !self.temporal_prop_layer(id, prop_id).is_empty())
     }
@@ -202,7 +216,7 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
 
     fn temporal_prop_iter(
         self,
-        layer_ids: &'a LayerIds,
+        layer_ids: LayerIds,
         prop_id: usize,
     ) -> impl Iterator<Item = (usize, impl TPropOps<'a>)> + 'a {
         self.layer_ids_iter(layer_ids)
@@ -211,7 +225,7 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
 
     fn temporal_prop_par_iter(
         self,
-        layer_ids: &'a LayerIds,
+        layer_ids: LayerIds,
         prop_id: usize,
     ) -> impl ParallelIterator<Item = (usize, impl TPropOps<'a>)> + 'a {
         self.layer_ids_par_iter(layer_ids)
@@ -280,19 +294,16 @@ impl<'a> MemEdge<'a> {
 }
 
 impl<'a> EdgeStorageOps<'a> for MemEdge<'a> {
-    fn active(self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
+    fn active(self, layer_ids: LayerIds, w: Range<i64>) -> bool {
         match layer_ids {
             LayerIds::None => false,
             LayerIds::All => self
                 .additions_iter(layer_ids)
                 .any(|(_, t_index)| t_index.active_t(w.clone())),
-            LayerIds::One(l_id) => self
-                .get_additions(*l_id)
-                .filter(|a| a.active_t(w))
-                .is_some(),
+            LayerIds::One(l_id) => self.get_additions(l_id).filter(|a| a.active_t(w)).is_some(),
             LayerIds::Multiple(layers) => layers
                 .iter()
-                .any(|l_id| self.active(&LayerIds::One(*l_id), w.clone())),
+                .any(|l_id| self.active(LayerIds::One(l_id), w.clone())),
         }
     }
 
@@ -301,7 +312,7 @@ impl<'a> EdgeStorageOps<'a> for MemEdge<'a> {
             LayerIds::None => false,
             LayerIds::All => true,
             LayerIds::One(id) => self.has_layer_inner(*id),
-            LayerIds::Multiple(ids) => ids.iter().any(|id| self.has_layer_inner(*id)),
+            LayerIds::Multiple(ids) => ids.iter().any(|id| self.has_layer_inner(id)),
         }
     }
 
@@ -317,27 +328,22 @@ impl<'a> EdgeStorageOps<'a> for MemEdge<'a> {
         EdgeRef::new_outgoing(self.eid(), self.src(), self.dst())
     }
 
-    fn layer_ids_iter(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = usize> + 'a {
+    fn layer_ids_iter(self, layer_ids: LayerIds) -> impl Iterator<Item = usize> + 'a {
         match layer_ids {
             LayerIds::None => LayerVariants::None(std::iter::empty()),
             LayerIds::All => LayerVariants::All(
                 (0..self.internal_num_layers()).filter(move |&l| self.has_layer_inner(l)),
             ),
             LayerIds::One(id) => {
-                LayerVariants::One(self.has_layer_inner(*id).then_some(*id).into_iter())
+                LayerVariants::One(self.has_layer_inner(id).then_some(id).into_iter())
             }
-            LayerIds::Multiple(ids) => LayerVariants::Multiple(
-                ids.iter()
-                    .copied()
-                    .filter(move |&id| self.has_layer_inner(id)),
-            ),
+            LayerIds::Multiple(ids) => {
+                LayerVariants::Multiple(ids.iter().filter(move |&id| self.has_layer_inner(id)))
+            }
         }
     }
 
-    fn layer_ids_par_iter(
-        self,
-        layer_ids: &'a LayerIds,
-    ) -> impl ParallelIterator<Item = usize> + 'a {
+    fn layer_ids_par_iter(self, layer_ids: LayerIds) -> impl ParallelIterator<Item = usize> + 'a {
         match layer_ids {
             LayerIds::None => LayerVariants::None(rayon::iter::empty()),
             LayerIds::All => LayerVariants::All(
@@ -346,13 +352,11 @@ impl<'a> EdgeStorageOps<'a> for MemEdge<'a> {
                     .filter(move |&l| self.has_layer_inner(l)),
             ),
             LayerIds::One(id) => {
-                LayerVariants::One(self.has_layer_inner(*id).then_some(*id).into_par_iter())
+                LayerVariants::One(self.has_layer_inner(id).then_some(id).into_par_iter())
             }
-            LayerIds::Multiple(ids) => LayerVariants::Multiple(
-                ids.par_iter()
-                    .copied()
-                    .filter(move |&id| self.has_layer_inner(id)),
-            ),
+            LayerIds::Multiple(ids) => {
+                LayerVariants::Multiple(ids.par_iter().filter(move |&id| self.has_layer_inner(id)))
+            }
         }
     }
 

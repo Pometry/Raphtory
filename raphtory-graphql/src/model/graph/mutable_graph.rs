@@ -91,7 +91,7 @@ impl GqlMutableGraph {
             as_properties(properties.unwrap_or(vec![])),
             node_type.as_str(),
         )?;
-        node.update_embeddings().await;
+        node.update_embeddings().await?;
         self.graph.write_updates()?;
         Ok(node.into())
     }

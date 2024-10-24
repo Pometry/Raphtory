@@ -454,7 +454,10 @@ mod db_tests {
                 graph.const_prop_ids().collect::<Vec<_>>(),
                 Vec::<usize>::new()
             );
-            assert_eq!(graph.const_prop_values(), Vec::<Prop>::new());
+            assert_eq!(
+                graph.const_prop_values().collect::<Vec<_>>(),
+                Vec::<Prop>::new()
+            );
             assert!(graph.constant_prop(1).is_none());
             assert!(graph.get_const_prop_id("1").is_none());
             assert!(graph.get_const_prop(1).is_none());

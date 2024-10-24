@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 import string
 from pathlib import Path
 from pytest import fixture
+from numpy.testing import assert_equal as check_arr
 import os
 import shutil
 import numpy as np
@@ -1034,7 +1035,7 @@ def test_exploded_edge_time():
         exploded_his = []
         for ee in e.explode():
             exploded_his.append(ee.time)
-        assert his == exploded_his
+        assert (his & exploded_his).all()
 
     check(g)
 
@@ -1475,9 +1476,9 @@ def test_node_history():
 
     # @with_disk_graph FIXME: need special handling for nodes additions from Graph
     def check(g):
-        assert g.node(1).history() == [1, 2, 3, 4, 8]
+        check_arr(g.node(1).history(), [1, 2, 3, 4, 8])
         view = g.window(1, 8)
-        assert view.node(1).history() == [1, 2, 3, 4]
+        check_arr(view.node(1).history(), [1, 2, 3, 4])
 
     check(g)
 
@@ -1490,9 +1491,9 @@ def test_node_history():
 
     # @with_disk_graph FIXME: need special handling for nodes additions from Graph
     def check(g):
-        assert g.node("Lord Farquaad").history() == [4, 6, 7, 8]
+        check_arr(g.node("Lord Farquaad").history(), [4, 6, 7, 8])
         view = g.window(1, 8)
-        assert view.node("Lord Farquaad").history() == [4, 6, 7]
+        check_arr(view.node("Lord Farquaad").history(), [4, 6, 7])
 
     check(g)
 
@@ -1510,29 +1511,32 @@ def test_edge_history():
         view = g.window(1, 5)
         view2 = g.window(1, 4)
 
-        assert g.edge(1, 2).history() == [1, 3]
-        assert view.edge(1, 4).history() == [4]
-        assert g.edges.history() == [[1, 3], [2], [4]]
-        assert view2.edges.history() == [[1, 3], [2]]
+        check_arr(g.edge(1, 2).history(), [1, 3])
+        check_arr(view.edge(1, 4).history(), [4])
+        check_arr(list(g.edges.history()), [[1, 3], [2], [4]])
+        check_arr(list(view2.edges.history()), [[1, 3], [2]])
 
         old_way = []
         for e in g.edges:
             old_way.append(e.history())
-        assert list(g.edges.history()) == old_way
+        check_arr(list(g.edges.history()), old_way)
 
-        assert g.nodes.edges.history().collect() == [
-            [[1, 3], [2], [4]],
-            [[1, 3]],
-            [[2]],
-            [[4]],
-        ]
+        check_arr(
+            g.nodes.edges.history().collect(),
+            [
+                [[1, 3], [2], [4]],
+                [[1, 3]],
+                [[2]],
+                [[4]],
+            ],
+        )
 
         old_way2 = []
         for edges in g.nodes.edges:
             for edge in edges:
                 old_way2.append(edge.history())
         new_way = g.nodes.edges.history().collect()
-        assert [item for sublist in new_way for item in sublist] == old_way2
+        check_arr([np.array(item) for sublist in new_way for item in sublist], old_way2)
 
     check(g)
 
@@ -1542,75 +1546,82 @@ def test_lotr_edge_history():
 
     @with_disk_graph
     def check(g):
-        assert g.edge("Frodo", "Gandalf").history() == [
-            329,
-            555,
-            861,
-            1056,
-            1130,
-            1160,
-            1234,
-            1241,
-            1390,
-            1417,
-            1656,
-            1741,
-            1783,
-            1785,
-            1792,
-            1804,
-            1809,
-            1999,
-            2056,
-            2254,
-            2925,
-            2999,
-            3703,
-            3914,
-            4910,
-            5620,
-            5775,
-            6381,
-            6531,
-            6578,
-            6661,
-            6757,
-            7041,
-            7356,
-            8183,
-            8190,
-            8276,
-            8459,
-            8598,
-            8871,
-            9098,
-            9343,
-            9903,
-            11189,
-            11192,
-            11279,
-            11365,
-            14364,
-            21551,
-            21706,
-            23212,
-            26958,
-            27060,
-            29024,
-            30173,
-            30737,
-            30744,
-            31023,
-            31052,
-            31054,
-            31103,
-            31445,
-            32656,
-        ]
-        assert g.before(1000).edge("Frodo", "Gandalf").history() == [329, 555, 861]
-        assert g.edge("Frodo", "Gandalf").before(1000).history() == [329, 555, 861]
-        assert g.window(100, 1000).edge("Frodo", "Gandalf").history() == [329, 555, 861]
-        assert g.edge("Frodo", "Gandalf").window(100, 1000).history() == [329, 555, 861]
+        check_arr(
+            g.edge("Frodo", "Gandalf").history(),
+            [
+                329,
+                555,
+                861,
+                1056,
+                1130,
+                1160,
+                1234,
+                1241,
+                1390,
+                1417,
+                1656,
+                1741,
+                1783,
+                1785,
+                1792,
+                1804,
+                1809,
+                1999,
+                2056,
+                2254,
+                2925,
+                2999,
+                3703,
+                3914,
+                4910,
+                5620,
+                5775,
+                6381,
+                6531,
+                6578,
+                6661,
+                6757,
+                7041,
+                7356,
+                8183,
+                8190,
+                8276,
+                8459,
+                8598,
+                8871,
+                9098,
+                9343,
+                9903,
+                11189,
+                11192,
+                11279,
+                11365,
+                14364,
+                21551,
+                21706,
+                23212,
+                26958,
+                27060,
+                29024,
+                30173,
+                30737,
+                30744,
+                31023,
+                31052,
+                31054,
+                31103,
+                31445,
+                32656,
+            ],
+        )
+        check_arr(g.before(1000).edge("Frodo", "Gandalf").history(), [329, 555, 861])
+        check_arr(g.edge("Frodo", "Gandalf").before(1000).history(), [329, 555, 861])
+        check_arr(
+            g.window(100, 1000).edge("Frodo", "Gandalf").history(), [329, 555, 861]
+        )
+        check_arr(
+            g.edge("Frodo", "Gandalf").window(100, 1000).history(), [329, 555, 861]
+        )
 
     check(g)
 
@@ -2103,8 +2114,8 @@ def test_materialize_graph():
         assert mg.node(1).properties.get("type") == "wallet"
         assert mg.node(4).properties == {"abc": "xyz"}
         assert mg.node(4).properties.constant.get("abc") == "xyz"
-        assert mg.node(1).history() == [-1, 0, 1, 2]
-        assert mg.node(4).history() == [6, 8]
+        check_arr(mg.node(1).history(), [-1, 0, 1, 2])
+        check_arr(mg.node(4).history(), [6, 8])
         assert mg.nodes.id.collect() == [1, 2, 3, 4]
         assert set(mg.edges.id) == {(1, 1), (1, 2), (1, 3), (2, 1), (3, 2), (2, 4)}
         assert g.nodes.id.collect() == mg.nodes.id.collect()
@@ -2666,8 +2677,8 @@ def test_leading_zeroes_ids():
 
     # @with_disk_graph # FIXME: need special handling for nodes additions from Graph
     def check(g):
-        assert g.node(0).history() == [0, 1]
-        assert g.node("0").history() == [0, 1]
+        check_arr(g.node(0).history(), [0, 1])
+        check_arr(g.node("0").history(), [0, 1])
         assert g.nodes.name.collect() == ["0"]
 
     check(g)

@@ -9,7 +9,7 @@ use crate::{
             PyPropsListCmp,
         },
         types::repr::{iterator_dict_repr, Repr},
-        utils::PyGenericIterator,
+        utils::{NumpyArray, PyGenericIterator},
     },
 };
 use itertools::Itertools;
@@ -52,8 +52,8 @@ impl PyConstProperties {
     /// values() -> list[Any]
     ///
     /// lists the property values
-    pub fn values(&self) -> Vec<Prop> {
-        self.props.values()
+    pub fn values(&self) -> NumpyArray {
+        self.props.values_iter().collect()
     }
 
     /// items() -> list[tuple[str, Any]]

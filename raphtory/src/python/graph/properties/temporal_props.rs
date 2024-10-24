@@ -20,7 +20,7 @@ use crate::{
                 prop::{PropHistItems, PropValue},
             },
         },
-        utils::{PyGenericIterator, PyTime},
+        utils::{NumpyArray, PyGenericIterator, PyTime},
     },
 };
 use chrono::{DateTime, Utc};
@@ -222,8 +222,8 @@ py_eq!(PyTemporalProp, PyTemporalPropCmp);
 #[pymethods]
 impl PyTemporalProp {
     /// Get the timestamps at which the property was updated
-    pub fn history(&self) -> Vec<i64> {
-        self.prop.history()
+    pub fn history(&self) -> NumpyArray {
+        self.prop.history().collect::<Vec<_>>().into()
     }
 
     /// Get the timestamps at which the property was updated
@@ -232,8 +232,8 @@ impl PyTemporalProp {
     }
 
     /// Get the property values for each update
-    pub fn values(&self) -> Vec<Prop> {
-        self.prop.values()
+    pub fn values(&self) -> NumpyArray {
+        self.prop.values().collect()
     }
 
     /// List update timestamps and corresponding property values
@@ -258,7 +258,7 @@ impl PyTemporalProp {
 
     /// Iterate over `items`
     pub fn __iter__(&self) -> PyGenericIterator {
-        self.prop.iter().into()
+        self.prop.histories().collect::<Vec<_>>().into_iter().into()
     }
     /// Get the value of the property at time `t`
     pub fn at(&self, t: PyTime) -> Option<Prop> {
@@ -595,18 +595,17 @@ impl PyTemporalPropList {
     #[getter]
     pub fn history(&self) -> I64VecIterable {
         let builder = self.builder.clone();
-        (move || builder().map(|p| p.map(|v| v.history()).unwrap_or_default())).into()
+        (move || builder().map(|p| p.map(|v| v.history().collect_vec()).unwrap_or_default())).into()
     }
 
     pub fn values(&self) -> PyPropHistValueList {
         let builder = self.builder.clone();
-        (move || builder().map(|p| p.map(|v| v.values()).unwrap_or_default())).into()
+        (move || builder().map(|p| p.map(|v| v.values().collect_vec()).unwrap_or_default())).into()
     }
 
     pub fn items(&self) -> PyPropHistItemsList {
         let builder = self.builder.clone();
-        (move || builder().map(|p| p.map(|v| v.iter().collect::<Vec<_>>()).unwrap_or_default()))
-            .into()
+        (move || builder().map(|p| p.map(|v| v.iter().collect_vec()).unwrap_or_default())).into()
     }
 
     pub fn at(&self, t: PyTime) -> PyPropValueList {
@@ -775,19 +774,24 @@ impl PyTemporalPropListList {
     #[getter]
     pub fn history(&self) -> NestedI64VecIterable {
         let builder = self.builder.clone();
-        (move || builder().map(|it| it.map(|p| p.map(|v| v.history()).unwrap_or_default()))).into()
+        (move || {
+            builder().map(|it| it.map(|p| p.map(|v| v.history().collect_vec()).unwrap_or_default()))
+        })
+        .into()
     }
 
     pub fn values(&self) -> PyPropHistValueListList {
         let builder = self.builder.clone();
-        (move || builder().map(|it| it.map(|p| p.map(|v| v.values()).unwrap_or_default()))).into()
+        (move || {
+            builder().map(|it| it.map(|p| p.map(|v| v.values().collect_vec()).unwrap_or_default()))
+        })
+        .into()
     }
 
     pub fn items(&self) -> PyPropHistItemsListList {
         let builder = self.builder.clone();
         (move || {
-            builder()
-                .map(|it| it.map(|p| p.map(|v| v.iter().collect::<Vec<_>>()).unwrap_or_default()))
+            builder().map(|it| it.map(|p| p.map(|v| v.iter().collect_vec()).unwrap_or_default()))
         })
         .into()
     }

@@ -3,6 +3,7 @@ import pytest
 from dateutil import parser
 from raphtory.graphql import GraphServer, RaphtoryClient
 from datetime import datetime, timezone
+from numpy.testing import assert_equal as check_arr
 
 
 def make_props():
@@ -95,7 +96,7 @@ def test_add_properties():
             int(localized_datetime.timestamp() * 1000),
         ]
 
-        assert g.properties.temporal.get("prop_map").history() == timestamps
+        check_arr(g.properties.temporal.get("prop_map").history(), timestamps)
 
 
 def test_add_node():

@@ -31,7 +31,7 @@ impl<'a> DiskEdgesRef<'a> {
             layer_ids => LayerVariants::Multiple(
                 self.graph
                     .edges_iter()
-                    .filter(move |e| e.has_layer(&layer_ids)),
+                    .filter(move |e| e.has_layer(layer_ids.clone())),
             ),
         }
     }
@@ -46,25 +46,25 @@ impl<'a> DiskEdgesRef<'a> {
             layer_ids => LayerVariants::Multiple(
                 self.graph
                     .edges_par_iter()
-                    .filter(move |e| e.has_layer(&layer_ids)),
+                    .filter(move |e| e.has_layer(layer_ids.clone())),
             ),
         }
     }
 
-    pub fn count(self, layers: &LayerIds) -> usize {
+    pub fn count(self, layers: LayerIds) -> usize {
         match layers {
             LayerIds::None => 0,
             LayerIds::All => self.graph.num_edges(),
-            LayerIds::One(id) => self.graph.layer(*id).num_edges(),
+            LayerIds::One(id) => self.graph.layer(id).num_edges(),
             layer_ids => self
                 .graph
                 .edges_par_iter()
-                .filter(|e| e.has_layer(layer_ids))
+                .filter(move |e| e.has_layer(layer_ids.clone()))
                 .count(),
         }
     }
 
     pub fn len(&self) -> usize {
-        self.count(&LayerIds::All)
+        self.count(LayerIds::All)
     }
 }

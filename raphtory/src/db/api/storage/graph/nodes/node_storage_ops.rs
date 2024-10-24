@@ -23,8 +23,7 @@ pub trait NodeStorageOps<'a>: Sized {
 
     fn prop(self, prop_id: usize) -> Option<Prop>;
 
-    fn edges_iter(self, layers: &'a LayerIds, dir: Direction)
-        -> impl Iterator<Item = EdgeRef> + 'a;
+    fn edges_iter(self, layers: &LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> + 'a;
 
     fn node_type_id(self) -> usize;
 
@@ -54,11 +53,7 @@ impl<'a> NodeStorageOps<'a> for &'a NodeStore {
         self.constant_property(prop_id).cloned()
     }
 
-    fn edges_iter(
-        self,
-        layers: &'a LayerIds,
-        dir: Direction,
-    ) -> impl Iterator<Item = EdgeRef> + 'a {
+    fn edges_iter(self, layers: &LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> + 'a {
         self.edge_tuples(layers, dir)
     }
 
@@ -96,10 +91,10 @@ pub trait NodeStorageIntoOps: Sized {
 
 impl NodeStorageIntoOps for ArcEntry<NodeStore> {
     fn into_edges_iter(self, layers: LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> {
-        self.into_edges(&layers, dir)
+        self.into_edges(layers, dir)
     }
 
     fn into_neighbours_iter(self, layers: LayerIds, dir: Direction) -> impl Iterator<Item = VID> {
-        self.into_neighbours(&layers, dir)
+        self.into_neighbours(layers, dir)
     }
 }

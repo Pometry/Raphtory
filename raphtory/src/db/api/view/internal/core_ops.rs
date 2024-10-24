@@ -115,10 +115,7 @@ pub trait CoreGraphOps {
             }
             LayerIds::Multiple(ids) => {
                 let keys = self.edge_meta().layer_meta().get_keys();
-                Box::new((0..ids.len()).map(move |index| {
-                    let id = ids[index];
-                    keys[id].clone()
-                }))
+                Box::new(ids.iter().map(move |id| keys[id].clone()))
             }
         }
     }
@@ -293,7 +290,7 @@ pub trait CoreGraphOps {
     fn temporal_edge_prop_ids(
         &self,
         e: EdgeRef,
-        layer_ids: &LayerIds,
+        layer_ids: LayerIds,
     ) -> Box<dyn Iterator<Item = usize> + '_> {
         // FIXME once the disk storage can handle multiple layers this can be implemented generically over the EdgeStorageEntry
         match self.core_graph() {

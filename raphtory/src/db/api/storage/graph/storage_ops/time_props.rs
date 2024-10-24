@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use super::GraphStorage;
 use crate::{
-    core::PropType,
+    core::{utils::iter::GenLockedIter, PropType},
     db::api::{
         properties::internal::{TemporalPropertiesOps, TemporalPropertyViewOps},
         storage::graph::tprop_storage_ops::TPropOps,
@@ -23,6 +23,17 @@ impl TemporalPropertyViewOps for GraphStorage {
             .get_temporal_prop(id)
             .map(|prop| prop.iter_t().map(|(t, _)| t).collect())
             .unwrap_or_default()
+    }
+
+    fn temporal_history_iter(&self, id: usize) -> Box<dyn Iterator<Item = i64> + '_> {
+        Box::new(
+            self.graph_meta()
+                .get_temporal_prop(id)
+                .into_iter()
+                .flat_map(|prop| {
+                    GenLockedIter::from(prop, |prop| Box::new(prop.iter_t().map(|(t, _)| t)))
+                }),
+        )
     }
 
     fn temporal_values(&self, id: usize) -> Vec<Prop> {

@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 import pytest
 from dateutil import parser
 from raphtory.graphql import GraphServer, RaphtoryClient
+from numpy.testing import assert_equal as check_arr
 
 
 def make_props():
@@ -68,7 +69,7 @@ def test_add_updates():
         rg.node("ben").add_updates(4)
         g = client.receive_graph("path/to/event_graph")
         helper_test_props(g.node("ben"), props)
-        assert g.node("ben").history() == [1, 2, 3, 4]
+        check_arr( g.node("ben").history() , [1, 2, 3, 4])
 
 
 def test_add_constant_properties():

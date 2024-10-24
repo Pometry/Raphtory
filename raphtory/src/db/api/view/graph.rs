@@ -198,11 +198,15 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
             }
             LayerIds::Multiple(ids) => {
                 let mut layer_map = vec![0; self.unfiltered_num_layers()];
-                let ids = if ids[0] == 0 { &ids[1..] } else { ids };
+                let ids = if ids.find(0) == Some(0) {
+                    ids.iter().skip(1).into_dyn_boxed()
+                } else {
+                    ids.iter().into_dyn_boxed()
+                };
                 let layers = storage.edge_meta().layer_meta().get_keys();
                 for id in ids {
-                    let new_id = g.resolve_layer(Some(&layers[*id]))?.inner();
-                    layer_map[*id] = new_id;
+                    let new_id = g.resolve_layer(Some(&layers[id]))?.inner();
+                    layer_map[id] = new_id;
                 }
                 layer_map
             }
@@ -276,9 +280,11 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                                 additions.insert(t);
                             }
                             for t_prop in edge.temporal_prop_ids() {
-                                for (t, prop_value) in
-                                    self.temporal_edge_prop_hist(edge.edge, t_prop, &old_layer)
-                                {
+                                for (t, prop_value) in self.temporal_edge_prop_hist(
+                                    edge.edge,
+                                    t_prop,
+                                    old_layer.clone(),
+                                ) {
                                     new_edge.layer_mut(layer).add_prop(t, t_prop, prop_value)?;
                                 }
                             }
@@ -291,7 +297,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                             }
                             if self.include_deletions() {
                                 let mut deletion_history =
-                                    self.edge_deletion_history(edge.edge, &old_layer).peekable();
+                                    self.edge_deletion_history(edge.edge, old_layer).peekable();
                                 if deletion_history.peek().is_some() {
                                     let edge_deletions = new_edge.deletions_mut(layer_map[layer]);
                                     for t in deletion_history {
@@ -398,11 +404,11 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                 NodeList::All { .. } => core_nodes
                     .as_ref()
                     .par_iter()
-                    .filter(|v| self.filter_node(*v, layer_ids))
+                    .filter(move |v| self.filter_node(*v, layer_ids))
                     .count(),
                 NodeList::List { nodes } => nodes
                     .par_iter()
-                    .filter(|&&id| self.filter_node(core_nodes.node_entry(id), layer_ids))
+                    .filter(move |&&id| self.filter_node(core_nodes.node_entry(id), layer_ids))
                     .count(),
             }
         } else {
@@ -425,7 +431,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                 let nodes = self.core_nodes();
                 edges
                     .as_ref()
-                    .par_iter(self.layer_ids().clone())
+                    .par_iter(self.layer_ids())
                     .filter(|e| {
                         self.filter_edge(e.as_ref(), self.layer_ids())
                             && self.filter_node(nodes.node_entry(e.src()), self.layer_ids())
@@ -438,7 +444,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                 let nodes = self.core_nodes();
                 edges
                     .as_ref()
-                    .par_iter(self.layer_ids().clone())
+                    .par_iter(self.layer_ids())
                     .filter(|e| {
                         self.filter_node(nodes.node_entry(e.src()), self.layer_ids())
                             && self.filter_node(nodes.node_entry(e.dst()), self.layer_ids())
@@ -449,7 +455,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                 let edges = self.core_edges();
                 edges
                     .as_ref()
-                    .par_iter(self.layer_ids().clone())
+                    .par_iter(self.layer_ids())
                     .filter(|e| self.filter_edge(e.as_ref(), self.layer_ids()))
                     .count()
             }
@@ -462,39 +468,39 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         match self.filter_state() {
             FilterState::Neither => core_edges
                 .as_ref()
-                .par_iter(layer_ids.clone())
-                .map(|edge| self.edge_exploded_count(edge.as_ref(), layer_ids))
+                .par_iter(layer_ids)
+                .map(move |edge| self.edge_exploded_count(edge.as_ref(), layer_ids))
                 .sum(),
             FilterState::Both => {
                 let nodes = self.core_nodes();
                 core_edges
                     .as_ref()
-                    .par_iter(layer_ids.clone())
+                    .par_iter(layer_ids)
                     .filter(|e| {
                         self.filter_edge(e.as_ref(), self.layer_ids())
                             && self.filter_node(nodes.node_entry(e.src()), self.layer_ids())
                             && self.filter_node(nodes.node_entry(e.dst()), self.layer_ids())
                     })
-                    .map(|e| self.edge_exploded_count(e.as_ref(), layer_ids))
+                    .map(move |e| self.edge_exploded_count(e.as_ref(), layer_ids))
                     .sum()
             }
             FilterState::Nodes => {
                 let nodes = self.core_nodes();
                 core_edges
                     .as_ref()
-                    .par_iter(layer_ids.clone())
+                    .par_iter(layer_ids)
                     .filter(|e| {
                         self.filter_node(nodes.node_entry(e.src()), self.layer_ids())
                             && self.filter_node(nodes.node_entry(e.dst()), self.layer_ids())
                     })
-                    .map(|e| self.edge_exploded_count(e.as_ref(), layer_ids))
+                    .map(move |e| self.edge_exploded_count(e.as_ref(), layer_ids))
                     .sum()
             }
             FilterState::Edges | FilterState::BothIndependent => core_edges
                 .as_ref()
-                .par_iter(layer_ids.clone())
+                .par_iter(layer_ids)
                 .filter(|e| self.filter_edge(e.as_ref(), self.layer_ids()))
-                .map(|e| self.edge_exploded_count(e.as_ref(), layer_ids))
+                .map(move |e| self.edge_exploded_count(e.as_ref(), layer_ids))
                 .sum(),
         }
     }
