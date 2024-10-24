@@ -70,7 +70,7 @@ impl<'a> EdgesStorageRef<'a> {
             EdgesStorageRef::Unlocked(edges) => StorageVariants::Unlocked(
                 edges
                     .iter()
-                    .filter(move |e| e.as_mem_edge().has_layer(layers.clone))
+                    .filter(move |e| e.as_mem_edge().has_layer(layers.clone()))
                     .map(EdgeStorageEntry::Unlocked),
             ),
         }
