@@ -8,7 +8,7 @@ use crate::{
         App,
     },
     observability::open_telemetry::OpenTelemetry,
-    routes::{graphql_playground, health, ui},
+    routes::{health, ui},
     server::ServerError::SchemaError,
 };
 use async_graphql_poem::GraphQL;
@@ -234,7 +234,7 @@ impl GraphServer {
             .at("/", get(ui).post(GraphQL::new(schema)))
             .at("/graph", get(ui))
             .at("/search", get(ui))
-            .at("/playground", get(graphql_playground))
+            .at("/playground", get(ui))
             .at("/health", get(health))
             .with(CookieJarManager::new())
             .with(Cors::new());
