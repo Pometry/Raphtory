@@ -4812,6 +4812,7 @@ dependencies = [
 name = "raphtory-pymodule"
 version = "0.13.1"
 dependencies = [
+ "numpy",
  "pyo3",
  "pyo3-build-config",
  "raphtory",
