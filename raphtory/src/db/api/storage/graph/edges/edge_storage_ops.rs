@@ -300,10 +300,7 @@ impl<'a> EdgeStorageOps<'a> for MemEdge<'a> {
             LayerIds::All => self
                 .additions_iter(layer_ids)
                 .any(|(_, t_index)| t_index.active_t(w.clone())),
-            LayerIds::One(l_id) => self
-                .get_additions(l_id)
-                .filter(|a| a.active_t(w))
-                .is_some(),
+            LayerIds::One(l_id) => self.get_additions(l_id).filter(|a| a.active_t(w)).is_some(),
             LayerIds::Multiple(layers) => layers
                 .iter()
                 .any(|l_id| self.active(LayerIds::One(l_id), w.clone())),

@@ -328,6 +328,14 @@ impl TimeSemantics for GraphStorage {
             .unwrap_or_default()
     }
 
+    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLIter<(i64, Prop)> {
+        self.graph_meta()
+            .get_temporal_prop(prop_id)
+            .into_iter()
+            .flat_map(move |prop| GenLockedIter::from(prop, |prop| prop.iter_t().into_dyn_boxed()))
+            .into_dyn_boxed()
+    }
+
     fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
         self.graph_meta()
             .get_temporal_prop(prop_id)
@@ -341,6 +349,21 @@ impl TimeSemantics for GraphStorage {
             .get_temporal_prop(prop_id)
             .map(|prop| prop.iter_window_t(start..end).collect())
             .unwrap_or_default()
+    }
+
+    fn temporal_prop_iter_window(
+        &self,
+        prop_id: usize,
+        start: i64,
+        end: i64,
+    ) -> BoxedLIter<(i64, Prop)> {
+        self.graph_meta()
+            .get_temporal_prop(prop_id)
+            .into_iter()
+            .flat_map(move |prop| {
+                GenLockedIter::from(prop, |prop| prop.iter_window_t(start..end).into_dyn_boxed())
+            })
+            .into_dyn_boxed()
     }
 
     fn has_temporal_node_prop(&self, v: VID, prop_id: usize) -> bool {

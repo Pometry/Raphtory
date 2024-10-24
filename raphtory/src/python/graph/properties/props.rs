@@ -21,7 +21,6 @@ use crate::{
     },
 };
 use itertools::Itertools;
-use numpy::ndarray::ArrayViewMut;
 use pyo3::{
     exceptions::{PyKeyError, PyTypeError},
     prelude::*,
@@ -125,7 +124,7 @@ impl PyProperties {
     ///
     /// If a property exists as both temporal and static, temporal properties take priority with
     /// fallback to the static property if the temporal value does not exist.
-    pub fn values(&self) -> NumpyArray{
+    pub fn values(&self) -> NumpyArray {
         self.props.values().collect()
     }
 

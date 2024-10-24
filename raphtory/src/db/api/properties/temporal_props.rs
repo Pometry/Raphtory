@@ -24,26 +24,27 @@ impl<P: PropertiesOps> TemporalPropertyView<P> {
     pub fn dtype(&self) -> PropType {
         self.props.dtype(self.id)
     }
-    pub fn history(&self) -> Vec<i64> {
-        self.props.temporal_history(self.id)
+    pub fn history(&self) -> impl Iterator<Item = i64> + '_ {
+        self.props.temporal_history_iter(self.id)
     }
     pub fn history_date_time(&self) -> Option<Vec<DateTime<Utc>>> {
         self.props.temporal_history_date_time(self.id)
     }
-    pub fn values(&self) -> Vec<Prop> {
-        self.props.temporal_values(self.id)
-    }
-    pub fn iter(&self) -> impl Iterator<Item = (i64, Prop)> {
-        self.into_iter()
+    pub fn values(&self) -> impl Iterator<Item = Prop> + '_ {
+        self.props.temporal_values_iter(self.id)
     }
 
-    pub fn histories(&self) -> impl Iterator<Item = (i64, Prop)> {
+    pub fn iter(&self) -> impl Iterator<Item = (i64, Prop)> + '_ {
+        self.history().zip(self.values())
+    }
+
+    pub fn histories(&self) -> impl Iterator<Item = (i64, Prop)> + '_ {
         self.iter()
     }
 
     pub fn histories_date_time(&self) -> Option<impl Iterator<Item = (DateTime<Utc>, Prop)>> {
         let hist = self.history_date_time()?;
-        let vals = self.values();
+        let vals = self.values().collect::<Vec<_>>();
         Some(hist.into_iter().zip(vals))
     }
 
@@ -95,8 +96,8 @@ impl<P: PropertiesOps> IntoIterator for TemporalPropertyView<P> {
     type IntoIter = Zip<std::vec::IntoIter<i64>, std::vec::IntoIter<Prop>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        let hist = self.history();
-        let vals = self.values();
+        let hist = self.history().collect::<Vec<_>>();
+        let vals = self.values().collect::<Vec<_>>();
         hist.into_iter().zip(vals)
     }
 }
@@ -106,8 +107,8 @@ impl<P: PropertiesOps> IntoIterator for &TemporalPropertyView<P> {
     type IntoIter = Zip<std::vec::IntoIter<i64>, std::vec::IntoIter<Prop>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        let hist = self.history();
-        let vals = self.values();
+        let hist = self.history().collect::<Vec<_>>();
+        let vals = self.values().collect::<Vec<_>>();
         hist.into_iter().zip(vals)
     }
 }
@@ -165,7 +166,7 @@ impl<P: PropertiesOps + Clone> TemporalProperties<P> {
 
     pub fn histories(&self) -> Vec<(ArcStr, (i64, Prop))> {
         self.iter()
-            .flat_map(|(k, v)| v.histories().map(move |v| (k.clone(), v.clone())))
+            .flat_map(|(k, v)| v.into_iter().map(move |v| (k.clone(), v.clone())))
             .collect()
     }
 

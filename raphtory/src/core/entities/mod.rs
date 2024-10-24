@@ -1,6 +1,5 @@
 use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
-use std::{borrow::Cow, sync::Arc};
 
 pub mod edges;
 pub mod graph;
@@ -27,9 +26,8 @@ impl Default for BitMultiple {
 }
 
 impl BitMultiple {
-
     // Not qute binary_search but will rename_later
-    pub fn binary_search(&self, pos: &usize) -> Option<usize>{
+    pub fn binary_search(&self, pos: &usize) -> Option<usize> {
         self.0.get(*pos).filter(|b| *b).map(|_| *pos)
     }
 
@@ -139,10 +137,7 @@ impl LayerIds {
                 }
             }
             (LayerIds::Multiple(ids), other) => {
-                let ids: Vec<usize> = ids
-                    .iter()
-                    .filter(|id| other.contains(id))
-                    .collect();
+                let ids: Vec<usize> = ids.iter().filter(|id| other.contains(id)).collect();
                 match ids.len() {
                     0 => LayerIds::None,
                     1 => LayerIds::One(ids[0]),
@@ -169,10 +164,7 @@ impl LayerIds {
                 }
             }
             (LayerIds::Multiple(ids), other) => {
-                let ids: Vec<usize> = ids
-                    .iter()
-                    .filter(|id| !other.contains(id))
-                    .collect();
+                let ids: Vec<usize> = ids.iter().filter(|id| !other.contains(id)).collect();
                 match ids.len() {
                     0 => LayerIds::None,
                     1 => LayerIds::One(ids[0]),

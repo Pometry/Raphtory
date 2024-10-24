@@ -14,7 +14,7 @@ impl<P: ConstPropertiesOps> ConstProperties<P> {
         self.props.const_prop_keys().collect()
     }
 
-    pub fn values(&self) -> Vec<Prop> {
+    pub fn values(&self) -> Box<dyn Iterator<Item = Prop> + '_> {
         self.props.const_prop_values()
     }
 
@@ -54,7 +54,7 @@ impl<P: ConstPropertiesOps> IntoIterator for ConstProperties<P> {
 
     fn into_iter(self) -> Self::IntoIter {
         let keys = self.keys();
-        let vals = self.values();
+        let vals = self.values().collect::<Vec<_>>();
         keys.into_iter().zip(vals)
     }
 }
@@ -65,7 +65,7 @@ impl<P: ConstPropertiesOps> IntoIterator for &ConstProperties<P> {
 
     fn into_iter(self) -> Self::IntoIter {
         let keys = self.keys();
-        let vals = self.values();
+        let vals = self.values().collect::<Vec<_>>();
         keys.into_iter().zip(vals)
     }
 }

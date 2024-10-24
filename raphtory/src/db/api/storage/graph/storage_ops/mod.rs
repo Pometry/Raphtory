@@ -1,6 +1,6 @@
 use super::{
     edges::{edge_entry::EdgeStorageEntry, unlocked::UnlockedEdges},
-    nodes::node_entry::NodeStorageEntry, tprop_storage_ops::TPropOps,
+    nodes::node_entry::NodeStorageEntry,
 };
 use crate::{
     core::{
@@ -11,8 +11,8 @@ use crate::{
             properties::{graph_meta::GraphMeta, props::Meta},
             LayerIds, EID, VID,
         },
-        utils::{errors::GraphError, iter::GenLockedIter},
-        Direction, Prop,
+        utils::errors::GraphError,
+        Direction,
     },
     db::api::{
         storage::graph::{
@@ -30,12 +30,11 @@ use crate::{
             },
             variants::filter_variants::FilterVariants,
         },
-        view::{internal::{CoreGraphOps, FilterOps, FilterState, NodeList}, BoxedLIter, IntoDynBoxed},
+        view::internal::{CoreGraphOps, FilterOps, FilterState, NodeList},
     },
     prelude::{DeletionOps, GraphViewOps},
 };
 use itertools::Itertools;
-use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{iter, sync::Arc};
@@ -108,7 +107,6 @@ impl std::fmt::Display for GraphStorage {
 }
 
 impl GraphStorage {
-
     #[inline(always)]
     pub fn is_immutable(&self) -> bool {
         match self {
@@ -307,7 +305,9 @@ impl GraphStorage {
                     let nodes_storage = self.nodes();
                     nodes
                         .par_iter()
-                        .filter(|vid| view.filter_node(nodes_storage.node(**vid), layer_ids.clone()))
+                        .filter(|vid| {
+                            view.filter_node(nodes_storage.node(**vid), layer_ids.clone())
+                        })
                         .count()
                 }
             }

@@ -116,11 +116,7 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
         self.as_ref().tprop(prop_id)
     }
 
-    fn edges_iter(
-        self,
-        layers: LayerIds,
-        dir: Direction,
-    ) -> impl Iterator<Item = EdgeRef> + 'a {
+    fn edges_iter(self, layers: LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> + 'a {
         self.as_ref().edges_iter(layers, dir)
     }
 

@@ -65,10 +65,7 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
         self.as_ref().layer_ids_iter(layer_ids)
     }
 
-    fn layer_ids_par_iter(
-        self,
-        layer_ids: LayerIds,
-    ) -> impl ParallelIterator<Item = usize> + 'a {
+    fn layer_ids_par_iter(self, layer_ids: LayerIds) -> impl ParallelIterator<Item = usize> + 'a {
         self.as_ref().layer_ids_par_iter(layer_ids)
     }
 

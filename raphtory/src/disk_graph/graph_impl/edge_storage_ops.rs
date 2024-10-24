@@ -62,17 +62,13 @@ impl<'a> EdgeStorageOps<'a> for Edge<'a> {
             LayerIds::One(id) => {
                 LayerVariants::One(self.has_layer_inner(id).then_some(id).into_iter())
             }
-            LayerIds::Multiple(ids) => LayerVariants::Multiple(
-                ids.iter()
-                    .filter(move |&id| self.has_layer_inner(id)),
-            ),
+            LayerIds::Multiple(ids) => {
+                LayerVariants::Multiple(ids.iter().filter(move |&id| self.has_layer_inner(id)))
+            }
         }
     }
 
-    fn layer_ids_par_iter(
-        self,
-        layer_ids: LayerIds,
-    ) -> impl ParallelIterator<Item = usize> + 'a {
+    fn layer_ids_par_iter(self, layer_ids: LayerIds) -> impl ParallelIterator<Item = usize> + 'a {
         match layer_ids {
             LayerIds::None => LayerVariants::None(rayon::iter::empty()),
             LayerIds::All => LayerVariants::All(
@@ -83,10 +79,9 @@ impl<'a> EdgeStorageOps<'a> for Edge<'a> {
             LayerIds::One(id) => {
                 LayerVariants::One(self.has_layer_inner(id).then_some(id).into_par_iter())
             }
-            LayerIds::Multiple(ids) => LayerVariants::Multiple(
-                ids.par_iter()
-                    .filter(move |&id| self.has_layer_inner(id)),
-            ),
+            LayerIds::Multiple(ids) => {
+                LayerVariants::Multiple(ids.par_iter().filter(move |&id| self.has_layer_inner(id)))
+            }
         }
     }
 

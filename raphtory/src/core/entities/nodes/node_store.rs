@@ -17,7 +17,6 @@ use itertools::Itertools;
 use raphtory_api::core::entities::GidRef;
 use serde::{Deserialize, Serialize};
 use std::{iter, ops::Deref};
-use rayon::prelude::*;
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub struct NodeStore {
@@ -235,11 +234,7 @@ impl NodeStore {
                     .dedup()
                     .count(),
             },
-            LayerIds::One(l) => self
-                .layers
-                .get(l)
-                .map(|layer| layer.degree(d))
-                .unwrap_or(0),
+            LayerIds::One(l) => self.layers.get(l).map(|layer| layer.degree(d)).unwrap_or(0),
             LayerIds::None => 0,
             LayerIds::Multiple(ids) => ids
                 .iter()

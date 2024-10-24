@@ -36,7 +36,8 @@ use crate::{
 };
 use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{
-    borrow::Cow, fmt::{Debug, Formatter}, sync::Arc
+    fmt::{Debug, Formatter},
+    sync::Arc,
 };
 
 /// A view of an edge in the graph.
@@ -99,11 +100,8 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeView<G, GH> 
 
     #[allow(dead_code)]
     fn layer_ids(&self) -> LayerIds {
-        self.graph
-            .layer_ids()
-            .constrain_from_edge(self.edge)
+        self.graph.layer_ids().constrain_from_edge(self.edge)
     }
-
 }
 
 impl<
@@ -370,6 +368,24 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperty
             .collect()
     }
 
+    fn temporal_values_iter(&self, id: usize) -> Box<dyn Iterator<Item = Prop> + '_> {
+        let layer_ids = self.layer_ids();
+        Box::new(
+            self.graph
+                .temporal_edge_prop_hist(self.edge, id, layer_ids)
+                .into_iter()
+                .map(|(_, v)| v),
+        )
+    }
+
+    fn temporal_history_iter(&self, id: usize) -> Box<dyn Iterator<Item = i64> + '_> {
+        Box::new(
+            self.graph
+                .temporal_edge_prop_hist(self.edge, id, self.layer_ids())
+                .into_iter()
+                .map(|(t, _)| t.t()),
+        )
+    }
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalPropertiesOps
@@ -381,10 +397,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperti
             .edge_meta()
             .temporal_prop_meta()
             .get_id(name)
-            .filter(move |id| {
-                self.graph
-                    .has_temporal_edge_prop(self.edge, *id, layer_ids)
-            })
+            .filter(move |id| self.graph.has_temporal_edge_prop(self.edge, *id, layer_ids))
     }
 
     fn get_temporal_prop_name(&self, id: usize) -> ArcStr {

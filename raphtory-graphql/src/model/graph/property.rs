@@ -163,11 +163,11 @@ impl GqlTemporalProp {
     }
 
     async fn history(&self) -> Vec<i64> {
-        self.prop.history()
+        self.prop.history().collect()
     }
 
     async fn values(&self) -> Vec<String> {
-        self.prop.values().iter().map(|x| x.to_string()).collect()
+        self.prop.values().map(|x| x.to_string()).collect()
     }
 
     async fn at(&self, t: i64) -> Option<String> {

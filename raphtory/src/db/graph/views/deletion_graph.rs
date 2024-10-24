@@ -550,6 +550,19 @@ impl TimeSemantics for PersistentGraph {
         self.0.temporal_prop_vec(prop_id)
     }
 
+    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLIter<(i64, Prop)> {
+        self.0.temporal_prop_iter(prop_id)
+    }
+
+    fn temporal_prop_iter_window(
+        &self,
+        prop_id: usize,
+        start: i64,
+        end: i64,
+    ) -> BoxedLIter<(i64, Prop)> {
+        self.0.temporal_prop_iter_window(prop_id, start, end)
+    }
+
     #[inline]
     fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
         self.0.has_temporal_prop_window(prop_id, w)
@@ -1197,7 +1210,8 @@ mod test_deletions {
                 .temporal()
                 .get("test_prop")
                 .unwrap()
-                .history(),
+                .history()
+                .collect_vec(),
             [1, 11]
         );
         assert_eq!(
@@ -1206,7 +1220,8 @@ mod test_deletions {
                 .temporal()
                 .get("test_prop")
                 .unwrap()
-                .history(),
+                .history()
+                .collect_vec(),
             [10]
         );
 

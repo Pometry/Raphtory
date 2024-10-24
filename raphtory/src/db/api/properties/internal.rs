@@ -12,7 +12,13 @@ pub trait TemporalPropertyViewOps {
     fn temporal_value(&self, id: usize) -> Option<Prop> {
         self.temporal_values(id).last().cloned()
     }
+
     fn temporal_history(&self, id: usize) -> Vec<i64>;
+
+    fn temporal_history_iter(&self, id: usize) -> Box<dyn Iterator<Item = i64> + '_> {
+        Box::new(self.temporal_history(id).into_iter())
+    }
+
     fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
         self.temporal_history(id)
             .iter()
@@ -20,8 +26,8 @@ pub trait TemporalPropertyViewOps {
             .collect::<Option<Vec<_>>>()
     }
     fn temporal_values(&self, id: usize) -> Vec<Prop>;
-    
-    fn temporal_values_iter(&self, id: usize) -> Box<dyn Iterator<Item = Prop> + '_>{
+
+    fn temporal_values_iter(&self, id: usize) -> Box<dyn Iterator<Item = Prop> + '_> {
         Box::new(self.temporal_values(id).into_iter())
     }
 
@@ -43,13 +49,11 @@ pub trait ConstPropertiesOps {
     fn const_prop_keys(&self) -> Box<dyn Iterator<Item = ArcStr> + '_> {
         Box::new(self.const_prop_ids().map(|id| self.get_const_prop_name(id)))
     }
-    fn const_prop_values(&self) -> Vec<Prop> {
-        self.const_prop_ids()
-            .map(|k| {
-                self.get_const_prop(k)
-                    .expect("ids that come from the internal iterator should exist")
-            })
-            .collect()
+    fn const_prop_values(&self) -> Box<dyn Iterator<Item = Prop> + '_> {
+        Box::new(self.const_prop_ids().map(|k| {
+            self.get_const_prop(k)
+                .expect("ids that come from the internal iterator should exist")
+        }))
     }
     fn get_const_prop(&self, id: usize) -> Option<Prop>;
 }
@@ -168,7 +172,7 @@ where
     }
 
     #[inline]
-    fn const_prop_values(&self) -> Vec<Prop> {
+    fn const_prop_values(&self) -> Box<dyn Iterator<Item = Prop> + '_> {
         self.base().const_prop_values()
     }
 

@@ -198,11 +198,15 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
             }
             LayerIds::Multiple(ids) => {
                 let mut layer_map = vec![0; self.unfiltered_num_layers()];
-                let ids = if ids[0] == 0 { &ids[1..] } else { ids };
+                let ids = if ids.find(0) == Some(0) {
+                    ids.iter().skip(1).into_dyn_boxed()
+                } else {
+                    ids.iter().into_dyn_boxed()
+                };
                 let layers = storage.edge_meta().layer_meta().get_keys();
                 for id in ids {
-                    let new_id = g.resolve_layer(Some(&layers[*id]))?.inner();
-                    layer_map[*id] = new_id;
+                    let new_id = g.resolve_layer(Some(&layers[id]))?.inner();
+                    layer_map[id] = new_id;
                 }
                 layer_map
             }
@@ -276,9 +280,11 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                                 additions.insert(t);
                             }
                             for t_prop in edge.temporal_prop_ids() {
-                                for (t, prop_value) in
-                                    self.temporal_edge_prop_hist(edge.edge, t_prop, old_layer)
-                                {
+                                for (t, prop_value) in self.temporal_edge_prop_hist(
+                                    edge.edge,
+                                    t_prop,
+                                    old_layer.clone(),
+                                ) {
                                     new_edge.layer_mut(layer).add_prop(t, t_prop, prop_value)?;
                                 }
                             }
@@ -402,7 +408,9 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                     .count(),
                 NodeList::List { nodes } => nodes
                     .par_iter()
-                    .filter(move|&&id| self.filter_node(core_nodes.node_entry(id), layer_ids.clone()))
+                    .filter(move |&&id| {
+                        self.filter_node(core_nodes.node_entry(id), layer_ids.clone())
+                    })
                     .count(),
             }
         } else {

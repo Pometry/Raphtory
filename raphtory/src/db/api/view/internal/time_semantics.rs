@@ -46,12 +46,8 @@ pub trait TimeSemantics {
     fn include_node_window(&self, v: NodeStorageRef, w: Range<i64>, layer_ids: LayerIds) -> bool;
 
     /// check if edge `e` should be included in window `w`
-    fn include_edge_window(
-        &self,
-        edge: EdgeStorageRef,
-        w: Range<i64>,
-        layer_ids: LayerIds,
-    ) -> bool;
+    fn include_edge_window(&self, edge: EdgeStorageRef, w: Range<i64>, layer_ids: LayerIds)
+        -> bool;
 
     /// Get the timestamps at which a node `v` is active (i.e has an edge addition)
     fn node_history(&self, v: VID) -> Vec<i64>;
@@ -168,6 +164,10 @@ pub trait TimeSemantics {
     /// and the second element is the property value.
     fn temporal_prop_vec(&self, prop_id: usize) -> Vec<(i64, Prop)>;
 
+    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLIter<(i64, Prop)> {
+        Box::new(self.temporal_prop_vec(prop_id).into_iter())
+    }
+
     /// Check if graph has temporal property with the given id in the window
     ///
     /// # Arguments
@@ -191,6 +191,18 @@ pub trait TimeSemantics {
     /// that fall within the specified time window, where the first element of each tuple is the timestamp
     /// and the second element is the property value.
     fn temporal_prop_vec_window(&self, prop_id: usize, start: i64, end: i64) -> Vec<(i64, Prop)>;
+
+    fn temporal_prop_iter_window(
+        &self,
+        prop_id: usize,
+        start: i64,
+        end: i64,
+    ) -> BoxedLIter<(i64, Prop)> {
+        Box::new(
+            self.temporal_prop_vec_window(prop_id, start, end)
+                .into_iter(),
+        )
+    }
 
     /// Check if node has temporal property with the given id
     ///

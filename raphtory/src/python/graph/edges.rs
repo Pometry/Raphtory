@@ -16,20 +16,20 @@ use crate::{
             repr::{iterator_repr, Repr},
             wrappers::iterables::{
                 ArcStringIterable, ArcStringVecIterable, BoolIterable, GIDGIDIterable, I64Iterable,
-                I64VecIterable, NestedArcStringIterable, NestedArcStringVecIterable,
-                NestedBoolIterable, NestedGIDGIDIterable, NestedI64VecIterable,
-                NestedOptionI64Iterable, NestedUtcDateTimeIterable, NestedVecUtcDateTimeIterable,
-                OptionI64Iterable, OptionUtcDateTimeIterable, OptionVecUtcDateTimeIterable,
+                NestedArcStringIterable, NestedArcStringVecIterable, NestedBoolIterable,
+                NestedGIDGIDIterable, NestedI64VecIterable, NestedOptionI64Iterable,
+                NestedUtcDateTimeIterable, NestedVecUtcDateTimeIterable, OptionI64Iterable,
+                OptionUtcDateTimeIterable, OptionVecUtcDateTimeIterable,
             },
         },
         utils::{
-            export::{create_row, extract_properties, get_column_names_from_props}, NumpyArray, PyGenericIterable, PyTime
+            export::{create_row, extract_properties, get_column_names_from_props},
+            NumpyArray, PyGenericIterable, PyTime,
         },
     },
 };
 use pyo3::{
-    prelude::*, pyclass, pymethods, types::PyDict, IntoPy, PyObject, PyResult, Python,
-    ToPyObject,
+    prelude::*, pyclass, pymethods, types::PyDict, IntoPy, PyObject, PyResult, Python, ToPyObject,
 };
 use raphtory_api::core::storage::arc_str::ArcStr;
 use rayon::{iter::IntoParallelIterator, prelude::*};

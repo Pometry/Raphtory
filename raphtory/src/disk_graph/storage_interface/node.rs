@@ -156,19 +156,18 @@ impl<'a> DiskNode<'a> {
                     None,
                 )]
             }
-            LayerIds::Multiple(ids) => {
-                ids.par_iter()
-                    .map(|l| {
-                        TimeStamps::new(
-                            self.graph.layers()[l]
-                                .nodes_storage()
-                                .additions()
-                                .value(self.vid.index()),
-                            None,
-                        )
-                    })
-                    .collect::<Vec<_>>()
-            }
+            LayerIds::Multiple(ids) => ids
+                .par_iter()
+                .map(|l| {
+                    TimeStamps::new(
+                        self.graph.layers()[l]
+                            .nodes_storage()
+                            .additions()
+                            .value(self.vid.index()),
+                        None,
+                    )
+                })
+                .collect::<Vec<_>>(),
         };
 
         if let Some(props) = &self.graph.node_properties().temporal_props {
@@ -184,14 +183,14 @@ impl<'a> DiskNode<'a> {
 
 impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
     fn degree(self, layers: LayerIds, dir: Direction) -> usize {
-        let single_layer = match layers {
+        let single_layer = match &layers {
             LayerIds::None => return 0,
             LayerIds::All => match self.graph.layers().len() {
                 0 => return 0,
                 1 => Some(&self.graph.layers()[0]),
                 _ => None,
             },
-            LayerIds::One(id) => Some(&self.graph.layers()[id]),
+            LayerIds::One(id) => Some(&self.graph.layers()[*id]),
             LayerIds::Multiple(ids) => match ids.len() {
                 0 => return 0,
                 1 => Some(&self.graph.layers()[ids.find(0).unwrap()]),
@@ -201,7 +200,7 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
         match dir {
             Direction::OUT => match single_layer {
                 None => self
-                    .out_edges(layers.clone())
+                    .out_edges(layers)
                     .dedup_by(|e1, e2| e1.remote() == e2.remote())
                     .count(),
                 Some(layer) => layer.nodes_storage().out_degree(self.vid),
@@ -259,11 +258,7 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
         }
     }
 
-    fn edges_iter(
-        self,
-        layers: LayerIds,
-        dir: Direction,
-    ) -> impl Iterator<Item = EdgeRef> + 'a {
+    fn edges_iter(self, layers: LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> + 'a {
         match dir {
             Direction::OUT => DirectionVariants::Out(self.out_edges(layers)),
             Direction::IN => DirectionVariants::In(self.in_edges(layers)),
@@ -298,14 +293,14 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
                 .find_edge(self.vid, dst)
                 .map(|e| EdgeRef::new_outgoing(e.eid(), self.vid, dst)),
             LayerIds::One(id) => {
-                let eid = self.graph.layers()[*id]
+                let eid = self.graph.layers()[id]
                     .nodes_storage()
                     .find_edge(self.vid, dst)?;
                 Some(EdgeRef::new_outgoing(eid, self.vid, dst))
             }
             LayerIds::Multiple(ids) => ids
                 .iter()
-                .filter_map(|&layer_id| {
+                .filter_map(|layer_id| {
                     self.graph.layers()[layer_id]
                         .nodes_storage()
                         .find_edge(self.vid, dst)
@@ -446,11 +441,7 @@ impl<'a> NodeStorageOps<'a> for &'a DiskOwnedNode {
     }
 
     #[inline]
-    fn edges_iter(
-        self,
-        layers: LayerIds,
-        dir: Direction,
-    ) -> impl Iterator<Item = EdgeRef> + 'a {
+    fn edges_iter(self, layers: LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> + 'a {
         match dir {
             Direction::OUT => DirectionVariants::Out(self.as_ref().out_edges(layers)),
             Direction::IN => DirectionVariants::In(self.as_ref().in_edges(layers)),

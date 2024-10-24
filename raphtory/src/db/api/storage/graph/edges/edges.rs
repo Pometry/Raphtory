@@ -121,7 +121,10 @@ impl<'a> EdgesStorageRef<'a> {
             EdgesStorageRef::Mem(storage) => match layers {
                 LayerIds::None => 0,
                 LayerIds::All => storage.len(),
-                _ => storage.par_iter().filter(|e| e.has_layer(layers.clone())).count(),
+                _ => storage
+                    .par_iter()
+                    .filter(|e| e.has_layer(layers.clone()))
+                    .count(),
             },
             EdgesStorageRef::Unlocked(edges) => match layers {
                 LayerIds::None => 0,
