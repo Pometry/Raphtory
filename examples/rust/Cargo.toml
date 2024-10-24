@@ -33,6 +33,3 @@ name = "crypto"
 
 [[bin]]
 name = "pokec"
-
-[[bin]]
-name = "coin"
