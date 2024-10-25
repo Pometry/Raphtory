@@ -186,13 +186,13 @@ impl LayerIds {
         }
     }
 
-    pub fn constrain_from_edge(&self, e: EdgeRef) -> &LayerIds {
+    pub fn constrain_from_edge(&self, e: EdgeRef) -> LayerIds {
         match e.layer() {
-            None => self,
+            None => self.clone(),
             Some(l) => self
                 .find(l)
-                .map(|id| &LayerIds::One(id))
-                .unwrap_or(&LayerIds::None),
+                .map(|id| LayerIds::One(id))
+                .unwrap_or(LayerIds::None),
         }
     }
 

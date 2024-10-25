@@ -24,7 +24,7 @@ readme = "README.md"
 homepage = "https://github.com/Raphtory/raphtory/"
 keywords = ["graph", "temporal-graph", "temporal"]
 authors = ["Pometry"]
-rust-version = "1.80.0"
+rust-version = "1.82.0"
 edition = "2021"
 
 [profile.dev]
