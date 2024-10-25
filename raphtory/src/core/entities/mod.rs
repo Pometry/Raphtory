@@ -43,10 +43,11 @@ impl BitMultiple {
         self.iter().find(|i| *i == id)
     }
 
-    pub fn par_iter(self) -> impl rayon::iter::ParallelIterator<Item = usize> {
-        (0..self.0.len())
+    pub fn par_iter(&self) -> impl rayon::iter::ParallelIterator<Item = usize> {
+        let bit_vec = self.0.clone();
+        (0..bit_vec.len())
             .into_par_iter()
-            .filter_map(move |i| self.0.get(i).filter(|b| *b).map(|_| i))
+            .filter_map(move |i| bit_vec.get(i).filter(|b| *b).map(|_| i))
     }
 
     pub fn set(&mut self, id: usize, value: bool) {

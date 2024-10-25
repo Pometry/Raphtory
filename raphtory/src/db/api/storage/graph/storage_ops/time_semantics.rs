@@ -85,7 +85,7 @@ impl TimeSemantics for GraphStorage {
         self.node_entry(v).additions().range_t(start..end).last_t()
     }
 
-    fn include_node_window(&self, v: NodeStorageRef, w: Range<i64>, _layer_ids: LayerIds) -> bool {
+    fn include_node_window(&self, v: NodeStorageRef, w: Range<i64>, _layer_ids: &LayerIds) -> bool {
         v.additions().active_t(w)
     }
 
@@ -150,9 +150,7 @@ impl TimeSemantics for GraphStorage {
     }
 
     fn edge_exploded_count(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> usize {
-        edge.additions_par_iter(layer_ids.clone())
-            .map(|(_, a)| a.len())
-            .sum()
+        edge.additions_iter(layer_ids).map(|(_, a)| a.len()).sum()
     }
 
     fn edge_exploded_count_window(
@@ -161,12 +159,12 @@ impl TimeSemantics for GraphStorage {
         layer_ids: &LayerIds,
         w: Range<i64>,
     ) -> usize {
-        edge.additions_par_iter(layer_ids.clone())
+        edge.additions_par_iter(layer_ids)
             .map(|(_, a)| a.range_t(w.clone()).len())
             .sum()
     }
 
-    fn edge_exploded<'a>(&'a self, e: EdgeRef, layer_ids: LayerIds) -> BoxedLIter<'a, EdgeRef> {
+    fn edge_exploded<'a>(&'a self, e: EdgeRef, layer_ids: &LayerIds) -> BoxedLIter<'a, EdgeRef> {
         let edge = self.core_edge(e.pid());
         let layer_ids = layer_ids.constrain_from_edge(e);
         GenLockedIter::from(edge, move |edge| {
@@ -178,7 +176,7 @@ impl TimeSemantics for GraphStorage {
         .into_dyn_boxed()
     }
 
-    fn edge_layers<'a>(&'a self, e: EdgeRef, layer_ids: LayerIds) -> BoxedLIter<'a, EdgeRef> {
+    fn edge_layers<'a>(&'a self, e: EdgeRef, layer_ids: &LayerIds) -> BoxedLIter<'a, EdgeRef> {
         let entry = self.core_edge(e.pid());
         let layer_ids = layer_ids.constrain_from_edge(e);
         GenLockedIter::from(entry, move |edge| {
@@ -191,7 +189,7 @@ impl TimeSemantics for GraphStorage {
         &'a self,
         e: EdgeRef,
         w: Range<i64>,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> BoxedLIter<'a, EdgeRef> {
         let entry = self.core_edge(e.pid());
         let layer_ids = layer_ids.constrain_from_edge(e);
@@ -212,7 +210,7 @@ impl TimeSemantics for GraphStorage {
         &'a self,
         e: EdgeRef,
         w: Range<i64>,
-        layer_ids: LayerIds,
+        layer_ids: &'a LayerIds,
     ) -> BoxedLIter<'a, EdgeRef> {
         let entry = self.core_edge(e.pid());
         self.edge_layers(e, layer_ids)
@@ -220,7 +218,7 @@ impl TimeSemantics for GraphStorage {
             .into_dyn_boxed()
     }
 
-    fn edge_earliest_time(&self, e: EdgeRef, layer_ids: LayerIds) -> Option<i64> {
+    fn edge_earliest_time(&self, e: EdgeRef, layer_ids: &LayerIds) -> Option<i64> {
         e.time_t().or_else(|| {
             let entry = self.core_edge(e.pid());
             entry
@@ -234,7 +232,7 @@ impl TimeSemantics for GraphStorage {
         &self,
         e: EdgeRef,
         w: Range<i64>,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> Option<i64> {
         match e.time_t() {
             Some(t) => w.contains(&t).then_some(t),
@@ -248,7 +246,7 @@ impl TimeSemantics for GraphStorage {
         }
     }
 
-    fn edge_latest_time(&self, e: EdgeRef, layer_ids: LayerIds) -> Option<i64> {
+    fn edge_latest_time(&self, e: EdgeRef, layer_ids: &LayerIds) -> Option<i64> {
         e.time_t().or_else(|| {
             let entry = self.core_edge(e.pid());
             entry
@@ -262,7 +260,7 @@ impl TimeSemantics for GraphStorage {
         &self,
         e: EdgeRef,
         w: Range<i64>,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> Option<i64> {
         match e.time_t() {
             Some(t) => w.contains(&t).then_some(t),
@@ -279,7 +277,7 @@ impl TimeSemantics for GraphStorage {
     fn edge_deletion_history<'a>(
         &'a self,
         e: EdgeRef,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> BoxedLIter<'a, TimeIndexEntry> {
         let entry = self.core_edge(e.pid());
         GenLockedIter::from(entry, |entry| {
@@ -296,7 +294,7 @@ impl TimeSemantics for GraphStorage {
         &'a self,
         e: EdgeRef,
         w: Range<i64>,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> BoxedLIter<'a, TimeIndexEntry> {
         let entry = self.core_edge(e.pid());
         GenLockedIter::from(entry, |entry| {
@@ -309,11 +307,11 @@ impl TimeSemantics for GraphStorage {
         .into_dyn_boxed()
     }
 
-    fn edge_is_valid(&self, _e: EdgeRef, _layer_ids: LayerIds) -> bool {
+    fn edge_is_valid(&self, _e: EdgeRef, _layer_ids: &LayerIds) -> bool {
         true
     }
 
-    fn edge_is_valid_at_end(&self, _e: EdgeRef, _layer_idss: LayerIds, _t: i64) -> bool {
+    fn edge_is_valid_at_end(&self, _e: EdgeRef, _layer_idss: &LayerIds, _t: i64) -> bool {
         true
     }
 
@@ -404,7 +402,7 @@ impl TimeSemantics for GraphStorage {
         e: EdgeRef,
         prop_id: usize,
         w: Range<i64>,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> bool {
         let entry = self.core_edge(e.pid());
         entry
@@ -418,7 +416,7 @@ impl TimeSemantics for GraphStorage {
         prop_id: usize,
         start: i64,
         end: i64,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> BoxedLIter<'a, (TimeIndexEntry, Prop)> {
         let entry = self.core_edge(e.pid());
         match e.time() {
@@ -451,7 +449,7 @@ impl TimeSemantics for GraphStorage {
         e: EdgeRef,
         id: usize,
         t: TimeIndexEntry,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> Option<Prop> {
         let entry = self.core_edge(e.pid());
         let res = entry
@@ -461,16 +459,16 @@ impl TimeSemantics for GraphStorage {
         res
     }
 
-    fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: LayerIds) -> bool {
+    fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: &LayerIds) -> bool {
         let entry = self.core_edge(e.pid());
-        (&entry).has_temporal_prop(layer_ids.constrain_from_edge(e), prop_id)
+        (&entry).has_temporal_prop(&layer_ids.constrain_from_edge(e), prop_id)
     }
 
     fn temporal_edge_prop_hist<'a>(
         &'a self,
         e: EdgeRef,
         prop_id: usize,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         let entry = self.core_edge(e.pid());
         let layer_ids = layer_ids.constrain_from_edge(e);

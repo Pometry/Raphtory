@@ -19,7 +19,7 @@ use crate::{
                 NestedArcStringIterable, NestedArcStringVecIterable, NestedBoolIterable,
                 NestedGIDGIDIterable, NestedI64VecIterable, NestedOptionI64Iterable,
                 NestedUtcDateTimeIterable, NestedVecUtcDateTimeIterable, OptionI64Iterable,
-                OptionUtcDateTimeIterable, OptionVecUtcDateTimeIterable,
+                OptionUtcDateTimeIterable, OptionVecUtcDateTimeIterable, U64Iterable,
             },
         },
         utils::{
@@ -169,6 +169,11 @@ impl PyEdges {
     fn history(&self) -> PyGenericIterable {
         let edges = self.edges.clone();
         (move || edges.history().map(NumpyArray::I64)).into()
+    }
+
+    fn history_counts(&self) -> U64Iterable {
+        let edges = self.edges.clone();
+        (move || edges.history_counts().map(|count| count as u64)).into()
     }
 
     /// Returns all timestamps of edges, when an edge is added or change to an edge is made.

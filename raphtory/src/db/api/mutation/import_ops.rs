@@ -211,7 +211,7 @@ impl<
             }
 
             if self.include_deletions() {
-                for t in edge.graph.edge_deletion_history(edge.edge, layer_ids) {
+                for t in edge.graph.edge_deletion_history(edge.edge, &layer_ids) {
                     let ti = time_from_input(self, t.t())?;
                     let src_id = self.resolve_node(edge.src().id())?.inner();
                     let dst_id = self.resolve_node(edge.dst().id())?.inner();

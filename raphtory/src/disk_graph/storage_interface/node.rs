@@ -46,7 +46,7 @@ impl<'a> DiskNode<'a> {
         Self { graph, vid }
     }
 
-    pub fn out_edges(self, layers: &LayerIds) -> impl Iterator<Item = EdgeRef> + 'a {
+    pub fn out_edges<'b>(self, layers: &'b LayerIds) -> impl Iterator<Item = EdgeRef> + 'a {
         match layers {
             LayerIds::None => LayerVariants::None(iter::empty()),
             LayerIds::All => LayerVariants::All(

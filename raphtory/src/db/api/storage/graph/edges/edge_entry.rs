@@ -65,7 +65,7 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
         self.as_ref().layer_ids_iter(layer_ids)
     }
 
-    fn layer_ids_par_iter(self, layer_ids: LayerIds) -> impl ParallelIterator<Item = usize> + 'a {
+    fn layer_ids_par_iter(self, layer_ids: &LayerIds) -> impl ParallelIterator<Item = usize> + 'a {
         self.as_ref().layer_ids_par_iter(layer_ids)
     }
 
@@ -78,7 +78,7 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
 
     fn additions_par_iter(
         self,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> impl ParallelIterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
         self.as_ref().additions_par_iter(layer_ids)
     }
@@ -92,7 +92,7 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
 
     fn deletions_par_iter(
         self,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> impl ParallelIterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
         self.as_ref().deletions_par_iter(layer_ids)
     }
@@ -106,7 +106,7 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
 
     fn updates_par_iter(
         self,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> impl ParallelIterator<Item = (usize, TimeIndexRef<'a>, TimeIndexRef<'a>)> + 'a {
         self.as_ref().updates_par_iter(layer_ids)
     }
@@ -119,7 +119,7 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
         self.as_ref().deletions(layer_id)
     }
 
-    fn has_temporal_prop(self, layer_ids: LayerIds, prop_id: usize) -> bool {
+    fn has_temporal_prop(self, layer_ids: &LayerIds, prop_id: usize) -> bool {
         self.as_ref().has_temporal_prop(layer_ids, prop_id)
     }
 
@@ -137,7 +137,7 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
 
     fn temporal_prop_par_iter(
         self,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
         prop_id: usize,
     ) -> impl ParallelIterator<Item = (usize, impl TPropOps<'a>)> + 'a {
         self.as_ref().temporal_prop_par_iter(layer_ids, prop_id)

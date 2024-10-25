@@ -280,11 +280,9 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                                 additions.insert(t);
                             }
                             for t_prop in edge.temporal_prop_ids() {
-                                for (t, prop_value) in self.temporal_edge_prop_hist(
-                                    edge.edge,
-                                    t_prop,
-                                    old_layer.clone(),
-                                ) {
+                                for (t, prop_value) in
+                                    self.temporal_edge_prop_hist(edge.edge, t_prop, &old_layer)
+                                {
                                     new_edge.layer_mut(layer).add_prop(t, t_prop, prop_value)?;
                                 }
                             }
@@ -297,7 +295,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                             }
                             if self.include_deletions() {
                                 let mut deletion_history =
-                                    self.edge_deletion_history(edge.edge, old_layer).peekable();
+                                    self.edge_deletion_history(edge.edge, &old_layer).peekable();
                                 if deletion_history.peek().is_some() {
                                     let edge_deletions = new_edge.deletions_mut(layer_map[layer]);
                                     for t in deletion_history {
