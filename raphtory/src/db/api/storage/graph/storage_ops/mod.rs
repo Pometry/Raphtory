@@ -657,7 +657,7 @@ impl GraphStorage {
     ) -> impl Iterator<Item = EdgeRef> + 'a {
         let source = self.node_entry(node);
         let layers = view.layer_ids();
-        let iter = source.into_edges_iter(layers.clone(), dir);
+        let iter = source.into_edges_iter(layers, dir);
         match view.filter_state() {
             FilterState::Neither => FilterVariants::Neither(iter),
             FilterState::Both => FilterVariants::Both(iter.filter(|&e| {

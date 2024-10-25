@@ -318,7 +318,7 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
         &self,
         edge: EdgeStorageRef,
         w: Range<i64>,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> bool {
         !self.window_is_empty() && self.graph.include_edge_window(edge, w, layer_ids)
     }
@@ -637,11 +637,9 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for WindowedGraph<G> {
     fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
         !self.window_is_empty()
             && self.graph.filter_edge(edge, layer_ids)
-            && self.graph.include_edge_window(
-                edge,
-                self.start_bound()..self.end_bound(),
-                layer_ids.clone(),
-            )
+            && self
+                .graph
+                .include_edge_window(edge, self.start_bound()..self.end_bound(), layer_ids)
     }
 }
 

@@ -202,9 +202,9 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
         &self,
         edge: EdgeStorageRef,
         w: Range<i64>,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> bool {
-        self.edge_window_exploded(edge.out_ref(), w, layer_ids)
+        self.edge_window_exploded(edge.out_ref(), w, layer_ids.clone())
             .next()
             .is_some()
     }

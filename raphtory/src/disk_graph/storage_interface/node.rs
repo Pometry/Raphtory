@@ -46,7 +46,7 @@ impl<'a> DiskNode<'a> {
         Self { graph, vid }
     }
 
-    pub fn out_edges(self, layers: LayerIds) -> impl Iterator<Item = EdgeRef> + 'a {
+    pub fn out_edges(self, layers: &LayerIds) -> impl Iterator<Item = EdgeRef> + 'a {
         match layers {
             LayerIds::None => LayerVariants::None(iter::empty()),
             LayerIds::All => LayerVariants::All(
@@ -64,14 +64,17 @@ impl<'a> DiskNode<'a> {
                     })
                     .kmerge_by(|e1, e2| e1.remote() <= e2.remote()),
             ),
-            LayerIds::One(layer_id) => LayerVariants::One(
-                self.graph.layers()[layer_id]
-                    .nodes_storage()
-                    .out_adj_list(self.vid)
-                    .map(move |(eid, dst)| {
-                        EdgeRef::new_outgoing(eid, self.vid, dst).at_layer(layer_id)
-                    }),
-            ),
+            LayerIds::One(layer_id) => {
+                let layer_id = *layer_id;
+                LayerVariants::One(
+                    self.graph.layers()[layer_id]
+                        .nodes_storage()
+                        .out_adj_list(self.vid)
+                        .map(move |(eid, dst)| {
+                            EdgeRef::new_outgoing(eid, self.vid, dst).at_layer(layer_id)
+                        }),
+                )
+            }
             LayerIds::Multiple(ids) => LayerVariants::Multiple(
                 ids.iter()
                     .map(|layer_id| {
@@ -87,7 +90,7 @@ impl<'a> DiskNode<'a> {
         }
     }
 
-    pub fn in_edges(self, layers: LayerIds) -> impl Iterator<Item = EdgeRef> + 'a {
+    pub fn in_edges(self, layers: &LayerIds) -> impl Iterator<Item = EdgeRef> + 'a {
         match layers {
             LayerIds::None => LayerVariants::None(iter::empty()),
             LayerIds::All => LayerVariants::All(
@@ -105,14 +108,17 @@ impl<'a> DiskNode<'a> {
                     })
                     .kmerge_by(|e1, e2| e1.remote() <= e2.remote()),
             ),
-            LayerIds::One(layer_id) => LayerVariants::One(
-                self.graph.layers()[layer_id]
-                    .nodes_storage()
-                    .in_adj_list(self.vid)
-                    .map(move |(eid, src)| {
-                        EdgeRef::new_incoming(eid, src, self.vid).at_layer(layer_id)
-                    }),
-            ),
+            LayerIds::One(layer_id) => {
+                let layer_id = *layer_id;
+                LayerVariants::One(
+                    self.graph.layers()[layer_id]
+                        .nodes_storage()
+                        .in_adj_list(self.vid)
+                        .map(move |(eid, src)| {
+                            EdgeRef::new_incoming(eid, src, self.vid).at_layer(layer_id)
+                        }),
+                )
+            }
             LayerIds::Multiple(ids) => LayerVariants::Multiple(
                 ids.iter()
                     .map(|layer_id| {
@@ -128,8 +134,8 @@ impl<'a> DiskNode<'a> {
         }
     }
 
-    pub fn edges(self, layers: LayerIds) -> impl Iterator<Item = EdgeRef> + 'a {
-        self.in_edges(layers.clone())
+    pub fn edges(self, layers: &LayerIds) -> impl Iterator<Item = EdgeRef> + 'a {
+        self.in_edges(layers)
             .merge_by(self.out_edges(layers), |e1, e2| e1.remote() <= e2.remote())
     }
 
@@ -182,7 +188,7 @@ impl<'a> DiskNode<'a> {
 }
 
 impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
-    fn degree(self, layers: LayerIds, dir: Direction) -> usize {
+    fn degree(self, layers: &LayerIds, dir: Direction) -> usize {
         let single_layer = match &layers {
             LayerIds::None => return 0,
             LayerIds::All => match self.graph.layers().len() {
@@ -258,12 +264,17 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
         }
     }
 
-    fn edges_iter(self, layers: LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> + 'a {
-        match dir {
+    fn edges_iter(
+        self,
+        layers: &LayerIds,
+        dir: Direction,
+    ) -> Box<dyn Iterator<Item = EdgeRef> + Send + 'a> {
+        //FIXME: something is capturing the &LayerIds lifetime when using impl Iterator
+        Box::new(match dir {
             Direction::OUT => DirectionVariants::Out(self.out_edges(layers)),
             Direction::IN => DirectionVariants::In(self.in_edges(layers)),
             Direction::BOTH => DirectionVariants::Both(self.edges(layers)),
-        }
+        })
     }
 
     fn node_type_id(self) -> usize {
@@ -285,7 +296,7 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
         }
     }
 
-    fn find_edge(self, dst: VID, layer_ids: LayerIds) -> Option<EdgeRef> {
+    fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef> {
         match layer_ids {
             LayerIds::None => None,
             LayerIds::All => self
@@ -293,7 +304,7 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
                 .find_edge(self.vid, dst)
                 .map(|e| EdgeRef::new_outgoing(e.eid(), self.vid, dst)),
             LayerIds::One(id) => {
-                let eid = self.graph.layers()[id]
+                let eid = self.graph.layers()[*id]
                     .nodes_storage()
                     .find_edge(self.vid, dst)?;
                 Some(EdgeRef::new_outgoing(eid, self.vid, dst))
@@ -426,7 +437,7 @@ impl DiskOwnedNode {
 
 impl<'a> NodeStorageOps<'a> for &'a DiskOwnedNode {
     #[inline]
-    fn degree(self, layers: LayerIds, dir: Direction) -> usize {
+    fn degree(self, layers: &LayerIds, dir: Direction) -> usize {
         self.as_ref().degree(layers, dir)
     }
 
@@ -441,7 +452,7 @@ impl<'a> NodeStorageOps<'a> for &'a DiskOwnedNode {
     }
 
     #[inline]
-    fn edges_iter(self, layers: LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> + 'a {
+    fn edges_iter(self, layers: &LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> + 'a {
         match dir {
             Direction::OUT => DirectionVariants::Out(self.as_ref().out_edges(layers)),
             Direction::IN => DirectionVariants::In(self.as_ref().in_edges(layers)),
@@ -467,7 +478,7 @@ impl<'a> NodeStorageOps<'a> for &'a DiskOwnedNode {
         self.as_ref().name()
     }
 
-    fn find_edge(self, dst: VID, layer_ids: LayerIds) -> Option<EdgeRef> {
+    fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef> {
         self.as_ref().find_edge(dst, layer_ids)
     }
 

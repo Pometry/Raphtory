@@ -46,8 +46,12 @@ pub trait TimeSemantics {
     fn include_node_window(&self, v: NodeStorageRef, w: Range<i64>, layer_ids: LayerIds) -> bool;
 
     /// check if edge `e` should be included in window `w`
-    fn include_edge_window(&self, edge: EdgeStorageRef, w: Range<i64>, layer_ids: LayerIds)
-        -> bool;
+    fn include_edge_window(
+        &self,
+        edge: EdgeStorageRef,
+        w: Range<i64>,
+        layer_ids: &LayerIds,
+    ) -> bool;
 
     /// Get the timestamps at which a node `v` is active (i.e has an edge addition)
     fn node_history(&self, v: VID) -> Vec<i64>;
@@ -411,7 +415,7 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         &self,
         edge: EdgeStorageRef,
         w: Range<i64>,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> bool {
         self.graph().include_edge_window(edge, w, layer_ids)
     }

@@ -38,18 +38,21 @@ pub enum EdgesStorageRef<'a> {
 
 impl<'a> EdgesStorageRef<'a> {
     #[cfg(feature = "storage")]
-    pub fn iter(self, layers: LayerIds) -> impl Iterator<Item = EdgeStorageEntry<'a>> {
+    pub fn iter(
+        self,
+        layers: &LayerIds,
+    ) -> impl Iterator<Item = EdgeStorageEntry<'a>> + use<'a, '_> {
         match self {
             EdgesStorageRef::Mem(storage) => StorageVariants::Mem(
                 storage
                     .iter()
-                    .filter(move |e| e.has_layer(layers.clone()))
+                    .filter(move |e| e.has_layer(layers))
                     .map(EdgeStorageEntry::Mem),
             ),
             EdgesStorageRef::Unlocked(edges) => StorageVariants::Unlocked(
                 edges
                     .iter()
-                    .filter(move |e| e.has_layer(layers.clone()))
+                    .filter(move |e| e.has_layer(layers))
                     .map(EdgeStorageEntry::Unlocked),
             ),
             EdgesStorageRef::Disk(storage) => {
@@ -80,18 +83,21 @@ impl<'a> EdgesStorageRef<'a> {
     }
 
     #[cfg(feature = "storage")]
-    pub fn par_iter(self, layers: LayerIds) -> impl ParallelIterator<Item = EdgeStorageEntry<'a>> {
+    pub fn par_iter(
+        self,
+        layers: &LayerIds,
+    ) -> impl ParallelIterator<Item = EdgeStorageEntry<'a>> + use<'a, '_> {
         match self {
             EdgesStorageRef::Mem(storage) => StorageVariants::Mem(
                 storage
                     .par_iter()
-                    .filter(move |e| e.has_layer(layers.clone()))
+                    .filter(move |e| e.has_layer(layers))
                     .map(EdgeStorageEntry::Mem),
             ),
             EdgesStorageRef::Unlocked(edges) => StorageVariants::Unlocked(
                 edges
                     .par_iter()
-                    .filter(move |e| e.has_layer(layers.clone()))
+                    .filter(move |e| e.has_layer(layers))
                     .map(EdgeStorageEntry::Unlocked),
             ),
             EdgesStorageRef::Disk(storage) => {

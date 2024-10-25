@@ -380,12 +380,10 @@ impl<'a> Entry<'a, NodeStore> {
 
     pub fn into_edges_iter(
         self,
-        layers: LayerIds,
+        layers: &LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + 'a {
-        GenLockedIter::from((self, layers), |(node, layers)| {
-            Box::new(node.edge_tuples(layers, dir))
-        })
+        GenLockedIter::from(self, |node| Box::new(node.edge_tuples(layers, dir)))
     }
 }
 

@@ -17,27 +17,27 @@ use rayon::prelude::*;
 use std::{iter, ops::Range};
 
 impl<'a> EdgeStorageOps<'a> for Edge<'a> {
-    fn active(self, layer_ids: LayerIds, w: Range<i64>) -> bool {
-        self.has_layer(layer_ids.clone()) && {
+    fn active(self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
+        self.has_layer(layer_ids) && {
             match layer_ids {
                 LayerIds::None => false,
                 LayerIds::All => self
                     .additions_iter(layer_ids)
                     .any(|(_, t_index)| t_index.active_t(w.clone())),
-                LayerIds::One(l_id) => self.get_additions::<i64>(l_id).active_t(w),
+                LayerIds::One(l_id) => self.get_additions::<i64>(*l_id).active_t(w),
                 LayerIds::Multiple(layers) => layers
                     .iter()
-                    .any(|l_id| self.active(LayerIds::One(l_id), w.clone())),
+                    .any(|l_id| self.active(&LayerIds::One(l_id), w.clone())),
             }
         }
     }
 
-    fn has_layer(self, layer_ids: LayerIds) -> bool {
+    fn has_layer(self, layer_ids: &LayerIds) -> bool {
         match layer_ids {
             LayerIds::None => false,
             LayerIds::All => true,
-            LayerIds::One(id) => self.has_layer_inner(id),
-            LayerIds::Multiple(ids) => ids.iter().any(|id| self.has_layer_inner(id)),
+            LayerIds::One(id) => self.has_layer_inner(*id),
+            LayerIds::Multiple(ids) => ids.iter().any(|id| self.has_layer_inner(id)), // if we store the number of layers as a bitmap in the edge_list, this could be optimized
         }
     }
 
@@ -53,14 +53,14 @@ impl<'a> EdgeStorageOps<'a> for Edge<'a> {
         EdgeRef::new_outgoing(self.eid(), self.src_id(), self.dst_id())
     }
 
-    fn layer_ids_iter(self, layer_ids: LayerIds) -> impl Iterator<Item = usize> + 'a {
+    fn layer_ids_iter(self, layer_ids: &LayerIds) -> impl Iterator<Item = usize> + 'a {
         match layer_ids {
             LayerIds::None => LayerVariants::None(std::iter::empty()),
             LayerIds::All => LayerVariants::All(
                 (0..self.internal_num_layers()).filter(move |&l| self.has_layer_inner(l)),
             ),
             LayerIds::One(id) => {
-                LayerVariants::One(self.has_layer_inner(id).then_some(id).into_iter())
+                LayerVariants::One(self.has_layer_inner(*id).then_some(*id).into_iter())
             }
             LayerIds::Multiple(ids) => {
                 LayerVariants::Multiple(ids.iter().filter(move |&id| self.has_layer_inner(id)))
@@ -87,7 +87,7 @@ impl<'a> EdgeStorageOps<'a> for Edge<'a> {
 
     fn deletions_iter(
         self,
-        _layer_ids: LayerIds,
+        _layer_ids: &LayerIds,
     ) -> impl Iterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
         Box::new(iter::empty())
     }

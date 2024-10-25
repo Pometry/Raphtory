@@ -93,7 +93,7 @@ impl TimeSemantics for GraphStorage {
         &self,
         edge: EdgeStorageRef,
         w: Range<i64>,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> bool {
         edge.active(layer_ids, w)
     }
@@ -116,13 +116,13 @@ impl TimeSemantics for GraphStorage {
         GenLockedIter::from(core_edge, |core_edge| match layer_ids {
             LayerIds::None => std::iter::empty().into_dyn_boxed(),
             LayerIds::One(_) => core_edge
-                .additions_iter(layer_ids)
+                .additions_iter(&layer_ids)
                 .map(|(_, index)| index.iter())
                 .flatten()
                 .into_dyn_boxed(),
             _ => kmerge(
                 core_edge
-                    .additions_iter(layer_ids)
+                    .additions_iter(&layer_ids)
                     .map(|(_, index)| index.iter()),
             )
             .into_dyn_boxed(),
@@ -141,7 +141,7 @@ impl TimeSemantics for GraphStorage {
         GenLockedIter::from(core_edge, |core_edge| {
             kmerge(
                 core_edge
-                    .additions_iter(layer_ids)
+                    .additions_iter(&layer_ids)
                     .map(move |(_, index)| index.into_range_t(w.clone()).into_iter()),
             )
             .into_dyn_boxed()
@@ -170,7 +170,7 @@ impl TimeSemantics for GraphStorage {
         let edge = self.core_edge(e.pid());
         let layer_ids = layer_ids.constrain_from_edge(e);
         GenLockedIter::from(edge, move |edge| {
-            edge.additions_iter(layer_ids)
+            edge.additions_iter(&layer_ids)
                 .map(move |(l, a)| a.into_iter().map(move |t| e.at(t).at_layer(l)))
                 .kmerge_by(|e1, e2| e1.time() <= e2.time())
                 .into_dyn_boxed()
@@ -182,7 +182,7 @@ impl TimeSemantics for GraphStorage {
         let entry = self.core_edge(e.pid());
         let layer_ids = layer_ids.constrain_from_edge(e);
         GenLockedIter::from(entry, move |edge| {
-            Box::new(edge.layer_ids_iter(layer_ids).map(move |l| e.at_layer(l)))
+            Box::new(edge.layer_ids_iter(&layer_ids).map(move |l| e.at_layer(l)))
         })
         .into_dyn_boxed()
     }
@@ -196,7 +196,7 @@ impl TimeSemantics for GraphStorage {
         let entry = self.core_edge(e.pid());
         let layer_ids = layer_ids.constrain_from_edge(e);
         GenLockedIter::from(entry, move |edge| {
-            edge.additions_iter(layer_ids)
+            edge.additions_iter(&layer_ids)
                 .map(move |(l, a)| {
                     a.into_range(TimeIndexEntry::range(w.clone()))
                         .into_iter()
@@ -284,7 +284,7 @@ impl TimeSemantics for GraphStorage {
         let entry = self.core_edge(e.pid());
         GenLockedIter::from(entry, |entry| {
             entry
-                .deletions_iter(layer_ids)
+                .deletions_iter(&layer_ids)
                 .map(|(_, d)| d.into_iter())
                 .kmerge()
                 .into_dyn_boxed()
@@ -301,7 +301,7 @@ impl TimeSemantics for GraphStorage {
         let entry = self.core_edge(e.pid());
         GenLockedIter::from(entry, |entry| {
             entry
-                .deletions_iter(layer_ids)
+                .deletions_iter(&layer_ids)
                 .map(|(_, d)| d.into_range_t(w.clone()).into_iter())
                 .kmerge()
                 .into_dyn_boxed()
@@ -426,7 +426,7 @@ impl TimeSemantics for GraphStorage {
                 if (start..end).contains(&t.t()) {
                     GenLockedIter::from(entry, move |entry| {
                         entry
-                            .temporal_prop_iter(layer_ids, prop_id)
+                            .temporal_prop_iter(&layer_ids, prop_id)
                             .flat_map(move |(_, p)| p.at(&t).map(move |v| (t, v)))
                             .into_dyn_boxed()
                     })
@@ -437,7 +437,7 @@ impl TimeSemantics for GraphStorage {
             }
             None => GenLockedIter::from(entry, |entry| {
                 entry
-                    .temporal_prop_iter(layer_ids, prop_id)
+                    .temporal_prop_iter(&layer_ids, prop_id)
                     .map(|(_, p)| p.iter_window(TimeIndexEntry::range(start..end)))
                     .kmerge()
                     .into_dyn_boxed()
@@ -455,7 +455,7 @@ impl TimeSemantics for GraphStorage {
     ) -> Option<Prop> {
         let entry = self.core_edge(e.pid());
         let res = entry
-            .temporal_prop_iter(layer_ids.constrain_from_edge(e), id)
+            .temporal_prop_iter(&layer_ids.constrain_from_edge(e), id)
             .filter_map(|(_, p)| p.at(&t))
             .next();
         res
@@ -477,14 +477,14 @@ impl TimeSemantics for GraphStorage {
         match e.time() {
             Some(t) => GenLockedIter::from(entry, move |entry| {
                 entry
-                    .temporal_prop_iter(layer_ids, prop_id)
+                    .temporal_prop_iter(&layer_ids, prop_id)
                     .flat_map(move |(_, p)| p.at(&t).map(move |v| (t, v)))
                     .into_dyn_boxed()
             })
             .into_dyn_boxed(),
             None => GenLockedIter::from(entry, |entry| {
                 entry
-                    .temporal_prop_iter(layer_ids, prop_id)
+                    .temporal_prop_iter(&layer_ids, prop_id)
                     .map(|(_, p)| p.iter())
                     .kmerge()
                     .into_dyn_boxed()

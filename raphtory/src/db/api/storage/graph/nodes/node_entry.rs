@@ -67,12 +67,12 @@ impl<'a, 'b: 'a> From<&'a NodeStorageEntry<'b>> for NodeStorageRef<'a> {
 impl<'b> NodeStorageEntry<'b> {
     pub fn into_edges_iter(
         self,
-        layers: LayerIds,
+        layers: &LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + 'b {
         match self {
             NodeStorageEntry::Mem(entry) => {
-                StorageVariants::Mem(GenLockedIter::from((entry, layers), |(entry, layers)| {
+                StorageVariants::Mem(GenLockedIter::from(entry, |entry| {
                     Box::new(entry.edges_iter(layers, dir))
                 }))
             }
