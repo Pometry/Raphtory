@@ -13,7 +13,7 @@ jobs:
     name: Rust Tests
     runs-on: '${{ matrix.os }}'
     env:
-      CARGO_NET_GIT_FETCH_WITH_CLI: true
+      # CARGO_NET_GIT_FETCH_WITH_CLI: true
       RUST_BACKTRACE: 1
     strategy:
       matrix:
