@@ -211,10 +211,10 @@ impl TemporalGraph {
         let entry = self.storage.edge_entry(e.pid());
         let layer_ids = layer_ids.constrain_from_edge(e);
         GenLockedIter::from(entry, |entry| {
-            let iter: Box<dyn Iterator<Item = usize> + Send> = match layer_ids {
+            let iter: Box<dyn Iterator<Item = usize> + Send> = match layer_ids.as_ref() {
                 LayerIds::None => Box::new(iter::empty()),
                 LayerIds::All => entry.temp_prop_ids(None),
-                LayerIds::One(id) => entry.temp_prop_ids(Some(id)),
+                LayerIds::One(id) => entry.temp_prop_ids(Some(*id)),
                 LayerIds::Multiple(ids) => Box::new(
                     ids.iter()
                         .map(|id| entry.temp_prop_ids(Some(id)))
@@ -235,7 +235,7 @@ impl TemporalGraph {
         let entry = self.storage.edge_entry(e.pid());
         GenLockedIter::from(entry, |entry| {
             let layer_ids = layer_ids.constrain_from_edge(e);
-            match layer_ids {
+            match layer_ids.as_ref() {
                 LayerIds::None => Box::new(iter::empty()),
                 LayerIds::All => entry
                     .layer_iter()
@@ -243,7 +243,7 @@ impl TemporalGraph {
                     .kmerge()
                     .dedup()
                     .into_dyn_boxed(),
-                LayerIds::One(id) => match entry.layer(id) {
+                LayerIds::One(id) => match entry.layer(*id) {
                     Some(l) => l.const_prop_ids().into_dyn_boxed(),
                     None => Box::new(iter::empty()),
                 },

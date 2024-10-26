@@ -113,7 +113,7 @@ impl TimeSemantics for GraphStorage {
     ) -> BoxedLIter<'a, TimeIndexEntry> {
         let core_edge = self.edge_entry(e.pid());
         let layer_ids = layer_ids.constrain_from_edge(e);
-        GenLockedIter::from(core_edge, |core_edge| match layer_ids {
+        GenLockedIter::from(core_edge, |core_edge| match layer_ids.as_ref() {
             LayerIds::None => std::iter::empty().into_dyn_boxed(),
             LayerIds::One(_) => core_edge
                 .additions_iter(&layer_ids)

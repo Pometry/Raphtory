@@ -185,10 +185,10 @@ impl DiskGraphStorage {
         e: EdgeRef,
         layer_ids: LayerIds,
     ) -> Box<dyn Iterator<Item = usize> + '_> {
-        match layer_ids.constrain_from_edge(e) {
+        match layer_ids.constrain_from_edge(e).as_ref() {
             LayerIds::None => Box::new(std::iter::empty()),
             LayerIds::All => Box::new(0..self.edge_meta().temporal_prop_meta().len()),
-            LayerIds::One(id) => Box::new(self.inner().edge_global_mapping(id)),
+            LayerIds::One(id) => Box::new(self.inner().edge_global_mapping(*id)),
             LayerIds::Multiple(arc) => Box::new(GenLockedIter::from(self, |dg| {
                 Box::new(
                     arc.iter()

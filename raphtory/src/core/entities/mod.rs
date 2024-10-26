@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
@@ -27,10 +29,12 @@ impl Default for BitMultiple {
 
 impl BitMultiple {
     // Not qute binary_search but will rename_later
+    #[inline]
     pub fn binary_search(&self, pos: &usize) -> Option<usize> {
         self.0.get(*pos).filter(|b| *b).map(|_| *pos)
     }
 
+    #[inline]
     pub fn iter(&self) -> impl Iterator<Item = usize> {
         self.0
             .clone()
@@ -39,10 +43,12 @@ impl BitMultiple {
             .filter_map(|(i, b)| if b { Some(i) } else { None })
     }
 
+    #[inline]
     pub fn find(&self, id: usize) -> Option<usize> {
         self.iter().find(|i| *i == id)
     }
 
+    #[inline]
     pub fn par_iter(&self) -> impl rayon::iter::ParallelIterator<Item = usize> {
         let bit_vec = self.0.clone();
         (0..bit_vec.len())
@@ -50,6 +56,7 @@ impl BitMultiple {
             .filter_map(move |i| bit_vec.get(i).filter(|b| *b).map(|_| i))
     }
 
+    #[inline]
     pub fn set(&mut self, id: usize, value: bool) {
         if id >= self.0.len() {
             self.0.grow(id + 1, false);
@@ -57,6 +64,7 @@ impl BitMultiple {
         self.0.set(id, value);
     }
 
+    #[inline]
     pub fn len(&self) -> usize {
         self.0.len()
     }
@@ -187,13 +195,13 @@ impl LayerIds {
         }
     }
 
-    pub fn constrain_from_edge(&self, e: EdgeRef) -> LayerIds {
+    pub fn constrain_from_edge(&self, e: EdgeRef) -> Cow<LayerIds> {
         match e.layer() {
-            None => self.clone(),
+            None => Cow::Borrowed(self),
             Some(l) => self
                 .find(l)
-                .map(|id| LayerIds::One(id))
-                .unwrap_or(LayerIds::None),
+                .map(|id| Cow::Owned(LayerIds::One(id)))
+                .unwrap_or(Cow::Owned(LayerIds::None)),
         }
     }
 

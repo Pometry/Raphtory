@@ -328,16 +328,12 @@ impl NodeStore {
 }
 
 impl ArcEntry<NodeStore> {
-    pub fn into_edges(self, layers: LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> {
-        GenLockedIter::from((self, layers), |(node, layers)| {
-            node.edge_tuples(layers, dir)
-        })
+    pub fn into_edges(self, layers: &LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> {
+        GenLockedIter::from(self, |node| node.edge_tuples(layers, dir))
     }
 
-    pub fn into_neighbours(self, layers: LayerIds, dir: Direction) -> impl Iterator<Item = VID> {
-        GenLockedIter::from((self, layers), |(node, layers)| {
-            node.neighbours(layers, dir)
-        })
+    pub fn into_neighbours(self, layers: &LayerIds, dir: Direction) -> impl Iterator<Item = VID> {
+        GenLockedIter::from(self, |node| node.neighbours(layers, dir))
     }
 
     pub fn into_layers(self) -> LockedLayers {
@@ -360,22 +356,18 @@ impl ArcEntry<NodeStore> {
 impl<'a> Entry<'a, NodeStore> {
     pub fn into_neighbours(
         self,
-        layers: LayerIds,
+        layers: &LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = VID> + 'a {
-        GenLockedIter::from((self, layers), |(node, layers)| {
-            node.neighbours(layers, dir)
-        })
+        GenLockedIter::from(self, |node| node.neighbours(layers, dir))
     }
 
     pub fn into_edges(
         self,
-        layers: LayerIds,
+        layers: &LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + 'a {
-        GenLockedIter::from((self, layers), |(node, layers)| {
-            node.edge_tuples(layers, dir)
-        })
+        GenLockedIter::from(self, |node| node.edge_tuples(layers, dir))
     }
 
     pub fn into_edges_iter(
@@ -383,7 +375,7 @@ impl<'a> Entry<'a, NodeStore> {
         layers: &LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + 'a {
-        GenLockedIter::from(self, |node| Box::new(node.edge_tuples(layers, dir)))
+        GenLockedIter::from(self, |node| node.edge_tuples(layers, dir))
     }
 }
 
