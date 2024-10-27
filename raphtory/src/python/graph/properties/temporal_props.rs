@@ -1,5 +1,5 @@
 use crate::{
-    core::{utils::time::IntoTime, ArcStr, Prop, PropType},
+    core::{utils::time::IntoTime, Prop},
     db::api::{
         properties::{
             dyn_props::{DynTemporalProperties, DynTemporalProperty},
@@ -13,7 +13,7 @@ use crate::{
         types::{
             repr::{iterator_dict_repr, iterator_repr, Repr},
             wrappers::{
-                iterators::{
+                iterables::{
                     I64VecIterable, NestedI64VecIterable, NestedUsizeIterable, PropIterable,
                     UsizeIterable,
                 },
@@ -29,6 +29,7 @@ use pyo3::{
     exceptions::{PyKeyError, PyTypeError},
     prelude::*,
 };
+use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{collections::HashMap, ops::Deref, sync::Arc};
 
 impl<P: Into<DynTemporalProperties>> From<P> for PyTemporalProperties {
@@ -183,7 +184,7 @@ pub struct PyTemporalProp {
     prop: DynTemporalProperty,
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(Clone, PartialEq)]
 pub struct PyTemporalPropCmp(Vec<(i64, Prop)>);
 
 impl<'source> FromPyObject<'source> for PyTemporalPropCmp {
@@ -238,6 +239,16 @@ impl PyTemporalProp {
     /// List update timestamps and corresponding property values
     pub fn items(&self) -> Vec<(i64, Prop)> {
         self.prop.iter().collect()
+    }
+
+    // List of unique property values
+    pub fn unique(&self) -> Vec<Prop> {
+        self.prop.unique()
+    }
+
+    // List of ordered deduplicated property values
+    pub fn ordered_dedupe(&self, latest_time: bool) -> Vec<(i64, Prop)> {
+        self.prop.ordered_dedupe(latest_time)
     }
 
     /// List update timestamps and corresponding property values

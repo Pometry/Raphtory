@@ -3,11 +3,13 @@ use raphtory::{
         centrality::pagerank::unweighted_page_rank, components::weakly_connected_components,
     },
     db::{api::mutation::AdditionOps, graph::graph::Graph},
-    graph_loader::source::csv_loader::CsvLoader,
+    io::csv_loader::CsvLoader,
+    logging::global_info_logger,
     prelude::*,
 };
 use serde::Deserialize;
 use std::{env, path::Path, time::Instant};
+use tracing::info;
 
 #[derive(Deserialize, std::fmt::Debug)]
 struct Edge {
@@ -17,12 +19,12 @@ struct Edge {
 
 fn main() {
     let now = Instant::now();
-
+    global_info_logger();
     let args: Vec<String> = env::args().collect();
     let data_dir = Path::new(args.get(1).expect("No data directory provided"));
 
     let g = if std::path::Path::new("/tmp/pokec").exists() {
-        Graph::load_from_file("/tmp/pokec", false).unwrap()
+        Graph::decode("/tmp/pokec").unwrap()
     } else {
         let g = Graph::new();
         CsvLoader::new(data_dir)
@@ -34,12 +36,12 @@ fn main() {
             })
             .expect("Failed to load graph from encoded data files");
 
-        g.save_to_file("/tmp/pokec")
+        g.encode("/tmp/pokec")
             .expect("Failed to save graph to file");
         g
     };
 
-    println!(
+    info!(
         "Loaded graph from encoded data files {} with {} nodes, {} edges which took {} seconds",
         data_dir.to_str().unwrap(),
         g.count_nodes(),
@@ -51,13 +53,13 @@ fn main() {
 
     unweighted_page_rank(&g, Some(100), None, Some(0.00000001), true, None);
 
-    println!("PageRank took {} millis", now.elapsed().as_millis());
+    info!("PageRank took {} millis", now.elapsed().as_millis());
 
     let now = Instant::now();
 
     weakly_connected_components(&g, 100, None);
 
-    println!(
+    info!(
         "Connected Components took {} millis",
         now.elapsed().as_millis()
     );

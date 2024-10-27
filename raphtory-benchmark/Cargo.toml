@@ -7,10 +7,17 @@ edition = "2021"
 
 [dependencies]
 criterion = { workspace = true }
-raphtory = { path = "../raphtory", features = ["io"] }
+raphtory = { path = "../raphtory", features = ["io", "proto"], version = "0.13.1" }
+raphtory-api = { path = "../raphtory-api", version = "0.13.1" }
+pometry-storage.workspace = true
 sorted_vector_map = { workspace = true }
 rand = { workspace = true }
 rayon = { workspace = true }
+tempfile = { workspace = true }
+clap = { workspace = true }
+csv = { workspace = true }
+flate2 = { workspace = true }
+tracing = {workspace = true}
 
 [[bench]]
 name = "tgraph_benchmarks"
@@ -35,3 +42,19 @@ harness = false
 [[bench]]
 name = "edge_add"
 harness = false
+
+[[bench]]
+name = "materialise"
+harness = false
+
+[[bench]]
+name = "proto_encode"
+harness = false
+
+[[bench]]
+name = "proto_decode"
+harness = false
+
+# [[bench]]
+# name = "arrow_algobench"
+# harness = false

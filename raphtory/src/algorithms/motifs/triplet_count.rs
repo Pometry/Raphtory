@@ -118,6 +118,7 @@ mod triplet_test {
     use crate::{
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
+        test_storage,
     };
     use pretty_assertions::assert_eq;
 
@@ -153,9 +154,12 @@ mod triplet_test {
         for (src, dst) in edges {
             graph.add_edge(0, src, dst, NO_PROPS, None).unwrap();
         }
-        let exp_triplet_count = 20;
-        let results = triplet_count(&graph, None);
 
-        assert_eq!(results, exp_triplet_count);
+        test_storage!(&graph, |graph| {
+            let exp_triplet_count = 20;
+            let results = triplet_count(graph, None);
+
+            assert_eq!(results, exp_triplet_count);
+        });
     }
 }

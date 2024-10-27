@@ -1,34 +1,48 @@
 // search goes here
 
 pub mod into_indexed;
-
-use std::{collections::HashSet, ops::Deref, path::Path, sync::Arc};
-
-use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
-use tantivy::{
-    collector::TopDocs,
-    schema::{Field, Schema, SchemaBuilder, FAST, INDEXED, STORED, TEXT},
-    Document, Index, IndexReader, IndexSettings, IndexWriter, TantivyError,
-};
+#[cfg(feature = "proto")]
+mod serialise;
 
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef, EID, VID},
-        storage::timeindex::{AsTime, TimeIndexEntry},
+        entities::{
+            nodes::node_ref::{AsNodeRef, NodeRef},
+            EID, VID,
+        },
+        storage::{
+            raw_edges::WriteLockedEdges,
+            timeindex::{AsTime, TimeIndexEntry},
+            WriteLockedNodes,
+        },
         utils::errors::GraphError,
-        ArcStr, OptionAsStr, PropType,
+        PropType,
     },
     db::{
         api::{
-            mutation::internal::{InheritPropertyAdditionOps, InternalAdditionOps},
+            mutation::internal::{
+                InheritPropertyAdditionOps, InternalAdditionOps, InternalDeletionOps,
+            },
+            storage::graph::{edges::edge_storage_ops::EdgeStorageOps, locked::WriteLockedGraph},
             view::{
                 internal::{DynamicGraph, InheritViewOps, IntoDynamic, Static},
-                Base, MaterializedGraph, StaticGraphViewOps,
+                Base, StaticGraphViewOps,
             },
         },
         graph::{edge::EdgeView, node::NodeView},
     },
     prelude::*,
+};
+use raphtory_api::core::{
+    entities::GidType,
+    storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
+};
+use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
+use std::{collections::HashSet, ops::Deref, sync::Arc};
+use tantivy::{
+    collector::TopDocs,
+    schema::{Field, Schema, SchemaBuilder, Value, FAST, INDEXED, STORED, TEXT},
+    Index, IndexReader, IndexSettings, IndexWriter, TantivyDocument, TantivyError,
 };
 
 #[derive(Clone)]
@@ -85,12 +99,6 @@ impl<G: GraphViewOps<'static> + IntoDynamic> IndexedGraph<G> {
             reader: self.reader,
             edge_reader: self.edge_reader,
         }
-    }
-}
-
-impl IndexedGraph<MaterializedGraph> {
-    pub fn save_to_file(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
-        self.graph.save_to_file(path)
     }
 }
 
@@ -203,7 +211,13 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
             if prop_names_set.is_empty() {
                 break;
             }
-            let mut found_props: HashSet<ArcStr> = HashSet::default();
+            let mut found_props: HashSet<ArcStr> = HashSet::from([
+                fields::TIME.into(),
+                fields::VERTEX_ID.into(),
+                fields::VERTEX_ID_REV.into(),
+                fields::NAME.into(),
+                fields::NODE_TYPE.into(),
+            ]);
             found_props.insert("name".into());
 
             for prop in prop_names_set.iter() {
@@ -256,7 +270,12 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
             if prop_names_set.is_empty() {
                 break;
             }
-            let mut found_props: HashSet<ArcStr> = HashSet::new();
+            let mut found_props: HashSet<ArcStr> = HashSet::from([
+                fields::TIME.into(),
+                fields::SOURCE.into(),
+                fields::DESTINATION.into(),
+                fields::EDGE_ID.into(),
+            ]);
 
             for prop in prop_names_set.iter() {
                 // load temporal props
@@ -289,7 +308,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         schema.build()
     }
 
-    fn index_prop_value(document: &mut Document, prop_field: Field, prop_value: Prop) {
+    fn index_prop_value(document: &mut TantivyDocument, prop_field: Field, prop_value: Prop) {
         match prop_value {
             Prop::Str(prop_text) => {
                 // add the property to the document
@@ -391,7 +410,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
     ) -> tantivy::Result<()> {
         let node_id: u64 = usize::from(node.node) as u64;
 
-        let mut document = Document::new();
+        let mut document = TantivyDocument::new();
         // add the node_id
         document.add_u64(node_id_field, node_id);
         document.add_u64(node_id_rev_field, u64::MAX - node_id);
@@ -437,7 +456,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         let src = e_ref.src();
         let dst = e_ref.dst();
 
-        let mut document = Document::new();
+        let mut document = TantivyDocument::new();
         let edge_id: u64 = Into::<usize>::into(edge_ref.pid()) as u64;
         document.add_u64(edge_id_field, edge_id);
         document.add_text(source_field, src.name());
@@ -445,7 +464,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
 
         // add all time events
         for e in e_ref.explode() {
-            if let Some(t) = e.time() {
+            if let Ok(t) = e.time() {
                 document.add_i64(time_field, t);
             }
         }
@@ -560,7 +579,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
     fn resolve_node_from_search_result(
         &self,
         node_id: Field,
-        doc: Document,
+        doc: TantivyDocument,
     ) -> Option<NodeView<G>> {
         let node_id: usize = doc
             .get_first(node_id)
@@ -574,30 +593,30 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
     fn resolve_edge_from_search_result(
         &self,
         edge_id: Field,
-        doc: Document,
+        doc: TantivyDocument,
     ) -> Option<EdgeView<G, G>> {
         let edge_id: usize = doc
             .get_first(edge_id)
             .and_then(|value| value.as_u64())?
             .try_into()
             .ok()?;
-        let core_edge = self.graph.core_edge_arc(EID(edge_id));
+        let core_edge = self.graph.core_edge(EID(edge_id));
         let layer_ids = self.graph.layer_ids();
-        if !self.graph.filter_edge(&core_edge, layer_ids) {
+        if !self.graph.filter_edge(core_edge.as_ref(), layer_ids) {
             return None;
         }
         if self.graph.nodes_filtered() {
-            if !self
-                .graph
-                .filter_node(&self.graph.core_node_arc(core_edge.src), layer_ids)
-                || !self
-                    .graph
-                    .filter_node(&self.graph.core_node_arc(core_edge.dst), layer_ids)
-            {
+            if !self.graph.filter_node(
+                self.graph.core_node_entry(core_edge.src()).as_ref(),
+                layer_ids,
+            ) || !self.graph.filter_node(
+                self.graph.core_node_entry(core_edge.dst()).as_ref(),
+                layer_ids,
+            ) {
                 return None;
             }
         }
-        let e_view = EdgeView::new(self.graph.clone(), EdgeRef::from(core_edge));
+        let e_view = EdgeView::new(self.graph.clone(), core_edge.out_ref());
         Some(e_view)
     }
 
@@ -745,27 +764,81 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
 
 impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph<G> {
     #[inline]
-    fn next_event_id(&self) -> usize {
+    fn id_type(&self) -> Option<GidType> {
+        self.graph.id_type()
+    }
+
+    #[inline]
+    fn write_lock(&self) -> Result<WriteLockedGraph, GraphError> {
+        self.graph.write_lock()
+    }
+
+    #[inline]
+    fn write_lock_nodes(&self) -> Result<WriteLockedNodes, GraphError> {
+        self.graph.write_lock_nodes()
+    }
+
+    #[inline]
+    fn write_lock_edges(&self) -> Result<WriteLockedEdges, GraphError> {
+        self.graph.write_lock_edges()
+    }
+
+    #[inline]
+    fn num_shards(&self) -> Result<usize, GraphError> {
+        self.graph.num_shards()
+    }
+
+    #[inline]
+    fn next_event_id(&self) -> Result<usize, GraphError> {
         self.graph.next_event_id()
     }
+
     #[inline]
-    fn resolve_layer(&self, layer: Option<&str>) -> usize {
+    fn read_event_id(&self) -> usize {
+        self.graph.read_event_id()
+    }
+
+    #[inline]
+    fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, GraphError> {
+        self.graph.reserve_event_ids(num_ids)
+    }
+
+    #[inline]
+    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, GraphError> {
         self.graph.resolve_layer(layer)
     }
 
     #[inline]
-    fn resolve_node_type(&self, v_id: VID, node_type: Option<&str>) -> Result<usize, GraphError> {
-        self.graph.resolve_node_type(v_id, node_type)
+    fn resolve_node<V: AsNodeRef>(&self, n: V) -> Result<MaybeNew<VID>, GraphError> {
+        self.graph.resolve_node(n)
+    }
+
+    fn resolve_node_and_type<V: AsNodeRef>(
+        &self,
+        id: V,
+        node_type: &str,
+    ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, GraphError> {
+        let res = self.graph.resolve_node_and_type(id, node_type)?;
+        let (vid, _) = res.inner();
+        let mut document = TantivyDocument::new();
+        let node_type_field = self.node_index.schema().get_field(fields::NODE_TYPE)?;
+        document.add_text(node_type_field, node_type);
+        let node_id_field = self.node_index.schema().get_field(fields::VERTEX_ID)?;
+        document.add_u64(node_id_field, vid.inner().as_u64());
+        let mut writer = self.node_index.writer(50_000_000)?;
+        writer.add_document(document)?;
+        writer.commit()?;
+        Ok(res)
     }
 
     #[inline]
-    fn resolve_node(&self, id: u64, name: Option<&str>) -> VID {
-        self.graph.resolve_node(id, name)
-    }
-
-    #[inline]
-    fn resolve_graph_property(&self, prop: &str, is_static: bool) -> usize {
-        self.graph.resolve_graph_property(prop, is_static)
+    fn resolve_graph_property(
+        &self,
+        prop: &str,
+        dtype: PropType,
+        is_static: bool,
+    ) -> Result<MaybeNew<usize>, GraphError> {
+        self.graph.resolve_graph_property(prop, dtype, is_static)
     }
 
     #[inline]
@@ -774,7 +847,7 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
         prop: &str,
         dtype: PropType,
         is_static: bool,
-    ) -> Result<usize, GraphError> {
+    ) -> Result<MaybeNew<usize>, GraphError> {
         self.graph.resolve_node_property(prop, dtype, is_static)
     }
 
@@ -784,23 +857,17 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
         prop: &str,
         dtype: PropType,
         is_static: bool,
-    ) -> Result<usize, GraphError> {
+    ) -> Result<MaybeNew<usize>, GraphError> {
         self.graph.resolve_edge_property(prop, dtype, is_static)
-    }
-
-    #[inline]
-    fn process_prop_value(&self, prop: Prop) -> Prop {
-        self.graph.process_prop_value(prop)
     }
 
     fn internal_add_node(
         &self,
         t: TimeIndexEntry,
         v: VID,
-        props: Vec<(usize, Prop)>,
-        node_type_id: usize,
+        props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
-        let mut document = Document::new();
+        let mut document = TantivyDocument::new();
         // add time to the document
         let time = self.node_index.schema().get_field(fields::TIME)?;
         document.add_i64(time, t.t());
@@ -818,51 +885,70 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
                 }
             }
         }
-        // add the node type to the document
-        let node_type_field = self.node_index.schema().get_field(fields::NODE_TYPE)?;
-        let node_type = self
-            .graph
-            .node_meta()
-            .get_node_type_name_by_id(node_type_id);
-        document.add_text(node_type_field, node_type.as_str().unwrap_or(""));
 
         // add the node id to the document
-        self.graph.internal_add_node(t, v, props, node_type_id)?;
         // get the field from the index
         let node_id = self.node_index.schema().get_field(fields::VERTEX_ID)?;
-        let node_id_rev = self.node_index.schema().get_field(fields::VERTEX_ID_REV)?;
-        let index_v_id: u64 = Into::<usize>::into(v) as u64;
-
-        document.add_u64(node_id, index_v_id);
-        document.add_u64(node_id_rev, u64::MAX - index_v_id);
-
+        document.add_u64(node_id, v.as_u64());
         let mut writer = self.node_index.writer(50_000_000)?;
-
         writer.add_document(document)?;
-
         writer.commit()?;
 
-        Ok(())
+        self.graph.internal_add_node(t, v, props)
     }
 
     fn internal_add_edge(
         &self,
-        _t: TimeIndexEntry,
-        _src: VID,
-        _dst: VID,
-        _props: Vec<(usize, Prop)>,
-        _layer: usize,
-    ) -> Result<EID, GraphError> {
-        todo!()
+        t: TimeIndexEntry,
+        src: VID,
+        dst: VID,
+        props: &[(usize, Prop)],
+        layer: usize,
+    ) -> Result<MaybeNew<EID>, GraphError> {
+        self.graph.internal_add_edge(t, src, dst, props, layer)
+    }
+
+    fn internal_add_edge_update(
+        &self,
+        t: TimeIndexEntry,
+        edge: EID,
+        props: &[(usize, Prop)],
+        layer: usize,
+    ) -> Result<(), GraphError> {
+        self.graph.internal_add_edge_update(t, edge, props, layer)
     }
 }
 
+impl<G: InternalDeletionOps> InternalDeletionOps for IndexedGraph<G> {
+    fn internal_delete_edge(
+        &self,
+        t: TimeIndexEntry,
+        src: VID,
+        dst: VID,
+        layer: usize,
+    ) -> Result<MaybeNew<EID>, GraphError> {
+        self.graph.internal_delete_edge(t, src, dst, layer)
+    }
+
+    fn internal_delete_existing_edge(
+        &self,
+        t: TimeIndexEntry,
+        eid: EID,
+        layer: usize,
+    ) -> Result<(), GraphError> {
+        self.graph.internal_delete_existing_edge(t, eid, layer)
+    }
+}
+
+impl<G: DeletionOps> DeletionOps for IndexedGraph<G> {}
+
 #[cfg(test)]
 mod test {
+    use super::*;
+    use raphtory_api::core::utils::logging::global_info_logger;
     use std::time::SystemTime;
     use tantivy::{doc, DocAddress, Order};
-
-    use super::*;
+    use tracing::info;
 
     #[test]
     fn index_numeric_props() {
@@ -893,23 +979,25 @@ mod test {
     }
 
     #[test]
+    #[cfg(feature = "proto")]
     #[ignore = "this test is for experiments with the jira graph"]
     fn load_jira_graph() -> Result<(), GraphError> {
-        let graph = Graph::load_from_file("/tmp/graphs/jira", false).expect("failed to load graph");
+        global_info_logger();
+        let graph = Graph::decode("/tmp/graphs/jira").expect("failed to load graph");
         assert!(graph.count_nodes() > 0);
 
         let now = SystemTime::now();
 
         let index_graph: IndexedGraph<Graph> = graph.into();
         let elapsed = now.elapsed().unwrap().as_secs();
-        println!("indexing took: {:?}", elapsed);
+        info!("indexing took: {:?}", elapsed);
 
         let issues = index_graph.search_nodes("name:'DEV-1690'", 5, 0)?;
 
         assert!(!issues.is_empty());
 
         let names = issues.into_iter().map(|v| v.name()).collect::<Vec<_>>();
-        println!("names: {:?}", names);
+        info!("names: {:?}", names);
 
         Ok(())
     }
@@ -1284,7 +1372,7 @@ mod test {
 
         let reader = index
             .reader_builder()
-            .reload_policy(tantivy::ReloadPolicy::OnCommit)
+            .reload_policy(tantivy::ReloadPolicy::OnCommitWithDelay)
             .try_into()
             .unwrap();
 

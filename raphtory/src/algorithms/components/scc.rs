@@ -40,15 +40,7 @@ fn tarjan<'graph, G>(
 
     for neighbor in node.out_neighbours() {
         if !indices.contains_key(&neighbor.node) {
-            tarjan(
-                neighbor.clone(),
-                index,
-                stack,
-                indices,
-                lowlink,
-                on_stack,
-                result,
-            );
+            tarjan(neighbor, index, stack, indices, lowlink, on_stack, result);
             lowlink.insert(node.node, lowlink[&node.node].min(lowlink[&neighbor.node]));
         } else if on_stack.contains(&neighbor.node) {
             lowlink.insert(node.node, lowlink[&node.node].min(indices[&neighbor.node]));
@@ -101,7 +93,7 @@ pub fn strongly_connected_components<G>(
     threads: Option<usize>,
 ) -> AlgorithmResult<G, usize>
 where
-    G: StaticGraphViewOps + Debug,
+    G: StaticGraphViewOps,
 {
     #[derive(Clone, Debug, Default)]
     struct SCCNode {
@@ -110,17 +102,19 @@ where
 
     let ctx: Context<G, ComputeStateVec> = graph.into();
     let step1 = ATask::new(move |vv: &mut EvalNodeView<G, SCCNode>| {
-        let id = vv.id();
+        let id = vv.node;
         let mut out_components = HashSet::new();
         let mut to_check_stack = Vec::new();
-        vv.out_neighbours().id().for_each(|id| {
+        vv.out_neighbours().iter().for_each(|node| {
+            let id = node.node;
             out_components.insert(id);
             to_check_stack.push(id);
         });
 
         while let Some(neighbour_id) = to_check_stack.pop() {
             if let Some(neighbour) = vv.graph().node(neighbour_id) {
-                neighbour.out_neighbours().id().for_each(|id| {
+                neighbour.out_neighbours().iter().for_each(|node| {
+                    let id = node.node;
                     if !out_components.contains(&id) {
                         out_components.insert(id);
                         to_check_stack.push(id);
@@ -183,8 +177,8 @@ mod strongly_connected_components_tests {
     use crate::{
         algorithms::components::scc::strongly_connected_components,
         prelude::{AdditionOps, Graph, NO_PROPS},
+        test_storage,
     };
-    use itertools::Itertools;
     use std::collections::HashSet;
 
     #[test]
@@ -207,25 +201,27 @@ mod strongly_connected_components_tests {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let scc_nodes: HashSet<_> = strongly_connected_components(&graph, None)
-            .group_by()
-            .into_values()
-            .map(|mut v| {
-                v.sort();
-                v
-            })
-            .collect();
+        test_storage!(&graph, |graph| {
+            let scc_nodes: HashSet<_> = strongly_connected_components(graph, None)
+                .group_by()
+                .into_values()
+                .map(|mut v| {
+                    v.sort();
+                    v
+                })
+                .collect();
 
-        let expected: HashSet<Vec<String>> = [
-            vec!["2", "5", "6", "7", "8"],
-            vec!["1"],
-            vec!["3"],
-            vec!["4"],
-        ]
-        .into_iter()
-        .map(|v| v.into_iter().map(|s| s.to_owned()).collect())
-        .collect();
-        assert_eq!(scc_nodes, expected);
+            let expected: HashSet<Vec<String>> = [
+                vec!["2", "5", "6", "7", "8"],
+                vec!["1"],
+                vec!["3"],
+                vec!["4"],
+            ]
+            .into_iter()
+            .map(|v| v.into_iter().map(|s| s.to_owned()).collect())
+            .collect();
+            assert_eq!(scc_nodes, expected);
+        });
     }
 
     #[test]
@@ -249,21 +245,23 @@ mod strongly_connected_components_tests {
             graph.add_edge(0, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let scc_nodes: HashSet<_> = strongly_connected_components(&graph, None)
-            .group_by()
-            .into_values()
-            .map(|mut v| {
-                v.sort();
-                v
-            })
-            .collect();
-
-        let expected: HashSet<Vec<String>> =
-            [vec!["3", "4", "5", "7"], vec!["1", "2", "8"], vec!["6"]]
-                .into_iter()
-                .map(|v| v.into_iter().map(|s| s.to_owned()).collect())
+        test_storage!(&graph, |graph| {
+            let scc_nodes: HashSet<_> = strongly_connected_components(graph, None)
+                .group_by()
+                .into_values()
+                .map(|mut v| {
+                    v.sort();
+                    v
+                })
                 .collect();
-        assert_eq!(scc_nodes, expected);
+
+            let expected: HashSet<Vec<String>> =
+                [vec!["3", "4", "5", "7"], vec!["1", "2", "8"], vec!["6"]]
+                    .into_iter()
+                    .map(|v| v.into_iter().map(|s| s.to_owned()).collect())
+                    .collect();
+            assert_eq!(scc_nodes, expected);
+        });
     }
 
     #[test]
@@ -274,20 +272,22 @@ mod strongly_connected_components_tests {
             graph.add_edge(0, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let scc_nodes: HashSet<_> = strongly_connected_components(&graph, None)
-            .group_by()
-            .into_values()
-            .map(|mut v| {
-                v.sort();
-                v
-            })
-            .collect();
+        test_storage!(&graph, |graph| {
+            let scc_nodes: HashSet<_> = strongly_connected_components(graph, None)
+                .group_by()
+                .into_values()
+                .map(|mut v| {
+                    v.sort();
+                    v
+                })
+                .collect();
 
-        let expected: HashSet<Vec<String>> = [vec!["2", "3", "4"], vec!["1"]]
-            .into_iter()
-            .map(|v| v.into_iter().map(|s| s.to_owned()).collect())
-            .collect();
-        assert_eq!(scc_nodes, expected);
+            let expected: HashSet<Vec<String>> = [vec!["2", "3", "4"], vec!["1"]]
+                .into_iter()
+                .map(|v| v.into_iter().map(|s| s.to_owned()).collect())
+                .collect();
+            assert_eq!(scc_nodes, expected);
+        });
     }
 
     #[test]
@@ -307,27 +307,29 @@ mod strongly_connected_components_tests {
             graph.add_edge(0, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let scc_nodes: HashSet<_> = strongly_connected_components(&graph, None)
-            .group_by()
-            .into_values()
-            .map(|mut v| {
-                v.sort();
-                v
-            })
-            .collect();
+        test_storage!(&graph, |graph| {
+            let scc_nodes: HashSet<_> = strongly_connected_components(graph, None)
+                .group_by()
+                .into_values()
+                .map(|mut v| {
+                    v.sort();
+                    v
+                })
+                .collect();
 
-        let expected: HashSet<Vec<String>> = [
-            vec!["0"],
-            vec!["1"],
-            vec!["2"],
-            vec!["3"],
-            vec!["4"],
-            vec!["5"],
-            vec!["6"],
-        ]
-        .into_iter()
-        .map(|v| v.into_iter().map(|s| s.to_owned()).collect())
-        .collect();
-        assert_eq!(scc_nodes, expected);
+            let expected: HashSet<Vec<String>> = [
+                vec!["0"],
+                vec!["1"],
+                vec!["2"],
+                vec!["3"],
+                vec!["4"],
+                vec!["5"],
+                vec!["6"],
+            ]
+            .into_iter()
+            .map(|v| v.into_iter().map(|s| s.to_owned()).collect())
+            .collect();
+            assert_eq!(scc_nodes, expected);
+        });
     }
 }

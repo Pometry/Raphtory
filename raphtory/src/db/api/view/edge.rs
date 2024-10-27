@@ -1,18 +1,19 @@
 use std::iter;
 
 use chrono::{DateTime, Utc};
+use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
-        ArcStr,
+        utils::{errors::GraphError, iter::GenLockedIter},
     },
     db::api::{
         properties::{internal::PropertiesOps, Properties},
         view::{
             internal::{CoreGraphOps, InternalLayerOps, TimeSemantics},
-            BoxedIter, IntoDynBoxed,
+            IntoDynBoxed,
         },
     },
     prelude::{GraphViewOps, LayerOps, NodeViewOps, TimeOps},
@@ -95,10 +96,10 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     fn nbr(&self) -> Self::Nodes;
 
     /// Check if edge is active at a given time point
-    fn active(&self, t: i64) -> Self::ValueType<bool>;
+    fn is_active(&self) -> Self::ValueType<bool>;
 
     /// Returns the id of the edge.
-    fn id(&self) -> Self::ValueType<(u64, u64)>;
+    fn id(&self) -> Self::ValueType<(GID, GID)>;
 
     /// Explodes an edge and returns all instances it had been updated as seperate edges
     fn explode(&self) -> Self::Exploded;
@@ -116,22 +117,25 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     fn latest_time(&self) -> Self::ValueType<Option<i64>>;
 
     /// Gets the time stamp of the edge if it is exploded
-    fn time(&self) -> Self::ValueType<Option<i64>>;
+    fn time(&self) -> Self::ValueType<Result<i64, GraphError>>;
 
     fn date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>>;
 
     /// Gets the layer name for the edge if it is restricted to a single layer
-    fn layer_name(&self) -> Self::ValueType<Option<ArcStr>>;
+    fn layer_name(&self) -> Self::ValueType<Result<ArcStr, GraphError>>;
 
     /// Gets the TimeIndexEntry if the edge is exploded
     fn time_and_index(&self) -> Self::ValueType<Option<TimeIndexEntry>>;
 
     /// Gets the name of the layer this edge belongs to
-    fn layer_names(&self) -> Self::ValueType<BoxedIter<ArcStr>>;
+    fn layer_names(&self) -> Self::ValueType<Vec<ArcStr>>;
 }
 
 impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
-    type ValueType<T> = E::ValueType<T> where T: 'graph;
+    type ValueType<T>
+        = E::ValueType<T>
+    where
+        T: 'graph;
     type PropType = E::PropType;
     type Graph = E::Graph;
     type BaseGraph = E::BaseGraph;
@@ -141,20 +145,19 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
 
     /// list the activation timestamps for the edge
     fn history(&self) -> Self::ValueType<Vec<i64>> {
-        self.map(|g, e| g.edge_history(e, g.layer_ids().constrain_from_edge(e)))
+        self.map(|g, e| g.edge_history(e, g.layer_ids()).map(|ti| ti.t()).collect())
     }
 
     fn history_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>> {
-        self.map(move |g, e| {
-            g.edge_history(e, g.layer_ids().constrain_from_edge(e))
-                .into_iter()
-                .map(|t| t.dt())
-                .collect()
-        })
+        self.map(move |g, e| g.edge_history(e, g.layer_ids()).map(|t| t.dt()).collect())
     }
 
     fn deletions(&self) -> Self::ValueType<Vec<i64>> {
-        self.map(move |g, e| g.edge_deletion_history(e, &g.layer_ids().constrain_from_edge(e)))
+        self.map(move |g, e| {
+            g.edge_deletion_history(e, &g.layer_ids().constrain_from_edge(e))
+                .map(|t| t.t())
+                .collect()
+        })
     }
 
     fn deletions_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>> {
@@ -197,23 +200,16 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         self.map_nodes(|_, e| e.remote())
     }
 
-    /// Check if edge is active at a given time point
-    fn active(&self, t: i64) -> Self::ValueType<bool> {
-        self.map(move |g, e| match e.time() {
-            Some(tt) => {
-                tt.t() <= t
-                    && t <= g
-                        .edge_latest_time(e, &g.layer_ids().constrain_from_edge(e))
-                        .unwrap_or(tt.t())
-            }
-            None => {
-                let edge = g.core_edge_arc(e.pid());
-                g.include_edge_window(&edge, t..t.saturating_add(1), g.layer_ids())
-            }
+    /// Check if edge is active (i.e. has some update within the current bound)
+    fn is_active(&self) -> Self::ValueType<bool> {
+        self.map(move |g, e| {
+            g.edge_exploded(e, &g.layer_ids().constrain_from_edge(e))
+                .next()
+                .is_some()
         })
     }
 
-    fn id(&self) -> Self::ValueType<(u64, u64)> {
+    fn id(&self) -> Self::ValueType<(GID, GID)> {
         self.map(|g, e| (g.node_id(e.src()), g.node_id(e.dst())))
     }
 
@@ -221,14 +217,20 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     fn explode(&self) -> Self::Exploded {
         self.map_exploded(|g, e| match e.time() {
             Some(_) => Box::new(iter::once(e)),
-            None => g.edge_exploded(e, &g.layer_ids().constrain_from_edge(e)),
+            None => {
+                let g = g.clone();
+                GenLockedIter::from(g, move |g| g.edge_exploded(e, g.layer_ids())).into_dyn_boxed()
+            }
         })
     }
 
     fn explode_layers(&self) -> Self::Exploded {
         self.map_exploded(|g, e| match e.layer() {
             Some(_) => Box::new(iter::once(e)),
-            None => g.edge_layers(e, g.layer_ids()),
+            None => {
+                let g = g.clone();
+                GenLockedIter::from(g, move |g| g.edge_layers(e, g.layer_ids())).into_dyn_boxed()
+            }
         })
     }
 
@@ -257,8 +259,8 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     }
 
     /// Gets the time stamp of the edge if it is exploded
-    fn time(&self) -> Self::ValueType<Option<i64>> {
-        self.map(|_, e| e.time_t())
+    fn time(&self) -> Self::ValueType<Result<i64, GraphError>> {
+        self.map(|_, e| e.time_t().ok_or_else(|| GraphError::TimeAPIError))
     }
 
     fn date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>> {
@@ -266,8 +268,12 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     }
 
     /// Gets the layer name for the edge if it is restricted to a single layer
-    fn layer_name(&self) -> Self::ValueType<Option<ArcStr>> {
-        self.map(|g, e| e.layer().map(|l_id| g.get_layer_name(*l_id)))
+    fn layer_name(&self) -> Self::ValueType<Result<ArcStr, GraphError>> {
+        self.map(|g, e| {
+            e.layer()
+                .map(|l_id| g.get_layer_name(l_id))
+                .ok_or_else(|| GraphError::LayerNameAPIError)
+        })
     }
 
     /// Gets the TimeIndexEntry if the edge is exploded
@@ -276,100 +282,179 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     }
 
     /// Gets the name of the layer this edge belongs to
-    fn layer_names(&self) -> Self::ValueType<BoxedIter<ArcStr>> {
+    fn layer_names(&self) -> Self::ValueType<Vec<ArcStr>> {
         self.map(|g, e| {
             let layer_names = g.edge_meta().layer_meta().get_keys();
             g.edge_layers(e, &g.layer_ids().constrain_from_edge(e))
                 .map(move |ee| {
-                    layer_names[*ee.layer().expect("exploded edge should have layer")].clone()
+                    layer_names[ee.layer().expect("exploded edge should have layer")].clone()
                 })
-                .into_dyn_boxed()
+                .collect()
         })
     }
 }
 
 #[cfg(test)]
 mod test_edge_view {
-    use crate::prelude::*;
+    use crate::{prelude::*, test_storage, test_utils::test_graph};
 
     #[test]
     fn test_exploded_edge_properties() {
-        let g = Graph::new();
+        let graph = Graph::new();
         let actual_prop_values = vec![0, 1, 2, 3];
         for v in actual_prop_values.iter() {
-            g.add_edge(0, 1, 2, [("test", *v)], None).unwrap();
+            graph.add_edge(0, 1, 2, [("test", *v)], None).unwrap();
         }
 
-        let prop_values: Vec<_> = g
-            .edge(1, 2)
-            .unwrap()
-            .explode()
-            .properties()
-            .flat_map(|p| p.get("test").into_i32())
-            .collect();
-        assert_eq!(prop_values, actual_prop_values)
+        test_storage!(&graph, |graph| {
+            let prop_values: Vec<_> = graph
+                .edge(1, 2)
+                .unwrap()
+                .explode()
+                .properties()
+                .flat_map(|p| p.get("test").into_i32())
+                .collect();
+            assert_eq!(prop_values, actual_prop_values)
+        });
+    }
+
+    #[test]
+    fn test_exploded_edge_properties_window() {
+        let graph = Graph::new();
+        let actual_prop_values_0 = vec![0, 1, 2, 3];
+        for v in actual_prop_values_0.iter() {
+            graph.add_edge(0, 1, 2, [("test", *v)], None).unwrap();
+        }
+        let actual_prop_values_1 = vec![4, 5, 6];
+        for v in actual_prop_values_1.iter() {
+            graph.add_edge(1, 1, 2, [("test", *v)], None).unwrap();
+        }
+        test_storage!(&graph, |graph| {
+            let prop_values: Vec<_> = graph
+                .at(0)
+                .edge(1, 2)
+                .unwrap()
+                .explode()
+                .properties()
+                .flat_map(|p| p.get("test").into_i32())
+                .collect();
+            assert_eq!(prop_values, actual_prop_values_0);
+            let prop_values: Vec<_> = graph
+                .at(1)
+                .edge(1, 2)
+                .unwrap()
+                .explode()
+                .properties()
+                .flat_map(|p| p.get("test").into_i32())
+                .collect();
+            assert_eq!(prop_values, actual_prop_values_1)
+        });
     }
 
     #[test]
     fn test_exploded_edge_multilayer() {
-        let g = Graph::new();
+        let graph = Graph::new();
         let expected_prop_values = vec![0, 1, 2, 3];
         for v in expected_prop_values.iter() {
-            g.add_edge(0, 1, 2, [("test", *v)], Some((v % 2).to_string().as_str()))
+            graph
+                .add_edge(0, 1, 2, [("test", *v)], Some((v % 2).to_string().as_str()))
                 .unwrap();
         }
+        // FIXME: Needs support for secondary time index in disk storage (Issue #30)
+        test_graph(&graph, |graph| {
+            let prop_values: Vec<_> = graph
+                .edge(1, 2)
+                .unwrap()
+                .explode()
+                .properties()
+                .flat_map(|p| p.get("test").into_i32())
+                .collect();
+            let actual_layers: Vec<_> = graph
+                .edge(1, 2)
+                .unwrap()
+                .explode()
+                .layer_name()
+                .flatten()
+                .collect();
+            let expected_layers: Vec<_> = expected_prop_values
+                .iter()
+                .map(|v| (v % 2).to_string())
+                .collect();
+            assert_eq!(prop_values, expected_prop_values);
+            assert_eq!(actual_layers, expected_layers);
 
-        let prop_values: Vec<_> = g
-            .edge(1, 2)
-            .unwrap()
-            .explode()
-            .properties()
-            .flat_map(|p| p.get("test").into_i32())
-            .collect();
-        let actual_layers: Vec<_> = g
-            .edge(1, 2)
-            .unwrap()
-            .explode()
-            .layer_name()
-            .flatten()
-            .collect();
-        let expected_layers: Vec<_> = expected_prop_values
-            .iter()
-            .map(|v| (v % 2).to_string())
-            .collect();
-        assert_eq!(prop_values, expected_prop_values);
-        assert_eq!(actual_layers, expected_layers);
+            assert!(graph.edge(1, 2).unwrap().layer_name().is_err());
+            assert!(graph.edges().layer_name().all(|l| l.is_err()));
+            assert!(graph
+                .edge(1, 2)
+                .unwrap()
+                .explode()
+                .layer_name()
+                .all(|l| l.is_ok()));
+            assert!(graph
+                .edge(1, 2)
+                .unwrap()
+                .explode_layers()
+                .layer_name()
+                .all(|l| l.is_ok()));
+            assert!(graph.edges().explode().layer_name().all(|l| l.is_ok()));
+            assert!(graph
+                .edges()
+                .explode_layers()
+                .layer_name()
+                .all(|l| l.is_ok()));
+
+            assert!(graph.edge(1, 2).unwrap().time().is_err());
+            assert!(graph.edges().time().all(|l| l.is_err()));
+            assert!(graph
+                .edge(1, 2)
+                .unwrap()
+                .explode()
+                .time()
+                .all(|l| l.is_ok()));
+            assert!(graph
+                .edge(1, 2)
+                .unwrap()
+                .explode_layers()
+                .time()
+                .all(|l| l.is_err()));
+            assert!(graph.edges().explode().time().all(|l| l.is_ok()));
+            assert!(graph.edges().explode_layers().time().all(|l| l.is_err()));
+        });
     }
 
     #[test]
     fn test_sorting_by_secondary_index() {
-        let g = Graph::new();
-        g.add_edge(0, 2, 3, NO_PROPS, None).unwrap();
-        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
-        g.add_edge(0, 1, 2, [("second", true)], None).unwrap();
-        g.add_edge(0, 2, 3, [("second", true)], None).unwrap();
+        let graph = Graph::new();
+        graph.add_edge(0, 2, 3, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 1, 2, [("second", true)], None).unwrap();
+        graph.add_edge(0, 2, 3, [("second", true)], None).unwrap();
 
-        let mut exploded_edges: Vec<_> = g.edges().explode().iter().collect();
-        exploded_edges.sort_by_key(|a| a.time_and_index());
+        //FIXME: DiskGraph does not preserve secondary index (see #1780)
+        test_graph(&graph, |graph| {
+            let mut exploded_edges: Vec<_> = graph.edges().explode().into_iter().collect();
+            exploded_edges.sort_by_key(|a| a.time_and_index());
 
-        let res: Vec<_> = exploded_edges
-            .into_iter()
-            .map(|e| {
-                (
-                    e.src().id(),
-                    e.dst().id(),
-                    e.properties().get("second").into_bool(),
-                )
-            })
-            .collect();
-        assert_eq!(
-            res,
-            vec![
-                (2, 3, None),
-                (1, 2, None),
-                (1, 2, Some(true)),
-                (2, 3, Some(true))
-            ]
-        )
+            let res: Vec<_> = exploded_edges
+                .into_iter()
+                .filter_map(|e| {
+                    Some((
+                        e.src().id().as_u64()?,
+                        e.dst().id().as_u64()?,
+                        e.properties().get("second").into_bool(),
+                    ))
+                })
+                .collect();
+            assert_eq!(
+                res,
+                vec![
+                    (2, 3, None),
+                    (1, 2, None),
+                    (1, 2, Some(true)),
+                    (2, 3, Some(true))
+                ]
+            )
+        });
     }
 }

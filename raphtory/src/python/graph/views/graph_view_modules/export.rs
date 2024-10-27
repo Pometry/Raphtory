@@ -1,5 +1,5 @@
 use crate::{
-    core::{ArcStr, Prop},
+    core::Prop,
     prelude::{EdgeViewOps, GraphViewOps, NodeViewOps, PropUnwrap},
     python::graph::views::graph_view::PyGraphView,
 };
@@ -9,6 +9,7 @@ use pyo3::{
     types::{PyDict, PyList, PyTuple},
     IntoPy, PyObject, PyResult, Python, ToPyObject,
 };
+use raphtory_api::core::storage::arc_str::ArcStr;
 use std::collections::HashMap;
 
 #[pymethods]
@@ -19,17 +20,17 @@ impl PyGraphView {
     ///
     ///     Args:
     ///         graph (graph): A Raphtory graph.
-    ///         explode_edges (bool): A boolean that is set to True if you want to explode the edges in the graph. By default this is set to False.
-    ///         edge_color (str): A string defining the colour of the edges in the graph. By default ``#000000`` (black) is set.
-    ///         shape (str): An optional string defining what the node looks like.
+    ///         explode_edges (bool): A boolean that is set to True if you want to explode the edges in the graph. Defaults to False.
+    ///         edge_color (str): A string defining the colour of the edges in the graph. Defaults to "#000000".
+    ///         shape (str): An optional string defining what the node looks like. Defaults to "dot".
     ///             There are two types of nodes. One type has the label inside of it and the other type has the label underneath it.
     ///             The types with the label inside of it are: ellipse, circle, database, box, text.
     ///             The ones with the label outside of it are: image, circularImage, diamond, dot, star, triangle, triangleDown, square and icon.
-    ///             By default ``"dot"`` is set.
-    ///         node_image (str): An optional string defining the url of a custom node image. By default an image of a circle is set.
-    ///         edge_weight (str): An optional string defining the name of the property where edge weight is set on your Raphtory graph. By default ``1`` is set.
+    ///         node_image (str, optional): An optional string defining the url of a custom node image.
+    ///         edge_weight (str, optional): An optional string defining the name of the property where edge weight is set on your Raphtory graph.
+    ///             If not provided, the edge weight is set to `1.0` for all edges.
     ///         edge_label (str): An optional string defining the name of the property where edge label is set on your Raphtory graph. By default, an empty string as the label is set.
-    ///         notebook (bool): A boolean that is set to True if using jupyter notebook. By default this is set to True.
+    ///         notebook (bool): A boolean that is set to True if using jupyter notebook. Defaults to False
     ///         kwargs: Additional keyword arguments that are passed to the pyvis Network class.
     ///
     ///     Returns:
@@ -231,13 +232,11 @@ impl PyGraphView {
                         }
                     }
                 }
-                let layer = e.layer_name();
-                if layer.is_some() {
-                    properties.set_item("layer", layer)?;
-                }
+                let layer = e.layer_name()?;
+                properties.set_item("layer", layer)?;
                 if include_update_history.unwrap_or(true) {
                     if explode_edges.unwrap_or(true) {
-                        properties.set_item("update_history", e.time())?;
+                        properties.set_item("update_history", e.time()?)?;
                     } else {
                         properties.set_item("update_history", e.history())?;
                     }

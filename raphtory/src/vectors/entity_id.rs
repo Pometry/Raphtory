@@ -1,36 +1,28 @@
 use crate::{
-    db::{
-        api::view::StaticGraphViewOps,
-        graph::{edge::EdgeView, node::NodeView},
-    },
-    prelude::{EdgeViewOps, NodeViewOps},
+    db::graph::{edge::EdgeView, node::NodeView},
+    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
 };
-use serde::{Deserialize, Serialize, Serializer};
+use raphtory_api::core::entities::GID;
+use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub(crate) enum EntityId {
-    Graph { name: String },
-    Node { id: u64 },
-    Edge { src: u64, dst: u64 },
+    Graph { name: Option<String> },
+    Node { id: GID },
+    Edge { src: GID, dst: GID },
 }
 
 impl EntityId {
-    pub(crate) fn from_graph<G: StaticGraphViewOps>(graph: &G) -> Self {
-        Self::Graph {
-            name: graph
-                .properties()
-                .get("name")
-                .expect("A graph should have a 'name' property in order to make a document for it")
-                .to_string(),
-        }
+    pub(crate) fn for_graph(name: Option<String>) -> Self {
+        Self::Graph { name }
     }
 
-    pub(crate) fn from_node<G: StaticGraphViewOps>(node: &NodeView<G>) -> Self {
+    pub(crate) fn from_node<'graph, G: GraphViewOps<'graph>>(node: NodeView<G>) -> Self {
         Self::Node { id: node.id() }
     }
 
-    pub(crate) fn from_edge<G: StaticGraphViewOps>(edge: &EdgeView<G>) -> Self {
+    pub(crate) fn from_edge<'graph, G: GraphViewOps<'graph>>(edge: EdgeView<G>) -> Self {
         Self::Edge {
             src: edge.src().id(),
             dst: edge.dst().id(),
@@ -66,14 +58,17 @@ impl EntityId {
 impl Display for EntityId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            EntityId::Graph { name } => f.write_str(&format!("graph:{name}")),
-            EntityId::Node { id } => f.serialize_u64(*id),
+            EntityId::Graph { name } => {
+                let graph_name = name.clone().unwrap_or("_unnamed".to_owned());
+                f.write_str(&format!("graph:{graph_name}"))
+            }
+            EntityId::Node { id } => f.write_str(&id.to_str()),
             EntityId::Edge { src, dst } => {
-                f.serialize_u64(*src)
+                f.write_str(&src.to_str())
                     .expect("src ID couldn't be serialized");
                 f.write_str("-")
                     .expect("edge ID separator couldn't be serialized");
-                f.serialize_u64(*dst)
+                f.write_str(&dst.to_str())
             }
         }
     }

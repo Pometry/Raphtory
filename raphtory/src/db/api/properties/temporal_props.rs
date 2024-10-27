@@ -1,10 +1,15 @@
 use crate::{
-    core::{ArcStr, DocumentInput, Prop, PropUnwrap},
-    db::api::properties::internal::PropertiesOps,
+    core::{DocumentInput, Prop, PropType, PropUnwrap},
+    db::{api::properties::internal::PropertiesOps, graph::views::deletion_graph::PersistentGraph},
     prelude::Graph,
 };
 use chrono::{DateTime, NaiveDateTime, Utc};
-use std::{collections::HashMap, iter::Zip, sync::Arc};
+use raphtory_api::core::storage::arc_str::ArcStr;
+use std::{
+    collections::{HashMap, HashSet},
+    iter::Zip,
+    sync::Arc,
+};
 
 pub struct TemporalPropertyView<P: PropertiesOps> {
     pub(crate) id: usize,
@@ -14,6 +19,10 @@ pub struct TemporalPropertyView<P: PropertiesOps> {
 impl<P: PropertiesOps> TemporalPropertyView<P> {
     pub(crate) fn new(props: P, key: usize) -> Self {
         TemporalPropertyView { props, id: key }
+    }
+
+    pub fn dtype(&self) -> PropType {
+        self.props.dtype(self.id)
     }
     pub fn history(&self) -> Vec<i64> {
         self.props.temporal_history(self.id)
@@ -43,6 +52,41 @@ impl<P: PropertiesOps> TemporalPropertyView<P> {
     }
     pub fn latest(&self) -> Option<Prop> {
         self.props.temporal_value(self.id)
+    }
+
+    pub fn unique(&self) -> Vec<Prop> {
+        let unique_props: HashSet<_> = self.values().into_iter().collect();
+        unique_props.into_iter().collect()
+    }
+
+    pub fn ordered_dedupe(&self, latest_time: bool) -> Vec<(i64, Prop)> {
+        let mut last_seen_value: Option<Prop> = None;
+        let mut result: Vec<(i64, Prop)> = vec![];
+
+        let mut current_entry: Option<(i64, Prop)> = None;
+
+        for (t, prop) in self {
+            if latest_time {
+                if last_seen_value == Some(prop.clone()) {
+                    current_entry = Some((t, prop.clone()));
+                } else {
+                    if let Some(entry) = current_entry.take() {
+                        result.push(entry);
+                    }
+                    current_entry = Some((t, prop.clone()));
+                }
+                last_seen_value = Some(prop.clone());
+            } else if last_seen_value != Some(prop.clone()) {
+                result.push((t, prop.clone()));
+                last_seen_value = Some(prop.clone());
+            }
+        }
+
+        if let Some(entry) = current_entry {
+            result.push(entry);
+        }
+
+        result
     }
 }
 
@@ -115,6 +159,10 @@ impl<P: PropertiesOps + Clone> TemporalProperties<P> {
             .map(|k| TemporalPropertyView::new(self.props.clone(), k))
     }
 
+    pub fn get_by_id(&self, id: usize) -> Option<TemporalPropertyView<P>> {
+        Some(TemporalPropertyView::new(self.props.clone(), id))
+    }
+
     pub fn histories(&self) -> Vec<(ArcStr, (i64, Prop))> {
         self.iter()
             .flat_map(|(k, v)| v.histories().map(move |v| (k.clone(), v.clone())))
@@ -124,6 +172,12 @@ impl<P: PropertiesOps + Clone> TemporalProperties<P> {
     pub fn collect_properties(self) -> Vec<(ArcStr, Prop)> {
         self.iter()
             .flat_map(|(k, v)| v.latest().map(|v| (k.clone(), v)))
+            .collect()
+    }
+
+    pub fn as_map(&self) -> HashMap<ArcStr, Vec<(i64, Prop)>> {
+        self.iter()
+            .map(|(key, value)| (key, value.histories().collect()))
             .collect()
     }
 }
@@ -183,6 +237,10 @@ impl<P: PropertiesOps> PropUnwrap for TemporalPropertyView<P> {
 
     fn into_graph(self) -> Option<Graph> {
         self.latest().into_graph()
+    }
+
+    fn into_persistent_graph(self) -> Option<PersistentGraph> {
+        self.latest().into_persistent_graph()
     }
 
     fn into_document(self) -> Option<DocumentInput> {

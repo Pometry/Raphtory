@@ -3,26 +3,33 @@ use async_openai::{
     types::{CreateEmbeddingRequest, EmbeddingInput},
     Client,
 };
-use itertools::Itertools;
+use tracing::info;
 
-pub async fn openai_embedding(texts: Vec<String>) -> Vec<Embedding> {
-    println!("computing embeddings for {} texts", texts.len());
+use super::EmbeddingResult;
+
+pub async fn openai_embedding(texts: Vec<String>) -> EmbeddingResult<Vec<Embedding>> {
+    info!("computing embeddings for {} texts", texts.len());
     let client = Client::new();
     let request = CreateEmbeddingRequest {
         model: "text-embedding-ada-002".to_owned(),
         input: EmbeddingInput::StringArray(texts),
         user: None,
         encoding_format: None,
+        dimensions: None,
     };
-    let response = client.embeddings().create(request).await.unwrap();
-    println!("Generated embeddings successfully");
-    response.data.into_iter().map(|e| e.embedding).collect_vec()
+    let response = client.embeddings().create(request).await?;
+    info!("Generated embeddings successfully");
+    Ok(response
+        .data
+        .into_iter()
+        .map(|e| e.embedding.into())
+        .collect())
 }
 
 // this is currently commented out so we don't need to add any new dependencies
 // but might be potentially useful in the future
 // async fn sentence_transformers_embeddings(texts: Vec<String>) -> Vec<Embedding> {
-//     println!("computing embeddings for {} texts", texts.len());
+//     info!("computing embeddings for {} texts", texts.len());
 //     Python::with_gil(|py| {
 //         let sentence_transformers = py.import("sentence_transformers")?;
 //         let locals = [("sentence_transformers", sentence_transformers)].into_py_dict(py);

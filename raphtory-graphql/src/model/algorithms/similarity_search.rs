@@ -1,5 +1,9 @@
-use crate::model::algorithms::{
-    algorithm::Algorithm, document::GqlDocument, vector_algorithms::VectorAlgorithms,
+use crate::{
+    data::Data,
+    model::{
+        algorithms::document::GqlDocument,
+        plugins::{operation::Operation, vector_algorithm_plugin::VectorAlgorithmPlugin},
+    },
 };
 use async_graphql::{
     dynamic::{FieldValue, ResolverContext, TypeRef},
@@ -7,25 +11,29 @@ use async_graphql::{
 };
 use dynamic_graphql::internal::TypeName;
 use futures_util::future::BoxFuture;
-use raphtory::vectors::embeddings::openai_embedding;
+use tracing::info;
 
 pub(crate) struct SimilaritySearch;
 
-impl<'a> Algorithm<'a, VectorAlgorithms> for SimilaritySearch {
+impl<'a> Operation<'a, VectorAlgorithmPlugin> for SimilaritySearch {
     type OutputType = GqlDocument;
+
     fn output_type() -> TypeRef {
         TypeRef::named_nn_list_nn(GqlDocument::get_type_name())
     }
+
     fn args<'b>() -> Vec<(&'b str, TypeRef)> {
         vec![
             ("query", TypeRef::named_nn(TypeRef::STRING)),
             ("limit", TypeRef::named_nn(TypeRef::INT)),
         ]
     }
-    fn apply_algo<'b>(
-        entry_point: &VectorAlgorithms,
+
+    fn apply<'b>(
+        entry_point: &VectorAlgorithmPlugin,
         ctx: ResolverContext,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
+        let data = ctx.data_unchecked::<Data>().clone();
         let query = ctx
             .args
             .try_get("query")
@@ -37,11 +45,11 @@ impl<'a> Algorithm<'a, VectorAlgorithms> for SimilaritySearch {
         let graph = entry_point.graph.clone();
 
         Box::pin(async move {
-            let embedding = openai_embedding(vec![query.clone()]).await.remove(0);
-            println!("running similarity search for {query}");
+            info!("running similarity search for {query}");
+            let embedding = data.embed_query(query).await?;
 
             let documents = graph
-                .append_by_similarity(&embedding, limit, None)
+                .documents_by_similarity(&embedding, limit, None)
                 .get_documents();
 
             let gql_documents = documents

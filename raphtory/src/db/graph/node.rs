@@ -3,15 +3,13 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef, VID},
-        storage::timeindex::TimeIndexEntry,
         utils::errors::GraphError,
-        ArcStr,
     },
     db::{
         api::{
             mutation::{
                 internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-                CollectProperties, TryIntoInputTime,
+                time_from_input, CollectProperties, TryIntoInputTime,
             },
             properties::{
                 internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
@@ -28,18 +26,20 @@ use crate::{
 };
 
 use crate::{
-    core::storage::timeindex::AsTime,
-    db::{api::storage::locked::LockedGraph, graph::edges::Edges},
+    core::{entities::nodes::node_ref::AsNodeRef, storage::timeindex::AsTime, PropType},
+    db::{api::storage::graph::storage_ops::GraphStorage, graph::edges::Edges},
 };
 use chrono::{DateTime, Utc};
+use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{
     fmt,
+    fmt::Debug,
     hash::{Hash, Hasher},
     sync::Arc,
 };
 
 /// View of a Node in a Graph
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 pub struct NodeView<G, GH = G> {
     pub base_graph: G,
     pub graph: GH,
@@ -54,27 +54,28 @@ impl<G1: CoreGraphOps, G1H, G2: CoreGraphOps, G2H> PartialEq<NodeView<G2, G2H>>
     }
 }
 
-impl<G, GH> From<NodeView<G, GH>> for NodeRef {
-    fn from(value: NodeView<G, GH>) -> Self {
-        NodeRef::Internal(value.node)
+impl<'a, G: Clone, GH: Clone> NodeView<&'a G, &'a GH> {
+    pub fn cloned(&self) -> NodeView<G, GH> {
+        NodeView {
+            base_graph: self.base_graph.clone(),
+            graph: self.graph.clone(),
+            node: self.node,
+        }
     }
 }
 
-impl<G, GH> From<&NodeView<G, GH>> for NodeRef {
-    fn from(value: &NodeView<G, GH>) -> Self {
-        NodeRef::Internal(value.node)
+impl<G, GH> AsNodeRef for NodeView<G, GH> {
+    fn as_node_ref(&self) -> NodeRef {
+        NodeRef::Internal(self.node)
     }
 }
 
-impl<'graph, G, GH: GraphViewOps<'graph>> fmt::Debug for NodeView<G, GH> {
+impl<'graph, G, GH: GraphViewOps<'graph> + Debug> fmt::Debug for NodeView<G, GH> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "NodeView {{ graph: {}{}, node: {} }}",
-            self.graph.count_nodes(),
-            self.graph.count_edges(),
-            self.node.0
-        )
+        f.debug_struct("NodeView")
+            .field("node", &self.node)
+            .field("graph", &self.graph)
+            .finish()
     }
 }
 
@@ -99,13 +100,13 @@ impl<
     > PartialOrd<NodeView<G2, G2H>> for NodeView<G1, G1H>
 {
     fn partial_cmp(&self, other: &NodeView<G2, G2H>) -> Option<std::cmp::Ordering> {
-        self.node.0.partial_cmp(&other.node.0)
+        self.id().partial_cmp(&other.id())
     }
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Ord for NodeView<G, GH> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.node.0.cmp(&other.node.0)
+        self.id().cmp(&other.id())
     }
 }
 
@@ -130,6 +131,15 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodeView<G, GH> 
             node,
         }
     }
+}
+
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgePropertyFilterOps<'graph>
+    for NodeView<G, GH>
+{
+}
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
+    ExplodedEdgePropertyFilterOps<'graph> for NodeView<G, GH>
+{
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'graph>
@@ -197,25 +207,32 @@ impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertiesOps for NodeView<G, 
     }
 }
 
-impl<G, GH: TimeSemantics> TemporalPropertyViewOps for NodeView<G, GH> {
+impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertyViewOps for NodeView<G, GH> {
+    fn dtype(&self, id: usize) -> PropType {
+        self.graph
+            .node_meta()
+            .temporal_prop_meta()
+            .get_dtype(id)
+            .unwrap()
+    }
     fn temporal_value(&self, id: usize) -> Option<Prop> {
         self.graph
-            .temporal_node_prop_vec(self.node, id)
+            .temporal_node_prop_hist(self.node, id)
             .last()
             .map(|(_, v)| v.to_owned())
     }
 
     fn temporal_history(&self, id: usize) -> Vec<i64> {
         self.graph
-            .temporal_node_prop_vec(self.node, id)
+            .temporal_node_prop_hist(self.node, id)
             .into_iter()
-            .map(|(t, _)| t)
+            .map(|(t, _)| t.t())
             .collect()
     }
 
     fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
         self.graph
-            .temporal_node_prop_vec(self.node, id)
+            .temporal_node_prop_hist(self.node, id)
             .into_iter()
             .map(|(t, _)| t.dt())
             .collect()
@@ -223,7 +240,7 @@ impl<G, GH: TimeSemantics> TemporalPropertyViewOps for NodeView<G, GH> {
 
     fn temporal_values(&self, id: usize) -> Vec<Prop> {
         self.graph
-            .temporal_node_prop_vec(self.node, id)
+            .temporal_node_prop_hist(self.node, id)
             .into_iter()
             .map(|(_, v)| v)
             .collect()
@@ -267,17 +284,20 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
 {
     type BaseGraph = G;
     type Graph = GH;
-    type ValueType<T> = T where T: 'graph;
+    type ValueType<T>
+        = T
+    where
+        T: 'graph;
     type PropType = Self;
     type PathType = PathFromNode<'graph, G, G>;
     type Edges = Edges<'graph, G, GH>;
 
-    fn map<O: 'graph, F: Fn(&LockedGraph, &Self::Graph, VID) -> O>(
+    fn map<O: 'graph, F: Fn(&GraphStorage, &Self::Graph, VID) -> O>(
         &self,
         op: F,
     ) -> Self::ValueType<O> {
         let cg = self.graph.core_graph();
-        op(&cg, &self.graph, self.node)
+        op(cg, &self.graph, self.node)
     }
 
     fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>> {
@@ -286,7 +306,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
 
     fn map_edges<
         I: Iterator<Item = EdgeRef> + Send + 'graph,
-        F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + 'graph,
     >(
         &self,
         op: F,
@@ -295,7 +315,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
         let node = self.node;
         let edges = Arc::new(move || {
             let cg = graph.core_graph();
-            op(&cg, &graph, node).into_dyn_boxed()
+            op(cg, &graph, node).into_dyn_boxed()
         });
         let base_graph = self.base_graph.clone();
         let graph = self.graph.clone();
@@ -308,7 +328,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
 
     fn hop<
         I: Iterator<Item = VID> + Send + 'graph,
-        F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + 'graph,
     >(
         &self,
         op: F,
@@ -317,7 +337,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
         let node = self.node;
         PathFromNode::new(self.base_graph.clone(), move || {
             let cg = graph.core_graph();
-            op(&cg, &graph, node).into_dyn_boxed()
+            op(cg, &graph, node).into_dyn_boxed()
         })
     }
 }
@@ -327,33 +347,27 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
         &self,
         props: C,
     ) -> Result<(), GraphError> {
-        let properties: Vec<(usize, Prop)> = props.collect_properties(
-            |name, dtype| self.graph.resolve_node_property(name, dtype, true),
-            |prop| self.graph.process_prop_value(prop),
-        )?;
+        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
+            Ok(self.graph.resolve_node_property(name, dtype, true)?.inner())
+        })?;
         self.graph
-            .internal_add_constant_node_properties(self.node, properties)
+            .internal_add_constant_node_properties(self.node, &properties)
     }
 
     pub fn set_node_type(&self, new_type: &str) -> Result<(), GraphError> {
-        let res = self.graph.resolve_node_type(self.node, Some(new_type));
-        if res.is_ok() {
-            Ok(())
-        } else {
-            Err(res.err().unwrap())
-        }
+        self.graph.resolve_node_and_type(self.node, new_type)?;
+        Ok(())
     }
 
     pub fn update_constant_properties<C: CollectProperties>(
         &self,
         props: C,
     ) -> Result<(), GraphError> {
-        let properties: Vec<(usize, Prop)> = props.collect_properties(
-            |name, dtype| self.graph.resolve_node_property(name, dtype, true),
-            |prop| self.graph.process_prop_value(prop),
-        )?;
+        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
+            Ok(self.graph.resolve_node_property(name, dtype, true)?.inner())
+        })?;
         self.graph
-            .internal_update_constant_node_properties(self.node, properties)
+            .internal_update_constant_node_properties(self.node, &properties)
     }
 
     pub fn add_updates<C: CollectProperties, T: TryIntoInputTime>(
@@ -361,73 +375,78 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
         time: T,
         props: C,
     ) -> Result<(), GraphError> {
-        let t = TimeIndexEntry::from_input(&self.graph, time)?;
-        let properties: Vec<(usize, Prop)> = props.collect_properties(
-            |name, dtype| self.graph.resolve_node_property(name, dtype, false),
-            |prop| self.graph.process_prop_value(prop),
-        )?;
-        let node_internal_type_id = self.graph.core_node_arc(self.node).node_type;
-        self.graph
-            .internal_add_node(t, self.node, properties, node_internal_type_id)
+        let t = time_from_input(&self.graph, time)?;
+        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
+            Ok(self
+                .graph
+                .resolve_node_property(name, dtype, false)?
+                .inner())
+        })?;
+        self.graph.internal_add_node(t, self.node, &properties)
     }
 }
 
 #[cfg(test)]
 mod node_test {
-    use crate::prelude::*;
+    use crate::{prelude::*, test_utils::test_graph};
+    use raphtory_api::core::storage::arc_str::ArcStr;
     use std::collections::HashMap;
 
     #[test]
     fn test_earliest_time() {
-        let g = Graph::new();
-        g.add_node(0, 1, NO_PROPS, None).unwrap();
-        g.add_node(1, 1, NO_PROPS, None).unwrap();
-        g.add_node(2, 1, NO_PROPS, None).unwrap();
-        let view = g.before(2);
-        assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 0);
-        assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 1);
+        let graph = Graph::new();
+        graph.add_node(0, 1, NO_PROPS, None).unwrap();
+        graph.add_node(1, 1, NO_PROPS, None).unwrap();
+        graph.add_node(2, 1, NO_PROPS, None).unwrap();
 
-        let view = g.before(3);
-        assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 0);
-        assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 2);
+        // FIXME: Node add without properties not showing up (Issue #46)
+        test_graph(&graph, |graph| {
+            let view = graph.before(2);
+            assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 0);
+            assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 1);
 
-        let view = g.after(0);
-        assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 1);
-        assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 2);
+            let view = graph.before(3);
+            assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 0);
+            assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 2);
 
-        let view = g.after(2);
-        assert_eq!(view.node(1), None);
-        assert_eq!(view.node(1), None);
+            let view = graph.after(0);
+            assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 1);
+            assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 2);
 
-        let view = g.at(1);
-        assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 1);
-        assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 1);
+            let view = graph.after(2);
+            assert_eq!(view.node(1), None);
+            assert_eq!(view.node(1), None);
+
+            let view = graph.at(1);
+            assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 1);
+            assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 1);
+        });
     }
 
     #[test]
     fn test_properties() {
-        let g = Graph::new();
+        let graph = Graph::new();
         let props = [("test", "test")];
-        g.add_node(0, 1, NO_PROPS, None).unwrap();
-        g.add_node(2, 1, props, None).unwrap();
+        graph.add_node(0, 1, NO_PROPS, None).unwrap();
+        graph.add_node(2, 1, props, None).unwrap();
 
-        let v1 = g.node(1).unwrap();
-        let v1_w = g.window(0, 1).node(1).unwrap();
-        assert_eq!(
-            v1.properties().as_map(),
-            props
-                .into_iter()
-                .map(|(k, v)| (k.into(), v.into_prop()))
-                .collect()
-        );
-        assert_eq!(v1_w.properties().as_map(), HashMap::default())
+        // FIXME: Node add without properties not showing up (Issue #46)
+        test_graph(&graph, |graph| {
+            let v1 = graph.node(1).unwrap();
+            let v1_w = graph.window(0, 1).node(1).unwrap();
+            assert_eq!(
+                v1.properties().as_map(),
+                [(ArcStr::from("test"), Prop::str("test"))].into()
+            );
+            assert_eq!(v1_w.properties().as_map(), HashMap::default())
+        });
     }
 
     #[test]
     fn test_property_additions() {
-        let g = Graph::new();
+        let graph = Graph::new();
         let props = [("test", "test")];
-        let v1 = g.add_node(0, 1, NO_PROPS, None).unwrap();
+        let v1 = graph.add_node(0, 1, NO_PROPS, None).unwrap();
         v1.add_updates(2, props).unwrap();
         let v1_w = v1.window(0, 1);
         assert_eq!(

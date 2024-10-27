@@ -38,3 +38,4 @@ pub mod layout;
 pub mod metrics;
 pub mod motifs;
 pub mod pathing;
+pub mod projections;

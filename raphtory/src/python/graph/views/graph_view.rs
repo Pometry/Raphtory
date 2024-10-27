@@ -1,34 +1,50 @@
 //! The API for querying a view of the graph in a read-only state
 
+use rayon::prelude::*;
+use std::collections::HashMap;
+
 use crate::{
-    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError, ArcStr},
+    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError},
     db::{
         api::{
             properties::Properties,
             view::{
-                internal::{DynamicGraph, IntoDynamic, MaterializedGraph},
+                internal::{DynamicGraph, IntoDynamic, MaterializedGraph, OneHopFilter},
                 LayerOps, StaticGraphViewOps,
             },
         },
         graph::{
             edge::EdgeView,
             edges::Edges,
+            graph::graph_equal,
             node::NodeView,
             nodes::Nodes,
             views::{
-                layer_graph::LayeredGraph, node_subgraph::NodeSubgraph,
-                node_type_filtered_subgraph::TypeFilteredSubgraph, window_graph::WindowedGraph,
+                layer_graph::LayeredGraph,
+                node_subgraph::NodeSubgraph,
+                node_type_filtered_subgraph::TypeFilteredSubgraph,
+                property_filter::{
+                    edge_property_filter::EdgePropertyFilteredGraph,
+                    exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph, internal::*,
+                },
+                window_graph::WindowedGraph,
             },
         },
     },
     prelude::*,
     python::{
-        types::repr::{Repr, StructReprBuilder},
+        graph::{edge::PyEdge, node::PyNode},
+        types::{
+            repr::{Repr, StructReprBuilder},
+            wrappers::prop::PyPropertyFilter,
+        },
         utils::PyTime,
     },
 };
 use chrono::prelude::*;
-use pyo3::{prelude::*, types::PyBytes};
+use pyo3::prelude::*;
+use raphtory_api::core::storage::arc_str::ArcStr;
+
 impl IntoPy<PyObject> for MaterializedGraph {
     fn into_py(self, py: Python<'_>) -> PyObject {
         match self {
@@ -46,15 +62,7 @@ impl IntoPy<PyObject> for DynamicGraph {
 
 impl<'source> FromPyObject<'source> for DynamicGraph {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
-        ob.extract::<PyRef<PyGraphView>>()
-            .map(|g| g.graph.clone())
-            .or_else(|err| {
-                let res = ob.call_method0("bincode").map_err(|_| err)?; // return original error as probably more helpful
-                                                                        // assume we have a graph at this point, the res probably should not fail
-                let b = res.extract::<&[u8]>()?;
-                let g = MaterializedGraph::from_bincode(b)?;
-                Ok(g.into_dynamic())
-            })
+        ob.extract::<PyRef<PyGraphView>>().map(|g| g.graph.clone())
     }
 }
 /// Graph view is a read-only version of a graph at a certain point in time.
@@ -68,6 +76,7 @@ pub struct PyGraphView {
 
 impl_timeops!(PyGraphView, graph, DynamicGraph, "GraphView");
 impl_layerops!(PyGraphView, graph, DynamicGraph, "GraphView");
+impl_edge_property_filter_ops!(PyGraphView<DynamicGraph>, graph, "GraphView");
 
 /// Graph view is a read-only version of a graph at a certain point in time.
 impl<G: StaticGraphViewOps + IntoDynamic> From<G> for PyGraphView {
@@ -97,6 +106,20 @@ impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for NodeSubgraph<G> {
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for TypeFilteredSubgraph<G> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        PyGraphView::from(self).into_py(py)
+    }
+}
+
+impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for EdgePropertyFilteredGraph<G> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        PyGraphView::from(self).into_py(py)
+    }
+}
+
+impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject>
+    for ExplodedEdgePropertyFilteredGraph<G>
+{
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyGraphView::from(self).into_py(py)
     }
@@ -210,6 +233,31 @@ impl PyGraphView {
         self.graph.node(id)
     }
 
+    /// Get the nodes that match the properties name and value
+    /// Arguments:
+    ///     property_dict (dict): the properties name and value
+    /// Returns:
+    ///    the nodes that match the properties name and value
+    #[pyo3(signature = (properties_dict))]
+    pub fn find_nodes(&self, properties_dict: HashMap<String, Prop>) -> Vec<PyNode> {
+        let iter = self.nodes().into_iter().par_bridge();
+        let out = iter
+            .filter(|n| {
+                let props = n.properties();
+                properties_dict.iter().all(|(k, v)| {
+                    if let Some(prop) = props.get(k) {
+                        &prop == v
+                    } else {
+                        false
+                    }
+                })
+            })
+            .map(|n| PyNode::from(n))
+            .collect::<Vec<_>>();
+
+        out
+    }
+
     /// Gets the nodes in the graph
     ///
     /// Returns:
@@ -224,13 +272,37 @@ impl PyGraphView {
     /// Arguments:
     ///     src (str or int): the source node id
     ///     dst (str or int): the destination node id
-    ///     layer (str): the edge layer (optional)
     ///
     /// Returns:
     ///     the edge with the specified source and destination nodes, or None if the edge does not exist
     #[pyo3(signature = (src, dst))]
     pub fn edge(&self, src: NodeRef, dst: NodeRef) -> Option<EdgeView<DynamicGraph, DynamicGraph>> {
         self.graph.edge(src, dst)
+    }
+
+    /// Get the edges that match the properties name and value
+    /// Arguments:
+    ///     property_dict (dict): the properties name and value
+    /// Returns:
+    ///    the edges that match the properties name and value
+    #[pyo3(signature = (properties_dict))]
+    pub fn find_edges(&self, properties_dict: HashMap<String, Prop>) -> Vec<PyEdge> {
+        let iter = self.edges().into_iter().par_bridge();
+        let out = iter
+            .filter(|e| {
+                let props = e.properties();
+                properties_dict.iter().all(|(k, v)| {
+                    if let Some(prop) = props.get(k) {
+                        &prop == v
+                    } else {
+                        false
+                    }
+                })
+            })
+            .map(|e| PyEdge::from(e))
+            .collect::<Vec<_>>();
+
+        out
     }
 
     /// Gets all edges in the graph
@@ -293,15 +365,13 @@ impl PyGraphView {
         self.graph.materialize()
     }
 
-    /// Get bincode encoded graph
-    pub fn bincode<'py>(&'py self, py: Python<'py>) -> Result<&'py PyBytes, GraphError> {
-        let bytes = self.graph.materialize()?.bincode()?;
-        Ok(PyBytes::new(py, &bytes))
-    }
-
     /// Displays the graph
     pub fn __repr__(&self) -> String {
         self.repr()
+    }
+
+    pub fn __eq__(&self, other: &Self) -> bool {
+        graph_equal(&self.graph.clone(), &other.graph.clone())
     }
 }
 

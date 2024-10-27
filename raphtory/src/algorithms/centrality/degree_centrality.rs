@@ -62,6 +62,7 @@ mod degree_centrality_test {
         algorithms::centrality::degree_centrality::degree_centrality,
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
+        test_storage,
     };
     use std::collections::HashMap;
 
@@ -72,14 +73,16 @@ mod degree_centrality_test {
         for (src, dst) in &vs {
             graph.add_edge(0, *src, *dst, NO_PROPS, None).unwrap();
         }
-        let mut hash_map_result: HashMap<String, f64> = HashMap::new();
-        hash_map_result.insert("1".to_string(), 1.0);
-        hash_map_result.insert("2".to_string(), 1.0);
-        hash_map_result.insert("3".to_string(), 2.0 / 3.0);
-        hash_map_result.insert("4".to_string(), 2.0 / 3.0);
+        test_storage!(&graph, |graph| {
+            let mut hash_map_result: HashMap<String, f64> = HashMap::new();
+            hash_map_result.insert("1".to_string(), 1.0);
+            hash_map_result.insert("2".to_string(), 1.0);
+            hash_map_result.insert("3".to_string(), 2.0 / 3.0);
+            hash_map_result.insert("4".to_string(), 2.0 / 3.0);
 
-        let binding = degree_centrality(&graph, None);
-        let res = binding.get_all_with_names();
-        assert_eq!(res, hash_map_result);
+            let binding = degree_centrality(graph, None);
+            let res = binding.get_all_with_names();
+            assert_eq!(res, hash_map_result);
+        });
     }
 }

@@ -2,7 +2,7 @@
 #![allow(dead_code)]
 
 use chrono::{DateTime, Utc};
-use raphtory::{core::utils::hashing, graph_loader::source::csv_loader::CsvLoader, prelude::*};
+use raphtory::{io::csv_loader::CsvLoader, logging::global_info_logger, prelude::*};
 use regex::Regex;
 use serde::Deserialize;
 use std::{
@@ -16,6 +16,7 @@ use std::{
     thread::JoinHandle,
     time::Instant,
 };
+use tracing::info;
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct Sent {
@@ -38,6 +39,7 @@ pub struct Received {
 }
 
 fn main() {
+    global_info_logger();
     let args: Vec<String> = env::args().collect();
 
     let default_data_dir: PathBuf = [env!("CARGO_MANIFEST_DIR"), "src/bin/btc/data"]
@@ -54,7 +56,7 @@ fn main() {
         panic!("Missing data dir = {}", data_dir.to_str().unwrap())
     }
 
-    let test_v = hashing::calculate_hash(&"139eeGkMGR6F9EuJQ3qYoXebfkBbNAsLtV:btc");
+    let test_v = "139eeGkMGR6F9EuJQ3qYoXebfkBbNAsLtV:btc".id();
 
     // If data_dir/graphdb.bincode exists, use bincode to load the graph from binary encoded data files
     // otherwise load the graph from csv data files
@@ -62,10 +64,10 @@ fn main() {
 
     let graph = if encoded_data_dir.exists() {
         let now = Instant::now();
-        let g = Graph::load_from_file(encoded_data_dir.as_path(), false)
+        let g = Graph::decode(encoded_data_dir.as_path())
             .expect("Failed to load graph from encoded data files");
 
-        println!(
+        info!(
             "Loaded graph from path {} with {} nodes, {} edges, took {} seconds",
             encoded_data_dir.to_str().unwrap(),
             g.count_nodes(),
@@ -82,12 +84,12 @@ fn main() {
         CsvLoader::new(data_dir)
             .with_filter(Regex::new(r".+(sent|received)").unwrap())
             .load_into_graph(&g, |sent: Sent, g: &Graph| {
-                let src = hashing::calculate_hash(&sent.addr);
-                let dst = hashing::calculate_hash(&sent.txn);
+                let src = sent.addr.id();
+                let dst = sent.txn.id();
                 let time = sent.time.timestamp();
 
                 if src == test_v || dst == test_v {
-                    println!("{} sent {} to {}", sent.addr, sent.amount_btc, sent.txn);
+                    info!("{} sent {} to {}", sent.addr, sent.amount_btc, sent.txn);
                 }
 
                 g.add_edge(
@@ -101,7 +103,7 @@ fn main() {
             })
             .expect("Failed to load graph from CSV data files");
 
-        println!(
+        info!(
             "Loaded graph from CSV data files {} with {} nodes, {} edges which took {} seconds",
             encoded_data_dir.to_str().unwrap(),
             g.count_nodes(),
@@ -109,8 +111,7 @@ fn main() {
             now.elapsed().as_secs()
         );
 
-        g.save_to_file(encoded_data_dir)
-            .expect("Failed to save graph");
+        g.encode(encoded_data_dir).expect("Failed to save graph");
 
         g
     };

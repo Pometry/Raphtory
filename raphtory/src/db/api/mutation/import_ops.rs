@@ -1,24 +1,27 @@
+use std::borrow::Borrow;
+
 use crate::{
     core::{
         entities::LayerIds,
-        storage::timeindex::TimeIndexEntry,
         utils::errors::{
             GraphError,
             GraphError::{EdgeExistsError, NodeExistsError},
         },
-        OptionAsStr,
     },
     db::{
         api::{
             mutation::internal::{
                 InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
             },
-            view::{internal::InternalMaterialize, IntoDynamic, StaticGraphViewOps},
+            view::{internal::InternalMaterialize, StaticGraphViewOps},
         },
         graph::{edge::EdgeView, node::NodeView},
     },
-    prelude::{AdditionOps, EdgeViewOps, NodeViewOps},
+    prelude::{AdditionOps, EdgeViewOps, GraphViewOps, NodeViewOps},
 };
+use raphtory_api::core::storage::{arc_str::OptionAsStr, timeindex::AsTime};
+
+use super::time_from_input;
 
 pub trait ImportOps:
     StaticGraphViewOps
@@ -41,7 +44,7 @@ pub trait ImportOps:
     /// # Returns
     ///
     /// A `Result` which is `Ok` if the node was successfully imported, and `Err` otherwise.
-    fn import_node<GHH: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>(
+    fn import_node<'a, GHH: GraphViewOps<'a>, GH: GraphViewOps<'a>>(
         &self,
         node: &NodeView<GHH, GH>,
         force: bool,
@@ -61,11 +64,11 @@ pub trait ImportOps:
     /// # Returns
     ///
     /// A `Result` which is `Ok` if the nodes were successfully imported, and `Err` otherwise.
-    fn import_nodes<GHH: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>(
+    fn import_nodes<'a, GHH: GraphViewOps<'a>, GH: GraphViewOps<'a>>(
         &self,
-        node: Vec<&NodeView<GHH, GH>>,
+        nodes: impl IntoIterator<Item = impl Borrow<NodeView<GHH, GH>>>,
         force: bool,
-    ) -> Result<Vec<NodeView<Self, Self>>, GraphError>;
+    ) -> Result<(), GraphError>;
 
     /// Imports a single edge into the graph.
     ///
@@ -81,7 +84,7 @@ pub trait ImportOps:
     /// # Returns
     ///
     /// A `Result` which is `Ok` if the edge was successfully imported, and `Err` otherwise.
-    fn import_edge<GHH: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>(
+    fn import_edge<'a, GHH: GraphViewOps<'a>, GH: GraphViewOps<'a>>(
         &self,
         edge: &EdgeView<GHH, GH>,
         force: bool,
@@ -101,11 +104,11 @@ pub trait ImportOps:
     /// # Returns
     ///
     /// A `Result` which is `Ok` if the edges were successfully imported, and `Err` otherwise.
-    fn import_edges<GHH: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>(
+    fn import_edges<'a, GHH: GraphViewOps<'a>, GH: GraphViewOps<'a>>(
         &self,
-        edges: Vec<&EdgeView<GHH, GH>>,
+        edges: impl IntoIterator<Item = impl Borrow<EdgeView<GHH, GH>>>,
         force: bool,
-    ) -> Result<Vec<EdgeView<Self, Self>>, GraphError>;
+    ) -> Result<(), GraphError>;
 }
 
 impl<
@@ -116,7 +119,7 @@ impl<
             + InternalMaterialize,
     > ImportOps for G
 {
-    fn import_node<GHH: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>(
+    fn import_node<'a, GHH: GraphViewOps<'a>, GH: GraphViewOps<'a>>(
         &self,
         node: &NodeView<GHH, GH>,
         force: bool,
@@ -124,16 +127,17 @@ impl<
         if !force && self.node(node.id()).is_some() {
             return Err(NodeExistsError(node.id()));
         }
-
-        let node_internal =
-            self.resolve_node(node.id(), node.graph.core_node_arc(node.node).name.as_str());
-        let node_internal_type_id = self
-            .resolve_node_type(node_internal, node.node_type().as_str())
-            .unwrap_or(0usize);
+        let node_internal = match node.node_type().as_str() {
+            None => self.resolve_node(node.id())?.inner(),
+            Some(node_type) => {
+                let (node_internal, _) = self.resolve_node_and_type(node.id(), node_type)?.inner();
+                node_internal.inner()
+            }
+        };
 
         for h in node.history() {
-            let t = TimeIndexEntry::from_input(self, h)?;
-            self.internal_add_node(t, node_internal, vec![], node_internal_type_id)?;
+            let t = time_from_input(self, h)?;
+            self.internal_add_node(t, node_internal, &[])?;
         }
         for (name, prop_view) in node.properties().temporal().iter() {
             let old_prop_id = node
@@ -148,16 +152,10 @@ impl<
                 .temporal_prop_meta()
                 .get_dtype(old_prop_id)
                 .unwrap();
-            let new_prop_id = self.resolve_node_property(&name, dtype, false)?;
+            let new_prop_id = self.resolve_node_property(&name, dtype, false)?.inner();
             for (h, prop) in prop_view.iter() {
-                let new_prop = self.process_prop_value(prop);
-                let t = TimeIndexEntry::from_input(self, h)?;
-                self.internal_add_node(
-                    t,
-                    node_internal,
-                    vec![(new_prop_id, new_prop)],
-                    node_internal_type_id,
-                )?;
+                let t = time_from_input(self, h)?;
+                self.internal_add_node(t, node_internal, &[(new_prop_id, prop)])?;
             }
         }
         self.node(node.id())
@@ -167,20 +165,18 @@ impl<
         Ok(self.node(node.id()).unwrap())
     }
 
-    fn import_nodes<GHH: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>(
+    fn import_nodes<'a, GHH: GraphViewOps<'a>, GH: GraphViewOps<'a>>(
         &self,
-        nodes: Vec<&NodeView<GHH, GH>>,
+        nodes: impl IntoIterator<Item = impl Borrow<NodeView<GHH, GH>>>,
         force: bool,
-    ) -> Result<Vec<NodeView<G, G>>, GraphError> {
-        let mut added_nodes = vec![];
+    ) -> Result<(), GraphError> {
         for node in nodes {
-            let res = self.import_node(node, force);
-            added_nodes.push(res.unwrap())
+            self.import_node(node.borrow(), force)?;
         }
-        Ok(added_nodes)
+        Ok(())
     }
 
-    fn import_edge<GHH: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>(
+    fn import_edge<'a, GHH: GraphViewOps<'a>, GH: GraphViewOps<'a>>(
         &self,
         edge: &EdgeView<GHH, GH>,
         force: bool,
@@ -188,15 +184,15 @@ impl<
         // make sure we preserve all layers even if they are empty
         // skip default layer
         for layer in edge.graph.unique_layers().skip(1) {
-            self.resolve_layer(Some(&layer));
+            self.resolve_layer(Some(&layer))?;
         }
-        if !force && self.has_edge(edge.src().name(), edge.dst().name()) {
+        if !force && self.has_edge(edge.src().id(), edge.dst().id()) {
             return Err(EdgeExistsError(edge.src().id(), edge.dst().id()));
         }
         // Add edges first so we definitely have all associated nodes (important in case of persistent edges)
         // FIXME: this needs to be verified
         for ee in edge.explode_layers() {
-            let layer_id = *ee.edge.layer().expect("exploded layers");
+            let layer_id = ee.edge.layer().expect("exploded layers");
             let layer_ids = LayerIds::One(layer_id);
             let layer_name = self.get_layer_name(layer_id);
             let layer_name: Option<&str> = if layer_id == 0 {
@@ -207,8 +203,8 @@ impl<
             for ee in ee.explode() {
                 self.add_edge(
                     ee.time().expect("exploded edge"),
-                    ee.src().name(),
-                    ee.dst().name(),
+                    ee.src().id(),
+                    ee.dst().id(),
                     ee.properties().temporal().collect_properties(),
                     layer_name,
                 )?;
@@ -216,10 +212,10 @@ impl<
 
             if self.include_deletions() {
                 for t in edge.graph.edge_deletion_history(edge.edge, &layer_ids) {
-                    let ti = TimeIndexEntry::from_input(self, t)?;
-                    let src_id = self.resolve_node(edge.src().id(), Some(&edge.src().name()));
-                    let dst_id = self.resolve_node(edge.dst().id(), Some(&edge.dst().name()));
-                    let layer = self.resolve_layer(layer_name);
+                    let ti = time_from_input(self, t.t())?;
+                    let src_id = self.resolve_node(edge.src().id())?.inner();
+                    let dst_id = self.resolve_node(edge.dst().id())?.inner();
+                    let layer = self.resolve_layer(layer_name)?.inner();
                     self.internal_delete_edge(ti, src_id, dst_id, layer)?;
                 }
             }
@@ -228,19 +224,17 @@ impl<
                 .expect("edge added")
                 .add_constant_properties(ee.properties().constant(), layer_name)?;
         }
-        Ok(self.edge(edge.src().name(), edge.dst().name()).unwrap())
+        Ok(self.edge(edge.src().id(), edge.dst().id()).unwrap())
     }
 
-    fn import_edges<GHH: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>(
+    fn import_edges<'a, GHH: GraphViewOps<'a>, GH: GraphViewOps<'a>>(
         &self,
-        edges: Vec<&EdgeView<GHH, GH>>,
+        edges: impl IntoIterator<Item = impl Borrow<EdgeView<GHH, GH>>>,
         force: bool,
-    ) -> Result<Vec<EdgeView<Self, Self>>, GraphError> {
-        let mut added_edges = vec![];
+    ) -> Result<(), GraphError> {
         for edge in edges {
-            let res = self.import_edge(edge, force);
-            added_edges.push(res.unwrap())
+            self.import_edge(edge.borrow(), force)?;
         }
-        Ok(added_edges)
+        Ok(())
     }
 }

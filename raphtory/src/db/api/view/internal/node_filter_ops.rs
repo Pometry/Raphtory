@@ -1,6 +1,9 @@
 use crate::{
-    core::entities::{nodes::node_store::NodeStore, LayerIds},
-    db::api::view::{Base, MaterializedGraph},
+    core::entities::LayerIds,
+    db::api::{
+        storage::graph::nodes::node_ref::NodeStorageRef,
+        view::{Base, MaterializedGraph},
+    },
 };
 use enum_dispatch::enum_dispatch;
 
@@ -15,7 +18,7 @@ pub trait NodeFilterOps {
     fn node_list_trusted(&self) -> bool;
 
     /// If `true`, node is included in the graph
-    fn filter_node(&self, node: &NodeStore, layer_ids: &LayerIds) -> bool;
+    fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool;
 }
 
 pub trait InheritNodeFilterOps: Base {}
@@ -35,7 +38,7 @@ where
     }
 
     #[inline]
-    fn filter_node(&self, node: &NodeStore, layer_ids: &LayerIds) -> bool {
+    fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
         self.base().filter_node(node, layer_ids)
     }
 }

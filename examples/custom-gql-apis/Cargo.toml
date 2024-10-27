@@ -1,0 +1,37 @@
+[package]
+name = "raphtory_custom_gql_apis"
+description = "Python package for raphtory, a temporal graph library"
+version = "0.9.3"
+keywords = ["graph", "temporal-graph", "temporal", "jira"]
+authors = ["Pometry"]
+rust-version = "1.75.0"
+edition = "2021"
+
+doc = false
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html[lib]
+[lib]
+name = "raphtory"
+crate-type = ["cdylib"]
+
+[dependencies]
+raphtory_core = { package = "raphtory", path= "../../raphtory", features = ["python", "search", "vectors"]}
+raphtory-graphql = { path = "../../raphtory-graphql",features = ["python"]}
+raphtory-api = { path = "../../raphtory-api"}
+async-graphql = { version = "7.0.5", features = ["dynamic-schema"] }
+dynamic-graphql = "0.9.0"
+futures-util = "0.3.0"
+tokio = { version = "1.18.2", features = ["full"] }
+pyo3 = { version = "0.20.0", features = ["multiple-pymethods"] }
+thiserror = "1.0.48"
+display-error-chain = "0.2.0"
+serde = { version = "1", features = ["derive", "rc"] }
+serde_json = "1.0"
+chrono = { version = "0.4.38", features = ["serde"] }
+itertools = "0.13.0"
+
+[features]
+extension-module = ["pyo3/extension-module"]
+default = ["extension-module"]
+
+[build-dependencies]
+pyo3-build-config = "0.20.0"

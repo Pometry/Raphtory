@@ -73,15 +73,21 @@ fn get_reciprocal_edge_count<
 >(
     v: &EvalNodeView<'graph, '_, G, (), GH, CS>,
 ) -> (usize, usize, usize) {
-    let id = v.id();
-    let out_neighbours: HashSet<u64> = v.out_neighbours().id().filter(|x| *x != id).collect();
+    let id = v.node;
+    let out_neighbours: HashSet<_> = v
+        .out_neighbours()
+        .iter()
+        .filter_map(|x| (x.node != id).then_some(x.node))
+        .collect();
 
-    let in_neighbours = v.in_neighbours().id().filter(|x| *x != id).count();
+    let in_neighbours: HashSet<_> = v
+        .in_neighbours()
+        .iter()
+        .filter_map(|x| (x.node != id).then_some(x.node))
+        .collect();
 
-    let out_inter_in = out_neighbours
-        .intersection(&v.in_neighbours().id().filter(|x| *x != id).collect())
-        .count();
-    (out_neighbours.len(), in_neighbours, out_inter_in)
+    let out_inter_in = out_neighbours.intersection(&in_neighbours).count();
+    (out_neighbours.len(), in_neighbours.len(), out_inter_in)
 }
 
 /// returns the global reciprocity of the entire graph
@@ -166,6 +172,7 @@ mod reciprocity_test {
         algorithms::metrics::reciprocity::{all_local_reciprocity, global_reciprocity},
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
+        test_storage,
     };
     use pretty_assertions::assert_eq;
     use std::collections::HashMap;
@@ -189,17 +196,19 @@ mod reciprocity_test {
             graph.add_edge(0, *src, *dst, NO_PROPS, None).unwrap();
         }
 
-        let actual = global_reciprocity(&graph, None);
-        assert_eq!(actual, 0.5);
+        test_storage!(&graph, |graph| {
+            let actual = global_reciprocity(graph, None);
+            assert_eq!(actual, 0.5);
 
-        let mut hash_map_result: HashMap<String, f64> = HashMap::new();
-        hash_map_result.insert("1".to_string(), 0.4);
-        hash_map_result.insert("2".to_string(), 2.0 / 3.0);
-        hash_map_result.insert("3".to_string(), 0.5);
-        hash_map_result.insert("4".to_string(), 2.0 / 3.0);
-        hash_map_result.insert("5".to_string(), 0.0);
+            let mut hash_map_result: HashMap<String, f64> = HashMap::new();
+            hash_map_result.insert("1".to_string(), 0.4);
+            hash_map_result.insert("2".to_string(), 2.0 / 3.0);
+            hash_map_result.insert("3".to_string(), 0.5);
+            hash_map_result.insert("4".to_string(), 2.0 / 3.0);
+            hash_map_result.insert("5".to_string(), 0.0);
 
-        let res = all_local_reciprocity(&graph, None);
-        assert_eq!(res.get("1"), hash_map_result.get("1"));
+            let res = all_local_reciprocity(graph, None);
+            assert_eq!(res.get("1"), hash_map_result.get("1"));
+        });
     }
 }

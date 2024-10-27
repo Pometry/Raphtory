@@ -52,6 +52,7 @@ mod cc_test {
     use crate::{
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
+        test_storage,
     };
     use pretty_assertions::assert_eq;
 
@@ -88,7 +89,9 @@ mod cc_test {
             graph.add_edge(0, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let results = clustering_coefficient(&graph);
-        assert_eq!(results, 0.3);
+        test_storage!(&graph, |graph| {
+            let results = clustering_coefficient(graph);
+            assert_eq!(results, 0.3);
+        });
     }
 }

@@ -1,12 +1,14 @@
 use crate::{
-    core::{storage::timeindex::AsTime, ArcStr, Prop},
+    core::{storage::timeindex::AsTime, Prop, PropType},
     db::api::view::internal::Base,
 };
 use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
+use raphtory_api::core::storage::arc_str::ArcStr;
 
 #[enum_dispatch]
 pub trait TemporalPropertyViewOps {
+    fn dtype(&self, id: usize) -> PropType;
     fn temporal_value(&self, id: usize) -> Option<Prop> {
         self.temporal_values(id).last().cloned()
     }
@@ -80,6 +82,10 @@ impl<P: InheritTemporalPropertyViewOps> TemporalPropertyViewOps for P
 where
     P::Base: TemporalPropertyViewOps,
 {
+    #[inline]
+    fn dtype(&self, id: usize) -> PropType {
+        self.base().dtype(id)
+    }
     #[inline]
     fn temporal_value(&self, id: usize) -> Option<Prop> {
         self.base().temporal_value(id)

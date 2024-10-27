@@ -5,11 +5,14 @@ use raphtory::{
         pathing::temporal_reachability::temporally_reachable_nodes,
     },
     db::api::view::*,
-    graph_loader::example::stable_coins::stable_coin_graph,
+    graph_loader::stable_coins::stable_coin_graph,
+    logging::global_info_logger,
 };
 use std::{env, time::Instant};
+use tracing::info;
 
 fn main() {
+    global_info_logger();
     let args: Vec<String> = env::args().collect();
 
     let data_dir = if args.len() < 2 {
@@ -28,21 +31,21 @@ fn main() {
         vec!["Dai", "LUNC", "USD", "USDP", "USDT", "USTC"]
     );
 
-    println!("Pagerank");
+    info!("Pagerank");
     let now = Instant::now();
     let _ = unweighted_page_rank(&g, Some(20), None, None, true, None);
-    println!("Time taken: {} secs", now.elapsed().as_secs());
+    info!("Time taken: {} secs", now.elapsed().as_secs());
 
     let now = Instant::now();
 
     let _ = unweighted_page_rank(&g, Some(20), None, None, true, None);
-    println!("Time taken: {} secs", now.elapsed().as_secs());
+    info!("Time taken: {} secs", now.elapsed().as_secs());
 
     let now = Instant::now();
     let _ = unweighted_page_rank(&g.layers("USDT").unwrap(), Some(20), None, None, true, None);
-    println!("Time taken: {} secs", now.elapsed().as_secs());
+    info!("Time taken: {} secs", now.elapsed().as_secs());
 
-    println!("Generic taint");
+    info!("Generic taint");
     let now = Instant::now();
     let _ = temporally_reachable_nodes(
         &g.layers("USDT").unwrap(),
@@ -52,5 +55,5 @@ fn main() {
         vec!["0xd30b438df65f4f788563b2b3611bd6059bff4ad9"],
         None,
     );
-    println!("Time taken: {} secs", now.elapsed().as_secs());
+    info!("Time taken: {} secs", now.elapsed().as_secs());
 }

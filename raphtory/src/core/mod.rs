@@ -17,24 +17,28 @@
 //!
 //! `raphtory` supports  support for the following platforms:
 //!
-//! **Note** they must have Rust 1.53 or later.
+//! **Note** they must have Rust 1.80 or later.
 //!
 //!    * `Linux`
 //!    * `Windows`
 //!    * `macOS`
 //!
 
-use crate::{db::graph::graph::Graph, prelude::GraphViewOps};
+use crate::{
+    db::graph::{graph::Graph, views::deletion_graph::PersistentGraph},
+    prelude::GraphViewOps,
+};
 use chrono::{DateTime, NaiveDateTime, Utc};
+use itertools::Itertools;
+use raphtory_api::core::storage::arc_str::ArcStr;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
-    borrow::Borrow,
     cmp::Ordering,
     collections::HashMap,
     fmt,
     fmt::{Display, Formatter},
-    ops::Deref,
+    hash::{Hash, Hasher},
     sync::Arc,
 };
 
@@ -43,93 +47,12 @@ extern crate core;
 
 pub mod entities;
 pub mod state;
-pub(crate) mod storage;
+pub mod storage;
 pub mod utils;
 
-// this is here because Arc<str> annoyingly doesn't implement all the expected comparisons
-#[derive(Clone, Debug, Eq, Ord, Hash, Serialize, Deserialize)]
-pub struct ArcStr(pub(crate) Arc<str>);
+pub use raphtory_api::core::*;
 
-impl Display for ArcStr {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        Display::fmt(&self.0, f)
-    }
-}
-
-impl<T: Into<Arc<str>>> From<T> for ArcStr {
-    fn from(value: T) -> Self {
-        ArcStr(value.into())
-    }
-}
-
-impl From<ArcStr> for String {
-    fn from(value: ArcStr) -> Self {
-        value.to_string()
-    }
-}
-impl Deref for ArcStr {
-    type Target = Arc<str>;
-
-    #[inline]
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl Borrow<str> for ArcStr {
-    #[inline]
-    fn borrow(&self) -> &str {
-        self.0.borrow()
-    }
-}
-
-impl<T> AsRef<T> for ArcStr
-where
-    T: ?Sized,
-    <ArcStr as Deref>::Target: AsRef<T>,
-{
-    fn as_ref(&self) -> &T {
-        self.deref().as_ref()
-    }
-}
-
-impl<T: Borrow<str> + ?Sized> PartialEq<T> for ArcStr {
-    fn eq(&self, other: &T) -> bool {
-        <ArcStr as Borrow<str>>::borrow(self).eq(other.borrow())
-    }
-}
-
-impl<T: Borrow<str>> PartialOrd<T> for ArcStr {
-    fn partial_cmp(&self, other: &T) -> Option<Ordering> {
-        <ArcStr as Borrow<str>>::borrow(self).partial_cmp(other.borrow())
-    }
-}
-
-pub trait OptionAsStr<'a> {
-    fn as_str(self) -> Option<&'a str>;
-}
-
-impl<'a, O: AsRef<str> + 'a> OptionAsStr<'a> for &'a Option<O> {
-    fn as_str(self) -> Option<&'a str> {
-        self.as_ref().map(|s| s.as_ref())
-    }
-}
-
-impl<'a, O: AsRef<str> + 'a> OptionAsStr<'a> for Option<&'a O> {
-    fn as_str(self) -> Option<&'a str> {
-        self.map(|s| s.as_ref())
-    }
-}
-
-/// Denotes the direction of an edge. Can be incoming, outgoing or both.
-#[derive(Clone, Copy, PartialEq, PartialOrd, Debug)]
-pub enum Direction {
-    OUT,
-    IN,
-    BOTH,
-}
-
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Hash)]
 pub enum Lifespan {
     Interval { start: i64, end: i64 },
     Event { time: i64 },
@@ -138,7 +61,7 @@ pub enum Lifespan {
 
 /// struct containing all the necessary information to allow Raphtory creating a document and
 /// storing it
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Hash)]
 pub struct DocumentInput {
     pub content: String,
     pub life: Lifespan,
@@ -147,68 +70,6 @@ pub struct DocumentInput {
 impl Display for DocumentInput {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.write_str(&self.content)
-    }
-}
-
-#[derive(Copy, Clone, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
-pub enum PropType {
-    #[default]
-    Empty,
-    Str,
-    U8,
-    U16,
-    I32,
-    I64,
-    U32,
-    U64,
-    F32,
-    F64,
-    Bool,
-    List,
-    Map,
-    NDTime,
-    Graph,
-    Document,
-    DTime,
-}
-
-impl PropType {
-    pub fn is_numeric(&self) -> bool {
-        matches!(
-            self,
-            PropType::U8
-                | PropType::U16
-                | PropType::U32
-                | PropType::U64
-                | PropType::I32
-                | PropType::I64
-                | PropType::F32
-                | PropType::F64
-        )
-    }
-
-    pub fn is_str(&self) -> bool {
-        matches!(self, PropType::Str)
-    }
-
-    pub fn is_bool(&self) -> bool {
-        matches!(self, PropType::Bool)
-    }
-
-    pub fn is_date(&self) -> bool {
-        matches!(self, PropType::DTime | PropType::NDTime)
-    }
-
-    pub fn has_add(&self) -> bool {
-        self.is_numeric() || self.is_str()
-    }
-
-    pub fn has_divide(&self) -> bool {
-        self.is_numeric()
-    }
-
-    pub fn has_cmp(&self) -> bool {
-        self.is_bool() || self.is_numeric() || self.is_str() || self.is_date()
     }
 }
 
@@ -230,8 +91,64 @@ pub enum Prop {
     NDTime(NaiveDateTime),
     DTime(DateTime<Utc>),
     Graph(Graph),
+    PersistentGraph(PersistentGraph),
     Document(DocumentInput),
 }
+
+impl Hash for Prop {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            Prop::Str(s) => s.hash(state),
+            Prop::U8(u) => u.hash(state),
+            Prop::U16(u) => u.hash(state),
+            Prop::I32(i) => i.hash(state),
+            Prop::I64(i) => i.hash(state),
+            Prop::U32(u) => u.hash(state),
+            Prop::U64(u) => u.hash(state),
+            Prop::F32(f) => {
+                let bits = f.to_bits();
+                bits.hash(state);
+            }
+            Prop::F64(f) => {
+                let bits = f.to_bits();
+                bits.hash(state);
+            }
+            Prop::Bool(b) => b.hash(state),
+            Prop::NDTime(dt) => dt.hash(state),
+            Prop::DTime(dt) => dt.hash(state),
+            Prop::List(v) => {
+                for prop in v.iter() {
+                    prop.hash(state);
+                }
+            }
+            Prop::Map(m) => {
+                for (key, prop) in m.iter() {
+                    key.hash(state);
+                    prop.hash(state);
+                }
+            }
+            Prop::Graph(g) => {
+                for node in g.nodes() {
+                    node.node.hash(state);
+                }
+                for edge in g.edges() {
+                    edge.edge.pid().hash(state);
+                }
+            }
+            Prop::PersistentGraph(pg) => {
+                for node in pg.nodes() {
+                    node.node.hash(state);
+                }
+                for edge in pg.edges() {
+                    edge.edge.pid().hash(state);
+                }
+            }
+            Prop::Document(d) => d.hash(state),
+        }
+    }
+}
+
+impl Eq for Prop {}
 
 impl PartialOrd for Prop {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
@@ -280,6 +197,9 @@ impl Prop {
             Prop::DTime(value) => Value::String(value.to_string()),
             Prop::NDTime(value) => Value::String(value.to_string()),
             Prop::Graph(_) => Value::String("Graph cannot be converted to JSON".to_string()),
+            Prop::PersistentGraph(_) => {
+                Value::String("Persistent Graph cannot be converted to JSON".to_string())
+            }
             Prop::Document(DocumentInput { content, .. }) => Value::String(content.to_owned()), // TODO: return Value::Object ??
         }
     }
@@ -300,6 +220,7 @@ impl Prop {
             Prop::Map(_) => PropType::Map,
             Prop::NDTime(_) => PropType::NDTime,
             Prop::Graph(_) => PropType::Graph,
+            Prop::PersistentGraph(_) => PropType::PersistentGraph,
             Prop::Document(_) => PropType::Document,
             Prop::DTime(_) => PropType::DTime,
         }
@@ -319,7 +240,7 @@ impl Prop {
             (Prop::U64(a), Prop::U64(b)) => Some(Prop::U64(a + b)),
             (Prop::F32(a), Prop::F32(b)) => Some(Prop::F32(a + b)),
             (Prop::F64(a), Prop::F64(b)) => Some(Prop::F64(a + b)),
-            (Prop::Str(a), Prop::Str(b)) => Some(Prop::Str((a.to_string() + &b).into())),
+            (Prop::Str(a), Prop::Str(b)) => Some(Prop::Str((a.to_string() + b.as_ref()).into())),
             _ => None,
         }
     }
@@ -363,7 +284,7 @@ impl Prop {
             Prop::U32(v) => Some(*v as f64),
             Prop::U64(v) => Some(*v as f64),
             Prop::F32(v) => Some(*v as f64),
-            Prop::F64(v) => Some(*v as f64),
+            Prop::F64(v) => Some(*v),
             _ => None,
         }
     }
@@ -436,6 +357,9 @@ pub trait PropUnwrap: Sized {
     }
 
     fn into_graph(self) -> Option<Graph>;
+
+    fn into_persistent_graph(self) -> Option<PersistentGraph>;
+
     fn unwrap_graph(self) -> Graph {
         self.into_graph().unwrap()
     }
@@ -501,6 +425,10 @@ impl<P: PropUnwrap> PropUnwrap for Option<P> {
 
     fn into_graph(self) -> Option<Graph> {
         self.and_then(|p| p.into_graph())
+    }
+
+    fn into_persistent_graph(self) -> Option<PersistentGraph> {
+        self.and_then(|p| p.into_persistent_graph())
     }
 
     fn into_document(self) -> Option<DocumentInput> {
@@ -621,6 +549,14 @@ impl PropUnwrap for Prop {
         }
     }
 
+    fn into_persistent_graph(self) -> Option<PersistentGraph> {
+        if let Prop::PersistentGraph(g) = self {
+            Some(g)
+        } else {
+            None
+        }
+    }
+
     fn into_document(self) -> Option<DocumentInput> {
         if let Prop::Document(d) = self {
             Some(d)
@@ -633,7 +569,7 @@ impl PropUnwrap for Prop {
 impl Display for Prop {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            Prop::Str(value) => write!(f, "{}", value),
+            Prop::Str(value) => write!(f, "{}", value.0.to_string()),
             Prop::U8(value) => write!(f, "{}", value),
             Prop::U16(value) => write!(f, "{}", value),
             Prop::I32(value) => write!(f, "{}", value),
@@ -651,11 +587,49 @@ impl Display for Prop {
                 value.count_nodes(),
                 value.count_edges()
             ),
+            Prop::PersistentGraph(value) => write!(
+                f,
+                "Graph(num_nodes={}, num_edges={})",
+                value.count_nodes(),
+                value.count_edges()
+            ),
             Prop::List(value) => {
-                write!(f, "{:?}", value)
+                write!(
+                    f,
+                    "[{}]",
+                    value
+                        .iter()
+                        .map(|item| {
+                            match item {
+                                Prop::Str(_) => {
+                                    format!("\"{}\"", item)
+                                }
+                                _ => {
+                                    format!("{}", item)
+                                }
+                            }
+                        })
+                        .join(", ")
+                )
             }
             Prop::Map(value) => {
-                write!(f, "{:?}", value)
+                write!(
+                    f,
+                    "{{{}}}",
+                    value
+                        .iter()
+                        .map(|(key, val)| {
+                            match val {
+                                Prop::Str(_) => {
+                                    format!("\"{}\": \"{}\"", key, val)
+                                }
+                                _ => {
+                                    format!("\"{}\": {}", key, val)
+                                }
+                            }
+                        })
+                        .join(", ")
+                )
             }
             Prop::Document(value) => write!(f, "{}", value),
         }
@@ -852,45 +826,5 @@ mod serde_value_into_prop {
                     .map(|item| item.into_prop_map()),
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod test_arc_str {
-    use crate::core::{ArcStr, OptionAsStr, Prop};
-    use std::sync::Arc;
-
-    #[test]
-    fn can_compare_with_str() {
-        let test: ArcStr = "test".into();
-        assert_eq!(test, "test");
-        assert_eq!(test, "test".to_string());
-        assert_eq!(test, Arc::from("test"));
-        assert_eq!(&test, &"test".to_string())
-    }
-
-    #[test]
-    fn test_option_conv() {
-        let test: Option<ArcStr> = Some("test".into());
-
-        let test_ref = test.as_ref();
-
-        let opt_str = test.as_str();
-        let opt_str3 = test_ref.as_str();
-
-        let test2 = Some("test".to_string());
-        let opt_str_2 = test2.as_str();
-
-        assert_eq!(opt_str, Some("test"));
-        assert_eq!(opt_str_2, Some("test"));
-        assert_eq!(opt_str3, Some("test"));
-    }
-
-    #[test]
-    fn test_prop_min_max() {
-        let v1 = Prop::I64(4);
-        let v2 = Prop::I64(2);
-        assert_eq!(v1.clone().max(v2.clone()), Some(Prop::I64(4)));
-        assert_eq!((v1.min(v2)), Some(Prop::I64(2)));
     }
 }

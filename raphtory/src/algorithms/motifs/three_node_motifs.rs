@@ -349,6 +349,8 @@ mod three_node_motifs_test {
     use super::{
         init_tri_count, map2d, TriangleEdge, TwoNodeCounter, TwoNodeEvent, INCOMING, OUTGOING,
     };
+    use raphtory_api::core::utils::logging::global_info_logger;
+    use tracing::info;
 
     #[test]
     fn map_test() {
@@ -357,6 +359,7 @@ mod three_node_motifs_test {
 
     #[test]
     fn two_node_test() {
+        global_info_logger();
         let events = vec![
             TwoNodeEvent {
                 dir: OUTGOING,
@@ -377,12 +380,13 @@ mod three_node_motifs_test {
             count3d: [0; 8],
         };
         twonc.execute(&events, 5);
-        println!("motifs are {:?}", twonc.count3d);
+        info!("motifs are {:?}", twonc.count3d);
     }
 
     #[test]
     fn triad_test() {
-        let events = vec![(true, 0, 1, 1, 1), (false, 1, 0, 1, 2), (false, 0, 0, 0, 3)]
+        global_info_logger();
+        let events = [(true, 0, 1, 1, 1), (false, 1, 0, 1, 2), (false, 0, 0, 0, 3)]
             .iter()
             .map(|x| TriangleEdge {
                 uv_edge: x.0,
@@ -394,6 +398,6 @@ mod three_node_motifs_test {
             .collect::<Vec<_>>();
         let mut triangle_count = init_tri_count(3);
         triangle_count.execute(&events, 5);
-        println!("triangle motifs are {:?}", triangle_count.final_counts);
+        info!("triangle motifs are {:?}", triangle_count.final_counts);
     }
 }

@@ -1,7 +1,7 @@
+use super::time_from_input;
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, nodes::input_node::InputNode},
-        storage::timeindex::TimeIndexEntry,
+        entities::{edges::edge_ref::EdgeRef, nodes::node_ref::AsNodeRef},
         utils::{errors::GraphError, time::IntoTimeWithFormat},
         Prop,
     },
@@ -37,7 +37,7 @@ pub trait AdditionOps: StaticGraphViewOps {
     /// let v = g.add_node(0, "Alice", NO_PROPS, None);
     /// let v = g.add_node(0, 5, NO_PROPS, None);
     /// ```
-    fn add_node<V: InputNode, T: TryIntoInputTime, PI: CollectProperties>(
+    fn add_node<V: AsNodeRef, T: TryIntoInputTime, PI: CollectProperties>(
         &self,
         t: T,
         v: V,
@@ -45,7 +45,7 @@ pub trait AdditionOps: StaticGraphViewOps {
         node_type: Option<&str>,
     ) -> Result<NodeView<Self, Self>, GraphError>;
 
-    fn add_node_with_custom_time_format<V: InputNode, PI: CollectProperties>(
+    fn add_node_with_custom_time_format<V: AsNodeRef, PI: CollectProperties>(
         &self,
         t: &str,
         fmt: &str,
@@ -77,7 +77,7 @@ pub trait AdditionOps: StaticGraphViewOps {
     /// graph.add_node(2, "Bob", NO_PROPS, None).unwrap();
     /// graph.add_edge(3, "Alice", "Bob", NO_PROPS, None).unwrap();
     /// ```    
-    fn add_edge<V: InputNode, T: TryIntoInputTime, PI: CollectProperties>(
+    fn add_edge<V: AsNodeRef, T: TryIntoInputTime, PI: CollectProperties>(
         &self,
         t: T,
         src: V,
@@ -86,7 +86,7 @@ pub trait AdditionOps: StaticGraphViewOps {
         layer: Option<&str>,
     ) -> Result<EdgeView<Self, Self>, GraphError>;
 
-    fn add_edge_with_custom_time_format<V: InputNode, PI: CollectProperties>(
+    fn add_edge_with_custom_time_format<V: AsNodeRef, PI: CollectProperties>(
         &self,
         t: &str,
         fmt: &str,
@@ -101,25 +101,29 @@ pub trait AdditionOps: StaticGraphViewOps {
 }
 
 impl<G: InternalAdditionOps + StaticGraphViewOps> AdditionOps for G {
-    fn add_node<V: InputNode, T: TryIntoInputTime, PI: CollectProperties>(
+    fn add_node<V: AsNodeRef, T: TryIntoInputTime, PI: CollectProperties>(
         &self,
         t: T,
         v: V,
         props: PI,
         node_type: Option<&str>,
     ) -> Result<NodeView<G, G>, GraphError> {
-        let properties = props.collect_properties(
-            |name, dtype| self.resolve_node_property(name, dtype, false),
-            |prop| self.process_prop_value(prop),
-        )?;
-        let ti = TimeIndexEntry::from_input(self, t)?;
-        let v_id = self.resolve_node(v.id(), v.id_str());
-        let type_id = self.resolve_node_type(v_id, node_type)?;
-        self.internal_add_node(ti, v_id, properties, type_id)?;
+        let ti = time_from_input(self, t)?;
+        let properties = props.collect_properties(|name, dtype| {
+            Ok(self.resolve_node_property(name, dtype, false)?.inner())
+        })?;
+        let v_id = match node_type {
+            None => self.resolve_node(v)?.inner(),
+            Some(node_type) => {
+                let (v_id, _) = self.resolve_node_and_type(v, node_type)?.inner();
+                v_id.inner()
+            }
+        };
+        self.internal_add_node(ti, v_id, &properties)?;
         Ok(NodeView::new_internal(self.clone(), v_id))
     }
 
-    fn add_edge<V: InputNode, T: TryIntoInputTime, PI: CollectProperties>(
+    fn add_edge<V: AsNodeRef, T: TryIntoInputTime, PI: CollectProperties>(
         &self,
         t: T,
         src: V,
@@ -127,16 +131,17 @@ impl<G: InternalAdditionOps + StaticGraphViewOps> AdditionOps for G {
         props: PI,
         layer: Option<&str>,
     ) -> Result<EdgeView<G, G>, GraphError> {
-        let ti = TimeIndexEntry::from_input(self, t)?;
-        let src_id = self.resolve_node(src.id(), src.id_str());
-        let dst_id = self.resolve_node(dst.id(), dst.id_str());
-        let layer_id = self.resolve_layer(layer);
+        let ti = time_from_input(self, t)?;
+        let src_id = self.resolve_node(src)?.inner();
+        let dst_id = self.resolve_node(dst)?.inner();
+        let layer_id = self.resolve_layer(layer)?.inner();
 
-        let properties: Vec<(usize, Prop)> = props.collect_properties(
-            |name, dtype| self.resolve_edge_property(name, dtype, false),
-            |prop| self.process_prop_value(prop),
-        )?;
-        let eid = self.internal_add_edge(ti, src_id, dst_id, properties, layer_id)?;
+        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
+            Ok(self.resolve_edge_property(name, dtype, false)?.inner())
+        })?;
+        let eid = self
+            .internal_add_edge(ti, src_id, dst_id, &properties, layer_id)?
+            .inner();
         Ok(EdgeView::new(
             self.clone(),
             EdgeRef::new_outgoing(eid, src_id, dst_id).at_layer(layer_id),

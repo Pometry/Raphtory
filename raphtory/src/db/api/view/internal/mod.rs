@@ -1,5 +1,6 @@
+#![allow(dead_code)]
 mod core_deletion_ops;
-mod core_ops;
+pub mod core_ops;
 mod edge_filter_ops;
 mod filter_ops;
 mod inherit;
@@ -72,7 +73,7 @@ impl<G: InheritViewOps> InheritNodeFilterOps for G {}
 
 impl<G: InheritViewOps> InheritListOps for G {}
 
-impl<G: InheritViewOps> InheritCoreDeletionOps for G {}
+impl<G: InheritViewOps + HasDeletionOps> HasDeletionOps for G {}
 impl<G: InheritViewOps> InheritEdgeFilterOps for G {}
 impl<G: InheritViewOps> InheritLayerOps for G {}
 impl<G: InheritViewOps + CoreGraphOps> InheritTimeSemantics for G {}
@@ -148,7 +149,7 @@ mod test {
             },
             graph::graph::Graph,
         },
-        prelude::NO_PROPS,
+        prelude::{NodeStateOps, NO_PROPS},
     };
     use itertools::Itertools;
     use std::sync::Arc;
@@ -157,8 +158,16 @@ mod test {
     fn test_boxing() {
         // this tests that a boxed graph actually compiles
         let g = Graph::new();
-        g.add_node(0, 1, NO_PROPS, None).unwrap();
+        g.add_node(0, 1u64, NO_PROPS, None).unwrap();
         let boxed: Arc<dyn BoxableGraphView> = Arc::new(g);
-        assert_eq!(boxed.nodes().id().collect_vec(), vec![1])
+        assert_eq!(
+            boxed
+                .nodes()
+                .id()
+                .values()
+                .filter_map(|v| v.as_u64())
+                .collect_vec(),
+            vec![1]
+        )
     }
 }

@@ -7,10 +7,10 @@
 //! # Examples
 //!
 //! Load a pre-built graph
-//! ```rust
+//! ```rust,no_run
 //! use raphtory::algorithms::metrics::degree::average_degree;
 //! use raphtory::prelude::*;
-//! use raphtory::graph_loader::example::lotr_graph::lotr_graph;
+//! use raphtory::graph_loader::lotr_graph::lotr_graph;
 //!
 //! let graph = lotr_graph();
 //!
@@ -32,7 +32,7 @@
 //! ```no_run
 //! use std::time::Instant;
 //! use serde::Deserialize;
-//! use raphtory::graph_loader::source::csv_loader::CsvLoader;
+//! use raphtory::io::csv_loader::CsvLoader;
 //! use raphtory::prelude::*;
 //!
 //! let data_dir = "/tmp/lotr.csv";
@@ -82,7 +82,7 @@
 //!
 //! download a file without creating the graph
 //!
-//! ```rust
+//! ```rust,no_run
 //! use raphtory::graph_loader::fetch_file;
 //!
 //! let path = fetch_file(
@@ -105,8 +105,13 @@ use std::{
 };
 use zip::read::ZipArchive;
 
-pub mod example;
-pub mod source;
+pub mod company_house;
+pub mod karate_club;
+pub mod lotr_graph;
+pub mod neo4j_examples;
+pub mod reddit_hyperlinks;
+pub mod stable_coins;
+pub mod sx_superuser_graph;
 
 pub fn fetch_file(
     name: &str,
@@ -161,8 +166,9 @@ fn unzip_file(zip_file_path: &str, destination_path: &str) -> std::io::Result<()
 
 #[cfg(test)]
 mod graph_loader_test {
-    use crate::{core::utils::hashing, graph_loader::fetch_file, prelude::*};
+    use crate::{graph_loader::fetch_file, prelude::*};
     use csv::StringRecord;
+    use raphtory_api::core::utils::logging::global_info_logger;
 
     #[test]
     fn test_fetch_file() {
@@ -177,13 +183,13 @@ mod graph_loader_test {
 
     #[test]
     fn test_lotr_load_graph() {
-        let g = crate::graph_loader::example::lotr_graph::lotr_graph();
+        let g = crate::graph_loader::lotr_graph::lotr_graph();
         assert_eq!(g.count_edges(), 701);
     }
 
     #[test]
     fn test_graph_at() {
-        let g = crate::graph_loader::example::lotr_graph::lotr_graph();
+        let g = crate::graph_loader::lotr_graph::lotr_graph();
 
         let g_at_empty = g.at(1);
         let g_astart = g.at(7059);
@@ -196,7 +202,7 @@ mod graph_loader_test {
 
     #[test]
     fn test_karate_graph() {
-        let g = crate::graph_loader::example::karate_club::karate_club_graph();
+        let g = crate::graph_loader::karate_club::karate_club_graph();
         assert_eq!(g.count_nodes(), 34);
         assert_eq!(g.count_edges(), 155);
     }
@@ -205,8 +211,8 @@ mod graph_loader_test {
     fn db_lotr() {
         let g = Graph::new();
 
-        let data_dir = crate::graph_loader::example::lotr_graph::lotr_file()
-            .expect("Failed to get lotr.csv file");
+        let data_dir =
+            crate::graph_loader::lotr_graph::lotr_file().expect("Failed to get lotr.csv file");
 
         fn parse_record(rec: &StringRecord) -> Option<(String, String, i64)> {
             let src = rec.get(0).and_then(|s| s.parse::<String>().ok())?;
@@ -218,8 +224,8 @@ mod graph_loader_test {
         if let Ok(mut reader) = csv::Reader::from_path(data_dir) {
             for rec in reader.records().flatten() {
                 if let Some((src, dst, t)) = parse_record(&rec) {
-                    let src_id = hashing::calculate_hash(&src);
-                    let dst_id = hashing::calculate_hash(&dst);
+                    let src_id = src.id();
+                    let dst_id = dst.id();
 
                     g.add_node(t, src_id, [("name", Prop::str("Character"))], None)
                         .unwrap();
@@ -237,14 +243,14 @@ mod graph_loader_test {
             }
         }
 
-        let gandalf = hashing::calculate_hash(&"Gandalf");
+        let gandalf = "Gandalf".id();
         assert!(g.has_node(gandalf));
         assert!(g.has_node("Gandalf"))
     }
 
     #[test]
     fn test_all_degrees_window() {
-        let g = crate::graph_loader::example::lotr_graph::lotr_graph();
+        let g = crate::graph_loader::lotr_graph::lotr_graph();
 
         assert_eq!(g.count_edges(), 701);
         assert_eq!(g.node("Gandalf").unwrap().degree(), 49);
@@ -263,20 +269,12 @@ mod graph_loader_test {
 
     #[test]
     fn test_all_neighbours_window() {
-        let g = crate::graph_loader::example::lotr_graph::lotr_graph();
+        global_info_logger();
+        let g = crate::graph_loader::lotr_graph::lotr_graph();
 
         assert_eq!(g.count_edges(), 701);
         assert_eq!(g.node("Gandalf").unwrap().neighbours().iter().count(), 49);
 
-        for v in g
-            .node("Gandalf")
-            .unwrap()
-            .window(1356, 24792)
-            .neighbours()
-            .iter()
-        {
-            println!("{:?}", v.id())
-        }
         assert_eq!(
             g.node("Gandalf")
                 .unwrap()
@@ -316,7 +314,7 @@ mod graph_loader_test {
 
     #[test]
     fn test_all_edges_window() {
-        let g = crate::graph_loader::example::lotr_graph::lotr_graph();
+        let g = crate::graph_loader::lotr_graph::lotr_graph();
 
         assert_eq!(g.count_edges(), 701);
         assert_eq!(g.node("Gandalf").unwrap().edges().iter().count(), 59);

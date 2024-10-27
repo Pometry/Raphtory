@@ -67,8 +67,11 @@ mod test {
     use crate::{
         algorithms::community_detection::{louvain::louvain, modularity::ModularityUnDir},
         prelude::*,
+        test_storage,
     };
     use proptest::prelude::*;
+    use raphtory_api::core::utils::logging::global_info_logger;
+    use tracing::info;
 
     #[test]
     fn test_louvain() {
@@ -83,53 +86,63 @@ mod test {
             (100, 600, 1.5f64),
         ];
         // for _ in 0..100 {
-        assert!(test_all_nodes_assigned_inner(edges))
+        test_all_nodes_assigned_inner(edges)
         // }
     }
 
-    fn test_all_nodes_assigned_inner(edges: Vec<(u64, u64, f64)>) -> bool {
-        let g = Graph::new();
+    fn test_all_nodes_assigned_inner(edges: Vec<(u64, u64, f64)>) {
+        let graph = Graph::new();
         for (src, dst, weight) in edges {
-            g.add_edge(1, src, dst, [("weight", weight)], None).unwrap();
-            g.add_edge(1, dst, src, [("weight", weight)], None).unwrap();
+            graph
+                .add_edge(1, src, dst, [("weight", weight)], None)
+                .unwrap();
+            graph
+                .add_edge(1, dst, src, [("weight", weight)], None)
+                .unwrap();
         }
-        let result = louvain::<ModularityUnDir, _>(&g, 1.0, Some("weight"), None);
-        g.nodes().iter().all(|n| result.get(n).is_some())
+
+        test_storage!(&graph, |graph| {
+            let result = louvain::<ModularityUnDir, _>(graph, 1.0, Some("weight"), None);
+            assert!(graph.nodes().iter().all(|n| result.get(n).is_some()));
+        });
     }
 
-    fn test_all_nodes_assigned_inner_unweighted(edges: Vec<(u64, u64)>) -> bool {
-        let g = Graph::new();
+    fn test_all_nodes_assigned_inner_unweighted(edges: Vec<(u64, u64)>) {
+        let graph = Graph::new();
         for (src, dst) in edges {
-            g.add_edge(1, src, dst, NO_PROPS, None).unwrap();
-            g.add_edge(1, dst, src, NO_PROPS, None).unwrap();
+            graph.add_edge(1, src, dst, NO_PROPS, None).unwrap();
+            graph.add_edge(1, dst, src, NO_PROPS, None).unwrap();
         }
-        let result = louvain::<ModularityUnDir, _>(&g, 1.0, None, None);
-        g.nodes().iter().all(|n| result.get(n).is_some())
+
+        test_storage!(&graph, |graph| {
+            let result = louvain::<ModularityUnDir, _>(graph, 1.0, None, None);
+            assert!(graph.nodes().iter().all(|n| result.get(n).is_some()));
+        });
     }
 
     proptest! {
         #[test]
         fn test_all_nodes_in_communities(edges in any::<Vec<(u64, u64, f64)>>().prop_map(|mut v| {v.iter_mut().for_each(|(_, _, w)| *w = w.abs()); v})) {
-            prop_assert!(test_all_nodes_assigned_inner(edges))
+            test_all_nodes_assigned_inner(edges)
         }
 
         #[test]
         fn test_all_nodes_assigned_unweighted(edges in any::<Vec<(u8, u8)>>().prop_map(|v| v.into_iter().map(|(s, d)|  (s as u64, d as u64)).collect::<Vec<_>>())) {
-            prop_assert!(test_all_nodes_assigned_inner_unweighted(edges))
+            test_all_nodes_assigned_inner_unweighted(edges)
         }
     }
 
     #[cfg(feature = "io")]
     #[test]
     fn lfr_test() {
-        use crate::graph_loader::source::csv_loader::CsvLoader;
+        use crate::io::csv_loader::CsvLoader;
         use serde::{Deserialize, Serialize};
         use std::path::PathBuf;
-
+        global_info_logger();
         let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         d.push("resources/test");
         let loader = CsvLoader::new(d.join("test.csv")).set_delimiter(",");
-        let g = Graph::new();
+        let graph = Graph::new();
 
         #[derive(Deserialize, Serialize, Debug)]
         struct CsvEdge {
@@ -138,12 +151,14 @@ mod test {
         }
 
         loader
-            .load_into_graph(&g, |e: CsvEdge, g| {
+            .load_into_graph(&graph, |e: CsvEdge, g| {
                 g.add_edge(1, e.src, e.dst, NO_PROPS, None).unwrap();
             })
             .unwrap();
 
-        let result = louvain::<ModularityUnDir, _>(&g, 1.0, None, None);
-        println!("{result:?}")
+        test_storage!(&graph, |graph| {
+            let result = louvain::<ModularityUnDir, _>(graph, 1.0, None, None);
+            info!("{result:?}")
+        });
     }
 }

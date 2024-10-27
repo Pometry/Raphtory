@@ -3,14 +3,10 @@ use crate::{
         storage::timeindex::AsTime,
         utils::time::{error::ParseTimeError, Interval, IntoTime},
     },
-    db::{
-        api::view::{
-            internal::{OneHopFilter, TimeSemantics},
-            time::internal::InternalTimeOps,
-        },
-        graph::views::window_graph::WindowedGraph,
+    db::api::view::{
+        internal::{InternalMaterialize, OneHopFilter, TimeSemantics},
+        time::internal::InternalTimeOps,
     },
-    prelude::GraphViewOps,
 };
 use chrono::{DateTime, Utc};
 use std::{
@@ -18,65 +14,186 @@ use std::{
     marker::PhantomData,
 };
 
+use super::internal::GraphType;
+
 pub(crate) mod internal {
-    use crate::prelude::TimeOps;
+    use crate::{
+        db::{api::view::internal::OneHopFilter, graph::views::window_graph::WindowedGraph},
+        prelude::{GraphViewOps, TimeOps},
+    };
+    use std::cmp::{max, min};
 
     pub trait InternalTimeOps<'graph> {
-        type InternalWindowedViewType: TimeOps<'graph> + 'graph;
-
-        /// Return the start timestamp for WindowSets or None if the timeline is empty
+        type InternalWindowedView: TimeOps<'graph> + 'graph;
         fn timeline_start(&self) -> Option<i64>;
-
-        /// Return the end timestamp for WindowSets or None if the timeline is empty
         fn timeline_end(&self) -> Option<i64>;
+        fn latest_t(&self) -> Option<i64>;
+        fn internal_window(
+            &self,
+            start: Option<i64>,
+            end: Option<i64>,
+        ) -> Self::InternalWindowedView;
+    }
+    impl<'graph, E: OneHopFilter<'graph> + 'graph> InternalTimeOps<'graph> for E {
+        type InternalWindowedView = E::Filtered<WindowedGraph<E::FilteredGraph>>;
+
+        fn timeline_start(&self) -> Option<i64> {
+            self.start()
+                .or_else(|| self.current_filter().earliest_time())
+        }
+
+        fn timeline_end(&self) -> Option<i64> {
+            self.end().or_else(|| {
+                self.current_filter()
+                    .latest_time()
+                    .map(|v| v.saturating_add(1))
+            })
+        }
+
+        fn latest_t(&self) -> Option<i64> {
+            self.current_filter().latest_time()
+        }
 
         fn internal_window(
             &self,
             start: Option<i64>,
             end: Option<i64>,
-        ) -> Self::InternalWindowedViewType;
+        ) -> Self::InternalWindowedView {
+            let base_start = self.base_graph().start();
+            let base_end = self.base_graph().end();
+            let actual_start = match (base_start, start) {
+                (Some(base), Some(start)) => Some(max(base, start)),
+                (None, v) => v,
+                (v, None) => v,
+            };
+            let actual_end = match (base_end, end) {
+                (Some(base), Some(end)) => Some(min(base, end)),
+                (None, v) => v,
+                (v, None) => v,
+            };
+            let actual_end = match (actual_end, actual_start) {
+                (Some(end), Some(start)) => Some(max(end, start)),
+                _ => actual_end,
+            };
+            self.one_hop_filtered(WindowedGraph::new(
+                self.current_filter().clone(),
+                actual_start,
+                actual_end,
+            ))
+        }
     }
 }
 
 /// Trait defining time query operations
 pub trait TimeOps<'graph>:
-    InternalTimeOps<'graph, InternalWindowedViewType = Self::WindowedViewType>
+    InternalTimeOps<'graph, InternalWindowedView = Self::WindowedViewType>
 {
     type WindowedViewType: TimeOps<'graph> + 'graph;
     /// Return the timestamp of the start of the view or None if the view start is unbounded.
     fn start(&self) -> Option<i64>;
 
+    fn start_date_time(&self) -> Option<DateTime<Utc>>;
+
+    /// Return the timestamp of the view or None if the view end is unbounded.
+    fn end(&self) -> Option<i64>;
+
+    fn end_date_time(&self) -> Option<DateTime<Utc>>;
+
+    /// set the start of the window to the larger of `start` and `self.start()`
+    fn shrink_start<T: IntoTime>(&self, start: T) -> Self::WindowedViewType;
+
+    /// set the end of the window to the smaller of `end` and `self.end()`
+    fn shrink_end<T: IntoTime>(&self, end: T) -> Self::WindowedViewType;
+
+    /// shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
+    fn shrink_window<T: IntoTime>(&self, start: T, end: T) -> Self::WindowedViewType;
+
+    /// Return the size of the window covered by this view or None if the window is unbounded
+    fn window_size(&self) -> Option<u64>;
+
+    /// Create a view including all events between `start` (inclusive) and `end` (exclusive)
+    fn window<T1: IntoTime, T2: IntoTime>(&self, start: T1, end: T2) -> Self::WindowedViewType;
+
+    /// Create a view that only includes events at `time`
+    fn at<T: IntoTime>(&self, time: T) -> Self::WindowedViewType;
+
+    /// Create a view that only includes events at the latest time
+    fn latest(&self) -> Self::WindowedViewType;
+
+    /// Create a view including all events that have not been explicitly deleted at `time`
+    ///
+    /// This is equivalent to `before(time + 1)` for `EventGraph`s and `at(time)` for `PersitentGraph`s
+    fn snapshot_at<T: IntoTime>(&self, time: T) -> Self::WindowedViewType;
+
+    /// Create a view including all events that have not been explicitly deleted at the latest time
+    ///
+    /// This is equivalent to a no-op for `EventGraph`s and `latest()` for `PersitentGraph`s
+    fn snapshot_latest(&self) -> Self::WindowedViewType;
+
+    /// Create a view that only includes events after `start` (exclusive)
+    fn after<T: IntoTime>(&self, start: T) -> Self::WindowedViewType;
+
+    /// Create a view that only includes events before `end` (exclusive)
+    fn before<T: IntoTime>(&self, end: T) -> Self::WindowedViewType;
+
+    /// Creates a `WindowSet` with the given `step` size
+    /// using an expanding window. The last window may fall partially outside the range of the data/view.
+    ///
+    /// An expanding window is a window that grows by `step` size at each iteration.
+    fn expanding<I>(&self, step: I) -> Result<WindowSet<'graph, Self>, ParseTimeError>
+    where
+        Self: Sized + Clone + 'static,
+        I: TryInto<Interval, Error = ParseTimeError>;
+
+    /// Creates a `WindowSet` with the given `window` size and optional `step`
+    /// using a rolling window. The last window may fall partially outside the range of the data/view.
+    ///
+    /// A rolling window is a window that moves forward by `step` size at each iteration.
+    fn rolling<I>(
+        &self,
+        window: I,
+        step: Option<I>,
+    ) -> Result<WindowSet<'graph, Self>, ParseTimeError>
+    where
+        Self: Sized + Clone + 'static,
+        I: TryInto<Interval, Error = ParseTimeError>;
+}
+
+impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps<'graph> for V {
+    type WindowedViewType = V::InternalWindowedView;
+
+    fn start(&self) -> Option<i64> {
+        self.current_filter().view_start()
+    }
+
+    fn end(&self) -> Option<i64> {
+        self.current_filter().view_end()
+    }
+
     fn start_date_time(&self) -> Option<DateTime<Utc>> {
         self.start()?.dt()
     }
-
-    /// Return the timestamp of the of the view or None if the view end is unbounded.
-    fn end(&self) -> Option<i64>;
 
     fn end_date_time(&self) -> Option<DateTime<Utc>> {
         self.end()?.dt()
     }
 
-    /// set the start of the window to the larger of `start` and `self.start()`
     fn shrink_start<T: IntoTime>(&self, start: T) -> Self::WindowedViewType {
         let start = Some(max(start.into_time(), self.start().unwrap_or(i64::MIN)));
         self.internal_window(start, self.end())
     }
 
-    /// set the end of the window to the smaller of `end` and `self.end()`
     fn shrink_end<T: IntoTime>(&self, end: T) -> Self::WindowedViewType {
         let end = Some(min(end.into_time(), self.end().unwrap_or(i64::MAX)));
         self.internal_window(self.start(), end)
     }
 
-    /// shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
     fn shrink_window<T: IntoTime>(&self, start: T, end: T) -> Self::WindowedViewType {
         let start = max(start.into_time(), self.start().unwrap_or(i64::MIN));
         let end = min(end.into_time(), self.end().unwrap_or(i64::MAX));
         self.internal_window(Some(start), Some(end))
     }
 
-    /// Return the size of the window covered by this view or None if the window is unbounded
     fn window_size(&self) -> Option<u64> {
         match (self.start(), self.end()) {
             (Some(start), Some(end)) => Some((end - start) as u64),
@@ -84,33 +201,44 @@ pub trait TimeOps<'graph>:
         }
     }
 
-    /// Create a view including all events between `start` (inclusive) and `end` (exclusive)
     fn window<T1: IntoTime, T2: IntoTime>(&self, start: T1, end: T2) -> Self::WindowedViewType {
         self.internal_window(Some(start.into_time()), Some(end.into_time()))
     }
 
-    /// Create a view that only includes events at `time`
     fn at<T: IntoTime>(&self, time: T) -> Self::WindowedViewType {
         let start = time.into_time();
         self.internal_window(Some(start), Some(start.saturating_add(1)))
     }
 
-    /// Create a view that only includes events after `start` (exclusive)
+    fn latest(&self) -> Self::WindowedViewType {
+        let time = self.latest_t();
+        self.internal_window(time, time.map(|t| t.saturating_add(1)))
+    }
+
+    fn snapshot_at<T: IntoTime>(&self, time: T) -> Self::WindowedViewType {
+        match self.current_filter().graph_type() {
+            GraphType::EventGraph => self.before(time.into_time() + 1),
+            GraphType::PersistentGraph => self.at(time),
+        }
+    }
+
+    fn snapshot_latest(&self) -> Self::WindowedViewType {
+        match self.latest_t() {
+            Some(latest) => self.snapshot_at(latest),
+            None => self.snapshot_at(i64::MIN),
+        }
+    }
+
     fn after<T: IntoTime>(&self, start: T) -> Self::WindowedViewType {
         let start = start.into_time().saturating_add(1);
         self.internal_window(Some(start), None)
     }
 
-    /// Create a view that only includes events before `end` (exclusive)
     fn before<T: IntoTime>(&self, end: T) -> Self::WindowedViewType {
         let end = end.into_time();
         self.internal_window(None, Some(end))
     }
 
-    /// Creates a `WindowSet` with the given `step` size    
-    /// using an expanding window. The last window may fall partially outside the range of the data/view.
-    ///
-    /// An expanding window is a window that grows by `step` size at each iteration.
     fn expanding<I>(&self, step: I) -> Result<WindowSet<'graph, Self>, ParseTimeError>
     where
         Self: Sized + Clone + 'static,
@@ -127,10 +255,6 @@ pub trait TimeOps<'graph>:
         }
     }
 
-    /// Creates a `WindowSet` with the given `window` size and optional `step`
-    /// using a rolling window. The last window may fall partially outside the range of the data/view.
-    ///
-    /// A rolling window is a window that moves forward by `step` size at each iteration.
     fn rolling<I>(
         &self,
         window: I,
@@ -152,62 +276,6 @@ pub trait TimeOps<'graph>:
             }
             _ => Ok(WindowSet::empty(parent)),
         }
-    }
-}
-
-impl<'graph, V: OneHopFilter<'graph> + 'graph> InternalTimeOps<'graph> for V {
-    type InternalWindowedViewType = V::Filtered<WindowedGraph<V::FilteredGraph>>;
-
-    fn timeline_start(&self) -> Option<i64> {
-        self.start()
-            .or_else(|| self.current_filter().earliest_time())
-    }
-
-    fn timeline_end(&self) -> Option<i64> {
-        self.end().or_else(|| {
-            self.current_filter()
-                .latest_time()
-                .map(|v| v.saturating_add(1))
-        })
-    }
-
-    fn internal_window(
-        &self,
-        start: Option<i64>,
-        end: Option<i64>,
-    ) -> Self::InternalWindowedViewType {
-        let base_start = self.base_graph().start();
-        let base_end = self.base_graph().end();
-        let actual_start = match (base_start, start) {
-            (Some(base), Some(start)) => Some(max(base, start)),
-            (None, v) => v,
-            (v, None) => v,
-        };
-        let actual_end = match (base_end, end) {
-            (Some(base), Some(end)) => Some(min(base, end)),
-            (None, v) => v,
-            (v, None) => v,
-        };
-        let actual_end = match (actual_end, actual_start) {
-            (Some(end), Some(start)) => Some(max(end, start)),
-            _ => actual_end,
-        };
-        self.one_hop_filtered(WindowedGraph::new(
-            self.current_filter().clone(),
-            actual_start,
-            actual_end,
-        ))
-    }
-}
-
-impl<'graph, V: OneHopFilter<'graph> + 'graph> TimeOps<'graph> for V {
-    type WindowedViewType = Self::InternalWindowedViewType;
-    fn start(&self) -> Option<i64> {
-        self.current_filter().view_start()
-    }
-
-    fn end(&self) -> Option<i64> {
-        self.current_filter().view_end()
     }
 }
 
@@ -299,22 +367,20 @@ mod time_tests {
         db::{
             api::{
                 mutation::AdditionOps,
-                view::{
-                    time::{internal::InternalTimeOps, WindowSet},
-                    TimeOps,
-                },
+                view::{time::internal::InternalTimeOps, WindowSet},
             },
-            graph::graph::Graph,
+            graph::{graph::Graph, views::deletion_graph::PersistentGraph},
         },
-        prelude::{GraphViewOps, NO_PROPS},
+        prelude::{DeletionOps, GraphViewOps, TimeOps, NO_PROPS},
+        test_storage,
     };
     use itertools::Itertools;
 
     // start inclusive, end exclusive
     fn graph_with_timeline(start: i64, end: i64) -> Graph {
         let g = Graph::new();
-        g.add_node(start, 0, NO_PROPS, None).unwrap();
-        g.add_node(end - 1, 0, NO_PROPS, None).unwrap();
+        g.add_edge(start, 0, 1, NO_PROPS, None).unwrap();
+        g.add_edge(end - 1, 0, 1, NO_PROPS, None).unwrap();
         assert_eq!(g.timeline_start().unwrap(), start);
         assert_eq!(g.timeline_end().unwrap(), end);
         g
@@ -331,78 +397,114 @@ mod time_tests {
     }
 
     #[test]
+    fn snapshot() {
+        let graph = PersistentGraph::new();
+        graph.add_edge(3, 0, 1, [("a", "a")], None).unwrap();
+        graph.add_edge(4, 0, 2, [("b", "b")], None).unwrap();
+        graph.delete_edge(5, 0, 1, None).unwrap();
+
+        for time in 2..7 {
+            assert_eq!(graph.at(time), graph.snapshot_at(time));
+        }
+        assert_eq!(graph.latest(), graph.snapshot_latest());
+
+        let graph = graph.event_graph();
+
+        for time in 2..7 {
+            assert_eq!(graph.before(time + 1), graph.snapshot_at(time));
+        }
+        assert_eq!(graph, graph.snapshot_latest());
+    }
+
+    #[test]
     fn rolling() {
-        let g = graph_with_timeline(1, 7);
-        let windows = g.rolling(2, None).unwrap();
-        let expected = vec![(Some(1), Some(3)), (Some(3), Some(5)), (Some(5), Some(7))];
-        assert_bounds(windows, expected);
+        let graph = graph_with_timeline(1, 7);
+        test_storage!(&graph, |graph| {
+            let windows = graph.rolling(2, None).unwrap();
+            let expected = vec![(Some(1), Some(3)), (Some(3), Some(5)), (Some(5), Some(7))];
+            assert_bounds(windows, expected);
+        });
 
-        let g = graph_with_timeline(1, 6);
-        let windows = g.rolling(3, Some(2)).unwrap();
-        let expected = vec![(Some(0), Some(3)), (Some(2), Some(5)), (Some(4), Some(7))];
-        assert_bounds(windows, expected.clone());
+        let graph = graph_with_timeline(1, 6);
+        test_storage!(&graph, |graph| {
+            let windows = graph.rolling(3, Some(2)).unwrap();
+            let expected = vec![(Some(0), Some(3)), (Some(2), Some(5)), (Some(4), Some(7))];
+            assert_bounds(windows, expected.clone());
+        });
 
-        let g = graph_with_timeline(0, 9).window(1, 6);
-        let windows = g.rolling(3, Some(2)).unwrap();
-        assert_bounds(
-            windows,
-            vec![(Some(1), Some(3)), (Some(2), Some(5)), (Some(4), Some(6))],
-        );
+        let graph = graph_with_timeline(0, 9);
+        test_storage!(&graph, |graph| {
+            let windows = graph.window(1, 6).rolling(3, Some(2)).unwrap();
+            assert_bounds(
+                windows,
+                vec![(Some(1), Some(3)), (Some(2), Some(5)), (Some(4), Some(6))],
+            );
+        });
     }
 
     #[test]
     fn expanding() {
-        let g = graph_with_timeline(1, 7);
-        let windows = g.expanding(2).unwrap();
-        let expected = vec![(None, Some(3)), (None, Some(5)), (None, Some(7))];
-        assert_bounds(windows, expected);
+        let graph = graph_with_timeline(1, 7);
+        test_storage!(&graph, |graph| {
+            let windows = graph.expanding(2).unwrap();
+            let expected = vec![(None, Some(3)), (None, Some(5)), (None, Some(7))];
+            assert_bounds(windows, expected);
+        });
 
-        let g = graph_with_timeline(1, 6);
-        let windows = g.expanding(2).unwrap();
-        let expected = vec![(None, Some(3)), (None, Some(5)), (None, Some(7))];
-        assert_bounds(windows, expected.clone());
+        let graph = graph_with_timeline(1, 6);
+        test_storage!(&graph, |graph| {
+            let windows = graph.expanding(2).unwrap();
+            let expected = vec![(None, Some(3)), (None, Some(5)), (None, Some(7))];
+            assert_bounds(windows, expected.clone());
+        });
 
-        let g = graph_with_timeline(0, 9).window(1, 6);
-        let windows = g.expanding(2).unwrap();
-        assert_bounds(
-            windows,
-            vec![(Some(1), Some(3)), (Some(1), Some(5)), (Some(1), Some(6))],
-        );
+        let graph = graph_with_timeline(0, 9);
+        test_storage!(&graph, |graph| {
+            let windows = graph.window(1, 6).expanding(2).unwrap();
+            assert_bounds(
+                windows,
+                vec![(Some(1), Some(3)), (Some(1), Some(5)), (Some(1), Some(6))],
+            );
+        });
     }
 
     #[test]
     fn rolling_dates() {
         let start = "2020-06-06 00:00:00".try_into_time().unwrap();
         let end = "2020-06-07 23:59:59.999".try_into_time().unwrap();
-        let g = graph_with_timeline(start, end);
-        let windows = g.rolling("1 day", None).unwrap();
-        let expected = vec![
-            (
-                "2020-06-06 00:00:00".try_into_time().ok(), // entire 2020-06-06
-                "2020-06-07 00:00:00".try_into_time().ok(),
-            ),
-            (
-                "2020-06-07 00:00:00".try_into_time().ok(), // entire 2020-06-06
-                "2020-06-08 00:00:00".try_into_time().ok(),
-            ),
-        ];
-        assert_bounds(windows, expected);
+        let graph = graph_with_timeline(start, end);
+        test_storage!(&graph, |graph| {
+            let windows = graph.rolling("1 day", None).unwrap();
+            let expected = vec![
+                (
+                    "2020-06-06 00:00:00".try_into_time().ok(), // entire 2020-06-06
+                    "2020-06-07 00:00:00".try_into_time().ok(),
+                ),
+                (
+                    "2020-06-07 00:00:00".try_into_time().ok(), // entire 2020-06-06
+                    "2020-06-08 00:00:00".try_into_time().ok(),
+                ),
+            ];
+            assert_bounds(windows, expected);
+        });
 
         let start = "2020-06-06 00:00:00".try_into_time().unwrap();
         let end = "2020-06-08 00:00:00".try_into_time().unwrap();
-        let g = graph_with_timeline(start, end);
-        let windows = g.rolling("1 day", None).unwrap();
-        let expected = vec![
-            (
-                "2020-06-06 00:00:00".try_into_time().ok(), // entire 2020-06-06
-                "2020-06-07 00:00:00".try_into_time().ok(),
-            ),
-            (
-                "2020-06-07 00:00:00".try_into_time().ok(), // entire 2020-06-07
-                "2020-06-08 00:00:00".try_into_time().ok(),
-            ),
-        ];
-        assert_bounds(windows, expected);
+        let graph = graph_with_timeline(start, end);
+        test_storage!(&graph, |graph| {
+            let windows = graph.rolling("1 day", None).unwrap();
+            let expected = vec![
+                (
+                    "2020-06-06 00:00:00".try_into_time().ok(), // entire 2020-06-06
+                    "2020-06-07 00:00:00".try_into_time().ok(),
+                ),
+                (
+                    "2020-06-07 00:00:00".try_into_time().ok(), // entire 2020-06-07
+                    "2020-06-08 00:00:00".try_into_time().ok(),
+                ),
+            ];
+            assert_bounds(windows, expected);
+        });
 
         // TODO: turn this back on if we bring bach epoch alignment for unwindowed graphs
         // let start = "2020-06-05 23:59:59.999".into_time().unwrap();
@@ -426,22 +528,26 @@ mod time_tests {
     fn expanding_dates() {
         let start = "2020-06-06 00:00:00".try_into_time().unwrap();
         let end = "2020-06-07 23:59:59.999".try_into_time().unwrap();
-        let g = graph_with_timeline(start, end);
-        let windows = g.expanding("1 day").unwrap();
-        let expected = vec![
-            (None, "2020-06-07 00:00:00".try_into_time().ok()),
-            (None, "2020-06-08 00:00:00".try_into_time().ok()),
-        ];
-        assert_bounds(windows, expected);
+        let graph = graph_with_timeline(start, end);
+        test_storage!(&graph, |graph| {
+            let windows = graph.expanding("1 day").unwrap();
+            let expected = vec![
+                (None, "2020-06-07 00:00:00".try_into_time().ok()),
+                (None, "2020-06-08 00:00:00".try_into_time().ok()),
+            ];
+            assert_bounds(windows, expected);
+        });
 
         let start = "2020-06-06 00:00:00".try_into_time().unwrap();
         let end = "2020-06-08 00:00:00".try_into_time().unwrap();
-        let g = graph_with_timeline(start, end);
-        let windows = g.expanding("1 day").unwrap();
-        let expected = vec![
-            (None, "2020-06-07 00:00:00".try_into_time().ok()),
-            (None, "2020-06-08 00:00:00".try_into_time().ok()),
-        ];
-        assert_bounds(windows, expected);
+        let graph = graph_with_timeline(start, end);
+        test_storage!(&graph, |graph| {
+            let windows = graph.expanding("1 day").unwrap();
+            let expected = vec![
+                (None, "2020-06-07 00:00:00".try_into_time().ok()),
+                (None, "2020-06-08 00:00:00".try_into_time().ok()),
+            ];
+            assert_bounds(windows, expected);
+        });
     }
 }

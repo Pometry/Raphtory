@@ -21,23 +21,26 @@ def build_graph():
     nodes_df["timestamp"] = pd.to_datetime(nodes_df["timestamp"]).astype(
         "datetime64[ms, UTC]"
     )
-
-    return Graph.load_from_pandas(
-        edge_df=edges_df,
-        edge_src="source",
-        edge_dst="destination",
-        edge_time="timestamp",
-        edge_properties=["data_size_MB"],
-        edge_layer="transaction_type",
-        edge_const_properties=["is_encrypted"],
-        edge_shared_const_properties={"datasource": "data/network_traffic_edges.csv"},
-        node_df=nodes_df,
-        node_id="server_id",
-        node_time="timestamp",
-        node_properties=["OS_version", "primary_function", "uptime_days"],
-        node_const_properties=["server_name", "hardware_type"],
-        node_shared_const_properties={"datasource": "data/network_traffic_edges.csv"},
+    g = Graph()
+    g.load_edges_from_pandas(
+        edges_df,
+        time="timestamp",
+        src="source",
+        dst="destination",
+        properties=["data_size_MB"],
+        layer_col="transaction_type",
+        constant_properties=["is_encrypted"],
+        shared_constant_properties={"datasource": "data/network_traffic_edges.csv"},
     )
+    g.load_nodes_from_pandas(
+        df=nodes_df,
+        id="server_id",
+        time="timestamp",
+        properties=["OS_version", "primary_function", "uptime_days"],
+        constant_properties=["server_name", "hardware_type"],
+        shared_constant_properties={"datasource": "data/network_traffic_edges.csv"},
+    )
+    return g
 
 
 def build_graph_without_datetime_type():
@@ -47,47 +50,49 @@ def build_graph_without_datetime_type():
     nodes_df = pd.read_csv(base_dir / "data/network_traffic_nodes.csv")
     nodes_df["timestamp"] = pd.to_datetime(nodes_df["timestamp"])
 
-    return Graph.load_from_pandas(
-        edge_df=edges_df,
-        edge_src="source",
-        edge_dst="destination",
-        edge_time="timestamp",
-        edge_properties=["data_size_MB"],
-        edge_layer="transaction_type",
-        edge_const_properties=["is_encrypted"],
-        edge_shared_const_properties={"datasource": "data/network_traffic_edges.csv"},
-        node_df=nodes_df,
-        node_id="server_id",
-        node_time="timestamp",
-        node_properties=["OS_version", "primary_function", "uptime_days"],
-        node_const_properties=["server_name", "hardware_type"],
-        node_shared_const_properties={"datasource": "data/network_traffic_edges.csv"},
+    g = Graph()
+    g.load_edges_from_pandas(
+        edges_df,
+        time="timestamp",
+        src="source",
+        dst="destination",
+        properties=["data_size_MB"],
+        layer_col="transaction_type",
+        constant_properties=["is_encrypted"],
+        shared_constant_properties={"datasource": "data/network_traffic_edges.csv"},
     )
-    
-    
-def test_graph_timestamp_list_properties():
-    array_column = [
-        np.array([1, 2, 3]),
-        np.array([4, 5, 6]),
-        np.array([7, 8, 9])
-    ]
+    g.load_nodes_from_pandas(
+        df=nodes_df,
+        id="server_id",
+        time="timestamp",
+        properties=["OS_version", "primary_function", "uptime_days"],
+        constant_properties=["server_name", "hardware_type"],
+        shared_constant_properties={"datasource": "data/network_traffic_edges.csv"},
+    )
+    return g
 
-    string_column = ['a', 'b', 'c']
+
+def test_graph_timestamp_list_properties():
+    array_column = [np.array([1, 2, 3]), np.array([4, 5, 6]), np.array([7, 8, 9])]
+
+    string_column = ["a", "b", "c"]
     bool_column = [True, False, True]
     int_column = [10, 20, 30]
     date_column = [datetime.now(), datetime.now(), datetime.now()]
 
-    df = pd.DataFrame({
-        'array_column': array_column,
-        'string_column': string_column,
-        'bool_column': bool_column,
-        'int_column': int_column,
-        'date_column': date_column
-    })
-    
-    df['date_column_ms'] = df['date_column'].astype("datetime64[ms]")
-    df['date_column_us'] = df['date_column'].astype("datetime64[us]")
-    df['date_column_ns'] = df['date_column'].astype("datetime64[ns]")
+    df = pd.DataFrame(
+        {
+            "array_column": array_column,
+            "string_column": string_column,
+            "bool_column": bool_column,
+            "int_column": int_column,
+            "date_column": date_column,
+        }
+    )
+
+    df["date_column_ms"] = df["date_column"].astype("datetime64[ms]")
+    df["date_column_us"] = df["date_column"].astype("datetime64[us]")
+    df["date_column_ns"] = df["date_column"].astype("datetime64[ns]")
 
     g = Graph()
     g.load_nodes_from_pandas(
@@ -96,28 +101,28 @@ def test_graph_timestamp_list_properties():
         id="string_column",
         properties=[
             "array_column",
-            "date_column", 
+            "date_column",
             "date_column_ms",
             "date_column_us",
-            "date_column_ns"
-        ]
+            "date_column_ns",
+        ],
     )
-    
-    assert g.node('a')['array_column'] == [1, 2, 3]
 
-    assert g.node('a')['date_column_ms'] == df['date_column_ms'][0]
-    assert g.node('a')['date_column_us'] == df['date_column_us'][0]
-    
-    assert g.node('a')['date_column'] == date_column[0]
-    assert g.node('a')['date_column_ns'] == df['date_column_ns'][0]
-    
-    
+    assert g.node("a")["array_column"] == [1, 2, 3]
+
+    assert g.node("a")["date_column_ms"] == df["date_column_ms"][0]
+    assert g.node("a")["date_column_us"] == df["date_column_us"][0]
+
+    assert g.node("a")["date_column"] == date_column[0]
+    assert g.node("a")["date_column_ns"] == df["date_column_ns"][0]
+
+
 def test_graph_build_from_pandas_without_datetime_type():
     g = build_graph_without_datetime_type()
     assert g.node("ServerA").name == "ServerA"
     assert g.node("ServerA").earliest_time == 1693555200000
-    
-    
+
+
 def test_py_vis():
     g = build_graph()
     pyvis_g = g.to_pyvis(directed=True)
@@ -127,35 +132,35 @@ def test_py_vis():
         [
             {
                 "color": "#97c2fc",
-                "id": 7678824742430955432,
+                "id": "ServerA",
                 "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
                 "label": "ServerA",
                 "shape": "dot",
             },
             {
                 "color": "#97c2fc",
-                "id": 7718004695861170879,
+                "id": "ServerB",
                 "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
                 "label": "ServerB",
                 "shape": "dot",
             },
             {
                 "color": "#97c2fc",
-                "id": 17918514325589227856,
+                "id": "ServerC",
                 "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
                 "label": "ServerC",
                 "shape": "dot",
             },
             {
                 "color": "#97c2fc",
-                "id": 14902018402467198225,
+                "id": "ServerD",
                 "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
                 "label": "ServerD",
                 "shape": "dot",
             },
             {
                 "color": "#97c2fc",
-                "id": 11577954539736240602,
+                "id": "ServerE",
                 "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
                 "label": "ServerE",
                 "shape": "dot",
@@ -170,63 +175,63 @@ def test_py_vis():
                 "arrowStrikethrough": False,
                 "arrows": "to",
                 "color": "#000000",
-                "from": 7678824742430955432,
+                "from": "ServerA",
                 "title": "",
-                "to": 7718004695861170879,
+                "to": "ServerB",
                 "value": 0.0,
             },
             {
                 "arrowStrikethrough": False,
                 "arrows": "to",
                 "color": "#000000",
-                "from": 7678824742430955432,
+                "from": "ServerA",
                 "title": "",
-                "to": 17918514325589227856,
+                "to": "ServerC",
                 "value": 0.0,
             },
             {
                 "arrowStrikethrough": False,
                 "arrows": "to",
                 "color": "#000000",
-                "from": 7718004695861170879,
+                "from": "ServerB",
                 "title": "",
-                "to": 14902018402467198225,
+                "to": "ServerD",
                 "value": 0.0,
             },
             {
                 "arrowStrikethrough": False,
                 "arrows": "to",
                 "color": "#000000",
-                "from": 17918514325589227856,
+                "from": "ServerC",
                 "title": "",
-                "to": 7678824742430955432,
+                "to": "ServerA",
                 "value": 0.0,
             },
             {
                 "arrowStrikethrough": False,
                 "arrows": "to",
                 "color": "#000000",
-                "from": 14902018402467198225,
+                "from": "ServerD",
                 "title": "",
-                "to": 17918514325589227856,
+                "to": "ServerC",
                 "value": 0.0,
             },
             {
                 "arrowStrikethrough": False,
                 "arrows": "to",
                 "color": "#000000",
-                "from": 14902018402467198225,
+                "from": "ServerD",
                 "title": "",
-                "to": 11577954539736240602,
+                "to": "ServerE",
                 "value": 0.0,
             },
             {
                 "arrowStrikethrough": False,
                 "arrows": "to",
                 "color": "#000000",
-                "from": 11577954539736240602,
+                "from": "ServerE",
                 "title": "",
-                "to": 7718004695861170879,
+                "to": "ServerB",
                 "value": 0.0,
             },
         ],
@@ -1116,6 +1121,11 @@ def test_to_df():
 
     compare_df(
         g.edges.to_df(explode=True),
+        pd.read_json(base_dir / "expected/dataframe_output/edge_df_explode.json"),
+    )
+
+    compare_df(
+        g.edges.explode().to_df(),
         pd.read_json(base_dir / "expected/dataframe_output/edge_df_explode.json"),
     )
 

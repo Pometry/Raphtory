@@ -1,0 +1,49 @@
+[package]
+name = "raphtory-api"
+description = "Raphtory common interface and APIs"
+version.workspace = true
+documentation.workspace = true
+repository.workspace = true
+license.workspace = true
+readme.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+edition.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }
+bytemuck = { workspace = true }
+chrono.workspace = true
+dashmap = { workspace = true }
+rustc-hash = { workspace = true }
+lock_api = { workspace = true }
+parking_lot = { workspace = true }
+polars-arrow = { workspace = true, optional = true}
+pyo3 = { workspace = true, optional = true }
+rayon = { workspace = true }
+rand = { workspace = true }
+quickcheck_macros = { workspace = true }
+num-traits = { workspace = true }
+twox-hash.workspace = true
+tracing-subscriber = {workspace = true}
+tracing = {workspace = true}
+[dev-dependencies]
+proptest.workspace = true
+quickcheck.workspace = true
+quickcheck_macros.workspace = true
+
+[features]
+default = []
+# Enables generating the pyo3 python bindings
+python = [
+    "dep:pyo3",
+]
+
+storage = [
+    "dep:polars-arrow",
+]

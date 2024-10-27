@@ -1,3 +1,6 @@
+use raphtory_api::core::entities::GID;
+use tracing::warn;
+
 use crate::{
     algorithms::components::connected_components::weakly_connected_components,
     db::{
@@ -32,7 +35,7 @@ impl LargestConnectedComponent for Graph {
     {
         let mut connected_components_map =
             weakly_connected_components(self, usize::MAX, None).group_by();
-        let mut lcc_key = 0;
+        let mut lcc_key: GID = GID::U64(0);
         let mut key_length = 0;
         let mut is_tie = false;
 
@@ -40,14 +43,14 @@ impl LargestConnectedComponent for Graph {
             let length = value.len();
             if length > key_length {
                 key_length = length;
-                lcc_key = *key;
+                lcc_key = key.clone();
                 is_tie = false;
             } else if length == key_length {
                 is_tie = true
             }
         }
         if is_tie {
-            println!("Warning: The graph has two or more connected components that are both the largest. \
+            warn!("Warning: The graph has two or more connected components that are both the largest. \
             The returned component has been picked arbitrarily.");
         }
         return match connected_components_map.remove(&lcc_key) {
@@ -86,9 +89,8 @@ mod largest_connected_component_test {
 
         let expected_nodes = vec![1, 2, 3];
         for node in expected_nodes {
-            assert_eq!(
+            assert!(
                 subgraph.has_node(node),
-                true,
                 "Node {} should be in the largest connected component.",
                 node
             );
@@ -113,9 +115,8 @@ mod largest_connected_component_test {
         let subgraph = graph.largest_connected_component();
         let expected_nodes = vec![1, 2, 3];
         for node in expected_nodes {
-            assert_eq!(
+            assert!(
                 subgraph.has_node(node),
-                true,
                 "Node {} should be in the largest connected component.",
                 node
             );

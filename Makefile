@@ -9,7 +9,7 @@ rust-build:
 rust-build-docs: 
 	cargo doc --no-deps -p raphtory -q
 
-rust-build-readthedocs: 
+rust-build-readthedocs:
 	cargo doc --no-deps -p raphtory -q --target-dir $(RUST_READTHEDOCS_DOCS_TARGET)
 	rm -rf $(RUST_READTHEDOCS_DOCS_TARGET)/debug
 	mv $(RUST_READTHEDOCS_DOCS_TARGET)/doc/* $(RUST_READTHEDOCS_DOCS_TARGET)
@@ -36,3 +36,31 @@ rust-test-all:
 	cargo check -p raphtory --no-default-features --features "python"
 	cargo check -p raphtory --no-default-features --features "search"
 	cargo check -p raphtory --no-default-features --features "vectors"
+
+activate-storage:
+	./scripts/activate_private_storage.py
+
+deactivate-storage:
+	./scripts/deactivate_private_storage.py
+
+pull-storage: activate-storage
+	git submodule update --init --recursive
+
+stubs:
+	cd python && ./scripts/gen-stubs.py && mypy python/raphtory/**/*.pyi
+
+python-fmt:
+	cd python && black .
+
+tidy: rust-fmt build-python stubs python-fmt
+
+debug-stubs: debug-python stubs
+
+build-python: activate-storage
+	cd python && maturin develop -r --features=storage --extras=dev
+
+debug-python: activate-storage
+	cd python && maturin develop --features=storage --extras=dev
+
+python-docs:
+	cd docs && make html

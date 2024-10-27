@@ -1,7 +1,11 @@
 use crate::{
-    core::entities::{edges::edge_store::EdgeStore, nodes::node_store::NodeStore, LayerIds, VID},
+    core::entities::{LayerIds, VID},
     db::api::{
         properties::internal::InheritPropertiesOps,
+        storage::graph::{
+            edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+            nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+        },
         view::internal::{
             Base, EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps, InheritListOps,
             InheritMaterialize, InheritTimeSemantics, NodeFilterOps, Static,
@@ -74,10 +78,10 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for NodeSubgraph<G> {
     }
 
     #[inline]
-    fn filter_edge(&self, edge: &EdgeStore, layer_ids: &LayerIds) -> bool {
+    fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
         self.graph.filter_edge(edge, layer_ids)
-            && self.nodes.contains(&edge.src)
-            && self.nodes.contains(&edge.dst)
+            && self.nodes.contains(&edge.src())
+            && self.nodes.contains(&edge.dst())
     }
 }
 
@@ -90,26 +94,32 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for NodeSubgraph<G> {
         false
     }
 
-    fn filter_node(&self, node: &NodeStore, layer_ids: &LayerIds) -> bool {
-        self.graph.filter_node(node, layer_ids) && self.nodes.contains(&node.vid)
+    fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
+        self.graph.filter_node(node, layer_ids) && self.nodes.contains(&node.vid())
     }
 }
 
 #[cfg(test)]
 mod subgraph_tests {
-    use crate::{algorithms::motifs::triangle_count::triangle_count, prelude::*};
+    use crate::{
+        algorithms::motifs::triangle_count::triangle_count, db::graph::graph::assert_graph_equal,
+        prelude::*, test_storage,
+    };
     use itertools::Itertools;
 
     #[test]
     fn test_materialize_no_edges() {
-        let g = Graph::new();
+        let graph = Graph::new();
 
-        g.add_node(1, 1, NO_PROPS, None).unwrap();
-        g.add_node(2, 2, NO_PROPS, None).unwrap();
-        let sg = g.subgraph([1, 2]);
+        graph.add_node(1, 1, NO_PROPS, None).unwrap();
+        graph.add_node(2, 2, NO_PROPS, None).unwrap();
 
-        let actual = sg.materialize().unwrap().into_events().unwrap();
-        assert_eq!(actual, sg);
+        test_storage!(&graph, |graph| {
+            let sg = graph.subgraph([1, 2]);
+
+            let actual = sg.materialize().unwrap().into_events().unwrap();
+            assert_graph_equal(&actual, &sg);
+        });
     }
 
     #[test]
@@ -143,23 +153,27 @@ mod subgraph_tests {
         for (src, dst, ts) in edges {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
-        let subgraph = graph.subgraph(graph.nodes().into_iter().filter(|v| v.degree() > 1));
-        let ts = triangle_count(&subgraph, None);
-        let tg = triangle_count(&graph, None);
-        assert_eq!(ts, tg)
+        test_storage!(&graph, |graph| {
+            let subgraph = graph.subgraph(graph.nodes().into_iter().filter(|v| v.degree() > 1));
+            let ts = triangle_count(&subgraph, None);
+            let tg = triangle_count(graph, None);
+            assert_eq!(ts, tg)
+        });
     }
 
     #[test]
     fn layer_materialize() {
-        let g = Graph::new();
-        g.add_edge(0, 1, 2, NO_PROPS, Some("1")).unwrap();
-        g.add_edge(0, 3, 4, NO_PROPS, Some("2")).unwrap();
+        let graph = Graph::new();
+        graph.add_edge(0, 1, 2, NO_PROPS, Some("1")).unwrap();
+        graph.add_edge(0, 3, 4, NO_PROPS, Some("2")).unwrap();
 
-        let sg = g.subgraph([1, 2]);
-        let sgm = sg.materialize().unwrap();
-        assert_eq!(
-            sg.unique_layers().collect_vec(),
-            sgm.unique_layers().collect_vec()
-        );
+        test_storage!(&graph, |graph| {
+            let sg = graph.subgraph([1, 2]);
+            let sgm = sg.materialize().unwrap();
+            assert_eq!(
+                sg.unique_layers().collect_vec(),
+                sgm.unique_layers().collect_vec()
+            );
+        });
     }
 }

@@ -19,11 +19,25 @@ pub use addition_ops::AdditionOps;
 pub use deletion_ops::DeletionOps;
 pub use import_ops::ImportOps;
 pub use property_addition_ops::PropertyAdditionOps;
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+
+use self::internal::InternalAdditionOps;
 
 /// Used to handle automatic injection of secondary index if not explicitly provided
 pub enum InputTime {
     Simple(i64),
     Indexed(i64, usize),
+}
+
+pub fn time_from_input<G: InternalAdditionOps, T: TryIntoInputTime>(
+    g: &G,
+    t: T,
+) -> Result<TimeIndexEntry, GraphError> {
+    let t = t.try_into_input_time()?;
+    Ok(match t {
+        InputTime::Simple(t) => TimeIndexEntry::new(t, g.next_event_id()?),
+        InputTime::Indexed(t, s) => TimeIndexEntry::new(t, s),
+    })
 }
 
 pub trait TryIntoInputTime {
@@ -49,10 +63,9 @@ impl<T: TryIntoTime> TryIntoInputTime for (T, usize) {
 }
 
 pub trait CollectProperties {
-    fn collect_properties<F: Fn(&str, PropType) -> Result<usize, GraphError>, G: Fn(Prop) -> Prop>(
+    fn collect_properties<F: Fn(&str, PropType) -> Result<usize, GraphError>>(
         self,
         id_resolver: F,
-        value_processor: G,
     ) -> Result<Vec<(usize, Prop)>, GraphError>;
 }
 
@@ -60,10 +73,9 @@ impl<S: AsRef<str>, P: Into<Prop>, PI> CollectProperties for PI
 where
     PI: IntoIterator<Item = (S, P)>,
 {
-    fn collect_properties<F: Fn(&str, PropType) -> Result<usize, GraphError>, G: Fn(Prop) -> Prop>(
+    fn collect_properties<F: Fn(&str, PropType) -> Result<usize, GraphError>>(
         self,
         id_resolver: F,
-        value_processor: G,
     ) -> Result<Vec<(usize, Prop)>, GraphError>
     where
         PI: IntoIterator<Item = (S, P)>,
@@ -72,7 +84,7 @@ where
         for (key, value) in self {
             let value: Prop = value.into();
             let prop_id = id_resolver(key.as_ref(), value.dtype())?;
-            properties.push((prop_id, value_processor(value)));
+            properties.push((prop_id, value));
         }
         Ok(properties)
     }

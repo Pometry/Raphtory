@@ -2,6 +2,7 @@ use crate::model::graph::{node::Node, property::GqlProperties};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
+    core::utils::errors::GraphError,
     db::{
         api::view::{DynamicGraph, EdgeViewOps, IntoDynamic, StaticGraphViewOps},
         graph::edge::EdgeView,
@@ -25,6 +26,17 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
                 edge: value.edge,
             },
         }
+    }
+}
+
+impl Edge {
+    pub(crate) fn from_ref<
+        G: StaticGraphViewOps + IntoDynamic,
+        GH: StaticGraphViewOps + IntoDynamic,
+    >(
+        value: EdgeView<&G, &GH>,
+    ) -> Self {
+        value.cloned().into()
     }
 }
 
@@ -56,6 +68,18 @@ impl Edge {
 
     async fn at(&self, time: i64) -> Edge {
         self.ee.at(time).into()
+    }
+
+    async fn latest(&self) -> Edge {
+        self.ee.latest().into()
+    }
+
+    async fn snapshot_at(&self, time: i64) -> Edge {
+        self.ee.snapshot_at(time).into()
+    }
+
+    async fn snapshot_latest(&self) -> Edge {
+        self.ee.snapshot_latest().into()
     }
 
     async fn before(&self, time: i64) -> Edge {
@@ -94,8 +118,8 @@ impl Edge {
         self.ee.history().last().cloned()
     }
 
-    async fn time(&self) -> Option<i64> {
-        self.ee.time()
+    async fn time(&self) -> Result<i64, GraphError> {
+        self.ee.time().map(|x| x.into())
     }
 
     async fn start(&self) -> Option<i64> {
@@ -119,10 +143,14 @@ impl Edge {
     }
 
     async fn layer_names(&self) -> Vec<String> {
-        self.ee.layer_names().map(|x| x.into()).collect()
+        self.ee
+            .layer_names()
+            .into_iter()
+            .map(|x| x.into())
+            .collect()
     }
 
-    async fn layer_name(&self) -> Option<String> {
+    async fn layer_name(&self) -> Result<String, GraphError> {
         self.ee.layer_name().map(|x| x.into())
     }
 
@@ -152,6 +180,10 @@ impl Edge {
 
     async fn is_valid(&self) -> bool {
         self.ee.is_valid()
+    }
+
+    async fn is_active(&self) -> bool {
+        self.ee.is_active()
     }
 
     async fn is_deleted(&self) -> bool {

@@ -8,22 +8,30 @@ use std::{
     path::PathBuf,
 };
 
-type CacheStore = HashMap<u64, Embedding>;
+pub type CacheStore = HashMap<u64, Embedding>;
 
-pub(crate) struct EmbeddingCache {
+pub struct EmbeddingCache {
     cache: RwLock<CacheStore>, // TODO: double check that we really need a RwLock !!
     path: PathBuf,
+}
+
+impl From<PathBuf> for EmbeddingCache {
+    fn from(path: PathBuf) -> Self {
+        let inner_cache = Self::try_reading_from_disk(&path).unwrap_or(HashMap::new());
+        let cache = RwLock::new(inner_cache);
+        Self { cache, path }
+    }
+}
+
+impl From<String> for EmbeddingCache {
+    fn from(path: String) -> Self {
+        PathBuf::from(path).into()
+    }
 }
 
 impl EmbeddingCache {
     pub(crate) fn new(path: PathBuf) -> Self {
         let cache = RwLock::new(CacheStore::new());
-        Self { cache, path }
-    }
-
-    pub(crate) fn from_path(path: PathBuf) -> Self {
-        let inner_cache = Self::try_reading_from_disk(&path).unwrap_or(HashMap::new());
-        let cache = RwLock::new(inner_cache);
         Self { cache, path }
     }
 

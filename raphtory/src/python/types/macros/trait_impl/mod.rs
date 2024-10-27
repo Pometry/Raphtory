@@ -15,5 +15,10 @@ mod repr;
 #[macro_use]
 mod iterable_mixin;
 
+mod node_state;
+
 #[macro_use]
-mod nodetypesfilter;
+mod serialise;
+
+#[macro_use]
+mod edge_property_filter_ops;

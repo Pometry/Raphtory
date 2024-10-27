@@ -1,4 +1,4 @@
-use crate::{core::entities::nodes::node_ref::NodeRef, prelude::NodeViewOps};
+use crate::prelude::NodeViewOps;
 use ordered_float::OrderedFloat;
 use std::{
     collections::{hash_map::Iter, HashMap},
@@ -96,8 +96,8 @@ where
     ///
     /// Arguments:
     ///     `key`: The key of the node, can be the node object, or name.
-    pub fn get<T: Into<NodeRef>>(&self, name: T) -> Option<&V> {
-        let v = name.into();
+    pub fn get<T: AsNodeRef>(&self, name: T) -> Option<&V> {
+        let v = name.as_node_ref();
         if self.graph.has_node(v) {
             let internal_id = self.graph.node(v).unwrap().node.0;
             self.result.get(&internal_id)
@@ -364,7 +364,11 @@ where
     }
 }
 
-use crate::{core::entities::VID, db::graph::node::NodeView, prelude::GraphViewOps};
+use crate::{
+    core::entities::{nodes::node_ref::AsNodeRef, VID},
+    db::graph::node::NodeView,
+    prelude::GraphViewOps,
+};
 use num_traits::float::FloatCore;
 use std::fmt;
 
@@ -414,6 +418,8 @@ mod algorithm_result_test {
         prelude::{NO_PROPS, *},
     };
     use ordered_float::OrderedFloat;
+    use raphtory_api::core::{entities::GID, utils::logging::global_info_logger};
+    use tracing::info;
 
     fn create_algo_result_u64() -> AlgorithmResult<Graph, u64> {
         let g = create_graph();
@@ -518,7 +524,7 @@ mod algorithm_result_test {
         let algo_result = create_algo_result_tuple();
         assert_eq!(algo_result.get(node_c.clone()).unwrap().0, 30.0f32);
         let algo_result = create_algo_result_hashmap_vec();
-        let answer = algo_result.get(node_c.clone()).unwrap().get(0).unwrap().0;
+        let answer = algo_result.get(node_c.clone()).unwrap().first().unwrap().0;
         assert_eq!(answer, 22i32);
     }
 
@@ -613,7 +619,7 @@ mod algorithm_result_test {
         let algo_result = create_algo_result_hashmap_vec();
         let algo_results_hashmap = algo_result.get_all_with_names();
         let tuple_result = algo_results_hashmap.get("A").unwrap();
-        assert_eq!(tuple_result.clone().get(0).unwrap().0, 11);
+        assert_eq!(tuple_result.clone().first().unwrap().0, 11);
         assert_eq!(algo_result.get_all_values().len(), 3);
     }
 
@@ -666,10 +672,11 @@ mod algorithm_result_test {
 
     #[test]
     fn test_get_all() {
+        global_info_logger();
         let algo_result = create_algo_result_u64();
         let gotten_all = algo_result.get_all();
         let names: Vec<String> = gotten_all.keys().map(|vv| vv.name()).collect();
-        println!("{:?}", names)
+        info!("{:?}", names)
     }
 
     #[test]
@@ -687,16 +694,16 @@ mod algorithm_result_test {
             .expect("Unable to add edge");
         let g_layer = g.layers(vec!["ZERO-TWO"]).unwrap();
         let res_window = weakly_connected_components(&g_layer, 20, None);
-        let mut expected_result: HashMap<String, u64> = HashMap::new();
-        expected_result.insert("8".to_string(), 8);
-        expected_result.insert("1".to_string(), 1);
-        expected_result.insert("3".to_string(), 1);
-        expected_result.insert("2".to_string(), 1);
-        expected_result.insert("5".to_string(), 4);
-        expected_result.insert("6".to_string(), 6);
-        expected_result.insert("7".to_string(), 7);
-        expected_result.insert("4".to_string(), 4);
-        expected_result.insert("9".to_string(), 9);
+        let mut expected_result = HashMap::new();
+        expected_result.insert("8".to_string(), GID::U64(8));
+        expected_result.insert("1".to_string(), GID::U64(1));
+        expected_result.insert("3".to_string(), GID::U64(1));
+        expected_result.insert("2".to_string(), GID::U64(1));
+        expected_result.insert("5".to_string(), GID::U64(4));
+        expected_result.insert("6".to_string(), GID::U64(6));
+        expected_result.insert("7".to_string(), GID::U64(7));
+        expected_result.insert("4".to_string(), GID::U64(4));
+        expected_result.insert("9".to_string(), GID::U64(9));
         assert_eq!(res_window.get_all_with_names(), expected_result);
     }
 }

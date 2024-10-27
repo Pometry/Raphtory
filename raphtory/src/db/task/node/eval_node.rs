@@ -11,50 +11,39 @@ use crate::{
     db::{
         api::{
             properties::Properties,
-            view::{internal::OneHopFilter, BaseNodeViewOps},
+            storage::graph::storage_ops::GraphStorage,
+            view::{internal::OneHopFilter, BaseNodeViewOps, BoxedLIter, IntoDynBoxed},
         },
-        graph::{node::NodeView, path::PathFromNode},
-        task::{node::eval_node_state::EVState, task_state::Local2},
+        graph::{create_node_type_filter, edges::Edges, node::NodeView, path::PathFromNode},
+        task::{
+            edge::eval_edges::EvalEdges, eval_graph::EvalGraph, node::eval_node_state::EVState,
+        },
     },
-    prelude::{GraphViewOps, NodeTypesFilter},
+    prelude::GraphViewOps,
 };
-
-use crate::db::{api::storage::locked::LockedGraph, task::edge::eval_edges::EvalEdges};
-use std::{
-    cell::{Ref, RefCell},
-    rc::Rc,
-};
+use std::{cell::Ref, sync::Arc};
 
 pub struct EvalNodeView<'graph, 'a: 'graph, G, S, GH = &'graph G, CS: Clone = ComputeStateVec> {
-    pub(crate) ss: usize,
-    pub(crate) node: NodeView<&'graph G, GH>,
+    pub node: VID,
+    pub(crate) eval_graph: EvalGraph<'graph, 'a, G, S, CS>,
+    pub(crate) graph: GH,
     pub(crate) local_state: Option<&'graph mut S>,
-    pub(crate) local_state_prev: &'graph Local2<'a, S>,
-    pub(crate) node_state: Rc<RefCell<EVState<'a, CS>>>,
 }
 
 impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, CS: ComputeState + 'a, S>
     EvalNodeView<'graph, 'a, G, S, &'graph G, CS>
 {
     pub(crate) fn new_local(
-        ss: usize,
-        v_ref: VID,
-        g: &'graph G,
+        node: VID,
+        eval_graph: EvalGraph<'graph, 'a, G, S, CS>,
         local_state: Option<&'graph mut S>,
-        local_state_prev: &'graph Local2<'a, S>,
-        node_state: Rc<RefCell<EVState<'a, CS>>>,
     ) -> Self {
-        let node = NodeView {
-            base_graph: g,
-            graph: g,
-            node: v_ref,
-        };
+        let graph = eval_graph.base_graph;
         Self {
-            ss,
             node,
+            eval_graph,
+            graph,
             local_state,
-            local_state_prev,
-            node_state,
         }
     }
 }
@@ -69,13 +58,12 @@ impl<
     > Clone for EvalNodeView<'graph, 'a, G, S, GH, CS>
 {
     fn clone(&self) -> Self {
-        EvalNodeView::new_from_node(
-            self.ss,
-            self.node.clone(),
-            None,
-            self.local_state_prev,
-            self.node_state.clone(),
-        )
+        Self {
+            node: self.node,
+            eval_graph: self.eval_graph.clone(),
+            graph: self.graph.clone(),
+            local_state: None,
+        }
     }
 }
 
@@ -88,12 +76,12 @@ impl<
         GH: GraphViewOps<'graph>,
     > EvalNodeView<'graph, 'a, G, S, GH, CS>
 {
-    pub fn graph(&self) -> GH {
-        self.node.graph.clone()
+    pub fn graph(&self) -> EvalGraph<'graph, 'a, G, S, CS> {
+        self.eval_graph.clone()
     }
     pub fn prev(&self) -> &S {
-        let VID(i) = self.node.node;
-        &self.local_state_prev.state[i]
+        let VID(i) = self.node;
+        &self.eval_graph.local_state_prev.state[i]
     }
 
     pub fn get_mut(&mut self) -> &mut S {
@@ -110,37 +98,22 @@ impl<
         }
     }
 
-    pub(crate) fn new_from_node(
-        ss: usize,
-        node: NodeView<&'graph G, GH>,
+    pub(crate) fn new_filtered(
+        node: VID,
+        eval_graph: EvalGraph<'graph, 'a, G, S, CS>,
+        graph: GH,
         local_state: Option<&'graph mut S>,
-        local_state_prev: &'graph Local2<'a, S>,
-        node_state: Rc<RefCell<EVState<'a, CS>>>,
     ) -> Self {
         Self {
-            ss,
             node,
+            eval_graph,
+            graph,
             local_state,
-            local_state_prev,
-            node_state,
         }
     }
 
-    pub(crate) fn update_node<GHH: GraphViewOps<'graph>>(
-        &self,
-        node: NodeView<&'graph G, GHH>,
-    ) -> EvalNodeView<'graph, 'a, G, S, GHH, CS> {
-        EvalNodeView::new_from_node(
-            self.ss,
-            node,
-            None,
-            self.local_state_prev,
-            self.node_state.clone(),
-        )
-    }
-
     fn pid(&self) -> usize {
-        let VID(i) = self.node.node;
+        let VID(i) = self.node;
         i
     }
 
@@ -149,10 +122,11 @@ impl<
         id: &AccId<A, IN, OUT, ACC>,
         a: IN,
     ) {
-        self.node_state
+        self.eval_graph
+            .node_state
             .borrow_mut()
             .shard_mut()
-            .accumulate_into(self.ss, self.pid(), a, id);
+            .accumulate_into(self.eval_graph.ss, self.pid(), a, id);
     }
 
     pub fn global_update<A: StateType, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>>(
@@ -160,10 +134,11 @@ impl<
         id: &AccId<A, IN, OUT, ACC>,
         a: IN,
     ) {
-        self.node_state
+        self.eval_graph
+            .node_state
             .borrow_mut()
             .global_mut()
-            .accumulate_global(self.ss, a, id);
+            .accumulate_global(self.eval_graph.ss, a, id);
     }
 
     /// Reads the global state for a given accumulator, returned value is the global
@@ -191,7 +166,11 @@ impl<
         OUT: StateType,
         A: StateType,
     {
-        self.node_state.borrow().global().read_global(self.ss, agg)
+        self.eval_graph
+            .node_state
+            .borrow()
+            .global()
+            .read_global(self.eval_graph.ss, agg)
     }
 
     /// Read the current value of the node state using the given accumulator.
@@ -204,10 +183,11 @@ impl<
         A: StateType,
         OUT: std::fmt::Debug,
     {
-        self.node_state
+        self.eval_graph
+            .node_state
             .borrow()
             .shard()
-            .read_with_pid(self.ss, self.pid(), agg_r)
+            .read_with_pid(self.eval_graph.ss, self.pid(), agg_r)
             .unwrap_or(ACC::finish(&ACC::zero()))
     }
 
@@ -221,7 +201,12 @@ impl<
         A: StateType,
         OUT: std::fmt::Debug,
     {
-        Entry::new(self.node_state.borrow(), *agg_r, &self.node.node, self.ss)
+        Entry::new(
+            self.eval_graph.node_state.borrow(),
+            *agg_r,
+            &self.node,
+            self.eval_graph.ss,
+        )
     }
 
     /// Read the prev value of the node state using the given accumulator.
@@ -234,10 +219,11 @@ impl<
         A: StateType,
         OUT: std::fmt::Debug,
     {
-        self.node_state
+        self.eval_graph
+            .node_state
             .borrow()
             .shard()
-            .read_with_pid(self.ss + 1, self.pid(), agg_r)
+            .read_with_pid(self.eval_graph.ss + 1, self.pid(), agg_r)
             .unwrap_or(ACC::finish(&ACC::zero()))
     }
 
@@ -249,10 +235,11 @@ impl<
         A: StateType,
         OUT: std::fmt::Debug,
     {
-        self.node_state
+        self.eval_graph
+            .node_state
             .borrow()
             .global()
-            .read_global(self.ss + 1, agg_r)
+            .read_global(self.eval_graph.ss + 1, agg_r)
             .unwrap_or(ACC::finish(&ACC::zero()))
     }
 }
@@ -265,10 +252,9 @@ pub struct EvalPathFromNode<
     CS: ComputeState,
     S,
 > {
-    pub(crate) path: PathFromNode<'graph, &'graph G, GH>,
-    pub(crate) ss: usize,
-    pub(crate) node_state: Rc<RefCell<EVState<'a, CS>>>,
-    pub(crate) local_state_prev: &'graph Local2<'a, S>,
+    pub graph: GH,
+    pub(crate) base_graph: EvalGraph<'graph, 'a, G, S, CS>,
+    pub(crate) op: Arc<dyn Fn() -> BoxedLIter<'graph, VID> + Send + Sync + 'graph>,
 }
 
 impl<
@@ -280,13 +266,38 @@ impl<
         GH: GraphViewOps<'graph>,
     > EvalPathFromNode<'graph, 'a, G, GH, CS, S>
 {
+    fn iter_refs(&self) -> impl Iterator<Item = VID> + 'graph {
+        (self.op)()
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = EvalNodeView<'graph, 'a, G, S, GH, CS>> + 'graph {
-        let local = self.local_state_prev;
-        let node_state = self.node_state.clone();
-        let ss = self.ss;
-        self.path
-            .iter()
-            .map(move |v| EvalNodeView::new_from_node(ss, v, None, local, node_state.clone()))
+        let base_graph = self.base_graph.clone();
+        let graph = self.graph.clone();
+        self.iter_refs()
+            .map(move |v| EvalNodeView::new_filtered(v, base_graph.clone(), graph.clone(), None))
+    }
+
+    pub fn type_filter(&self, node_types: &[impl AsRef<str>]) -> Self {
+        let node_types_filter =
+            create_node_type_filter(self.graph.node_meta().node_type_meta(), node_types);
+
+        let base_graph = self.base_graph.base_graph.clone();
+        let old_op = self.op.clone();
+
+        EvalPathFromNode {
+            base_graph: self.base_graph.clone(),
+            graph: self.graph.clone(),
+            op: Arc::new(move || {
+                let base_graph = base_graph.clone();
+                let node_types_filter = node_types_filter.clone();
+                old_op()
+                    .filter(move |v| {
+                        let node_type_id = base_graph.node_type_id(*v);
+                        node_types_filter[node_type_id]
+                    })
+                    .into_dyn_boxed()
+            }),
+        }
     }
 }
 
@@ -318,10 +329,9 @@ impl<
 {
     fn clone(&self) -> Self {
         EvalPathFromNode {
-            path: self.path.clone(),
-            ss: self.ss,
-            node_state: self.node_state.clone(),
-            local_state_prev: self.local_state_prev,
+            graph: self.graph.clone(),
+            base_graph: self.base_graph.clone(),
+            op: self.op.clone(),
         }
     }
 }
@@ -343,54 +353,69 @@ impl<
     type Edges = EvalEdges<'graph, 'a, G, GH, CS, S>;
 
     fn map<
-        O: 'graph,
-        F: Fn(&LockedGraph, &Self::Graph, VID) -> O + Send + Sync + Clone + 'graph,
+        O: Clone + Send + Sync + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> O + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
     ) -> Self::ValueType<O> {
-        self.path.map(op)
+        let graph = self.graph.clone();
+        let storage = self.base_graph.storage;
+        Box::new(self.iter_refs().map(move |node| op(storage, &graph, node)))
     }
 
     fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>> {
-        self.path.as_props()
+        self.map(|_cg, g, v| Properties::new(NodeView::new_internal(g.clone(), v)))
     }
 
     fn map_edges<
         I: Iterator<Item = EdgeRef> + Send + 'graph,
-        F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
     ) -> Self::Edges {
-        let local_state_prev = self.local_state_prev;
-        let node_state = self.node_state.clone();
-        let ss = self.ss;
-        let edges = self.path.map_edges(op);
+        let local_state_prev = self.base_graph.local_state_prev;
+        let node_state = self.base_graph.node_state.clone();
+        let ss = self.base_graph.ss;
+        let storage = self.base_graph.storage;
+        let path = PathFromNode::new_one_hop_filtered(
+            self.base_graph.base_graph,
+            self.graph.clone(),
+            self.op.clone(),
+        );
+        let edges = path.map_edges(op);
         EvalEdges {
             ss,
             edges,
             node_state,
             local_state_prev,
+            storage,
         }
     }
 
     fn hop<
         I: Iterator<Item = VID> + Send + 'graph,
-        F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
     ) -> Self::PathType {
-        let path = self.path.hop(op);
-        let ss = self.ss;
-        let node_state = self.node_state.clone();
-        let local_state_prev = self.local_state_prev;
+        let old_op = self.op.clone();
+        let graph = self.graph.clone();
+        let storage = self.base_graph.storage;
+        let new_op = Arc::new(move || {
+            let op = op.clone();
+            let graph = graph.clone();
+            old_op()
+                .flat_map(move |vv| op(storage, &graph, vv))
+                .into_dyn_boxed()
+        });
+
         EvalPathFromNode {
-            path,
-            ss,
-            node_state,
-            local_state_prev,
+            graph: self.base_graph.base_graph,
+            base_graph: self.base_graph.clone(),
+            op: new_op,
         }
     }
 }
@@ -409,26 +434,22 @@ impl<
     type Filtered<GHH: GraphViewOps<'graph>> = EvalPathFromNode<'graph, 'a, G, GHH, CS, S>;
 
     fn current_filter(&self) -> &Self::FilteredGraph {
-        self.path.current_filter()
+        &self.graph
     }
 
     fn base_graph(&self) -> &Self::BaseGraph {
-        &self.path.base_graph
+        &self.base_graph.base_graph
     }
 
     fn one_hop_filtered<GHH: GraphViewOps<'graph>>(
         &self,
         filtered_graph: GHH,
     ) -> Self::Filtered<GHH> {
-        let path = self.path.one_hop_filtered(filtered_graph);
-        let local_state_prev = self.local_state_prev;
-        let node_state = self.node_state.clone();
-        let ss = self.ss;
+        let base_graph = self.base_graph.clone();
         EvalPathFromNode {
-            path,
-            ss,
-            node_state,
-            local_state_prev,
+            graph: filtered_graph,
+            base_graph,
+            op: self.op.clone(),
         }
     }
 }
@@ -447,19 +468,19 @@ impl<
     type Filtered<GHH: GraphViewOps<'graph>> = EvalNodeView<'graph, 'a, G, S, GHH, CS>;
 
     fn current_filter(&self) -> &Self::FilteredGraph {
-        &self.node.graph
+        &self.graph
     }
 
     fn base_graph(&self) -> &Self::BaseGraph {
-        &self.node.base_graph
+        &self.eval_graph.base_graph
     }
 
     fn one_hop_filtered<GHH: GraphViewOps<'graph>>(
         &self,
         filtered_graph: GHH,
     ) -> Self::Filtered<GHH> {
-        let node = self.node.one_hop_filtered(filtered_graph);
-        self.update_node(node)
+        let eval_graph = self.eval_graph.clone();
+        EvalNodeView::new_filtered(self.node, eval_graph, filtered_graph, None)
     }
 }
 
@@ -474,73 +495,74 @@ impl<
 {
     type BaseGraph = &'graph G;
     type Graph = GH;
-    type ValueType<T>  = T where T: 'graph;
-    type PropType = NodeView<&'graph G, GH>;
+    type ValueType<T>
+        = T
+    where
+        T: 'graph;
+    type PropType = NodeView<GH>;
     type PathType = EvalPathFromNode<'graph, 'a, G, &'graph G, CS, S>;
     type Edges = EvalEdges<'graph, 'a, G, GH, CS, S>;
 
     fn map<
-        O: 'graph,
-        F: Fn(&LockedGraph, &Self::Graph, VID) -> O + Send + Sync + Clone + 'graph,
+        O: Clone + Send + Sync + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> O + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
     ) -> Self::ValueType<O> {
-        self.node.map(op)
+        op(self.eval_graph.storage, &self.graph, self.node)
     }
 
     fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>> {
-        self.node.as_props()
+        Properties::new(NodeView::new_internal(self.graph.clone(), self.node))
     }
 
     fn map_edges<
         I: Iterator<Item = EdgeRef> + Send + 'graph,
-        F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
     ) -> Self::Edges {
-        let ss = self.ss;
-        let local_state_prev = self.local_state_prev;
-        let node_state = self.node_state.clone();
-        let edges = self.node.map_edges(op);
+        let ss = self.eval_graph.ss;
+        let local_state_prev = self.eval_graph.local_state_prev;
+        let node_state = self.eval_graph.node_state.clone();
+        let node = self.node;
+        let storage = self.eval_graph.storage;
+        let graph = self.graph.clone();
+        let edges = Arc::new(move || op(storage, &graph, node).into_dyn_boxed());
+        let edges = Edges {
+            base_graph: self.eval_graph.base_graph,
+            graph: self.graph.clone(),
+            edges,
+        };
         EvalEdges {
             ss,
             edges,
             node_state,
             local_state_prev,
+            storage,
         }
     }
 
     fn hop<
         I: Iterator<Item = VID> + Send + 'graph,
-        F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
     ) -> Self::PathType {
-        let path = self.node.hop(op);
-        let ss = self.ss;
-        let local_state_prev = self.local_state_prev;
-        let node_state = self.node_state.clone();
+        let graph = self.graph.clone();
+        let node = self.node;
+        let storage = self.eval_graph.storage;
+        let path_op = Arc::new(move || op(storage, &graph, node).into_dyn_boxed());
+        let eval_graph = self.eval_graph.clone();
         EvalPathFromNode {
-            path,
-            local_state_prev,
-            node_state,
-            ss,
+            graph: eval_graph.base_graph,
+            base_graph: eval_graph,
+            op: path_op,
         }
     }
-}
-
-impl<
-        'graph,
-        'a: 'graph,
-        G: GraphViewOps<'graph>,
-        S,
-        CS: ComputeState + 'a,
-        GH: GraphViewOps<'graph>,
-    > NodeTypesFilter<'graph> for EvalPathFromNode<'graph, 'a, G, GH, CS, S>
-{
 }
 
 /// Represents an entry in the shuffle table.

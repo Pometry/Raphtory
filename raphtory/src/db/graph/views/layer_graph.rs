@@ -3,16 +3,14 @@ use std::fmt::{Debug, Formatter};
 use itertools::Itertools;
 
 use crate::{
-    core::{
-        entities::{edges::edge_store::EdgeStore, LayerIds},
-        utils::errors::GraphError,
-    },
+    core::{entities::LayerIds, utils::errors::GraphError},
     db::api::{
         properties::internal::InheritPropertiesOps,
         view::{
             internal::{
-                Base, EdgeFilterOps, Immutable, InheritCoreOps, InheritListOps, InheritMaterialize,
-                InheritNodeFilterOps, InheritTimeSemantics, InternalLayerOps, Static,
+                Base, Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritListOps,
+                InheritMaterialize, InheritNodeFilterOps, InheritTimeSemantics, InternalLayerOps,
+                Static,
             },
             Layer,
         },
@@ -61,27 +59,7 @@ impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for LayeredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for LayeredGraph<G> {
-    #[inline]
-    fn edges_filtered(&self) -> bool {
-        true
-    }
-
-    #[inline]
-    fn edge_list_trusted(&self) -> bool {
-        false
-    }
-
-    #[inline]
-    fn edge_filter_includes_node_filter(&self) -> bool {
-        self.graph.edge_filter_includes_node_filter()
-    }
-
-    #[inline]
-    fn filter_edge(&self, edge: &EdgeStore, layer_ids: &LayerIds) -> bool {
-        self.graph.filter_edge(edge, layer_ids) && edge.has_layer(&self.layers)
-    }
-}
+impl<'graph, G: GraphViewOps<'graph>> InheritEdgeFilterOps for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> LayeredGraph<G> {
     pub fn new(graph: G, layers: LayerIds) -> Self {
@@ -131,89 +109,112 @@ impl<'graph, G: GraphViewOps<'graph>> InternalLayerOps for LayeredGraph<G> {
 
 #[cfg(test)]
 mod test_layers {
+    use crate::{prelude::*, test_storage};
     use itertools::Itertools;
-
-    use crate::prelude::*;
+    use raphtory_api::core::entities::GID;
 
     #[test]
     fn test_layer_node() {
-        let g = Graph::new();
+        let graph = Graph::new();
 
-        g.add_edge(0, 1, 2, NO_PROPS, Some("layer1")).unwrap();
-        g.add_edge(0, 2, 3, NO_PROPS, Some("layer2")).unwrap();
-        g.add_edge(3, 2, 4, NO_PROPS, Some("layer1")).unwrap();
-        let neighbours = g
-            .layers(vec!["layer1", "layer2"])
-            .unwrap()
-            .node(1)
-            .unwrap()
-            .neighbours()
-            .into_iter()
-            .collect_vec();
-        assert_eq!(
-            neighbours[0]
-                .layers("layer2")
+        graph.add_edge(0, 1, 2, NO_PROPS, Some("layer1")).unwrap();
+        graph.add_edge(0, 2, 3, NO_PROPS, Some("layer2")).unwrap();
+        graph.add_edge(3, 2, 4, NO_PROPS, Some("layer1")).unwrap();
+        graph.add_edge(1, 4, 1, NO_PROPS, Some("layer3")).unwrap();
+
+        test_storage!(&graph, |graph| {
+            let neighbours = graph
+                .layers(vec!["layer1", "layer2"])
                 .unwrap()
-                .edges()
-                .id()
-                .collect_vec(),
-            vec![(2, 3)]
-        );
-        assert_eq!(
-            g.layers("layer2")
+                .node(1)
+                .unwrap()
+                .neighbours()
+                .into_iter()
+                .collect_vec();
+            assert_eq!(
+                neighbours[0]
+                    .layers("layer2")
+                    .unwrap()
+                    .edges()
+                    .id()
+                    .collect_vec(),
+                vec![(GID::U64(2), GID::U64(3))]
+            );
+            assert_eq!(
+                graph
+                    .layers("layer2")
+                    .unwrap()
+                    .node(neighbours[0].name())
+                    .unwrap()
+                    .edges()
+                    .id()
+                    .collect_vec(),
+                vec![(GID::U64(2), GID::U64(3))]
+            );
+            let mut edges = graph
+                .layers("layer1")
                 .unwrap()
                 .node(neighbours[0].name())
                 .unwrap()
                 .edges()
                 .id()
-                .collect_vec(),
-            vec![(2, 3)]
-        );
-        let mut edges = g
-            .layers("layer1")
-            .unwrap()
-            .node(neighbours[0].name())
-            .unwrap()
-            .edges()
-            .id()
-            .collect_vec();
-        edges.sort();
-        assert_eq!(edges, vec![(1, 2), (2, 4)]);
-        let mut edges = g.layers("layer1").unwrap().edges().id().collect_vec();
-        edges.sort();
-        assert_eq!(edges, vec![(1, 2), (2, 4)]);
-        let mut edges = g
-            .layers(vec!["layer1", "layer2"])
-            .unwrap()
-            .edges()
-            .id()
-            .collect_vec();
-        edges.sort();
-        assert_eq!(edges, vec![(1, 2), (2, 3), (2, 4)]);
+                .filter_map(|(a, b)| a.to_u64().zip(b.to_u64()))
+                .collect_vec();
+            edges.sort();
+            assert_eq!(edges, vec![(1, 2), (2, 4)]);
+            let mut edges = graph
+                .layers("layer1")
+                .unwrap()
+                .edges()
+                .id()
+                .filter_map(|(a, b)| a.to_u64().zip(b.to_u64()))
+                .collect_vec();
+            edges.sort();
+            assert_eq!(edges, vec![(1, 2), (2, 4)]);
+            let mut edges = graph
+                .layers(vec!["layer1", "layer2"])
+                .unwrap()
+                .edges()
+                .id()
+                .filter_map(|(a, b)| a.to_u64().zip(b.to_u64()))
+                .collect_vec();
+            edges.sort();
+            assert_eq!(edges, vec![(1, 2), (2, 3), (2, 4)]);
+
+            let mut edges = graph
+                .layers(["layer1", "layer3"])
+                .unwrap()
+                .window(0, 2)
+                .edges()
+                .id()
+                .filter_map(|(a, b)| a.to_u64().zip(b.to_u64()))
+                .collect_vec();
+            edges.sort();
+            assert_eq!(edges, vec![(1, 2), (4, 1)]);
+        });
     }
 
     #[test]
     fn layering_tests() {
-        let g = Graph::new();
-        let e1 = g.add_edge(0, 1, 2, NO_PROPS, Some("1")).unwrap();
-        g.add_edge(1, 1, 2, NO_PROPS, Some("2")).unwrap();
-        let e = g.edge(1, 2).unwrap();
+        let graph = Graph::new();
+        let e1 = graph.add_edge(0, 1, 2, NO_PROPS, Some("1")).unwrap();
+        graph.add_edge(1, 1, 2, NO_PROPS, Some("2")).unwrap();
 
         // FIXME: this is weird, see issue #1458
         assert!(e1.has_layer("2"));
         assert!(e1.layers("2").unwrap().history().is_empty());
 
-        // layers with non-existing layers errors
-        assert!(e.layers(["1", "3"]).is_err());
-        // valid_layers ignores non-existing layers
-        assert_eq!(
-            e.valid_layers(["1", "3"]).layer_names().collect_vec(),
-            ["1"]
-        );
-        assert!(e.has_layer("1"));
-        assert!(e.has_layer("2"));
-        assert!(!e.has_layer("3"));
-        assert!(e.valid_layers("1").has_layer("1"));
-        assert!(!e.valid_layers("1").has_layer("2"));
+        test_storage!(&graph, |graph| {
+            let e = graph.edge(1, 2).unwrap();
+            // layers with non-existing layers errors
+            assert!(e.layers(["1", "3"]).is_err());
+            // valid_layers ignores non-existing layers
+            assert_eq!(e.valid_layers(["1", "3"]).layer_names(), ["1"]);
+            assert!(e.has_layer("1"));
+            assert!(e.has_layer("2"));
+            assert!(!e.has_layer("3"));
+            assert!(e.valid_layers("1").has_layer("1"));
+            assert!(!e.valid_layers("1").has_layer("2"));
+        });
     }
 }

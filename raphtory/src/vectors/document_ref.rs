@@ -1,9 +1,7 @@
 use crate::{
     db::api::view::StaticGraphViewOps,
     prelude::NodeViewOps,
-    vectors::{
-        document_template::DocumentTemplate, entity_id::EntityId, Document, Embedding, Lifespan,
-    },
+    vectors::{entity_id::EntityId, template::DocumentTemplate, Document, Embedding, Lifespan},
 };
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
@@ -20,12 +18,12 @@ pub(crate) struct DocumentRef {
 
 impl Hash for DocumentRef {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        match self.entity_id {
+        match &self.entity_id {
             EntityId::Graph { .. } => (),
-            EntityId::Node { id } => state.write_u64(id),
+            EntityId::Node { id } => id.hash(state),
             EntityId::Edge { src, dst } => {
-                state.write_u64(src);
-                state.write_u64(dst);
+                src.hash(state);
+                dst.hash(state);
             }
         };
         state.write_usize(self.index);
@@ -56,7 +54,7 @@ impl DocumentRef {
 
     // TODO: review -> does window really need to be an Option
     /// This function expects a graph with a window that matches the one provided in `window`
-    pub fn exists_on_window<G>(&self, graph: Option<&G>, window: Option<(i64, i64)>) -> bool
+    pub fn exists_on_window<G>(&self, graph: Option<&G>, window: &Option<(i64, i64)>) -> bool
     where
         G: StaticGraphViewOps,
     {
@@ -81,7 +79,7 @@ impl DocumentRef {
     }
 
     fn entity_exists_in_graph<G: StaticGraphViewOps>(&self, graph: Option<&G>) -> bool {
-        match self.entity_id {
+        match &self.entity_id {
             EntityId::Graph { .. } => true, // TODO: maybe consider dead a graph with no entities
             EntityId::Node { id } => graph.map(|g| g.has_node(id)).unwrap_or(true),
             EntityId::Edge { src, dst } => graph.map(|g| g.has_edge(src, dst)).unwrap_or(true),
@@ -89,10 +87,9 @@ impl DocumentRef {
         }
     }
 
-    pub fn regenerate<G, T>(&self, original_graph: &G, template: &T) -> Document
+    pub fn regenerate<G>(&self, original_graph: &G, template: &DocumentTemplate) -> Document
     where
         G: StaticGraphViewOps,
-        T: DocumentTemplate<G>,
     {
         // FIXME: there is a problem here. We need to use the original graph so the number of
         // documents is the same and the index is therefore consistent. However, we want to return
@@ -105,25 +102,28 @@ impl DocumentRef {
                     .nth(self.index)
                     .unwrap()
                     .content,
+                embedding: self.embedding.clone(),
                 life: self.life,
             },
             EntityId::Node { id } => Document::Node {
-                name: original_graph.node(*id).unwrap().name(),
+                name: original_graph.node(id).unwrap().name(),
                 content: template
-                    .node(&original_graph.node(*id).unwrap())
+                    .node((&&original_graph).node(id).unwrap())
                     .nth(self.index)
                     .unwrap()
                     .content,
+                embedding: self.embedding.clone(),
                 life: self.life,
             },
             EntityId::Edge { src, dst } => Document::Edge {
-                src: original_graph.node(*src).unwrap().name(),
-                dst: original_graph.node(*dst).unwrap().name(),
+                src: original_graph.node(src).unwrap().name(),
+                dst: original_graph.node(dst).unwrap().name(),
                 content: template
-                    .edge(&original_graph.edge(*src, *dst).unwrap())
+                    .edge(original_graph.edge(src, dst).unwrap().as_ref())
                     .nth(self.index)
                     .unwrap()
                     .content,
+                embedding: self.embedding.clone(),
                 life: self.life,
             },
         }

@@ -184,14 +184,10 @@ impl ModularityFunction for ModularityUnDir {
         tol: f64,
     ) -> Self {
         let _n = graph.count_nodes();
-        let local_id_map: HashMap<_, _> = graph
-            .nodes()
-            .iter()
-            .enumerate()
-            .map(|(i, n)| (n, VID(i)))
-            .collect();
-        let adj: Vec<_> = graph
-            .nodes()
+        let nodes = graph.nodes();
+        let local_id_map: HashMap<_, _> =
+            nodes.iter().enumerate().map(|(i, n)| (n, VID(i))).collect();
+        let adj: Vec<_> = nodes
             .iter()
             .map(|node| {
                 node.edges()
@@ -201,7 +197,7 @@ impl ModularityFunction for ModularityUnDir {
                         let w = weight_prop
                             .map(|w| e.properties().get(w).unwrap_f64())
                             .unwrap_or(1.0);
-                        let dst_id = local_id_map[&e.nbr()];
+                        let dst_id = local_id_map[&e.nbr().cloned()];
                         (dst_id, w)
                     })
                     .filter(|(_, w)| w >= &tol)
@@ -425,49 +421,59 @@ mod test {
         },
         core::entities::VID,
         prelude::*,
+        test_storage,
     };
+    use raphtory_api::core::utils::logging::global_info_logger;
+    use tracing::info;
 
     #[test]
     fn test_delta() {
-        let g = Graph::new();
-        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
-        g.add_edge(0, 2, 1, NO_PROPS, None).unwrap();
+        global_info_logger();
+        let graph = Graph::new();
+        graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 2, 1, NO_PROPS, None).unwrap();
 
-        let mut m = ModularityUnDir::new(
-            &g,
-            None,
-            1.0,
-            Partition::new_singletons(g.count_nodes()),
-            1e-8,
-        );
-        let old_value = m.value();
-        assert_eq!(old_value, -0.5);
-        let delta = m.move_delta(&VID(0), ComID(1));
-        println!("delta: {delta}");
-        m.move_node(&VID(0), ComID(1));
-        assert_eq!(m.value(), old_value + delta)
+        test_storage!(&graph, |graph| {
+            let mut m = ModularityUnDir::new(
+                graph,
+                None,
+                1.0,
+                Partition::new_singletons(graph.count_nodes()),
+                1e-8,
+            );
+            let old_value = m.value();
+            assert_eq!(old_value, -0.5);
+            let delta = m.move_delta(&VID(0), ComID(1));
+            info!("delta: {delta}");
+            m.move_node(&VID(0), ComID(1));
+            assert_eq!(m.value(), old_value + delta)
+        });
     }
 
     #[test]
     fn test_aggregation() {
-        let partition = Partition::from_iter([0usize, 0, 1, 1]);
-        let g = Graph::new();
-        g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
-        g.add_edge(0, 1, 0, NO_PROPS, None).unwrap();
-        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
-        g.add_edge(0, 2, 1, NO_PROPS, None).unwrap();
-        g.add_edge(0, 0, 3, NO_PROPS, None).unwrap();
-        g.add_edge(0, 3, 0, NO_PROPS, None).unwrap();
-        let mut m = ModularityUnDir::new(&g, None, 1.0, partition, 1e-8);
-        let value_before = m.value();
-        let _ = m.aggregate();
-        let value_after = m.value();
-        println!("before: {value_before}, after: {value_after}");
-        assert_eq!(value_after, value_before);
-        let delta = m.move_delta(&VID(0), ComID(1));
-        m.move_node(&VID(0), ComID(1));
-        let value_merged = m.value();
-        assert_eq!(value_merged, 0.0);
-        assert!((value_merged - (value_after + delta)).abs() < 1e-8);
+        global_info_logger();
+        let graph = Graph::new();
+        graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 1, 0, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 2, 1, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 0, 3, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 3, 0, NO_PROPS, None).unwrap();
+
+        test_storage!(&graph, |graph| {
+            let partition = Partition::from_iter([0usize, 0, 1, 1]);
+            let mut m = ModularityUnDir::new(graph, None, 1.0, partition, 1e-8);
+            let value_before = m.value();
+            let _ = m.aggregate();
+            let value_after = m.value();
+            info!("before: {value_before}, after: {value_after}");
+            assert_eq!(value_after, value_before);
+            let delta = m.move_delta(&VID(0), ComID(1));
+            m.move_node(&VID(0), ComID(1));
+            let value_merged = m.value();
+            assert_eq!(value_merged, 0.0);
+            assert!((value_merged - (value_after + delta)).abs() < 1e-8);
+        });
     }
 }

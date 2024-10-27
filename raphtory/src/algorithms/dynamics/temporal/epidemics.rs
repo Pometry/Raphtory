@@ -1,18 +1,20 @@
-use crate::{
-    algorithms::algorithm_result::AlgorithmResult,
-    core::{
-        entities::{nodes::node_ref::NodeRef, VID},
-        utils::time::{error::ParseTimeError, TryIntoTime},
-    },
-    db::api::view::StaticGraphViewOps,
-    prelude::*,
-};
-use rand::{distributions::Bernoulli, seq::IteratorRandom, Rng};
-use rand_distr::{Distribution, Exp};
 use std::{
     cmp::Reverse,
     collections::{hash_map::Entry, BinaryHeap, HashMap},
     fmt::Debug,
+};
+
+use rand::{distributions::Bernoulli, seq::IteratorRandom, Rng};
+use rand_distr::{Distribution, Exp};
+
+use crate::{
+    algorithms::algorithm_result::AlgorithmResult,
+    core::{
+        entities::{nodes::node_ref::AsNodeRef, VID},
+        utils::time::{error::ParseTimeError, TryIntoTime},
+    },
+    db::api::view::StaticGraphViewOps,
+    prelude::*,
 };
 
 #[repr(transparent)]
@@ -59,7 +61,7 @@ pub enum SeedError {
         source: ParseTimeError,
     },
 }
-
+#[allow(unused)]
 trait NotIterator {}
 
 impl NotIterator for f64 {}
@@ -72,7 +74,7 @@ pub trait IntoSeeds {
     ) -> Result<Vec<VID>, SeedError>;
 }
 
-impl<I: IntoIterator<Item = V>, V: Into<NodeRef> + Debug> IntoSeeds for I {
+impl<I: IntoIterator<Item = V>, V: AsNodeRef + Debug> IntoSeeds for I {
     fn into_initial_list<G: StaticGraphViewOps, R: Rng + ?Sized>(
         self,
         graph: &G,
@@ -248,8 +250,12 @@ mod test {
     };
     use rand::{rngs::SmallRng, Rng, SeedableRng};
     use rand_distr::{Distribution, Exp};
+    use raphtory_api::core::utils::logging::global_info_logger;
     use rayon::prelude::*;
     use stats::{mean, stddev};
+    #[cfg(feature = "storage")]
+    use tempfile::TempDir;
+    use tracing::info;
 
     fn correct_res(x: f64) -> f64 {
         (1176. * x.powi(10)
@@ -337,12 +343,13 @@ mod test {
         let mean = mean(actual.iter().copied());
         let dev = stddev(actual.iter().copied()) / (num_tries as f64).sqrt();
         let expected = correct_res(scaled_infection_rate);
-        println!("mean: {mean}, expected: {expected}, dev: {dev},  infection rate: {scaled_infection_rate}");
+        info!("mean: {mean}, expected: {expected}, dev: {dev},  infection rate: {scaled_infection_rate}");
         assert!((mean - expected).abs() < 2. * dev)
     }
 
     #[test]
     fn test_small_graph_medium() {
+        global_info_logger();
         let event_rate = 0.00000001;
         let recovery_rate = 0.000000001;
         let p = 0.3;
@@ -352,6 +359,7 @@ mod test {
 
     #[test]
     fn test_small_graph_high() {
+        global_info_logger();
         let event_rate = 0.00000001;
         let recovery_rate = 0.000000001;
         let p = 0.7;
@@ -361,10 +369,47 @@ mod test {
 
     #[test]
     fn test_small_graph_low() {
+        global_info_logger();
         let event_rate = 0.00000001;
         let recovery_rate = 0.00000001;
         let p = 0.1;
 
         inner_test(event_rate, recovery_rate, p);
+    }
+
+    #[cfg(feature = "storage")]
+    #[test]
+    fn compare_disk_with_in_mem() {
+        let event_rate = 0.00000001;
+        let recovery_rate = 0.000000001;
+        let p = 0.3;
+
+        let mut rng = SmallRng::seed_from_u64(0);
+        let g = generate_graph(1000, event_rate, &mut rng);
+        let test_dir = TempDir::new().unwrap();
+        let disk_graph = g
+            .persist_as_disk_graph(test_dir.path())
+            .unwrap()
+            .into_graph();
+        let mut rng = SmallRng::seed_from_u64(0);
+        let res_arrow = temporal_SEIR(
+            &disk_graph,
+            Some(recovery_rate),
+            None,
+            p,
+            0,
+            Number(1),
+            &mut rng,
+        )
+        .unwrap();
+
+        let mut rng = SmallRng::seed_from_u64(0);
+        let res_mem =
+            temporal_SEIR(&g, Some(recovery_rate), None, p, 0, Number(1), &mut rng).unwrap();
+
+        assert!(res_mem
+            .get_all()
+            .iter()
+            .all(|(key, val)| res_arrow.get(key.id()).unwrap() == val));
     }
 }

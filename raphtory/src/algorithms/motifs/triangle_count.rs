@@ -1,6 +1,9 @@
 use crate::{
     algorithms::cores::k_core::k_core_set,
-    core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
+    core::{
+        entities::VID,
+        state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
+    },
     db::{
         api::view::*,
         graph::views::node_subgraph::NodeSubgraph,
@@ -64,7 +67,7 @@ pub fn triangle_count<G: StaticGraphViewOps>(graph: &G, threads: Option<usize>) 
     let mut ctx: Context<NodeSubgraph<G>, ComputeStateVec> = Context::from(&g);
 
     // let mut ctx: Context<G, ComputeStateVec> = graph.into();
-    let neighbours_set = accumulators::hash_set::<u64>(0);
+    let neighbours_set = accumulators::hash_set::<VID>(0);
     let count = accumulators::sum::<usize>(1);
 
     ctx.agg(neighbours_set);
@@ -72,8 +75,8 @@ pub fn triangle_count<G: StaticGraphViewOps>(graph: &G, threads: Option<usize>) 
 
     let step1 = ATask::new(move |s: &mut EvalNodeView<NodeSubgraph<G>, ()>| {
         for t in s.neighbours() {
-            if s.id() > t.id() {
-                t.update(&neighbours_set, s.id());
+            if s.node > t.node {
+                t.update(&neighbours_set, s.node);
             }
         }
         Step::Continue
@@ -81,7 +84,7 @@ pub fn triangle_count<G: StaticGraphViewOps>(graph: &G, threads: Option<usize>) 
 
     let step2 = ATask::new(move |s| {
         for t in s.neighbours() {
-            if s.id() > t.id() {
+            if s.node > t.node {
                 let intersection_count = {
                     // when using entry() we need to make sure the reference is released before we can update the state, otherwise we break the Rc<RefCell<_>> invariant
                     // where there can either be one mutable or many immutable references
@@ -129,6 +132,7 @@ mod triangle_count_tests {
     use crate::{
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
+        test_storage,
     };
 
     #[test]
@@ -156,9 +160,11 @@ mod triangle_count_tests {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let actual_tri_count = triangle_count(&graph, Some(2));
+        test_storage!(&graph, |graph| {
+            let actual_tri_count = triangle_count(graph, Some(2));
 
-        assert_eq!(actual_tri_count, 4)
+            assert_eq!(actual_tri_count, 4)
+        });
     }
 
     #[test]
@@ -195,8 +201,9 @@ mod triangle_count_tests {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let actual_tri_count = triangle_count(&graph, None);
-
-        assert_eq!(actual_tri_count, 8)
+        test_storage!(&graph, |graph| {
+            let actual_tri_count = triangle_count(graph, None);
+            assert_eq!(actual_tri_count, 8)
+        });
     }
 }

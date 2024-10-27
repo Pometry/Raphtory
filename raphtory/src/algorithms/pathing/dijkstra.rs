@@ -1,14 +1,13 @@
-use crate::db::api::view::StaticGraphViewOps;
-/// Dijkstra's algorithm
-use crate::{
-    core::entities::nodes::input_node::InputNode,
-    core::{Direction, PropType},
-    prelude::Prop,
-    prelude::{EdgeViewOps, NodeViewOps},
-};
 use std::{
     cmp::Ordering,
     collections::{BinaryHeap, HashMap, HashSet},
+};
+
+/// Dijkstra's algorithm
+use crate::{core::entities::nodes::node_ref::AsNodeRef, db::api::view::StaticGraphViewOps};
+use crate::{
+    core::{Direction, PropType},
+    prelude::{EdgeViewOps, NodeViewOps, Prop},
 };
 
 /// A state in the Dijkstra algorithm with a cost and a node name.
@@ -47,7 +46,7 @@ impl PartialOrd for State {
 /// Returns a `HashMap` where the key is the target node and the value is a tuple containing
 /// the total cost and a vector of nodes representing the shortest path.
 ///
-pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: InputNode>(
+pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef>(
     graph: &G,
     source: T,
     targets: Vec<T>,
@@ -85,8 +84,8 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: InputNode
 
     let target_nodes: Vec<String> = targets
         .iter()
-        .filter_map(|p| match graph.has_node(p.clone()) {
-            true => Some(graph.node(p.clone())?.name()),
+        .filter_map(|p| match graph.has_node(p) {
+            true => Some(graph.node(p)?.name()),
             false => None,
         })
         .collect();
@@ -110,6 +109,7 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: InputNode
         PropType::DTime => return Err("Weight type: DTime, not supported"),
         PropType::NDTime => return Err("Weight type: NDTime, not supported"),
         PropType::Graph => return Err("Weight type: Graph, not supported"),
+        PropType::PersistentGraph => return Err("Weight type: Persistent Graph, not supported"),
         PropType::Document => return Err("Weight type: Document, not supported"),
     };
     let max_val = match weight_type.unwrap() {
@@ -129,6 +129,7 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: InputNode
         PropType::DTime => return Err("Weight type: DTime, not supported"),
         PropType::NDTime => return Err("Weight type: NDTime, not supported"),
         PropType::Graph => return Err("Weight type: Graph, not supported"),
+        PropType::PersistentGraph => return Err("Weight type: Persistent Graph, not supported"),
         PropType::Document => return Err("Weight type: Document, not supported"),
     };
     let mut heap = BinaryHeap::new();
@@ -154,7 +155,7 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: InputNode
             let mut current_node_name = node_name.clone();
             while let Some(prev_node) = predecessor.get(&current_node_name) {
                 path.push(prev_node.clone());
-                current_node_name = prev_node.clone();
+                current_node_name.clone_from(prev_node);
             }
             path.reverse();
             paths.insert(node_name.clone(), (cost.clone(), path));
@@ -215,6 +216,7 @@ mod dijkstra_tests {
     use crate::{
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::Prop,
+        test_storage,
     };
 
     fn load_graph(edges: Vec<(i64, &str, &str, Vec<(&str, f32)>)>) -> Graph {
@@ -243,50 +245,107 @@ mod dijkstra_tests {
     fn test_dijkstra_multiple_targets() {
         let graph = basic_graph();
 
-        let targets: Vec<&str> = vec!["D", "F"];
-        let results = dijkstra_single_source_shortest_paths(
-            &graph,
-            "A",
-            targets,
-            Some("weight".to_string()),
-            Direction::OUT,
-        );
+        test_storage!(&graph, |graph| {
+            let targets: Vec<&str> = vec!["D", "F"];
+            let results = dijkstra_single_source_shortest_paths(
+                graph,
+                "A",
+                targets,
+                Some("weight".to_string()),
+                Direction::OUT,
+            );
 
-        let results = results.unwrap();
+            let results = results.unwrap();
 
-        assert_eq!(results.get("D").unwrap().0, Prop::F32(7.0f32));
-        assert_eq!(results.get("D").unwrap().1, vec!["A", "C", "D"]);
+            assert_eq!(results.get("D").unwrap().0, Prop::F32(7.0f32));
+            assert_eq!(results.get("D").unwrap().1, vec!["A", "C", "D"]);
 
-        assert_eq!(results.get("F").unwrap().0, Prop::F32(8.0f32));
-        assert_eq!(results.get("F").unwrap().1, vec!["A", "C", "E", "F"]);
+            assert_eq!(results.get("F").unwrap().0, Prop::F32(8.0f32));
+            assert_eq!(results.get("F").unwrap().1, vec!["A", "C", "E", "F"]);
 
-        let targets: Vec<&str> = vec!["D", "E", "F"];
-        let results = dijkstra_single_source_shortest_paths(
-            &graph,
-            "B",
-            targets,
-            Some("weight".to_string()),
-            Direction::OUT,
-        );
-        let results = results.unwrap();
-        assert_eq!(results.get("D").unwrap().0, Prop::F32(5.0f32));
-        assert_eq!(results.get("E").unwrap().0, Prop::F32(3.0f32));
-        assert_eq!(results.get("F").unwrap().0, Prop::F32(6.0f32));
-        assert_eq!(results.get("D").unwrap().1, vec!["B", "C", "D"]);
-        assert_eq!(results.get("E").unwrap().1, vec!["B", "C", "E"]);
-        assert_eq!(results.get("F").unwrap().1, vec!["B", "C", "E", "F"]);
+            let targets: Vec<&str> = vec!["D", "E", "F"];
+            let results = dijkstra_single_source_shortest_paths(
+                graph,
+                "B",
+                targets,
+                Some("weight".to_string()),
+                Direction::OUT,
+            );
+            let results = results.unwrap();
+            assert_eq!(results.get("D").unwrap().0, Prop::F32(5.0f32));
+            assert_eq!(results.get("E").unwrap().0, Prop::F32(3.0f32));
+            assert_eq!(results.get("F").unwrap().0, Prop::F32(6.0f32));
+            assert_eq!(results.get("D").unwrap().1, vec!["B", "C", "D"]);
+            assert_eq!(results.get("E").unwrap().1, vec!["B", "C", "E"]);
+            assert_eq!(results.get("F").unwrap().1, vec!["B", "C", "E", "F"]);
+        });
     }
 
     #[test]
     fn test_dijkstra_no_weight() {
         let graph = basic_graph();
-        let targets: Vec<&str> = vec!["C", "E", "F"];
-        let results =
-            dijkstra_single_source_shortest_paths(&graph, "A", targets, None, Direction::OUT)
-                .unwrap();
-        assert_eq!(results.get("C").unwrap().1, vec!["A", "C"]);
-        assert_eq!(results.get("E").unwrap().1, vec!["A", "C", "E"]);
-        assert_eq!(results.get("F").unwrap().1, vec!["A", "C", "F"]);
+
+        test_storage!(&graph, |graph| {
+            let targets: Vec<&str> = vec!["C", "E", "F"];
+            let results =
+                dijkstra_single_source_shortest_paths(graph, "A", targets, None, Direction::OUT)
+                    .unwrap();
+            assert_eq!(results.get("C").unwrap().1, vec!["A", "C"]);
+            assert_eq!(results.get("E").unwrap().1, vec!["A", "C", "E"]);
+            assert_eq!(results.get("F").unwrap().1, vec!["A", "C", "F"]);
+        });
+    }
+
+    #[test]
+    fn test_dijkstra_multiple_targets_node_ids() {
+        let edges = vec![
+            (0, 1, 2, vec![("weight", 4u64)]),
+            (1, 1, 3, vec![("weight", 4u64)]),
+            (2, 2, 3, vec![("weight", 2u64)]),
+            (3, 3, 4, vec![("weight", 3u64)]),
+            (4, 3, 5, vec![("weight", 1u64)]),
+            (5, 3, 6, vec![("weight", 6u64)]),
+            (6, 4, 6, vec![("weight", 2u64)]),
+            (7, 5, 6, vec![("weight", 3u64)]),
+        ];
+
+        let graph = Graph::new();
+        for (t, src, dst, props) in edges {
+            graph.add_edge(t, src, dst, props, None).unwrap();
+        }
+
+        test_storage!(&graph, |graph| {
+            let targets = vec![4, 6];
+            let results = dijkstra_single_source_shortest_paths(
+                graph,
+                1,
+                targets,
+                Some("weight".to_string()),
+                Direction::OUT,
+            );
+            let results = results.unwrap();
+            assert_eq!(results.get("4").unwrap().0, Prop::U64(7u64));
+            assert_eq!(results.get("4").unwrap().1, vec!["1", "3", "4"]);
+
+            assert_eq!(results.get("6").unwrap().0, Prop::U64(8u64));
+            assert_eq!(results.get("6").unwrap().1, vec!["1", "3", "5", "6"]);
+
+            let targets = vec![4, 5, 6];
+            let results = dijkstra_single_source_shortest_paths(
+                graph,
+                2,
+                targets,
+                Some("weight".to_string()),
+                Direction::OUT,
+            );
+            let results = results.unwrap();
+            assert_eq!(results.get("4").unwrap().0, Prop::U64(5u64));
+            assert_eq!(results.get("5").unwrap().0, Prop::U64(3u64));
+            assert_eq!(results.get("6").unwrap().0, Prop::U64(6u64));
+            assert_eq!(results.get("4").unwrap().1, vec!["2", "3", "4"]);
+            assert_eq!(results.get("5").unwrap().1, vec!["2", "3", "5"]);
+            assert_eq!(results.get("6").unwrap().1, vec!["2", "3", "5", "6"]);
+        });
     }
 
     #[test]
@@ -308,36 +367,38 @@ mod dijkstra_tests {
             graph.add_edge(t, src, dst, props, None).unwrap();
         }
 
-        let targets: Vec<&str> = vec!["D", "F"];
-        let results = dijkstra_single_source_shortest_paths(
-            &graph,
-            "A",
-            targets,
-            Some("weight".to_string()),
-            Direction::OUT,
-        );
-        let results = results.unwrap();
-        assert_eq!(results.get("D").unwrap().0, Prop::U64(7u64));
-        assert_eq!(results.get("D").unwrap().1, vec!["A", "C", "D"]);
+        test_storage!(&graph, |graph| {
+            let targets: Vec<&str> = vec!["D", "F"];
+            let results = dijkstra_single_source_shortest_paths(
+                graph,
+                "A",
+                targets,
+                Some("weight".to_string()),
+                Direction::OUT,
+            );
+            let results = results.unwrap();
+            assert_eq!(results.get("D").unwrap().0, Prop::U64(7u64));
+            assert_eq!(results.get("D").unwrap().1, vec!["A", "C", "D"]);
 
-        assert_eq!(results.get("F").unwrap().0, Prop::U64(8u64));
-        assert_eq!(results.get("F").unwrap().1, vec!["A", "C", "E", "F"]);
+            assert_eq!(results.get("F").unwrap().0, Prop::U64(8u64));
+            assert_eq!(results.get("F").unwrap().1, vec!["A", "C", "E", "F"]);
 
-        let targets: Vec<&str> = vec!["D", "E", "F"];
-        let results = dijkstra_single_source_shortest_paths(
-            &graph,
-            "B",
-            targets,
-            Some("weight".to_string()),
-            Direction::OUT,
-        );
-        let results = results.unwrap();
-        assert_eq!(results.get("D").unwrap().0, Prop::U64(5u64));
-        assert_eq!(results.get("E").unwrap().0, Prop::U64(3u64));
-        assert_eq!(results.get("F").unwrap().0, Prop::U64(6u64));
-        assert_eq!(results.get("D").unwrap().1, vec!["B", "C", "D"]);
-        assert_eq!(results.get("E").unwrap().1, vec!["B", "C", "E"]);
-        assert_eq!(results.get("F").unwrap().1, vec!["B", "C", "E", "F"]);
+            let targets: Vec<&str> = vec!["D", "E", "F"];
+            let results = dijkstra_single_source_shortest_paths(
+                graph,
+                "B",
+                targets,
+                Some("weight".to_string()),
+                Direction::OUT,
+            );
+            let results = results.unwrap();
+            assert_eq!(results.get("D").unwrap().0, Prop::U64(5u64));
+            assert_eq!(results.get("E").unwrap().0, Prop::U64(3u64));
+            assert_eq!(results.get("F").unwrap().0, Prop::U64(6u64));
+            assert_eq!(results.get("D").unwrap().1, vec!["B", "C", "D"]);
+            assert_eq!(results.get("E").unwrap().1, vec!["B", "C", "E"]);
+            assert_eq!(results.get("F").unwrap().1, vec!["B", "C", "E", "F"]);
+        });
     }
 
     #[test]
@@ -354,18 +415,20 @@ mod dijkstra_tests {
             graph.add_edge(t, src, dst, props, None).unwrap();
         }
 
-        let targets: Vec<&str> = vec!["D"];
-        let results = dijkstra_single_source_shortest_paths(
-            &graph,
-            "A",
-            targets,
-            Some("weight".to_string()),
-            Direction::BOTH,
-        );
+        test_storage!(&graph, |graph| {
+            let targets: Vec<&str> = vec!["D"];
+            let results = dijkstra_single_source_shortest_paths(
+                graph,
+                "A",
+                targets,
+                Some("weight".to_string()),
+                Direction::BOTH,
+            );
 
-        let results = results.unwrap();
-        assert_eq!(results.get("D").unwrap().0, Prop::U64(7u64));
-        assert_eq!(results.get("D").unwrap().1, vec!["A", "C", "D"]);
+            let results = results.unwrap();
+            assert_eq!(results.get("D").unwrap().0, Prop::U64(7u64));
+            assert_eq!(results.get("D").unwrap().1, vec!["A", "C", "D"]);
+        });
     }
 
     #[test]
@@ -382,10 +445,12 @@ mod dijkstra_tests {
             graph.add_edge(t, src, dst, props, None).unwrap();
         }
 
-        let targets: Vec<&str> = vec!["D"];
-        let results =
-            dijkstra_single_source_shortest_paths(&graph, "A", targets, None, Direction::BOTH)
-                .unwrap();
-        assert_eq!(results.get("D").unwrap().1, vec!["A", "C", "D"]);
+        test_storage!(&graph, |graph| {
+            let targets: Vec<&str> = vec!["D"];
+            let results =
+                dijkstra_single_source_shortest_paths(graph, "A", targets, None, Direction::BOTH)
+                    .unwrap();
+            assert_eq!(results.get("D").unwrap().1, vec!["A", "C", "D"]);
+        });
     }
 }

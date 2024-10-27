@@ -1,33 +1,51 @@
-use common::run_analysis_benchmarks;
 use criterion::{criterion_group, criterion_main, Criterion};
-use raphtory::{db::api::view::*, graph_loader::example::sx_superuser_graph::sx_superuser_graph};
-
-mod common;
+use raphtory::{
+    graph_loader::sx_superuser_graph::{sx_superuser_file, sx_superuser_graph, TEdge},
+    io::csv_loader::CsvLoader,
+    prelude::*,
+};
+use raphtory_api::core::utils::hashing::calculate_hash;
+use raphtory_benchmark::common::run_graph_ops_benches;
 
 pub fn graph(c: &mut Criterion) {
-    let mut graph_group = c.benchmark_group("analysis_graph");
+    let group_name = "analysis_graph";
     let graph = sx_superuser_graph().unwrap();
-    run_analysis_benchmarks(&mut graph_group, || graph.clone(), None);
-    graph_group.finish();
-    let mut graph_window_group_100 = c.benchmark_group("analysis_graph_window_100");
-    graph_window_group_100.sample_size(10);
-    run_analysis_benchmarks(
-        &mut graph_window_group_100,
-        || graph.window(i64::MIN, i64::MAX),
-        None,
-    );
-    graph_window_group_100.finish();
-    let mut graph_window_group_10 = c.benchmark_group("analysis_graph_window_10");
-    let latest = graph.latest_time().expect("non-empty graph");
-    let earliest = graph.earliest_time().expect("non-empty graph");
-    let start = latest - (latest - earliest) / 10;
-    graph_window_group_10.sample_size(10);
-    run_analysis_benchmarks(
-        &mut graph_window_group_10,
-        || graph.window(start, latest + 1),
-        None,
-    );
-    graph_window_group_10.finish();
+    let layered_graph = layered_sx_super_user_graph(Some(10)).unwrap();
+
+    run_graph_ops_benches(c, group_name, graph, layered_graph);
+}
+
+/// Load the SX SuperUser dataset into a graph and return it
+///
+/// Returns:
+///
+/// - A Result containing the graph or an error, with edges randomly assigned to layers
+fn layered_sx_super_user_graph(
+    num_layers: Option<usize>,
+) -> Result<Graph, Box<dyn std::error::Error>> {
+    let graph = Graph::new();
+    CsvLoader::new(sx_superuser_file()?)
+        .set_delimiter(" ")
+        .load_into_graph(&graph, |edge: TEdge, g: &Graph| {
+            if let Some(layer) = num_layers
+                .map(|num_layers| calculate_hash(&(edge.src_id, edge.dst_id)) % num_layers as u64)
+                .map(|id| id.to_string())
+            {
+                g.add_edge(
+                    edge.time,
+                    edge.src_id,
+                    edge.dst_id,
+                    NO_PROPS,
+                    Some(layer.as_str()),
+                )
+                .expect("Error: Unable to add edge");
+            } else {
+                g.add_edge(edge.time, edge.src_id, edge.dst_id, NO_PROPS, None)
+                    .expect("Error: Unable to add edge");
+            }
+        })?;
+
+    Ok(graph)
 }
 
 criterion_group!(benches, graph);

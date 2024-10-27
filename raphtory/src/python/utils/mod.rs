@@ -4,19 +4,25 @@
 //! These functions are not part of the public API and are not exported to the Python module.
 use crate::{
     core::{
-        entities::nodes::{input_node::InputNode, node_ref::NodeRef},
+        entities::{nodes::node_ref::NodeRef, GidRef},
         storage::timeindex::AsTime,
         utils::time::{error::ParseTimeError, Interval, IntoTime, TryIntoTime},
     },
     db::api::view::*,
     python::graph::node::PyNode,
 };
-use chrono::{DateTime, NaiveDateTime, Utc};
-use pyo3::{exceptions::PyTypeError, prelude::*, types::PyDateTime};
+use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
+use pyo3::{
+    exceptions::{PyRuntimeError, PyTypeError},
+    prelude::*,
+    types::PyDateTime,
+};
+use serde::Serialize;
 use std::{future::Future, thread};
 
 pub mod errors;
 pub(crate) mod export;
+mod module_helpers;
 
 /// Extract a `NodeRef` from a Python object.
 /// The object can be a `str`, `u64` or `PyNode`.
@@ -29,14 +35,14 @@ pub(crate) mod export;
 ///
 /// Returns
 ///    A `NodeRef` extracted from the Python object.
-impl<'source> FromPyObject<'source> for NodeRef {
+impl<'source> FromPyObject<'source> for NodeRef<'source> {
     fn extract(vref: &'source PyAny) -> PyResult<Self> {
-        if let Ok(s) = vref.extract::<String>() {
-            Ok(s.into())
+        if let Ok(s) = vref.extract::<&'source str>() {
+            Ok(NodeRef::External(GidRef::Str(s)))
         } else if let Ok(gid) = vref.extract::<u64>() {
-            Ok(gid.into())
+            Ok(NodeRef::External(GidRef::U64(gid)))
         } else if let Ok(v) = vref.extract::<PyNode>() {
-            Ok(v.into())
+            Ok(NodeRef::Internal(v.node.node))
         } else {
             Err(PyTypeError::new_err("Not a valid node"))
         }
@@ -53,7 +59,7 @@ fn parse_email_timestamp(timestamp: &str) -> PyResult<i64> {
     })
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize)]
 pub struct PyTime {
     parsing_result: i64,
 }
@@ -68,17 +74,32 @@ impl<'source> FromPyObject<'source> for PyTime {
             return Ok(PyTime::new(parsing_result));
         }
         if let Ok(number) = time.extract::<i64>() {
-            return Ok(PyTime::new(number.try_into_time()?));
+            return Ok(PyTime::new(number.into_time()));
+        }
+        if let Ok(float_time) = time.extract::<f64>() {
+            // seconds since Unix epoch as returned by python `timestamp`
+            let float_ms = float_time * 1000.0;
+            let float_ms_trunc = float_ms.round();
+            let rel_err = (float_ms - float_ms_trunc).abs() / (float_ms.abs() + f64::EPSILON);
+            if rel_err > 4.0 * f64::EPSILON {
+                return Err(PyRuntimeError::new_err(
+                    "Float timestamps with more than millisecond precision are not supported.",
+                ));
+            }
+            return Ok(PyTime::new(float_ms_trunc as i64));
+        }
+        if let Ok(parsed_datetime) = time.extract::<DateTime<FixedOffset>>() {
+            return Ok(PyTime::new(parsed_datetime.into_time()));
         }
         if let Ok(parsed_datetime) = time.extract::<NaiveDateTime>() {
-            return Ok(PyTime::new(parsed_datetime.try_into_time()?));
+            // Important, this is needed to ensure that naive DateTime objects are treated as UTC and not local time
+            return Ok(PyTime::new(parsed_datetime.into_time()));
         }
         if let Ok(py_datetime) = time.extract::<&PyDateTime>() {
             let time = (py_datetime.call_method0("timestamp")?.extract::<f64>()? * 1000.0) as i64;
             return Ok(PyTime::new(time));
         }
-
-        let message = format!("time '{time}' must be a str, datetime or an integer");
+        let message = format!("time '{time}' must be a str, datetime, float, or an integer");
         Err(PyTypeError::new_err(message))
     }
 }
@@ -136,58 +157,6 @@ impl TryFrom<PyInterval> for Interval {
     type Error = ParseTimeError;
     fn try_from(value: PyInterval) -> Result<Self, Self::Error> {
         value.interval
-    }
-}
-
-/// A trait for nodes that can be used as input for the graph.
-/// This allows us to add nodes with different types of ids, either strings or ints.
-#[derive(Clone, Debug)]
-pub struct PyInputNode {
-    id: u64,
-    name: Option<String>,
-}
-
-impl<'source> FromPyObject<'source> for PyInputNode {
-    fn extract(id: &'source PyAny) -> PyResult<Self> {
-        match id.extract::<String>() {
-            Ok(string) => Ok(PyInputNode::new(string)),
-            Err(_) => {
-                let msg = "IDs need to be strings or an unsigned integers";
-                let number = id.extract::<u64>().map_err(|_| PyTypeError::new_err(msg))?;
-                Ok(PyInputNode::new(number))
-            }
-        }
-    }
-}
-
-/// Implementation for nodes that can be used as input for the graph.
-/// This allows us to add nodes with different types of ids, either strings or ints.
-impl PyInputNode {
-    pub(crate) fn new<T>(node: T) -> PyInputNode
-    where
-        T: InputNode,
-    {
-        PyInputNode {
-            id: node.id(),
-            name: node.id_str().map(|s| s.into()),
-        }
-    }
-}
-
-/// Implementation for nodes that can be used as input for the graph.
-/// This allows us to add nodes with different types of ids, either strings or ints.
-impl InputNode for PyInputNode {
-    /// Returns the id of the node.
-    fn id(&self) -> u64 {
-        self.id
-    }
-
-    /// Returns the name property of the node.
-    fn id_str(&self) -> Option<&str> {
-        match &self.name {
-            Some(n) => Some(n),
-            None => None,
-        }
     }
 }
 

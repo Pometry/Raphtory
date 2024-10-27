@@ -1,7 +1,5 @@
-use crate::{
-    core::{ArcStr, Prop},
-    db::api::properties::internal::ConstPropertiesOps,
-};
+use crate::{core::Prop, db::api::properties::internal::ConstPropertiesOps};
+use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{collections::HashMap, iter::Zip};
 
 pub struct ConstProperties<P: ConstPropertiesOps> {
@@ -26,6 +24,10 @@ impl<P: ConstPropertiesOps> ConstProperties<P> {
 
     pub fn get(&self, key: &str) -> Option<Prop> {
         let id = self.props.get_const_prop_id(key)?;
+        self.props.get_const_prop(id)
+    }
+
+    pub fn get_by_id(&self, id: usize) -> Option<Prop> {
         self.props.get_const_prop(id)
     }
 

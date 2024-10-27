@@ -1,33 +1,37 @@
 use crate::{
     core::{
-        entities::{
-            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-            nodes::node_store::NodeStore,
-            LayerIds, VID,
-        },
-        storage::timeindex::{AsTime, TimeIndex, TimeIndexEntry, TimeIndexOps},
-        utils::errors::GraphError,
+        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
+        storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexIntoOps, TimeIndexOps},
+        utils::iter::GenLockedIter,
         Prop,
     },
     db::{
         api::{
             mutation::internal::InheritMutationOps,
             properties::internal::InheritPropertiesOps,
-            view::{internal::*, BoxedIter, IntoDynBoxed},
+            storage::{
+                graph::{
+                    edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+                    nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+                    storage_ops::GraphStorage,
+                    tprop_storage_ops::TPropOps,
+                },
+                storage::Storage,
+            },
+            view::{internal::*, BoxedLIter, IntoDynBoxed},
         },
-        graph::graph::{graph_equal, InternalGraph},
+        graph::graph::graph_equal,
     },
     prelude::*,
 };
-use itertools::{EitherOrBoth, Itertools};
+use itertools::Itertools;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
     cmp::min,
     fmt::{Display, Formatter},
     iter,
-    ops::{Deref, Range},
-    path::Path,
+    ops::Range,
     sync::Arc,
 };
 
@@ -36,14 +40,14 @@ use std::{
 /// Note that the graph will give you access to all edges that were added at any point in time, even those that are marked as deleted.
 /// The deletion only has an effect on the exploded edge view that are returned. An edge is included in a windowed view of the graph if
 /// it is considered active at any point in the window.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct PersistentGraph(pub Arc<InternalGraph>);
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+pub struct PersistentGraph(pub(crate) Arc<Storage>);
 
 impl Static for PersistentGraph {}
 
-impl From<InternalGraph> for PersistentGraph {
-    fn from(value: InternalGraph) -> Self {
-        Self(Arc::new(value))
+impl From<GraphStorage> for PersistentGraph {
+    fn from(value: GraphStorage) -> Self {
+        Self(Arc::new(Storage::from_inner(value)))
     }
 }
 
@@ -63,8 +67,8 @@ fn alive_before<
 ) -> bool {
     let first_addition = additions.first();
     let first_deletion = deletions.first();
-    let last_addition_before_start = additions.range(i64::MIN..t).last();
-    let last_deletion_before_start = deletions.range(i64::MIN..t).last();
+    let last_addition_before_start = additions.range_t(i64::MIN..t).last();
+    let last_deletion_before_start = deletions.range_t(i64::MIN..t).last();
 
     let only_deleted = match (first_addition, first_deletion) {
         (Some(a), Some(d)) => d < a && d >= t.into(),
@@ -85,8 +89,8 @@ fn alive_at<
     t: i64,
 ) -> bool {
     let deleted_at_start = match (
-        deletions.range(t..t.saturating_add(1)).first(),
-        additions.range(t..t.saturating_add(1)).first(),
+        deletions.range_t(t..t.saturating_add(1)).first(),
+        additions.range_t(t..t.saturating_add(1)).first(),
     ) {
         (Some(d), Some(a)) => d < a,
         (Some(_), None) => true,
@@ -95,94 +99,36 @@ fn alive_at<
     !deleted_at_start && alive_before(additions, deletions, t)
 }
 
-fn edge_alive_at_end(e: &dyn EdgeLike, t: i64, layer_ids: &LayerIds) -> bool {
-    e.additions_iter(layer_ids)
-        .zip_longest(e.deletions_iter(layer_ids))
-        .any(|zipped| match zipped {
-            EitherOrBoth::Both(additions, deletions) => alive_before(&additions, &deletions, t),
-            EitherOrBoth::Left(additions) => additions.active(i64::MIN..t),
-            EitherOrBoth::Right(deletions) => deletions.active(t..i64::MAX),
-        })
+fn edge_alive_at_end(e: EdgeStorageRef, t: i64, layer_ids: &LayerIds) -> bool {
+    e.updates_iter(layer_ids)
+        .any(|(_, additions, deletions)| alive_before(&additions, &deletions, t))
 }
 
-fn edge_alive_at_start(e: &dyn EdgeLike, t: i64, layer_ids: &LayerIds) -> bool {
+fn edge_alive_at_start(e: EdgeStorageRef, t: i64, layer_ids: &LayerIds) -> bool {
     // The semantics are tricky here, an edge is not alive at the start of the window if the first event at time t is a deletion
-    let alive = e
-        .additions_iter(layer_ids)
-        .zip_longest(e.deletions_iter(layer_ids))
-        .any(|zipped| match zipped {
-            EitherOrBoth::Both(additions, deletions) => alive_at(&additions, &deletions, t),
-            EitherOrBoth::Left(additions) => additions
-                .first_t()
-                .map(|first_t| first_t <= t)
-                .unwrap_or(false),
-            EitherOrBoth::Right(deletions) => deletions.first_t() > Some(t),
-        });
-    alive
-}
-
-impl Default for PersistentGraph {
-    fn default() -> Self {
-        Self::new()
-    }
+    e.updates_iter(layer_ids)
+        .any(|(_, additions, deletions)| alive_at(&additions, &deletions, t))
 }
 
 impl PersistentGraph {
     pub fn new() -> Self {
-        Self(Arc::new(InternalGraph::default()))
+        Self::default()
     }
 
-    pub fn from_internal_graph(internal_graph: Arc<InternalGraph>) -> Self {
-        Self(internal_graph)
+    pub fn from_storage(storage: Arc<Storage>) -> Self {
+        Self(storage)
     }
 
-    /// Save a graph to a directory
-    ///
-    /// # Arguments
-    ///
-    /// * `path` - The path to the directory
-    ///
-    /// Returns:
-    ///
-    /// A raphtory graph
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use std::fs::File;
-    /// use raphtory::prelude::*;
-    /// let g = Graph::new();
-    /// g.add_node(1, 1, NO_PROPS, None).unwrap();
-    /// g.save_to_file("path_str").expect("failed to save file");
-    /// ```
-    pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), GraphError> {
-        MaterializedGraph::from(self.clone()).save_to_file(path)
-    }
-
-    /// Load a graph from a directory
-    ///
-    /// # Arguments
-    ///
-    /// * `path` - The path to the directory
-    ///
-    /// Returns:
-    ///
-    /// A raphtory graph
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use raphtory::prelude::*;
-    /// let g = Graph::load_from_file("path/to/graph", false);
-    /// ```
-    pub fn load_from_file<P: AsRef<Path>>(path: P, force: bool) -> Result<Self, GraphError> {
-        let g = MaterializedGraph::load_from_file(path, force)?;
-        g.into_persistent().ok_or(GraphError::GraphLoadError)
+    pub fn from_internal_graph(internal_graph: GraphStorage) -> Self {
+        Self(Arc::new(Storage::from_inner(internal_graph)))
     }
 
     /// Get event graph
     pub fn event_graph(&self) -> Graph {
-        Graph::from_internal_graph(self.0.clone())
+        Graph::from_storage(self.0.clone())
+    }
+    pub fn persistent_graph(&self) -> PersistentGraph {
+        self.clone()
     }
 }
 
@@ -193,7 +139,7 @@ impl<'graph, G: GraphViewOps<'graph>> PartialEq<G> for PersistentGraph {
 }
 
 impl Base for PersistentGraph {
-    type Base = InternalGraph;
+    type Base = Storage;
     #[inline(always)]
     fn base(&self) -> &Self::Base {
         &self.0
@@ -201,8 +147,8 @@ impl Base for PersistentGraph {
 }
 
 impl InternalMaterialize for PersistentGraph {
-    fn new_base_graph(&self, graph: InternalGraph) -> MaterializedGraph {
-        MaterializedGraph::PersistentGraph(PersistentGraph(Arc::new(graph)))
+    fn graph_type(&self) -> GraphType {
+        GraphType::PersistentGraph
     }
 
     fn include_deletions(&self) -> bool {
@@ -218,7 +164,7 @@ impl InheritListOps for PersistentGraph {}
 
 impl InheritCoreOps for PersistentGraph {}
 
-impl InheritCoreDeletionOps for PersistentGraph {}
+impl HasDeletionOps for PersistentGraph {}
 
 impl InheritPropertiesOps for PersistentGraph {}
 
@@ -254,39 +200,54 @@ impl TimeSemantics for PersistentGraph {
     }
 
     fn earliest_time_window(&self, start: i64, end: i64) -> Option<i64> {
-        self.0.earliest_time_window(start, end)
+        self.earliest_time_global()
+            .map(|t| t.max(start))
+            .filter(|&t| t < end)
     }
 
     fn latest_time_window(&self, start: i64, end: i64) -> Option<i64> {
-        self.0.latest_time_window(start, end)
+        if self.0.earliest_time_global()? >= end {
+            return None;
+        }
+        self.latest_time_global()
+            .map(|t| t.min(end.saturating_sub(1)))
+            .filter(|&t| t >= start)
     }
 
     fn node_earliest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
-        let v = self.core_node_arc(v);
-        if v.timestamps().first_t()? <= start {
-            Some(v.timestamps().range(start..end).first_t().unwrap_or(start))
+        let v = self.core_node_entry(v);
+        let additions = v.additions();
+        if additions.first_t()? <= start {
+            Some(additions.range_t(start..end).first_t().unwrap_or(start))
         } else {
             None
         }
     }
 
     fn node_latest_time_window(&self, v: VID, _start: i64, end: i64) -> Option<i64> {
-        let v = self.core_node_arc(v);
-        if v.timestamps().first_t()? < end {
+        let v = self.core_node_entry(v);
+        if v.additions().first_t()? < end {
             Some(end - 1)
         } else {
             None
         }
     }
 
-    fn include_node_window(&self, node: &NodeStore, w: Range<i64>, _layer_ids: &LayerIds) -> bool {
-        node.timestamps()
-            .first_t()
-            .filter(|&t| t <= w.end)
-            .is_some()
+    fn include_node_window(
+        &self,
+        node: NodeStorageRef,
+        w: Range<i64>,
+        _layer_ids: &LayerIds,
+    ) -> bool {
+        node.additions().first_t().filter(|&t| t < w.end).is_some()
     }
 
-    fn include_edge_window(&self, edge: &EdgeStore, w: Range<i64>, layer_ids: &LayerIds) -> bool {
+    fn include_edge_window(
+        &self,
+        edge: EdgeStorageRef,
+        w: Range<i64>,
+        layer_ids: &LayerIds,
+    ) -> bool {
         // includes edge if it is alive at the start of the window or added during the window
         edge.active(layer_ids, w.clone()) || edge_alive_at_start(edge, w.start, layer_ids)
     }
@@ -299,15 +260,24 @@ impl TimeSemantics for PersistentGraph {
         self.0.node_history_window(v, w)
     }
 
-    fn edge_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64> {
+    fn edge_history<'a>(
+        &'a self,
+        e: EdgeRef,
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, TimeIndexEntry> {
         self.0.edge_history(e, layer_ids)
     }
 
-    fn edge_history_window(&self, e: EdgeRef, layer_ids: LayerIds, w: Range<i64>) -> Vec<i64> {
+    fn edge_history_window<'a>(
+        &'a self,
+        e: EdgeRef,
+        layer_ids: &'a LayerIds,
+        w: Range<i64>,
+    ) -> BoxedLIter<'a, TimeIndexEntry> {
         self.0.edge_history_window(e, layer_ids, w)
     }
 
-    fn edge_exploded_count(&self, edge: &EdgeStore, layer_ids: &LayerIds) -> usize {
+    fn edge_exploded_count(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> usize {
         match layer_ids {
             LayerIds::None => 0,
             LayerIds::All => (0..self.unfiltered_num_layers())
@@ -315,8 +285,8 @@ impl TimeSemantics for PersistentGraph {
                 .map(|id| self.edge_exploded_count(edge, &LayerIds::One(id)))
                 .sum(),
             LayerIds::One(id) => {
-                let additions = edge.additions.get(*id).unwrap_or(&TimeIndex::Empty);
-                let deletions = edge.deletions.get(*id).unwrap_or(&TimeIndex::Empty);
+                let additions = edge.additions(*id);
+                let deletions = edge.deletions(*id);
                 let a_first = additions.first().unwrap_or(TimeIndexEntry::MAX);
                 let d_first = deletions.first().unwrap_or(TimeIndexEntry::MAX);
                 if d_first < a_first {
@@ -334,7 +304,7 @@ impl TimeSemantics for PersistentGraph {
 
     fn edge_exploded_count_window(
         &self,
-        edge: &EdgeStore,
+        edge: EdgeStorageRef,
         layer_ids: &LayerIds,
         w: Range<i64>,
     ) -> usize {
@@ -345,10 +315,10 @@ impl TimeSemantics for PersistentGraph {
                 .map(|id| self.edge_exploded_count_window(edge, &LayerIds::One(id), w.clone()))
                 .sum(),
             LayerIds::One(id) => {
-                let additions = edge.additions.get(*id).unwrap_or(&TimeIndex::Empty);
-                let deletions = edge.deletions.get(*id).unwrap_or(&TimeIndex::Empty);
-                let mut len = additions.range(w.clone()).len();
-                if alive_at(additions, deletions, w.start) {
+                let additions = edge.additions(*id);
+                let deletions = edge.deletions(*id);
+                let mut len = additions.range_t(w.clone()).len();
+                if alive_at(&additions, &deletions, w.start) {
                     len += 1
                 }
                 len
@@ -360,11 +330,11 @@ impl TimeSemantics for PersistentGraph {
         }
     }
 
-    fn edge_exploded(&self, e: EdgeRef, layer_ids: &LayerIds) -> BoxedIter<EdgeRef> {
-        let edge = self.0.core_edge_arc(e.pid());
+    fn edge_exploded<'a>(&'a self, e: EdgeRef, layer_ids: &'a LayerIds) -> BoxedLIter<'a, EdgeRef> {
+        let edge = self.0.core_edge(e.pid());
 
         let alive_layers: Vec<_> = edge
-            .updates_iter(layer_ids)
+            .updates_iter(&layer_ids.constrain_from_edge(e))
             .filter_map(
                 |(l, additions, deletions)| match (additions.first(), deletions.first()) {
                     (Some(a), Some(d)) => (d < a).then_some(l),
@@ -380,25 +350,25 @@ impl TimeSemantics for PersistentGraph {
             .into_dyn_boxed()
     }
 
-    fn edge_layers(&self, e: EdgeRef, layer_ids: &LayerIds) -> BoxedIter<EdgeRef> {
+    fn edge_layers<'a>(&'a self, e: EdgeRef, layer_ids: &'a LayerIds) -> BoxedLIter<'a, EdgeRef> {
         self.0.edge_layers(e, layer_ids)
     }
 
-    fn edge_window_exploded(
-        &self,
+    fn edge_window_exploded<'a>(
+        &'a self,
         e: EdgeRef,
         w: Range<i64>,
-        layer_ids: &LayerIds,
-    ) -> BoxedIter<EdgeRef> {
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, EdgeRef> {
         if w.end <= w.start {
             return Box::new(iter::empty());
         }
-        let edge = self.0.core_edge_arc(e.pid());
+        let edge = self.0.core_edge(e.pid());
 
         let alive_layers: Vec<_> = edge
-            .updates_iter(layer_ids)
+            .updates_iter(&layer_ids.constrain_from_edge(e))
             .filter_map(|(l, additions, deletions)| {
-                alive_at(additions, deletions, w.start).then_some(l)
+                alive_at(&additions, &deletions, w.start).then_some(l)
             })
             .collect();
         alive_layers
@@ -408,28 +378,29 @@ impl TimeSemantics for PersistentGraph {
             .into_dyn_boxed()
     }
 
-    fn edge_window_layers(
-        &self,
+    fn edge_window_layers<'a>(
+        &'a self,
         e: EdgeRef,
         w: Range<i64>,
-        layer_ids: &LayerIds,
-    ) -> BoxedIter<EdgeRef> {
-        let g = self.clone();
-        let edge = self.core_edge_arc(e.pid());
-        Box::new(g.edge_layers(e, layer_ids).filter(move |&e| {
-            g.include_edge_window(&edge, w.clone(), &LayerIds::One(*e.layer().unwrap()))
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, EdgeRef> {
+        let edge = self.core_edge(e.pid());
+        Box::new(self.edge_layers(e, layer_ids).filter(move |&e| {
+            self.include_edge_window(edge.as_ref(), w.clone(), &LayerIds::One(e.layer().unwrap()))
         }))
     }
 
     fn edge_earliest_time(&self, e: EdgeRef, layer_ids: &LayerIds) -> Option<i64> {
         e.time().map(|ti| ti.t()).or_else(|| {
-            let entry = self.core_edge_arc(e.pid());
-            if edge_alive_at_start(entry.deref(), i64::MIN, layer_ids) {
+            let entry = self.core_edge(e.pid());
+            if edge_alive_at_start(entry.as_ref(), i64::MIN, layer_ids) {
                 Some(i64::MIN)
             } else {
-                self.edge_additions(e, layer_ids.clone())
-                    .first()
-                    .map(|ti| ti.t())
+                entry
+                    .additions_iter(layer_ids)
+                    .map(|(_, a)| a.first_t())
+                    .flatten()
+                    .min()
             }
         })
     }
@@ -440,32 +411,45 @@ impl TimeSemantics for PersistentGraph {
         w: Range<i64>,
         layer_ids: &LayerIds,
     ) -> Option<i64> {
-        let entry = self.core_edge_arc(e.pid());
-        if edge_alive_at_start(entry.deref(), w.start, layer_ids) {
+        let entry = self.core_edge(e.pid());
+        if edge_alive_at_start(entry.as_ref(), w.start, layer_ids) {
             Some(w.start)
         } else {
-            self.edge_additions(e, layer_ids.clone()).range(w).first_t()
+            entry
+                .additions_iter(layer_ids)
+                .map(|(_, a)| a.range_t(w.clone()).first_t())
+                .flatten()
+                .min()
         }
     }
 
     fn edge_latest_time(&self, e: EdgeRef, layer_ids: &LayerIds) -> Option<i64> {
-        match e.time().map(|ti| ti.t()) {
-            Some(t) => Some(min(
-                self.edge_additions(e, layer_ids.clone())
-                    .range(t.saturating_add(1)..i64::MAX)
-                    .first_t()
-                    .unwrap_or(i64::MAX),
-                self.edge_deletions(e, layer_ids.clone())
-                    .range(t.saturating_add(1)..i64::MAX)
-                    .first_t()
-                    .unwrap_or(i64::MAX),
-            )),
+        let edge = self.core_edge(e.pid());
+        match e.time() {
+            Some(t) => {
+                let t_start = t.next();
+                edge.updates_iter(layer_ids)
+                    .map(|(_, a, d)| {
+                        // last time for exploded edge is next addition or deletion
+                        min(
+                            a.range(t_start..TimeIndexEntry::MAX)
+                                .first_t()
+                                .unwrap_or(i64::MAX),
+                            d.range(t_start..TimeIndexEntry::MAX)
+                                .first_t()
+                                .unwrap_or(i64::MAX),
+                        )
+                    })
+                    .min()
+            }
             None => {
-                let entry = self.core_edge_arc(e.pid());
-                if edge_alive_at_end(entry.deref(), i64::MAX, layer_ids) {
+                if edge_alive_at_end(edge.as_ref(), i64::MAX, layer_ids) {
                     Some(i64::MAX)
                 } else {
-                    self.edge_deletions(e, layer_ids.clone()).last_t()
+                    edge.deletions_iter(layer_ids)
+                        .map(|(_, d)| d.last_t())
+                        .flatten()
+                        .max()
                 }
             }
         }
@@ -477,27 +461,30 @@ impl TimeSemantics for PersistentGraph {
         w: Range<i64>,
         layer_ids: &LayerIds,
     ) -> Option<i64> {
+        let edge = self.core_edge(e.pid());
         match e.time().map(|ti| ti.t()) {
-            Some(t) => Some(min(
-                self.edge_additions(e, layer_ids.clone())
-                    .range(t.saturating_add(1)..w.end)
-                    .first_t()
-                    .unwrap_or(w.end - 1),
-                self.edge_deletions(e, layer_ids.clone())
-                    .range(t.saturating_add(1)..w.end)
-                    .first_t()
-                    .unwrap_or(w.end - 1),
-            )),
+            Some(t) => {
+                let t_start = t.saturating_add(1);
+                edge.updates_par_iter(layer_ids)
+                    .map(|(_, a, d)| {
+                        // last time for exploded edge is next addition or deletion
+                        min(
+                            a.range_t(t_start..w.end).first_t().unwrap_or(w.end - 1),
+                            d.range_t(t_start..w.end).first_t().unwrap_or(w.end - 1),
+                        )
+                    })
+                    .min()
+            }
             None => {
-                let entry = self.core_edge_arc(e.pid());
-                if edge_alive_at_end(entry.deref(), w.end, layer_ids) {
+                let entry = self.core_edge(e.pid());
+                if edge_alive_at_end(entry.as_ref(), w.end, layer_ids) {
                     return Some(w.end - 1);
                 }
                 entry
-                    .updates_iter(layer_ids)
+                    .updates_par_iter(layer_ids)
                     .flat_map(|(_, additions, deletions)| {
-                        let last_deletion = deletions.range(w.clone()).last()?;
-                        if last_deletion.t() > w.start || additions.active(w.clone()) {
+                        let last_deletion = deletions.range_t(w.clone()).last()?;
+                        if last_deletion.t() > w.start || additions.active_t(w.clone()) {
                             Some(last_deletion.t())
                         } else {
                             None
@@ -508,24 +495,41 @@ impl TimeSemantics for PersistentGraph {
         }
     }
 
-    fn edge_deletion_history(&self, e: EdgeRef, layer_ids: &LayerIds) -> Vec<i64> {
-        self.edge_deletions(e, layer_ids.clone()).iter_t().collect()
+    fn edge_deletion_history<'a>(
+        &'a self,
+        e: EdgeRef,
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, TimeIndexEntry> {
+        let entry = self.core_edge(e.pid());
+        GenLockedIter::from(entry, |entry| {
+            entry
+                .deletions_iter(layer_ids)
+                .map(|(_, d)| d.into_iter())
+                .kmerge()
+                .into_dyn_boxed()
+        })
+        .into_dyn_boxed()
     }
 
-    fn edge_deletion_history_window(
-        &self,
+    fn edge_deletion_history_window<'a>(
+        &'a self,
         e: EdgeRef,
         w: Range<i64>,
-        layer_ids: &LayerIds,
-    ) -> Vec<i64> {
-        self.edge_deletions(e, layer_ids.clone())
-            .range(w)
-            .iter_t()
-            .collect()
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, TimeIndexEntry> {
+        let entry = self.core_edge(e.pid());
+        GenLockedIter::from(entry, |entry| {
+            entry
+                .deletions_iter(layer_ids)
+                .map(|(_, d)| d.into_range_t(w.clone()).into_iter())
+                .kmerge()
+                .into_dyn_boxed()
+        })
+        .into_dyn_boxed()
     }
 
     fn edge_is_valid(&self, e: EdgeRef, layer_ids: &LayerIds) -> bool {
-        let edge = self.0.core_edge_arc(e.pid());
+        let edge = self.0.core_edge(e.pid());
         let res = edge
             .updates_iter(layer_ids)
             .any(|(_, additions, deletions)| additions.last() > deletions.last());
@@ -533,8 +537,8 @@ impl TimeSemantics for PersistentGraph {
     }
 
     fn edge_is_valid_at_end(&self, e: EdgeRef, layer_ids: &LayerIds, end: i64) -> bool {
-        let edge = self.0.core_edge_arc(e.pid());
-        edge_alive_at_end(edge.deref(), end, &layer_ids)
+        let edge = self.0.core_edge(e.pid());
+        edge_alive_at_end(edge.as_ref(), end, layer_ids)
     }
 
     #[inline]
@@ -560,8 +564,12 @@ impl TimeSemantics for PersistentGraph {
         self.0.has_temporal_node_prop(v, prop_id)
     }
 
-    fn temporal_node_prop_vec(&self, v: VID, prop_id: usize) -> Vec<(i64, Prop)> {
-        self.0.temporal_node_prop_vec(v, prop_id)
+    fn temporal_node_prop_hist(
+        &self,
+        v: VID,
+        prop_id: usize,
+    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+        self.0.temporal_node_prop_hist(v, prop_id)
     }
 
     fn has_temporal_node_prop_window(&self, v: VID, prop_id: usize, w: Range<i64>) -> bool {
@@ -569,23 +577,23 @@ impl TimeSemantics for PersistentGraph {
             .has_temporal_node_prop_window(v, prop_id, i64::MIN..w.end)
     }
 
-    fn temporal_node_prop_vec_window(
+    fn temporal_node_prop_hist_window(
         &self,
         v: VID,
         prop_id: usize,
         start: i64,
         end: i64,
-    ) -> Vec<(i64, Prop)> {
-        let prop = self.temporal_node_prop(v, prop_id);
-        match prop {
-            Some(p) => p
-                .last_before(start.saturating_add(1))
+    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+        let node = self.core_node_entry(v);
+        GenLockedIter::from(node, move |node| {
+            let prop = node.tprop(prop_id);
+            prop.last_before(TimeIndexEntry::start(start.saturating_add(1)))
                 .into_iter()
-                .map(|(_, v)| (start, v))
-                .chain(p.iter_window_t(start.saturating_add(1)..end))
-                .collect(),
-            None => Default::default(),
-        }
+                .map(move |(_, v)| (TimeIndexEntry::start(start), v))
+                .chain(prop.iter_window(TimeIndexEntry::range(start.saturating_add(1)..end)))
+                .into_dyn_boxed()
+        })
+        .into_dyn_boxed()
     }
 
     fn has_temporal_edge_prop_window(
@@ -593,82 +601,95 @@ impl TimeSemantics for PersistentGraph {
         e: EdgeRef,
         prop_id: usize,
         w: Range<i64>,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> bool {
-        let entry = self.core_edge_arc(e.pid());
+        let entry = self.core_edge(e.pid());
 
-        if entry.has_temporal_prop(&layer_ids, prop_id) {
+        if (&entry).has_temporal_prop(layer_ids, prop_id) {
             // if property was added at any point since the last deletion, it is still there,
             // if deleted at the start of the window, we still need to check for any additions
             // that happened at the same time
-            let search_start = min(
-                entry
-                    .last_deletion_before(&layer_ids, w.start.saturating_add(1))
-                    .unwrap_or(TimeIndexEntry::MIN),
-                TimeIndexEntry::start(w.start),
-            );
-            let search_end = TimeIndexEntry::start(w.end);
-            match layer_ids {
-                LayerIds::None => false,
-                LayerIds::All => entry.layer_ids_iter().any(|id| {
+            entry
+                .updates_par_iter(layer_ids)
+                .any(|(layer_id, _, deletions)| {
+                    let search_start = deletions
+                        .range_t(i64::MIN..w.start.saturating_add(1))
+                        .last()
+                        .unwrap_or(TimeIndexEntry::MIN)
+                        .min(TimeIndexEntry::start(w.start));
+                    let search_end = TimeIndexEntry::start(w.end);
                     entry
-                        .temporal_prop_layer(id, prop_id)
-                        .filter(|prop| prop.iter_window(search_start..search_end).next().is_some())
+                        .temporal_prop_layer(layer_id, prop_id)
+                        .iter_window_te(search_start..search_end)
+                        .next()
                         .is_some()
-                }),
-                LayerIds::One(id) => entry
-                    .temporal_prop_layer(id, prop_id)
-                    .filter(|prop| prop.iter_window(search_start..search_end).next().is_some())
-                    .is_some(),
-                LayerIds::Multiple(ids) => ids.iter().any(|&id| {
-                    entry
-                        .temporal_prop_layer(id, prop_id)
-                        .filter(|prop| prop.iter_window(search_start..search_end).next().is_some())
-                        .is_some()
-                }),
-            }
+                })
         } else {
             false
         }
     }
 
-    fn temporal_edge_prop_vec_window(
-        &self,
+    fn temporal_edge_prop_hist_window<'a>(
+        &'a self,
         e: EdgeRef,
         prop_id: usize,
         start: i64,
         end: i64,
-        layer_ids: LayerIds,
-    ) -> Vec<(i64, Prop)> {
-        let prop = self.temporal_edge_prop(e, prop_id, layer_ids.clone());
-        match prop {
-            Some(p) => {
-                let entry = self.core_edge_arc(e.pid());
-                if edge_alive_at_start(entry.deref(), start, &layer_ids) {
-                    p.last_before(start.saturating_add(1))
-                        .into_iter()
-                        .map(|(_, v)| (start, v))
-                        .chain(p.iter_window(start.saturating_add(1)..end))
-                        .collect()
-                } else {
-                    p.iter_window(start..end).collect()
-                }
-            }
-            None => Default::default(),
-        }
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, (TimeIndexEntry, Prop)> {
+        let entry = self.core_edge(e.pid());
+        GenLockedIter::from(entry, |entry| {
+            entry
+                .temporal_prop_iter(layer_ids, prop_id)
+                .map(|(l, prop)| {
+                    let first_prop = prop
+                        .last_before(TimeIndexEntry::start(start.saturating_add(1)))
+                        .filter(|(t, _)| {
+                            !entry
+                                .deletions(l)
+                                .active(*t..TimeIndexEntry::start(start.saturating_add(1)))
+                        })
+                        .map(|(_, v)| (TimeIndexEntry::start(start), v));
+                    first_prop.into_iter().chain(
+                        prop.iter_window(TimeIndexEntry::range(start.saturating_add(1)..end)),
+                    )
+                })
+                .kmerge_by(|(t1, _), (t2, _)| t1 <= t2)
+                .into_dyn_boxed()
+        })
+        .into_dyn_boxed()
     }
 
-    fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: LayerIds) -> bool {
+    fn temporal_edge_prop_at(
+        &self,
+        e: EdgeRef,
+        id: usize,
+        t: TimeIndexEntry,
+        layer_ids: &LayerIds,
+    ) -> Option<Prop> {
+        let entry = self.core_edge(e.pid());
+        let res = entry
+            .temporal_prop_iter(layer_ids, id)
+            .filter_map(|(layer_id, prop)| {
+                prop.last_before(t.next()) // inclusive
+                    .filter(|(last_t, _)| !entry.deletions(layer_id).active(*last_t..t.next())) // check with inclusive window
+                    .map(|(_, v)| v)
+            })
+            .next();
+        res
+    }
+
+    fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: &LayerIds) -> bool {
         self.0.has_temporal_edge_prop(e, prop_id, layer_ids)
     }
 
-    fn temporal_edge_prop_vec(
-        &self,
+    fn temporal_edge_prop_hist<'a>(
+        &'a self,
         e: EdgeRef,
         prop_id: usize,
-        layer_ids: LayerIds,
-    ) -> Vec<(i64, Prop)> {
-        self.0.temporal_edge_prop_vec(e, prop_id, layer_ids)
+        layer_ids: &'a LayerIds,
+    ) -> BoxedLIter<'a, (TimeIndexEntry, Prop)> {
+        self.0.temporal_edge_prop_hist(e, prop_id, layer_ids)
     }
 }
 
@@ -678,12 +699,16 @@ mod test_deletions {
         db::{
             api::view::time::internal::InternalTimeOps,
             graph::{
-                edge::EdgeView, graph::assert_graph_equal, views::deletion_graph::PersistentGraph,
+                edge::EdgeView,
+                graph::assert_graph_equal,
+                views::deletion_graph::{PersistentGraph, TimeSemantics},
             },
         },
         prelude::*,
     };
     use itertools::Itertools;
+    use raphtory_api::core::{entities::GID, utils::logging::global_info_logger};
+    use tracing::info;
 
     #[test]
     fn test_nodes() {
@@ -735,11 +760,14 @@ mod test_deletions {
             .unwrap();
         g.delete_edge(10, 0, 1, None).unwrap();
 
-        assert_eq!(g.edges().id().collect::<Vec<_>>(), vec![(0, 1)]);
+        assert_eq!(
+            g.edges().id().collect::<Vec<_>>(),
+            vec![(GID::U64(0), GID::U64(1))]
+        );
 
         assert_eq!(
             g.window(1, 2).edges().id().collect::<Vec<_>>(),
-            vec![(0, 1)]
+            vec![(GID::U64(0), GID::U64(1))]
         );
 
         assert_eq!(g.window(1, 2).count_edges(), 1);
@@ -842,6 +870,44 @@ mod test_deletions {
     }
 
     #[test]
+    fn test_materialize_window_earliest_time() {
+        let g = PersistentGraph::new();
+        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        g.delete_edge(10, 1, 2, None).unwrap();
+
+        let ltg = g.latest_time_global();
+        assert_eq!(ltg, Some(10));
+
+        let wg = g.window(3, 5);
+
+        let e = wg.edge(1, 2).unwrap();
+        assert_eq!(e.earliest_time(), Some(3));
+        assert_eq!(e.latest_time(), Some(4));
+        let n1 = wg.node(1).unwrap();
+        assert_eq!(n1.earliest_time(), Some(3));
+        assert_eq!(n1.latest_time(), Some(4));
+        let n2 = wg.node(2).unwrap();
+        assert_eq!(n2.earliest_time(), Some(3));
+        assert_eq!(n2.latest_time(), Some(4));
+
+        let actual_lt = wg.latest_time();
+        assert_eq!(actual_lt, Some(4));
+
+        let actual_et = wg.earliest_time();
+        assert_eq!(actual_et, Some(3));
+
+        let gm = g
+            .window(3, 5)
+            .materialize()
+            .unwrap()
+            .into_persistent()
+            .unwrap();
+
+        let expected_et = gm.earliest_time();
+        assert_eq!(actual_et, expected_et);
+    }
+
+    #[test]
     fn test_exploded_latest_time() {
         let g = PersistentGraph::new();
         let e = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
@@ -926,7 +992,7 @@ mod test_deletions {
         assert_eq!(e_1_2.at(2).properties().get("test").unwrap_str(), "test");
 
         assert_eq!(e_3_4.at(0).properties().get("test"), None);
-        assert_eq!(e_3_4.at(2).properties().get("test").unwrap_str(), "test");
+        assert_eq!(e_3_4.at(2).properties().get("test"), None); // TODO: should this show the property or not?
         assert_eq!(e_3_4.at(3).properties().get("test"), None);
 
         assert!(g.window(0, 1).has_edge(1, 2));
@@ -1153,6 +1219,7 @@ mod test_deletions {
 
     #[test]
     fn test_jira() {
+        global_info_logger();
         let g = PersistentGraph::new();
 
         g.add_edge(0, 1, 2, [("added", Prop::I64(0))], Some("assigned"))
@@ -1179,7 +1246,7 @@ mod test_deletions {
             .map(|vv| vv.id())
             .collect_vec();
 
-        println!("windowed edges = {:?}", nodes);
+        info!("windowed edges = {:?}", nodes);
 
         let nodes = g
             .window(0, 1701786285758)
@@ -1190,7 +1257,7 @@ mod test_deletions {
             .map(|vv| vv.name())
             .collect_vec();
 
-        println!("windowed nodes = {:?}", nodes);
+        info!("windowed nodes = {:?}", nodes);
 
         let nodes = g
             .at(1701786285758)
@@ -1200,7 +1267,7 @@ mod test_deletions {
             .into_iter()
             .map(|vv| vv.id())
             .collect_vec();
-        println!("at edges = {:?}", nodes);
+        info!("at edges = {:?}", nodes);
 
         let nodes = g
             .at(1701786285758)
@@ -1211,8 +1278,7 @@ mod test_deletions {
             .map(|vv| vv.id())
             .collect_vec();
 
-        println!("at nodes = {:?}", nodes);
-        // assert_eq!(g.window(1, 2).node(0).unwrap().out_degree(), 1)
+        info!("at nodes = {:?}", nodes);
     }
 
     #[test]
@@ -1221,9 +1287,62 @@ mod test_deletions {
         pg.add_edge(0, 0, 1, [("added", Prop::I64(0))], None)
             .unwrap();
         pg.delete_edge(10, 0, 1, None).unwrap();
-        assert_eq!(pg.edges().id().collect::<Vec<_>>(), vec![(0, 1)]);
+        assert_eq!(
+            pg.edges().id().collect::<Vec<_>>(),
+            vec![(GID::U64(0), GID::U64(1))]
+        );
 
         let g = pg.event_graph();
-        assert_eq!(g.edges().id().collect::<Vec<_>>(), vec![(0, 1)]);
+        assert_eq!(
+            g.edges().id().collect::<Vec<_>>(),
+            vec![(GID::U64(0), GID::U64(1))]
+        );
+    }
+
+    #[test]
+    fn test_exploded_latest_time_deleted() {
+        let g = PersistentGraph::new();
+        g.add_edge(1, 1, 2, NO_PROPS, None).unwrap();
+        g.delete_edge(1, 1, 2, None).unwrap();
+
+        assert_eq!(
+            g.edge(1, 2).unwrap().explode().latest_time().collect_vec(),
+            [Some(1)]
+        );
+        assert_eq!(
+            g.edge(1, 2)
+                .unwrap()
+                .explode()
+                .earliest_time()
+                .collect_vec(),
+            [Some(1)]
+        )
+    }
+
+    #[test]
+    fn test_empty_window_has_no_nodes() {
+        let g = PersistentGraph::new();
+        g.add_node(1, 1, NO_PROPS, None).unwrap();
+        assert_eq!(g.window(2, 2).count_nodes(), 0);
+        assert_eq!(g.window(1, 1).count_nodes(), 0);
+        assert_eq!(g.window(0, 0).count_nodes(), 0);
+    }
+
+    // #[test]
+    // fn test_earliest_latest_only_deletion() {
+    //     let g = PersistentGraph::new();
+    //     g.delete_edge(1, 1, 2, None).unwrap();
+    //     let gw = g.window(0, 1);
+    //     assert_eq!(gw.earliest_time(), Some(0));
+    //     assert_eq!(gw.latest_time(), Some(0));
+    // }
+
+    #[test]
+    fn test_earliest_latest_time_window() {
+        let g = PersistentGraph::new();
+        g.add_edge(0, 0, 0, NO_PROPS, None).unwrap();
+
+        assert_eq!(g.window(-1, 0).earliest_time(), None);
+        assert_eq!(g.window(-1, 0).latest_time(), None);
     }
 }

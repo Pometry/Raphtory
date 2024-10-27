@@ -17,7 +17,7 @@ pub enum TCell<A: Clone + Debug + PartialEq> {
 
 const BTREE_CUTOFF: usize = 128;
 
-impl<A: Clone + Debug + PartialEq> TCell<A> {
+impl<A: Clone + Debug + PartialEq + Send + Sync> TCell<A> {
     pub fn new(t: TimeIndexEntry, value: A) -> Self {
         TCell::TCell1(t, value)
     }
@@ -27,7 +27,7 @@ impl<A: Clone + Debug + PartialEq> TCell<A> {
             TCell::Empty => {
                 *self = TCell::TCell1(t, value);
             }
-            TCell::TCell1(t0, value0) => {
+            TCell::TCell1(t0, _) => {
                 if &t != t0 {
                     if let TCell::TCell1(t0, value0) = std::mem::take(self) {
                         let mut svm = SVM::new();
@@ -65,17 +65,16 @@ impl<A: Clone + Debug + PartialEq> TCell<A> {
         }
     }
 
-    #[allow(dead_code)]
-    pub fn iter(&self) -> Box<dyn Iterator<Item = &A> + '_> {
+    pub fn iter(&self) -> Box<dyn Iterator<Item = (&TimeIndexEntry, &A)> + Send + '_> {
         match self {
             TCell::Empty => Box::new(std::iter::empty()),
-            TCell::TCell1(_, value) => Box::new(std::iter::once(value)),
-            TCell::TCellCap(svm) => Box::new(svm.iter().map(|(_, value)| value)),
-            TCell::TCellN(btm) => Box::new(btm.values()),
+            TCell::TCell1(t, value) => Box::new(std::iter::once((t, value))),
+            TCell::TCellCap(svm) => Box::new(svm.iter()),
+            TCell::TCellN(btm) => Box::new(btm.iter()),
         }
     }
 
-    pub fn iter_t(&self) -> Box<dyn Iterator<Item = (i64, &A)> + '_> {
+    pub fn iter_t(&self) -> Box<dyn Iterator<Item = (i64, &A)> + Send + '_> {
         match self {
             TCell::Empty => Box::new(std::iter::empty()),
             TCell::TCell1(t, value) => Box::new(std::iter::once((t.t(), value))),
@@ -87,7 +86,7 @@ impl<A: Clone + Debug + PartialEq> TCell<A> {
     pub fn iter_window(
         &self,
         r: Range<TimeIndexEntry>,
-    ) -> Box<dyn Iterator<Item = (&TimeIndexEntry, &A)> + '_> {
+    ) -> Box<dyn Iterator<Item = (&TimeIndexEntry, &A)> + Send + '_> {
         match self {
             TCell::Empty => Box::new(std::iter::empty()),
             TCell::TCell1(t, value) => {
@@ -102,7 +101,7 @@ impl<A: Clone + Debug + PartialEq> TCell<A> {
         }
     }
 
-    pub fn iter_window_t(&self, r: Range<i64>) -> Box<dyn Iterator<Item = (i64, &A)> + '_> {
+    pub fn iter_window_t(&self, r: Range<i64>) -> Box<dyn Iterator<Item = (i64, &A)> + Send + '_> {
         match self {
             TCell::Empty => Box::new(std::iter::empty()),
             TCell::TCell1(t, value) => {
@@ -123,36 +122,49 @@ impl<A: Clone + Debug + PartialEq> TCell<A> {
         }
     }
 
-    pub fn last_before(&self, t: i64) -> Option<(i64, &A)> {
+    pub fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, &A)> {
         match self {
             TCell::Empty => None,
-            TCell::TCell1(t2, v) => (t2.t() < t).then_some((t2.t(), v)),
+            TCell::TCell1(t2, v) => (*t2 < t).then_some((*t2, v)),
             TCell::TCellCap(map) => map
-                .range(TimeIndexEntry::range(i64::MIN..t))
+                .range(TimeIndexEntry::MIN..t)
                 .last()
-                .map(|(ti, v)| (ti.t(), v)),
+                .map(|(ti, v)| (*ti, v)),
             TCell::TCellN(map) => map
-                .range(TimeIndexEntry::range(i64::MIN..t))
+                .range(TimeIndexEntry::MIN..t)
                 .last()
-                .map(|(ti, v)| (ti.t(), v)),
+                .map(|(ti, v)| (*ti, v)),
         }
+    }
+
+    pub fn len(&self) -> usize {
+        match self {
+            TCell::Empty => 0,
+            TCell::TCell1(_, _) => 1,
+            TCell::TCellCap(v) => v.len(),
+            TCell::TCellN(v) => v.len(),
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 }
 
 #[cfg(test)]
 mod tcell_tests {
     use super::TCell;
-    use crate::{
-        core::storage::timeindex::{AsTime, TimeIndexEntry},
-        db::api::view::TimeIndex,
-    };
+    use crate::core::storage::timeindex::{AsTime, TimeIndexEntry};
 
     #[test]
     fn set_new_value_for_tcell_initialized_as_empty() {
         let mut tcell = TCell::default();
         tcell.set(TimeIndexEntry::start(16), String::from("lobster"));
 
-        assert_eq!(tcell.iter().collect::<Vec<_>>(), vec!["lobster"]);
+        assert_eq!(
+            tcell.iter().map(|(_, v)| v).collect::<Vec<_>>(),
+            vec!["lobster"]
+        );
     }
 
     #[test]
@@ -179,14 +191,17 @@ mod tcell_tests {
         let tcell: TCell<String> = TCell::default();
 
         let actual = tcell.iter().collect::<Vec<_>>();
-        let expected: Vec<&String> = vec![];
+        let expected = vec![];
         assert_eq!(actual, expected);
 
         assert_eq!(tcell.iter_t().collect::<Vec<_>>(), vec![]);
 
         let tcell = TCell::new(TimeIndexEntry::start(3), "Pometry");
 
-        assert_eq!(tcell.iter().collect::<Vec<_>>(), vec![&"Pometry"]);
+        assert_eq!(
+            tcell.iter().collect::<Vec<_>>(),
+            vec![(&TimeIndexEntry::start(3), &"Pometry")]
+        );
 
         assert_eq!(tcell.iter_t().collect::<Vec<_>>(), vec![(3, &"Pometry")]);
 
@@ -202,7 +217,10 @@ mod tcell_tests {
         assert_eq!(
             // Results are ordered by time
             tcell.iter().collect::<Vec<_>>(),
-            vec![&"Inc. Pometry", &"Pometry"]
+            vec![
+                (&TimeIndexEntry::start(1), &"Inc. Pometry"),
+                (&TimeIndexEntry::start(2), &"Pometry")
+            ]
         );
 
         let mut tcell: TCell<i64> = TCell::default();

@@ -1,15 +1,14 @@
-use crate::model::{
-    filters::edge_filter::EdgeFilter,
-    graph::{edge::Edge, get_expanded_edges, property::GqlProperties},
+use crate::model::graph::{
+    edges::GqlEdges, path_from_node::GqlPathFromNode, property::GqlProperties,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
-use itertools::Itertools;
-use raphtory::db::{
-    api::{properties::dyn_props::DynProperties, view::*},
-    graph::node::NodeView,
+use raphtory::{
+    algorithms::components::{in_component, out_component},
+    db::{
+        api::{properties::dyn_props::DynProperties, view::*},
+        graph::node::NodeView,
+    },
 };
-use std::collections::HashSet;
-
 #[derive(ResolvedObject)]
 pub(crate) struct Node {
     pub(crate) vv: NodeView<DynamicGraph>,
@@ -42,6 +41,7 @@ impl Node {
     ////////////////////////
     // LAYERS AND WINDOWS //
     ////////////////////////
+
     async fn layers(&self, names: Vec<String>) -> Node {
         self.vv.valid_layers(names).into()
     }
@@ -64,6 +64,18 @@ impl Node {
 
     async fn at(&self, time: i64) -> Node {
         self.vv.at(time).into()
+    }
+
+    async fn latest(&self) -> Node {
+        self.vv.latest().into()
+    }
+
+    async fn snapshot_at(&self, time: i64) -> Node {
+        self.vv.snapshot_at(time).into()
+    }
+
+    async fn snapshot_latest(&self) -> Node {
+        self.vv.snapshot_latest().into()
     }
 
     async fn before(&self, time: i64) -> Node {
@@ -89,6 +101,7 @@ impl Node {
     ////////////////////////
     //// TIME QUERIES //////
     ////////////////////////
+
     async fn earliest_time(&self) -> Option<i64> {
         self.vv.earliest_time()
     }
@@ -117,9 +130,14 @@ impl Node {
         self.vv.history()
     }
 
+    async fn is_active(&self) -> bool {
+        self.vv.is_active()
+    }
+
     ////////////////////////
     /////// PROPERTIES /////
     ////////////////////////
+
     pub async fn node_type(&self) -> Option<String> {
         match self.vv.node_type() {
             None => None,
@@ -135,102 +153,58 @@ impl Node {
     //// EDGE GETTERS //////
     ////////////////////////
     /// Returns the number of edges connected to this node
+
     async fn degree(&self) -> usize {
         self.vv.degree()
     }
 
     /// Returns the number edges with this node as the source
+
     async fn out_degree(&self) -> usize {
         self.vv.out_degree()
     }
 
     /// Returns the number edges with this node as the destination
+
     async fn in_degree(&self) -> usize {
         self.vv.in_degree()
     }
 
-    async fn edges(&self, filter: Option<EdgeFilter>) -> Vec<Edge> {
-        match filter {
-            Some(filter) => self
-                .vv
-                .edges()
-                .iter()
-                .map(|ev| ev.into())
-                .filter(|ev| filter.matches(ev))
-                .collect(),
-            None => self.vv.edges().iter().map(|ee| ee.into()).collect(),
-        }
-    }
-
-    async fn out_edges(&self, filter: Option<EdgeFilter>) -> Vec<Edge> {
-        match filter {
-            Some(filter) => self
-                .vv
-                .out_edges()
-                .iter()
-                .map(|ev| ev.into())
-                .filter(|ev| filter.matches(ev))
-                .collect(),
-            None => self.vv.out_edges().iter().map(|ee| ee.into()).collect(),
-        }
-    }
-
-    async fn in_edges(&self, filter: Option<EdgeFilter>) -> Vec<Edge> {
-        match filter {
-            Some(filter) => self
-                .vv
-                .in_edges()
-                .iter()
-                .map(|ev| ev.into())
-                .filter(|ev| filter.matches(ev))
-                .collect(),
-            None => self.vv.in_edges().iter().map(|ee| ee.into()).collect(),
-        }
-    }
-
-    async fn neighbours<'a>(&self) -> Vec<Node> {
-        self.vv.neighbours().iter().map(|vv| vv.into()).collect()
-    }
-
-    async fn in_neighbours<'a>(&self) -> Vec<Node> {
-        self.vv.in_neighbours().iter().map(|vv| vv.into()).collect()
-    }
-
-    async fn out_neighbours(&self) -> Vec<Node> {
-        self.vv
-            .out_neighbours()
+    async fn in_component(&self) -> Vec<Node> {
+        in_component(self.vv.clone())
             .iter()
-            .map(|vv| vv.into())
+            .map(|n| n.clone().into())
             .collect()
     }
 
-    ////////////////////////
-    // GRAPHQL SPECIFIC ////
-    ////////////////////////
-    async fn expanded_edges(
-        &self,
-        graph_nodes: Vec<String>,
-        filter: Option<EdgeFilter>,
-    ) -> Vec<Edge> {
-        let all_graph_nodes: HashSet<String> = graph_nodes.into_iter().collect();
+    async fn out_component(&self) -> Vec<Node> {
+        out_component(self.vv.clone())
+            .iter()
+            .map(|n| n.clone().into())
+            .collect()
+    }
 
-        match filter {
-            Some(edge_filter) => {
-                let maybe_layers = edge_filter.clone().layer_names.map(|l| l.contains);
-                let fetched_edges =
-                    get_expanded_edges(all_graph_nodes, self.vv.clone(), maybe_layers)
-                        .iter()
-                        .map(|ee| ee.clone().into())
-                        .collect_vec();
-                fetched_edges
-                    .into_iter()
-                    .filter(|ev| edge_filter.matches(ev))
-                    .collect()
-            }
-            None => get_expanded_edges(all_graph_nodes, self.vv.clone(), None)
-                .iter()
-                .map(|ee| ee.clone().into())
-                .collect_vec(),
-        }
+    async fn edges(&self) -> GqlEdges {
+        GqlEdges::new(self.vv.edges())
+    }
+
+    async fn out_edges(&self) -> GqlEdges {
+        GqlEdges::new(self.vv.out_edges())
+    }
+
+    async fn in_edges(&self) -> GqlEdges {
+        GqlEdges::new(self.vv.in_edges())
+    }
+
+    async fn neighbours<'a>(&self) -> GqlPathFromNode {
+        GqlPathFromNode::new(self.vv.neighbours())
+    }
+
+    async fn in_neighbours<'a>(&self) -> GqlPathFromNode {
+        GqlPathFromNode::new(self.vv.in_neighbours())
+    }
+
+    async fn out_neighbours(&self) -> GqlPathFromNode {
+        GqlPathFromNode::new(self.vv.out_neighbours())
     }
 }

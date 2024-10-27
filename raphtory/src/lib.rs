@@ -82,11 +82,21 @@
 //! raphtory is created by [Pometry](https://pometry.com).
 //! We are always looking for contributors to help us improve the library.
 //! If you are interested in contributing, please see
-//! our [Github repository](https://github.com/Raphtory/raphtory)
+//! our [GitHub repository](https://github.com/Raphtory/raphtory)
 pub mod algorithms;
 pub mod core;
 pub mod db;
 pub mod graphgen;
+
+#[cfg(target_os = "macos")]
+use snmalloc_rs;
+
+#[cfg(target_os = "macos")]
+#[global_allocator]
+static ALLOC: snmalloc_rs::SnMalloc = snmalloc_rs::SnMalloc;
+
+#[cfg(feature = "storage")]
+pub mod disk_graph;
 
 #[cfg(all(feature = "python", not(doctest)))]
 // no doctests in python as the docstrings are python not rust format
@@ -101,6 +111,12 @@ pub mod search;
 #[cfg(feature = "vectors")]
 pub mod vectors;
 
+#[cfg(feature = "io")]
+pub mod io;
+
+#[cfg(feature = "proto")]
+pub mod serialise;
+
 pub mod prelude {
     pub const NO_PROPS: [(&str, Prop); 0] = [];
     pub use crate::{
@@ -108,14 +124,97 @@ pub mod prelude {
         db::{
             api::{
                 mutation::{AdditionOps, DeletionOps, ImportOps, PropertyAdditionOps},
+                state::{AsOrderedNodeStateOps, NodeStateOps, OrderedNodeStateOps},
                 view::{
-                    EdgeViewOps, GraphViewOps, Layer, LayerOps, NodeTypesFilter, NodeViewOps,
-                    TimeOps,
+                    EdgePropertyFilterOps, EdgeViewOps, ExplodedEdgePropertyFilterOps,
+                    GraphViewOps, Layer, LayerOps, NodeViewOps, ResetFilter, TimeOps,
                 },
             },
-            graph::graph::Graph,
+            graph::{graph::Graph, views::property_filter::PropertyFilter},
         },
     };
+    pub use raphtory_api::core::{entities::GID, input::input_node::InputNode};
+
+    #[cfg(feature = "proto")]
+    pub use crate::serialise::{CacheOps, StableDecode, StableEncode};
 }
 
-pub const BINCODE_VERSION: u32 = 1u32;
+#[cfg(feature = "storage")]
+pub use polars_arrow as arrow2;
+
+pub use raphtory_api::core::utils::logging;
+
+#[cfg(test)]
+mod test_utils {
+    use crate::prelude::*;
+    use proptest::{arbitrary::any, prelude::Strategy};
+    #[cfg(feature = "storage")]
+    use tempfile::TempDir;
+
+    pub(crate) fn test_graph(graph: &Graph, test: impl FnOnce(&Graph)) {
+        test(graph)
+    }
+
+    #[macro_export]
+    macro_rules! test_storage {
+        ($graph:expr, $test:expr) => {
+            $crate::test_utils::test_graph($graph, $test);
+            #[cfg(feature = "storage")]
+            $crate::test_utils::test_disk_graph($graph, $test);
+        };
+    }
+    #[cfg(feature = "storage")]
+    pub(crate) fn test_disk_graph(graph: &Graph, test: impl FnOnce(&Graph)) {
+        let test_dir = TempDir::new().unwrap();
+        let disk_graph = graph
+            .persist_as_disk_graph(test_dir.path())
+            .unwrap()
+            .into_graph();
+        test(&disk_graph)
+    }
+
+    pub(crate) fn build_edge_list(
+        len: usize,
+        num_nodes: u64,
+    ) -> impl Strategy<Value = Vec<(u64, u64, i64, String, i64)>> {
+        proptest::collection::vec(
+            (
+                0..num_nodes,
+                0..num_nodes,
+                i64::MIN..i64::MAX,
+                any::<String>(),
+                any::<i64>(),
+            ),
+            0..=len,
+        )
+    }
+
+    pub(crate) fn build_edge_deletions(
+        len: usize,
+        num_nodes: u64,
+    ) -> impl Strategy<Value = Vec<(u64, u64, i64)>> {
+        proptest::collection::vec((0..num_nodes, 0..num_nodes, i64::MIN..i64::MAX), 0..=len)
+    }
+
+    pub(crate) fn build_window() -> impl Strategy<Value = (i64, i64)> {
+        (i64::MIN..i64::MAX, i64::MIN..i64::MAX)
+    }
+
+    pub(crate) fn build_graph_from_edge_list(edge_list: &[(u64, u64, i64, String, i64)]) -> Graph {
+        let g = Graph::new();
+        for (src, dst, time, str_prop, int_prop) in edge_list {
+            g.add_edge(
+                *time,
+                src,
+                dst,
+                [
+                    ("str_prop", str_prop.into_prop()),
+                    ("int_prop", int_prop.into_prop()),
+                ],
+                None,
+            )
+            .unwrap();
+        }
+        g
+    }
+}

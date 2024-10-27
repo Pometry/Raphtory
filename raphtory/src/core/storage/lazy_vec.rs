@@ -31,13 +31,13 @@ pub(crate) enum LazyVec<A> {
 
 impl<A> LazyVec<A>
 where
-    A: PartialEq + Default + Clone + Debug,
+    A: PartialEq + Default + Clone + Debug + Send + Sync,
 {
     pub(crate) fn from(id: usize, value: A) -> Self {
         LazyVec::LazyVec1(id, value)
     }
 
-    pub(crate) fn filled_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
+    pub(crate) fn filled_ids(&self) -> Box<dyn Iterator<Item = usize> + Send + '_> {
         match self {
             LazyVec::Empty => Box::new(iter::empty()),
             LazyVec::LazyVec1(id, _) => Box::new(iter::once(*id)),
@@ -47,6 +47,21 @@ where
                     .enumerate()
                     .filter(|&(_, value)| *value != Default::default())
                     .map(|(id, _)| id),
+            ),
+        }
+    }
+
+    #[allow(unused)]
+    pub(crate) fn filled_values(&self) -> Box<dyn Iterator<Item = &A> + '_> {
+        match self {
+            LazyVec::Empty => Box::new(iter::empty()),
+            LazyVec::LazyVec1(_, value) => Box::new(iter::once(value)),
+            LazyVec::LazyVecN(vector) => Box::new(
+                vector
+                    .iter()
+                    .enumerate()
+                    .filter(|&(_, value)| *value != Default::default())
+                    .map(|(_, value)| value),
             ),
         }
     }
@@ -112,8 +127,7 @@ where
             None => {
                 let mut value = A::default();
                 updater(&mut value)?;
-                self.set(id, value)
-                    .expect("Set failed over a non existing value")
+                self.set(id, value)?;
             }
         };
         Ok(())
@@ -137,15 +151,24 @@ mod lazy_vec_tests {
         assert_eq!(vec.get(0), Some(&0));
         assert_eq!(vec.get(10), None);
 
-        vec.update(5, |mut n| {
+        vec.update(5, |n| {
             *n = 100;
             Ok(())
-        });
+        })
+        .unwrap();
         assert_eq!(vec.get(5), Some(&100));
 
-        vec.update(6, |n| Ok(*n += 1));
+        vec.update(6, |n| {
+            *n += 1;
+            Ok(())
+        })
+        .unwrap();
         assert_eq!(vec.get(6), Some(&1));
-        vec.update(9, |n| Ok(*n += 1));
+        vec.update(9, |n| {
+            *n += 1;
+            Ok(())
+        })
+        .unwrap();
         assert_eq!(vec.get(9), Some(&1));
 
         assert_eq!(vec.filled_ids().collect_vec(), vec![1, 5, 6, 8, 9]);
