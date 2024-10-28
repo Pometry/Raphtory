@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use once_cell::sync::OnceCell;
+use tracing::info;
 #[cfg(feature = "storage")]
 use raphtory::disk_graph::DiskGraphStorage;
 use raphtory::{
@@ -117,7 +118,7 @@ impl GraphWithVectors {
             cache,
         );
 
-        println!("Graph loaded = {}", folder.get_original_path_str());
+        info!("Graph loaded from path: {}", folder.get_original_path_str());
         Ok(Self {
             graph: IndexedGraph::from_graph(&graph)?,
             vectors,
@@ -131,7 +132,7 @@ fn get_disk_graph_from_path(path: &ExistingGraphFolder) -> Result<MaterializedGr
     let disk_graph = DiskGraphStorage::load_from_dir(&path.get_graph_path())
         .map_err(|e| GraphError::LoadFailure(e.to_string()))?;
     let graph: MaterializedGraph = disk_graph.into_graph().into(); // TODO: We currently have no way to identify disk graphs as MaterializedGraphs
-    println!("Disk Graph loaded = {}", path.get_original_path().display());
+    info!("Disk Graph loaded from path: {}", path.get_original_path().display());
     Ok(graph)
 }
 

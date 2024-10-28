@@ -20,7 +20,7 @@ use std::{
     path::{Path, PathBuf, StripPrefixError},
     sync::Arc,
 };
-use tracing::{error, warn};
+use tracing::{error, info, warn};
 use walkdir::WalkDir;
 
 #[derive(Clone)]
@@ -66,7 +66,10 @@ impl Data {
     ) -> Result<(GraphWithVectors, ExistingGraphFolder), Arc<GraphError>> {
         let graph_folder = ExistingGraphFolder::try_from(self.work_dir.clone(), path)?;
         self.cache
-            .try_get_with(path.into(), || self.read_graph_from_folder(&graph_folder))
+            .try_get_with(path.into(), || {
+                info!("Graph not found in cache, loading from disk at path: {}", path);
+                self.read_graph_from_folder(&graph_folder)
+            })
             .map(|graph| (graph, graph_folder))
     }
 
