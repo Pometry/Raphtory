@@ -1,6 +1,5 @@
 use std::ops::Range;
 
-use raphtory_api::core::entities::EID;
 use rayon::prelude::*;
 
 use super::edge_storage_ops::MemEdge;

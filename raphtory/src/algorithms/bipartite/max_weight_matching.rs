@@ -23,7 +23,7 @@ use std::{cmp::max, mem};
 
 use crate::prelude::{EdgeViewOps, Prop, PropUnwrap};
 use hashbrown::{HashMap, HashSet};
-use num_traits::ToPrimitive;
+use raphtory_api::core::entities::GID;
 
 /// Return 2 * slack of edge k (does not work inside blossoms).
 fn slack(edge_index: usize, dual_var: &[i64], edges: &[(usize, usize, i64)]) -> i64 {
@@ -826,6 +826,7 @@ fn verify_optimum(
 /// use raphtory::core::entities::properties::props::Props;
 /// use raphtory::prelude::{AdditionOps, Prop};
 /// use raphtory::algorithms::bipartite::max_weight_matching::max_weight_matching;
+/// use raphtory_api::core::entities::GID;
 ///
 /// // Create a path graph
 /// let g = raphtory::prelude::Graph::new();
@@ -850,26 +851,26 @@ fn verify_optimum(
 /// let maxc_matching = maxc_res;
 /// // Check output
 /// assert_eq!(matching.len(), 1);
-/// assert!(matching.contains(&(2, 3)) || matching.contains(&(3, 2)));
+/// assert!(matching.contains(&(GID::U64(2), GID::U64(3))) || matching.contains(&(GID::U64(3), GID::U64(2))));
 /// assert_eq!(maxc_matching.len(), 2);
-/// assert!(maxc_matching.contains(&(1, 2)) || maxc_matching.contains(&(2, 1)));
-/// assert!(maxc_matching.contains(&(3, 4)) || maxc_matching.contains(&(4, 3)));
+/// assert!(maxc_matching.contains(&(GID::U64(1), GID::U64(2))) || maxc_matching.contains(&(GID::U64(2), GID::U64(1))));
+/// assert!(maxc_matching.contains(&(GID::U64(3), GID::U64(4))) || maxc_matching.contains(&(GID::U64(4), GID::U64(3))));
 /// ```
 pub fn max_weight_matching<'graph, G: GraphViewOps<'graph>>(
     g: &'graph G,
     weight_prop: Option<String>,
     max_cardinality: bool,
     verify_optimum_flag: bool,
-) -> HashSet<(usize, usize)> {
+) -> HashSet<(GID, GID)> {
     let num_edges = g.count_edges();
     let num_nodes = g.count_nodes();
-    let mut out_set: HashSet<(usize, usize)> = HashSet::with_capacity(num_nodes);
+    let mut out_set: HashSet<(GID, GID)> = HashSet::with_capacity(num_nodes);
     // Exit fast for graph without edges
     if num_edges == 0 {
         return HashSet::new();
     }
 
-    let node_map: HashMap<u64, usize> = g
+    let node_map: HashMap<GID, usize> = g
         .nodes()
         .id()
         .into_iter()
@@ -1359,30 +1360,22 @@ pub fn max_weight_matching<'graph, G: GraphViewOps<'graph>>(
         );
     }
 
-    // Transform mate[] such that mate[v] is the vertex to which v is paired
+    // Transform mate[] such that mate[v]x is the vertex to which v is paired
     // Also handle holes in node indices from PyGraph node removals by mapping
     // linear index to node index.
-    let mut seen: HashSet<(usize, usize)> = HashSet::with_capacity(2 * num_nodes);
-    let node_list: Vec<u64> = g.nodes().id().collect();
+    let mut seen: HashSet<(GID, GID)> = HashSet::with_capacity(2 * num_nodes);
+    let node_list: Vec<GID> = g.nodes().id().collect();
     for (index, node) in mate.iter() {
         let tmp = (
-            g.node(node_list[*index]).unwrap().id().to_usize().unwrap(),
-            g.node(node_list[endpoints[*node]])
-                .unwrap()
-                .id()
-                .to_usize()
-                .unwrap(),
+            g.node(node_list[index]).unwrap().id(),
+            g.node(node_list[endpoints[node]]).unwrap().id(),
         );
         let rev_tmp = (
-            g.node(node_list[endpoints[*node]])
-                .unwrap()
-                .id()
-                .to_usize()
-                .unwrap(),
-            g.node(node_list[*index]).unwrap().id().to_usize().unwrap(),
+            g.node(node_list[endpoints[node]]).unwrap().id(),
+            g.node(node_list[index]).unwrap().id(),
         );
         if !seen.contains(&tmp) && !seen.contains(&rev_tmp) {
-            out_set.insert(tmp);
+            out_set.insert(tmp.clone());
             seen.insert(tmp);
             seen.insert(rev_tmp);
         }

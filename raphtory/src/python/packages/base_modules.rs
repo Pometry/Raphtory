@@ -100,6 +100,7 @@ pub fn base_algorithm_module(py: Python<'_>) -> Result<&PyModule, PyErr> {
         louvain,
         fruchterman_reingold,
         cohesive_fruchterman_reingold,
+        max_weight_matching,
     );
 
     #[cfg(feature = "storage")]

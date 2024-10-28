@@ -53,7 +53,6 @@ use crate::{
     },
     core::{entities::nodes::node_ref::NodeRef, Prop},
     db::{api::view::internal::DynamicGraph, graph::node::NodeView},
-    prelude::GraphViewOps,
     python::{
         graph::{node::PyNode, views::graph_view::PyGraphView},
         utils::PyTime,
