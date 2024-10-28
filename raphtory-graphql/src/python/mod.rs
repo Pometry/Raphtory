@@ -1,17 +1,18 @@
 use crate::url_encode::{url_decode_graph, url_encode_graph, UrlDecodeError};
 use async_graphql::{dynamic::ValueAccessor, Value as GraphqlValue};
+use base64::prelude::BASE64_URL_SAFE;
 use pyo3::{
     exceptions::{PyTypeError, PyValueError},
     pyfunction,
     types::PyDict,
     IntoPy, PyErr, PyObject, PyResult, Python, ToPyObject,
 };
-use raphtory::{db::api::view::MaterializedGraph, python::utils::errors::adapt_err_value};
+use raphtory::{
+    core::utils::errors::GraphError, db::api::view::MaterializedGraph, prelude::StableEncode,
+    python::utils::errors::adapt_err_value,
+};
 use serde_json::{Map, Number, Value as JsonValue};
 use std::collections::HashMap;
-use base64::prelude::BASE64_URL_SAFE;
-use raphtory::core::utils::errors::GraphError;
-use raphtory::prelude::StableEncode;
 
 pub mod client;
 pub mod global_plugins;

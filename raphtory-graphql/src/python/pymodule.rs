@@ -3,7 +3,7 @@ use crate::python::{
         raphtory_client::PyRaphtoryClient, remote_edge::PyRemoteEdge, remote_graph::PyRemoteGraph,
         remote_node::PyRemoteNode, PyEdgeAddition, PyNodeAddition, PyUpdate,
     },
-    encode_graph, decode_graph,
+    decode_graph, encode_graph,
     global_plugins::PyGlobalPlugins,
     server::{running_server::PyRunningGraphServer, server::PyGraphServer},
 };

@@ -9,12 +9,14 @@ use async_graphql::{
 };
 use futures_util::{stream::BoxStream, TryFutureExt};
 use opentelemetry::{
-    trace::{FutureExt, SpanKind, TraceContextExt, Tracer, Span},
-    Context as OpenTelemetryContext, Key,
+    trace::{FutureExt, Span, SpanKind, TraceContextExt, Tracer},
+    Context as OpenTelemetryContext, Key, KeyValue,
 };
-use std::sync::{Arc, Mutex};
-use std::collections::HashMap;
-use std::time::{Duration, Instant};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+    time::{Duration, Instant},
+};
 
 const KEY_SOURCE: Key = Key::from_static_str("graphql.source");
 const KEY_VARIABLES: Key = Key::from_static_str("graphql.variables");
@@ -32,7 +34,43 @@ pub struct OpenTelemetry<T> {
 
 struct FieldTypeSpan {
     cumulative_duration: Duration,
+    durations: Vec<Duration>,
     instances_count: usize,
+}
+
+impl FieldTypeSpan {
+    fn record_duration(&mut self, duration: Duration) {
+        self.durations.push(duration);
+        self.cumulative_duration += duration;
+        self.instances_count += 1;
+    }
+
+    fn avg_duration(&self) -> Duration {
+        self.cumulative_duration / self.instances_count as u32
+    }
+
+    fn min_duration(&self) -> Duration {
+        *self.durations.iter().min().unwrap_or(&Duration::ZERO)
+    }
+
+    fn max_duration(&self) -> Duration {
+        *self.durations.iter().max().unwrap_or(&Duration::ZERO)
+    }
+
+    fn percentile_duration(&self, percentile: f64) -> Duration {
+        if self.durations.is_empty() {
+            return Duration::ZERO;
+        }
+
+        let mut sorted_durations = self.durations.clone();
+        sorted_durations.sort();
+
+        let index = ((percentile / 100.0) * sorted_durations.len() as f64).ceil() as usize - 1;
+        sorted_durations
+            .get(index)
+            .cloned()
+            .unwrap_or(Duration::ZERO)
+    }
 }
 
 impl<T> OpenTelemetry<T> {
@@ -189,12 +227,15 @@ where
         let duration = start_time.elapsed();
 
         let mut aggregate_spans = self.aggregate_spans.lock().unwrap();
-        let entry = aggregate_spans.entry(field_type).or_insert_with(|| FieldTypeSpan {
-            cumulative_duration: Duration::ZERO,
-            instances_count: 0,
-        });
-        entry.cumulative_duration += duration;
-        entry.instances_count += 1;
+        let entry = aggregate_spans
+            .entry(field_type)
+            .or_insert_with(|| FieldTypeSpan {
+                cumulative_duration: Duration::ZERO,
+                durations: vec![],
+                instances_count: 0,
+            });
+
+        entry.record_duration(duration);
 
         result
     }
@@ -204,25 +245,36 @@ impl<T: Tracer + Send + Sync + 'static> OpenTelemetryExtension<T> {
     pub fn log_aggregated_spans(&self, span: &mut impl Span) {
         let spans = self.aggregate_spans.lock().unwrap();
         for (field_type, field_span) in spans.iter() {
-            let avg_duration = field_span.cumulative_duration / field_span.instances_count as u32;
+            let avg_duration = field_span.avg_duration();
+            let min_duration = field_span.min_duration();
+            let max_duration = field_span.max_duration();
+            let p90_duration = field_span.percentile_duration(90.0);
+            let p95_duration = field_span.percentile_duration(95.0);
 
-            let avg_duration_us = avg_duration.as_micros();
-            let avg_duration_ms = avg_duration.as_millis();
-            let avg_duration_s = avg_duration.as_secs();
+            let mut attributes =
+                vec![Key::new("instances_count").i64(field_span.instances_count as i64)];
 
-            let mut attributes = vec![
-                Key::new("instances_count").i64(field_span.instances_count as i64),
-            ];
+            // Helper function to add duration in appropriate units
+            let add_duration_attribute =
+                |key: Key, duration: Duration, attributes: &mut Vec<KeyValue>| {
+                    if duration.as_secs() > 0 {
+                        attributes.push(key.i64(duration.as_secs() as i64));
+                    } else if duration.as_millis() > 0 {
+                        attributes.push(key.i64(duration.as_millis() as i64));
+                    } else {
+                        attributes.push(key.i64(duration.as_micros() as i64));
+                    }
+                };
 
-            if avg_duration_s > 0 {
-                attributes.push(Key::new("avg_duration_s").i64(avg_duration_s as i64));
-            } else if avg_duration_ms > 0 {
-                attributes.push(Key::new("avg_duration_ms").i64(avg_duration_ms as i64));
-            } else {
-                attributes.push(Key::new("avg_duration_μs").i64(avg_duration_us as i64));
-            }
+            // Add each duration metric in appropriate units
+            add_duration_attribute(Key::new("avg_duration"), avg_duration, &mut attributes);
+            add_duration_attribute(Key::new("min_duration"), min_duration, &mut attributes);
+            add_duration_attribute(Key::new("max_duration"), max_duration, &mut attributes);
+            add_duration_attribute(Key::new("p90_duration"), p90_duration, &mut attributes);
+            add_duration_attribute(Key::new("p95_duration"), p95_duration, &mut attributes);
 
-            span.add_event(format!("Average duration for {}", field_type), attributes);
+            // Log attributes as a single event
+            span.add_event(format!("{}", field_type), attributes);
         }
     }
 }

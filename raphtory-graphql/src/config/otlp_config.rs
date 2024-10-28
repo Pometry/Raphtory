@@ -2,12 +2,11 @@ use opentelemetry::KeyValue;
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::{
     trace,
-    trace::{Sampler, TracerProvider},
+    trace::{BatchConfigBuilder, Sampler, TracerProvider},
     Resource,
 };
 use serde::Deserialize;
 use std::time::Duration;
-use opentelemetry_sdk::trace::BatchConfigBuilder;
 use tracing::{error, info};
 
 #[derive(Clone, Deserialize, Debug, PartialEq)]
