@@ -9,10 +9,12 @@ use async_graphql::{
 };
 use futures_util::{stream::BoxStream, TryFutureExt};
 use opentelemetry::{
-    trace::{FutureExt, SpanKind, TraceContextExt, Tracer},
+    trace::{FutureExt, SpanKind, TraceContextExt, Tracer, Span},
     Context as OpenTelemetryContext, Key,
 };
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use std::collections::HashMap;
+use std::time::{Duration, Instant};
 
 const KEY_SOURCE: Key = Key::from_static_str("graphql.source");
 const KEY_VARIABLES: Key = Key::from_static_str("graphql.variables");
@@ -26,6 +28,11 @@ const KEY_DEPTH: Key = Key::from_static_str("graphql.depth");
 #[cfg_attr(docsrs, doc(cfg(feature = "opentelemetry")))]
 pub struct OpenTelemetry<T> {
     tracer: Arc<T>,
+}
+
+struct FieldTypeSpan {
+    cumulative_duration: Duration,
+    instances_count: usize,
 }
 
 impl<T> OpenTelemetry<T> {
@@ -49,12 +56,14 @@ where
     fn create(&self) -> Arc<dyn Extension> {
         Arc::new(OpenTelemetryExtension {
             tracer: self.tracer.clone(),
+            aggregate_spans: Arc::new(Mutex::new(HashMap::new())), // Initialize aggregate spans
         })
     }
 }
 
 struct OpenTelemetryExtension<T> {
     tracer: Arc<T>,
+    aggregate_spans: Arc<Mutex<HashMap<String, FieldTypeSpan>>>,
 }
 
 #[async_trait::async_trait]
@@ -150,14 +159,21 @@ where
         operation_name: Option<&str>,
         next: NextExecute<'_>,
     ) -> Response {
-        let span = self
+        // Start a span for the entire execution process
+        let mut span = self
             .tracer
             .span_builder("execute")
             .with_kind(SpanKind::Server)
             .start(&*self.tracer);
-        next.run(ctx, operation_name)
-            .with_context(OpenTelemetryContext::current_with_span(span))
-            .await
+
+        // Run the execution (resolvers will be called within this)
+        let result = next.run(ctx, operation_name).await;
+
+        self.log_aggregated_spans(&mut span);
+
+        span.end();
+
+        result
     }
 
     async fn resolve(
@@ -166,38 +182,47 @@ where
         info: ResolveInfo<'_>,
         next: NextResolve<'_>,
     ) -> ServerResult<Option<Value>> {
-        let span = if !info.is_for_introspection {
-            let attributes = vec![
-                KEY_PARENT_TYPE.string(info.parent_type.to_string()),
-                KEY_RETURN_TYPE.string(info.return_type.to_string()),
-            ];
-            match info.path_node.segment {
-                QueryPathSegment::Index(_) => None,
-                QueryPathSegment::Name(name) => Some(
-                    self.tracer
-                        .span_builder(name.to_string())
-                        .with_kind(SpanKind::Server)
-                        .with_attributes(attributes)
-                        .start(&*self.tracer),
-                ),
-            }
-        } else {
-            None
-        };
+        let field_type = info.return_type.to_string();
 
-        let fut = next.run(ctx, info).inspect_err(|err| {
-            let current_cx = OpenTelemetryContext::current();
-            current_cx
-                .span()
-                .add_event("error".to_string(), vec![KEY_ERROR.string(err.to_string())]);
+        let start_time = Instant::now();
+        let result = next.run(ctx, info).await;
+        let duration = start_time.elapsed();
+
+        let mut aggregate_spans = self.aggregate_spans.lock().unwrap();
+        let entry = aggregate_spans.entry(field_type).or_insert_with(|| FieldTypeSpan {
+            cumulative_duration: Duration::ZERO,
+            instances_count: 0,
         });
+        entry.cumulative_duration += duration;
+        entry.instances_count += 1;
 
-        match span {
-            Some(span) => {
-                fut.with_context(OpenTelemetryContext::current_with_span(span))
-                    .await
+        result
+    }
+}
+
+impl<T: Tracer + Send + Sync + 'static> OpenTelemetryExtension<T> {
+    pub fn log_aggregated_spans(&self, span: &mut impl Span) {
+        let spans = self.aggregate_spans.lock().unwrap();
+        for (field_type, field_span) in spans.iter() {
+            let avg_duration = field_span.cumulative_duration / field_span.instances_count as u32;
+
+            let avg_duration_us = avg_duration.as_micros();
+            let avg_duration_ms = avg_duration.as_millis();
+            let avg_duration_s = avg_duration.as_secs();
+
+            let mut attributes = vec![
+                Key::new("instances_count").i64(field_span.instances_count as i64),
+            ];
+
+            if avg_duration_s > 0 {
+                attributes.push(Key::new("avg_duration_s").i64(avg_duration_s as i64));
+            } else if avg_duration_ms > 0 {
+                attributes.push(Key::new("avg_duration_ms").i64(avg_duration_ms as i64));
+            } else {
+                attributes.push(Key::new("avg_duration_μs").i64(avg_duration_us as i64));
             }
-            None => fut.await,
+
+            span.add_event(format!("Average duration for {}", field_type), attributes);
         }
     }
 }

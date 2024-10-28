@@ -17,6 +17,7 @@ pub struct TracingConfig {
     pub otlp_agent_port: String,
     pub otlp_tracing_service_name: String,
 }
+
 impl Default for TracingConfig {
     fn default() -> Self {
         Self {
@@ -27,6 +28,7 @@ impl Default for TracingConfig {
         }
     }
 }
+
 impl TracingConfig {
     pub fn tracer_provider(&self) -> Option<TracerProvider> {
         if self.tracing_enabled {
@@ -53,6 +55,7 @@ impl TracingConfig {
                 .with_batch_config(
                     BatchConfigBuilder::default()
                         .with_max_queue_size(10_000_000)
+                        .with_max_export_batch_size(10_000)
                         .build(),
                 )
                 .install_batch(opentelemetry_sdk::runtime::Tokio)
