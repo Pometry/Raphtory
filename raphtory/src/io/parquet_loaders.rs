@@ -69,7 +69,7 @@ pub fn load_nodes_from_parquet<
     Ok(())
 }
 
-pub(crate) fn load_edges_from_parquet<
+pub fn load_edges_from_parquet<
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
 >(
     graph: &G,
