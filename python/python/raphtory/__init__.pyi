@@ -134,7 +134,7 @@ class ConstProperties(object):
     """A view of constant properties of an entity"""
 
     def __contains__(self, key):
-        """Return bool(key in self)."""
+        """Return key in self."""
 
     def __eq__(self, value):
         """Return self==value."""
@@ -609,6 +609,29 @@ class Edge(object):
 
         """
 
+    def snapshot_at(self, time: TimeInput):
+        """
+         Create a view of the Edge including all events that have not been explicitly deleted at `time`.
+
+        This is equivalent to `before(time + 1)` for `EventGraph`s and `at(time)` for `PersitentGraph`s
+
+        Arguments:
+            time (TimeInput): The time of the window.
+
+        Returns:
+             A Edge object.
+        """
+
+    def snapshot_latest(self):
+        """
+         Create a view of the Edge including all events that have not been explicitly deleted at the latest time.
+
+        This is equivalent to a no-op for `EventGraph`s and `latest()` for `PersitentGraph`s
+
+        Returns:
+             A Edge object.
+        """
+
     @property
     def src(self):
         """Returns the source node of the edge."""
@@ -1012,6 +1035,29 @@ class Edges(object):
             start (TimeInput): the new start time for the window
             end (TimeInput): the new end time for the window
 
+        """
+
+    def snapshot_at(self, time: TimeInput):
+        """
+         Create a view of the Edges including all events that have not been explicitly deleted at `time`.
+
+        This is equivalent to `before(time + 1)` for `EventGraph`s and `at(time)` for `PersitentGraph`s
+
+        Arguments:
+            time (TimeInput): The time of the window.
+
+        Returns:
+             A Edges object.
+        """
+
+    def snapshot_latest(self):
+        """
+         Create a view of the Edges including all events that have not been explicitly deleted at the latest time.
+
+        This is equivalent to a no-op for `EventGraph`s and `latest()` for `PersitentGraph`s
+
+        Returns:
+             A Edges object.
         """
 
     @property
@@ -2058,6 +2104,29 @@ class GraphView(object):
 
         """
 
+    def snapshot_at(self, time: TimeInput):
+        """
+         Create a view of the GraphView including all events that have not been explicitly deleted at `time`.
+
+        This is equivalent to `before(time + 1)` for `EventGraph`s and `at(time)` for `PersitentGraph`s
+
+        Arguments:
+            time (TimeInput): The time of the window.
+
+        Returns:
+             A GraphView object.
+        """
+
+    def snapshot_latest(self):
+        """
+         Create a view of the GraphView including all events that have not been explicitly deleted at the latest time.
+
+        This is equivalent to a no-op for `EventGraph`s and `latest()` for `PersitentGraph`s
+
+        Returns:
+             A GraphView object.
+        """
+
     @property
     def start(self):
         """
@@ -2740,6 +2809,29 @@ class Node(object):
 
         """
 
+    def snapshot_at(self, time: TimeInput):
+        """
+         Create a view of the Node including all events that have not been explicitly deleted at `time`.
+
+        This is equivalent to `before(time + 1)` for `EventGraph`s and `at(time)` for `PersitentGraph`s
+
+        Arguments:
+            time (TimeInput): The time of the window.
+
+        Returns:
+             A Node object.
+        """
+
+    def snapshot_latest(self):
+        """
+         Create a view of the Node including all events that have not been explicitly deleted at the latest time.
+
+        This is equivalent to a no-op for `EventGraph`s and `latest()` for `PersitentGraph`s
+
+        Returns:
+             A Node object.
+        """
+
     @property
     def start(self):
         """
@@ -3194,6 +3286,29 @@ class Nodes(object):
             start (TimeInput): the new start time for the window
             end (TimeInput): the new end time for the window
 
+        """
+
+    def snapshot_at(self, time: TimeInput):
+        """
+         Create a view of the Nodes including all events that have not been explicitly deleted at `time`.
+
+        This is equivalent to `before(time + 1)` for `EventGraph`s and `at(time)` for `PersitentGraph`s
+
+        Arguments:
+            time (TimeInput): The time of the window.
+
+        Returns:
+             A Nodes object.
+        """
+
+    def snapshot_latest(self):
+        """
+         Create a view of the Nodes including all events that have not been explicitly deleted at the latest time.
+
+        This is equivalent to a no-op for `EventGraph`s and `latest()` for `PersitentGraph`s
+
+        Returns:
+             A Nodes object.
         """
 
     @property
@@ -3870,7 +3985,7 @@ class Properties(object):
     """A view of the properties of an entity"""
 
     def __contains__(self, key):
-        """Return bool(key in self)."""
+        """Return key in self."""
 
     def __eq__(self, value):
         """Return self==value."""
@@ -4057,7 +4172,7 @@ class TemporalProperties(object):
     """A view of the temporal properties of an entity"""
 
     def __contains__(self, key):
-        """Return bool(key in self)."""
+        """Return key in self."""
 
     def __eq__(self, value):
         """Return self==value."""

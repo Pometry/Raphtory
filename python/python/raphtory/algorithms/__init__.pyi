@@ -405,6 +405,40 @@ def max_out_degree(g: GraphView):
         int : value of the largest outdegree
     """
 
+def max_weight_matching(
+    graph, weight_prop=None, max_cardinality=None, verify_optimum_flag=None
+):
+    """
+    Compute a maximum-weighted matching in the general undirected weighted
+    graph given by "edges". If `max_cardinality` is true, only
+    maximum-cardinality matchings are considered as solutions.
+
+    The algorithm is based on "Efficient Algorithms for Finding Maximum
+    Matching in Graphs" by Zvi Galil, ACM Computing Surveys, 1986.
+
+    Based on networkx implementation
+    <https://github.com/networkx/networkx/blob/3351206a3ce5b3a39bb2fc451e93ef545b96c95b/networkx/algorithms/matching.py>
+
+    With reference to the standalone protoype implementation from:
+    <http://jorisvr.nl/article/maximum-matching>
+
+    <http://jorisvr.nl/files/graphmatching/20130407/mwmatching.py>
+
+    The function takes time O(n**3)
+
+    Arguments:
+
+    * `graph` - The graph to compute the maximum weight matching for
+    * 'weight_prop' - The property on the edge to use for the weight
+    * `max_cardinality` - If set to true compute the maximum-cardinality matching
+        with maximum weight among all maximum-cardinality matchings
+    * `verify_optimum_flag`: If true prior to returning an additional routine
+        to verify the optimal solution was found will be run after computing
+        the maximum weight matching. If it's true and the found matching is not
+        an optimal solution this function will panic. This option should
+        normally be only set true during testing.
+    """
+
 def min_degree(g: GraphView) -> int:
     """
     Returns the smallest degree found in the graph

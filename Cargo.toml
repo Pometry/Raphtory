@@ -40,9 +40,9 @@ debug = 0
 
 [workspace.dependencies]
 #[public-storage]
-pometry-storage = { version = ">=0.8.1", path = "pometry-storage" }
+# pometry-storage = { version = ">=0.8.1", path = "pometry-storage" }
 #[private-storage]
-# pometry-storage = { path = "pometry-storage-private", package = "pometry-storage-private" }
+pometry-storage = { path = "pometry-storage-private", package = "pometry-storage-private" }
 async-graphql = { version = ">=7.0.5, <7.0.8", features = [
     "dynamic-schema",
 ] } # 7.0.8+ is borked, see https://github.com/async-graphql/async-graphql/issues/1586
@@ -141,7 +141,7 @@ base64-compat = { package = "base64-compat", version = "1.0.0" }
 prost = "0.13.1"
 prost-types = "0.13.1"
 prost-build = "0.13.1"
-
+hashbrown = "0.15.0"
 lazy_static = "1.4.0"
 pest = "2.7.8"
 pest_derive = "2.7.8"

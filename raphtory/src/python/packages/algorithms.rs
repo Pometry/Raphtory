@@ -859,7 +859,7 @@ pub fn max_weight_matching(
     weight_prop: Option<String>,
     max_cardinality: Option<bool>,
     verify_optimum_flag: Option<bool>,
-) -> Vec<(usize, usize)> {
+) -> Vec<(GID, GID)> {
     mwm(
         &graph.graph,
         weight_prop,

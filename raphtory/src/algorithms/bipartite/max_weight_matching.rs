@@ -1367,12 +1367,12 @@ pub fn max_weight_matching<'graph, G: GraphViewOps<'graph>>(
     let node_list: Vec<GID> = g.nodes().id().collect();
     for (index, node) in mate.iter() {
         let tmp = (
-            g.node(node_list[index]).unwrap().id(),
-            g.node(node_list[endpoints[node]]).unwrap().id(),
+            g.node(&node_list[*index]).unwrap().id(),
+            g.node(&node_list[endpoints[*node]]).unwrap().id(),
         );
         let rev_tmp = (
-            g.node(node_list[endpoints[node]]).unwrap().id(),
-            g.node(node_list[index]).unwrap().id(),
+            g.node(&node_list[endpoints[*node]]).unwrap().id(),
+            g.node(&node_list[*index]).unwrap().id(),
         );
         if !seen.contains(&tmp) && !seen.contains(&rev_tmp) {
             out_set.insert(tmp.clone());
