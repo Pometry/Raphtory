@@ -432,6 +432,16 @@ impl GqlGraph {
             .to_owned())
     }
 
+    async fn namespace(&self) -> Result<String, GraphError> {
+        Ok(self
+            .path
+            .get_original_path()
+            .parent()
+            .and_then(|p| p.to_str().map(|s| s.to_string()))
+            .ok_or(PathNotParsable(self.path.to_error_path()))?
+            .to_owned())
+    }
+
     async fn schema(&self) -> GraphSchema {
         GraphSchema::new(&self.graph)
     }
