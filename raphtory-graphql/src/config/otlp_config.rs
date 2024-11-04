@@ -9,7 +9,7 @@ use serde::Deserialize;
 use std::time::Duration;
 use tracing::{error, info};
 
-#[derive(Clone, Deserialize, Debug, PartialEq)]
+#[derive(Clone, Deserialize, Debug, PartialEq, serde::Serialize)]
 pub struct TracingConfig {
     pub tracing_enabled: bool,
     pub otlp_agent_host: String,
