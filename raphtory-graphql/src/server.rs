@@ -46,6 +46,8 @@ use tracing_subscriber::{
 };
 use url::ParseError;
 
+pub const DEFAULT_PORT: u16 = 1736;
+
 #[derive(Error, Debug)]
 pub enum ServerError {
     #[error("Config error: {0}")]
@@ -169,7 +171,7 @@ impl GraphServer {
 
     /// Start the server on the default port and return a handle to it.
     pub async fn start(self) -> IoResult<RunningGraphServer> {
-        self.start_with_port(1736).await
+        self.start_with_port(DEFAULT_PORT).await
     }
 
     /// Start the server on the port `port` and return a handle to it.
