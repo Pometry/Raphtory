@@ -1,4 +1,8 @@
 use serde::Deserialize;
+
+pub const DEFAULT_CAPACITY: u64 = 30;
+pub const DEFAULT_TTI_SECONDS: u64 = 900;
+
 #[derive(Debug, Deserialize, PartialEq, Clone, serde::Serialize)]
 pub struct CacheConfig {
     pub capacity: u64,
@@ -8,8 +12,8 @@ pub struct CacheConfig {
 impl Default for CacheConfig {
     fn default() -> Self {
         Self {
-            capacity: 30,
-            tti_seconds: 900,
+            capacity: DEFAULT_CAPACITY,
+            tti_seconds: DEFAULT_TTI_SECONDS,
         }
     }
 }

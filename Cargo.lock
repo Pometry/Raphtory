@@ -4710,6 +4710,7 @@ dependencies = [
  "base64 0.22.1",
  "base64-compat",
  "chrono",
+ "clap",
  "config",
  "crossbeam-channel",
  "dynamic-graphql",
