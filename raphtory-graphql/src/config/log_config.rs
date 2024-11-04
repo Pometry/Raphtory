@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use tracing_subscriber::EnvFilter;
 
-#[derive(Debug, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Deserialize, PartialEq, Clone, serde::Serialize)]
 pub struct LoggingConfig {
     pub log_level: String,
 }

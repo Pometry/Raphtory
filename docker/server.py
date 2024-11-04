@@ -56,7 +56,6 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
-
 server = graphql.GraphServer(args.working_dir,tracing=args.tracing,log_level=args.log_level,otlp_agent_host=args.otlp_agent_host,otlp_agent_port=args.otlp_agent_port,
                              otlp_tracing_service_name=args.otlp_tracing_service_name,cache_capacity=args.cache_capacity,cache_tti_seconds=args.cache_tti_seconds)
 server.run()

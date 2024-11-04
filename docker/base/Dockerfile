@@ -6,9 +6,7 @@ RUN apt-get update && \
     python3 \
     protobuf-compiler \
     curl \
-    gcc \
     g++ \
-    make \
     git \
     libssl-dev \
     patchelf && \
