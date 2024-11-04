@@ -65,31 +65,43 @@ debug-python: activate-storage
 python-docs:
 	cd docs && make html
 
-docker-base-build-amd64:
-	cd docker/base && docker build --platform linux/amd64 -t pometry/raphtory_base .
-
-docker-base-build-arm64:
-	cd docker/base && docker build --platform linux/arm64 -t pometry/raphtory_base .
-
-docker-build-amd64:
-	./scripts/deactivate_private_storage.py
-	docker build --platform linux/amd64 -t pometry/raphtory -f docker/dockerfile .
-
-docker-build-arm64:
-	./scripts/deactivate_private_storage.py
-	docker build --platform linux/arm64 -t pometry/raphtory -f docker/dockerfile .
-
-docker-run:
-	docker run -p 1736:1736 pometry/raphtory 
-
-IMAGE_NAME := raphtory-graphql-app
 WORKING_DIR ?= /tmp/graphs
 PORT ?= 1736
+IMAGE_NAME := pometry/graphql
+PY_IMAGE_NAME := pometry/pygraphql
 
-docker-build-rust-graphql:
+docker-build-pygraphql-base-amd64:
+	cd docker/base && docker build --platform linux/amd64 -t pometry/raphtory_base .
+
+docker-build-pygraphql-base-arm64:
+	cd docker/base && docker build --platform linux/arm64 -t pometry/raphtory_base .
+
+docker-build-pygraphql-amd64:
+	./scripts/deactivate_private_storage.py
+	docker build --platform linux/amd64 -t $(PY_IMAGE_NAME) -f docker/dockerfile .
+
+docker-build-pygraphql-arm64:
+	./scripts/deactivate_private_storage.py
+	docker build --platform linux/arm64 -t $(PY_IMAGE_NAME) -f docker/dockerfile .
+
+docker-run-pygraphql:
+	docker run --rm -p $(PORT):$(PORT) \
+		-v $(WORKING_DIR):/tmp/graphs \
+		$(PY_IMAGE_NAME) \
+		$(if $(WORKING_DIR),--working-dir=$(WORKING_DIR)) \
+		$(if $(PORT),--port=$(PORT)) \
+		$(if $(CACHE_CAPACITY),--cache-capacity=$(CACHE_CAPACITY)) \
+		$(if $(CACHE_TTI_SECONDS),--cache-tti-seconds=$(CACHE_TTI_SECONDS)) \
+		$(if $(LOG_LEVEL),--log-level=$(LOG_LEVEL)) \
+		$(if $(TRACING),--tracing) \
+		$(if $(OTLP_AGENT_HOST),--otlp-agent-host=$(OTLP_AGENT_HOST)) \
+		$(if $(OTLP_AGENT_PORT),--otlp-agent-port=$(OTLP_AGENT_PORT)) \
+		$(if $(OTLP_TRACING_SERVICE_NAME),--otlp-tracing-service-name=$(OTLP_TRACING_SERVICE_NAME))
+
+docker-build-graphql:
 	docker build -t $(IMAGE_NAME) .
 
-docker-run-rust-graphql:
+docker-run-graphql:
 	docker run --rm -p $(PORT):$(PORT) \
 		-v $(WORKING_DIR):/tmp/graphs \
 		$(IMAGE_NAME) \

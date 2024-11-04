@@ -18,12 +18,11 @@ FROM python:3.12.4-slim
 
 # Copy the virtual environment from the build stage
 COPY --from=build /opt/venv /opt/venv
-
 ENV VIRTUAL_ENV=/opt/venv
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
-COPY docker/server.py /home/raphtory_server/run_server.py
+COPY docker/server.py /home/raphtory_server/server.py
 
 EXPOSE 1736
 
-ENTRYPOINT ["python", "/home/raphtory_server/run_server.py"]
+ENTRYPOINT ["python", "/home/raphtory_server/server.py"]
