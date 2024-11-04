@@ -81,3 +81,24 @@ docker-build-arm64:
 
 docker-run:
 	docker run -p 1736:1736 pometry/raphtory 
+
+IMAGE_NAME := raphtory-graphql-app
+WORKING_DIR ?= /tmp/graphs
+PORT ?= 1736
+
+docker-build-rust-graphql:
+	docker build -t $(IMAGE_NAME) .
+
+docker-run-rust-graphql:
+	docker run --rm -p $(PORT):$(PORT) \
+		-v $(WORKING_DIR):/tmp/graphs \
+		$(IMAGE_NAME) \
+		$(if $(WORKING_DIR),--working-dir=$(WORKING_DIR)) \
+		$(if $(PORT),--port=$(PORT)) \
+		$(if $(CACHE_CAPACITY),--cache-capacity=$(CACHE_CAPACITY)) \
+		$(if $(CACHE_TTI_SECONDS),--cache-tti-seconds=$(CACHE_TTI_SECONDS)) \
+		$(if $(LOG_LEVEL),--log-level=$(LOG_LEVEL)) \
+		$(if $(TRACING),--tracing) \
+		$(if $(OTLP_AGENT_HOST),--otlp-agent-host=$(OTLP_AGENT_HOST)) \
+		$(if $(OTLP_AGENT_PORT),--otlp-agent-port=$(OTLP_AGENT_PORT)) \
+		$(if $(OTLP_TRACING_SERVICE_NAME),--otlp-tracing-service-name=$(OTLP_TRACING_SERVICE_NAME))
