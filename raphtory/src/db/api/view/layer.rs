@@ -55,7 +55,7 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph> LayerOps<'graph> for V {
     ) -> Result<Self::LayeredViewType, GraphError> {
         let all_layer_ids = self.current_filter().layer_ids();
         let excluded_ids = self.current_filter().layer_ids_from_names(layers.into())?;
-        let included_ids = all_layer_ids.diff(self.current_filter().clone(), excluded_ids);
+        let included_ids = all_layer_ids.diff(self.current_filter().clone(), &excluded_ids);
 
         Ok(self.one_hop_filtered(LayeredGraph::new(
             self.current_filter().clone(),
@@ -68,7 +68,7 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph> LayerOps<'graph> for V {
         let excluded_ids = self
             .current_filter()
             .valid_layer_ids_from_names(layers.into());
-        let included_ids = all_layer_ids.diff(self.current_filter().clone(), excluded_ids);
+        let included_ids = all_layer_ids.diff(self.current_filter().clone(), &excluded_ids);
 
         self.one_hop_filtered(LayeredGraph::new(
             self.current_filter().clone(),

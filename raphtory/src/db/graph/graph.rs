@@ -1205,6 +1205,22 @@ mod db_tests {
     }
 
     #[test]
+    fn layers_1() -> Result<(), GraphError> {
+        let graph = Graph::new();
+        graph.add_edge(0, 11, 22, NO_PROPS, None)?;
+        graph.add_edge(0, 11, 33, NO_PROPS, None)?;
+        graph.add_edge(0, 33, 11, NO_PROPS, None)?;
+        graph.add_edge(1, 11, 22, NO_PROPS, Some("layer1"))?;
+        graph.add_edge(1, 11, 33, NO_PROPS, Some("layer2"))?;
+        graph.add_edge(1, 11, 44, NO_PROPS, Some("layer2"))?;
+
+        let graph = graph.window(1, 2).layers(["layer2", "layer1"])?;
+        // check count_edges
+        assert_eq!(graph.count_edges(), 3);
+        Ok(())
+    }
+
+    #[test]
     fn layers() -> Result<(), GraphError> {
         let graph = Graph::new();
         graph.add_edge(0, 11, 22, NO_PROPS, None)?;

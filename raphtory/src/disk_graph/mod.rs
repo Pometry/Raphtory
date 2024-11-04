@@ -191,7 +191,7 @@ impl DiskGraphStorage {
             LayerIds::One(id) => Box::new(self.inner().edge_global_mapping(*id)),
             LayerIds::Multiple(arc) => Box::new(GenLockedIter::from(self, |dg| {
                 Box::new(
-                    arc.iter()
+                    arc.into_iter()
                         .map(|layer_id| dg.inner().edge_global_mapping(layer_id))
                         .kmerge()
                         .dedup(),

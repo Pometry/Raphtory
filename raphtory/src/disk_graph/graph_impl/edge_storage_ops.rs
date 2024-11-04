@@ -37,7 +37,7 @@ impl<'a> EdgeStorageOps<'a> for Edge<'a> {
             LayerIds::None => false,
             LayerIds::All => true,
             LayerIds::One(id) => self.has_layer_inner(*id),
-            LayerIds::Multiple(ids) => ids.iter().any(|id| self.has_layer_inner(id)), // if we store the number of layers as a bitmap in the edge_list, this could be optimized
+            LayerIds::Multiple(ids) => ids.iter().any(|id| self.has_layer_inner(id)),
         }
     }
 
@@ -63,7 +63,7 @@ impl<'a> EdgeStorageOps<'a> for Edge<'a> {
                 LayerVariants::One(self.has_layer_inner(*id).then_some(*id).into_iter())
             }
             LayerIds::Multiple(ids) => {
-                LayerVariants::Multiple(ids.iter().filter(move |&id| self.has_layer_inner(id)))
+                LayerVariants::Multiple(ids.into_iter().filter(move |&id| self.has_layer_inner(id)))
             }
         }
     }

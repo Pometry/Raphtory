@@ -46,7 +46,7 @@ impl<'a> DiskNode<'a> {
         Self { graph, vid }
     }
 
-    pub fn out_edges<'b>(self, layers: &'b LayerIds) -> impl Iterator<Item = EdgeRef> + 'a {
+    pub fn out_edges(self, layers: &LayerIds) -> impl Iterator<Item = EdgeRef> + 'a {
         match layers {
             LayerIds::None => LayerVariants::None(iter::empty()),
             LayerIds::All => LayerVariants::All(
@@ -76,7 +76,7 @@ impl<'a> DiskNode<'a> {
                 )
             }
             LayerIds::Multiple(ids) => LayerVariants::Multiple(
-                ids.iter()
+                ids.into_iter()
                     .map(|layer_id| {
                         self.graph.layers()[layer_id]
                             .nodes_storage()
@@ -120,7 +120,7 @@ impl<'a> DiskNode<'a> {
                 )
             }
             LayerIds::Multiple(ids) => LayerVariants::Multiple(
-                ids.iter()
+                ids.into_iter()
                     .map(|layer_id| {
                         self.graph.layers()[layer_id]
                             .nodes_storage()
@@ -367,7 +367,7 @@ impl DiskOwnedNode {
                 )
             }
             LayerIds::Multiple(ids) => LayerVariants::Multiple(
-                ids.iter()
+                ids.into_iter()
                     .map(move |layer_id| {
                         let layer = self.graph.layer(layer_id);
                         let eids = layer.nodes_storage().into_out_edges_iter(self.vid);
@@ -412,7 +412,7 @@ impl DiskOwnedNode {
                 )
             }
             LayerIds::Multiple(ids) => LayerVariants::Multiple(
-                ids.iter()
+                ids.into_iter()
                     .map(move |layer_id| {
                         let layer = self.graph.layer(layer_id);
                         let eids = layer.nodes_storage().into_in_edges_iter(self.vid);

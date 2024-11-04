@@ -216,7 +216,7 @@ impl TemporalGraph {
                 LayerIds::All => entry.temp_prop_ids(None),
                 LayerIds::One(id) => entry.temp_prop_ids(Some(*id)),
                 LayerIds::Multiple(ids) => Box::new(
-                    ids.iter()
+                    ids.into_iter()
                         .map(|id| entry.temp_prop_ids(Some(id)))
                         .kmerge()
                         .dedup(),
@@ -248,7 +248,7 @@ impl TemporalGraph {
                     None => Box::new(iter::empty()),
                 },
                 LayerIds::Multiple(ids) => ids
-                    .iter()
+                    .into_iter()
                     .flat_map(|id| entry.layer(id).map(|l| l.const_prop_ids()))
                     .kmerge()
                     .dedup()

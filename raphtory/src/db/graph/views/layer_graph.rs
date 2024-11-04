@@ -1,9 +1,15 @@
-use std::fmt::{Debug, Formatter};
+use std::{
+    fmt::{Debug, Formatter},
+    sync::Arc,
+};
 
 use itertools::Itertools;
 
 use crate::{
-    core::{entities::LayerIds, utils::errors::GraphError},
+    core::{
+        entities::{LayerIds, Multiple},
+        utils::errors::GraphError,
+    },
     db::api::{
         properties::internal::InheritPropertiesOps,
         view::{
@@ -80,11 +86,12 @@ impl<'graph, G: GraphViewOps<'graph>> LayeredGraph<G> {
                 },
                 LayerIds::Multiple(ids) => {
                     // intersect the layers
-                    let new_layers = ids.iter().filter_map(|id| layers.find(id)).collect_vec();
+                    let new_layers: Arc<[usize]> =
+                        ids.iter().filter_map(|id| layers.find(id)).collect();
                     match new_layers.len() {
                         0 => LayerIds::None,
                         1 => LayerIds::One(new_layers[0]),
-                        _ => LayerIds::Multiple(new_layers.into()),
+                        _ => LayerIds::Multiple(Multiple(new_layers)),
                     }
                 }
                 LayerIds::None => LayerIds::None,

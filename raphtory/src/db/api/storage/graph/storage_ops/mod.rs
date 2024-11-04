@@ -280,12 +280,12 @@ impl GraphStorage {
         &self,
         view: &G,
     ) -> Box<dyn Iterator<Item = usize>> {
-        let layer_ids = view.layer_ids().clone();
+        let layer_ids = view.layer_ids();
         match layer_ids {
             LayerIds::None => Box::new(iter::empty()),
             LayerIds::All => Box::new(0..view.unfiltered_num_layers()),
-            LayerIds::One(id) => Box::new(iter::once(id)),
-            LayerIds::Multiple(ids) => Box::new(ids.iter()),
+            LayerIds::One(id) => Box::new(iter::once(*id)),
+            LayerIds::Multiple(ids) => Box::new(ids.into_iter()),
         }
     }
 

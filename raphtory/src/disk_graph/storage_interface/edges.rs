@@ -52,7 +52,7 @@ impl DiskEdges {
                 }))
             }
             LayerIds::Multiple(ids) => LayerVariants::Multiple(
-                ids.iter()
+                ids.into_iter()
                     .map(move |layer_id| {
                         GenLockedIter::from(self.graph.clone(), move |graph| {
                             graph.inner.layer_edge_ids(layer_id).into_dyn_boxed()
@@ -79,7 +79,7 @@ impl DiskEdges {
                     .into_par_iter()
                     .map(EID)
                     .filter(move |e| {
-                        ids.iter()
+                        ids.into_iter()
                             .any(|layer_id| self.graph.inner.edge(*e).has_layer_inner(layer_id))
                     }),
             ),

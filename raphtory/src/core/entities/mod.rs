@@ -1,4 +1,7 @@
-use std::{borrow::Cow, sync::Arc};
+use std::{
+    borrow::{Borrow, Cow},
+    sync::Arc,
+};
 
 use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -19,7 +22,7 @@ pub enum LayerIds {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct Multiple(Arc<[usize]>);
+pub struct Multiple(pub Arc<[usize]>);
 
 impl Multiple {
     #[inline]
@@ -28,9 +31,14 @@ impl Multiple {
     }
 
     #[inline]
-    pub fn iter(&self) -> impl Iterator<Item = usize> {
+    pub fn into_iter(&self) -> impl Iterator<Item = usize> {
         let ids = self.0.clone();
         (0..ids.len()).map(move |i| ids[i])
+    }
+
+    #[inline]
+    pub fn iter(&self) -> impl Iterator<Item = usize> + '_ {
+        self.0.iter().copied()
     }
 
     #[inline]
@@ -69,7 +77,7 @@ mod test {
     #[test]
     fn empty_bit_multiple() {
         let bm = super::Multiple::default();
-        let actual = bm.iter().collect::<Vec<_>>();
+        let actual = bm.into_iter().collect::<Vec<_>>();
         let expected: Vec<usize> = vec![];
         assert_eq!(actual, expected);
     }
@@ -77,7 +85,7 @@ mod test {
     #[test]
     fn set_one() {
         let mut bm: Multiple = [1].into_iter().collect();
-        let actual = bm.iter().collect::<Vec<_>>();
+        let actual = bm.into_iter().collect::<Vec<_>>();
         assert_eq!(actual, vec![1usize]);
     }
 
@@ -85,7 +93,7 @@ mod test {
     fn set_two() {
         let mut bm: Multiple = [1, 67].into_iter().collect();
 
-        let actual = bm.iter().collect::<Vec<_>>();
+        let actual = bm.into_iter().collect::<Vec<_>>();
         assert_eq!(actual, vec![1usize, 67]);
     }
 }
@@ -106,7 +114,7 @@ impl LayerIds {
         }
     }
 
-    pub fn intersect(&self, other: LayerIds) -> LayerIds {
+    pub fn intersect(&self, other: &LayerIds) -> LayerIds {
         match (self, other) {
             (LayerIds::None, _) => LayerIds::None,
             (_, LayerIds::None) => LayerIds::None,
@@ -133,7 +141,7 @@ impl LayerIds {
     pub fn diff<'a>(
         &self,
         graph: impl crate::prelude::GraphViewOps<'a>,
-        other: LayerIds,
+        other: &LayerIds,
     ) -> LayerIds {
         match (self, other) {
             (LayerIds::None, _) => LayerIds::None,

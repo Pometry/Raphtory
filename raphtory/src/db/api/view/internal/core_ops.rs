@@ -115,7 +115,7 @@ pub trait CoreGraphOps {
             }
             LayerIds::Multiple(ids) => {
                 let keys = self.edge_meta().layer_meta().get_keys();
-                Box::new(ids.iter().map(move |id| keys[id].clone()))
+                Box::new(ids.into_iter().map(move |id| keys[id].clone()))
             }
         }
     }

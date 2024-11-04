@@ -341,7 +341,7 @@ impl<'a> EdgeStorageOps<'a> for MemEdge<'a> {
                 LayerVariants::One(self.has_layer_inner(*id).then_some(*id).into_iter())
             }
             LayerIds::Multiple(ids) => {
-                LayerVariants::Multiple(ids.iter().filter(move |&id| self.has_layer_inner(id)))
+                LayerVariants::Multiple(ids.into_iter().filter(move |&id| self.has_layer_inner(id)))
             }
         }
     }
