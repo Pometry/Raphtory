@@ -6,6 +6,7 @@ use crate::{
     db::api::{
         properties::internal::{TemporalPropertiesOps, TemporalPropertyViewOps},
         storage::graph::tprop_storage_ops::TPropOps,
+        view::BoxedLIter,
     },
     prelude::Prop,
 };
@@ -25,7 +26,7 @@ impl TemporalPropertyViewOps for GraphStorage {
             .unwrap_or_default()
     }
 
-    fn temporal_history_iter(&self, id: usize) -> Box<dyn Iterator<Item = i64> + '_> {
+    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<i64> {
         Box::new(
             self.graph_meta()
                 .get_temporal_prop(id)

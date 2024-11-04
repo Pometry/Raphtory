@@ -17,6 +17,7 @@ use crate::{
                     I64VecIterable, NestedI64VecIterable, NestedUsizeIterable, PropIterable,
                     UsizeIterable,
                 },
+                iterators::PyBorrowingIterator,
                 prop::{PropHistItems, PropValue},
             },
         },
@@ -257,8 +258,9 @@ impl PyTemporalProp {
     }
 
     /// Iterate over `items`
-    pub fn __iter__(&self) -> PyGenericIterator {
-        self.prop.histories().collect::<Vec<_>>().into_iter().into()
+    pub fn __iter__(&self) -> PyBorrowingIterator {
+        py_borrowing_iter!(self.prop.clone(), DynTemporalProperty, |inner| inner
+            .histories())
     }
     /// Get the value of the property at time `t`
     pub fn at(&self, t: PyTime) -> Option<Prop> {

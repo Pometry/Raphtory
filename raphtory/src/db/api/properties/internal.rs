@@ -15,7 +15,7 @@ pub trait TemporalPropertyViewOps {
 
     fn temporal_history(&self, id: usize) -> Vec<i64>;
 
-    fn temporal_history_iter(&self, id: usize) -> Box<dyn Iterator<Item = i64> + '_> {
+    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<i64> {
         Box::new(self.temporal_history(id).into_iter())
     }
 
@@ -27,7 +27,7 @@ pub trait TemporalPropertyViewOps {
     }
     fn temporal_values(&self, id: usize) -> Vec<Prop>;
 
-    fn temporal_values_iter(&self, id: usize) -> Box<dyn Iterator<Item = Prop> + '_> {
+    fn temporal_values_iter(&self, id: usize) -> BoxedLIter<Prop> {
         Box::new(self.temporal_values(id).into_iter())
     }
 
@@ -46,7 +46,7 @@ pub trait ConstPropertiesOps: Send + Sync {
     fn get_const_prop_id(&self, name: &str) -> Option<usize>;
     fn get_const_prop_name(&self, id: usize) -> ArcStr;
     fn const_prop_ids(&self) -> BoxedLIter<usize>;
-    fn const_prop_keys(&self) -> Box<dyn Iterator<Item = ArcStr> + '_> {
+    fn const_prop_keys(&self) -> BoxedLIter<ArcStr> {
         Box::new(self.const_prop_ids().map(|id| self.get_const_prop_name(id)))
     }
     fn const_prop_values(&self) -> BoxedLIter<Prop> {
@@ -167,12 +167,12 @@ where
     }
 
     #[inline]
-    fn const_prop_keys(&self) -> Box<dyn Iterator<Item = ArcStr> + '_> {
+    fn const_prop_keys(&self) -> BoxedLIter<ArcStr> {
         self.base().const_prop_keys()
     }
 
     #[inline]
-    fn const_prop_values(&self) -> Box<dyn Iterator<Item = Prop> + Send + '_> {
+    fn const_prop_values(&self) -> BoxedLIter<Prop> {
         self.base().const_prop_values()
     }
 

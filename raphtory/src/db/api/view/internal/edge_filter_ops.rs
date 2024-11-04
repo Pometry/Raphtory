@@ -57,6 +57,6 @@ impl<G: DelegateEdgeFilterOps> EdgeFilterOps for G {
 
     #[inline]
     fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
-        self.graph().filter_edge(edge, &layer_ids)
+        self.graph().filter_edge(edge, layer_ids)
     }
 }

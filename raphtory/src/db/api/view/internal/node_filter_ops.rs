@@ -39,6 +39,6 @@ where
 
     #[inline]
     fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
-        self.base().filter_node(node, &layer_ids)
+        self.base().filter_node(node, layer_ids)
     }
 }

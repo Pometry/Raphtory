@@ -1,6 +1,9 @@
 use crate::{
     core::{DocumentInput, Prop, PropType, PropUnwrap},
-    db::{api::properties::internal::PropertiesOps, graph::views::deletion_graph::PersistentGraph},
+    db::{
+        api::{properties::internal::PropertiesOps, view::BoxedLIter},
+        graph::views::deletion_graph::PersistentGraph,
+    },
     prelude::Graph,
 };
 use chrono::{DateTime, NaiveDateTime, Utc};
@@ -11,6 +14,7 @@ use std::{
     sync::Arc,
 };
 
+#[derive(Clone)]
 pub struct TemporalPropertyView<P: PropertiesOps> {
     pub(crate) id: usize,
     pub(crate) props: P,
@@ -24,13 +28,13 @@ impl<P: PropertiesOps> TemporalPropertyView<P> {
     pub fn dtype(&self) -> PropType {
         self.props.dtype(self.id)
     }
-    pub fn history(&self) -> impl Iterator<Item = i64> + '_ {
+    pub fn history(&self) -> BoxedLIter<i64> {
         self.props.temporal_history_iter(self.id)
     }
     pub fn history_date_time(&self) -> Option<Vec<DateTime<Utc>>> {
         self.props.temporal_history_date_time(self.id)
     }
-    pub fn values(&self) -> impl Iterator<Item = Prop> + '_ {
+    pub fn values(&self) -> BoxedLIter<Prop> {
         self.props.temporal_values_iter(self.id)
     }
 

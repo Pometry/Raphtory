@@ -36,7 +36,6 @@ use crate::{
 };
 use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{
-    borrow::Cow,
     fmt::{Debug, Formatter},
     sync::Arc,
 };
@@ -326,7 +325,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> ConstPropertiesO
             .const_edge_prop_ids(self.edge, self.graph.layer_ids().clone())
     }
 
-    fn const_prop_keys(&self) -> Box<dyn Iterator<Item = ArcStr> + '_> {
+    fn const_prop_keys(&self) -> BoxedLIter<ArcStr> {
         let reverse_map = self.graph.edge_meta().const_prop_meta().get_keys();
         Box::new(self.const_prop_ids().map(move |id| reverse_map[id].clone()))
     }
@@ -372,7 +371,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperty
             .collect()
     }
 
-    fn temporal_values_iter(&self, id: usize) -> Box<dyn Iterator<Item = Prop> + '_> {
+    fn temporal_values_iter(&self, id: usize) -> BoxedLIter<Prop> {
         let layer_ids = self.layer_ids();
         Box::new(
             self.graph
@@ -382,7 +381,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperty
         )
     }
 
-    fn temporal_history_iter(&self, id: usize) -> Box<dyn Iterator<Item = i64> + '_> {
+    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<i64> {
         Box::new(
             self.graph
                 .temporal_edge_prop_hist(self.edge, id, &self.layer_ids())

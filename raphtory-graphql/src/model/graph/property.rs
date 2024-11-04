@@ -300,7 +300,7 @@ impl GqlConstantProperties {
     }
 
     async fn keys(&self) -> Vec<String> {
-        self.props.keys().iter().map(|k| k.clone().into()).collect()
+        self.props.keys().map(|k| k.clone().into()).collect()
     }
 
     async fn values(&self, keys: Option<Vec<String>>) -> Vec<GqlProp> {

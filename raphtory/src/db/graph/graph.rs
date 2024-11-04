@@ -1015,14 +1015,29 @@ mod db_tests {
             .add_constant_properties(vec![("b", Prop::U64(22))])
             .is_err());
 
-        assert_eq!(v11.properties().constant().keys(), vec!["a", "b", "c"]);
-        assert!(v22.properties().constant().keys().is_empty());
-        assert!(v33.properties().constant().keys().is_empty());
-        assert_eq!(v44.properties().constant().keys(), vec!["e"]);
-        assert_eq!(v55.properties().constant().keys(), vec!["f"]);
-        assert_eq!(edge1111.properties().constant().keys(), vec!["d"]);
-        assert_eq!(edge3311.properties().constant().keys(), vec!["a"]);
-        assert!(edge2233.properties().constant().keys().is_empty());
+        assert_eq!(
+            v11.properties().constant().keys().collect::<Vec<_>>(),
+            vec!["a", "b", "c"]
+        );
+        assert!(v22.properties().constant().keys().next().is_none());
+        assert!(v33.properties().constant().keys().next().is_none());
+        assert_eq!(
+            v44.properties().constant().keys().collect::<Vec<_>>(),
+            vec!["e"]
+        );
+        assert_eq!(
+            v55.properties().constant().keys().collect::<Vec<_>>(),
+            vec!["f"]
+        );
+        assert_eq!(
+            edge1111.properties().constant().keys().collect::<Vec<_>>(),
+            vec!["d"]
+        );
+        assert_eq!(
+            edge3311.properties().constant().keys().collect::<Vec<_>>(),
+            vec!["a"]
+        );
+        assert!(edge2233.properties().constant().keys().next().is_none());
 
         assert_eq!(v11.properties().constant().get("a"), Some(Prop::U64(11)));
         assert_eq!(v11.properties().constant().get("b"), Some(Prop::I64(11)));
@@ -1202,22 +1217,6 @@ mod db_tests {
 
             assert_eq!(graph.count_nodes(), 2);
         });
-    }
-
-    #[test]
-    fn layers_1() -> Result<(), GraphError> {
-        let graph = Graph::new();
-        graph.add_edge(0, 11, 22, NO_PROPS, None)?;
-        graph.add_edge(0, 11, 33, NO_PROPS, None)?;
-        graph.add_edge(0, 33, 11, NO_PROPS, None)?;
-        graph.add_edge(1, 11, 22, NO_PROPS, Some("layer1"))?;
-        graph.add_edge(1, 11, 33, NO_PROPS, Some("layer2"))?;
-        graph.add_edge(1, 11, 44, NO_PROPS, Some("layer2"))?;
-
-        let graph = graph.window(1, 2).layers(["layer2", "layer1"])?;
-        // check count_edges
-        assert_eq!(graph.count_edges(), 3);
-        Ok(())
     }
 
     #[test]

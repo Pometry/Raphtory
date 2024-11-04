@@ -230,7 +230,7 @@ impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertyViewOps for NodeView<G
             .collect()
     }
 
-    fn temporal_history_iter(&self, id: usize) -> Box<dyn Iterator<Item = i64> + '_> {
+    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<i64> {
         Box::new(
             self.graph
                 .temporal_node_prop_hist(self.node, id)
@@ -255,7 +255,7 @@ impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertyViewOps for NodeView<G
             .collect()
     }
 
-    fn temporal_values_iter(&self, id: usize) -> Box<dyn Iterator<Item = Prop> + '_> {
+    fn temporal_values_iter(&self, id: usize) -> BoxedLIter<Prop> {
         Box::new(
             self.graph
                 .temporal_node_prop_hist(self.node, id)

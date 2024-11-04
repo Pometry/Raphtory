@@ -187,8 +187,8 @@ impl PyEdge {
     /// Returns:
     ///    int: The number of times an edge is added or change to an edge is made.
     ///
-    pub fn history_counts<'py>(&self, py: Python<'py>) -> u64 {
-        self.edge.history_counts() as u64
+    pub fn history_counts(&self) -> usize {
+        self.edge.history_counts()
     }
 
     /// Returns a list of timestamps of when an edge is added or change to an edge is made.

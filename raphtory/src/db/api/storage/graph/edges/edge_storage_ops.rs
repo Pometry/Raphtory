@@ -51,9 +51,7 @@ impl<'a> TimeIndexRef<'a> {
                 StorageVariants::Unlocked(GenLockedIter::from(t, |t| t.iter()))
             }
             #[cfg(feature = "storage")]
-            TimeIndexRef::External(t) => {
-                StorageVariants::Disk(GenLockedIter::from(t, |t| t.iter()))
-            }
+            TimeIndexRef::External(t) => StorageVariants::Disk(t.into_iter()),
         }
     }
 }

@@ -24,7 +24,7 @@ impl ConstPropertiesOps for GraphStorage {
         self.graph_meta().get_constant(id)
     }
 
-    fn const_prop_keys(&self) -> Box<dyn Iterator<Item = ArcStr> + '_> {
+    fn const_prop_keys(&self) -> BoxedLIter<ArcStr> {
         Box::new(self.graph_meta().constant_names().into_iter())
     }
 }

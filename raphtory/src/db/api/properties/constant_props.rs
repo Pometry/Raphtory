@@ -3,7 +3,7 @@ use crate::{
     db::api::{properties::internal::ConstPropertiesOps, view::BoxedLIter},
 };
 use raphtory_api::core::storage::arc_str::ArcStr;
-use std::{collections::HashMap, iter::Zip};
+use std::collections::HashMap;
 
 pub struct ConstProperties<'a, P: ConstPropertiesOps> {
     pub(crate) props: P,
@@ -17,11 +17,11 @@ impl<'a, P: ConstPropertiesOps + Sync> ConstProperties<'a, P> {
             _marker: std::marker::PhantomData,
         }
     }
-    pub fn keys(&self) -> Vec<ArcStr> {
-        self.props.const_prop_keys().collect()
+    pub fn keys(&self) -> BoxedLIter<ArcStr> {
+        self.props.const_prop_keys()
     }
 
-    pub fn values(&self) -> Box<dyn Iterator<Item = Prop> + Send + '_> {
+    pub fn values(&self) -> BoxedLIter<Prop> {
         self.props.const_prop_values()
     }
 
