@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, sync::Arc};
 
 use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -15,53 +15,33 @@ pub enum LayerIds {
     None,
     All,
     One(usize),
-    Multiple(BitMultiple),
+    Multiple(Multiple),
 }
 
-#[derive(Clone, Debug)]
-pub struct BitMultiple(bit_vec::BitVec);
+#[derive(Clone, Debug, Default)]
+pub struct Multiple(Arc<[usize]>);
 
-impl Default for BitMultiple {
-    fn default() -> Self {
-        BitMultiple(bit_vec::BitVec::with_capacity(32))
-    }
-}
-
-impl BitMultiple {
-    // Not qute binary_search but will rename_later
+impl Multiple {
     #[inline]
     pub fn binary_search(&self, pos: &usize) -> Option<usize> {
-        self.0.get(*pos).filter(|b| *b).map(|_| *pos)
+        self.0.binary_search(pos).ok()
     }
 
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = usize> {
-        self.0
-            .clone()
-            .into_iter()
-            .enumerate()
-            .filter_map(|(i, b)| if b { Some(i) } else { None })
+        let ids = self.0.clone();
+        (0..ids.len()).map(move |i| ids[i])
     }
 
     #[inline]
     pub fn find(&self, id: usize) -> Option<usize> {
-        self.iter().find(|i| *i == id)
+        self.0.get(id).copied()
     }
 
     #[inline]
     pub fn par_iter(&self) -> impl rayon::iter::ParallelIterator<Item = usize> {
         let bit_vec = self.0.clone();
-        (0..bit_vec.len())
-            .into_par_iter()
-            .filter_map(move |i| bit_vec.get(i).filter(|b| *b).map(|_| i))
-    }
-
-    #[inline]
-    pub fn set(&mut self, id: usize, value: bool) {
-        if id >= self.0.len() {
-            self.0.grow(id + 1, false);
-        }
-        self.0.set(id, value);
+        (0..bit_vec.len()).into_par_iter().map(move |i| bit_vec[i])
     }
 
     #[inline]
@@ -70,17 +50,13 @@ impl BitMultiple {
     }
 }
 
-impl FromIterator<usize> for BitMultiple {
+impl FromIterator<usize> for Multiple {
     fn from_iter<I: IntoIterator<Item = usize>>(iter: I) -> Self {
-        let mut bm = BitMultiple::default();
-        for i in iter {
-            bm.set(i, true);
-        }
-        bm
+        Multiple(iter.into_iter().collect())
     }
 }
 
-impl From<Vec<usize>> for BitMultiple {
+impl From<Vec<usize>> for Multiple {
     fn from(v: Vec<usize>) -> Self {
         v.into_iter().collect()
     }
@@ -88,10 +64,12 @@ impl From<Vec<usize>> for BitMultiple {
 
 #[cfg(test)]
 mod test {
+    use crate::core::entities::Multiple;
+
 
     #[test]
     fn empty_bit_multiple() {
-        let bm = super::BitMultiple::default();
+        let bm = super::Multiple::default();
         let actual = bm.iter().collect::<Vec<_>>();
         let expected: Vec<usize> = vec![];
         assert_eq!(actual, expected);
@@ -99,17 +77,14 @@ mod test {
 
     #[test]
     fn set_one() {
-        let mut bm = super::BitMultiple::default();
-        bm.set(1, true);
+        let mut bm:Multiple = [1].into_iter().collect();
         let actual = bm.iter().collect::<Vec<_>>();
         assert_eq!(actual, vec![1usize]);
     }
 
     #[test]
     fn set_two() {
-        let mut bm = super::BitMultiple::default();
-        bm.set(1, true);
-        bm.set(67, true);
+        let mut bm:Multiple = [1, 67].into_iter().collect();
 
         let actual = bm.iter().collect::<Vec<_>>();
         assert_eq!(actual, vec![1usize, 67]);

@@ -74,7 +74,7 @@ impl<'graph, G, GH: GraphViewOps<'graph> + Debug> fmt::Debug for NodeView<G, GH>
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("NodeView")
             .field("node", &self.node)
-            .field("graph", &self.graph)
+            .field("graph", &self.graph as &dyn Debug)
             .finish()
     }
 }
@@ -230,6 +230,15 @@ impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertyViewOps for NodeView<G
             .collect()
     }
 
+    fn temporal_history_iter(&self, id: usize) -> Box<dyn Iterator<Item = i64> + '_> {
+        Box::new(
+            self.graph
+                .temporal_node_prop_hist(self.node, id)
+                .into_iter()
+                .map(|(t, _)| t.t()),
+        )
+    }
+
     fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
         self.graph
             .temporal_node_prop_hist(self.node, id)
@@ -244,6 +253,15 @@ impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertyViewOps for NodeView<G
             .into_iter()
             .map(|(_, v)| v)
             .collect()
+    }
+
+    fn temporal_values_iter(&self, id: usize) -> Box<dyn Iterator<Item = Prop> + '_> {
+        Box::new(
+            self.graph
+                .temporal_node_prop_hist(self.node, id)
+                .into_iter()
+                .map(|(_, v)| v),
+        )
     }
 
     fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop> {
