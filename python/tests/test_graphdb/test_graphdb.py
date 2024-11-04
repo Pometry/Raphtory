@@ -1035,7 +1035,7 @@ def test_exploded_edge_time():
         exploded_his = []
         for ee in e.explode():
             exploded_his.append(ee.time)
-        assert check_arr(his, exploded_his)
+        check_arr(his, exploded_his)
 
     check(g)
 
