@@ -1,4 +1,6 @@
 #[cfg(feature = "proto")]
+use crate::db::api::storage::graph::nodes::node_storage_ops::NodeStorageOps;
+#[cfg(feature = "proto")]
 use crate::serialise::incremental::GraphWriter;
 use crate::{
     core::{
@@ -14,10 +16,7 @@ use crate::{
         mutation::internal::{
             InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
         },
-        storage::graph::{
-            locked::WriteLockedGraph, nodes::node_storage_ops::NodeStorageOps,
-            storage_ops::GraphStorage,
-        },
+        storage::graph::{locked::WriteLockedGraph, storage_ops::GraphStorage},
         view::{Base, InheritViewOps},
     },
 };

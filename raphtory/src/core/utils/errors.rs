@@ -5,8 +5,10 @@ use polars_arrow::{datatypes::ArrowDataType, legacy::error};
 use pometry_storage::RAError;
 #[cfg(feature = "python")]
 use pyo3::PyErr;
+#[cfg(feature = "arrow")]
+use raphtory_api::core::entities::GidType;
 use raphtory_api::core::{
-    entities::{properties::PropError, GidType, GID},
+    entities::{properties::PropError, GID},
     storage::arc_str::ArcStr,
 };
 use std::{fmt::Debug, io, path::PathBuf, time::SystemTimeError};
