@@ -17,7 +17,7 @@ use crate::{
             },
             view::{
                 internal::{CoreGraphOps, OneHopFilter, Static, TimeSemantics},
-                BaseNodeViewOps, IntoDynBoxed, StaticGraphViewOps,
+                BaseNodeViewOps, BoxedLIter, IntoDynBoxed, StaticGraphViewOps,
             },
         },
         graph::path::PathFromNode,
@@ -273,7 +273,7 @@ impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertyViewOps for NodeView<G
     }
 }
 
-impl<G, GH: CoreGraphOps> ConstPropertiesOps for NodeView<G, GH> {
+impl<G: Send + Sync, GH: CoreGraphOps> ConstPropertiesOps for NodeView<G, GH> {
     fn get_const_prop_id(&self, name: &str) -> Option<usize> {
         self.graph.node_meta().const_prop_meta().get_id(name)
     }
@@ -286,7 +286,7 @@ impl<G, GH: CoreGraphOps> ConstPropertiesOps for NodeView<G, GH> {
             .clone()
     }
 
-    fn const_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
+    fn const_prop_ids(&self) -> BoxedLIter<usize> {
         self.graph.constant_node_prop_ids(self.node)
     }
 

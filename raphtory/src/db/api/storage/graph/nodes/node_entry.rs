@@ -15,7 +15,7 @@ use crate::{
             tprop_storage_ops::TPropOps,
             variants::storage_variants3::StorageVariants,
         },
-        view::internal::NodeAdditions,
+        view::{internal::NodeAdditions, BoxedLIter},
     },
     prelude::Prop,
 };
@@ -84,7 +84,7 @@ impl<'b> NodeStorageEntry<'b> {
         }
     }
 
-    pub fn prop_ids(self) -> Box<dyn Iterator<Item = usize> + 'b> {
+    pub fn prop_ids(self) -> BoxedLIter<'b, usize> {
         match self {
             NodeStorageEntry::Mem(entry) => Box::new(entry.const_prop_ids()),
             NodeStorageEntry::Unlocked(entry) => {

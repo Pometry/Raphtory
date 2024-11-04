@@ -69,7 +69,7 @@ impl<P: PropertiesOps + Clone> Properties<P> {
     }
 
     /// Get a view of the constant properties (meta-data) only.
-    pub fn constant(&self) -> ConstProperties<P> {
+    pub fn constant<'a>(&self) -> ConstProperties<'a, P> {
         ConstProperties::new(self.props.clone())
     }
 

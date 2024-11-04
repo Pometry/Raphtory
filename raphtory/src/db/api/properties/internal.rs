@@ -1,6 +1,6 @@
 use crate::{
     core::{storage::timeindex::AsTime, Prop, PropType},
-    db::api::view::internal::Base,
+    db::api::view::{internal::Base, BoxedLIter},
 };
 use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
@@ -41,15 +41,15 @@ pub trait TemporalPropertyViewOps {
 }
 
 #[enum_dispatch]
-pub trait ConstPropertiesOps {
+pub trait ConstPropertiesOps: Send + Sync {
     /// Find id for property name (note this only checks the meta-data, not if the property actually exists for the entity)
     fn get_const_prop_id(&self, name: &str) -> Option<usize>;
     fn get_const_prop_name(&self, id: usize) -> ArcStr;
-    fn const_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_>;
+    fn const_prop_ids(&self) -> BoxedLIter<usize>;
     fn const_prop_keys(&self) -> Box<dyn Iterator<Item = ArcStr> + '_> {
         Box::new(self.const_prop_ids().map(|id| self.get_const_prop_name(id)))
     }
-    fn const_prop_values(&self) -> Box<dyn Iterator<Item = Prop> + '_> {
+    fn const_prop_values(&self) -> BoxedLIter<Prop> {
         Box::new(self.const_prop_ids().map(|k| {
             self.get_const_prop(k)
                 .expect("ids that come from the internal iterator should exist")
@@ -81,8 +81,8 @@ impl<P: TemporalPropertiesOps + TemporalPropertyViewOps + ConstPropertiesOps> Pr
 
 pub trait InheritTemporalPropertyViewOps: Base {}
 pub trait InheritTemporalPropertiesOps: Base {}
-pub trait InheritStaticPropertiesOps: Base {}
-pub trait InheritPropertiesOps: Base {}
+pub trait InheritStaticPropertiesOps: Base + Send + Sync {}
+pub trait InheritPropertiesOps: Base + Send + Sync {}
 
 impl<P: InheritPropertiesOps> InheritStaticPropertiesOps for P {}
 impl<P: InheritPropertiesOps> InheritTemporalPropertiesOps for P {}
@@ -162,7 +162,7 @@ where
     }
 
     #[inline]
-    fn const_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
+    fn const_prop_ids(&self) -> BoxedLIter<usize> {
         self.base().const_prop_ids()
     }
 
@@ -172,7 +172,7 @@ where
     }
 
     #[inline]
-    fn const_prop_values(&self) -> Box<dyn Iterator<Item = Prop> + '_> {
+    fn const_prop_values(&self) -> Box<dyn Iterator<Item = Prop> + Send + '_> {
         self.base().const_prop_values()
     }
 

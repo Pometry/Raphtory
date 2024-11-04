@@ -9,7 +9,7 @@ use crate::{
             tprop_storage_ops::TPropOps,
             variants::{direction_variants::DirectionVariants, layer_variants::LayerVariants},
         },
-        view::internal::NodeAdditions,
+        view::{internal::NodeAdditions, BoxedLIter},
     },
     prelude::Prop,
 };
@@ -26,7 +26,7 @@ pub struct DiskNode<'a> {
 }
 
 impl<'a> DiskNode<'a> {
-    pub fn constant_node_prop_ids(self) -> Box<dyn Iterator<Item = usize> + 'a> {
+    pub fn constant_node_prop_ids(self) -> BoxedLIter<'a, usize> {
         match &self.graph.node_properties().const_props {
             None => Box::new(std::iter::empty()),
             Some(props) => {

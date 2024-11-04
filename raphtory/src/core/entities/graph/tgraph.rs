@@ -21,7 +21,7 @@ use crate::{
     },
     db::api::{
         storage::graph::edges::edge_storage_ops::EdgeStorageOps,
-        view::{IntoDynBoxed, Layer},
+        view::{BoxedLIter, IntoDynBoxed, Layer},
     },
 };
 use dashmap::DashSet;
@@ -231,7 +231,7 @@ impl TemporalGraph {
         &self,
         e: EdgeRef,
         layer_ids: LayerIds,
-    ) -> Box<dyn Iterator<Item = usize> + '_> {
+    ) -> BoxedLIter<usize> {
         let entry = self.storage.edge_entry(e.pid());
         GenLockedIter::from(entry, |entry| {
             let layer_ids = layer_ids.constrain_from_edge(e);

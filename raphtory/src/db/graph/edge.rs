@@ -27,7 +27,7 @@ use crate::{
             storage::graph::edges::edge_storage_ops::EdgeStorageOps,
             view::{
                 internal::{OneHopFilter, Static},
-                BaseEdgeViewOps, IntoDynBoxed, StaticGraphViewOps,
+                BaseEdgeViewOps, BoxedLIter, IntoDynBoxed, StaticGraphViewOps,
             },
         },
         graph::{edges::Edges, node::NodeView},
@@ -321,7 +321,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> ConstPropertiesO
             .clone()
     }
 
-    fn const_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
+    fn const_prop_ids(&self) -> BoxedLIter<usize> {
         self.graph
             .const_edge_prop_ids(self.edge, self.graph.layer_ids().clone())
     }
