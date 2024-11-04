@@ -66,7 +66,6 @@ impl From<Vec<usize>> for Multiple {
 mod test {
     use crate::core::entities::Multiple;
 
-
     #[test]
     fn empty_bit_multiple() {
         let bm = super::Multiple::default();
@@ -77,14 +76,14 @@ mod test {
 
     #[test]
     fn set_one() {
-        let mut bm:Multiple = [1].into_iter().collect();
+        let mut bm: Multiple = [1].into_iter().collect();
         let actual = bm.iter().collect::<Vec<_>>();
         assert_eq!(actual, vec![1usize]);
     }
 
     #[test]
     fn set_two() {
-        let mut bm:Multiple = [1, 67].into_iter().collect();
+        let mut bm: Multiple = [1, 67].into_iter().collect();
 
         let actual = bm.iter().collect::<Vec<_>>();
         assert_eq!(actual, vec![1usize, 67]);
