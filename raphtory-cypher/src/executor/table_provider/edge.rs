@@ -30,7 +30,7 @@ use futures::Stream;
 use pometry_storage::prelude::*;
 use raphtory::disk_graph::DiskGraphStorage;
 
-use crate::executor::{arrow2_to_arrow_buf, ExecError};
+use crate::executor::{arrow2_to_arrow_buf, arrow2_to_buf_timestamp, ExecError};
 
 use super::plan_properties;
 
@@ -189,6 +189,7 @@ fn produce_record_batch(
     }
 
     let layer = graph.as_ref().layer(layer_id);
+    let time_col_name = layer.edges_data_type()[0].name.clone();
     let edges = layer.edges_storage();
 
     let chunked_lists_ts = edges.time();
@@ -269,6 +270,8 @@ fn produce_record_batch(
         .map(|(col_id, _)| col_id)
         .collect::<Vec<_>>();
 
+    let time_type = schema.field_with_name(&time_col_name).ok().map(|field| field.data_type().clone());
+
     let iter = time_values_chunks
         .into_iter()
         .zip(temporal_props_chunks)
@@ -278,7 +281,7 @@ fn produce_record_batch(
             let layer_ids = layer_ids.slice(*from, len);
             let srcs = srcs.slice(*from, len);
             let dsts = dsts.slice(*from, len);
-            let time: Arc<dyn Array> = Arc::new(arrow2_to_arrow_buf::<Int64Type>(&time_values));
+            let time: Arc<dyn Array> = time_column(time_values, time_type.clone());
             let mut columns = vec![e_ids, layer_ids, srcs, dsts, time];
 
             for col_id in &column_ids {
@@ -306,6 +309,16 @@ fn produce_record_batch(
         });
 
     Box::new(iter)
+}
+
+fn time_column(time_values: polars_arrow::buffer::Buffer<i64>, time_type: Option<arrow_schema::DataType>) -> Arc<dyn Array> {
+    let time_type = time_type.unwrap_or(arrow_schema::DataType::Int64);
+
+    match time_type {
+        arrow_schema::DataType::Int64  => Arc::new(arrow2_to_arrow_buf::<Int64Type>(&time_values)),
+        arrow_schema::DataType::Timestamp(_, _) => Arc::new(arrow2_to_buf_timestamp(&time_values)),
+        _ => panic!("Only support for Int64 and Timestamp(Milliseconds, \"UTC\")")
+    }
 }
 
 fn property_to_arrow_column(

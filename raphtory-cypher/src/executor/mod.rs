@@ -1,5 +1,6 @@
 use crate::arrow2::{array::Arrow2Arrow, datatypes::ArrowDataType, types::NativeType};
 use arrow::datatypes::ArrowPrimitiveType;
+use arrow_schema::DataType;
 
 pub(crate) mod table_provider;
 
@@ -35,6 +36,18 @@ where
 {
     let dt = ArrowDataType::from(<U::Native as crate::arrow2::types::NativeType>::PRIMITIVE);
     let prim_array = crate::arrow2::array::PrimitiveArray::new(dt, buffer.clone(), None);
+    let data = prim_array.to_data();
+    arrow::array::PrimitiveArray::from(data)
+}
+
+fn arrow2_to_buf_timestamp(
+    buffer: &crate::arrow2::buffer::Buffer<i64>,
+) -> arrow::array::TimestampMillisecondArray {
+    let prim_array = crate::arrow2::array::PrimitiveArray::new(
+        DataType::Timestamp(arrow_schema::TimeUnit::Millisecond, Some("UTC".into())).into(),
+        buffer.clone(),
+        None,
+    );
     let data = prim_array.to_data();
     arrow::array::PrimitiveArray::from(data)
 }
