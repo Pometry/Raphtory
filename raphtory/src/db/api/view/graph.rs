@@ -198,15 +198,11 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
             }
             LayerIds::Multiple(ids) => {
                 let mut layer_map = vec![0; self.unfiltered_num_layers()];
-                let ids = if ids.find(0) == Some(0) {
-                    ids.iter().skip(1).into_dyn_boxed()
-                } else {
-                    ids.iter().into_dyn_boxed()
-                };
+                let ids = if ids.0[0] == 0 { &ids.0[1..] } else { &ids.0 };
                 let layers = storage.edge_meta().layer_meta().get_keys();
                 for id in ids {
-                    let new_id = g.resolve_layer(Some(&layers[id]))?.inner();
-                    layer_map[id] = new_id;
+                    let new_id = g.resolve_layer(Some(&layers[*id]))?.inner();
+                    layer_map[*id] = new_id;
                 }
                 layer_map
             }

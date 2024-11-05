@@ -1,4 +1,4 @@
-use std::{borrow::Cow, sync::Arc};
+use std::{borrow::Cow, ops::Index, sync::Arc};
 
 use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
