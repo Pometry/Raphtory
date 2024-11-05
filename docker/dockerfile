@@ -23,6 +23,4 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 COPY docker/server.py /home/raphtory_server/server.py
 
-EXPOSE 1736
-
 ENTRYPOINT ["python", "/home/raphtory_server/server.py"]

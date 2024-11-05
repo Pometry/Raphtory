@@ -67,24 +67,33 @@ python-docs:
 
 WORKING_DIR ?= /tmp/graphs
 PORT ?= 1736
-IMAGE_NAME := pometry/graphql
-PY_IMAGE_NAME := pometry/pygraphql
 
-docker-build-pygraphql-base-amd64:
-	cd docker/base && docker build --platform linux/amd64 -t pometry/raphtory_base .
+PACKAGE_VERSION := $(shell grep -m 1 '^version' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+RUST_VERSION := $(shell grep -m 1 '^rust-version' Cargo.toml | sed 's/rust-version = "\(.*\)"/\1/')
 
-docker-build-pygraphql-base-arm64:
-	cd docker/base && docker build --platform linux/arm64 -t pometry/raphtory_base .
+print-versions:
+	@echo "Package Version: $(PACKAGE_VERSION)"
+	@echo "Rust Version: $(RUST_VERSION)"
 
-docker-build-pygraphql-amd64:
+BASE_IMAGE_NAME := pometry/raphtory_base:$(RUST_VERSION)
+IMAGE_NAME := pometry/raphtory:$(PACKAGE_VERSION)
+PY_IMAGE_NAME := pometry/pyraphtory:$(PACKAGE_VERSION)
+
+docker-build-pyraphtory-base-amd64:
+	cd docker/base && docker build --platform linux/amd64 -t $(BASE_IMAGE_NAME) .
+
+docker-build-pyraphtory-base-arm64:
+	cd docker/base && docker build --platform linux/arm64 -t $(BASE_IMAGE_NAME) .
+
+docker-build-pyraphtory-amd64:
 	./scripts/deactivate_private_storage.py
 	docker build --platform linux/amd64 -t $(PY_IMAGE_NAME) -f docker/dockerfile .
 
-docker-build-pygraphql-arm64:
+docker-build-pyraphtory-arm64:
 	./scripts/deactivate_private_storage.py
 	docker build --platform linux/arm64 -t $(PY_IMAGE_NAME) -f docker/dockerfile .
 
-docker-run-pygraphql:
+docker-run-pyraphtory:
 	docker run --rm -p $(PORT):$(PORT) \
 		-v $(WORKING_DIR):/tmp/graphs \
 		$(PY_IMAGE_NAME) \
@@ -98,10 +107,15 @@ docker-run-pygraphql:
 		$(if $(OTLP_AGENT_PORT),--otlp-agent-port=$(OTLP_AGENT_PORT)) \
 		$(if $(OTLP_TRACING_SERVICE_NAME),--otlp-tracing-service-name=$(OTLP_TRACING_SERVICE_NAME))
 
-docker-build-graphql:
-	docker build -t $(IMAGE_NAME) .
+docker-build-raphtory-amd64:
+	./scripts/deactivate_private_storage.py
+	docker build --platform linux/amd64 -t $(IMAGE_NAME) .
 
-docker-run-graphql:
+docker-build-raphtory-arm64:
+	./scripts/deactivate_private_storage.py
+	docker build --platform linux/arm64 -t $(IMAGE_NAME) .
+
+docker-run-raphtory:
 	docker run --rm -p $(PORT):$(PORT) \
 		-v $(WORKING_DIR):/tmp/graphs \
 		$(IMAGE_NAME) \

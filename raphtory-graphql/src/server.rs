@@ -210,11 +210,14 @@ impl GraphServer {
         let (signal_sender, signal_receiver) = mpsc::channel(1);
 
         info!("Playground live at: http://0.0.0.0:{port}");
-        debug!("Server configurations: {}", json!({
-            "config": config,
-            "work_dir": work_dir
-        }));
-        
+        debug!(
+            "Server configurations: {}",
+            json!({
+                "config": config,
+                "work_dir": work_dir
+            })
+        );
+
         let server_task = Server::new(TcpListener::bind(format!("0.0.0.0:{port}")))
             .run_with_graceful_shutdown(app, server_termination(signal_receiver, tp), None);
         let server_result = tokio::spawn(server_task);
