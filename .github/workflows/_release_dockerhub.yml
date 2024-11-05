@@ -1,11 +1,6 @@
 name: _Release 5 - Publish Docker Images to Docker Hub
 on:
   workflow_call:
-    inputs:
-      version:
-        description: 'Version tag for the Docker images'
-        type: 'string'
-        required: true
 
 permissions:
   contents: read
@@ -19,6 +14,15 @@ jobs:
     steps:
       - name: Check out the code
         uses: actions/checkout@v3
+
+      - name: Extract Package and Rust Versions
+        id: version_extraction
+        run: |
+          PACKAGE_VERSION=$(grep -m 1 '^version' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+          RUST_VERSION=$(grep -m 1 '^rust-version' Cargo.toml | sed 's/rust-version = "\(.*\)"/\1/')
+          echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> $GITHUB_ENV
+          echo "RUST_VERSION=$RUST_VERSION" >> $GITHUB_ENV
+        shell: bash
 
       - name: Deactivate Private Storage
         run: |
@@ -37,18 +41,18 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Build and push Rust Docker image
+      - name: Build and push raphtory_base Docker image
         uses: docker/build-push-action@v4
         with:
           context: .
-          file: Dockerfile
+          file: docker/base/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/raphtory:${{ inputs.version }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/raphtory:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/raphtory_base:${{ env.RUST_VERSION }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/raphtory_base:latest
 
-      - name: Build and push Python Docker image
+      - name: Build and push Python Docker image (pyraphtory)
         uses: docker/build-push-action@v4
         with:
           context: .
@@ -56,6 +60,16 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/pyraphtory:${{ inputs.version }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/pyraphtory:${{ env.PACKAGE_VERSION }}
             ${{ secrets.DOCKERHUB_USERNAME }}/pyraphtory:latest
-            
+
+      - name: Build and push Rust Docker image (raphtory)
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/raphtory:${{ env.PACKAGE_VERSION }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/raphtory:latest
