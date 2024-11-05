@@ -12,6 +12,7 @@ build:
     python: "mambaforge-4.10"
   jobs:
     pre_build:
+      - curl https://sh.rustup.rs -sSf | sh -s -- -y
       - make rust-build-readthedocs
       - make install-python
 
