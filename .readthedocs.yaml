@@ -13,6 +13,7 @@ build:
   jobs:
     pre_build:
       - curl https://sh.rustup.rs -sSf | sh -s -- -y
+      - source $HOME/.cargo/env
       - make rust-build-readthedocs
       - make install-python
 
