@@ -29,7 +29,7 @@ use crate::{
                 nodes::{node_entry::NodeStorageEntry, nodes::NodesStorage},
                 storage_ops::GraphStorage,
             },
-            view::{internal::*, BoxedIter},
+            view::{internal::*, BoxedIter, BoxedLIter},
         },
         graph::{graph::Graph, views::deletion_graph::PersistentGraph},
     },

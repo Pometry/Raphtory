@@ -26,15 +26,13 @@ impl From<Properties<DynamicGraph>> for DynProperties {
     }
 }
 
-pub type DynConstProperties = ConstProperties<DynProps>;
+pub type DynConstProperties = ConstProperties<'static, DynProps>;
 
-impl<P: PropertiesOps + Send + Sync + Static + 'static> From<ConstProperties<P>>
+impl<P: PropertiesOps + Send + Sync + Static + 'static> From<ConstProperties<'static, P>>
     for DynConstProperties
 {
     fn from(value: ConstProperties<P>) -> Self {
-        ConstProperties {
-            props: Arc::new(value.props),
-        }
+        ConstProperties::new(Arc::new(value.props))
     }
 }
 

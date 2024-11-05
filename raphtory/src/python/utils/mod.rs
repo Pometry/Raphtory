@@ -7,11 +7,13 @@ use crate::{
         entities::{nodes::node_ref::NodeRef, GidRef},
         storage::timeindex::AsTime,
         utils::time::{error::ParseTimeError, Interval, IntoTime, TryIntoTime},
+        Prop, PropUnwrap,
     },
     db::api::view::*,
     python::graph::node::PyNode,
 };
 use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
+use numpy::IntoPyArray;
 use pyo3::{
     exceptions::{PyRuntimeError, PyTypeError},
     prelude::*,
@@ -275,14 +277,14 @@ impl PyGenericIterable {
     }
 }
 
-#[pyclass(name = "Iterator")]
+#[pyclass(name = "Iterator", unsendable)]
 pub struct PyGenericIterator {
-    iter: Box<dyn Iterator<Item = PyObject> + Send>,
+    iter: Box<dyn Iterator<Item = PyObject>>,
 }
 
 impl<I, T> From<I> for PyGenericIterator
 where
-    I: Iterator<Item = T> + Send + 'static,
+    I: Iterator<Item = T> + 'static,
     T: IntoPy<PyObject> + 'static,
 {
     fn from(value: I) -> Self {
@@ -294,7 +296,7 @@ where
 impl IntoIterator for PyGenericIterator {
     type Item = PyObject;
 
-    type IntoIter = BoxedIter<PyObject>;
+    type IntoIter = Box<dyn Iterator<Item = PyObject>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter
@@ -335,6 +337,77 @@ impl PyNestedGenericIterator {
     }
     fn __next__(&mut self) -> Option<PyGenericIterator> {
         self.iter.next()
+    }
+}
+
+pub enum NumpyArray {
+    Bool(Vec<bool>),
+    U32(Vec<u32>),
+    U64(Vec<u64>),
+    I32(Vec<i32>),
+    I64(Vec<i64>),
+    F32(Vec<f32>),
+    F64(Vec<f64>),
+    Props(Vec<Prop>),
+}
+
+impl FromIterator<Prop> for NumpyArray {
+    fn from_iter<I: IntoIterator<Item = Prop>>(iter: I) -> Self {
+        let mut iter = iter.into_iter().peekable();
+        match iter.peek() {
+            Some(Prop::Bool(_)) => Self::Bool(iter.filter_map(|p| p.into_bool()).collect()),
+            Some(Prop::I32(_)) => Self::I32(iter.filter_map(|p| p.into_i32()).collect()),
+            Some(Prop::I64(_)) => Self::I64(iter.filter_map(|p| p.into_i64()).collect()),
+            Some(Prop::U32(_)) => Self::U32(iter.filter_map(|p| p.into_u32()).collect()),
+            Some(Prop::U64(_)) => Self::U64(iter.filter_map(|p| p.into_u64()).collect()),
+            Some(Prop::F32(_)) => Self::F32(iter.filter_map(|p| p.into_f32()).collect()),
+            Some(Prop::F64(_)) => Self::F64(iter.filter_map(|p| p.into_f64()).collect()),
+            _ => Self::Props(iter.collect()),
+        }
+    }
+}
+
+impl From<Vec<i64>> for NumpyArray {
+    fn from(value: Vec<i64>) -> Self {
+        NumpyArray::I64(value)
+    }
+}
+
+impl IntoPy<PyObject> for NumpyArray {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        match self {
+            NumpyArray::Bool(value) => value.into_pyarray(py).to_object(py),
+            NumpyArray::I32(value) => value.into_pyarray(py).to_object(py),
+            NumpyArray::I64(value) => value.into_pyarray(py).to_object(py),
+            NumpyArray::U32(value) => value.into_pyarray(py).to_object(py),
+            NumpyArray::U64(value) => value.into_pyarray(py).to_object(py),
+            NumpyArray::F32(value) => value.into_pyarray(py).to_object(py),
+            NumpyArray::F64(value) => value.into_pyarray(py).to_object(py),
+            NumpyArray::Props(vec) => match vec.first() {
+                Some(Prop::Bool(_)) => {
+                    Self::Bool(vec.into_iter().filter_map(|p| p.into_bool()).collect()).into_py(py)
+                }
+                Some(Prop::I32(_)) => {
+                    Self::I32(vec.into_iter().filter_map(|p| p.into_i32()).collect()).into_py(py)
+                }
+                Some(Prop::I64(_)) => {
+                    Self::I64(vec.into_iter().filter_map(|p| p.into_i64()).collect()).into_py(py)
+                }
+                Some(Prop::U32(_)) => {
+                    Self::U32(vec.into_iter().filter_map(|p| p.into_u32()).collect()).into_py(py)
+                }
+                Some(Prop::U64(_)) => {
+                    Self::U64(vec.into_iter().filter_map(|p| p.into_u64()).collect()).into_py(py)
+                }
+                Some(Prop::F32(_)) => {
+                    Self::F32(vec.into_iter().filter_map(|p| p.into_f32()).collect()).into_py(py)
+                }
+                Some(Prop::F64(_)) => {
+                    Self::F64(vec.into_iter().filter_map(|p| p.into_f64()).collect()).into_py(py)
+                }
+                _ => vec.into_py(py),
+            },
+        }
     }
 }
 

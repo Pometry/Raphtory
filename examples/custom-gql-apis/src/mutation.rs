@@ -2,20 +2,8 @@ use async_graphql::{
     dynamic::{FieldValue, ResolverContext, TypeRef},
     FieldResult,
 };
-use chrono::Utc;
 use futures_util::future::BoxFuture;
-use itertools::Itertools;
-use raphtory_core::{
-    core::{utils::errors::GraphError, Prop},
-    prelude::{CacheOps, GraphViewOps, ImportOps, NodeViewOps, PropertyAdditionOps},
-};
-use raphtory_graphql::{
-    data::Data,
-    model::plugins::{
-        mutation_plugin::MutationPlugin, operation::Operation, query_plugin::QueryPlugin,
-    },
-};
-use std::{path::Path, sync::Arc};
+use raphtory_graphql::model::plugins::{mutation_plugin::MutationPlugin, operation::Operation};
 
 pub(crate) struct HelloMutation;
 
@@ -31,7 +19,7 @@ impl<'a> Operation<'a, MutationPlugin> for HelloMutation {
     }
 
     fn apply<'b>(
-        entry_point: &MutationPlugin,
+        _entry_point: &MutationPlugin,
         ctx: ResolverContext,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
         let name = ctx

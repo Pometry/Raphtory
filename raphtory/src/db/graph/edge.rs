@@ -27,7 +27,7 @@ use crate::{
             storage::graph::edges::edge_storage_ops::EdgeStorageOps,
             view::{
                 internal::{OneHopFilter, Static},
-                BaseEdgeViewOps, IntoDynBoxed, StaticGraphViewOps,
+                BaseEdgeViewOps, BoxedLIter, IntoDynBoxed, StaticGraphViewOps,
             },
         },
         graph::{edges::Edges, node::NodeView},
@@ -320,12 +320,12 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> ConstPropertiesO
             .clone()
     }
 
-    fn const_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
+    fn const_prop_ids(&self) -> BoxedLIter<usize> {
         self.graph
             .const_edge_prop_ids(self.edge, self.graph.layer_ids().clone())
     }
 
-    fn const_prop_keys(&self) -> Box<dyn Iterator<Item = ArcStr> + '_> {
+    fn const_prop_keys(&self) -> BoxedLIter<ArcStr> {
         let reverse_map = self.graph.edge_meta().const_prop_meta().get_keys();
         Box::new(self.const_prop_ids().map(move |id| reverse_map[id].clone()))
     }
@@ -370,6 +370,25 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperty
             .map(|(_, v)| v)
             .collect()
     }
+
+    fn temporal_values_iter(&self, id: usize) -> BoxedLIter<Prop> {
+        let layer_ids = self.layer_ids();
+        Box::new(
+            self.graph
+                .temporal_edge_prop_hist(self.edge, id, &layer_ids)
+                .into_iter()
+                .map(|(_, v)| v),
+        )
+    }
+
+    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<i64> {
+        Box::new(
+            self.graph
+                .temporal_edge_prop_hist(self.edge, id, &self.layer_ids())
+                .into_iter()
+                .map(|(t, _)| t.t()),
+        )
+    }
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalPropertiesOps
@@ -399,7 +418,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperti
         let layer_ids = self.layer_ids();
         Box::new(
             self.graph
-                .temporal_edge_prop_ids(self.edge, &layer_ids)
+                .temporal_edge_prop_ids(self.edge, layer_ids.clone())
                 .filter(move |id| {
                     self.graph
                         .has_temporal_edge_prop(self.edge, *id, &layer_ids)

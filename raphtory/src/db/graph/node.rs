@@ -17,7 +17,7 @@ use crate::{
             },
             view::{
                 internal::{CoreGraphOps, OneHopFilter, Static, TimeSemantics},
-                BaseNodeViewOps, IntoDynBoxed, StaticGraphViewOps,
+                BaseNodeViewOps, BoxedLIter, IntoDynBoxed, StaticGraphViewOps,
             },
         },
         graph::path::PathFromNode,
@@ -74,7 +74,7 @@ impl<'graph, G, GH: GraphViewOps<'graph> + Debug> fmt::Debug for NodeView<G, GH>
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("NodeView")
             .field("node", &self.node)
-            .field("graph", &self.graph)
+            .field("graph", &self.graph as &dyn Debug)
             .finish()
     }
 }
@@ -230,6 +230,15 @@ impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertyViewOps for NodeView<G
             .collect()
     }
 
+    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<i64> {
+        Box::new(
+            self.graph
+                .temporal_node_prop_hist(self.node, id)
+                .into_iter()
+                .map(|(t, _)| t.t()),
+        )
+    }
+
     fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
         self.graph
             .temporal_node_prop_hist(self.node, id)
@@ -246,6 +255,15 @@ impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertyViewOps for NodeView<G
             .collect()
     }
 
+    fn temporal_values_iter(&self, id: usize) -> BoxedLIter<Prop> {
+        Box::new(
+            self.graph
+                .temporal_node_prop_hist(self.node, id)
+                .into_iter()
+                .map(|(_, v)| v),
+        )
+    }
+
     fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop> {
         let history = self.temporal_history(id);
         match history.binary_search(&t) {
@@ -255,7 +273,7 @@ impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertyViewOps for NodeView<G
     }
 }
 
-impl<G, GH: CoreGraphOps> ConstPropertiesOps for NodeView<G, GH> {
+impl<G: Send + Sync, GH: CoreGraphOps> ConstPropertiesOps for NodeView<G, GH> {
     fn get_const_prop_id(&self, name: &str) -> Option<usize> {
         self.graph.node_meta().const_prop_meta().get_id(name)
     }
@@ -268,7 +286,7 @@ impl<G, GH: CoreGraphOps> ConstPropertiesOps for NodeView<G, GH> {
             .clone()
     }
 
-    fn const_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
+    fn const_prop_ids(&self) -> BoxedLIter<usize> {
         self.graph.constant_node_prop_ids(self.node)
     }
 

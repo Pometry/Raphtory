@@ -1,6 +1,6 @@
 use crate::{
     core::{storage::timeindex::AsTime, Prop, PropType},
-    db::api::view::internal::Base,
+    db::api::view::{internal::Base, BoxedLIter},
 };
 use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
@@ -12,7 +12,13 @@ pub trait TemporalPropertyViewOps {
     fn temporal_value(&self, id: usize) -> Option<Prop> {
         self.temporal_values(id).last().cloned()
     }
+
     fn temporal_history(&self, id: usize) -> Vec<i64>;
+
+    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<i64> {
+        Box::new(self.temporal_history(id).into_iter())
+    }
+
     fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
         self.temporal_history(id)
             .iter()
@@ -20,6 +26,11 @@ pub trait TemporalPropertyViewOps {
             .collect::<Option<Vec<_>>>()
     }
     fn temporal_values(&self, id: usize) -> Vec<Prop>;
+
+    fn temporal_values_iter(&self, id: usize) -> BoxedLIter<Prop> {
+        Box::new(self.temporal_values(id).into_iter())
+    }
+
     fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop> {
         let history = self.temporal_history(id);
         match history.binary_search(&t) {
@@ -30,21 +41,19 @@ pub trait TemporalPropertyViewOps {
 }
 
 #[enum_dispatch]
-pub trait ConstPropertiesOps {
+pub trait ConstPropertiesOps: Send + Sync {
     /// Find id for property name (note this only checks the meta-data, not if the property actually exists for the entity)
     fn get_const_prop_id(&self, name: &str) -> Option<usize>;
     fn get_const_prop_name(&self, id: usize) -> ArcStr;
-    fn const_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_>;
-    fn const_prop_keys(&self) -> Box<dyn Iterator<Item = ArcStr> + '_> {
+    fn const_prop_ids(&self) -> BoxedLIter<usize>;
+    fn const_prop_keys(&self) -> BoxedLIter<ArcStr> {
         Box::new(self.const_prop_ids().map(|id| self.get_const_prop_name(id)))
     }
-    fn const_prop_values(&self) -> Vec<Prop> {
-        self.const_prop_ids()
-            .map(|k| {
-                self.get_const_prop(k)
-                    .expect("ids that come from the internal iterator should exist")
-            })
-            .collect()
+    fn const_prop_values(&self) -> BoxedLIter<Prop> {
+        Box::new(self.const_prop_ids().map(|k| {
+            self.get_const_prop(k)
+                .expect("ids that come from the internal iterator should exist")
+        }))
     }
     fn get_const_prop(&self, id: usize) -> Option<Prop>;
 }
@@ -72,8 +81,8 @@ impl<P: TemporalPropertiesOps + TemporalPropertyViewOps + ConstPropertiesOps> Pr
 
 pub trait InheritTemporalPropertyViewOps: Base {}
 pub trait InheritTemporalPropertiesOps: Base {}
-pub trait InheritStaticPropertiesOps: Base {}
-pub trait InheritPropertiesOps: Base {}
+pub trait InheritStaticPropertiesOps: Base + Send + Sync {}
+pub trait InheritPropertiesOps: Base + Send + Sync {}
 
 impl<P: InheritPropertiesOps> InheritStaticPropertiesOps for P {}
 impl<P: InheritPropertiesOps> InheritTemporalPropertiesOps for P {}
@@ -153,17 +162,17 @@ where
     }
 
     #[inline]
-    fn const_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
+    fn const_prop_ids(&self) -> BoxedLIter<usize> {
         self.base().const_prop_ids()
     }
 
     #[inline]
-    fn const_prop_keys(&self) -> Box<dyn Iterator<Item = ArcStr> + '_> {
+    fn const_prop_keys(&self) -> BoxedLIter<ArcStr> {
         self.base().const_prop_keys()
     }
 
     #[inline]
-    fn const_prop_values(&self) -> Vec<Prop> {
+    fn const_prop_values(&self) -> BoxedLIter<Prop> {
         self.base().const_prop_values()
     }
 

@@ -1,20 +1,27 @@
-use crate::{core::Prop, db::api::properties::internal::ConstPropertiesOps};
+use crate::{
+    core::{utils::iter::GenLockedIter, Prop},
+    db::api::{properties::internal::ConstPropertiesOps, view::BoxedLIter},
+};
 use raphtory_api::core::storage::arc_str::ArcStr;
-use std::{collections::HashMap, iter::Zip};
+use std::collections::HashMap;
 
-pub struct ConstProperties<P: ConstPropertiesOps> {
+pub struct ConstProperties<'a, P: ConstPropertiesOps> {
     pub(crate) props: P,
+    _marker: std::marker::PhantomData<&'a P>,
 }
 
-impl<P: ConstPropertiesOps> ConstProperties<P> {
+impl<'a, P: ConstPropertiesOps + Sync> ConstProperties<'a, P> {
     pub(crate) fn new(props: P) -> Self {
-        Self { props }
+        Self {
+            props,
+            _marker: std::marker::PhantomData,
+        }
     }
-    pub fn keys(&self) -> Vec<ArcStr> {
-        self.props.const_prop_keys().collect()
+    pub fn keys(&self) -> BoxedLIter<ArcStr> {
+        self.props.const_prop_keys()
     }
 
-    pub fn values(&self) -> Vec<Prop> {
+    pub fn values(&self) -> BoxedLIter<Prop> {
         self.props.const_prop_values()
     }
 
@@ -40,29 +47,31 @@ impl<P: ConstPropertiesOps> ConstProperties<P> {
     }
 }
 
-impl<P: ConstPropertiesOps> IntoIterator for ConstProperties<P> {
+impl<'a, P: ConstPropertiesOps + Sync + 'a> IntoIterator for ConstProperties<'a, P> {
     type Item = (ArcStr, Prop);
-    type IntoIter = Zip<std::vec::IntoIter<ArcStr>, std::vec::IntoIter<Prop>>;
+    type IntoIter = BoxedLIter<'a, Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Box::new(GenLockedIter::from(self, |const_prop| {
+            let keys = const_prop.keys();
+            let vals = const_prop.values();
+            Box::new(keys.into_iter().zip(vals))
+        }))
+    }
+}
+
+impl<'a, P: ConstPropertiesOps + Sync> IntoIterator for &'a ConstProperties<'a, P> {
+    type Item = (ArcStr, Prop);
+    type IntoIter = Box<dyn Iterator<Item = (ArcStr, Prop)> + 'a>;
 
     fn into_iter(self) -> Self::IntoIter {
         let keys = self.keys();
         let vals = self.values();
-        keys.into_iter().zip(vals)
+        Box::new(keys.into_iter().zip(vals))
     }
 }
 
-impl<P: ConstPropertiesOps> IntoIterator for &ConstProperties<P> {
-    type Item = (ArcStr, Prop);
-    type IntoIter = Zip<std::vec::IntoIter<ArcStr>, std::vec::IntoIter<Prop>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        let keys = self.keys();
-        let vals = self.values();
-        keys.into_iter().zip(vals)
-    }
-}
-
-impl<P: ConstPropertiesOps> PartialEq for ConstProperties<P> {
+impl<'a, P: ConstPropertiesOps + Sync> PartialEq for ConstProperties<'a, P> {
     fn eq(&self, other: &Self) -> bool {
         self.as_map() == other.as_map()
     }

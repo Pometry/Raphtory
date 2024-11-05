@@ -65,6 +65,7 @@ minijinja-contrib = { workspace = true, optional = true }
 
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
+numpy = { workspace = true, optional = true }
 num = { workspace = true, optional = true }
 display-error-chain = { workspace = true, optional = true }
 polars-arrow = { workspace = true, optional = true }
@@ -130,6 +131,7 @@ python = [
     "vectors",
     "proto",
     "dep:pyo3",
+    "dep:numpy",
     "dep:num",
     "dep:display-error-chain",
     "polars-arrow?/compute",
