@@ -20,6 +20,11 @@ jobs:
       - name: Check out the code
         uses: actions/checkout@v3
 
+      - name: Deactivate Private Storage
+        run: |
+          chmod +x ./scripts/deactivate_private_storage.py
+          ./scripts/deactivate_private_storage.py
+
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
         with:
@@ -53,3 +58,4 @@ jobs:
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/pyraphtory:${{ inputs.version }}
             ${{ secrets.DOCKERHUB_USERNAME }}/pyraphtory:latest
+            
