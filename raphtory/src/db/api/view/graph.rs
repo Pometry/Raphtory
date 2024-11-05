@@ -503,6 +503,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         }
     }
 
+    #[inline]
     fn has_node<T: AsNodeRef>(&self, v: T) -> bool {
         if let Some(node_id) = self.internalise_node(v.as_node_ref()) {
             if self.nodes_filtered() {

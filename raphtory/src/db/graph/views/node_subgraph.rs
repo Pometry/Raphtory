@@ -94,6 +94,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for NodeSubgraph<G> {
         false
     }
 
+    #[inline]
     fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
         self.graph.filter_node(node, layer_ids) && self.nodes.contains(&node.vid())
     }
