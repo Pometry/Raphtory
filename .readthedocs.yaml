@@ -13,9 +13,8 @@ build:
   jobs:
     pre_build:
       - curl https://sh.rustup.rs -sSf | sh -s -- -y
-      - . $HOME/.cargo/env
-      - make rust-build-readthedocs
-      - make install-python
+      - PATH=$HOME/.cargo/bin:$PATH make rust-build-readthedocs
+      - PATH=$HOME/.cargo/bin:$PATH make install-python
 
 conda:
   environment: .environment.yml
