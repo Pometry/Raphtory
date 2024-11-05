@@ -1,0 +1,55 @@
+name: _Release 5 - Publish Docker Images to Docker Hub
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version tag for the Docker images'
+        type: 'string'
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish-docker:
+    name: Build and Publish Docker Images
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up QEMU for multi-platform builds
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and push Rust Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/raphtory:${{ inputs.version }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/raphtory:latest
+
+      - name: Build and push Python Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: docker/dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/pyraphtory:${{ inputs.version }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/pyraphtory:latest

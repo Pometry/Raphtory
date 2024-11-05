@@ -1,0 +1,20 @@
+name: (Manual) Release Docker Hub
+on:
+  workflow_dispatch:
+    inputs:
+      base:
+        description: 'Name of branch to open PR against'
+        type: 'string'
+        default: 'main'
+      dry_run:
+        description: 'DRY RUN: If true, will not publish the release to PyPI/crates/Docker Hub but will release to GitHub'
+        type: boolean
+        default: false
+
+jobs:
+  call-release-docker-workflow:
+    name: _Release 5 - Publish Docker Images to Docker Hub
+    uses: ./.github/workflows/_release_docker.yml
+    with:
+      version: ${{ inputs.base }}
+    secrets: inherit
