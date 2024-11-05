@@ -65,6 +65,8 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     /// List the activation timestamps for the edge
     fn history(&self) -> Self::ValueType<Vec<i64>>;
 
+    fn history_counts(&self) -> Self::ValueType<usize>;
+
     /// List the activation timestamps for the edge as NaiveDateTime objects if parseable
     fn history_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>>;
 
@@ -146,6 +148,10 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     /// list the activation timestamps for the edge
     fn history(&self) -> Self::ValueType<Vec<i64>> {
         self.map(|g, e| g.edge_history(e, g.layer_ids()).map(|ti| ti.t()).collect())
+    }
+
+    fn history_counts(&self) -> Self::ValueType<usize> {
+        self.map(|g, e| g.edge_exploded_count(g.core_edge(e.pid()).as_ref(), g.layer_ids()))
     }
 
     fn history_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>> {

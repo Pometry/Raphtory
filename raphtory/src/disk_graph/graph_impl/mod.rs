@@ -699,7 +699,7 @@ mod storage_tests {
             .properties()
             .temporal()
             .values()
-            .all(|prop| prop.values().is_empty()));
+            .all(|prop| prop.values().next().is_none()));
         let n2 = gm.node(2).unwrap();
         assert_eq!(n2.node_type().as_str(), Some("3")); // right has priority
 

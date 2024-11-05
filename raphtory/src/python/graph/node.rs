@@ -38,6 +38,7 @@ use crate::{
     *,
 };
 use chrono::{DateTime, Utc};
+use numpy::{IntoPyArray, Ix1, PyArray};
 use pyo3::{
     exceptions::{PyIndexError, PyKeyError},
     prelude::*,
@@ -229,8 +230,9 @@ impl PyNode {
     ///
     /// Returns:
     ///     List[int]: A list of unix timestamps of the event history of node.
-    pub fn history(&self) -> Vec<i64> {
-        self.node.history()
+    pub fn history(&self, py: Python<'_>) -> Py<PyArray<i64, Ix1>> {
+        let history = self.node.history();
+        history.into_pyarray(py).to_owned()
     }
 
     /// Returns the history of a node, including node additions and changes made to node.

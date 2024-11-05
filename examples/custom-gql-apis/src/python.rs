@@ -1,9 +1,5 @@
 use crate::{mutation::HelloMutation, query::HelloQuery};
-use pyo3::{exceptions::PyRuntimeError, prelude::*};
-use raphtory_core::{
-    py_algorithm_result_base,
-    python::types::repr::{Repr, StructReprBuilder},
-};
+use pyo3::prelude::*;
 use raphtory_graphql::python::server::{server::PyGraphServer, take_server_ownership};
 
 #[pyfunction(name = "add_custom_gql_apis")]
