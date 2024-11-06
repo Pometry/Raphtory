@@ -39,6 +39,11 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
 {
 }
 
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodePropertyFilterOps<'graph>
+    for PathFromGraph<'graph, G, GH>
+{
+}
+
 impl<'graph, G: GraphViewOps<'graph>> PathFromGraph<'graph, G, G> {
     pub fn new<OP: Fn(VID) -> BoxedLIter<'graph, VID> + Send + Sync + 'graph>(
         graph: G,
@@ -301,6 +306,11 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgePropertyFilt
 }
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
     ExplodedEdgePropertyFilterOps<'graph> for PathFromNode<'graph, G, GH>
+{
+}
+
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodePropertyFilterOps<'graph>
+    for PathFromNode<'graph, G, GH>
 {
 }
 

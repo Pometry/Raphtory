@@ -9,7 +9,6 @@
 macro_rules! impl_edgeviewops {
     ($obj:ident, $field:ident, $base_type:ty, $name:literal) => {
         impl_timeops!($obj, $field, $base_type, $name);
-        impl_node_property_filter_ops!($obj<$base_type>, $field, $name);
         impl_layerops!($obj, $field, $base_type, $name);
         impl_repr!($obj, $field);
 

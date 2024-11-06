@@ -4,6 +4,7 @@ use crate::{
         api::view::internal::OneHopFilter,
         graph::views::property_filter::internal::InternalNodePropertyFilterOps,
     },
+    prelude::GraphViewOps,
 };
 
 pub trait NodePropertyFilterOps<'graph>: OneHopFilter<'graph> {
@@ -17,7 +18,7 @@ pub trait NodePropertyFilterOps<'graph>: OneHopFilter<'graph> {
     }
 }
 
-impl<'graph, G: OneHopFilter<'graph>> NodePropertyFilterOps<'graph> for G {}
+impl<'graph, G: GraphViewOps<'graph>> NodePropertyFilterOps<'graph> for G {}
 
 #[cfg(test)]
 mod test {
@@ -83,6 +84,35 @@ mod test {
                 .id()
                 .collect_vec(),
             vec![GID::U64(1), GID::U64(3)]
+        );
+    }
+
+    #[test]
+    fn test_node_property_filter_path() {
+        let g = Graph::new();
+        g.add_node(0, 1, [("test", 1i64)], None).unwrap();
+        g.add_node(1, 2, [("test", 2i64)], None).unwrap();
+        g.add_node(1, 3, [("test", 3i64)], None).unwrap();
+        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        g.add_edge(1, 2, 3, NO_PROPS, None).unwrap();
+        g.add_edge(1, 2, 1, NO_PROPS, None).unwrap();
+        g.add_edge(1, 1, 3, NO_PROPS, None).unwrap();
+
+        let filtered_nodes = g
+            .nodes()
+            .filter_nodes(PropertyFilter::gt("test", 1i64))
+            .unwrap();
+        assert_eq!(
+            filtered_nodes.id().collect_vec(),
+            vec![GID::U64(2), GID::U64(3)]
+        );
+        assert_eq!(
+            filtered_nodes
+                .out_neighbours()
+                .id()
+                .map(|n| n.collect_vec())
+                .collect_vec(),
+            vec![vec![GID::U64(3)], vec![]]
         );
     }
 

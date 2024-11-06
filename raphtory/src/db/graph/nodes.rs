@@ -71,6 +71,11 @@ impl<
 {
 }
 
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodePropertyFilterOps<'graph>
+    for Nodes<'graph, G, GH>
+{
+}
+
 impl<'graph, G, GH> Nodes<'graph, G, GH>
 where
     G: GraphViewOps<'graph> + 'graph,
