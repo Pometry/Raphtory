@@ -28,9 +28,9 @@ use crate::{
         },
     },
 };
-use pyo3::{prelude::PyModule, PyErr, PyResult, Python};
+use pyo3::prelude::*;
 
-pub fn add_raphtory_classes(m: &PyModule) -> PyResult<()> {
+pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
     //Graph classes
     add_classes!(
         m,
@@ -59,10 +59,10 @@ pub fn add_raphtory_classes(m: &PyModule) -> PyResult<()> {
     return Ok(());
 }
 
-pub fn base_algorithm_module(py: Python<'_>) -> Result<&PyModule, PyErr> {
-    let algorithm_module = PyModule::new(py, "algorithms")?;
+pub fn base_algorithm_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
+    let algorithm_module = PyModule::new_bound(py, "algorithms")?;
     add_functions!(
-        algorithm_module,
+        &algorithm_module,
         dijkstra_single_source_shortest_paths,
         global_reciprocity,
         betweenness_centrality,
@@ -107,10 +107,10 @@ pub fn base_algorithm_module(py: Python<'_>) -> Result<&PyModule, PyErr> {
     return Ok(algorithm_module);
 }
 
-pub fn base_graph_loader_module(py: Python<'_>) -> Result<&PyModule, PyErr> {
-    let graph_loader_module = PyModule::new(py, "graph_loader")?;
+pub fn base_graph_loader_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
+    let graph_loader_module = PyModule::new_bound(py, "graph_loader")?;
     add_functions!(
-        graph_loader_module,
+        &graph_loader_module,
         lotr_graph,
         neo4j_movie_graph,
         stable_coin_graph,
@@ -121,18 +121,18 @@ pub fn base_graph_loader_module(py: Python<'_>) -> Result<&PyModule, PyErr> {
     return Ok(graph_loader_module);
 }
 
-pub fn base_graph_gen_module(py: Python<'_>) -> Result<&PyModule, PyErr> {
-    let graph_gen_module = PyModule::new(py, "graph_gen")?;
+pub fn base_graph_gen_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
+    let graph_gen_module = PyModule::new_bound(py, "graph_gen")?;
     add_functions!(
-        graph_gen_module,
+        &graph_gen_module,
         random_attachment,
         ba_preferential_attachment,
     );
     return Ok(graph_gen_module);
 }
 
-pub fn base_vectors_module(py: Python<'_>) -> Result<&PyModule, PyErr> {
-    let vectors_module = PyModule::new(py, "vectors")?;
+pub fn base_vectors_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
+    let vectors_module = PyModule::new_bound(py, "vectors")?;
     vectors_module.add_class::<PyVectorisedGraph>()?;
     vectors_module.add_class::<PyDocument>()?;
     vectors_module.add_class::<PyVectorSelection>()?;

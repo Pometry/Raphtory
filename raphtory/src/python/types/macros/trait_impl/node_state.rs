@@ -1,5 +1,5 @@
 use crate::{
-    core::entities::nodes::node_ref::NodeRef,
+    core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
         api::{
             state::{LazyNodeState, NodeState, NodeStateOps, OrderedNodeStateOps},
@@ -8,7 +8,10 @@ use crate::{
         graph::node::NodeView,
     },
     py_borrowing_iter,
-    python::types::{repr::Repr, wrappers::iterators::PyBorrowingIterator},
+    python::{
+        types::{repr::Repr, wrappers::iterators::PyBorrowingIterator},
+        utils::PyNodeRef,
+    },
 };
 use chrono::{DateTime, Utc};
 use pyo3::{
@@ -45,7 +48,8 @@ macro_rules! impl_node_state_ops {
                     .map($to_owned))
             }
 
-            fn __getitem__(&self, node: NodeRef) -> PyResult<$value> {
+            fn __getitem__(&self, node: PyNodeRef) -> PyResult<$value> {
+                let node = node.as_node_ref();
                 self.inner
                     .get_by_node(node)
                     .map($to_owned)
@@ -133,8 +137,9 @@ macro_rules! impl_node_state_ord_ops {
                     .map(|(n, v)| (n.cloned(), ($to_owned)(v)))
             }
 
-            fn __eq__<'py>(&'py self, other: &'py PyAny, py: Python<'py>) -> PyObject {
-                if let Ok(other) = other.extract::<PyRef<Self>>() {
+            fn __eq__<'py>(&self, other: &Bound<'py, PyAny>, py: Python<'py>) -> PyObject {
+                if let Ok(other) = other.downcast::<Self>() {
+                    let other = Bound::borrow(other);
                     return self.inner.values().eq(other.inner.values()).into_py(py);
                 } else if let Ok(other) = other.extract::<Vec<$value>>() {
                     return self
@@ -143,14 +148,14 @@ macro_rules! impl_node_state_ord_ops {
                         .map($to_owned)
                         .eq(other.into_iter())
                         .into_py(py);
-                } else if let Ok(other) = other.extract::<HashMap<NodeRef, $value>>() {
+                } else if let Ok(other) = other.extract::<HashMap<PyNodeRef, $value>>() {
                     return (self.inner.len() == other.len()
                         && other.into_iter().all(|(node, value)| {
                             self.inner.get_by_node(node).map($to_owned) == Some(value)
                         }))
                     .into_py(py);
                 }
-                PyNotImplemented::get(py).into_py(py)
+                PyNotImplemented::get_bound(py).into_py(py)
             }
         }
     };

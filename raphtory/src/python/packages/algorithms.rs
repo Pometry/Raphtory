@@ -54,9 +54,10 @@ use crate::{
     db::{api::view::internal::DynamicGraph, graph::node::NodeView},
     python::{
         graph::{node::PyNode, views::graph_view::PyGraphView},
-        utils::PyTime,
+        utils::{PyNodeRef, PyTime},
     },
 };
+use itertools::Itertools;
 use ordered_float::OrderedFloat;
 #[cfg(feature = "storage")]
 use pometry_storage::algorithms::connected_components::connected_components as connected_components_rs;
@@ -82,7 +83,7 @@ use std::collections::{HashMap, HashSet};
 ///     int : number of triangles associated with node v
 ///
 #[pyfunction]
-pub fn local_triangle_count(g: &PyGraphView, v: NodeRef) -> Option<usize> {
+pub fn local_triangle_count(g: &PyGraphView, v: PyNodeRef) -> Option<usize> {
     local_triangle_count_rs(&g.graph, v)
 }
 
@@ -236,8 +237,8 @@ pub fn temporally_reachable_nodes(
     g: &PyGraphView,
     max_hops: usize,
     start_time: i64,
-    seed_nodes: Vec<NodeRef>,
-    stop_nodes: Option<Vec<NodeRef>>,
+    seed_nodes: Vec<PyNodeRef>,
+    stop_nodes: Option<Vec<PyNodeRef>>,
 ) -> AlgorithmResult<DynamicGraph, Vec<(i64, String)>, Vec<(i64, String)>> {
     temporal_reachability_rs(&g.graph, None, max_hops, start_time, seed_nodes, stop_nodes)
 }
@@ -253,7 +254,7 @@ pub fn temporally_reachable_nodes(
 /// Returns:
 ///     float : the local clustering coefficient of node v in g.
 #[pyfunction]
-pub fn local_clustering_coefficient(g: &PyGraphView, v: NodeRef) -> Option<f32> {
+pub fn local_clustering_coefficient(g: &PyGraphView, v: PyNodeRef) -> Option<f32> {
     local_clustering_coefficient_rs(&g.graph, v)
 }
 
@@ -619,7 +620,7 @@ pub fn min_degree(g: &PyGraphView) -> usize {
 #[pyo3[signature = (g, source, cutoff=None)]]
 pub fn single_source_shortest_path(
     g: &PyGraphView,
-    source: NodeRef,
+    source: PyNodeRef,
     cutoff: Option<usize>,
 ) -> AlgorithmResult<DynamicGraph, Vec<String>, Vec<String>> {
     single_source_shortest_path_rs(&g.graph, source, cutoff)
@@ -641,8 +642,8 @@ pub fn single_source_shortest_path(
 #[pyo3[signature = (g, source, targets, direction=Direction::BOTH, weight="weight".to_string())]]
 pub fn dijkstra_single_source_shortest_paths(
     g: &PyGraphView,
-    source: NodeRef,
-    targets: Vec<NodeRef>,
+    source: PyNodeRef,
+    targets: Vec<PyNodeRef>,
     direction: Direction,
     weight: Option<String>,
 ) -> PyResult<HashMap<String, (Prop, Vec<String>)>> {
@@ -848,15 +849,13 @@ pub fn cohesive_fruchterman_reingold(
 #[pyo3[signature = (graph, views, k, delta)]]
 pub fn temporal_rich_club_coefficient(
     graph: PyGraphView,
-    views: &PyAny,
+    views: &Bound<PyAny>,
     k: usize,
     delta: usize,
-) -> f64 {
-    let py_iterator = PyIterator::from_object(views).unwrap();
-    let iter = py_iterator.map(|item| {
-        item.and_then(PyGraphView::extract)
-            .map(|pgv: PyGraphView| pgv.graph)
-            .unwrap()
-    });
-    temporal_rich_club_rs(graph.graph, iter, k, delta)
+) -> PyResult<f64> {
+    let py_iterator = views.iter()?;
+    let views = py_iterator
+        .map(|view| view.and_then(|view| Ok(view.downcast::<PyGraphView>()?.get().graph.clone())))
+        .collect::<PyResult<Vec<_>>>()?;
+    Ok(temporal_rich_club_rs(graph.graph, views, k, delta))
 }

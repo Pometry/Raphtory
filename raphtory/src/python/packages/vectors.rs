@@ -12,7 +12,7 @@ use crate::{
     python::{
         graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
         types::wrappers::document::{PyDocument, PyEmbedding},
-        utils::{execute_async_task, PyTime},
+        utils::{execute_async_task, PyNodeRef, PyTime},
     },
     vectors::{
         template::DocumentTemplate,
@@ -59,7 +59,7 @@ impl PyQuery {
 }
 
 impl<'source> FromPyObject<'source> for PyQuery {
-    fn extract(query: &'source PyAny) -> PyResult<Self> {
+    fn extract_bound(query: &Bound<'source, PyAny>) -> PyResult<Self> {
         if let Ok(text) = query.extract::<String>() {
             return Ok(PyQuery::Raw(text));
         }
@@ -254,7 +254,7 @@ impl PyGraphView {
     #[pyo3(signature = (embedding, cache = None, overwrite_cache = false, graph_template = None, node_template = None, edge_template = None, graph_name = None, verbose = false))]
     fn vectorise(
         &self,
-        embedding: &PyFunction,
+        embedding: Bound<PyFunction>,
         cache: Option<String>,
         overwrite_cache: bool,
         graph_template: Option<String>,
@@ -263,8 +263,8 @@ impl PyGraphView {
         graph_name: Option<String>,
         verbose: bool,
     ) -> PyResult<DynamicVectorisedGraph> {
-        let embedding: Py<PyFunction> = embedding.into();
         let graph = self.graph.clone();
+        let embedding = embedding.unbind();
         let cache = cache.map(|cache| cache.into()).into();
         let template = DocumentTemplate {
             graph_template,
@@ -274,7 +274,7 @@ impl PyGraphView {
         execute_async_task(move || async move {
             Ok(graph
                 .vectorise(
-                    Box::new(embedding.clone()),
+                    Box::new(embedding),
                     cache,
                     overwrite_cache,
                     template,
@@ -464,7 +464,7 @@ impl PyVectorSelection {
     ///
     /// Args:
     ///   nodes (list): a list of the node ids or nodes to add
-    fn add_nodes(mut self_: PyRefMut<'_, Self>, nodes: Vec<NodeRef>) {
+    fn add_nodes(mut self_: PyRefMut<'_, Self>, nodes: Vec<PyNodeRef>) {
         self_.0.add_nodes(nodes)
     }
 
@@ -474,7 +474,7 @@ impl PyVectorSelection {
     ///
     /// Args:
     ///   edges (list):  a list of the edge ids or edges to add
-    fn add_edges(mut self_: PyRefMut<'_, Self>, edges: Vec<(NodeRef, NodeRef)>) {
+    fn add_edges(mut self_: PyRefMut<'_, Self>, edges: Vec<(PyNodeRef, PyNodeRef)>) {
         self_.0.add_edges(edges)
     }
 
@@ -615,12 +615,13 @@ pub fn compute_embedding<G: StaticGraphViewOps>(
 
 impl EmbeddingFunction for Py<PyFunction> {
     fn call(&self, texts: Vec<String>) -> BoxFuture<'static, EmbeddingResult<Vec<Embedding>>> {
-        let embedding_function = self.clone();
+        let embedding_function = Python::with_gil(|py| self.clone_ref(py));
         Box::pin(async move {
             Python::with_gil(|py| {
-                let python_texts = PyList::new(py, texts);
-                let result = embedding_function.call1(py, (python_texts,))?;
-                let embeddings: &PyList = result.downcast(py).map_err(|_| {
+                let embedding_function = embedding_function.bind(py);
+                let python_texts = PyList::new_bound(py, texts);
+                let result = embedding_function.call1((python_texts,))?;
+                let embeddings = result.downcast::<PyList>().map_err(|_| {
                     PyTypeError::new_err(
                         "value returned by the embedding function was not a python list",
                     )
@@ -629,7 +630,7 @@ impl EmbeddingFunction for Py<PyFunction> {
                 let embeddings: EmbeddingResult<Vec<_>> = embeddings
                     .iter()
                     .map(|embedding| {
-                        let pylist: &PyList = embedding.downcast().map_err(|_| {
+                        let pylist = embedding.downcast::<PyList>().map_err(|_| {
                             PyTypeError::new_err("one of the values in the list returned by the embedding function was not a python list")
                         })?;
                         let embedding: EmbeddingResult<Embedding> = pylist

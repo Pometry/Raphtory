@@ -1,7 +1,5 @@
 use crate::core::entities::GID;
-use pyo3::{
-    exceptions::PyTypeError, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject,
-};
+use pyo3::{exceptions::PyTypeError, prelude::*};
 
 impl IntoPy<PyObject> for GID {
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -22,7 +20,7 @@ impl ToPyObject for GID {
 }
 
 impl<'source> FromPyObject<'source> for GID {
-    fn extract(id: &'source PyAny) -> PyResult<Self> {
+    fn extract_bound(id: &Bound<'source, PyAny>) -> PyResult<Self> {
         id.extract::<String>()
             .map(GID::Str)
             .or_else(|_| id.extract::<u64>().map(GID::U64))

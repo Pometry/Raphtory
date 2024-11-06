@@ -38,7 +38,7 @@ use crate::{
             repr::{Repr, StructReprBuilder},
             wrappers::prop::PyPropertyFilter,
         },
-        utils::PyTime,
+        utils::{PyNodeRef, PyTime},
     },
 };
 use chrono::prelude::*;
@@ -61,7 +61,7 @@ impl IntoPy<PyObject> for DynamicGraph {
 }
 
 impl<'source> FromPyObject<'source> for DynamicGraph {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
         ob.extract::<PyRef<PyGraphView>>().map(|g| g.graph.clone())
     }
 }
@@ -203,7 +203,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///   true if the graph contains the specified node, false otherwise
-    pub fn has_node(&self, id: NodeRef) -> bool {
+    pub fn has_node(&self, id: PyNodeRef) -> bool {
         self.graph.has_node(id)
     }
 
@@ -216,7 +216,7 @@ impl PyGraphView {
     /// Returns:
     ///  true if the graph contains the specified edge, false otherwise
     #[pyo3(signature = (src, dst))]
-    pub fn has_edge(&self, src: NodeRef, dst: NodeRef) -> bool {
+    pub fn has_edge(&self, src: PyNodeRef, dst: PyNodeRef) -> bool {
         self.graph.has_edge(src, dst)
     }
 
@@ -229,7 +229,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///   the node with the specified id, or None if the node does not exist
-    pub fn node(&self, id: NodeRef) -> Option<NodeView<DynamicGraph>> {
+    pub fn node(&self, id: PyNodeRef) -> Option<NodeView<DynamicGraph>> {
         self.graph.node(id)
     }
 
@@ -276,7 +276,11 @@ impl PyGraphView {
     /// Returns:
     ///     the edge with the specified source and destination nodes, or None if the edge does not exist
     #[pyo3(signature = (src, dst))]
-    pub fn edge(&self, src: NodeRef, dst: NodeRef) -> Option<EdgeView<DynamicGraph, DynamicGraph>> {
+    pub fn edge(
+        &self,
+        src: PyNodeRef,
+        dst: PyNodeRef,
+    ) -> Option<EdgeView<DynamicGraph, DynamicGraph>> {
         self.graph.edge(src, dst)
     }
 
@@ -331,7 +335,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///    GraphView - Returns the subgraph
-    fn subgraph(&self, nodes: Vec<NodeRef>) -> NodeSubgraph<DynamicGraph> {
+    fn subgraph(&self, nodes: Vec<PyNodeRef>) -> NodeSubgraph<DynamicGraph> {
         self.graph.subgraph(nodes)
     }
 
@@ -353,7 +357,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///    GraphView - Returns the subgraph
-    fn exclude_nodes(&self, nodes: Vec<NodeRef>) -> NodeSubgraph<DynamicGraph> {
+    fn exclude_nodes(&self, nodes: Vec<PyNodeRef>) -> NodeSubgraph<DynamicGraph> {
         self.graph.exclude_nodes(nodes)
     }
 

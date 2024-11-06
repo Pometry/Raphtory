@@ -15,13 +15,27 @@ impl IntoPy<PyObject> for Lifespan {
     }
 }
 
-#[derive(Clone)]
 #[pyclass(name = "Document", frozen, get_all)]
 pub struct PyDocument {
     pub(crate) content: String,
     pub(crate) entity: Option<PyObject>,
     pub(crate) embedding: Option<PyEmbedding>,
     pub(crate) life: Lifespan,
+}
+
+impl Clone for PyDocument {
+    fn clone(&self) -> Self {
+        let entity = self
+            .entity
+            .as_ref()
+            .map(|entity| Python::with_gil(|py| entity.clone_ref(py)));
+        Self {
+            content: self.content.clone(),
+            entity: entity,
+            embedding: self.embedding.clone(),
+            life: self.life.clone(),
+        }
+    }
 }
 
 #[pyclass(name = "Embedding", frozen)]
@@ -48,13 +62,13 @@ impl From<DocumentInput> for PyDocument {
 #[pymethods]
 impl PyDocument {
     #[new]
-    fn new(content: String, life: Option<&PyAny>) -> PyResult<Self> {
+    fn new(content: String, life: Option<&Bound<PyAny>>) -> PyResult<Self> {
         let life = match life {
             None => Lifespan::Inherited,
             Some(life) => {
                 if let Ok(time) = life.extract::<i64>() {
                     Lifespan::Event { time }
-                } else if let Ok(life) = life.extract::<&PyTuple>() {
+                } else if let Ok(life) = life.downcast::<PyTuple>() {
                     match life.iter().collect_vec().as_slice() {
                         [start, end] => Lifespan::Interval {
                             start: start.extract::<i64>()?,
