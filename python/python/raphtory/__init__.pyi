@@ -4136,3 +4136,21 @@ class TemporalProperties(object):
         Returns:
             list[TemporalProp]: the list of property views
         """
+
+class WindowSet:
+    def __init__(self):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+
+    def time_index(self, center: bool = False) -> Iterable:
+        """
+        Returns the time index of this window set
+
+        It uses the last time of each window as the reference or the center of each if `center` is
+        set to `True`
+
+        Arguments:
+            center (bool): if True time indexes are centered. Defaults to False
+
+        Returns:
+            Iterable: the time index"
+        """
