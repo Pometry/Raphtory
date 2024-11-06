@@ -21,8 +21,9 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 # Install Rustup
 RUN curl --proto '=https' --tlsv1.3 https://sh.rustup.rs -sSf | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
-RUN rustup toolchain install stable
+RUN rustup toolchain install 1.82.0 && rustup default 1.82.0
 RUN cargo install --locked maturin
+
 WORKDIR /home/raphtory_server
 
 ENTRYPOINT [ "/bin/sh"]
