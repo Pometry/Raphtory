@@ -90,11 +90,11 @@ docker-build-pyraphtory-base-arm64:
 
 docker-build-pyraphtory-amd64:
 	./scripts/deactivate_private_storage.py
-	docker build --platform linux/amd64 -t $(PY_IMAGE_NAME_AMD64) -f docker/dockerfile .
+	docker build -f docker/dockerfile --build-arg BASE_IMAGE=$(BASE_IMAGE_NAME_AMD64) --platform linux/amd64 -t $(PY_IMAGE_NAME_AMD64) .
 
 docker-build-pyraphtory-arm64:
 	./scripts/deactivate_private_storage.py
-	docker build --platform linux/arm64 -t $(PY_IMAGE_NAME_ARM64) -f docker/dockerfile .
+	docker build -f docker/dockerfile --build-arg BASE_IMAGE=$(BASE_IMAGE_NAME_ARM64) --platform linux/arm64 -t $(PY_IMAGE_NAME_ARM64) .
 
 docker-build-raphtory-amd64:
 	./scripts/deactivate_private_storage.py

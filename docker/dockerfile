@@ -1,6 +1,7 @@
 #THIS SHOULD BE RUN FROM THE MAIN RAPHTORY DIR VIA MAKE
 # Stage 1: Build
-FROM pometry/raphtory_base AS build
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE} AS build
 
 WORKDIR /home/raphtory_server
 
