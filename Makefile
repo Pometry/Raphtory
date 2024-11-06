@@ -79,8 +79,8 @@ BASE_IMAGE_NAME_AMD64 := pometry/raphtory_base:$(RUST_VERSION)-amd64
 BASE_IMAGE_NAME_ARM64 := pometry/raphtory_base:$(RUST_VERSION)-arm64
 IMAGE_NAME_AMD64 := pometry/raphtory:$(PACKAGE_VERSION)-rust-amd64
 IMAGE_NAME_ARM64 := pometry/raphtory:$(PACKAGE_VERSION)-rust-arm64
-PY_IMAGE_NAME_AMD64 := pometry/pyraphtory:$(PACKAGE_VERSION)-python-amd64
-PY_IMAGE_NAME_ARM64 := pometry/pyraphtory:$(PACKAGE_VERSION)-python-arm64
+PY_IMAGE_NAME_AMD64 := pometry/raphtory:$(PACKAGE_VERSION)-python-amd64
+PY_IMAGE_NAME_ARM64 := pometry/raphtory:$(PACKAGE_VERSION)-python-arm64
 
 docker-build-pyraphtory-base-amd64:
 	cd docker/base && docker build --platform linux/amd64 -t $(BASE_IMAGE_NAME_AMD64) .
