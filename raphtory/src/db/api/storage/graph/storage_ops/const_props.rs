@@ -1,6 +1,9 @@
 use raphtory_api::core::storage::arc_str::ArcStr;
 
-use crate::{db::api::properties::internal::ConstPropertiesOps, prelude::Prop};
+use crate::{
+    db::api::{properties::internal::ConstPropertiesOps, view::BoxedLIter},
+    prelude::Prop,
+};
 
 use super::GraphStorage;
 
@@ -13,7 +16,7 @@ impl ConstPropertiesOps for GraphStorage {
         self.graph_meta().get_const_prop_name(id)
     }
 
-    fn const_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
+    fn const_prop_ids(&self) -> BoxedLIter<usize> {
         Box::new(self.graph_meta().const_prop_ids())
     }
 
@@ -21,7 +24,7 @@ impl ConstPropertiesOps for GraphStorage {
         self.graph_meta().get_constant(id)
     }
 
-    fn const_prop_keys(&self) -> Box<dyn Iterator<Item = ArcStr> + '_> {
+    fn const_prop_keys(&self) -> BoxedLIter<ArcStr> {
         Box::new(self.graph_meta().constant_names().into_iter())
     }
 }

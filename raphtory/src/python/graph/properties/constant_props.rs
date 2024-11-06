@@ -9,7 +9,7 @@ use crate::{
             PyPropsListCmp,
         },
         types::repr::{iterator_dict_repr, Repr},
-        utils::PyGenericIterator,
+        utils::{NumpyArray, PyGenericIterator},
     },
 };
 use itertools::Itertools;
@@ -20,13 +20,13 @@ use pyo3::{
 use raphtory_api::core::storage::arc_str::ArcStr;
 use std::{collections::HashMap, sync::Arc};
 
-impl<P: PropertiesOps + Send + Sync + 'static> IntoPy<PyObject> for ConstProperties<P> {
+impl<P: PropertiesOps + Send + Sync + 'static> IntoPy<PyObject> for ConstProperties<'static, P> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyConstProperties::from(self).into_py(py)
     }
 }
 
-impl<P: PropertiesOps> Repr for ConstProperties<P> {
+impl<'a, P: PropertiesOps> Repr for ConstProperties<'a, P> {
     fn repr(&self) -> String {
         format!("StaticProperties({{{}}})", iterator_dict_repr(self.iter()))
     }
@@ -46,14 +46,14 @@ impl PyConstProperties {
     ///
     /// lists the available property keys
     pub fn keys(&self) -> Vec<ArcStr> {
-        self.props.keys()
+        self.props.keys().collect()
     }
 
     /// values() -> list[Any]
     ///
     /// lists the property values
-    pub fn values(&self) -> Vec<Prop> {
-        self.props.values()
+    pub fn values(&self) -> NumpyArray {
+        self.props.values().collect()
     }
 
     /// items() -> list[tuple[str, Any]]
@@ -119,7 +119,9 @@ impl PyConstProperties {
     }
 }
 
-impl<P: PropertiesOps + Send + Sync + 'static> From<ConstProperties<P>> for PyConstProperties {
+impl<P: PropertiesOps + Send + Sync + 'static> From<ConstProperties<'static, P>>
+    for PyConstProperties
+{
     fn from(value: ConstProperties<P>) -> Self {
         PyConstProperties {
             props: ConstProperties::new(Arc::new(value.props)),
@@ -139,7 +141,11 @@ py_eq!(PyConstPropsList, PyPropsListCmp);
 #[pymethods]
 impl PyConstPropsList {
     pub fn keys(&self) -> Vec<ArcStr> {
-        self.iter().map(|p| p.keys()).kmerge().dedup().collect()
+        self.iter()
+            .map(|p| p.keys().collect::<Vec<_>>())
+            .kmerge()
+            .dedup()
+            .collect()
     }
 
     pub fn values(&self) -> Vec<PyPropValueList> {
@@ -191,7 +197,7 @@ py_eq!(PyConstPropsListList, PyConstPropsListListCmp);
 impl PyConstPropsListList {
     pub fn keys(&self) -> Vec<ArcStr> {
         self.iter()
-            .flat_map(|it| it.map(|p| p.keys()))
+            .flat_map(|it| it.map(|p| p.keys().collect::<Vec<_>>()))
             .kmerge()
             .dedup()
             .collect()

@@ -12,11 +12,11 @@ members = [
     "raphtory-graphql",
     "raphtory-api",
 ]
-default-members = ["raphtory"]
+default-members = ["raphtory", "raphtory-graphql"]
 resolver = "2"
 
 [workspace.package]
-version = "0.13.0"
+version = "0.13.1"
 documentation = "https://raphtory.readthedocs.io/en/latest/"
 repository = "https://github.com/Raphtory/raphtory/"
 license = "GPL-3.0"
@@ -24,7 +24,7 @@ readme = "README.md"
 homepage = "https://github.com/Raphtory/raphtory/"
 keywords = ["graph", "temporal-graph", "temporal"]
 authors = ["Pometry"]
-rust-version = "1.80.0"
+rust-version = "1.82.0"
 edition = "2021"
 
 [profile.dev]
@@ -59,6 +59,7 @@ serde = { version = "1.0.197", features = ["derive", "rc"] }
 serde_json = "1.0.114"
 pyo3 = { version = "0.20.0", features = ["multiple-pymethods", "chrono"] }
 pyo3-build-config = "0.20.0"
+numpy = "0.20.0"
 itertools = "0.13.0"
 rand = "0.8.5"
 rayon = "1.8.1"
@@ -148,6 +149,8 @@ pest_derive = "2.7.8"
 minijinja = "2.2.0"
 minijinja-contrib = { version = "2.2.0", features = ["datetime"] }
 sqlparser = "0.47"
+
+tqdm = "0.7.0"
 
 
 datafusion = { version = "40" }

@@ -73,7 +73,7 @@ impl<'a> TimeIndexOps for TimeStamps<'a, TimeIndexEntry> {
         let start = self.position(&w.start);
         let end = self.position(&w.end);
         TimeStamps::new(
-            self.timestamps().slice(start..end),
+            self.timestamps().sliced(start..end),
             self.sec_index()
                 .map(|sec_index| sec_index.sliced(start..end)),
         )
@@ -113,14 +113,14 @@ impl<'a> TimeIndexOps for TimeStamps<'a, TimeIndexEntry> {
         Some(TimeIndexEntry::new(t, sec as usize))
     }
 
-    fn iter(&self) -> Box<dyn Iterator<Item = Self::IndexType> + Send + '_> {
-        let sec_iter: Box<dyn Iterator<Item = usize> + Send + 'a> = self
+    fn iter(&self) -> Box<dyn Iterator<Item = Self::IndexType> + Send + 'a> {
+        let sec_iter = self
             .sec_index()
             .map(|v| v.map(|i| i as usize).into_dyn_boxed())
             .unwrap_or(self.timestamps().range().clone().into_dyn_boxed());
         Box::new(
             self.timestamps()
-                .iter()
+                .into_iter()
                 .zip(sec_iter)
                 .map(|(t, s)| TimeIndexEntry(t, s)),
         )
@@ -145,7 +145,7 @@ impl<'a> TimeIndexOps for TimeStamps<'a, i64> {
         let start = self.timestamps().partition_point(|i| i < w.start);
         let end = self.timestamps().partition_point(|i| i < w.end);
         TimeStamps::new(
-            self.timestamps().slice(start..end),
+            self.timestamps().sliced(start..end),
             self.sec_index()
                 .map(|sec_index| sec_index.sliced(start..end)),
         )
@@ -171,6 +171,6 @@ impl<'a> TimeIndexOps for TimeStamps<'a, i64> {
     }
 
     fn iter(&self) -> Box<dyn Iterator<Item = i64> + Send + '_> {
-        Box::new(self.timestamps().iter())
+        Box::new(self.timestamps().into_iter())
     }
 }

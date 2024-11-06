@@ -1,6 +1,5 @@
 use crate::{
     data::Data,
-    graph::GraphWithVectors,
     model::{
         graph::{
             edge::Edge, edges::GqlEdges, node::Node, nodes::GqlNodes, property::GqlProperties,
@@ -21,10 +20,7 @@ use raphtory::{
     db::{
         api::{
             properties::dyn_props::DynProperties,
-            view::{
-                DynamicGraph, IntoDynamic, MaterializedGraph, NodeViewOps, StaticGraphViewOps,
-                TimeOps,
-            },
+            view::{DynamicGraph, IntoDynamic, NodeViewOps, StaticGraphViewOps, TimeOps},
         },
         graph::node::NodeView,
     },
@@ -164,6 +160,14 @@ impl GqlGraph {
 
     async fn latest(&self) -> GqlGraph {
         self.apply(|g| g.latest(), |g| g.latest())
+    }
+
+    async fn snapshot_at(&self, time: i64) -> GqlGraph {
+        self.apply(|g| g.snapshot_at(time), |g| g.snapshot_at(time))
+    }
+
+    async fn snapshot_latest(&self) -> GqlGraph {
+        self.apply(|g| g.snapshot_latest(), |g| g.snapshot_latest())
     }
 
     async fn before(&self, time: i64) -> GqlGraph {

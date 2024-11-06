@@ -38,6 +38,7 @@ use crate::{
     *,
 };
 use chrono::{DateTime, Utc};
+use numpy::{IntoPyArray, Ix1, PyArray};
 use pyo3::{
     exceptions::{PyIndexError, PyKeyError},
     prelude::*,
@@ -229,8 +230,9 @@ impl PyNode {
     ///
     /// Returns:
     ///     List[int]: A list of unix timestamps of the event history of node.
-    pub fn history(&self) -> Vec<i64> {
-        self.node.history()
+    pub fn history(&self, py: Python<'_>) -> Py<PyArray<i64, Ix1>> {
+        let history = self.node.history();
+        history.into_pyarray(py).to_owned()
     }
 
     /// Returns the history of a node, including node additions and changes made to node.
@@ -369,7 +371,7 @@ impl PyMutableNode {
     ///
     /// Parameters:
     ///     t (TimeInput): The timestamp at which the updates should be applied.
-    ///     properties (Dict[str, Prop]): A dictionary of properties to update. Each key is a string representing the property name, and each value is of type Prop representing the property value. If None, no properties are updated.
+    ///     properties (PropInput): A dictionary of properties to update. Each key is a string representing the property name, and each value is of type Prop representing the property value. If None, no properties are updated.
     ///
     /// Returns:
     ///     Result: A result object indicating success or failure. On failure, it contains a GraphError.
@@ -386,7 +388,7 @@ impl PyMutableNode {
     /// change over time. These properties are fundamental attributes of the node.
     ///
     /// Parameters:
-    ///     properties (Dict[str, Prop]): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
+    ///     properties (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
     pub fn add_constant_properties(
         &self,
         properties: HashMap<String, Prop>,
@@ -399,7 +401,7 @@ impl PyMutableNode {
     /// change over time. These properties are fundamental attributes of the node.
     ///
     /// Parameters:
-    ///     properties (Dict[str, Prop]): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
+    ///     properties (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
     pub fn update_constant_properties(
         &self,
         properties: HashMap<String, Prop>,
