@@ -103,8 +103,8 @@ pub fn base_algorithm_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
     );
 
     #[cfg(feature = "storage")]
-    add_functions!(algorithm_module, connected_components);
-    return Ok(algorithm_module);
+    add_functions!(&algorithm_module, connected_components);
+    Ok(algorithm_module)
 }
 
 pub fn base_graph_loader_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
