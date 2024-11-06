@@ -10,7 +10,7 @@ use super::{
     io::pandas_loaders::*,
 };
 use crate::{
-    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError, Prop},
+    core::{utils::errors::GraphError, Prop},
     db::{
         api::{
             mutation::{AdditionOps, PropertyAdditionOps},
@@ -209,6 +209,7 @@ impl PyPersistentGraph {
     ///
     /// Returns:
     ///  The deleted edge
+    #[pyo3(signature = (timestamp, src, dst, layer=None))]
     pub fn delete_edge(
         &self,
         timestamp: PyTime,

@@ -376,6 +376,7 @@ impl PyMutableNode {
     ///
     /// Returns:
     ///     Result: A result object indicating success or failure. On failure, it contains a GraphError.
+    #[pyo3(signature = (t, properties=None))]
     pub fn add_updates(
         &self,
         t: PyTime,

@@ -1,10 +1,7 @@
 //! The API for querying a view of the graph in a read-only state
 
-use rayon::prelude::*;
-use std::collections::HashMap;
-
 use crate::{
-    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError},
+    core::utils::errors::GraphError,
     db::{
         api::{
             properties::Properties,
@@ -44,6 +41,8 @@ use crate::{
 use chrono::prelude::*;
 use pyo3::prelude::*;
 use raphtory_api::core::storage::arc_str::ArcStr;
+use rayon::prelude::*;
+use std::collections::HashMap;
 
 impl IntoPy<PyObject> for MaterializedGraph {
     fn into_py(self, py: Python<'_>) -> PyObject {

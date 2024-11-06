@@ -58,6 +58,7 @@ impl Serialize for PyUpdate {
 #[pymethods]
 impl PyUpdate {
     #[new]
+    #[pyo3(signature = (time, properties=None))]
     pub(crate) fn new(time: PyTime, properties: Option<HashMap<String, Prop>>) -> Self {
         Self { time, properties }
     }
@@ -116,6 +117,7 @@ impl Serialize for PyNodeAddition {
 #[pymethods]
 impl PyNodeAddition {
     #[new]
+    #[pyo3(signature = (name, node_type=None, constant_properties=None, updates=None))]
     pub(crate) fn new(
         name: GID,
         node_type: Option<String>,
@@ -187,6 +189,7 @@ impl Serialize for PyEdgeAddition {
 #[pymethods]
 impl PyEdgeAddition {
     #[new]
+    #[pyo3(signature = (src, dst, layer=None, constant_properties=None, updates=None))]
     pub(crate) fn new(
         src: GID,
         dst: GID,

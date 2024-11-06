@@ -18,13 +18,12 @@ use crate::{
 use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
 use numpy::IntoPyArray;
 use pyo3::{
-    conversion::FromPyObjectBound,
     exceptions::{PyRuntimeError, PyTypeError},
     prelude::*,
     pybacked::PyBackedStr,
     types::PyDateTime,
 };
-use raphtory_api::core::entities::{GID, VID};
+use raphtory_api::core::entities::VID;
 use serde::Serialize;
 use std::{future::Future, thread};
 
@@ -33,7 +32,7 @@ pub(crate) mod export;
 mod module_helpers;
 
 #[derive(Debug, Eq, PartialEq, Hash)]
-pub(crate) enum PyNodeRef {
+pub enum PyNodeRef {
     ExternalStr(PyBackedStr),
     ExternalInt(u64),
     Internal(VID),
@@ -57,7 +56,7 @@ impl AsNodeRef for PyNodeRef {
     fn as_node_ref(&self) -> NodeRef {
         match self {
             PyNodeRef::ExternalStr(str) => NodeRef::External(GidRef::Str(str)),
-            PyNodeRef::ExternalInt(gid) => NodeRef::External(GidRef::U64((*gid))),
+            PyNodeRef::ExternalInt(gid) => NodeRef::External(GidRef::U64(*gid)),
             PyNodeRef::Internal(vid) => NodeRef::Internal(*vid),
         }
     }

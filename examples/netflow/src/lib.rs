@@ -10,6 +10,7 @@ use raphtory_core::db::api::view::DynamicGraph;
 use raphtory_graphql::python::pymodule::base_graphql_module;
 
 #[pyfunction(name = "netflow_one_path_node")]
+#[pyo3(signature = (graph, no_time, threads=None))]
 fn py_netflow_one_path_node(graph: DynamicGraph, no_time: bool, threads: Option<usize>) -> usize {
     netflow_one_path_node(&graph, no_time, threads)
 }

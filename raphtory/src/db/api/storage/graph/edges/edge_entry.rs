@@ -1,10 +1,4 @@
-use std::ops::Range;
-
-use rayon::prelude::*;
-
 use super::edge_storage_ops::MemEdge;
-#[cfg(feature = "storage")]
-use crate::disk_graph::storage_interface::edge::DiskEdge;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
@@ -19,6 +13,11 @@ use crate::{
         tprop_storage_ops::TPropOps,
     },
 };
+use rayon::prelude::*;
+use std::ops::Range;
+
+#[cfg(feature = "storage")]
+use crate::disk_graph::storage_interface::edge::DiskEdge;
 
 #[derive(Debug)]
 pub enum EdgeStorageEntry<'a> {

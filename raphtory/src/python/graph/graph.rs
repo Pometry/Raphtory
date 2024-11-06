@@ -5,7 +5,7 @@
 //! In Python, this class wraps around the rust graph.
 use crate::{
     algorithms::components::LargestConnectedComponent,
-    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError},
+    core::utils::errors::GraphError,
     db::{
         api::view::internal::{CoreGraphOps, DynamicGraph, IntoDynamic, MaterializedGraph},
         graph::{edge::EdgeView, node::NodeView, views::node_subgraph::NodeSubgraph},

@@ -2,7 +2,7 @@ use crate::{
     algorithms::dynamics::temporal::epidemics::{
         Infected, IntoSeeds, Number, Probability, SeedError,
     },
-    core::entities::{nodes::node_ref::NodeRef, VID},
+    core::entities::VID,
     db::api::view::{DynamicGraph, StaticGraphViewOps},
     py_algorithm_result, py_algorithm_result_new_ord_hash_eq,
     python::{

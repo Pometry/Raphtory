@@ -1,6 +1,5 @@
 use crate::{
     core::{
-        entities::nodes::node_ref::NodeRef,
         utils::{errors::GraphError, time::IntoTime},
         DocumentInput, Lifespan, Prop,
     },

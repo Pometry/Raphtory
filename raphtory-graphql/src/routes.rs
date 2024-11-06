@@ -1,4 +1,3 @@
-use async_graphql::http::{playground_source, GraphQLPlaygroundConfig};
 use poem::{
     handler,
     http::StatusCode,

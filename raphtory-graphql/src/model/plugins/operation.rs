@@ -49,8 +49,8 @@ impl<'a> Operation<'a, MutationPlugin> for NoOpMutation {
     }
 
     fn apply<'b>(
-        entry_point: &MutationPlugin,
-        ctx: ResolverContext,
+        _entry_point: &MutationPlugin,
+        _ctx: ResolverContext,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
         Box::pin(async move { Ok(Some(FieldValue::value("no-op".to_owned()))) })
     }

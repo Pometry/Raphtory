@@ -26,7 +26,6 @@ use std::{
     collections::HashMap,
     fs,
     fs::File,
-    ops::Deref,
     path::{Path, PathBuf},
 };
 

@@ -76,6 +76,7 @@ macro_rules! impl_timeops {
             ///
             /// Returns:
             ///     WindowSet: A `WindowSet` object.
+            #[pyo3(signature = (window, step=None))]
             fn rolling(
                 &self,
                 window: $crate::python::utils::PyInterval,

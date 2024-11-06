@@ -62,6 +62,7 @@ impl From<DocumentInput> for PyDocument {
 #[pymethods]
 impl PyDocument {
     #[new]
+    #[pyo3(signature = (content, life=None))]
     fn new(content: String, life: Option<&Bound<PyAny>>) -> PyResult<Self> {
         let life = match life {
             None => Lifespan::Inherited,

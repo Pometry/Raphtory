@@ -1,6 +1,5 @@
 #![allow(non_snake_case)]
-#[cfg(feature = "storage")]
-use crate::python::graph::disk_graph::PyDiskGraph;
+
 use crate::{
     algorithms::{
         algorithm_result::AlgorithmResult,
@@ -50,21 +49,23 @@ use crate::{
         },
         projections::temporal_bipartite_projection::temporal_bipartite_projection as temporal_bipartite_rs,
     },
-    core::{entities::nodes::node_ref::NodeRef, Prop},
+    core::Prop,
     db::{api::view::internal::DynamicGraph, graph::node::NodeView},
     python::{
         graph::{node::PyNode, views::graph_view::PyGraphView},
         utils::{PyNodeRef, PyTime},
     },
 };
-use itertools::Itertools;
 use ordered_float::OrderedFloat;
-#[cfg(feature = "storage")]
-use pometry_storage::algorithms::connected_components::connected_components as connected_components_rs;
-use pyo3::{prelude::*, types::PyIterator};
+use pyo3::prelude::*;
 use rand::{prelude::StdRng, SeedableRng};
 use raphtory_api::core::{entities::GID, Direction};
 use std::collections::{HashMap, HashSet};
+
+#[cfg(feature = "storage")]
+use crate::python::graph::disk_graph::PyDiskGraph;
+#[cfg(feature = "storage")]
+use pometry_storage::algorithms::connected_components::connected_components as connected_components_rs;
 
 /// Implementations of various graph algorithms that can be run on a graph.
 ///
@@ -233,6 +234,7 @@ pub fn pagerank(
 /// Returns:
 ///     AlgorithmResult : AlgorithmResult with string keys and float values mapping node names to their pagerank value.
 #[pyfunction]
+#[pyo3(signature = (g, max_hops, start_time, seed_nodes, stop_nodes=None))]
 pub fn temporally_reachable_nodes(
     g: &PyGraphView,
     max_hops: usize,
@@ -724,6 +726,7 @@ pub fn label_propagation(
 ///     `recovered`: the time stamp at which the node recovered (i.e., stopped spreading the infection)
 ///
 #[pyfunction(name = "temporal_SEIR")]
+#[pyo3(signature = (graph, seeds, infection_prob, initial_infection, recovery_rate=None, incubation_rate=None, rng_seed=None))]
 pub fn temporal_SEIR(
     graph: &PyGraphView,
     seeds: crate::python::algorithm::epidemics::PySeed,
