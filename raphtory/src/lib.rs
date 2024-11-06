@@ -150,7 +150,7 @@ mod test_utils {
     use crate::prelude::*;
     use itertools::Itertools;
     use proptest::{arbitrary::any, prelude::Strategy};
-    use std::collections::{HashMap, HashSet};
+    use std::collections::HashMap;
     #[cfg(feature = "storage")]
     use tempfile::TempDir;
 

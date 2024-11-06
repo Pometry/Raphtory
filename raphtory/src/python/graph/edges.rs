@@ -2,11 +2,13 @@ use crate::{
     core::{utils::errors::GraphError, Prop},
     db::{
         api::view::{
-            internal::CoreGraphOps, DynamicGraph, IntoDynBoxed, IntoDynamic, StaticGraphViewOps,
+            internal::{CoreGraphOps, OneHopFilter},
+            DynamicGraph, IntoDynBoxed, IntoDynamic, StaticGraphViewOps,
         },
         graph::{
             edge::EdgeView,
             edges::{Edges, NestedEdges},
+            views::property_filter::internal::InternalNodePropertyFilterOps,
         },
     },
     prelude::*,

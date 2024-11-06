@@ -6,7 +6,7 @@ use crate::{
             storage::graph::nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
             view::{
                 internal::{
-                    CoreGraphOps, Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritLayerOps,
+                    Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritLayerOps,
                     InheritListOps, InheritMaterialize, InheritTimeSemantics, NodeFilterOps,
                     Static,
                 },

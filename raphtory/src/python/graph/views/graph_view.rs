@@ -26,6 +26,7 @@ use crate::{
                 property_filter::{
                     edge_property_filter::EdgePropertyFilteredGraph,
                     exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph, internal::*,
+                    node_property_filter::NodePropertyFilteredGraph,
                 },
                 window_graph::WindowedGraph,
             },
@@ -75,6 +76,7 @@ pub struct PyGraphView {
 }
 
 impl_timeops!(PyGraphView, graph, DynamicGraph, "GraphView");
+impl_node_property_filter_ops!(PyGraphView<DynamicGraph>, graph, "GraphView");
 impl_layerops!(PyGraphView, graph, DynamicGraph, "GraphView");
 impl_edge_property_filter_ops!(PyGraphView<DynamicGraph>, graph, "GraphView");
 
@@ -112,6 +114,12 @@ impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for TypeFilteredSubgr
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for EdgePropertyFilteredGraph<G> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        PyGraphView::from(self).into_py(py)
+    }
+}
+
+impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for NodePropertyFilteredGraph<G> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyGraphView::from(self).into_py(py)
     }
