@@ -5,7 +5,6 @@ use crate::{core::utils::errors::GraphError, disk_graph::DiskGraphStorage, prelu
 mod edge_storage_ops;
 mod interop;
 pub mod prop_conversion;
-mod time_index_into_ops;
 pub mod tprops;
 
 #[derive(Debug)]

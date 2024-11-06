@@ -11,7 +11,9 @@ use raphtory_api::core::storage::{
     FxDashMap,
 };
 use serde::{Deserialize, Serialize};
-use std::ops::{Deref, DerefMut};
+#[cfg(feature = "proto")]
+use std::ops::Deref;
+use std::ops::DerefMut;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GraphMeta {
