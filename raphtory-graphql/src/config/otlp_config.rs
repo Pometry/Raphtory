@@ -9,23 +9,30 @@ use serde::Deserialize;
 use std::time::Duration;
 use tracing::{error, info};
 
-#[derive(Clone, Deserialize, Debug, PartialEq)]
+pub const DEFAULT_TRACING_ENABLED: bool = false;
+pub const DEFAULT_OTLP_AGENT_HOST: &'static str = "http://localhost";
+pub const DEFAULT_OTLP_AGENT_PORT: &'static str = "4317";
+pub const DEFAULT_OTLP_TRACING_SERVICE_NAME: &'static str = "Raphtory";
+
+#[derive(Clone, Deserialize, Debug, PartialEq, serde::Serialize)]
 pub struct TracingConfig {
     pub tracing_enabled: bool,
     pub otlp_agent_host: String,
     pub otlp_agent_port: String,
     pub otlp_tracing_service_name: String,
 }
+
 impl Default for TracingConfig {
     fn default() -> Self {
         Self {
-            tracing_enabled: false,
-            otlp_agent_host: "http://localhost".to_string(),
-            otlp_agent_port: "4317".to_string(),
-            otlp_tracing_service_name: "Raphtory".to_string(),
+            tracing_enabled: DEFAULT_TRACING_ENABLED,
+            otlp_agent_host: DEFAULT_OTLP_AGENT_HOST.to_owned(),
+            otlp_agent_port: DEFAULT_OTLP_AGENT_PORT.to_owned(),
+            otlp_tracing_service_name: DEFAULT_OTLP_TRACING_SERVICE_NAME.to_owned(),
         }
     }
 }
+
 impl TracingConfig {
     pub fn tracer_provider(&self) -> Option<TracerProvider> {
         if self.tracing_enabled {

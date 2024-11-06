@@ -33,7 +33,7 @@ pub struct EmbeddingConf {
 
 #[derive(Clone)]
 pub struct Data {
-    work_dir: PathBuf,
+    pub(crate) work_dir: PathBuf,
     cache: Cache<PathBuf, GraphWithVectors>,
     pub(crate) index: bool,
     pub(crate) embedding_conf: Option<EmbeddingConf>,

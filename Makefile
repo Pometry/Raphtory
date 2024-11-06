@@ -64,3 +64,100 @@ debug-python: activate-storage
 
 python-docs:
 	cd docs && make html
+
+WORKING_DIR ?= /tmp/graphs
+PORT ?= 1736
+
+PACKAGE_VERSION := $(shell grep -m 1 '^version' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+RUST_VERSION := $(shell grep -m 1 '^rust-version' Cargo.toml | sed 's/rust-version = "\(.*\)"/\1/')
+
+print-versions:
+	@echo "Package Version: $(PACKAGE_VERSION)"
+	@echo "Rust Version: $(RUST_VERSION)"
+
+BASE_IMAGE_NAME_AMD64 := pometry/raphtory_base:$(RUST_VERSION)-amd64
+BASE_IMAGE_NAME_ARM64 := pometry/raphtory_base:$(RUST_VERSION)-arm64
+IMAGE_NAME_AMD64 := pometry/raphtory:$(PACKAGE_VERSION)-rust-amd64
+IMAGE_NAME_ARM64 := pometry/raphtory:$(PACKAGE_VERSION)-rust-arm64
+PY_IMAGE_NAME_AMD64 := pometry/raphtory:$(PACKAGE_VERSION)-python-amd64
+PY_IMAGE_NAME_ARM64 := pometry/raphtory:$(PACKAGE_VERSION)-python-arm64
+
+docker-build-pyraphtory-base-amd64:
+	cd docker/base && docker build --platform linux/amd64 -t $(BASE_IMAGE_NAME_AMD64) .
+
+docker-build-pyraphtory-base-arm64:
+	cd docker/base && docker build --platform linux/arm64 -t $(BASE_IMAGE_NAME_ARM64) .
+
+docker-build-pyraphtory-amd64:
+	./scripts/deactivate_private_storage.py
+	docker build -f docker/dockerfile --build-arg BASE_IMAGE=$(BASE_IMAGE_NAME_AMD64) --platform linux/amd64 -t $(PY_IMAGE_NAME_AMD64) .
+
+docker-build-pyraphtory-arm64:
+	./scripts/deactivate_private_storage.py
+	docker build -f docker/dockerfile --build-arg BASE_IMAGE=$(BASE_IMAGE_NAME_ARM64) --platform linux/arm64 -t $(PY_IMAGE_NAME_ARM64) .
+
+docker-build-raphtory-amd64:
+	./scripts/deactivate_private_storage.py
+	docker build --platform linux/amd64 -t $(IMAGE_NAME_AMD64) .
+
+docker-build-raphtory-arm64:
+	./scripts/deactivate_private_storage.py
+	docker build --platform linux/arm64 -t $(IMAGE_NAME_ARM64) .
+
+# Docker run targets for pyraphtory
+docker-run-pyraphtory-amd64:
+	docker run --rm -p $(PORT):$(PORT) \
+		-v $(WORKING_DIR):/tmp/graphs \
+		$(PY_IMAGE_NAME_AMD64) \
+		$(if $(WORKING_DIR),--working-dir=$(WORKING_DIR)) \
+		$(if $(PORT),--port=$(PORT)) \
+		$(if $(CACHE_CAPACITY),--cache-capacity=$(CACHE_CAPACITY)) \
+		$(if $(CACHE_TTI_SECONDS),--cache-tti-seconds=$(CACHE_TTI_SECONDS)) \
+		$(if $(LOG_LEVEL),--log-level=$(LOG_LEVEL)) \
+		$(if $(TRACING),--tracing) \
+		$(if $(OTLP_AGENT_HOST),--otlp-agent-host=$(OTLP_AGENT_HOST)) \
+		$(if $(OTLP_AGENT_PORT),--otlp-agent-port=$(OTLP_AGENT_PORT)) \
+		$(if $(OTLP_TRACING_SERVICE_NAME),--otlp-tracing-service-name=$(OTLP_TRACING_SERVICE_NAME))
+
+docker-run-pyraphtory-arm64:
+	docker run --rm -p $(PORT):$(PORT) \
+		-v $(WORKING_DIR):/tmp/graphs \
+		$(PY_IMAGE_NAME_ARM64) \
+		$(if $(WORKING_DIR),--working-dir=$(WORKING_DIR)) \
+		$(if $(PORT),--port=$(PORT)) \
+		$(if $(CACHE_CAPACITY),--cache-capacity=$(CACHE_CAPACITY)) \
+		$(if $(CACHE_TTI_SECONDS),--cache-tti-seconds=$(CACHE_TTI_SECONDS)) \
+		$(if $(LOG_LEVEL),--log-level=$(LOG_LEVEL)) \
+		$(if $(TRACING),--tracing) \
+		$(if $(OTLP_AGENT_HOST),--otlp-agent-host=$(OTLP_AGENT_HOST)) \
+		$(if $(OTLP_AGENT_PORT),--otlp-agent-port=$(OTLP_AGENT_PORT)) \
+		$(if $(OTLP_TRACING_SERVICE_NAME),--otlp-tracing-service-name=$(OTLP_TRACING_SERVICE_NAME))
+
+# Docker run targets for raphtory
+docker-run-raphtory-amd64:
+	docker run --rm -p $(PORT):$(PORT) \
+		-v $(WORKING_DIR):/tmp/graphs \
+		$(IMAGE_NAME_AMD64) \
+		$(if $(WORKING_DIR),--working-dir=$(WORKING_DIR)) \
+		$(if $(PORT),--port=$(PORT)) \
+		$(if $(CACHE_CAPACITY),--cache-capacity=$(CACHE_CAPACITY)) \
+		$(if $(CACHE_TTI_SECONDS),--cache-tti-seconds=$(CACHE_TTI_SECONDS)) \
+		$(if $(LOG_LEVEL),--log-level=$(LOG_LEVEL)) \
+		$(if $(TRACING),--tracing) \
+		$(if $(OTLP_AGENT_HOST),--otlp-agent-host=$(OTLP_AGENT_HOST)) \
+		$(if $(OTLP_AGENT_PORT),--otlp-agent-port=$(OTLP_AGENT_PORT)) \
+		$(if $(OTLP_TRACING_SERVICE_NAME),--otlp-tracing-service-name=$(OTLP_TRACING_SERVICE_NAME))
+
+docker-run-raphtory-arm64:
+	docker run --rm -p $(PORT):$(PORT) \
+		-v $(WORKING_DIR):/tmp/graphs \
+		$(IMAGE_NAME_ARM64) \
+		$(if $(WORKING_DIR),--working-dir=$(WORKING_DIR)) \
+		$(if $(PORT),--port=$(PORT)) \
+		$(if $(CACHE_CAPACITY),--cache-capacity=$(CACHE_CAPACITY)) \
+		$(if $(CACHE_TTI_SECONDS),--cache-tti-seconds=$(CACHE_TTI_SECONDS)) \
+		$(if $(LOG_LEVEL),--log-level=$(LOG_LEVEL)) \
+		$(if $(TRACING),--tracing) \
+		$(if $(OTLP_AGENT_HOST),--otlp-agent-host=$(OTLP_AGENT_HOST)) \
+		$(if $(OTLP_AGENT_PORT),--otlp-agent-port=$(OTLP_AGENT_PORT)) \
+		$(if $(OTLP_TRACING_SERVICE_NAME),--otlp-tracing-service-name=$(OTLP_TRACING_SERVICE_NAME))
