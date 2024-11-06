@@ -125,7 +125,7 @@ pub(crate) struct Mut(MutRoot);
 
 #[MutationFields]
 impl Mut {
-    async fn plugins<'a>(ctx: &Context<'a>) -> MutationPlugin {
+    async fn plugins<'a>(_ctx: &Context<'a>) -> MutationPlugin {
         MutationPlugin::default()
     }
 

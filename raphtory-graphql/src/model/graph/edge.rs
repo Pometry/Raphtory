@@ -74,6 +74,14 @@ impl Edge {
         self.ee.latest().into()
     }
 
+    async fn snapshot_at(&self, time: i64) -> Edge {
+        self.ee.snapshot_at(time).into()
+    }
+
+    async fn snapshot_latest(&self) -> Edge {
+        self.ee.snapshot_latest().into()
+    }
+
     async fn before(&self, time: i64) -> Edge {
         self.ee.before(time).into()
     }

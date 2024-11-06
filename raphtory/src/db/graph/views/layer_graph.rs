@@ -1,16 +1,20 @@
-use std::fmt::{Debug, Formatter};
-
-use itertools::Itertools;
+use std::{
+    fmt::{Debug, Formatter},
+    sync::Arc,
+};
 
 use crate::{
-    core::{entities::LayerIds, utils::errors::GraphError},
+    core::{
+        entities::{LayerIds, Multiple},
+        utils::errors::GraphError,
+    },
     db::api::{
         properties::internal::InheritPropertiesOps,
-        storage::graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
         view::{
             internal::{
-                Base, EdgeFilterOps, Immutable, InheritCoreOps, InheritListOps, InheritMaterialize,
-                InheritNodeFilterOps, InheritTimeSemantics, InternalLayerOps, Static,
+                Base, Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritListOps,
+                InheritMaterialize, InheritNodeFilterOps, InheritTimeSemantics, InternalLayerOps,
+                Static,
             },
             Layer,
         },
@@ -33,7 +37,7 @@ impl<G> Static for LayeredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph> + Debug> Debug for LayeredGraph<G> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("LayeredGraph")
-            .field("graph", &self.graph)
+            .field("graph", &self.graph as &dyn Debug)
             .field("layers", &self.layers)
             .finish()
     }
@@ -59,27 +63,7 @@ impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for LayeredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for LayeredGraph<G> {
-    #[inline]
-    fn edges_filtered(&self) -> bool {
-        true
-    }
-
-    #[inline]
-    fn edge_list_trusted(&self) -> bool {
-        false
-    }
-
-    #[inline]
-    fn edge_filter_includes_node_filter(&self) -> bool {
-        self.graph.edge_filter_includes_node_filter()
-    }
-
-    #[inline]
-    fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
-        self.graph.filter_edge(edge, layer_ids) && edge.has_layer(&self.layers)
-    }
-}
+impl<'graph, G: GraphViewOps<'graph>> InheritEdgeFilterOps for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> LayeredGraph<G> {
     pub fn new(graph: G, layers: LayerIds) -> Self {
@@ -100,11 +84,12 @@ impl<'graph, G: GraphViewOps<'graph>> LayeredGraph<G> {
                 },
                 LayerIds::Multiple(ids) => {
                     // intersect the layers
-                    let new_layers = ids.iter().filter_map(|id| layers.find(*id)).collect_vec();
+                    let new_layers: Arc<[usize]> =
+                        ids.iter().filter_map(|id| layers.find(id)).collect();
                     match new_layers.len() {
                         0 => LayerIds::None,
                         1 => LayerIds::One(new_layers[0]),
-                        _ => LayerIds::Multiple(new_layers.into()),
+                        _ => LayerIds::Multiple(Multiple(new_layers)),
                     }
                 }
                 LayerIds::None => LayerIds::None,
@@ -140,6 +125,7 @@ mod test_layers {
         graph.add_edge(0, 1, 2, NO_PROPS, Some("layer1")).unwrap();
         graph.add_edge(0, 2, 3, NO_PROPS, Some("layer2")).unwrap();
         graph.add_edge(3, 2, 4, NO_PROPS, Some("layer1")).unwrap();
+        graph.add_edge(1, 4, 1, NO_PROPS, Some("layer3")).unwrap();
 
         test_storage!(&graph, |graph| {
             let neighbours = graph
@@ -199,6 +185,17 @@ mod test_layers {
                 .collect_vec();
             edges.sort();
             assert_eq!(edges, vec![(1, 2), (2, 3), (2, 4)]);
+
+            let mut edges = graph
+                .layers(["layer1", "layer3"])
+                .unwrap()
+                .window(0, 2)
+                .edges()
+                .id()
+                .filter_map(|(a, b)| a.to_u64().zip(b.to_u64()))
+                .collect_vec();
+            edges.sort();
+            assert_eq!(edges, vec![(1, 2), (4, 1)]);
         });
     }
 

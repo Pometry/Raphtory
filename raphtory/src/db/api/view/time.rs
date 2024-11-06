@@ -4,7 +4,7 @@ use crate::{
         utils::time::{error::ParseTimeError, Interval, IntoTime},
     },
     db::api::view::{
-        internal::{OneHopFilter, TimeSemantics},
+        internal::{InternalMaterialize, OneHopFilter, TimeSemantics},
         time::internal::InternalTimeOps,
     },
 };
@@ -13,6 +13,8 @@ use std::{
     cmp::{max, min},
     marker::PhantomData,
 };
+
+use super::internal::GraphType;
 
 pub(crate) mod internal {
     use crate::{
@@ -118,6 +120,16 @@ pub trait TimeOps<'graph>:
     /// Create a view that only includes events at the latest time
     fn latest(&self) -> Self::WindowedViewType;
 
+    /// Create a view including all events that have not been explicitly deleted at `time`
+    ///
+    /// This is equivalent to `before(time + 1)` for `EventGraph`s and `at(time)` for `PersitentGraph`s
+    fn snapshot_at<T: IntoTime>(&self, time: T) -> Self::WindowedViewType;
+
+    /// Create a view including all events that have not been explicitly deleted at the latest time
+    ///
+    /// This is equivalent to a no-op for `EventGraph`s and `latest()` for `PersitentGraph`s
+    fn snapshot_latest(&self) -> Self::WindowedViewType;
+
     /// Create a view that only includes events after `start` (exclusive)
     fn after<T: IntoTime>(&self, start: T) -> Self::WindowedViewType;
 
@@ -201,6 +213,20 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
     fn latest(&self) -> Self::WindowedViewType {
         let time = self.latest_t();
         self.internal_window(time, time.map(|t| t.saturating_add(1)))
+    }
+
+    fn snapshot_at<T: IntoTime>(&self, time: T) -> Self::WindowedViewType {
+        match self.current_filter().graph_type() {
+            GraphType::EventGraph => self.before(time.into_time() + 1),
+            GraphType::PersistentGraph => self.at(time),
+        }
+    }
+
+    fn snapshot_latest(&self) -> Self::WindowedViewType {
+        match self.latest_t() {
+            Some(latest) => self.snapshot_at(latest),
+            None => self.snapshot_at(i64::MIN),
+        }
     }
 
     fn after<T: IntoTime>(&self, start: T) -> Self::WindowedViewType {
@@ -343,9 +369,9 @@ mod time_tests {
                 mutation::AdditionOps,
                 view::{time::internal::InternalTimeOps, WindowSet},
             },
-            graph::graph::Graph,
+            graph::{graph::Graph, views::deletion_graph::PersistentGraph},
         },
-        prelude::{GraphViewOps, TimeOps, NO_PROPS},
+        prelude::{DeletionOps, GraphViewOps, TimeOps, NO_PROPS},
         test_storage,
     };
     use itertools::Itertools;
@@ -368,6 +394,26 @@ mod time_tests {
     {
         let window_bounds = windows.map(|w| (w.start(), w.end())).collect_vec();
         assert_eq!(window_bounds, expected)
+    }
+
+    #[test]
+    fn snapshot() {
+        let graph = PersistentGraph::new();
+        graph.add_edge(3, 0, 1, [("a", "a")], None).unwrap();
+        graph.add_edge(4, 0, 2, [("b", "b")], None).unwrap();
+        graph.delete_edge(5, 0, 1, None).unwrap();
+
+        for time in 2..7 {
+            assert_eq!(graph.at(time), graph.snapshot_at(time));
+        }
+        assert_eq!(graph.latest(), graph.snapshot_latest());
+
+        let graph = graph.event_graph();
+
+        for time in 2..7 {
+            assert_eq!(graph.before(time + 1), graph.snapshot_at(time));
+        }
+        assert_eq!(graph, graph.snapshot_latest());
     }
 
     #[test]

@@ -19,11 +19,6 @@ pub(crate) async fn health() -> impl IntoResponse {
 }
 
 #[handler]
-pub(crate) async fn graphql_playground() -> impl IntoResponse {
-    Html(include_str!("../resources/playground.html"))
-}
-
-#[handler]
 pub(crate) async fn ui() -> impl IntoResponse {
     Html(include_str!("../resources/index.html"))
 }

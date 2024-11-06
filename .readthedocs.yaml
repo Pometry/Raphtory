@@ -12,8 +12,9 @@ build:
     python: "mambaforge-4.10"
   jobs:
     pre_build:
-      - make rust-build-readthedocs
-      - make install-python
+      - curl https://sh.rustup.rs -sSf | sh -s -- -y
+      - PATH=$HOME/.cargo/bin:$PATH make rust-build-readthedocs
+      - PATH=$HOME/.cargo/bin:$PATH make install-python
 
 conda:
   environment: .environment.yml

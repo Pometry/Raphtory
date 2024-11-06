@@ -30,9 +30,17 @@ jobs:
         os: [ macos-latest, ubuntu-latest, windows-latest ]
     runs-on: '${{ matrix.os }}'
     env:
-      CARGO_NET_GIT_FETCH_WITH_CLI: true
       DISK_TEST_MARK: 1
     steps:
+      - name: Bump git-for-windows
+        # workaround for bug in GHA which causes hg to hang on ssh remotes.
+        # https://github.com/actions/runner-images/issues/10843
+        # https://github.com/git-for-windows/git/issues/5199
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/git-for-windows/git/releases/download/v2.47.0.windows.2/Git-2.47.0.2-64-bit.exe" -OutFile "${{runner.temp}}/git-for-windows.exe"
+          Start-Process -Filepath "${{runner.temp}}/git-for-windows.exe" -ArgumentList  @("/VERYSILENT","/NORESTART","/NOCANCEL","/SP-","/CLOSEAPPLICATIONS","/RESTARTAPPLICATIONS","/o:PathOption=CmdTools","/o:BashTerminalOption=ConHost","/o:EnableSymlinks=Enabled","/COMPONENTS=gitlfs") -NoNewWindow -Wait        
       - uses: actions/checkout@v3
         name: Checkout
       - uses: maxim-lobanov/setup-xcode@v1

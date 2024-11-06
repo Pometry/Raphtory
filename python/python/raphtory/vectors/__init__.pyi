@@ -15,9 +15,12 @@ from raphtory.typing import *
 from datetime import datetime
 from pandas import DataFrame
 
-class Document:
-    def __init__(self, content, life=None):
-        """Initialize self.  See help(type(self)) for accurate signature."""
+class Document(object):
+    def __new__(self, content, life=None):
+        """Create and return a new object.  See help(type) for accurate signature."""
+
+    def __repr__(self):
+        """Return repr(self)."""
 
     @property
     def content(self): ...
@@ -28,10 +31,7 @@ class Document:
     @property
     def life(self): ...
 
-class VectorSelection:
-    def __init__(self):
-        """Initialize self.  See help(type(self)) for accurate signature."""
-
+class VectorSelection(object):
     def add_edges(self, edges: list):
         """
         Add all the documents associated with the `edges` to the current selection
@@ -169,10 +169,7 @@ class VectorSelection:
     def nodes(self):
         """Return the nodes present in the current selection"""
 
-class VectorisedGraph:
-    def __init__(self):
-        """Initialize self.  See help(type(self)) for accurate signature."""
-
+class VectorisedGraph(object):
     def documents_by_similarity(
         self,
         query: str | list,

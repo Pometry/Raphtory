@@ -15,7 +15,7 @@ homepage.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-raphtory-api = { path = "../raphtory-api", version = "0.13.0" }
+raphtory-api = { path = "../raphtory-api", version = "0.13.1" }
 chrono = { workspace = true }
 itertools = { workspace = true }
 num-traits = { workspace = true }
@@ -65,6 +65,7 @@ minijinja-contrib = { workspace = true, optional = true }
 
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
+numpy = { workspace = true, optional = true }
 num = { workspace = true, optional = true }
 display-error-chain = { workspace = true, optional = true }
 polars-arrow = { workspace = true, optional = true }
@@ -130,6 +131,7 @@ python = [
     "vectors",
     "proto",
     "dep:pyo3",
+    "dep:numpy",
     "dep:num",
     "dep:display-error-chain",
     "polars-arrow?/compute",

@@ -22,12 +22,14 @@ from datetime import datetime
 from pandas import DataFrame
 
 logger = logging.getLogger(__name__)
-fn_logger = logger
 
 TARGET_MODULES = ["raphtory", "builtins"]
 TAB = " " * 4
 
-MethodTypes = (BuiltinMethodType, MethodDescriptorType)
+MethodTypes = (
+    BuiltinMethodType,
+    MethodDescriptorType,
+)
 
 
 comment = """###############################################################################
@@ -151,12 +153,11 @@ def insert_self(signature: inspect.Signature) -> inspect.Signature:
     return signature.replace(parameters=[self_param, *signature.parameters.values()])
 
 
-def cls_signature(cls: type) -> inspect.Signature:
+def cls_signature(cls: type) -> Optional[inspect.Signature]:
     try:
-        cls_signature = inspect.signature(cls)
+        return insert_self(inspect.signature(cls))
     except ValueError:
-        cls_signature = inspect.Signature()
-    return cls_signature
+        pass
 
 
 def from_raphtory(obj) -> bool:
@@ -200,12 +201,14 @@ def extract_param_annotation(param: DocstringParam) -> dict:
     return res
 
 
-def extract_types(obj) -> (dict[str, dict], Optional[str]):
+def extract_types(
+    obj, docs_overwrite: Optional[str] = None
+) -> (dict[str, dict], Optional[str]):
     """
     Extract types from documentation
     """
     try:
-        docstr = obj.__doc__
+        docstr = docs_overwrite or obj.__doc__
         if docstr is not None:
             parse_result = parse(docstr, DocstringStyle.GOOGLE)
             type_annotations = {
@@ -226,14 +229,16 @@ def extract_types(obj) -> (dict[str, dict], Optional[str]):
 
 def gen_fn(
     function: Union[BuiltinFunctionType, BuiltinMethodType, MethodDescriptorType],
+    name: str,
     is_method: bool = False,
     signature_overwrite: Optional[inspect.Signature] = None,
+    docs_overwrite: Optional[str] = None,
 ) -> str:
     global fn_logger
     fn_logger = logging.getLogger(repr(function))
     init_tab = TAB if is_method else ""
     fn_tab = TAB * 2 if is_method else TAB
-    type_annotations, return_type = extract_types(function)
+    type_annotations, return_type = extract_types(function, docs_overwrite)
     docstr = format_docstring(function.__doc__, tab=fn_tab, ellipsis=True)
     signature = signature_overwrite or inspect.signature(function)
     signature, decorator = clean_signature(
@@ -243,75 +248,91 @@ def gen_fn(
         return_type,
     )
 
-    fn_str = f"{init_tab}def {function.__name__}{signature}:\n{docstr}"
+    fn_str = f"{init_tab}def {name}{signature}:\n{docstr}"
 
     return f"{init_tab}{decorator}\n{fn_str}" if decorator else fn_str
 
 
-def gen_property(prop: GetSetDescriptorType) -> str:
+def gen_property(prop: GetSetDescriptorType, name: str) -> str:
     prop_tab = TAB * 2
     docstr = format_docstring(prop.__doc__, tab=prop_tab, ellipsis=True)
 
-    return f"{TAB}@property\n{TAB}def {prop.__name__}(self):\n{docstr}"
+    return f"{TAB}@property\n{TAB}def {name}(self):\n{docstr}"
 
 
-def gen_class(cls: type) -> str:
-    contents = [getattr(cls, function) for function in dir(cls)]
+def gen_bases(cls: type) -> str:
+    if cls.__bases__:
+        bases = "(" + ", ".join(format_type(obj) for obj in cls.__bases__) + ")"
+    else:
+        bases = ""
+    return bases
+
+
+def gen_class(cls: type, name) -> str:
+    contents = list(vars(cls).items())
+    contents.sort(key=lambda x: x[0])
     entities: list[str] = []
 
-    for entity in contents:
-        if not hasattr(entity, "__name__"):
-            continue
-
-        if entity.__name__ == "__init__":
+    for obj_name, entity in contents:
+        entity = inspect.unwrap(entity)
+        if obj_name == "__init__" or obj_name == "__new__":
             # Get __init__ signature from class info
-            signature = insert_self(cls_signature(cls))
-            entities.append(
-                gen_fn(entity, is_method=True, signature_overwrite=signature)
-            )
-        elif not entity.__name__.startswith("__"):
-            if isinstance(entity, MethodTypes):
-                entities.append(gen_fn(entity, is_method=True))
+            signature = cls_signature(cls)
+            if signature is not None:
+                entities.append(
+                    gen_fn(
+                        entity,
+                        obj_name,
+                        is_method=True,
+                        signature_overwrite=signature,
+                        docs_overwrite=cls.__doc__,
+                    )
+                )
+        else:
+            if isinstance(entity, MethodTypes) or inspect.ismethoddescriptor(entity):
+                entities.append(gen_fn(entity, obj_name, is_method=True))
             elif isinstance(entity, GetSetDescriptorType):
-                entities.append(gen_property(entity))
+                entities.append(gen_property(entity, obj_name))
+            else:
+                logger.debug(f"ignoring {repr(obj_name)}: {repr(entity)}")
 
     docstr = format_docstring(cls.__doc__, tab=TAB, ellipsis=not entities)
     str_entities = "\n".join(entities)
+    bases = gen_bases(cls)
+    return f"class {name}{bases}: \n{docstr}\n{str_entities}"
 
-    return f"class {cls.__name__}:\n{docstr}\n{str_entities}"
 
-
-def gen_module(module: ModuleType, base: bool = False) -> None:
+def gen_module(module: ModuleType, name: str, path: Path) -> None:
     logging.info("starting")
-    objs = [getattr(module, obj) for obj in dir(module)]
+    objs = list(vars(module).items())
+    objs.sort(key=lambda x: x[0])
 
     stubs: List[str] = []
-    modules: List[ModuleType] = []
+    modules: List[(ModuleType, str)] = []
+    path = path / name
+    global logger
+    logger = logging.getLogger(str(path))
 
-    for obj in objs:
+    for obj_name, obj in objs:
         if isinstance(obj, type) and from_raphtory(obj):
-            stubs.append(gen_class(obj))
+            stubs.append(gen_class(obj, obj_name))
         elif isinstance(obj, BuiltinFunctionType):
-            stubs.append(gen_fn(obj))
+            stubs.append(gen_fn(obj, obj_name))
         elif isinstance(obj, ModuleType) and obj.__loader__ is None:
-            modules.append(obj)
+            modules.append((obj, obj_name))
 
     stub_file = "\n".join([comment, imports, *sorted(stubs)])
-
-    if base:
-        path = Path(".", "python", "raphtory", "__init__.pyi")
-    else:
-        path = Path(".", "python", "raphtory", module.__name__, "__init__.pyi")
-
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(stub_file)
+    path.mkdir(parents=True, exist_ok=True)
+    file = path / "__init__.pyi"
+    file.write_text(stub_file)
 
     for module in modules:
-        gen_module(module)
+        gen_module(*module, path)
 
     return
 
 
 if __name__ == "__main__":
     raphtory = import_module("raphtory")
-    gen_module(raphtory, base=True)
+    path = Path(__file__).parent.parent / "python"
+    gen_module(raphtory, "raphtory", path)

@@ -198,7 +198,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
             }
             LayerIds::Multiple(ids) => {
                 let mut layer_map = vec![0; self.unfiltered_num_layers()];
-                let ids = if ids[0] == 0 { &ids[1..] } else { ids };
+                let ids = if ids.0[0] == 0 { &ids.0[1..] } else { &ids.0 };
                 let layers = storage.edge_meta().layer_meta().get_keys();
                 for id in ids {
                     let new_id = g.resolve_layer(Some(&layers[*id]))?.inner();
@@ -398,11 +398,11 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                 NodeList::All { .. } => core_nodes
                     .as_ref()
                     .par_iter()
-                    .filter(|v| self.filter_node(*v, layer_ids))
+                    .filter(move |v| self.filter_node(*v, layer_ids))
                     .count(),
                 NodeList::List { nodes } => nodes
                     .par_iter()
-                    .filter(|&&id| self.filter_node(core_nodes.node_entry(id), layer_ids))
+                    .filter(move |&&id| self.filter_node(core_nodes.node_entry(id), layer_ids))
                     .count(),
             }
         } else {
@@ -425,7 +425,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                 let nodes = self.core_nodes();
                 edges
                     .as_ref()
-                    .par_iter(self.layer_ids().clone())
+                    .par_iter(self.layer_ids())
                     .filter(|e| {
                         self.filter_edge(e.as_ref(), self.layer_ids())
                             && self.filter_node(nodes.node_entry(e.src()), self.layer_ids())
@@ -438,7 +438,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                 let nodes = self.core_nodes();
                 edges
                     .as_ref()
-                    .par_iter(self.layer_ids().clone())
+                    .par_iter(self.layer_ids())
                     .filter(|e| {
                         self.filter_node(nodes.node_entry(e.src()), self.layer_ids())
                             && self.filter_node(nodes.node_entry(e.dst()), self.layer_ids())
@@ -449,7 +449,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                 let edges = self.core_edges();
                 edges
                     .as_ref()
-                    .par_iter(self.layer_ids().clone())
+                    .par_iter(self.layer_ids())
                     .filter(|e| self.filter_edge(e.as_ref(), self.layer_ids()))
                     .count()
             }
@@ -462,43 +462,44 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         match self.filter_state() {
             FilterState::Neither => core_edges
                 .as_ref()
-                .par_iter(layer_ids.clone())
-                .map(|edge| self.edge_exploded_count(edge.as_ref(), layer_ids))
+                .par_iter(layer_ids)
+                .map(move |edge| self.edge_exploded_count(edge.as_ref(), layer_ids))
                 .sum(),
             FilterState::Both => {
                 let nodes = self.core_nodes();
                 core_edges
                     .as_ref()
-                    .par_iter(layer_ids.clone())
+                    .par_iter(layer_ids)
                     .filter(|e| {
                         self.filter_edge(e.as_ref(), self.layer_ids())
                             && self.filter_node(nodes.node_entry(e.src()), self.layer_ids())
                             && self.filter_node(nodes.node_entry(e.dst()), self.layer_ids())
                     })
-                    .map(|e| self.edge_exploded_count(e.as_ref(), layer_ids))
+                    .map(move |e| self.edge_exploded_count(e.as_ref(), layer_ids))
                     .sum()
             }
             FilterState::Nodes => {
                 let nodes = self.core_nodes();
                 core_edges
                     .as_ref()
-                    .par_iter(layer_ids.clone())
+                    .par_iter(layer_ids)
                     .filter(|e| {
                         self.filter_node(nodes.node_entry(e.src()), self.layer_ids())
                             && self.filter_node(nodes.node_entry(e.dst()), self.layer_ids())
                     })
-                    .map(|e| self.edge_exploded_count(e.as_ref(), layer_ids))
+                    .map(move |e| self.edge_exploded_count(e.as_ref(), layer_ids))
                     .sum()
             }
             FilterState::Edges | FilterState::BothIndependent => core_edges
                 .as_ref()
-                .par_iter(layer_ids.clone())
+                .par_iter(layer_ids)
                 .filter(|e| self.filter_edge(e.as_ref(), self.layer_ids()))
-                .map(|e| self.edge_exploded_count(e.as_ref(), layer_ids))
+                .map(move |e| self.edge_exploded_count(e.as_ref(), layer_ids))
                 .sum(),
         }
     }
 
+    #[inline]
     fn has_node<T: AsNodeRef>(&self, v: T) -> bool {
         if let Some(node_id) = self.internalise_node(v.as_node_ref()) {
             if self.nodes_filtered() {
