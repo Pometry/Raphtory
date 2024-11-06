@@ -105,7 +105,7 @@ polars-parquet = "0.39.2"
 polars-core = "0.39.2"
 polars-io = "0.39.2"
 polars-utils = "0.39.2"
-kdam = { version = "0.5.1" }
+kdam = { git = "https://github.com/ljeub-pometry/kdam.git", branch = "pyo3_0_22" }
 pretty_assertions = "1.4.0"
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
@@ -142,17 +142,12 @@ base64-compat = { package = "base64-compat", version = "1.0.0" }
 prost = "0.13.1"
 prost-types = "0.13.1"
 prost-build = "0.13.1"
-
 lazy_static = "1.4.0"
 pest = "2.7.8"
 pest_derive = "2.7.8"
 minijinja = "2.2.0"
 minijinja-contrib = { version = "2.2.0", features = ["datetime"] }
 sqlparser = "0.47"
-
-tqdm = "0.7.0"
-
-
 datafusion = { version = "40" }
 futures = "0.3"
 arrow = { version = "52" }
@@ -160,6 +155,4 @@ arrow-buffer = { version = "52" }
 arrow-schema = { version = "52" }
 arrow-data = { version = "52" }
 arrow-array = { version = "52" }
-
-
 moka = { version = "0.12.7", features = ["sync"] }

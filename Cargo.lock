@@ -2900,6 +2900,7 @@ dependencies = [
 [[package]]
 name = "kdam"
 version = "0.5.2"
+source = "git+https://github.com/ljeub-pometry/kdam.git?branch=pyo3_0_22#b3fc30a21fff97daa7de08f76764a98699e5f505"
 dependencies = [
  "pyo3",
  "terminal_size",
