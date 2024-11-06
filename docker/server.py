@@ -10,19 +10,19 @@ parser.add_argument(
     "--working-dir",
     type=str,
     default="graphs",
-    help="path for the working directory of the raphtory server, defaults to 'graphs/'",
+    help="Path for the working directory of the raphtory server, defaults to 'graphs/'",
 )
 parser.add_argument(
     "--port",
     type=int,
     default=1736,
-    help="The amount of time a graph will be kept in memory before being dropped, defaults to 900 seconds",
+    help="Graphql server port, defaults to 1736",
 )
 parser.add_argument(
     "--log-level",
     type=str,
     default="info",
-    help="log level for the server, defaults to info",
+    help="Log level for the server, defaults to info",
 )
 parser.add_argument(
     "--tracing",

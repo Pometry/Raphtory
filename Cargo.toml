@@ -12,7 +12,7 @@ members = [
     "raphtory-graphql",
     "raphtory-api",
 ]
-default-members = ["raphtory", "raphtory-graphql"]
+default-members = ["raphtory"]
 resolver = "2"
 
 [workspace.package]
