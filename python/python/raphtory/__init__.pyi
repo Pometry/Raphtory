@@ -444,6 +444,15 @@ class Edge(object):
 
         """
 
+    def history_counts(self) -> int:
+        """
+        Returns the number of times an edge is added or change to an edge is made.
+
+        Returns:
+           int: The number of times an edge is added or change to an edge is made.
+
+        """
+
     def history_date_time(self):
         """
         Returns a list of timestamps of when an edge is added or change to an edge is made.
@@ -895,6 +904,7 @@ class Edges(object):
 
         """
 
+    def history_counts(self): ...
     def history_date_time(self):
         """
         Returns all timestamps of edges, when an edge is added or change to an edge is made.

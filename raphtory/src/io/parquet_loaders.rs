@@ -12,6 +12,8 @@ use crate::{
     serialise::incremental::InternalCache,
 };
 use itertools::Itertools;
+#[cfg(feature = "storage")]
+use polars_arrow::array::StructArray;
 use polars_arrow::datatypes::{ArrowDataType as DataType, ArrowSchema, Field};
 use polars_parquet::{
     read,
