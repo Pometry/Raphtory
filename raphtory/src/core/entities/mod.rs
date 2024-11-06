@@ -1,7 +1,6 @@
-use std::{borrow::Cow, ops::Index, sync::Arc};
-
 use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use std::{borrow::Cow, sync::Arc};
 
 pub mod edges;
 pub mod graph;

@@ -432,18 +432,6 @@ class Edge(object):
         """Explodes an edge and returns all instances it had been updated as seperate edges"""
 
     def explode_layers(self): ...
-    def filter_nodes(self, filter) -> Edge:
-        """
-        Return a filtered view that only includes nodes that satisfy the filter
-
-        Arguments
-            filter (PropertyFilter): The filter to apply to the node properties. Construct a
-                                     filter using `Prop`.
-
-        Returns:
-            Edge: The filtered view
-        """
-
     def has_layer(self, name):
         """Check if Edge has the layer `"name"`"""
 
@@ -904,18 +892,6 @@ class Edges(object):
         """Explodes an edge and returns all instances it had been updated as seperate edges"""
 
     def explode_layers(self): ...
-    def filter_nodes(self, filter) -> Edges:
-        """
-        Return a filtered view that only includes nodes that satisfy the filter
-
-        Arguments
-            filter (PropertyFilter): The filter to apply to the node properties. Construct a
-                                     filter using `Prop`.
-
-        Returns:
-            Edges: The filtered view
-        """
-
     def has_layer(self, name):
         """Check if Edges has the layer `"name"`"""
 
