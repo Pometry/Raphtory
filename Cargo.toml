@@ -57,9 +57,9 @@ reqwest = { version = "0.12.8", default-features = false, features = [
 ] }
 serde = { version = "1.0.197", features = ["derive", "rc"] }
 serde_json = "1.0.114"
-pyo3 = { version = "0.20.0", features = ["multiple-pymethods", "chrono"] }
-pyo3-build-config = "0.20.0"
-numpy = "0.20.0"
+pyo3 = { version = "0.22.6", features = ["multiple-pymethods", "chrono"] }
+pyo3-build-config = "0.22.6"
+numpy = "0.22.1"
 itertools = "0.13.0"
 rand = "0.8.5"
 rayon = "1.8.1"
@@ -106,6 +106,7 @@ polars-core = "0.39.2"
 polars-io = "0.39.2"
 polars-utils = "0.39.2"
 kdam = { git = "https://github.com/ljeub-pometry/kdam.git", branch = "pyo3_0_22" }
+hashbrown = "0.15.1"
 pretty_assertions = "1.4.0"
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"

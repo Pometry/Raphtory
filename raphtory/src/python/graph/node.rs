@@ -231,9 +231,9 @@ impl PyNode {
     ///
     /// Returns:
     ///     List[int]: A list of unix timestamps of the event history of node.
-    pub fn history(&self, py: Python<'_>) -> Py<PyArray<i64, Ix1>> {
+    pub fn history<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
         let history = self.node.history();
-        history.into_pyarray(py).to_owned()
+        history.into_pyarray_bound(py)
     }
 
     /// Returns the history of a node, including node additions and changes made to node.

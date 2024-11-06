@@ -413,13 +413,13 @@ impl From<Vec<i64>> for NumpyArray {
 impl IntoPy<PyObject> for NumpyArray {
     fn into_py(self, py: Python<'_>) -> PyObject {
         match self {
-            NumpyArray::Bool(value) => value.into_pyarray(py).to_object(py),
-            NumpyArray::I32(value) => value.into_pyarray(py).to_object(py),
-            NumpyArray::I64(value) => value.into_pyarray(py).to_object(py),
-            NumpyArray::U32(value) => value.into_pyarray(py).to_object(py),
-            NumpyArray::U64(value) => value.into_pyarray(py).to_object(py),
-            NumpyArray::F32(value) => value.into_pyarray(py).to_object(py),
-            NumpyArray::F64(value) => value.into_pyarray(py).to_object(py),
+            NumpyArray::Bool(value) => value.into_pyarray_bound(py).to_object(py),
+            NumpyArray::I32(value) => value.into_pyarray_bound(py).to_object(py),
+            NumpyArray::I64(value) => value.into_pyarray_bound(py).to_object(py),
+            NumpyArray::U32(value) => value.into_pyarray_bound(py).to_object(py),
+            NumpyArray::U64(value) => value.into_pyarray_bound(py).to_object(py),
+            NumpyArray::F32(value) => value.into_pyarray_bound(py).to_object(py),
+            NumpyArray::F64(value) => value.into_pyarray_bound(py).to_object(py),
             NumpyArray::Props(vec) => match vec.first() {
                 Some(Prop::Bool(_)) => {
                     Self::Bool(vec.into_iter().filter_map(|p| p.into_bool()).collect()).into_py(py)

@@ -12,10 +12,7 @@ use crate::{
     serialise::incremental::InternalCache,
 };
 use itertools::Itertools;
-use polars_arrow::{
-    array::StructArray,
-    datatypes::{ArrowDataType as DataType, ArrowSchema, Field},
-};
+use polars_arrow::datatypes::{ArrowDataType as DataType, ArrowSchema, Field};
 use polars_parquet::{
     read,
     read::{read_metadata, FileMetaData, FileReader},

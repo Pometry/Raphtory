@@ -1,7 +1,6 @@
-use std::{borrow::Cow, ops::Index, sync::Arc};
-
 use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use std::{borrow::Cow, sync::Arc};
 
 pub mod edges;
 pub mod graph;
@@ -81,14 +80,14 @@ mod test {
 
     #[test]
     fn set_one() {
-        let mut bm: Multiple = [1].into_iter().collect();
+        let bm: Multiple = [1].into_iter().collect();
         let actual = bm.into_iter().collect::<Vec<_>>();
         assert_eq!(actual, vec![1usize]);
     }
 
     #[test]
     fn set_two() {
-        let mut bm: Multiple = [1, 67].into_iter().collect();
+        let bm: Multiple = [1, 67].into_iter().collect();
 
         let actual = bm.into_iter().collect::<Vec<_>>();
         assert_eq!(actual, vec![1usize, 67]);
