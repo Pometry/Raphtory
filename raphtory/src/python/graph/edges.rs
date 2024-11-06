@@ -16,12 +16,16 @@ use crate::{
         graph::properties::{PyNestedPropsIterable, PyPropsList},
         types::{
             repr::{iterator_repr, Repr},
-            wrappers::iterables::{
-                ArcStringIterable, ArcStringVecIterable, BoolIterable, GIDGIDIterable, I64Iterable,
-                NestedArcStringIterable, NestedArcStringVecIterable, NestedBoolIterable,
-                NestedGIDGIDIterable, NestedI64VecIterable, NestedOptionI64Iterable,
-                NestedUtcDateTimeIterable, NestedVecUtcDateTimeIterable, OptionI64Iterable,
-                OptionUtcDateTimeIterable, OptionVecUtcDateTimeIterable, U64Iterable,
+            wrappers::{
+                iterables::{
+                    ArcStringIterable, ArcStringVecIterable, BoolIterable, GIDGIDIterable,
+                    I64Iterable, NestedArcStringIterable, NestedArcStringVecIterable,
+                    NestedBoolIterable, NestedGIDGIDIterable, NestedI64VecIterable,
+                    NestedOptionI64Iterable, NestedUtcDateTimeIterable,
+                    NestedVecUtcDateTimeIterable, OptionI64Iterable, OptionUtcDateTimeIterable,
+                    OptionVecUtcDateTimeIterable, U64Iterable,
+                },
+                prop::PyPropertyFilter,
             },
         },
         utils::{

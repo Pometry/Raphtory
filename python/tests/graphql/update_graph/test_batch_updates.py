@@ -13,6 +13,7 @@ from raphtory.graphql import (
     RemoteEdgeAddition,
 )
 
+
 def make_props():
     current_datetime = datetime.now(timezone.utc)
     naive_datetime = datetime.now()
@@ -116,12 +117,15 @@ def test_add_nodes():
         ben = g.node("ben")
         hamza = g.node("hamza")
         lucas = g.node("lucas")
-        check_arr(ben.properties.temporal.get("prop_float").values(), [
-            2.0,
-            3.0,
-            2.0,
-            3.0,
-        ])
+        check_arr(
+            ben.properties.temporal.get("prop_float").values(),
+            [
+                2.0,
+                3.0,
+                2.0,
+                3.0,
+            ],
+        )
         check_arr(ben.history(), [1, 2, 3, 4, 5, 6])
         assert ben.node_type == "person"
         check_arr(hamza.history(), [1, 2])
@@ -176,14 +180,17 @@ def test_add_edges():
         ben_hammza = g.edge("ben", "hamza")
         hamza_lucas = g.edge("hamza", "lucas")
         lucas_hamza = g.edge("lucas", "hamza")
-        check_arr( ben_hammza.properties.temporal.get("prop_float").values() , [
-            2.0,
-            3.0,
-            2.0,
-            3.0,
-        ])
-        check_arr( ben_hammza.history() , [1, 2, 3, 4, 5, 6])
+        check_arr(
+            ben_hammza.properties.temporal.get("prop_float").values(),
+            [
+                2.0,
+                3.0,
+                2.0,
+                3.0,
+            ],
+        )
+        check_arr(ben_hammza.history(), [1, 2, 3, 4, 5, 6])
         assert ben_hammza.layer_names == ["_default", "test"]
-        check_arr( hamza_lucas.history() , [1, 2])
+        check_arr(hamza_lucas.history(), [1, 2])
         assert hamza_lucas.layer_names == ["_default"]
         helper_test_props(lucas_hamza.layer("_default"), lucas_props)

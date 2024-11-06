@@ -432,6 +432,18 @@ class Edge(object):
         """Explodes an edge and returns all instances it had been updated as seperate edges"""
 
     def explode_layers(self): ...
+    def filter_nodes(self, filter) -> Edge:
+        """
+        Return a filtered view that only includes nodes that satisfy the filter
+
+        Arguments
+            filter (PropertyFilter): The filter to apply to the node properties. Construct a
+                                     filter using `Prop`.
+
+        Returns:
+            Edge: The filtered view
+        """
+
     def has_layer(self, name):
         """Check if Edge has the layer `"name"`"""
 
@@ -441,6 +453,15 @@ class Edge(object):
 
         Returns:
            List[int]:  A list of unix timestamps.
+
+        """
+
+    def history_counts(self) -> int:
+        """
+        Returns the number of times an edge is added or change to an edge is made.
+
+        Returns:
+           int: The number of times an edge is added or change to an edge is made.
 
         """
 
@@ -607,6 +628,29 @@ class Edge(object):
             start (TimeInput): the new start time for the window
             end (TimeInput): the new end time for the window
 
+        """
+
+    def snapshot_at(self, time: TimeInput):
+        """
+         Create a view of the Edge including all events that have not been explicitly deleted at `time`.
+
+        This is equivalent to `before(time + 1)` for `EventGraph`s and `at(time)` for `PersitentGraph`s
+
+        Arguments:
+            time (TimeInput): The time of the window.
+
+        Returns:
+             A Edge object.
+        """
+
+    def snapshot_latest(self):
+        """
+         Create a view of the Edge including all events that have not been explicitly deleted at the latest time.
+
+        This is equivalent to a no-op for `EventGraph`s and `latest()` for `PersitentGraph`s
+
+        Returns:
+             A Edge object.
         """
 
     @property
@@ -860,6 +904,18 @@ class Edges(object):
         """Explodes an edge and returns all instances it had been updated as seperate edges"""
 
     def explode_layers(self): ...
+    def filter_nodes(self, filter) -> Edges:
+        """
+        Return a filtered view that only includes nodes that satisfy the filter
+
+        Arguments
+            filter (PropertyFilter): The filter to apply to the node properties. Construct a
+                                     filter using `Prop`.
+
+        Returns:
+            Edges: The filtered view
+        """
+
     def has_layer(self, name):
         """Check if Edges has the layer `"name"`"""
 
@@ -872,6 +928,7 @@ class Edges(object):
 
         """
 
+    def history_counts(self): ...
     def history_date_time(self):
         """
         Returns all timestamps of edges, when an edge is added or change to an edge is made.
@@ -1012,6 +1069,29 @@ class Edges(object):
             start (TimeInput): the new start time for the window
             end (TimeInput): the new end time for the window
 
+        """
+
+    def snapshot_at(self, time: TimeInput):
+        """
+         Create a view of the Edges including all events that have not been explicitly deleted at `time`.
+
+        This is equivalent to `before(time + 1)` for `EventGraph`s and `at(time)` for `PersitentGraph`s
+
+        Arguments:
+            time (TimeInput): The time of the window.
+
+        Returns:
+             A Edges object.
+        """
+
+    def snapshot_latest(self):
+        """
+         Create a view of the Edges including all events that have not been explicitly deleted at the latest time.
+
+        This is equivalent to a no-op for `EventGraph`s and `latest()` for `PersitentGraph`s
+
+        Returns:
+             A Edges object.
         """
 
     @property
@@ -1873,6 +1953,18 @@ class GraphView(object):
             GraphView: The filtered view
         """
 
+    def filter_nodes(self, filter) -> GraphView:
+        """
+        Return a filtered view that only includes nodes that satisfy the filter
+
+        Arguments
+            filter (PropertyFilter): The filter to apply to the node properties. Construct a
+                                     filter using `Prop`.
+
+        Returns:
+            GraphView: The filtered view
+        """
+
     def find_edges(self, properties_dict):
         """
         Get the edges that match the properties name and value
@@ -2056,6 +2148,29 @@ class GraphView(object):
             start (TimeInput): the new start time for the window
             end (TimeInput): the new end time for the window
 
+        """
+
+    def snapshot_at(self, time: TimeInput):
+        """
+         Create a view of the GraphView including all events that have not been explicitly deleted at `time`.
+
+        This is equivalent to `before(time + 1)` for `EventGraph`s and `at(time)` for `PersitentGraph`s
+
+        Arguments:
+            time (TimeInput): The time of the window.
+
+        Returns:
+             A GraphView object.
+        """
+
+    def snapshot_latest(self):
+        """
+         Create a view of the GraphView including all events that have not been explicitly deleted at the latest time.
+
+        This is equivalent to a no-op for `EventGraph`s and `latest()` for `PersitentGraph`s
+
+        Returns:
+             A GraphView object.
         """
 
     @property
@@ -2525,6 +2640,18 @@ class Node(object):
             Node: The filtered view
         """
 
+    def filter_nodes(self, filter) -> Node:
+        """
+        Return a filtered view that only includes nodes that satisfy the filter
+
+        Arguments
+            filter (PropertyFilter): The filter to apply to the node properties. Construct a
+                                     filter using `Prop`.
+
+        Returns:
+            Node: The filtered view
+        """
+
     def has_layer(self, name):
         """Check if Node has the layer `"name"`"""
 
@@ -2738,6 +2865,29 @@ class Node(object):
             start (TimeInput): the new start time for the window
             end (TimeInput): the new end time for the window
 
+        """
+
+    def snapshot_at(self, time: TimeInput):
+        """
+         Create a view of the Node including all events that have not been explicitly deleted at `time`.
+
+        This is equivalent to `before(time + 1)` for `EventGraph`s and `at(time)` for `PersitentGraph`s
+
+        Arguments:
+            time (TimeInput): The time of the window.
+
+        Returns:
+             A Node object.
+        """
+
+    def snapshot_latest(self):
+        """
+         Create a view of the Node including all events that have not been explicitly deleted at the latest time.
+
+        This is equivalent to a no-op for `EventGraph`s and `latest()` for `PersitentGraph`s
+
+        Returns:
+             A Node object.
         """
 
     @property
@@ -3000,6 +3150,18 @@ class Nodes(object):
             Nodes: The filtered view
         """
 
+    def filter_nodes(self, filter) -> Nodes:
+        """
+        Return a filtered view that only includes nodes that satisfy the filter
+
+        Arguments
+            filter (PropertyFilter): The filter to apply to the node properties. Construct a
+                                     filter using `Prop`.
+
+        Returns:
+            Nodes: The filtered view
+        """
+
     def has_layer(self, name):
         """Check if Nodes has the layer `"name"`"""
 
@@ -3194,6 +3356,29 @@ class Nodes(object):
             start (TimeInput): the new start time for the window
             end (TimeInput): the new end time for the window
 
+        """
+
+    def snapshot_at(self, time: TimeInput):
+        """
+         Create a view of the Nodes including all events that have not been explicitly deleted at `time`.
+
+        This is equivalent to `before(time + 1)` for `EventGraph`s and `at(time)` for `PersitentGraph`s
+
+        Arguments:
+            time (TimeInput): The time of the window.
+
+        Returns:
+             A Nodes object.
+        """
+
+    def snapshot_latest(self):
+        """
+         Create a view of the Nodes including all events that have not been explicitly deleted at the latest time.
+
+        This is equivalent to a no-op for `EventGraph`s and `latest()` for `PersitentGraph`s
+
+        Returns:
+             A Nodes object.
         """
 
     @property
@@ -4137,9 +4322,9 @@ class TemporalProperties(object):
             list[TemporalProp]: the list of property views
         """
 
-class WindowSet:
-    def __init__(self):
-        """Initialize self.  See help(type(self)) for accurate signature."""
+class WindowSet(object):
+    def __iter__(self):
+        """Implement iter(self)."""
 
     def time_index(self, center: bool = False) -> Iterable:
         """

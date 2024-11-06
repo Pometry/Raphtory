@@ -157,7 +157,7 @@ def test_persistent_node_latest():
     wg = g.window(5, 12)
     assert wg.latest_time == 11
     assert wg.earliest_time == 5
-    check_arr( wg.node(1).latest().history() , [])
+    check_arr(wg.node(1).latest().history(), [])
 
-    check_arr( g.nodes.latest().id.collect() , [1, 2, 3])
-    check_arr( wg.nodes.latest().id.collect() , [1, 2])
+    check_arr(g.nodes.latest().id.collect(), [1, 2, 3])
+    check_arr(wg.nodes.latest().id.collect(), [1, 2])
