@@ -10,6 +10,7 @@ use datafusion::{
         array::RecordBatch,
         datatypes::{Schema, SchemaRef},
     },
+    catalog::Session,
     common::{DFSchema, Statistics},
     config::ConfigOptions,
     datasource::{TableProvider, TableType},
@@ -64,13 +65,13 @@ impl EdgeListTableProvider {
             .len();
 
         //src
-        let expr = Expr::Sort(expr::Sort::new(Box::new(col("src")), true, true));
-        let df_schema = DFSchema::try_from(schema.as_ref().clone()).unwrap();
+        let expr = col("src").sort(true, true);
+        let df_schema = DFSchema::try_from(schema.as_ref().clone())?;
         let sort_by_src = create_physical_sort_expr(&expr, &df_schema, &ExecutionProps::new())?;
 
         //dst
-        let expr = Expr::Sort(expr::Sort::new(Box::new(col("dst")), true, true));
-        let df_schema = DFSchema::try_from(schema.as_ref().clone()).unwrap();
+        let expr = col("dst").sort(true, true);
+        let df_schema = DFSchema::try_from(schema.as_ref().clone())?;
         let sort_by_dst = create_physical_sort_expr(&expr, &df_schema, &ExecutionProps::new())?;
 
         //time
@@ -81,8 +82,8 @@ impl EdgeListTableProvider {
             .map(|f| f.name.clone())
             .unwrap();
 
-        let expr = Expr::Sort(expr::Sort::new(Box::new(col(time_field_name)), true, true));
-        let df_schema = DFSchema::try_from(schema.as_ref().clone()).unwrap();
+        let expr = col(time_field_name).sort(true, true);
+        let df_schema = DFSchema::try_from(schema.as_ref().clone())?;
         let sort_by_time = create_physical_sort_expr(&expr, &df_schema, &ExecutionProps::new())?;
 
         Ok(Self {
@@ -140,7 +141,7 @@ impl TableProvider for EdgeListTableProvider {
 
     async fn scan(
         &self,
-        _state: &SessionState,
+        _state: &dyn Session,
         projection: Option<&Vec<usize>>,
         _filters: &[Expr],
         _limit: Option<usize>,
