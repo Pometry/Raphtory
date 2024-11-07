@@ -148,8 +148,8 @@ pest = "2.7.8"
 pest_derive = "2.7.8"
 minijinja = "2.2.0"
 minijinja-contrib = { version = "2.2.0", features = ["datetime"] }
-sqlparser = "0.51.0"
 datafusion = { version = "42.2.0" }
+sqlparser = "0.47"
 futures = "0.3"
 arrow = { version = "53.2.0" }
 arrow-buffer = { version = "53.2.0" }
