@@ -1929,6 +1929,18 @@ class GraphView(object):
             GraphView: The filtered view
         """
 
+    def filter_nodes(self, filter) -> GraphView:
+        """
+        Return a filtered view that only includes nodes that satisfy the filter
+
+        Arguments
+            filter (PropertyFilter): The filter to apply to the node properties. Construct a
+                                     filter using `Prop`.
+
+        Returns:
+            GraphView: The filtered view
+        """
+
     def find_edges(self, properties_dict):
         """
         Get the edges that match the properties name and value
@@ -2604,6 +2616,18 @@ class Node(object):
             Node: The filtered view
         """
 
+    def filter_nodes(self, filter) -> Node:
+        """
+        Return a filtered view that only includes nodes that satisfy the filter
+
+        Arguments
+            filter (PropertyFilter): The filter to apply to the node properties. Construct a
+                                     filter using `Prop`.
+
+        Returns:
+            Node: The filtered view
+        """
+
     def has_layer(self, name):
         """Check if Node has the layer `"name"`"""
 
@@ -3096,6 +3120,18 @@ class Nodes(object):
 
         Arguments:
             filter (PropertyFilter): The filter to apply to the exploded edge properties. Construct a
+                                     filter using `Prop`.
+
+        Returns:
+            Nodes: The filtered view
+        """
+
+    def filter_nodes(self, filter) -> Nodes:
+        """
+        Return a filtered view that only includes nodes that satisfy the filter
+
+        Arguments
+            filter (PropertyFilter): The filter to apply to the node properties. Construct a
                                      filter using `Prop`.
 
         Returns:
@@ -4260,4 +4296,22 @@ class TemporalProperties(object):
 
         Returns:
             list[TemporalProp]: the list of property views
+        """
+
+class WindowSet(object):
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def time_index(self, center: bool = False) -> Iterable:
+        """
+        Returns the time index of this window set
+
+        It uses the last time of each window as the reference or the center of each if `center` is
+        set to `True`
+
+        Arguments:
+            center (bool): if True time indexes are centered. Defaults to False
+
+        Returns:
+            Iterable: the time index"
         """

@@ -142,6 +142,11 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
 {
 }
 
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodePropertyFilterOps<'graph>
+    for NodeView<G, GH>
+{
+}
+
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'graph>
     for NodeView<G, GH>
 {

@@ -1,10 +1,9 @@
-/// Macro for implementing all the LayerOps methods on a python wrapper
+/// Macro for implementing all the EdgePropertyFilterOps methods on a python wrapper
 ///
 /// # Arguments
 /// * obj: The struct the methods should be implemented for
-/// * field: The name of the struct field holding the rust struct implementing `LayerOps`
-/// * base_type: The rust type of `field` (note that `<$base_type as LayerOps<'static>>::LayeredViewType`
-///              should have an `IntoPy<PyObject>` implementation)
+/// * field: The name of the struct field holding the rust struct implementing `EdgePropertyFilterOps`
+/// * base_type: The rust type of `field`
 /// * name: The name of the object that appears in the docstring
 macro_rules! impl_edge_property_filter_ops {
     ($obj:ident<$base_type:ty>, $field:ident, $name:literal) => {

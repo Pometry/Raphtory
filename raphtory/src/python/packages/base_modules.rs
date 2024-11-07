@@ -26,6 +26,7 @@ use crate::{
             document::PyDocument,
             prop::{PyPropertyFilter, PyPropertyRef},
         },
+        utils::PyWindowSet,
     },
 };
 use pyo3::prelude::*;
@@ -50,6 +51,7 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyTemporalProp,
         PyPropertyRef,
         PyPropertyFilter,
+        PyWindowSet,
         AlgorithmResult,
         GraphIndex
     );

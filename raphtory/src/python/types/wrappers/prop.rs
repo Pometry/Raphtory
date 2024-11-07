@@ -3,7 +3,9 @@ use crate::{
     core::{utils::errors::GraphError, DocumentInput, Prop},
     db::graph::views::{
         deletion_graph::PersistentGraph,
-        property_filter::internal::{InternalEdgeFilterOps, InternalExplodedEdgeFilterOps},
+        property_filter::internal::{
+            InternalEdgeFilterOps, InternalExplodedEdgeFilterOps, InternalNodePropertyFilterOps,
+        },
     },
     prelude::{GraphViewOps, PropertyFilter},
     python::{graph::views::graph_view::PyGraphView, types::repr::Repr},
@@ -160,6 +162,21 @@ impl InternalExplodedEdgeFilterOps for PyPropertyFilter {
         graph: G,
     ) -> Result<Self::ExplodedEdgeFiltered<'graph, G>, GraphError> {
         self.0.create_exploded_edge_filter(graph)
+    }
+}
+
+impl InternalNodePropertyFilterOps for PyPropertyFilter {
+    type NodePropertyFiltered<'graph, G>
+        = <PropertyFilter as InternalNodePropertyFilterOps>::NodePropertyFiltered<'graph, G>
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
+
+    fn create_node_property_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodePropertyFiltered<'graph, G>, GraphError> {
+        self.0.create_node_property_filter(graph)
     }
 }
 

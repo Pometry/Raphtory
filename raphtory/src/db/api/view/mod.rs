@@ -7,6 +7,7 @@ mod graph;
 pub mod internal;
 mod layer;
 pub(crate) mod node;
+mod node_property_filter;
 mod reset_filter;
 pub(crate) mod time;
 
@@ -22,6 +23,7 @@ pub use internal::{
 pub use layer::*;
 pub(crate) use node::BaseNodeViewOps;
 pub use node::NodeViewOps;
+pub use node_property_filter::NodePropertyFilterOps;
 pub use reset_filter::*;
 pub use time::*;
 

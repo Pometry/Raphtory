@@ -1,9 +1,5 @@
 use crate::{
-    core::{
-        entities::{properties::props::Meta, LayerIds},
-        utils::errors::GraphError,
-        PropType,
-    },
+    core::{entities::LayerIds, utils::errors::GraphError},
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
@@ -18,7 +14,10 @@ use crate::{
         },
         graph::{
             edge::EdgeView,
-            views::property_filter::{internal::InternalEdgeFilterOps, PropertyValueFilter},
+            views::{
+                property_filter,
+                property_filter::{internal::InternalEdgeFilterOps, PropertyValueFilter},
+            },
         },
     },
     prelude::{EdgeViewOps, GraphViewOps, PropertyFilter},
@@ -48,24 +47,6 @@ impl<'graph, G> EdgePropertyFilteredGraph<G> {
     }
 }
 
-fn get_ids_and_check_type(
-    meta: &Meta,
-    property: &str,
-    dtype: PropType,
-) -> Result<(Option<usize>, Option<usize>), GraphError> {
-    let t_prop_id = meta
-        .temporal_prop_meta()
-        .get_and_validate(property, dtype)?;
-    let c_prop_id = meta.const_prop_meta().get_and_validate(property, dtype)?;
-    Ok((t_prop_id, c_prop_id))
-}
-
-fn get_ids(meta: &Meta, property: &str) -> (Option<usize>, Option<usize>) {
-    let t_prop_id = meta.temporal_prop_meta().get_id(property);
-    let c_prop_id = meta.const_prop_meta().get_id(property);
-    (t_prop_id, c_prop_id)
-}
-
 impl InternalEdgeFilterOps for PropertyFilter {
     type EdgeFiltered<'graph, G: GraphViewOps<'graph>> = EdgePropertyFilteredGraph<G>;
 
@@ -74,10 +55,12 @@ impl InternalEdgeFilterOps for PropertyFilter {
         graph: G,
     ) -> Result<Self::EdgeFiltered<'graph, G>, GraphError> {
         let (t_prop_id, c_prop_id) = match &self.filter {
-            PropertyValueFilter::ByValue(filter) => {
-                get_ids_and_check_type(graph.edge_meta(), &self.name, filter.dtype())?
-            }
-            _ => get_ids(graph.edge_meta(), &self.name),
+            PropertyValueFilter::ByValue(filter) => property_filter::get_ids_and_check_type(
+                graph.edge_meta(),
+                &self.name,
+                filter.dtype(),
+            )?,
+            _ => property_filter::get_ids(graph.edge_meta(), &self.name),
         };
         Ok(EdgePropertyFilteredGraph::new(
             graph,

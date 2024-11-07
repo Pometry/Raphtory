@@ -7,7 +7,7 @@
 ///              should have an `IntoPy<PyObject>` implementation)
 /// * name: The name of the object that appears in the docstring
 macro_rules! impl_edgeviewops {
-    ($obj:ty, $field:ident, $base_type:ty, $name:literal) => {
+    ($obj:ident, $field:ident, $base_type:ty, $name:literal) => {
         impl_timeops!($obj, $field, $base_type, $name);
         impl_layerops!($obj, $field, $base_type, $name);
         impl_repr!($obj, $field);
