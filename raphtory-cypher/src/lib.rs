@@ -67,12 +67,14 @@ mod cypher {
             SessionStateBuilder::new()
                 .with_config(config)
                 .with_runtime_env(runtime)
+                .with_default_features()
                 .with_query_planner(Arc::new(HopQueryPlanner {}))
                 .with_optimizer_rule(Arc::new(HopRule::new(g.clone())))
                 .build()
         } else {
             SessionStateBuilder::new()
                 .with_config(config)
+                .with_default_features()
                 .with_runtime_env(runtime)
                 .build()
         };
