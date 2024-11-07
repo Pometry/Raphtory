@@ -12,16 +12,22 @@ use polars_arrow::{array::Array, ffi};
 use pyo3::{
     ffi::Py_uintptr_t,
     prelude::*,
+    pybacked::PyBackedStr,
     types::{IntoPyDict, PyDict},
 };
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::Deref};
 use tracing::error;
 
-pub fn load_nodes_from_pandas<
+pub(crate) fn convert_py_prop_args(properties: Option<&[PyBackedStr]>) -> Option<Vec<&str>> {
+    properties.map(|p| p.iter().map(|p| p.deref()).collect())
+}
+
+pub(crate) fn load_nodes_from_pandas<
+    'py,
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
 >(
     graph: &G,
-    df: &PyAny,
+    df: &Bound<'py, PyAny>,
     time: &str,
     id: &str,
     node_type: Option<&str>,
@@ -30,35 +36,34 @@ pub fn load_nodes_from_pandas<
     constant_properties: Option<&[&str]>,
     shared_constant_properties: Option<&HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
-    Python::with_gil(|py| {
-        let mut cols_to_check = vec![id, time];
-        cols_to_check.extend(properties.unwrap_or(&Vec::new()));
-        cols_to_check.extend(constant_properties.unwrap_or(&Vec::new()));
-        if let Some(ref node_type_col) = node_type_col {
-            cols_to_check.push(node_type_col.as_ref());
-        }
+    let mut cols_to_check = vec![id, time];
+    cols_to_check.extend(properties.iter().flat_map(|v| v.iter()));
+    cols_to_check.extend(constant_properties.iter().flat_map(|v| v.iter()));
+    if let Some(ref node_type_col) = node_type_col {
+        cols_to_check.push(node_type_col.as_ref());
+    }
 
-        let df_view = process_pandas_py_df(df, py, cols_to_check.clone())?;
-        df_view.check_cols_exist(&cols_to_check)?;
-        load_nodes_from_df(
-            df_view,
-            time,
-            id,
-            properties,
-            constant_properties,
-            shared_constant_properties,
-            node_type,
-            node_type_col,
-            graph,
-        )
-    })
+    let df_view = process_pandas_py_df(df, cols_to_check.clone())?;
+    df_view.check_cols_exist(&cols_to_check)?;
+    load_nodes_from_df(
+        df_view,
+        time,
+        id,
+        properties.as_deref(),
+        constant_properties.as_deref(),
+        shared_constant_properties,
+        node_type,
+        node_type_col,
+        graph,
+    )
 }
 
 pub(crate) fn load_edges_from_pandas<
+    'py,
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
 >(
     graph: &G,
-    df: &PyAny,
+    df: &Bound<'py, PyAny>,
     time: &str,
     src: &str,
     dst: &str,
@@ -68,67 +73,65 @@ pub(crate) fn load_edges_from_pandas<
     layer: Option<&str>,
     layer_col: Option<&str>,
 ) -> Result<(), GraphError> {
-    Python::with_gil(|py| {
-        let mut cols_to_check = vec![src, dst, time];
-        cols_to_check.extend(properties.unwrap_or(&Vec::new()));
-        cols_to_check.extend(constant_properties.unwrap_or(&Vec::new()));
-        if let Some(ref layer_col) = layer_col {
-            cols_to_check.push(layer_col.as_ref());
-        }
+    let mut cols_to_check = vec![src, dst, time];
+    cols_to_check.extend(properties.unwrap_or(&Vec::new()));
+    cols_to_check.extend(constant_properties.unwrap_or(&Vec::new()));
+    if let Some(ref layer_col) = layer_col {
+        cols_to_check.push(layer_col.as_ref());
+    }
 
-        let df_view = process_pandas_py_df(df, py, cols_to_check.clone())?;
-        df_view.check_cols_exist(&cols_to_check)?;
-        load_edges_from_df(
-            df_view,
-            time,
-            src,
-            dst,
-            properties,
-            constant_properties,
-            shared_constant_properties,
-            layer,
-            layer_col,
-            graph,
-        )
-    })
+    let df_view = process_pandas_py_df(df, cols_to_check.clone())?;
+    df_view.check_cols_exist(&cols_to_check)?;
+    load_edges_from_df(
+        df_view,
+        time,
+        src,
+        dst,
+        properties,
+        constant_properties,
+        shared_constant_properties,
+        layer,
+        layer_col,
+        graph,
+    )
 }
 
 pub(crate) fn load_node_props_from_pandas<
+    'py,
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
 >(
     graph: &G,
-    df: &PyAny,
+    df: &Bound<'py, PyAny>,
     id: &str,
     node_type: Option<&str>,
     node_type_col: Option<&str>,
     constant_properties: Option<&[&str]>,
     shared_constant_properties: Option<&HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
-    Python::with_gil(|py| {
-        let mut cols_to_check = vec![id];
-        cols_to_check.extend(constant_properties.unwrap_or(&Vec::new()));
-        if let Some(ref node_type_col) = node_type_col {
-            cols_to_check.push(node_type_col.as_ref());
-        }
-        let df_view = process_pandas_py_df(df, py, cols_to_check.clone())?;
-        df_view.check_cols_exist(&cols_to_check)?;
-        load_node_props_from_df(
-            df_view,
-            id,
-            node_type,
-            node_type_col,
-            constant_properties,
-            shared_constant_properties,
-            graph,
-        )
-    })
+    let mut cols_to_check = vec![id];
+    cols_to_check.extend(constant_properties.unwrap_or(&Vec::new()));
+    if let Some(ref node_type_col) = node_type_col {
+        cols_to_check.push(node_type_col.as_ref());
+    }
+    let df_view = process_pandas_py_df(df, cols_to_check.clone())?;
+    df_view.check_cols_exist(&cols_to_check)?;
+    load_node_props_from_df(
+        df_view,
+        id,
+        node_type,
+        node_type_col,
+        constant_properties,
+        shared_constant_properties,
+        graph,
+    )
 }
 
 pub(crate) fn load_edge_props_from_pandas<
+    'py,
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
 >(
     graph: &G,
-    df: &PyAny,
+    df: &Bound<'py, PyAny>,
     src: &str,
     dst: &str,
     constant_properties: Option<&[&str]>,
@@ -136,66 +139,63 @@ pub(crate) fn load_edge_props_from_pandas<
     layer: Option<&str>,
     layer_col: Option<&str>,
 ) -> Result<(), GraphError> {
-    Python::with_gil(|py| {
-        let mut cols_to_check = vec![src, dst];
-        if let Some(ref layer_col) = layer_col {
-            cols_to_check.push(layer_col.as_ref());
-        }
-        cols_to_check.extend(constant_properties.unwrap_or(&Vec::new()));
-        let df_view = process_pandas_py_df(df, py, cols_to_check.clone())?;
-        df_view.check_cols_exist(&cols_to_check)?;
-        load_edges_props_from_df(
-            df_view,
-            src,
-            dst,
-            constant_properties,
-            shared_constant_properties,
-            layer,
-            layer_col,
-            graph,
-        )
-    })
+    let mut cols_to_check = vec![src, dst];
+    if let Some(ref layer_col) = layer_col {
+        cols_to_check.push(layer_col.as_ref());
+    }
+    cols_to_check.extend(constant_properties.unwrap_or(&Vec::new()));
+    let df_view = process_pandas_py_df(df, cols_to_check.clone())?;
+    df_view.check_cols_exist(&cols_to_check)?;
+    load_edges_props_from_df(
+        df_view,
+        src,
+        dst,
+        constant_properties,
+        shared_constant_properties,
+        layer,
+        layer_col,
+        graph,
+    )
 }
 
 pub fn load_edge_deletions_from_pandas<
+    'py,
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
 >(
     graph: &G,
-    df: &PyAny,
+    df: &Bound<'py, PyAny>,
     time: &str,
     src: &str,
     dst: &str,
     layer: Option<&str>,
     layer_col: Option<&str>,
 ) -> Result<(), GraphError> {
-    Python::with_gil(|py| {
-        let mut cols_to_check = vec![src, dst, time];
-        if let Some(ref layer_col) = layer_col {
-            cols_to_check.push(layer_col.as_ref());
-        }
+    let mut cols_to_check = vec![src, dst, time];
+    if let Some(ref layer_col) = layer_col {
+        cols_to_check.push(layer_col.as_ref());
+    }
 
-        let df_view = process_pandas_py_df(df, py, cols_to_check.clone())?;
-        df_view.check_cols_exist(&cols_to_check)?;
-        load_edge_deletions_from_df(
-            df_view,
-            time,
-            src,
-            dst,
-            layer,
-            layer_col,
-            graph.core_graph(),
-        )
-    })
+    let df_view = process_pandas_py_df(df, cols_to_check.clone())?;
+    df_view.check_cols_exist(&cols_to_check)?;
+    load_edge_deletions_from_df(
+        df_view,
+        time,
+        src,
+        dst,
+        layer,
+        layer_col,
+        graph.core_graph(),
+    )
 }
 
 pub(crate) fn process_pandas_py_df<'a>(
-    df: &'a PyAny,
-    py: Python<'a>,
+    df: &Bound<'a, PyAny>,
     col_names: Vec<&str>,
 ) -> PyResult<DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + 'a>> {
+    let py = df.py();
     is_jupyter(py);
-    py.import("pandas")?;
-    let module = py.import("pyarrow")?;
+    py.import_bound("pandas")?;
+    let module = py.import_bound("pyarrow")?;
     let pa_table = module.getattr("Table")?;
 
     let df_columns: Vec<String> = df.getattr("columns")?.extract()?;
@@ -207,19 +207,20 @@ pub(crate) fn process_pandas_py_df<'a>(
 
     let dropped_df = if !cols_to_drop.is_empty() {
         let drop_method = df.getattr("drop")?;
-        drop_method.call((cols_to_drop,), Some(vec![("axis", 1)].into_py_dict(py)))?
+        &drop_method.call(
+            (cols_to_drop,),
+            Some(&vec![("axis", 1)].into_py_dict_bound(py)),
+        )?
     } else {
         df
     };
 
-    let _df_columns: Vec<String> = dropped_df.getattr("columns")?.extract()?;
-
-    let table = pa_table.call_method("from_pandas", (dropped_df,), None)?;
-    let kwargs = PyDict::new(py);
+    let table = pa_table.call_method("from_pandas", (dropped_df.clone(),), None)?;
+    let kwargs = PyDict::new_bound(py);
     kwargs.set_item("max_chunksize", 1000000)?;
     let rb = table
-        .call_method("to_batches", (), Some(kwargs))?
-        .extract::<Vec<&PyAny>>()?;
+        .call_method("to_batches", (), Some(&kwargs))?
+        .extract::<Vec<Bound<PyAny>>>()?;
     let names: Vec<String> = if let Some(batch0) = rb.get(0) {
         let schema = batch0.getattr("schema")?;
         schema.getattr("names")?.extract::<Vec<String>>()?
@@ -237,20 +238,14 @@ pub(crate) fn process_pandas_py_df<'a>(
                 let array = rb
                     .call_method1("column", (i,))
                     .map_err(|e| GraphError::from(e))?;
-                let arr = array_to_rust(array).map_err(|e| GraphError::from(e))?;
+                let arr = array_to_rust(&array).map_err(|e| GraphError::from(e))?;
                 Ok::<Box<dyn Array>, GraphError>(arr)
             })
             .collect::<Result<Vec<_>, GraphError>>()?;
 
         Ok(DFChunk { chunk })
     });
-    let num_rows: usize = py
-        .eval(
-            "index.__len__()",
-            Some([("index", df.getattr("index")?)].into_py_dict(py)),
-            None,
-        )?
-        .extract()?;
+    let num_rows: usize = dropped_df.call_method0("__len__")?.extract()?;
 
     Ok(DFView {
         names,
@@ -259,7 +254,7 @@ pub(crate) fn process_pandas_py_df<'a>(
     })
 }
 
-pub fn array_to_rust(obj: &PyAny) -> PyResult<ArrayRef> {
+pub fn array_to_rust(obj: &Bound<PyAny>) -> PyResult<ArrayRef> {
     // prepare a pointer to receive the Array struct
     let array = Box::new(ffi::ArrowArray::empty());
     let schema = Box::new(ffi::ArrowSchema::empty());
@@ -299,12 +294,12 @@ except NameError:
     result = False      # Probably standard Python interpreter
 "#;
 
-    if let Err(e) = py.run(code, None, None) {
+    if let Err(e) = py.run_bound(code, None, None) {
         error!("Error checking if running in a jupyter notebook: {}", e);
         return;
     }
 
-    match py.eval("result", None, None) {
+    match py.eval_bound("result", None, None) {
         Ok(x) => {
             if let Ok(x) = x.extract() {
                 kdam::set_notebook(x);

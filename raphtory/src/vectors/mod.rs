@@ -169,7 +169,8 @@ mod vector_tests {
             None,
             false,
         )
-        .await;
+        .await
+        .unwrap();
 
         let path = "/tmp/raphtory/very/deep/path/embedding-cache-test";
         let _ = remove_file(path);
@@ -183,7 +184,8 @@ mod vector_tests {
             None,
             false,
         )
-        .await;
+        .await
+        .unwrap();
 
         // the following uses the embeddings from the cache, so it doesn't call the panicking
         // embedding, which would make the test fail
@@ -195,7 +197,8 @@ mod vector_tests {
             None,
             false,
         )
-        .await;
+        .await
+        .unwrap();
     }
 
     #[tokio::test]

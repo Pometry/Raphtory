@@ -1,18 +1,9 @@
-use std::{
-    any::Any,
-    collections::HashSet,
-    fmt,
-    ops::Range,
-    pin::Pin,
-    sync::Arc,
-    task::{Context, Poll},
-};
-
+use super::operator::HopPlan;
 use crate::{
     arrow2::{offset::Offset, types::NativeType},
     executor::table_provider::plan_properties,
+    take_record_batch,
 };
-// use disk_graph::compute::take_record_batch;
 use arrow_array::{
     builder::{
         make_builder, ArrayBuilder, Float32Builder, Float64Builder, GenericStringBuilder,
@@ -23,7 +14,6 @@ use arrow_array::{
 };
 use arrow_schema::{DataType, Schema, SchemaRef};
 use async_trait::async_trait;
-// use datafusion::physical_plan::ExecutionPlanProperties;
 use datafusion::{
     common::DFSchemaRef,
     error::DataFusionError,
@@ -33,11 +23,7 @@ use datafusion::{
         SendableRecordBatchStream,
     },
 };
-// use datafusion::physical_plan::ExecutionPlanProperties;
-use datafusion::physical_expr::Partitioning;
 use futures::{Stream, StreamExt};
-
-use crate::take_record_batch;
 use pometry_storage::graph_fragment::TempColGraphFragment;
 use raphtory::{
     core::{entities::VID, Direction},
@@ -46,8 +32,15 @@ use raphtory::{
         DiskGraphStorage,
     },
 };
-
-use super::operator::HopPlan;
+use std::{
+    any::Any,
+    collections::HashSet,
+    fmt,
+    ops::Range,
+    pin::Pin,
+    sync::Arc,
+    task::{Context, Poll},
+};
 
 #[derive(Debug)]
 pub struct HopExec {

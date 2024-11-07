@@ -12,10 +12,9 @@ use crate::{
     serialise::incremental::InternalCache,
 };
 use itertools::Itertools;
-use polars_arrow::{
-    array::StructArray,
-    datatypes::{ArrowDataType as DataType, ArrowSchema, Field},
-};
+#[cfg(feature = "storage")]
+use polars_arrow::array::StructArray;
+use polars_arrow::datatypes::{ArrowDataType as DataType, ArrowSchema, Field};
 use polars_parquet::{
     read,
     read::{read_metadata, FileMetaData, FileReader},
@@ -69,7 +68,7 @@ pub fn load_nodes_from_parquet<
     Ok(())
 }
 
-pub(crate) fn load_edges_from_parquet<
+pub fn load_edges_from_parquet<
     G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
 >(
     graph: &G,

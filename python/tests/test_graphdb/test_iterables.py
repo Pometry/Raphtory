@@ -61,7 +61,7 @@ def test_pyprophistvaluelist():
     v = g.node("1")
     res = v.out_edges.properties.temporal.get(
         "value_dec"
-    ).values()  # PyPropHistValueList([[10, 10, 10], [20], [2]])
+    ).values()  # PyPropHistValueList([[10, 10, 100], [20], [2, 1, 5]])
     assert res.sum() == [120, 20, 8]
     assert res.min() == [10, 20, 1]
     assert res.max() == [100, 20, 5]

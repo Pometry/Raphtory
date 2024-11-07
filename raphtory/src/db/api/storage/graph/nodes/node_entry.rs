@@ -15,7 +15,7 @@ use crate::{
             tprop_storage_ops::TPropOps,
             variants::storage_variants3::StorageVariants,
         },
-        view::internal::NodeAdditions,
+        view::{internal::NodeAdditions, BoxedLIter},
     },
     prelude::Prop,
 };
@@ -67,11 +67,15 @@ impl<'a, 'b: 'a> From<&'a NodeStorageEntry<'b>> for NodeStorageRef<'a> {
 impl<'b> NodeStorageEntry<'b> {
     pub fn into_edges_iter(
         self,
-        layers: &'b LayerIds,
+        layers: &LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + 'b {
         match self {
-            NodeStorageEntry::Mem(entry) => StorageVariants::Mem(entry.edges_iter(layers, dir)),
+            NodeStorageEntry::Mem(entry) => {
+                StorageVariants::Mem(GenLockedIter::from(entry, |entry| {
+                    Box::new(entry.edges_iter(layers, dir))
+                }))
+            }
             NodeStorageEntry::Unlocked(entry) => {
                 StorageVariants::Unlocked(entry.into_edges_iter(layers, dir))
             }
@@ -80,7 +84,7 @@ impl<'b> NodeStorageEntry<'b> {
         }
     }
 
-    pub fn prop_ids(self) -> Box<dyn Iterator<Item = usize> + 'b> {
+    pub fn prop_ids(self) -> BoxedLIter<'b, usize> {
         match self {
             NodeStorageEntry::Mem(entry) => Box::new(entry.const_prop_ids()),
             NodeStorageEntry::Unlocked(entry) => {
@@ -116,11 +120,7 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
         self.as_ref().tprop(prop_id)
     }
 
-    fn edges_iter(
-        self,
-        layers: &'a LayerIds,
-        dir: Direction,
-    ) -> impl Iterator<Item = EdgeRef> + 'a {
+    fn edges_iter(self, layers: &LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> + 'a {
         self.as_ref().edges_iter(layers, dir)
     }
 

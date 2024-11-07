@@ -1,6 +1,5 @@
 use crate::{
     data::Data,
-    graph::GraphWithVectors,
     model::{
         graph::{
             edge::Edge, edges::GqlEdges, node::Node, nodes::GqlNodes, property::GqlProperties,
@@ -21,10 +20,7 @@ use raphtory::{
     db::{
         api::{
             properties::dyn_props::DynProperties,
-            view::{
-                DynamicGraph, IntoDynamic, MaterializedGraph, NodeViewOps, StaticGraphViewOps,
-                TimeOps,
-            },
+            view::{DynamicGraph, IntoDynamic, NodeViewOps, StaticGraphViewOps, TimeOps},
         },
         graph::node::NodeView,
     },

@@ -17,7 +17,7 @@
 //!
 //! `raphtory` supports  support for the following platforms:
 //!
-//! **Note** they must have Rust 1.80 or later.
+//! **Note** they must have Rust 1.82 or later.
 //!
 //!    * `Linux`
 //!    * `Windows`

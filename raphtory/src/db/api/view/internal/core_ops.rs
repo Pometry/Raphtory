@@ -20,7 +20,7 @@ use crate::{
             },
             storage_ops::GraphStorage,
         },
-        view::{internal::Base, BoxedIter},
+        view::{internal::Base, BoxedIter, BoxedLIter},
     },
 };
 use enum_dispatch::enum_dispatch;
@@ -37,7 +37,7 @@ use rayon::prelude::*;
 
 /// Core functions that should (almost-)always be implemented by pointing at the underlying graph.
 #[enum_dispatch]
-pub trait CoreGraphOps {
+pub trait CoreGraphOps: Send + Sync {
     /// get the number of nodes in the main graph
     #[inline]
     fn unfiltered_num_nodes(&self) -> usize {
@@ -115,10 +115,7 @@ pub trait CoreGraphOps {
             }
             LayerIds::Multiple(ids) => {
                 let keys = self.edge_meta().layer_meta().get_keys();
-                Box::new((0..ids.len()).map(move |index| {
-                    let id = ids[index];
-                    keys[id].clone()
-                }))
+                Box::new(ids.into_iter().map(move |id| keys[id].clone()))
             }
         }
     }
@@ -220,7 +217,7 @@ pub trait CoreGraphOps {
     /// Returns:
     ///
     /// The keys of the constant properties.
-    fn constant_node_prop_ids(&self, v: VID) -> Box<dyn Iterator<Item = usize> + '_> {
+    fn constant_node_prop_ids(&self, v: VID) -> BoxedLIter<usize> {
         let core_node_entry = self.core_node_entry(v);
         core_node_entry.prop_ids()
     }
@@ -268,11 +265,7 @@ pub trait CoreGraphOps {
     /// Returns:
     ///
     /// the keys for the constant properties of the given edge.
-    fn const_edge_prop_ids(
-        &self,
-        e: EdgeRef,
-        layer_ids: LayerIds,
-    ) -> Box<dyn Iterator<Item = usize> + '_> {
+    fn const_edge_prop_ids(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedLIter<usize> {
         match self.core_graph() {
             GraphStorage::Mem(storage) => storage.graph.core_const_edge_prop_ids(e, layer_ids),
             GraphStorage::Unlocked(storage) => storage.core_const_edge_prop_ids(e, layer_ids),
@@ -293,7 +286,7 @@ pub trait CoreGraphOps {
     fn temporal_edge_prop_ids(
         &self,
         e: EdgeRef,
-        layer_ids: &LayerIds,
+        layer_ids: LayerIds,
     ) -> Box<dyn Iterator<Item = usize> + '_> {
         // FIXME once the disk storage can handle multiple layers this can be implemented generically over the EdgeStorageEntry
         match self.core_graph() {
@@ -325,7 +318,7 @@ pub trait DelegateCoreOps {
     fn graph(&self) -> &Self::Internal;
 }
 
-impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
+impl<G: DelegateCoreOps + ?Sized + Send + Sync> CoreGraphOps for G {
     #[inline]
     fn core_graph(&self) -> &GraphStorage {
         self.graph().core_graph()

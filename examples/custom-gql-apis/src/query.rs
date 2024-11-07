@@ -2,18 +2,8 @@ use async_graphql::{
     dynamic::{FieldValue, ResolverContext, TypeRef},
     FieldResult,
 };
-use chrono::Utc;
 use futures_util::future::BoxFuture;
-use itertools::Itertools;
-use raphtory_core::{
-    core::{utils::errors::GraphError, Prop},
-    prelude::{CacheOps, GraphViewOps, ImportOps, NodeViewOps, PropertyAdditionOps},
-};
-use raphtory_graphql::{
-    data::Data,
-    model::plugins::{operation::Operation, query_plugin::QueryPlugin},
-};
-use std::{path::Path, sync::Arc};
+use raphtory_graphql::model::plugins::{operation::Operation, query_plugin::QueryPlugin};
 
 pub(crate) struct HelloQuery;
 
@@ -29,7 +19,7 @@ impl<'a> Operation<'a, QueryPlugin> for HelloQuery {
     }
 
     fn apply<'b>(
-        entry_point: &QueryPlugin,
+        _entry_point: &QueryPlugin,
         ctx: ResolverContext,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
         let name = ctx

@@ -16,6 +16,7 @@ homepage.workspace = true
 
 [dependencies]
 raphtory-api = { path = "../raphtory-api", version = "0.13.1" }
+hashbrown = { workspace = true }
 chrono = { workspace = true }
 itertools = { workspace = true }
 num-traits = { workspace = true }
@@ -41,7 +42,7 @@ ouroboros = { workspace = true }
 either = { workspace = true }
 kdam = { workspace = true }
 bytemuck = { workspace = true }
-tracing = {workspace = true}
+tracing = { workspace = true }
 
 # io optional dependencies
 csv = { workspace = true, optional = true }
@@ -65,6 +66,7 @@ minijinja-contrib = { workspace = true, optional = true }
 
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
+numpy = { workspace = true, optional = true }
 num = { workspace = true, optional = true }
 display-error-chain = { workspace = true, optional = true }
 polars-arrow = { workspace = true, optional = true }
@@ -130,6 +132,7 @@ python = [
     "vectors",
     "proto",
     "dep:pyo3",
+    "dep:numpy",
     "dep:num",
     "dep:display-error-chain",
     "polars-arrow?/compute",

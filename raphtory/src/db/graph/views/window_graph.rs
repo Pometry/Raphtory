@@ -490,6 +490,23 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
             .temporal_prop_vec_window(prop_id, self.start_bound(), self.end_bound())
     }
 
+    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLIter<(i64, Prop)> {
+        if self.window_is_empty() {
+            return iter::empty().into_dyn_boxed();
+        }
+        self.graph
+            .temporal_prop_iter_window(prop_id, self.start_bound(), self.end_bound())
+    }
+
+    fn temporal_prop_iter_window(
+        &self,
+        prop_id: usize,
+        start: i64,
+        end: i64,
+    ) -> BoxedLIter<(i64, Prop)> {
+        self.graph.temporal_prop_iter_window(prop_id, start, end)
+    }
+
     fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
         self.graph.has_temporal_prop_window(prop_id, w.start..w.end)
     }
@@ -551,7 +568,7 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
         prop_id: usize,
         start: i64,
         end: i64,
-        layer_ids: &'a LayerIds,
+        layer_ids: &LayerIds,
     ) -> BoxedLIter<'a, (TimeIndexEntry, Prop)> {
         self.graph
             .temporal_edge_prop_hist_window(e, prop_id, start, end, layer_ids)
@@ -583,7 +600,7 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
         &'a self,
         e: EdgeRef,
         prop_id: usize,
-        layer_ids: &'a LayerIds,
+        layer_ids: &LayerIds,
     ) -> BoxedLIter<'a, (TimeIndexEntry, Prop)> {
         if self.window_is_empty() {
             return iter::empty().into_dyn_boxed();

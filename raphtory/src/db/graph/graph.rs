@@ -398,10 +398,7 @@ mod db_tests {
             api::{
                 properties::internal::ConstPropertiesOps,
                 view::{
-                    internal::{
-                        CoreGraphOps, EdgeFilterOps, InternalMaterialize, OneHopFilter,
-                        TimeSemantics,
-                    },
+                    internal::{CoreGraphOps, EdgeFilterOps, TimeSemantics},
                     time::internal::InternalTimeOps,
                     EdgeViewOps, Layer, LayerOps, NodeViewOps, TimeOps,
                 },
@@ -454,7 +451,10 @@ mod db_tests {
                 graph.const_prop_ids().collect::<Vec<_>>(),
                 Vec::<usize>::new()
             );
-            assert_eq!(graph.const_prop_values(), Vec::<Prop>::new());
+            assert_eq!(
+                graph.const_prop_values().collect::<Vec<_>>(),
+                Vec::<Prop>::new()
+            );
             assert!(graph.constant_prop(1).is_none());
             assert!(graph.get_const_prop_id("1").is_none());
             assert!(graph.get_const_prop(1).is_none());
@@ -1012,14 +1012,29 @@ mod db_tests {
             .add_constant_properties(vec![("b", Prop::U64(22))])
             .is_err());
 
-        assert_eq!(v11.properties().constant().keys(), vec!["a", "b", "c"]);
-        assert!(v22.properties().constant().keys().is_empty());
-        assert!(v33.properties().constant().keys().is_empty());
-        assert_eq!(v44.properties().constant().keys(), vec!["e"]);
-        assert_eq!(v55.properties().constant().keys(), vec!["f"]);
-        assert_eq!(edge1111.properties().constant().keys(), vec!["d"]);
-        assert_eq!(edge3311.properties().constant().keys(), vec!["a"]);
-        assert!(edge2233.properties().constant().keys().is_empty());
+        assert_eq!(
+            v11.properties().constant().keys().collect::<Vec<_>>(),
+            vec!["a", "b", "c"]
+        );
+        assert!(v22.properties().constant().keys().next().is_none());
+        assert!(v33.properties().constant().keys().next().is_none());
+        assert_eq!(
+            v44.properties().constant().keys().collect::<Vec<_>>(),
+            vec!["e"]
+        );
+        assert_eq!(
+            v55.properties().constant().keys().collect::<Vec<_>>(),
+            vec!["f"]
+        );
+        assert_eq!(
+            edge1111.properties().constant().keys().collect::<Vec<_>>(),
+            vec!["d"]
+        );
+        assert_eq!(
+            edge3311.properties().constant().keys().collect::<Vec<_>>(),
+            vec!["a"]
+        );
+        assert!(edge2233.properties().constant().keys().next().is_none());
 
         assert_eq!(v11.properties().constant().get("a"), Some(Prop::U64(11)));
         assert_eq!(v11.properties().constant().get("b"), Some(Prop::I64(11)));
@@ -3194,15 +3209,5 @@ mod db_tests {
             .unwrap();
         let graph = pool.install(|| Graph::new());
         assert_eq!(graph.core_graph().internal_num_nodes(), 0);
-    }
-
-    // TODO: remove this
-    fn test_event() {
-        let g = Graph::new();
-        let m = g.materialize().unwrap();
-        let w = g.window(1, 3).layers("asa").unwrap().window(2, 3);
-        let b = w.base();
-        let b = w.base_graph();
-        let t = w.graph_type();
     }
 }

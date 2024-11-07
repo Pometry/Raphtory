@@ -280,12 +280,12 @@ impl GraphStorage {
         &self,
         view: &G,
     ) -> Box<dyn Iterator<Item = usize>> {
-        let layer_ids = view.layer_ids().clone();
+        let layer_ids = view.layer_ids();
         match layer_ids {
             LayerIds::None => Box::new(iter::empty()),
             LayerIds::All => Box::new(0..view.unfiltered_num_layers()),
-            LayerIds::One(id) => Box::new(iter::once(id)),
-            LayerIds::Multiple(ids) => Box::new((0..ids.len()).map(move |i| ids[i])),
+            LayerIds::One(id) => Box::new(iter::once(*id)),
+            LayerIds::Multiple(ids) => Box::new(ids.into_iter()),
         }
     }
 
@@ -375,7 +375,7 @@ impl GraphStorage {
         &'graph self,
         view: &'graph G,
     ) -> impl Iterator<Item = EdgeRef> + Send + 'graph {
-        let iter = self.edges().iter(view.layer_ids().clone());
+        let iter = self.edges().iter(view.layer_ids());
 
         let filtered = match view.filter_state() {
             FilterState::Neither => FilterVariants::Neither(iter),
@@ -497,23 +497,21 @@ impl GraphStorage {
         view: &'graph G,
     ) -> impl ParallelIterator<Item = EdgeRef> + 'graph {
         self.edges()
-            .par_iter(view.layer_ids().clone())
+            .par_iter(view.layer_ids())
             .filter(|edge| match view.filter_state() {
                 FilterState::Neither => true,
                 FilterState::Both => {
-                    let layer_ids = view.layer_ids();
                     let src = self.node_entry(edge.src());
                     let dst = self.node_entry(edge.dst());
                     view.filter_edge(edge.as_ref(), view.layer_ids())
-                        && view.filter_node(src.as_ref(), layer_ids)
-                        && view.filter_node(dst.as_ref(), layer_ids)
+                        && view.filter_node(src.as_ref(), view.layer_ids())
+                        && view.filter_node(dst.as_ref(), view.layer_ids())
                 }
                 FilterState::Nodes => {
-                    let layer_ids = view.layer_ids();
                     let src = self.node_entry(edge.src());
                     let dst = self.node_entry(edge.dst());
-                    view.filter_node(src.as_ref(), layer_ids)
-                        && view.filter_node(dst.as_ref(), layer_ids)
+                    view.filter_node(src.as_ref(), view.layer_ids())
+                        && view.filter_node(dst.as_ref(), view.layer_ids())
                 }
                 FilterState::Edges | FilterState::BothIndependent => {
                     view.filter_edge(edge.as_ref(), view.layer_ids())

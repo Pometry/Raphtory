@@ -385,6 +385,7 @@ impl PyRemoteGraph {
     ///
     /// Returns:
     ///   RemoteEdge
+    #[pyo3(signature = (timestamp, src, dst, layer=None))]
     pub fn delete_edge(
         &self,
         py: Python,

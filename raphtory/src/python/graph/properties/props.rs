@@ -17,7 +17,7 @@ use crate::{
             repr::{iterator_dict_repr, Repr},
             wrappers::prop::PropValue,
         },
-        utils::PyGenericIterator,
+        utils::{NumpyArray, PyGenericIterator},
     },
 };
 use itertools::Itertools;
@@ -38,7 +38,7 @@ impl PartialEq for PyPropsComp {
 }
 
 impl<'source> FromPyObject<'source> for PyPropsComp {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
         if let Ok(sp) = ob.extract::<PyRef<PyConstProperties>>() {
             Ok(sp.deref().into())
         } else if let Ok(p) = ob.extract::<PyRef<PyProperties>>() {
@@ -124,7 +124,7 @@ impl PyProperties {
     ///
     /// If a property exists as both temporal and static, temporal properties take priority with
     /// fallback to the static property if the temporal value does not exist.
-    pub fn values(&self) -> Vec<Prop> {
+    pub fn values(&self) -> NumpyArray {
         self.props.values().collect()
     }
 
@@ -200,7 +200,7 @@ impl Repr for PyProperties {
 pub struct PyPropsListCmp(HashMap<ArcStr, PyPropValueListCmp>);
 
 impl<'source> FromPyObject<'source> for PyPropsListCmp {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
         if let Ok(sp) = ob.extract::<PyRef<PyConstPropsList>>() {
             Ok(sp.deref().into())
         } else if let Ok(p) = ob.extract::<PyRef<PyPropsList>>() {
@@ -348,7 +348,7 @@ py_eq!(PyNestedPropsIterable, PyConstPropsListListCmp);
 pub struct PyConstPropsListListCmp(HashMap<ArcStr, PyPropValueListListCmp>);
 
 impl<'source> FromPyObject<'source> for PyConstPropsListListCmp {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
         if let Ok(sp) = ob.extract::<PyRef<PyConstPropsListList>>() {
             Ok(sp.deref().into())
         } else if let Ok(p) = ob.extract::<PyRef<PyNestedPropsIterable>>() {

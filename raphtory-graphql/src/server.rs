@@ -22,6 +22,7 @@ use poem::{
     EndpointExt, Route, Server,
 };
 use raphtory::vectors::{template::DocumentTemplate, EmbeddingFunction};
+use serde_json::json;
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -44,6 +45,8 @@ use tracing_subscriber::{
     fmt, fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt, Registry,
 };
 use url::ParseError;
+
+pub const DEFAULT_PORT: u16 = 1736;
 
 #[derive(Error, Debug)]
 pub enum ServerError {
@@ -168,14 +171,15 @@ impl GraphServer {
 
     /// Start the server on the default port and return a handle to it.
     pub async fn start(self) -> IoResult<RunningGraphServer> {
-        self.start_with_port(1736).await
+        self.start_with_port(DEFAULT_PORT).await
     }
 
     /// Start the server on the port `port` and return a handle to it.
     pub async fn start_with_port(self, port: u16) -> IoResult<RunningGraphServer> {
         self.data.vectorise_all_graphs_that_are_not().await?;
 
-        let config = &self.config;
+        let work_dir = self.data.work_dir.clone();
+        let config = self.config.clone();
         let filter = config.logging.get_log_env();
         let tracer_name = config.tracing.otlp_tracing_service_name.clone();
         let tp = config.tracing.tracer_provider();
@@ -206,6 +210,14 @@ impl GraphServer {
         let (signal_sender, signal_receiver) = mpsc::channel(1);
 
         info!("Playground live at: http://0.0.0.0:{port}");
+        debug!(
+            "Server configurations: {}",
+            json!({
+                "config": config,
+                "work_dir": work_dir
+            })
+        );
+
         let server_task = Server::new(TcpListener::bind(format!("0.0.0.0:{port}")))
             .run_with_graceful_shutdown(app, server_termination(signal_receiver, tp), None);
         let server_result = tokio::spawn(server_task);

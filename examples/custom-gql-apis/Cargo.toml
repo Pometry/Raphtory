@@ -14,24 +14,24 @@ name = "raphtory"
 crate-type = ["cdylib"]
 
 [dependencies]
-raphtory_core = { package = "raphtory", path= "../../raphtory", features = ["python", "search", "vectors"]}
-raphtory-graphql = { path = "../../raphtory-graphql",features = ["python"]}
-raphtory-api = { path = "../../raphtory-api"}
-async-graphql = { version = "7.0.5", features = ["dynamic-schema"] }
-dynamic-graphql = "0.9.0"
-futures-util = "0.3.0"
-tokio = { version = "1.18.2", features = ["full"] }
-pyo3 = { version = "0.20.0", features = ["multiple-pymethods"] }
-thiserror = "1.0.48"
-display-error-chain = "0.2.0"
-serde = { version = "1", features = ["derive", "rc"] }
-serde_json = "1.0"
-chrono = { version = "0.4.38", features = ["serde"] }
-itertools = "0.13.0"
+raphtory_core = { package = "raphtory", path = "../../raphtory", features = ["python", "search", "vectors"] }
+raphtory-graphql = { path = "../../raphtory-graphql", features = ["python"] }
+raphtory-api = { path = "../../raphtory-api" }
+async-graphql = { workspace = true, features = ["dynamic-schema"] }
+dynamic-graphql = { workspace = true }
+futures-util = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+pyo3 = { workspace = true, features = ["multiple-pymethods"] }
+thiserror = { workspace = true }
+display-error-chain = { workspace = true }
+serde = { workspace = true, features = ["derive", "rc"] }
+serde_json = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
+itertools = { workspace = true }
 
 [features]
 extension-module = ["pyo3/extension-module"]
 default = ["extension-module"]
 
 [build-dependencies]
-pyo3-build-config = "0.20.0"
+pyo3-build-config = { workspace = true }

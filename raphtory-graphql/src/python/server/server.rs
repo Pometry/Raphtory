@@ -18,15 +18,14 @@ use dynamic_graphql::internal::{Registry, TypeName};
 use itertools::intersperse;
 use pyo3::{
     exceptions::{PyAttributeError, PyException},
-    pyclass, pymethods,
+    prelude::*,
     types::{IntoPyDict, PyFunction, PyList},
-    IntoPy, Py, PyObject, PyRefMut, PyResult, Python,
 };
 use raphtory::{
     python::types::wrappers::document::PyDocument,
     vectors::{embeddings::openai_embedding, template::DocumentTemplate, EmbeddingFunction},
 };
-use std::{collections::HashMap, path::PathBuf, thread};
+use std::{collections::HashMap, path::PathBuf, sync::Arc, thread};
 
 /// A class for defining and running a Raphtory GraphQL server
 #[pyclass(name = "GraphServer")]
@@ -81,11 +80,9 @@ impl PyGraphServer {
         slf: PyRefMut<Self>,
         name: String,
         input: HashMap<String, String>,
-        function: &PyFunction,
+        function: Py<PyFunction>,
         adapter: F,
     ) -> PyResult<GraphServer> {
-        let function: Py<PyFunction> = function.into();
-
         let input_mapper = HashMap::from([
             ("str", TypeRef::named_nn(TypeRef::STRING)),
             ("int", TypeRef::named_nn(TypeRef::INT)),
@@ -118,9 +115,11 @@ impl PyGraphServer {
                         .iter()
                         .map(|(name, value)| (name.as_str(), adapt_graphql_value(&value, py)))
                         .collect();
-                    let py_kw_args = kw_args.into_py_dict(py);
-                    let result = function.call(py, (entry_point,), Some(py_kw_args)).unwrap();
-                    let list = result.downcast::<PyList>(py).unwrap();
+                    let py_kw_args = kw_args.into_py_dict_bound(py);
+                    let result = function
+                        .call_bound(py, (entry_point,), Some(&py_kw_args))
+                        .unwrap();
+                    let list = result.downcast_bound::<PyList>(py).unwrap();
                     let py_documents = list.iter().map(|doc| doc.extract::<PyDocument>().unwrap());
                     py_documents
                         .map(|doc| doc.extract_rust_document(py).unwrap())
@@ -215,14 +214,14 @@ impl PyGraphServer {
     fn set_embeddings(
         slf: PyRefMut<Self>,
         cache: String,
-        embedding: Option<&PyFunction>,
+        embedding: Option<Py<PyFunction>>,
         graph_template: Option<String>,
         node_template: Option<String>,
         edge_template: Option<String>,
     ) -> PyResult<GraphServer> {
         match embedding {
             Some(embedding) => {
-                let embedding: Py<PyFunction> = embedding.into();
+                let embedding: Arc<dyn EmbeddingFunction> = Arc::new(embedding);
                 Self::set_generic_embeddings(
                     slf,
                     cache,
@@ -291,7 +290,7 @@ impl PyGraphServer {
         slf: PyRefMut<Self>,
         name: String,
         input: HashMap<String, String>,
-        function: &PyFunction,
+        function: Py<PyFunction>,
     ) -> PyResult<GraphServer> {
         let adapter = |entry_point: &QueryPlugin, py: Python| {
             PyGlobalPlugins(entry_point.clone()).into_py(py)

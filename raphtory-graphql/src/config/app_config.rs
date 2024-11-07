@@ -5,7 +5,7 @@ use config::{Config, ConfigError, File};
 use serde::Deserialize;
 use std::path::PathBuf;
 
-#[derive(Debug, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Deserialize, PartialEq, Clone, serde::Serialize)]
 pub struct AppConfig {
     pub logging: LoggingConfig,
     pub cache: CacheConfig,

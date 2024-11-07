@@ -78,10 +78,7 @@ macro_rules! py_algorithm_result_base {
             ///
             /// Arguments:
             ///     key: The key of type `H` for which the value is to be retrieved.
-            fn get(
-                &self,
-                key: $crate::core::entities::nodes::node_ref::NodeRef,
-            ) -> Option<$rustValue> {
+            fn get(&self, key: $crate::python::utils::PyNodeRef) -> Option<$rustValue> {
                 self.0.get(key).cloned()
             }
 
@@ -136,11 +133,14 @@ macro_rules! py_algorithm_result_base {
                         keys.push(node.into_py(py));
                         values.push(value.to_object(py));
                     }
-                    let dict = pyo3::types::PyDict::new(py);
-                    dict.set_item("Node", pyo3::types::PyList::new(py, keys.as_slice()))?;
-                    dict.set_item("Value", pyo3::types::PyList::new(py, values.as_slice()))?;
-                    let pandas = pyo3::types::PyModule::import(py, "pandas")?;
-                    let df: &PyAny = pandas.getattr("DataFrame")?.call1((dict,))?;
+                    let dict = pyo3::types::PyDict::new_bound(py);
+                    dict.set_item("Node", pyo3::types::PyList::new_bound(py, keys.as_slice()))?;
+                    dict.set_item(
+                        "Value",
+                        pyo3::types::PyList::new_bound(py, values.as_slice()),
+                    )?;
+                    let pandas = pyo3::types::PyModule::import_bound(py, "pandas")?;
+                    let df = pandas.getattr("DataFrame")?.call1((dict,))?;
                     Ok(df.to_object(py))
                 })
             }

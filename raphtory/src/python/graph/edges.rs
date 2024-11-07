@@ -16,22 +16,19 @@ use crate::{
             repr::{iterator_repr, Repr},
             wrappers::iterables::{
                 ArcStringIterable, ArcStringVecIterable, BoolIterable, GIDGIDIterable, I64Iterable,
-                I64VecIterable, NestedArcStringIterable, NestedArcStringVecIterable,
-                NestedBoolIterable, NestedGIDGIDIterable, NestedI64VecIterable,
-                NestedOptionI64Iterable, NestedUtcDateTimeIterable, NestedVecUtcDateTimeIterable,
-                OptionI64Iterable, OptionUtcDateTimeIterable, OptionVecUtcDateTimeIterable,
+                NestedArcStringIterable, NestedArcStringVecIterable, NestedBoolIterable,
+                NestedGIDGIDIterable, NestedI64VecIterable, NestedOptionI64Iterable,
+                NestedUtcDateTimeIterable, NestedVecUtcDateTimeIterable, OptionI64Iterable,
+                OptionUtcDateTimeIterable, OptionVecUtcDateTimeIterable, U64Iterable,
             },
         },
         utils::{
             export::{create_row, extract_properties, get_column_names_from_props},
-            PyTime,
+            NumpyArray, PyGenericIterable, PyTime,
         },
     },
 };
-use pyo3::{
-    prelude::PyModule, pyclass, pymethods, types::PyDict, IntoPy, PyObject, PyResult, Python,
-    ToPyObject,
-};
+use pyo3::{prelude::*, types::PyDict};
 use raphtory_api::core::storage::arc_str::ArcStr;
 use rayon::{iter::IntoParallelIterator, prelude::*};
 use std::collections::HashMap;
@@ -167,9 +164,14 @@ impl PyEdges {
     /// Returns:
     ///    A list of lists unix timestamps.
     ///
-    fn history(&self) -> I64VecIterable {
+    fn history(&self) -> PyGenericIterable {
         let edges = self.edges.clone();
-        (move || edges.history()).into()
+        (move || edges.history().map(NumpyArray::I64)).into()
+    }
+
+    fn history_counts(&self) -> U64Iterable {
+        let edges = self.edges.clone();
+        (move || edges.history_counts().map(|count| count as u64)).into()
     }
 
     /// Returns all timestamps of edges, when an edge is added or change to an edge is made.
@@ -186,9 +188,9 @@ impl PyEdges {
     ///
     /// Returns:
     ///     A list of lists of unix timestamps
-    fn deletions(&self) -> I64VecIterable {
+    fn deletions(&self) -> PyGenericIterable {
         let edges = self.edges.clone();
-        (move || edges.deletions()).into()
+        (move || edges.deletions().map(NumpyArray::I64)).into()
     }
 
     /// Returns all timestamps of edges where an edge is deleted
@@ -334,10 +336,10 @@ impl PyEdges {
             .collect();
 
         Python::with_gil(|py| {
-            let pandas = PyModule::import(py, "pandas")?;
-            let kwargs = PyDict::new(py);
+            let pandas = PyModule::import_bound(py, "pandas")?;
+            let kwargs = PyDict::new_bound(py);
             kwargs.set_item("columns", column_names)?;
-            let df = pandas.call_method("DataFrame", (edge_tuples,), Some(kwargs))?;
+            let df = pandas.call_method("DataFrame", (edge_tuples,), Some(&kwargs))?;
             Ok(df.to_object(py))
         })
     }
