@@ -20,6 +20,7 @@ dependencies = [
     "gql[all] == 3.5.0",
     "matplotlib >= 3.4.3",
     "ipywidgets >= 8.1.5",
+    "numpy >= 2.0",
 ]
 
 
