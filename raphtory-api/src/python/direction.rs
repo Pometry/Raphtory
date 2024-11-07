@@ -1,8 +1,8 @@
 use crate::core::Direction;
-use pyo3::{exceptions::PyTypeError, FromPyObject, PyAny, PyResult};
+use pyo3::{exceptions::PyTypeError, prelude::*};
 
 impl<'source> FromPyObject<'source> for Direction {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
         let value: &str = ob.extract()?;
         match value {
             "out" => Ok(Direction::OUT),

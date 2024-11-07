@@ -39,6 +39,7 @@ impl PyRemoteEdge {
     ///     t (int | str | datetime): The timestamp at which the updates should be applied.
     ///     properties (Optional[Dict[str, Prop]]): A dictionary of properties to update.
     ///     layer (str, optional): The layer you want the updates to be applied.
+    #[pyo3(signature = (t, properties=None, layer=None))]
     fn add_updates(
         &self,
         py: Python,
@@ -76,6 +77,7 @@ impl PyRemoteEdge {
     /// Parameters:
     ///     t (int | str | datetime): The timestamp at which the deletion should be applied.
     ///     layer (str, optional): The layer you want the deletion applied to.
+    #[pyo3(signature = (t, layer=None))]
     fn delete(&self, py: Python, t: PyTime, layer: Option<&str>) -> Result<(), GraphError> {
         let template = r#"
             {
@@ -108,6 +110,7 @@ impl PyRemoteEdge {
     /// Parameters:
     ///     properties (Dict[str, Prop]): A dictionary of properties to be added to the edge.
     ///     layer (str, optional): The layer you want these properties to be added on to.
+    #[pyo3(signature = (properties, layer=None))]
     fn add_constant_properties(
         &self,
         py: Python,
@@ -145,6 +148,7 @@ impl PyRemoteEdge {
     /// Parameters:
     ///     properties (Dict[str, Prop]): A dictionary of properties to be added to the edge.
     ///     layer (str, optional): The layer you want these properties to be added on to.
+    #[pyo3(signature = (properties, layer=None))]
     pub fn update_constant_properties(
         &self,
         py: Python,

@@ -177,9 +177,9 @@ impl PyEdge {
     /// Returns:
     ///    List[int]:  A list of unix timestamps.
     ///
-    pub fn history<'py>(&self, py: Python<'py>) -> Py<PyArray<i64, Ix1>> {
+    pub fn history<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
         let history = self.edge.history();
-        history.into_pyarray(py).to_owned()
+        history.into_pyarray_bound(py)
     }
 
     /// Returns the number of times an edge is added or change to an edge is made.
@@ -388,6 +388,7 @@ impl PyMutableEdge {
     ///     t (TimeInput): The timestamp at which the updates should be applied.
     ///     properties (PropInput, optional): A dictionary of properties to update.
     ///     layer (str, optional): The layer you want these properties to be added on to.
+    #[pyo3(signature = (t, properties=None, layer=None))]
     fn add_updates(
         &self,
         t: PyTime,
@@ -403,6 +404,7 @@ impl PyMutableEdge {
     /// Parameters:
     ///     t (TimeInput): The timestamp at which the deletion should be applied.
     ///     layer (str, optional): The layer you want the deletion applied to .
+    #[pyo3(signature = (t, layer=None))]
     fn delete(&self, t: PyTime, layer: Option<&str>) -> Result<(), GraphError> {
         self.edge.delete(t, layer)
     }
@@ -414,6 +416,7 @@ impl PyMutableEdge {
     /// Parameters:
     ///     properties (PropInput): A dictionary of properties to be added to the edge.
     ///     layer (str, optional): The layer you want these properties to be added on to.
+    #[pyo3(signature = (properties, layer=None))]
     fn add_constant_properties(
         &self,
         properties: HashMap<String, Prop>,
@@ -429,6 +432,7 @@ impl PyMutableEdge {
     /// Parameters:
     ///     properties (PropInput): A dictionary of properties to be added to the edge.
     ///     layer (str, optional): The layer you want these properties to be added on to.
+    #[pyo3(signature = (properties, layer=None))]
     pub fn update_constant_properties(
         &self,
         properties: HashMap<String, Prop>,

@@ -2,12 +2,12 @@ use crate::{
     algorithms::dynamics::temporal::epidemics::{
         Infected, IntoSeeds, Number, Probability, SeedError,
     },
-    core::entities::{nodes::node_ref::NodeRef, VID},
+    core::entities::VID,
     db::api::view::{DynamicGraph, StaticGraphViewOps},
     py_algorithm_result, py_algorithm_result_new_ord_hash_eq,
     python::{
         types::repr::{Repr, StructReprBuilder},
-        utils::errors::adapt_err_value,
+        utils::{errors::adapt_err_value, PyNodeRef},
     },
 };
 use pyo3::{
@@ -65,14 +65,14 @@ impl ToPyObject for Infected {
     }
 }
 
-pub enum PySeed<'a> {
-    List(Vec<NodeRef<'a>>),
+pub enum PySeed {
+    List(Vec<PyNodeRef>),
     Number(usize),
     Probability(f64),
 }
 
-impl<'source> FromPyObject<'source> for PySeed<'source> {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+impl<'source> FromPyObject<'source> for PySeed {
+    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
         let res = if ob.is_instance_of::<PyLong>() {
             Self::Number(ob.extract()?)
         } else if ob.is_instance_of::<PyFloat>() {
@@ -84,7 +84,7 @@ impl<'source> FromPyObject<'source> for PySeed<'source> {
     }
 }
 
-impl<'a> IntoSeeds for PySeed<'a> {
+impl IntoSeeds for PySeed {
     fn into_initial_list<G: StaticGraphViewOps, R: Rng + ?Sized>(
         self,
         graph: &G,

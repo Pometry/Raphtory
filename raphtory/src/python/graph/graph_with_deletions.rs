@@ -5,8 +5,12 @@
 //! create windows, and query the graph with a variety of algorithms.
 //! It is a wrapper around a set of shards, which are the actual graph data structures.
 //! In Python, this class wraps around the rust graph.
+use super::{
+    graph::{PyGraph, PyGraphEncoder},
+    io::pandas_loaders::*,
+};
 use crate::{
-    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError, Prop},
+    core::{utils::errors::GraphError, Prop},
     db::{
         api::{
             mutation::{AdditionOps, PropertyAdditionOps},
@@ -14,13 +18,15 @@ use crate::{
         },
         graph::{edge::EdgeView, node::NodeView, views::deletion_graph::PersistentGraph},
     },
+    io::parquet_loaders::*,
     prelude::{DeletionOps, GraphViewOps, ImportOps},
     python::{
         graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
-        utils::PyTime,
+        utils::{PyNodeRef, PyTime},
     },
+    serialise::StableEncode,
 };
-use pyo3::prelude::*;
+use pyo3::{prelude::*, pybacked::PyBackedStr};
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 use std::{
     collections::HashMap,
@@ -28,15 +34,9 @@ use std::{
     path::PathBuf,
 };
 
-use super::{
-    graph::{PyGraph, PyGraphEncoder},
-    io::pandas_loaders::*,
-};
-use crate::{io::parquet_loaders::*, serialise::StableEncode};
-
 /// A temporal graph that allows edges and nodes to be deleted.
 #[derive(Clone)]
-#[pyclass(name = "PersistentGraph", extends = PyGraphView)]
+#[pyclass(name = "PersistentGraph", extends = PyGraphView, frozen)]
 pub struct PyPersistentGraph {
     pub(crate) graph: PersistentGraph,
 }
@@ -70,8 +70,8 @@ impl IntoPy<PyObject> for PersistentGraph {
 }
 
 impl<'source> FromPyObject<'source> for PersistentGraph {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
-        let g: PyRef<PyPersistentGraph> = ob.extract()?;
+    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
+        let g = ob.downcast::<PyPersistentGraph>()?.get();
         Ok(g.graph.clone())
     }
 }
@@ -209,6 +209,7 @@ impl PyPersistentGraph {
     ///
     /// Returns:
     ///  The deleted edge
+    #[pyo3(signature = (timestamp, src, dst, layer=None))]
     pub fn delete_edge(
         &self,
         timestamp: PyTime,
@@ -227,7 +228,7 @@ impl PyPersistentGraph {
     ///
     /// Returns:
     ///   the node with the specified id, or None if the node does not exist
-    pub fn node(&self, id: NodeRef) -> Option<NodeView<PersistentGraph>> {
+    pub fn node(&self, id: PyNodeRef) -> Option<NodeView<PersistentGraph>> {
         self.graph.node(id)
     }
 
@@ -243,8 +244,8 @@ impl PyPersistentGraph {
     #[pyo3(signature = (src, dst))]
     pub fn edge(
         &self,
-        src: NodeRef,
-        dst: NodeRef,
+        src: PyNodeRef,
+        dst: PyNodeRef,
     ) -> Option<EdgeView<PersistentGraph, PersistentGraph>> {
         self.graph.edge(src, dst)
     }
@@ -362,15 +363,17 @@ impl PyPersistentGraph {
     #[pyo3(signature = (df,time,id, node_type = None, node_type_col = None, properties = None, constant_properties = None, shared_constant_properties = None))]
     fn load_nodes_from_pandas(
         &self,
-        df: &PyAny,
+        df: &Bound<PyAny>,
         time: &str,
         id: &str,
         node_type: Option<&str>,
         node_type_col: Option<&str>,
-        properties: Option<Vec<&str>>,
-        constant_properties: Option<Vec<&str>>,
+        properties: Option<Vec<PyBackedStr>>,
+        constant_properties: Option<Vec<PyBackedStr>>,
         shared_constant_properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
+        let properties = convert_py_prop_args(properties.as_deref());
+        let constant_properties = convert_py_prop_args(constant_properties.as_deref());
         load_nodes_from_pandas(
             &self.graph,
             df,
@@ -378,8 +381,8 @@ impl PyPersistentGraph {
             id,
             node_type,
             node_type_col,
-            properties.as_ref().map(|props| props.as_ref()),
-            constant_properties.as_ref().map(|props| props.as_ref()),
+            properties.as_deref(),
+            constant_properties.as_deref(),
             shared_constant_properties.as_ref(),
         )
     }
@@ -408,10 +411,12 @@ impl PyPersistentGraph {
         id: &str,
         node_type: Option<&str>,
         node_type_col: Option<&str>,
-        properties: Option<Vec<&str>>,
-        constant_properties: Option<Vec<&str>>,
+        properties: Option<Vec<PyBackedStr>>,
+        constant_properties: Option<Vec<PyBackedStr>>,
         shared_constant_properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
+        let properties = convert_py_prop_args(properties.as_deref());
+        let constant_properties = convert_py_prop_args(constant_properties.as_deref());
         load_nodes_from_parquet(
             &self.graph,
             parquet_path.as_path(),
@@ -419,8 +424,8 @@ impl PyPersistentGraph {
             id,
             node_type,
             node_type_col,
-            properties.as_ref().map(|props| props.as_ref()),
-            constant_properties.as_ref().map(|props| props.as_ref()),
+            properties.as_deref(),
+            constant_properties.as_deref(),
             shared_constant_properties.as_ref(),
         )
     }
@@ -445,24 +450,26 @@ impl PyPersistentGraph {
     #[pyo3(signature = (df, time, src, dst, properties = None, constant_properties = None, shared_constant_properties = None, layer = None, layer_col = None))]
     fn load_edges_from_pandas(
         &self,
-        df: &PyAny,
+        df: &Bound<PyAny>,
         time: &str,
         src: &str,
         dst: &str,
-        properties: Option<Vec<&str>>,
-        constant_properties: Option<Vec<&str>>,
+        properties: Option<Vec<PyBackedStr>>,
+        constant_properties: Option<Vec<PyBackedStr>>,
         shared_constant_properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
         layer_col: Option<&str>,
     ) -> Result<(), GraphError> {
+        let properties = convert_py_prop_args(properties.as_deref());
+        let constant_properties = convert_py_prop_args(constant_properties.as_deref());
         load_edges_from_pandas(
             &self.graph,
             df,
             time,
             src,
             dst,
-            properties.as_ref().map(|props| props.as_ref()),
-            constant_properties.as_ref().map(|props| props.as_ref()),
+            properties.as_deref(),
+            constant_properties.as_deref(),
             shared_constant_properties.as_ref(),
             layer,
             layer_col,
@@ -493,20 +500,22 @@ impl PyPersistentGraph {
         time: &str,
         src: &str,
         dst: &str,
-        properties: Option<Vec<&str>>,
-        constant_properties: Option<Vec<&str>>,
+        properties: Option<Vec<PyBackedStr>>,
+        constant_properties: Option<Vec<PyBackedStr>>,
         shared_constant_properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
         layer_col: Option<&str>,
     ) -> Result<(), GraphError> {
+        let properties = convert_py_prop_args(properties.as_deref());
+        let constant_properties = convert_py_prop_args(constant_properties.as_deref());
         load_edges_from_parquet(
             &self.graph,
             parquet_path.as_path(),
             time,
             src,
             dst,
-            properties.as_ref().map(|props| props.as_ref()),
-            constant_properties.as_ref().map(|props| props.as_ref()),
+            properties.as_deref(),
+            constant_properties.as_deref(),
             shared_constant_properties.as_ref(),
             layer,
             layer_col,
@@ -530,7 +539,7 @@ impl PyPersistentGraph {
     #[pyo3(signature = (df, time, src, dst, layer = None, layer_col = None))]
     fn load_edge_deletions_from_pandas(
         &self,
-        df: &PyAny,
+        df: &Bound<PyAny>,
         time: &str,
         src: &str,
         dst: &str,
@@ -593,20 +602,21 @@ impl PyPersistentGraph {
     #[pyo3(signature = (df, id, node_type=None, node_type_col=None, constant_properties = None, shared_constant_properties = None))]
     fn load_node_props_from_pandas(
         &self,
-        df: &PyAny,
+        df: &Bound<PyAny>,
         id: &str,
         node_type: Option<&str>,
         node_type_col: Option<&str>,
-        constant_properties: Option<Vec<&str>>,
+        constant_properties: Option<Vec<PyBackedStr>>,
         shared_constant_properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
+        let constant_properties = convert_py_prop_args(constant_properties.as_deref());
         load_node_props_from_pandas(
             &self.graph,
             df,
             id,
             node_type,
             node_type_col,
-            constant_properties.as_ref().map(|props| props.as_ref()),
+            constant_properties.as_deref(),
             shared_constant_properties.as_ref(),
         )
     }
@@ -633,16 +643,17 @@ impl PyPersistentGraph {
         id: &str,
         node_type: Option<&str>,
         node_type_col: Option<&str>,
-        constant_properties: Option<Vec<&str>>,
+        constant_properties: Option<Vec<PyBackedStr>>,
         shared_constant_properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
+        let constant_properties = convert_py_prop_args(constant_properties.as_deref());
         load_node_props_from_parquet(
             &self.graph,
             parquet_path.as_path(),
             id,
             node_type,
             node_type_col,
-            constant_properties.as_ref().map(|props| props.as_ref()),
+            constant_properties.as_deref(),
             shared_constant_properties.as_ref(),
         )
     }
@@ -666,20 +677,21 @@ impl PyPersistentGraph {
     #[pyo3(signature = (df, src, dst, constant_properties = None, shared_constant_properties = None, layer = None, layer_col = None))]
     fn load_edge_props_from_pandas(
         &self,
-        df: &PyAny,
+        df: &Bound<PyAny>,
         src: &str,
         dst: &str,
-        constant_properties: Option<Vec<&str>>,
+        constant_properties: Option<Vec<PyBackedStr>>,
         shared_constant_properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
         layer_col: Option<&str>,
     ) -> Result<(), GraphError> {
+        let constant_properties = convert_py_prop_args(constant_properties.as_deref());
         load_edge_props_from_pandas(
             &self.graph,
             df,
             src,
             dst,
-            constant_properties.as_ref().map(|props| props.as_ref()),
+            constant_properties.as_deref(),
             shared_constant_properties.as_ref(),
             layer,
             layer_col,
@@ -708,17 +720,18 @@ impl PyPersistentGraph {
         parquet_path: PathBuf,
         src: &str,
         dst: &str,
-        constant_properties: Option<Vec<&str>>,
+        constant_properties: Option<Vec<PyBackedStr>>,
         shared_constant_properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
         layer_col: Option<&str>,
     ) -> Result<(), GraphError> {
+        let constant_properties = convert_py_prop_args(constant_properties.as_deref());
         load_edge_props_from_parquet(
             &self.graph,
             parquet_path.as_path(),
             src,
             dst,
-            constant_properties.as_ref().map(|props| props.as_ref()),
+            constant_properties.as_deref(),
             shared_constant_properties.as_ref(),
             layer,
             layer_col,

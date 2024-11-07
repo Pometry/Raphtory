@@ -60,6 +60,7 @@ impl PyRemoteNode {
     /// Parameters:
     ///     t (int | str | datetime): The timestamp at which the updates should be applied.
     ///     properties (Dict[str, Prop], optional): A dictionary of properties to update.
+    #[pyo3(signature = (t, properties=None))]
     pub fn add_updates(
         &self,
         py: Python,

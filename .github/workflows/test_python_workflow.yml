@@ -19,7 +19,7 @@ jobs:
     steps:
       - id: set-matrix
         run: |
-          echo "python-versions=[\"3.8\",\"3.12\"]" >> $GITHUB_OUTPUT
+          echo "python-versions=[\"3.9\",\"3.13\"]" >> $GITHUB_OUTPUT
   python-test:
     if: ${{ !inputs.skip_tests }}
     name: Python Tests

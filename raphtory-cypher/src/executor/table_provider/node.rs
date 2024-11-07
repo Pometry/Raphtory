@@ -1,3 +1,4 @@
+use super::plan_properties;
 use crate::{
     arrow2::{self, array::to_data, datatypes::ArrowDataType},
     executor::ExecError,
@@ -9,11 +10,12 @@ use arrow_schema::{DataType, Schema};
 use async_trait::async_trait;
 use datafusion::{
     arrow::{array::RecordBatch, datatypes::SchemaRef},
+    catalog::Session,
     common::Statistics,
     config::ConfigOptions,
     datasource::{TableProvider, TableType},
     error::DataFusionError,
-    execution::{context::SessionState, SendableRecordBatchStream, TaskContext},
+    execution::{SendableRecordBatchStream, TaskContext},
     logical_expr::Expr,
     physical_plan::{
         metrics::MetricsSet, stream::RecordBatchStreamAdapter, DisplayAs, DisplayFormatType,
@@ -27,8 +29,6 @@ use raphtory::{
     disk_graph::{prelude::*, DiskGraphStorage},
 };
 use std::{any::Any, fmt::Formatter, sync::Arc};
-
-use super::plan_properties;
 
 // FIXME: review this file, some of the assuptions and mapping between partitions and chunk sizes are not correct
 pub struct NodeTableProvider {
@@ -113,7 +113,7 @@ impl TableProvider for NodeTableProvider {
 
     async fn scan(
         &self,
-        _state: &SessionState,
+        _state: &dyn Session,
         projection: Option<&Vec<usize>>,
         _filters: &[Expr],
         _limit: Option<usize>,

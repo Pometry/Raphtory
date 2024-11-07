@@ -28,9 +28,7 @@ use crate::{
         },
     },
 };
-use pyo3::{
-    prelude::*, pyclass, pymethods, types::PyDict, IntoPy, PyObject, PyResult, Python, ToPyObject,
-};
+use pyo3::{prelude::*, types::PyDict};
 use raphtory_api::core::storage::arc_str::ArcStr;
 use rayon::{iter::IntoParallelIterator, prelude::*};
 use std::collections::HashMap;
@@ -338,10 +336,10 @@ impl PyEdges {
             .collect();
 
         Python::with_gil(|py| {
-            let pandas = PyModule::import(py, "pandas")?;
-            let kwargs = PyDict::new(py);
+            let pandas = PyModule::import_bound(py, "pandas")?;
+            let kwargs = PyDict::new_bound(py);
             kwargs.set_item("columns", column_names)?;
-            let df = pandas.call_method("DataFrame", (edge_tuples,), Some(kwargs))?;
+            let df = pandas.call_method("DataFrame", (edge_tuples,), Some(&kwargs))?;
             Ok(df.to_object(py))
         })
     }

@@ -4,7 +4,10 @@
 //! These functions are not part of the public API and are not exported to the Python module.
 use crate::{
     core::{
-        entities::{nodes::node_ref::NodeRef, GidRef},
+        entities::{
+            nodes::node_ref::{AsNodeRef, NodeRef},
+            GidRef,
+        },
         storage::timeindex::AsTime,
         utils::time::{error::ParseTimeError, Interval, IntoTime, TryIntoTime},
         Prop, PropUnwrap,
@@ -17,8 +20,10 @@ use numpy::IntoPyArray;
 use pyo3::{
     exceptions::{PyRuntimeError, PyTypeError},
     prelude::*,
+    pybacked::PyBackedStr,
     types::PyDateTime,
 };
+use raphtory_api::core::entities::VID;
 use serde::Serialize;
 use std::{future::Future, thread};
 
@@ -26,34 +31,66 @@ pub mod errors;
 pub(crate) mod export;
 mod module_helpers;
 
-/// Extract a `NodeRef` from a Python object.
-/// The object can be a `str`, `u64` or `PyNode`.
-/// If the object is a `PyNode`, the `NodeRef` is extracted from the `PyNode`.
-/// If the object is a `str`, the `NodeRef` is created from the `str`.
-/// If the object is a `int`, the `NodeRef` is created from the `int`.
-///
-/// Arguments
-///     vref: The Python object to extract the `NodeRef` from.
-///
-/// Returns
-///    A `NodeRef` extracted from the Python object.
-impl<'source> FromPyObject<'source> for NodeRef<'source> {
-    fn extract(vref: &'source PyAny) -> PyResult<Self> {
-        if let Ok(s) = vref.extract::<&'source str>() {
-            Ok(NodeRef::External(GidRef::Str(s)))
-        } else if let Ok(gid) = vref.extract::<u64>() {
-            Ok(NodeRef::External(GidRef::U64(gid)))
-        } else if let Ok(v) = vref.extract::<PyNode>() {
-            Ok(NodeRef::Internal(v.node.node))
+#[derive(Debug, Eq, PartialEq, Hash)]
+pub enum PyNodeRef {
+    ExternalStr(PyBackedStr),
+    ExternalInt(u64),
+    Internal(VID),
+}
+
+impl<'source> FromPyObject<'source> for PyNodeRef {
+    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
+        if let Ok(s) = ob.extract::<PyBackedStr>() {
+            Ok(PyNodeRef::ExternalStr(s))
+        } else if let Ok(gid) = ob.extract::<u64>() {
+            Ok(PyNodeRef::ExternalInt(gid))
+        } else if let Ok(v) = ob.extract::<PyNode>() {
+            Ok(PyNodeRef::Internal(v.node.node))
         } else {
             Err(PyTypeError::new_err("Not a valid node"))
         }
     }
 }
 
+impl AsNodeRef for PyNodeRef {
+    fn as_node_ref(&self) -> NodeRef {
+        match self {
+            PyNodeRef::ExternalStr(str) => NodeRef::External(GidRef::Str(str)),
+            PyNodeRef::ExternalInt(gid) => NodeRef::External(GidRef::U64(*gid)),
+            PyNodeRef::Internal(vid) => NodeRef::Internal(*vid),
+        }
+    }
+}
+
+// TODO: Revisit once the two lifetime version of FromPyObject is available in pyo3 (see https://github.com/PyO3/pyo3/pull/4390)
+// /// Extract a `NodeRef` from a Python object.
+// /// The object can be a `str`, `u64` or `PyNode`.
+// /// If the object is a `PyNode`, the `NodeRef` is extracted from the `PyNode`.
+// /// If the object is a `str`, the `NodeRef` is created from the `str`.
+// /// If the object is a `int`, the `NodeRef` is created from the `int`.
+// ///
+// /// Arguments
+// ///     vref: The Python object to extract the `NodeRef` from.
+// ///
+// /// Returns
+// ///    A `NodeRef` extracted from the Python object.
+// impl<'source> FromPyObject<'source> for NodeRef<'source> {
+//     fn extract_bound(vref: &Bound<'source, PyAny>) -> PyResult<Self> {
+//         if let Ok(s) = vref.extract::<&'source str>() {
+//             Ok(NodeRef::External(GidRef::Str(s)))
+//         } else if let Ok(gid) = vref.extract::<u64>() {
+//             Ok(NodeRef::External(GidRef::U64(gid)))
+//         } else if let Ok(v) = vref.extract::<PyNode>() {
+//             Ok(NodeRef::Internal(v.node.node))
+//         } else {
+//             Err(PyTypeError::new_err("Not a valid node"))
+//         }
+//     }
+// }
+
 fn parse_email_timestamp(timestamp: &str) -> PyResult<i64> {
     Python::with_gil(|py| {
-        let email_utils = PyModule::import(py, "email.utils")?;
+        let email_utils = PyModule::import_bound(py, "email.utils")?;
         let datetime = email_utils.call_method1("parsedate_to_datetime", (timestamp,))?;
         let py_seconds = datetime.call_method1("timestamp", ())?;
         let seconds = py_seconds.extract::<f64>()?;
@@ -67,7 +104,7 @@ pub struct PyTime {
 }
 
 impl<'source> FromPyObject<'source> for PyTime {
-    fn extract(time: &'source PyAny) -> PyResult<Self> {
+    fn extract_bound(time: &Bound<'source, PyAny>) -> PyResult<Self> {
         if let Ok(string) = time.extract::<String>() {
             let timestamp = string.as_str();
             let parsing_result = timestamp
@@ -97,7 +134,7 @@ impl<'source> FromPyObject<'source> for PyTime {
             // Important, this is needed to ensure that naive DateTime objects are treated as UTC and not local time
             return Ok(PyTime::new(parsed_datetime.into_time()));
         }
-        if let Ok(py_datetime) = time.extract::<&PyDateTime>() {
+        if let Ok(py_datetime) = time.downcast::<PyDateTime>() {
             let time = (py_datetime.call_method0("timestamp")?.extract::<f64>()? * 1000.0) as i64;
             return Ok(PyTime::new(time));
         }
@@ -139,7 +176,7 @@ impl PyInterval {
 }
 
 impl<'source> FromPyObject<'source> for PyInterval {
-    fn extract(interval: &'source PyAny) -> PyResult<Self> {
+    fn extract_bound(interval: &Bound<'source, PyAny>) -> PyResult<Self> {
         let string = interval.extract::<String>();
         let result = string.map(|string| PyInterval::new(string.as_str()));
 
@@ -376,13 +413,13 @@ impl From<Vec<i64>> for NumpyArray {
 impl IntoPy<PyObject> for NumpyArray {
     fn into_py(self, py: Python<'_>) -> PyObject {
         match self {
-            NumpyArray::Bool(value) => value.into_pyarray(py).to_object(py),
-            NumpyArray::I32(value) => value.into_pyarray(py).to_object(py),
-            NumpyArray::I64(value) => value.into_pyarray(py).to_object(py),
-            NumpyArray::U32(value) => value.into_pyarray(py).to_object(py),
-            NumpyArray::U64(value) => value.into_pyarray(py).to_object(py),
-            NumpyArray::F32(value) => value.into_pyarray(py).to_object(py),
-            NumpyArray::F64(value) => value.into_pyarray(py).to_object(py),
+            NumpyArray::Bool(value) => value.into_pyarray_bound(py).to_object(py),
+            NumpyArray::I32(value) => value.into_pyarray_bound(py).to_object(py),
+            NumpyArray::I64(value) => value.into_pyarray_bound(py).to_object(py),
+            NumpyArray::U32(value) => value.into_pyarray_bound(py).to_object(py),
+            NumpyArray::U64(value) => value.into_pyarray_bound(py).to_object(py),
+            NumpyArray::F32(value) => value.into_pyarray_bound(py).to_object(py),
+            NumpyArray::F64(value) => value.into_pyarray_bound(py).to_object(py),
             NumpyArray::Props(vec) => match vec.first() {
                 Some(Prop::Bool(_)) => {
                     Self::Bool(vec.into_iter().filter_map(|p| p.into_bool()).collect()).into_py(py)

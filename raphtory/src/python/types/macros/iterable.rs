@@ -217,14 +217,22 @@ macro_rules! py_float_iterable {
 ///                    unique identifier without a proc macro)
 macro_rules! py_iterable_comp {
     ($name:ty, $cmp_item:ty, $cmp_internal:ident) => {
-        #[derive(Clone)]
         enum $cmp_internal {
             Vec(Vec<$cmp_item>),
             This(Py<$name>),
         }
 
+        impl Clone for $cmp_internal {
+            fn clone(&self) -> Self {
+                match self {
+                    Self::Vec(v) => Self::Vec(v.clone()),
+                    Self::This(v) => Self::This(Python::with_gil(|py| v.clone_ref(py))),
+                }
+            }
+        }
+
         impl<'source> FromPyObject<'source> for $cmp_internal {
-            fn extract(ob: &'source PyAny) -> PyResult<Self> {
+            fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
                 if let Ok(s) = ob.extract::<Py<$name>>() {
                     Ok($cmp_internal::This(s))
                 } else if let Ok(v) = ob.extract::<Vec<$cmp_item>>() {

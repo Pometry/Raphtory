@@ -58,6 +58,8 @@ pub fn to_sql(query: Query, graph: &DiskGraphStorage) -> sql_ast::Statement {
         // `FOR JSON { AUTO | PATH } [ , INCLUDE_NULL_VALUES ]`
         // (MSSQL-specific)
         for_clause: None,
+        settings: None,
+        format_clause: None,
     }))
 }
 
@@ -177,8 +179,12 @@ fn max_bind_count(query: &Query) -> usize {
         .unwrap_or(0)
 }
 
-fn parse_order_by(query: &Query, rel_binds: &[String], node_binds: &[String]) -> Vec<OrderByExpr> {
-    query
+fn parse_order_by(
+    query: &Query,
+    rel_binds: &[String],
+    node_binds: &[String],
+) -> Option<sql_ast::OrderBy> {
+    let exprs: Vec<_> = query
         .clauses()
         .into_iter()
         .flat_map(|clause| match clause {
@@ -194,12 +200,21 @@ fn parse_order_by(query: &Query, rel_binds: &[String], node_binds: &[String]) ->
                         expr: sql_expr,
                         asc: *asc,
                         nulls_first: None,
+                        with_fill: None,
                     }
                 })
                 .collect(),
             _ => vec![],
         })
-        .collect()
+        .collect();
+    if exprs.is_empty() {
+        None
+    } else {
+        Some(sql_ast::OrderBy {
+            exprs,
+            interpolate: None,
+        })
+    }
 }
 
 fn scan_edges_as_sql_cte(
@@ -290,13 +305,15 @@ fn query_union(q1: Box<sql_ast::Query>, q2: Box<sql_ast::Query>) -> Box<sql_ast:
             left: q1.body,
             right: q2.body,
         }),
-        order_by: vec![],
+        order_by: None,
         limit: None,
         limit_by: vec![],
         offset: None,
         fetch: None,
         locks: vec![],
         for_clause: None,
+        settings: None,
+        format_clause: None,
     })
 }
 
@@ -376,9 +393,10 @@ fn select_query_with_projection(
             // LATERAL VIEWs
             lateral_views: vec![],
             // WHERE
+            prewhere: None,
             selection: None,
             // GROUP BY
-            group_by: GroupByExpr::Expressions(vec![]),
+            group_by: GroupByExpr::Expressions(vec![], vec![]),
             // CLUSTER BY (Hive)
             cluster_by: vec![],
             // DISTRIBUTE BY (Hive)
@@ -397,7 +415,7 @@ fn select_query_with_projection(
             connect_by: None,
         }))),
         // ORDER BY
-        order_by: vec![],
+        order_by: None,
         // `LIMIT { <N> | ALL }`
         limit: None,
         // `LIMIT { <N> } BY { <expr>,<expr>,... } }`
@@ -412,6 +430,8 @@ fn select_query_with_projection(
         // `FOR JSON { AUTO | PATH } [ , INCLUDE_NULL_VALUES ]`
         // (MSSQL-specific)
         for_clause: None,
+        settings: None,
+        format_clause: None,
     })
 }
 
@@ -504,9 +524,10 @@ fn parse_select_body(
         // LATERAL VIEWs
         lateral_views: vec![],
         // WHERE
+        prewhere: None,
         selection: where_expr(query, rel_uniqueness_filters, &rel_binds, &node_binds),
         // GROUP BY
-        group_by: GroupByExpr::Expressions(vec![]),
+        group_by: GroupByExpr::Expressions(vec![], vec![]),
         // CLUSTER BY (Hive)
         cluster_by: vec![],
         // DISTRIBUTE BY (Hive)
@@ -761,6 +782,7 @@ fn make_sql_join(
 ) -> sql_ast::Join {
     sql_ast::Join {
         relation: table_from_name(right_table),
+        global: false,
         join_operator: sql_ast::JoinOperator::Inner(sql_ast::JoinConstraint::On(
             sql_ast::Expr::BinaryOp {
                 left: Box::new(sql_ast::Expr::CompoundIdentifier(vec![
@@ -784,6 +806,7 @@ fn table_from_name(name: &str) -> sql_ast::TableFactor {
         args: None,
         with_hints: vec![],
         version: None,
+        with_ordinality: false,
         partitions: vec![],
     }
 }
@@ -1081,6 +1104,7 @@ fn cypher_to_sql_expr(
 fn sql_count_all(table: &str, attr: &str) -> sql_ast::Expr {
     sql_ast::Expr::Function(sql_ast::Function {
         name: sql_ast::ObjectName(vec![sql_ast::Ident::new("COUNT")]),
+        parameters: sql_ast::FunctionArguments::None,
         args: sql_ast::FunctionArguments::List(FunctionArgumentList {
             args: vec![sql_ast::FunctionArg::Unnamed(
                 sql_ast::FunctionArgExpr::Expr(sql_ast::Expr::CompoundIdentifier(
@@ -1124,6 +1148,7 @@ fn sql_function_ast(
     });
     sql_ast::Expr::Function(sql_ast::Function {
         name: sql_ast::ObjectName(vec![sql_ast::Ident::new(name)]),
+        parameters: sql_ast::FunctionArguments::None,
         args,
         over: None,
         filter: None,
