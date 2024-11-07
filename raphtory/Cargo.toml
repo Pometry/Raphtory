@@ -78,9 +78,6 @@ pometry-storage = { workspace = true, optional = true }
 prost = { workspace = true, optional = true }
 prost-types = { workspace = true, optional = true }
 
-[target.'cfg(target_os = "macos")'.dependencies]
-snmalloc-rs = { workspace = true }
-
 [dev-dependencies]
 csv = { workspace = true }
 pretty_assertions = { workspace = true }
