@@ -54,8 +54,6 @@ jobs:
           file: docker/base/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          build-args: |
-            BASE_IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/raphtory_base:${{ env.RUST_VERSION }}-${{ matrix.platform }}
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/raphtory_base:${{ env.RUST_VERSION }}-${{ matrix.platform }}
 
@@ -80,6 +78,7 @@ jobs:
           file: Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
+          build-args: |
+            BASE_IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/raphtory_base:${{ env.RUST_VERSION }}-${{ matrix.platform }}
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/raphtory:${{ env.PACKAGE_VERSION }}-rust-${{ matrix.platform }}
-            
