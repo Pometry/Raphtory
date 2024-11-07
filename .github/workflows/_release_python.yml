@@ -45,7 +45,6 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: |
-            3.8
             3.9
             3.10
             3.11
@@ -57,7 +56,7 @@ jobs:
           working-directory: ./python
           command: build
           target: ${{ matrix.target }}
-          args: --release --out dist -i python3.8 -i python3.9 -i python3.10 -i python3.11 -i python3.12 -i python3.13
+          args: --release --out dist -i python3.9 -i python3.10 -i python3.11 -i python3.12 -i python3.13
           manylinux: 2_28
           before-script-linux: |
             if [[ -f /etc/os-release ]]; then
@@ -145,7 +144,6 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: |
-            3.8
             3.9
             3.10
             3.11
@@ -158,7 +156,7 @@ jobs:
           working-directory: ./python
           command: build
           target: ${{ matrix.target }}
-          args: --release --out dist -i python3.8 -i python3.9 -i python3.10 -i python3.11 -i python3.12 -i python3.13
+          args: --release --out dist -i python3.9 -i python3.10 -i python3.11 -i python3.12 -i python3.13
       - name: Upload wheels to gh artifact
         uses: actions/upload-artifact@v3
         with:
@@ -197,7 +195,6 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: |
-            3.8
             3.9
             3.10
             3.11
@@ -209,7 +206,7 @@ jobs:
           working-directory: ./python
           command: build
           target: ${{ matrix.target }}
-          args: --release --out dist -i python3.8 -i python3.9 -i python3.10 -i python3.11 -i python3.12 -i python3.13
+          args: --release --out dist -i python3.9 -i python3.10 -i python3.11 -i python3.12 -i python3.13
       - name: Upload wheels to gh artifact
         uses: actions/upload-artifact@v3
         with:
