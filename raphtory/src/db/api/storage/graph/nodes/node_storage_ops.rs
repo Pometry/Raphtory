@@ -23,7 +23,11 @@ pub trait NodeStorageOps<'a>: Sized {
 
     fn prop(self, prop_id: usize) -> Option<Prop>;
 
-    fn edges_iter(self, layers: &LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> + 'a;
+    fn edges_iter(
+        self,
+        layers: &LayerIds,
+        dir: Direction,
+    ) -> impl Iterator<Item = EdgeRef> + Send + 'a;
 
     fn node_type_id(self) -> usize;
 

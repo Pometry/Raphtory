@@ -1,6 +1,3 @@
-#[cfg(feature = "storage")]
-pub use cypher::*;
-
 #[cfg(not(feature = "storage"))]
 fn main() {}
 
@@ -12,8 +9,6 @@ async fn main() {
 
 #[cfg(feature = "storage")]
 mod cypher {
-    use std::{error::Error, str::FromStr};
-
     use arrow::util::pretty::print_batches;
     use clap::Parser;
     use futures::{stream, StreamExt};
@@ -23,6 +18,7 @@ mod cypher {
     };
     use raphtory_cypher::{run_cypher, run_cypher_to_streams, run_sql};
     use serde::{de::DeserializeOwned, Deserialize};
+    use std::{error::Error, str::FromStr};
     use tracing::info;
 
     /// Query graph with cypher

@@ -1,5 +1,5 @@
-use std::{any::Any, fmt::Formatter, sync::Arc};
-
+use super::plan_properties;
+use crate::executor::{arrow2_to_arrow_buf, ExecError};
 use arrow::datatypes::*;
 use arrow_array::{make_array, Array, PrimitiveArray};
 use arrow_buffer::{OffsetBuffer, ScalarBuffer};
@@ -15,11 +15,8 @@ use datafusion::{
     config::ConfigOptions,
     datasource::{TableProvider, TableType},
     error::DataFusionError,
-    execution::{
-        context::{ExecutionProps, SessionState},
-        SendableRecordBatchStream, TaskContext,
-    },
-    logical_expr::{col, expr, Expr},
+    execution::{context::ExecutionProps, SendableRecordBatchStream, TaskContext},
+    logical_expr::{col, Expr},
     physical_expr::PhysicalSortExpr,
     physical_plan::{
         metrics::MetricsSet, stream::RecordBatchStreamAdapter, DisplayAs, DisplayFormatType,
@@ -30,10 +27,7 @@ use datafusion::{
 use futures::Stream;
 use pometry_storage::prelude::*;
 use raphtory::disk_graph::DiskGraphStorage;
-
-use crate::executor::{arrow2_to_arrow_buf, ExecError};
-
-use super::plan_properties;
+use std::{any::Any, fmt::Formatter, sync::Arc};
 
 pub struct EdgeListTableProvider {
     layer_id: usize,

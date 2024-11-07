@@ -15,7 +15,7 @@ use datafusion::{
     config::ConfigOptions,
     datasource::{TableProvider, TableType},
     error::DataFusionError,
-    execution::{context::SessionState, SendableRecordBatchStream, TaskContext},
+    execution::{SendableRecordBatchStream, TaskContext},
     logical_expr::Expr,
     physical_plan::{
         metrics::MetricsSet, stream::RecordBatchStreamAdapter, DisplayAs, DisplayFormatType,

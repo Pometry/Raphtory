@@ -12,9 +12,15 @@ pub mod transpiler;
 
 #[cfg(feature = "storage")]
 mod cypher {
+    use super::{
+        executor::{table_provider::edge::EdgeListTableProvider, ExecError},
+        *,
+    };
+    use crate::{
+        executor::table_provider::node::NodeTableProvider,
+        hop::rule::{HopQueryPlanner, HopRule},
+    };
     use arrow::compute::take;
-    use std::sync::Arc;
-
     use arrow_array::{builder, Array, RecordBatch, UInt64Array};
     use arrow_schema::{ArrowError, DataType};
     use datafusion::{
@@ -22,23 +28,15 @@ mod cypher {
         error::DataFusionError,
         execution::{
             config::SessionConfig,
-            context::{SQLOptions, SessionContext, SessionState},
+            context::{SQLOptions, SessionContext},
             runtime_env::RuntimeEnv,
+            SessionStateBuilder,
         },
         logical_expr::{create_udf, ColumnarValue, LogicalPlan, Volatility},
         physical_plan::SendableRecordBatchStream,
     };
-
-    use super::{
-        executor::{table_provider::edge::EdgeListTableProvider, ExecError},
-        *,
-    };
     use raphtory::disk_graph::DiskGraphStorage;
-
-    use crate::{
-        executor::table_provider::node::NodeTableProvider,
-        hop::rule::{HopQueryPlanner, HopRule},
-    };
+    use std::sync::Arc;
 
     pub use polars_arrow as arrow2;
 
@@ -66,11 +64,17 @@ mod cypher {
 
         let runtime = Arc::new(RuntimeEnv::default());
         let state = if enable_hop_optim {
-            SessionState::new_with_config_rt(config, runtime)
+            SessionStateBuilder::new()
+                .with_config(config)
+                .with_runtime_env(runtime)
                 .with_query_planner(Arc::new(HopQueryPlanner {}))
-                .add_optimizer_rule(Arc::new(HopRule::new(g.clone())))
+                .with_optimizer_rule(Arc::new(HopRule::new(g.clone())))
+                .build()
         } else {
-            SessionState::new_with_config_rt(config, runtime)
+            SessionStateBuilder::new()
+                .with_config(config)
+                .with_runtime_env(runtime)
+                .build()
         };
         let ctx = SessionContext::new_with_state(state);
 
@@ -166,19 +170,12 @@ mod cypher {
 
     #[cfg(test)]
     mod test {
-        use arrow::compute::concat_batches;
-        use datafusion::physical_plan::coalesce_batches::CoalesceBatchesExec;
-        use std::path::Path;
-
-        // FIXME: actually assert the tests below
-        // use pretty_assertions::assert_eq;
-        use arrow::util::pretty::print_batches;
+        use crate::run_cypher;
+        use arrow::{compute::concat_batches, util::pretty::print_batches};
         use arrow_array::RecordBatch;
-        use tempfile::tempdir;
-
         use raphtory::{disk_graph::DiskGraphStorage, prelude::*};
-
-        use crate::{run_cypher, run_sql};
+        use std::path::Path;
+        use tempfile::tempdir;
 
         lazy_static::lazy_static! {
             static ref EDGES: Vec<(u64, u64, i64, f64)> = vec![
