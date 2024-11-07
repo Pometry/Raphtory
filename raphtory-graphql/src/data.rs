@@ -33,7 +33,7 @@ pub struct EmbeddingConf {
 
 #[derive(Clone)]
 pub struct Data {
-    work_dir: PathBuf,
+    pub(crate) work_dir: PathBuf,
     cache: Cache<PathBuf, GraphWithVectors>,
     pub(crate) index: bool,
     pub(crate) embedding_conf: Option<EmbeddingConf>,
@@ -248,9 +248,12 @@ impl Data {
 
 #[cfg(test)]
 pub(crate) mod data_tests {
-    use crate::data::Data;
+    use crate::{
+        config::app_config::{AppConfig, AppConfigBuilder},
+        data::Data,
+    };
     use itertools::Itertools;
-    use raphtory::{db::api::view::MaterializedGraph, prelude::*};
+    use raphtory::{core::utils::errors::GraphError, db::api::view::MaterializedGraph, prelude::*};
     use std::{
         collections::HashMap,
         fs,
@@ -259,8 +262,6 @@ pub(crate) mod data_tests {
         path::{Path, PathBuf},
     };
 
-    use crate::config::app_config::{AppConfig, AppConfigBuilder};
-    use raphtory::core::utils::errors::{GraphError, InvalidPathReason};
     #[cfg(feature = "storage")]
     use raphtory::{
         db::api::storage::graph::storage_ops::GraphStorage, db::api::view::internal::CoreGraphOps,

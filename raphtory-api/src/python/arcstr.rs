@@ -1,5 +1,5 @@
 use crate::core::storage::arc_str::ArcStr;
-use pyo3::{FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python, ToPyObject};
+use pyo3::prelude::*;
 
 impl IntoPy<PyObject> for ArcStr {
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -14,7 +14,7 @@ impl ToPyObject for ArcStr {
 }
 
 impl<'source> FromPyObject<'source> for ArcStr {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
         ob.extract::<String>().map(|v| v.into())
     }
 }

@@ -1,0 +1,27 @@
+#THIS SHOULD BE RUN FROM THE MAIN RAPHTORY DIR VIA MAKE
+# Stage 1: Build
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE} AS build
+
+WORKDIR /home/raphtory_server
+
+# Install custom raphtory and then delete the files
+COPY . /home/raphtory_server/raphtory
+RUN cd raphtory && rm -rf target && rm -rf pometry-storage-private
+RUN cd raphtory/python && maturin build -r
+RUN cd raphtory && pip install $(ls target/wheels/*.whl | head -n 1)
+RUN rm -rf raphtory
+
+RUN pip install python-dotenv
+
+# # Stage 2: Final
+FROM python:3.12.4-slim
+
+# Copy the virtual environment from the build stage
+COPY --from=build /opt/venv /opt/venv
+ENV VIRTUAL_ENV=/opt/venv
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+COPY docker/server.py /home/raphtory_server/server.py
+
+ENTRYPOINT ["python", "/home/raphtory_server/server.py"]

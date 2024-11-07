@@ -125,6 +125,7 @@ impl PyRaphtoryClient {
     ///
     /// Returns:
     ///    The `data` field from the graphQL response.
+    #[pyo3(signature = (query, variables=None))]
     pub(crate) fn query(
         &self,
         py: Python,

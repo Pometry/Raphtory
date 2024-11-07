@@ -80,14 +80,14 @@ mod test {
 
     #[test]
     fn set_one() {
-        let mut bm: Multiple = [1].into_iter().collect();
+        let bm: Multiple = [1].into_iter().collect();
         let actual = bm.into_iter().collect::<Vec<_>>();
         assert_eq!(actual, vec![1usize]);
     }
 
     #[test]
     fn set_two() {
-        let mut bm: Multiple = [1, 67].into_iter().collect();
+        let bm: Multiple = [1, 67].into_iter().collect();
 
         let actual = bm.into_iter().collect::<Vec<_>>();
         assert_eq!(actual, vec![1usize, 67]);

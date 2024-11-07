@@ -1,6 +1,5 @@
 #![allow(non_snake_case)]
-#[cfg(feature = "storage")]
-use crate::python::graph::disk_graph::PyDiskGraph;
+
 use crate::{
     algorithms::{
         algorithm_result::AlgorithmResult,
@@ -50,20 +49,23 @@ use crate::{
         },
         projections::temporal_bipartite_projection::temporal_bipartite_projection as temporal_bipartite_rs,
     },
-    core::{entities::nodes::node_ref::NodeRef, Prop},
+    core::Prop,
     db::{api::view::internal::DynamicGraph, graph::node::NodeView},
     python::{
         graph::{node::PyNode, views::graph_view::PyGraphView},
-        utils::PyTime,
+        utils::{PyNodeRef, PyTime},
     },
 };
 use ordered_float::OrderedFloat;
-#[cfg(feature = "storage")]
-use pometry_storage::algorithms::connected_components::connected_components as connected_components_rs;
-use pyo3::{prelude::*, types::PyIterator};
+use pyo3::prelude::*;
 use rand::{prelude::StdRng, SeedableRng};
 use raphtory_api::core::{entities::GID, Direction};
 use std::collections::{HashMap, HashSet};
+
+#[cfg(feature = "storage")]
+use crate::python::graph::disk_graph::PyDiskGraph;
+#[cfg(feature = "storage")]
+use pometry_storage::algorithms::connected_components::connected_components as connected_components_rs;
 
 /// Implementations of various graph algorithms that can be run on a graph.
 ///
@@ -82,7 +84,7 @@ use std::collections::{HashMap, HashSet};
 ///     int : number of triangles associated with node v
 ///
 #[pyfunction]
-pub fn local_triangle_count(g: &PyGraphView, v: NodeRef) -> Option<usize> {
+pub fn local_triangle_count(g: &PyGraphView, v: PyNodeRef) -> Option<usize> {
     local_triangle_count_rs(&g.graph, v)
 }
 
@@ -232,12 +234,13 @@ pub fn pagerank(
 /// Returns:
 ///     AlgorithmResult : AlgorithmResult with string keys and float values mapping node names to their pagerank value.
 #[pyfunction]
+#[pyo3(signature = (g, max_hops, start_time, seed_nodes, stop_nodes=None))]
 pub fn temporally_reachable_nodes(
     g: &PyGraphView,
     max_hops: usize,
     start_time: i64,
-    seed_nodes: Vec<NodeRef>,
-    stop_nodes: Option<Vec<NodeRef>>,
+    seed_nodes: Vec<PyNodeRef>,
+    stop_nodes: Option<Vec<PyNodeRef>>,
 ) -> AlgorithmResult<DynamicGraph, Vec<(i64, String)>, Vec<(i64, String)>> {
     temporal_reachability_rs(&g.graph, None, max_hops, start_time, seed_nodes, stop_nodes)
 }
@@ -253,7 +256,7 @@ pub fn temporally_reachable_nodes(
 /// Returns:
 ///     float : the local clustering coefficient of node v in g.
 #[pyfunction]
-pub fn local_clustering_coefficient(g: &PyGraphView, v: NodeRef) -> Option<f32> {
+pub fn local_clustering_coefficient(g: &PyGraphView, v: PyNodeRef) -> Option<f32> {
     local_clustering_coefficient_rs(&g.graph, v)
 }
 
@@ -619,7 +622,7 @@ pub fn min_degree(g: &PyGraphView) -> usize {
 #[pyo3[signature = (g, source, cutoff=None)]]
 pub fn single_source_shortest_path(
     g: &PyGraphView,
-    source: NodeRef,
+    source: PyNodeRef,
     cutoff: Option<usize>,
 ) -> AlgorithmResult<DynamicGraph, Vec<String>, Vec<String>> {
     single_source_shortest_path_rs(&g.graph, source, cutoff)
@@ -641,8 +644,8 @@ pub fn single_source_shortest_path(
 #[pyo3[signature = (g, source, targets, direction=Direction::BOTH, weight="weight".to_string())]]
 pub fn dijkstra_single_source_shortest_paths(
     g: &PyGraphView,
-    source: NodeRef,
-    targets: Vec<NodeRef>,
+    source: PyNodeRef,
+    targets: Vec<PyNodeRef>,
     direction: Direction,
     weight: Option<String>,
 ) -> PyResult<HashMap<String, (Prop, Vec<String>)>> {
@@ -723,6 +726,7 @@ pub fn label_propagation(
 ///     `recovered`: the time stamp at which the node recovered (i.e., stopped spreading the infection)
 ///
 #[pyfunction(name = "temporal_SEIR")]
+#[pyo3(signature = (graph, seeds, infection_prob, initial_infection, recovery_rate=None, incubation_rate=None, rng_seed=None))]
 pub fn temporal_SEIR(
     graph: &PyGraphView,
     seeds: crate::python::algorithm::epidemics::PySeed,
@@ -848,15 +852,13 @@ pub fn cohesive_fruchterman_reingold(
 #[pyo3[signature = (graph, views, k, delta)]]
 pub fn temporal_rich_club_coefficient(
     graph: PyGraphView,
-    views: &PyAny,
+    views: &Bound<PyAny>,
     k: usize,
     delta: usize,
-) -> f64 {
-    let py_iterator = PyIterator::from_object(views).unwrap();
-    let iter = py_iterator.map(|item| {
-        item.and_then(PyGraphView::extract)
-            .map(|pgv: PyGraphView| pgv.graph)
-            .unwrap()
-    });
-    temporal_rich_club_rs(graph.graph, iter, k, delta)
+) -> PyResult<f64> {
+    let py_iterator = views.iter()?;
+    let views = py_iterator
+        .map(|view| view.and_then(|view| Ok(view.downcast::<PyGraphView>()?.get().graph.clone())))
+        .collect::<PyResult<Vec<_>>>()?;
+    Ok(temporal_rich_club_rs(graph.graph, views, k, delta))
 }

@@ -33,7 +33,7 @@ use crate::{
             repr::StructReprBuilder,
             wrappers::{iterables::*, prop::PyPropertyFilter},
         },
-        utils::PyTime,
+        utils::{PyNodeRef, PyTime},
     },
     *,
 };
@@ -42,6 +42,7 @@ use numpy::{IntoPyArray, Ix1, PyArray};
 use pyo3::{
     exceptions::{PyIndexError, PyKeyError},
     prelude::*,
+    pybacked::PyBackedStr,
     pyclass,
     pyclass::CompareOp,
     pymethods,
@@ -230,9 +231,9 @@ impl PyNode {
     ///
     /// Returns:
     ///     List[int]: A list of unix timestamps of the event history of node.
-    pub fn history(&self, py: Python<'_>) -> Py<PyArray<i64, Ix1>> {
+    pub fn history<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
         let history = self.node.history();
-        history.into_pyarray(py).to_owned()
+        history.into_pyarray_bound(py)
     }
 
     /// Returns the history of a node, including node additions and changes made to node.
@@ -375,6 +376,7 @@ impl PyMutableNode {
     ///
     /// Returns:
     ///     Result: A result object indicating success or failure. On failure, it contains a GraphError.
+    #[pyo3(signature = (t, properties=None))]
     pub fn add_updates(
         &self,
         t: PyTime,
@@ -600,7 +602,7 @@ impl PyNodes {
         self.nodes.out_degree()
     }
 
-    pub fn __getitem__(&self, node: NodeRef) -> PyResult<NodeView<DynamicGraph, DynamicGraph>> {
+    pub fn __getitem__(&self, node: PyNodeRef) -> PyResult<NodeView<DynamicGraph, DynamicGraph>> {
         self.nodes
             .get(node)
             .ok_or_else(|| PyIndexError::new_err("Node does not exist"))
@@ -670,15 +672,15 @@ impl PyNodes {
             .collect();
 
         Python::with_gil(|py| {
-            let kwargs = PyDict::new(py);
+            let kwargs = PyDict::new_bound(py);
             kwargs.set_item("columns", column_names.clone())?;
-            let pandas = PyModule::import(py, "pandas")?;
-            let df_data = pandas.call_method("DataFrame", (node_tuples,), Some(kwargs))?;
+            let pandas = PyModule::import_bound(py, "pandas")?;
+            let df_data = pandas.call_method("DataFrame", (node_tuples,), Some(&kwargs))?;
             Ok(df_data.to_object(py))
         })
     }
 
-    pub fn type_filter(&self, node_types: Vec<&str>) -> Nodes<'static, DynamicGraph> {
+    pub fn type_filter(&self, node_types: Vec<PyBackedStr>) -> Nodes<'static, DynamicGraph> {
         self.nodes.type_filter(&node_types)
     }
 }
@@ -794,7 +796,7 @@ impl PyPathFromGraph {
 
     pub fn type_filter(
         &self,
-        node_types: Vec<&str>,
+        node_types: Vec<PyBackedStr>,
     ) -> PathFromGraph<'static, DynamicGraph, DynamicGraph> {
         self.path.type_filter(&node_types)
     }
@@ -932,7 +934,7 @@ impl PyPathFromNode {
 
     pub fn type_filter(
         &self,
-        node_types: Vec<&str>,
+        node_types: Vec<PyBackedStr>,
     ) -> PathFromNode<'static, DynamicGraph, DynamicGraph> {
         self.path.type_filter(&node_types)
     }

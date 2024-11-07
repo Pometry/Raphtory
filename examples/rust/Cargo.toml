@@ -13,7 +13,6 @@ regex = { workspace = true }
 serde = { workspace = true }
 itertools = { workspace = true }
 tracing = { workspace = true }
-tqdm = { workspace = true }
 
 [[bin]]
 name = "btc"

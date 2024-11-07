@@ -10,10 +10,7 @@ use crate::{
     prelude::{GraphViewOps, PropertyFilter},
     python::{graph::views::graph_view::PyGraphView, types::repr::Repr},
 };
-use pyo3::{
-    exceptions::PyTypeError, pyclass, pymethods, types::PyBool, FromPyObject, IntoPy, PyAny,
-    PyObject, PyResult, Python, ToPyObject,
-};
+use pyo3::{exceptions::PyTypeError, prelude::*, types::PyBool};
 use std::{collections::HashSet, ops::Deref, sync::Arc};
 
 impl ToPyObject for Prop {
@@ -66,7 +63,7 @@ impl IntoPy<PyObject> for Prop {
 
 // Manually implemented to make sure we don't end up with f32/i32/u32 from python ints/floats
 impl<'source> FromPyObject<'source> for Prop {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
         if ob.is_instance_of::<PyBool>() {
             return Ok(Prop::Bool(ob.extract()?));
         }

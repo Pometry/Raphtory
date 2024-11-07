@@ -63,7 +63,7 @@ impl From<&PyTemporalProperties> for PyTemporalPropsCmp {
 }
 
 impl<'source> FromPyObject<'source> for PyTemporalPropsCmp {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
         if let Ok(v) = ob.extract::<PyRef<PyTemporalProperties>>() {
             Ok(PyTemporalPropsCmp::from(v.deref()))
         } else if let Ok(v) = ob.extract::<HashMap<ArcStr, PyTemporalPropCmp>>() {
@@ -189,7 +189,7 @@ pub struct PyTemporalProp {
 pub struct PyTemporalPropCmp(Vec<(i64, Prop)>);
 
 impl<'source> FromPyObject<'source> for PyTemporalPropCmp {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
         if let Ok(sp) = ob.extract::<PyRef<PyTemporalProp>>() {
             Ok(sp.deref().into())
         } else if let Ok(m) = ob.extract::<Vec<(i64, Prop)>>() {
@@ -454,7 +454,7 @@ impl From<HashMap<ArcStr, PyTemporalPropListCmp>> for PyTemporalPropsListCmp {
 }
 
 impl<'source> FromPyObject<'source> for PyTemporalPropsListCmp {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
         if let Ok(v) = ob.extract::<PyRef<PyTemporalPropsList>>() {
             Ok(PyTemporalPropsListCmp::from(v.deref()))
         } else if let Ok(v) = ob.extract::<HashMap<ArcStr, PyTemporalPropListCmp>>() {
@@ -650,7 +650,7 @@ impl From<HashMap<ArcStr, PyTemporalPropListListCmp>> for PyTemporalPropsListLis
 }
 
 impl<'source> FromPyObject<'source> for PyTemporalPropsListListCmp {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
         if let Ok(v) = ob.extract::<PyRef<PyTemporalPropsListList>>() {
             Ok(Self::from(v.deref()))
         } else if let Ok(v) = ob.extract::<HashMap<ArcStr, PyTemporalPropListListCmp>>() {

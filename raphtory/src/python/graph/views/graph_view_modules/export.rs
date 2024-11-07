@@ -5,9 +5,7 @@ use crate::{
 };
 use pyo3::{
     prelude::*,
-    pymethods,
     types::{PyDict, PyList, PyTuple},
-    IntoPy, PyObject, PyResult, Python, ToPyObject,
 };
 use raphtory_api::core::storage::arc_str::ArcStr;
 use std::collections::HashMap;
@@ -46,10 +44,10 @@ impl PyGraphView {
         edge_label: Option<&str>,
         colour_nodes_by_type: Option<bool>,
         notebook: Option<bool>,
-        kwargs: Option<&PyDict>,
+        kwargs: Option<&Bound<PyDict>>,
     ) -> PyResult<PyObject> {
         Python::with_gil(|py| {
-            let pyvis = PyModule::import(py, "pyvis.network")?;
+            let pyvis = PyModule::import_bound(py, "pyvis.network")?;
             let network = pyvis.getattr("Network")?;
             let vis_graph = network.call(("notebook", notebook.unwrap_or(true)), kwargs)?;
             let mut groups = HashMap::new();
@@ -74,7 +72,7 @@ impl PyGraphView {
                     None => Prop::from("https://cdn-icons-png.flaticon.com/512/7584/7584620.png"),
                 };
                 let shape = shape.unwrap_or("dot");
-                let kwargs_node = PyDict::new(py);
+                let kwargs_node = PyDict::new_bound(py);
                 kwargs_node.set_item("label", v.name())?;
                 kwargs_node.set_item("shape", shape)?;
                 kwargs_node.set_item("image", image)?;
@@ -90,9 +88,9 @@ impl PyGraphView {
                         Some(colour) => *colour,
                     };
                     kwargs_node.set_item("group", group)?;
-                    vis_graph.call_method("add_node", (v.id(),), Some(kwargs_node))?;
+                    vis_graph.call_method("add_node", (v.id(),), Some(&kwargs_node))?;
                 } else {
-                    vis_graph.call_method("add_node", (v.id(),), Some(kwargs_node))?;
+                    vis_graph.call_method("add_node", (v.id(),), Some(&kwargs_node))?;
                 }
             }
             let edges = if explode_edges.unwrap_or(false) {
@@ -115,7 +113,7 @@ impl PyGraphView {
                     }
                     None => ArcStr::from(""),
                 };
-                let kwargs = PyDict::new(py);
+                let kwargs = PyDict::new_bound(py);
                 kwargs.set_item("value", weight)?;
                 let edge_col = edge_color.unwrap_or("#000000");
                 kwargs.set_item("color", edge_col)?;
@@ -124,7 +122,7 @@ impl PyGraphView {
                 vis_graph.call_method(
                     "add_edge",
                     (edge.src().id(), edge.dst().id()),
-                    Some(kwargs),
+                    Some(&kwargs),
                 )?;
             }
             Ok(vis_graph.to_object(py))
@@ -156,22 +154,25 @@ impl PyGraphView {
         include_property_history: Option<bool>,
     ) -> PyResult<PyObject> {
         Python::with_gil(|py| {
-            let networkx = py.import("networkx")?.getattr("MultiDiGraph")?.call0()?;
+            let networkx = py
+                .import_bound("networkx")?
+                .getattr("MultiDiGraph")?
+                .call0()?;
 
             let mut node_tuples = Vec::new();
             for v in self.graph.nodes().iter() {
-                let properties = PyDict::new(py);
+                let properties = PyDict::new_bound(py);
                 if include_node_properties.unwrap_or(true) {
                     if include_property_history.unwrap_or(true) {
                         let const_props = v.properties().constant().as_map();
-                        let const_props_py = PyDict::new(py);
+                        let const_props_py = PyDict::new_bound(py);
                         for (key, value) in const_props {
                             const_props_py.set_item(key, value.into_py(py))?;
                         }
                         properties.set_item("constant", const_props_py)?;
                         properties.set_item(
                             "temporal",
-                            PyList::new(py, v.properties().temporal().histories()),
+                            PyList::new_bound(py, v.properties().temporal().histories()),
                         )?;
                     } else {
                         for (key, value) in v.properties().as_map() {
@@ -191,7 +192,7 @@ impl PyGraphView {
                     }
                 }
                 let node_tuple =
-                    PyTuple::new(py, &[v.name().to_object(py), properties.to_object(py)]);
+                    PyTuple::new_bound(py, &[v.name().to_object(py), properties.to_object(py)]);
                 node_tuples.push(node_tuple);
             }
             networkx.call_method1("add_nodes_from", (node_tuples,))?;
@@ -204,13 +205,13 @@ impl PyGraphView {
             };
 
             for e in edges.iter() {
-                let properties = PyDict::new(py);
+                let properties = PyDict::new_bound(py);
                 let src = e.src().name();
                 let dst = e.dst().name();
                 if include_edge_properties.unwrap_or(true) {
                     if include_property_history.unwrap_or(true) {
                         let const_props = e.properties().constant().as_map();
-                        let const_props_py = PyDict::new(py);
+                        let const_props_py = PyDict::new_bound(py);
                         for (key, value) in const_props {
                             const_props_py.set_item(key, value.into_py(py))?;
                         }
@@ -225,7 +226,7 @@ impl PyGraphView {
                         }
                         let output: Vec<(ArcStr, Vec<(i64, Prop)>)> =
                             prop_hist_map.into_iter().collect();
-                        properties.set_item("temporal", PyList::new(py, output))?;
+                        properties.set_item("temporal", PyList::new_bound(py, output))?;
                     } else {
                         for (key, value) in e.properties().as_map() {
                             properties.set_item(key, value.into_py(py))?;
@@ -241,7 +242,7 @@ impl PyGraphView {
                         properties.set_item("update_history", e.history())?;
                     }
                 }
-                let edge_tuple = PyTuple::new(
+                let edge_tuple = PyTuple::new_bound(
                     py,
                     &[
                         src.to_object(py),

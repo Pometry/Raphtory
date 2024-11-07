@@ -2728,7 +2728,7 @@ def test_is_self_loop():
 def test_NaN_NaT_as_properties():
     now = datetime.now()
     data = {
-        "floats": [np.NaN, None, 2.4, None, None, None],
+        "floats": [np.nan, None, 2.4, None, None, None],
         "time": [10, 20, 30, 40, 50, 60],
         "id": [101, 102, 103, 104, 105, 106],
         "datetime": [

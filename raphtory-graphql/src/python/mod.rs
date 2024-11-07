@@ -2,9 +2,8 @@ use crate::url_encode::{url_encode_graph, UrlDecodeError};
 use async_graphql::{dynamic::ValueAccessor, Value as GraphqlValue};
 use pyo3::{
     exceptions::{PyTypeError, PyValueError},
-    pyfunction,
+    prelude::*,
     types::PyDict,
-    IntoPy, PyErr, PyObject, PyResult, Python, ToPyObject,
 };
 use raphtory::{db::api::view::MaterializedGraph, python::utils::errors::adapt_err_value};
 use serde_json::{Map, Number, Value as JsonValue};
@@ -51,7 +50,7 @@ pub(crate) fn translate_from_python(py: Python, value: PyObject) -> PyResult<Jso
             vec.push(translate_from_python(py, item)?);
         }
         Ok(JsonValue::Array(vec))
-    } else if let Ok(value) = value.extract::<&PyDict>(py) {
+    } else if let Ok(value) = value.extract::<Bound<PyDict>>(py) {
         let mut map = Map::new();
         for (key, value) in value.iter() {
             let key = key.extract::<String>()?;
@@ -97,7 +96,7 @@ fn translate_to_python(py: Python, value: serde_json::Value) -> PyResult<PyObjec
             Ok(list.into_py(py))
         }
         JsonValue::Object(map) => {
-            let dict = PyDict::new(py);
+            let dict = PyDict::new_bound(py);
             for (key, value) in map {
                 dict.set_item(key, translate_to_python(py, value)?)?;
             }

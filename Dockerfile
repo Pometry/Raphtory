@@ -1,40 +1,24 @@
-FROM rust:1.77 AS builder
-
+FROM rust:1.82.0 AS chef
+RUN cargo install cargo-chef --version 0.1.67
 WORKDIR /app
 
-COPY Cargo.toml Cargo.lock ./
+FROM chef AS planner
+COPY . .
 RUN sed -i '/default-members/d' Cargo.toml
 RUN sed -i '/members = \[/,/\]/c\members = ["raphtory", "raphtory-graphql"]' Cargo.toml
+RUN cargo chef prepare  --recipe-path recipe.json
 
-WORKDIR /app/raphtory
-COPY raphtory/Cargo.toml ./
-RUN mkdir src && echo "fn main() {}" > src/main.rs
+FROM chef AS builder
+RUN apt-get update
+RUN apt-get install -y protobuf-compiler
+COPY --from=planner /app/recipe.json recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json
+COPY . .
+RUN cargo build --release -p raphtory-graphql
 
-WORKDIR /app/raphtory-graphql
-COPY raphtory-graphql/Cargo.toml ./
-RUN mkdir src && echo "fn main() {}" > src/main.rs
+FROM debian:bookworm-slim
+ENV PORT=1736
+COPY --from=builder /app/target/release/raphtory-graphql /raphtory-graphql
+WORKDIR /graphs
 
-WORKDIR /app
-RUN cargo build --release --workspace
-
-COPY raphtory ./raphtory
-COPY raphtory-graphql ./raphtory-graphql
-
-WORKDIR /app/raphtory-graphql
-RUN cargo build --release
-
-FROM rust:1.77-slim AS runner
-
-WORKDIR /app
-
-RUN groupadd -g 999 appuser && \
-    useradd -r -u 999 -g appuser appuser
-USER appuser
-
-COPY --from=builder /app/target/release/raphtory-graphql /app
-
-EXPOSE 1736
-
-ENV GRAPH_DIRECTORY=graphs
-
-CMD ["./raphtory-graphql"]
+ENTRYPOINT ["/raphtory-graphql"]

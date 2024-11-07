@@ -1,7 +1,9 @@
 use serde::Deserialize;
 use tracing_subscriber::EnvFilter;
 
-#[derive(Debug, Deserialize, PartialEq, Clone)]
+pub const DEFAULT_LOG_LEVEL: &'static str = "INFO";
+
+#[derive(Debug, Deserialize, PartialEq, Clone, serde::Serialize)]
 pub struct LoggingConfig {
     pub log_level: String,
 }
@@ -15,7 +17,7 @@ impl LoggingConfig {
 impl Default for LoggingConfig {
     fn default() -> Self {
         Self {
-            log_level: "INFO".to_string(),
+            log_level: DEFAULT_LOG_LEVEL.to_owned(),
         }
     }
 }
