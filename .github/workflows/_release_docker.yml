@@ -1,21 +1,6 @@
 name: _Release 5 - Publish Docker Images to Docker Hub
 on:
   workflow_call:
-
-permissions:
-  contents: read
-  packages: write
-
-jobs:
-  publish-docker:
-    name: Build and Publish Docker Images
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Check out the code
-        uses: actions/checkout@v3name: _Release 5 - Publish Docker Images to Docker Hub
-on:
-  workflow_call:
   workflow_dispatch:
 
 permissions:
@@ -69,8 +54,6 @@ jobs:
           file: docker/base/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          build-args: |
-            BASE_IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/raphtory_base:${{ env.RUST_VERSION }}-${{ matrix.platform }}
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/raphtory_base:${{ env.RUST_VERSION }}-${{ matrix.platform }}
 
@@ -99,67 +82,3 @@ jobs:
             BASE_IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/raphtory_base:${{ env.RUST_VERSION }}-${{ matrix.platform }}
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/raphtory:${{ env.PACKAGE_VERSION }}-rust-${{ matrix.platform }}
-
-      - name: Extract Package and Rust Versions
-        id: version_extraction
-        run: |
-          PACKAGE_VERSION=$(grep -m 1 '^version' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
-          RUST_VERSION=$(grep -m 1 '^rust-version' Cargo.toml | sed 's/rust-version = "\(.*\)"/\1/')
-          echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> $GITHUB_ENV
-          echo "RUST_VERSION=$RUST_VERSION" >> $GITHUB_ENV
-        shell: bash
-
-      - name: Deactivate Private Storage
-        run: |
-          chmod +x ./scripts/deactivate_private_storage.py
-          ./scripts/deactivate_private_storage.py
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Set up QEMU for multi-platform builds
-        uses: docker/setup-qemu-action@v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      # Build and push the base image with Rust version tag for each platform
-      - name: Build and push raphtory_base Docker image
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          file: docker/base/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/raphtory_base:${{ env.RUST_VERSION }}-amd64
-            ${{ secrets.DOCKERHUB_USERNAME }}/raphtory_base:${{ env.RUST_VERSION }}-arm64
-
-      # Build and push Python Docker image with package version and platform-specific tags
-      - name: Build and push Python Docker image
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          file: docker/dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          build-args:
-            BASE_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/raphtory_base:${{ env.RUST_VERSION }}-${{ matrix.platform }}
-          tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/raphtory:${{ env.PACKAGE_VERSION }}-python-amd64
-            ${{ secrets.DOCKERHUB_USERNAME }}/raphtory:${{ env.PACKAGE_VERSION }}-python-arm64
-
-      # Build and push Rust Docker image with package version and platform-specific tags
-      - name: Build and push Rust Docker image
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          file: Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/raphtory:${{ env.PACKAGE_VERSION }}-rust-amd64
-            ${{ secrets.DOCKERHUB_USERNAME }}/raphtory:${{ env.PACKAGE_VERSION }}-rust-arm64
