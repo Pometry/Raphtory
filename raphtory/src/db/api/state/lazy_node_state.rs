@@ -4,14 +4,105 @@ use crate::{
         api::{
             state::{NodeState, NodeStateOps},
             storage::graph::{nodes::node_storage_ops::NodeStorageOps, storage_ops::GraphStorage},
-            view::{internal::NodeList, IntoDynBoxed},
+            view::{
+                internal::{NodeList, OneHopFilter},
+                IntoDynBoxed,
+            },
         },
-        graph::node::NodeView,
+        graph::{node::NodeView, nodes::Nodes},
     },
-    prelude::GraphViewOps,
+    prelude::{GraphViewOps, TimeOps},
 };
+use raphtory_api::core::Direction;
 use rayon::prelude::*;
-use std::{marker::PhantomData, sync::Arc};
+use std::{marker::PhantomData, ops::Deref, sync::Arc};
+
+pub trait NodeOp: Send + Sync {
+    type Output: Send + Sync;
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output;
+}
+
+pub struct Degree<G> {
+    graph: G,
+}
+
+impl<'graph, G: GraphViewOps<'graph>> NodeOp for Degree<G> {
+    type Output = usize;
+
+    fn apply(&self, storage: &GraphStorage, node: VID) -> usize {
+        storage.node_degree(node, Direction::BOTH, &self.graph)
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>> OneHopFilter<'graph> for Degree<G> {
+    type BaseGraph = G;
+    type FilteredGraph = G;
+    type Filtered<GH: GraphViewOps<'graph> + 'graph> = Degree<GH>;
+
+    fn current_filter(&self) -> &Self::FilteredGraph {
+        &self.graph
+    }
+
+    fn base_graph(&self) -> &Self::BaseGraph {
+        &self.graph
+    }
+
+    fn one_hop_filtered<GH: GraphViewOps<'graph> + 'graph>(
+        &self,
+        filtered_graph: GH,
+    ) -> Self::Filtered<GH> {
+        Degree {
+            graph: filtered_graph,
+        }
+    }
+}
+
+impl<V: Send + Sync> NodeOp for Arc<dyn NodeOp<Output = V>> {
+    type Output = V;
+    fn apply(&self, storage: &GraphStorage, node: VID) -> V {
+        self.deref().apply(storage, node)
+    }
+}
+
+pub struct LazyNodeState2<'graph, Op, G, GH = G> {
+    nodes: Nodes<'graph, G, GH>,
+    op: Op,
+}
+
+impl<'graph, Op: OneHopFilter<'graph>, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
+    OneHopFilter<'graph> for LazyNodeState2<'graph, Op, G, GH>
+{
+    type BaseGraph = G;
+    type FilteredGraph = Op::FilteredGraph;
+    type Filtered<GHH: GraphViewOps<'graph> + 'graph> =
+        LazyNodeState2<'graph, Op::Filtered<GHH>, G, GH>;
+
+    fn current_filter(&self) -> &Self::FilteredGraph {
+        self.op.current_filter()
+    }
+
+    fn base_graph(&self) -> &Self::BaseGraph {
+        self.nodes.base_graph()
+    }
+
+    fn one_hop_filtered<GHH: GraphViewOps<'graph> + 'graph>(
+        &self,
+        filtered_graph: GHH,
+    ) -> Self::Filtered<GHH> {
+        LazyNodeState2 {
+            nodes: self.nodes.clone(),
+            op: self.op.one_hop_filtered(filtered_graph),
+        }
+    }
+}
+
+impl<'graph, Op: NodeOp, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
+    LazyNodeState2<'graph, Op, G, GH>
+{
+    pub fn par_iter(&self) -> impl ParallelIterator<Item = Op::Output> + '_ {
+        self.nodes.apply(&self.op)
+    }
+}
 
 #[derive(Clone)]
 pub struct LazyNodeState<'graph, V, G, GH = G> {
@@ -250,5 +341,49 @@ impl<
 
     fn len(&self) -> usize {
         self.graph.count_nodes()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        db::api::{
+            state::lazy_node_state::{Degree, LazyNodeState2, NodeOp},
+            view::{internal::CoreGraphOps, IntoDynamic},
+        },
+        prelude::*,
+    };
+    use raphtory_api::core::entities::VID;
+    use rayon::prelude::*;
+    use std::sync::Arc;
+
+    struct TestWrapper<Op: NodeOp>(Op);
+    #[test]
+    fn test_compile() {
+        let g = Graph::new();
+        g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+
+        let nodes = g.nodes();
+
+        let node_state = LazyNodeState2 {
+            nodes,
+            op: Degree { graph: g.clone() },
+        };
+        let node_state_window = node_state.after(1);
+
+        let deg: Vec<_> = node_state.par_iter().collect();
+        let deg_w: Vec<_> = node_state_window.par_iter().collect();
+
+        let node_state_filter = node_state.valid_layers("bla");
+
+        assert_eq!(deg, [1, 1]);
+        assert_eq!(deg_w, [0, 0]);
+        let g_dyn = g.clone().into_dynamic();
+
+        let deg = Degree { graph: g_dyn };
+        let arc_deg: Arc<dyn NodeOp<Output = usize>> = Arc::new(deg);
+        assert_eq!(arc_deg.apply(g.core_graph(), VID(0)), 1);
+
+        let test_struct = TestWrapper(arc_deg);
     }
 }

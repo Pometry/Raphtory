@@ -15,7 +15,7 @@ use crate::{
     prelude::*,
 };
 
-use crate::db::graph::create_node_type_filter;
+use crate::db::{api::state::NodeOp, graph::create_node_type_filter};
 use rayon::iter::ParallelIterator;
 use std::{marker::PhantomData, sync::Arc};
 
@@ -88,6 +88,17 @@ where
             node_types_filter,
             _marker: PhantomData,
         }
+    }
+
+    pub(crate) fn apply<'a, V: Send>(
+        &'a self,
+        op: &'a impl NodeOp<Output = V>,
+    ) -> impl ParallelIterator<Item = V> + 'a {
+        let cg = self.graph.core_graph().lock();
+        let cg2 = cg.clone();
+        let node_types_filter = self.node_types_filter.clone();
+        cg.into_nodes_par(&self.graph, node_types_filter)
+            .map(move |v| op.apply(&cg2, v))
     }
 
     #[inline]
