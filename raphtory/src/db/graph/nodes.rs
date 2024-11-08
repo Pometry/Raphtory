@@ -169,6 +169,10 @@ where
     pub fn get_temporal_prop_id(&self, prop_name: &str) -> Option<usize> {
         self.graph.node_meta().get_prop_id(prop_name, false)
     }
+
+    pub fn is_filtered(&self) -> bool {
+        self.node_types_filter.is_some() || self.graph.nodes_filtered()
+    }
 }
 
 impl<'graph, G, GH> BaseNodeViewOps<'graph> for Nodes<'graph, G, GH>
@@ -183,12 +187,9 @@ where
     type PathType = PathFromGraph<'graph, G, G>;
     type Edges = NestedEdges<'graph, G, GH>;
 
-    fn map<
-        O: Clone + Send + Sync + 'graph,
-        F: Fn(&GraphStorage, &Self::Graph, VID) -> O + Send + Sync + 'graph,
-    >(
+    fn map<O: Clone + Send + Sync + 'graph>(
         &self,
-        op: F,
+        op: fn(&GraphStorage, &Self::Graph, VID) -> O,
     ) -> Self::ValueType<O> {
         let g = self.graph.clone();
         let bg = self.base_graph.clone();

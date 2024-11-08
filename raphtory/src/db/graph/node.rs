@@ -315,10 +315,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
     type PathType = PathFromNode<'graph, G, G>;
     type Edges = Edges<'graph, G, GH>;
 
-    fn map<O: 'graph, F: Fn(&GraphStorage, &Self::Graph, VID) -> O>(
-        &self,
-        op: F,
-    ) -> Self::ValueType<O> {
+    fn map<O: 'graph>(&self, op: fn(&GraphStorage, &Self::Graph, VID) -> O) -> Self::ValueType<O> {
         let cg = self.graph.core_graph();
         op(cg, &self.graph, self.node)
     }

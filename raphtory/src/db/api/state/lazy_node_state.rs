@@ -15,7 +15,7 @@ use std::{marker::PhantomData, sync::Arc};
 
 #[derive(Clone)]
 pub struct LazyNodeState<'graph, V, G, GH = G> {
-    op: Arc<dyn Fn(&GraphStorage, &GH, VID) -> V + Send + Sync + 'graph>,
+    op: fn(&GraphStorage, &GH, VID) -> V,
     base_graph: G,
     graph: GH,
     node_types_filter: Option<Arc<[bool]>>,
@@ -33,9 +33,8 @@ impl<
         base_graph: G,
         graph: GH,
         node_types_filter: Option<Arc<[bool]>>,
-        op: impl Fn(&GraphStorage, &GH, VID) -> V + Send + Sync + 'graph,
+        op: fn(&GraphStorage, &GH, VID) -> V,
     ) -> Self {
-        let op = Arc::new(op);
         Self {
             op,
             base_graph,

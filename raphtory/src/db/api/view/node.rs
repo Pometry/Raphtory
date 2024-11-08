@@ -30,12 +30,9 @@ pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
         + 'graph;
     type Edges: EdgeViewOps<'graph, Graph = Self::Graph, BaseGraph = Self::BaseGraph> + 'graph;
 
-    fn map<
-        O: Clone + Send + Sync + 'graph,
-        F: Fn(&GraphStorage, &Self::Graph, VID) -> O + Send + Sync + Clone + 'graph,
-    >(
+    fn map<O: Clone + Send + Sync + 'graph>(
         &self,
-        op: F,
+        op: fn(&GraphStorage, &Self::Graph, VID) -> O,
     ) -> Self::ValueType<O>;
 
     fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>>;

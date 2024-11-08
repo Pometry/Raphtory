@@ -352,12 +352,9 @@ impl<
     type PathType = EvalPathFromNode<'graph, 'a, G, &'graph G, CS, S>;
     type Edges = EvalEdges<'graph, 'a, G, GH, CS, S>;
 
-    fn map<
-        O: Clone + Send + Sync + 'graph,
-        F: Fn(&GraphStorage, &Self::Graph, VID) -> O + Send + Sync + Clone + 'graph,
-    >(
+    fn map<O: Clone + Send + Sync + 'graph>(
         &self,
-        op: F,
+        op: fn(&GraphStorage, &Self::Graph, VID) -> O,
     ) -> Self::ValueType<O> {
         let graph = self.graph.clone();
         let storage = self.base_graph.storage;
@@ -503,12 +500,9 @@ impl<
     type PathType = EvalPathFromNode<'graph, 'a, G, &'graph G, CS, S>;
     type Edges = EvalEdges<'graph, 'a, G, GH, CS, S>;
 
-    fn map<
-        O: Clone + Send + Sync + 'graph,
-        F: Fn(&GraphStorage, &Self::Graph, VID) -> O + Send + Sync + Clone + 'graph,
-    >(
+    fn map<O: Clone + Send + Sync + 'graph>(
         &self,
-        op: F,
+        op: fn(&GraphStorage, &Self::Graph, VID) -> O,
     ) -> Self::ValueType<O> {
         op(self.eval_graph.storage, &self.graph, self.node)
     }

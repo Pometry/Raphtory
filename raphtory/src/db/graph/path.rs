@@ -152,10 +152,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
     type PathType = PathFromGraph<'graph, G, G>;
     type Edges = NestedEdges<'graph, G, GH>;
 
-    fn map<O: 'graph, F: Fn(&GraphStorage, &Self::Graph, VID) -> O + Send + Clone + 'graph>(
-        &self,
-        op: F,
-    ) -> Self::ValueType<O> {
+    fn map<O: 'graph>(&self, op: fn(&GraphStorage, &Self::Graph, VID) -> O) -> Self::ValueType<O> {
         let graph = self.graph.clone();
         self.iter_refs()
             .map(move |it| {
@@ -401,10 +398,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
     type PathType = PathFromNode<'graph, G, G>;
     type Edges = Edges<'graph, G, GH>;
 
-    fn map<O: 'graph, F: Fn(&GraphStorage, &Self::Graph, VID) -> O + Send + 'graph>(
-        &self,
-        op: F,
-    ) -> Self::ValueType<O> {
+    fn map<O: 'graph>(&self, op: fn(&GraphStorage, &Self::Graph, VID) -> O) -> Self::ValueType<O> {
         let graph = self.graph.clone();
         Box::new(
             self.iter_refs()
