@@ -1,4 +1,3 @@
-use raphtory_api::core::storage::dict_mapper::MaybeNew::{Existing, New};
 use super::time_from_input;
 use crate::{
     core::{
@@ -13,8 +12,9 @@ use crate::{
         },
         graph::{edge::EdgeView, node::NodeView},
     },
+    prelude::NodeViewOps,
 };
-use crate::prelude::NodeViewOps;
+use raphtory_api::core::storage::dict_mapper::MaybeNew::{Existing, New};
 
 pub trait AdditionOps: StaticGraphViewOps {
     // TODO: Probably add vector reference here like add
