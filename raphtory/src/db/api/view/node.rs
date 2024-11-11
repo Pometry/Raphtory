@@ -5,19 +5,14 @@ use crate::{
         Direction,
     },
     db::api::{
-        properties::{internal::PropertiesOps, Properties},
+        properties::internal::PropertiesOps,
         state::{ops, NodeOp},
-        storage::graph::{nodes::node_storage_ops::NodeStorageOps, storage_ops::GraphStorage},
-        view::{
-            internal::{CoreGraphOps, OneHopFilter, TimeSemantics},
-            reset_filter::ResetFilter,
-            TimeOps,
-        },
+        storage::graph::storage_ops::GraphStorage,
+        view::{internal::OneHopFilter, reset_filter::ResetFilter, TimeOps},
     },
     prelude::{EdgeViewOps, GraphViewOps, LayerOps},
 };
 use chrono::{DateTime, Utc};
-use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 
 pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     type BaseGraph: GraphViewOps<'graph>;

@@ -2,9 +2,7 @@ use crate::{
     core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
         api::{
-            state::{
-                ops::node::Degree, LazyNodeState, NodeState, NodeStateOps, OrderedNodeStateOps,
-            },
+            state::{ops, LazyNodeState, NodeOp, NodeState, NodeStateOps, OrderedNodeStateOps},
             view::{DynamicGraph, GraphViewOps},
         },
         graph::node::NodeView,
@@ -25,7 +23,7 @@ use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 use std::{collections::HashMap, sync::Arc};
 
 macro_rules! impl_node_state_ops {
-    ($name:ident<$value:ty>, $inner_t:ty, $to_owned:expr) => {
+    ($name:ident, $value:ty, $inner_t:ty, $to_owned:expr) => {
         impl $name {
             pub fn iter(&self) -> impl Iterator<Item = $value> + '_ {
                 self.inner.values().map($to_owned)
@@ -93,7 +91,7 @@ macro_rules! impl_node_state_ops {
 }
 
 macro_rules! impl_node_state_ord_ops {
-    ($name:ident<$value:ty>, $to_owned:expr) => {
+    ($name:ident, $value:ty, $to_owned:expr) => {
         #[pymethods]
         impl $name {
             #[pyo3(signature = (reverse = false))]
@@ -164,7 +162,7 @@ macro_rules! impl_node_state_ord_ops {
 }
 
 macro_rules! impl_node_state_num_ops {
-    ($name:ident<$value:ty>) => {
+    ($name:ident, $value:ty) => {
         #[pymethods]
         impl $name {
             fn sum(&self) -> $value {
@@ -179,36 +177,39 @@ macro_rules! impl_node_state_num_ops {
 }
 
 macro_rules! impl_lazy_node_state {
-    ($name:ident<$value:ty>) => {
+    ($name:ident<$op:ty>) => {
         #[pyclass]
         pub struct $name {
-            inner: LazyNodeState<'static, $value, DynamicGraph, DynamicGraph>,
+            inner: LazyNodeState<'static, $op, DynamicGraph, DynamicGraph>,
         }
 
         #[pymethods]
         impl $name {
-            fn compute(&self) -> NodeState<'static, $value, DynamicGraph, DynamicGraph> {
+            fn compute(
+                &self,
+            ) -> NodeState<'static, <$op as NodeOp>::Output, DynamicGraph, DynamicGraph> {
                 self.inner.compute()
             }
 
-            fn collect(&self) -> Vec<$value> {
+            fn collect(&self) -> Vec<<$op as NodeOp>::Output> {
                 self.inner.collect()
             }
         }
 
         impl_node_state_ops!(
-            $name<$value>,
-            LazyNodeState<'static, $value, DynamicGraph, DynamicGraph>,
-            |v: $value| v
+            $name,
+            <$op as NodeOp>::Output,
+            LazyNodeState<'static, $op, DynamicGraph, DynamicGraph>,
+            |v: <$op as NodeOp>::Output| v
         );
 
-        impl From<LazyNodeState<'static, $value, DynamicGraph, DynamicGraph>> for $name {
-            fn from(inner: LazyNodeState<'static, $value, DynamicGraph, DynamicGraph>) -> Self {
+        impl From<LazyNodeState<'static, $op, DynamicGraph, DynamicGraph>> for $name {
+            fn from(inner: LazyNodeState<'static, $op, DynamicGraph, DynamicGraph>) -> Self {
                 $name { inner }
             }
         }
 
-        impl pyo3::IntoPy<PyObject> for LazyNodeState<'static, $value, DynamicGraph, DynamicGraph> {
+        impl pyo3::IntoPy<PyObject> for LazyNodeState<'static, $op, DynamicGraph, DynamicGraph> {
             fn into_py(self, py: Python<'_>) -> PyObject {
                 $name::from(self).into_py(py)
             }
@@ -224,7 +225,8 @@ macro_rules! impl_node_state {
         }
 
         impl_node_state_ops!(
-            $name<$value>,
+            $name,
+            $value,
             Arc<NodeState<'static, $value, DynamicGraph, DynamicGraph>>,
             |v: &$value| v.clone()
         );
@@ -248,57 +250,67 @@ macro_rules! impl_node_state {
 macro_rules! impl_lazy_node_state_ord {
     ($name:ident<$value:ty>) => {
         impl_lazy_node_state!($name<$value>);
-        impl_node_state_ord_ops!($name<$value>, |v: $value| v);
+        impl_node_state_ord_ops!(
+            $name,
+            <$value as NodeOp>::Output,
+            |v: <$value as NodeOp>::Output| v
+        );
     };
 }
 
 macro_rules! impl_node_state_ord {
     ($name:ident<$value:ty>) => {
         impl_node_state!($name<$value>);
-        impl_node_state_ord_ops!($name<$value>, |v: &$value| v.clone());
+        impl_node_state_ord_ops!($name, $value, |v: &$value| v.clone());
     };
 }
 
 macro_rules! impl_lazy_node_state_num {
     ($name:ident<$value:ty>) => {
         impl_lazy_node_state_ord!($name<$value>);
-        impl_node_state_num_ops!($name<$value>);
+        impl_node_state_num_ops!($name, <$value as NodeOp>::Output);
     };
 }
 
 macro_rules! impl_node_state_num {
     ($name:ident<$value:ty>) => {
         impl_node_state_ord!($name<$value>);
-        impl_node_state_num_ops!($name<$value>);
+        impl_node_state_num_ops!($name, $value);
     };
 }
 
-impl_lazy_node_state_num!(DegreeView<Degree<DynamicGraph>>);
+impl_lazy_node_state_num!(DegreeView<ops::Degree<DynamicGraph>>);
 impl_node_state_num!(NodeStateUsize<usize>);
 
-impl_lazy_node_state_num!(LazyNodeStateU64<u64>);
 impl_node_state_num!(NodeStateU64<u64>);
 
+impl_lazy_node_state_ord!(IdView<ops::Id>);
 impl_node_state_ord!(NodeStateGID<GID>);
-impl_lazy_node_state_ord!(LazyNodeStateGID<GID>);
 
-impl_lazy_node_state_ord!(LazyNodeStateOptionI64<Option<i64>>);
+impl_lazy_node_state_ord!(EarliestTimeView<ops::EarliestTime<DynamicGraph>>);
+impl_lazy_node_state_ord!(LatestTimeView<ops::LatestTime<DynamicGraph>>);
 impl_node_state_ord!(NodeStateOptionI64<Option<i64>>);
 
-impl_lazy_node_state_ord!(LazyNodeStateString<String>);
+impl_lazy_node_state_ord!(NameView<ops::Name>);
 impl_node_state_ord!(NodeStateString<String>);
 
-impl_lazy_node_state_ord!(LazyNodeStateOptionDateTime<Option<DateTime<Utc>>>);
+impl_lazy_node_state_ord!(
+    EarliestDateTimeView<ops::Map<ops::EarliestTime<DynamicGraph>, Option<DateTime<Utc>>>>
+);
+impl_lazy_node_state_ord!(
+    LatestDateTimeView<ops::Map<ops::LatestTime<DynamicGraph>, Option<DateTime<Utc>>>>
+);
 impl_node_state_ord!(NodeStateOptionDateTime<Option<DateTime<Utc>>>);
 
-impl_lazy_node_state_ord!(LazyNodeStateListI64<Vec<i64>>);
+impl_lazy_node_state_ord!(HistoryView<ops::History<DynamicGraph>>);
 impl_node_state_ord!(NodeStateListI64<Vec<i64>>);
 
-impl_lazy_node_state_ord!(LazyNodeStateOptionListDateTime<Option<Vec<DateTime<Utc>>>>);
+impl_lazy_node_state_ord!(
+    HistoryDateTimeView<ops::Map<ops::History<DynamicGraph>, Option<Vec<DateTime<Utc>>>>>
+);
 impl_node_state_ord!(NodeStateOptionListDateTime<Option<Vec<DateTime<Utc>>>>);
 
-impl_lazy_node_state_ord!(LazyNodeStateOptionStr<Option<ArcStr>>);
+impl_lazy_node_state_ord!(NodeTypeView<ops::Type>);
 impl_node_state_ord!(NodeStateOptionStr<Option<ArcStr>>);
 
-impl_lazy_node_state_ord!(LazyNodeStateListDateTime<Vec<DateTime<Utc>>>);
 impl_node_state_ord!(NodeStateListDateTime<Vec<DateTime<Utc>>>);

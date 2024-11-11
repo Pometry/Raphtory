@@ -2,7 +2,6 @@ use crate::{
     core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::AsNodeRef, VID},
     db::{
         api::{
-            properties::Properties,
             state::LazyNodeState,
             storage::graph::storage_ops::GraphStorage,
             view::{
@@ -17,7 +16,11 @@ use crate::{
 
 use crate::db::{api::state::NodeOp, graph::create_node_type_filter};
 use rayon::iter::ParallelIterator;
-use std::{marker::PhantomData, sync::Arc};
+use std::{
+    fmt::{Debug, Formatter},
+    marker::PhantomData,
+    sync::Arc,
+};
 
 #[derive(Clone)]
 pub struct Nodes<'graph, G, GH = G> {
@@ -25,6 +28,14 @@ pub struct Nodes<'graph, G, GH = G> {
     pub(crate) graph: GH,
     pub(crate) node_types_filter: Option<Arc<[bool]>>,
     _marker: PhantomData<&'graph ()>,
+}
+
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph> + Debug> Debug
+    for Nodes<'graph, G, GH>
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_list().entries(self.iter()).finish()
+    }
 }
 
 impl<'graph, G, GH> From<Nodes<'graph, G, GH>> for Nodes<'graph, DynamicGraph, DynamicGraph>

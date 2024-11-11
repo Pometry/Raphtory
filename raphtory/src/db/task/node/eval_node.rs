@@ -10,7 +10,6 @@ use crate::{
     },
     db::{
         api::{
-            properties::Properties,
             state::NodeOp,
             storage::graph::storage_ops::GraphStorage,
             view::{internal::OneHopFilter, BaseNodeViewOps, BoxedLIter, IntoDynBoxed},

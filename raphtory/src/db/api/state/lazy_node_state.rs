@@ -3,9 +3,8 @@ use crate::{
     db::{
         api::{
             state::{ops::node::NodeOp, NodeState, NodeStateOps},
-            storage::graph::{nodes::node_storage_ops::NodeStorageOps, storage_ops::GraphStorage},
             view::{
-                internal::{CoreGraphOps, NodeList, OneHopFilter},
+                internal::{NodeList, OneHopFilter},
                 BoxedLIter, IntoDynBoxed,
             },
         },
@@ -14,11 +13,22 @@ use crate::{
     prelude::GraphViewOps,
 };
 use rayon::prelude::*;
-use std::{marker::PhantomData, sync::Arc};
+use std::fmt::{Debug, Formatter};
 
+#[derive(Clone)]
 pub struct LazyNodeState<'graph, Op, G, GH = G> {
     nodes: Nodes<'graph, G, GH>,
     op: Op,
+}
+
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, Op: NodeOp + 'graph> Debug
+    for LazyNodeState<'graph, Op, G, GH>
+where
+    Op::Output: Debug,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_list().entries(self.values()).finish()
+    }
 }
 
 impl<'graph, Op: OneHopFilter<'graph>, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
@@ -72,6 +82,29 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
 
     pub fn collect_vec(&self) -> Vec<Op::Output> {
         self.collect()
+    }
+
+    pub fn compute(&self) -> NodeState<'graph, Op::Output, G, GH> {
+        if self.nodes.is_filtered() {
+            let (keys, values): (Vec<_>, Vec<_>) = self
+                .par_iter()
+                .map(|(node, value)| (node.node, value))
+                .unzip();
+            NodeState::new(
+                self.nodes.base_graph.clone(),
+                self.nodes.graph.clone(),
+                values,
+                Some(keys.into()),
+            )
+        } else {
+            let values = self.collect_vec();
+            NodeState::new(
+                self.nodes.base_graph.clone(),
+                self.nodes.graph.clone(),
+                values,
+                None,
+            )
+        }
     }
 }
 

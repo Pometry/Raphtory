@@ -11,9 +11,8 @@ use crate::{
                 internal::{InternalAdditionOps, InternalPropertyAdditionOps},
                 time_from_input, CollectProperties, TryIntoInputTime,
             },
-            properties::{
-                internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
-                Properties,
+            properties::internal::{
+                ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
             view::{
                 internal::{CoreGraphOps, OneHopFilter, Static, TimeSemantics},

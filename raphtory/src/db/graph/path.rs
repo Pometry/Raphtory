@@ -2,7 +2,6 @@ use crate::{
     core::entities::{edges::edge_ref::EdgeRef, VID},
     db::{
         api::{
-            properties::Properties,
             state::NodeOp,
             storage::graph::storage_ops::GraphStorage,
             view::{
