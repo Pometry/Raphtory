@@ -2,7 +2,7 @@ use crate::model::graph::edge::Edge;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     db::{api::view::DynamicGraph, graph::edges::Edges},
-    prelude::{LayerOps, TimeOps},
+    prelude::{EdgeViewOps, LayerOps, TimeOps},
 };
 
 #[derive(ResolvedObject)]
@@ -85,6 +85,14 @@ impl GqlEdges {
 
     async fn shrink_end(&self, end: i64) -> Self {
         self.update(self.ee.shrink_end(end))
+    }
+
+    async fn explode(&self) -> Self {
+        self.update(self.ee.explode())
+    }
+
+    async fn explode_layers(&self) -> Self {
+        self.update(self.ee.explode_layers())
     }
 
     ////////////////////////
