@@ -36,6 +36,20 @@ impl GqlGraphs {
         paths
     }
 
+    async fn namespace(&self) -> Vec<Option<String>> {
+        let folders = self
+            .folders
+            .iter()
+            .map(|folder| {
+                folder
+                    .get_original_path()
+                    .parent()
+                    .and_then(|p| p.to_str().map(|s| s.to_string()))
+            })
+            .collect();
+        folders
+    }
+
     async fn created(&self) -> Result<Vec<i64>, GraphError> {
         self.folders.iter().map(|folder| folder.created()).collect()
     }
