@@ -1,5 +1,5 @@
 use crate::db::{
-    api::state::{node_state::NodeState, ops::NodeStateOps},
+    api::state::{node_state::NodeState, node_state_ops::NodeStateOps},
     graph::node::NodeView,
 };
 use num_traits::float::FloatCore;
@@ -329,7 +329,7 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::db::api::state::ord_ops::par_top_k;
+    use crate::db::api::state::node_state_ord_ops::par_top_k;
 
     #[test]
     fn test_top_k() {

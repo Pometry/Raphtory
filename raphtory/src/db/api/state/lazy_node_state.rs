@@ -11,7 +11,7 @@ use crate::{
         },
         graph::{node::NodeView, nodes::Nodes},
     },
-    prelude::{GraphViewOps, TimeOps},
+    prelude::GraphViewOps,
 };
 use raphtory_api::core::Direction;
 use rayon::prelude::*;
@@ -481,9 +481,7 @@ mod test {
         },
         prelude::*,
     };
-    use itertools::Itertools;
     use raphtory_api::core::{entities::VID, Direction};
-    use rayon::prelude::*;
     use std::sync::Arc;
 
     struct TestWrapper<Op: NodeOp>(Op);

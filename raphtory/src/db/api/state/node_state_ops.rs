@@ -1,7 +1,7 @@
 use crate::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
-        api::state::{node_state::NodeState, ord_ops, Index},
+        api::state::{node_state::NodeState, node_state_ord_ops, Index},
         graph::node::NodeView,
     },
     prelude::{GraphViewOps, NodeViewOps},
@@ -157,7 +157,7 @@ pub trait NodeStateOps<'graph>: IntoIterator<Item = Self::OwnedValue> {
         cmp: F,
         k: usize,
     ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph> {
-        let values = ord_ops::par_top_k(
+        let values = node_state_ord_ops::par_top_k(
             self.par_iter(),
             |(_, v1), (_, v2)| cmp(v1.borrow(), v2.borrow()),
             k,
