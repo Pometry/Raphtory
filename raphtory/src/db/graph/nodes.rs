@@ -90,15 +90,10 @@ where
         }
     }
 
-    pub(crate) fn apply<'a, V: Send>(
-        &'a self,
-        op: &'a impl NodeOp<Output = V>,
-    ) -> impl ParallelIterator<Item = V> + 'a {
-        let cg = self.graph.core_graph().lock();
-        let cg2 = cg.clone();
+    pub(crate) fn par_iter_refs(&self) -> impl ParallelIterator<Item = VID> + 'graph {
+        let g = self.graph.core_graph().lock();
         let node_types_filter = self.node_types_filter.clone();
-        cg.into_nodes_par(&self.graph, node_types_filter)
-            .map(move |v| op.apply(&cg2, v))
+        g.into_nodes_par(self.graph.clone(), node_types_filter)
     }
 
     #[inline]

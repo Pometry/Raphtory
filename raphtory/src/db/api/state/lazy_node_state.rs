@@ -5,8 +5,8 @@ use crate::{
             state::{NodeState, NodeStateOps},
             storage::graph::{nodes::node_storage_ops::NodeStorageOps, storage_ops::GraphStorage},
             view::{
-                internal::{NodeList, OneHopFilter},
-                IntoDynBoxed,
+                internal::{CoreGraphOps, NodeList, OneHopFilter},
+                BoxedLIter, IntoDynBoxed,
             },
         },
         graph::{node::NodeView, nodes::Nodes},
@@ -18,19 +18,20 @@ use rayon::prelude::*;
 use std::{marker::PhantomData, ops::Deref, sync::Arc};
 
 pub trait NodeOp: Send + Sync {
-    type Output: Send + Sync;
+    type Output: Clone + Send + Sync;
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output;
 }
 
 pub struct Degree<G> {
-    graph: G,
+    pub(crate) graph: G,
+    pub(crate) dir: Direction,
 }
 
 impl<'graph, G: GraphViewOps<'graph>> NodeOp for Degree<G> {
     type Output = usize;
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> usize {
-        storage.node_degree(node, Direction::BOTH, &self.graph)
+        storage.node_degree(node, self.dir, &self.graph)
     }
 }
 
@@ -53,11 +54,12 @@ impl<'graph, G: GraphViewOps<'graph>> OneHopFilter<'graph> for Degree<G> {
     ) -> Self::Filtered<GH> {
         Degree {
             graph: filtered_graph,
+            dir: self.dir,
         }
     }
 }
 
-impl<V: Send + Sync> NodeOp for Arc<dyn NodeOp<Output = V>> {
+impl<V: Clone + Send + Sync> NodeOp for Arc<dyn NodeOp<Output = V>> {
     type Output = V;
     fn apply(&self, storage: &GraphStorage, node: VID) -> V {
         self.deref().apply(storage, node)
@@ -96,11 +98,137 @@ impl<'graph, Op: OneHopFilter<'graph>, G: GraphViewOps<'graph>, GH: GraphViewOps
     }
 }
 
-impl<'graph, Op: NodeOp, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
-    LazyNodeState2<'graph, Op, G, GH>
+impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> IntoIterator
+    for LazyNodeState2<'graph, Op, G, GH>
 {
-    pub fn par_iter(&self) -> impl ParallelIterator<Item = Op::Output> + '_ {
-        self.nodes.apply(&self.op)
+    type Item = Op::Output;
+    type IntoIter = BoxedLIter<'graph, Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.into_values().into_dyn_boxed()
+    }
+}
+
+impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
+    NodeStateOps<'graph> for LazyNodeState2<'graph, Op, G, GH>
+{
+    type Graph = GH;
+    type BaseGraph = G;
+    type Value<'a>
+        = Op::Output
+    where
+        'graph: 'a,
+        Self: 'a;
+    type OwnedValue = Op::Output;
+
+    fn graph(&self) -> &Self::Graph {
+        &self.nodes.graph
+    }
+
+    fn base_graph(&self) -> &Self::BaseGraph {
+        &self.nodes.base_graph
+    }
+
+    fn values<'a>(&'a self) -> impl Iterator<Item = Self::Value<'a>> + 'a
+    where
+        'graph: 'a,
+    {
+        let storage = self.graph().core_graph().lock();
+        self.nodes
+            .iter_refs()
+            .map(move |vid| self.op.apply(&storage, vid))
+    }
+
+    fn par_values<'a>(&'a self) -> impl ParallelIterator<Item = Self::Value<'a>> + 'a
+    where
+        'graph: 'a,
+    {
+        let storage = self.graph().core_graph().lock();
+        self.nodes
+            .par_iter_refs()
+            .map(move |vid| self.op.apply(&storage, vid))
+    }
+
+    fn into_values(self) -> impl Iterator<Item = Self::OwnedValue> + 'graph {
+        let storage = self.graph().core_graph().lock();
+        self.nodes
+            .iter_refs()
+            .map(move |vid| self.op.apply(&storage, vid))
+    }
+
+    fn into_par_values(self) -> impl ParallelIterator<Item = Self::OwnedValue> + 'graph {
+        let storage = self.graph().core_graph().lock();
+        self.nodes
+            .par_iter_refs()
+            .map(move |vid| self.op.apply(&storage, vid))
+    }
+
+    fn iter<'a>(
+        &'a self,
+    ) -> impl Iterator<
+        Item = (
+            NodeView<&'a Self::BaseGraph, &'a Self::Graph>,
+            Self::Value<'a>,
+        ),
+    > + 'a
+    where
+        'graph: 'a,
+    {
+        let storage = self.graph().core_graph().lock();
+        self.nodes
+            .iter()
+            .map(move |node| (node, self.op.apply(&storage, node.node)))
+    }
+
+    fn par_iter<'a>(
+        &'a self,
+    ) -> impl ParallelIterator<
+        Item = (
+            NodeView<&'a Self::BaseGraph, &'a Self::Graph>,
+            Self::Value<'a>,
+        ),
+    >
+    where
+        'graph: 'a,
+    {
+        let storage = self.graph().core_graph().lock();
+        self.nodes
+            .par_iter()
+            .map(move |node| (node, self.op.apply(&storage, node.node)))
+    }
+
+    fn get_by_index(
+        &self,
+        index: usize,
+    ) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)> {
+        if self.graph().nodes_filtered() {
+            self.iter().nth(index)
+        } else {
+            let vid = match self.graph().node_list() {
+                NodeList::All { num_nodes } => {
+                    if index < num_nodes {
+                        VID(index)
+                    } else {
+                        return None;
+                    }
+                }
+                NodeList::List { nodes } => nodes.key(index)?,
+            };
+            let cg = self.graph().core_graph();
+            Some((
+                NodeView::new_one_hop_filtered(self.base_graph(), self.graph(), vid),
+                self.op.apply(cg, vid),
+            ))
+        }
+    }
+
+    fn get_by_node<N: AsNodeRef>(&self, node: N) -> Option<Self::Value<'_>> {
+        let node = (&self.graph()).node(node);
+        node.map(|node| self.op.apply(self.graph().core_graph(), node.node))
+    }
+
+    fn len(&self) -> usize {
+        self.nodes.len()
     }
 }
 
@@ -353,7 +481,8 @@ mod test {
         },
         prelude::*,
     };
-    use raphtory_api::core::entities::VID;
+    use itertools::Itertools;
+    use raphtory_api::core::{entities::VID, Direction};
     use rayon::prelude::*;
     use std::sync::Arc;
 
@@ -367,21 +496,36 @@ mod test {
 
         let node_state = LazyNodeState2 {
             nodes,
-            op: Degree { graph: g.clone() },
+            op: Degree {
+                graph: g.clone(),
+                dir: Direction::BOTH,
+            },
         };
         let node_state_window = node_state.after(1);
 
-        let deg: Vec<_> = node_state.par_iter().collect();
-        let deg_w: Vec<_> = node_state_window.par_iter().collect();
+        let deg: Vec<_> = node_state.values().collect();
+        let deg_w: Vec<_> = node_state_window.values().collect();
 
         let node_state_filter = node_state.valid_layers("bla");
 
         assert_eq!(deg, [1, 1]);
         assert_eq!(deg_w, [0, 0]);
+
         let g_dyn = g.clone().into_dynamic();
 
-        let deg = Degree { graph: g_dyn };
+        let deg = Degree {
+            graph: g_dyn,
+            dir: Direction::BOTH,
+        };
         let arc_deg: Arc<dyn NodeOp<Output = usize>> = Arc::new(deg);
+
+        let node_state_dyn = LazyNodeState2 {
+            nodes: g.nodes(),
+            op: arc_deg.clone(),
+        };
+
+        let dyn_deg: Vec<_> = node_state_dyn.values().collect();
+        assert_eq!(dyn_deg, [1, 1]);
         assert_eq!(arc_deg.apply(g.core_graph(), VID(0)), 1);
 
         let test_struct = TestWrapper(arc_deg);
