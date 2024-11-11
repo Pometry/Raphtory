@@ -10,7 +10,7 @@ use crate::{
     db::{
         api::{
             properties::Properties,
-            state::{LazyNodeState, NodeStateOps},
+            state::{ops, LazyNodeState, NodeStateOps},
             view::{
                 internal::{CoreGraphOps, DynamicGraph, Immutable, IntoDynamic, MaterializedGraph},
                 *,
@@ -502,19 +502,21 @@ impl PyNodes {
 
     /// Returns an iterator over the nodes ids
     #[getter]
-    fn id(&self) -> LazyNodeState<'static, GID, DynamicGraph, DynamicGraph> {
+    fn id(&self) -> LazyNodeState<'static, ops::Id, DynamicGraph, DynamicGraph> {
         self.nodes.id()
     }
 
     /// Returns an iterator over the nodes name
     #[getter]
-    fn name(&self) -> LazyNodeState<'static, String, DynamicGraph, DynamicGraph> {
+    fn name(&self) -> LazyNodeState<'static, ops::Name, DynamicGraph, DynamicGraph> {
         self.nodes.name()
     }
 
     /// Returns an iterator over the nodes earliest time
     #[getter]
-    fn earliest_time(&self) -> LazyNodeState<'static, Option<i64>, DynamicGraph, DynamicGraph> {
+    fn earliest_time(
+        &self,
+    ) -> LazyNodeState<'static, ops::EarliestTime<DynamicGraph>, DynamicGraph, DynamicGraph> {
         self.nodes.earliest_time()
     }
 
@@ -523,13 +525,19 @@ impl PyNodes {
     /// Returns:
     /// Earliest time of the nodes.
     #[getter]
-    fn earliest_date_time(&self) -> LazyNodeState<'static, Option<DateTime<Utc>>, DynamicGraph> {
+    fn earliest_date_time(
+        &self,
+    ) -> LazyNodeState<
+        'static,
+        ops::Map<ops::EarliestTime<DynamicGraph>, Option<DateTime<Utc>>>,
+        DynamicGraph,
+    > {
         self.nodes.earliest_date_time()
     }
 
     /// Returns an iterator over the nodes latest time
     #[getter]
-    fn latest_time(&self) -> LazyNodeState<'static, Option<i64>, DynamicGraph> {
+    fn latest_time(&self) -> LazyNodeState<'static, ops::LatestTime<DynamicGraph>, DynamicGraph> {
         self.nodes.latest_time()
     }
 
@@ -538,7 +546,13 @@ impl PyNodes {
     /// Returns:
     ///   Latest date time of the nodes.
     #[getter]
-    fn latest_date_time(&self) -> LazyNodeState<'static, Option<DateTime<Utc>>, DynamicGraph> {
+    fn latest_date_time(
+        &self,
+    ) -> LazyNodeState<
+        'static,
+        ops::Map<ops::LatestTime<DynamicGraph>, Option<DateTime<Utc>>>,
+        DynamicGraph,
+    > {
         self.nodes.latest_date_time()
     }
 
@@ -547,13 +561,13 @@ impl PyNodes {
     /// Returns:
     ///    A list of unix timestamps.
     ///
-    fn history(&self) -> LazyNodeState<'static, Vec<i64>, DynamicGraph> {
+    fn history(&self) -> LazyNodeState<'static, ops::History<DynamicGraph>, DynamicGraph> {
         self.nodes.history()
     }
 
     /// Returns the type of node
     #[getter]
-    fn node_type(&self) -> LazyNodeState<'static, Option<ArcStr>, DynamicGraph> {
+    fn node_type(&self) -> LazyNodeState<'static, ops::Type, DynamicGraph> {
         self.nodes.node_type()
     }
 
@@ -564,7 +578,11 @@ impl PyNodes {
     ///
     fn history_date_time(
         &self,
-    ) -> LazyNodeState<'static, Option<Vec<DateTime<Utc>>>, DynamicGraph> {
+    ) -> LazyNodeState<
+        'static,
+        ops::Map<ops::History<DynamicGraph>, Option<Vec<DateTime<Utc>>>>,
+        DynamicGraph,
+    > {
         self.nodes.history_date_time()
     }
 
@@ -582,7 +600,7 @@ impl PyNodes {
     ///
     /// Returns:
     ///     An iterator of the number of edges of the nodes
-    fn degree(&self) -> LazyNodeState<'static, usize, DynamicGraph> {
+    fn degree(&self) -> LazyNodeState<'static, ops::Degree<DynamicGraph>, DynamicGraph> {
         self.nodes.degree()
     }
 
@@ -590,7 +608,7 @@ impl PyNodes {
     ///
     /// Returns:
     ///     An iterator of the number of in edges of the nodes
-    fn in_degree(&self) -> LazyNodeState<'static, usize, DynamicGraph> {
+    fn in_degree(&self) -> LazyNodeState<'static, ops::Degree<DynamicGraph>, DynamicGraph> {
         self.nodes.in_degree()
     }
 
@@ -598,7 +616,7 @@ impl PyNodes {
     ///
     /// Returns:
     ///     An iterator of the number of out edges of the nodes
-    fn out_degree(&self) -> LazyNodeState<'static, usize, DynamicGraph> {
+    fn out_degree(&self) -> LazyNodeState<'static, ops::Degree<DynamicGraph>, DynamicGraph> {
         self.nodes.out_degree()
     }
 

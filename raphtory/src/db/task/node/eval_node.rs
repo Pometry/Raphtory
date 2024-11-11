@@ -11,6 +11,7 @@ use crate::{
     db::{
         api::{
             properties::Properties,
+            state::NodeOp,
             storage::graph::storage_ops::GraphStorage,
             view::{internal::OneHopFilter, BaseNodeViewOps, BoxedLIter, IntoDynBoxed},
         },
@@ -347,22 +348,21 @@ impl<
 {
     type BaseGraph = &'graph G;
     type Graph = GH;
-    type ValueType<T: 'graph> = Box<dyn Iterator<Item = T> + 'graph>;
+    type ValueType<T: NodeOp + 'graph> = Box<dyn Iterator<Item = T::Output> + 'graph>;
     type PropType = NodeView<GH, GH>;
     type PathType = EvalPathFromNode<'graph, 'a, G, &'graph G, CS, S>;
     type Edges = EvalEdges<'graph, 'a, G, GH, CS, S>;
 
-    fn map<O: Clone + Send + Sync + 'graph>(
-        &self,
-        op: fn(&GraphStorage, &Self::Graph, VID) -> O,
-    ) -> Self::ValueType<O> {
-        let graph = self.graph.clone();
-        let storage = self.base_graph.storage;
-        Box::new(self.iter_refs().map(move |node| op(storage, &graph, node)))
+    fn graph(&self) -> &Self::Graph {
+        &self.graph
     }
 
-    fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>> {
-        self.map(|_cg, g, v| Properties::new(NodeView::new_internal(g.clone(), v)))
+    fn map<F: NodeOp + 'graph>(&self, op: F) -> Self::ValueType<F>
+    where
+        <F as NodeOp>::Output: 'graph,
+    {
+        let storage = self.base_graph.storage;
+        Box::new(self.iter_refs().map(move |node| op.apply(storage, node)))
     }
 
     fn map_edges<
@@ -492,23 +492,23 @@ impl<
 {
     type BaseGraph = &'graph G;
     type Graph = GH;
-    type ValueType<T>
-        = T
+    type ValueType<T: NodeOp>
+        = T::Output
     where
         T: 'graph;
     type PropType = NodeView<GH>;
     type PathType = EvalPathFromNode<'graph, 'a, G, &'graph G, CS, S>;
     type Edges = EvalEdges<'graph, 'a, G, GH, CS, S>;
 
-    fn map<O: Clone + Send + Sync + 'graph>(
-        &self,
-        op: fn(&GraphStorage, &Self::Graph, VID) -> O,
-    ) -> Self::ValueType<O> {
-        op(self.eval_graph.storage, &self.graph, self.node)
+    fn graph(&self) -> &Self::Graph {
+        &self.graph
     }
 
-    fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>> {
-        Properties::new(NodeView::new_internal(self.graph.clone(), self.node))
+    fn map<F: NodeOp + 'graph>(&self, op: F) -> Self::ValueType<F>
+    where
+        <F as NodeOp>::Output: 'graph,
+    {
+        op.apply(self.eval_graph.storage, self.node)
     }
 
     fn map_edges<

@@ -1,6 +1,6 @@
 use crate::{
     core::storage::locked_view::LockedView,
-    db::api::state::{LazyNodeState, NodeState},
+    db::api::state::{LazyNodeState, NodeOp, NodeState},
     prelude::{GraphViewOps, NodeStateOps, NodeViewOps},
 };
 use chrono::{DateTime, NaiveDateTime, TimeZone};
@@ -221,12 +221,10 @@ impl<'a, R: Repr> Repr for &'a R {
     }
 }
 
-impl<
-        'graph,
-        G: GraphViewOps<'graph>,
-        GH: GraphViewOps<'graph>,
-        V: Repr + Clone + Send + Sync + 'graph,
-    > Repr for LazyNodeState<'graph, V, G, GH>
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, Op: NodeOp + 'graph> Repr
+    for LazyNodeState<'graph, Op, G, GH>
+where
+    Op::Output: Repr + Send + Sync + 'graph,
 {
     fn repr(&self) -> String {
         StructReprBuilder::new("LazyNodeState")

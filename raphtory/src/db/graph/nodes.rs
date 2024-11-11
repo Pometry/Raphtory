@@ -15,7 +15,7 @@ use crate::{
     prelude::*,
 };
 
-use crate::db::graph::create_node_type_filter;
+use crate::db::{api::state::NodeOp, graph::create_node_type_filter};
 use rayon::iter::ParallelIterator;
 use std::{marker::PhantomData, sync::Arc};
 
@@ -188,22 +188,20 @@ where
 {
     type BaseGraph = G;
     type Graph = GH;
-    type ValueType<T: 'graph> = LazyNodeState<'graph, T, G, GH>;
+    type ValueType<T: NodeOp + 'graph> = LazyNodeState<'graph, T, G, GH>;
     type PropType = NodeView<GH, GH>;
     type PathType = PathFromGraph<'graph, G, G>;
     type Edges = NestedEdges<'graph, G, GH>;
 
-    fn map<O: Clone + Send + Sync + 'graph>(
-        &self,
-        op: fn(&GraphStorage, &Self::Graph, VID) -> O,
-    ) -> Self::ValueType<O> {
-        let g = self.graph.clone();
-        let bg = self.base_graph.clone();
-        LazyNodeState::new(bg, g, self.node_types_filter.clone(), op)
+    fn graph(&self) -> &Self::Graph {
+        &self.graph
     }
 
-    fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>> {
-        self.map(|_cg, g, v| Properties::new(NodeView::new_internal(g.clone(), v)))
+    fn map<F: NodeOp + 'graph>(&self, op: F) -> Self::ValueType<F>
+    where
+        <F as NodeOp>::Output: 'graph,
+    {
+        LazyNodeState::new(op, self.clone())
     }
 
     fn map_edges<

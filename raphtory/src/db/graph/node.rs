@@ -27,7 +27,10 @@ use crate::{
 
 use crate::{
     core::{entities::nodes::node_ref::AsNodeRef, storage::timeindex::AsTime, PropType},
-    db::{api::storage::graph::storage_ops::GraphStorage, graph::edges::Edges},
+    db::{
+        api::{state::NodeOp, storage::graph::storage_ops::GraphStorage},
+        graph::edges::Edges,
+    },
 };
 use chrono::{DateTime, Utc};
 use raphtory_api::core::storage::arc_str::ArcStr;
@@ -308,20 +311,21 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
     type BaseGraph = G;
     type Graph = GH;
     type ValueType<T>
-        = T
+        = T::Output
     where
-        T: 'graph;
+        T: NodeOp + 'graph,
+        T::Output: 'graph;
     type PropType = Self;
     type PathType = PathFromNode<'graph, G, G>;
     type Edges = Edges<'graph, G, GH>;
 
-    fn map<O: 'graph>(&self, op: fn(&GraphStorage, &Self::Graph, VID) -> O) -> Self::ValueType<O> {
-        let cg = self.graph.core_graph();
-        op(cg, &self.graph, self.node)
+    fn graph(&self) -> &Self::Graph {
+        &self.graph
     }
 
-    fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>> {
-        Properties::new(self.clone())
+    fn map<F: NodeOp + 'graph>(&self, op: F) -> Self::ValueType<F> {
+        let cg = self.graph.core_graph();
+        op.apply(cg, self.node)
     }
 
     fn map_edges<

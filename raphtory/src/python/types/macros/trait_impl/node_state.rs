@@ -2,7 +2,9 @@ use crate::{
     core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
         api::{
-            state::{LazyNodeState, NodeState, NodeStateOps, OrderedNodeStateOps},
+            state::{
+                ops::node::Degree, LazyNodeState, NodeState, NodeStateOps, OrderedNodeStateOps,
+            },
             view::{DynamicGraph, GraphViewOps},
         },
         graph::node::NodeView,
@@ -271,7 +273,7 @@ macro_rules! impl_node_state_num {
     };
 }
 
-impl_lazy_node_state_num!(LazyNodeStateUsize<usize>);
+impl_lazy_node_state_num!(DegreeView<Degree<DynamicGraph>>);
 impl_node_state_num!(NodeStateUsize<usize>);
 
 impl_lazy_node_state_num!(LazyNodeStateU64<u64>);
