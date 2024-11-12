@@ -262,17 +262,16 @@ impl PyDiskGraph {
         Self::load_from_dir(self.graph_dir().to_path_buf())
     }
 
-    #[pyo3(signature = (location, name, chunk_size=20_000_000))]
+    #[pyo3(signature = (location, chunk_size=20_000_000))]
     pub fn append_node_temporal_properties(
         &self,
         location: &str,
-        name: &str,
         chunk_size: usize,
     ) -> Result<DiskGraphStorage, GraphError> {
         let path = PathBuf::from_str(location).unwrap();
         let chunks = read_struct_arrays(&path, None)?;
         let mut graph = TemporalGraph::new(self.graph.inner().graph_dir())?;
-        graph.load_temporal_node_props_from_chunks(chunks, chunk_size, false, Some(name))?;
+        graph.load_temporal_node_props_from_chunks(chunks, chunk_size, false)?;
         Self::load_from_dir(self.graph_dir().to_path_buf())
     }
 
