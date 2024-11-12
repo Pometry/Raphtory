@@ -19,11 +19,24 @@
 
 use crate::prelude::{GraphViewOps, NodeViewOps};
 
-use std::{cmp::max, mem};
-
-use crate::prelude::{EdgeViewOps, Prop, PropUnwrap};
+use crate::{
+    core::entities::nodes::node_ref::AsNodeRef,
+    db::{
+        api::{storage::graph::edges::edge_storage_ops::EdgeStorageOps, view::IntoDynBoxed},
+        graph::{edge::EdgeView, edges::Edges, node::NodeView},
+    },
+    prelude::{EdgeViewOps, Prop, PropUnwrap},
+};
 use hashbrown::{HashMap, HashSet};
+use itertools::Itertools;
 use num_traits::ToPrimitive;
+use raphtory_api::core::entities::{EID, GID, VID};
+use std::{
+    cmp::max,
+    fmt::{Debug, Formatter},
+    mem,
+    sync::Arc,
+};
 
 /// Return 2 * slack of edge k (does not work inside blossoms).
 fn slack(edge_index: usize, dual_var: &[i64], edges: &[(usize, usize, i64)]) -> i64 {
@@ -826,6 +839,7 @@ fn verify_optimum(
 /// use raphtory::core::entities::properties::props::Props;
 /// use raphtory::prelude::{AdditionOps, Prop};
 /// use raphtory::algorithms::bipartite::max_weight_matching::max_weight_matching;
+/// use raphtory_api::core::entities::GID;
 ///
 /// // Create a path graph
 /// let g = raphtory::prelude::Graph::new();
@@ -850,31 +864,30 @@ fn verify_optimum(
 /// let maxc_matching = maxc_res;
 /// // Check output
 /// assert_eq!(matching.len(), 1);
-/// assert!(matching.contains(&(2, 3)) || matching.contains(&(3, 2)));
+/// assert!(matching.contains(&(GID::U64(2), GID::U64(3))) || matching.contains(&(GID::U64(3), GID::U64(2))));
 /// assert_eq!(maxc_matching.len(), 2);
-/// assert!(maxc_matching.contains(&(1, 2)) || maxc_matching.contains(&(2, 1)));
-/// assert!(maxc_matching.contains(&(3, 4)) || maxc_matching.contains(&(4, 3)));
+/// assert!(maxc_matching.contains(&(GID::U64(1), GID::U64(2))) || maxc_matching.contains(&(GID::U64(2), GID::U64(1))));
+/// assert!(maxc_matching.contains(&(GID::U64(3), GID::U64(4))) || maxc_matching.contains(&(GID::U64(4), GID::U64(3))));
 /// ```
 pub fn max_weight_matching<'graph, G: GraphViewOps<'graph>>(
     g: &'graph G,
     weight_prop: Option<String>,
     max_cardinality: bool,
     verify_optimum_flag: bool,
-) -> HashSet<(usize, usize)> {
+) -> Matching<G> {
     let num_edges = g.count_edges();
     let num_nodes = g.count_nodes();
     let mut out_set: HashSet<(usize, usize)> = HashSet::with_capacity(num_nodes);
     // Exit fast for graph without edges
     if num_edges == 0 {
-        return HashSet::new();
+        return Matching::empty(g.clone());
     }
 
-    let node_map: HashMap<u64, usize> = g
+    let node_map: HashMap<VID, usize> = g
         .nodes()
-        .id()
         .into_iter()
         .enumerate()
-        .map(|(index, node_index)| (node_index, index))
+        .map(|(index, node)| (node.node, index))
         .collect();
     let mut edges: Vec<(usize, usize, i64)> = Vec::with_capacity(num_edges);
     let mut max_weight: i64 = 0;
@@ -893,8 +906,8 @@ pub fn max_weight_matching<'graph, G: GraphViewOps<'graph>>(
             max_weight = weight;
         };
         edges.push((
-            node_map[&edge.src().id()],
-            node_map[&edge.dst().id()],
+            node_map[&edge.src().node],
+            node_map[&edge.dst().node],
             weight,
         ));
     });
@@ -1362,30 +1375,141 @@ pub fn max_weight_matching<'graph, G: GraphViewOps<'graph>>(
     // Transform mate[] such that mate[v] is the vertex to which v is paired
     // Also handle holes in node indices from PyGraph node removals by mapping
     // linear index to node index.
-    let mut seen: HashSet<(usize, usize)> = HashSet::with_capacity(2 * num_nodes);
-    let node_list: Vec<u64> = g.nodes().id().collect();
-    for (index, node) in mate.iter() {
-        let tmp = (
-            g.node(node_list[*index]).unwrap().id().to_usize().unwrap(),
-            g.node(node_list[endpoints[*node]])
-                .unwrap()
-                .id()
-                .to_usize()
-                .unwrap(),
-        );
-        let rev_tmp = (
-            g.node(node_list[endpoints[*node]])
-                .unwrap()
-                .id()
-                .to_usize()
-                .unwrap(),
-            g.node(node_list[*index]).unwrap().id().to_usize().unwrap(),
-        );
-        if !seen.contains(&tmp) && !seen.contains(&rev_tmp) {
-            out_set.insert(tmp);
-            seen.insert(tmp);
-            seen.insert(rev_tmp);
+    Matching::from_mates(g.clone(), mate, endpoints)
+}
+
+pub struct Matching<G> {
+    graph: G,
+    forward_map: HashMap<VID, VID>,
+    reverse_map: HashMap<VID, VID>,
+    edges: Arc<[EID]>,
+}
+
+impl<'graph, G: GraphViewOps<'graph>> Debug for Matching<G> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let edges: Vec<_> = self.edges().id().collect();
+        f.debug_list().entries(edges).finish()
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>> Matching<G> {
+    fn empty(graph: G) -> Self {
+        Matching {
+            graph,
+            forward_map: Default::default(),
+            reverse_map: Default::default(),
+            edges: Arc::new([]),
         }
     }
-    out_set
+    fn from_mates(graph: G, mates: HashMap<usize, usize>, endpoints: Vec<usize>) -> Self {
+        let mut forward_map = HashMap::with_capacity(mates.len() / 2);
+        let mut reverse_map = HashMap::with_capacity(mates.len() / 2);
+        let mut edges = Vec::with_capacity(mates.len() / 2);
+        let node_map: Vec<_> = graph.nodes().iter().map(|node| node.node).collect();
+        let edge_map: Vec<_> = graph.edges().iter().map(|edge| edge.edge.pid()).collect();
+        for (node, edge) in mates.iter() {
+            if edge % 2 == 0 {
+                forward_map.insert(node_map[*node], node_map[endpoints[*edge]]);
+            } else {
+                reverse_map.insert(node_map[*node], node_map[endpoints[*edge]]);
+            }
+            edges.push(edge_map[*edge / 2]);
+        }
+        edges.sort();
+        Self {
+            graph,
+            forward_map,
+            reverse_map,
+            edges: edges.into(),
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.edges.len()
+    }
+
+    pub fn edges(&self) -> Edges<'graph, G> {
+        let storage = self.graph.core_graph().clone();
+        let edges = self.edges.clone();
+        let edges_iter = Arc::new(move || {
+            let storage = storage.clone();
+            let edges = edges.clone();
+            (0..edges.len())
+                .map(move |i| storage.edge_entry(edges[i]).out_ref())
+                .into_dyn_boxed()
+        });
+        Edges {
+            base_graph: self.graph.clone(),
+            graph: self.graph.clone(),
+            edges: edges_iter,
+        }
+    }
+
+    pub fn contains<N: AsNodeRef>(&self, src: N, dst: N) -> bool {
+        if let Some(edge) = (&&self.graph).edge(src, dst) {
+            self.edges.binary_search(&edge.edge.pid()).is_ok()
+        } else {
+            false
+        }
+    }
+
+    pub fn src(&self, dst: impl AsNodeRef) -> Option<NodeView<&G>> {
+        (&&self.graph)
+            .node(dst)
+            .map(|node| NodeView::new_internal(node.graph, self.reverse_map[&node.node]))
+    }
+
+    pub fn dst(&self, src: impl AsNodeRef) -> Option<NodeView<&G>> {
+        (&&self.graph)
+            .node(src)
+            .map(|node| NodeView::new_internal(node.graph, self.forward_map[&node.node]))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        algorithms::bipartite::max_weight_matching::max_weight_matching,
+        core::entities::properties::props::Props, prelude::*,
+    };
+    use hashbrown::HashSet;
+    use raphtory_api::core::entities::GID;
+
+    #[test]
+    fn test_max_weight() {
+        let g = Graph::new();
+        let vs = vec![(1, 2, 3), (2, 3, 11), (3, 4, 5), (2, 1, 4)];
+        for (src, dst, weight) in &vs {
+            g.add_edge(0, *src, *dst, [("weight", Prop::I64(*weight))], None)
+                .unwrap();
+        }
+
+        // Run max weight matching with max cardinality set to false
+        let res = max_weight_matching(&g, Some("weight".to_string()), false, true);
+        println!("{res:?}");
+    }
+
+    #[test]
+    fn test() {
+        let g = Graph::new();
+        let vs = vec![(1, 2, 5), (2, 3, 11), (3, 4, 5)];
+        for (src, dst, weight) in &vs {
+            g.add_edge(0, *src, *dst, [("weight", Prop::I64(*weight))], None)
+                .unwrap();
+        }
+
+        // Run max weight matching with max cardinality set to false
+        let res = max_weight_matching(&g, Some("weight".to_string()), false, true);
+        // Run max weight matching with max cardinality set to true
+        let maxc_res = max_weight_matching(&g, Some("weight".to_string()), true, true);
+
+        let matching = res;
+        let maxc_matching = maxc_res;
+        // Check output
+        assert_eq!(matching.len(), 1);
+        assert!(matching.contains(2, 3));
+        assert_eq!(maxc_matching.len(), 2);
+        assert!(maxc_matching.contains(1, 2));
+        assert!(maxc_matching.contains(3, 4));
+    }
 }
