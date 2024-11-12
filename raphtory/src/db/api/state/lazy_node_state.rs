@@ -5,12 +5,12 @@ use crate::{
             state::{ops::node::NodeOp, NodeState, NodeStateOps},
             view::{
                 internal::{NodeList, OneHopFilter},
-                BoxedLIter, IntoDynBoxed,
+                BoxedLIter, DynamicGraph, IntoDynBoxed,
             },
         },
         graph::{node::NodeView, nodes::Nodes},
     },
-    prelude::GraphViewOps,
+    prelude::*,
 };
 use rayon::prelude::*;
 use std::fmt::{Debug, Formatter};
@@ -18,7 +18,7 @@ use std::fmt::{Debug, Formatter};
 #[derive(Clone)]
 pub struct LazyNodeState<'graph, Op, G, GH = G> {
     nodes: Nodes<'graph, G, GH>,
-    op: Op,
+    pub(crate) op: Op,
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, Op: NodeOp + 'graph> Debug
@@ -254,22 +254,10 @@ mod test {
 
         let nodes = g.nodes();
 
-        let node_state = LazyNodeState {
-            nodes,
-            op: Degree {
-                graph: g.clone(),
-                dir: Direction::BOTH,
-            },
-        };
-        let node_state_window = node_state.after(1);
+        let deg = g.nodes().degree();
 
-        let deg: Vec<_> = node_state.values().collect();
-        let deg_w: Vec<_> = node_state_window.values().collect();
-
-        let node_state_filter = node_state.valid_layers("bla");
-
-        assert_eq!(deg, [1, 1]);
-        assert_eq!(deg_w, [0, 0]);
+        assert_eq!(deg.collect_vec(), [1, 1]);
+        assert_eq!(deg.after(1).collect_vec(), [0, 0]);
 
         let g_dyn = g.clone().into_dynamic();
 

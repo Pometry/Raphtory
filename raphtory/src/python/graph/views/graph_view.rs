@@ -36,7 +36,7 @@ use crate::{
             repr::{Repr, StructReprBuilder},
             wrappers::prop::PyPropertyFilter,
         },
-        utils::{PyNodeRef, PyTime},
+        utils::PyNodeRef,
     },
 };
 use chrono::prelude::*;

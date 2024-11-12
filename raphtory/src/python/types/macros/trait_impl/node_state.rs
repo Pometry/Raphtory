@@ -3,10 +3,14 @@ use crate::{
     db::{
         api::{
             state::{ops, LazyNodeState, NodeOp, NodeState, NodeStateOps, OrderedNodeStateOps},
-            view::{DynamicGraph, GraphViewOps},
+            view::{
+                internal::Static, DynamicGraph, GraphViewOps, IntoDynHop, IntoDynamic,
+                StaticGraphViewOps,
+            },
         },
         graph::node::NodeView,
     },
+    prelude::*,
     py_borrowing_iter,
     python::{
         types::{repr::Repr, wrappers::iterators::PyBorrowingIterator},
@@ -280,6 +284,21 @@ macro_rules! impl_node_state_num {
 }
 
 impl_lazy_node_state_num!(DegreeView<ops::Degree<DynamicGraph>>);
+
+impl<G: StaticGraphViewOps + IntoDynamic + Static> IntoPy<PyObject>
+    for LazyNodeState<'static, ops::Degree<G>, DynamicGraph, DynamicGraph>
+{
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        self.into_dyn_hop().into_py(py)
+    }
+}
+
+impl_timeops!(
+    DegreeView,
+    inner,
+    LazyNodeState<'static, ops::Degree<DynamicGraph>, DynamicGraph>,
+    "DegreeView"
+);
 impl_node_state_num!(NodeStateUsize<usize>);
 
 impl_node_state_num!(NodeStateU64<u64>);

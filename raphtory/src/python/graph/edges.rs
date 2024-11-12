@@ -24,7 +24,7 @@ use crate::{
         },
         utils::{
             export::{create_row, extract_properties, get_column_names_from_props},
-            NumpyArray, PyGenericIterable, PyTime,
+            NumpyArray, PyGenericIterable,
         },
     },
 };
