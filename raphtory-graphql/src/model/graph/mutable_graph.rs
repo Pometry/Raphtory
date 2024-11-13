@@ -234,7 +234,8 @@ impl GqlMutableGraph {
 
 impl GqlMutableGraph {
     async fn update_graph_embeddings(&self) {
-        let _ = self.graph
+        let _ = self
+            .graph
             .update_graph_embeddings(Some(self.path.get_original_path_str().to_owned()))
             .await;
     }
