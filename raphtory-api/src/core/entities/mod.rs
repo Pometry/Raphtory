@@ -86,6 +86,32 @@ pub enum GID {
     U64(u64),
     Str(String),
 }
+impl PartialEq<str> for GID {
+    fn eq(&self, other: &str) -> bool {
+        match self {
+            GID::U64(_) => false,
+            GID::Str(id) => id == other,
+        }
+    }
+}
+
+impl PartialEq<String> for GID {
+    fn eq(&self, other: &String) -> bool {
+        match self {
+            GID::U64(_) => false,
+            GID::Str(id) => id == other,
+        }
+    }
+}
+
+impl PartialEq<u64> for GID {
+    fn eq(&self, other: &u64) -> bool {
+        match self {
+            GID::Str(_) => false,
+            GID::U64(id) => id == other,
+        }
+    }
+}
 
 impl Default for GID {
     fn default() -> Self {

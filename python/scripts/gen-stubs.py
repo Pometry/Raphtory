@@ -279,6 +279,8 @@ def gen_class(cls: type, name) -> str:
             # Get __init__ signature from class info
             signature = cls_signature(cls)
             if signature is not None:
+                if obj_name == "__new__":
+                    signature = signature.replace(return_annotation=name)
                 entities.append(
                     gen_fn(
                         entity,

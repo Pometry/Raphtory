@@ -1162,7 +1162,7 @@ class Graph(GraphView):
         num_shards (int, optional): The number of locks to use in the storage to allow for multithreaded updates.
     """
 
-    def __new__(self, num_shards: Optional[int] = None):
+    def __new__(self, num_shards: Optional[int] = None) -> Graph:
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def __reduce__(self): ...
@@ -3426,7 +3426,7 @@ class Nodes(object):
 class PersistentGraph(GraphView):
     """A temporal graph that allows edges and nodes to be deleted."""
 
-    def __new__(self):
+    def __new__(self) -> PersistentGraph:
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def __reduce__(self): ...
@@ -4009,7 +4009,7 @@ class Prop(object):
     def __ne__(self, value):
         """Return self!=value."""
 
-    def __new__(self, name):
+    def __new__(self, name) -> Prop:
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def any(self, values):
@@ -4103,7 +4103,7 @@ class PyGraphEncoder(object):
         """Call self as a function."""
 
     def __getstate__(self): ...
-    def __new__(self):
+    def __new__(self) -> PyGraphEncoder:
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def __setstate__(self): ...

@@ -29,7 +29,7 @@ class GraphServer(object):
         otlp_agent_port=None,
         otlp_tracing_service_name=None,
         config_path=None,
-    ):
+    ) -> GraphServer:
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def run(self, port: int = 1736, timeout_ms: int = 180000):
@@ -147,7 +147,7 @@ class GraphqlGraphs(object):
 class RaphtoryClient(object):
     """A client for handling GraphQL operations in the context of Raphtory."""
 
-    def __new__(self, url):
+    def __new__(self, url) -> RaphtoryClient:
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def copy_graph(self, path, new_path):
@@ -268,7 +268,7 @@ class RaphtoryClient(object):
         """
 
 class RemoteEdge(object):
-    def __new__(self, path, client, src, dst):
+    def __new__(self, path, client, src, dst) -> RemoteEdge:
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def add_constant_properties(
@@ -323,11 +323,13 @@ class RemoteEdge(object):
         """
 
 class RemoteEdgeAddition(object):
-    def __new__(self, src, dst, layer=None, constant_properties=None, updates=None):
+    def __new__(
+        self, src, dst, layer=None, constant_properties=None, updates=None
+    ) -> RemoteEdgeAddition:
         """Create and return a new object.  See help(type) for accurate signature."""
 
 class RemoteGraph(object):
-    def __new__(self, path, client):
+    def __new__(self, path, client) -> RemoteGraph:
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def add_constant_properties(self, properties: dict):
@@ -456,7 +458,7 @@ class RemoteGraph(object):
         """
 
 class RemoteNode(object):
-    def __new__(self, path, client, id):
+    def __new__(self, path, client, id) -> RemoteNode:
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def add_constant_properties(self, properties: Dict[str, Prop]):
@@ -501,11 +503,13 @@ class RemoteNode(object):
         """
 
 class RemoteNodeAddition(object):
-    def __new__(self, name, node_type=None, constant_properties=None, updates=None):
+    def __new__(
+        self, name, node_type=None, constant_properties=None, updates=None
+    ) -> RemoteNodeAddition:
         """Create and return a new object.  See help(type) for accurate signature."""
 
 class RemoteUpdate(object):
-    def __new__(self, time, properties=None):
+    def __new__(self, time, properties=None) -> RemoteUpdate:
         """Create and return a new object.  See help(type) for accurate signature."""
 
 class RunningGraphServer(object):

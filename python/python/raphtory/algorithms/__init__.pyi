@@ -15,6 +15,78 @@ from raphtory.typing import *
 from datetime import datetime
 from pandas import DataFrame
 
+class Matching(object):
+    """A Matching (i.e., a set of edges that do not share any nodes)"""
+
+    def __bool__(self):
+        """True if self else False"""
+
+    def __contains__(self, key):
+        """Return bool(key in self)."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def dst(self, src: InputNode) -> Optional[Node]:
+        """
+        Get the matched destination node for a source node
+
+        Arguments:
+            src (InputNode): The source node
+
+        Returns:
+            Optional[Node]: The matched destination node if it exists
+
+        """
+
+    def edge_for_dst(self, dst: InputNode) -> Optional[Edge]:
+        """
+        Get the matched edge for a destination node
+
+        Arguments:
+            dst (InputNode): The source node
+
+        Returns:
+            Optional[Edge]: The matched edge if it exists
+        """
+
+    def edge_for_src(self, src: InputNode) -> Optional[Edge]:
+        """
+        Get the matched edge for a source node
+
+        Arguments:
+            src (InputNode): The source node
+
+        Returns:
+            Optional[Edge]: The matched edge if it exists
+        """
+
+    def edges(self) -> Edges:
+        """
+        Get a view of the matched edges
+
+        Returns:
+            Edges: The edges in the matching
+        """
+
+    def src(self, dst: InputNode) -> Optional[Node]:
+        """
+        Get the matched source node for a destination node
+
+        Arguments:
+            dst (InputNode): The destination node
+
+        Returns:
+            Optional[Node]: The matched source node if it exists
+
+        """
+
 def all_local_reciprocity(g: GraphView):
     """
     Local reciprocity - measure of the symmetry of relationships associated with a node
@@ -403,6 +475,46 @@ def max_out_degree(g: GraphView):
 
     Returns:
         int : value of the largest outdegree
+    """
+
+def max_weight_matching(
+    graph: GraphView,
+    weight_prop: Optional[str] = None,
+    max_cardinality: bool = True,
+    verify_optimum_flag: bool = False,
+) -> Matching:
+    """
+    Compute a maximum-weighted matching in the general undirected weighted
+    graph given by "edges". If `max_cardinality` is true, only
+    maximum-cardinality matchings are considered as solutions.
+
+    The algorithm is based on "Efficient Algorithms for Finding Maximum
+    Matching in Graphs" by Zvi Galil, ACM Computing Surveys, 1986.
+
+    Based on networkx implementation
+    <https://github.com/networkx/networkx/blob/3351206a3ce5b3a39bb2fc451e93ef545b96c95b/networkx/algorithms/matching.py>
+
+    With reference to the standalone protoype implementation from:
+    <http://jorisvr.nl/article/maximum-matching>
+
+    <http://jorisvr.nl/files/graphmatching/20130407/mwmatching.py>
+
+    The function takes time O(n**3)
+
+    Arguments:
+        graph (GraphView): The graph to compute the maximum weight matching for
+        weight_prop (str, optional): The property on the edge to use for the weight. If not
+            provided,
+        max_cardinality (bool): If set to true compute the maximum-cardinality matching
+            with maximum weight among all maximum-cardinality matchings. Defaults to True.
+        verify_optimum_flag (bool): If true prior to returning an additional routine
+            to verify the optimal solution was found will be run after computing
+            the maximum weight matching. If it's true and the found matching is not
+            an optimal solution this function will panic. This option should
+            normally be only set true during testing. Defaults to False.
+
+    Returns:
+        Matching: The matching
     """
 
 def min_degree(g: GraphView) -> int:
