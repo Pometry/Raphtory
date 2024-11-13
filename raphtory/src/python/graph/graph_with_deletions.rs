@@ -140,7 +140,7 @@ impl PyPersistentGraph {
     ///    node_type (str) : The optional string which will be used as a node type
     ///
     /// Returns:
-    ///   None
+    ///   MutableNode
     #[pyo3(signature = (timestamp, id, properties = None, node_type = None))]
     pub fn create_node(
         &self,
