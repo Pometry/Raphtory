@@ -2,11 +2,8 @@ use crate::{
     data::Data,
     model::{
         graph::{
-            edge::Edge,
-            edges::GqlEdges,
-            node::Node,
-            nodes::{FilterCondition, GqlNodes, Operator},
-            property::GqlProperties,
+            edge::Edge, edges::GqlEdges, node::Node, nodes::GqlNodes, property::GqlProperties,
+            FilterCondition, Operator,
         },
         plugins::graph_algorithm_plugin::GraphAlgorithmPlugin,
         schema::graph_schema::GraphSchema,

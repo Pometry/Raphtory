@@ -1,30 +1,10 @@
-use crate::model::graph::{node::Node, property::GqlPropValue};
+use crate::model::graph::{node::Node, property::GqlPropValue, FilterCondition, Operator};
 use dynamic_graphql::{Enum, InputObject, ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     core::utils::errors::GraphError,
     db::{api::view::DynamicGraph, graph::nodes::Nodes},
     prelude::{GraphViewOps, *},
 };
-
-#[derive(InputObject, Debug)]
-pub struct FilterCondition {
-    pub operator: Operator,
-    pub value: Option<GqlPropValue>,
-}
-
-#[derive(Enum, Copy, Clone, Debug)]
-pub enum Operator {
-    Equal,
-    NotEqual,
-    GreaterThanOrEqual,
-    LessThanOrEqual,
-    GreaterThan,
-    LessThan,
-    IsNone,
-    IsSome,
-    Any,
-    NotAny,
-}
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlNodes {
