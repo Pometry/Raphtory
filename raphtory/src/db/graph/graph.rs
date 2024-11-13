@@ -3242,7 +3242,7 @@ mod db_tests {
     #[test]
     fn test_create_node() {
         let g = Graph::new();
-        g.create_node(0, 1, [("test".to_string(), Prop::Bool(true))], None)
+        g.create_node(0, 1, [("test", Prop::Bool(true))], None)
             .unwrap();
 
         let n = g.node(1).unwrap();
