@@ -1,2 +1,2 @@
 pub(crate) mod epidemics;
-mod max_weight_matching;
+pub(crate) mod max_weight_matching;

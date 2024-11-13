@@ -5,6 +5,7 @@ use crate::python::graph::disk_graph::PyDiskGraph;
 use crate::{
     add_classes, add_functions,
     python::{
+        algorithm::max_weight_matching::PyMatching,
         graph::{
             algorithm_result::AlgorithmResult,
             edge::{PyEdge, PyMutableEdge},
@@ -58,7 +59,7 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
 
     #[cfg(feature = "storage")]
     add_classes!(m, PyDiskGraph);
-    return Ok(());
+    Ok(())
 }
 
 pub fn base_algorithm_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
@@ -102,8 +103,10 @@ pub fn base_algorithm_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
         louvain,
         fruchterman_reingold,
         cohesive_fruchterman_reingold,
+        max_weight_matching
     );
 
+    add_classes!(&algorithm_module, PyMatching);
     #[cfg(feature = "storage")]
     add_functions!(&algorithm_module, connected_components);
     Ok(algorithm_module)
@@ -120,7 +123,7 @@ pub fn base_graph_loader_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr
         reddit_hyperlink_graph_local,
         karate_club_graph,
     );
-    return Ok(graph_loader_module);
+    Ok(graph_loader_module)
 }
 
 pub fn base_graph_gen_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
@@ -130,7 +133,7 @@ pub fn base_graph_gen_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
         random_attachment,
         ba_preferential_attachment,
     );
-    return Ok(graph_gen_module);
+    Ok(graph_gen_module)
 }
 
 pub fn base_vectors_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
@@ -138,5 +141,5 @@ pub fn base_vectors_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
     vectors_module.add_class::<PyVectorisedGraph>()?;
     vectors_module.add_class::<PyDocument>()?;
     vectors_module.add_class::<PyVectorSelection>()?;
-    return Ok(vectors_module);
+    Ok(vectors_module)
 }

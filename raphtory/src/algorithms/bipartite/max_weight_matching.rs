@@ -17,23 +17,19 @@
 // paper
 #![allow(clippy::many_single_char_names)]
 
-use crate::prelude::{GraphViewOps, NodeViewOps};
-
 use crate::{
     core::{entities::nodes::node_ref::AsNodeRef, utils::iter::GenLockedIter},
     db::{
         api::{
             storage::graph::edges::edge_storage_ops::EdgeStorageOps,
-            view::{internal::Static, DynamicGraph, IntoDynBoxed, IntoDynamic, StaticGraphViewOps},
+            view::{DynamicGraph, IntoDynBoxed, IntoDynamic, StaticGraphViewOps},
         },
         graph::{edge::EdgeView, edges::Edges, node::NodeView},
     },
-    prelude::{EdgeViewOps, Prop, PropUnwrap},
+    prelude::{EdgeViewOps, GraphViewOps, Prop, PropUnwrap},
 };
-use hashbrown::{HashMap, HashSet};
-use itertools::Itertools;
-use num_traits::ToPrimitive;
-use raphtory_api::core::entities::{EID, GID, VID};
+use hashbrown::HashMap;
+use raphtory_api::core::entities::{EID, VID};
 use std::{
     cmp::max,
     fmt::{Debug, Display, Formatter},
@@ -107,7 +103,7 @@ fn assign_label(
         assign_label(
             endpoints[mate[&base]],
             1,
-            mate.get(&base).map(|p| (p ^ 1)),
+            mate.get(&base).map(|p| p ^ 1),
             num_nodes,
             in_blossoms,
             labels,
@@ -147,18 +143,21 @@ fn scan_blossom(
             base = blossom_base[blossom];
             break;
         }
-        assert!(labels[blossom] == Some(1));
+        assert_eq!(labels[blossom], Some(1));
         path.push(blossom);
         labels[blossom] = Some(5);
         // Trace one step bacl.
-        assert!(label_ends[blossom] == mate.get(&blossom_base[blossom].unwrap()).copied());
+        assert_eq!(
+            label_ends[blossom],
+            mate.get(&blossom_base[blossom].unwrap()).copied()
+        );
         if label_ends[blossom].is_none() {
             // The base of blossom is single; stop tracing this path
             v = None;
         } else {
             let tmp = endpoints[label_ends[blossom].unwrap()];
             blossom = in_blossoms[tmp];
-            assert!(labels[blossom] == Some(2));
+            assert_eq!(labels[blossom], Some(2));
             // blossom is a T-blossom; trace one more step back.
             assert!(label_ends[blossom].is_some());
             v = Some(endpoints[label_ends[blossom].unwrap()]);
@@ -254,7 +253,7 @@ fn add_blossom(
         blossom_w = in_blossoms[w];
     }
     // Set label to S.
-    assert!(labels[blossom_b] == Some(1));
+    assert_eq!(labels[blossom_b], Some(1));
     labels[blossom] = Some(1);
     label_ends[blossom] = label_ends[blossom_b];
     // Set dual variable to 0
@@ -499,8 +498,8 @@ fn expand_blossom(
             // If the sub-blossom contains a reachable vertex, assign label T
             // to the sub-blossom
             if labels[v] != Some(0) {
-                assert!(labels[v] == Some(2));
-                assert!(in_blossoms[v] == bv);
+                assert_eq!(labels[v], Some(2));
+                assert_eq!(in_blossoms[v], bv);
                 labels[v] = Some(0);
                 labels[endpoints[mate[&blossom_base[bv].unwrap()]]] = Some(0);
                 assign_label(
@@ -654,7 +653,7 @@ fn augment_blossom(
     endpoint.extend_from_slice(&blossom_endpoints[blossom][..i]);
     blossom_endpoints[blossom] = endpoint;
     blossom_base[blossom] = blossom_base[blossom_children[blossom][0]];
-    assert!(blossom_base[blossom] == Some(node));
+    assert_eq!(blossom_base[blossom], Some(node));
 }
 
 /// Swap matched/unmatched edges over an alternating path between two
@@ -683,8 +682,11 @@ fn augment_matching(
         let mut p: usize = *p_ref;
         loop {
             let blossom_s = in_blossoms[s];
-            assert!(labels[blossom_s] == Some(1));
-            assert!(label_ends[blossom_s] == mate.get(&blossom_base[blossom_s].unwrap()).copied());
+            assert_eq!(labels[blossom_s], Some(1));
+            assert_eq!(
+                label_ends[blossom_s],
+                mate.get(&blossom_base[blossom_s].unwrap()).copied()
+            );
             // Augment through the S-blossom from s to base.
             if blossom_s >= num_nodes {
                 augment_blossom(
@@ -708,13 +710,13 @@ fn augment_matching(
             }
             let t = endpoints[label_ends[blossom_s].unwrap()];
             let blossom_t = in_blossoms[t];
-            assert!(labels[blossom_t] == Some(2));
+            assert_eq!(labels[blossom_t], Some(2));
             // Trace one step back
             assert!(label_ends[blossom_t].is_some());
             s = endpoints[label_ends[blossom_t].unwrap()];
             let j = endpoints[label_ends[blossom_t].unwrap() ^ 1];
             // Augment through the T-blossom from j to base.
-            assert!(blossom_base[blossom_t] == Some(t));
+            assert_eq!(blossom_base[blossom_t], Some(t));
             if blossom_t >= num_nodes {
                 augment_blossom(
                     blossom_t,
@@ -788,7 +790,7 @@ fn verify_optimum(
             || (mate.get(j).is_some() && mate.get(j).unwrap() / 2 == edge)
         {
             assert!(mate[i] / 2 == edge && mate[j] / 2 == edge);
-            assert!(s == 0);
+            assert_eq!(s, 0);
         }
     }
     // 2. all single vertices have zero dual value;
@@ -798,10 +800,10 @@ fn verify_optimum(
     // 3. all blossoms with positive dual value are full.
     for blossom in num_nodes..2 * num_nodes {
         if blossom_base[blossom].is_some() && dual_var[blossom] > 0 {
-            assert!(blossom_endpoints[blossom].len() % 2 == 1);
+            assert_eq!(blossom_endpoints[blossom].len() % 2, 1);
             for p in blossom_endpoints[blossom].iter().skip(1).step_by(2) {
-                assert!(mate.get(&endpoints[*p]).copied() == Some(p ^ 1));
-                assert!(mate.get(&endpoints[*p ^ 1]) == Some(p));
+                assert_eq!(mate.get(&endpoints[*p]).copied(), Some(p ^ 1));
+                assert_eq!(mate.get(&endpoints[*p ^ 1]), Some(p));
             }
         }
     }
@@ -856,11 +858,11 @@ fn verify_optimum(
 ///
 /// // Run max weight matching with max cardinality set to false
 /// let res = max_weight_matching(
-///     &g, Some("weight".to_string()), false, true
+///     &g, Some("weight"), false, true
 /// );
 /// // Run max weight matching with max cardinality set to true
 /// let maxc_res = max_weight_matching(
-///     &g, Some("weight".to_string()),true, true
+///     &g, Some("weight"), true, true
 /// );
 ///
 /// let matching = res;
@@ -874,13 +876,12 @@ fn verify_optimum(
 /// ```
 pub fn max_weight_matching<'graph, G: GraphViewOps<'graph>>(
     g: &'graph G,
-    weight_prop: Option<String>,
+    weight_prop: Option<&str>,
     max_cardinality: bool,
     verify_optimum_flag: bool,
 ) -> Matching<G> {
     let num_edges = g.count_edges();
     let num_nodes = g.count_nodes();
-    let mut out_set: HashSet<(usize, usize)> = HashSet::with_capacity(num_nodes);
     // Exit fast for graph without edges
     if num_edges == 0 {
         return Matching::empty(g.clone());
@@ -896,11 +897,11 @@ pub fn max_weight_matching<'graph, G: GraphViewOps<'graph>>(
     let mut max_weight: i64 = 0;
 
     g.edges().iter().for_each(|edge| {
-        let weight = match weight_prop.clone() {
+        let weight = match weight_prop {
             None => 1,
             Some(weight_prop) => edge
                 .properties()
-                .get(&*weight_prop)
+                .get(weight_prop)
                 .unwrap_or(Prop::I64(1))
                 .into_i64()
                 .unwrap_or(1),
@@ -1065,7 +1066,7 @@ pub fn max_weight_matching<'graph, G: GraphViewOps<'graph>>(
             while !queue.is_empty() && !augmented {
                 // Take an S vertex from the queue
                 let v = queue.pop().unwrap();
-                assert!(labels[in_blossoms[v]] == Some(1));
+                assert_eq!(labels[in_blossoms[v]], Some(1));
 
                 // Scan its neighbors
                 for p in &neighbor_endpoints[v] {
@@ -1167,7 +1168,7 @@ pub fn max_weight_matching<'graph, G: GraphViewOps<'graph>>(
                             // yet been reached from outside the blossom;
                             // mark it as reached (we need this to relabel
                             // during T-blossom expansion).
-                            assert!(labels[in_blossoms[w]] == Some(2));
+                            assert_eq!(labels[in_blossoms[w]], Some(2));
                             labels[w] = Some(2);
                             label_ends[w] = Some(*p ^ 1);
                         }
@@ -1231,7 +1232,7 @@ pub fn max_weight_matching<'graph, G: GraphViewOps<'graph>>(
                     && best_edge[blossom].is_some()
                 {
                     let kslack = slack(best_edge[blossom].unwrap(), &dual_var, &edges);
-                    assert!(kslack % 2 == 0);
+                    assert_eq!(kslack % 2, 0);
                     let d = Some(kslack / 2);
                     if delta_type == -1 || d < delta {
                         delta = d;
@@ -1294,13 +1295,13 @@ pub fn max_weight_matching<'graph, G: GraphViewOps<'graph>>(
                 if labels[in_blossoms[i]] == Some(0) {
                     mem::swap(&mut i, &mut j);
                 }
-                assert!(labels[in_blossoms[i]] == Some(1));
+                assert_eq!(labels[in_blossoms[i]], Some(1));
                 queue.push(i);
             } else if delta_type == 3 {
                 // Use the least-slack edge to continue the search.
                 allowed_edge[delta_edge.unwrap()] = true;
                 let (i, _j, _weight) = edges[delta_edge.unwrap()];
-                assert!(labels[in_blossoms[i]] == Some(1));
+                assert_eq!(labels[in_blossoms[i]], Some(1));
                 queue.push(i);
             } else if delta_type == 4 {
                 // Expand the least-z blossom
@@ -1381,6 +1382,7 @@ pub fn max_weight_matching<'graph, G: GraphViewOps<'graph>>(
     Matching::from_mates(g.clone(), mate, endpoints)
 }
 
+#[derive(Clone)]
 pub struct Matching<G> {
     graph: G,
     forward_map: Arc<HashMap<VID, (VID, EID)>>,
@@ -1448,6 +1450,20 @@ impl<'graph, G: GraphViewOps<'graph>> Matching<G> {
         self.forward_map.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.forward_map.is_empty()
+    }
+
+    pub fn edges_iter<'a>(&'a self) -> impl Iterator<Item = EdgeView<&G>>
+    where
+        'graph: 'a,
+    {
+        let storage = self.graph.core_edges();
+        self.forward_map
+            .values()
+            .map(move |(_, eid)| EdgeView::new(&self.graph, storage.as_ref().edge(*eid).out_ref()))
+    }
+
     pub fn edges(&self) -> Edges<'graph, G> {
         let storage = self.graph.core_graph().clone();
         let forward_map = self.forward_map.clone();
@@ -1484,9 +1500,9 @@ impl<'graph, G: GraphViewOps<'graph>> Matching<G> {
     where
         'graph: 'a,
     {
-        (&&self.graph)
-            .node(dst)
-            .map(|node| NodeView::new_internal(&self.graph, self.reverse_map[&node.node].0))
+        let dst = (&&self.graph).node(dst)?.node;
+        let (src, _) = self.reverse_map.get(&dst)?;
+        Some(NodeView::new_internal(&self.graph, *src))
     }
 
     pub fn edge_for_src<'a>(&'a self, src: impl AsNodeRef) -> Option<EdgeView<&G>>
@@ -1504,9 +1520,9 @@ impl<'graph, G: GraphViewOps<'graph>> Matching<G> {
     where
         'graph: 'a,
     {
-        (&&self.graph)
-            .node(src)
-            .map(|node| NodeView::new_internal(&self.graph, self.forward_map[&node.node].0))
+        let src = (&&self.graph).node(src)?.node;
+        let (dst, _) = self.forward_map.get(&src)?;
+        Some(NodeView::new_internal(&self.graph, *dst))
     }
 
     pub fn edge_for_dst<'a>(&'a self, dst: impl AsNodeRef) -> Option<EdgeView<&G>>
@@ -1524,26 +1540,8 @@ impl<'graph, G: GraphViewOps<'graph>> Matching<G> {
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        algorithms::bipartite::max_weight_matching::max_weight_matching,
-        core::entities::properties::props::Props, prelude::*,
-    };
-    use hashbrown::HashSet;
-    use raphtory_api::core::entities::GID;
-
-    #[test]
-    fn test_max_weight() {
-        let g = Graph::new();
-        let vs = vec![(1, 2, 3), (2, 3, 11), (3, 4, 5), (2, 1, 4)];
-        for (src, dst, weight) in &vs {
-            g.add_edge(0, *src, *dst, [("weight", Prop::I64(*weight))], None)
-                .unwrap();
-        }
-
-        // Run max weight matching with max cardinality set to false
-        let res = max_weight_matching(&g, Some("weight".to_string()), false, true);
-        println!("{res:?}");
-    }
+    use crate::{algorithms::bipartite::max_weight_matching::max_weight_matching, prelude::*};
+    use itertools::Itertools;
 
     #[test]
     fn test() {
@@ -1555,9 +1553,9 @@ mod test {
         }
 
         // Run max weight matching with max cardinality set to false
-        let res = max_weight_matching(&g, Some("weight".to_string()), false, true);
+        let res = max_weight_matching(&g, Some("weight"), false, true);
         // Run max weight matching with max cardinality set to true
-        let maxc_res = max_weight_matching(&g, Some("weight".to_string()), true, true);
+        let maxc_res = max_weight_matching(&g, Some("weight"), true, true);
 
         let matching = res;
         println!("{}", matching);
@@ -1568,5 +1566,23 @@ mod test {
         assert_eq!(maxc_matching.len(), 2);
         assert!(maxc_matching.contains(1, 2));
         assert!(maxc_matching.contains(3, 4));
+
+        assert_eq!(matching.src(3).unwrap().id(), 2);
+        assert_eq!(matching.src(2), None);
+
+        assert_eq!(matching.dst(2).unwrap().id(), 3);
+        assert_eq!(matching.dst(3), None);
+
+        assert_eq!(matching.edge_for_src(2).unwrap(), g.edge(2, 3).unwrap());
+        assert_eq!(matching.edge_for_src(1), None);
+
+        assert_eq!(matching.edge_for_dst(3).unwrap(), g.edge(2, 3).unwrap());
+        assert_eq!(matching.edge_for_dst(2), None);
+
+        assert_eq!(matching.edges().collect(), vec![g.edge(2, 3).unwrap()]);
+        assert_eq!(
+            matching.edges_iter().collect_vec(),
+            vec![g.edge(2, 3).unwrap()]
+        );
     }
 }

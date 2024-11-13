@@ -1,6 +1,7 @@
 import pytest
 import pandas as pd
 import pandas.core.frame
+
 from raphtory import Graph, PersistentGraph
 from raphtory import algorithms
 from raphtory import graph_loader
@@ -518,3 +519,29 @@ def test_temporal_SEIR():
     for i, (n, v) in enumerate(res):
         assert n == g.node(i + 1)
         assert v.infected == i
+
+
+def test_max_weight_matching():
+    g = Graph()
+    g.add_edge(0, 1, 2, {"weight": 5})
+    g.add_edge(0, 2, 3, {"weight": 11})
+    g.add_edge(0, 3, 4, {"weight": 5})
+
+    # Run max weight matching with max cardinality set to false
+    max_weight = algorithms.max_weight_matching(g, "weight", False)
+    max_cardinality = algorithms.max_weight_matching(g, "weight")
+
+    assert len(max_weight) == 1
+    assert len(max_cardinality) == 2
+    assert (2, 3) in max_weight
+    assert (1, 2) in max_cardinality
+    assert (3, 4) in max_cardinality
+
+    assert max_weight.edges().id == [(2, 3)]
+    assert max_cardinality.edges().id == [(1, 2), (3, 4)]
+
+    assert max_weight.src(3).id == 2
+    assert max_weight.src(2) is None
+
+    assert max_weight.dst(2).id == 3
+    assert max_weight.dst(3) is None
