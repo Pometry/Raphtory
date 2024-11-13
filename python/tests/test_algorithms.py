@@ -538,7 +538,7 @@ def test_max_weight_matching():
     assert (3, 4) in max_cardinality
 
     assert max_weight.edges().id == [(2, 3)]
-    assert max_cardinality.edges().id == [(1, 2), (3, 4)]
+    assert sorted(max_cardinality.edges().id) == [(1, 2), (3, 4)]
 
     assert max_weight.src(3).id == 2
     assert max_weight.src(2) is None
