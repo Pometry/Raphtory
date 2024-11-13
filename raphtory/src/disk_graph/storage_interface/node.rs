@@ -179,13 +179,11 @@ impl<'a> DiskNode<'a> {
                 .collect::<Vec<_>>(),
         };
 
-        for temporal_prop in self.graph.node_properties().temporal_props() {
-            if let Some(props) = temporal_prop {
-                let timestamps = props.timestamps::<i64>(self.vid);
-                if timestamps.len() > 0 {
-                    let ts = timestamps.times();
-                    additions.push(ts);
-                }
+        for props in self.graph.node_properties().temporal_props() {
+            let timestamps = props.timestamps::<i64>(self.vid);
+            if timestamps.len() > 0 {
+                let ts = timestamps.times();
+                additions.push(ts);
             }
         }
 
@@ -248,8 +246,10 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
             .prop_mapping()
             .localise_node_prop_id(prop_id)
             .and_then(|(layer, local_prop_id)| {
-                self.graph.node_properties().temporal_props()[layer]
-                    .as_ref()
+                self.graph
+                    .node_properties()
+                    .temporal_props()
+                    .get(layer)
                     .map(|t_props| t_props.prop(self.vid, local_prop_id))
             })
             .unwrap_or(DiskTProp::empty())
@@ -277,7 +277,7 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
         self,
         layers: &LayerIds,
         dir: Direction,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send + 'a> {
+    ) -> impl Iterator<Item = EdgeRef> + Send + 'a {
         //FIXME: something is capturing the &LayerIds lifetime when using impl Iterator
         Box::new(match dir {
             Direction::OUT => DirectionVariants::Out(self.out_edges(layers)),

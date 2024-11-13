@@ -32,7 +32,6 @@ use chrono::{DateTime, NaiveDateTime, Utc};
 use itertools::Itertools;
 use raphtory_api::core::storage::arc_str::ArcStr;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::{
     cmp::Ordering,
     collections::HashMap,
@@ -171,39 +170,6 @@ impl PartialOrd for Prop {
 }
 
 impl Prop {
-    pub fn to_json(&self) -> Value {
-        match self {
-            Prop::Str(value) => Value::String(value.to_string()),
-            Prop::U8(value) => Value::Number((*value).into()),
-            Prop::U16(value) => Value::Number((*value).into()),
-            Prop::I32(value) => Value::Number((*value).into()),
-            Prop::I64(value) => Value::Number((*value).into()),
-            Prop::U32(value) => Value::Number((*value).into()),
-            Prop::U64(value) => Value::Number((*value).into()),
-            Prop::F32(value) => Value::Number(serde_json::Number::from_f64(*value as f64).unwrap()),
-            Prop::F64(value) => Value::Number(serde_json::Number::from_f64(*value).unwrap()),
-            Prop::Bool(value) => Value::Bool(*value),
-            Prop::List(value) => {
-                let vec: Vec<Value> = value.iter().map(|v| v.to_json()).collect();
-                Value::Array(vec)
-            }
-            Prop::Map(value) => {
-                let map: serde_json::Map<String, Value> = value
-                    .iter()
-                    .map(|(k, v)| (k.to_string(), v.to_json()))
-                    .collect();
-                Value::Object(map)
-            }
-            Prop::DTime(value) => Value::String(value.to_string()),
-            Prop::NDTime(value) => Value::String(value.to_string()),
-            Prop::Graph(_) => Value::String("Graph cannot be converted to JSON".to_string()),
-            Prop::PersistentGraph(_) => {
-                Value::String("Persistent Graph cannot be converted to JSON".to_string())
-            }
-            Prop::Document(DocumentInput { content, .. }) => Value::String(content.to_owned()), // TODO: return Value::Object ??
-        }
-    }
-
     pub fn dtype(&self) -> PropType {
         match self {
             Prop::Str(_) => PropType::Str,
