@@ -118,7 +118,7 @@ impl GqlMutableGraph {
                     .add_constant_properties(as_properties(constant_props))?;
             }
             if let Ok(node) = self.get_node_view(name) {
-                node.update_embeddings().await; // FIXME: ideally this should call the embedding function just once!!
+                let _ = node.update_embeddings().await; // FIXME: ideally this should call the embedding function just once!!
             }
         }
         self.graph.write_updates()?;
@@ -147,7 +147,7 @@ impl GqlMutableGraph {
             as_properties(properties.unwrap_or(vec![])),
             layer.as_str(),
         )?;
-        edge.update_embeddings().await;
+        let _ = edge.update_embeddings().await;
         self.graph.write_updates()?;
         Ok(edge.into())
     }
@@ -173,7 +173,7 @@ impl GqlMutableGraph {
                     .add_constant_properties(as_properties(constant_props), layer)?;
             }
             if let Ok(edge) = self.get_edge_view(src, dst) {
-                edge.update_embeddings().await; // FIXME: ideally this should call the embedding function just once!!
+                let _ = edge.update_embeddings().await; // FIXME: ideally this should call the embedding function just once!!
             }
         }
         self.graph.write_updates()?;
@@ -190,7 +190,7 @@ impl GqlMutableGraph {
         layer: Option<String>,
     ) -> Result<GqlMutableEdge, GraphError> {
         let edge = self.graph.delete_edge(time, src, dst, layer.as_str())?;
-        edge.update_embeddings().await;
+        let _ = edge.update_embeddings().await;
         self.graph.write_updates()?;
         Ok(edge.into())
     }
@@ -234,7 +234,7 @@ impl GqlMutableGraph {
 
 impl GqlMutableGraph {
     async fn update_graph_embeddings(&self) {
-        self.graph
+        let _ = self.graph
             .update_graph_embeddings(Some(self.path.get_original_path_str().to_owned()))
             .await;
     }
@@ -289,7 +289,7 @@ impl GqlMutableNode {
     ) -> Result<bool, GraphError> {
         self.node
             .add_constant_properties(as_properties(properties))?;
-        self.node.update_embeddings().await;
+        let _ = self.node.update_embeddings().await;
         self.node.graph.write_updates()?;
         Ok(true)
     }
@@ -297,7 +297,7 @@ impl GqlMutableNode {
     /// Set the node type (errors if the node already has a non-default type)
     async fn set_node_type(&self, new_type: String) -> Result<bool, GraphError> {
         self.node.set_node_type(&new_type)?;
-        self.node.update_embeddings().await;
+        let _ = self.node.update_embeddings().await;
         self.node.graph.write_updates()?;
         Ok(true)
     }
@@ -309,7 +309,7 @@ impl GqlMutableNode {
     ) -> Result<bool, GraphError> {
         self.node
             .update_constant_properties(as_properties(properties))?;
-        self.node.update_embeddings().await;
+        let _ = self.node.update_embeddings().await;
         self.node.graph.write_updates()?;
         Ok(true)
     }
@@ -322,7 +322,7 @@ impl GqlMutableNode {
     ) -> Result<bool, GraphError> {
         self.node
             .add_updates(time, as_properties(properties.unwrap_or(vec![])))?;
-        self.node.update_embeddings().await;
+        let _ = self.node.update_embeddings().await;
         self.node.graph.write_updates()?;
         Ok(true)
     }
@@ -364,7 +364,7 @@ impl GqlMutableEdge {
     /// Mark the edge as deleted at time `time`
     async fn delete(&self, time: i64, layer: Option<String>) -> Result<bool, GraphError> {
         self.edge.delete(time, layer.as_str())?;
-        self.edge.update_embeddings().await;
+        let _ = self.edge.update_embeddings().await;
         self.edge.graph.write_updates()?;
         Ok(true)
     }
@@ -380,7 +380,7 @@ impl GqlMutableEdge {
     ) -> Result<bool, GraphError> {
         self.edge
             .add_constant_properties(as_properties(properties), layer.as_str())?;
-        self.edge.update_embeddings().await;
+        let _ = self.edge.update_embeddings().await;
         self.edge.graph.write_updates()?;
         Ok(true)
     }
@@ -396,7 +396,7 @@ impl GqlMutableEdge {
     ) -> Result<bool, GraphError> {
         self.edge
             .update_constant_properties(as_properties(properties), layer.as_str())?;
-        self.edge.update_embeddings().await;
+        let _ = self.edge.update_embeddings().await;
         self.edge.graph.write_updates()?;
         Ok(true)
     }
@@ -416,7 +416,7 @@ impl GqlMutableEdge {
             as_properties(properties.unwrap_or(vec![])),
             layer.as_str(),
         )?;
-        self.edge.update_embeddings().await;
+        let _ = self.edge.update_embeddings().await;
         self.edge.graph.write_updates()?;
         Ok(true)
     }
