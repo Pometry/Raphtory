@@ -64,6 +64,7 @@ use rand::{prelude::StdRng, SeedableRng};
 use raphtory_api::core::{entities::GID, Direction};
 use std::collections::{HashMap, HashSet};
 
+use crate::algorithms::bipartite::max_weight_matching::Matching;
 #[cfg(feature = "storage")]
 use crate::python::graph::disk_graph::PyDiskGraph;
 #[cfg(feature = "storage")]
@@ -899,13 +900,11 @@ pub fn max_weight_matching(
     weight_prop: Option<String>,
     max_cardinality: Option<bool>,
     verify_optimum_flag: Option<bool>,
-) -> Vec<(usize, usize)> {
+) -> Matching<DynamicGraph> {
     mwm(
         &graph.graph,
         weight_prop,
         max_cardinality.unwrap_or(true),
         verify_optimum_flag.unwrap_or(false),
     )
-    .into_iter()
-    .collect()
 }

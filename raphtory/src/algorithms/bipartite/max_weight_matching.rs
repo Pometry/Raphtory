@@ -20,9 +20,12 @@
 use crate::prelude::{GraphViewOps, NodeViewOps};
 
 use crate::{
-    core::entities::nodes::node_ref::AsNodeRef,
+    core::{entities::nodes::node_ref::AsNodeRef, utils::iter::GenLockedIter},
     db::{
-        api::{storage::graph::edges::edge_storage_ops::EdgeStorageOps, view::IntoDynBoxed},
+        api::{
+            storage::graph::edges::edge_storage_ops::EdgeStorageOps,
+            view::{internal::Static, DynamicGraph, IntoDynBoxed, IntoDynamic, StaticGraphViewOps},
+        },
         graph::{edge::EdgeView, edges::Edges, node::NodeView},
     },
     prelude::{EdgeViewOps, Prop, PropUnwrap},
@@ -33,7 +36,7 @@ use num_traits::ToPrimitive;
 use raphtory_api::core::entities::{EID, GID, VID};
 use std::{
     cmp::max,
-    fmt::{Debug, Formatter},
+    fmt::{Debug, Display, Formatter},
     mem,
     sync::Arc,
 };
@@ -864,10 +867,10 @@ fn verify_optimum(
 /// let maxc_matching = maxc_res;
 /// // Check output
 /// assert_eq!(matching.len(), 1);
-/// assert!(matching.contains(&(GID::U64(2), GID::U64(3))) || matching.contains(&(GID::U64(3), GID::U64(2))));
+/// assert!(matching.contains(2, 3));
 /// assert_eq!(maxc_matching.len(), 2);
-/// assert!(maxc_matching.contains(&(GID::U64(1), GID::U64(2))) || maxc_matching.contains(&(GID::U64(2), GID::U64(1))));
-/// assert!(maxc_matching.contains(&(GID::U64(3), GID::U64(4))) || maxc_matching.contains(&(GID::U64(4), GID::U64(3))));
+/// assert!(maxc_matching.contains(1, 2));
+/// assert!(maxc_matching.contains(3, 4));
 /// ```
 pub fn max_weight_matching<'graph, G: GraphViewOps<'graph>>(
     g: &'graph G,
@@ -1380,15 +1383,36 @@ pub fn max_weight_matching<'graph, G: GraphViewOps<'graph>>(
 
 pub struct Matching<G> {
     graph: G,
-    forward_map: HashMap<VID, VID>,
-    reverse_map: HashMap<VID, VID>,
-    edges: Arc<[EID]>,
+    forward_map: Arc<HashMap<VID, (VID, EID)>>,
+    reverse_map: Arc<HashMap<VID, (VID, EID)>>,
+}
+
+impl<G: StaticGraphViewOps + IntoDynamic> Matching<G> {
+    pub(crate) fn into_dyn(self) -> Matching<DynamicGraph> {
+        Matching {
+            graph: self.graph.into_dynamic(),
+            forward_map: self.forward_map,
+            reverse_map: self.reverse_map,
+        }
+    }
 }
 
 impl<'graph, G: GraphViewOps<'graph>> Debug for Matching<G> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let edges: Vec<_> = self.edges().id().collect();
-        f.debug_list().entries(edges).finish()
+        f.debug_struct("Matching")
+            .field("forward_map", &self.forward_map)
+            .field("reverse_map", &self.reverse_map)
+            .finish()
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>> Display for Matching<G> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Matching([")?;
+        for (src, dst) in self.edges().id() {
+            write!(f, "({src}, {dst})")?;
+        }
+        write!(f, "])")
     }
 }
 
@@ -1398,45 +1422,45 @@ impl<'graph, G: GraphViewOps<'graph>> Matching<G> {
             graph,
             forward_map: Default::default(),
             reverse_map: Default::default(),
-            edges: Arc::new([]),
         }
     }
     fn from_mates(graph: G, mates: HashMap<usize, usize>, endpoints: Vec<usize>) -> Self {
         let mut forward_map = HashMap::with_capacity(mates.len() / 2);
         let mut reverse_map = HashMap::with_capacity(mates.len() / 2);
-        let mut edges = Vec::with_capacity(mates.len() / 2);
         let node_map: Vec<_> = graph.nodes().iter().map(|node| node.node).collect();
         let edge_map: Vec<_> = graph.edges().iter().map(|edge| edge.edge.pid()).collect();
         for (node, edge) in mates.iter() {
+            let eid = edge_map[*edge / 2];
             if edge % 2 == 0 {
-                forward_map.insert(node_map[*node], node_map[endpoints[*edge]]);
+                reverse_map.insert(node_map[*node], (node_map[endpoints[*edge]], eid));
             } else {
-                reverse_map.insert(node_map[*node], node_map[endpoints[*edge]]);
+                forward_map.insert(node_map[*node], (node_map[endpoints[*edge]], eid));
             }
-            edges.push(edge_map[*edge / 2]);
         }
-        edges.sort();
         Self {
             graph,
-            forward_map,
-            reverse_map,
-            edges: edges.into(),
+            forward_map: forward_map.into(),
+            reverse_map: reverse_map.into(),
         }
     }
 
     pub fn len(&self) -> usize {
-        self.edges.len()
+        self.forward_map.len()
     }
 
     pub fn edges(&self) -> Edges<'graph, G> {
         let storage = self.graph.core_graph().clone();
-        let edges = self.edges.clone();
+        let forward_map = self.forward_map.clone();
         let edges_iter = Arc::new(move || {
             let storage = storage.clone();
-            let edges = edges.clone();
-            (0..edges.len())
-                .map(move |i| storage.edge_entry(edges[i]).out_ref())
-                .into_dyn_boxed()
+            let forward_map = forward_map.clone();
+            GenLockedIter::from(forward_map, move |forward_map| {
+                forward_map
+                    .values()
+                    .map(move |(_, eid)| storage.edge_entry(*eid).out_ref())
+                    .into_dyn_boxed()
+            })
+            .into_dyn_boxed()
         });
         Edges {
             base_graph: self.graph.clone(),
@@ -1446,23 +1470,55 @@ impl<'graph, G: GraphViewOps<'graph>> Matching<G> {
     }
 
     pub fn contains<N: AsNodeRef>(&self, src: N, dst: N) -> bool {
-        if let Some(edge) = (&&self.graph).edge(src, dst) {
-            self.edges.binary_search(&edge.edge.pid()).is_ok()
-        } else {
-            false
+        if let Some(src) = self.graph.internalise_node(src.as_node_ref()) {
+            if let Some(dst) = self.graph.internalise_node(dst.as_node_ref()) {
+                if let Some((nbr, _)) = self.forward_map.get(&src) {
+                    return nbr == &dst;
+                }
+            }
         }
+        false
     }
 
-    pub fn src(&self, dst: impl AsNodeRef) -> Option<NodeView<&G>> {
+    pub fn src<'a>(&'a self, dst: impl AsNodeRef) -> Option<NodeView<&G>>
+    where
+        'graph: 'a,
+    {
         (&&self.graph)
             .node(dst)
-            .map(|node| NodeView::new_internal(node.graph, self.reverse_map[&node.node]))
+            .map(|node| NodeView::new_internal(&self.graph, self.reverse_map[&node.node].0))
     }
 
-    pub fn dst(&self, src: impl AsNodeRef) -> Option<NodeView<&G>> {
+    pub fn edge_for_src<'a>(&'a self, src: impl AsNodeRef) -> Option<EdgeView<&G>>
+    where
+        'graph: 'a,
+    {
+        let src = (&&self.graph).node(src)?.node;
+        let (_, eid) = self.forward_map.get(&src)?;
+        Some(EdgeView::new(
+            &self.graph,
+            self.graph.core_edge(*eid).out_ref(),
+        ))
+    }
+    pub fn dst<'a>(&'a self, src: impl AsNodeRef) -> Option<NodeView<&G>>
+    where
+        'graph: 'a,
+    {
         (&&self.graph)
             .node(src)
-            .map(|node| NodeView::new_internal(node.graph, self.forward_map[&node.node]))
+            .map(|node| NodeView::new_internal(&self.graph, self.forward_map[&node.node].0))
+    }
+
+    pub fn edge_for_dst<'a>(&'a self, dst: impl AsNodeRef) -> Option<EdgeView<&G>>
+    where
+        'graph: 'a,
+    {
+        let dst = (&&self.graph).node(dst)?.node;
+        let (_, eid) = self.reverse_map.get(&dst)?;
+        Some(EdgeView::new(
+            &self.graph,
+            self.graph.core_edge(*eid).out_ref(),
+        ))
     }
 }
 
@@ -1504,6 +1560,7 @@ mod test {
         let maxc_res = max_weight_matching(&g, Some("weight".to_string()), true, true);
 
         let matching = res;
+        println!("{}", matching);
         let maxc_matching = maxc_res;
         // Check output
         assert_eq!(matching.len(), 1);
