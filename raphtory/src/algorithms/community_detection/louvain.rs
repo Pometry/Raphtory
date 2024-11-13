@@ -70,8 +70,10 @@ mod test {
         test_storage,
     };
     use proptest::prelude::*;
-    use raphtory_api::core::utils::logging::global_info_logger;
     use tracing::info;
+
+    #[cfg(feature = "io")]
+    use raphtory_api::core::utils::logging::global_info_logger;
 
     #[test]
     fn test_louvain() {
