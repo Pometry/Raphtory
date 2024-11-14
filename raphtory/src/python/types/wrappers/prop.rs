@@ -131,7 +131,7 @@ impl Repr for Prop {
 pub type PropValue = Option<Prop>;
 pub type PropHistItems = Vec<(i64, Prop)>;
 
-#[pyclass(frozen, name = "PropertyFilter")]
+#[pyclass(frozen, name = "PropertyFilter", module = "raphtory")]
 #[derive(Clone)]
 pub struct PyPropertyFilter(PropertyFilter);
 
@@ -186,7 +186,7 @@ impl InternalNodePropertyFilterOps for PyPropertyFilter {
 /// property value (these filters always exclude entities that do not
 /// have the property) or use one of the methods to construct
 /// other kinds of filters.
-#[pyclass(frozen, name = "Prop")]
+#[pyclass(frozen, name = "Prop", module = "raphtory")]
 #[derive(Clone)]
 pub struct PyPropertyRef {
     name: String,

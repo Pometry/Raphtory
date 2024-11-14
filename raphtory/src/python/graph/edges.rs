@@ -34,7 +34,7 @@ use rayon::{iter::IntoParallelIterator, prelude::*};
 use std::collections::HashMap;
 
 /// A list of edges that can be iterated over.
-#[pyclass(name = "Edges")]
+#[pyclass(name = "Edges", module = "raphtory", frozen)]
 pub struct PyEdges {
     edges: Edges<'static, DynamicGraph>,
 }

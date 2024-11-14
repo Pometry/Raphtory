@@ -76,7 +76,7 @@ impl From<DynProperties> for PyPropsComp {
 }
 
 /// A view of the properties of an entity
-#[pyclass(name = "Properties")]
+#[pyclass(name = "Properties", module = "raphtory", frozen)]
 pub struct PyProperties {
     props: DynProperties,
 }

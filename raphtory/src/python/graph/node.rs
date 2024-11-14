@@ -61,7 +61,7 @@ use rayon::{iter::IntoParallelIterator, prelude::*};
 use std::collections::HashMap;
 
 /// A node (or node) in the graph.
-#[pyclass(name = "Node", subclass)]
+#[pyclass(name = "Node", subclass, module = "raphtory", frozen)]
 #[derive(Clone)]
 pub struct PyNode {
     pub node: NodeView<DynamicGraph, DynamicGraph>,
@@ -295,7 +295,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for NodeVie
     }
 }
 
-#[pyclass(name = "MutableNode", extends = PyNode)]
+#[pyclass(name = "MutableNode", extends = PyNode, module="raphtory", frozen)]
 pub struct PyMutableNode {
     node: NodeView<MaterializedGraph, MaterializedGraph>,
 }
@@ -423,7 +423,7 @@ impl PyMutableNode {
 }
 
 /// A list of nodes that can be iterated over.
-#[pyclass(name = "Nodes")]
+#[pyclass(name = "Nodes", module = "raphtory", frozen)]
 pub struct PyNodes {
     pub(crate) nodes: Nodes<'static, DynamicGraph, DynamicGraph>,
 }

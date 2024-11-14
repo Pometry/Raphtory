@@ -13,7 +13,7 @@ macro_rules! impl_timeops {
             #[doc = concat!(r" Gets the start time for rolling and expanding windows for this ", $name)]
             ///
             /// Returns:
-            #[doc = concat!(r"    The earliest time that this ", $name, r" is valid or None if the ", $name, r" is valid for all times.")]
+            #[doc = concat!(r"    Optional[int]: The earliest time that this ", $name, r" is valid or None if the ", $name, r" is valid for all times.")]
             #[getter]
             pub fn start(&self) -> Option<i64> {
                 self.$field.start()
@@ -22,7 +22,7 @@ macro_rules! impl_timeops {
             #[doc = concat!(r" Gets the earliest datetime that this ", $name, r" is valid")]
             ///
             /// Returns:
-            #[doc = concat!(r"     The earliest datetime that this ", $name, r" is valid or None if the ", $name, r" is valid for all times.")]
+            #[doc = concat!(r"     Optional[Datetime]: The earliest datetime that this ", $name, r" is valid or None if the ", $name, r" is valid for all times.")]
             #[getter]
             pub fn start_date_time(&self) -> Option<chrono::DateTime<chrono::Utc>> {
                 self.$field.start_date_time()
@@ -31,7 +31,7 @@ macro_rules! impl_timeops {
             #[doc = concat!(r" Gets the latest time that this ", $name, r" is valid.")]
             ///
             /// Returns:
-            #[doc = concat!("   The latest time that this ", $name, r" is valid or None if the ", $name, r" is valid for all times.")]
+            #[doc = concat!("   Optional[int]: The latest time that this ", $name, r" is valid or None if the ", $name, r" is valid for all times.")]
             #[getter]
             pub fn end(&self) -> Option<i64> {
                 self.$field.end()
@@ -40,13 +40,16 @@ macro_rules! impl_timeops {
             #[doc = concat!(r" Gets the latest datetime that this ", $name, r" is valid")]
             ///
             /// Returns:
-            #[doc = concat!(r"     The latest datetime that this ", $name, r" is valid or None if the ", $name, r" is valid for all times.")]
+            #[doc = concat!(r"     Optional[Datetime]: The latest datetime that this ", $name, r" is valid or None if the ", $name, r" is valid for all times.")]
             #[getter]
             pub fn end_date_time(&self) -> Option<chrono::DateTime<chrono::Utc>> {
                 self.$field.end_date_time()
             }
 
             #[doc = concat!(r" Get the window size (difference between start and end) for this ", $name)]
+            ///
+            /// Returns:
+            ///     Optional[int]
             #[getter]
             pub fn window_size(&self) -> Option<u64> {
                 self.$field.window_size()
@@ -92,7 +95,7 @@ macro_rules! impl_timeops {
             ///     end (TimeInput | None): The end time of the window (unbounded if `None`).
             ///
             /// Returns:
-            #[doc = concat!("r    A ", $name, " object.")]
+            #[doc = concat!("r    ", $name)]
             pub fn window(
                 &self,
                 start: $crate::python::utils::PyTime,
@@ -108,7 +111,7 @@ macro_rules! impl_timeops {
             ///     time (TimeInput): The time of the window.
             ///
             /// Returns:
-            #[doc = concat!(r"     A ", $name, r" object.")]
+            #[doc = concat!(r"     ", $name)]
             pub fn at(&self, time: $crate::python::utils::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field.at(time)
             }
@@ -116,7 +119,7 @@ macro_rules! impl_timeops {
             #[doc = concat!(r" Create a view of the ", $name, r" including all events at the latest time.")]
             ///
             /// Returns:
-            #[doc = concat!(r"     A ", $name, r" object.")]
+            #[doc = concat!(r"     ", $name)]
             pub fn latest(&self) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field.latest()
             }
@@ -129,7 +132,7 @@ macro_rules! impl_timeops {
             ///     time (TimeInput): The time of the window.
             ///
             /// Returns:
-            #[doc = concat!(r"     A ", $name, r" object.")]
+            #[doc = concat!(r"     ", $name)]
             pub fn snapshot_at(&self, time: $crate::python::utils::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field.snapshot_at(time)
             }
@@ -139,7 +142,7 @@ macro_rules! impl_timeops {
             /// This is equivalent to a no-op for `EventGraph`s and `latest()` for `PersitentGraph`s
             ///
             /// Returns:
-            #[doc = concat!(r"     A ", $name, r" object.")]
+            #[doc = concat!(r"     ", $name)]
             pub fn snapshot_latest(&self) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field.snapshot_latest()
             }
@@ -150,7 +153,7 @@ macro_rules! impl_timeops {
             ///     end (TimeInput): The end time of the window.
             ///
             /// Returns:
-            #[doc = concat!(r"     A ", $name, r" object.")]
+            #[doc = concat!(r"     ", $name)]
             pub fn before(&self, end: $crate::python::utils::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field.before(end)
             }
@@ -161,7 +164,7 @@ macro_rules! impl_timeops {
             ///     start (TimeInput): The start time of the window.
             ///
             /// Returns:
-            #[doc = concat!(r"     A ", $name, r" object.")]
+            #[doc = concat!(r"     ", $name)]
             pub fn after(&self, start: $crate::python::utils::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field.after(start)
             }
@@ -172,7 +175,7 @@ macro_rules! impl_timeops {
             ///    start (TimeInput): the new start time of the window
             ///
             /// Returns:
-            #[doc = concat!(r"     A ", $name, r" object.")]
+            #[doc = concat!(r"     ", $name)]
             pub fn shrink_start(&self, start: $crate::python::utils::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field.shrink_start(start)
             }
@@ -182,7 +185,7 @@ macro_rules! impl_timeops {
             /// Arguments:
             ///     end (TimeInput): the new end time of the window
             /// Returns:
-            #[doc = concat!(r"     A ", $name, r" object.")]
+            #[doc = concat!(r"     ", $name)]
             fn shrink_end(&self, end: $crate::python::utils::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                     self.$field.shrink_end(end)
             }

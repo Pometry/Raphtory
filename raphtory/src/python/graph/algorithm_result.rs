@@ -23,7 +23,7 @@ impl<G: StaticGraphViewOps, V: Repr + Clone, O> Repr for AlgorithmResultRs<G, V,
 #[macro_export]
 macro_rules! py_algorithm_result {
     ($objectName:ident, $rustGraph:ty, $rustValue:ty, $rustSortValue:ty) => {
-        #[pyclass]
+        #[pyclass(module = "raphtory", frozen)]
         pub struct $objectName(
             $crate::algorithms::algorithm_result::AlgorithmResult<
                 $rustGraph,

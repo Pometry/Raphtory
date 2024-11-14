@@ -36,7 +36,7 @@ use std::{
 
 /// A temporal graph that allows edges and nodes to be deleted.
 #[derive(Clone)]
-#[pyclass(name = "PersistentGraph", extends = PyGraphView, frozen)]
+#[pyclass(name = "PersistentGraph", extends = PyGraphView, frozen, module="raphtory")]
 pub struct PyPersistentGraph {
     pub(crate) graph: PersistentGraph,
 }

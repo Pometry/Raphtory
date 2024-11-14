@@ -34,7 +34,7 @@ use std::{
 /// Arguments:
 ///     num_shards (int, optional): The number of locks to use in the storage to allow for multithreaded updates.
 #[derive(Clone)]
-#[pyclass(name = "Graph", extends = PyGraphView, module = "raphtory")]
+#[pyclass(name = "Graph", extends = PyGraphView, module = "raphtory", frozen)]
 pub struct PyGraph {
     pub graph: Graph,
 }
@@ -118,7 +118,7 @@ impl PyGraph {
     }
 }
 
-#[pyclass(module = "raphtory")]
+#[pyclass(module = "raphtory", frozen)]
 pub struct PyGraphEncoder;
 
 #[pymethods]
@@ -131,7 +131,7 @@ impl PyGraphEncoder {
     fn __call__(&self, bytes: Vec<u8>) -> Result<MaterializedGraph, GraphError> {
         MaterializedGraph::decode_from_bytes(&bytes)
     }
-    fn __setstate__(&mut self) {}
+    fn __setstate__(&self) {}
     fn __getstate__(&self) {}
 }
 
