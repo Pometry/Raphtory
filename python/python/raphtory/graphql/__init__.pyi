@@ -19,7 +19,7 @@ class GraphServer(object):
     """A class for defining and running a Raphtory GraphQL server"""
 
     def __new__(
-        self,
+        cls,
         work_dir,
         cache_capacity=None,
         cache_tti_seconds=None,
@@ -147,7 +147,7 @@ class GraphqlGraphs(object):
 class RaphtoryClient(object):
     """A client for handling GraphQL operations in the context of Raphtory."""
 
-    def __new__(self, url) -> RaphtoryClient:
+    def __new__(cls, url) -> RaphtoryClient:
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def copy_graph(self, path, new_path):
@@ -268,7 +268,7 @@ class RaphtoryClient(object):
         """
 
 class RemoteEdge(object):
-    def __new__(self, path, client, src, dst) -> RemoteEdge:
+    def __new__(cls, path, client, src, dst) -> RemoteEdge:
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def add_constant_properties(
@@ -324,12 +324,12 @@ class RemoteEdge(object):
 
 class RemoteEdgeAddition(object):
     def __new__(
-        self, src, dst, layer=None, constant_properties=None, updates=None
+        cls, src, dst, layer=None, constant_properties=None, updates=None
     ) -> RemoteEdgeAddition:
         """Create and return a new object.  See help(type) for accurate signature."""
 
 class RemoteGraph(object):
-    def __new__(self, path, client) -> RemoteGraph:
+    def __new__(cls, path, client) -> RemoteGraph:
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def add_constant_properties(self, properties: dict):
@@ -458,7 +458,7 @@ class RemoteGraph(object):
         """
 
 class RemoteNode(object):
-    def __new__(self, path, client, id) -> RemoteNode:
+    def __new__(cls, path, client, id) -> RemoteNode:
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def add_constant_properties(self, properties: Dict[str, Prop]):
@@ -504,12 +504,12 @@ class RemoteNode(object):
 
 class RemoteNodeAddition(object):
     def __new__(
-        self, name, node_type=None, constant_properties=None, updates=None
+        cls, name, node_type=None, constant_properties=None, updates=None
     ) -> RemoteNodeAddition:
         """Create and return a new object.  See help(type) for accurate signature."""
 
 class RemoteUpdate(object):
-    def __new__(self, time, properties=None) -> RemoteUpdate:
+    def __new__(cls, time, properties=None) -> RemoteUpdate:
         """Create and return a new object.  See help(type) for accurate signature."""
 
 class RunningGraphServer(object):

@@ -153,9 +153,14 @@ def insert_self(signature: inspect.Signature) -> inspect.Signature:
     return signature.replace(parameters=[self_param, *signature.parameters.values()])
 
 
+def insert_cls(signature: inspect.Signature) -> inspect.Signature:
+    cls_param = inspect.Parameter("cls", kind=inspect.Parameter.POSITIONAL_OR_KEYWORD)
+    return signature.replace(parameters=[cls_param, *signature.parameters.values()])
+
+
 def cls_signature(cls: type) -> Optional[inspect.Signature]:
     try:
-        return insert_self(inspect.signature(cls))
+        return inspect.signature(cls)
     except ValueError:
         pass
 
@@ -249,6 +254,9 @@ def gen_fn(
         type_annotations,
         return_type,
     )
+    if name == "__new__":
+        # new is special and not a class method
+        decorator = None
 
     fn_str = f"{init_tab}def {name}{signature}:\n{docstr}"
 
@@ -282,7 +290,10 @@ def gen_class(cls: type, name) -> str:
             signature = cls_signature(cls)
             if signature is not None:
                 if obj_name == "__new__":
-                    signature = signature.replace(return_annotation=name)
+                    signature = insert_cls(signature.replace(return_annotation=name))
+                else:
+                    signature = insert_self(signature)
+
                 entities.append(
                     gen_fn(
                         entity,
