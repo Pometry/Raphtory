@@ -27,6 +27,18 @@ pub trait NodeOp: Send + Sync {
     }
 }
 
+// Cannot use OneHopFilter because there is no way to specify the bound on Output
+pub trait NodeOpFilter<'graph>: NodeOp + 'graph {
+    type Graph: GraphViewOps<'graph>;
+    type Filtered<G: GraphViewOps<'graph>>: NodeOp<Output = Self::Output>
+        + NodeOpFilter<'graph, Graph = G>
+        + 'graph;
+
+    fn graph(&self) -> &Self::Graph;
+
+    fn filtered<G: GraphViewOps<'graph>>(&self, graph: G) -> Self::Filtered<G>;
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct Name;
 
@@ -83,20 +95,15 @@ impl<'graph, G: GraphViewOps<'graph>> NodeOp for Degree<G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> OneHopFilter<'graph> for Degree<G> {
-    type BaseGraph = G;
-    type FilteredGraph = G;
+impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for Degree<G> {
+    type Graph = G;
     type Filtered<GH: GraphViewOps<'graph> + 'graph> = Degree<GH>;
 
-    fn current_filter(&self) -> &Self::FilteredGraph {
+    fn graph(&self) -> &Self::Graph {
         &self.graph
     }
 
-    fn base_graph(&self) -> &Self::BaseGraph {
-        &self.graph
-    }
-
-    fn one_hop_filtered<GH: GraphViewOps<'graph> + 'graph>(
+    fn filtered<GH: GraphViewOps<'graph> + 'graph>(
         &self,
         filtered_graph: GH,
     ) -> Self::Filtered<GH> {
@@ -125,5 +132,21 @@ impl<Op: NodeOp, V: Clone + Send + Sync> NodeOp for Map<Op, V> {
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         (self.map)(self.op.apply(storage, node))
+    }
+}
+
+impl<'graph, Op: NodeOpFilter<'graph>, V: Clone + Send + Sync + 'graph> NodeOpFilter<'graph>
+    for Map<Op, V>
+{
+    type Graph = Op::Graph;
+    type Filtered<G: GraphViewOps<'graph>> = Map<Op::Filtered<G>, V>;
+
+    fn graph(&self) -> &Self::Graph {
+        self.op.graph()
+    }
+
+    fn filtered<G: GraphViewOps<'graph>>(&self, graph: G) -> Self::Filtered<G> {
+        let op = self.op.filtered(graph);
+        Map { op, map: self.map }
     }
 }

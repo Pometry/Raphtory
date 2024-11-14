@@ -283,22 +283,23 @@ macro_rules! impl_node_state_num {
     };
 }
 
-impl_lazy_node_state_num!(DegreeView<ops::Degree<DynamicGraph>>);
-
-impl<G: StaticGraphViewOps + IntoDynamic + Static> IntoPy<PyObject>
-    for LazyNodeState<'static, ops::Degree<G>, DynamicGraph, DynamicGraph>
-{
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.into_dyn_hop().into_py(py)
+macro_rules! impl_one_hop {
+    ($name:ident<$($path:ident)::+>) => {
+        impl<G: StaticGraphViewOps + IntoDynamic + Static> IntoPy<PyObject>
+            for LazyNodeState<'static, $($path)::+<G>, DynamicGraph, DynamicGraph>
+        {
+            fn into_py(self, py: Python<'_>) -> PyObject {
+                self.into_dyn_hop().into_py(py)
+            }
+        }
+        impl_timeops!($name, inner, LazyNodeState<'static, $($path)::+<DynamicGraph>, DynamicGraph>,"DegreeView");
+        impl_layerops!($name, inner, LazyNodeState<'static, $($path)::+<DynamicGraph>, DynamicGraph>,"DegreeView");
     }
 }
 
-impl_timeops!(
-    DegreeView,
-    inner,
-    LazyNodeState<'static, ops::Degree<DynamicGraph>, DynamicGraph>,
-    "DegreeView"
-);
+impl_lazy_node_state_num!(DegreeView<ops::Degree<DynamicGraph>>);
+impl_one_hop!(DegreeView<ops::Degree>);
+
 impl_node_state_num!(NodeStateUsize<usize>);
 
 impl_node_state_num!(NodeStateU64<u64>);
@@ -307,7 +308,9 @@ impl_lazy_node_state_ord!(IdView<ops::Id>);
 impl_node_state_ord!(NodeStateGID<GID>);
 
 impl_lazy_node_state_ord!(EarliestTimeView<ops::EarliestTime<DynamicGraph>>);
+impl_one_hop!(EarliestTimeView<ops::EarliestTime>);
 impl_lazy_node_state_ord!(LatestTimeView<ops::LatestTime<DynamicGraph>>);
+impl_one_hop!(LatestTimeView<ops::LatestTime>);
 impl_node_state_ord!(NodeStateOptionI64<Option<i64>>);
 
 impl_lazy_node_state_ord!(NameView<ops::Name>);

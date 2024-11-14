@@ -2,7 +2,10 @@ use crate::{
     core::entities::{nodes::node_ref::AsNodeRef, VID},
     db::{
         api::{
-            state::{ops::node::NodeOp, NodeState, NodeStateOps},
+            state::{
+                ops::{node::NodeOp, NodeOpFilter},
+                NodeState, NodeStateOps,
+            },
             view::{
                 internal::{NodeList, OneHopFilter},
                 BoxedLIter, DynamicGraph, IntoDynBoxed,
@@ -31,16 +34,16 @@ where
     }
 }
 
-impl<'graph, Op: OneHopFilter<'graph>, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
+impl<'graph, Op: NodeOpFilter<'graph>, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
     OneHopFilter<'graph> for LazyNodeState<'graph, Op, G, GH>
 {
     type BaseGraph = G;
-    type FilteredGraph = Op::FilteredGraph;
+    type FilteredGraph = Op::Graph;
     type Filtered<GHH: GraphViewOps<'graph> + 'graph> =
         LazyNodeState<'graph, Op::Filtered<GHH>, G, GH>;
 
     fn current_filter(&self) -> &Self::FilteredGraph {
-        self.op.current_filter()
+        self.op.graph()
     }
 
     fn base_graph(&self) -> &Self::BaseGraph {
@@ -53,7 +56,7 @@ impl<'graph, Op: OneHopFilter<'graph>, G: GraphViewOps<'graph>, GH: GraphViewOps
     ) -> Self::Filtered<GHH> {
         LazyNodeState {
             nodes: self.nodes.clone(),
-            op: self.op.one_hop_filtered(filtered_graph),
+            op: self.op.filtered(filtered_graph),
         }
     }
 }

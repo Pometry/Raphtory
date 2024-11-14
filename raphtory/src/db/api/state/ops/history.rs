@@ -1,6 +1,8 @@
 use crate::{
     db::api::{
-        state::NodeOp, storage::graph::storage_ops::GraphStorage, view::internal::OneHopFilter,
+        state::{ops::NodeOpFilter, NodeOp},
+        storage::graph::storage_ops::GraphStorage,
+        view::internal::OneHopFilter,
     },
     prelude::GraphViewOps,
 };
@@ -19,20 +21,15 @@ impl<'graph, G: GraphViewOps<'graph>> NodeOp for EarliestTime<G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> OneHopFilter<'graph> for EarliestTime<G> {
-    type BaseGraph = G;
-    type FilteredGraph = G;
+impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for EarliestTime<G> {
+    type Graph = G;
     type Filtered<GH: GraphViewOps<'graph> + 'graph> = EarliestTime<GH>;
 
-    fn current_filter(&self) -> &Self::FilteredGraph {
+    fn graph(&self) -> &Self::Graph {
         &self.graph
     }
 
-    fn base_graph(&self) -> &Self::BaseGraph {
-        &self.graph
-    }
-
-    fn one_hop_filtered<GH: GraphViewOps<'graph> + 'graph>(
+    fn filtered<GH: GraphViewOps<'graph> + 'graph>(
         &self,
         filtered_graph: GH,
     ) -> Self::Filtered<GH> {
@@ -55,20 +52,15 @@ impl<'graph, G: GraphViewOps<'graph>> NodeOp for LatestTime<G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> OneHopFilter<'graph> for LatestTime<G> {
-    type BaseGraph = G;
-    type FilteredGraph = G;
+impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for LatestTime<G> {
+    type Graph = G;
     type Filtered<GH: GraphViewOps<'graph> + 'graph> = LatestTime<GH>;
 
-    fn current_filter(&self) -> &Self::FilteredGraph {
+    fn graph(&self) -> &Self::Graph {
         &self.graph
     }
 
-    fn base_graph(&self) -> &Self::BaseGraph {
-        &self.graph
-    }
-
-    fn one_hop_filtered<GH: GraphViewOps<'graph> + 'graph>(
+    fn filtered<GH: GraphViewOps<'graph> + 'graph>(
         &self,
         filtered_graph: GH,
     ) -> Self::Filtered<GH> {
@@ -91,20 +83,15 @@ impl<'graph, G: GraphViewOps<'graph>> NodeOp for History<G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> OneHopFilter<'graph> for History<G> {
-    type BaseGraph = G;
-    type FilteredGraph = G;
+impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for History<G> {
+    type Graph = G;
     type Filtered<GH: GraphViewOps<'graph> + 'graph> = History<GH>;
 
-    fn current_filter(&self) -> &Self::FilteredGraph {
+    fn graph(&self) -> &Self::Graph {
         &self.graph
     }
 
-    fn base_graph(&self) -> &Self::BaseGraph {
-        &self.graph
-    }
-
-    fn one_hop_filtered<GH: GraphViewOps<'graph> + 'graph>(
+    fn filtered<GH: GraphViewOps<'graph> + 'graph>(
         &self,
         filtered_graph: GH,
     ) -> Self::Filtered<GH> {
