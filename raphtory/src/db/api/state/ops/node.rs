@@ -1,10 +1,7 @@
 use crate::{
     db::api::{
         storage::graph::storage_ops::GraphStorage,
-        view::{
-            internal::{CoreGraphOps, OneHopFilter, Static},
-            IntoDynamic,
-        },
+        view::internal::{CoreGraphOps, OneHopFilter},
     },
     prelude::GraphViewOps,
 };

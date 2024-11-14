@@ -2,7 +2,6 @@ use crate::{
     db::api::{
         state::{ops::NodeOpFilter, NodeOp},
         storage::graph::storage_ops::GraphStorage,
-        view::internal::OneHopFilter,
     },
     prelude::GraphViewOps,
 };

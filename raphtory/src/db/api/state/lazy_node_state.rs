@@ -8,7 +8,7 @@ use crate::{
             },
             view::{
                 internal::{NodeList, OneHopFilter},
-                BoxedLIter, DynamicGraph, IntoDynBoxed,
+                BoxedLIter, IntoDynBoxed,
             },
         },
         graph::{node::NodeView, nodes::Nodes},
