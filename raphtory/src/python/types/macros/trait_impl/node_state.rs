@@ -316,20 +316,24 @@ impl_node_state_ord!(NodeStateOptionI64<Option<i64>>);
 impl_lazy_node_state_ord!(NameView<ops::Name>);
 impl_node_state_ord!(NodeStateString<String>);
 
-impl_lazy_node_state_ord!(
-    EarliestDateTimeView<ops::Map<ops::EarliestTime<DynamicGraph>, Option<DateTime<Utc>>>>
-);
+type EarliestDateTime<G> = ops::Map<ops::EarliestTime<G>, Option<DateTime<Utc>>>;
+impl_lazy_node_state_ord!(EarliestDateTimeView<EarliestDateTime<DynamicGraph>>);
+impl_one_hop!(EarliestDateTimeView<EarliestDateTime>);
+
+type LatestDateTime<G> = ops::Map<ops::LatestTime<G>, Option<DateTime<Utc>>>;
 impl_lazy_node_state_ord!(
     LatestDateTimeView<ops::Map<ops::LatestTime<DynamicGraph>, Option<DateTime<Utc>>>>
 );
+impl_one_hop!(LatestDateTimeView<LatestDateTime>);
 impl_node_state_ord!(NodeStateOptionDateTime<Option<DateTime<Utc>>>);
 
 impl_lazy_node_state_ord!(HistoryView<ops::History<DynamicGraph>>);
+impl_one_hop!(HistoryView<ops::History>);
 impl_node_state_ord!(NodeStateListI64<Vec<i64>>);
 
-impl_lazy_node_state_ord!(
-    HistoryDateTimeView<ops::Map<ops::History<DynamicGraph>, Option<Vec<DateTime<Utc>>>>>
-);
+type HistoryDateTime<G> = ops::Map<ops::History<G>, Option<Vec<DateTime<Utc>>>>;
+impl_lazy_node_state_ord!(HistoryDateTimeView<HistoryDateTime<DynamicGraph>>);
+impl_one_hop!(HistoryDateTimeView<HistoryDateTime>);
 impl_node_state_ord!(NodeStateOptionListDateTime<Option<Vec<DateTime<Utc>>>>);
 
 impl_lazy_node_state_ord!(NodeTypeView<ops::Type>);
