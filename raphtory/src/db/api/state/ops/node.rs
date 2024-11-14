@@ -1,8 +1,5 @@
 use crate::{
-    db::api::{
-        storage::graph::storage_ops::GraphStorage,
-        view::internal::{CoreGraphOps, OneHopFilter},
-    },
+    db::api::{storage::graph::storage_ops::GraphStorage, view::internal::CoreGraphOps},
     prelude::GraphViewOps,
 };
 use raphtory_api::core::{
