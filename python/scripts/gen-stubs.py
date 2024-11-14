@@ -160,10 +160,12 @@ def cls_signature(cls: type) -> Optional[inspect.Signature]:
         pass
 
 
-def from_raphtory(obj) -> bool:
+def from_raphtory(obj, name: str) -> bool:
     module = inspect.getmodule(obj)
     if module:
-        return any(module.__name__.startswith(target) for target in TARGET_MODULES)
+        return module.__name__ == name or any(
+            module.__name__.startswith(target) for target in TARGET_MODULES
+        )
     return False
 
 
@@ -316,7 +318,7 @@ def gen_module(module: ModuleType, name: str, path: Path) -> None:
     logger = logging.getLogger(str(path))
 
     for obj_name, obj in objs:
-        if isinstance(obj, type) and from_raphtory(obj):
+        if isinstance(obj, type) and from_raphtory(obj, name):
             stubs.append(gen_class(obj, obj_name))
         elif isinstance(obj, BuiltinFunctionType):
             stubs.append(gen_fn(obj, obj_name))
