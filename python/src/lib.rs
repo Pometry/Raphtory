@@ -21,6 +21,5 @@ fn raphtory(py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_submodule(&graph_loader_module)?;
     m.add_submodule(&graph_gen_module)?;
     m.add_submodule(&vectors_module)?;
-
     Ok(())
 }

@@ -14,6 +14,7 @@ use crate::{
             graph_with_deletions::PyPersistentGraph,
             index::GraphIndex,
             node::{PyMutableNode, PyNode, PyNodes},
+            node_state::node_state,
             properties::{PyConstProperties, PyProperties, PyTemporalProp, PyTemporalProperties},
             views::graph_view::PyGraphView,
         },
@@ -30,7 +31,7 @@ use crate::{
         utils::PyWindowSet,
     },
 };
-use pyo3::prelude::*;
+use pyo3::{prelude::*, wrap_pymodule};
 
 pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
     //Graph classes
@@ -56,6 +57,7 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         AlgorithmResult,
         GraphIndex
     );
+    m.add_wrapped(wrap_pymodule!(node_state))?;
 
     #[cfg(feature = "storage")]
     add_classes!(m, PyDiskGraph);
