@@ -254,9 +254,6 @@ mod test {
     fn test_compile() {
         let g = Graph::new();
         g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
-
-        let nodes = g.nodes();
-
         let deg = g.nodes().degree();
 
         assert_eq!(deg.collect_vec(), [1, 1]);
@@ -279,6 +276,6 @@ mod test {
         assert_eq!(dyn_deg, [1, 1]);
         assert_eq!(arc_deg.apply(g.core_graph(), VID(0)), 1);
 
-        let test_struct = TestWrapper(arc_deg);
+        let _test_struct = TestWrapper(arc_deg);
     }
 }
