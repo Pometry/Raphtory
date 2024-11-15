@@ -250,7 +250,7 @@ macro_rules! impl_node_state_num_ops {
 macro_rules! impl_lazy_node_state {
     ($name:ident<$op:ty>, $computed:literal, $py_value:literal) => {
         /// A lazy view over node values
-        #[pyclass(module = "node_state", frozen)]
+        #[pyclass(module = "raphtory.node_state", frozen)]
         pub struct $name {
             inner: LazyNodeState<'static, $op, DynamicGraph, DynamicGraph>,
         }
@@ -301,7 +301,7 @@ macro_rules! impl_lazy_node_state {
 
 macro_rules! impl_node_state {
     ($name:ident<$value:ty>, $computed:literal, $py_value:literal) => {
-        #[pyclass(module = "node_state", frozen)]
+        #[pyclass(module = "raphtory.node_state", frozen)]
         pub struct $name {
             inner: Arc<NodeState<'static, $value, DynamicGraph, DynamicGraph>>,
         }
