@@ -1759,28 +1759,28 @@ class GraphView(object):
              GraphView
         """
 
-    def count_edges(self):
+    def count_edges(self) -> int:
         """
         Number of edges in the graph
 
         Returns:
-           the number of edges in the graph
+           int: the number of edges in the graph
         """
 
-    def count_nodes(self):
+    def count_nodes(self) -> int:
         """
         Number of nodes in the graph
 
         Returns:
-          the number of nodes in the graph
+          int: the number of nodes in the graph
         """
 
-    def count_temporal_edges(self):
+    def count_temporal_edges(self) -> int:
         """
         Number of edges in the graph
 
         Returns:
-           the number of temporal edges in the graph
+           int: the number of temporal edges in the graph
         """
 
     def default_layer(self) -> GraphView:
@@ -1796,7 +1796,7 @@ class GraphView(object):
         DateTime of earliest activity in the graph
 
         Returns:
-            the datetime of the earliest activity in the graph
+            Optional[Datetime]: the datetime of the earliest activity in the graph
         """
 
     @property
@@ -1805,10 +1805,10 @@ class GraphView(object):
         Timestamp of earliest activity in the graph
 
         Returns:
-            the timestamp of the earliest activity in the graph
+            Optional[int]: the timestamp of the earliest activity in the graph
         """
 
-    def edge(self, src: str or int, dst: str or int):
+    def edge(self, src: str or int, dst: str or int) -> Optional[Edge]:
         """
         Gets the edge with the specified source and destination nodes
 
@@ -1817,7 +1817,7 @@ class GraphView(object):
             dst (str or int): the destination node id
 
         Returns:
-            the edge with the specified source and destination nodes, or None if the edge does not exist
+            Optional[Edge]: the edge with the specified source and destination nodes, or None if the edge does not exist
         """
 
     @property
@@ -1826,7 +1826,7 @@ class GraphView(object):
         Gets all edges in the graph
 
         Returns:
-         the edges in the graph
+          Edges: the edges in the graph
         """
 
     @property
@@ -1871,15 +1871,15 @@ class GraphView(object):
              GraphView: The layered view
         """
 
-    def exclude_nodes(self, nodes):
+    def exclude_nodes(self, nodes: list[InputNode]) -> GraphView:
         """
         Returns a subgraph given a set of nodes that are excluded from the subgraph
 
         Arguments:
-          * `nodes`: set of nodes
+          nodes (list[InputNode]): set of nodes
 
         Returns:
-           GraphView - Returns the subgraph
+           GraphView: Returns the subgraph
         """
 
     def exclude_valid_layer(self, name: str) -> GraphView:
@@ -1951,25 +1951,25 @@ class GraphView(object):
             GraphView: The filtered view
         """
 
-    def find_edges(self, properties_dict):
+    def find_edges(self, properties_dict) -> list[Edge]:
         """
         Get the edges that match the properties name and value
         Arguments:
-            property_dict (dict): the properties name and value
+            property_dict (dict[str, Prop]): the properties name and value
         Returns:
-           the edges that match the properties name and value
+           list[Edge]: the edges that match the properties name and value
         """
 
-    def find_nodes(self, properties_dict):
+    def find_nodes(self, properties_dict) -> list[Node]:
         """
         Get the nodes that match the properties name and value
         Arguments:
-            property_dict (dict): the properties name and value
+            property_dict (dict[str, Prop]): the properties name and value
         Returns:
-           the nodes that match the properties name and value
+           list[Node]: the nodes that match the properties name and value
         """
 
-    def has_edge(self, src: str or int, dst: str or int):
+    def has_edge(self, src: str or int, dst: str or int) -> bool:
         """
         Returns true if the graph contains the specified edge
 
@@ -1978,13 +1978,13 @@ class GraphView(object):
           dst (str or int): the destination node id
 
         Returns:
-         true if the graph contains the specified edge, false otherwise
+            bool: true if the graph contains the specified edge, false otherwise
         """
 
     def has_layer(self, name):
         """Check if GraphView has the layer `"name"`"""
 
-    def has_node(self, id: str or int):
+    def has_node(self, id: str or int) -> bool:
         """
         Returns true if the graph contains the specified node
 
@@ -1992,7 +1992,7 @@ class GraphView(object):
            id (str or int): the node id
 
         Returns:
-          true if the graph contains the specified node, false otherwise
+          bool: true if the graph contains the specified node, false otherwise
         """
 
     def index(self):
@@ -2019,7 +2019,7 @@ class GraphView(object):
         DateTime of latest activity in the graph
 
         Returns:
-            the datetime of the latest activity in the graph
+            Optional[Datetime]: the datetime of the latest activity in the graph
         """
 
     @property
@@ -2028,7 +2028,7 @@ class GraphView(object):
         Timestamp of latest activity in the graph
 
         Returns:
-            the timestamp of the latest activity in the graph
+            Optional[int]: the timestamp of the latest activity in the graph
         """
 
     def layer(self, name) -> GraphView:
@@ -2052,15 +2052,15 @@ class GraphView(object):
              GraphView: The layered view
         """
 
-    def materialize(self):
+    def materialize(self) -> GraphView:
         """
         Returns a 'materialized' clone of the graph view - i.e. a new graph with a copy of the data seen within the view instead of just a mask over the original graph
 
         Returns:
-           GraphView - Returns a graph clone
+           GraphView: Returns a graph clone
         """
 
-    def node(self, id: str or int):
+    def node(self, id: str or int) -> Optional[Node]:
         """
         Gets the node with the specified id
 
@@ -2068,7 +2068,7 @@ class GraphView(object):
           id (str or int): the node id
 
         Returns:
-          the node with the specified id, or None if the node does not exist
+            Optional[Node]: the node with the specified id, or None if the node does not exist
         """
 
     @property
@@ -2077,7 +2077,7 @@ class GraphView(object):
         Gets the nodes in the graph
 
         Returns:
-         the nodes in the graph
+          Nodes: the nodes in the graph
         """
 
     @property
@@ -2087,7 +2087,7 @@ class GraphView(object):
 
 
         Returns:
-           HashMap<String, Prop> - Properties paired with their names
+            Properties: Properties paired with their names
         """
 
     def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
@@ -2177,26 +2177,26 @@ class GraphView(object):
              Optional[Datetime]: The earliest datetime that this GraphView is valid or None if the GraphView is valid for all times.
         """
 
-    def subgraph(self, nodes):
+    def subgraph(self, nodes: list[InputNode]) -> GraphView:
         """
         Returns a subgraph given a set of nodes
 
         Arguments:
-          * `nodes`: set of nodes
+          nodes (list[InputNode]): set of nodes
 
         Returns:
-           GraphView - Returns the subgraph
+           GraphView: Returns the subgraph
         """
 
-    def subgraph_node_types(self, node_types):
+    def subgraph_node_types(self, node_types: list[str]) -> GraphView:
         """
         Returns a subgraph filtered by node types given a set of node types
 
         Arguments:
-          * `node_types`: set of node types
+          node_types (list[str]): set of node types
 
         Returns:
-           GraphView - Returns the subgraph
+           GraphView: Returns the subgraph
         """
 
     def to_networkx(
@@ -2263,7 +2263,12 @@ class GraphView(object):
 
     @property
     def unique_layers(self):
-        """Return all the layer ids in the graph"""
+        """
+        Return all the layer ids in the graph
+
+        Returns:
+            list[str]
+        """
 
     def valid_layers(self, names: list[str]) -> GraphView:
         """
