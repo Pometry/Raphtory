@@ -1941,14 +1941,11 @@ mod db_tests {
         test_graph(&graph, |graph| {
             assert_eq!(
                 graph.nodes().id().collect::<Vec<_>>(),
-                vec![1u64.into(), 2u64.into(), 3u64.into()]
+                vec![1u64, 2u64, 3u64]
             );
 
             let g_at = graph.at(1);
-            assert_eq!(
-                g_at.nodes().id().collect::<Vec<_>>(),
-                vec![1u64.into(), 2u64.into()]
-            );
+            assert_eq!(g_at.nodes().id().collect::<Vec<_>>(), vec![1u64, 2u64]);
         });
     }
 
