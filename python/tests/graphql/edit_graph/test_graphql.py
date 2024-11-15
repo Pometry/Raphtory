@@ -435,7 +435,7 @@ def test_create_node_using_client():
             }
         }
 
-        remote_graph = RemoteGraph(path="g", client=client)
+        remote_graph = client.remote_graph(path="g")
         remote_graph.create_node(timestamp=0, id="oogway")
         assert client.query(query_nodes) == {
             "graph": {
@@ -469,7 +469,7 @@ def test_create_node_using_client_with_properties():
             }
         }
 
-        remote_graph = RemoteGraph(path="g", client=client)
+        remote_graph = client.remote_graph(path="g")
         remote_graph.create_node(timestamp=0, id="oogway", properties={"prop1": 60, "prop2": 31.3, "prop3": "abc123", "prop4": True, "prop5": [1, 2, 3]})
         nodes = json.loads(json.dumps(client.query(query_nodes)))['graph']['nodes']['list']
         node_oogway = next(node for node in nodes if node['name'] == 'oogway')
@@ -499,7 +499,7 @@ def test_create_node_using_client_with_properties_node_type():
             }
         }
 
-        remote_graph = RemoteGraph(path="g", client=client)
+        remote_graph = client.remote_graph(path="g")
         remote_graph.create_node(timestamp=0, id="oogway", properties={"prop1": 60, "prop2": 31.3, "prop3": "abc123", "prop4": True, "prop5": [1, 2, 3]}, node_type="master")
         nodes = json.loads(json.dumps(client.query(query_nodes)))['graph']['nodes']['list']
         node_oogway = next(node for node in nodes if node['name'] == 'oogway')
@@ -530,7 +530,7 @@ def test_create_node_using_client_with_node_type():
             }
         }
 
-        remote_graph = RemoteGraph(path="g", client=client)
+        remote_graph = client.remote_graph(path="g")
         remote_graph.create_node(timestamp=0, id="oogway", node_type="master")
         assert client.query(query_nodes) == {
             "graph": {

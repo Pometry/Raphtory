@@ -23,11 +23,6 @@ pub struct PyRemoteGraph {
 
 #[pymethods]
 impl PyRemoteGraph {
-    #[new]
-    pub(crate) fn new(path: String, client: PyRaphtoryClient) -> Self {
-        Self { path, client }
-    }
-
     /// Gets a remote node with the specified id
     ///
     /// Arguments:
