@@ -3235,4 +3235,19 @@ mod db_tests {
         let graph = pool.install(|| Graph::new());
         assert_eq!(graph.core_graph().internal_num_nodes(), 0);
     }
+
+    #[test]
+    fn test_create_node() {
+        let g = Graph::new();
+        g.create_node(0, 1, [("test", Prop::Bool(true))], None)
+            .unwrap();
+
+        let n = g.node(1).unwrap();
+
+        assert_eq!(n.id().as_u64().unwrap(), 1);
+        assert_eq!(n.properties().get("test").unwrap(), Prop::Bool(true));
+
+        let result = g.create_node(1, 1, [("test".to_string(), Prop::Bool(true))], None);
+        assert!(matches!(result, Err(GraphError::NodeExistsError(id)) if id == GID::U64(1)));
+    }
 }
