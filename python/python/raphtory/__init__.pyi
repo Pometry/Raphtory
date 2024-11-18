@@ -1245,6 +1245,25 @@ class Graph(GraphView):
             path (str): The path to the cache file
         """
 
+    def create_node(
+        self,
+        timestamp: TimeInput,
+        id: str | int,
+        properties: Optional[PropInput] = None,
+        node_type: Optional[str] = None,
+    ) -> MutableNode:
+        """
+        Creates a new node with the given id and properties to the graph. It fails if the node already exists.
+
+        Arguments:
+           timestamp (TimeInput): The timestamp of the node.
+           id (str|int): The id of the node.
+           properties (PropInput, optional): The properties of the node.
+           node_type (str, optional): The optional string which will be used as a node type
+        Returns:
+          MutableNode: The created node
+        """
+
     @staticmethod
     def deserialise(bytes: bytes):
         """
@@ -3534,6 +3553,26 @@ class PersistentGraph(GraphView):
 
         Arguments:
             path (str): The path to the cache file
+        """
+
+    def create_node(
+        self,
+        timestamp: TimeInput,
+        id: str | int,
+        properties: dict = None,
+        node_type: str = None,
+    ):
+        """
+        Creates a new node with the given id and properties to the graph. It fails if the node already exists.
+
+        Arguments:
+           timestamp (TimeInput): The timestamp of the node.
+           id (str | int): The id of the node.
+           properties (dict): The properties of the node.
+           node_type (str) : The optional string which will be used as a node type
+
+        Returns:
+          MutableNode
         """
 
     def delete_edge(
