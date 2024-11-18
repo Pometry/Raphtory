@@ -417,7 +417,10 @@ mod db_tests {
         algorithms::components::weakly_connected_components,
         core::{
             utils::{
-                errors::{GraphError, GraphError::NodeExistsError},
+                errors::{
+                    GraphError,
+                    GraphError::{EdgeExistsError, NodeExistsError},
+                },
                 time::{error::ParseTimeError, TryIntoTime},
             },
             Prop,
@@ -846,6 +849,215 @@ mod db_tests {
         assert_eq!(y.history(), vec![1]);
         assert_eq!(y.properties().get("temp").unwrap(), Prop::Bool(true));
         assert_eq!(y.properties().constant().get("con").unwrap(), Prop::I64(11));
+    }
+
+    #[test]
+    fn import_edge_as() {
+        let g = Graph::new();
+        let g_a = g.add_node(0, "A", NO_PROPS, None).unwrap();
+        let g_b = g
+            .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
+            .unwrap();
+        let _ = g_b.add_constant_properties(vec![("con".to_string(), Prop::I64(11))]);
+        let e_a_b = g
+            .add_edge(
+                2,
+                "A",
+                "B",
+                vec![("e_temp".to_string(), Prop::Bool(false))],
+                None,
+            )
+            .unwrap();
+
+        let gg = Graph::new();
+        let e = gg.add_edge(1, "X", "Y", NO_PROPS, None).unwrap();
+        let res = gg.import_edge_as(&e_a_b, ("X", "Y"), false);
+        match res {
+            Err(EdgeExistsError(src_id, dst_id)) => {
+                assert_eq!(
+                    src_id.to_string(),
+                    "A",
+                    "Unexpected node ID for NodeExistsError"
+                ); // TODO: Should be "X"
+                assert_eq!(
+                    dst_id.to_string(),
+                    "B",
+                    "Unexpected node ID for NodeExistsError"
+                ); // TODO: Should be "Y"
+            }
+            Err(e) => panic!("Unexpected error: {:?}", e),
+            Ok(_) => panic!("Expected error but got Ok"),
+        }
+        let mut nodes = gg.nodes().name().collect_vec();
+        nodes.sort();
+        assert_eq!(nodes, vec!["X", "Y"]);
+        let x = gg.node("X").unwrap();
+        assert_eq!(x.name(), "X");
+        assert_eq!(x.history(), vec![1]);
+        let y = gg.node("Y").unwrap();
+        assert_eq!(y.name(), "Y");
+        assert_eq!(y.history(), vec![1]);
+        assert_eq!(y.properties().get("temp"), None);
+        assert_eq!(y.properties().constant().get("con"), None);
+
+        let e_src = gg.edge("X", "Y").unwrap().src().name();
+        let e_dst = gg.edge("X", "Y").unwrap().dst().name();
+        assert_eq!(e_src, "X");
+        assert_eq!(e_dst, "Y");
+
+        let props = gg.edge("X", "Y").unwrap().properties().as_vec();
+        assert_eq!(props, vec![]);
+    }
+
+    #[test]
+    fn import_edge_as_force() {
+        let g = Graph::new();
+        let g_a = g.add_node(0, "A", NO_PROPS, None).unwrap();
+        let g_b = g
+            .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
+            .unwrap();
+        let _ = g_b.add_constant_properties(vec![("con".to_string(), Prop::I64(11))]);
+        let e_a_b = g
+            .add_edge(
+                2,
+                "A",
+                "B",
+                vec![("e_temp".to_string(), Prop::Bool(false))],
+                None,
+            )
+            .unwrap();
+
+        let gg = Graph::new();
+        let _ = gg.add_edge(3, "X", "Y", NO_PROPS, None).unwrap();
+        let res = gg.import_edge_as(&e_a_b, ("X", "Y"), true).unwrap();
+        assert_eq!(res.src().name(), "X");
+        assert_eq!(res.dst().name(), "Y");
+        assert_eq!(res.properties().as_vec(), e_a_b.properties().as_vec());
+        let mut nodes = gg.nodes().name().collect_vec();
+        nodes.sort();
+        assert_eq!(nodes, vec!["X", "Y"]);
+        let x = gg.node("X").unwrap();
+        assert_eq!(x.name(), "X");
+        assert_eq!(x.history(), vec![2, 3]);
+        let y = gg.node("Y").unwrap();
+        assert_eq!(y.name(), "Y");
+        assert_eq!(y.history(), vec![2, 3]);
+        assert_eq!(y.properties().get("temp"), None);
+        assert_eq!(y.properties().constant().get("con"), None);
+    }
+
+    #[test]
+    fn import_edges_as() {
+        let g = Graph::new();
+        let g_a = g.add_node(0, "A", NO_PROPS, None).unwrap();
+        let g_b = g
+            .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
+            .unwrap();
+        let _ = g_b.add_constant_properties(vec![("con".to_string(), Prop::I64(11))]);
+        let g_c = g.add_node(0, "C", NO_PROPS, None).unwrap();
+        let e_a_b = g
+            .add_edge(
+                2,
+                "A",
+                "B",
+                vec![("e_temp".to_string(), Prop::Bool(false))],
+                None,
+            )
+            .unwrap();
+        let e_b_c = g.add_edge(2, "B", "C", NO_PROPS, None).unwrap();
+
+        let gg = Graph::new();
+        let e = gg.add_edge(1, "Y", "Z", NO_PROPS, None).unwrap();
+        let res = gg.import_edges_as([&e_a_b, &e_b_c], [("X", "Y"), ("Y", "Z")], false);
+        match res {
+            Err(EdgeExistsError(src_id, dst_id)) => {
+                assert_eq!(
+                    src_id.to_string(),
+                    "B",
+                    "Unexpected node ID for NodeExistsError"
+                ); // TODO: Should be "X"
+                assert_eq!(
+                    dst_id.to_string(),
+                    "C",
+                    "Unexpected node ID for NodeExistsError"
+                ); // TODO: Should be "Y"
+            }
+            Err(e) => panic!("Unexpected error: {:?}", e),
+            Ok(_) => panic!("Expected error but got Ok"),
+        }
+        let mut nodes = gg.nodes().name().collect_vec();
+        nodes.sort();
+        assert_eq!(nodes, vec!["X", "Y", "Z"]);
+        let x = gg.node("X").unwrap();
+        assert_eq!(x.name(), "X");
+        assert_eq!(x.history(), vec![2]);
+        let y = gg.node("Y").unwrap();
+        assert_eq!(y.name(), "Y");
+        assert_eq!(y.history(), vec![1, 2]);
+        assert_eq!(y.properties().get("temp"), None);
+        assert_eq!(y.properties().constant().get("con"), None);
+        let x = gg.node("Z").unwrap();
+        assert_eq!(x.name(), "Z");
+        assert_eq!(x.history(), vec![1]);
+
+        let e_x_y = gg.edge("X", "Y").unwrap();
+        assert_eq!(
+            (e_x_y.src().name().as_str(), e_x_y.dst().name().as_str()),
+            ("X", "Y")
+        );
+
+        let e_y_z = gg.edge("Y", "Z").unwrap();
+        assert_eq!(
+            (e_y_z.src().name().as_str(), e_y_z.dst().name().as_str()),
+            ("Y", "Z")
+        );
+
+        assert_eq!(e_x_y.properties().get("e_temp").unwrap(), Prop::Bool(false));
+
+        let props = e_y_z.properties().as_vec();
+        assert_eq!(props, vec![]);
+    }
+
+    #[test]
+    fn import_edges_as_force() {
+        let g = Graph::new();
+        let g_a = g.add_node(0, "A", NO_PROPS, None).unwrap();
+        let g_b = g
+            .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
+            .unwrap();
+        let _ = g_b.add_constant_properties(vec![("con".to_string(), Prop::I64(11))]);
+        let e_a_b = g
+            .add_edge(
+                2,
+                "A",
+                "B",
+                vec![("e_temp".to_string(), Prop::Bool(false))],
+                None,
+            )
+            .unwrap();
+
+        let gg = Graph::new();
+        let _ = gg.add_edge(3, "X", "Y", NO_PROPS, None).unwrap();
+        let res = gg.import_edges_as([&e_a_b], [("X", "Y")], true).unwrap();
+
+        let e_x_y = gg.edge("X", "Y").unwrap();
+        assert_eq!(
+            (e_x_y.src().name().as_str(), e_x_y.dst().name().as_str()),
+            ("X", "Y")
+        );
+        assert_eq!(e_x_y.properties().get("e_temp").unwrap(), Prop::Bool(false));
+
+        let mut nodes = gg.nodes().name().collect_vec();
+        nodes.sort();
+        assert_eq!(nodes, vec!["X", "Y"]);
+        let x = gg.node("X").unwrap();
+        assert_eq!(x.name(), "X");
+        assert_eq!(x.history(), vec![2, 3]);
+        let y = gg.node("Y").unwrap();
+        assert_eq!(y.name(), "Y");
+        assert_eq!(y.history(), vec![2, 3]);
+        assert_eq!(y.properties().get("temp"), None);
+        assert_eq!(y.properties().constant().get("con"), None);
     }
 
     #[test]
