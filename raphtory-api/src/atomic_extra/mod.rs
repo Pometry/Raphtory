@@ -1,3 +1,4 @@
+use crate::core::entities::VID;
 use std::sync::atomic::{AtomicU64, AtomicUsize};
 
 /// Construct atomic slice from mut slice (reimplementation of currently unstable feature)
@@ -10,6 +11,11 @@ pub fn atomic_usize_from_mut_slice(v: &mut [usize]) -> &mut [AtomicUsize] {
     //  - the alignment of `usize` and `AtomicUsize` is the
     //    same, as verified above.
     unsafe { &mut *(v as *mut [usize] as *mut [AtomicUsize]) }
+}
+
+#[inline]
+pub fn atomic_vid_from_mut_slice(v: &mut [VID]) -> &mut [AtomicUsize] {
+    atomic_usize_from_mut_slice(bytemuck::cast_slice_mut(v))
 }
 
 #[inline]
