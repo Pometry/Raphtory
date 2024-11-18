@@ -348,9 +348,9 @@ def gen_class(cls: type, name) -> str:
 
 def gen_module(module: ModuleType, name: str, path: Path, log_path) -> None:
     global logger
+    global fn_logger
     objs = list(vars(module).items())
     objs.sort(key=lambda x: x[0])
-
     stubs: List[str] = []
     modules: List[(ModuleType, str)] = []
     path = path / name
@@ -359,6 +359,7 @@ def gen_module(module: ModuleType, name: str, path: Path, log_path) -> None:
         if isinstance(obj, type) and from_raphtory(obj, name):
             stubs.append(gen_class(obj, obj_name))
         elif isinstance(obj, BuiltinFunctionType):
+            fn_logger = logger.getChild(obj_name)
             stubs.append(gen_fn(obj, obj_name))
         elif isinstance(obj, ModuleType) and obj.__loader__ is None:
             modules.append((obj, obj_name))
