@@ -1,5 +1,5 @@
 use raphtory_api::core::entities::VID;
-use std::borrow::Borrow;
+use std::{borrow::Borrow, fmt::Debug};
 
 use crate::{
     core::{
@@ -51,15 +51,30 @@ pub trait ImportOps:
         force: bool,
     ) -> Result<NodeView<Self, Self>, GraphError>;
 
+    /// Imports a single node into the graph.
+    ///
+    /// This function takes a reference to a node and an optional boolean flag `force`.
+    /// If `force` is `Some(false)` or `None`, the function will return an error if the node already exists in the graph.
+    /// If `force` is `Some(true)`, the function will overwrite the existing node in the graph.
+    ///
+    /// # Arguments
+    ///
+    /// * `node` - A reference to the node to be imported.
+    /// * `new_node_id` - The new node id.
+    /// * `force` - An optional boolean flag. If `Some(true)`, the function will overwrite the existing node.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` which is `Ok` if the node was successfully imported, and `Err` otherwise.
     fn import_node_as<
         'a,
         GHH: GraphViewOps<'a>,
         GH: GraphViewOps<'a>,
-        V: AsNodeRef + Clone + std::fmt::Debug,
+        V: AsNodeRef + Clone + Debug,
     >(
         &self,
         node: &NodeView<GHH, GH>,
-        id: V,
+        new_node_id: V,
         force: bool,
     ) -> Result<NodeView<Self, Self>, GraphError>;
 
@@ -80,6 +95,33 @@ pub trait ImportOps:
     fn import_nodes<'a, GHH: GraphViewOps<'a>, GH: GraphViewOps<'a>>(
         &self,
         nodes: impl IntoIterator<Item = impl Borrow<NodeView<GHH, GH>>>,
+        force: bool,
+    ) -> Result<(), GraphError>;
+
+    /// Imports multiple nodes into the graph.
+    ///
+    /// This function takes a vector of references to nodes and an optional boolean flag `force`.
+    /// If `force` is `Some(false)` or `None`, the function will return an error if any of the nodes already exist in the graph.
+    /// If `force` is `Some(true)`, the function will overwrite the existing nodes in the graph.
+    ///
+    /// # Arguments
+    ///
+    /// * `nodes` - A vector of references to the nodes to be imported.
+    /// * `new_node_ids` - A list of node IDs to use for the imported nodes.
+    /// * `force` - An optional boolean flag. If `Some(true)`, the function will overwrite the existing nodes.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` which is `Ok` if the nodes were successfully imported, and `Err` otherwise.
+    fn import_nodes_as<
+        'a,
+        GHH: GraphViewOps<'a>,
+        GH: GraphViewOps<'a>,
+        V: AsNodeRef + Clone + Debug,
+    >(
+        &self,
+        nodes: impl IntoIterator<Item = impl Borrow<NodeView<GHH, GH>>>,
+        new_node_ids: impl IntoIterator<Item = V>,
         force: bool,
     ) -> Result<(), GraphError>;
 
@@ -182,21 +224,22 @@ impl<
         'a,
         GHH: GraphViewOps<'a>,
         GH: GraphViewOps<'a>,
-        V: AsNodeRef + Clone + std::fmt::Debug,
+        V: AsNodeRef + Clone + Debug,
     >(
         &self,
         node: &NodeView<GHH, GH>,
-        new_id: V,
+        new_node_id: V,
         force: bool,
     ) -> Result<NodeView<Self, Self>, GraphError> {
-        if !force && self.node(&new_id).is_some() {
+        if !force && self.node(&new_node_id).is_some() {
             return Err(NodeExistsError(node.id()));
         }
 
         let node_internal = match node.node_type().as_str() {
-            None => self.resolve_node(&new_id)?.inner(),
+            None => self.resolve_node(&new_node_id)?.inner(),
             Some(node_type) => {
-                let (node_internal, _) = self.resolve_node_and_type(&new_id, node_type)?.inner();
+                let (node_internal, _) =
+                    self.resolve_node_and_type(&new_node_id, node_type)?.inner();
                 node_internal.inner()
             }
         };
@@ -226,11 +269,11 @@ impl<
             }
         }
 
-        self.node(&new_id)
+        self.node(&new_node_id)
             .expect("node added")
             .add_constant_properties(node.properties().constant())?;
 
-        Ok(self.node(&new_id).unwrap())
+        Ok(self.node(&new_node_id).unwrap())
     }
 
     fn import_nodes<'a, GHH: GraphViewOps<'a>, GH: GraphViewOps<'a>>(
@@ -240,6 +283,23 @@ impl<
     ) -> Result<(), GraphError> {
         for node in nodes {
             self.import_node(node.borrow(), force)?;
+        }
+        Ok(())
+    }
+
+    fn import_nodes_as<
+        'a,
+        GHH: GraphViewOps<'a>,
+        GH: GraphViewOps<'a>,
+        V: AsNodeRef + Clone + Debug,
+    >(
+        &self,
+        nodes: impl IntoIterator<Item = impl Borrow<NodeView<GHH, GH>>>,
+        new_node_ids: impl IntoIterator<Item = V>,
+        force: bool,
+    ) -> Result<(), GraphError> {
+        for (node, new_node_id) in nodes.into_iter().zip(new_node_ids.into_iter()) {
+            self.import_node_as(node.borrow(), new_node_id, force)?;
         }
         Ok(())
     }

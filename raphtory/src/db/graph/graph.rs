@@ -728,6 +728,7 @@ mod db_tests {
 
     #[test]
     fn import_as_from_another_graph() {
+        // TODO Test force import
         let g = Graph::new();
         let g_a = g.add_node(0, "A", NO_PROPS, None).unwrap();
         let g_b = g
@@ -749,10 +750,13 @@ mod db_tests {
             Prop::I64(11)
         );
 
-        // let gg = Graph::new();
-        // let _ = gg.import_nodes(vec![&g_a, &g_b], false).unwrap();
-        // assert_eq!(gg.nodes().name().collect_vec(), vec!["A", "B"]);
-        //
+        // TODO test force import, props and history
+        let gg = Graph::new();
+        let _ = gg
+            .import_nodes_as(vec![&g_a, &g_b], vec!["P", "Q"], false)
+            .unwrap();
+        assert_eq!(gg.nodes().name().collect_vec(), vec!["P", "Q"]);
+
         // let e_a_b = g.add_edge(2, "A", "B", NO_PROPS, None).unwrap();
         // let res = gg.import_edge(&e_a_b, false).unwrap();
         // assert_eq!(
