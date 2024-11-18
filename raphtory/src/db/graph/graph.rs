@@ -727,6 +727,59 @@ mod db_tests {
     }
 
     #[test]
+    fn import_as_from_another_graph() {
+        let g = Graph::new();
+        let g_a = g.add_node(0, "A", NO_PROPS, None).unwrap();
+        let g_b = g
+            .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
+            .unwrap();
+        let _ = g_b.add_constant_properties(vec![("con".to_string(), Prop::I64(11))]);
+
+        let gg = Graph::new();
+        let res = gg.import_node_as(&g_a, "X", false).unwrap();
+        assert_eq!(res.name(), "X");
+        assert_eq!(res.history(), vec![0]);
+
+        let res = gg.import_node_as(&g_b, "Y", false).unwrap();
+        assert_eq!(res.name(), "Y");
+        assert_eq!(res.history(), vec![1]);
+        assert_eq!(res.properties().get("temp").unwrap(), Prop::Bool(true));
+        assert_eq!(
+            res.properties().constant().get("con").unwrap(),
+            Prop::I64(11)
+        );
+
+        // let gg = Graph::new();
+        // let _ = gg.import_nodes(vec![&g_a, &g_b], false).unwrap();
+        // assert_eq!(gg.nodes().name().collect_vec(), vec!["A", "B"]);
+        //
+        // let e_a_b = g.add_edge(2, "A", "B", NO_PROPS, None).unwrap();
+        // let res = gg.import_edge(&e_a_b, false).unwrap();
+        // assert_eq!(
+        //     (res.src().name(), res.dst().name()),
+        //     (e_a_b.src().name(), e_a_b.dst().name())
+        // );
+        // let e_a_b_p = g
+        //     .add_edge(
+        //         3,
+        //         "A",
+        //         "B",
+        //         vec![("etemp".to_string(), Prop::Bool(false))],
+        //         None,
+        //     )
+        //     .unwrap();
+        // let gg = Graph::new();
+        // let _ = gg.add_node(0, "B", NO_PROPS, None);
+        // let res = gg.import_edge(&e_a_b_p, false).expect("Failed to add edge");
+        // assert_eq!(res.properties().as_vec(), e_a_b_p.properties().as_vec());
+        //
+        // let e_c_d = g.add_edge(4, "C", "D", NO_PROPS, None).unwrap();
+        // let gg = Graph::new();
+        // let _ = gg.import_edges(vec![&e_a_b, &e_c_d], false).unwrap();
+        // assert_eq!(gg.edges().len(), 2);
+    }
+
+    #[test]
     fn props_with_layers() {
         global_info_logger();
         let g = Graph::new();

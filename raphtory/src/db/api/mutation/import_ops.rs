@@ -1,8 +1,9 @@
+use raphtory_api::core::entities::VID;
 use std::borrow::Borrow;
 
 use crate::{
     core::{
-        entities::LayerIds,
+        entities::{nodes::node_ref::AsNodeRef, LayerIds},
         utils::errors::{
             GraphError,
             GraphError::{EdgeExistsError, NodeExistsError},
@@ -47,6 +48,18 @@ pub trait ImportOps:
     fn import_node<'a, GHH: GraphViewOps<'a>, GH: GraphViewOps<'a>>(
         &self,
         node: &NodeView<GHH, GH>,
+        force: bool,
+    ) -> Result<NodeView<Self, Self>, GraphError>;
+
+    fn import_node_as<
+        'a,
+        GHH: GraphViewOps<'a>,
+        GH: GraphViewOps<'a>,
+        V: AsNodeRef + Clone + std::fmt::Debug,
+    >(
+        &self,
+        node: &NodeView<GHH, GH>,
+        id: V,
         force: bool,
     ) -> Result<NodeView<Self, Self>, GraphError>;
 
@@ -163,6 +176,61 @@ impl<
             .add_constant_properties(node.properties().constant())?;
 
         Ok(self.node(node.id()).unwrap())
+    }
+
+    fn import_node_as<
+        'a,
+        GHH: GraphViewOps<'a>,
+        GH: GraphViewOps<'a>,
+        V: AsNodeRef + Clone + std::fmt::Debug,
+    >(
+        &self,
+        node: &NodeView<GHH, GH>,
+        new_id: V,
+        force: bool,
+    ) -> Result<NodeView<Self, Self>, GraphError> {
+        if !force && self.node(&new_id).is_some() {
+            return Err(NodeExistsError(node.id()));
+        }
+
+        let node_internal = match node.node_type().as_str() {
+            None => self.resolve_node(&new_id)?.inner(),
+            Some(node_type) => {
+                let (node_internal, _) = self.resolve_node_and_type(&new_id, node_type)?.inner();
+                node_internal.inner()
+            }
+        };
+
+        for h in node.history() {
+            let t = time_from_input(self, h)?;
+            self.internal_add_node(t, node_internal, &[])?;
+        }
+
+        for (name, prop_view) in node.properties().temporal().iter() {
+            let old_prop_id = node
+                .graph
+                .node_meta()
+                .temporal_prop_meta()
+                .get_id(&name)
+                .unwrap();
+            let dtype = node
+                .graph
+                .node_meta()
+                .temporal_prop_meta()
+                .get_dtype(old_prop_id)
+                .unwrap();
+            let new_prop_id = self.resolve_node_property(&name, dtype, false)?.inner();
+            for (h, prop) in prop_view.iter() {
+                let t = time_from_input(self, h)?;
+                self.internal_add_node(t, node_internal, &[(new_prop_id, prop)])?;
+            }
+        }
+
+        self.node(&new_id)
+            .expect("node added")
+            .add_constant_properties(node.properties().constant())?;
+
+        Ok(self.node(&new_id).unwrap())
     }
 
     fn import_nodes<'a, GHH: GraphViewOps<'a>, GH: GraphViewOps<'a>>(
