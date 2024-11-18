@@ -115,7 +115,7 @@ macro_rules! impl_node_state_ord_ops {
             /// Sort by value
             ///
             /// Arguments:
-            ///     reverse (bool): If `True`, sort in descending order, otherwise ascending
+            ///     reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
             ///
             /// Returns:
             #[doc = concat!("     ", $computed)]

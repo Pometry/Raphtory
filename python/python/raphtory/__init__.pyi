@@ -67,12 +67,12 @@ class AlgorithmResult(object):
     def min(self):
         """Returns a tuple of the min result with its key"""
 
-    def sort_by_node(self, reverse=True):
+    def sort_by_node(self, reverse: Any = True):
         """
         Sorts by node id in ascending or descending order.
 
         Arguments:
-            `reverse`: If `true`, sorts the result in descending order; otherwise, sorts in ascending order.
+            reverse: If `true`, sorts the result in descending order; otherwise, sorts in ascending order. Defaults to True.
 
         Returns:
             A sorted list of tuples containing node names and values.
@@ -84,7 +84,7 @@ class AlgorithmResult(object):
         value by the node name in either ascending or descending order.
 
         Arguments:
-            reverse (bool): A boolean value indicating whether the sorting should be done in reverse order or not.
+            reverse (bool): A boolean value indicating whether the sorting should be done in reverse order or not. Defaults to True.
                 If reverse is true, the sorting will be done in descending order, otherwise it will be done in
                 ascending order.
 
@@ -97,7 +97,7 @@ class AlgorithmResult(object):
         Sorts the `AlgorithmResult` by its values in ascending or descending order.
 
         Arguments:
-            reverse (bool): If `true`, sorts the result in descending order; otherwise, sorts in ascending order.
+            reverse (bool): If `true`, sorts the result in descending order, otherwise, sorts in ascending order. Defaults to True.
 
         Returns:
             A sorted vector of tuples containing keys of type `H` and values of type `Y`.
@@ -120,8 +120,8 @@ class AlgorithmResult(object):
 
         Arguments:
             k (int): The number of elements to retrieve.
-            percentage (bool): If `true`, the `k` parameter is treated as a percentage of total elements.
-            reverse (bool): If `true`, retrieves the elements in descending order; otherwise, in ascending order.
+            percentage (bool): If `True`, the `k` parameter is treated as a percentage of total elements. Defaults to False.
+            reverse (bool): If `True`, retrieves the elements in descending order, otherwise, in ascending order. Defaults to True.
 
         Returns:
             An Option containing a vector of tuples with keys of type `H` and values of type `Y`.
@@ -432,8 +432,16 @@ class Edge(object):
         """Explodes an edge and returns all instances it had been updated as seperate edges"""
 
     def explode_layers(self): ...
-    def has_layer(self, name):
-        """Check if Edge has the layer `"name"`"""
+    def has_layer(self, name: str):
+        """
+         Check if Edge has the layer `"name"`
+
+        Arguments:
+            name (str): the name of the layer to check
+
+        Returns:
+            bool
+        """
 
     def history(self) -> List[int]:
         """
@@ -520,10 +528,13 @@ class Edge(object):
             int: The latest time of an edge
         """
 
-    def layer(self, name) -> Edge:
+    def layer(self, name: str) -> Edge:
         """
          Return a view of Edge containing the layer `"name"`
         Errors if the layer does not exist
+
+        Arguments:
+            name (str): then name of the layer.
 
         Returns:
              Edge: The layered view
@@ -897,8 +908,16 @@ class Edges(object):
         """Explodes an edge and returns all instances it had been updated as seperate edges"""
 
     def explode_layers(self): ...
-    def has_layer(self, name):
-        """Check if Edges has the layer `"name"`"""
+    def has_layer(self, name: str):
+        """
+         Check if Edges has the layer `"name"`
+
+        Arguments:
+            name (str): the name of the layer to check
+
+        Returns:
+            bool
+        """
 
     def history(self):
         """
@@ -959,10 +978,13 @@ class Edges(object):
          Latest time of the edges.
         """
 
-    def layer(self, name) -> Edges:
+    def layer(self, name: str) -> Edges:
         """
          Return a view of Edges containing the layer `"name"`
         Errors if the layer does not exist
+
+        Arguments:
+            name (str): then name of the layer.
 
         Returns:
              Edges: The layered view
@@ -2000,8 +2022,16 @@ class GraphView(object):
             bool: true if the graph contains the specified edge, false otherwise
         """
 
-    def has_layer(self, name):
-        """Check if GraphView has the layer `"name"`"""
+    def has_layer(self, name: str):
+        """
+         Check if GraphView has the layer `"name"`
+
+        Arguments:
+            name (str): the name of the layer to check
+
+        Returns:
+            bool
+        """
 
     def has_node(self, id: str or int) -> bool:
         """
@@ -2050,10 +2080,13 @@ class GraphView(object):
             Optional[int]: the timestamp of the latest activity in the graph
         """
 
-    def layer(self, name) -> GraphView:
+    def layer(self, name: str) -> GraphView:
         """
          Return a view of GraphView containing the layer `"name"`
         Errors if the layer does not exist
+
+        Arguments:
+            name (str): then name of the layer.
 
         Returns:
              GraphView: The layered view
@@ -2667,8 +2700,16 @@ class Node(object):
             Node: The filtered view
         """
 
-    def has_layer(self, name):
-        """Check if Node has the layer `"name"`"""
+    def has_layer(self, name: str):
+        """
+         Check if Node has the layer `"name"`
+
+        Arguments:
+            name (str): the name of the layer to check
+
+        Returns:
+            bool
+        """
 
     def history(self) -> List[int]:
         """
@@ -2755,10 +2796,13 @@ class Node(object):
            int:  The latest time that the node exists as an integer.
         """
 
-    def layer(self, name) -> Node:
+    def layer(self, name: str) -> Node:
         """
          Return a view of Node containing the layer `"name"`
         Errors if the layer does not exist
+
+        Arguments:
+            name (str): then name of the layer.
 
         Returns:
              Node: The layered view
@@ -3182,8 +3226,16 @@ class Nodes(object):
             Nodes: The filtered view
         """
 
-    def has_layer(self, name):
-        """Check if Nodes has the layer `"name"`"""
+    def has_layer(self, name: str):
+        """
+         Check if Nodes has the layer `"name"`
+
+        Arguments:
+            name (str): the name of the layer to check
+
+        Returns:
+            bool
+        """
 
     def history(self):
         """
@@ -3256,10 +3308,13 @@ class Nodes(object):
     def latest_time(self):
         """Returns an iterator over the nodes latest time"""
 
-    def layer(self, name) -> Nodes:
+    def layer(self, name: str) -> Nodes:
         """
          Return a view of Nodes containing the layer `"name"`
         Errors if the layer does not exist
+
+        Arguments:
+            name (str): then name of the layer.
 
         Returns:
              Nodes: The layered view

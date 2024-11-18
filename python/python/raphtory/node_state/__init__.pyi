@@ -190,8 +190,16 @@ class DegreeView(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def has_layer(self, name):
-        """Check if DegreeView has the layer `"name"`"""
+    def has_layer(self, name: str):
+        """
+         Check if DegreeView has the layer `"name"`
+
+        Arguments:
+            name (str): the name of the layer to check
+
+        Returns:
+            bool
+        """
 
     def items(self):
         """
@@ -207,10 +215,13 @@ class DegreeView(object):
              DegreeView
         """
 
-    def layer(self, name) -> DegreeView:
+    def layer(self, name: str) -> DegreeView:
         """
          Return a view of DegreeView containing the layer `"name"`
         Errors if the layer does not exist
+
+        Arguments:
+            name (str): then name of the layer.
 
         Returns:
              DegreeView: The layered view
@@ -366,7 +377,7 @@ class DegreeView(object):
         Sort by value
 
         Arguments:
-            reverse (bool): If `True`, sort in descending order, otherwise ascending
+            reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
 
         Returns:
              NodeStateUsize
@@ -631,8 +642,16 @@ class EarliestDateTimeView(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def has_layer(self, name):
-        """Check if EarliestDateTimeView has the layer `"name"`"""
+    def has_layer(self, name: str):
+        """
+         Check if EarliestDateTimeView has the layer `"name"`
+
+        Arguments:
+            name (str): the name of the layer to check
+
+        Returns:
+            bool
+        """
 
     def items(self):
         """
@@ -648,10 +667,13 @@ class EarliestDateTimeView(object):
              EarliestDateTimeView
         """
 
-    def layer(self, name) -> EarliestDateTimeView:
+    def layer(self, name: str) -> EarliestDateTimeView:
         """
          Return a view of EarliestDateTimeView containing the layer `"name"`
         Errors if the layer does not exist
+
+        Arguments:
+            name (str): then name of the layer.
 
         Returns:
              EarliestDateTimeView: The layered view
@@ -799,7 +821,7 @@ class EarliestDateTimeView(object):
         Sort by value
 
         Arguments:
-            reverse (bool): If `True`, sort in descending order, otherwise ascending
+            reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
 
         Returns:
              NodeStateOptionDateTime
@@ -1056,8 +1078,16 @@ class EarliestTimeView(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def has_layer(self, name):
-        """Check if EarliestTimeView has the layer `"name"`"""
+    def has_layer(self, name: str):
+        """
+         Check if EarliestTimeView has the layer `"name"`
+
+        Arguments:
+            name (str): the name of the layer to check
+
+        Returns:
+            bool
+        """
 
     def items(self):
         """
@@ -1073,10 +1103,13 @@ class EarliestTimeView(object):
              EarliestTimeView
         """
 
-    def layer(self, name) -> EarliestTimeView:
+    def layer(self, name: str) -> EarliestTimeView:
         """
          Return a view of EarliestTimeView containing the layer `"name"`
         Errors if the layer does not exist
+
+        Arguments:
+            name (str): then name of the layer.
 
         Returns:
              EarliestTimeView: The layered view
@@ -1224,7 +1257,7 @@ class EarliestTimeView(object):
         Sort by value
 
         Arguments:
-            reverse (bool): If `True`, sort in descending order, otherwise ascending
+            reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
 
         Returns:
              NodeStateOptionI64
@@ -1481,8 +1514,16 @@ class HistoryDateTimeView(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def has_layer(self, name):
-        """Check if HistoryDateTimeView has the layer `"name"`"""
+    def has_layer(self, name: str):
+        """
+         Check if HistoryDateTimeView has the layer `"name"`
+
+        Arguments:
+            name (str): the name of the layer to check
+
+        Returns:
+            bool
+        """
 
     def items(self):
         """
@@ -1498,10 +1539,13 @@ class HistoryDateTimeView(object):
              HistoryDateTimeView
         """
 
-    def layer(self, name) -> HistoryDateTimeView:
+    def layer(self, name: str) -> HistoryDateTimeView:
         """
          Return a view of HistoryDateTimeView containing the layer `"name"`
         Errors if the layer does not exist
+
+        Arguments:
+            name (str): then name of the layer.
 
         Returns:
              HistoryDateTimeView: The layered view
@@ -1649,7 +1693,7 @@ class HistoryDateTimeView(object):
         Sort by value
 
         Arguments:
-            reverse (bool): If `True`, sort in descending order, otherwise ascending
+            reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
 
         Returns:
              NodeStateOptionListDateTime
@@ -1906,8 +1950,16 @@ class HistoryView(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def has_layer(self, name):
-        """Check if HistoryView has the layer `"name"`"""
+    def has_layer(self, name: str):
+        """
+         Check if HistoryView has the layer `"name"`
+
+        Arguments:
+            name (str): the name of the layer to check
+
+        Returns:
+            bool
+        """
 
     def items(self):
         """
@@ -1923,10 +1975,13 @@ class HistoryView(object):
              HistoryView
         """
 
-    def layer(self, name) -> HistoryView:
+    def layer(self, name: str) -> HistoryView:
         """
          Return a view of HistoryView containing the layer `"name"`
         Errors if the layer does not exist
+
+        Arguments:
+            name (str): then name of the layer.
 
         Returns:
              HistoryView: The layered view
@@ -2074,7 +2129,7 @@ class HistoryView(object):
         Sort by value
 
         Arguments:
-            reverse (bool): If `True`, sort in descending order, otherwise ascending
+            reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
 
         Returns:
              NodeStateListI64
@@ -2283,7 +2338,7 @@ class IdView(object):
         Sort by value
 
         Arguments:
-            reverse (bool): If `True`, sort in descending order, otherwise ascending
+            reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
 
         Returns:
              NodeStateGID
@@ -2489,8 +2544,16 @@ class LatestDateTimeView(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def has_layer(self, name):
-        """Check if LatestDateTimeView has the layer `"name"`"""
+    def has_layer(self, name: str):
+        """
+         Check if LatestDateTimeView has the layer `"name"`
+
+        Arguments:
+            name (str): the name of the layer to check
+
+        Returns:
+            bool
+        """
 
     def items(self):
         """
@@ -2506,10 +2569,13 @@ class LatestDateTimeView(object):
              LatestDateTimeView
         """
 
-    def layer(self, name) -> LatestDateTimeView:
+    def layer(self, name: str) -> LatestDateTimeView:
         """
          Return a view of LatestDateTimeView containing the layer `"name"`
         Errors if the layer does not exist
+
+        Arguments:
+            name (str): then name of the layer.
 
         Returns:
              LatestDateTimeView: The layered view
@@ -2657,7 +2723,7 @@ class LatestDateTimeView(object):
         Sort by value
 
         Arguments:
-            reverse (bool): If `True`, sort in descending order, otherwise ascending
+            reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
 
         Returns:
              NodeStateOptionDateTime
@@ -2914,8 +2980,16 @@ class LatestTimeView(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def has_layer(self, name):
-        """Check if LatestTimeView has the layer `"name"`"""
+    def has_layer(self, name: str):
+        """
+         Check if LatestTimeView has the layer `"name"`
+
+        Arguments:
+            name (str): the name of the layer to check
+
+        Returns:
+            bool
+        """
 
     def items(self):
         """
@@ -2931,10 +3005,13 @@ class LatestTimeView(object):
              LatestTimeView
         """
 
-    def layer(self, name) -> LatestTimeView:
+    def layer(self, name: str) -> LatestTimeView:
         """
          Return a view of LatestTimeView containing the layer `"name"`
         Errors if the layer does not exist
+
+        Arguments:
+            name (str): then name of the layer.
 
         Returns:
              LatestTimeView: The layered view
@@ -3082,7 +3159,7 @@ class LatestTimeView(object):
         Sort by value
 
         Arguments:
-            reverse (bool): If `True`, sort in descending order, otherwise ascending
+            reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
 
         Returns:
              NodeStateOptionI64
@@ -3291,7 +3368,7 @@ class NameView(object):
         Sort by value
 
         Arguments:
-            reverse (bool): If `True`, sort in descending order, otherwise ascending
+            reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
 
         Returns:
              NodeStateString
@@ -3431,7 +3508,7 @@ class NodeStateGID(object):
         Sort by value
 
         Arguments:
-            reverse (bool): If `True`, sort in descending order, otherwise ascending
+            reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
 
         Returns:
              NodeStateGID
@@ -3571,7 +3648,7 @@ class NodeStateListDateTime(object):
         Sort by value
 
         Arguments:
-            reverse (bool): If `True`, sort in descending order, otherwise ascending
+            reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
 
         Returns:
              NodeStateListDateTime
@@ -3711,7 +3788,7 @@ class NodeStateListI64(object):
         Sort by value
 
         Arguments:
-            reverse (bool): If `True`, sort in descending order, otherwise ascending
+            reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
 
         Returns:
              NodeStateListI64
@@ -3851,7 +3928,7 @@ class NodeStateOptionDateTime(object):
         Sort by value
 
         Arguments:
-            reverse (bool): If `True`, sort in descending order, otherwise ascending
+            reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
 
         Returns:
              NodeStateOptionDateTime
@@ -3991,7 +4068,7 @@ class NodeStateOptionListDateTime(object):
         Sort by value
 
         Arguments:
-            reverse (bool): If `True`, sort in descending order, otherwise ascending
+            reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
 
         Returns:
              NodeStateOptionListDateTime
@@ -4131,7 +4208,7 @@ class NodeStateOptionStr(object):
         Sort by value
 
         Arguments:
-            reverse (bool): If `True`, sort in descending order, otherwise ascending
+            reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
 
         Returns:
              NodeStateOptionStr
@@ -4271,7 +4348,7 @@ class NodeStateString(object):
         Sort by value
 
         Arguments:
-            reverse (bool): If `True`, sort in descending order, otherwise ascending
+            reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
 
         Returns:
              NodeStateString
@@ -4419,7 +4496,7 @@ class NodeStateU64(object):
         Sort by value
 
         Arguments:
-            reverse (bool): If `True`, sort in descending order, otherwise ascending
+            reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
 
         Returns:
              NodeStateU64
@@ -4575,7 +4652,7 @@ class NodeStateUsize(object):
         Sort by value
 
         Arguments:
-            reverse (bool): If `True`, sort in descending order, otherwise ascending
+            reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
 
         Returns:
              NodeStateUsize
@@ -4741,7 +4818,7 @@ class NodeTypeView(object):
         Sort by value
 
         Arguments:
-            reverse (bool): If `True`, sort in descending order, otherwise ascending
+            reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
 
         Returns:
              NodeStateOptionStr
