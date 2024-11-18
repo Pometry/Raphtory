@@ -131,6 +131,28 @@ impl PyPersistentGraph {
             .add_node(timestamp, id, properties.unwrap_or_default(), node_type)
     }
 
+    /// Creates a new node with the given id and properties to the graph. It fails if the node already exists.
+    ///
+    /// Arguments:
+    ///    timestamp (TimeInput): The timestamp of the node.
+    ///    id (str | int): The id of the node.
+    ///    properties (dict): The properties of the node.
+    ///    node_type (str) : The optional string which will be used as a node type
+    ///
+    /// Returns:
+    ///   MutableNode
+    #[pyo3(signature = (timestamp, id, properties = None, node_type = None))]
+    pub fn create_node(
+        &self,
+        timestamp: PyTime,
+        id: GID,
+        properties: Option<HashMap<String, Prop>>,
+        node_type: Option<&str>,
+    ) -> Result<NodeView<PersistentGraph>, GraphError> {
+        self.graph
+            .create_node(timestamp, id, properties.unwrap_or_default(), node_type)
+    }
+
     /// Adds properties to the graph.
     ///
     /// Arguments:
