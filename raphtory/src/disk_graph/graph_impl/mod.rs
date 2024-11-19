@@ -42,7 +42,7 @@ mod test {
     use pometry_storage::{graph::TemporalGraph, properties::Properties};
 
     use crate::{
-        db::api::{storage::graph::storage_ops::GraphStorage, view::StaticGraphViewOps},
+        db::api::{storage::graph::storage_ops::GraphStorage, view::{internal::CoreGraphOps, StaticGraphViewOps}},
         disk_graph::Time,
         prelude::*,
     };
@@ -289,7 +289,7 @@ mod test {
         mem_graph.add_edge(0, 0, 1, [("test", 0u64)], None).unwrap();
         let test_dir = TempDir::new().unwrap();
         let disk_graph =
-            TemporalGraph::from_graph(&mem_graph, test_dir.path(), || Ok(Properties::default()))
+            TemporalGraph::from_graph(mem_graph.core_graph(), test_dir.path(), || Ok(Properties::default()))
                 .unwrap();
         assert_eq!(disk_graph.num_nodes(), 2);
         assert_eq!(disk_graph.num_edges(), 1);

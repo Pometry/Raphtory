@@ -10,10 +10,10 @@ use crate::{
         PropType,
     },
     db::api::{
-        storage::graph::{nodes::node_storage_ops::NodeStorageOps, tprop_storage_ops::TPropOps},
+        storage::graph::{nodes::node_storage_ops::NodeStorageOps, storage_ops::GraphStorage, tprop_storage_ops::TPropOps},
         view::internal::CoreGraphOps,
     },
-    prelude::{Graph, Prop, PropUnwrap},
+    prelude::{Prop, PropUnwrap},
 };
 use itertools::Itertools;
 use pometry_storage::{
@@ -23,7 +23,7 @@ use pometry_storage::{
 use std::path::Path;
 
 pub fn make_node_properties_from_graph(
-    graph: &Graph,
+    graph: &GraphStorage,
     graph_dir: impl AsRef<Path>,
 ) -> Result<Properties<VID>, RAError> {
     let graph_dir = graph_dir.as_ref();
@@ -35,7 +35,7 @@ pub fn make_node_properties_from_graph(
         return Ok(Properties::default());
     }
 
-    let gs = graph.core_graph();
+    let gs = graph;
 
     let temporal_prop_keys = temporal_meta
         .get_keys()

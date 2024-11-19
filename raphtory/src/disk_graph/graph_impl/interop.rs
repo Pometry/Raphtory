@@ -6,10 +6,10 @@ use crate::{
     db::api::{
         storage::graph::{
             edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
-            tprop_storage_ops::TPropOps,
+            storage_ops::GraphStorage, tprop_storage_ops::TPropOps,
         },
         view::{
-            internal::{CoreGraphOps, TimeSemantics},
+            internal::{CoreGraphOps, ListOps, TimeSemantics},
             IntoDynBoxed,
         },
     },
@@ -20,17 +20,23 @@ use itertools::Itertools;
 use polars_arrow::array::Array;
 use pometry_storage::interop::GraphLike;
 use raphtory_api::core::{
-    entities::{EID, VID},
+    entities::{properties::props::Meta, EID, VID},
     storage::timeindex::TimeIndexEntry,
 };
 
-impl GraphLike<TimeIndexEntry> for Graph {
+impl GraphLike<TimeIndexEntry> for GraphStorage {
     fn external_ids(&self) -> Vec<GID> {
-        self.nodes().id().collect()
+        self.nodes().iter().map(|node| node.id().into()).collect()
     }
 
-    fn node_names(&self) -> impl Iterator<Item = String> {
-        self.nodes().name().into_iter()
+    fn node_names(&self) -> impl Iterator<Item = String> + '_ {
+        self.node_list().into_iter().map(move |node| {
+            let nodes = self.nodes();
+            let node = nodes.node(node);
+            node.name()
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| node.id().to_string())
+        })
     }
 
     fn node_type_ids(&self) -> Option<impl Iterator<Item = usize>> {
@@ -40,24 +46,6 @@ impl GraphLike<TimeIndexEntry> for Graph {
             let core_nodes = self.core_nodes();
             Some((0..core_nodes.len()).map(move |i| core_nodes.node_entry(VID(i)).node_type_id()))
         }
-    }
-
-    fn node_types(&self) -> Option<impl Iterator<Item = String>> {
-        let meta = self.core_graph().node_meta().node_type_meta();
-        if meta.len() <= 1 {
-            None
-        } else {
-            Some(meta.get_keys().into_iter().map(|s| s.to_string()))
-        }
-    }
-
-    fn layer_names(&self) -> Vec<String> {
-        self.edge_meta()
-            .layer_meta()
-            .get_keys()
-            .into_iter()
-            .map_into()
-            .collect()
     }
 
     fn num_nodes(&self) -> usize {
@@ -84,6 +72,7 @@ impl GraphLike<TimeIndexEntry> for Graph {
             .map(|edge| map(edge.src(), edge.pid()))
             .collect()
     }
+
     fn out_edges(&self, vid: VID, layer: usize) -> Vec<(VID, VID, EID)> {
         let node = self.core_node_entry(vid.0.into());
         let edges = node
@@ -103,11 +92,6 @@ impl GraphLike<TimeIndexEntry> for Graph {
         GenLockedIter::from(edge, |edge| {
             edge.additions(layer).into_iter().into_dyn_boxed()
         })
-    }
-
-    fn edge_prop_keys(&self) -> Vec<String> {
-        let props = self.edge_meta().temporal_prop_meta().get_keys();
-        props.into_iter().map(|s| s.to_string()).collect()
     }
 
     fn find_name(&self, vid: VID) -> Option<String> {
@@ -156,5 +140,13 @@ impl GraphLike<TimeIndexEntry> for Graph {
         self.core_node_entry(vid)
             .into_edges_iter(&LayerIds::All, Direction::OUT)
             .map(|e_ref| (e_ref.dst(), e_ref.pid()))
+    }
+
+    fn node_metadata(&self) -> &Meta {
+        self.node_meta()
+    }
+
+    fn edge_metadata(&self) -> &Meta {
+        self.edge_meta()
     }
 }

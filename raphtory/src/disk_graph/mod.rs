@@ -34,6 +34,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 pub mod graph_impl;
 pub mod storage_interface;
+pub mod mutation;
 
 pub type Time = i64;
 
@@ -261,6 +262,7 @@ impl DiskGraphStorage {
     }
 
     pub fn from_graph(graph: &Graph, graph_dir: impl AsRef<Path>) -> Result<Self, GraphError> {
+        let graph = graph.inner.core_graph();
         let inner_graph = TemporalGraph::from_graph(graph, graph_dir.as_ref(), || {
             make_node_properties_from_graph(graph, graph_dir.as_ref())
         })?;
