@@ -3,7 +3,10 @@ use std::{borrow::Borrow, fmt::Debug};
 
 use crate::{
     core::{
-        entities::{nodes::node_ref::AsNodeRef, LayerIds},
+        entities::{
+            nodes::node_ref::{AsNodeRef, NodeRef},
+            LayerIds,
+        },
         utils::errors::{
             GraphError,
             GraphError::{EdgeExistsError, NodeExistsError},
@@ -285,8 +288,10 @@ impl<
         new_id: V,
         force: bool,
     ) -> Result<NodeView<Self, Self>, GraphError> {
-        if !force && self.node(&new_id).is_some() {
-            return Err(NodeExistsError(node.id()));
+        if !force {
+            if let Some(existing_node) = self.node(&new_id) {
+                return Err(NodeExistsError(existing_node.id()));
+            }
         }
 
         let node_internal = match node.node_type().as_str() {
@@ -425,7 +430,12 @@ impl<
             self.resolve_layer(Some(&layer))?;
         }
         if !force && self.has_edge(&new_id.0, &new_id.1) {
-            return Err(EdgeExistsError(edge.src().id(), edge.dst().id()));
+            if let Some(existing_edge) = self.edge(&new_id.0, &new_id.1) {
+                return Err(EdgeExistsError(
+                    existing_edge.src().id(),
+                    existing_edge.dst().id(),
+                ));
+            }
         }
         // Add edges first so we definitely have all associated nodes (important in case of persistent edges)
         // FIXME: this needs to be verified
