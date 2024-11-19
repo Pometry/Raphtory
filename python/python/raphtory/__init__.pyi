@@ -2461,9 +2461,6 @@ class MutableNode(Node):
         Parameters:
             t (TimeInput): The timestamp at which the updates should be applied.
             properties (PropInput): A dictionary of properties to update. Each key is a string representing the property name, and each value is of type Prop representing the property value. If None, no properties are updated.
-
-        Returns:
-            Result: A result object indicating success or failure. On failure, it contains a GraphError.
         """
 
     def set_node_type(self, new_type: str):
@@ -2721,12 +2718,12 @@ class Node(object):
             List[int]: A list of unix timestamps of the event history of node.
         """
 
-    def history_date_time(self):
+    def history_date_time(self) -> List[datetime]:
         """
         Returns the history of a node, including node additions and changes made to node.
 
         Returns:
-            List[Datetime]: A list of timestamps of the event history of node.
+            List[datetime]: A list of timestamps of the event history of node.
 
         """
 

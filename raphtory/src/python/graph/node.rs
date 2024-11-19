@@ -239,7 +239,7 @@ impl PyNode {
     /// Returns the history of a node, including node additions and changes made to node.
     ///
     /// Returns:
-    ///     List[Datetime]: A list of timestamps of the event history of node.
+    ///     List[datetime]: A list of timestamps of the event history of node.
     ///
     pub fn history_date_time(&self) -> Option<Vec<DateTime<Utc>>> {
         self.node.history_date_time()
@@ -373,9 +373,6 @@ impl PyMutableNode {
     /// Parameters:
     ///     t (TimeInput): The timestamp at which the updates should be applied.
     ///     properties (PropInput): A dictionary of properties to update. Each key is a string representing the property name, and each value is of type Prop representing the property value. If None, no properties are updated.
-    ///
-    /// Returns:
-    ///     Result: A result object indicating success or failure. On failure, it contains a GraphError.
     #[pyo3(signature = (t, properties=None))]
     pub fn add_updates(
         &self,
