@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+import ast
 import inspect
 import logging
 import textwrap
@@ -14,13 +14,9 @@ from types import (
     MethodDescriptorType,
     ModuleType,
 )
+import builtins
 from typing import *
-from raphtory import *
-from raphtory.graphql import *
-from raphtory.typing import *
 from docstring_parser import parse, DocstringStyle, DocstringParam, ParseError
-from datetime import datetime
-from pandas import DataFrame
 
 logger = logging.getLogger(__name__)
 fn_logger = logging.getLogger(__name__)
@@ -48,12 +44,18 @@ comment = """###################################################################
 imports = """
 from typing import *
 from raphtory import *
+from raphtory.algorithms import *
 from raphtory.vectors import *
+from raphtory.node_state import *
 from raphtory.graphql import *
 from raphtory.typing import *
 from datetime import datetime
 from pandas import DataFrame
 """
+
+# imports for type checking
+global_ns = {}
+exec(imports, global_ns)
 
 
 def format_type(obj) -> str:
@@ -67,6 +69,18 @@ def format_type(obj) -> str:
         # Special case for `repr` of types with `ParamSpec`:
         return "[" + ", ".join(format_type(t) for t in obj) + "]"
     return repr(obj)
+
+
+class AnnotationError(Exception):
+    pass
+
+
+def validate_annotation(annotation: str):
+    parsed = ast.parse(f"_: {annotation}")
+    for node in ast.walk(parsed.body[0].annotation):
+        if isinstance(node, ast.Name):
+            if node.id not in global_ns and node.id not in builtins.__dict__:
+                raise AnnotationError(f"Unknown type {node.id}")
 
 
 def format_param(param: inspect.Parameter) -> str:
@@ -214,20 +228,24 @@ def extract_param_annotation(param: DocstringParam) -> dict:
     else:
         type_val = param.type_name
         try:
-            eval(type_val)
+            validate_annotation(type_val)
+            if param.is_optional:
+                type_val = f"Optional[{type_val}]"
+            res["annotation"] = type_val
         except Exception as e:
-            raise ParseError(f"Invalid type name {type_val}: {e}")
+            fn_logger.error(
+                f"Invalid annotation {repr(type_val)} for parameter {param.arg_name}: {e}"
+            )
 
-        if param.is_optional:
-            type_val = f"Optional[{type_val}]"
-        res["annotation"] = type_val
     if param.default is not None or param.is_optional:
         if param.default is not None:
             try:
-                eval(param.default)
+                validate_annotation(param.default)
+                res["default"] = param.default
             except Exception as e:
-                raise ParseError(f"Invalid default value {param.default}: {e}")
-        res["default"] = param.default
+                fn_logger.error(
+                    f"Invalid default value {repr(param.default)} for parameter {param.arg_name}: {e}"
+                )
     return res
 
 
@@ -247,6 +265,11 @@ def extract_types(
             }
             if parse_result.returns is not None:
                 return_type = parse_result.returns.type_name
+                try:
+                    validate_annotation(return_type)
+                except Exception as e:
+                    fn_logger.error(f"Invalid return type {repr(return_type)}: {e}")
+                    return_type = None
             else:
                 return_type = None
             return type_annotations, return_type

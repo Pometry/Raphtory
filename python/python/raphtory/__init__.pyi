@@ -9,7 +9,9 @@
 
 from typing import *
 from raphtory import *
+from raphtory.algorithms import *
 from raphtory.vectors import *
+from raphtory.node_state import *
 from raphtory.graphql import *
 from raphtory.typing import *
 from datetime import datetime
@@ -2451,7 +2453,7 @@ class MutableNode(Node):
             properties (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
         """
 
-    def add_updates(self, t: TimeInput, properties: PropInput = None) -> Result:
+    def add_updates(self, t: TimeInput, properties: PropInput = None):
         """
         Add updates to a node in the graph at a specified time.
         This function allows for the addition of property updates to a node within the graph. The updates are time-stamped, meaning they are applied at the specified time.
@@ -2719,7 +2721,7 @@ class Node(object):
             List[int]: A list of unix timestamps of the event history of node.
         """
 
-    def history_date_time(self) -> List[Datetime]:
+    def history_date_time(self):
         """
         Returns the history of a node, including node additions and changes made to node.
 
