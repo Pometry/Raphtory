@@ -40,7 +40,7 @@ quad-rand = { workspace = true }
 serde_json = { workspace = true }
 ouroboros = { workspace = true }
 either = { workspace = true }
-kdam = { workspace = true }
+kdam = { workspace = true, optional = true}
 bytemuck = { workspace = true }
 tracing = { workspace = true }
 

@@ -3,7 +3,7 @@ import tempfile
 
 import pytest
 
-from raphtory.graphql import GraphServer, RaphtoryClient, encode_graph
+from raphtory.graphql import GraphServer, RaphtoryClient, encode_graph, RemoteGraph
 from raphtory import graph_loader
 from raphtory import Graph
 import json
@@ -380,6 +380,241 @@ def test_graph_properties_query():
             json_ra["graph"]["nodes"]["list"][0]["properties"]["temporal"]["values"],
             key=lambda x: x["key"],
         )
+
+
+def test_create_node():
+    g = Graph()
+    g.add_edge(1, "ben", "shivam")
+
+    tmp_work_dir = tempfile.mkdtemp()
+    with GraphServer(tmp_work_dir).start(port=1737):
+        client = RaphtoryClient("http://localhost:1737")
+        client.send_graph(path="g", graph=g)
+
+        query_nodes = """{graph(path: "g") {nodes {list {name}}}}"""
+        assert client.query(query_nodes) == {
+            "graph": {"nodes": {"list": [{"name": "ben"}, {"name": "shivam"}]}}
+        }
+
+        create_node_query = """{updateGraph(path: "g") { createNode(time: 0, name: "oogway") {  success } }}"""
+
+        assert client.query(create_node_query) == {
+            "updateGraph": {"createNode": {"success": True}}
+        }
+        assert client.query(query_nodes) == {
+            "graph": {
+                "nodes": {
+                    "list": [{"name": "ben"}, {"name": "shivam"}, {"name": "oogway"}]
+                }
+            }
+        }
+
+        with pytest.raises(Exception) as excinfo:
+            client.query(create_node_query)
+
+        assert "Node already exists" in str(excinfo.value)
+
+
+def test_create_node_using_client():
+    g = Graph()
+    g.add_edge(1, "ben", "shivam")
+
+    tmp_work_dir = tempfile.mkdtemp()
+    with GraphServer(tmp_work_dir).start(port=1737):
+        client = RaphtoryClient("http://localhost:1737")
+        client.send_graph(path="g", graph=g)
+
+        query_nodes = """{graph(path: "g") {nodes {list {name}}}}"""
+        assert client.query(query_nodes) == {
+            "graph": {"nodes": {"list": [{"name": "ben"}, {"name": "shivam"}]}}
+        }
+
+        remote_graph = client.remote_graph(path="g")
+        remote_graph.create_node(timestamp=0, id="oogway")
+        assert client.query(query_nodes) == {
+            "graph": {
+                "nodes": {
+                    "list": [{"name": "ben"}, {"name": "shivam"}, {"name": "oogway"}]
+                }
+            }
+        }
+
+        with pytest.raises(Exception) as excinfo:
+            remote_graph.create_node(timestamp=0, id="oogway")
+
+        assert "Node already exists" in str(excinfo.value)
+
+
+def test_create_node_using_client_with_properties():
+    g = Graph()
+    g.add_edge(1, "ben", "shivam")
+
+    tmp_work_dir = tempfile.mkdtemp()
+    with GraphServer(tmp_work_dir).start(port=1737):
+        client = RaphtoryClient("http://localhost:1737")
+        client.send_graph(path="g", graph=g)
+
+        query_nodes = (
+            """{graph(path: "g") {nodes {list {name, properties { keys }}}}}"""
+        )
+        assert client.query(query_nodes) == {
+            "graph": {
+                "nodes": {
+                    "list": [
+                        {"name": "ben", "properties": {"keys": []}},
+                        {"name": "shivam", "properties": {"keys": []}},
+                    ]
+                }
+            }
+        }
+
+        remote_graph = client.remote_graph(path="g")
+        remote_graph.create_node(
+            timestamp=0,
+            id="oogway",
+            properties={
+                "prop1": 60,
+                "prop2": 31.3,
+                "prop3": "abc123",
+                "prop4": True,
+                "prop5": [1, 2, 3],
+            },
+        )
+        nodes = json.loads(json.dumps(client.query(query_nodes)))["graph"]["nodes"][
+            "list"
+        ]
+        node_oogway = next(node for node in nodes if node["name"] == "oogway")
+        assert sorted(node_oogway["properties"]["keys"]) == [
+            "prop1",
+            "prop2",
+            "prop3",
+            "prop4",
+            "prop5",
+        ]
+
+        with pytest.raises(Exception) as excinfo:
+            remote_graph.create_node(
+                timestamp=0,
+                id="oogway",
+                properties={
+                    "prop1": 60,
+                    "prop2": 31.3,
+                    "prop3": "abc123",
+                    "prop4": True,
+                    "prop5": [1, 2, 3],
+                },
+            )
+
+        assert "Node already exists" in str(excinfo.value)
+
+
+def test_create_node_using_client_with_properties_node_type():
+    g = Graph()
+    g.add_edge(1, "ben", "shivam")
+
+    tmp_work_dir = tempfile.mkdtemp()
+    with GraphServer(tmp_work_dir).start(port=1737):
+        client = RaphtoryClient("http://localhost:1737")
+        client.send_graph(path="g", graph=g)
+
+        query_nodes = """{graph(path: "g") {nodes {list {name, nodeType, properties { keys }}}}}"""
+        assert client.query(query_nodes) == {
+            "graph": {
+                "nodes": {
+                    "list": [
+                        {"name": "ben", "nodeType": None, "properties": {"keys": []}},
+                        {
+                            "name": "shivam",
+                            "nodeType": None,
+                            "properties": {"keys": []},
+                        },
+                    ]
+                }
+            }
+        }
+
+        remote_graph = client.remote_graph(path="g")
+        remote_graph.create_node(
+            timestamp=0,
+            id="oogway",
+            properties={
+                "prop1": 60,
+                "prop2": 31.3,
+                "prop3": "abc123",
+                "prop4": True,
+                "prop5": [1, 2, 3],
+            },
+            node_type="master",
+        )
+        nodes = json.loads(json.dumps(client.query(query_nodes)))["graph"]["nodes"][
+            "list"
+        ]
+        node_oogway = next(node for node in nodes if node["name"] == "oogway")
+        assert node_oogway["nodeType"] == "master"
+        assert sorted(node_oogway["properties"]["keys"]) == [
+            "prop1",
+            "prop2",
+            "prop3",
+            "prop4",
+            "prop5",
+        ]
+
+        with pytest.raises(Exception) as excinfo:
+            remote_graph.create_node(
+                timestamp=0,
+                id="oogway",
+                properties={
+                    "prop1": 60,
+                    "prop2": 31.3,
+                    "prop3": "abc123",
+                    "prop4": True,
+                    "prop5": [1, 2, 3],
+                },
+                node_type="master",
+            )
+
+        assert "Node already exists" in str(excinfo.value)
+
+
+def test_create_node_using_client_with_node_type():
+    g = Graph()
+    g.add_edge(1, "ben", "shivam")
+
+    tmp_work_dir = tempfile.mkdtemp()
+    with GraphServer(tmp_work_dir).start(port=1737):
+        client = RaphtoryClient("http://localhost:1737")
+        client.send_graph(path="g", graph=g)
+
+        query_nodes = """{graph(path: "g") {nodes {list {name, nodeType}}}}"""
+        assert client.query(query_nodes) == {
+            "graph": {
+                "nodes": {
+                    "list": [
+                        {"name": "ben", "nodeType": None},
+                        {"name": "shivam", "nodeType": None},
+                    ]
+                }
+            }
+        }
+
+        remote_graph = client.remote_graph(path="g")
+        remote_graph.create_node(timestamp=0, id="oogway", node_type="master")
+        assert client.query(query_nodes) == {
+            "graph": {
+                "nodes": {
+                    "list": [
+                        {"name": "ben", "nodeType": None},
+                        {"name": "shivam", "nodeType": None},
+                        {"name": "oogway", "nodeType": "master"},
+                    ]
+                }
+            }
+        }
+
+        with pytest.raises(Exception) as excinfo:
+            remote_graph.create_node(timestamp=0, id="oogway", node_type="master")
+
+        assert "Node already exists" in str(excinfo.value)
 
 
 # def test_disk_graph_name():

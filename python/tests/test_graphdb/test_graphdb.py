@@ -3009,6 +3009,44 @@ def test_fuzzy_search():
     check(g)
 
 
+def test_create_node_graph():
+    g = Graph()
+    g.create_node(
+        1, "shivam", properties={"value": 60, "value_f": 31.3, "value_str": "abc123"}
+    )
+    node = g.node("shivam")
+    assert node.name == "shivam"
+    assert node.properties == {"value": 60, "value_f": 31.3, "value_str": "abc123"}
+
+    with pytest.raises(Exception) as excinfo:
+        g.create_node(
+            1,
+            "shivam",
+            properties={"value": 60, "value_f": 31.3, "value_str": "abc123"},
+        )
+
+    assert "Node already exists" in str(excinfo.value)
+
+
+def test_create_node_graph_with_deletion():
+    g = PersistentGraph()
+    g.create_node(
+        1, "shivam", properties={"value": 60, "value_f": 31.3, "value_str": "abc123"}
+    )
+    node = g.node("shivam")
+    assert node.name == "shivam"
+    assert node.properties == {"value": 60, "value_f": 31.3, "value_str": "abc123"}
+
+    with pytest.raises(Exception) as excinfo:
+        g.create_node(
+            1,
+            "shivam",
+            properties={"value": 60, "value_f": 31.3, "value_str": "abc123"},
+        )
+
+    assert "Node already exists" in str(excinfo.value)
+
+
 @fixture
 def datadir(tmpdir, request):
     filename = request.module.__file__

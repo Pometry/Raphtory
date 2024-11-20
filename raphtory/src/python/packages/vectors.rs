@@ -1,12 +1,6 @@
 use crate::{
-    core::{
-        utils::{errors::GraphError, time::IntoTime},
-        DocumentInput, Lifespan, Prop,
-    },
-    db::api::{
-        properties::{internal::PropertiesOps, Properties},
-        view::{MaterializedGraph, StaticGraphViewOps},
-    },
+    core::utils::{errors::GraphError, time::IntoTime},
+    db::api::view::{MaterializedGraph, StaticGraphViewOps},
     prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
     python::{
         graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
@@ -21,7 +15,6 @@ use crate::{
         Document, Embedding, EmbeddingFunction, EmbeddingResult,
     },
 };
-use chrono::DateTime;
 use futures_util::future::BoxFuture;
 use itertools::Itertools;
 use pyo3::{
@@ -67,17 +60,6 @@ impl<'source> FromPyObject<'source> for PyQuery {
         }
         let message = format!("query '{query}' must be a str, or a list of float");
         Err(PyTypeError::new_err(message))
-    }
-}
-
-fn format_time(millis: i64) -> String {
-    if millis == 0 {
-        "unknown time".to_owned()
-    } else {
-        match DateTime::from_timestamp_millis(millis) {
-            Some(time) => time.naive_utc().format("%Y-%m-%d %H:%M:%S").to_string(),
-            None => "unknown time".to_owned(),
-        }
     }
 }
 
@@ -170,68 +152,6 @@ pub fn into_py_document(
                 life,
             }
         }
-    }
-}
-
-/// This funtions ignores the time history of temporal props if their type is Document and they have a life different than Lifespan::Inherited
-fn get_documents_from_props<P: PropertiesOps + Clone>(
-    properties: Properties<P>,
-    name: &str,
-) -> Box<dyn Iterator<Item = DocumentInput>> {
-    let prop = properties.temporal().get(name);
-
-    match prop {
-        Some(prop) => {
-            let props = prop.into_iter();
-            let docs = props
-                .map(|(time, prop)| prop_to_docs(&prop, Lifespan::event(time)).collect_vec())
-                .flatten();
-            Box::new(docs)
-        }
-        None => match properties.get(name) {
-            Some(prop) => Box::new(
-                prop_to_docs(&prop, Lifespan::Inherited)
-                    .collect_vec()
-                    .into_iter(),
-            ),
-            _ => Box::new(std::iter::empty()),
-        },
-    }
-}
-
-impl Lifespan {
-    fn overwrite_inherited(&self, default_lifespan: Lifespan) -> Self {
-        match self {
-            Lifespan::Inherited => default_lifespan,
-            other => other.clone(),
-        }
-    }
-}
-
-fn prop_to_docs(
-    prop: &Prop,
-    default_lifespan: Lifespan,
-) -> Box<dyn Iterator<Item = DocumentInput> + '_> {
-    match prop {
-        Prop::List(docs) => Box::new(
-            docs.iter()
-                .map(move |prop| prop_to_docs(prop, default_lifespan))
-                .flatten(),
-        ),
-        Prop::Map(doc_map) => Box::new(
-            doc_map
-                .values()
-                .map(move |prop| prop_to_docs(prop, default_lifespan))
-                .flatten(),
-        ),
-        Prop::Document(document) => Box::new(std::iter::once(DocumentInput {
-            life: document.life.overwrite_inherited(default_lifespan),
-            ..document.clone()
-        })),
-        prop => Box::new(std::iter::once(DocumentInput {
-            content: prop.to_string(),
-            life: default_lifespan,
-        })),
     }
 }
 

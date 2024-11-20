@@ -2,8 +2,12 @@ use crate::{
     db::api::view::BoxedIter,
     python::types::repr::{iterator_repr, Repr},
 };
-use pyo3::{IntoPy, PyObject};
-use std::{marker::PhantomData, sync::Arc};
+use pyo3::prelude::*;
+use std::{
+    marker::PhantomData,
+    ops::{Deref, DerefMut},
+    sync::Arc,
+};
 
 pub struct Iterable<I: Send, PyI: IntoPy<PyObject> + From<I> + Repr> {
     pub name: &'static str,
@@ -111,5 +115,33 @@ impl<I: Send, PyI: IntoPy<PyObject> + From<I> + Repr> Repr for NestedIterable<I,
                     .map(|it| format!("[{}]", iterator_repr(it.map(|i| PyI::from(i)))))
             )
         )
+    }
+}
+
+pub struct FromIterable<T>(Vec<T>);
+impl<T> Deref for FromIterable<T> {
+    type Target = [T];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T> DerefMut for FromIterable<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<'py, T: FromPyObject<'py>> FromPyObject<'py> for FromIterable<T> {
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+        let len = ob.len().unwrap_or(0);
+        let mut vec = Vec::<T>::with_capacity(len);
+        {
+            for value in ob.iter()? {
+                vec.push(value?.extract()?)
+            }
+        }
+        Ok(Self(vec))
     }
 }

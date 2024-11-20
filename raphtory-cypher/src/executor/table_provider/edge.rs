@@ -54,7 +54,7 @@ impl EdgeListTableProvider {
             .as_ref()
             .layer(layer_id)
             .edges_storage()
-            .time()
+            .time_col()
             .values()
             .len();
 
@@ -186,7 +186,7 @@ fn produce_record_batch(
     let layer = graph.as_ref().layer(layer_id);
     let edges = layer.edges_storage();
 
-    let chunked_lists_ts = edges.time();
+    let chunked_lists_ts = edges.time_col();
     let offsets = chunked_lists_ts.offsets();
     // FIXME: potentially implement into_iter_chunks() for chunked arrays to avoid having to collect these chunks, if it turns out to be a problem
     let time_values_chunks = chunked_lists_ts
@@ -257,7 +257,7 @@ fn produce_record_batch(
 
     let column_ids = layer
         .edges_storage()
-        .data_type()
+        .prop_dtypes()
         .iter()
         .enumerate()
         .skip(1) // first one is supposed to be time

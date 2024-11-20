@@ -12,7 +12,9 @@ use crate::{
         },
         graph::{edge::EdgeView, node::NodeView},
     },
+    prelude::NodeViewOps,
 };
+use raphtory_api::core::storage::dict_mapper::MaybeNew::{Existing, New};
 
 pub trait AdditionOps: StaticGraphViewOps {
     // TODO: Probably add vector reference here like add
@@ -38,6 +40,14 @@ pub trait AdditionOps: StaticGraphViewOps {
     /// let v = g.add_node(0, 5, NO_PROPS, None);
     /// ```
     fn add_node<V: AsNodeRef, T: TryIntoInputTime, PI: CollectProperties>(
+        &self,
+        t: T,
+        v: V,
+        props: PI,
+        node_type: Option<&str>,
+    ) -> Result<NodeView<Self, Self>, GraphError>;
+
+    fn create_node<V: AsNodeRef, T: TryIntoInputTime, PI: CollectProperties>(
         &self,
         t: T,
         v: V,
@@ -121,6 +131,36 @@ impl<G: InternalAdditionOps + StaticGraphViewOps> AdditionOps for G {
         };
         self.internal_add_node(ti, v_id, &properties)?;
         Ok(NodeView::new_internal(self.clone(), v_id))
+    }
+
+    fn create_node<V: AsNodeRef, T: TryIntoInputTime, PI: CollectProperties>(
+        &self,
+        t: T,
+        v: V,
+        props: PI,
+        node_type: Option<&str>,
+    ) -> Result<NodeView<G, G>, GraphError> {
+        let ti = time_from_input(self, t)?;
+        let v_id = match node_type {
+            None => self.resolve_node(v)?,
+            Some(node_type) => {
+                let (v_id, _) = self.resolve_node_and_type(v, node_type)?.inner();
+                v_id
+            }
+        };
+        match v_id {
+            New(id) => {
+                let properties = props.collect_properties(|name, dtype| {
+                    Ok(self.resolve_node_property(name, dtype, false)?.inner())
+                })?;
+                self.internal_add_node(ti, id, &properties)?;
+                Ok(NodeView::new_internal(self.clone(), id))
+            }
+            Existing(id) => {
+                let node_id = self.node(id).unwrap().id();
+                Err(GraphError::NodeExistsError(node_id))
+            }
+        }
     }
 
     fn add_edge<V: AsNodeRef, T: TryIntoInputTime, PI: CollectProperties>(

@@ -329,9 +329,6 @@ class RemoteEdgeAddition(object):
         """Create and return a new object.  See help(type) for accurate signature."""
 
 class RemoteGraph(object):
-    def __new__(self, path, client) -> RemoteGraph:
-        """Create and return a new object.  See help(type) for accurate signature."""
-
     def add_constant_properties(self, properties: dict):
         """
         Adds constant properties to the remote graph.
@@ -404,6 +401,25 @@ class RemoteGraph(object):
         Arguments:
            timestamp (int|str|datetime): The timestamp of the temporal property.
            properties (dict): The temporal properties of the graph.
+        """
+
+    def create_node(
+        self,
+        timestamp: int | str | datetime,
+        id: str | int,
+        properties: Optional[dict] = None,
+        node_type: Optional[str] = None,
+    ):
+        """
+        Create a new node with the given id and properties to the remote graph and fail if the node already exists.
+
+        Arguments:
+           timestamp (int|str|datetime): The timestamp of the node.
+           id (str|int): The id of the node.
+           properties (dict, optional): The properties of the node.
+           node_type (str, optional): The optional string which will be used as a node type
+        Returns:
+          RemoteNode
         """
 
     def delete_edge(

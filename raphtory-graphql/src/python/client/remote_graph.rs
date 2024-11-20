@@ -23,11 +23,6 @@ pub struct PyRemoteGraph {
 
 #[pymethods]
 impl PyRemoteGraph {
-    #[new]
-    pub(crate) fn new(path: String, client: PyRaphtoryClient) -> Self {
-        Self { path, client }
-    }
-
     /// Gets a remote node with the specified id
     ///
     /// Arguments:
@@ -214,6 +209,52 @@ impl PyRemoteGraph {
         {
             updateGraph(path: "{{ path }}") {
                 addNode(time: {{ time }}, name: "{{ name }}" {% if properties is not none %}, properties:  {{ properties | safe }} {% endif %}{% if node_type is not none %}, nodeType: "{{ node_type }}"{% endif %}) {
+                    success
+                }
+            }
+        }
+        "#;
+
+        let query_context = context! {
+            path => self.path,
+            time => timestamp.into_time(),
+            name => id.to_string(),
+            properties => properties.map(|p| build_property_string(p)),
+            node_type => node_type
+        };
+
+        let query = build_query(template, query_context)?;
+        let _ = &self.client.query(py, query, None)?;
+
+        Ok(PyRemoteNode::new(
+            self.path.clone(),
+            self.client.clone(),
+            id.to_string(),
+        ))
+    }
+
+    /// Create a new node with the given id and properties to the remote graph and fail if the node already exists.
+    ///
+    /// Arguments:
+    ///    timestamp (int|str|datetime): The timestamp of the node.
+    ///    id (str|int): The id of the node.
+    ///    properties (dict, optional): The properties of the node.
+    ///    node_type (str, optional): The optional string which will be used as a node type
+    /// Returns:
+    ///   RemoteNode
+    #[pyo3(signature = (timestamp, id, properties = None, node_type = None))]
+    pub fn create_node(
+        &self,
+        py: Python,
+        timestamp: PyTime,
+        id: GID,
+        properties: Option<HashMap<String, Prop>>,
+        node_type: Option<&str>,
+    ) -> Result<PyRemoteNode, GraphError> {
+        let template = r#"
+        {
+            updateGraph(path: "{{ path }}") {
+                createNode(time: {{ time }}, name: "{{ name }}" {% if properties is not none %}, properties:  {{ properties | safe }} {% endif %}{% if node_type is not none %}, nodeType: "{{ node_type }}"{% endif %}) {
                     success
                 }
             }

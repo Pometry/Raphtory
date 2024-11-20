@@ -96,6 +96,25 @@ impl GqlMutableGraph {
         Ok(node.into())
     }
 
+    /// Create a new node or fail if it already exists
+    async fn create_node(
+        &self,
+        time: i64,
+        name: String,
+        properties: Option<Vec<GqlPropInput>>,
+        node_type: Option<String>,
+    ) -> Result<GqlMutableNode, GraphError> {
+        let node = self.graph.create_node(
+            time,
+            &name,
+            as_properties(properties.unwrap_or(vec![])),
+            node_type.as_str(),
+        )?;
+        node.update_embeddings().await?;
+        self.graph.write_updates()?;
+        Ok(node.into())
+    }
+
     /// Add a batch of nodes
     async fn add_nodes(&self, nodes: Vec<NodeAddition>) -> Result<bool, GraphError> {
         for node in nodes {
