@@ -3,15 +3,14 @@ import tempfile
 import pytest
 
 from raphtory.graphql import GraphServer
-from raphtory import Graph
+from raphtory import Graph, PersistentGraph
 import json
 import re
 
 PORT = 1737
 
 
-def create_test_graph():
-    g = Graph()
+def create_test_graph(g):
     g.add_node(1, "a", properties={"prop1": 60, "prop2": 31.3, "prop3": "abc123", "prop4": True, "prop5": [1, 2, 3]})
     g.add_node(1, "b", properties={"prop1": 10, "prop2": 31.3, "prop3": "abc223", "prop4": False})
     g.add_node(1, "c", properties={"prop1": 20, "prop2": 31.3, "prop3": "abc333", "prop4": True, "prop5": [5, 6, 7]})
@@ -37,12 +36,12 @@ def create_test_graph():
     return g
 
 
-def run_graphql_test(query, expected_output):
-    g = create_test_graph()
+def run_graphql_test(query, expected_output, graph):
+    create_test_graph(graph)
     tmp_work_dir = tempfile.mkdtemp()
     with GraphServer(tmp_work_dir).start(PORT) as server:
         client = server.get_client()
-        client.send_graph(path="g", graph=g)
+        client.send_graph(path="g", graph=graph)
 
         response = client.query(query)
 
@@ -51,12 +50,12 @@ def run_graphql_test(query, expected_output):
         assert response_dict == expected_output
 
 
-def run_graphql_error_test(query, expected_error_message):
-    g = create_test_graph()
+def run_graphql_error_test(query, expected_error_message, graph):
+    create_test_graph(graph)
     tmp_work_dir = tempfile.mkdtemp()
     with GraphServer(tmp_work_dir).start(PORT) as server:
         client = server.get_client()
-        client.send_graph(path="g", graph=g)
+        client.send_graph(path="g", graph=graph)
 
         with pytest.raises(Exception) as excinfo:
             client.query(query)
@@ -68,7 +67,8 @@ def run_graphql_error_test(query, expected_error_message):
         assert error_message == expected_error_message, f"Expected '{expected_error_message}', but got '{error_message}'"
 
 
-def test_node_property_filter_equal():
+@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+def test_node_property_filter_equal(graph):
     query = """
     query {
       graph(path: "g") {
@@ -101,10 +101,11 @@ def test_node_property_filter_equal():
             }
         }
     }
-    run_graphql_test(query, expected_output)
+    run_graphql_test(query, expected_output, graph())
 
 
-def test_node_property_filter_equal_no_value_error():
+@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+def test_node_property_filter_equal_no_value_error(graph):
     query = """
     query {
       graph(path: "g") {
@@ -124,10 +125,11 @@ def test_node_property_filter_equal_no_value_error():
     }
     """
     expected_error_message = "Expected a value for Equal operator"
-    run_graphql_error_test(query, expected_error_message)
+    run_graphql_error_test(query, expected_error_message, graph())
 
 
-def test_node_property_filter_equal_type_error():
+@pytest.mark.parametrize("graph", [Graph])
+def test_node_property_filter_equal_type_error(graph):
     query = """
     query {
       graph(path: "g") {
@@ -148,10 +150,11 @@ def test_node_property_filter_equal_type_error():
     }
     """
     expected_error_message = "PropertyType Error: Wrong type for property prop5: expected List but actual type is I64"
-    run_graphql_error_test(query, expected_error_message)
+    run_graphql_error_test(query, expected_error_message, graph())
 
 
-def test_node_property_filter_not_equal():
+@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+def test_node_property_filter_not_equal(graph):
     query = """
     query {
       graph(path: "g") {
@@ -183,10 +186,11 @@ def test_node_property_filter_not_equal():
             }
         }
     }
-    run_graphql_test(query, expected_output)
+    run_graphql_test(query, expected_output, graph())
 
 
-def test_node_property_filter_not_equal_no_value_error():
+@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+def test_node_property_filter_not_equal_no_value_error(graph):
     query = """
     query {
       graph(path: "g") {
@@ -206,10 +210,11 @@ def test_node_property_filter_not_equal_no_value_error():
     }
     """
     expected_error_message = "Expected a value for NotEqual operator"
-    run_graphql_error_test(query, expected_error_message)
+    run_graphql_error_test(query, expected_error_message, graph())
 
 
-def test_node_property_filter_not_equal_type_error():
+@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+def test_node_property_filter_not_equal_type_error(graph):
     query = """
     query {
       graph(path: "g") {
@@ -230,10 +235,11 @@ def test_node_property_filter_not_equal_type_error():
     }
     """
     expected_error_message = "PropertyType Error: Wrong type for property prop4: expected Bool but actual type is I64"
-    run_graphql_error_test(query, expected_error_message)
+    run_graphql_error_test(query, expected_error_message, graph())
 
 
-def test_node_property_filter_greater_than_or_equal():
+@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+def test_node_property_filter_greater_than_or_equal(graph):
     query = """
     query {
       graph(path: "g") {
@@ -264,10 +270,11 @@ def test_node_property_filter_greater_than_or_equal():
             }
         }
     }
-    run_graphql_test(query, expected_output)
+    run_graphql_test(query, expected_output, graph())
 
 
-def test_node_property_filter_greater_than_or_equal_no_value_error():
+@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+def test_node_property_filter_greater_than_or_equal_no_value_error(graph):
     query = """
     query {
       graph(path: "g") {
@@ -287,10 +294,11 @@ def test_node_property_filter_greater_than_or_equal_no_value_error():
     }
     """
     expected_error_message = "Expected a value for GreaterThanOrEqual operator"
-    run_graphql_error_test(query, expected_error_message)
+    run_graphql_error_test(query, expected_error_message, graph())
 
 
-def test_node_property_filter_greater_than_or_equal_type_error():
+@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+def test_node_property_filter_greater_than_or_equal_type_error(graph):
     query = """
     query {
       graph(path: "g") {
@@ -311,10 +319,11 @@ def test_node_property_filter_greater_than_or_equal_type_error():
     }
     """
     expected_error_message = "PropertyType Error: Wrong type for property prop1: expected I64 but actual type is Bool"
-    run_graphql_error_test(query, expected_error_message)
+    run_graphql_error_test(query, expected_error_message, graph())
 
 
-def test_node_property_filter_less_than_or_equal():
+@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+def test_node_property_filter_less_than_or_equal(graph):
     query = """
     query {
       graph(path: "g") {
@@ -347,10 +356,11 @@ def test_node_property_filter_less_than_or_equal():
             }
         }
     }
-    run_graphql_test(query, expected_output)
+    run_graphql_test(query, expected_output, graph())
 
 
-def test_node_property_filter_less_than_or_equal_no_value_error():
+@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+def test_node_property_filter_less_than_or_equal_no_value_error(graph):
     query = """
     query {
       graph(path: "g") {
@@ -370,10 +380,11 @@ def test_node_property_filter_less_than_or_equal_no_value_error():
     }
     """
     expected_error_message = "Expected a value for LessThanOrEqual operator"
-    run_graphql_error_test(query, expected_error_message)
+    run_graphql_error_test(query, expected_error_message, graph())
 
 
-def test_node_property_filter_less_than_or_equal_type_error():
+@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+def test_node_property_filter_less_than_or_equal_type_error(graph):
     query = """
     query {
       graph(path: "g") {
@@ -394,10 +405,11 @@ def test_node_property_filter_less_than_or_equal_type_error():
     }
     """
     expected_error_message = "PropertyType Error: Wrong type for property prop1: expected I64 but actual type is Str"
-    run_graphql_error_test(query, expected_error_message)
+    run_graphql_error_test(query, expected_error_message, graph())
 
 
-def test_node_property_filter_greater_than():
+@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+def test_node_property_filter_greater_than(graph):
     query = """
     query {
       graph(path: "g") {
@@ -428,10 +440,11 @@ def test_node_property_filter_greater_than():
             }
         }
     }
-    run_graphql_test(query, expected_output)
+    run_graphql_test(query, expected_output, graph())
 
 
-def test_node_property_filter_greater_than_no_value_error():
+@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+def test_node_property_filter_greater_than_no_value_error(graph):
     query = """
     query {
       graph(path: "g") {
@@ -451,10 +464,11 @@ def test_node_property_filter_greater_than_no_value_error():
     }
     """
     expected_error_message = "Expected a value for GreaterThan operator"
-    run_graphql_error_test(query, expected_error_message)
+    run_graphql_error_test(query, expected_error_message, graph())
 
 
-def test_node_property_filter_greater_than_type_error():
+@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+def test_node_property_filter_greater_than_type_error(graph):
     query = """
     query {
       graph(path: "g") {
@@ -475,10 +489,11 @@ def test_node_property_filter_greater_than_type_error():
     }
     """
     expected_error_message = "PropertyType Error: Wrong type for property prop1: expected I64 but actual type is Str"
-    run_graphql_error_test(query, expected_error_message)
+    run_graphql_error_test(query, expected_error_message, graph())
 
 
-def test_node_property_filter_less_than():
+@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+def test_node_property_filter_less_than(graph):
     query = """
     query {
       graph(path: "g") {
@@ -510,10 +525,11 @@ def test_node_property_filter_less_than():
             }
         }
     }
-    run_graphql_test(query, expected_output)
+    run_graphql_test(query, expected_output, graph())
 
 
-def test_node_property_filter_less_than_no_value_error():
+@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+def test_node_property_filter_less_than_no_value_error(graph):
     query = """
     query {
       graph(path: "g") {
@@ -533,10 +549,11 @@ def test_node_property_filter_less_than_no_value_error():
     }
     """
     expected_error_message = "Expected a value for LessThan operator"
-    run_graphql_error_test(query, expected_error_message)
+    run_graphql_error_test(query, expected_error_message, graph())
 
 
-def test_node_property_filter_less_than_type_error():
+@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+def test_node_property_filter_less_than_type_error(graph):
     query = """
     query {
       graph(path: "g") {
@@ -557,10 +574,11 @@ def test_node_property_filter_less_than_type_error():
     }
     """
     expected_error_message = "PropertyType Error: Wrong type for property prop1: expected I64 but actual type is Str"
-    run_graphql_error_test(query, expected_error_message)
+    run_graphql_error_test(query, expected_error_message, graph())
 
 
-def test_node_property_filter_is_none():
+@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+def test_node_property_filter_is_none(graph):
     query = """
     query {
       graph(path: "g") {
@@ -591,10 +609,11 @@ def test_node_property_filter_is_none():
             }
         }
     }
-    run_graphql_test(query, expected_output)
+    run_graphql_test(query, expected_output, graph())
 
 
-def test_node_property_filter_is_some():
+@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+def test_node_property_filter_is_some(graph):
     query = """
     query {
       graph(path: "g") {
@@ -625,10 +644,11 @@ def test_node_property_filter_is_some():
             }
         }
     }
-    run_graphql_test(query, expected_output)
+    run_graphql_test(query, expected_output, graph())
 
 
-def test_node_property_filter_any():
+@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+def test_node_property_filter_any(graph):
     query = """
     query {
       graph(path: "g") {
@@ -660,10 +680,11 @@ def test_node_property_filter_any():
             }
         }
     }
-    run_graphql_test(query, expected_output)
+    run_graphql_test(query, expected_output, graph())
 
 
-def test_node_property_filter_any_empty_list():
+@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+def test_node_property_filter_any_empty_list(graph):
     query = """
     query {
       graph(path: "g") {
@@ -692,10 +713,11 @@ def test_node_property_filter_any_empty_list():
             }
         }
     }
-    run_graphql_test(query, expected_output)
+    run_graphql_test(query, expected_output, graph())
 
 
-def test_node_property_filter_any_no_value_error():
+@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+def test_node_property_filter_any_no_value_error(graph):
     query = """
     query {
       graph(path: "g") {
@@ -715,10 +737,11 @@ def test_node_property_filter_any_no_value_error():
     }
     """
     expected_error_message = "Expected a list for Any operator"
-    run_graphql_error_test(query, expected_error_message)
+    run_graphql_error_test(query, expected_error_message, graph())
 
 
-def test_node_property_filter_any_type_error():
+@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+def test_node_property_filter_any_type_error(graph):
     query = """
     query {
       graph(path: "g") {
@@ -739,10 +762,11 @@ def test_node_property_filter_any_type_error():
     }
     """
     expected_error_message = "Expected a list for Any operator"
-    run_graphql_error_test(query, expected_error_message)
+    run_graphql_error_test(query, expected_error_message, graph())
 
 
-def test_node_property_filter_not_any():
+@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+def test_node_property_filter_not_any(graph):
     query = """
     query {
       graph(path: "g") {
@@ -774,10 +798,11 @@ def test_node_property_filter_not_any():
             }
         }
     }
-    run_graphql_test(query, expected_output)
+    run_graphql_test(query, expected_output, graph())
 
 
-def test_node_property_filter_not_any_empty_list():
+@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+def test_node_property_filter_not_any_empty_list(graph):
     query = """
     query {
       graph(path: "g") {
@@ -811,10 +836,11 @@ def test_node_property_filter_not_any_empty_list():
             }
         }
     }
-    run_graphql_test(query, expected_output)
+    run_graphql_test(query, expected_output, graph())
 
 
-def test_node_property_filter_not_any_no_value_error():
+@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+def test_node_property_filter_not_any_no_value_error(graph):
     query = """
     query {
       graph(path: "g") {
@@ -834,10 +860,11 @@ def test_node_property_filter_not_any_no_value_error():
     }
     """
     expected_error_message = "Expected a list for NotAny operator"
-    run_graphql_error_test(query, expected_error_message)
+    run_graphql_error_test(query, expected_error_message, graph())
 
 
-def test_node_property_filter_not_any_type_error():
+@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
+def test_node_property_filter_not_any_type_error(graph):
     query = """
     query {
       graph(path: "g") {
@@ -858,4 +885,4 @@ def test_node_property_filter_not_any_type_error():
     }
     """
     expected_error_message = "Expected a list for NotAny operator"
-    run_graphql_error_test(query, expected_error_message)
+    run_graphql_error_test(query, expected_error_message, graph())
