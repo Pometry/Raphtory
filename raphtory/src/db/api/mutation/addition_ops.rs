@@ -171,7 +171,7 @@ impl<G: InternalAdditionOps + StaticGraphViewOps> AdditionOps for G {
         props: PI,
         layer: Option<&str>,
     ) -> Result<EdgeView<G, G>, GraphError> {
-        let ti = time_from_input(self, t)?;
+        let ti: raphtory_api::core::storage::timeindex::TimeIndexEntry = time_from_input(self, t)?;
         let src_id = self.resolve_node(src)?.inner();
         let dst_id = self.resolve_node(dst)?.inner();
         let layer_id = self.resolve_layer(layer)?.inner();

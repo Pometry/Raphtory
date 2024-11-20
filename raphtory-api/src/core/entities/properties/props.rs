@@ -22,6 +22,17 @@ pub struct Meta {
     meta_node_type: DictMapper,
 }
 
+impl Clone for Meta {
+    fn clone(&self) -> Self {
+        Self {
+            meta_prop_temporal: self.meta_prop_temporal.deep_clone(),
+            meta_prop_constant: self.meta_prop_constant.deep_clone(),
+            meta_layer: self.meta_layer.deep_clone(),
+            meta_node_type: self.meta_node_type.deep_clone(),
+        }
+    }
+}
+
 impl Default for Meta {
     fn default() -> Self {
         Self::new()
