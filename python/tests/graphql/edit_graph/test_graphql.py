@@ -21,8 +21,8 @@ def test_encode_graph():
 
     encoded = encode_graph(g)
     assert (
-            encoded
-            == "EgxaCgoIX2RlZmF1bHQSDBIKCghfZGVmYXVsdBoFCgNiZW4aCQoFaGFtemEYARoLCgdoYWFyb29uGAIiAhABIgYIAhABGAEiBBACGAIqAhoAKgQSAhABKgQSAhADKgIKACoGEgQIARABKgYSBAgBEAIqBAoCCAEqBhIECAIQAioGEgQIAhADKgQKAggCKgQ6AhABKgIyACoIOgYIARACGAEqBDICCAEqCDoGCAIQAxgCKgQyAggC"
+        encoded
+        == "EgxaCgoIX2RlZmF1bHQSDBIKCghfZGVmYXVsdBoFCgNiZW4aCQoFaGFtemEYARoLCgdoYWFyb29uGAIiAhABIgYIAhABGAEiBBACGAIqAhoAKgQSAhABKgQSAhADKgIKACoGEgQIARABKgYSBAgBEAIqBAoCCAEqBhIECAIQAioGEgQIAhADKgQKAggCKgQ6AhABKgIyACoIOgYIARACGAEqBDICCAEqCDoGCAIQAxgCKgQyAggC"
     )
 
 
@@ -42,8 +42,8 @@ def test_wrong_url():
     with pytest.raises(Exception) as excinfo:
         client = RaphtoryClient("http://broken_url.com")
     assert (
-            str(excinfo.value)
-            == "Could not connect to the given server - no response --error sending request for url (http://broken_url.com/)"
+        str(excinfo.value)
+        == "Could not connect to the given server - no response --error sending request for url (http://broken_url.com/)"
     )
 
 
@@ -393,16 +393,14 @@ def test_create_node():
 
         query_nodes = """{graph(path: "g") {nodes {list {name}}}}"""
         assert client.query(query_nodes) == {
-            "graph": {
-                "nodes": {
-                    "list": [{"name": "ben"}, {"name": "shivam"}]
-                }
-            }
+            "graph": {"nodes": {"list": [{"name": "ben"}, {"name": "shivam"}]}}
         }
 
         create_node_query = """{updateGraph(path: "g") { createNode(time: 0, name: "oogway") {  success } }}"""
 
-        assert client.query(create_node_query) == {"updateGraph": {"createNode": {"success": True}}}
+        assert client.query(create_node_query) == {
+            "updateGraph": {"createNode": {"success": True}}
+        }
         assert client.query(query_nodes) == {
             "graph": {
                 "nodes": {
@@ -428,11 +426,7 @@ def test_create_node_using_client():
 
         query_nodes = """{graph(path: "g") {nodes {list {name}}}}"""
         assert client.query(query_nodes) == {
-            "graph": {
-                "nodes": {
-                    "list": [{"name": "ben"}, {"name": "shivam"}]
-                }
-            }
+            "graph": {"nodes": {"list": [{"name": "ben"}, {"name": "shivam"}]}}
         }
 
         remote_graph = client.remote_graph(path="g")
@@ -460,23 +454,56 @@ def test_create_node_using_client_with_properties():
         client = RaphtoryClient("http://localhost:1737")
         client.send_graph(path="g", graph=g)
 
-        query_nodes = """{graph(path: "g") {nodes {list {name, properties { keys }}}}}"""
+        query_nodes = (
+            """{graph(path: "g") {nodes {list {name, properties { keys }}}}}"""
+        )
         assert client.query(query_nodes) == {
             "graph": {
                 "nodes": {
-                    "list": [{"name": "ben", 'properties': {'keys': []}}, {"name": "shivam", 'properties': {'keys': []}}]
+                    "list": [
+                        {"name": "ben", "properties": {"keys": []}},
+                        {"name": "shivam", "properties": {"keys": []}},
+                    ]
                 }
             }
         }
 
         remote_graph = client.remote_graph(path="g")
-        remote_graph.create_node(timestamp=0, id="oogway", properties={"prop1": 60, "prop2": 31.3, "prop3": "abc123", "prop4": True, "prop5": [1, 2, 3]})
-        nodes = json.loads(json.dumps(client.query(query_nodes)))['graph']['nodes']['list']
-        node_oogway = next(node for node in nodes if node['name'] == 'oogway')
-        assert sorted(node_oogway['properties']['keys']) == ['prop1', 'prop2', 'prop3', 'prop4', 'prop5']
+        remote_graph.create_node(
+            timestamp=0,
+            id="oogway",
+            properties={
+                "prop1": 60,
+                "prop2": 31.3,
+                "prop3": "abc123",
+                "prop4": True,
+                "prop5": [1, 2, 3],
+            },
+        )
+        nodes = json.loads(json.dumps(client.query(query_nodes)))["graph"]["nodes"][
+            "list"
+        ]
+        node_oogway = next(node for node in nodes if node["name"] == "oogway")
+        assert sorted(node_oogway["properties"]["keys"]) == [
+            "prop1",
+            "prop2",
+            "prop3",
+            "prop4",
+            "prop5",
+        ]
 
         with pytest.raises(Exception) as excinfo:
-            remote_graph.create_node(timestamp=0, id="oogway", properties={"prop1": 60, "prop2": 31.3, "prop3": "abc123", "prop4": True, "prop5": [1, 2, 3]})
+            remote_graph.create_node(
+                timestamp=0,
+                id="oogway",
+                properties={
+                    "prop1": 60,
+                    "prop2": 31.3,
+                    "prop3": "abc123",
+                    "prop4": True,
+                    "prop5": [1, 2, 3],
+                },
+            )
 
         assert "Node already exists" in str(excinfo.value)
 
@@ -494,20 +521,57 @@ def test_create_node_using_client_with_properties_node_type():
         assert client.query(query_nodes) == {
             "graph": {
                 "nodes": {
-                    "list": [{"name": "ben", 'nodeType': None, 'properties': {'keys': []}}, {"name": "shivam", 'nodeType': None, 'properties': {'keys': []}}]
+                    "list": [
+                        {"name": "ben", "nodeType": None, "properties": {"keys": []}},
+                        {
+                            "name": "shivam",
+                            "nodeType": None,
+                            "properties": {"keys": []},
+                        },
+                    ]
                 }
             }
         }
 
         remote_graph = client.remote_graph(path="g")
-        remote_graph.create_node(timestamp=0, id="oogway", properties={"prop1": 60, "prop2": 31.3, "prop3": "abc123", "prop4": True, "prop5": [1, 2, 3]}, node_type="master")
-        nodes = json.loads(json.dumps(client.query(query_nodes)))['graph']['nodes']['list']
-        node_oogway = next(node for node in nodes if node['name'] == 'oogway')
-        assert node_oogway['nodeType'] == 'master'
-        assert sorted(node_oogway['properties']['keys']) == ['prop1', 'prop2', 'prop3', 'prop4', 'prop5']
+        remote_graph.create_node(
+            timestamp=0,
+            id="oogway",
+            properties={
+                "prop1": 60,
+                "prop2": 31.3,
+                "prop3": "abc123",
+                "prop4": True,
+                "prop5": [1, 2, 3],
+            },
+            node_type="master",
+        )
+        nodes = json.loads(json.dumps(client.query(query_nodes)))["graph"]["nodes"][
+            "list"
+        ]
+        node_oogway = next(node for node in nodes if node["name"] == "oogway")
+        assert node_oogway["nodeType"] == "master"
+        assert sorted(node_oogway["properties"]["keys"]) == [
+            "prop1",
+            "prop2",
+            "prop3",
+            "prop4",
+            "prop5",
+        ]
 
         with pytest.raises(Exception) as excinfo:
-            remote_graph.create_node(timestamp=0, id="oogway", properties={"prop1": 60, "prop2": 31.3, "prop3": "abc123", "prop4": True, "prop5": [1, 2, 3]}, node_type="master")
+            remote_graph.create_node(
+                timestamp=0,
+                id="oogway",
+                properties={
+                    "prop1": 60,
+                    "prop2": 31.3,
+                    "prop3": "abc123",
+                    "prop4": True,
+                    "prop5": [1, 2, 3],
+                },
+                node_type="master",
+            )
 
         assert "Node already exists" in str(excinfo.value)
 
@@ -525,7 +589,10 @@ def test_create_node_using_client_with_node_type():
         assert client.query(query_nodes) == {
             "graph": {
                 "nodes": {
-                    "list": [{"name": "ben", 'nodeType': None}, {"name": "shivam", 'nodeType': None}]
+                    "list": [
+                        {"name": "ben", "nodeType": None},
+                        {"name": "shivam", "nodeType": None},
+                    ]
                 }
             }
         }
@@ -535,7 +602,11 @@ def test_create_node_using_client_with_node_type():
         assert client.query(query_nodes) == {
             "graph": {
                 "nodes": {
-                    "list": [{"name": "ben", 'nodeType': None}, {"name": "shivam", 'nodeType': None}, {"name": "oogway", 'nodeType': "master"}]
+                    "list": [
+                        {"name": "ben", "nodeType": None},
+                        {"name": "shivam", "nodeType": None},
+                        {"name": "oogway", "nodeType": "master"},
+                    ]
                 }
             }
         }

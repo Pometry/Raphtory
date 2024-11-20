@@ -17,6 +17,7 @@ use crate::{
             edge::PyEdge, graph_with_deletions::PyPersistentGraph, io::pandas_loaders::*,
             node::PyNode, views::graph_view::PyGraphView,
         },
+        types::iterable::FromIterable,
         utils::{PyNodeRef, PyTime},
     },
     serialise::{StableDecode, StableEncode},
@@ -302,7 +303,7 @@ impl PyGraph {
     ///     force (bool): An optional boolean flag indicating whether to force the import of the nodes.
     ///
     #[pyo3(signature = (nodes, force = false))]
-    pub fn import_nodes(&self, nodes: Vec<PyNode>, force: bool) -> Result<(), GraphError> {
+    pub fn import_nodes(&self, nodes: FromIterable<PyNode>, force: bool) -> Result<(), GraphError> {
         let node_views = nodes.iter().map(|node| &node.node);
         self.graph.import_nodes(node_views, force)
     }
@@ -338,7 +339,7 @@ impl PyGraph {
     ///     edges (List[Edge]): A list of Edge objects representing the edges to be imported.
     ///     force (bool): An optional boolean flag indicating whether to force the import of the edges.
     #[pyo3(signature = (edges, force = false))]
-    pub fn import_edges(&self, edges: Vec<PyEdge>, force: bool) -> Result<(), GraphError> {
+    pub fn import_edges(&self, edges: FromIterable<PyEdge>, force: bool) -> Result<(), GraphError> {
         let edge_views = edges.iter().map(|edge| &edge.edge);
         self.graph.import_edges(edge_views, force)
     }
