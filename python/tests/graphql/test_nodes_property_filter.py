@@ -14,7 +14,7 @@ def create_test_graph():
     g = Graph()
     g.add_node(1, "a", properties={"prop1": 60, "prop2": 31.3, "prop3": "abc123", "prop4": True, "prop5": [1, 2, 3]})
     g.add_node(1, "b", properties={"prop1": 10, "prop2": 31.3, "prop3": "abc223", "prop4": False})
-    g.add_node(1, "c", properties={"prop1": 20, "prop2": 31.3, "prop3": "abc333", "prop4": True})
+    g.add_node(1, "c", properties={"prop1": 20, "prop2": 31.3, "prop3": "abc333", "prop4": True, "prop5": [5, 6, 7]})
     g.add_node(1, "d", properties={"prop1": 30, "prop2": 31.3, "prop3": "abc444", "prop4": False})
     g.add_edge(
         2,
@@ -585,7 +585,6 @@ def test_node_property_filter_is_none():
                 "nodeFilter": {
                     "list": [
                         {"name": "b"},
-                        {"name": "c"},
                         {"name": "d"}
                     ]
                 }
@@ -619,7 +618,8 @@ def test_node_property_filter_is_some():
             "nodes": {
                 "nodeFilter": {
                     "list": [
-                        {"name": "a"}
+                        {"name": "a"},
+                        {"name": "c"}
                     ]
                 }
             }
@@ -634,10 +634,10 @@ def test_node_property_filter_any():
       graph(path: "g") {
         nodes {
           nodeFilter(
-            property: "prop4", 
+            property: "prop1", 
             condition: {
               operator: ANY, 
-              value: [true]
+              value: [10, 30, 50, 70]
             }
           ) {
             list {
@@ -653,9 +653,41 @@ def test_node_property_filter_any():
             "nodes": {
                 "nodeFilter": {
                     "list": [
-                        {"name": "a"},
-                        {"name": "c"}
+                        {"name": "b"},
+                        {"name": "d"}
                     ]
+                }
+            }
+        }
+    }
+    run_graphql_test(query, expected_output)
+
+
+def test_node_property_filter_any_empty_list():
+    query = """
+    query {
+      graph(path: "g") {
+        nodes {
+          nodeFilter(
+            property: "prop1", 
+            condition: {
+              operator: ANY, 
+              value: []
+            }
+          ) {
+            list {
+              name
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {
+        "graph": {
+            "nodes": {
+                "nodeFilter": {
+                    "list": []
                 }
             }
         }
@@ -716,10 +748,10 @@ def test_node_property_filter_not_any():
       graph(path: "g") {
         nodes {
           nodeFilter(
-            property: "prop4", 
+            property: "prop1", 
             condition: {
               operator: NOT_ANY, 
-              value: [true]
+              value: [10, 30, 50, 70]
             }
           ) {
             list {
@@ -735,7 +767,44 @@ def test_node_property_filter_not_any():
             "nodes": {
                 "nodeFilter": {
                     "list": [
+                        {"name": "a"},
+                        {"name": "c"}
+                    ]
+                }
+            }
+        }
+    }
+    run_graphql_test(query, expected_output)
+
+
+def test_node_property_filter_not_any_empty_list():
+    query = """
+    query {
+      graph(path: "g") {
+        nodes {
+          nodeFilter(
+            property: "prop1", 
+            condition: {
+              operator: NOT_ANY, 
+              value: []
+            }
+          ) {
+            list {
+              name
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {
+        "graph": {
+            "nodes": {
+                "nodeFilter": {
+                    "list": [
+                        {"name": "a"},
                         {"name": "b"},
+                        {"name": "c"},
                         {"name": "d"}
                     ]
                 }
