@@ -15,6 +15,7 @@ use crate::{
     serialise::incremental::InternalCache,
 };
 use bytemuck::checked::cast_slice_mut;
+#[cfg(feature = "python")]
 use kdam::{Bar, BarBuilder, BarExt};
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
@@ -27,6 +28,7 @@ use raphtory_api::{
 use rayon::prelude::*;
 use std::{collections::HashMap, sync::atomic::Ordering};
 
+#[cfg(feature = "python")]
 fn build_progress_bar(des: String, num_rows: usize) -> Result<Bar, GraphError> {
     BarBuilder::default()
         .desc(des)
@@ -414,6 +416,7 @@ pub(crate) fn load_edge_deletions_from_df<
         None
     };
     let layer_index = layer_index.transpose()?;
+    #[cfg(feature = "python")]
     let mut pb = build_progress_bar("Loading edge deletions".to_string(), df_view.num_rows)?;
     let mut start_idx = graph.reserve_event_ids(df_view.num_rows)?;
 
@@ -436,6 +439,7 @@ pub(crate) fn load_edge_deletions_from_df<
                 graph.delete_edge((time, start_idx + idx), src, dst, layer)?;
                 Ok::<(), GraphError>(())
             })?;
+        #[cfg(feature = "python")]
         let _ = pb.update(df.len());
         start_idx += df.len();
     }
@@ -480,6 +484,7 @@ pub(crate) fn load_node_props_from_df<
             .collect::<Result<Vec<_>, GraphError>>()?,
         None => vec![],
     };
+    #[cfg(feature = "python")]
     let mut pb = build_progress_bar("Loading node properties".to_string(), df_view.num_rows)?;
     for chunk in df_view.chunks {
         let df = chunk?;
@@ -512,6 +517,7 @@ pub(crate) fn load_node_props_from_df<
                 }
                 Ok::<(), GraphError>(())
             })?;
+        #[cfg(feature = "python")]
         let _ = pb.update(df.len());
     }
     Ok(())
@@ -543,6 +549,7 @@ pub(crate) fn load_edges_props_from_df<
         None
     };
     let layer_index = layer_index.transpose()?;
+    #[cfg(feature = "python")]
     let mut pb = build_progress_bar("Loading edge properties".to_string(), df_view.num_rows)?;
     let shared_constant_properties = match shared_constant_properties {
         None => {
@@ -596,6 +603,7 @@ pub(crate) fn load_edges_props_from_df<
                 }
                 Ok::<(), GraphError>(())
             })?;
+        #[cfg(feature = "python")]
         let _ = pb.update(df.len());
     }
     Ok(())

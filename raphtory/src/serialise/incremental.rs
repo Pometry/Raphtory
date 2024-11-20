@@ -232,7 +232,7 @@ impl GraphWriter {
     }
 }
 
-pub(crate) trait InternalCache {
+pub trait InternalCache {
     /// Initialise the cache by pointing it at a proto file.
     /// Future updates will be appended to the cache.
     fn init_cache(&self, path: &GraphFolder) -> Result<(), GraphError>;
