@@ -1466,10 +1466,10 @@ def test_graph_edge_property_filter_any():
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop4",
+          property: "eprop1",
           condition: {
             operator: ANY,
-            value: [true]
+            value: [10, 20, 30]
           }
         ) {
           edges {
@@ -1488,14 +1488,47 @@ def test_graph_edge_property_filter_any():
                 "edges": {
                     "list": [
                         {
-                            "src": {"name": "a"},
+                            "src": {"name": "b"},
                             "dst": {"name": "d"}
                         },
                         {
-                            "src": {"name": "b"},
+                            "src": {"name": "c"},
                             "dst": {"name": "d"}
                         }
                     ]
+                }
+            }
+        }
+    }
+    run_graphql_test(query, expected_output)
+
+
+def test_graph_edge_property_filter_any_empty_list():
+    query = """
+    query {
+      graph(path: "g") {
+        edgeFilter(
+          property: "eprop1",
+          condition: {
+            operator: ANY,
+            value: []
+          }
+        ) {
+          edges {
+            list {
+              src{name}
+              dst{name}
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {
+        "graph": {
+            "edgeFilter": {
+                "edges": {
+                    "list": []
                 }
             }
         }
@@ -1557,10 +1590,10 @@ def test_graph_edge_property_filter_not_any():
     query {
       graph(path: "g") {
         edgeFilter(
-          property: "eprop4",
+          property: "eprop1",
           condition: {
             operator: NOT_ANY,
-            value: [true]
+            value: [10, 20, 30]
           }
         ) {
           edges {
@@ -1578,6 +1611,52 @@ def test_graph_edge_property_filter_not_any():
             "edgeFilter": {
                 "edges": {
                     "list": [
+                        {
+                            "src": {"name": "a"},
+                            "dst": {"name": "d"}
+                        }
+                    ]
+                }
+            }
+        }
+    }
+    run_graphql_test(query, expected_output)
+
+
+def test_graph_edge_property_filter_not_any_empty_list():
+    query = """
+    query {
+      graph(path: "g") {
+        edgeFilter(
+          property: "eprop1",
+          condition: {
+            operator: NOT_ANY,
+            value: []
+          }
+        ) {
+          edges {
+            list {
+              src{name}
+              dst{name}
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {
+        "graph": {
+            "edgeFilter": {
+                "edges": {
+                    "list": [
+                        {
+                            "src": {"name": "a"},
+                            "dst": {"name": "d"}
+                        },
+                        {
+                            "src": {"name": "b"},
+                            "dst": {"name": "d"}
+                        },
                         {
                             "src": {"name": "c"},
                             "dst": {"name": "d"}
