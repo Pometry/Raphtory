@@ -4,8 +4,6 @@ WORKDIR /app
 
 FROM chef AS planner
 COPY . .
-RUN sed -i '/default-members/d' Cargo.toml
-RUN sed -i '/members = \[/,/\]/c\members = ["raphtory", "raphtory-graphql"]' Cargo.toml
 RUN cargo chef prepare  --recipe-path recipe.json
 
 FROM chef AS builder
@@ -20,5 +18,4 @@ FROM debian:bookworm-slim
 ENV PORT=1736
 COPY --from=builder /app/target/release/raphtory-graphql /raphtory-graphql
 WORKDIR /graphs
-
-ENTRYPOINT ["/raphtory-graphql"]
+CMD ["/raphtory-graphql"]
