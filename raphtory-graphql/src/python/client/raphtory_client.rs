@@ -125,7 +125,7 @@ impl PyRaphtoryClient {
     ///
     /// Returns:
     ///    The `data` field from the graphQL response.
-    #[pyo3(signature = (query, variables=None))]
+    #[pyo3(signature = (query, variables = None))]
     pub(crate) fn query(
         &self,
         py: Python,
@@ -427,6 +427,9 @@ impl PyRaphtoryClient {
     ///    RemoteGraph
     ///
     fn remote_graph(&self, path: String) -> PyRemoteGraph {
-        PyRemoteGraph::new(path, self.clone())
+        PyRemoteGraph {
+            path,
+            client: self.clone(),
+        }
     }
 }

@@ -27,15 +27,4 @@ pub use node_property_filter::NodePropertyFilterOps;
 pub use reset_filter::*;
 pub use time::*;
 
-pub type BoxedIter<T> = Box<dyn Iterator<Item = T> + Send>;
-pub type BoxedLIter<'a, T> = Box<dyn Iterator<Item = T> + Send + 'a>;
-
-pub trait IntoDynBoxed<'a, T> {
-    fn into_dyn_boxed(self) -> BoxedLIter<'a, T>;
-}
-
-impl<'a, T, I: Iterator<Item = T> + Send + 'a> IntoDynBoxed<'a, T> for I {
-    fn into_dyn_boxed(self) -> BoxedLIter<'a, T> {
-        Box::new(self)
-    }
-}
+pub use raphtory_api::iter::{BoxedIter, BoxedLIter, IntoDynBoxed};

@@ -69,7 +69,7 @@ impl<'b> NodeStorageEntry<'b> {
         self,
         layers: &LayerIds,
         dir: Direction,
-    ) -> impl Iterator<Item = EdgeRef> + 'b {
+    ) -> impl Iterator<Item = EdgeRef> + use<'b, '_> {
         match self {
             NodeStorageEntry::Mem(entry) => {
                 StorageVariants::Mem(GenLockedIter::from(entry, |entry| {
