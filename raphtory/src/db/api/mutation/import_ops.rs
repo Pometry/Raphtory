@@ -236,45 +236,7 @@ impl<
         node: &NodeView<GHH, GH>,
         force: bool,
     ) -> Result<NodeView<G, G>, GraphError> {
-        if !force && self.node(node.id()).is_some() {
-            return Err(NodeExistsError(node.id()));
-        }
-        let node_internal = match node.node_type().as_str() {
-            None => self.resolve_node(node.id())?.inner(),
-            Some(node_type) => {
-                let (node_internal, _) = self.resolve_node_and_type(node.id(), node_type)?.inner();
-                node_internal.inner()
-            }
-        };
-
-        for h in node.history() {
-            let t = time_from_input(self, h)?;
-            self.internal_add_node(t, node_internal, &[])?;
-        }
-        for (name, prop_view) in node.properties().temporal().iter() {
-            let old_prop_id = node
-                .graph
-                .node_meta()
-                .temporal_prop_meta()
-                .get_id(&name)
-                .unwrap();
-            let dtype = node
-                .graph
-                .node_meta()
-                .temporal_prop_meta()
-                .get_dtype(old_prop_id)
-                .unwrap();
-            let new_prop_id = self.resolve_node_property(&name, dtype, false)?.inner();
-            for (h, prop) in prop_view.iter() {
-                let t = time_from_input(self, h)?;
-                self.internal_add_node(t, node_internal, &[(new_prop_id, prop)])?;
-            }
-        }
-        self.node(node.id())
-            .expect("node added")
-            .add_constant_properties(node.properties().constant())?;
-
-        Ok(self.node(node.id()).unwrap())
+        import_node_internal(&self, node, node.id(), force)
     }
 
     fn import_node_as<
@@ -288,50 +250,7 @@ impl<
         new_id: V,
         force: bool,
     ) -> Result<NodeView<Self, Self>, GraphError> {
-        if !force {
-            if let Some(existing_node) = self.node(&new_id) {
-                return Err(NodeExistsError(existing_node.id()));
-            }
-        }
-
-        let node_internal = match node.node_type().as_str() {
-            None => self.resolve_node(&new_id)?.inner(),
-            Some(node_type) => {
-                let (node_internal, _) = self.resolve_node_and_type(&new_id, node_type)?.inner();
-                node_internal.inner()
-            }
-        };
-
-        for h in node.history() {
-            let t = time_from_input(self, h)?;
-            self.internal_add_node(t, node_internal, &[])?;
-        }
-
-        for (name, prop_view) in node.properties().temporal().iter() {
-            let old_prop_id = node
-                .graph
-                .node_meta()
-                .temporal_prop_meta()
-                .get_id(&name)
-                .unwrap();
-            let dtype = node
-                .graph
-                .node_meta()
-                .temporal_prop_meta()
-                .get_dtype(old_prop_id)
-                .unwrap();
-            let new_prop_id = self.resolve_node_property(&name, dtype, false)?.inner();
-            for (h, prop) in prop_view.iter() {
-                let t = time_from_input(self, h)?;
-                self.internal_add_node(t, node_internal, &[(new_prop_id, prop)])?;
-            }
-        }
-
-        self.node(&new_id)
-            .expect("node added")
-            .add_constant_properties(node.properties().constant())?;
-
-        Ok(self.node(&new_id).unwrap())
+        import_node_internal(&self, node, new_id, force)
     }
 
     fn import_nodes<'a, GHH: GraphViewOps<'a>, GH: GraphViewOps<'a>>(
@@ -381,50 +300,7 @@ impl<
         edge: &EdgeView<GHH, GH>,
         force: bool,
     ) -> Result<EdgeView<Self, Self>, GraphError> {
-        // make sure we preserve all layers even if they are empty
-        // skip default layer
-        for layer in edge.graph.unique_layers().skip(1) {
-            self.resolve_layer(Some(&layer))?;
-        }
-        if !force && self.has_edge(edge.src().id(), edge.dst().id()) {
-            return Err(EdgeExistsError(edge.src().id(), edge.dst().id()));
-        }
-        // Add edges first so we definitely have all associated nodes (important in case of persistent edges)
-        // FIXME: this needs to be verified
-        for ee in edge.explode_layers() {
-            let layer_id = ee.edge.layer().expect("exploded layers");
-            let layer_ids = LayerIds::One(layer_id);
-            let layer_name = self.get_layer_name(layer_id);
-            let layer_name: Option<&str> = if layer_id == 0 {
-                None
-            } else {
-                Some(&layer_name)
-            };
-            for ee in ee.explode() {
-                self.add_edge(
-                    ee.time().expect("exploded edge"),
-                    ee.src().id(),
-                    ee.dst().id(),
-                    ee.properties().temporal().collect_properties(),
-                    layer_name,
-                )?;
-            }
-
-            if self.include_deletions() {
-                for t in edge.graph.edge_deletion_history(edge.edge, &layer_ids) {
-                    let ti = time_from_input(self, t.t())?;
-                    let src_id = self.resolve_node(edge.src().id())?.inner();
-                    let dst_id = self.resolve_node(edge.dst().id())?.inner();
-                    let layer = self.resolve_layer(layer_name)?.inner();
-                    self.internal_delete_edge(ti, src_id, dst_id, layer)?;
-                }
-            }
-
-            self.edge(ee.src().id(), ee.dst().id())
-                .expect("edge added")
-                .add_constant_properties(ee.properties().constant(), layer_name)?;
-        }
-        Ok(self.edge(edge.src().id(), edge.dst().id()).unwrap())
+        import_edge_internal(&self, edge, edge.src().id(), edge.dst().id(), force)
     }
 
     fn import_edge_as<
@@ -438,55 +314,7 @@ impl<
         new_id: (V, V),
         force: bool,
     ) -> Result<EdgeView<Self, Self>, GraphError> {
-        // make sure we preserve all layers even if they are empty
-        // skip default layer
-        for layer in edge.graph.unique_layers().skip(1) {
-            self.resolve_layer(Some(&layer))?;
-        }
-        if !force && self.has_edge(&new_id.0, &new_id.1) {
-            if let Some(existing_edge) = self.edge(&new_id.0, &new_id.1) {
-                return Err(EdgeExistsError(
-                    existing_edge.src().id(),
-                    existing_edge.dst().id(),
-                ));
-            }
-        }
-        // Add edges first so we definitely have all associated nodes (important in case of persistent edges)
-        // FIXME: this needs to be verified
-        for ee in edge.explode_layers() {
-            let layer_id = ee.edge.layer().expect("exploded layers");
-            let layer_ids = LayerIds::One(layer_id);
-            let layer_name = self.get_layer_name(layer_id);
-            let layer_name: Option<&str> = if layer_id == 0 {
-                None
-            } else {
-                Some(&layer_name)
-            };
-            for ee in ee.explode() {
-                self.add_edge(
-                    ee.time().expect("exploded edge"),
-                    &new_id.0,
-                    &new_id.1,
-                    ee.properties().temporal().collect_properties(),
-                    layer_name,
-                )?;
-            }
-
-            if self.include_deletions() {
-                for t in edge.graph.edge_deletion_history(edge.edge, &layer_ids) {
-                    let ti = time_from_input(self, t.t())?;
-                    let src_id = self.resolve_node(&new_id.0)?.inner();
-                    let dst_id = self.resolve_node(&new_id.1)?.inner();
-                    let layer = self.resolve_layer(layer_name)?.inner();
-                    self.internal_delete_edge(ti, src_id, dst_id, layer)?;
-                }
-            }
-
-            self.edge(&new_id.0, &new_id.1)
-                .expect("edge added")
-                .add_constant_properties(ee.properties().constant(), layer_name)?;
-        }
-        Ok(self.edge(&new_id.0, &new_id.1).unwrap())
+        import_edge_internal(&self, edge, new_id.0, new_id.1, force)
     }
 
     fn import_edges<'a, GHH: GraphViewOps<'a>, GH: GraphViewOps<'a>>(
@@ -532,4 +360,138 @@ impl<
 
         Ok(())
     }
+}
+
+fn import_node_internal<
+    'a,
+    G: StaticGraphViewOps
+        + InternalAdditionOps
+        + InternalDeletionOps
+        + InternalPropertyAdditionOps
+        + InternalMaterialize,
+    GHH: GraphViewOps<'a>,
+    GH: GraphViewOps<'a>,
+    V: AsNodeRef + Clone + Debug,
+>(
+    graph: &G,
+    node: &NodeView<GHH, GH>,
+    id: V,
+    force: bool,
+) -> Result<NodeView<G, G>, GraphError> {
+    if !force {
+        if let Some(existing_node) = graph.node(&id) {
+            return Err(NodeExistsError(existing_node.id()));
+        }
+    }
+
+    let node_internal = match node.node_type().as_str() {
+        None => graph.resolve_node(&id)?.inner(),
+        Some(node_type) => {
+            let (node_internal, _) = graph.resolve_node_and_type(&id, node_type)?.inner();
+            node_internal.inner()
+        }
+    };
+
+    for h in node.history() {
+        let t = time_from_input(graph, h)?;
+        graph.internal_add_node(t, node_internal, &[])?;
+    }
+
+    for (name, prop_view) in node.properties().temporal().iter() {
+        let old_prop_id = node
+            .graph
+            .node_meta()
+            .temporal_prop_meta()
+            .get_id(&name)
+            .unwrap();
+        let dtype = node
+            .graph
+            .node_meta()
+            .temporal_prop_meta()
+            .get_dtype(old_prop_id)
+            .unwrap();
+        let new_prop_id = graph.resolve_node_property(&name, dtype, false)?.inner();
+        for (h, prop) in prop_view.iter() {
+            let t = time_from_input(graph, h)?;
+            graph.internal_add_node(t, node_internal, &[(new_prop_id, prop)])?;
+        }
+    }
+
+    graph
+        .node(&id)
+        .expect("node added")
+        .add_constant_properties(node.properties().constant())?;
+
+    Ok(graph.node(&id).unwrap())
+}
+
+fn import_edge_internal<
+    'a,
+    G: StaticGraphViewOps
+        + InternalAdditionOps
+        + InternalDeletionOps
+        + InternalPropertyAdditionOps
+        + InternalMaterialize,
+    GHH: GraphViewOps<'a>,
+    GH: GraphViewOps<'a>,
+    V: AsNodeRef + Clone + Debug,
+>(
+    graph: &G,
+    edge: &EdgeView<GHH, GH>,
+    src_id: V,
+    dst_id: V,
+    force: bool,
+) -> Result<EdgeView<G, G>, GraphError> {
+    // Preserve all layers even if they are empty (except the default layer)
+    for layer in edge.graph.unique_layers().skip(1) {
+        graph.resolve_layer(Some(&layer))?;
+    }
+
+    if !force && graph.has_edge(&src_id, &dst_id) {
+        if let Some(existing_edge) = graph.edge(&src_id, &dst_id) {
+            return Err(EdgeExistsError(
+                existing_edge.src().id(),
+                existing_edge.dst().id(),
+            ));
+        }
+    }
+
+    // Add edges first to ensure associated nodes are present
+    for ee in edge.explode_layers() {
+        let layer_id = ee.edge.layer().expect("exploded layers");
+        let layer_ids = LayerIds::One(layer_id);
+        let layer_name = graph.get_layer_name(layer_id);
+        let layer_name: Option<&str> = if layer_id == 0 {
+            None
+        } else {
+            Some(&layer_name)
+        };
+
+        for ee in ee.explode() {
+            graph.add_edge(
+                ee.time().expect("exploded edge"),
+                &src_id,
+                &dst_id,
+                ee.properties().temporal().collect_properties(),
+                layer_name,
+            )?;
+        }
+
+        if graph.include_deletions() {
+            for t in edge.graph.edge_deletion_history(edge.edge, &layer_ids) {
+                let ti = time_from_input(graph, t.t())?;
+                let src_node = graph.resolve_node(&src_id)?.inner();
+                let dst_node = graph.resolve_node(&dst_id)?.inner();
+                let layer = graph.resolve_layer(layer_name)?.inner();
+                graph.internal_delete_edge(ti, src_node, dst_node, layer)?;
+            }
+        }
+
+        graph
+            .edge(&src_id, &dst_id)
+            .expect("edge added")
+            .add_constant_properties(ee.properties().constant(), layer_name)?;
+    }
+
+    Ok(graph.edge(&src_id, &dst_id).unwrap())
 }
