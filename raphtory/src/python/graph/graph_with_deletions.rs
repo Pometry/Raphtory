@@ -118,7 +118,10 @@ impl PyPersistentGraph {
     ///    node_type (str) : The optional string which will be used as a node type
     ///
     /// Returns:
-    ///   None
+    ///     None: This function does not return a value, if the operation is successful.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
     #[pyo3(signature = (timestamp, id, properties = None, node_type = None))]
     pub fn add_node(
         &self,
@@ -141,6 +144,9 @@ impl PyPersistentGraph {
     ///
     /// Returns:
     ///   MutableNode
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
     #[pyo3(signature = (timestamp, id, properties = None, node_type = None))]
     pub fn create_node(
         &self,
@@ -160,7 +166,10 @@ impl PyPersistentGraph {
     ///    properties (dict): The temporal properties of the graph.
     ///
     /// Returns:
-    ///    None
+    ///     None: This function does not return a value, if the operation is successful.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
     pub fn add_property(
         &self,
         timestamp: PyTime,
@@ -175,7 +184,10 @@ impl PyPersistentGraph {
     ///     properties (dict): The static properties of the graph.
     ///
     /// Returns:
-    ///    None
+    ///     None: This function does not return a value, if the operation is successful.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
     pub fn add_constant_properties(
         &self,
         properties: HashMap<String, Prop>,
@@ -189,7 +201,10 @@ impl PyPersistentGraph {
     ///     properties (dict): The static properties of the graph.
     ///
     /// Returns:
-    ///    None
+    ///     None: This function does not return a value, if the operation is successful.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
     pub fn update_constant_properties(
         &self,
         properties: HashMap<String, Prop>,
@@ -207,7 +222,10 @@ impl PyPersistentGraph {
     ///    layer (str): The layer of the edge.
     ///
     /// Returns:
-    ///   None
+    ///     None: This function does not return a value, if the operation is successful.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
     #[pyo3(signature = (timestamp, src, dst, properties = None, layer = None))]
     pub fn add_edge(
         &self,
@@ -231,6 +249,9 @@ impl PyPersistentGraph {
     ///
     /// Returns:
     ///  The deleted edge
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
     #[pyo3(signature = (timestamp, src, dst, layer=None))]
     pub fn delete_edge(
         &self,
@@ -249,7 +270,7 @@ impl PyPersistentGraph {
     ///   id (str | int): the node id
     ///
     /// Returns:
-    ///   the node with the specified id, or None if the node does not exist
+    ///   The node with the specified id, or None if the node does not exist
     pub fn node(&self, id: PyNodeRef) -> Option<NodeView<PersistentGraph>> {
         self.graph.node(id)
     }
@@ -262,7 +283,7 @@ impl PyPersistentGraph {
     ///     dst (str | int): the destination node id
     ///
     /// Returns:
-    ///     the edge with the specified source and destination nodes, or None if the edge does not exist
+    ///     The edge with the specified source and destination nodes, or None if the edge does not exist
     #[pyo3(signature = (src, dst))]
     pub fn edge(
         &self,
@@ -274,15 +295,18 @@ impl PyPersistentGraph {
 
     /// Import a single node into the graph.
     ///
-    /// This function takes a PyNode object and an optional boolean flag. If the flag is set to true,
+    /// This function takes a node object and an optional boolean flag. If the flag is set to true,
     /// the function will force the import of the node even if it already exists in the graph.
     ///
     /// Arguments:
-    ///     node (Node): A PyNode object representing the node to be imported.
-    ///     force (bool): An optional boolean flag indicating whether to force the import of the node.
+    ///     node (Node): A node object representing the node to be imported.
+    ///     force (bool): An optional boolean flag indicating whether to force the import of the node. Defaults to False.
     ///
     /// Returns:
-    ///     Result<NodeView<Graph, Graph>, GraphError> - A Result object which is Ok if the node was successfully imported, and Err otherwise.
+    ///     NodeView: A nodeview object if the node was successfully imported, and an error otherwise.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
     #[pyo3(signature = (node, force = false))]
     pub fn import_node(
         &self,
@@ -294,16 +318,19 @@ impl PyPersistentGraph {
 
     /// Import a single node into the graph with new id.
     ///
-    /// This function takes a PyNode object, a new node id and an optional boolean flag. If the flag is set to true,
+    /// This function takes a node object, a new node id and an optional boolean flag. If the flag is set to true,
     /// the function will force the import of the node even if it already exists in the graph.
     ///
     /// Arguments:
-    ///     node (Node): A PyNode object representing the node to be imported.
+    ///     node (Node): A node object representing the node to be imported.
     ///     new_id (str|int): The new node id.
-    ///     force (bool): An optional boolean flag indicating whether to force the import of the node.
+    ///     force (bool): An optional boolean flag indicating whether to force the import of the node. Defaults to False.
     ///
     /// Returns:
-    ///     Result<NodeView<Graph, Graph>, GraphError> - A Result object which is Ok if the node was successfully imported, and Err otherwise.
+    ///     NodeView: A nodeview object if the node was successfully imported, and an error otherwise.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
     #[pyo3(signature = (node, new_id, force = false))]
     pub fn import_node_as(
         &self,
@@ -316,13 +343,18 @@ impl PyPersistentGraph {
 
     /// Import multiple nodes into the graph.
     ///
-    /// This function takes a vector of PyNode objects and an optional boolean flag. If the flag is set to true,
+    /// This function takes a vector of node objects and an optional boolean flag. If the flag is set to true,
     /// the function will force the import of the nodes even if they already exist in the graph.
     ///
     /// Arguments:
-    ///     nodes (List[Node]):  A vector of PyNode objects representing the nodes to be imported.
-    ///     force (bool): An optional boolean flag indicating whether to force the import of the nodes.
+    ///     nodes (List[Node]):  A vector of node objects representing the nodes to be imported.
+    ///     force (bool): An optional boolean flag indicating whether to force the import of the nodes. Defaults to False.
     ///
+    /// Returns:
+    ///     None: This function does not return a value, if the operation is successful.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
     #[pyo3(signature = (nodes, force = false))]
     pub fn import_nodes(&self, nodes: Vec<PyNode>, force: bool) -> Result<(), GraphError> {
         let node_views = nodes.iter().map(|node| &node.node);
@@ -331,14 +363,19 @@ impl PyPersistentGraph {
 
     /// Import multiple nodes into the graph with new ids.
     ///
-    /// This function takes a vector of PyNode objects, a list of new node ids and an optional boolean flag. If the flag is set to true,
+    /// This function takes a vector of node objects, a list of new node ids and an optional boolean flag. If the flag is set to true,
     /// the function will force the import of the nodes even if they already exist in the graph.
     ///
     /// Arguments:
-    ///     nodes (List[Node]):  A vector of PyNode objects representing the nodes to be imported.
+    ///     nodes (List[Node]):  A vector of node objects representing the nodes to be imported.
     ///     new_ids (List[str|int]): A list of node IDs to use for the imported nodes.
-    ///     force (bool): An optional boolean flag indicating whether to force the import of the nodes.
+    ///     force (bool): An optional boolean flag indicating whether to force the import of the nodes. Defaults to False.
     ///
+    /// Returns:
+    ///     None: This function does not return a value, if the operation is successful.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
     #[pyo3(signature = (nodes, new_ids, force = false))]
     pub fn import_nodes_as(
         &self,
@@ -352,15 +389,18 @@ impl PyPersistentGraph {
 
     /// Import a single edge into the graph.
     ///
-    /// This function takes a PyEdge object and an optional boolean flag. If the flag is set to true,
+    /// This function takes an edge object and an optional boolean flag. If the flag is set to true,
     /// the function will force the import of the edge even if it already exists in the graph.
     ///
     /// Arguments:
-    ///     edge (Edge): A PyEdge object representing the edge to be imported.
-    ///     force (bool): An optional boolean flag indicating whether to force the import of the edge.
+    ///     edge (Edge): An edge object representing the edge to be imported.
+    ///     force (bool): An optional boolean flag indicating whether to force the import of the edge. Defaults to False.
     ///
     /// Returns:
     ///     Edge: The imported edge.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
     #[pyo3(signature = (edge, force = false))]
     pub fn import_edge(
         &self,
@@ -372,16 +412,19 @@ impl PyPersistentGraph {
 
     /// Import a single edge into the graph with new id.
     ///
-    /// This function takes a PyEdge object, a new edge id and an optional boolean flag. If the flag is set to true,
+    /// This function takes a edge object, a new edge id and an optional boolean flag. If the flag is set to true,
     /// the function will force the import of the edge even if it already exists in the graph.
     ///
     /// Arguments:
-    ///     edge (Edge): A PyEdge object representing the edge to be imported.
+    ///     edge (Edge): A edge object representing the edge to be imported.
     ///     new_id (tuple) : The ID of the new edge. It's a tuple of the source and destination node ids.
-    ///     force (bool): An optional boolean flag indicating whether to force the import of the edge.
+    ///     force (bool): An optional boolean flag indicating whether to force the import of the edge. Defaults to False.
     ///
     /// Returns:
     ///     Edge: The imported edge.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
     #[pyo3(signature = (edge, new_id, force = false))]
     pub fn import_edge_as(
         &self,
@@ -394,14 +437,18 @@ impl PyPersistentGraph {
 
     /// Import multiple edges into the graph.
     ///
-    /// This function takes a vector of PyEdge objects and an optional boolean flag. If the flag is set to true,
+    /// This function takes a vector of edge objects and an optional boolean flag. If the flag is set to true,
     /// the function will force the import of the edges even if they already exist in the graph.
     ///
     /// Arguments:
+    ///     edges (List[Edge]): A vector of edge objects representing the edges to be imported.
+    ///     force (bool): An optional boolean flag indicating whether to force the import of the edges. Defaults to False.
     ///
-    ///     edges (List[Edge]): A vector of PyEdge objects representing the edges to be imported.
-    ///     force (bool): An optional boolean flag indicating whether to force the import of the edges.
+    /// Returns:
+    ///     None: This function does not return a value, if the operation is successful.
     ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
     #[pyo3(signature = (edges, force = false))]
     pub fn import_edges(&self, edges: Vec<PyEdge>, force: bool) -> Result<(), GraphError> {
         let edge_views = edges.iter().map(|edge| &edge.edge);
@@ -410,14 +457,18 @@ impl PyPersistentGraph {
 
     /// Import multiple edges into the graph with new ids.
     ///
-    /// This function takes a vector of PyEdge objects, a list of new edge ids and an optional boolean flag. If the flag is set to true,
+    /// This function takes a vector of edge objects, a list of new edge ids and an optional boolean flag. If the flag is set to true,
     /// the function will force the import of the edges even if they already exist in the graph.
     ///
     /// Arguments:
+    ///     edges (List[Edge]): A vector of edge objects representing the edges to be imported.
+    ///     force (bool): An optional boolean flag indicating whether to force the import of the edges. Defaults to False.
     ///
-    ///     edges (List[Edge]): A vector of PyEdge objects representing the edges to be imported.
-    ///     force (bool): An optional boolean flag indicating whether to force the import of the edges.
+    /// Returns:
+    ///     None: This function does not return a value, if the operation is successful.
     ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
     #[pyo3(signature = (edges, new_ids, force = false))]
     pub fn import_edges_as(
         &self,
@@ -461,8 +512,9 @@ impl PyPersistentGraph {
     ///     properties (List[str]): List of node property column names. Defaults to None. (optional)
     ///     constant_properties (List[str]): List of constant node property column names. Defaults to None.  (optional)
     ///     shared_constant_properties (dict): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
+    ///
     /// Returns:
-    ///     None: If the operation is successful.
+    ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
@@ -504,8 +556,9 @@ impl PyPersistentGraph {
     ///     properties (List[str]): List of node property column names. Defaults to None. (optional)
     ///     constant_properties (List[str]): List of constant node property column names. Defaults to None.  (optional)
     ///     shared_constant_properties (dict): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
+    ///
     /// Returns:
-    ///     None: If the operation is successful.
+    ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
@@ -548,8 +601,9 @@ impl PyPersistentGraph {
     ///     shared_constant_properties (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
     ///     layer (str): A constant value to use as the layer for all edges (optional) Defaults to None. (cannot be used in combination with layer_col)
     ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None. (cannot be used in combination with layer)
+    ///
     /// Returns:
-    ///     None: If the operation is successful.
+    ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
@@ -594,8 +648,9 @@ impl PyPersistentGraph {
     ///     shared_constant_properties (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
     ///     layer (str): A constant value to use as the layer for all edges (optional) Defaults to None. (cannot be used in combination with layer_col)
     ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None. (cannot be used in combination with layer)
+    ///
     /// Returns:
-    ///     None: If the operation is successful.
+    ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
@@ -637,8 +692,9 @@ impl PyPersistentGraph {
     ///     dst (str): The column name for the destination node ids.
     ///     layer (str): A constant value to use as the layer for all edges (optional) Defaults to None. (cannot be used in combination with layer_col)
     ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None. (cannot be used in combination with layer)
+    ///
     /// Returns:
-    ///     None: If the operation is successful.
+    ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
@@ -664,8 +720,9 @@ impl PyPersistentGraph {
     ///     time (str): The column name for the update timestamps.
     ///     layer (str): A constant value to use as the layer for all edges (optional) Defaults to None. (cannot be used in combination with layer_col)
     ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None. (cannot be used in combination with layer)
+    ///
     /// Returns:
-    ///     None: If the operation is successful.
+    ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
@@ -701,7 +758,7 @@ impl PyPersistentGraph {
     ///     shared_constant_properties (dict): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
     ///
     /// Returns:
-    ///     None: If the operation is successful.
+    ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
@@ -738,7 +795,7 @@ impl PyPersistentGraph {
     ///     shared_constant_properties (dict): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
     ///
     /// Returns:
-    ///     None: If the operation is successful.
+    ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
@@ -776,7 +833,7 @@ impl PyPersistentGraph {
     ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None.
     ///
     /// Returns:
-    ///     None: If the operation is successful.
+    ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
@@ -816,7 +873,7 @@ impl PyPersistentGraph {
     ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None.
     ///
     /// Returns:
-    ///     None: If the operation is successful.
+    ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
