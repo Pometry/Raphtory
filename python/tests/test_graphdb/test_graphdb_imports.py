@@ -287,3 +287,31 @@ def test_import_edges_as_force():
     z = gg.node("Z")
     assert z.name == "Z"
     assert z.history().tolist() == [2, 3]
+
+
+def test_import_edges():
+    g = Graph()
+    g.add_node(1, 1)
+    g.add_node(1, 2)
+    g.add_node(1, 3)
+    g.add_edge(1, 4, 5)
+    g.add_edge(1, 6, 7)
+    g.add_edge(1, 8, 9)
+    g2 = Graph()
+    g2.import_edges(g.edges)
+    assert g2.count_edges() == 3
+    assert g.edges.id == g2.edges.id
+
+
+def test_import_edges_iterator():
+    g = Graph()
+    g.add_node(1, 1)
+    g.add_node(1, 2)
+    g.add_node(1, 3)
+    g.add_edge(1, 4, 5)
+    g.add_edge(1, 6, 7)
+    g.add_edge(1, 8, 9)
+    g2 = Graph()
+    g2.import_edges(iter(g.edges))
+    assert g2.count_edges() == 3
+    assert g.edges.id == g2.edges.id

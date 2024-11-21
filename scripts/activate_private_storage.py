@@ -14,7 +14,7 @@ for i, line in enumerate(lines[:-1]):
     if "#[private-storage]" in line:
         next_line = lines[i + 1]
         if next_line.strip().startswith("#") and "pometry-storage" in next_line:
-            lines[i + 1] = re.sub(r"#\s*", "", next_line, 1)
+            lines[i + 1] = re.sub(r"#\s*", "", next_line, count=1)
     if "#[public-storage]" in line:
         next_line = lines[i + 1]
         if next_line.strip().startswith("pometry-storage"):

@@ -262,7 +262,7 @@ fn scan_edges_as_sql_cte(
 
 // TODO: this needs to match the schema from EdgeListTableProvider
 fn full_layer_fields(graph: &DiskGraphStorage, layer_id: usize) -> Option<Fields> {
-    let dt = graph.as_ref().layer(layer_id).edges_props_data_type();
+    let dt = graph.as_ref().layer(layer_id).edges_props_data_type()?;
     let arr_dt: arrow_schema::DataType = dt.clone().into();
     match arr_dt {
         arrow_schema::DataType::Struct(fields) => {
