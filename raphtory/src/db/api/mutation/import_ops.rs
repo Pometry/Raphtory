@@ -1,4 +1,4 @@
-use raphtory_api::core::entities::VID;
+use raphtory_api::core::entities::{GID, VID};
 use std::{borrow::Borrow, fmt::Debug};
 
 use crate::{
@@ -258,7 +258,10 @@ impl<
         nodes: impl IntoIterator<Item = impl Borrow<NodeView<GHH, GH>>>,
         force: bool,
     ) -> Result<(), GraphError> {
-        for node in nodes {
+        let nodes: Vec<_> = nodes.into_iter().collect();
+        let new_ids: Vec<GID> = nodes.iter().map(|n| n.borrow().id()).collect();
+        check_existing_nodes(self, &new_ids, force)?;
+        for node in &nodes {
             self.import_node(node.borrow(), force)?;
         }
         Ok(())
@@ -276,22 +279,10 @@ impl<
         force: bool,
     ) -> Result<(), GraphError> {
         let new_ids: Vec<V> = new_ids.into_iter().collect();
-        if !force {
-            let mut existing_nodes = vec![];
-            for new_id in &new_ids {
-                if let Some(node) = self.node(new_id) {
-                    existing_nodes.push(node.id());
-                }
-            }
-            if !existing_nodes.is_empty() {
-                return Err(GraphError::NodesExistError(existing_nodes));
-            }
-        }
-
+        check_existing_nodes(self, &new_ids, force)?;
         for (node, new_node_id) in nodes.into_iter().zip(new_ids.into_iter()) {
             self.import_node_as(node.borrow(), new_node_id, force)?;
         }
-
         Ok(())
     }
 
@@ -322,6 +313,9 @@ impl<
         edges: impl IntoIterator<Item = impl Borrow<EdgeView<GHH, GH>>>,
         force: bool,
     ) -> Result<(), GraphError> {
+        let edges: Vec<_> = edges.into_iter().collect();
+        let new_ids: Vec<(GID, GID)> = edges.iter().map(|e| e.borrow().id()).collect();
+        check_existing_edges(self, &new_ids, force)?;
         for edge in edges {
             self.import_edge(edge.borrow(), force)?;
         }
@@ -340,24 +334,10 @@ impl<
         force: bool,
     ) -> Result<(), GraphError> {
         let new_ids: Vec<(V, V)> = new_ids.into_iter().collect();
-
-        if !force {
-            let mut existing_edges = vec![];
-            for (src, dst) in &new_ids {
-                if let Some(existing_edge) = self.edge(src, dst) {
-                    existing_edges.push((existing_edge.src().id(), existing_edge.dst().id()));
-                }
-            }
-
-            if !existing_edges.is_empty() {
-                return Err(GraphError::EdgesExistError(existing_edges));
-            }
-        }
-
+        check_existing_edges(self, &new_ids, force)?;
         for (new_id, edge) in new_ids.into_iter().zip(edges) {
             self.import_edge_as(edge.borrow(), new_id, force)?;
         }
-
         Ok(())
     }
 }
@@ -494,4 +474,56 @@ fn import_edge_internal<
     }
 
     Ok(graph.edge(&src_id, &dst_id).unwrap())
+}
+
+fn check_existing_nodes<
+    G: StaticGraphViewOps
+        + InternalAdditionOps
+        + InternalDeletionOps
+        + InternalPropertyAdditionOps
+        + InternalMaterialize,
+    V: AsNodeRef,
+>(
+    graph: &G,
+    ids: &[V],
+    force: bool,
+) -> Result<(), GraphError> {
+    if !force {
+        let mut existing_nodes = vec![];
+        for id in ids {
+            if let Some(node) = graph.node(id) {
+                existing_nodes.push(node.id());
+            }
+        }
+        if !existing_nodes.is_empty() {
+            return Err(GraphError::NodesExistError(existing_nodes));
+        }
+    }
+    Ok(())
+}
+
+fn check_existing_edges<
+    G: StaticGraphViewOps
+        + InternalAdditionOps
+        + InternalDeletionOps
+        + InternalPropertyAdditionOps
+        + InternalMaterialize,
+    V: AsNodeRef + Clone + Debug,
+>(
+    graph: &G,
+    new_ids: &[(V, V)],
+    force: bool,
+) -> Result<(), GraphError> {
+    if !force {
+        let mut existing_edges = vec![];
+        for (src, dst) in new_ids {
+            if let Some(existing_edge) = graph.edge(src, dst) {
+                existing_edges.push((existing_edge.src().id(), existing_edge.dst().id()));
+            }
+        }
+        if !existing_edges.is_empty() {
+            return Err(GraphError::EdgesExistError(existing_edges));
+        }
+    }
+    Ok(())
 }

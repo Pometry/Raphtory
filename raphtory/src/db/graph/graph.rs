@@ -700,6 +700,24 @@ mod db_tests {
         );
 
         let gg = Graph::new();
+        gg.add_node(1, "B", NO_PROPS, None).unwrap();
+        let res = gg.import_nodes(vec![&g_a, &g_b], false);
+        match res {
+            Err(NodesExistError(ids)) => {
+                assert_eq!(
+                    ids.into_iter()
+                        .map(|id| id.to_string())
+                        .collect::<Vec<String>>(),
+                    vec!["B"],
+                );
+            }
+            Err(e) => panic!("Unexpected error: {:?}", e),
+            Ok(_) => panic!("Expected error but got Ok"),
+        }
+
+        assert_eq!(gg.node("A"), None);
+
+        let gg = Graph::new();
         let _ = gg.import_nodes(vec![&g_a, &g_b], false).unwrap();
         assert_eq!(gg.nodes().name().collect_vec(), vec!["A", "B"]);
 
@@ -724,9 +742,28 @@ mod db_tests {
         assert_eq!(res.properties().as_vec(), e_a_b_p.properties().as_vec());
 
         let e_c_d = g.add_edge(4, "C", "D", NO_PROPS, None).unwrap();
+
         let gg = Graph::new();
         let _ = gg.import_edges(vec![&e_a_b, &e_c_d], false).unwrap();
         assert_eq!(gg.edges().len(), 2);
+
+        let gg = Graph::new();
+        let res = gg.add_edge(1, "C", "D", NO_PROPS, None);
+        let res = gg.import_edges(vec![&e_a_b, &e_c_d], false);
+        match res {
+            Err(GraphError::EdgesExistError(duplicates)) => {
+                assert_eq!(
+                    duplicates
+                        .into_iter()
+                        .map(|(x, y)| (x.to_string(), y.to_string()))
+                        .collect::<Vec<(String, String)>>(),
+                    vec![("C".to_string(), "D".to_string())]
+                );
+            }
+            Err(e) => panic!("Unexpected error: {:?}", e),
+            Ok(_) => panic!("Expected error but got Ok"),
+        }
+        assert_eq!(gg.edge("A", "B"), None);
     }
 
     #[test]
