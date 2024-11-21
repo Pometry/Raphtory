@@ -37,8 +37,8 @@ pub trait ImportOps:
     /// Imports a single node into the graph.
     ///
     /// This function takes a reference to a node and an optional boolean flag `force`.
-    /// If `force` is `Some(false)` or `None`, the function will return an error if the node already exists in the graph.
-    /// If `force` is `Some(true)`, the function will overwrite the existing node in the graph.
+    /// If `force` is `false`, the function will return an error if the node already exists in the graph.
+    /// If `force` is `true`, the function will overwrite the existing node in the graph.
     ///
     /// # Arguments
     ///
@@ -57,8 +57,8 @@ pub trait ImportOps:
     /// Imports a single node into the graph.
     ///
     /// This function takes a reference to a node and an optional boolean flag `force`.
-    /// If `force` is `Some(false)` or `None`, the function will return an error if the node already exists in the graph.
-    /// If `force` is `Some(true)`, the function will overwrite the existing node in the graph.
+    /// If `force` is `false`, the function will return an error if the node already exists in the graph.
+    /// If `force` is `true`, the function will overwrite the existing node in the graph.
     ///
     /// # Arguments
     ///
@@ -84,8 +84,8 @@ pub trait ImportOps:
     /// Imports multiple nodes into the graph.
     ///
     /// This function takes a vector of references to nodes and an optional boolean flag `force`.
-    /// If `force` is `Some(false)` or `None`, the function will return an error if any of the nodes already exist in the graph.
-    /// If `force` is `Some(true)`, the function will overwrite the existing nodes in the graph.
+    /// If `force` is `false`, the function will return an error if any of the nodes already exist in the graph.
+    /// If `force` is `true`, the function will overwrite the existing nodes in the graph.
     ///
     /// # Arguments
     ///
@@ -104,8 +104,8 @@ pub trait ImportOps:
     /// Imports multiple nodes into the graph.
     ///
     /// This function takes a vector of references to nodes and an optional boolean flag `force`.
-    /// If `force` is `Some(false)` or `None`, the function will return an error if any of the nodes already exist in the graph.
-    /// If `force` is `Some(true)`, the function will overwrite the existing nodes in the graph.
+    /// If `force` is `false`, the function will return an error if any of the nodes already exist in the graph.
+    /// If `force` is `true`, the function will overwrite the existing nodes in the graph.
     ///
     /// # Arguments
     ///
@@ -131,8 +131,8 @@ pub trait ImportOps:
     /// Imports a single edge into the graph.
     ///
     /// This function takes a reference to an edge and an optional boolean flag `force`.
-    /// If `force` is `Some(false)` or `None`, the function will return an error if the edge already exists in the graph.
-    /// If `force` is `Some(true)`, the function will overwrite the existing edge in the graph.
+    /// If `force` is `false`, the function will return an error if the edge already exists in the graph.
+    /// If `force` is `true`, the function will overwrite the existing edge in the graph.
     ///
     /// # Arguments
     ///
@@ -151,8 +151,8 @@ pub trait ImportOps:
     /// Imports a single edge into the graph.
     ///
     /// This function takes a reference to an edge and an optional boolean flag `force`.
-    /// If `force` is `Some(false)` or `None`, the function will return an error if the edge already exists in the graph.
-    /// If `force` is `Some(true)`, the function will overwrite the existing edge in the graph.
+    /// If `force` is `false`, the function will return an error if the edge already exists in the graph.
+    /// If `force` is `true`, the function will overwrite the existing edge in the graph.
     ///
     /// # Arguments
     ///
@@ -178,8 +178,8 @@ pub trait ImportOps:
     /// Imports multiple edges into the graph.
     ///
     /// This function takes a vector of references to edges and an optional boolean flag `force`.
-    /// If `force` is `Some(false)` or `None`, the function will return an error if any of the edges already exist in the graph.
-    /// If `force` is `Some(true)`, the function will overwrite the existing edges in the graph.
+    /// If `force` is `false`, the function will return an error if any of the edges already exist in the graph.
+    /// If `force` is `true`, the function will overwrite the existing edges in the graph.
     ///
     /// # Arguments
     ///
@@ -198,8 +198,8 @@ pub trait ImportOps:
     /// Imports multiple edges into the graph.
     ///
     /// This function takes a vector of references to edges and an optional boolean flag `force`.
-    /// If `force` is `Some(false)` or `None`, the function will return an error if any of the edges already exist in the graph.
-    /// If `force` is `Some(true)`, the function will overwrite the existing edges in the graph.
+    /// If `force` is `false`, the function will return an error if any of the edges already exist in the graph.
+    /// If `force` is `true`, the function will overwrite the existing edges in the graph.
     ///
     /// # Arguments
     ///
@@ -356,9 +356,23 @@ impl<
         new_ids: impl IntoIterator<Item = V>,
         force: bool,
     ) -> Result<(), GraphError> {
+        let new_ids: Vec<V> = new_ids.into_iter().collect();
+        if !force {
+            let mut existing_nodes = vec![];
+            for new_id in &new_ids {
+                if let Some(node) = self.node(new_id) {
+                    existing_nodes.push(node.id());
+                }
+            }
+            if !existing_nodes.is_empty() {
+                return Err(GraphError::NodesExistError(existing_nodes));
+            }
+        }
+
         for (node, new_node_id) in nodes.into_iter().zip(new_ids.into_iter()) {
             self.import_node_as(node.borrow(), new_node_id, force)?;
         }
+
         Ok(())
     }
 
@@ -497,9 +511,25 @@ impl<
         new_ids: impl IntoIterator<Item = (V, V)>,
         force: bool,
     ) -> Result<(), GraphError> {
+        let new_ids: Vec<(V, V)> = new_ids.into_iter().collect();
+
+        if !force {
+            let mut existing_edges = vec![];
+            for (src, dst) in &new_ids {
+                if let Some(existing_edge) = self.edge(src, dst) {
+                    existing_edges.push((existing_edge.src().id(), existing_edge.dst().id()));
+                }
+            }
+
+            if !existing_edges.is_empty() {
+                return Err(GraphError::EdgesExistError(existing_edges));
+            }
+        }
+
         for (new_id, edge) in new_ids.into_iter().zip(edges) {
             self.import_edge_as(edge.borrow(), new_id, force)?;
         }
+
         Ok(())
     }
 }

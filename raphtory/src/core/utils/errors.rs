@@ -137,8 +137,14 @@ pub enum GraphError {
     #[error("Node already exists with ID {0:?}")]
     NodeExistsError(GID),
 
+    #[error("Nodes already exist with IDs: {0:?}")]
+    NodesExistError(Vec<GID>),
+
     #[error("Edge already exists for nodes {0:?} {1:?}")]
     EdgeExistsError(GID, GID),
+
+    #[error("Edges already exist with IDs: {0:?}")]
+    EdgesExistError(Vec<(GID, GID)>),
 
     #[error("Node {0} does not exist")]
     NodeMissingError(GID),

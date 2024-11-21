@@ -118,13 +118,11 @@ def test_import_nodes_as():
     with pytest.raises(Exception) as excinfo:
         gg.import_nodes_as([a, b], ["X", "Y"])
 
-    assert "Node already exists" in str(excinfo.value)
+    assert "Nodes already exist" in str(excinfo.value)
 
-    x = gg.node("X")
-    assert x.name == "X"
-    assert x.history().tolist() == [1]
+    assert gg.node("X") == None
 
-    assert sorted(gg.nodes.name) == ["X", "Y"]
+    assert sorted(gg.nodes.name) == ["Y"]
     y = gg.node("Y")
     assert y.name == "Y"
     assert y.history().tolist() == [1]
@@ -161,22 +159,25 @@ def test_import_edge_as():
     b.add_constant_properties({"con": 11})
 
     e_a_b = g.add_edge(2, "A", "B", {"e_temp": True})
+    e_b_c = g.add_edge(2, "B", "C", {"e_temp": True})
 
     gg = Graph()
     gg.add_edge(1, "X", "Y")
+
+    gg.import_edge_as(e_b_c, ("Y", "Z"))
 
     with pytest.raises(Exception) as excinfo:
         gg.import_edge_as(e_a_b, ("X", "Y"))
     assert "Edge already exists" in str(excinfo.value)
 
-    assert sorted(gg.nodes.name) == ["X", "Y"]
+    assert sorted(gg.nodes.name) == ["X", "Y", "Z"]
     x = gg.node("X")
     assert x.name == "X"
     assert x.history().tolist() == [1]
 
     y = gg.node("Y")
     assert y.name == "Y"
-    assert y.history().tolist() == [1]
+    assert y.history().tolist() == [1, 2]
     assert y.properties.get("temp") is None
     assert y.properties.constant.get("con") is None
 
@@ -227,16 +228,13 @@ def test_import_edges_as():
 
     with pytest.raises(Exception) as excinfo:
         gg.import_edges_as([e_a_b, e_b_c], [("X", "Y"), ("Y", "Z")])
-    assert "Edge already exists" in str(excinfo.value)
+    assert "Edges already exist" in str(excinfo.value)
 
-    assert sorted(gg.nodes.name) == ["X", "Y", "Z"]
-    x = gg.node("X")
-    assert x.name == "X"
-    assert x.history().tolist() == [2]
+    assert sorted(gg.nodes.name) == ["Y", "Z"]
 
     y = gg.node("Y")
     assert y.name == "Y"
-    assert y.history().tolist() == [1, 2]
+    assert y.history().tolist() == [1]
     assert y.properties.get("temp") is None
     assert y.properties.constant.get("con") is None
 

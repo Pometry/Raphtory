@@ -419,7 +419,7 @@ mod db_tests {
             utils::{
                 errors::{
                     GraphError,
-                    GraphError::{EdgeExistsError, NodeExistsError},
+                    GraphError::{EdgeExistsError, NodeExistsError, NodesExistError},
                 },
                 time::{error::ParseTimeError, TryIntoTime},
             },
@@ -747,11 +747,7 @@ mod db_tests {
         let res = gg.import_node_as(&g_b, "Y", false);
         match res {
             Err(NodeExistsError(id)) => {
-                assert_eq!(
-                    id.to_string(),
-                    "Y",
-                    "Unexpected node ID for NodeExistsError"
-                );
+                assert_eq!(id.to_string(), "Y");
             }
             Err(e) => panic!("Unexpected error: {:?}", e),
             Ok(_) => panic!("Expected error but got Ok"),
@@ -802,16 +798,19 @@ mod db_tests {
             .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
             .unwrap();
         let _ = g_b.add_constant_properties(vec![("con".to_string(), Prop::I64(11))]);
+        let g_c = g.add_node(0, "C", NO_PROPS, None).unwrap();
 
         let gg = Graph::new();
         gg.add_node(1, "Q", NO_PROPS, None).unwrap();
-        let res = gg.import_nodes_as(vec![&g_a, &g_b], vec!["P", "Q"], false);
+        gg.add_node(1, "R", NO_PROPS, None).unwrap();
+        let res = gg.import_nodes_as(vec![&g_a, &g_b, &g_c], vec!["P", "Q", "R"], false);
         match res {
-            Err(NodeExistsError(id)) => {
+            Err(NodesExistError(ids)) => {
                 assert_eq!(
-                    id.to_string(),
-                    "Q",
-                    "Unexpected node ID for NodeExistsError"
+                    ids.into_iter()
+                        .map(|id| id.to_string())
+                        .collect::<Vec<String>>(),
+                    vec!["Q", "R"],
                 );
             }
             Err(e) => panic!("Unexpected error: {:?}", e),
@@ -819,7 +818,7 @@ mod db_tests {
         }
         let mut nodes = gg.nodes().name().collect_vec();
         nodes.sort();
-        assert_eq!(nodes, vec!["P", "Q"]); // Nodes up until first failure are imported
+        assert_eq!(nodes, vec!["Q", "R"]); // Nodes up until first failure are imported
         let y = gg.node("Q").unwrap();
         assert_eq!(y.name(), "Q");
         assert_eq!(y.history(), vec![1]);
@@ -868,35 +867,37 @@ mod db_tests {
                 None,
             )
             .unwrap();
+        let e_b_c = g
+            .add_edge(
+                2,
+                "B",
+                "C",
+                vec![("e_temp".to_string(), Prop::Bool(false))],
+                None,
+            )
+            .unwrap();
 
         let gg = Graph::new();
         let e = gg.add_edge(1, "X", "Y", NO_PROPS, None).unwrap();
+        let res = gg.import_edge_as(&e_b_c, ("Y", "Z"), false);
         let res = gg.import_edge_as(&e_a_b, ("X", "Y"), false);
         match res {
             Err(EdgeExistsError(src_id, dst_id)) => {
-                assert_eq!(
-                    src_id.to_string(),
-                    "X",
-                    "Unexpected node ID for NodeExistsError"
-                );
-                assert_eq!(
-                    dst_id.to_string(),
-                    "Y",
-                    "Unexpected node ID for NodeExistsError"
-                );
+                assert_eq!(src_id.to_string(), "X");
+                assert_eq!(dst_id.to_string(), "Y");
             }
             Err(e) => panic!("Unexpected error: {:?}", e),
             Ok(_) => panic!("Expected error but got Ok"),
         }
         let mut nodes = gg.nodes().name().collect_vec();
         nodes.sort();
-        assert_eq!(nodes, vec!["X", "Y"]);
+        assert_eq!(nodes, vec!["X", "Y", "Z"]);
         let x = gg.node("X").unwrap();
         assert_eq!(x.name(), "X");
         assert_eq!(x.history(), vec![1]);
         let y = gg.node("Y").unwrap();
         assert_eq!(y.name(), "Y");
-        assert_eq!(y.history(), vec![1]);
+        assert_eq!(y.history(), vec![1, 2]);
         assert_eq!(y.properties().get("temp"), None);
         assert_eq!(y.properties().constant().get("con"), None);
 
@@ -970,16 +971,13 @@ mod db_tests {
         let e = gg.add_edge(1, "Y", "Z", NO_PROPS, None).unwrap();
         let res = gg.import_edges_as([&e_a_b, &e_b_c], [("X", "Y"), ("Y", "Z")], false);
         match res {
-            Err(EdgeExistsError(src_id, dst_id)) => {
+            Err(GraphError::EdgesExistError(duplicates)) => {
                 assert_eq!(
-                    src_id.to_string(),
-                    "Y",
-                    "Unexpected node ID for NodeExistsError"
-                );
-                assert_eq!(
-                    dst_id.to_string(),
-                    "Z",
-                    "Unexpected node ID for NodeExistsError"
+                    duplicates
+                        .into_iter()
+                        .map(|(x, y)| (x.to_string(), y.to_string()))
+                        .collect::<Vec<(String, String)>>(),
+                    vec![("Y".to_string(), "Z".to_string())]
                 );
             }
             Err(e) => panic!("Unexpected error: {:?}", e),
@@ -987,32 +985,23 @@ mod db_tests {
         }
         let mut nodes = gg.nodes().name().collect_vec();
         nodes.sort();
-        assert_eq!(nodes, vec!["X", "Y", "Z"]);
-        let x = gg.node("X").unwrap();
-        assert_eq!(x.name(), "X");
-        assert_eq!(x.history(), vec![2]);
+        assert_eq!(nodes, vec!["Y", "Z"]);
         let y = gg.node("Y").unwrap();
         assert_eq!(y.name(), "Y");
-        assert_eq!(y.history(), vec![1, 2]);
+        assert_eq!(y.history(), vec![1]);
         assert_eq!(y.properties().get("temp"), None);
         assert_eq!(y.properties().constant().get("con"), None);
         let x = gg.node("Z").unwrap();
         assert_eq!(x.name(), "Z");
         assert_eq!(x.history(), vec![1]);
 
-        let e_x_y = gg.edge("X", "Y").unwrap();
-        assert_eq!(
-            (e_x_y.src().name().as_str(), e_x_y.dst().name().as_str()),
-            ("X", "Y")
-        );
+        assert!(gg.edge("X", "Y").is_none());
 
         let e_y_z = gg.edge("Y", "Z").unwrap();
         assert_eq!(
             (e_y_z.src().name().as_str(), e_y_z.dst().name().as_str()),
             ("Y", "Z")
         );
-
-        assert_eq!(e_x_y.properties().get("e_temp").unwrap(), Prop::Bool(false));
 
         let props = e_y_z.properties().as_vec();
         assert_eq!(props, vec![]);
