@@ -9,14 +9,16 @@
 
 from typing import *
 from raphtory import *
+from raphtory.algorithms import *
 from raphtory.vectors import *
+from raphtory.node_state import *
 from raphtory.graphql import *
 from raphtory.typing import *
 from datetime import datetime
 from pandas import DataFrame
 
 class Document(object):
-    def __new__(self, content, life=None) -> Document:
+    def __new__(cls, content, life=None) -> Document:
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def __repr__(self):

@@ -36,7 +36,7 @@ use crate::{
             repr::{Repr, StructReprBuilder},
             wrappers::prop::PyPropertyFilter,
         },
-        utils::{PyNodeRef, PyTime},
+        utils::PyNodeRef,
     },
 };
 use chrono::prelude::*;
@@ -67,7 +67,7 @@ impl<'source> FromPyObject<'source> for DynamicGraph {
 }
 /// Graph view is a read-only version of a graph at a certain point in time.
 
-#[pyclass(name = "GraphView", frozen, subclass)]
+#[pyclass(name = "GraphView", frozen, subclass, module = "raphtory")]
 #[derive(Clone)]
 #[repr(C)]
 pub struct PyGraphView {
@@ -136,6 +136,9 @@ impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject>
 #[pymethods]
 impl PyGraphView {
     /// Return all the layer ids in the graph
+    ///
+    /// Returns:
+    ///     list[str]
     #[getter]
     pub fn unique_layers(&self) -> Vec<ArcStr> {
         self.graph.unique_layers().collect()
@@ -146,7 +149,7 @@ impl PyGraphView {
     /// Timestamp of earliest activity in the graph
     ///
     /// Returns:
-    ///     the timestamp of the earliest activity in the graph
+    ///     Optional[int]: the timestamp of the earliest activity in the graph
     #[getter]
     pub fn earliest_time(&self) -> Option<i64> {
         self.graph.earliest_time()
@@ -155,7 +158,7 @@ impl PyGraphView {
     /// DateTime of earliest activity in the graph
     ///
     /// Returns:
-    ///     the datetime of the earliest activity in the graph
+    ///     Optional[Datetime]: the datetime of the earliest activity in the graph
     #[getter]
     pub fn earliest_date_time(&self) -> Option<DateTime<Utc>> {
         self.graph.earliest_date_time()
@@ -164,7 +167,7 @@ impl PyGraphView {
     /// Timestamp of latest activity in the graph
     ///
     /// Returns:
-    ///     the timestamp of the latest activity in the graph
+    ///     Optional[int]: the timestamp of the latest activity in the graph
     #[getter]
     pub fn latest_time(&self) -> Option<i64> {
         self.graph.latest_time()
@@ -173,7 +176,7 @@ impl PyGraphView {
     /// DateTime of latest activity in the graph
     ///
     /// Returns:
-    ///     the datetime of the latest activity in the graph
+    ///     Optional[Datetime]: the datetime of the latest activity in the graph
     #[getter]
     pub fn latest_date_time(&self) -> Option<DateTime<Utc>> {
         self.graph.latest_date_time()
@@ -182,7 +185,7 @@ impl PyGraphView {
     /// Number of edges in the graph
     ///
     /// Returns:
-    ///    the number of edges in the graph
+    ///    int: the number of edges in the graph
     pub fn count_edges(&self) -> usize {
         self.graph.count_edges()
     }
@@ -190,7 +193,7 @@ impl PyGraphView {
     /// Number of edges in the graph
     ///
     /// Returns:
-    ///    the number of temporal edges in the graph
+    ///    int: the number of temporal edges in the graph
     pub fn count_temporal_edges(&self) -> usize {
         self.graph.count_temporal_edges()
     }
@@ -198,7 +201,7 @@ impl PyGraphView {
     /// Number of nodes in the graph
     ///
     /// Returns:
-    ///   the number of nodes in the graph
+    ///   int: the number of nodes in the graph
     pub fn count_nodes(&self) -> usize {
         self.graph.count_nodes()
     }
@@ -209,7 +212,7 @@ impl PyGraphView {
     ///    id (str or int): the node id
     ///
     /// Returns:
-    ///   true if the graph contains the specified node, false otherwise
+    ///   bool: true if the graph contains the specified node, false otherwise
     pub fn has_node(&self, id: PyNodeRef) -> bool {
         self.graph.has_node(id)
     }
@@ -221,7 +224,7 @@ impl PyGraphView {
     ///   dst (str or int): the destination node id
     ///
     /// Returns:
-    ///  true if the graph contains the specified edge, false otherwise
+    ///     bool: true if the graph contains the specified edge, false otherwise
     #[pyo3(signature = (src, dst))]
     pub fn has_edge(&self, src: PyNodeRef, dst: PyNodeRef) -> bool {
         self.graph.has_edge(src, dst)
@@ -235,16 +238,16 @@ impl PyGraphView {
     ///   id (str or int): the node id
     ///
     /// Returns:
-    ///   the node with the specified id, or None if the node does not exist
+    ///     Optional[Node]: the node with the specified id, or None if the node does not exist
     pub fn node(&self, id: PyNodeRef) -> Option<NodeView<DynamicGraph>> {
         self.graph.node(id)
     }
 
     /// Get the nodes that match the properties name and value
     /// Arguments:
-    ///     property_dict (dict): the properties name and value
+    ///     property_dict (dict[str, Prop]): the properties name and value
     /// Returns:
-    ///    the nodes that match the properties name and value
+    ///    list[Node]: the nodes that match the properties name and value
     #[pyo3(signature = (properties_dict))]
     pub fn find_nodes(&self, properties_dict: HashMap<String, Prop>) -> Vec<PyNode> {
         let iter = self.nodes().into_iter().par_bridge();
@@ -268,7 +271,7 @@ impl PyGraphView {
     /// Gets the nodes in the graph
     ///
     /// Returns:
-    ///  the nodes in the graph
+    ///   Nodes: the nodes in the graph
     #[getter]
     pub fn nodes(&self) -> Nodes<'static, DynamicGraph> {
         self.graph.nodes()
@@ -281,7 +284,7 @@ impl PyGraphView {
     ///     dst (str or int): the destination node id
     ///
     /// Returns:
-    ///     the edge with the specified source and destination nodes, or None if the edge does not exist
+    ///     Optional[Edge]: the edge with the specified source and destination nodes, or None if the edge does not exist
     #[pyo3(signature = (src, dst))]
     pub fn edge(
         &self,
@@ -293,9 +296,9 @@ impl PyGraphView {
 
     /// Get the edges that match the properties name and value
     /// Arguments:
-    ///     property_dict (dict): the properties name and value
+    ///     property_dict (dict[str, Prop]): the properties name and value
     /// Returns:
-    ///    the edges that match the properties name and value
+    ///    list[Edge]: the edges that match the properties name and value
     #[pyo3(signature = (properties_dict))]
     pub fn find_edges(&self, properties_dict: HashMap<String, Prop>) -> Vec<PyEdge> {
         let iter = self.edges().into_iter().par_bridge();
@@ -319,7 +322,7 @@ impl PyGraphView {
     /// Gets all edges in the graph
     ///
     /// Returns:
-    ///  the edges in the graph
+    ///   Edges: the edges in the graph
     #[getter]
     pub fn edges(&self) -> Edges<'static, DynamicGraph> {
         self.graph.edges()
@@ -329,7 +332,7 @@ impl PyGraphView {
     ///
     ///
     /// Returns:
-    ///    HashMap<String, Prop> - Properties paired with their names
+    ///     Properties: Properties paired with their names
     #[getter]
     fn properties(&self) -> Properties<DynamicGraph> {
         self.graph.properties()
@@ -338,10 +341,10 @@ impl PyGraphView {
     /// Returns a subgraph given a set of nodes
     ///
     /// Arguments:
-    ///   * `nodes`: set of nodes
+    ///   nodes (list[InputNode]): set of nodes
     ///
     /// Returns:
-    ///    GraphView - Returns the subgraph
+    ///    GraphView: Returns the subgraph
     fn subgraph(&self, nodes: Vec<PyNodeRef>) -> NodeSubgraph<DynamicGraph> {
         self.graph.subgraph(nodes)
     }
@@ -349,10 +352,10 @@ impl PyGraphView {
     /// Returns a subgraph filtered by node types given a set of node types
     ///
     /// Arguments:
-    ///   * `node_types`: set of node types
+    ///   node_types (list[str]): set of node types
     ///
     /// Returns:
-    ///    GraphView - Returns the subgraph
+    ///    GraphView: Returns the subgraph
     fn subgraph_node_types(&self, node_types: Vec<ArcStr>) -> TypeFilteredSubgraph<DynamicGraph> {
         self.graph.subgraph_node_types(node_types)
     }
@@ -360,10 +363,10 @@ impl PyGraphView {
     /// Returns a subgraph given a set of nodes that are excluded from the subgraph
     ///
     /// Arguments:
-    ///   * `nodes`: set of nodes
+    ///   nodes (list[InputNode]): set of nodes
     ///
     /// Returns:
-    ///    GraphView - Returns the subgraph
+    ///    GraphView: Returns the subgraph
     fn exclude_nodes(&self, nodes: Vec<PyNodeRef>) -> NodeSubgraph<DynamicGraph> {
         self.graph.exclude_nodes(nodes)
     }
@@ -371,7 +374,7 @@ impl PyGraphView {
     /// Returns a 'materialized' clone of the graph view - i.e. a new graph with a copy of the data seen within the view instead of just a mask over the original graph
     ///
     /// Returns:
-    ///    GraphView - Returns a graph clone
+    ///    GraphView: Returns a graph clone
     fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
         self.graph.materialize()
     }

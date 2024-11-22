@@ -705,8 +705,8 @@ pub fn label_propagation(
 ///
 /// Arguments:
 ///     graph (GraphView): the graph view
-///     seeds (int | float | list[Node]): the seeding strategy to use for the initial infection (if `int`, choose fixed number
-///            of nodes at random, if `float` infect each node with this probability, if `[Node]`
+///     seeds (int | float | list[InputNode]): the seeding strategy to use for the initial infection (if `int`, choose fixed number
+///            of nodes at random, if `float` infect each node with this probability, if `list`
 ///            initially infect the specified nodes
 ///     infection_prob (float): the probability for a contact between infected and susceptible nodes to lead
 ///                     to a transmission

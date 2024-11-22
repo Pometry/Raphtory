@@ -9,7 +9,6 @@ use crate::{
         tprop_storage_ops::TPropOps,
         variants::layer_variants::LayerVariants,
     },
-    disk_graph::graph_impl::tprops::read_tprop_column,
 };
 use pometry_storage::{edge::Edge, tprops::DiskTProp};
 use raphtory_api::core::{entities::edges::edge_ref::EdgeRef, storage::timeindex::TimeIndexEntry};
@@ -110,11 +109,12 @@ impl<'a> EdgeStorageOps<'a> for Edge<'a> {
     fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> impl TPropOps<'a> + Sync + 'a {
         self.graph()
             .localize_edge_prop_id(layer_id, prop_id)
-            .and_then(|local_id| {
-                self.temporal_prop_layer_inner(layer_id, local_id)
-                    .map(|field| (field, local_id))
+            .map(|prop_id| {
+                self.graph()
+                    .layer(layer_id)
+                    .edges_storage()
+                    .prop(self.eid(), prop_id)
             })
-            .and_then(|(field, prop_id)| read_tprop_column(self, prop_id, layer_id, field))
             .unwrap_or(DiskTProp::empty())
     }
 

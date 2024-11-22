@@ -238,7 +238,7 @@ where
     }
 }
 
-#[pyclass(name = "WindowSet")]
+#[pyclass(name = "WindowSet", module = "raphtory", frozen)]
 pub struct PyWindowSet {
     window_set: Box<dyn WindowSetOps + Send>,
 }

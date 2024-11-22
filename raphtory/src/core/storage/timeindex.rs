@@ -281,62 +281,6 @@ impl<'a, T: AsTime, Ops: TimeIndexOps<IndexType = T>, V: AsRef<Vec<Ops>> + Send 
     }
 }
 
-pub trait TimeIndexOps: Send + Sync {
-    type IndexType: AsTime;
-    type RangeType<'a>: TimeIndexOps<IndexType = Self::IndexType> + 'a
-    where
-        Self: 'a;
-
-    fn active(&self, w: Range<Self::IndexType>) -> bool;
-
-    fn active_t(&self, w: Range<i64>) -> bool {
-        self.active(Self::IndexType::range(w))
-    }
-
-    fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType<'_>;
-
-    fn range_t(&self, w: Range<i64>) -> Self::RangeType<'_> {
-        self.range(Self::IndexType::range(w))
-    }
-
-    fn first_t(&self) -> Option<i64> {
-        self.first().map(|ti| ti.t())
-    }
-
-    fn first(&self) -> Option<Self::IndexType>;
-
-    fn last_t(&self) -> Option<i64> {
-        self.last().map(|ti| ti.t())
-    }
-
-    fn last(&self) -> Option<Self::IndexType>;
-
-    fn iter(&self) -> Box<dyn Iterator<Item = Self::IndexType> + Send + '_>;
-
-    fn iter_t(&self) -> Box<dyn Iterator<Item = i64> + Send + '_> {
-        Box::new(self.iter().map(|time| time.t()))
-    }
-
-    fn len(&self) -> usize;
-}
-
-pub trait TimeIndexIntoOps: Sized {
-    type IndexType: AsTime;
-    type RangeType: TimeIndexIntoOps<IndexType = Self::IndexType>;
-
-    fn into_range(self, w: Range<Self::IndexType>) -> Self::RangeType;
-
-    fn into_range_t(self, w: Range<i64>) -> Self::RangeType {
-        self.into_range(Self::IndexType::range(w))
-    }
-
-    fn into_iter(self) -> impl Iterator<Item = Self::IndexType> + Send;
-
-    fn into_iter_t(self) -> impl Iterator<Item = i64> + Send {
-        self.into_iter().map(|time| time.t())
-    }
-}
-
 impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
     type IndexType = T;
     type RangeType<'a>

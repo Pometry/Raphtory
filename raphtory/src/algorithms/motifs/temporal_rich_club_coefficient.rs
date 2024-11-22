@@ -56,7 +56,7 @@ where
         .collect();
 
     if s_k.len() <= 1 {
-        return 0.0 as f64;
+        return 0.0f64;
     }
 
     let temp_rich_club_val = SlidingWindows::new(views.into_iter(), window_size)
@@ -93,7 +93,7 @@ where
             let poss_edges = (s_k.len() * (s_k.len() - 1)) / 2;
             return (edges.len() as f64) / (poss_edges as f64);
         }
-        None => return 0 as f64,
+        None => return 0f64,
     }
 }
 

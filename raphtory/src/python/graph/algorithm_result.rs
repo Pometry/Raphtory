@@ -23,7 +23,7 @@ impl<G: StaticGraphViewOps, V: Repr + Clone, O> Repr for AlgorithmResultRs<G, V,
 #[macro_export]
 macro_rules! py_algorithm_result {
     ($objectName:ident, $rustGraph:ty, $rustValue:ty, $rustSortValue:ty) => {
-        #[pyclass]
+        #[pyclass(module = "raphtory", frozen)]
         pub struct $objectName(
             $crate::algorithms::algorithm_result::AlgorithmResult<
                 $rustGraph,
@@ -93,7 +93,7 @@ macro_rules! py_algorithm_result_base {
             /// Sorts by node id in ascending or descending order.
             ///
             /// Arguments:
-            ///     `reverse`: If `true`, sorts the result in descending order; otherwise, sorts in ascending order.
+            ///     reverse: If `true`, sorts the result in descending order; otherwise, sorts in ascending order. Defaults to True.
             ///
             /// Returns:
             ///     A sorted list of tuples containing node names and values.
@@ -156,7 +156,7 @@ macro_rules! py_algorithm_result_partial_ord {
             /// Sorts the `AlgorithmResult` by its values in ascending or descending order.
             ///
             /// Arguments:
-            ///     reverse (bool): If `true`, sorts the result in descending order; otherwise, sorts in ascending order.
+            ///     reverse (bool): If `true`, sorts the result in descending order, otherwise, sorts in ascending order. Defaults to True.
             ///
             /// Returns:
             ///     A sorted vector of tuples containing keys of type `H` and values of type `Y`.
@@ -175,7 +175,7 @@ macro_rules! py_algorithm_result_partial_ord {
             /// value by the node name in either ascending or descending order.
             ///
             /// Arguments:
-            ///     reverse (bool): A boolean value indicating whether the sorting should be done in reverse order or not.
+            ///     reverse (bool): A boolean value indicating whether the sorting should be done in reverse order or not. Defaults to True.
             ///         If reverse is true, the sorting will be done in descending order, otherwise it will be done in
             ///         ascending order.
             ///
@@ -196,8 +196,8 @@ macro_rules! py_algorithm_result_partial_ord {
             ///
             /// Arguments:
             ///     k (int): The number of elements to retrieve.
-            ///     percentage (bool): If `true`, the `k` parameter is treated as a percentage of total elements.
-            ///     reverse (bool): If `true`, retrieves the elements in descending order; otherwise, in ascending order.
+            ///     percentage (bool): If `True`, the `k` parameter is treated as a percentage of total elements. Defaults to False.
+            ///     reverse (bool): If `True`, retrieves the elements in descending order, otherwise, in ascending order. Defaults to True.
             ///
             /// Returns:
             ///     An Option containing a vector of tuples with keys of type `H` and values of type `Y`.

@@ -33,7 +33,7 @@ impl<'a, P: PropertiesOps> Repr for ConstProperties<'a, P> {
 }
 
 /// A view of constant properties of an entity
-#[pyclass(name = "ConstProperties")]
+#[pyclass(name = "ConstProperties", module = "raphtory", frozen)]
 pub struct PyConstProperties {
     props: DynConstProperties,
 }

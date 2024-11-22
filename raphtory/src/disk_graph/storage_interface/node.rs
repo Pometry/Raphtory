@@ -15,7 +15,7 @@ use crate::{
 };
 use itertools::Itertools;
 use polars_arrow::datatypes::ArrowDataType;
-use pometry_storage::{graph::TemporalGraph, timestamps::TimeStamps, GidRef};
+use pometry_storage::{graph::TemporalGraph, timestamps::TimeStamps, tprops::DiskTProp, GidRef};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use std::{borrow::Cow, iter, sync::Arc};
 
@@ -35,11 +35,14 @@ impl<'a> DiskNode<'a> {
         }
     }
 
-    pub fn temporal_node_prop_ids(self) -> Box<dyn Iterator<Item = usize> + 'a> {
-        match &self.graph.node_properties().temporal_props {
-            Some(props) => Box::new(props.prop_dtypes().iter().enumerate().map(|(i, _)| i)),
-            None => Box::new(std::iter::empty()),
-        }
+    pub fn temporal_node_prop_ids(self) -> impl Iterator<Item = usize> + 'a {
+        self.graph
+            .prop_mapping()
+            .nodes()
+            .into_iter()
+            .enumerate()
+            .filter(|(_, exists)| exists.is_some())
+            .map(|(id, _)| id)
     }
 
     pub(crate) fn new(graph: &'a TemporalGraph, vid: VID) -> Self {
@@ -176,13 +179,14 @@ impl<'a> DiskNode<'a> {
                 .collect::<Vec<_>>(),
         };
 
-        if let Some(props) = &self.graph.node_properties().temporal_props {
+        for props in self.graph.node_properties().temporal_props() {
             let timestamps = props.timestamps::<i64>(self.vid);
             if timestamps.len() > 0 {
                 let ts = timestamps.times();
                 additions.push(ts);
             }
         }
+
         NodeAdditions::Col(additions)
     }
 }
@@ -239,11 +243,16 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
 
     fn tprop(self, prop_id: usize) -> impl TPropOps<'a> {
         self.graph
-            .node_properties()
-            .temporal_props
-            .as_ref()
-            .unwrap()
-            .prop(self.vid, prop_id)
+            .prop_mapping()
+            .localise_node_prop_id(prop_id)
+            .and_then(|(layer, local_prop_id)| {
+                self.graph
+                    .node_properties()
+                    .temporal_props()
+                    .get(layer)
+                    .map(|t_props| t_props.prop(self.vid, local_prop_id))
+            })
+            .unwrap_or(DiskTProp::empty())
     }
 
     fn prop(self, prop_id: usize) -> Option<Prop> {
@@ -268,7 +277,7 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
         self,
         layers: &LayerIds,
         dir: Direction,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send + 'a> {
+    ) -> impl Iterator<Item = EdgeRef> + Send + 'a {
         //FIXME: something is capturing the &LayerIds lifetime when using impl Iterator
         Box::new(match dir {
             Direction::OUT => DirectionVariants::Out(self.out_edges(layers)),

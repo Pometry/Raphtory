@@ -24,7 +24,7 @@ use crate::{
         },
         utils::{
             export::{create_row, extract_properties, get_column_names_from_props},
-            NumpyArray, PyGenericIterable, PyTime,
+            NumpyArray, PyGenericIterable,
         },
     },
 };
@@ -34,7 +34,7 @@ use rayon::{iter::IntoParallelIterator, prelude::*};
 use std::collections::HashMap;
 
 /// A list of edges that can be iterated over.
-#[pyclass(name = "Edges")]
+#[pyclass(name = "Edges", module = "raphtory", frozen)]
 pub struct PyEdges {
     edges: Edges<'static, DynamicGraph>,
 }

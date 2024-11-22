@@ -144,3 +144,5 @@ pub fn base_vectors_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
     vectors_module.add_class::<PyVectorSelection>()?;
     Ok(vectors_module)
 }
+
+pub use crate::python::graph::node_state::base_node_state_module;

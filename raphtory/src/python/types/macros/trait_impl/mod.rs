@@ -15,8 +15,6 @@ mod repr;
 #[macro_use]
 mod iterable_mixin;
 
-mod node_state;
-
 #[macro_use]
 mod serialise;
 

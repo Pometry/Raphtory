@@ -2,7 +2,6 @@ use itertools::{chain, Itertools};
 use std::{
     collections::{HashMap, HashSet},
     ops::Deref,
-    usize,
 };
 
 use crate::{

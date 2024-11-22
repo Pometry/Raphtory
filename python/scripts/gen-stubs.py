@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-
+import ast
 import inspect
 import logging
 import textwrap
 import types
 from importlib import import_module
+from logging import ERROR
 from pathlib import Path
 from types import (
     BuiltinFunctionType,
@@ -13,15 +14,14 @@ from types import (
     MethodDescriptorType,
     ModuleType,
 )
+import builtins
 from typing import *
-from raphtory import *
-from raphtory.graphql import *
-from raphtory.typing import *
 from docstring_parser import parse, DocstringStyle, DocstringParam, ParseError
-from datetime import datetime
-from pandas import DataFrame
 
 logger = logging.getLogger(__name__)
+fn_logger = logging.getLogger(__name__)
+cls_logger = logging.getLogger(__name__)
+
 
 TARGET_MODULES = ["raphtory", "builtins"]
 TAB = " " * 4
@@ -44,12 +44,18 @@ comment = """###################################################################
 imports = """
 from typing import *
 from raphtory import *
+from raphtory.algorithms import *
 from raphtory.vectors import *
+from raphtory.node_state import *
 from raphtory.graphql import *
 from raphtory.typing import *
 from datetime import datetime
 from pandas import DataFrame
 """
+
+# imports for type checking
+global_ns = {}
+exec(imports, global_ns)
 
 
 def format_type(obj) -> str:
@@ -63,6 +69,18 @@ def format_type(obj) -> str:
         # Special case for `repr` of types with `ParamSpec`:
         return "[" + ", ".join(format_type(t) for t in obj) + "]"
     return repr(obj)
+
+
+class AnnotationError(Exception):
+    pass
+
+
+def validate_annotation(annotation: str):
+    parsed = ast.parse(f"_: {annotation}")
+    for node in ast.walk(parsed.body[0].annotation):
+        if isinstance(node, ast.Name):
+            if node.id not in global_ns and node.id not in builtins.__dict__:
+                raise AnnotationError(f"Unknown type {node.id}")
 
 
 def format_param(param: inspect.Parameter) -> str:
@@ -107,23 +125,38 @@ def same_default(doc_default: Optional[str], param_default: Any) -> bool:
 
 
 def clean_parameter(
-    param: inspect.Parameter, type_annotations: dict[str, dict[str, Any]]
+    param: inspect.Parameter,
+    type_annotations: dict[str, dict[str, Any]],
 ):
     annotations = {}
     if param.default is not inspect.Parameter.empty:
         annotations["default"] = format_type(param.default)
 
-    if param.name in type_annotations:
-        annotations["annotation"] = type_annotations[param.name]["annotation"]
-        if "default" in type_annotations[param.name]:
-            default_from_docs = type_annotations[param.name]["default"]
-            if param.default is not param.empty and param.default is not ...:
-                if not same_default(default_from_docs, param.default):
-                    fn_logger.warning(
-                        f"mismatched default value: docs={repr(default_from_docs)}, signature={param.default}"
-                    )
+    doc_annotation = type_annotations.pop(param.name, None)
+    if doc_annotation is not None:
+        annotations["annotation"] = doc_annotation["annotation"]
+        default_from_docs = doc_annotation.get("default", None)
+        if default_from_docs is not None:
+            if param.default is not param.empty:
+                if param.default is not ...:
+                    if not same_default(default_from_docs, param.default):
+                        fn_logger.warning(
+                            f"mismatched default value: docs={repr(default_from_docs)}, signature={param.default}"
+                        )
+                else:
+                    annotations["default"] = default_from_docs
             else:
-                annotations["default"] = default_from_docs
+                fn_logger.error(
+                    f"parameter {param.name} has default value {repr(default_from_docs)} in documentation but no default in signature."
+                )
+        else:
+            if param.default is not param.empty and param.default is not None:
+                fn_logger.warning(
+                    f"default value for parameter {param.name} with value {repr(param.default)} in signature is not documented"
+                )
+    else:
+        if param.name not in {"self", "cls"}:
+            fn_logger.warning(f"missing parameter {param.name} in docs.")
     return param.replace(**annotations)
 
 
@@ -142,6 +175,10 @@ def clean_signature(
             decorator = None
 
     new_params = [clean_parameter(p, type_annotations) for p in sig.parameters.values()]
+    for param_name, annotations in type_annotations.items():
+        fn_logger.warning(
+            f"parameter {param_name} appears in documentation but does not exist."
+        )
     sig = sig.replace(parameters=new_params)
     if return_type is not None:
         sig = sig.replace(return_annotation=return_type)
@@ -153,17 +190,24 @@ def insert_self(signature: inspect.Signature) -> inspect.Signature:
     return signature.replace(parameters=[self_param, *signature.parameters.values()])
 
 
+def insert_cls(signature: inspect.Signature) -> inspect.Signature:
+    cls_param = inspect.Parameter("cls", kind=inspect.Parameter.POSITIONAL_OR_KEYWORD)
+    return signature.replace(parameters=[cls_param, *signature.parameters.values()])
+
+
 def cls_signature(cls: type) -> Optional[inspect.Signature]:
     try:
-        return insert_self(inspect.signature(cls))
+        return inspect.signature(cls)
     except ValueError:
         pass
 
 
-def from_raphtory(obj) -> bool:
+def from_raphtory(obj, name: str) -> bool:
     module = inspect.getmodule(obj)
     if module:
-        return any(module.__name__.startswith(target) for target in TARGET_MODULES)
+        return module.__name__ == name or any(
+            module.__name__.startswith(target) for target in TARGET_MODULES
+        )
     return False
 
 
@@ -184,20 +228,24 @@ def extract_param_annotation(param: DocstringParam) -> dict:
     else:
         type_val = param.type_name
         try:
-            eval(type_val)
+            validate_annotation(type_val)
+            if param.is_optional:
+                type_val = f"Optional[{type_val}]"
+            res["annotation"] = type_val
         except Exception as e:
-            raise ParseError(f"Invalid type name {type_val}: {e}")
+            fn_logger.error(
+                f"Invalid annotation {repr(type_val)} for parameter {param.arg_name}: {e}"
+            )
 
-        if param.is_optional:
-            type_val = f"Optional[{type_val}]"
-        res["annotation"] = type_val
     if param.default is not None or param.is_optional:
         if param.default is not None:
             try:
-                eval(param.default)
+                validate_annotation(param.default)
+                res["default"] = param.default
             except Exception as e:
-                raise ParseError(f"Invalid default value {param.default}: {e}")
-        res["default"] = param.default
+                fn_logger.error(
+                    f"Invalid default value {repr(param.default)} for parameter {param.arg_name}: {e}"
+                )
     return res
 
 
@@ -217,6 +265,11 @@ def extract_types(
             }
             if parse_result.returns is not None:
                 return_type = parse_result.returns.type_name
+                try:
+                    validate_annotation(return_type)
+                except Exception as e:
+                    fn_logger.error(f"Invalid return type {repr(return_type)}: {e}")
+                    return_type = None
             else:
                 return_type = None
             return type_annotations, return_type
@@ -234,8 +287,6 @@ def gen_fn(
     signature_overwrite: Optional[inspect.Signature] = None,
     docs_overwrite: Optional[str] = None,
 ) -> str:
-    global fn_logger
-    fn_logger = logging.getLogger(repr(function))
     init_tab = TAB if is_method else ""
     fn_tab = TAB * 2 if is_method else TAB
     type_annotations, return_type = extract_types(function, docs_overwrite)
@@ -247,6 +298,9 @@ def gen_fn(
         type_annotations,
         return_type,
     )
+    if name == "__new__":
+        # new is special and not a class method
+        decorator = None
 
     fn_str = f"{init_tab}def {name}{signature}:\n{docstr}"
 
@@ -272,15 +326,26 @@ def gen_class(cls: type, name) -> str:
     contents = list(vars(cls).items())
     contents.sort(key=lambda x: x[0])
     entities: list[str] = []
-
+    global cls_logger
+    global fn_logger
+    cls_logger = logger.getChild(name)
     for obj_name, entity in contents:
+        fn_logger = cls_logger.getChild(obj_name)
+        if obj_name.startswith("__") and not (
+            obj_name == "__init__" or obj_name == "__new__"
+        ):
+            # Cannot get doc strings for __ methods (except for __new__ which we special-case by passing in the class docstring)
+            fn_logger.setLevel(ERROR)
         entity = inspect.unwrap(entity)
         if obj_name == "__init__" or obj_name == "__new__":
             # Get __init__ signature from class info
             signature = cls_signature(cls)
             if signature is not None:
                 if obj_name == "__new__":
-                    signature = signature.replace(return_annotation=name)
+                    signature = insert_cls(signature.replace(return_annotation=name))
+                else:
+                    signature = insert_self(signature)
+
                 entities.append(
                     gen_fn(
                         entity,
@@ -304,21 +369,20 @@ def gen_class(cls: type, name) -> str:
     return f"class {name}{bases}: \n{docstr}\n{str_entities}"
 
 
-def gen_module(module: ModuleType, name: str, path: Path) -> None:
-    logging.info("starting")
+def gen_module(module: ModuleType, name: str, path: Path, log_path) -> None:
+    global logger
+    global fn_logger
     objs = list(vars(module).items())
     objs.sort(key=lambda x: x[0])
-
     stubs: List[str] = []
     modules: List[(ModuleType, str)] = []
     path = path / name
-    global logger
-    logger = logging.getLogger(str(path))
-
+    logger = logging.getLogger(log_path)
     for obj_name, obj in objs:
-        if isinstance(obj, type) and from_raphtory(obj):
+        if isinstance(obj, type) and from_raphtory(obj, name):
             stubs.append(gen_class(obj, obj_name))
         elif isinstance(obj, BuiltinFunctionType):
+            fn_logger = logger.getChild(obj_name)
             stubs.append(gen_fn(obj, obj_name))
         elif isinstance(obj, ModuleType) and obj.__loader__ is None:
             modules.append((obj, obj_name))
@@ -328,13 +392,15 @@ def gen_module(module: ModuleType, name: str, path: Path) -> None:
     file = path / "__init__.pyi"
     file.write_text(stub_file)
 
-    for module in modules:
-        gen_module(*module, path)
+    for module, name in modules:
+        gen_module(module, name, path, f"{log_path}.{name}")
 
     return
 
 
 if __name__ == "__main__":
+    logger = logging.getLogger("gen_stubs")
+    logging.basicConfig(level=logging.INFO)
     raphtory = import_module("raphtory")
     path = Path(__file__).parent.parent / "python"
-    gen_module(raphtory, "raphtory", path)
+    gen_module(raphtory, "raphtory", path, "raphtory")
