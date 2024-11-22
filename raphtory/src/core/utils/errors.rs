@@ -284,6 +284,9 @@ pub enum GraphError {
     SystemTimeError(#[from] SystemTimeError),
     #[error("Property filtering not implemented on PersistentGraph yet")]
     PropertyFilteringNotImplemented,
+
+    #[error("Expected a {0} for {1} operator")]
+    ExpectedValueForOperator(String, String),
 }
 
 impl GraphError {

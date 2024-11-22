@@ -2,7 +2,6 @@ use crate::{
     core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::AsNodeRef, VID},
     db::{
         api::{
-            properties::Properties,
             state::LazyNodeState,
             storage::graph::storage_ops::GraphStorage,
             view::{
@@ -15,9 +14,13 @@ use crate::{
     prelude::*,
 };
 
-use crate::db::graph::create_node_type_filter;
+use crate::db::{api::state::NodeOp, graph::create_node_type_filter};
 use rayon::iter::ParallelIterator;
-use std::{marker::PhantomData, sync::Arc};
+use std::{
+    fmt::{Debug, Formatter},
+    marker::PhantomData,
+    sync::Arc,
+};
 
 #[derive(Clone)]
 pub struct Nodes<'graph, G, GH = G> {
@@ -25,6 +28,14 @@ pub struct Nodes<'graph, G, GH = G> {
     pub(crate) graph: GH,
     pub(crate) node_types_filter: Option<Arc<[bool]>>,
     _marker: PhantomData<&'graph ()>,
+}
+
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph> + Debug> Debug
+    for Nodes<'graph, G, GH>
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_list().entries(self.iter()).finish()
+    }
 }
 
 impl<'graph, G, GH> From<Nodes<'graph, G, GH>> for Nodes<'graph, DynamicGraph, DynamicGraph>
@@ -88,6 +99,12 @@ where
             node_types_filter,
             _marker: PhantomData,
         }
+    }
+
+    pub(crate) fn par_iter_refs(&self) -> impl ParallelIterator<Item = VID> + 'graph {
+        let g = self.graph.core_graph().lock();
+        let node_types_filter = self.node_types_filter.clone();
+        g.into_nodes_par(self.graph.clone(), node_types_filter)
     }
 
     #[inline]
@@ -169,6 +186,10 @@ where
     pub fn get_temporal_prop_id(&self, prop_name: &str) -> Option<usize> {
         self.graph.node_meta().get_prop_id(prop_name, false)
     }
+
+    pub fn is_filtered(&self) -> bool {
+        self.node_types_filter.is_some() || self.graph.nodes_filtered()
+    }
 }
 
 impl<'graph, G, GH> BaseNodeViewOps<'graph> for Nodes<'graph, G, GH>
@@ -178,25 +199,20 @@ where
 {
     type BaseGraph = G;
     type Graph = GH;
-    type ValueType<T: 'graph> = LazyNodeState<'graph, T, G, GH>;
+    type ValueType<T: NodeOp + 'graph> = LazyNodeState<'graph, T, G, GH>;
     type PropType = NodeView<GH, GH>;
     type PathType = PathFromGraph<'graph, G, G>;
     type Edges = NestedEdges<'graph, G, GH>;
 
-    fn map<
-        O: Clone + Send + Sync + 'graph,
-        F: Fn(&GraphStorage, &Self::Graph, VID) -> O + Send + Sync + 'graph,
-    >(
-        &self,
-        op: F,
-    ) -> Self::ValueType<O> {
-        let g = self.graph.clone();
-        let bg = self.base_graph.clone();
-        LazyNodeState::new(bg, g, self.node_types_filter.clone(), op)
+    fn graph(&self) -> &Self::Graph {
+        &self.graph
     }
 
-    fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>> {
-        self.map(|_cg, g, v| Properties::new(NodeView::new_internal(g.clone(), v)))
+    fn map<F: NodeOp + 'graph>(&self, op: F) -> Self::ValueType<F>
+    where
+        <F as NodeOp>::Output: 'graph,
+    {
+        LazyNodeState::new(op, self.clone())
     }
 
     fn map_edges<

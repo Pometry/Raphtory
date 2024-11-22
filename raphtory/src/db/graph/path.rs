@@ -2,7 +2,7 @@ use crate::{
     core::entities::{edges::edge_ref::EdgeRef, VID},
     db::{
         api::{
-            properties::Properties,
+            state::NodeOp,
             storage::graph::storage_ops::GraphStorage,
             view::{
                 internal::OneHopFilter, BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed,
@@ -147,28 +147,28 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
 {
     type BaseGraph = G;
     type Graph = GH;
-    type ValueType<T: 'graph> = BoxedLIter<'graph, BoxedLIter<'graph, T>>;
+    type ValueType<T: NodeOp + 'graph> = BoxedLIter<'graph, BoxedLIter<'graph, T::Output>>;
     type PropType = NodeView<GH, GH>;
     type PathType = PathFromGraph<'graph, G, G>;
     type Edges = NestedEdges<'graph, G, GH>;
 
-    fn map<O: 'graph, F: Fn(&GraphStorage, &Self::Graph, VID) -> O + Send + Clone + 'graph>(
-        &self,
-        op: F,
-    ) -> Self::ValueType<O> {
-        let graph = self.graph.clone();
+    fn graph(&self) -> &Self::Graph {
+        &self.graph
+    }
+
+    fn map<F: NodeOp + Clone + 'graph>(&self, op: F) -> Self::ValueType<F>
+    where
+        <F as NodeOp>::Output: 'graph,
+    {
+        let storage = self.graph.core_graph().lock();
         self.iter_refs()
             .map(move |it| {
-                let graph = graph.clone();
                 let op = op.clone();
-                it.map(move |node| op(graph.core_graph(), &graph, node))
+                let storage = storage.clone();
+                it.map(move |node| op.apply(&storage, node))
                     .into_dyn_boxed()
             })
             .into_dyn_boxed()
-    }
-
-    fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>> {
-        self.map(|_cg, g, v| Properties::new(NodeView::new_internal(g.clone(), v)))
     }
 
     fn map_edges<
@@ -396,24 +396,21 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
 {
     type BaseGraph = G;
     type Graph = GH;
-    type ValueType<T: 'graph> = BoxedLIter<'graph, T>;
+    type ValueType<T: NodeOp + 'graph> = BoxedLIter<'graph, T::Output>;
     type PropType = NodeView<GH, GH>;
     type PathType = PathFromNode<'graph, G, G>;
     type Edges = Edges<'graph, G, GH>;
 
-    fn map<O: 'graph, F: Fn(&GraphStorage, &Self::Graph, VID) -> O + Send + 'graph>(
-        &self,
-        op: F,
-    ) -> Self::ValueType<O> {
-        let graph = self.graph.clone();
-        Box::new(
-            self.iter_refs()
-                .map(move |node| op(graph.core_graph(), &graph, node)),
-        )
+    fn graph(&self) -> &Self::Graph {
+        &self.graph
     }
 
-    fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>> {
-        self.map(|_cg, g, v| Properties::new(NodeView::new_internal(g.clone(), v)))
+    fn map<F: NodeOp + 'graph>(&self, op: F) -> Self::ValueType<F>
+    where
+        <F as NodeOp>::Output: 'graph,
+    {
+        let storage = self.graph.core_graph().lock();
+        Box::new(self.iter_refs().map(move |node| op.apply(&storage, node)))
     }
 
     fn map_edges<

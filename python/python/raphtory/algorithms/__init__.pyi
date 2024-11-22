@@ -9,7 +9,9 @@
 
 from typing import *
 from raphtory import *
+from raphtory.algorithms import *
 from raphtory.vectors import *
+from raphtory.node_state import *
 from raphtory.graphql import *
 from raphtory.typing import *
 from datetime import datetime
@@ -628,7 +630,7 @@ def strongly_connected_components(g: GraphView):
 
 def temporal_SEIR(
     graph: GraphView,
-    seeds: int | float | list[Node],
+    seeds: int | float | list[InputNode],
     infection_prob: float,
     initial_infection: int | str | datetime,
     recovery_rate: float | None = None,
@@ -642,8 +644,8 @@ def temporal_SEIR(
 
     Arguments:
         graph (GraphView): the graph view
-        seeds (int | float | list[Node]): the seeding strategy to use for the initial infection (if `int`, choose fixed number
-               of nodes at random, if `float` infect each node with this probability, if `[Node]`
+        seeds (int | float | list[InputNode]): the seeding strategy to use for the initial infection (if `int`, choose fixed number
+               of nodes at random, if `float` infect each node with this probability, if `list`
                initially infect the specified nodes
         infection_prob (float): the probability for a contact between infected and susceptible nodes to lead
                         to a transmission

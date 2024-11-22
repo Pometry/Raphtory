@@ -24,7 +24,7 @@ impl PyGraphView {
 /// A searchable Index for a `Graph`. This allows for fuzzy and exact searches of nodes and edges.
 /// This makes use of Tantivity internally to provide the search functionality.
 /// To create a graph index, call `graph.index()` on any `Graph` object in python.
-#[pyclass]
+#[pyclass(frozen, module = "raphtory")]
 pub struct GraphIndex {
     graph: IndexedGraph<DynamicGraph>,
 }

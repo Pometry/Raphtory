@@ -75,7 +75,7 @@ impl<'source> FromPyObject<'source> for PyTemporalPropsCmp {
 }
 
 /// A view of the temporal properties of an entity
-#[pyclass(name = "TemporalProperties")]
+#[pyclass(name = "TemporalProperties", module = "raphtory", frozen)]
 pub struct PyTemporalProperties {
     props: DynTemporalProperties,
 }
@@ -180,7 +180,7 @@ impl PyTemporalProperties {
 }
 
 /// A view of a temporal property
-#[pyclass(name = "TemporalProp")]
+#[pyclass(name = "TemporalProp", module = "raphtory", frozen)]
 pub struct PyTemporalProp {
     prop: DynTemporalProperty,
 }
