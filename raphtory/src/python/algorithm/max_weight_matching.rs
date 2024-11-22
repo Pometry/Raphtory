@@ -13,7 +13,7 @@ use crate::{
 use pyo3::prelude::*;
 
 /// A Matching (i.e., a set of edges that do not share any nodes)
-#[pyclass(frozen, name = "Matching")]
+#[pyclass(frozen, name = "Matching", module = "raphtory.algorithms")]
 pub struct PyMatching {
     inner: Matching<DynamicGraph>,
 }

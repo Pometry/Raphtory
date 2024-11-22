@@ -1,6 +1,7 @@
 import sys
 from .raphtory import *
 
+sys.modules["raphtory.node_state"] = node_state
 sys.modules["raphtory.algorithms"] = algorithms
 sys.modules["raphtory.graph_gen"] = graph_gen
 sys.modules["raphtory.graph_loader"] = graph_loader

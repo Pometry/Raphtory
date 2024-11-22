@@ -14,6 +14,8 @@ PropValue = Union[
     dict[str, "Prop"],
 ]
 
+GID = Union[int, str]
+
 PropInput = Mapping[str, PropValue]
 
 Direction = Literal["in", "out", "both"]

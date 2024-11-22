@@ -20,6 +20,9 @@ macro_rules! impl_layerops {
             #[doc = concat!(" Return a view of ", $name, r#" containing the layer `"name"`"#)]
             /// Errors if the layer does not exist
             ///
+            /// Arguments:
+            ///     name (str): then name of the layer.
+            ///
             /// Returns:
             #[doc = concat!("     ", $name, ": The layered view")]
             fn layer(
@@ -58,6 +61,12 @@ macro_rules! impl_layerops {
             }
 
             #[doc = concat!(" Check if ", $name, r#" has the layer `"name"`"#)]
+            ///
+            /// Arguments:
+            ///     name (str): the name of the layer to check
+            ///
+            /// Returns:
+            ///     bool
             fn has_layer(
                 &self,
                 name: &str,

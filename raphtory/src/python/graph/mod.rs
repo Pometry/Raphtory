@@ -10,5 +10,6 @@ pub mod edges;
 pub mod index;
 pub mod io;
 pub mod node;
+pub mod node_state;
 pub mod properties;
 pub mod views;

@@ -9,7 +9,9 @@
 
 from typing import *
 from raphtory import *
+from raphtory.algorithms import *
 from raphtory.vectors import *
+from raphtory.node_state import *
 from raphtory.graphql import *
 from raphtory.typing import *
 from datetime import datetime
@@ -67,12 +69,12 @@ class AlgorithmResult(object):
     def min(self):
         """Returns a tuple of the min result with its key"""
 
-    def sort_by_node(self, reverse=True):
+    def sort_by_node(self, reverse: Any = True):
         """
         Sorts by node id in ascending or descending order.
 
         Arguments:
-            `reverse`: If `true`, sorts the result in descending order; otherwise, sorts in ascending order.
+            reverse: If `true`, sorts the result in descending order; otherwise, sorts in ascending order. Defaults to True.
 
         Returns:
             A sorted list of tuples containing node names and values.
@@ -84,7 +86,7 @@ class AlgorithmResult(object):
         value by the node name in either ascending or descending order.
 
         Arguments:
-            reverse (bool): A boolean value indicating whether the sorting should be done in reverse order or not.
+            reverse (bool): A boolean value indicating whether the sorting should be done in reverse order or not. Defaults to True.
                 If reverse is true, the sorting will be done in descending order, otherwise it will be done in
                 ascending order.
 
@@ -97,7 +99,7 @@ class AlgorithmResult(object):
         Sorts the `AlgorithmResult` by its values in ascending or descending order.
 
         Arguments:
-            reverse (bool): If `true`, sorts the result in descending order; otherwise, sorts in ascending order.
+            reverse (bool): If `true`, sorts the result in descending order, otherwise, sorts in ascending order. Defaults to True.
 
         Returns:
             A sorted vector of tuples containing keys of type `H` and values of type `Y`.
@@ -120,8 +122,8 @@ class AlgorithmResult(object):
 
         Arguments:
             k (int): The number of elements to retrieve.
-            percentage (bool): If `true`, the `k` parameter is treated as a percentage of total elements.
-            reverse (bool): If `true`, retrieves the elements in descending order; otherwise, in ascending order.
+            percentage (bool): If `True`, the `k` parameter is treated as a percentage of total elements. Defaults to False.
+            reverse (bool): If `True`, retrieves the elements in descending order, otherwise, in ascending order. Defaults to True.
 
         Returns:
             An Option containing a vector of tuples with keys of type `H` and values of type `Y`.
@@ -274,7 +276,7 @@ class Edge(object):
             start (TimeInput): The start time of the window.
 
         Returns:
-             A Edge object.
+             Edge
         """
 
     def at(self, time: TimeInput):
@@ -285,7 +287,7 @@ class Edge(object):
             time (TimeInput): The time of the window.
 
         Returns:
-             A Edge object.
+             Edge
         """
 
     def before(self, end: TimeInput):
@@ -296,7 +298,7 @@ class Edge(object):
             end (TimeInput): The end time of the window.
 
         Returns:
-             A Edge object.
+             Edge
         """
 
     @property
@@ -359,7 +361,7 @@ class Edge(object):
          Gets the latest time that this Edge is valid.
 
         Returns:
-           The latest time that this Edge is valid or None if the Edge is valid for all times.
+           Optional[int]: The latest time that this Edge is valid or None if the Edge is valid for all times.
         """
 
     @property
@@ -368,7 +370,7 @@ class Edge(object):
          Gets the latest datetime that this Edge is valid
 
         Returns:
-             The latest datetime that this Edge is valid or None if the Edge is valid for all times.
+             Optional[Datetime]: The latest datetime that this Edge is valid or None if the Edge is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> Edge:
@@ -432,8 +434,16 @@ class Edge(object):
         """Explodes an edge and returns all instances it had been updated as seperate edges"""
 
     def explode_layers(self): ...
-    def has_layer(self, name):
-        """Check if Edge has the layer `"name"`"""
+    def has_layer(self, name: str):
+        """
+         Check if Edge has the layer `"name"`
+
+        Arguments:
+            name (str): the name of the layer to check
+
+        Returns:
+            bool
+        """
 
     def history(self) -> List[int]:
         """
@@ -499,7 +509,7 @@ class Edge(object):
          Create a view of the Edge including all events at the latest time.
 
         Returns:
-             A Edge object.
+             Edge
         """
 
     @property
@@ -520,10 +530,13 @@ class Edge(object):
             int: The latest time of an edge
         """
 
-    def layer(self, name) -> Edge:
+    def layer(self, name: str) -> Edge:
         """
          Return a view of Edge containing the layer `"name"`
         Errors if the layer does not exist
+
+        Arguments:
+            name (str): then name of the layer.
 
         Returns:
              Edge: The layered view
@@ -594,7 +607,7 @@ class Edge(object):
         Arguments:
             end (TimeInput): the new end time of the window
         Returns:
-             A Edge object.
+             Edge
         """
 
     def shrink_start(self, start: TimeInput):
@@ -605,7 +618,7 @@ class Edge(object):
            start (TimeInput): the new start time of the window
 
         Returns:
-             A Edge object.
+             Edge
         """
 
     def shrink_window(self, start: TimeInput, end: TimeInput):
@@ -628,7 +641,7 @@ class Edge(object):
             time (TimeInput): The time of the window.
 
         Returns:
-             A Edge object.
+             Edge
         """
 
     def snapshot_latest(self):
@@ -638,7 +651,7 @@ class Edge(object):
         This is equivalent to a no-op for `EventGraph`s and `latest()` for `PersitentGraph`s
 
         Returns:
-             A Edge object.
+             Edge
         """
 
     @property
@@ -651,7 +664,7 @@ class Edge(object):
          Gets the start time for rolling and expanding windows for this Edge
 
         Returns:
-            The earliest time that this Edge is valid or None if the Edge is valid for all times.
+            Optional[int]: The earliest time that this Edge is valid or None if the Edge is valid for all times.
         """
 
     @property
@@ -660,7 +673,7 @@ class Edge(object):
          Gets the earliest datetime that this Edge is valid
 
         Returns:
-             The earliest datetime that this Edge is valid or None if the Edge is valid for all times.
+             Optional[Datetime]: The earliest datetime that this Edge is valid or None if the Edge is valid for all times.
         """
 
     @property
@@ -693,12 +706,17 @@ class Edge(object):
             end (TimeInput | None): The end time of the window (unbounded if `None`).
 
         Returns:
-        r    A Edge object.
+        r    Edge
         """
 
     @property
     def window_size(self):
-        """Get the window size (difference between start and end) for this Edge"""
+        """
+         Get the window size (difference between start and end) for this Edge
+
+        Returns:
+            Optional[int]
+        """
 
 class Edges(object):
     """A list of edges that can be iterated over."""
@@ -723,7 +741,7 @@ class Edges(object):
             start (TimeInput): The start time of the window.
 
         Returns:
-             A Edges object.
+             Edges
         """
 
     def at(self, time: TimeInput):
@@ -734,7 +752,7 @@ class Edges(object):
             time (TimeInput): The time of the window.
 
         Returns:
-             A Edges object.
+             Edges
         """
 
     def before(self, end: TimeInput):
@@ -745,7 +763,7 @@ class Edges(object):
             end (TimeInput): The end time of the window.
 
         Returns:
-             A Edges object.
+             Edges
         """
 
     def collect(self) -> list[Edge]:
@@ -819,7 +837,7 @@ class Edges(object):
          Gets the latest time that this Edges is valid.
 
         Returns:
-           The latest time that this Edges is valid or None if the Edges is valid for all times.
+           Optional[int]: The latest time that this Edges is valid or None if the Edges is valid for all times.
         """
 
     @property
@@ -828,7 +846,7 @@ class Edges(object):
          Gets the latest datetime that this Edges is valid
 
         Returns:
-             The latest datetime that this Edges is valid or None if the Edges is valid for all times.
+             Optional[Datetime]: The latest datetime that this Edges is valid or None if the Edges is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> Edges:
@@ -892,8 +910,16 @@ class Edges(object):
         """Explodes an edge and returns all instances it had been updated as seperate edges"""
 
     def explode_layers(self): ...
-    def has_layer(self, name):
-        """Check if Edges has the layer `"name"`"""
+    def has_layer(self, name: str):
+        """
+         Check if Edges has the layer `"name"`
+
+        Arguments:
+            name (str): the name of the layer to check
+
+        Returns:
+            bool
+        """
 
     def history(self):
         """
@@ -933,7 +959,7 @@ class Edges(object):
          Create a view of the Edges including all events at the latest time.
 
         Returns:
-             A Edges object.
+             Edges
         """
 
     @property
@@ -954,10 +980,13 @@ class Edges(object):
          Latest time of the edges.
         """
 
-    def layer(self, name) -> Edges:
+    def layer(self, name: str) -> Edges:
         """
          Return a view of Edges containing the layer `"name"`
         Errors if the layer does not exist
+
+        Arguments:
+            name (str): then name of the layer.
 
         Returns:
              Edges: The layered view
@@ -1023,7 +1052,7 @@ class Edges(object):
         Arguments:
             end (TimeInput): the new end time of the window
         Returns:
-             A Edges object.
+             Edges
         """
 
     def shrink_start(self, start: TimeInput):
@@ -1034,7 +1063,7 @@ class Edges(object):
            start (TimeInput): the new start time of the window
 
         Returns:
-             A Edges object.
+             Edges
         """
 
     def shrink_window(self, start: TimeInput, end: TimeInput):
@@ -1057,7 +1086,7 @@ class Edges(object):
             time (TimeInput): The time of the window.
 
         Returns:
-             A Edges object.
+             Edges
         """
 
     def snapshot_latest(self):
@@ -1067,7 +1096,7 @@ class Edges(object):
         This is equivalent to a no-op for `EventGraph`s and `latest()` for `PersitentGraph`s
 
         Returns:
-             A Edges object.
+             Edges
         """
 
     @property
@@ -1080,7 +1109,7 @@ class Edges(object):
          Gets the start time for rolling and expanding windows for this Edges
 
         Returns:
-            The earliest time that this Edges is valid or None if the Edges is valid for all times.
+            Optional[int]: The earliest time that this Edges is valid or None if the Edges is valid for all times.
         """
 
     @property
@@ -1089,7 +1118,7 @@ class Edges(object):
          Gets the earliest datetime that this Edges is valid
 
         Returns:
-             The earliest datetime that this Edges is valid or None if the Edges is valid for all times.
+             Optional[Datetime]: The earliest datetime that this Edges is valid or None if the Edges is valid for all times.
         """
 
     @property
@@ -1147,12 +1176,17 @@ class Edges(object):
             end (TimeInput | None): The end time of the window (unbounded if `None`).
 
         Returns:
-        r    A Edges object.
+        r    Edges
         """
 
     @property
     def window_size(self):
-        """Get the window size (difference between start and end) for this Edges"""
+        """
+         Get the window size (difference between start and end) for this Edges
+
+        Returns:
+            Optional[int]
+        """
 
 class Graph(GraphView):
     """
@@ -1162,7 +1196,7 @@ class Graph(GraphView):
         num_shards (int, optional): The number of locks to use in the storage to allow for multithreaded updates.
     """
 
-    def __new__(self, num_shards: Optional[int] = None) -> Graph:
+    def __new__(cls, num_shards: Optional[int] = None) -> Graph:
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def __reduce__(self): ...
@@ -1743,7 +1777,7 @@ class GraphView(object):
             start (TimeInput): The start time of the window.
 
         Returns:
-             A GraphView object.
+             GraphView
         """
 
     def at(self, time: TimeInput):
@@ -1754,7 +1788,7 @@ class GraphView(object):
             time (TimeInput): The time of the window.
 
         Returns:
-             A GraphView object.
+             GraphView
         """
 
     def before(self, end: TimeInput):
@@ -1765,31 +1799,31 @@ class GraphView(object):
             end (TimeInput): The end time of the window.
 
         Returns:
-             A GraphView object.
+             GraphView
         """
 
-    def count_edges(self):
+    def count_edges(self) -> int:
         """
         Number of edges in the graph
 
         Returns:
-           the number of edges in the graph
+           int: the number of edges in the graph
         """
 
-    def count_nodes(self):
+    def count_nodes(self) -> int:
         """
         Number of nodes in the graph
 
         Returns:
-          the number of nodes in the graph
+          int: the number of nodes in the graph
         """
 
-    def count_temporal_edges(self):
+    def count_temporal_edges(self) -> int:
         """
         Number of edges in the graph
 
         Returns:
-           the number of temporal edges in the graph
+           int: the number of temporal edges in the graph
         """
 
     def default_layer(self) -> GraphView:
@@ -1805,7 +1839,7 @@ class GraphView(object):
         DateTime of earliest activity in the graph
 
         Returns:
-            the datetime of the earliest activity in the graph
+            Optional[Datetime]: the datetime of the earliest activity in the graph
         """
 
     @property
@@ -1814,10 +1848,10 @@ class GraphView(object):
         Timestamp of earliest activity in the graph
 
         Returns:
-            the timestamp of the earliest activity in the graph
+            Optional[int]: the timestamp of the earliest activity in the graph
         """
 
-    def edge(self, src: str or int, dst: str or int):
+    def edge(self, src: str or int, dst: str or int) -> Optional[Edge]:
         """
         Gets the edge with the specified source and destination nodes
 
@@ -1826,7 +1860,7 @@ class GraphView(object):
             dst (str or int): the destination node id
 
         Returns:
-            the edge with the specified source and destination nodes, or None if the edge does not exist
+            Optional[Edge]: the edge with the specified source and destination nodes, or None if the edge does not exist
         """
 
     @property
@@ -1835,7 +1869,7 @@ class GraphView(object):
         Gets all edges in the graph
 
         Returns:
-         the edges in the graph
+          Edges: the edges in the graph
         """
 
     @property
@@ -1844,7 +1878,7 @@ class GraphView(object):
          Gets the latest time that this GraphView is valid.
 
         Returns:
-           The latest time that this GraphView is valid or None if the GraphView is valid for all times.
+           Optional[int]: The latest time that this GraphView is valid or None if the GraphView is valid for all times.
         """
 
     @property
@@ -1853,7 +1887,7 @@ class GraphView(object):
          Gets the latest datetime that this GraphView is valid
 
         Returns:
-             The latest datetime that this GraphView is valid or None if the GraphView is valid for all times.
+             Optional[Datetime]: The latest datetime that this GraphView is valid or None if the GraphView is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> GraphView:
@@ -1880,15 +1914,15 @@ class GraphView(object):
              GraphView: The layered view
         """
 
-    def exclude_nodes(self, nodes):
+    def exclude_nodes(self, nodes: list[InputNode]) -> GraphView:
         """
         Returns a subgraph given a set of nodes that are excluded from the subgraph
 
         Arguments:
-          * `nodes`: set of nodes
+          nodes (list[InputNode]): set of nodes
 
         Returns:
-           GraphView - Returns the subgraph
+           GraphView: Returns the subgraph
         """
 
     def exclude_valid_layer(self, name: str) -> GraphView:
@@ -1960,25 +1994,25 @@ class GraphView(object):
             GraphView: The filtered view
         """
 
-    def find_edges(self, properties_dict):
+    def find_edges(self, properties_dict) -> list[Edge]:
         """
         Get the edges that match the properties name and value
         Arguments:
-            property_dict (dict): the properties name and value
+            property_dict (dict[str, Prop]): the properties name and value
         Returns:
-           the edges that match the properties name and value
+           list[Edge]: the edges that match the properties name and value
         """
 
-    def find_nodes(self, properties_dict):
+    def find_nodes(self, properties_dict) -> list[Node]:
         """
         Get the nodes that match the properties name and value
         Arguments:
-            property_dict (dict): the properties name and value
+            property_dict (dict[str, Prop]): the properties name and value
         Returns:
-           the nodes that match the properties name and value
+           list[Node]: the nodes that match the properties name and value
         """
 
-    def has_edge(self, src: str or int, dst: str or int):
+    def has_edge(self, src: str or int, dst: str or int) -> bool:
         """
         Returns true if the graph contains the specified edge
 
@@ -1987,13 +2021,21 @@ class GraphView(object):
           dst (str or int): the destination node id
 
         Returns:
-         true if the graph contains the specified edge, false otherwise
+            bool: true if the graph contains the specified edge, false otherwise
         """
 
-    def has_layer(self, name):
-        """Check if GraphView has the layer `"name"`"""
+    def has_layer(self, name: str):
+        """
+         Check if GraphView has the layer `"name"`
 
-    def has_node(self, id: str or int):
+        Arguments:
+            name (str): the name of the layer to check
+
+        Returns:
+            bool
+        """
+
+    def has_node(self, id: str or int) -> bool:
         """
         Returns true if the graph contains the specified node
 
@@ -2001,7 +2043,7 @@ class GraphView(object):
            id (str or int): the node id
 
         Returns:
-          true if the graph contains the specified node, false otherwise
+          bool: true if the graph contains the specified node, false otherwise
         """
 
     def index(self):
@@ -2019,7 +2061,7 @@ class GraphView(object):
          Create a view of the GraphView including all events at the latest time.
 
         Returns:
-             A GraphView object.
+             GraphView
         """
 
     @property
@@ -2028,7 +2070,7 @@ class GraphView(object):
         DateTime of latest activity in the graph
 
         Returns:
-            the datetime of the latest activity in the graph
+            Optional[Datetime]: the datetime of the latest activity in the graph
         """
 
     @property
@@ -2037,13 +2079,16 @@ class GraphView(object):
         Timestamp of latest activity in the graph
 
         Returns:
-            the timestamp of the latest activity in the graph
+            Optional[int]: the timestamp of the latest activity in the graph
         """
 
-    def layer(self, name) -> GraphView:
+    def layer(self, name: str) -> GraphView:
         """
          Return a view of GraphView containing the layer `"name"`
         Errors if the layer does not exist
+
+        Arguments:
+            name (str): then name of the layer.
 
         Returns:
              GraphView: The layered view
@@ -2061,15 +2106,15 @@ class GraphView(object):
              GraphView: The layered view
         """
 
-    def materialize(self):
+    def materialize(self) -> GraphView:
         """
         Returns a 'materialized' clone of the graph view - i.e. a new graph with a copy of the data seen within the view instead of just a mask over the original graph
 
         Returns:
-           GraphView - Returns a graph clone
+           GraphView: Returns a graph clone
         """
 
-    def node(self, id: str or int):
+    def node(self, id: str or int) -> Optional[Node]:
         """
         Gets the node with the specified id
 
@@ -2077,7 +2122,7 @@ class GraphView(object):
           id (str or int): the node id
 
         Returns:
-          the node with the specified id, or None if the node does not exist
+            Optional[Node]: the node with the specified id, or None if the node does not exist
         """
 
     @property
@@ -2086,7 +2131,7 @@ class GraphView(object):
         Gets the nodes in the graph
 
         Returns:
-         the nodes in the graph
+          Nodes: the nodes in the graph
         """
 
     @property
@@ -2096,7 +2141,7 @@ class GraphView(object):
 
 
         Returns:
-           HashMap<String, Prop> - Properties paired with their names
+            Properties: Properties paired with their names
         """
 
     def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
@@ -2121,7 +2166,7 @@ class GraphView(object):
         Arguments:
             end (TimeInput): the new end time of the window
         Returns:
-             A GraphView object.
+             GraphView
         """
 
     def shrink_start(self, start: TimeInput):
@@ -2132,7 +2177,7 @@ class GraphView(object):
            start (TimeInput): the new start time of the window
 
         Returns:
-             A GraphView object.
+             GraphView
         """
 
     def shrink_window(self, start: TimeInput, end: TimeInput):
@@ -2155,7 +2200,7 @@ class GraphView(object):
             time (TimeInput): The time of the window.
 
         Returns:
-             A GraphView object.
+             GraphView
         """
 
     def snapshot_latest(self):
@@ -2165,7 +2210,7 @@ class GraphView(object):
         This is equivalent to a no-op for `EventGraph`s and `latest()` for `PersitentGraph`s
 
         Returns:
-             A GraphView object.
+             GraphView
         """
 
     @property
@@ -2174,7 +2219,7 @@ class GraphView(object):
          Gets the start time for rolling and expanding windows for this GraphView
 
         Returns:
-            The earliest time that this GraphView is valid or None if the GraphView is valid for all times.
+            Optional[int]: The earliest time that this GraphView is valid or None if the GraphView is valid for all times.
         """
 
     @property
@@ -2183,29 +2228,29 @@ class GraphView(object):
          Gets the earliest datetime that this GraphView is valid
 
         Returns:
-             The earliest datetime that this GraphView is valid or None if the GraphView is valid for all times.
+             Optional[Datetime]: The earliest datetime that this GraphView is valid or None if the GraphView is valid for all times.
         """
 
-    def subgraph(self, nodes):
+    def subgraph(self, nodes: list[InputNode]) -> GraphView:
         """
         Returns a subgraph given a set of nodes
 
         Arguments:
-          * `nodes`: set of nodes
+          nodes (list[InputNode]): set of nodes
 
         Returns:
-           GraphView - Returns the subgraph
+           GraphView: Returns the subgraph
         """
 
-    def subgraph_node_types(self, node_types):
+    def subgraph_node_types(self, node_types: list[str]) -> GraphView:
         """
         Returns a subgraph filtered by node types given a set of node types
 
         Arguments:
-          * `node_types`: set of node types
+          node_types (list[str]): set of node types
 
         Returns:
-           GraphView - Returns the subgraph
+           GraphView: Returns the subgraph
         """
 
     def to_networkx(
@@ -2272,7 +2317,12 @@ class GraphView(object):
 
     @property
     def unique_layers(self):
-        """Return all the layer ids in the graph"""
+        """
+        Return all the layer ids in the graph
+
+        Returns:
+            list[str]
+        """
 
     def valid_layers(self, names: list[str]) -> GraphView:
         """
@@ -2322,12 +2372,17 @@ class GraphView(object):
             end (TimeInput | None): The end time of the window (unbounded if `None`).
 
         Returns:
-        r    A GraphView object.
+        r    GraphView
         """
 
     @property
     def window_size(self):
-        """Get the window size (difference between start and end) for this GraphView"""
+        """
+         Get the window size (difference between start and end) for this GraphView
+
+        Returns:
+            Optional[int]
+        """
 
 class MutableEdge(Edge):
     def __repr__(self):
@@ -2398,7 +2453,7 @@ class MutableNode(Node):
             properties (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
         """
 
-    def add_updates(self, t: TimeInput, properties: PropInput = None) -> Result:
+    def add_updates(self, t: TimeInput, properties: PropInput = None):
         """
         Add updates to a node in the graph at a specified time.
         This function allows for the addition of property updates to a node within the graph. The updates are time-stamped, meaning they are applied at the specified time.
@@ -2406,9 +2461,6 @@ class MutableNode(Node):
         Parameters:
             t (TimeInput): The timestamp at which the updates should be applied.
             properties (PropInput): A dictionary of properties to update. Each key is a string representing the property name, and each value is of type Prop representing the property value. If None, no properties are updated.
-
-        Returns:
-            Result: A result object indicating success or failure. On failure, it contains a GraphError.
         """
 
     def set_node_type(self, new_type: str):
@@ -2468,7 +2520,7 @@ class Node(object):
             start (TimeInput): The start time of the window.
 
         Returns:
-             A Node object.
+             Node
         """
 
     def at(self, time: TimeInput):
@@ -2479,7 +2531,7 @@ class Node(object):
             time (TimeInput): The time of the window.
 
         Returns:
-             A Node object.
+             Node
         """
 
     def before(self, end: TimeInput):
@@ -2490,7 +2542,7 @@ class Node(object):
             end (TimeInput): The end time of the window.
 
         Returns:
-             A Node object.
+             Node
         """
 
     def default_layer(self) -> Node:
@@ -2542,7 +2594,7 @@ class Node(object):
          Gets the latest time that this Node is valid.
 
         Returns:
-           The latest time that this Node is valid or None if the Node is valid for all times.
+           Optional[int]: The latest time that this Node is valid or None if the Node is valid for all times.
         """
 
     @property
@@ -2551,7 +2603,7 @@ class Node(object):
          Gets the latest datetime that this Node is valid
 
         Returns:
-             The latest datetime that this Node is valid or None if the Node is valid for all times.
+             Optional[Datetime]: The latest datetime that this Node is valid or None if the Node is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> Node:
@@ -2647,8 +2699,16 @@ class Node(object):
             Node: The filtered view
         """
 
-    def has_layer(self, name):
-        """Check if Node has the layer `"name"`"""
+    def has_layer(self, name: str):
+        """
+         Check if Node has the layer `"name"`
+
+        Arguments:
+            name (str): the name of the layer to check
+
+        Returns:
+            bool
+        """
 
     def history(self) -> List[int]:
         """
@@ -2658,12 +2718,12 @@ class Node(object):
             List[int]: A list of unix timestamps of the event history of node.
         """
 
-    def history_date_time(self) -> List[Datetime]:
+    def history_date_time(self) -> List[datetime]:
         """
         Returns the history of a node, including node additions and changes made to node.
 
         Returns:
-            List[Datetime]: A list of timestamps of the event history of node.
+            List[datetime]: A list of timestamps of the event history of node.
 
         """
 
@@ -2711,7 +2771,7 @@ class Node(object):
          Create a view of the Node including all events at the latest time.
 
         Returns:
-             A Node object.
+             Node
         """
 
     @property
@@ -2735,10 +2795,13 @@ class Node(object):
            int:  The latest time that the node exists as an integer.
         """
 
-    def layer(self, name) -> Node:
+    def layer(self, name: str) -> Node:
         """
          Return a view of Node containing the layer `"name"`
         Errors if the layer does not exist
+
+        Arguments:
+            name (str): then name of the layer.
 
         Returns:
              Node: The layered view
@@ -2838,7 +2901,7 @@ class Node(object):
         Arguments:
             end (TimeInput): the new end time of the window
         Returns:
-             A Node object.
+             Node
         """
 
     def shrink_start(self, start: TimeInput):
@@ -2849,7 +2912,7 @@ class Node(object):
            start (TimeInput): the new start time of the window
 
         Returns:
-             A Node object.
+             Node
         """
 
     def shrink_window(self, start: TimeInput, end: TimeInput):
@@ -2872,7 +2935,7 @@ class Node(object):
             time (TimeInput): The time of the window.
 
         Returns:
-             A Node object.
+             Node
         """
 
     def snapshot_latest(self):
@@ -2882,7 +2945,7 @@ class Node(object):
         This is equivalent to a no-op for `EventGraph`s and `latest()` for `PersitentGraph`s
 
         Returns:
-             A Node object.
+             Node
         """
 
     @property
@@ -2891,7 +2954,7 @@ class Node(object):
          Gets the start time for rolling and expanding windows for this Node
 
         Returns:
-            The earliest time that this Node is valid or None if the Node is valid for all times.
+            Optional[int]: The earliest time that this Node is valid or None if the Node is valid for all times.
         """
 
     @property
@@ -2900,7 +2963,7 @@ class Node(object):
          Gets the earliest datetime that this Node is valid
 
         Returns:
-             The earliest datetime that this Node is valid or None if the Node is valid for all times.
+             Optional[Datetime]: The earliest datetime that this Node is valid or None if the Node is valid for all times.
         """
 
     def valid_layers(self, names: list[str]) -> Node:
@@ -2924,12 +2987,17 @@ class Node(object):
             end (TimeInput | None): The end time of the window (unbounded if `None`).
 
         Returns:
-        r    A Node object.
+        r    Node
         """
 
     @property
     def window_size(self):
-        """Get the window size (difference between start and end) for this Node"""
+        """
+         Get the window size (difference between start and end) for this Node
+
+        Returns:
+            Optional[int]
+        """
 
 class Nodes(object):
     """A list of nodes that can be iterated over."""
@@ -2975,7 +3043,7 @@ class Nodes(object):
             start (TimeInput): The start time of the window.
 
         Returns:
-             A Nodes object.
+             Nodes
         """
 
     def at(self, time: TimeInput):
@@ -2986,7 +3054,7 @@ class Nodes(object):
             time (TimeInput): The time of the window.
 
         Returns:
-             A Nodes object.
+             Nodes
         """
 
     def before(self, end: TimeInput):
@@ -2997,7 +3065,7 @@ class Nodes(object):
             end (TimeInput): The end time of the window.
 
         Returns:
-             A Nodes object.
+             Nodes
         """
 
     def collect(self) -> list[Node]:
@@ -3052,7 +3120,7 @@ class Nodes(object):
          Gets the latest time that this Nodes is valid.
 
         Returns:
-           The latest time that this Nodes is valid or None if the Nodes is valid for all times.
+           Optional[int]: The latest time that this Nodes is valid or None if the Nodes is valid for all times.
         """
 
     @property
@@ -3061,7 +3129,7 @@ class Nodes(object):
          Gets the latest datetime that this Nodes is valid
 
         Returns:
-             The latest datetime that this Nodes is valid or None if the Nodes is valid for all times.
+             Optional[Datetime]: The latest datetime that this Nodes is valid or None if the Nodes is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> Nodes:
@@ -3157,8 +3225,16 @@ class Nodes(object):
             Nodes: The filtered view
         """
 
-    def has_layer(self, name):
-        """Check if Nodes has the layer `"name"`"""
+    def has_layer(self, name: str):
+        """
+         Check if Nodes has the layer `"name"`
+
+        Arguments:
+            name (str): the name of the layer to check
+
+        Returns:
+            bool
+        """
 
     def history(self):
         """
@@ -3215,7 +3291,7 @@ class Nodes(object):
          Create a view of the Nodes including all events at the latest time.
 
         Returns:
-             A Nodes object.
+             Nodes
         """
 
     @property
@@ -3231,10 +3307,13 @@ class Nodes(object):
     def latest_time(self):
         """Returns an iterator over the nodes latest time"""
 
-    def layer(self, name) -> Nodes:
+    def layer(self, name: str) -> Nodes:
         """
          Return a view of Nodes containing the layer `"name"`
         Errors if the layer does not exist
+
+        Arguments:
+            name (str): then name of the layer.
 
         Returns:
              Nodes: The layered view
@@ -3329,7 +3408,7 @@ class Nodes(object):
         Arguments:
             end (TimeInput): the new end time of the window
         Returns:
-             A Nodes object.
+             Nodes
         """
 
     def shrink_start(self, start: TimeInput):
@@ -3340,7 +3419,7 @@ class Nodes(object):
            start (TimeInput): the new start time of the window
 
         Returns:
-             A Nodes object.
+             Nodes
         """
 
     def shrink_window(self, start: TimeInput, end: TimeInput):
@@ -3363,7 +3442,7 @@ class Nodes(object):
             time (TimeInput): The time of the window.
 
         Returns:
-             A Nodes object.
+             Nodes
         """
 
     def snapshot_latest(self):
@@ -3373,7 +3452,7 @@ class Nodes(object):
         This is equivalent to a no-op for `EventGraph`s and `latest()` for `PersitentGraph`s
 
         Returns:
-             A Nodes object.
+             Nodes
         """
 
     @property
@@ -3382,7 +3461,7 @@ class Nodes(object):
          Gets the start time for rolling and expanding windows for this Nodes
 
         Returns:
-            The earliest time that this Nodes is valid or None if the Nodes is valid for all times.
+            Optional[int]: The earliest time that this Nodes is valid or None if the Nodes is valid for all times.
         """
 
     @property
@@ -3391,7 +3470,7 @@ class Nodes(object):
          Gets the earliest datetime that this Nodes is valid
 
         Returns:
-             The earliest datetime that this Nodes is valid or None if the Nodes is valid for all times.
+             Optional[Datetime]: The earliest datetime that this Nodes is valid or None if the Nodes is valid for all times.
         """
 
     def to_df(
@@ -3435,17 +3514,22 @@ class Nodes(object):
             end (TimeInput | None): The end time of the window (unbounded if `None`).
 
         Returns:
-        r    A Nodes object.
+        r    Nodes
         """
 
     @property
     def window_size(self):
-        """Get the window size (difference between start and end) for this Nodes"""
+        """
+         Get the window size (difference between start and end) for this Nodes
+
+        Returns:
+            Optional[int]
+        """
 
 class PersistentGraph(GraphView):
     """A temporal graph that allows edges and nodes to be deleted."""
 
-    def __new__(self) -> PersistentGraph:
+    def __new__(cls) -> PersistentGraph:
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def __reduce__(self): ...
@@ -4048,7 +4132,7 @@ class Prop(object):
     def __ne__(self, value):
         """Return self!=value."""
 
-    def __new__(self, name) -> Prop:
+    def __new__(cls, name) -> Prop:
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def any(self, values):
@@ -4142,7 +4226,7 @@ class PyGraphEncoder(object):
         """Call self as a function."""
 
     def __getstate__(self): ...
-    def __new__(self) -> PyGraphEncoder:
+    def __new__(cls) -> PyGraphEncoder:
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def __setstate__(self): ...

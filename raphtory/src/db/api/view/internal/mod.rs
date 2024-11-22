@@ -27,7 +27,7 @@ pub use core_ops::*;
 pub use edge_filter_ops::*;
 pub use filter_ops::*;
 pub use inherit::Base;
-pub use into_dynamic::IntoDynamic;
+pub use into_dynamic::{IntoDynHop, IntoDynamic};
 pub use layer_ops::{DelegateLayerOps, InheritLayerOps, InternalLayerOps};
 pub use list_ops::*;
 pub use materialize::*;
