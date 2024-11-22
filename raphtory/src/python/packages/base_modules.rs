@@ -93,6 +93,7 @@ pub fn base_algorithm_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
         in_component,
         out_components,
         out_component,
+        fast_rp,
         global_temporal_three_node_motif,
         global_temporal_three_node_motif_multi,
         local_temporal_three_node_motifs,

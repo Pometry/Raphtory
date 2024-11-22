@@ -15,6 +15,7 @@ use crate::{
         },
         components,
         dynamics::temporal::epidemics::{temporal_SEIR as temporal_SEIR_rs, Infected, SeedError},
+        embeddings::fast_rp as fast_rp_rs,
         layout::{
             cohesive_fruchterman_reingold::cohesive_fruchterman_reingold as cohesive_fruchterman_reingold_rs,
             fruchterman_reingold::fruchterman_reingold_unbounded as fruchterman_reingold_rs,
@@ -909,5 +910,37 @@ pub fn max_weight_matching(
         weight_prop,
         max_cardinality,
         verify_optimum_flag,
+    )
+}
+
+/// Computes embedding vectors for each vertex of an undirected/bidirectional graph according to the Fast RP algorithm.
+/// Original Paper: https://doi.org/10.48550/arXiv.1908.11512
+/// Arguments:
+///     g (GraphView): The graph view on which embeddings are generated.
+///     embedding_dim (int): The size (dimension) of the generated embeddings.
+///     normalization_strength (float): The extent to which high-degree vertices should be discounted (range: 1-0)
+///     iter_weights (list[float]): The scalar weights to apply to the results of each iteration
+///     seed (int, optional): The seed for initialisation of random vectors
+///     threads (int, optional): The number of threads to be used for parallel execution.
+///
+/// Returns:
+///     AlgorithmResult: Vertices mapped to their corresponding embedding vectors
+#[pyfunction]
+#[pyo3[signature = (g, embedding_dim, normalization_strength, iter_weights, seed=None, threads=None)]]
+pub fn fast_rp(
+    g: &PyGraphView,
+    embedding_dim: usize,
+    normalization_strength: f64,
+    iter_weights: Vec<f64>,
+    seed: Option<u64>,
+    threads: Option<usize>,
+) -> AlgorithmResult<DynamicGraph, Vec<f64>, Vec<f64>> {
+    fast_rp_rs(
+        &g.graph,
+        embedding_dim,
+        normalization_strength,
+        iter_weights,
+        seed,
+        threads,
     )
 }

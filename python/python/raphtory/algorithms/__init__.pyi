@@ -212,6 +212,29 @@ def directed_graph_density(g: GraphView):
         float : Directed graph density of G.
     """
 
+def fast_rp(
+    g: GraphView,
+    embedding_dim: int,
+    normalization_strength: float,
+    iter_weights: list[float],
+    seed: Optional[int] = None,
+    threads: Optional[int] = None,
+) -> AlgorithmResult:
+    """
+    Computes embedding vectors for each vertex of an undirected/bidirectional graph according to the Fast RP algorithm.
+    Original Paper: https://doi.org/10.48550/arXiv.1908.11512
+    Arguments:
+        g (GraphView): The graph view on which embeddings are generated.
+        embedding_dim (int): The size (dimension) of the generated embeddings.
+        normalization_strength (float): The extent to which high-degree vertices should be discounted (range: 1-0)
+        iter_weights (list[float]): The scalar weights to apply to the results of each iteration
+        seed (int, optional): The seed for initialisation of random vectors
+        threads (int, optional): The number of threads to be used for parallel execution.
+
+    Returns:
+        AlgorithmResult: Vertices mapped to their corresponding embedding vectors
+    """
+
 def fruchterman_reingold(
     graph: GraphView,
     iterations: int | None = 100,
