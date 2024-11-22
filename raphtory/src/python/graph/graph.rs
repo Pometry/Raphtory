@@ -177,8 +177,12 @@ impl PyGraph {
     ///    id (str|int): The id of the node.
     ///    properties (PropInput, optional): The properties of the node.
     ///    node_type (str, optional): The optional string which will be used as a node type
+    ///
     /// Returns:
-    ///   MutableNode: The added node
+    ///     MutableNode: The added node.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
     #[pyo3(signature = (timestamp, id, properties = None, node_type = None))]
     pub fn add_node(
         &self,
@@ -198,8 +202,12 @@ impl PyGraph {
     ///    id (str|int): The id of the node.
     ///    properties (PropInput, optional): The properties of the node.
     ///    node_type (str, optional): The optional string which will be used as a node type
+    ///
     /// Returns:
-    ///   MutableNode: The created node
+    ///     MutableNode: The created node.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
     #[pyo3(signature = (timestamp, id, properties = None, node_type = None))]
     pub fn create_node(
         &self,
@@ -217,6 +225,12 @@ impl PyGraph {
     /// Arguments:
     ///    timestamp (TimeInput): The timestamp of the temporal property.
     ///    properties (PropInput): The temporal properties of the graph.
+    ///
+    /// Returns:
+    ///     None: This function does not return a value, if the operation is successful.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
     pub fn add_property(
         &self,
         timestamp: PyTime,
@@ -229,6 +243,12 @@ impl PyGraph {
     ///
     /// Arguments:
     ///     properties (PropInput): The static properties of the graph.
+    ///
+    /// Returns:
+    ///     None: This function does not return a value, if the operation is successful.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
     pub fn add_constant_properties(
         &self,
         properties: HashMap<String, Prop>,
@@ -241,6 +261,11 @@ impl PyGraph {
     /// Arguments:
     ///     properties (PropInput): The static properties of the graph.
     ///
+    /// Returns:
+    ///     None: This function does not return a value, if the operation is successful.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
     pub fn update_constant_properties(
         &self,
         properties: HashMap<String, Prop>,
@@ -258,7 +283,10 @@ impl PyGraph {
     ///    layer (str, optional): The layer of the edge.
     ///
     /// Returns:
-    ///   MutableEdge: The added edge
+    ///     MutableEdge: The added edge.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
     #[pyo3(signature = (timestamp, src, dst, properties = None, layer = None))]
     pub fn add_edge(
         &self,
@@ -274,74 +302,182 @@ impl PyGraph {
 
     /// Import a single node into the graph.
     ///
-    /// This function takes a PyNode object and an optional boolean flag. If the flag is set to true,
-    /// the function will force the import of the node even if it already exists in the graph.
-    ///
     /// Arguments:
     ///     node (Node): A Node object representing the node to be imported.
-    ///     force (bool): An optional boolean flag indicating whether to force the import of the node.
+    ///     merge (bool): An optional boolean flag.
+    ///                   If merge is false, the function will return an error if the imported node already exists in the graph.
+    ///                   If merge is true, the function merges the histories of the imported node and the existing node (in the graph).
     ///
     /// Returns:
-    ///     Node: A Result object which is Ok if the node was successfully imported, and Err otherwise.
-    #[pyo3(signature = (node, force = false))]
+    ///     Node: A node object if the node was successfully imported.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
+    #[pyo3(signature = (node, merge = false))]
     pub fn import_node(
         &self,
         node: PyNode,
-        force: bool,
+        merge: bool,
     ) -> Result<NodeView<Graph, Graph>, GraphError> {
-        self.graph.import_node(&node.node, force)
+        self.graph.import_node(&node.node, merge)
+    }
+
+    /// Import a single node into the graph with new id.
+    ///
+    /// Arguments:
+    ///     node (Node): A Node object representing the node to be imported.
+    ///     new_id (str|int): The new node id.
+    ///     merge (bool): An optional boolean flag.
+    ///                   If merge is false, the function will return an error if the imported node already exists in the graph.
+    ///                   If merge is true, the function merges the histories of the imported node and the existing node (in the graph).
+    ///
+    /// Returns:
+    ///     Node: A node object if the node was successfully imported.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
+    #[pyo3(signature = (node, new_id, merge = false))]
+    pub fn import_node_as(
+        &self,
+        node: PyNode,
+        new_id: GID,
+        merge: bool,
+    ) -> Result<NodeView<Graph, Graph>, GraphError> {
+        self.graph.import_node_as(&node.node, new_id, merge)
     }
 
     /// Import multiple nodes into the graph.
     ///
-    /// This function takes a vector of PyNode objects and an optional boolean flag. If the flag is set to true,
-    /// the function will force the import of the nodes even if they already exist in the graph.
+    /// Arguments:
+    ///     nodes (List[Node]): A vector of Node objects representing the nodes to be imported.
+    ///     merge (bool): An optional boolean flag.
+    ///                   If merge is false, the function will return an error if any of the imported nodes already exists in the graph.
+    ///                   If merge is true, the function merges the histories of the imported nodes and the existing nodes (in the graph).
+    ///
+    /// Returns:
+    ///     None: This function does not return a value, if the operation is successful.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
+    #[pyo3(signature = (nodes, merge = false))]
+    pub fn import_nodes(&self, nodes: FromIterable<PyNode>, merge: bool) -> Result<(), GraphError> {
+        let node_views = nodes.iter().map(|node| &node.node);
+        self.graph.import_nodes(node_views, merge)
+    }
+
+    /// Import multiple nodes into the graph with new ids.
     ///
     /// Arguments:
+    ///     nodes (List[Node]): A vector of Node objects representing the nodes to be imported.
+    ///     new_ids (List[str|int]): A list of node IDs to use for the imported nodes.
+    ///     merge (bool): An optional boolean flag.
+    ///                   If merge is false, the function will return an error if any of the imported nodes already exists in the graph.
+    ///                   If merge is true, the function merges the histories of the imported nodes and the existing nodes (in the graph).
     ///
-    ///     nodes (List[Node]): A vector of PyNode objects representing the nodes to be imported.
-    ///     force (bool): An optional boolean flag indicating whether to force the import of the nodes.
+    /// Returns:
+    ///     None: This function does not return a value, if the operation is successful.
     ///
-    #[pyo3(signature = (nodes, force = false))]
-    pub fn import_nodes(&self, nodes: FromIterable<PyNode>, force: bool) -> Result<(), GraphError> {
+    /// Raises:
+    ///     GraphError: If the operation fails.
+    #[pyo3(signature = (nodes, new_ids, merge = false))]
+    pub fn import_nodes_as(
+        &self,
+        nodes: Vec<PyNode>,
+        new_ids: Vec<GID>,
+        merge: bool,
+    ) -> Result<(), GraphError> {
         let node_views = nodes.iter().map(|node| &node.node);
-        self.graph.import_nodes(node_views, force)
+        self.graph.import_nodes_as(node_views, new_ids, merge)
     }
 
     /// Import a single edge into the graph.
     ///
-    /// This function takes a PyEdge object and an optional boolean flag. If the flag is set to true,
-    /// the function will force the import of the edge even if it already exists in the graph.
-    ///
     /// Arguments:
-    ///
-    ///     edge (Edge): A PyEdge object representing the edge to be imported.
-    ///     force (bool): An optional boolean flag indicating whether to force the import of the edge.
+    ///     edge (Edge): A Edge object representing the edge to be imported.
+    ///     merge (bool): An optional boolean flag.
+    ///                   If merge is false, the function will return an error if the imported edge already exists in the graph.
+    ///                   If merge is true, the function merges the histories of the imported edge and the existing edge (in the graph).
     ///
     /// Returns:
-    ///     Edge: A Result object which is Ok if the edge was successfully imported, and Err otherwise.
-    #[pyo3(signature = (edge, force = false))]
+    ///     EdgeView: An EdgeView object if the edge was successfully imported.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
+    #[pyo3(signature = (edge, merge = false))]
     pub fn import_edge(
         &self,
         edge: PyEdge,
-        force: bool,
+        merge: bool,
     ) -> Result<EdgeView<Graph, Graph>, GraphError> {
-        self.graph.import_edge(&edge.edge, force)
+        self.graph.import_edge(&edge.edge, merge)
+    }
+
+    /// Import a single edge into the graph with new id.
+    ///
+    /// Arguments:
+    ///     edge (Edge): A Edge object representing the edge to be imported.
+    ///     new_id (tuple) : The ID of the new edge. It's a tuple of the source and destination node ids.
+    ///     merge (bool): An optional boolean flag.
+    ///                   If merge is false, the function will return an error if the imported edge already exists in the graph.
+    ///                   If merge is true, the function merges the histories of the imported edge and the existing edge (in the graph).
+    ///
+    /// Returns:
+    ///     EdgeView: An EdgeView object if the edge was successfully imported.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
+    #[pyo3(signature = (edge, new_id, merge = false))]
+    pub fn import_edge_as(
+        &self,
+        edge: PyEdge,
+        new_id: (GID, GID),
+        merge: bool,
+    ) -> Result<EdgeView<Graph, Graph>, GraphError> {
+        self.graph.import_edge_as(&edge.edge, new_id, merge)
     }
 
     /// Import multiple edges into the graph.
     ///
-    /// This function takes a vector of PyEdge objects and an optional boolean flag. If the flag is set to true,
-    /// the function will force the import of the edges even if they already exist in the graph.
+    /// Arguments:
+    ///     edges (List[Edge]): A list of Edge objects representing the edges to be imported.
+    ///     merge (bool): An optional boolean flag.
+    ///                   If merge is false, the function will return an error if any of the imported edges already exists in the graph.
+    ///                   If merge is true, the function merges the histories of the imported edges and the existing edges (in the graph).
+    ///
+    /// Returns:
+    ///     None: This function does not return a value, if the operation is successful.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
+    #[pyo3(signature = (edges, merge = false))]
+    pub fn import_edges(&self, edges: FromIterable<PyEdge>, merge: bool) -> Result<(), GraphError> {
+        let edge_views = edges.iter().map(|edge| &edge.edge);
+        self.graph.import_edges(edge_views, merge)
+    }
+
+    /// Import multiple edges into the graph with new ids.
     ///
     /// Arguments:
-    ///
     ///     edges (List[Edge]): A list of Edge objects representing the edges to be imported.
-    ///     force (bool): An optional boolean flag indicating whether to force the import of the edges.
-    #[pyo3(signature = (edges, force = false))]
-    pub fn import_edges(&self, edges: FromIterable<PyEdge>, force: bool) -> Result<(), GraphError> {
+    ///     new_ids (List[tuple]) - The IDs of the new edges. It's a vector of tuples of the source and destination node ids.
+    ///     merge (bool): An optional boolean flag.
+    ///                   If merge is false, the function will return an error if any of the imported edges already exists in the graph.
+    ///                   If merge is true, the function merges the histories of the imported edges and the existing edges (in the graph).
+    ///
+    /// Returns:
+    ///     None: This function does not return a value, if the operation is successful.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
+    #[pyo3(signature = (edges, new_ids, merge = false))]
+    pub fn import_edges_as(
+        &self,
+        edges: Vec<PyEdge>,
+        new_ids: Vec<(GID, GID)>,
+        merge: bool,
+    ) -> Result<(), GraphError> {
         let edge_views = edges.iter().map(|edge| &edge.edge);
-        self.graph.import_edges(edge_views, force)
+        self.graph.import_edges_as(edge_views, new_ids, merge)
     }
 
     //FIXME: This is reimplemented here to get mutable views. If we switch the underlying graph to enum dispatch, this won't be necessary!
@@ -351,7 +487,7 @@ impl PyGraph {
     ///   id (str|int): the node id
     ///
     /// Returns:
-    ///   Node: the node with the specified id, or None if the node does not exist
+    ///   Node: The node object with the specified id, or None if the node does not exist
     pub fn node(&self, id: PyNodeRef) -> Option<NodeView<Graph>> {
         self.graph.node(id)
     }
@@ -414,6 +550,12 @@ impl PyGraph {
     ///     properties (List[str]): List of node property column names. Defaults to None. (optional)
     ///     constant_properties (List[str]): List of constant node property column names. Defaults to None.  (optional)
     ///     shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
+    ///
+    /// Returns:
+    ///     None: This function does not return a value, if the operation is successful.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
     #[pyo3(
         signature = (df,time, id, node_type = None, node_type_col = None, properties = None, constant_properties = None, shared_constant_properties = None)
     )]
@@ -454,6 +596,12 @@ impl PyGraph {
     ///     properties (List[str]): List of node property column names. Defaults to None. (optional)
     ///     constant_properties (List[str]): List of constant node property column names. Defaults to None.  (optional)
     ///     shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
+    ///
+    /// Returns:
+    ///     None: This function does not return a value, if the operation is successful.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
     #[pyo3(
         signature = (parquet_path, time, id, node_type = None, node_type_col = None, properties = None, constant_properties = None, shared_constant_properties = None)
     )]
@@ -495,6 +643,12 @@ impl PyGraph {
     ///     shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
     ///     layer (str): A constant value to use as the layer for all edges (optional) Defaults to None. (cannot be used in combination with layer_col)
     ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None. (cannot be used in combination with layer)
+    ///
+    /// Returns:
+    ///     None: This function does not return a value, if the operation is successful.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
     #[pyo3(
         signature = (df, time, src, dst, properties = None, constant_properties = None, shared_constant_properties = None, layer = None, layer_col = None)
     )]
@@ -538,6 +692,12 @@ impl PyGraph {
     ///     shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
     ///     layer (str): A constant value to use as the layer for all edges (optional) Defaults to None. (cannot be used in combination with layer_col)
     ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None. (cannot be used in combination with layer)
+    ///
+    /// Returns:
+    ///     None: This function does not return a value, if the operation is successful.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
     #[pyo3(
         signature = (parquet_path, time, src, dst, properties = None, constant_properties = None, shared_constant_properties = None, layer = None, layer_col = None)
     )]
@@ -578,6 +738,12 @@ impl PyGraph {
     ///     node_type_col (str): The node type col name in dataframe (optional) Defaults to None. (cannot be used in combination with node_type)
     ///     constant_properties (List[str]): List of constant node property column names. Defaults to None. (optional)
     ///     shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
+    ///
+    /// Returns:
+    ///     None: This function does not return a value, if the operation is successful.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
     #[pyo3(signature = (df, id, node_type=None, node_type_col=None, constant_properties = None, shared_constant_properties = None))]
     fn load_node_props_from_pandas(
         &self,
@@ -609,6 +775,12 @@ impl PyGraph {
     ///     node_type_col (str): The node type col name in dataframe (optional) Defaults to None. (cannot be used in combination with node_type)
     ///     constant_properties (List[str]): List of constant node property column names. Defaults to None. (optional)
     ///     shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
+    ///
+    /// Returns:
+    ///     None: This function does not return a value, if the operation is successful.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
     #[pyo3(signature = (parquet_path, id, node_type=None,node_type_col=None, constant_properties = None, shared_constant_properties = None))]
     fn load_node_props_from_parquet(
         &self,
@@ -641,6 +813,12 @@ impl PyGraph {
     ///     shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
     ///     layer (str): The edge layer name (optional) Defaults to None.
     ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None.
+    ///
+    /// Returns:
+    ///     None: This function does not return a value, if the operation is successful.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
     #[pyo3(
         signature = (df, src, dst, constant_properties = None, shared_constant_properties = None, layer = None, layer_col = None)
     )]
@@ -677,6 +855,12 @@ impl PyGraph {
     ///     shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
     ///     layer (str): The edge layer name (optional) Defaults to None.
     ///     layer_col (str): The edge layer col name in dataframe (optional) Defaults to None.
+    ///
+    /// Returns:
+    ///     None: This function does not return a value, if the operation is successful.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
     #[pyo3(
         signature = (parquet_path, src, dst, constant_properties = None, shared_constant_properties = None, layer = None, layer_col = None)
     )]
