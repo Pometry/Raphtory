@@ -36,14 +36,12 @@ pub trait ImportOps:
 {
     /// Imports a single node into the graph.
     ///
-    /// This function takes a reference to a node and an optional boolean flag `merge`.
-    /// If `merge` is `false`, the function will return an error if the node already exists in the graph.
-    /// If `merge` is `true`, the function will overwrite the existing node in the graph.
-    ///
     /// # Arguments
     ///
     /// * `node` - A reference to the node to be imported.
-    /// * `merge` - An optional boolean flag. If `true`, the function will overwrite the existing node.
+    /// * `merge` - An optional boolean flag.
+    ///             If `merge` is `false`, the function will return an error if the imported node already exists in the graph.
+    ///             If `merge` is `true`, the function merges the histories of the imported node and the existing node (in the graph).
     ///
     /// # Returns
     ///
@@ -56,15 +54,13 @@ pub trait ImportOps:
 
     /// Imports a single node into the graph.
     ///
-    /// This function takes a reference to a node and an optional boolean flag `merge`.
-    /// If `merge` is `false`, the function will return an error if the node already exists in the graph.
-    /// If `merge` is `true`, the function will overwrite the existing node in the graph.
-    ///
     /// # Arguments
     ///
     /// * `node` - A reference to the node to be imported.
     /// * `new_id` - The new node id.
-    /// * `merge` - An optional boolean flag. If `true`, the function will overwrite the existing node.
+    /// * `merge` - An optional boolean flag.
+    ///             If `merge` is `false`, the function will return an error if the imported node already exists in the graph.
+    ///             If `merge` is `true`, the function merges the histories of the imported node and the existing node (in the graph).
     ///
     /// # Returns
     ///
@@ -83,14 +79,12 @@ pub trait ImportOps:
 
     /// Imports multiple nodes into the graph.
     ///
-    /// This function takes a vector of references to nodes and an optional boolean flag `merge`.
-    /// If `merge` is `false`, the function will return an error if any of the nodes already exist in the graph.
-    /// If `merge` is `true`, the function will overwrite the existing nodes in the graph.
-    ///
     /// # Arguments
     ///
     /// * `nodes` - A vector of references to the nodes to be imported.
-    /// * `merge` - An optional boolean flag. If `true`, the function will overwrite the existing nodes.
+    /// * `merge` - An optional boolean flag.
+    ///             If `merge` is `false`, the function will return an error if any of the imported nodes already exists in the graph.
+    ///             If `merge` is `true`, the function merges the histories of the imported nodes and the existing nodes (in the graph).
     ///
     /// # Returns
     ///
@@ -103,15 +97,13 @@ pub trait ImportOps:
 
     /// Imports multiple nodes into the graph.
     ///
-    /// This function takes a vector of references to nodes and an optional boolean flag `merge`.
-    /// If `merge` is `false`, the function will return an error if any of the nodes already exist in the graph.
-    /// If `merge` is `true`, the function will overwrite the existing nodes in the graph.
-    ///
     /// # Arguments
     ///
     /// * `nodes` - A vector of references to the nodes to be imported.
     /// * `new_ids` - A list of node IDs to use for the imported nodes.
-    /// * `merge` - An optional boolean flag. If `true`, the function will overwrite the existing nodes.
+    /// * `merge` - An optional boolean flag.
+    ///             If `merge` is `false`, the function will return an error if any of the imported nodes already exists in the graph.
+    ///             If `merge` is `true`, the function merges the histories of the imported nodes and the existing nodes (in the graph).
     ///
     /// # Returns
     ///
@@ -130,14 +122,12 @@ pub trait ImportOps:
 
     /// Imports a single edge into the graph.
     ///
-    /// This function takes a reference to an edge and an optional boolean flag `merge`.
-    /// If `merge` is `false`, the function will return an error if the edge already exists in the graph.
-    /// If `merge` is `true`, the function will overwrite the existing edge in the graph.
-    ///
     /// # Arguments
     ///
     /// * `edge` - A reference to the edge to be imported.
-    /// * `merge` - An optional boolean flag. If `true`, the function will overwrite the existing edge.
+    /// * `merge` - An optional boolean flag.
+    ///             If `merge` is `false`, the function will return an error if the imported edge already exists in the graph.
+    ///             If `merge` is `true`, the function merges the histories of the imported edge and the existing edge (in the graph).
     ///
     /// # Returns
     ///
@@ -150,15 +140,13 @@ pub trait ImportOps:
 
     /// Imports a single edge into the graph.
     ///
-    /// This function takes a reference to an edge and an optional boolean flag `merge`.
-    /// If `merge` is `false`, the function will return an error if the edge already exists in the graph.
-    /// If `merge` is `true`, the function will overwrite the existing edge in the graph.
-    ///
     /// # Arguments
     ///
     /// * `edge` - A reference to the edge to be imported.
     /// * `new_id` - The ID of the new edge. It's a tuple of the source and destination node ids.
-    /// * `merge` - An optional boolean flag. If `true`, the function will overwrite the existing edge.
+    /// * `merge` - An optional boolean flag.
+    ///             If `merge` is `false`, the function will return an error if the imported edge already exists in the graph.
+    ///             If `merge` is `true`, the function merges the histories of the imported edge and the existing edge (in the graph).
     ///
     /// # Returns
     ///
@@ -177,14 +165,12 @@ pub trait ImportOps:
 
     /// Imports multiple edges into the graph.
     ///
-    /// This function takes a vector of references to edges and an optional boolean flag `merge`.
-    /// If `merge` is `false`, the function will return an error if any of the edges already exist in the graph.
-    /// If `merge` is `true`, the function will overwrite the existing edges in the graph.
-    ///
     /// # Arguments
     ///
     /// * `edges` - A vector of references to the edges to be imported.
-    /// * `merge` - An optional boolean flag. If `true`, the function will overwrite the existing edges.
+    /// * `merge` - An optional boolean flag.
+    ///             If `merge` is `false`, the function will return an error if any of the imported edges already exists in the graph.
+    ///             If `merge` is `true`, the function merges the histories of the imported edges and the existing edges (in the graph).
     ///
     /// # Returns
     ///
@@ -197,15 +183,13 @@ pub trait ImportOps:
 
     /// Imports multiple edges into the graph.
     ///
-    /// This function takes a vector of references to edges and an optional boolean flag `merge`.
-    /// If `merge` is `false`, the function will return an error if any of the edges already exist in the graph.
-    /// If `merge` is `true`, the function will overwrite the existing edges in the graph.
-    ///
     /// # Arguments
     ///
     /// * `edges` - A vector of references to the edges to be imported.
     /// * `new_ids` - The IDs of the new edges. It's a vector of tuples of the source and destination node ids.
-    /// * `merge` - An optional boolean flag. If `true`, the function will overwrite the existing edges.
+    /// * `merge` - An optional boolean flag.
+    ///             If `merge` is `false`, the function will return an error if any of the imported edges already exists in the graph.
+    ///             If `merge` is `true`, the function merges the histories of the imported edges and the existing edges (in the graph).
     ///
     /// # Returns
     ///

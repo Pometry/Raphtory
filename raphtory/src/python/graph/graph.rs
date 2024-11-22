@@ -302,12 +302,11 @@ impl PyGraph {
 
     /// Import a single node into the graph.
     ///
-    /// This function takes a PyNode object and an optional boolean flag. If the flag is set to true,
-    /// the function will merge the import of the node even if it already exists in the graph.
-    ///
     /// Arguments:
     ///     node (Node): A Node object representing the node to be imported.
-    ///     merge (bool): An optional boolean flag indicating whether to merge the import of the node.
+    ///     merge (bool): An optional boolean flag.
+    ///                   If merge is false, the function will return an error if the imported node already exists in the graph.
+    ///                   If merge is true, the function merges the histories of the imported node and the existing node (in the graph).
     ///
     /// Returns:
     ///     Node: A node object if the node was successfully imported.
@@ -325,13 +324,12 @@ impl PyGraph {
 
     /// Import a single node into the graph with new id.
     ///
-    /// This function takes a PyNode object, a new id for the node and an optional boolean flag. If the flag is set to true,
-    /// the function will merge the import of the node even if it already exists in the graph.
-    ///
     /// Arguments:
     ///     node (Node): A Node object representing the node to be imported.
     ///     new_id (str|int): The new node id.
-    ///     merge (bool): An optional boolean flag indicating whether to merge the import of the node.
+    ///     merge (bool): An optional boolean flag.
+    ///                   If merge is false, the function will return an error if the imported node already exists in the graph.
+    ///                   If merge is true, the function merges the histories of the imported node and the existing node (in the graph).
     ///
     /// Returns:
     ///     Node: A node object if the node was successfully imported.
@@ -350,12 +348,11 @@ impl PyGraph {
 
     /// Import multiple nodes into the graph.
     ///
-    /// This function takes a vector of PyNode objects and an optional boolean flag. If the flag is set to true,
-    /// the function will merge the import of the nodes even if they already exist in the graph.
-    ///
     /// Arguments:
-    ///     nodes (List[Node]): A vector of PyNode objects representing the nodes to be imported.
-    ///     merge (bool): An optional boolean flag indicating whether to merge the import of the nodes.
+    ///     nodes (List[Node]): A vector of Node objects representing the nodes to be imported.
+    ///     merge (bool): An optional boolean flag.
+    ///                   If merge is false, the function will return an error if any of the imported nodes already exists in the graph.
+    ///                   If merge is true, the function merges the histories of the imported nodes and the existing nodes (in the graph).
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
@@ -370,13 +367,12 @@ impl PyGraph {
 
     /// Import multiple nodes into the graph with new ids.
     ///
-    /// This function takes a vector of PyNode objects, a list of new node ids and an optional boolean flag. If the flag is set to true,
-    /// the function will merge the import of the nodes even if they already exist in the graph.
-    ///
     /// Arguments:
-    ///     nodes (List[Node]): A vector of PyNode objects representing the nodes to be imported.
+    ///     nodes (List[Node]): A vector of Node objects representing the nodes to be imported.
     ///     new_ids (List[str|int]): A list of node IDs to use for the imported nodes.
-    ///     merge (bool): An optional boolean flag indicating whether to merge the import of the nodes.
+    ///     merge (bool): An optional boolean flag.
+    ///                   If merge is false, the function will return an error if any of the imported nodes already exists in the graph.
+    ///                   If merge is true, the function merges the histories of the imported nodes and the existing nodes (in the graph).
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
@@ -396,12 +392,11 @@ impl PyGraph {
 
     /// Import a single edge into the graph.
     ///
-    /// This function takes a PyEdge object and an optional boolean flag. If the flag is set to true,
-    /// the function will merge the import of the edge even if it already exists in the graph.
-    ///
     /// Arguments:
-    ///     edge (Edge): A PyEdge object representing the edge to be imported.
-    ///     merge (bool): An optional boolean flag indicating whether to merge the import of the edge.
+    ///     edge (Edge): A Edge object representing the edge to be imported.
+    ///     merge (bool): An optional boolean flag.
+    ///                   If merge is false, the function will return an error if the imported edge already exists in the graph.
+    ///                   If merge is true, the function merges the histories of the imported edge and the existing edge (in the graph).
     ///
     /// Returns:
     ///     EdgeView: An EdgeView object if the edge was successfully imported.
@@ -419,13 +414,12 @@ impl PyGraph {
 
     /// Import a single edge into the graph with new id.
     ///
-    /// This function takes a PyEdge object, a new id for the edge and an optional boolean flag. If the flag is set to true,
-    /// the function will merge the import of the edge even if it already exists in the graph.
-    ///
     /// Arguments:
-    ///     edge (Edge): A PyEdge object representing the edge to be imported.
+    ///     edge (Edge): A Edge object representing the edge to be imported.
     ///     new_id (tuple) : The ID of the new edge. It's a tuple of the source and destination node ids.
-    ///     merge (bool): An optional boolean flag indicating whether to merge the import of the edge.
+    ///     merge (bool): An optional boolean flag.
+    ///                   If merge is false, the function will return an error if the imported edge already exists in the graph.
+    ///                   If merge is true, the function merges the histories of the imported edge and the existing edge (in the graph).
     ///
     /// Returns:
     ///     EdgeView: An EdgeView object if the edge was successfully imported.
@@ -444,12 +438,11 @@ impl PyGraph {
 
     /// Import multiple edges into the graph.
     ///
-    /// This function takes a vector of PyEdge objects and an optional boolean flag. If the flag is set to true,
-    /// the function will merge the import of the edges even if they already exist in the graph.
-    ///
     /// Arguments:
     ///     edges (List[Edge]): A list of Edge objects representing the edges to be imported.
-    ///     merge (bool): An optional boolean flag indicating whether to merge the import of the edges.
+    ///     merge (bool): An optional boolean flag.
+    ///                   If merge is false, the function will return an error if any of the imported edges already exists in the graph.
+    ///                   If merge is true, the function merges the histories of the imported edges and the existing edges (in the graph).
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
@@ -464,13 +457,12 @@ impl PyGraph {
 
     /// Import multiple edges into the graph with new ids.
     ///
-    /// This function takes a vector of PyEdge objects, a list of new edge ids and an optional boolean flag. If the flag is set to true,
-    /// the function will merge the import of the edges even if they already exist in the graph.
-    ///
     /// Arguments:
     ///     edges (List[Edge]): A list of Edge objects representing the edges to be imported.
     ///     new_ids (List[tuple]) - The IDs of the new edges. It's a vector of tuples of the source and destination node ids.
-    ///     merge (bool): An optional boolean flag indicating whether to merge the import of the edges.
+    ///     merge (bool): An optional boolean flag.
+    ///                   If merge is false, the function will return an error if any of the imported edges already exists in the graph.
+    ///                   If merge is true, the function merges the histories of the imported edges and the existing edges (in the graph).
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
