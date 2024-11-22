@@ -16,7 +16,7 @@ default-members = ["raphtory", "raphtory-graphql"]
 resolver = "2"
 
 [workspace.package]
-version = "0.13.1"
+version = "0.14.0"
 documentation = "https://raphtory.readthedocs.io/en/latest/"
 repository = "https://github.com/Raphtory/raphtory/"
 license = "GPL-3.0"
