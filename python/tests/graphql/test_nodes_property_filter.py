@@ -128,7 +128,7 @@ def test_node_property_filter_equal_no_value_error(graph):
     run_graphql_error_test(query, expected_error_message, graph())
 
 
-@pytest.mark.parametrize("graph", [Graph])
+@pytest.mark.parametrize("graph", [Graph, PersistentGraph])
 def test_node_property_filter_equal_type_error(graph):
     query = """
     query {
