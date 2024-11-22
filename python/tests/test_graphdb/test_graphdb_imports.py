@@ -99,7 +99,7 @@ def test_import_node_as():
     assert y.properties.constant.get("con") is None
 
 
-def test_import_node_as_force():
+def test_import_node_as_merge():
     g = Graph()
     a = g.add_node(1, "A")
     b = g.add_node(1, "B", {"temp": True})
@@ -145,7 +145,7 @@ def test_import_nodes_as():
     assert y.properties.constant.get("con") is None
 
 
-def test_import_nodes_as_force():
+def test_import_nodes_as_merge():
     g = Graph()
     a = g.add_node(1, "A")
     b = g.add_node(1, "B", {"temp": True})
@@ -200,7 +200,7 @@ def test_import_edge_as():
     assert e.properties.get("e_temp") is None
 
 
-def test_import_edge_as_force():
+def test_import_edge_as_merge():
     g = Graph()
     a = g.add_node(1, "A")
     b = g.add_node(1, "B", {"temp": True})
@@ -258,7 +258,7 @@ def test_import_edges_as():
     assert z.history().tolist() == [1]
 
 
-def test_import_edges_as_force():
+def test_import_edges_as_merge():
     g = Graph()
     a = g.add_node(1, "A")
     b = g.add_node(1, "B", {"temp": True})

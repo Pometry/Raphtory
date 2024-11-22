@@ -36,14 +36,14 @@ pub trait ImportOps:
 {
     /// Imports a single node into the graph.
     ///
-    /// This function takes a reference to a node and an optional boolean flag `force`.
-    /// If `force` is `false`, the function will return an error if the node already exists in the graph.
-    /// If `force` is `true`, the function will overwrite the existing node in the graph.
+    /// This function takes a reference to a node and an optional boolean flag `merge`.
+    /// If `merge` is `false`, the function will return an error if the node already exists in the graph.
+    /// If `merge` is `true`, the function will overwrite the existing node in the graph.
     ///
     /// # Arguments
     ///
     /// * `node` - A reference to the node to be imported.
-    /// * `force` - An optional boolean flag. If `Some(true)`, the function will overwrite the existing node.
+    /// * `merge` - An optional boolean flag. If `true`, the function will overwrite the existing node.
     ///
     /// # Returns
     ///
@@ -51,20 +51,20 @@ pub trait ImportOps:
     fn import_node<'a, GHH: GraphViewOps<'a>, GH: GraphViewOps<'a>>(
         &self,
         node: &NodeView<GHH, GH>,
-        force: bool,
+        merge: bool,
     ) -> Result<NodeView<Self, Self>, GraphError>;
 
     /// Imports a single node into the graph.
     ///
-    /// This function takes a reference to a node and an optional boolean flag `force`.
-    /// If `force` is `false`, the function will return an error if the node already exists in the graph.
-    /// If `force` is `true`, the function will overwrite the existing node in the graph.
+    /// This function takes a reference to a node and an optional boolean flag `merge`.
+    /// If `merge` is `false`, the function will return an error if the node already exists in the graph.
+    /// If `merge` is `true`, the function will overwrite the existing node in the graph.
     ///
     /// # Arguments
     ///
     /// * `node` - A reference to the node to be imported.
     /// * `new_id` - The new node id.
-    /// * `force` - An optional boolean flag. If `Some(true)`, the function will overwrite the existing node.
+    /// * `merge` - An optional boolean flag. If `true`, the function will overwrite the existing node.
     ///
     /// # Returns
     ///
@@ -78,19 +78,19 @@ pub trait ImportOps:
         &self,
         node: &NodeView<GHH, GH>,
         new_id: V,
-        force: bool,
+        merge: bool,
     ) -> Result<NodeView<Self, Self>, GraphError>;
 
     /// Imports multiple nodes into the graph.
     ///
-    /// This function takes a vector of references to nodes and an optional boolean flag `force`.
-    /// If `force` is `false`, the function will return an error if any of the nodes already exist in the graph.
-    /// If `force` is `true`, the function will overwrite the existing nodes in the graph.
+    /// This function takes a vector of references to nodes and an optional boolean flag `merge`.
+    /// If `merge` is `false`, the function will return an error if any of the nodes already exist in the graph.
+    /// If `merge` is `true`, the function will overwrite the existing nodes in the graph.
     ///
     /// # Arguments
     ///
     /// * `nodes` - A vector of references to the nodes to be imported.
-    /// * `force` - An optional boolean flag. If `Some(true)`, the function will overwrite the existing nodes.
+    /// * `merge` - An optional boolean flag. If `true`, the function will overwrite the existing nodes.
     ///
     /// # Returns
     ///
@@ -98,20 +98,20 @@ pub trait ImportOps:
     fn import_nodes<'a, GHH: GraphViewOps<'a>, GH: GraphViewOps<'a>>(
         &self,
         nodes: impl IntoIterator<Item = impl Borrow<NodeView<GHH, GH>>>,
-        force: bool,
+        merge: bool,
     ) -> Result<(), GraphError>;
 
     /// Imports multiple nodes into the graph.
     ///
-    /// This function takes a vector of references to nodes and an optional boolean flag `force`.
-    /// If `force` is `false`, the function will return an error if any of the nodes already exist in the graph.
-    /// If `force` is `true`, the function will overwrite the existing nodes in the graph.
+    /// This function takes a vector of references to nodes and an optional boolean flag `merge`.
+    /// If `merge` is `false`, the function will return an error if any of the nodes already exist in the graph.
+    /// If `merge` is `true`, the function will overwrite the existing nodes in the graph.
     ///
     /// # Arguments
     ///
     /// * `nodes` - A vector of references to the nodes to be imported.
     /// * `new_ids` - A list of node IDs to use for the imported nodes.
-    /// * `force` - An optional boolean flag. If `Some(true)`, the function will overwrite the existing nodes.
+    /// * `merge` - An optional boolean flag. If `true`, the function will overwrite the existing nodes.
     ///
     /// # Returns
     ///
@@ -125,19 +125,19 @@ pub trait ImportOps:
         &self,
         nodes: impl IntoIterator<Item = impl Borrow<NodeView<GHH, GH>>>,
         new_ids: impl IntoIterator<Item = V>,
-        force: bool,
+        merge: bool,
     ) -> Result<(), GraphError>;
 
     /// Imports a single edge into the graph.
     ///
-    /// This function takes a reference to an edge and an optional boolean flag `force`.
-    /// If `force` is `false`, the function will return an error if the edge already exists in the graph.
-    /// If `force` is `true`, the function will overwrite the existing edge in the graph.
+    /// This function takes a reference to an edge and an optional boolean flag `merge`.
+    /// If `merge` is `false`, the function will return an error if the edge already exists in the graph.
+    /// If `merge` is `true`, the function will overwrite the existing edge in the graph.
     ///
     /// # Arguments
     ///
     /// * `edge` - A reference to the edge to be imported.
-    /// * `force` - An optional boolean flag. If `Some(true)`, the function will overwrite the existing edge.
+    /// * `merge` - An optional boolean flag. If `true`, the function will overwrite the existing edge.
     ///
     /// # Returns
     ///
@@ -145,20 +145,20 @@ pub trait ImportOps:
     fn import_edge<'a, GHH: GraphViewOps<'a>, GH: GraphViewOps<'a>>(
         &self,
         edge: &EdgeView<GHH, GH>,
-        force: bool,
+        merge: bool,
     ) -> Result<EdgeView<Self, Self>, GraphError>;
 
     /// Imports a single edge into the graph.
     ///
-    /// This function takes a reference to an edge and an optional boolean flag `force`.
-    /// If `force` is `false`, the function will return an error if the edge already exists in the graph.
-    /// If `force` is `true`, the function will overwrite the existing edge in the graph.
+    /// This function takes a reference to an edge and an optional boolean flag `merge`.
+    /// If `merge` is `false`, the function will return an error if the edge already exists in the graph.
+    /// If `merge` is `true`, the function will overwrite the existing edge in the graph.
     ///
     /// # Arguments
     ///
     /// * `edge` - A reference to the edge to be imported.
     /// * `new_id` - The ID of the new edge. It's a tuple of the source and destination node ids.
-    /// * `force` - An optional boolean flag. If `Some(true)`, the function will overwrite the existing edge.
+    /// * `merge` - An optional boolean flag. If `true`, the function will overwrite the existing edge.
     ///
     /// # Returns
     ///
@@ -172,19 +172,19 @@ pub trait ImportOps:
         &self,
         edge: &EdgeView<GHH, GH>,
         new_id: (V, V),
-        force: bool,
+        merge: bool,
     ) -> Result<EdgeView<Self, Self>, GraphError>;
 
     /// Imports multiple edges into the graph.
     ///
-    /// This function takes a vector of references to edges and an optional boolean flag `force`.
-    /// If `force` is `false`, the function will return an error if any of the edges already exist in the graph.
-    /// If `force` is `true`, the function will overwrite the existing edges in the graph.
+    /// This function takes a vector of references to edges and an optional boolean flag `merge`.
+    /// If `merge` is `false`, the function will return an error if any of the edges already exist in the graph.
+    /// If `merge` is `true`, the function will overwrite the existing edges in the graph.
     ///
     /// # Arguments
     ///
     /// * `edges` - A vector of references to the edges to be imported.
-    /// * `force` - An optional boolean flag. If `Some(true)`, the function will overwrite the existing edges.
+    /// * `merge` - An optional boolean flag. If `true`, the function will overwrite the existing edges.
     ///
     /// # Returns
     ///
@@ -192,20 +192,20 @@ pub trait ImportOps:
     fn import_edges<'a, GHH: GraphViewOps<'a>, GH: GraphViewOps<'a>>(
         &self,
         edges: impl IntoIterator<Item = impl Borrow<EdgeView<GHH, GH>>>,
-        force: bool,
+        merge: bool,
     ) -> Result<(), GraphError>;
 
     /// Imports multiple edges into the graph.
     ///
-    /// This function takes a vector of references to edges and an optional boolean flag `force`.
-    /// If `force` is `false`, the function will return an error if any of the edges already exist in the graph.
-    /// If `force` is `true`, the function will overwrite the existing edges in the graph.
+    /// This function takes a vector of references to edges and an optional boolean flag `merge`.
+    /// If `merge` is `false`, the function will return an error if any of the edges already exist in the graph.
+    /// If `merge` is `true`, the function will overwrite the existing edges in the graph.
     ///
     /// # Arguments
     ///
     /// * `edges` - A vector of references to the edges to be imported.
     /// * `new_ids` - The IDs of the new edges. It's a vector of tuples of the source and destination node ids.
-    /// * `force` - An optional boolean flag. If `Some(true)`, the function will overwrite the existing edges.
+    /// * `merge` - An optional boolean flag. If `true`, the function will overwrite the existing edges.
     ///
     /// # Returns
     ///
@@ -219,7 +219,7 @@ pub trait ImportOps:
         &self,
         edges: impl IntoIterator<Item = impl Borrow<EdgeView<GHH, GH>>>,
         new_ids: impl IntoIterator<Item = (V, V)>,
-        force: bool,
+        merge: bool,
     ) -> Result<(), GraphError>;
 }
 
@@ -234,9 +234,9 @@ impl<
     fn import_node<'a, GHH: GraphViewOps<'a>, GH: GraphViewOps<'a>>(
         &self,
         node: &NodeView<GHH, GH>,
-        force: bool,
+        merge: bool,
     ) -> Result<NodeView<G, G>, GraphError> {
-        import_node_internal(&self, node, node.id(), force)
+        import_node_internal(&self, node, node.id(), merge)
     }
 
     fn import_node_as<
@@ -248,21 +248,21 @@ impl<
         &self,
         node: &NodeView<GHH, GH>,
         new_id: V,
-        force: bool,
+        merge: bool,
     ) -> Result<NodeView<Self, Self>, GraphError> {
-        import_node_internal(&self, node, new_id, force)
+        import_node_internal(&self, node, new_id, merge)
     }
 
     fn import_nodes<'a, GHH: GraphViewOps<'a>, GH: GraphViewOps<'a>>(
         &self,
         nodes: impl IntoIterator<Item = impl Borrow<NodeView<GHH, GH>>>,
-        force: bool,
+        merge: bool,
     ) -> Result<(), GraphError> {
         let nodes: Vec<_> = nodes.into_iter().collect();
         let new_ids: Vec<GID> = nodes.iter().map(|n| n.borrow().id()).collect();
-        check_existing_nodes(self, &new_ids, force)?;
+        check_existing_nodes(self, &new_ids, merge)?;
         for node in &nodes {
-            self.import_node(node.borrow(), force)?;
+            self.import_node(node.borrow(), merge)?;
         }
         Ok(())
     }
@@ -276,12 +276,12 @@ impl<
         &self,
         nodes: impl IntoIterator<Item = impl Borrow<NodeView<GHH, GH>>>,
         new_ids: impl IntoIterator<Item = V>,
-        force: bool,
+        merge: bool,
     ) -> Result<(), GraphError> {
         let new_ids: Vec<V> = new_ids.into_iter().collect();
-        check_existing_nodes(self, &new_ids, force)?;
+        check_existing_nodes(self, &new_ids, merge)?;
         for (node, new_node_id) in nodes.into_iter().zip(new_ids.into_iter()) {
-            self.import_node_as(node.borrow(), new_node_id, force)?;
+            self.import_node_as(node.borrow(), new_node_id, merge)?;
         }
         Ok(())
     }
@@ -289,9 +289,9 @@ impl<
     fn import_edge<'a, GHH: GraphViewOps<'a>, GH: GraphViewOps<'a>>(
         &self,
         edge: &EdgeView<GHH, GH>,
-        force: bool,
+        merge: bool,
     ) -> Result<EdgeView<Self, Self>, GraphError> {
-        import_edge_internal(&self, edge, edge.src().id(), edge.dst().id(), force)
+        import_edge_internal(&self, edge, edge.src().id(), edge.dst().id(), merge)
     }
 
     fn import_edge_as<
@@ -303,21 +303,21 @@ impl<
         &self,
         edge: &EdgeView<GHH, GH>,
         new_id: (V, V),
-        force: bool,
+        merge: bool,
     ) -> Result<EdgeView<Self, Self>, GraphError> {
-        import_edge_internal(&self, edge, new_id.0, new_id.1, force)
+        import_edge_internal(&self, edge, new_id.0, new_id.1, merge)
     }
 
     fn import_edges<'a, GHH: GraphViewOps<'a>, GH: GraphViewOps<'a>>(
         &self,
         edges: impl IntoIterator<Item = impl Borrow<EdgeView<GHH, GH>>>,
-        force: bool,
+        merge: bool,
     ) -> Result<(), GraphError> {
         let edges: Vec<_> = edges.into_iter().collect();
         let new_ids: Vec<(GID, GID)> = edges.iter().map(|e| e.borrow().id()).collect();
-        check_existing_edges(self, &new_ids, force)?;
+        check_existing_edges(self, &new_ids, merge)?;
         for edge in edges {
-            self.import_edge(edge.borrow(), force)?;
+            self.import_edge(edge.borrow(), merge)?;
         }
         Ok(())
     }
@@ -331,12 +331,12 @@ impl<
         &self,
         edges: impl IntoIterator<Item = impl Borrow<EdgeView<GHH, GH>>>,
         new_ids: impl IntoIterator<Item = (V, V)>,
-        force: bool,
+        merge: bool,
     ) -> Result<(), GraphError> {
         let new_ids: Vec<(V, V)> = new_ids.into_iter().collect();
-        check_existing_edges(self, &new_ids, force)?;
+        check_existing_edges(self, &new_ids, merge)?;
         for (new_id, edge) in new_ids.into_iter().zip(edges) {
-            self.import_edge_as(edge.borrow(), new_id, force)?;
+            self.import_edge_as(edge.borrow(), new_id, merge)?;
         }
         Ok(())
     }
@@ -356,9 +356,9 @@ fn import_node_internal<
     graph: &G,
     node: &NodeView<GHH, GH>,
     id: V,
-    force: bool,
+    merge: bool,
 ) -> Result<NodeView<G, G>, GraphError> {
-    if !force {
+    if !merge {
         if let Some(existing_node) = graph.node(&id) {
             return Err(NodeExistsError(existing_node.id()));
         }
@@ -420,14 +420,14 @@ fn import_edge_internal<
     edge: &EdgeView<GHH, GH>,
     src_id: V,
     dst_id: V,
-    force: bool,
+    merge: bool,
 ) -> Result<EdgeView<G, G>, GraphError> {
     // Preserve all layers even if they are empty (except the default layer)
     for layer in edge.graph.unique_layers().skip(1) {
         graph.resolve_layer(Some(&layer))?;
     }
 
-    if !force && graph.has_edge(&src_id, &dst_id) {
+    if !merge && graph.has_edge(&src_id, &dst_id) {
         if let Some(existing_edge) = graph.edge(&src_id, &dst_id) {
             return Err(EdgeExistsError(
                 existing_edge.src().id(),
@@ -486,9 +486,9 @@ fn check_existing_nodes<
 >(
     graph: &G,
     ids: &[V],
-    force: bool,
+    merge: bool,
 ) -> Result<(), GraphError> {
-    if !force {
+    if !merge {
         let mut existing_nodes = vec![];
         for id in ids {
             if let Some(node) = graph.node(id) {
@@ -512,9 +512,9 @@ fn check_existing_edges<
 >(
     graph: &G,
     new_ids: &[(V, V)],
-    force: bool,
+    merge: bool,
 ) -> Result<(), GraphError> {
-    if !force {
+    if !merge {
         let mut existing_edges = vec![];
         for (src, dst) in new_ids {
             if let Some(existing_edge) = graph.edge(src, dst) {

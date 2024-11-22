@@ -735,7 +735,7 @@ mod db_tests {
     }
 
     #[test]
-    fn import_node_as_force() {
+    fn import_node_as_merge() {
         let g = Graph::new();
         let g_a = g.add_node(0, "A", NO_PROPS, None).unwrap();
         let g_b = g
@@ -797,7 +797,7 @@ mod db_tests {
     }
 
     #[test]
-    fn import_nodes_as_force() {
+    fn import_nodes_as_merge() {
         let g = Graph::new();
         let g_a = g.add_node(0, "A", NO_PROPS, None).unwrap();
         let g_b = g
@@ -881,7 +881,7 @@ mod db_tests {
     }
 
     #[test]
-    fn import_edge_as_force() {
+    fn import_edge_as_merge() {
         let g = Graph::new();
         let g_a = g.add_node(0, "A", NO_PROPS, None).unwrap();
         let g_b = g
@@ -978,7 +978,7 @@ mod db_tests {
     }
 
     #[test]
-    fn import_edges_as_force() {
+    fn import_edges_as_merge() {
         let g = Graph::new();
         let g_a = g.add_node(0, "A", NO_PROPS, None).unwrap();
         let g_b = g

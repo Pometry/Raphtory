@@ -303,189 +303,189 @@ impl PyGraph {
     /// Import a single node into the graph.
     ///
     /// This function takes a PyNode object and an optional boolean flag. If the flag is set to true,
-    /// the function will force the import of the node even if it already exists in the graph.
+    /// the function will merge the import of the node even if it already exists in the graph.
     ///
     /// Arguments:
     ///     node (Node): A Node object representing the node to be imported.
-    ///     force (bool): An optional boolean flag indicating whether to force the import of the node.
+    ///     merge (bool): An optional boolean flag indicating whether to merge the import of the node.
     ///
     /// Returns:
     ///     Node: A node object if the node was successfully imported.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (node, force = false))]
+    #[pyo3(signature = (node, merge = false))]
     pub fn import_node(
         &self,
         node: PyNode,
-        force: bool,
+        merge: bool,
     ) -> Result<NodeView<Graph, Graph>, GraphError> {
-        self.graph.import_node(&node.node, force)
+        self.graph.import_node(&node.node, merge)
     }
 
     /// Import a single node into the graph with new id.
     ///
     /// This function takes a PyNode object, a new id for the node and an optional boolean flag. If the flag is set to true,
-    /// the function will force the import of the node even if it already exists in the graph.
+    /// the function will merge the import of the node even if it already exists in the graph.
     ///
     /// Arguments:
     ///     node (Node): A Node object representing the node to be imported.
     ///     new_id (str|int): The new node id.
-    ///     force (bool): An optional boolean flag indicating whether to force the import of the node.
+    ///     merge (bool): An optional boolean flag indicating whether to merge the import of the node.
     ///
     /// Returns:
     ///     Node: A node object if the node was successfully imported.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (node, new_id, force = false))]
+    #[pyo3(signature = (node, new_id, merge = false))]
     pub fn import_node_as(
         &self,
         node: PyNode,
         new_id: GID,
-        force: bool,
+        merge: bool,
     ) -> Result<NodeView<Graph, Graph>, GraphError> {
-        self.graph.import_node_as(&node.node, new_id, force)
+        self.graph.import_node_as(&node.node, new_id, merge)
     }
 
     /// Import multiple nodes into the graph.
     ///
     /// This function takes a vector of PyNode objects and an optional boolean flag. If the flag is set to true,
-    /// the function will force the import of the nodes even if they already exist in the graph.
+    /// the function will merge the import of the nodes even if they already exist in the graph.
     ///
     /// Arguments:
     ///     nodes (List[Node]): A vector of PyNode objects representing the nodes to be imported.
-    ///     force (bool): An optional boolean flag indicating whether to force the import of the nodes.
+    ///     merge (bool): An optional boolean flag indicating whether to merge the import of the nodes.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (nodes, force = false))]
-    pub fn import_nodes(&self, nodes: FromIterable<PyNode>, force: bool) -> Result<(), GraphError> {
+    #[pyo3(signature = (nodes, merge = false))]
+    pub fn import_nodes(&self, nodes: FromIterable<PyNode>, merge: bool) -> Result<(), GraphError> {
         let node_views = nodes.iter().map(|node| &node.node);
-        self.graph.import_nodes(node_views, force)
+        self.graph.import_nodes(node_views, merge)
     }
 
     /// Import multiple nodes into the graph with new ids.
     ///
     /// This function takes a vector of PyNode objects, a list of new node ids and an optional boolean flag. If the flag is set to true,
-    /// the function will force the import of the nodes even if they already exist in the graph.
+    /// the function will merge the import of the nodes even if they already exist in the graph.
     ///
     /// Arguments:
     ///     nodes (List[Node]): A vector of PyNode objects representing the nodes to be imported.
     ///     new_ids (List[str|int]): A list of node IDs to use for the imported nodes.
-    ///     force (bool): An optional boolean flag indicating whether to force the import of the nodes.
+    ///     merge (bool): An optional boolean flag indicating whether to merge the import of the nodes.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (nodes, new_ids, force = false))]
+    #[pyo3(signature = (nodes, new_ids, merge = false))]
     pub fn import_nodes_as(
         &self,
         nodes: Vec<PyNode>,
         new_ids: Vec<GID>,
-        force: bool,
+        merge: bool,
     ) -> Result<(), GraphError> {
         let node_views = nodes.iter().map(|node| &node.node);
-        self.graph.import_nodes_as(node_views, new_ids, force)
+        self.graph.import_nodes_as(node_views, new_ids, merge)
     }
 
     /// Import a single edge into the graph.
     ///
     /// This function takes a PyEdge object and an optional boolean flag. If the flag is set to true,
-    /// the function will force the import of the edge even if it already exists in the graph.
+    /// the function will merge the import of the edge even if it already exists in the graph.
     ///
     /// Arguments:
     ///     edge (Edge): A PyEdge object representing the edge to be imported.
-    ///     force (bool): An optional boolean flag indicating whether to force the import of the edge.
+    ///     merge (bool): An optional boolean flag indicating whether to merge the import of the edge.
     ///
     /// Returns:
     ///     EdgeView: An EdgeView object if the edge was successfully imported.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (edge, force = false))]
+    #[pyo3(signature = (edge, merge = false))]
     pub fn import_edge(
         &self,
         edge: PyEdge,
-        force: bool,
+        merge: bool,
     ) -> Result<EdgeView<Graph, Graph>, GraphError> {
-        self.graph.import_edge(&edge.edge, force)
+        self.graph.import_edge(&edge.edge, merge)
     }
 
     /// Import a single edge into the graph with new id.
     ///
     /// This function takes a PyEdge object, a new id for the edge and an optional boolean flag. If the flag is set to true,
-    /// the function will force the import of the edge even if it already exists in the graph.
+    /// the function will merge the import of the edge even if it already exists in the graph.
     ///
     /// Arguments:
     ///     edge (Edge): A PyEdge object representing the edge to be imported.
     ///     new_id (tuple) : The ID of the new edge. It's a tuple of the source and destination node ids.
-    ///     force (bool): An optional boolean flag indicating whether to force the import of the edge.
+    ///     merge (bool): An optional boolean flag indicating whether to merge the import of the edge.
     ///
     /// Returns:
     ///     EdgeView: An EdgeView object if the edge was successfully imported.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (edge, new_id, force = false))]
+    #[pyo3(signature = (edge, new_id, merge = false))]
     pub fn import_edge_as(
         &self,
         edge: PyEdge,
         new_id: (GID, GID),
-        force: bool,
+        merge: bool,
     ) -> Result<EdgeView<Graph, Graph>, GraphError> {
-        self.graph.import_edge_as(&edge.edge, new_id, force)
+        self.graph.import_edge_as(&edge.edge, new_id, merge)
     }
 
     /// Import multiple edges into the graph.
     ///
     /// This function takes a vector of PyEdge objects and an optional boolean flag. If the flag is set to true,
-    /// the function will force the import of the edges even if they already exist in the graph.
+    /// the function will merge the import of the edges even if they already exist in the graph.
     ///
     /// Arguments:
     ///     edges (List[Edge]): A list of Edge objects representing the edges to be imported.
-    ///     force (bool): An optional boolean flag indicating whether to force the import of the edges.
+    ///     merge (bool): An optional boolean flag indicating whether to merge the import of the edges.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (edges, force = false))]
-    pub fn import_edges(&self, edges: FromIterable<PyEdge>, force: bool) -> Result<(), GraphError> {
+    #[pyo3(signature = (edges, merge = false))]
+    pub fn import_edges(&self, edges: FromIterable<PyEdge>, merge: bool) -> Result<(), GraphError> {
         let edge_views = edges.iter().map(|edge| &edge.edge);
-        self.graph.import_edges(edge_views, force)
+        self.graph.import_edges(edge_views, merge)
     }
 
     /// Import multiple edges into the graph with new ids.
     ///
     /// This function takes a vector of PyEdge objects, a list of new edge ids and an optional boolean flag. If the flag is set to true,
-    /// the function will force the import of the edges even if they already exist in the graph.
+    /// the function will merge the import of the edges even if they already exist in the graph.
     ///
     /// Arguments:
     ///     edges (List[Edge]): A list of Edge objects representing the edges to be imported.
     ///     new_ids (List[tuple]) - The IDs of the new edges. It's a vector of tuples of the source and destination node ids.
-    ///     force (bool): An optional boolean flag indicating whether to force the import of the edges.
+    ///     merge (bool): An optional boolean flag indicating whether to merge the import of the edges.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (edges, new_ids, force = false))]
+    #[pyo3(signature = (edges, new_ids, merge = false))]
     pub fn import_edges_as(
         &self,
         edges: Vec<PyEdge>,
         new_ids: Vec<(GID, GID)>,
-        force: bool,
+        merge: bool,
     ) -> Result<(), GraphError> {
         let edge_views = edges.iter().map(|edge| &edge.edge);
-        self.graph.import_edges_as(edge_views, new_ids, force)
+        self.graph.import_edges_as(edge_views, new_ids, merge)
     }
 
     //FIXME: This is reimplemented here to get mutable views. If we switch the underlying graph to enum dispatch, this won't be necessary!
