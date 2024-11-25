@@ -6,6 +6,7 @@ use crate::{
     },
     db::api::storage::graph::edges::edge_storage_ops::{EdgeStorageOps, MemEdge},
 };
+use itertools::Itertools;
 use lock_api::ArcRwLockReadGuard;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use raphtory_api::core::{entities::EID, storage::timeindex::TimeIndexEntry};
@@ -18,7 +19,6 @@ use std::{
         Arc,
     },
 };
-use itertools::Itertools;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct EdgeShard {

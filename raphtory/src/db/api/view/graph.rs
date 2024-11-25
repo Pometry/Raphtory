@@ -782,15 +782,23 @@ mod test_materialize {
     }
 
     #[test]
-    fn test_my_graph() {
+    fn test_edge_layer_properties() {
         let g = Graph::new();
-        g.add_edge(1, "A", "B", [("greeting", "howdy")], Some("layer 1")).unwrap();
-        g.add_edge(2, "A", "B", [("greeting", "ola")], Some("layer 2")).unwrap();
-        g.add_edge(2, "A", "B", [("greeting", "hello")], Some("layer 2")).unwrap();
-        g.add_edge(3, "A", "B", [("greeting", "namaste")], Some("layer 3")).unwrap();
+        g.add_edge(1, "A", "B", [("greeting", "howdy")], Some("layer 1"))
+            .unwrap();
+        g.add_edge(2, "A", "B", [("greeting", "ola")], Some("layer 2"))
+            .unwrap();
+        g.add_edge(2, "A", "B", [("greeting", "hello")], Some("layer 2"))
+            .unwrap();
+        g.add_edge(3, "A", "B", [("greeting", "namaste")], Some("layer 3"))
+            .unwrap();
 
         let edge_ab = g.edge("A", "B").unwrap();
-        let props = edge_ab.properties().iter().map(|(k, v)| (k.to_string(), v.to_string())).collect::<Vec<_>>();
+        let props = edge_ab
+            .properties()
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect::<Vec<_>>();
         assert_eq!(props, vec![("greeting".to_string(), "namaste".to_string())]);
     }
 }
