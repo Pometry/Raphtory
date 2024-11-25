@@ -34,6 +34,7 @@ pub mod bipartite;
 pub mod components;
 pub mod cores;
 pub mod dynamics;
+pub mod embeddings;
 pub mod layout;
 pub mod metrics;
 pub mod motifs;

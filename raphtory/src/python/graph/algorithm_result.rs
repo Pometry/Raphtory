@@ -312,6 +312,19 @@ py_algorithm_result_new_ord_hash_eq!(
     Vec<(i64, String)>
 );
 
+py_algorithm_result!(
+    AlgorithmResultVecF64,
+    DynamicGraph,
+    Vec<f64>,
+    Vec<OrderedFloat<f64>>
+);
+py_algorithm_result_partial_ord!(
+    AlgorithmResultVecF64,
+    DynamicGraph,
+    Vec<f64>,
+    Vec<OrderedFloat<f64>>
+);
+
 py_algorithm_result!(AlgorithmResultUsize, DynamicGraph, usize, usize);
 py_algorithm_result_new_ord_hash_eq!(AlgorithmResultUsize, DynamicGraph, usize, usize);
 
