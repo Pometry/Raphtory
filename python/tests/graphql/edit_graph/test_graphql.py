@@ -617,6 +617,46 @@ def test_create_node_using_client_with_node_type():
         assert "Node already exists" in str(excinfo.value)
 
 
+def test_edge_id():
+    g = Graph()
+    g.add_edge(1, "ben", "shivam")
+    g.add_edge(2, "oogway", "po")
+    g.add_edge(3, "po", "ben")
+
+    tmp_work_dir = tempfile.mkdtemp()
+    with GraphServer(tmp_work_dir).start(port=1737):
+        client = RaphtoryClient("http://localhost:1737")
+        client.send_graph(path="g", graph=g)
+
+        query_nodes = """{graph(path: "g") {edges {list {id}}}}"""
+        assert client.query(query_nodes) == {
+            "graph": {
+                "edges": {
+                    "list": [
+                        {
+                            "id": [
+                                "ben",
+                                "shivam"
+                            ]
+                        },
+                        {
+                            "id": [
+                                "oogway",
+                                "po"
+                            ]
+                        },
+                        {
+                            "id": [
+                                "po",
+                                "ben"
+                            ]
+                        }
+                    ]
+                }
+            }
+        }
+
+
 # def test_disk_graph_name():
 #     import pandas as pd
 #     from raphtory import DiskGraphStorage

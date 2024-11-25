@@ -138,6 +138,11 @@ impl Edge {
         self.ee.dst().into()
     }
 
+    async fn id(&self) -> Vec<String> {
+        let (src_name, dst_name) = self.ee.id();
+        vec![src_name.to_string(), dst_name.to_string()]
+    }
+
     async fn properties(&self) -> GqlProperties {
         self.ee.properties().into()
     }
