@@ -31,7 +31,7 @@ struct FastRPState {
 /// * `seed` - The seed for initialisation of random vectors
 /// * `threads` - Number of threads to use
 ///
-/// Returns:
+/// # Returns:
 ///
 /// An AlgorithmResult containing the mapping from the node to its embedding
 ///

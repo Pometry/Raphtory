@@ -1,10 +1,8 @@
 import pytest
 import pandas as pd
 import pandas.core.frame
-from numpy.ma.testutils import assert_equal
 
-import raphtory.algorithms
-from raphtory import Graph, PersistentGraph
+from raphtory import Graph
 from raphtory import algorithms
 from raphtory import graph_loader
 
