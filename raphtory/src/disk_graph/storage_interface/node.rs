@@ -144,12 +144,7 @@ impl<'a> DiskNode<'a> {
     }
 
     pub fn additions_for_layers(&self, layer_ids: LayerIds) -> NodeAdditions<'a> {
-        NodeAdditions::Col(LayerAdditions::new(
-            self.graph.layers(),
-            self.vid,
-            layer_ids,
-            None,
-        ))
+        NodeAdditions::Col(LayerAdditions::new(self.graph, self.vid, layer_ids, None))
     }
 }
 

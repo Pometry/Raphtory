@@ -35,13 +35,17 @@ mod test {
 
     use itertools::Itertools;
     use proptest::{prelude::*, sample::size_range};
+    use raphtory_api::core::{entities::VID, storage::timeindex::TimeIndexOps};
     use rayon::prelude::*;
     use tempfile::TempDir;
 
     use pometry_storage::{graph::TemporalGraph, properties::Properties};
 
     use crate::{
-        db::api::{storage::graph::storage_ops::GraphStorage, view::StaticGraphViewOps},
+        db::api::{
+            storage::graph::{nodes::node_storage_ops::NodeStorageOps, storage_ops::GraphStorage},
+            view::{internal::CoreGraphOps, StaticGraphViewOps},
+        },
         disk_graph::Time,
         prelude::*,
     };
@@ -324,6 +328,16 @@ mod test {
         assert_eq!(props.get("const_str").unwrap_str(), "test_c");
         assert_eq!(props.get("const_float").unwrap_f64(), 0.314);
 
+        let temp = disk_graph.node(0).unwrap().properties().temporal();
+        assert_eq!(
+            temp.get("test_num").unwrap().latest().unwrap(),
+            0u64.into_prop()
+        );
+        assert_eq!(
+            temp.get("test_str").unwrap().latest().unwrap(),
+            "test".into_prop()
+        );
+
         drop(disk_graph);
 
         let disk_graph = DiskGraphStorage::load_from_dir(test_dir.path())
@@ -334,6 +348,64 @@ mod test {
         assert_eq!(props.get("test_str").unwrap_str(), "test");
         assert_eq!(props.get("const_str").unwrap_str(), "test_c");
         assert_eq!(props.get("const_float").unwrap_f64(), 0.314);
+
+        let temp = disk_graph.node(0).unwrap().properties().temporal();
+        assert_eq!(
+            temp.get("test_num").unwrap().latest().unwrap(),
+            0u64.into_prop()
+        );
+        assert_eq!(
+            temp.get("test_str").unwrap().latest().unwrap(),
+            "test".into_prop()
+        );
+    }
+
+    #[test]
+    fn test_node_properties_2() {
+        let g = Graph::new();
+        g.add_edge(1, 1u64, 1u64, NO_PROPS, None).unwrap();
+        let props_t1 = [
+            ("prop 1", 1u64.into_prop()),
+            ("prop 3", "hi".into_prop()),
+            ("prop 4", true.into_prop()),
+        ];
+        let v = g.add_node(1, 1u64, props_t1, None).unwrap();
+        let props_t2 = [
+            ("prop 1", 2u64.into_prop()),
+            ("prop 2", 0.6.into_prop()),
+            ("prop 4", false.into_prop()),
+        ];
+        v.add_updates(2, props_t2).unwrap();
+        let props_t3 = [
+            ("prop 2", 0.9.into_prop()),
+            ("prop 3", "hello".into_prop()),
+            ("prop 4", true.into_prop()),
+        ];
+        v.add_updates(3, props_t3).unwrap();
+        v.add_constant_properties([("static prop", 123)]).unwrap();
+
+        let test_dir = TempDir::new().unwrap();
+        let disk_graph = DiskGraphStorage::from_graph(&g, test_dir.path())
+            .unwrap()
+            .into_graph();
+
+        let actual = disk_graph
+            .at(2)
+            .node(1u64)
+            .unwrap()
+            .properties()
+            .temporal()
+            .into_iter()
+            .map(|(key, t_view)| (key.to_string(), t_view.into_iter().collect::<Vec<_>>()))
+            .collect::<Vec<_>>();
+
+        let expected = vec![
+            ("prop 1".to_string(), vec![(2, 2u64.into_prop())]),
+            ("prop 4".to_string(), vec![(2, false.into_prop())]),
+            ("prop 2".to_string(), vec![(2, 0.6.into_prop())]),
+        ];
+
+        assert_eq!(actual, expected);
     }
 
     #[test]
