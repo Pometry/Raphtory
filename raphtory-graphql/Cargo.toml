@@ -36,7 +36,7 @@ futures-util = { workspace = true }
 jsonwebtoken = { workspace = true }
 opentelemetry = { workspace = true }
 opentelemetry_sdk = { workspace = true }
-opentelemetry-otlp =  { workspace = true }
+opentelemetry-otlp = { workspace = true }
 tracing = { workspace = true }
 tracing-opentelemetry = { workspace = true }
 tracing-subscriber = { workspace = true }
@@ -54,7 +54,7 @@ pyo3 = { workspace = true, optional = true }
 crossbeam-channel = { workspace = true }
 minijinja = { workspace = true }
 zip = { workspace = true }
-clap = { version = "4.0", features = ["derive"] }
+clap = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

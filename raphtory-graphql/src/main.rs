@@ -21,7 +21,8 @@ struct Args {
     #[arg(long, default_value = "graphs")]
     working_dir: PathBuf,
 
-    #[arg(long, default_value_t = DEFAULT_PORT)]
+    // #[arg(long, env, default_value_t = DEFAULT_PORT)]
+    #[clap(long, env = "RAPHTORY_PORT", default_value_t = DEFAULT_PORT)]
     port: u16,
 
     #[arg(long, default_value_t = DEFAULT_CAPACITY)]
