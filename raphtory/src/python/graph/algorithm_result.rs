@@ -312,11 +312,18 @@ py_algorithm_result_new_ord_hash_eq!(
     Vec<(i64, String)>
 );
 
-py_algorithm_result!(AlgorithmResultVecF64, DynamicGraph, Vec<f64>, Vec<f64>);
-// NOTE(Wyatt): This is currently just used by FastRP and it doesn't really make sense to implement max, min, median, etc. methods on the output.
-// Nonetheless, I will convert it to a Vec<OrderedFloat<f64>> at a later point. For now, it just needs the base functions.
-//py_algorithm_result_new_ord_hash_eq!(AlgorithmResultVecF64, DynamicGraph, Vec<f64>, Vec<f64>);
-py_algorithm_result_base!(AlgorithmResultVecF64, DynamicGraph, Vec<f64>, Vec<f64>);
+py_algorithm_result!(
+    AlgorithmResultVecF64,
+    DynamicGraph,
+    Vec<f64>,
+    Vec<OrderedFloat<f64>>
+);
+py_algorithm_result_partial_ord!(
+    AlgorithmResultVecF64,
+    DynamicGraph,
+    Vec<f64>,
+    Vec<OrderedFloat<f64>>
+);
 
 py_algorithm_result!(AlgorithmResultUsize, DynamicGraph, usize, usize);
 py_algorithm_result_new_ord_hash_eq!(AlgorithmResultUsize, DynamicGraph, usize, usize);

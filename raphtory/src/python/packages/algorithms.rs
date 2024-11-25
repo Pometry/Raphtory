@@ -934,7 +934,7 @@ pub fn fast_rp(
     iter_weights: Vec<f64>,
     seed: Option<u64>,
     threads: Option<usize>,
-) -> AlgorithmResult<DynamicGraph, Vec<f64>, Vec<f64>> {
+) -> AlgorithmResult<DynamicGraph, Vec<f64>, Vec<OrderedFloat<f64>>> {
     fast_rp_rs(
         &g.graph,
         embedding_dim,

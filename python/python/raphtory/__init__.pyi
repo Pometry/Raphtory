@@ -210,6 +210,7 @@ class DiskGraphStorage(object):
     def __repr__(self):
         """Return repr(self)."""
 
+    def append_node_temporal_properties(self, location, chunk_size=20000000): ...
     def graph_dir(self): ...
     @staticmethod
     def load_from_dir(graph_dir): ...
@@ -1200,12 +1201,18 @@ class Graph(GraphView):
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def __reduce__(self): ...
-    def add_constant_properties(self, properties: PropInput):
+    def add_constant_properties(self, properties: PropInput) -> None:
         """
         Adds static properties to the graph.
 
         Arguments:
             properties (PropInput): The static properties of the graph.
+
+        Returns:
+            None: This function does not return a value, if the operation is successful.
+
+        Raises:
+            GraphError: If the operation fails.
         """
 
     def add_edge(
@@ -1227,7 +1234,10 @@ class Graph(GraphView):
            layer (str, optional): The layer of the edge.
 
         Returns:
-          MutableEdge: The added edge
+            MutableEdge: The added edge.
+
+        Raises:
+            GraphError: If the operation fails.
         """
 
     def add_node(
@@ -1245,17 +1255,27 @@ class Graph(GraphView):
            id (str|int): The id of the node.
            properties (PropInput, optional): The properties of the node.
            node_type (str, optional): The optional string which will be used as a node type
+
         Returns:
-          MutableNode: The added node
+            MutableNode: The added node.
+
+        Raises:
+            GraphError: If the operation fails.
         """
 
-    def add_property(self, timestamp: TimeInput, properties: PropInput):
+    def add_property(self, timestamp: TimeInput, properties: PropInput) -> None:
         """
         Adds properties to the graph.
 
         Arguments:
            timestamp (TimeInput): The timestamp of the temporal property.
            properties (PropInput): The temporal properties of the graph.
+
+        Returns:
+            None: This function does not return a value, if the operation is successful.
+
+        Raises:
+            GraphError: If the operation fails.
         """
 
     def cache(self, path: str):
@@ -1284,8 +1304,12 @@ class Graph(GraphView):
            id (str|int): The id of the node.
            properties (PropInput, optional): The properties of the node.
            node_type (str, optional): The optional string which will be used as a node type
+
         Returns:
-          MutableNode: The created node
+            MutableNode: The created node.
+
+        Raises:
+            GraphError: If the operation fails.
         """
 
     @staticmethod
@@ -1321,62 +1345,148 @@ class Graph(GraphView):
         List[str]
         """
 
-    def import_edge(self, edge: Edge, force: bool = False) -> Edge:
+    def import_edge(self, edge: Edge, merge: bool = False):
         """
         Import a single edge into the graph.
 
-        This function takes a PyEdge object and an optional boolean flag. If the flag is set to true,
-        the function will force the import of the edge even if it already exists in the graph.
-
         Arguments:
-
-            edge (Edge): A PyEdge object representing the edge to be imported.
-            force (bool): An optional boolean flag indicating whether to force the import of the edge.
+            edge (Edge): A Edge object representing the edge to be imported.
+            merge (bool): An optional boolean flag.
+                          If merge is false, the function will return an error if the imported edge already exists in the graph.
+                          If merge is true, the function merges the histories of the imported edge and the existing edge (in the graph).
 
         Returns:
-            Edge: A Result object which is Ok if the edge was successfully imported, and Err otherwise.
+            EdgeView: An EdgeView object if the edge was successfully imported.
+
+        Raises:
+            GraphError: If the operation fails.
         """
 
-    def import_edges(self, edges: List[Edge], force: bool = False):
+    def import_edge_as(self, edge: Edge, new_id: tuple, merge: bool = False):
+        """
+        Import a single edge into the graph with new id.
+
+        Arguments:
+            edge (Edge): A Edge object representing the edge to be imported.
+            new_id (tuple) : The ID of the new edge. It's a tuple of the source and destination node ids.
+            merge (bool): An optional boolean flag.
+                          If merge is false, the function will return an error if the imported edge already exists in the graph.
+                          If merge is true, the function merges the histories of the imported edge and the existing edge (in the graph).
+
+        Returns:
+            EdgeView: An EdgeView object if the edge was successfully imported.
+
+        Raises:
+            GraphError: If the operation fails.
+        """
+
+    def import_edges(self, edges: List[Edge], merge: bool = False) -> None:
         """
         Import multiple edges into the graph.
 
-        This function takes a vector of PyEdge objects and an optional boolean flag. If the flag is set to true,
-        the function will force the import of the edges even if they already exist in the graph.
-
         Arguments:
-
             edges (List[Edge]): A list of Edge objects representing the edges to be imported.
-            force (bool): An optional boolean flag indicating whether to force the import of the edges.
+            merge (bool): An optional boolean flag.
+                          If merge is false, the function will return an error if any of the imported edges already exists in the graph.
+                          If merge is true, the function merges the histories of the imported edges and the existing edges (in the graph).
+
+        Returns:
+            None: This function does not return a value, if the operation is successful.
+
+        Raises:
+            GraphError: If the operation fails.
         """
 
-    def import_node(self, node: Node, force: bool = False) -> Node:
+    def import_edges_as(self, edges, new_ids, merge=False):
+        """
+        Import multiple edges into the graph with new ids.
+
+        Arguments:
+            edges (List[Edge]): A list of Edge objects representing the edges to be imported.
+            new_ids (List[tuple]) - The IDs of the new edges. It's a vector of tuples of the source and destination node ids.
+            merge (bool): An optional boolean flag.
+                          If merge is false, the function will return an error if any of the imported edges already exists in the graph.
+                          If merge is true, the function merges the histories of the imported edges and the existing edges (in the graph).
+
+        Returns:
+            None: This function does not return a value, if the operation is successful.
+
+        Raises:
+            GraphError: If the operation fails.
+        """
+
+    def import_node(self, node: Node, merge: bool = False) -> Node:
         """
         Import a single node into the graph.
 
-        This function takes a PyNode object and an optional boolean flag. If the flag is set to true,
-        the function will force the import of the node even if it already exists in the graph.
+        Arguments:
+            node (Node): A Node object representing the node to be imported.
+            merge (bool): An optional boolean flag.
+                          If merge is false, the function will return an error if the imported node already exists in the graph.
+                          If merge is true, the function merges the histories of the imported node and the existing node (in the graph).
+
+        Returns:
+            Node: A node object if the node was successfully imported.
+
+        Raises:
+            GraphError: If the operation fails.
+        """
+
+    def import_node_as(
+        self, node: Node, new_id: str | int, merge: bool = False
+    ) -> Node:
+        """
+        Import a single node into the graph with new id.
 
         Arguments:
             node (Node): A Node object representing the node to be imported.
-            force (bool): An optional boolean flag indicating whether to force the import of the node.
+            new_id (str|int): The new node id.
+            merge (bool): An optional boolean flag.
+                          If merge is false, the function will return an error if the imported node already exists in the graph.
+                          If merge is true, the function merges the histories of the imported node and the existing node (in the graph).
 
         Returns:
-            Node: A Result object which is Ok if the node was successfully imported, and Err otherwise.
+            Node: A node object if the node was successfully imported.
+
+        Raises:
+            GraphError: If the operation fails.
         """
 
-    def import_nodes(self, nodes: List[Node], force: bool = False):
+    def import_nodes(self, nodes: List[Node], merge: bool = False) -> None:
         """
         Import multiple nodes into the graph.
 
-        This function takes a vector of PyNode objects and an optional boolean flag. If the flag is set to true,
-        the function will force the import of the nodes even if they already exist in the graph.
+        Arguments:
+            nodes (List[Node]): A vector of Node objects representing the nodes to be imported.
+            merge (bool): An optional boolean flag.
+                          If merge is false, the function will return an error if any of the imported nodes already exists in the graph.
+                          If merge is true, the function merges the histories of the imported nodes and the existing nodes (in the graph).
+
+        Returns:
+            None: This function does not return a value, if the operation is successful.
+
+        Raises:
+            GraphError: If the operation fails.
+        """
+
+    def import_nodes_as(
+        self, nodes: List[Node], new_ids: List[str | int], merge: bool = False
+    ) -> None:
+        """
+        Import multiple nodes into the graph with new ids.
 
         Arguments:
+            nodes (List[Node]): A vector of Node objects representing the nodes to be imported.
+            new_ids (List[str|int]): A list of node IDs to use for the imported nodes.
+            merge (bool): An optional boolean flag.
+                          If merge is false, the function will return an error if any of the imported nodes already exists in the graph.
+                          If merge is true, the function merges the histories of the imported nodes and the existing nodes (in the graph).
 
-            nodes (List[Node]): A vector of PyNode objects representing the nodes to be imported.
-            force (bool): An optional boolean flag indicating whether to force the import of the nodes.
+        Returns:
+            None: This function does not return a value, if the operation is successful.
 
+        Raises:
+            GraphError: If the operation fails.
         """
 
     def largest_connected_component(self):
@@ -1415,7 +1525,7 @@ class Graph(GraphView):
         shared_constant_properties: PropInput = None,
         layer: str = None,
         layer_col: str = None,
-    ):
+    ) -> None:
         """
         Load edge properties from a Pandas DataFrame.
 
@@ -1427,6 +1537,12 @@ class Graph(GraphView):
             shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
             layer (str): The edge layer name (optional) Defaults to None.
             layer_col (str): The edge layer col name in dataframe (optional) Defaults to None.
+
+        Returns:
+            None: This function does not return a value, if the operation is successful.
+
+        Raises:
+            GraphError: If the operation fails.
         """
 
     def load_edge_props_from_parquet(
@@ -1438,7 +1554,7 @@ class Graph(GraphView):
         shared_constant_properties: PropInput = None,
         layer: str = None,
         layer_col: str = None,
-    ):
+    ) -> None:
         """
         Load edge properties from parquet file
 
@@ -1450,6 +1566,12 @@ class Graph(GraphView):
             shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
             layer (str): The edge layer name (optional) Defaults to None.
             layer_col (str): The edge layer col name in dataframe (optional) Defaults to None.
+
+        Returns:
+            None: This function does not return a value, if the operation is successful.
+
+        Raises:
+            GraphError: If the operation fails.
         """
 
     def load_edges_from_pandas(
@@ -1463,7 +1585,7 @@ class Graph(GraphView):
         shared_constant_properties: PropInput = None,
         layer: str = None,
         layer_col: str = None,
-    ):
+    ) -> None:
         """
         Load edges from a Pandas DataFrame into the graph.
 
@@ -1477,6 +1599,12 @@ class Graph(GraphView):
             shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
             layer (str): A constant value to use as the layer for all edges (optional) Defaults to None. (cannot be used in combination with layer_col)
             layer_col (str): The edge layer col name in dataframe (optional) Defaults to None. (cannot be used in combination with layer)
+
+        Returns:
+            None: This function does not return a value, if the operation is successful.
+
+        Raises:
+            GraphError: If the operation fails.
         """
 
     def load_edges_from_parquet(
@@ -1490,7 +1618,7 @@ class Graph(GraphView):
         shared_constant_properties: PropInput = None,
         layer: str = None,
         layer_col: str = None,
-    ):
+    ) -> None:
         """
         Load edges from a Parquet file into the graph.
 
@@ -1504,6 +1632,12 @@ class Graph(GraphView):
             shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
             layer (str): A constant value to use as the layer for all edges (optional) Defaults to None. (cannot be used in combination with layer_col)
             layer_col (str): The edge layer col name in dataframe (optional) Defaults to None. (cannot be used in combination with layer)
+
+        Returns:
+            None: This function does not return a value, if the operation is successful.
+
+        Raises:
+            GraphError: If the operation fails.
         """
 
     @staticmethod
@@ -1526,7 +1660,7 @@ class Graph(GraphView):
         node_type_col: str = None,
         constant_properties: List[str] = None,
         shared_constant_properties: PropInput = None,
-    ):
+    ) -> None:
         """
         Load node properties from a Pandas DataFrame.
 
@@ -1537,6 +1671,12 @@ class Graph(GraphView):
             node_type_col (str): The node type col name in dataframe (optional) Defaults to None. (cannot be used in combination with node_type)
             constant_properties (List[str]): List of constant node property column names. Defaults to None. (optional)
             shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
+
+        Returns:
+            None: This function does not return a value, if the operation is successful.
+
+        Raises:
+            GraphError: If the operation fails.
         """
 
     def load_node_props_from_parquet(
@@ -1547,7 +1687,7 @@ class Graph(GraphView):
         node_type_col: str = None,
         constant_properties: List[str] = None,
         shared_constant_properties: PropInput = None,
-    ):
+    ) -> None:
         """
         Load node properties from a parquet file.
 
@@ -1558,6 +1698,12 @@ class Graph(GraphView):
             node_type_col (str): The node type col name in dataframe (optional) Defaults to None. (cannot be used in combination with node_type)
             constant_properties (List[str]): List of constant node property column names. Defaults to None. (optional)
             shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
+
+        Returns:
+            None: This function does not return a value, if the operation is successful.
+
+        Raises:
+            GraphError: If the operation fails.
         """
 
     def load_nodes_from_pandas(
@@ -1570,7 +1716,7 @@ class Graph(GraphView):
         properties: List[str] = None,
         constant_properties: List[str] = None,
         shared_constant_properties: PropInput = None,
-    ):
+    ) -> None:
         """
         Load nodes from a Pandas DataFrame into the graph.
 
@@ -1583,6 +1729,12 @@ class Graph(GraphView):
             properties (List[str]): List of node property column names. Defaults to None. (optional)
             constant_properties (List[str]): List of constant node property column names. Defaults to None.  (optional)
             shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
+
+        Returns:
+            None: This function does not return a value, if the operation is successful.
+
+        Raises:
+            GraphError: If the operation fails.
         """
 
     def load_nodes_from_parquet(
@@ -1595,7 +1747,7 @@ class Graph(GraphView):
         properties: List[str] = None,
         constant_properties: List[str] = None,
         shared_constant_properties: PropInput = None,
-    ):
+    ) -> None:
         """
         Load nodes from a Parquet file into the graph.
 
@@ -1608,6 +1760,12 @@ class Graph(GraphView):
             properties (List[str]): List of node property column names. Defaults to None. (optional)
             constant_properties (List[str]): List of constant node property column names. Defaults to None.  (optional)
             shared_constant_properties (PropInput): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
+
+        Returns:
+            None: This function does not return a value, if the operation is successful.
+
+        Raises:
+            GraphError: If the operation fails.
         """
 
     def node(self, id: str | int) -> Node:
@@ -1618,7 +1776,7 @@ class Graph(GraphView):
           id (str|int): the node id
 
         Returns:
-          Node: the node with the specified id, or None if the node does not exist
+          Node: The node object with the specified id, or None if the node does not exist
         """
 
     def persist_as_disk_graph(self, graph_dir):
@@ -1652,13 +1810,18 @@ class Graph(GraphView):
         """
 
     def to_disk_graph(self, graph_dir): ...
-    def update_constant_properties(self, properties: PropInput):
+    def update_constant_properties(self, properties: PropInput) -> None:
         """
         Updates static properties to the graph.
 
         Arguments:
             properties (PropInput): The static properties of the graph.
 
+        Returns:
+            None: This function does not return a value, if the operation is successful.
+
+        Raises:
+            GraphError: If the operation fails.
         """
 
     def write_updates(self):
@@ -3533,7 +3696,7 @@ class PersistentGraph(GraphView):
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def __reduce__(self): ...
-    def add_constant_properties(self, properties: dict):
+    def add_constant_properties(self, properties: dict) -> None:
         """
         Adds static properties to the graph.
 
@@ -3541,7 +3704,10 @@ class PersistentGraph(GraphView):
             properties (dict): The static properties of the graph.
 
         Returns:
-           None
+            None: This function does not return a value, if the operation is successful.
+
+        Raises:
+            GraphError: If the operation fails.
         """
 
     def add_edge(
@@ -3551,7 +3717,7 @@ class PersistentGraph(GraphView):
         dst: str | int,
         properties: dict = None,
         layer: str = None,
-    ):
+    ) -> None:
         """
         Adds a new edge with the given source and destination nodes and properties to the graph.
 
@@ -3563,7 +3729,10 @@ class PersistentGraph(GraphView):
            layer (str): The layer of the edge.
 
         Returns:
-          None
+            None: This function does not return a value, if the operation is successful.
+
+        Raises:
+            GraphError: If the operation fails.
         """
 
     def add_node(
@@ -3572,7 +3741,7 @@ class PersistentGraph(GraphView):
         id: str | int,
         properties: dict = None,
         node_type: str = None,
-    ):
+    ) -> None:
         """
         Adds a new node with the given id and properties to the graph.
 
@@ -3583,10 +3752,13 @@ class PersistentGraph(GraphView):
            node_type (str) : The optional string which will be used as a node type
 
         Returns:
-          None
+            None: This function does not return a value, if the operation is successful.
+
+        Raises:
+            GraphError: If the operation fails.
         """
 
-    def add_property(self, timestamp: TimeInput, properties: dict):
+    def add_property(self, timestamp: TimeInput, properties: dict) -> None:
         """
         Adds properties to the graph.
 
@@ -3595,7 +3767,10 @@ class PersistentGraph(GraphView):
            properties (dict): The temporal properties of the graph.
 
         Returns:
-           None
+            None: This function does not return a value, if the operation is successful.
+
+        Raises:
+            GraphError: If the operation fails.
         """
 
     def cache(self, path: str):
@@ -3627,6 +3802,9 @@ class PersistentGraph(GraphView):
 
         Returns:
           MutableNode
+
+        Raises:
+            GraphError: If the operation fails.
         """
 
     def delete_edge(
@@ -3643,6 +3821,9 @@ class PersistentGraph(GraphView):
 
         Returns:
          The deleted edge
+
+        Raises:
+            GraphError: If the operation fails.
         """
 
     @staticmethod
@@ -3666,7 +3847,7 @@ class PersistentGraph(GraphView):
             dst (str | int): the destination node id
 
         Returns:
-            the edge with the specified source and destination nodes, or None if the edge does not exist
+            The edge with the specified source and destination nodes, or None if the edge does not exist
         """
 
     def event_graph(self):
@@ -3680,63 +3861,153 @@ class PersistentGraph(GraphView):
             A list of node types
         """
 
-    def import_edge(self, edge: Edge, force: bool = False) -> Edge:
+    def import_edge(self, edge: Edge, merge: bool = False) -> Edge:
         """
         Import a single edge into the graph.
 
-        This function takes a PyEdge object and an optional boolean flag. If the flag is set to true,
-        the function will force the import of the edge even if it already exists in the graph.
+        This function takes an edge object and an optional boolean flag. If the flag is set to true,
+        the function will merge the import of the edge even if it already exists in the graph.
 
         Arguments:
-
-            edge (Edge): A PyEdge object representing the edge to be imported.
-            force (bool): An optional boolean flag indicating whether to force the import of the edge.
+            edge (Edge): An edge object representing the edge to be imported.
+            merge (bool): An optional boolean flag indicating whether to merge the import of the edge. Defaults to False.
 
         Returns:
             Edge: The imported edge.
+
+        Raises:
+            GraphError: If the operation fails.
         """
 
-    def import_edges(self, edges: List[Edge], force: bool = False):
+    def import_edge_as(self, edge: Edge, new_id: tuple, merge: bool = False) -> Edge:
+        """
+        Import a single edge into the graph with new id.
+
+        This function takes a edge object, a new edge id and an optional boolean flag. If the flag is set to true,
+        the function will merge the import of the edge even if it already exists in the graph.
+
+        Arguments:
+            edge (Edge): A edge object representing the edge to be imported.
+            new_id (tuple) : The ID of the new edge. It's a tuple of the source and destination node ids.
+            merge (bool): An optional boolean flag indicating whether to merge the import of the edge. Defaults to False.
+
+        Returns:
+            Edge: The imported edge.
+
+        Raises:
+            GraphError: If the operation fails.
+        """
+
+    def import_edges(self, edges: List[Edge], merge: bool = False) -> None:
         """
         Import multiple edges into the graph.
 
-        This function takes a vector of PyEdge objects and an optional boolean flag. If the flag is set to true,
-        the function will force the import of the edges even if they already exist in the graph.
+        This function takes a vector of edge objects and an optional boolean flag. If the flag is set to true,
+        the function will merge the import of the edges even if they already exist in the graph.
 
         Arguments:
+            edges (List[Edge]): A vector of edge objects representing the edges to be imported.
+            merge (bool): An optional boolean flag indicating whether to merge the import of the edges. Defaults to False.
 
-            edges (List[Edge]): A vector of PyEdge objects representing the edges to be imported.
-            force (bool): An optional boolean flag indicating whether to force the import of the edges.
+        Returns:
+            None: This function does not return a value, if the operation is successful.
 
+        Raises:
+            GraphError: If the operation fails.
         """
 
-    def import_node(self, node: Node, force: bool = False):
+    def import_edges_as(self, edges: List[Edge], new_ids, merge: bool = False) -> None:
+        """
+        Import multiple edges into the graph with new ids.
+
+        This function takes a vector of edge objects, a list of new edge ids and an optional boolean flag. If the flag is set to true,
+        the function will merge the import of the edges even if they already exist in the graph.
+
+        Arguments:
+            edges (List[Edge]): A vector of edge objects representing the edges to be imported.
+            merge (bool): An optional boolean flag indicating whether to merge the import of the edges. Defaults to False.
+
+        Returns:
+            None: This function does not return a value, if the operation is successful.
+
+        Raises:
+            GraphError: If the operation fails.
+        """
+
+    def import_node(self, node: Node, merge: bool = False):
         """
         Import a single node into the graph.
 
-        This function takes a PyNode object and an optional boolean flag. If the flag is set to true,
-        the function will force the import of the node even if it already exists in the graph.
+        This function takes a node object and an optional boolean flag. If the flag is set to true,
+        the function will merge the import of the node even if it already exists in the graph.
 
         Arguments:
-            node (Node): A PyNode object representing the node to be imported.
-            force (bool): An optional boolean flag indicating whether to force the import of the node.
+            node (Node): A node object representing the node to be imported.
+            merge (bool): An optional boolean flag indicating whether to merge the import of the node. Defaults to False.
 
         Returns:
-            Result<NodeView<Graph, Graph>, GraphError> - A Result object which is Ok if the node was successfully imported, and Err otherwise.
+            NodeView: A nodeview object if the node was successfully imported, and an error otherwise.
+
+        Raises:
+            GraphError: If the operation fails.
         """
 
-    def import_nodes(self, nodes: List[Node], force: bool = False):
+    def import_node_as(self, node: Node, new_id: str | int, merge: bool = False):
+        """
+        Import a single node into the graph with new id.
+
+        This function takes a node object, a new node id and an optional boolean flag. If the flag is set to true,
+        the function will merge the import of the node even if it already exists in the graph.
+
+        Arguments:
+            node (Node): A node object representing the node to be imported.
+            new_id (str|int): The new node id.
+            merge (bool): An optional boolean flag indicating whether to merge the import of the node. Defaults to False.
+
+        Returns:
+            NodeView: A nodeview object if the node was successfully imported, and an error otherwise.
+
+        Raises:
+            GraphError: If the operation fails.
+        """
+
+    def import_nodes(self, nodes: List[Node], merge: bool = False) -> None:
         """
         Import multiple nodes into the graph.
 
-        This function takes a vector of PyNode objects and an optional boolean flag. If the flag is set to true,
-        the function will force the import of the nodes even if they already exist in the graph.
+        This function takes a vector of node objects and an optional boolean flag. If the flag is set to true,
+        the function will merge the import of the nodes even if they already exist in the graph.
 
         Arguments:
+            nodes (List[Node]):  A vector of node objects representing the nodes to be imported.
+            merge (bool): An optional boolean flag indicating whether to merge the import of the nodes. Defaults to False.
 
-            nodes (List[Node]):  A vector of PyNode objects representing the nodes to be imported.
-            force (bool): An optional boolean flag indicating whether to force the import of the nodes.
+        Returns:
+            None: This function does not return a value, if the operation is successful.
 
+        Raises:
+            GraphError: If the operation fails.
+        """
+
+    def import_nodes_as(
+        self, nodes: List[Node], new_ids: List[str | int], merge: bool = False
+    ) -> None:
+        """
+        Import multiple nodes into the graph with new ids.
+
+        This function takes a vector of node objects, a list of new node ids and an optional boolean flag. If the flag is set to true,
+        the function will merge the import of the nodes even if they already exist in the graph.
+
+        Arguments:
+            nodes (List[Node]):  A vector of node objects representing the nodes to be imported.
+            new_ids (List[str|int]): A list of node IDs to use for the imported nodes.
+            merge (bool): An optional boolean flag indicating whether to merge the import of the nodes. Defaults to False.
+
+        Returns:
+            None: This function does not return a value, if the operation is successful.
+
+        Raises:
+            GraphError: If the operation fails.
         """
 
     @staticmethod
@@ -3773,8 +4044,9 @@ class PersistentGraph(GraphView):
             dst (str): The column name for the destination node ids.
             layer (str): A constant value to use as the layer for all edges (optional) Defaults to None. (cannot be used in combination with layer_col)
             layer_col (str): The edge layer col name in dataframe (optional) Defaults to None. (cannot be used in combination with layer)
+
         Returns:
-            None: If the operation is successful.
+            None: This function does not return a value, if the operation is successful.
 
         Raises:
             GraphError: If the operation fails.
@@ -3799,8 +4071,9 @@ class PersistentGraph(GraphView):
             time (str): The column name for the update timestamps.
             layer (str): A constant value to use as the layer for all edges (optional) Defaults to None. (cannot be used in combination with layer_col)
             layer_col (str): The edge layer col name in dataframe (optional) Defaults to None. (cannot be used in combination with layer)
+
         Returns:
-            None: If the operation is successful.
+            None: This function does not return a value, if the operation is successful.
 
         Raises:
             GraphError: If the operation fails.
@@ -3829,7 +4102,7 @@ class PersistentGraph(GraphView):
             layer_col (str): The edge layer col name in dataframe (optional) Defaults to None.
 
         Returns:
-            None: If the operation is successful.
+            None: This function does not return a value, if the operation is successful.
 
         Raises:
             GraphError: If the operation fails.
@@ -3858,7 +4131,7 @@ class PersistentGraph(GraphView):
             layer_col (str): The edge layer col name in dataframe (optional) Defaults to None.
 
         Returns:
-            None: If the operation is successful.
+            None: This function does not return a value, if the operation is successful.
 
         Raises:
             GraphError: If the operation fails.
@@ -3889,8 +4162,9 @@ class PersistentGraph(GraphView):
             shared_constant_properties (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
             layer (str): A constant value to use as the layer for all edges (optional) Defaults to None. (cannot be used in combination with layer_col)
             layer_col (str): The edge layer col name in dataframe (optional) Defaults to None. (cannot be used in combination with layer)
+
         Returns:
-            None: If the operation is successful.
+            None: This function does not return a value, if the operation is successful.
 
         Raises:
             GraphError: If the operation fails.
@@ -3921,8 +4195,9 @@ class PersistentGraph(GraphView):
             shared_constant_properties (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
             layer (str): A constant value to use as the layer for all edges (optional) Defaults to None. (cannot be used in combination with layer_col)
             layer_col (str): The edge layer col name in dataframe (optional) Defaults to None. (cannot be used in combination with layer)
+
         Returns:
-            None: If the operation is successful.
+            None: This function does not return a value, if the operation is successful.
 
         Raises:
             GraphError: If the operation fails.
@@ -3961,7 +4236,7 @@ class PersistentGraph(GraphView):
             shared_constant_properties (dict): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
 
         Returns:
-            None: If the operation is successful.
+            None: This function does not return a value, if the operation is successful.
 
         Raises:
             GraphError: If the operation fails.
@@ -3988,7 +4263,7 @@ class PersistentGraph(GraphView):
             shared_constant_properties (dict): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
 
         Returns:
-            None: If the operation is successful.
+            None: This function does not return a value, if the operation is successful.
 
         Raises:
             GraphError: If the operation fails.
@@ -4017,8 +4292,9 @@ class PersistentGraph(GraphView):
             properties (List[str]): List of node property column names. Defaults to None. (optional)
             constant_properties (List[str]): List of constant node property column names. Defaults to None.  (optional)
             shared_constant_properties (dict): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
+
         Returns:
-            None: If the operation is successful.
+            None: This function does not return a value, if the operation is successful.
 
         Raises:
             GraphError: If the operation fails.
@@ -4047,8 +4323,9 @@ class PersistentGraph(GraphView):
             properties (List[str]): List of node property column names. Defaults to None. (optional)
             constant_properties (List[str]): List of constant node property column names. Defaults to None.  (optional)
             shared_constant_properties (dict): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
+
         Returns:
-            None: If the operation is successful.
+            None: This function does not return a value, if the operation is successful.
 
         Raises:
             GraphError: If the operation fails.
@@ -4062,7 +4339,7 @@ class PersistentGraph(GraphView):
           id (str | int): the node id
 
         Returns:
-          the node with the specified id, or None if the node does not exist
+          The node with the specified id, or None if the node does not exist
         """
 
     def persistent_graph(self): ...
@@ -4090,7 +4367,7 @@ class PersistentGraph(GraphView):
           bytes
         """
 
-    def update_constant_properties(self, properties: dict):
+    def update_constant_properties(self, properties: dict) -> None:
         """
         Updates static properties to the graph.
 
@@ -4098,7 +4375,10 @@ class PersistentGraph(GraphView):
             properties (dict): The static properties of the graph.
 
         Returns:
-           None
+            None: This function does not return a value, if the operation is successful.
+
+        Raises:
+            GraphError: If the operation fails.
         """
 
     def write_updates(self):

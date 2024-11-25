@@ -11,6 +11,7 @@ use crate::{
         },
     },
 };
+use ordered_float::OrderedFloat;
 use rand::prelude::*;
 use rayon::prelude::*;
 use std::sync::Arc;
@@ -42,7 +43,7 @@ pub fn fast_rp<G>(
     iter_weights: Vec<f64>,
     seed: Option<u64>,
     threads: Option<usize>,
-) -> AlgorithmResult<G, Vec<f64>, Vec<f64>>
+) -> AlgorithmResult<G, Vec<f64>, Vec<OrderedFloat<f64>>>
 where
     G: StaticGraphViewOps,
 {
