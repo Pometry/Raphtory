@@ -2,13 +2,15 @@ use crate::{
     core::entities::{LayerIds, VID},
     db::api::{
         properties::internal::InheritPropertiesOps,
+        state::Index,
         storage::graph::{
             edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
             nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
         },
         view::internal::{
-            Base, EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps, InheritListOps,
-            InheritMaterialize, InheritTimeSemantics, NodeFilterOps, Static,
+            Base, EdgeFilterOps, EdgeList, Immutable, InheritCoreOps, InheritLayerOps,
+            InheritListOps, InheritMaterialize, InheritTimeSemantics, ListOps, NodeFilterOps,
+            NodeList, Static,
         },
     },
     prelude::GraphViewOps,
@@ -22,7 +24,7 @@ use std::{
 #[derive(Clone)]
 pub struct NodeSubgraph<G> {
     pub(crate) graph: G,
-    pub(crate) nodes: Arc<FxHashSet<VID>>,
+    pub(crate) nodes: Index<VID>,
 }
 
 impl<G> Static for NodeSubgraph<G> {}
@@ -53,14 +55,18 @@ impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for NodeSubgraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for NodeSubgraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> NodeSubgraph<G> {
-    pub fn new(graph: G, nodes: FxHashSet<VID>) -> Self {
-        let nodes = Arc::new(nodes);
+    pub fn new(graph: G, nodes: impl IntoIterator<Item = VID>) -> Self {
+        let mut nodes: Vec<_> = if graph.nodes_filtered() {
+            nodes.into_iter().filter(|n| graph.has_node(*n)).collect()
+        } else {
+            nodes.into_iter().collect()
+        };
+        nodes.sort();
+        let nodes = nodes.into();
         Self { graph, nodes }
     }
 }
 
-// FIXME: this should use the list version ideally
-impl<'graph, G: GraphViewOps<'graph>> InheritListOps for NodeSubgraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for NodeSubgraph<G> {
     #[inline]
     fn edges_filtered(&self) -> bool {
@@ -91,12 +97,24 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for NodeSubgraph<G> {
     }
     // FIXME: should use list version and make this true
     fn node_list_trusted(&self) -> bool {
-        false
+        true
     }
 
     #[inline]
     fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
         self.graph.filter_node(node, layer_ids) && self.nodes.contains(&node.vid())
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>> ListOps for NodeSubgraph<G> {
+    fn node_list(&self) -> NodeList {
+        NodeList::List {
+            nodes: self.nodes.clone(),
+        }
+    }
+
+    fn edge_list(&self) -> EdgeList {
+        self.graph.edge_list()
     }
 }
 

@@ -369,8 +369,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
             .nodes()
             .into_iter()
             .filter(|node| !nodes_to_exclude.contains(&node.node))
-            .map(|node| node.node)
-            .collect();
+            .map(|node| node.node);
 
         NodeSubgraph::new(self.clone(), nodes_to_include)
     }

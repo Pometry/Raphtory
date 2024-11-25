@@ -8,7 +8,12 @@ use crate::{
 };
 use rayon::{iter::Either, prelude::*};
 use std::{
-    borrow::Borrow, collections::HashMap, fmt::Debug, hash::Hash, marker::PhantomData, sync::Arc,
+    borrow::Borrow,
+    collections::{HashMap, HashSet},
+    fmt::Debug,
+    hash::Hash,
+    marker::PhantomData,
+    sync::Arc,
 };
 
 #[derive(Clone, Debug)]
