@@ -7,12 +7,14 @@ use crate::{
             nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
         },
         view::internal::{
-            Base, EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps, InheritListOps,
-            InheritMaterialize, InheritTimeSemantics, NodeFilterOps, Static,
+            Base, CoreGraphOps, EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps,
+            InheritListOps, InheritMaterialize, InheritTimeSemantics, InternalLayerOps,
+            NodeFilterOps, Static,
         },
     },
     prelude::{GraphViewOps, LayerOps},
 };
+use rayon::prelude::*;
 use roaring::RoaringTreemap;
 use std::{
     fmt::{Debug, Formatter},
@@ -57,12 +59,28 @@ impl<'graph, G: GraphViewOps<'graph>> MaskedGraph<G> {
         for l_name in graph.unique_layers() {
             let l_id = graph.get_layer_id(&l_name).unwrap();
             let layer_g = graph.layers(l_name).unwrap();
-            let nodes = layer_g.nodes();
-            let edges = layer_g.edges();
 
-            let nodes: RoaringTreemap = nodes.into_iter().map(|id| id.node.as_u64()).collect();
-            let edges: RoaringTreemap =
-                edges.into_iter().map(|id| id.edge.pid().as_u64()).collect();
+            let nodes = layer_g
+                .nodes()
+                .par_iter()
+                .map(|node| node.node.as_u64())
+                .collect::<Vec<_>>();
+
+            let nodes: RoaringTreemap = nodes.into_iter().collect();
+
+            let edges = layer_g.core_edges();
+
+            let edges = edges
+                .as_ref()
+                .par_iter(&LayerIds::All)
+                .filter(|edge| {
+                    graph.filter_edge(edge.as_ref(), layer_g.layer_ids())
+                        && nodes.contains(edge.src().as_u64())
+                        && nodes.contains(edge.dst().as_u64())
+                })
+                .map(|edge| edge.eid().as_u64())
+                .collect::<Vec<_>>();
+            let edges: RoaringTreemap = edges.into_iter().collect();
 
             if layered_masks.len() < l_id + 1 {
                 layered_masks.resize(l_id + 1, (RoaringTreemap::new(), RoaringTreemap::new()));
