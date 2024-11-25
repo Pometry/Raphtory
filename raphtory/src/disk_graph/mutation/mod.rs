@@ -181,7 +181,7 @@ impl Disk {
             Disk::PreMerge { frozen, disk } => disk
                 .as_ref()
                 .and_then(|disk| disk.node_gid(vid).map(|g| g.into()))
-                .or_else(|| Some(frozen.node_id(vid))),
+                .or_else(|| frozen.node_id(vid)),
             Disk::PostMerge { disk } => disk.node_gid(vid).map(|g| g.into()),
         }
     }
