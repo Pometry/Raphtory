@@ -268,7 +268,7 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
             LayerIds::All => self
                 .graph
                 .find_edge(self.vid, dst)
-                .map(|e| EdgeRef::new_outgoing(e.eid(), self.vid, dst)),
+                .map(|e| EdgeRef::new_outgoing(e.pid(), self.vid, dst)),
             LayerIds::One(id) => {
                 let eid = self.graph.layers()[*id]
                     .nodes_storage()

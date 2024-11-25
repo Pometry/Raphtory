@@ -35,17 +35,13 @@ mod test {
 
     use itertools::Itertools;
     use proptest::{prelude::*, sample::size_range};
-    use raphtory_api::core::{entities::VID, storage::timeindex::TimeIndexOps};
     use rayon::prelude::*;
     use tempfile::TempDir;
 
     use pometry_storage::{graph::TemporalGraph, properties::Properties};
 
     use crate::{
-        db::api::{
-            storage::graph::{nodes::node_storage_ops::NodeStorageOps, storage_ops::GraphStorage},
-            view::{internal::CoreGraphOps, StaticGraphViewOps},
-        },
+        db::api::{storage::graph::storage_ops::GraphStorage, view::StaticGraphViewOps},
         disk_graph::Time,
         prelude::*,
     };

@@ -18,6 +18,7 @@ use crate::{
             nodes::Nodes,
             views::{
                 layer_graph::LayeredGraph,
+                masked_graph::MaskedGraph,
                 node_subgraph::NodeSubgraph,
                 node_type_filtered_subgraph::TypeFilteredSubgraph,
                 property_filter::{
@@ -101,6 +102,12 @@ impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for LayeredGraph<G> {
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for NodeSubgraph<G> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        PyGraphView::from(self).into_py(py)
+    }
+}
+
+impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for MaskedGraph<G> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyGraphView::from(self).into_py(py)
     }
@@ -347,6 +354,16 @@ impl PyGraphView {
     ///    GraphView: Returns the subgraph
     fn subgraph(&self, nodes: Vec<PyNodeRef>) -> NodeSubgraph<DynamicGraph> {
         self.graph.subgraph(nodes)
+    }
+
+    /// Applies the filters to the graph and retains the node ids and the edge ids
+    /// in the graph that satisfy the filters
+    /// creates bitsets per layer for nodes and edges
+    ///
+    /// Returns:
+    ///   MaskedGraph: Returns the masked graph
+    fn masked_graph(&self) -> MaskedGraph<DynamicGraph> {
+        self.graph.masked()
     }
 
     /// Returns a subgraph filtered by node types given a set of node types
