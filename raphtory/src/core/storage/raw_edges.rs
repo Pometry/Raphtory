@@ -18,6 +18,7 @@ use std::{
         Arc,
     },
 };
+use itertools::Itertools;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct EdgeShard {
@@ -292,7 +293,9 @@ impl<'a> EdgeRGuard<'a> {
             Box::new(
                 self.guard
                     .props_iter(self.offset)
-                    .flat_map(|(_, layer)| layer.temporal_prop_ids()),
+                    .map(|(_, layer)| layer.temporal_prop_ids())
+                    .kmerge()
+                    .dedup(),
             )
         }
     }
