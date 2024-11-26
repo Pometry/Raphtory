@@ -171,6 +171,7 @@ mod masked_graph_tests {
         prelude::*, test_storage,
     };
     use itertools::Itertools;
+    use proptest::{prelude::*, sample::Index};
 
     #[test]
     fn test_materialize_no_edges() {
@@ -225,5 +226,44 @@ mod masked_graph_tests {
             let tg = triangle_count(&window, None);
             assert_eq!(ts, tg)
         });
+    }
+
+    #[test]
+    fn masked_always_equals() {
+        fn check(edge_list: &[(u8, u8, i16, u8)]) {
+            let graph = Graph::new();
+            for (src, dst, ts, layer) in edge_list {
+                graph
+                    .add_edge(
+                        *ts as i64,
+                        *src as u64,
+                        *dst as u64,
+                        NO_PROPS,
+                        Some(&layer.to_string()),
+                    )
+                    .unwrap();
+            }
+
+            test_storage!(&graph, |graph| {
+                let layers = graph
+                    .unique_layers()
+                    .take(graph.unique_layers().count() / 2)
+                    .collect_vec();
+
+                let earliest = graph.earliest_time().unwrap();
+                let latest = graph.latest_time().unwrap();
+                let middle = earliest + (latest - earliest) / 2;
+
+                if !layers.is_empty() && earliest < middle && middle < latest {
+                    let subgraph = graph.layers(layers).unwrap().window(earliest, middle);
+                    let masked = subgraph.masked();
+                    assert_graph_equal(&subgraph, &masked);
+                }
+            });
+        }
+
+        proptest!(|(edge_list in any::<Vec<(u8, u8, i16, u8)>>().prop_filter("greater than 3",|v| v.len() > 3 ))| {
+            check(&edge_list);
+        })
     }
 }
