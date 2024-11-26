@@ -7,37 +7,29 @@ use crate::{
     prelude::GraphViewOps,
 };
 use rayon::{iter::Either, prelude::*};
-use std::{
-    borrow::Borrow,
-    collections::{HashMap, HashSet},
-    fmt::Debug,
-    hash::Hash,
-    marker::PhantomData,
-    sync::Arc,
-};
+use std::{fmt::Debug, hash::Hash, marker::PhantomData, sync::Arc};
 
 #[derive(Clone, Debug)]
 pub struct Index<K> {
     keys: Arc<[K]>,
-    map: Arc<HashMap<K, usize>>,
+    map: Arc<[bool]>,
 }
 
-impl<K: Copy + Hash + Eq> From<Vec<K>> for Index<K> {
-    fn from(keys: Vec<K>) -> Self {
-        let map = keys
-            .iter()
-            .copied()
-            .enumerate()
-            .map(|(i, k)| (k, i))
-            .collect();
+impl<K: Copy + Into<usize>> Index<K> {
+    pub fn new(keys: impl Into<Arc<[K]>>, n: usize) -> Self {
+        let keys = keys.into();
+        let mut map = vec![false; n];
+        for k in keys.iter().copied() {
+            map[k.into()] = true;
+        }
         Self {
-            keys: keys.into(),
-            map: Arc::new(map),
+            keys,
+            map: map.into(),
         }
     }
 }
 
-impl<K: Copy + Hash + Eq + Send + Sync> Index<K> {
+impl<K: Copy + Ord + Into<usize> + Send + Sync> Index<K> {
     pub fn iter(&self) -> impl Iterator<Item = &K> + '_ {
         self.keys.iter()
     }
@@ -52,12 +44,8 @@ impl<K: Copy + Hash + Eq + Send + Sync> Index<K> {
         (0..keys.len()).map(move |i| keys[i])
     }
 
-    pub fn index<Q: ?Sized>(&self, key: &Q) -> Option<usize>
-    where
-        K: Borrow<Q>,
-        Q: Hash + Eq,
-    {
-        self.map.get(key).copied()
+    pub fn index(&self, key: &K) -> Option<usize> {
+        self.keys.binary_search(key).ok()
     }
 
     pub fn key(&self, index: usize) -> Option<K> {
@@ -68,12 +56,8 @@ impl<K: Copy + Hash + Eq + Send + Sync> Index<K> {
         self.keys.len()
     }
 
-    pub fn contains<Q: ?Sized>(&self, key: &Q) -> bool
-    where
-        K: Borrow<Q>,
-        Q: Hash + Eq,
-    {
-        self.map.contains_key(key)
+    pub fn contains(&self, key: &K) -> bool {
+        self.map.get((*key).into()).copied().unwrap_or(false)
     }
 }
 
@@ -251,7 +235,7 @@ impl<
     fn get_by_node<N: AsNodeRef>(&self, node: N) -> Option<Self::Value<'_>> {
         let id = self.graph.internalise_node(node.as_node_ref())?;
         match &self.keys {
-            Some(index) => index.map.get(&id).map(|i| &self.values[*i]),
+            Some(index) => index.index(&id).map(|i| &self.values[i]),
             None => Some(&self.values[id.0]),
         }
     }

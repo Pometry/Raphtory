@@ -137,7 +137,7 @@ impl<'graph, G: GraphViewOps<'graph>> ListOps for WindowedGraph<G> {
     fn node_list(&self) -> NodeList {
         if self.window_is_empty() {
             NodeList::List {
-                nodes: Index::from(vec![]),
+                nodes: Index::new(vec![], self.graph.unfiltered_num_nodes()),
             }
         } else {
             self.graph.node_list()

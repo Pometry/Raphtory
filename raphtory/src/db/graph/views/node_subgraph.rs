@@ -9,17 +9,12 @@ use crate::{
         },
         view::internal::{
             Base, EdgeFilterOps, EdgeList, Immutable, InheritCoreOps, InheritLayerOps,
-            InheritListOps, InheritMaterialize, InheritTimeSemantics, ListOps, NodeFilterOps,
-            NodeList, Static,
+            InheritMaterialize, InheritTimeSemantics, ListOps, NodeFilterOps, NodeList, Static,
         },
     },
     prelude::GraphViewOps,
 };
-use rustc_hash::FxHashSet;
-use std::{
-    fmt::{Debug, Formatter},
-    sync::Arc,
-};
+use std::fmt::{Debug, Formatter};
 
 #[derive(Clone)]
 pub struct NodeSubgraph<G> {
@@ -62,7 +57,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeSubgraph<G> {
             nodes.into_iter().collect()
         };
         nodes.sort();
-        let nodes = nodes.into();
+        let nodes = Index::new(nodes, graph.unfiltered_num_nodes());
         Self { graph, nodes }
     }
 }
