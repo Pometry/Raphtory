@@ -32,13 +32,14 @@ macro_rules! impl_edgeviewops {
                 self.$field.nbr()
             }
 
-            /// Explodes an edge and returns all instances it had been updated as seperate edges
+            /// Explodes returns an edge object for each update within the original edge.
             fn explode(
                 &self,
             ) -> <$base_type as $crate::db::api::view::EdgeViewOps<'static>>::Exploded {
                 self.$field.explode()
             }
 
+            /// Explode layers returns an edge object for each layer within the original edge. These new edge object contains only updates from respective layers.
             fn explode_layers(
                 &self,
             ) -> <$base_type as $crate::db::api::view::EdgeViewOps<'static>>::Exploded {

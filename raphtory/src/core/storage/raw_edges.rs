@@ -6,6 +6,7 @@ use crate::{
     },
     db::api::storage::graph::edges::edge_storage_ops::{EdgeStorageOps, MemEdge},
 };
+use itertools::Itertools;
 use lock_api::ArcRwLockReadGuard;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use raphtory_api::core::{entities::EID, storage::timeindex::TimeIndexEntry};
@@ -292,7 +293,9 @@ impl<'a> EdgeRGuard<'a> {
             Box::new(
                 self.guard
                     .props_iter(self.offset)
-                    .flat_map(|(_, layer)| layer.temporal_prop_ids()),
+                    .map(|(_, layer)| layer.temporal_prop_ids())
+                    .kmerge()
+                    .dedup(),
             )
         }
     }
