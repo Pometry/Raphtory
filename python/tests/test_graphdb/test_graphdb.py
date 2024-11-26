@@ -3047,6 +3047,16 @@ def test_create_node_graph_with_deletion():
     assert "Node already exists" in str(excinfo.value)
 
 
+def test_edge_layer_properties():
+    g = Graph()
+    g.add_edge(1, "A", "B", properties={"greeting": "howdy"}, layer="layer 1")
+    g.add_edge(2, "A", "B", properties={"greeting": "hello"}, layer="layer 2")
+    g.add_edge(3, "A", "B", properties={"greeting": "ola"}, layer="layer 2")
+    g.add_edge(3, "A", "B", properties={"greeting": "namaste"}, layer="layer 3")
+
+    assert g.edge("A", "B").properties == {"greeting": "namaste"}
+
+
 @fixture
 def datadir(tmpdir, request):
     filename = request.module.__file__
