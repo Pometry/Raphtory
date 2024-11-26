@@ -34,6 +34,13 @@ impl<T: FloatCore> AsOrd<(OrderedFloat<T>, OrderedFloat<T>)> for (T, T) {
     }
 }
 
+impl<T: FloatCore> AsOrd<Vec<OrderedFloat<T>>> for Vec<T> {
+    fn as_ord(&self) -> &Vec<OrderedFloat<T>> {
+        // Safety: OrderedFloat is #[repr(transparent)] and has no invalid values, i.e. there is no physical difference between OrderedFloat and Float.
+        unsafe { &*(self as *const Vec<T> as *const Vec<OrderedFloat<T>>) }
+    }
+}
+
 /// An 'AlgorithmRepr' struct that represents the string output in the terminal after running an algorithm.
 ///
 /// It returns the algorithm name, number of nodes in the graph, and the result type.

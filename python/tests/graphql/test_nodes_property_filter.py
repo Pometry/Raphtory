@@ -11,27 +11,73 @@ PORT = 1737
 
 
 def create_test_graph(g):
-    g.add_node(1, "a", properties={"prop1": 60, "prop2": 31.3, "prop3": "abc123", "prop4": True, "prop5": [1, 2, 3]})
-    g.add_node(1, "b", properties={"prop1": 10, "prop2": 31.3, "prop3": "abc223", "prop4": False})
-    g.add_node(1, "c", properties={"prop1": 20, "prop2": 31.3, "prop3": "abc333", "prop4": True, "prop5": [5, 6, 7]})
-    g.add_node(1, "d", properties={"prop1": 30, "prop2": 31.3, "prop3": "abc444", "prop4": False})
+    g.add_node(
+        1,
+        "a",
+        properties={
+            "prop1": 60,
+            "prop2": 31.3,
+            "prop3": "abc123",
+            "prop4": True,
+            "prop5": [1, 2, 3],
+        },
+    )
+    g.add_node(
+        1,
+        "b",
+        properties={"prop1": 10, "prop2": 31.3, "prop3": "abc223", "prop4": False},
+    )
+    g.add_node(
+        1,
+        "c",
+        properties={
+            "prop1": 20,
+            "prop2": 31.3,
+            "prop3": "abc333",
+            "prop4": True,
+            "prop5": [5, 6, 7],
+        },
+    )
+    g.add_node(
+        1,
+        "d",
+        properties={"prop1": 30, "prop2": 31.3, "prop3": "abc444", "prop4": False},
+    )
     g.add_edge(
         2,
         "a",
         "d",
-        properties={"eprop1": 60, "eprop2": 0.4, "eprop3": "xyz123", "eprop4": True, "eprop5": [1, 2, 3]},
+        properties={
+            "eprop1": 60,
+            "eprop2": 0.4,
+            "eprop3": "xyz123",
+            "eprop4": True,
+            "eprop5": [1, 2, 3],
+        },
     )
     g.add_edge(
         2,
         "b",
         "d",
-        properties={"eprop1": 10, "eprop2": 1.7, "eprop3": "xyz123", "eprop4": True, "eprop5": [3, 4, 5]},
+        properties={
+            "eprop1": 10,
+            "eprop2": 1.7,
+            "eprop3": "xyz123",
+            "eprop4": True,
+            "eprop5": [3, 4, 5],
+        },
     )
     g.add_edge(
         2,
         "c",
         "d",
-        properties={"eprop1": 30, "eprop2": 6.4, "eprop3": "xyz123", "eprop4": False, "eprop5": [10]},
+        properties={
+            "eprop1": 30,
+            "eprop2": 6.4,
+            "eprop3": "xyz123",
+            "eprop4": False,
+            "eprop5": [10],
+        },
     )
     return g
 
@@ -64,7 +110,9 @@ def run_graphql_error_test(query, expected_error_message, graph):
         match = re.search(r'"message":"(.*?)"', full_error_message)
         error_message = match.group(1) if match else ""
 
-        assert error_message == expected_error_message, f"Expected '{expected_error_message}', but got '{error_message}'"
+        assert (
+            error_message == expected_error_message
+        ), f"Expected '{expected_error_message}', but got '{error_message}'"
 
 
 @pytest.mark.parametrize("graph", [Graph, PersistentGraph])
@@ -88,19 +136,7 @@ def test_node_property_filter_equal(graph):
       }
     }
     """
-    expected_output = {
-        "graph": {
-            "nodes": {
-                "nodeFilter": {
-                    "list": [
-                        {
-                            "name": "a"
-                        }
-                    ]
-                }
-            }
-        }
-    }
+    expected_output = {"graph": {"nodes": {"nodeFilter": {"list": [{"name": "a"}]}}}}
     run_graphql_test(query, expected_output, graph())
 
 
@@ -175,16 +211,7 @@ def test_node_property_filter_not_equal(graph):
     }
     """
     expected_output = {
-        "graph": {
-            "nodes": {
-                "nodeFilter": {
-                    "list": [
-                        {"name": "b"},
-                        {"name": "d"}
-                    ]
-                }
-            }
-        }
+        "graph": {"nodes": {"nodeFilter": {"list": [{"name": "b"}, {"name": "d"}]}}}
     }
     run_graphql_test(query, expected_output, graph())
 
@@ -259,17 +286,7 @@ def test_node_property_filter_greater_than_or_equal(graph):
       }
     }
     """
-    expected_output = {
-        "graph": {
-            "nodes": {
-                "nodeFilter": {
-                    "list": [
-                        {"name": "a"}
-                    ]
-                }
-            }
-        }
-    }
+    expected_output = {"graph": {"nodes": {"nodeFilter": {"list": [{"name": "a"}]}}}}
     run_graphql_test(query, expected_output, graph())
 
 
@@ -346,13 +363,7 @@ def test_node_property_filter_less_than_or_equal(graph):
     expected_output = {
         "graph": {
             "nodes": {
-                "nodeFilter": {
-                    "list": [
-                        {"name": "b"},
-                        {"name": "c"},
-                        {"name": "d"}
-                    ]
-                }
+                "nodeFilter": {"list": [{"name": "b"}, {"name": "c"}, {"name": "d"}]}
             }
         }
     }
@@ -429,17 +440,7 @@ def test_node_property_filter_greater_than(graph):
       }
     }
     """
-    expected_output = {
-        "graph": {
-            "nodes": {
-                "nodeFilter": {
-                    "list": [
-                        {"name": "a"}
-                    ]
-                }
-            }
-        }
-    }
+    expected_output = {"graph": {"nodes": {"nodeFilter": {"list": [{"name": "a"}]}}}}
     run_graphql_test(query, expected_output, graph())
 
 
@@ -514,16 +515,7 @@ def test_node_property_filter_less_than(graph):
     }
     """
     expected_output = {
-        "graph": {
-            "nodes": {
-                "nodeFilter": {
-                    "list": [
-                        {"name": "b"},
-                        {"name": "c"}
-                    ]
-                }
-            }
-        }
+        "graph": {"nodes": {"nodeFilter": {"list": [{"name": "b"}, {"name": "c"}]}}}
     }
     run_graphql_test(query, expected_output, graph())
 
@@ -598,16 +590,7 @@ def test_node_property_filter_is_none(graph):
     }
     """
     expected_output = {
-        "graph": {
-            "nodes": {
-                "nodeFilter": {
-                    "list": [
-                        {"name": "b"},
-                        {"name": "d"}
-                    ]
-                }
-            }
-        }
+        "graph": {"nodes": {"nodeFilter": {"list": [{"name": "b"}, {"name": "d"}]}}}
     }
     run_graphql_test(query, expected_output, graph())
 
@@ -633,16 +616,7 @@ def test_node_property_filter_is_some(graph):
     }
     """
     expected_output = {
-        "graph": {
-            "nodes": {
-                "nodeFilter": {
-                    "list": [
-                        {"name": "a"},
-                        {"name": "c"}
-                    ]
-                }
-            }
-        }
+        "graph": {"nodes": {"nodeFilter": {"list": [{"name": "a"}, {"name": "c"}]}}}
     }
     run_graphql_test(query, expected_output, graph())
 
@@ -669,16 +643,7 @@ def test_node_property_filter_any(graph):
     }
     """
     expected_output = {
-        "graph": {
-            "nodes": {
-                "nodeFilter": {
-                    "list": [
-                        {"name": "b"},
-                        {"name": "d"}
-                    ]
-                }
-            }
-        }
+        "graph": {"nodes": {"nodeFilter": {"list": [{"name": "b"}, {"name": "d"}]}}}
     }
     run_graphql_test(query, expected_output, graph())
 
@@ -704,15 +669,7 @@ def test_node_property_filter_any_empty_list(graph):
       }
     }
     """
-    expected_output = {
-        "graph": {
-            "nodes": {
-                "nodeFilter": {
-                    "list": []
-                }
-            }
-        }
-    }
+    expected_output = {"graph": {"nodes": {"nodeFilter": {"list": []}}}}
     run_graphql_test(query, expected_output, graph())
 
 
@@ -787,16 +744,7 @@ def test_node_property_filter_not_any(graph):
     }
     """
     expected_output = {
-        "graph": {
-            "nodes": {
-                "nodeFilter": {
-                    "list": [
-                        {"name": "a"},
-                        {"name": "c"}
-                    ]
-                }
-            }
-        }
+        "graph": {"nodes": {"nodeFilter": {"list": [{"name": "a"}, {"name": "c"}]}}}
     }
     run_graphql_test(query, expected_output, graph())
 
@@ -826,12 +774,7 @@ def test_node_property_filter_not_any_empty_list(graph):
         "graph": {
             "nodes": {
                 "nodeFilter": {
-                    "list": [
-                        {"name": "a"},
-                        {"name": "b"},
-                        {"name": "c"},
-                        {"name": "d"}
-                    ]
+                    "list": [{"name": "a"}, {"name": "b"}, {"name": "c"}, {"name": "d"}]
                 }
             }
         }
