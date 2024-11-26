@@ -14,7 +14,7 @@ mod cypher {
     use futures::{stream, StreamExt};
     use raphtory::{
         disk_graph::{graph_impl::ParquetLayerCols, DiskGraphStorage},
-        logging::{global_debug_logger, global_info_logger, sysout_debug},
+        logging::{global_info_logger, sysout_debug},
     };
     use raphtory_cypher::{run_cypher, run_cypher_to_streams, run_sql};
     use serde::{de::DeserializeOwned, Deserialize};

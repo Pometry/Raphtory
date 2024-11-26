@@ -116,11 +116,8 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for MaskedGraph<G> {
 
     #[inline]
     fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
-        let filter_fn = |(nodes, edges): &(RoaringTreemap, RoaringTreemap)| {
-            edges.contains(edge.eid().as_u64())
-                && nodes.contains(edge.src().as_u64())
-                && nodes.contains(edge.dst().as_u64())
-        };
+        let filter_fn =
+            |(nodes, edges): &(RoaringTreemap, RoaringTreemap)| edges.contains(edge.eid().as_u64());
         match layer_ids {
             LayerIds::None => false,
             LayerIds::All => self.layered_mask.iter().any(filter_fn),
@@ -136,7 +133,6 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for MaskedGraph<G> {
     fn nodes_filtered(&self) -> bool {
         true
     }
-    // FIXME: should use list version and make this true
     fn node_list_trusted(&self) -> bool {
         false
     }
