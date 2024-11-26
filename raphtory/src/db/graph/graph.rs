@@ -449,7 +449,6 @@ mod db_tests {
         storage::arc_str::{ArcStr, OptionAsStr},
         utils::logging::global_info_logger,
     };
-    use serde_json::Value;
     use std::collections::{HashMap, HashSet};
     #[cfg(feature = "proto")]
     use tempfile::TempDir;
@@ -681,7 +680,7 @@ mod db_tests {
         assert_eq!(gg.edges().len(), 2);
 
         let gg = Graph::new();
-        let res = gg.add_edge(1, "C", "D", NO_PROPS, None);
+        gg.add_edge(1, "C", "D", NO_PROPS, None).unwrap();
         let res = gg.import_edges(vec![&e_a_b, &e_c_d], false);
         match res {
             Err(GraphError::EdgesExistError(duplicates)) => {
@@ -823,11 +822,12 @@ mod db_tests {
     #[test]
     fn import_edge_as() {
         let g = Graph::new();
-        let g_a = g.add_node(0, "A", NO_PROPS, None).unwrap();
+        g.add_node(0, "A", NO_PROPS, None).unwrap();
         let g_b = g
             .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
             .unwrap();
-        let _ = g_b.add_constant_properties(vec![("con".to_string(), Prop::I64(11))]);
+        g_b.add_constant_properties(vec![("con".to_string(), Prop::I64(11))])
+            .unwrap();
         let e_a_b = g
             .add_edge(
                 2,
@@ -848,8 +848,8 @@ mod db_tests {
             .unwrap();
 
         let gg = Graph::new();
-        let e = gg.add_edge(1, "X", "Y", NO_PROPS, None).unwrap();
-        let res = gg.import_edge_as(&e_b_c, ("Y", "Z"), false);
+        gg.add_edge(1, "X", "Y", NO_PROPS, None).unwrap();
+        gg.import_edge_as(&e_b_c, ("Y", "Z"), false).unwrap();
         let res = gg.import_edge_as(&e_a_b, ("X", "Y"), false);
         match res {
             Err(EdgeExistsError(src_id, dst_id)) => {
@@ -883,7 +883,7 @@ mod db_tests {
     #[test]
     fn import_edge_as_merge() {
         let g = Graph::new();
-        let g_a = g.add_node(0, "A", NO_PROPS, None).unwrap();
+        g.add_node(0, "A", NO_PROPS, None).unwrap();
         let g_b = g
             .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
             .unwrap();
@@ -920,12 +920,13 @@ mod db_tests {
     #[test]
     fn import_edges_as() {
         let g = Graph::new();
-        let g_a = g.add_node(0, "A", NO_PROPS, None).unwrap();
+        g.add_node(0, "A", NO_PROPS, None).unwrap();
         let g_b = g
             .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
             .unwrap();
-        let _ = g_b.add_constant_properties(vec![("con".to_string(), Prop::I64(11))]);
-        let g_c = g.add_node(0, "C", NO_PROPS, None).unwrap();
+        g_b.add_constant_properties(vec![("con".to_string(), Prop::I64(11))])
+            .unwrap();
+        g.add_node(0, "C", NO_PROPS, None).unwrap();
         let e_a_b = g
             .add_edge(
                 2,
@@ -938,7 +939,7 @@ mod db_tests {
         let e_b_c = g.add_edge(2, "B", "C", NO_PROPS, None).unwrap();
 
         let gg = Graph::new();
-        let e = gg.add_edge(1, "Y", "Z", NO_PROPS, None).unwrap();
+        gg.add_edge(1, "Y", "Z", NO_PROPS, None).unwrap();
         let res = gg.import_edges_as([&e_a_b, &e_b_c], [("X", "Y"), ("Y", "Z")], false);
         match res {
             Err(GraphError::EdgesExistError(duplicates)) => {
@@ -980,7 +981,7 @@ mod db_tests {
     #[test]
     fn import_edges_as_merge() {
         let g = Graph::new();
-        let g_a = g.add_node(0, "A", NO_PROPS, None).unwrap();
+        g.add_node(0, "A", NO_PROPS, None).unwrap();
         let g_b = g
             .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
             .unwrap();
@@ -996,8 +997,8 @@ mod db_tests {
             .unwrap();
 
         let gg = Graph::new();
-        let _ = gg.add_edge(3, "X", "Y", NO_PROPS, None).unwrap();
-        let res = gg.import_edges_as([&e_a_b], [("X", "Y")], true).unwrap();
+        gg.add_edge(3, "X", "Y", NO_PROPS, None).unwrap();
+        gg.import_edges_as([&e_a_b], [("X", "Y")], true).unwrap();
 
         let e_x_y = gg.edge("X", "Y").unwrap();
         assert_eq!(

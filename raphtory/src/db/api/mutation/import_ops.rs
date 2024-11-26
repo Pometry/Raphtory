@@ -1,12 +1,7 @@
-use raphtory_api::core::entities::{GID, VID};
-use std::{borrow::Borrow, fmt::Debug};
-
+use super::time_from_input;
 use crate::{
     core::{
-        entities::{
-            nodes::node_ref::{AsNodeRef, NodeRef},
-            LayerIds,
-        },
+        entities::{nodes::node_ref::AsNodeRef, LayerIds},
         utils::errors::{
             GraphError,
             GraphError::{EdgeExistsError, NodeExistsError},
@@ -23,9 +18,11 @@ use crate::{
     },
     prelude::{AdditionOps, EdgeViewOps, GraphViewOps, NodeViewOps},
 };
-use raphtory_api::core::storage::{arc_str::OptionAsStr, timeindex::AsTime};
-
-use super::time_from_input;
+use raphtory_api::core::{
+    entities::GID,
+    storage::{arc_str::OptionAsStr, timeindex::AsTime},
+};
+use std::{borrow::Borrow, fmt::Debug};
 
 pub trait ImportOps:
     StaticGraphViewOps

@@ -248,19 +248,14 @@ impl Data {
 
 #[cfg(test)]
 pub(crate) mod data_tests {
+    use super::ValidGraphFolder;
     use crate::{
         config::app_config::{AppConfig, AppConfigBuilder},
         data::Data,
     };
     use itertools::Itertools;
     use raphtory::{core::utils::errors::GraphError, db::api::view::MaterializedGraph, prelude::*};
-    use std::{
-        collections::HashMap,
-        fs,
-        fs::File,
-        io,
-        path::{Path, PathBuf},
-    };
+    use std::{collections::HashMap, fs, fs::File, io, path::Path};
 
     #[cfg(feature = "storage")]
     use raphtory::{
@@ -268,9 +263,9 @@ pub(crate) mod data_tests {
         disk_graph::DiskGraphStorage,
     };
     #[cfg(feature = "storage")]
+    use std::path::PathBuf;
+    #[cfg(feature = "storage")]
     use std::{thread, time::Duration};
-
-    use super::ValidGraphFolder;
 
     #[cfg(feature = "storage")]
     fn copy_dir_recursive(source_dir: &Path, target_dir: &Path) -> Result<(), GraphError> {
