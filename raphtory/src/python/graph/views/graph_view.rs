@@ -18,7 +18,7 @@ use crate::{
             nodes::Nodes,
             views::{
                 layer_graph::LayeredGraph,
-                masked_graph::MaskedGraph,
+                masked_graph::CachedView,
                 node_subgraph::NodeSubgraph,
                 node_type_filtered_subgraph::TypeFilteredSubgraph,
                 property_filter::{
@@ -107,7 +107,7 @@ impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for NodeSubgraph<G> {
     }
 }
 
-impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for MaskedGraph<G> {
+impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for CachedView<G> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyGraphView::from(self).into_py(py)
     }
@@ -362,8 +362,8 @@ impl PyGraphView {
     ///
     /// Returns:
     ///   MaskedGraph: Returns the masked graph
-    fn masked_graph(&self) -> MaskedGraph<DynamicGraph> {
-        self.graph.masked()
+    fn cache_view(&self) -> CachedView<DynamicGraph> {
+        self.graph.cache_view()
     }
 
     /// Returns a subgraph filtered by node types given a set of node types

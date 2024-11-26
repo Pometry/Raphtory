@@ -22,14 +22,14 @@ use std::{
 };
 
 #[derive(Clone)]
-pub struct MaskedGraph<G> {
+pub struct CachedView<G> {
     pub(crate) graph: G,
     pub(crate) layered_mask: Arc<[(RoaringTreemap, RoaringTreemap)]>,
 }
 
-impl<G> Static for MaskedGraph<G> {}
+impl<G> Static for CachedView<G> {}
 
-impl<'graph, G: Debug + 'graph> Debug for MaskedGraph<G> {
+impl<'graph, G: Debug + 'graph> Debug for CachedView<G> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("MaskedGraph")
             .field("graph", &self.graph as &dyn Debug)
@@ -37,7 +37,7 @@ impl<'graph, G: Debug + 'graph> Debug for MaskedGraph<G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> Base for MaskedGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> Base for CachedView<G> {
     type Base = G;
     #[inline(always)]
     fn base(&self) -> &Self::Base {
@@ -45,15 +45,15 @@ impl<'graph, G: GraphViewOps<'graph>> Base for MaskedGraph<G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> Immutable for MaskedGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> Immutable for CachedView<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for MaskedGraph<G> {}
-impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for MaskedGraph<G> {}
-impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for MaskedGraph<G> {}
-impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for MaskedGraph<G> {}
-impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for MaskedGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for CachedView<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for CachedView<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for CachedView<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for CachedView<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for CachedView<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> MaskedGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
     pub fn new(graph: G) -> Self {
         let mut layered_masks = vec![];
         for l_name in graph.unique_layers() {
@@ -97,8 +97,8 @@ impl<'graph, G: GraphViewOps<'graph>> MaskedGraph<G> {
 }
 
 // FIXME: this should use the list version ideally
-impl<'graph, G: GraphViewOps<'graph>> InheritListOps for MaskedGraph<G> {}
-impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for MaskedGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> InheritListOps for CachedView<G> {}
+impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for CachedView<G> {
     #[inline]
     fn edges_filtered(&self) -> bool {
         true
@@ -117,7 +117,7 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for MaskedGraph<G> {
     #[inline]
     fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
         let filter_fn =
-            |(nodes, edges): &(RoaringTreemap, RoaringTreemap)| edges.contains(edge.eid().as_u64());
+            |(_, edges): &(RoaringTreemap, RoaringTreemap)| edges.contains(edge.eid().as_u64());
         match layer_ids {
             LayerIds::None => false,
             LayerIds::All => self.layered_mask.iter().any(filter_fn),
@@ -129,7 +129,7 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for MaskedGraph<G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for MaskedGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for CachedView<G> {
     fn nodes_filtered(&self) -> bool {
         true
     }
@@ -161,13 +161,13 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for MaskedGraph<G> {
 }
 
 #[cfg(test)]
-mod masked_graph_tests {
+mod test {
     use crate::{
         algorithms::motifs::triangle_count::triangle_count, db::graph::graph::assert_graph_equal,
         prelude::*, test_storage,
     };
     use itertools::Itertools;
-    use proptest::{prelude::*, sample::Index};
+    use proptest::prelude::*;
 
     #[test]
     fn test_materialize_no_edges() {
@@ -177,7 +177,7 @@ mod masked_graph_tests {
         graph.add_node(2, 2, NO_PROPS, None).unwrap();
 
         test_storage!(&graph, |graph| {
-            let sg = graph.masked();
+            let sg = graph.cache_view();
 
             let actual = sg.materialize().unwrap().into_events().unwrap();
             assert_graph_equal(&actual, &sg);
@@ -217,10 +217,10 @@ mod masked_graph_tests {
         }
         test_storage!(&graph, |graph| {
             let window = graph.window(12, 24);
-            let mask = window.masked();
+            let mask = window.cache_view();
             let ts = triangle_count(&mask, None);
             let tg = triangle_count(&window, None);
-            assert_eq!(ts, tg)
+            assert_eq!(ts, tg);
         });
     }
 
@@ -252,7 +252,7 @@ mod masked_graph_tests {
 
                 if !layers.is_empty() && earliest < middle && middle < latest {
                     let subgraph = graph.layers(layers).unwrap().window(earliest, middle);
-                    let masked = subgraph.masked();
+                    let masked = subgraph.cache_view();
                     assert_graph_equal(&subgraph, &masked);
                 }
             });
