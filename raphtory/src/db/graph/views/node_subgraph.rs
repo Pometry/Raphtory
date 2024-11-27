@@ -1,5 +1,5 @@
 use crate::{
-    core::entities::{LayerIds, VID},
+    core::entities::{nodes::node_ref::AsNodeRef, LayerIds, VID},
     db::api::{
         properties::internal::InheritPropertiesOps,
         state::Index,
@@ -50,11 +50,14 @@ impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for NodeSubgraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for NodeSubgraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> NodeSubgraph<G> {
-    pub fn new(graph: G, nodes: impl IntoIterator<Item = VID>) -> Self {
+    pub fn new(graph: G, nodes: impl IntoIterator<Item = impl AsNodeRef>) -> Self {
+        let nodes = nodes
+            .into_iter()
+            .flat_map(|v| graph.internalise_node(v.as_node_ref()));
         let mut nodes: Vec<_> = if graph.nodes_filtered() {
-            nodes.into_iter().filter(|n| graph.has_node(*n)).collect()
+            nodes.filter(|n| graph.has_node(*n)).collect()
         } else {
-            nodes.into_iter().collect()
+            nodes.collect()
         };
         nodes.sort();
         let nodes = Index::new(nodes, graph.unfiltered_num_nodes());
