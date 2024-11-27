@@ -27,7 +27,7 @@ impl<A: Clone + Debug + PartialEq + Send + Sync> TCell<A> {
             TCell::Empty => {
                 *self = TCell::TCell1(t, value);
             }
-            TCell::TCell1(t0, _) => {
+            TCell::TCell1(t0, v) => {
                 if &t != t0 {
                     if let TCell::TCell1(t0, value0) = std::mem::take(self) {
                         let mut svm = SVM::new();
@@ -35,6 +35,8 @@ impl<A: Clone + Debug + PartialEq + Send + Sync> TCell<A> {
                         svm.insert(t0, value0);
                         *self = TCell::TCellCap(svm)
                     }
+                } else {
+                    *v = value
                 }
             }
             TCell::TCellCap(svm) => {
