@@ -282,16 +282,16 @@ pub(crate) fn load_edges_from_df<
                     .zip(layer_col_resolved.iter())
                     .enumerate()
                 {
+                    let shard_id = shard.shard_id();
                     if let Some(src_node) = shard.get_mut(*src) {
                         src_node.init(*src, src_gid);
                         update_time(TimeIndexEntry(time, start_idx + row));
-                        src_node.update_time(TimeIndexEntry(time, start_idx + row));
                         let EID(eid) = match src_node.find_edge_eid(*dst, &LayerIds::All) {
                             None => {
                                 let eid = next_edge_id();
                                 src_node.add_edge(*dst, Direction::OUT, *layer, eid);
                                 if let Some(cache_shards) = cache_shards.as_ref() {
-                                    cache_shards[shard.shard_id()].resolve_edge(
+                                    cache_shards[shard_id].resolve_edge(
                                         MaybeNew::New(eid),
                                         *src,
                                         *dst,
@@ -301,6 +301,7 @@ pub(crate) fn load_edges_from_df<
                             }
                             Some(eid) => eid,
                         };
+                        src_node.update_time(TimeIndexEntry(time, start_idx + row), EID(eid));
                         eid_col_shared[row].store(eid, Ordering::Relaxed);
                     }
                 }
@@ -321,7 +322,7 @@ pub(crate) fn load_edges_from_df<
                 {
                     if let Some(node) = shard.get_mut(*dst) {
                         node.init(*dst, dst_gid);
-                        node.update_time(TimeIndexEntry(time, row + start_idx));
+                        node.update_time(TimeIndexEntry(time, row + start_idx), *eid);
                         node.add_edge(*src, Direction::IN, *layer, *eid)
                     }
                 }

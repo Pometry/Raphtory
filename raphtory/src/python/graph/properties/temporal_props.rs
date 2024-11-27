@@ -56,7 +56,7 @@ impl From<&PyTemporalProperties> for PyTemporalPropsCmp {
             value
                 .histories()
                 .into_iter()
-                .map(|(k, v)| (k, v.into()))
+                .filter_map(|(k, v)| (v.len() > 0).then(|| (k, v.into())))
                 .collect(),
         )
     }

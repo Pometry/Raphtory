@@ -6,7 +6,7 @@ use either::Either;
 
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, nodes::node_store::NodeStore, LayerIds},
+        entities::{edges::edge_ref::EdgeRef, LayerIds},
         storage::ArcEntry,
         Direction,
     },
@@ -14,7 +14,7 @@ use crate::{
 };
 
 pub enum NodeOwnedEntry {
-    Mem(ArcEntry<NodeStore>),
+    Mem(ArcEntry),
     #[cfg(feature = "storage")]
     Disk(DiskOwnedNode),
 }

@@ -1,7 +1,9 @@
 use crate::{
     core::{
-        entities::properties::tcell::TCell, storage::timeindex::TimeIndexEntry,
-        utils::errors::GraphError, DocumentInput, Prop, PropType,
+        entities::properties::tcell::TCell,
+        storage::{timeindex::TimeIndexEntry, TPropColumn},
+        utils::errors::GraphError,
+        DocumentInput, Prop, PropType,
     },
     db::{
         api::storage::graph::tprop_storage_ops::TPropOps,
@@ -12,7 +14,6 @@ use chrono::{DateTime, NaiveDateTime, Utc};
 use raphtory_api::{core::storage::arc_str::ArcStr, iter::BoxedLIter};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, iter, ops::Range, sync::Arc};
-// TODO TProp struct could be replaced with Option<TCell<Prop>>, with the only issue (or advantage) that then the type can change?
 
 #[derive(Debug, Default, PartialEq, Clone, Serialize, Deserialize)]
 pub enum TProp {
@@ -35,6 +36,52 @@ pub enum TProp {
     Document(TCell<DocumentInput>),
     List(TCell<Arc<Vec<Prop>>>),
     Map(TCell<Arc<HashMap<ArcStr, Prop>>>),
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct TPropCell<'a> {
+    t_cell: Option<&'a TCell<Option<usize>>>,
+    log: Option<&'a TPropColumn>,
+}
+
+impl<'a> TPropCell<'a> {
+    pub(crate) fn new(t_cell: &'a TCell<Option<usize>>, log: Option<&'a TPropColumn>) -> Self {
+        Self {
+            t_cell: Some(t_cell),
+            log,
+        }
+    }
+}
+
+impl<'a> TPropOps<'a> for TPropCell<'a> {
+    fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, Prop)> {
+        self.t_cell?
+            .last_before(t)
+            .and_then(|(t, &id)| self.log?.get(id?).map(|prop| (t, prop))) // FIXME: is this correct?
+    }
+
+    fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+        self.t_cell.into_iter().flat_map(move |t_cell| {
+            t_cell
+                .iter()
+                .filter_map(move |(t, &id)| self.log?.get(id?).map(|prop| (*t, prop)))
+        })
+    }
+
+    fn iter_window(
+        self,
+        r: Range<TimeIndexEntry>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+        self.t_cell.into_iter().flat_map(move |t_cell| {
+            t_cell
+                .iter_window(r.clone())
+                .filter_map(move |(t, &id)| self.log?.get(id?).map(|prop| (*t, prop)))
+        })
+    }
+
+    fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
+        self.t_cell?.at(ti).and_then(|&id| self.log?.get(id?))
+    }
 }
 
 impl TProp {
@@ -374,33 +421,47 @@ impl<'a> TPropOps<'a> for &'a TProp {
         }
     }
 
-    fn len(self) -> usize {
-        match self {
-            TProp::Empty => 0,
-            TProp::Str(v) => v.len(),
-            TProp::U8(v) => v.len(),
-            TProp::U16(v) => v.len(),
-            TProp::I32(v) => v.len(),
-            TProp::I64(v) => v.len(),
-            TProp::U32(v) => v.len(),
-            TProp::U64(v) => v.len(),
-            TProp::F32(v) => v.len(),
-            TProp::F64(v) => v.len(),
-            TProp::Bool(v) => v.len(),
-            TProp::DTime(v) => v.len(),
-            TProp::NDTime(v) => v.len(),
-            TProp::Graph(v) => v.len(),
-            TProp::PersistentGraph(v) => v.len(),
-            TProp::Document(v) => v.len(),
-            TProp::List(v) => v.len(),
-            TProp::Map(v) => v.len(),
-        }
-    }
+    // fn len(self) -> usize {
+    //     match self {
+    //         TProp::Empty => 0,
+    //         TProp::Str(v) => v.len(),
+    //         TProp::U8(v) => v.len(),
+    //         TProp::U16(v) => v.len(),
+    //         TProp::I32(v) => v.len(),
+    //         TProp::I64(v) => v.len(),
+    //         TProp::U32(v) => v.len(),
+    //         TProp::U64(v) => v.len(),
+    //         TProp::F32(v) => v.len(),
+    //         TProp::F64(v) => v.len(),
+    //         TProp::Bool(v) => v.len(),
+    //         TProp::DTime(v) => v.len(),
+    //         TProp::NDTime(v) => v.len(),
+    //         TProp::Graph(v) => v.len(),
+    //         TProp::PersistentGraph(v) => v.len(),
+    //         TProp::Document(v) => v.len(),
+    //         TProp::List(v) => v.len(),
+    //         TProp::Map(v) => v.len(),
+    //     }
+    // }
 }
 
 #[cfg(test)]
 mod tprop_tests {
+    use crate::core::storage::lazy_vec::LazyVec;
+
     use super::*;
+
+    #[test]
+    fn t_prop_cell() {
+        let col = TPropColumn::Bool(LazyVec::from(0, true));
+        assert_eq!(col.get(0), Some(Prop::Bool(true)));
+
+        let t_prop = TPropCell::new(&TCell::TCell1(TimeIndexEntry(0, 0), Some(0)), Some(&col));
+
+        let actual = t_prop.iter().collect::<Vec<_>>();
+
+        assert_eq!(actual, vec![(TimeIndexEntry(0, 0), Prop::Bool(true))]);
+    }
 
     #[test]
     fn set_new_value_for_tprop_initialized_as_empty() {

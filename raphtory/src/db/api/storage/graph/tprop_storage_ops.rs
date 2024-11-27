@@ -69,12 +69,12 @@ pub trait TPropOps<'a>: Sized + 'a + Send {
         self.iter_window(r).map(|(t, v)| (t.t(), v))
     }
     fn at(self, ti: &TimeIndexEntry) -> Option<Prop>;
+}
 
-    fn len(self) -> usize;
+pub trait IndexedTPropOps<'a>: Sized + 'a + Send {
+    type PropT: 'a;
 
-    fn is_empty(self) -> bool {
-        self.len() == 0
-    }
+    fn prop_at(&self, idx: usize) -> Self::PropT;
 }
 
 impl<'a> TPropOps<'a> for TPropRef<'a> {
@@ -97,7 +97,7 @@ impl<'a> TPropOps<'a> for TPropRef<'a> {
         for_all!(self, tprop => tprop.at(ti))
     }
 
-    fn len(self) -> usize {
-        for_all!(self, tprop => tprop.len())
-    }
+    // fn len(self) -> usize {
+    //     for_all!(self, tprop => tprop.len())
+    // }
 }

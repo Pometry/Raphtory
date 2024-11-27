@@ -2,14 +2,10 @@ use crate::core::{
     entities::{
         edges::edge_ref::{Dir, EdgeRef},
         nodes::structure::adj::Adj,
-        properties::{props::Props, tprop::TProp},
+        properties::{props::Props, tcell::TCell},
         LayerIds, EID, GID, VID,
     },
-    storage::{
-        lazy_vec::IllegalSet,
-        timeindex::{AsTime, TimeIndex, TimeIndexEntry},
-        ArcEntry, Entry,
-    },
+    storage::{lazy_vec::IllegalSet, timeindex::TimeIndexEntry, ArcEntry, Entry},
     utils::{errors::GraphError, iter::GenLockedIter},
     Direction, Prop,
 };
@@ -22,13 +18,21 @@ use std::{iter, ops::Deref};
 pub struct NodeStore {
     pub(crate) global_id: GID,
     pub(crate) vid: VID,
-    // all the timestamps that have been seen by this node
-    timestamps: TimeIndex<i64>,
     // each layer represents a separate view of the graph
     pub(crate) layers: Vec<Adj>,
     // props for node
     pub(crate) props: Option<Props>,
     pub(crate) node_type: usize,
+
+    /// For every property id keep a hash map of timestamps to values pointing to the property entries in the props vector
+    timestamps: NodeTimestamps,
+}
+
+#[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
+pub struct NodeTimestamps {
+    // all the timestamps that have been seen by this node
+    pub(crate) edge_ts: TCell<EID>,
+    pub(crate) props_ts: TCell<Option<usize>>,
 }
 
 impl NodeStore {
@@ -51,7 +55,7 @@ impl NodeStore {
         Self {
             global_id,
             vid: VID(0),
-            timestamps: TimeIndex::Empty,
+            timestamps: Default::default(),
             layers,
             props: None,
             node_type: 0,
@@ -73,27 +77,18 @@ impl NodeStore {
         &self.global_id
     }
 
-    pub fn timestamps(&self) -> &TimeIndex<i64> {
+    pub fn timestamps(&self) -> &NodeTimestamps {
         &self.timestamps
     }
 
-    pub fn update_time(&mut self, t: TimeIndexEntry) {
-        self.timestamps.insert(t.t());
+    #[inline]
+    pub fn update_time(&mut self, t: TimeIndexEntry, eid: EID) {
+        self.timestamps.edge_ts.set(t, eid);
     }
 
     pub fn update_node_type(&mut self, node_type: usize) -> usize {
         self.node_type = node_type;
         node_type
-    }
-
-    pub fn add_prop(
-        &mut self,
-        t: TimeIndexEntry,
-        prop_id: usize,
-        prop: Prop,
-    ) -> Result<(), GraphError> {
-        let props = self.props.get_or_insert_with(Props::new);
-        props.add_prop(t, prop_id, prop)
     }
 
     pub fn add_constant_prop(
@@ -108,6 +103,10 @@ impl NodeStore {
     pub fn update_constant_prop(&mut self, prop_id: usize, prop: Prop) -> Result<(), GraphError> {
         let props = self.props.get_or_insert_with(Props::new);
         props.update_constant_prop(prop_id, prop)
+    }
+
+    pub fn update_t_prop_time(&mut self, t: TimeIndexEntry, prop_i: Option<usize>) {
+        self.timestamps.props_ts.set(t, prop_i);
     }
 
     #[inline(always)]
@@ -298,33 +297,22 @@ impl NodeStore {
             .flat_map(|ps| ps.const_prop_ids())
     }
 
-    pub(crate) fn temporal_property(&self, prop_id: usize) -> Option<&TProp> {
-        self.props.as_ref().and_then(|ps| ps.temporal_prop(prop_id))
-    }
-
     pub(crate) fn constant_property(&self, prop_id: usize) -> Option<&Prop> {
         self.props.as_ref().and_then(|ps| ps.const_prop(prop_id))
     }
-
-    pub(crate) fn temporal_prop_ids(&self) -> impl Iterator<Item = usize> + '_ {
-        self.props
-            .as_ref()
-            .into_iter()
-            .flat_map(|ps| ps.temporal_prop_ids())
-    }
 }
 
-impl ArcEntry<NodeStore> {
+impl ArcEntry {
     pub fn into_edges(self, layers: &LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> {
-        GenLockedIter::from(self, |node| node.edge_tuples(layers, dir))
+        GenLockedIter::from(self, |node| node.get().edge_tuples(layers, dir))
     }
 
     pub fn into_neighbours(self, layers: &LayerIds, dir: Direction) -> impl Iterator<Item = VID> {
-        GenLockedIter::from(self, |node| node.neighbours(layers, dir))
+        GenLockedIter::from(self, |node| node.get().neighbours(layers, dir).into())
     }
 
     pub fn into_layers(self) -> LockedLayers {
-        let len = self.layers.len();
+        let len = self.get().layers.len();
         LockedLayers {
             entry: self,
             pos: 0,
@@ -333,20 +321,20 @@ impl ArcEntry<NodeStore> {
     }
 
     pub fn into_layer(self, offset: usize) -> Option<LockedLayer> {
-        (offset < self.layers.len()).then_some(LockedLayer {
+        (offset < self.get().layers.len()).then_some(LockedLayer {
             entry: self,
             offset,
         })
     }
 }
 
-impl<'a> Entry<'a, NodeStore> {
+impl<'a> Entry<'a> {
     pub fn into_neighbours(
         self,
         layers: &LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = VID> + 'a {
-        GenLockedIter::from(self, |node| node.neighbours(layers, dir))
+        GenLockedIter::from(self, |node| node.get().neighbours(layers, dir))
     }
 
     pub fn into_edges(
@@ -354,7 +342,7 @@ impl<'a> Entry<'a, NodeStore> {
         layers: &LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + 'a {
-        GenLockedIter::from(self, |node| node.edge_tuples(layers, dir))
+        GenLockedIter::from(self, |node| node.get().edge_tuples(layers, dir))
     }
 
     pub fn into_edges_iter(
@@ -362,12 +350,12 @@ impl<'a> Entry<'a, NodeStore> {
         layers: &LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + 'a {
-        GenLockedIter::from(self, |node| node.edge_tuples(layers, dir))
+        GenLockedIter::from(self, |node| node.get().edge_tuples(layers, dir))
     }
 }
 
 pub struct LockedLayers {
-    entry: ArcEntry<NodeStore>,
+    entry: ArcEntry,
     pos: usize,
     len: usize,
 }
@@ -394,7 +382,7 @@ impl Iterator for LockedLayers {
 }
 
 pub struct LockedLayer {
-    entry: ArcEntry<NodeStore>,
+    entry: ArcEntry,
     offset: usize,
 }
 
@@ -403,7 +391,7 @@ impl Deref for LockedLayer {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        &self.entry.layers[self.offset]
+        &self.entry.get().layers[self.offset]
     }
 }
 

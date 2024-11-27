@@ -3,9 +3,10 @@ use crate::core::{
     storage::{
         self,
         raw_edges::{EdgeRGuard, EdgeWGuard, EdgesStorage, LockedEdges, UninitialisedEdge},
-        Entry, EntryMut, NodeStorage, PairEntryMut, UninitialisedEntry,
+        Entry, EntryMut, NodeSlot, NodeStorage, PairEntryMut, UninitialisedEntry,
     },
 };
+use parking_lot::RwLockWriteGuard;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
@@ -25,7 +26,7 @@ impl GraphStorage {
     }
 
     #[inline]
-    pub fn nodes_read_lock(&self) -> storage::ReadLockedStorage<NodeStore, VID> {
+    pub fn nodes_read_lock(&self) -> storage::ReadLockedStorage<VID> {
         self.nodes.read_lock()
     }
 
@@ -45,7 +46,7 @@ impl GraphStorage {
     }
 
     #[inline]
-    pub(crate) fn push_node(&self, node: NodeStore) -> UninitialisedEntry<NodeStore> {
+    pub(crate) fn push_node(&self, node: NodeStore) -> UninitialisedEntry<NodeStore, NodeSlot> {
         self.nodes.push(node)
     }
     #[inline]
@@ -54,7 +55,7 @@ impl GraphStorage {
     }
 
     #[inline]
-    pub(crate) fn get_node_mut(&self, id: VID) -> EntryMut<'_, NodeStore> {
+    pub(crate) fn get_node_mut(&self, id: VID) -> EntryMut<'_, RwLockWriteGuard<'_, NodeSlot>> {
         self.nodes.entry_mut(id)
     }
 
@@ -64,7 +65,7 @@ impl GraphStorage {
     }
 
     #[inline]
-    pub(crate) fn get_node(&self, id: VID) -> Entry<'_, NodeStore> {
+    pub(crate) fn get_node(&self, id: VID) -> Entry<'_> {
         self.nodes.entry(id)
     }
 
@@ -74,7 +75,7 @@ impl GraphStorage {
     }
 
     #[inline]
-    pub(crate) fn pair_node_mut(&self, i: VID, j: VID) -> PairEntryMut<'_, NodeStore> {
+    pub(crate) fn pair_node_mut(&self, i: VID, j: VID) -> PairEntryMut<'_> {
         self.nodes.pair_entry_mut(i, j)
     }
 }

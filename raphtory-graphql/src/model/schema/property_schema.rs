@@ -1,26 +1,19 @@
 use dynamic_graphql::SimpleObject;
-use std::collections::HashSet;
 
-#[derive(SimpleObject)]
+#[derive(SimpleObject, Debug, PartialEq)]
 pub(crate) struct PropertySchema {
     key: String,
     property_type: String,
     variants: Vec<String>,
 }
 
-// impl PropertySchema {
-//     pub fn new(key: String, values: Vec<String>) -> Self {
-//         Self { key, values }
-//     }
-// }
-
-impl From<((String, String), HashSet<String>)> for PropertySchema {
-    fn from(value: ((String, String), HashSet<String>)) -> Self {
+impl<S: AsRef<str>, I: IntoIterator<Item = S>> From<((S, S), I)> for PropertySchema {
+    fn from(value: ((S, S), I)) -> Self {
         let ((key, prop_type), set) = value;
         PropertySchema {
-            key,
-            property_type: prop_type,
-            variants: Vec::from_iter(set),
+            key: key.as_ref().to_string(),
+            property_type: prop_type.as_ref().to_string(),
+            variants: Vec::from_iter(set.into_iter().map(|s| s.as_ref().to_string())),
         }
     }
 }

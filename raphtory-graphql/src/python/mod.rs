@@ -1,4 +1,4 @@
-use crate::url_encode::{url_encode_graph, UrlDecodeError};
+use crate::url_encode::{url_decode_graph, url_encode_graph, UrlDecodeError};
 use async_graphql::{dynamic::ValueAccessor, Value as GraphqlValue};
 use pyo3::{
     exceptions::{PyTypeError, PyValueError},
@@ -105,6 +105,15 @@ pub(crate) fn encode_graph(graph: MaterializedGraph) -> PyResult<String> {
     match result {
         Ok(s) => Ok(s),
         Err(e) => Err(PyValueError::new_err(format!("Error encoding: {:?}", e))),
+    }
+}
+
+#[pyfunction]
+pub(crate) fn decode_graph(graph: &str) -> PyResult<MaterializedGraph> {
+    let result = url_decode_graph(graph);
+    match result {
+        Ok(g) => Ok(g),
+        Err(e) => Err(PyValueError::new_err(format!("Error decoding: {:?}", e))),
     }
 }
 

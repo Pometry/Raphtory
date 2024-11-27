@@ -1,17 +1,14 @@
 use crate::{
     arrow2::types::{NativeType, Offset},
-    core::storage::timeindex::TimeIndexIntoOps,
     db::api::{storage::graph::tprop_storage_ops::TPropOps, view::IntoDynBoxed},
     prelude::Prop,
 };
-use polars_arrow::array::Array;
 use pometry_storage::{
     chunked_array::{bool_col::ChunkedBoolCol, col::ChunkedPrimitiveCol, utf8_col::StringCol},
     prelude::{ArrayOps, BaseArrayOps},
     tprops::{DiskTProp, EmptyTProp, TPropColumn},
 };
 use raphtory_api::core::storage::timeindex::TimeIndexEntry;
-use rayon::prelude::*;
 use std::{iter, ops::Range};
 
 impl<'a> TPropOps<'a> for TPropColumn<'a, ChunkedBoolCol<'a>, TimeIndexEntry> {
@@ -55,14 +52,6 @@ impl<'a> TPropOps<'a> for TPropColumn<'a, ChunkedBoolCol<'a>, TimeIndexEntry> {
         } else {
             None
         }
-    }
-
-    fn len(self) -> usize {
-        let (props, _) = self.into_inner();
-        props
-            .iter_chunks()
-            .map(|chunk| chunk.len() - chunk.null_count())
-            .sum()
     }
 }
 
@@ -110,19 +99,6 @@ impl<'a, T: NativeType + Into<Prop>> TPropOps<'a>
             None
         }
     }
-
-    fn len(self) -> usize {
-        let (props, _) = self.into_inner();
-        props
-            .iter_chunks()
-            .map(|chunk| chunk.len() - chunk.null_count())
-            .sum()
-    }
-
-    fn is_empty(self) -> bool {
-        let (props, _) = self.into_inner();
-        props.par_iter().any(|v| v.is_some())
-    }
 }
 
 impl<'a, I: Offset> TPropOps<'a> for TPropColumn<'a, StringCol<'a, I>, TimeIndexEntry> {
@@ -167,19 +143,6 @@ impl<'a, I: Offset> TPropOps<'a> for TPropColumn<'a, StringCol<'a, I>, TimeIndex
             None
         }
     }
-
-    fn len(self) -> usize {
-        let (props, _) = self.into_inner();
-        props
-            .iter_chunks()
-            .map(|chunk| chunk.len() - chunk.null_count())
-            .sum()
-    }
-
-    fn is_empty(self) -> bool {
-        let (props, _) = self.into_inner();
-        props.par_iter().any(|v| v.is_some())
-    }
 }
 
 impl<'a> TPropOps<'a> for EmptyTProp {
@@ -207,10 +170,6 @@ impl<'a> TPropOps<'a> for EmptyTProp {
 
     fn at(self, _ti: &TimeIndexEntry) -> Option<Prop> {
         None
-    }
-
-    fn len(self) -> usize {
-        0
     }
 }
 
@@ -251,9 +210,5 @@ impl<'a> TPropOps<'a> for DiskTProp<'a, TimeIndexEntry> {
 
     fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
         for_all!(self, v => v.at(ti))
-    }
-
-    fn len(self) -> usize {
-        for_all!(self, v => v.len())
     }
 }

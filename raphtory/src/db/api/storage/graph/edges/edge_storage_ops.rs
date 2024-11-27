@@ -30,7 +30,7 @@ use raphtory_api::iter::BoxedLIter;
 
 pub enum TimeIndexRef<'a> {
     Ref(&'a TimeIndex<TimeIndexEntry>),
-    Range(TimeIndexWindow<'a, TimeIndexEntry>),
+    Range(TimeIndexWindow<'a, TimeIndexEntry, TimeIndex<TimeIndexEntry>>),
     #[cfg(feature = "storage")]
     External(TimeStamps<'a, TimeIndexEntry>),
 }
@@ -206,11 +206,6 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
 
     fn additions(self, layer_id: usize) -> TimeIndexRef<'a>;
     fn deletions(self, layer_id: usize) -> TimeIndexRef<'a>;
-
-    fn has_temporal_prop(self, layer_ids: &LayerIds, prop_id: usize) -> bool {
-        self.layer_ids_par_iter(layer_ids)
-            .any(move |id| !self.temporal_prop_layer(id, prop_id).is_empty())
-    }
 
     fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> impl TPropOps<'a> + Sync + 'a;
 

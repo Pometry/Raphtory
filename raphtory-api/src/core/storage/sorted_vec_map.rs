@@ -13,11 +13,11 @@ impl<K: Ord, V> Default for SVM<K, V> {
 }
 
 impl<K: Ord, V> SVM<K, V> {
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self(SortedVectorMap::new())
     }
 
-    pub(crate) fn get<Q>(&self, k: &Q) -> Option<&V>
+    pub fn get<Q>(&self, k: &Q) -> Option<&V>
     where
         K: Borrow<Q>,
         Q: Ord + ?Sized,
@@ -25,24 +25,41 @@ impl<K: Ord, V> SVM<K, V> {
         self.0.get(k)
     }
 
-    pub(crate) fn insert(&mut self, k: K, v: V) -> Option<V> {
+    pub fn insert(&mut self, k: K, v: V) -> Option<V> {
         self.0.insert(k, v)
     }
 
-    pub(crate) fn iter(&self) -> impl Iterator<Item = (&K, &V)> {
+    pub fn remove<Q>(&mut self, k: &Q) -> Option<V>
+    where
+        K: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        self.0.remove(k)
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (&K, &V)> {
         self.0.iter()
     }
 
-    pub(crate) fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.0.len()
     }
 
-    pub(crate) fn range(&self, range: Range<K>) -> impl Iterator<Item = (&K, &V)> {
+    #[inline]
+    pub fn range(&self, range: Range<K>) -> impl DoubleEndedIterator<Item = (&K, &V)> {
         self.0.range(range)
     }
 
-    pub(crate) fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
+    pub fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
         Self(SortedVectorMap::from_iter(iter))
+    }
+
+    pub fn first_key_value(&self) -> Option<(&K, &V)> {
+        self.0.first_key_value()
+    }
+
+    pub fn last_key_value(&self) -> Option<(&K, &V)> {
+        self.0.last_key_value()
     }
 }
 

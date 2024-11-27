@@ -252,12 +252,28 @@ impl TimeSemantics for PersistentGraph {
         edge.active(layer_ids, w.clone()) || edge_alive_at_start(edge, w.start, layer_ids)
     }
 
-    fn node_history(&self, v: VID) -> Vec<i64> {
+    fn node_history(&self, v: VID) -> BoxedLIter<'_, TimeIndexEntry> {
         self.0.node_history(v)
     }
 
-    fn node_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
+    fn node_history_window(&self, v: VID, w: Range<i64>) -> BoxedLIter<'_, TimeIndexEntry> {
         self.0.node_history_window(v, w)
+    }
+
+    fn node_edge_history(&self, v: VID, w: Option<Range<i64>>) -> BoxedLIter<TimeIndexEntry> {
+        self.0.node_edge_history(v, w)
+    }
+
+    fn node_history_rows(
+        &self,
+        v: VID,
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<(TimeIndexEntry, Vec<(usize, Prop)>)> {
+        self.0.node_history_rows(v, w)
+    }
+
+    fn node_property_history(&self, v: VID, w: Option<Range<i64>>) -> BoxedLIter<TimeIndexEntry> {
+        self.0.node_property_history(v, w)
     }
 
     fn edge_history<'a>(
@@ -573,12 +589,6 @@ impl TimeSemantics for PersistentGraph {
     fn temporal_prop_vec_window(&self, prop_id: usize, start: i64, end: i64) -> Vec<(i64, Prop)> {
         self.0.temporal_prop_vec_window(prop_id, start, end)
     }
-
-    #[inline]
-    fn has_temporal_node_prop(&self, v: VID, prop_id: usize) -> bool {
-        self.0.has_temporal_node_prop(v, prop_id)
-    }
-
     fn temporal_node_prop_hist(
         &self,
         v: VID,
@@ -586,12 +596,6 @@ impl TimeSemantics for PersistentGraph {
     ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         self.0.temporal_node_prop_hist(v, prop_id)
     }
-
-    fn has_temporal_node_prop_window(&self, v: VID, prop_id: usize, w: Range<i64>) -> bool {
-        self.0
-            .has_temporal_node_prop_window(v, prop_id, i64::MIN..w.end)
-    }
-
     fn temporal_node_prop_hist_window(
         &self,
         v: VID,
@@ -609,39 +613,6 @@ impl TimeSemantics for PersistentGraph {
                 .into_dyn_boxed()
         })
         .into_dyn_boxed()
-    }
-
-    fn has_temporal_edge_prop_window(
-        &self,
-        e: EdgeRef,
-        prop_id: usize,
-        w: Range<i64>,
-        layer_ids: &LayerIds,
-    ) -> bool {
-        let entry = self.core_edge(e.pid());
-
-        if (&entry).has_temporal_prop(layer_ids, prop_id) {
-            // if property was added at any point since the last deletion, it is still there,
-            // if deleted at the start of the window, we still need to check for any additions
-            // that happened at the same time
-            entry
-                .updates_par_iter(layer_ids)
-                .any(|(layer_id, _, deletions)| {
-                    let search_start = deletions
-                        .range_t(i64::MIN..w.start.saturating_add(1))
-                        .last()
-                        .unwrap_or(TimeIndexEntry::MIN)
-                        .min(TimeIndexEntry::start(w.start));
-                    let search_end = TimeIndexEntry::start(w.end);
-                    entry
-                        .temporal_prop_layer(layer_id, prop_id)
-                        .iter_window_te(search_start..search_end)
-                        .next()
-                        .is_some()
-                })
-        } else {
-            false
-        }
     }
 
     fn temporal_edge_prop_hist_window<'a>(
@@ -692,10 +663,6 @@ impl TimeSemantics for PersistentGraph {
             })
             .next();
         res
-    }
-
-    fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: &LayerIds) -> bool {
-        self.0.has_temporal_edge_prop(e, prop_id, layer_ids)
     }
 
     fn temporal_edge_prop_hist<'a>(

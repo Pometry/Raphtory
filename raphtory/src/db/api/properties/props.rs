@@ -60,7 +60,8 @@ impl<P: PropertiesOps + Clone> Properties<P> {
 
     /// Iterate over all property key-value pairs
     pub fn iter(&self) -> impl Iterator<Item = (ArcStr, Prop)> + '_ {
-        self.keys().zip(self.values())
+        self.keys()
+            .filter_map(move |k| self.get(&k).map(move |v| (k, v)))
     }
 
     /// Get a view of the temporal properties only.
