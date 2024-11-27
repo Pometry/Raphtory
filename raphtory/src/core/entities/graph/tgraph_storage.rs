@@ -1,10 +1,12 @@
+use std::ops::DerefMut;
+
 use crate::core::{
     entities::{edges::edge_store::EdgeStore, nodes::node_store::NodeStore, EID, VID},
     storage::{
         self,
         raw_edges::{EdgeRGuard, EdgeWGuard, EdgesStorage, LockedEdges, UninitialisedEdge},
         Entry, EntryMut, NodeStorage, PairEntryMut, UninitialisedEntry,
-    },
+    }, Prop,
 };
 use serde::{Deserialize, Serialize};
 
@@ -56,6 +58,11 @@ impl GraphStorage {
     #[inline]
     pub(crate) fn get_node_mut(&self, id: VID) -> EntryMut<'_, NodeStore> {
         self.nodes.entry_mut(id)
+    }
+
+    #[inline]
+    pub(crate) fn get_mut_node_props(&self, id: VID) -> impl DerefMut<Target = Vec<Prop>> + '_ {
+        self.nodes.prop_entry_mut(id)
     }
 
     #[inline]

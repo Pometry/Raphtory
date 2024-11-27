@@ -5,7 +5,7 @@ use crate::core::{
         properties::{props::Props, tcell::TCell, tprop::TProp},
         LayerIds, EID, GID, VID,
     },
-    storage::{lazy_vec::IllegalSet, timeindex::TimeIndexEntry, ArcEntry, Entry},
+    storage::{lazy_vec::{IllegalSet, LazyVec}, timeindex::TimeIndexEntry, ArcEntry, Entry},
     utils::{errors::GraphError, iter::GenLockedIter},
     Direction, Prop,
 };
@@ -25,6 +25,9 @@ pub struct NodeStore {
     // props for node
     pub(crate) props: Option<Props>,
     pub(crate) node_type: usize,
+
+    /// For every property id keep a hash map of timestamps to values pointing to the property entries in the props vector
+    t_props: LazyVec<TCell<usize>>
 }
 
 impl NodeStore {
@@ -51,6 +54,7 @@ impl NodeStore {
             layers,
             props: None,
             node_type: 0,
+            t_props: LazyVec::Empty,
         }
     }
 
@@ -62,6 +66,7 @@ impl NodeStore {
             layers: vec![],
             props: None,
             node_type: 0,
+            t_props: LazyVec::Empty,
         }
     }
 
@@ -108,6 +113,14 @@ impl NodeStore {
     pub fn update_constant_prop(&mut self, prop_id: usize, prop: Prop) -> Result<(), GraphError> {
         let props = self.props.get_or_insert_with(Props::new);
         props.update_constant_prop(prop_id, prop)
+    }
+
+    pub fn update_t_prop_time(&mut self, t: &TimeIndexEntry, prop_id: usize, prop_i: usize) {
+        // this can't fail
+        let _ = self.t_props.update(prop_id, |t_prop|{
+            t_prop.set(*t, prop_i);
+            Ok(())
+        });
     }
 
     #[inline(always)]

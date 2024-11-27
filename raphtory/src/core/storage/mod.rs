@@ -1,4 +1,4 @@
-use crate::core::entities::nodes::node_store::NodeStore;
+use crate::{ core::entities::nodes::node_store::NodeStore, prelude::Prop };
 use lock_api;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use raphtory_api::core::entities::{GidRef, VID};
@@ -51,7 +51,7 @@ pub struct LockVec<T> {
     data: Arc<RwLock<Vec<T>>>,
 }
 
-impl<T: PartialEq + Default> PartialEq for LockVec<T> {
+impl<T: PartialEq> PartialEq for LockVec<T> {
     fn eq(&self, other: &Self) -> bool {
         let a = self.data.read();
         let b = other.data.read();
@@ -65,7 +65,7 @@ impl<T: Default> Default for LockVec<T> {
     }
 }
 
-impl<T: Default> LockVec<T> {
+impl<T> LockVec<T> {
     pub fn new() -> Self {
         Self {
             data: Arc::new(RwLock::new(Vec::new())),
@@ -76,11 +76,22 @@ impl<T: Default> LockVec<T> {
     pub fn read_arc_lock(&self) -> ArcRwLockReadGuard<Vec<T>> {
         RwLock::read_arc(&self.data)
     }
+
+    #[inline]
+    pub fn write(&self) -> impl DerefMut<Target = Vec<T>> + '_ {
+        self.data.write()
+    }
+
+    #[inline]
+    pub fn read(&self) -> impl Deref<Target = Vec<T>> + '_ {
+        self.data.read()
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct NodeStorage {
     pub(crate) data: Box<[LockVec<NodeStore>]>,
+    pub(crate) props: Box<[LockVec<Prop>]>,
     len: AtomicUsize,
 }
 
@@ -203,8 +214,14 @@ impl NodeStorage {
             .map(|_| LockVec::new())
             .collect::<Vec<_>>()
             .into();
+
+        let props: Box<[LockVec<Prop>]> = (0..n_locks)
+            .map(|_| LockVec::new())
+            .collect::<Vec<_>>()
+            .into();
         Self {
             data,
+            props,
             len: AtomicUsize::new(0),
         }
     }
@@ -256,6 +273,12 @@ impl NodeStorage {
         let (bucket, offset) = self.resolve(index);
         let guard = self.data[bucket].data.write();
         EntryMut { i: offset, guard }
+    }
+
+    pub fn prop_entry_mut(&self, index: VID) -> impl DerefMut<Target = Vec<Prop>> + '_ {
+        let index = index.into();
+        let (bucket, _) = self.resolve(index);
+        self.props[bucket].data.write()
     }
 
     // This helps get the right locks when adding an edge
