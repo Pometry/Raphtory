@@ -1,13 +1,11 @@
-use crate::core::storage::{
-    sorted_vec_map::SVM,
-    timeindex::{AsTime, TimeIndexEntry},
-};
+use crate::core::storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps, TimeIndexWindow};
+use raphtory_api::core::storage::{sorted_vec_map::SVM, timeindex::TimeIndexLike};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, fmt::Debug, ops::Range};
 
 #[derive(Debug, PartialEq, Default, Clone, Serialize, Deserialize)]
 // TCells represent a value in time that can be set at multiple times and keeps a history
-pub enum TCell<A: Clone + Debug + PartialEq> {
+pub enum TCell<A> {
     #[default]
     Empty,
     TCell1(TimeIndexEntry, A),
@@ -17,7 +15,7 @@ pub enum TCell<A: Clone + Debug + PartialEq> {
 
 const BTREE_CUTOFF: usize = 128;
 
-impl<A: Clone + Debug + PartialEq + Send + Sync> TCell<A> {
+impl<A: PartialEq> TCell<A> {
     pub fn new(t: TimeIndexEntry, value: A) -> Self {
         TCell::TCell1(t, value)
     }
@@ -39,20 +37,36 @@ impl<A: Clone + Debug + PartialEq + Send + Sync> TCell<A> {
             }
             TCell::TCellCap(svm) => {
                 if svm.len() < BTREE_CUTOFF {
-                    svm.insert(t, value.clone());
+                    svm.insert(t, value);
                 } else {
                     let svm = std::mem::take(svm);
                     let mut btm: BTreeMap<TimeIndexEntry, A> = BTreeMap::new();
                     for (k, v) in svm.into_iter() {
                         btm.insert(k, v);
                     }
-                    btm.insert(t, value.clone());
+                    btm.insert(t, value);
                     *self = TCell::TCellN(btm)
                 }
             }
             TCell::TCellN(btm) => {
                 btm.insert(t, value);
             }
+        }
+    }
+
+    pub fn remove(&mut self, t: &TimeIndexEntry) -> Option<A> {
+        match self {
+            TCell::Empty => None,
+            TCell::TCell1(t0, _) => (t == t0).then(|| {
+                let mut prev = TCell::Empty;
+                std::mem::swap(self, &mut prev);
+                match prev {
+                    TCell::TCell1(_, a) => a,
+                    _ => unreachable!(),
+                }
+            }),
+            TCell::TCellCap(svm) => svm.remove(t),
+            TCell::TCellN(btm) => btm.remove(t),
         }
     }
 
@@ -64,7 +78,8 @@ impl<A: Clone + Debug + PartialEq + Send + Sync> TCell<A> {
             TCell::TCellN(btm) => btm.get(ti),
         }
     }
-
+}
+impl<A: Sync + Send> TCell<A> {
     pub fn iter(&self) -> Box<dyn Iterator<Item = (&TimeIndexEntry, &A)> + Send + '_> {
         match self {
             TCell::Empty => Box::new(std::iter::empty()),
@@ -148,6 +163,107 @@ impl<A: Clone + Debug + PartialEq + Send + Sync> TCell<A> {
 
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+}
+
+impl<A: Send + Sync> TimeIndexLike for TCell<A> {
+    fn range_iter(
+        &self,
+        w: Range<Self::IndexType>,
+    ) -> Box<dyn DoubleEndedIterator<Item = Self::IndexType> + Send + '_> {
+        match self {
+            TCell::Empty => Box::new(std::iter::empty()),
+            TCell::TCell1(t, _) => {
+                if w.contains(t) {
+                    Box::new(std::iter::once(*t))
+                } else {
+                    Box::new(std::iter::empty())
+                }
+            }
+            TCell::TCellCap(svm) => Box::new(svm.range(w).map(|(ti, _)| *ti)),
+            TCell::TCellN(btm) => Box::new(btm.range(w).map(|(ti, _)| *ti)),
+        }
+    }
+}
+
+impl<A: Send + Sync> TimeIndexOps for TCell<A> {
+    type IndexType = TimeIndexEntry;
+    type RangeType<'a>
+        = TimeIndexWindow<'a, TimeIndexEntry, Self>
+    where
+        Self: 'a;
+
+    fn active(&self, w: Range<Self::IndexType>) -> bool {
+        match self {
+            TCell::Empty => false,
+            TCell::TCell1(time_index_entry, _) => w.contains(time_index_entry),
+            TCell::TCellCap(svm) => svm.range(w).next().is_some(),
+            TCell::TCellN(btree_map) => btree_map.range(w).next().is_some(),
+        }
+    }
+
+    fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType<'_> {
+        match &self {
+            TCell::Empty => TimeIndexWindow::Empty,
+            TCell::TCell1(t, _) => w
+                .contains(t)
+                .then(|| TimeIndexWindow::All(self))
+                .unwrap_or(TimeIndexWindow::Empty),
+            _ => {
+                if let Some(min_val) = self.first() {
+                    if let Some(max_val) = self.last() {
+                        if min_val >= w.start && max_val < w.end {
+                            TimeIndexWindow::All(self)
+                        } else {
+                            TimeIndexWindow::TimeIndexRange {
+                                timeindex: self,
+                                range: w,
+                            }
+                        }
+                    } else {
+                        TimeIndexWindow::Empty
+                    }
+                } else {
+                    TimeIndexWindow::Empty
+                }
+            }
+        }
+    }
+
+    fn first(&self) -> Option<Self::IndexType> {
+        match self {
+            TCell::Empty => None,
+            TCell::TCell1(t, _) => Some(*t),
+            TCell::TCellCap(svm) => svm.first_key_value().map(|(ti, _)| *ti),
+            TCell::TCellN(btm) => btm.first_key_value().map(|(ti, _)| *ti),
+        }
+    }
+
+    fn last(&self) -> Option<Self::IndexType> {
+        match self {
+            TCell::Empty => None,
+            TCell::TCell1(t, _) => Some(*t),
+            TCell::TCellCap(svm) => svm.last_key_value().map(|(ti, _)| *ti),
+            TCell::TCellN(btm) => btm.last_key_value().map(|(ti, _)| *ti),
+        }
+    }
+
+    fn iter(&self) -> Box<dyn Iterator<Item = Self::IndexType> + Send + '_> {
+        match self {
+            TCell::Empty => Box::new(std::iter::empty()),
+            TCell::TCell1(t, _) => Box::new(std::iter::once(*t)),
+            TCell::TCellCap(svm) => Box::new(svm.iter().map(|(ti, _)| *ti)),
+            TCell::TCellN(btm) => Box::new(btm.keys().copied()),
+        }
+    }
+
+    fn len(&self) -> usize {
+        match self {
+            TCell::Empty => 0,
+            TCell::TCell1(_, _) => 1,
+            TCell::TCellCap(svm) => svm.len(),
+            TCell::TCellN(btm) => btm.len(),
+        }
     }
 }
 

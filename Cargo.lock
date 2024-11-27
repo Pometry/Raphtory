@@ -4895,6 +4895,7 @@ dependencies = [
  "rayon",
  "rustc-hash 2.0.0",
  "serde",
+ "sorted_vector_map",
  "thiserror 2.0.0",
  "tracing",
  "tracing-subscriber",

@@ -52,15 +52,15 @@ where
     }
 
     #[allow(unused)]
-    pub(crate) fn filled_values(&self) -> Box<dyn Iterator<Item = &A> + '_> {
+    pub(crate) fn values_mut(&mut self) -> Box<dyn Iterator<Item = &mut A> + '_> {
         match self {
             LazyVec::Empty => Box::new(iter::empty()),
             LazyVec::LazyVec1(_, value) => Box::new(iter::once(value)),
             LazyVec::LazyVecN(vector) => Box::new(
                 vector
-                    .iter()
+                    .iter_mut()
                     .enumerate()
-                    .filter(|&(_, value)| *value != Default::default())
+                    .filter(|(_, value)| **value != A::default())
                     .map(|(_, value)| value),
             ),
         }
@@ -118,19 +118,20 @@ where
         }
     }
 
-    pub(crate) fn update<F>(&mut self, id: usize, updater: F) -> Result<(), GraphError>
+    pub(crate) fn update<F, B>(&mut self, id: usize, updater: F) -> Result<B, GraphError>
     where
-        F: FnOnce(&mut A) -> Result<(), GraphError>,
+        F: FnOnce(&mut A) -> Result<B, GraphError>,
     {
-        match self.get_mut(id) {
+        let b = match self.get_mut(id) {
             Some(value) => updater(value)?,
             None => {
                 let mut value = A::default();
-                updater(&mut value)?;
+                let b = updater(&mut value)?;
                 self.set(id, value)?;
+                b
             }
         };
-        Ok(())
+        Ok(b)
     }
 }
 

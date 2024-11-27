@@ -142,7 +142,7 @@ impl InternalAdditionOps for TemporalGraph {
         self.update_time(t);
         // get the node and update the time index
         let mut node = self.storage.get_node_mut(v);
-        node.update_time(t);
+        node.update_time(t, None);
         for (id, prop) in props {
             let prop = self.process_prop_value(prop);
             node.add_prop(t, *id, prop)?;

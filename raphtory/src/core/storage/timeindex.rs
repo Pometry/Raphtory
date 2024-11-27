@@ -96,16 +96,7 @@ impl<T: AsTime> TimeIndex<T> {
         }
     }
 
-    // = note: see issue #65991 <https://github.com/rust-lang/rust/issues/65991> for more information
-    // = note: required when coercing `Box<dyn DoubleEndedIterator<Item = &i64> + Send>` into `Box<dyn Iterator<Item = &i64> + Send>`
-    pub(crate) fn range_iter_forward(
-        &self,
-        w: Range<T>,
-    ) -> Box<dyn Iterator<Item = T> + Send + '_> {
-        Box::new(self.range_iter(w))
-    }
-
-    pub(crate) fn range_inner(&self, w: Range<T>) -> TimeIndexWindow<T> {
+    pub(crate) fn range_inner(&self, w: Range<T>) -> TimeIndexWindow<T, Self> {
         match &self {
             TimeIndex::Empty => TimeIndexWindow::Empty,
             TimeIndex::One(t) => {
@@ -137,17 +128,23 @@ impl<T: AsTime> TimeIndex<T> {
     }
 }
 
-#[derive(Clone, Debug)]
-pub enum TimeIndexWindow<'a, T: AsTime> {
-    Empty,
-    TimeIndexRange {
-        timeindex: &'a TimeIndex<T>,
-        range: Range<T>,
-    },
-    All(&'a TimeIndex<T>),
+impl<T: AsTime> TimeIndexLike for TimeIndex<T> {
+    fn range_iter(
+        &self,
+        w: Range<Self::IndexType>,
+    ) -> Box<dyn DoubleEndedIterator<Item = Self::IndexType> + Send + '_> {
+        self.range_iter(w)
+    }
 }
 
-impl<'a, T: AsTime> TimeIndexWindow<'a, T> {
+#[derive(Clone, Debug)]
+pub enum TimeIndexWindow<'a, T: AsTime, TI> {
+    Empty,
+    TimeIndexRange { timeindex: &'a TI, range: Range<T> },
+    All(&'a TI),
+}
+
+impl<'a, T: AsTime, TI: TimeIndexLike<IndexType = T>> TimeIndexWindow<'a, T, TI> {
     pub fn len(&self) -> usize {
         match self {
             TimeIndexWindow::Empty => 0,
@@ -159,7 +156,9 @@ impl<'a, T: AsTime> TimeIndexWindow<'a, T> {
     }
 }
 
-impl<'a, T: AsTime> TimeIndexIntoOps for TimeIndexWindow<'a, T> {
+impl<'a, T: AsTime, TI: TimeIndexLike<IndexType = T>> TimeIndexIntoOps
+    for TimeIndexWindow<'a, T, TI>
+{
     type IndexType = T;
     type RangeType = Self;
 
@@ -178,7 +177,28 @@ impl<'a, T: AsTime> TimeIndexIntoOps for TimeIndexWindow<'a, T> {
                     }
                 }
             }
-            TimeIndexWindow::All(timeindex) => timeindex.range_inner(w),
+            TimeIndexWindow::All(ts) => {
+                if ts.len() == 0 {
+                    TimeIndexWindow::Empty
+                } else {
+                    if let Some(min_val) = ts.first() {
+                        if let Some(max_val) = ts.last() {
+                            if min_val >= w.start && max_val < w.end {
+                                TimeIndexWindow::All(ts)
+                            } else {
+                                TimeIndexWindow::TimeIndexRange {
+                                    timeindex: ts,
+                                    range: w,
+                                }
+                            }
+                        } else {
+                            TimeIndexWindow::Empty
+                        }
+                    } else {
+                        TimeIndexWindow::Empty
+                    }
+                }
+            }
         }
     }
 
@@ -284,7 +304,7 @@ impl<'a, T: AsTime, Ops: TimeIndexOps<IndexType = T>, V: AsRef<Vec<Ops>> + Send 
 impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
     type IndexType = T;
     type RangeType<'a>
-        = TimeIndexWindow<'a, T>
+        = TimeIndexWindow<'a, T, Self>
     where
         Self: 'a;
 
@@ -297,7 +317,7 @@ impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
         }
     }
 
-    fn range(&self, w: Range<T>) -> TimeIndexWindow<T> {
+    fn range(&self, w: Range<T>) -> TimeIndexWindow<T, Self> {
         match &self {
             TimeIndex::Empty => TimeIndexWindow::Empty,
             TimeIndex::One(t) => {
@@ -361,13 +381,13 @@ impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
     }
 }
 
-impl<'b, T: AsTime> TimeIndexOps for TimeIndexWindow<'b, T>
+impl<'b, T: AsTime, TI: TimeIndexLike<IndexType = T>> TimeIndexOps for TimeIndexWindow<'b, T, TI>
 where
     Self: 'b,
 {
     type IndexType = T;
     type RangeType<'a>
-        = TimeIndexWindow<'a, T>
+        = TimeIndexWindow<'a, T, TI>
     where
         Self: 'a;
 
@@ -399,7 +419,10 @@ where
                     }
                 }
             }
-            TimeIndexWindow::All(timeindex) => timeindex.range(w),
+            TimeIndexWindow::All(timeindex) => TimeIndexWindow::TimeIndexRange {
+                timeindex,
+                range: w,
+            },
         }
     }
 
@@ -436,17 +459,9 @@ where
     fn len(&self) -> usize {
         match self {
             TimeIndexWindow::Empty => 0,
-            TimeIndexWindow::TimeIndexRange { timeindex, range } => match timeindex {
-                TimeIndex::Empty => 0,
-                TimeIndex::One(t) => {
-                    if range.contains(t) {
-                        1
-                    } else {
-                        0
-                    }
-                }
-                TimeIndex::Set(ts) => ts.range(range.clone()).count(),
-            },
+            TimeIndexWindow::TimeIndexRange { timeindex, range } => {
+                timeindex.range_iter(range.clone()).count()
+            }
             TimeIndexWindow::All(ts) => ts.len(),
         }
     }

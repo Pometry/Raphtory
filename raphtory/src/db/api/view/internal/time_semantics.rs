@@ -54,10 +54,10 @@ pub trait TimeSemantics {
     ) -> bool;
 
     /// Get the timestamps at which a node `v` is active (i.e has an edge addition)
-    fn node_history(&self, v: VID) -> Vec<i64>;
+    fn node_history<'a>(&'a self, v: VID) -> BoxedLIter<'a, TimeIndexEntry>;
 
     /// Get the timestamps at which a node `v` is active in window `w` (i.e has an edge addition)
-    fn node_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64>;
+    fn node_history_window<'a>(&'a self, v: VID, w: Range<i64>) -> BoxedLIter<'a, TimeIndexEntry>;
 
     fn edge_history<'a>(
         &'a self,
@@ -421,12 +421,12 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
     }
 
     #[inline]
-    fn node_history(&self, v: VID) -> Vec<i64> {
+    fn node_history(&self, v: VID) -> BoxedLIter<'_, TimeIndexEntry> {
         self.graph().node_history(v)
     }
 
     #[inline]
-    fn node_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
+    fn node_history_window(&self, v: VID, w: Range<i64>) -> BoxedLIter<'_, TimeIndexEntry> {
         self.graph().node_history_window(v, w)
     }
 

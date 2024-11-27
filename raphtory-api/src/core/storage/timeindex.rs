@@ -23,6 +23,20 @@ pub trait AsTime: fmt::Debug + Copy + Ord + Eq + Send + Sync + 'static {
     fn new(t: i64, s: usize) -> Self;
 }
 
+pub trait TimeIndexLike: TimeIndexOps {
+    fn range_iter(
+        &self,
+        w: Range<Self::IndexType>,
+    ) -> Box<dyn DoubleEndedIterator<Item = Self::IndexType> + Send + '_>;
+
+    fn range_iter_forward(
+        &self,
+        w: Range<Self::IndexType>,
+    ) -> Box<dyn Iterator<Item = Self::IndexType> + Send + '_> {
+        Box::new(self.range_iter(w))
+    }
+}
+
 pub trait TimeIndexIntoOps: Sized {
     type IndexType: AsTime;
     type RangeType: TimeIndexIntoOps<IndexType = Self::IndexType>;

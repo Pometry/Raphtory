@@ -98,12 +98,21 @@ impl TimeSemantics for GraphStorage {
         edge.active(layer_ids, w)
     }
 
-    fn node_history(&self, v: VID) -> Vec<i64> {
-        self.node_entry(v).additions().iter_t().collect()
+    fn node_history<'a>(&'a self, v: VID) -> BoxedLIter<'a, TimeIndexEntry> {
+        GenLockedIter::from(self.node_entry(v), |node| {
+            node.additions().into_iter().into_dyn_boxed()
+        })
+        .into_dyn_boxed()
     }
 
-    fn node_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
-        self.node_entry(v).additions().range_t(w).iter().collect()
+    fn node_history_window<'a>(&'a self, v: VID, w: Range<i64>) -> BoxedLIter<'a, TimeIndexEntry> {
+        GenLockedIter::from(self.node_entry(v), |node| {
+            node.additions()
+                .into_range_t(w)
+                .into_iter()
+                .into_dyn_boxed()
+        })
+        .into_dyn_boxed()
     }
 
     fn edge_history<'a>(

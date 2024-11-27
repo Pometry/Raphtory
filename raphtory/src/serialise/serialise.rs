@@ -179,11 +179,7 @@ impl StableEncode for GraphStorage {
                 graph.update_node_tprops(node.vid(), t, group.map(|(_, v)| v));
             }
             for t in node.additions().iter() {
-                graph.update_node_tprops(
-                    node.vid(),
-                    TimeIndexEntry::start(t),
-                    iter::empty::<(usize, Prop)>(),
-                );
+                graph.update_node_tprops(node.vid(), t, iter::empty::<(usize, Prop)>());
             }
             graph.update_node_cprops(
                 node.vid(),
@@ -403,10 +399,10 @@ impl StableDecode for TemporalGraph {
                         for layer in edge.layer_ids_iter(&LayerIds::All) {
                             src.add_edge(edge.dst(), Direction::OUT, layer, edge.eid());
                             for t in edge.additions(layer).iter() {
-                                src.update_time(t);
+                                src.update_time(t, Some(edge.eid()));
                             }
                             for t in edge.deletions(layer).iter() {
-                                src.update_time(t)
+                                src.update_time(t, Some(edge.eid()));
                             }
                         }
                     }
@@ -414,10 +410,10 @@ impl StableDecode for TemporalGraph {
                         for layer in edge.layer_ids_iter(&LayerIds::All) {
                             dst.add_edge(edge.src(), Direction::IN, layer, edge.eid());
                             for t in edge.additions(layer).iter() {
-                                dst.update_time(t);
+                                dst.update_time(t, Some(edge.eid()));
                             }
                             for t in edge.deletions(layer).iter() {
-                                dst.update_time(t)
+                                dst.update_time(t, Some(edge.eid()));
                             }
                         }
                     }
@@ -436,7 +432,7 @@ impl StableDecode for TemporalGraph {
                             }
                             Update::UpdateNodeTprops(update) => {
                                 if let Some(node) = shard.get_mut(update.vid()) {
-                                    node.update_time(update.time());
+                                    node.update_time(update.time(), None);
                                     for prop_update in update.props() {
                                         let (id, prop) = prop_update?;
                                         let prop = storage.process_prop_value(&prop);

@@ -3,7 +3,7 @@ use crate::{
         entities::{
             edges::edge_ref::EdgeRef,
             nodes::node_ref::NodeRef,
-            properties::{graph_meta::GraphMeta, props::Meta, tprop::TProp},
+            properties::{graph_meta::GraphMeta, props::Meta, tcell::TCell, tprop::TProp},
             LayerIds, VID,
         },
         storage::{
@@ -26,7 +26,10 @@ use crate::{
 use enum_dispatch::enum_dispatch;
 use raphtory_api::core::{
     entities::{EID, GID},
-    storage::arc_str::ArcStr,
+    storage::{
+        arc_str::ArcStr,
+        timeindex::{TimeIndexEntry, TimeIndexIntoOps},
+    },
 };
 use std::{iter, ops::Range};
 
@@ -326,35 +329,35 @@ impl<G: DelegateCoreOps + ?Sized + Send + Sync> CoreGraphOps for G {
 }
 
 pub enum NodeAdditions<'a> {
-    Mem(&'a TimeIndex<i64>),
-    Locked(LockedView<'a, TimeIndex<i64>>),
-    Range(TimeIndexWindow<'a, i64>),
+    Mem(&'a TCell<EID>),
+    // Locked(LockedView<'a, TimeIndex<i64>>),
+    Range(TimeIndexWindow<'a, TimeIndexEntry, TCell<EID>>),
     #[cfg(feature = "storage")]
     Col(Vec<TimeStamps<'a, i64>>),
 }
 
 impl<'b> TimeIndexOps for NodeAdditions<'b> {
-    type IndexType = i64;
+    type IndexType = TimeIndexEntry;
     type RangeType<'a>
         = NodeAdditions<'a>
     where
         Self: 'a;
 
     #[inline]
-    fn active(&self, w: Range<i64>) -> bool {
+    fn active(&self, w: Range<TimeIndexEntry>) -> bool {
         match self {
-            NodeAdditions::Mem(index) => index.active_t(w),
-            NodeAdditions::Locked(index) => index.active_t(w),
+            NodeAdditions::Mem(index) => index.active(w),
+            // NodeAdditions::Locked(index) => index.active_t(w),
             #[cfg(feature = "storage")]
             NodeAdditions::Col(index) => index.par_iter().any(|index| index.active_t(w.clone())),
-            NodeAdditions::Range(index) => index.active_t(w),
+            NodeAdditions::Range(index) => index.active(w),
         }
     }
 
-    fn range(&self, w: Range<i64>) -> Self::RangeType<'_> {
+    fn range(&self, w: Range<TimeIndexEntry>) -> Self::RangeType<'_> {
         match self {
             NodeAdditions::Mem(index) => NodeAdditions::Range(index.range(w)),
-            NodeAdditions::Locked(index) => NodeAdditions::Range(index.range(w)),
+            // NodeAdditions::Locked(index) => NodeAdditions::Range(index.range(w)),
             #[cfg(feature = "storage")]
             NodeAdditions::Col(index) => {
                 let mut ranges = Vec::with_capacity(index.len());
@@ -371,7 +374,7 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
     fn first(&self) -> Option<Self::IndexType> {
         match self {
             NodeAdditions::Mem(index) => index.first(),
-            NodeAdditions::Locked(index) => index.first(),
+            // NodeAdditions::Locked(index) => index.first(),
             #[cfg(feature = "storage")]
             NodeAdditions::Col(index) => index.par_iter().flat_map(|index| index.first()).min(),
             NodeAdditions::Range(index) => index.first(),
@@ -381,17 +384,17 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
     fn last(&self) -> Option<Self::IndexType> {
         match self {
             NodeAdditions::Mem(index) => index.last(),
-            NodeAdditions::Locked(index) => index.last(),
+            // NodeAdditions::Locked(index) => index.last(),
             #[cfg(feature = "storage")]
             NodeAdditions::Col(index) => index.par_iter().flat_map(|index| index.last()).max(),
             NodeAdditions::Range(index) => index.last(),
         }
     }
 
-    fn iter(&self) -> Box<dyn Iterator<Item = i64> + Send + '_> {
+    fn iter(&self) -> Box<dyn Iterator<Item = TimeIndexEntry> + Send + '_> {
         match self {
-            NodeAdditions::Mem(index) => index.iter(),
-            NodeAdditions::Locked(index) => Box::new(index.iter()),
+            NodeAdditions::Mem(index) => <TCell<EID> as TimeIndexOps>::iter(index),
+            // NodeAdditions::Locked(index) => Box::new(index.iter()),
             #[cfg(feature = "storage")]
             NodeAdditions::Col(index) => Box::new(index.iter().flat_map(|index| index.iter())),
             NodeAdditions::Range(index) => index.iter(),
@@ -401,10 +404,32 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
     fn len(&self) -> usize {
         match self {
             NodeAdditions::Mem(index) => index.len(),
-            NodeAdditions::Locked(index) => index.len(),
+            // NodeAdditions::Locked(index) => index.len(),
             NodeAdditions::Range(range) => range.len(),
             #[cfg(feature = "storage")]
             NodeAdditions::Col(col) => col.len(),
+        }
+    }
+}
+
+impl<'a> TimeIndexIntoOps for NodeAdditions<'a> {
+    type IndexType = TimeIndexEntry;
+
+    type RangeType = Self;
+
+    fn into_range(self, w: Range<Self::IndexType>) -> Self::RangeType {
+        match self {
+            NodeAdditions::Mem(index) => NodeAdditions::Range(index.range(w)),
+            NodeAdditions::Range(index) => NodeAdditions::Range(index.into_range(w)),
+            _ => todo!(),
+        }
+    }
+
+    fn into_iter(self) -> impl Iterator<Item = Self::IndexType> + Send {
+        match self {
+            NodeAdditions::Mem(index) => <TCell<EID> as TimeIndexOps>::iter(index),
+            NodeAdditions::Range(index) => Box::new(index.into_iter()),
+            _ => todo!(),
         }
     }
 }

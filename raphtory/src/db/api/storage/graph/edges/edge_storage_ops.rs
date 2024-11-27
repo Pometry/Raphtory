@@ -29,7 +29,7 @@ use pometry_storage::timestamps::TimeStamps;
 
 pub enum TimeIndexRef<'a> {
     Ref(&'a TimeIndex<TimeIndexEntry>),
-    Range(TimeIndexWindow<'a, TimeIndexEntry>),
+    Range(TimeIndexWindow<'a, TimeIndexEntry, TimeIndex<TimeIndexEntry>>),
     #[cfg(feature = "storage")]
     External(TimeStamps<'a, TimeIndexEntry>),
 }

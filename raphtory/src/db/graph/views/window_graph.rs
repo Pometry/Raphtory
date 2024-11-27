@@ -321,15 +321,15 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
         !self.window_is_empty() && self.graph.include_edge_window(edge, w, layer_ids)
     }
 
-    fn node_history(&self, v: VID) -> Vec<i64> {
+    fn node_history(&self, v: VID) -> BoxedLIter<'_, TimeIndexEntry> {
         if self.window_is_empty() {
-            return vec![];
+            return Box::new(std::iter::empty());
         }
         self.graph
             .node_history_window(v, self.start_bound()..self.end_bound())
     }
 
-    fn node_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
+    fn node_history_window(&self, v: VID, w: Range<i64>) -> BoxedLIter<'_, TimeIndexEntry> {
         self.graph.node_history_window(v, w.start..w.end)
     }
 

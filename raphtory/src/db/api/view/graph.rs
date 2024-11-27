@@ -238,10 +238,10 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 
                         if let Some(earliest) = node.earliest_time() {
                             // explicitly add node earliest_time to handle PersistentGraph
-                            new_node.update_time(TimeIndexEntry::start(earliest))
+                            new_node.update_time(TimeIndexEntry::start(earliest), None)
                         }
-                        for t in node.history() {
-                            new_node.update_time(TimeIndexEntry::start(t));
+                        for t in self.node_history(node.node) {
+                            new_node.update_time(t, None);
                         }
                         for t_prop_id in node.temporal_prop_ids() {
                             for (t, prop_value) in

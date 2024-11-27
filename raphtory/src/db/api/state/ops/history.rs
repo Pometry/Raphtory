@@ -5,7 +5,7 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
-use raphtory_api::core::entities::VID;
+use raphtory_api::core::{entities::VID, storage::timeindex::AsTime};
 
 #[derive(Debug, Clone)]
 pub struct EarliestTime<G> {
@@ -78,7 +78,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeOp for History<G> {
     type Output = Vec<i64>;
 
     fn apply(&self, _storage: &GraphStorage, node: VID) -> Self::Output {
-        self.graph.node_history(node)
+        self.graph.node_history(node).map(|t| t.t()).collect()
     }
 }
 

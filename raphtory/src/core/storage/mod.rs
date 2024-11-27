@@ -17,7 +17,6 @@ use std::{
 pub mod lazy_vec;
 pub mod locked_view;
 pub mod raw_edges;
-pub mod sorted_vec_map;
 pub mod timeindex;
 
 type ArcRwLockReadGuard<T> = lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, T>;
@@ -328,6 +327,11 @@ where
     #[inline]
     pub fn get_mut(&mut self, index: VID) -> Option<&mut NodeStore> {
         self.resolve(index).map(|offset| &mut self.shard[offset])
+    }
+
+    #[inline]
+    pub fn get(&self, index: VID) -> Option<&NodeStore> {
+        self.resolve(index).map(|offset| &self.shard[offset])
     }
 
     pub fn set(&mut self, vid: VID, gid: GidRef) -> Option<&mut NodeStore> {

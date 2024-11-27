@@ -2,14 +2,10 @@ use crate::core::{
     entities::{
         edges::edge_ref::{Dir, EdgeRef},
         nodes::structure::adj::Adj,
-        properties::{props::Props, tprop::TProp},
+        properties::{props::Props, tcell::TCell, tprop::TProp},
         LayerIds, EID, GID, VID,
     },
-    storage::{
-        lazy_vec::IllegalSet,
-        timeindex::{AsTime, TimeIndex, TimeIndexEntry},
-        ArcEntry, Entry,
-    },
+    storage::{lazy_vec::IllegalSet, timeindex::TimeIndexEntry, ArcEntry, Entry},
     utils::{errors::GraphError, iter::GenLockedIter},
     Direction, Prop,
 };
@@ -23,7 +19,7 @@ pub struct NodeStore {
     pub(crate) global_id: GID,
     pub(crate) vid: VID,
     // all the timestamps that have been seen by this node
-    timestamps: TimeIndex<i64>,
+    timestamps: TCell<EID>,
     // each layer represents a separate view of the graph
     pub(crate) layers: Vec<Adj>,
     // props for node
@@ -51,7 +47,7 @@ impl NodeStore {
         Self {
             global_id,
             vid: VID(0),
-            timestamps: TimeIndex::Empty,
+            timestamps: Default::default(),
             layers,
             props: None,
             node_type: 0,
@@ -73,12 +69,16 @@ impl NodeStore {
         &self.global_id
     }
 
-    pub fn timestamps(&self) -> &TimeIndex<i64> {
+    pub fn timestamps(&self) -> &TCell<EID> {
         &self.timestamps
     }
 
-    pub fn update_time(&mut self, t: TimeIndexEntry) {
-        self.timestamps.insert(t.t());
+    pub fn update_time(&mut self, t: TimeIndexEntry, eid: Option<EID>) {
+        if let Some(eid) = eid {
+            self.timestamps.set(t, eid);
+        } else {
+            todo!("update_time without eid, when properties live outside of NodeStore")
+        }
     }
 
     pub fn update_node_type(&mut self, node_type: usize) -> usize {

@@ -83,6 +83,29 @@ impl TProp {
         }
     }
 
+    pub(crate) fn remove(&mut self, t: &TimeIndexEntry) -> Option<Prop> {
+        match self {
+            TProp::Empty => None,
+            TProp::Str(cell) => cell.remove(t).map(Prop::Str),
+            TProp::I32(cell) => cell.remove(t).map(Prop::I32),
+            TProp::I64(cell) => cell.remove(t).map(Prop::I64),
+            TProp::U8(cell) => cell.remove(t).map(Prop::U8),
+            TProp::U16(cell) => cell.remove(t).map(Prop::U16),
+            TProp::U32(cell) => cell.remove(t).map(Prop::U32),
+            TProp::U64(cell) => cell.remove(t).map(Prop::U64),
+            TProp::F32(cell) => cell.remove(t).map(Prop::F32),
+            TProp::F64(cell) => cell.remove(t).map(Prop::F64),
+            TProp::Bool(cell) => cell.remove(t).map(Prop::Bool),
+            TProp::DTime(cell) => cell.remove(t).map(Prop::DTime),
+            TProp::NDTime(cell) => cell.remove(t).map(Prop::NDTime),
+            TProp::Graph(cell) => cell.remove(t).map(Prop::Graph),
+            TProp::PersistentGraph(cell) => cell.remove(t).map(Prop::PersistentGraph),
+            TProp::Document(cell) => cell.remove(t).map(Prop::Document),
+            TProp::List(cell) => cell.remove(t).map(Prop::List),
+            TProp::Map(cell) => cell.remove(t).map(Prop::Map),
+        }
+    }
+
     pub(crate) fn set(&mut self, t: TimeIndexEntry, prop: Prop) -> Result<(), GraphError> {
         if matches!(self, TProp::Empty) {
             *self = TProp::from(t, prop);
