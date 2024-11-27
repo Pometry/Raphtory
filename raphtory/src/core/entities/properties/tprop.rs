@@ -1,10 +1,12 @@
 use crate::{
     core::{
-        entities::properties::tcell::TCell, storage::timeindex::TimeIndexEntry,
-        utils::errors::GraphError, DocumentInput, Prop, PropType,
+        entities::properties::tcell::TCell,
+        storage::{timeindex::TimeIndexEntry, TPropColumn},
+        utils::errors::GraphError,
+        DocumentInput, Prop, PropType,
     },
     db::{
-        api::storage::graph::tprop_storage_ops::TPropOps,
+        api::storage::graph::tprop_storage_ops::{SparseTPropOps, TPropOps},
         graph::{graph::Graph, views::deletion_graph::PersistentGraph},
     },
 };
@@ -35,6 +37,77 @@ pub enum TProp {
     Document(TCell<DocumentInput>),
     List(TCell<Arc<Vec<Prop>>>),
     Map(TCell<Arc<HashMap<ArcStr, Prop>>>),
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct TPropCell<'a> {
+    t_cell: Option<&'a TCell<Option<usize>>>,
+    log: Option<&'a TPropColumn>,
+}
+
+impl<'a> TPropCell<'a> {
+    pub(crate) fn new(t_cell: &'a TCell<Option<usize>>, log: Option<&'a TPropColumn>) -> Self {
+        Self {
+            t_cell: Some(t_cell),
+            log,
+        }
+    }
+}
+
+impl<'a> TPropOps<'a> for TPropCell<'a> {
+    fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, Prop)> {
+        self.t_cell?
+            .last_before(t)
+            .and_then(|(t, &id)| self.log?.get(id?).map(|prop| (t, prop))) // FIXME: is this correct?
+    }
+
+    fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+        self.t_cell.into_iter().flat_map(move |t_cell| {
+            t_cell
+                .iter()
+                .filter_map(move |(t, &id)| self.log?.get(id?).map(|prop| (*t, prop)))
+        })
+    }
+
+    fn iter_window(
+        self,
+        r: Range<TimeIndexEntry>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+        self.t_cell.into_iter().flat_map(move |t_cell| {
+            t_cell
+                .iter_window(r.clone())
+                .filter_map(move |(t, &id)| self.log?.get(id?).map(|prop| (*t, prop)))
+        })
+    }
+
+    fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
+        self.t_cell?.at(ti).and_then(|&id| self.log?.get(id?))
+    }
+
+    fn len(self) -> usize {
+        self.log.map(|log| log.len()).unwrap_or(0)
+    }
+}
+
+impl<'a> SparseTPropOps<'a> for TPropCell<'a> {
+    fn iter_all(self) -> impl Iterator<Item = (TimeIndexEntry, Option<Prop>)> + Send + 'a {
+        self.t_cell.into_iter().flat_map(move |t_cell| {
+            t_cell
+                .iter()
+                .map(move |(t, &id)| (*t, self.log.and_then(|log| log.get(id?))))
+        })
+    }
+
+    fn iter_window_all(
+        self,
+        r: Range<TimeIndexEntry>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, Option<Prop>)> + Send + 'a {
+        self.t_cell.into_iter().flat_map(move |t_cell| {
+            t_cell
+                .iter_window(r.clone())
+                .map(move |(t, &id)| (*t, self.log.and_then(|log| log.get(id?))))
+        })
+    }
 }
 
 impl TProp {
@@ -80,6 +153,29 @@ impl TProp {
             Prop::Document(value) => TProp::Document(TCell::new(t, value)),
             Prop::List(value) => TProp::List(TCell::new(t, value)),
             Prop::Map(value) => TProp::Map(TCell::new(t, value)),
+        }
+    }
+
+    pub(crate) fn remove(&mut self, t: &TimeIndexEntry) -> Option<Prop> {
+        match self {
+            TProp::Empty => None,
+            TProp::Str(cell) => cell.remove(t).map(Prop::Str),
+            TProp::I32(cell) => cell.remove(t).map(Prop::I32),
+            TProp::I64(cell) => cell.remove(t).map(Prop::I64),
+            TProp::U8(cell) => cell.remove(t).map(Prop::U8),
+            TProp::U16(cell) => cell.remove(t).map(Prop::U16),
+            TProp::U32(cell) => cell.remove(t).map(Prop::U32),
+            TProp::U64(cell) => cell.remove(t).map(Prop::U64),
+            TProp::F32(cell) => cell.remove(t).map(Prop::F32),
+            TProp::F64(cell) => cell.remove(t).map(Prop::F64),
+            TProp::Bool(cell) => cell.remove(t).map(Prop::Bool),
+            TProp::DTime(cell) => cell.remove(t).map(Prop::DTime),
+            TProp::NDTime(cell) => cell.remove(t).map(Prop::NDTime),
+            TProp::Graph(cell) => cell.remove(t).map(Prop::Graph),
+            TProp::PersistentGraph(cell) => cell.remove(t).map(Prop::PersistentGraph),
+            TProp::Document(cell) => cell.remove(t).map(Prop::Document),
+            TProp::List(cell) => cell.remove(t).map(Prop::List),
+            TProp::Map(cell) => cell.remove(t).map(Prop::Map),
         }
     }
 
@@ -402,7 +498,21 @@ impl<'a> TPropOps<'a> for &'a TProp {
 
 #[cfg(test)]
 mod tprop_tests {
+    use crate::core::storage::lazy_vec::LazyVec;
+
     use super::*;
+
+    #[test]
+    fn t_prop_cell() {
+        let col = TPropColumn::Bool(LazyVec::from(0, true));
+        assert_eq!(col.get(0), Some(Prop::Bool(true)));
+
+        let t_prop = TPropCell::new(&TCell::TCell1(TimeIndexEntry(0, 0), Some(0)), Some(&col));
+
+        let actual = t_prop.iter().collect::<Vec<_>>();
+
+        assert_eq!(actual, vec![(TimeIndexEntry(0, 0), Prop::Bool(true))]);
+    }
 
     #[test]
     fn set_new_value_for_tprop_initialized_as_empty() {

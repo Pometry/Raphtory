@@ -1,14 +1,14 @@
 use crate::{
     core::{
         entities::{graph::tgraph::TemporalGraph, nodes::node_ref::AsNodeRef, LayerIds, VID},
-        storage::timeindex::AsTime,
+        storage::{timeindex::AsTime, TPropColumn},
         utils::errors::GraphError,
     },
     db::{
         api::{
             mutation::internal::InternalAdditionOps,
             properties::{
-                internal::{ConstPropertiesOps, TemporalPropertiesOps},
+                internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
                 Properties,
             },
             storage::graph::{
@@ -227,7 +227,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                 for (index, node) in self.nodes().iter().enumerate() {
                     let new_id = VID(index);
                     let gid = node.id();
-                    if let Some(new_node) = shard.set(new_id, gid.as_ref()) {
+                    if let Some(mut new_node) = shard.set(new_id, gid.as_ref()) {
                         node_map_shared[node.node.index()].store(index, Ordering::Relaxed);
                         if let Some(node_type) = node.node_type() {
                             let new_type_id = g
@@ -235,27 +235,54 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                                 .node_type_meta()
                                 .get_or_create_id(&node_type)
                                 .inner();
-                            new_node.node_type = new_type_id;
+                            new_node.get_mut().node_type = new_type_id;
                         }
                         g.logical_to_physical.set(gid.as_ref(), new_id)?;
 
                         if let Some(earliest) = node.earliest_time() {
                             // explicitly add node earliest_time to handle PersistentGraph
-                            new_node.update_time(TimeIndexEntry::start(earliest))
+                            new_node
+                                .get_mut()
+                                .update_t_prop_time(TimeIndexEntry::start(earliest), None)
                         }
-                        for t in node.history() {
-                            new_node.update_time(TimeIndexEntry::start(t));
+                        for (t, eid) in self.node_edge_history(node.node, None) {
+                            new_node.get_mut().update_time(t, eid);
                         }
-                        for t_prop_id in node.temporal_prop_ids() {
-                            for (t, prop_value) in
-                                self.temporal_node_prop_hist(node.node, t_prop_id)
-                            {
-                                new_node.add_prop(t, t_prop_id, prop_value)?;
-                            }
+
+                        let node_entry = self.core_node_entry(node.node);
+
+                        let props = 0..self.node_meta().temporal_prop_meta().len();
+                        let start = self.view_start();
+                        let end = self.view_end();
+
+                        let rows = if let Some(range) = start.zip(end).map(|(s, e)| s..e) {
+                            node_entry
+                                .as_ref()
+                                .temp_prop_rows_window(
+                                    props.clone(),
+                                    TimeIndexEntry::start(range.start)
+                                        ..TimeIndexEntry::start(range.end),
+                                )
+                                .into_dyn_boxed()
+                        } else {
+                            node_entry
+                                .as_ref()
+                                .temp_prop_rows(props.clone())
+                                .into_dyn_boxed()
+                        };
+
+                        for (time, row) in rows {
+                            let prop_offset = new_node
+                                .t_props_log_mut()
+                                .push(row.into_iter().filter_map(|(id, prop)| Some((id, prop?))))?;
+                            new_node.get_mut().update_t_prop_time(time, prop_offset);
                         }
+
                         for c_prop_id in node.const_prop_ids() {
                             if let Some(prop_value) = node.get_const_prop(c_prop_id) {
-                                new_node.add_constant_prop(c_prop_id, prop_value)?;
+                                new_node
+                                    .get_mut()
+                                    .add_constant_prop(c_prop_id, prop_value)?;
                             }
                         }
                     }
@@ -381,10 +408,12 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         self.get_layer_names_from_ids(self.layer_ids())
     }
 
+    #[inline]
     fn earliest_time(&self) -> Option<i64> {
         self.earliest_time_global()
     }
 
+    #[inline]
     fn latest_time(&self) -> Option<i64> {
         self.latest_time_global()
     }

@@ -3,7 +3,7 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef, VID},
-        utils::errors::GraphError,
+        utils::{errors::GraphError, iter::GenLockedIter},
     },
     db::{
         api::{
@@ -12,7 +12,8 @@ use crate::{
                 time_from_input, CollectProperties, TryIntoInputTime,
             },
             properties::internal::{
-                ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
+                ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertiesRowView,
+                TemporalPropertyViewOps,
             },
             view::{
                 internal::{CoreGraphOps, OneHopFilter, Static, TimeSemantics},
@@ -32,7 +33,10 @@ use crate::{
     },
 };
 use chrono::{DateTime, Utc};
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::{
+    entities::EID,
+    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+};
 use std::{
     fmt,
     fmt::Debug,
@@ -277,6 +281,16 @@ impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertyViewOps for NodeView<G
             Ok(index) => Some(self.temporal_values(id)[index].clone()),
             Err(index) => (index > 0).then(|| self.temporal_values(id)[index - 1].clone()),
         }
+    }
+}
+
+impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertiesRowView for NodeView<G, GH> {
+    fn rows(&self) -> BoxedLIter<(TimeIndexEntry, Vec<Option<Prop>>)> {
+        self.graph.node_history_rows(self.node, None)
+    }
+
+    fn edge_ts(&self) -> BoxedLIter<(TimeIndexEntry, EID)> {
+        self.graph.node_edge_history(self.node, None)
     }
 }
 

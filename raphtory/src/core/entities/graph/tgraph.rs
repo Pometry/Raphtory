@@ -7,7 +7,7 @@ use crate::{
                 tgraph_storage::GraphStorage,
                 timer::{MaxCounter, MinCounter, TimeCounterTrait},
             },
-            nodes::{node_ref::NodeRef, node_store::NodeStore},
+            nodes::node_ref::NodeRef,
             properties::{graph_meta::GraphMeta, props::Meta},
             LayerIds, EID, VID,
         },
@@ -195,10 +195,12 @@ impl TemporalGraph {
         self.edge_meta.get_layer_name_by_id(layer)
     }
 
+    #[inline]
     pub(crate) fn graph_earliest_time(&self) -> Option<i64> {
         Some(self.earliest_time.get()).filter(|t| *t != i64::MAX)
     }
 
+    #[inline]
     pub(crate) fn graph_latest_time(&self) -> Option<i64> {
         Some(self.latest_time.get()).filter(|t| *t != i64::MIN)
     }
@@ -326,7 +328,7 @@ impl TemporalGraph {
 
     pub(crate) fn link_nodes_inner(
         &self,
-        node_pair: &mut PairEntryMut<NodeStore>,
+        node_pair: &mut PairEntryMut,
         edge_id: EID,
         t: TimeIndexEntry,
         layer: usize,
@@ -336,10 +338,10 @@ impl TemporalGraph {
         let dst_id = node_pair.get_j().vid;
         let src = node_pair.get_mut_i();
         src.add_edge(dst_id, Direction::OUT, layer, edge_id);
-        src.update_time(t);
+        src.update_time(t, edge_id);
         let dst = node_pair.get_mut_j();
         dst.add_edge(src_id, Direction::IN, layer, edge_id);
-        dst.update_time(t);
+        dst.update_time(t, edge_id);
         Ok(())
     }
 
@@ -400,6 +402,7 @@ impl TemporalGraph {
         }
     }
 
+    #[inline]
     pub(crate) fn resolve_node_ref(&self, v: NodeRef) -> Option<VID> {
         match v {
             NodeRef::Internal(vid) => Some(vid),

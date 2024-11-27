@@ -4,7 +4,10 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::{
+    entities::EID,
+    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+};
 
 #[enum_dispatch]
 pub trait TemporalPropertyViewOps {
@@ -38,6 +41,11 @@ pub trait TemporalPropertyViewOps {
             Err(index) => (index > 0).then(|| self.temporal_values(id)[index - 1].clone()),
         }
     }
+}
+
+pub trait TemporalPropertiesRowView {
+    fn rows(&self) -> BoxedLIter<(TimeIndexEntry, Vec<Option<Prop>>)>;
+    fn edge_ts(&self) -> BoxedLIter<(TimeIndexEntry, EID)>;
 }
 
 #[enum_dispatch]

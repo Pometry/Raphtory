@@ -63,7 +63,10 @@ use crate::{
     prelude::GraphViewOps,
 };
 use chrono::{DateTime, Utc};
-use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry};
+use raphtory_api::core::{
+    entities::EID,
+    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+};
 use std::{
     fmt::{Debug, Formatter},
     iter,
@@ -111,14 +114,17 @@ impl<'graph, G: GraphViewOps<'graph>> Base for WindowedGraph<G> {
 }
 
 impl<G> WindowedGraph<G> {
+    #[inline(always)]
     fn start_bound(&self) -> i64 {
         self.start.unwrap_or(i64::MIN)
     }
 
+    #[inline(always)]
     fn end_bound(&self) -> i64 {
         self.end.unwrap_or(i64::MAX)
     }
 
+    #[inline(always)]
     fn window_is_empty(&self) -> bool {
         self.start_bound() >= self.end_bound()
     }
@@ -321,16 +327,59 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
         !self.window_is_empty() && self.graph.include_edge_window(edge, w, layer_ids)
     }
 
-    fn node_history(&self, v: VID) -> Vec<i64> {
+    fn node_history(&self, v: VID) -> BoxedLIter<'_, TimeIndexEntry> {
         if self.window_is_empty() {
-            return vec![];
+            return Box::new(std::iter::empty());
         }
         self.graph
             .node_history_window(v, self.start_bound()..self.end_bound())
     }
 
-    fn node_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
+    fn node_history_window(&self, v: VID, w: Range<i64>) -> BoxedLIter<'_, TimeIndexEntry> {
         self.graph.node_history_window(v, w.start..w.end)
+    }
+
+    fn node_edge_history<'a>(
+        &'a self,
+        v: VID,
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<'a, (TimeIndexEntry, EID)> {
+        if self.window_is_empty() {
+            return Box::new(std::iter::empty());
+        }
+        let range = w
+            .map(|r| r.start..r.end)
+            .unwrap_or_else(|| self.start_bound()..self.end_bound());
+        self.graph.node_edge_history(v, Some(range))
+    }
+
+    fn node_property_history<'a>(
+        &'a self,
+        v: VID,
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<'a, TimeIndexEntry> {
+        if self.window_is_empty() {
+            return Box::new(std::iter::empty());
+        }
+
+        let range = w
+            .map(|r| r.start..r.end)
+            .unwrap_or_else(|| self.start_bound()..self.end_bound());
+        self.graph.node_property_history(v, Some(range))
+    }
+
+    fn node_history_rows(
+        &self,
+        v: VID,
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<(TimeIndexEntry, Vec<Option<Prop>>)> {
+        if self.window_is_empty() {
+            return Box::new(std::iter::empty());
+        }
+        let range = w
+            .map(|r| r.start..r.end)
+            .unwrap_or_else(|| self.start_bound()..self.end_bound());
+        self.graph.node_history_rows(v, Some(range))
     }
 
     fn edge_history<'a>(
