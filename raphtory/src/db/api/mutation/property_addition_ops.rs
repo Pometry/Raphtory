@@ -1,5 +1,5 @@
 use crate::{
-    core::utils::{errors::GraphError},
+    core::utils::errors::GraphError,
     db::api::mutation::{
         internal::{InternalAdditionOps, InternalPropertyAdditionOps},
         TryIntoInputTime,
