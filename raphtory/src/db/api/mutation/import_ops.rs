@@ -2,16 +2,14 @@ use super::time_from_input;
 use crate::{
     core::{
         entities::{nodes::node_ref::AsNodeRef, LayerIds},
-        utils::errors::{
-            GraphError,
-            GraphError::{EdgeExistsError, NodeExistsError},
-        },
+        utils::errors::GraphError::{self, EdgeExistsError, NodeExistsError},
     },
     db::{
         api::{
             mutation::internal::{
                 InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
             },
+            properties::internal::{TemporalPropertiesOps, TemporalPropertiesRowView},
             view::{internal::InternalMaterialize, StaticGraphViewOps},
         },
         graph::{edge::EdgeView, node::NodeView},
@@ -352,30 +350,20 @@ fn import_node_internal<
             node_internal.inner()
         }
     };
+    let keys = node.temporal_prop_keys().collect::<Vec<_>>();
 
-    for h in node.history() {
-        let t = time_from_input(graph, h)?;
-        graph.internal_add_node(t, node_internal, &[])?;
-    }
+    for (t, row) in node.rows() {
+        let t = time_from_input(graph, t)?;
 
-    for (name, prop_view) in node.properties().temporal().iter() {
-        let old_prop_id = node
-            .graph
-            .node_meta()
-            .temporal_prop_meta()
-            .get_id(&name)
-            .unwrap();
-        let dtype = node
-            .graph
-            .node_meta()
-            .temporal_prop_meta()
-            .get_dtype(old_prop_id)
-            .unwrap();
-        let new_prop_id = graph.resolve_node_property(&name, dtype, false)?.inner();
-        for (h, prop) in prop_view.iter() {
-            let t = time_from_input(graph, h)?;
-            graph.internal_add_node(t, node_internal, &[(new_prop_id, prop)])?;
-        }
+        let props = row
+            .into_iter()
+            .zip(&keys)
+            .map(|((_, prop), key)| {
+                let prop_id = graph.resolve_node_property(key, prop.dtype(), false);
+                prop_id.map(|prop_id| (prop_id.inner(), prop))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        graph.internal_add_node(t, node_internal, &props)?;
     }
 
     graph

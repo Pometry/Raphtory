@@ -1,6 +1,7 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, nodes::node_store::NodeStore, LayerIds, VID},
+        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
+        storage::node_entry::NodeEntry,
         Direction,
     },
     db::api::{
@@ -9,23 +10,49 @@ use crate::{
     },
     prelude::Prop,
 };
-use raphtory_api::core::entities::GidRef;
-use std::borrow::Cow;
+use raphtory_api::{
+    core::{entities::GidRef, storage::timeindex::TimeIndexEntry},
+    iter::IntoDynBoxed,
+};
+use std::{borrow::Cow, ops::Range};
 
 #[cfg(feature = "storage")]
 use crate::db::api::storage::graph::variants::storage_variants::StorageVariants;
 #[cfg(feature = "storage")]
 use crate::disk_graph::storage_interface::node::DiskNode;
 
+use super::row::Row;
+
 #[derive(Copy, Clone, Debug)]
 pub enum NodeStorageRef<'a> {
-    Mem(&'a NodeStore),
+    Mem(NodeEntry<'a>),
     #[cfg(feature = "storage")]
     Disk(DiskNode<'a>),
 }
 
-impl<'a> From<&'a NodeStore> for NodeStorageRef<'a> {
-    fn from(value: &'a NodeStore) -> Self {
+impl<'a> NodeStorageRef<'a> {
+    pub fn temp_prop_rows(self) -> impl Iterator<Item = (TimeIndexEntry, Row<'a>)> + 'a {
+        match self {
+            NodeStorageRef::Mem(node_entry) => node_entry.into_rows().into_dyn_boxed(),
+            #[cfg(feature = "storage")]
+            NodeStorageRef::Disk(disk_node) => disk_node.into_rows().into_dyn_boxed(),
+        }
+    }
+
+    pub fn temp_prop_rows_window(
+        self,
+        window: Range<TimeIndexEntry>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, Row<'a>)> + 'a {
+        match self {
+            NodeStorageRef::Mem(node_entry) => node_entry.into_rows_window(window).into_dyn_boxed(),
+            #[cfg(feature = "storage")]
+            NodeStorageRef::Disk(disk_node) => disk_node.into_rows_window(window).into_dyn_boxed(),
+        }
+    }
+}
+
+impl<'a> From<NodeEntry<'a>> for NodeStorageRef<'a> {
+    fn from(value: NodeEntry<'a>) -> Self {
         NodeStorageRef::Mem(value)
     }
 }

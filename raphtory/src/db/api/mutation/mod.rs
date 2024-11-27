@@ -19,7 +19,7 @@ pub use addition_ops::AdditionOps;
 pub use deletion_ops::DeletionOps;
 pub use import_ops::ImportOps;
 pub use property_addition_ops::PropertyAdditionOps;
-use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+use raphtory_api::core::storage::timeindex::{AsTime, TimeIndexEntry};
 
 use self::internal::InternalAdditionOps;
 
@@ -47,6 +47,12 @@ pub trait TryIntoInputTime {
 impl TryIntoInputTime for InputTime {
     fn try_into_input_time(self) -> Result<InputTime, ParseTimeError> {
         Ok(self)
+    }
+}
+
+impl TryIntoInputTime for TimeIndexEntry {
+    fn try_into_input_time(self) -> Result<InputTime, ParseTimeError> {
+        Ok(InputTime::Indexed(self.t(), self.i()))
     }
 }
 

@@ -36,8 +36,7 @@ use serde_json::{json, Value};
 use std::{
     cmp::Ordering,
     collections::HashMap,
-    fmt,
-    fmt::{Display, Formatter},
+    fmt::{self, Display, Formatter},
     hash::{Hash, Hasher},
     sync::Arc,
 };
@@ -52,16 +51,22 @@ pub mod utils;
 
 pub use raphtory_api::core::*;
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Hash)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Hash, Default)]
 pub enum Lifespan {
-    Interval { start: i64, end: i64 },
-    Event { time: i64 },
+    Interval {
+        start: i64,
+        end: i64,
+    },
+    Event {
+        time: i64,
+    },
+    #[default]
     Inherited,
 }
 
 /// struct containing all the necessary information to allow Raphtory creating a document and
 /// storing it
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Hash)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Hash, Default)]
 pub struct DocumentInput {
     pub content: String,
     pub life: Lifespan,
@@ -603,8 +608,6 @@ impl Display for Prop {
     }
 }
 
-// From impl for Prop
-
 impl From<ArcStr> for Prop {
     fn from(value: ArcStr) -> Self {
         Prop::Str(value)
@@ -715,6 +718,12 @@ impl From<HashMap<ArcStr, Prop>> for Prop {
 impl From<Vec<Prop>> for Prop {
     fn from(value: Vec<Prop>) -> Self {
         Prop::List(Arc::new(value))
+    }
+}
+
+impl<P: Into<Prop>> FromIterator<P> for Prop {
+    fn from_iter<I: IntoIterator<Item = P>>(iter: I) -> Self {
+        Prop::List(Arc::new(iter.into_iter().map(|v| v.into()).collect()))
     }
 }
 
