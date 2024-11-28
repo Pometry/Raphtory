@@ -51,7 +51,7 @@ impl InternalPropertyAdditionOps for TemporalGraph {
         let mut node = self.storage.get_node_mut(vid);
         for (prop_id, prop) in props {
             let prop = self.process_prop_value(prop);
-            node.add_constant_prop(*prop_id, prop).map_err(|err| {
+            node.get_mut().add_constant_prop(*prop_id, prop).map_err(|err| {
                 let name = self.node_meta.get_prop_name(*prop_id, true);
                 GraphError::ConstantPropertyMutationError {
                     name,
@@ -73,7 +73,7 @@ impl InternalPropertyAdditionOps for TemporalGraph {
         let mut node = self.storage.get_node_mut(vid);
         for (prop_id, prop) in props {
             let prop = self.process_prop_value(prop);
-            node.update_constant_prop(*prop_id, prop)?;
+            node.get_mut().update_constant_prop(*prop_id, prop)?;
         }
         Ok(())
     }

@@ -340,17 +340,18 @@ impl NodeStore {
     }
 }
 
-impl ArcEntry<NodeStore> {
+impl ArcEntry{
+
     pub fn into_edges(self, layers: &LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> {
-        GenLockedIter::from(self, |node| node.edge_tuples(layers, dir))
+        GenLockedIter::from(self, |node| node.get().edge_tuples(layers, dir))
     }
 
     pub fn into_neighbours(self, layers: &LayerIds, dir: Direction) -> impl Iterator<Item = VID> {
-        GenLockedIter::from(self, |node| node.neighbours(layers, dir))
+        GenLockedIter::from(self, |node| node.get().neighbours(layers, dir))
     }
 
     pub fn into_layers(self) -> LockedLayers {
-        let len = self.layers.len();
+        let len = self.get().layers.len();
         LockedLayers {
             entry: self,
             pos: 0,
@@ -359,20 +360,20 @@ impl ArcEntry<NodeStore> {
     }
 
     pub fn into_layer(self, offset: usize) -> Option<LockedLayer> {
-        (offset < self.layers.len()).then_some(LockedLayer {
+        (offset < self.get().layers.len()).then_some(LockedLayer {
             entry: self,
             offset,
         })
     }
 }
 
-impl<'a> Entry<'a, NodeStore> {
+impl<'a> Entry<'a> {
     pub fn into_neighbours(
         self,
         layers: &LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = VID> + 'a {
-        GenLockedIter::from(self, |node| node.neighbours(layers, dir))
+        GenLockedIter::from(self, |node| node.get().neighbours(layers, dir))
     }
 
     pub fn into_edges(
@@ -380,7 +381,7 @@ impl<'a> Entry<'a, NodeStore> {
         layers: &LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + 'a {
-        GenLockedIter::from(self, |node| node.edge_tuples(layers, dir))
+        GenLockedIter::from(self, |node| node.get().edge_tuples(layers, dir))
     }
 
     pub fn into_edges_iter(
@@ -388,12 +389,12 @@ impl<'a> Entry<'a, NodeStore> {
         layers: &LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + 'a {
-        GenLockedIter::from(self, |node| node.edge_tuples(layers, dir))
+        GenLockedIter::from(self, |node| node.get().edge_tuples(layers, dir))
     }
 }
 
 pub struct LockedLayers {
-    entry: ArcEntry<NodeStore>,
+    entry: ArcEntry,
     pos: usize,
     len: usize,
 }
@@ -420,7 +421,7 @@ impl Iterator for LockedLayers {
 }
 
 pub struct LockedLayer {
-    entry: ArcEntry<NodeStore>,
+    entry: ArcEntry,
     offset: usize,
 }
 
@@ -429,7 +430,7 @@ impl Deref for LockedLayer {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        &self.entry.layers[self.offset]
+        &self.entry.get().layers[self.offset]
     }
 }
 

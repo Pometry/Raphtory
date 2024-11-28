@@ -15,8 +15,8 @@ use either::Either;
 
 #[derive(Debug)]
 pub enum NodesStorageEntry<'a> {
-    Mem(&'a ReadLockedStorage<NodeStore, VID>),
-    Unlocked(ReadLockedStorage<NodeStore, VID>),
+    Mem(&'a ReadLockedStorage<VID>),
+    Unlocked(ReadLockedStorage<VID>),
     #[cfg(feature = "storage")]
     Disk(DiskNodesRef<'a>),
 }
@@ -45,8 +45,8 @@ macro_rules! for_all_variants {
 impl<'a> NodesStorageEntry<'a> {
     pub fn node(&self, vid: VID) -> NodeStorageRef<'_> {
         match self {
-            NodesStorageEntry::Mem(store) => NodeStorageRef::Mem(store.get(vid)),
-            NodesStorageEntry::Unlocked(store) => NodeStorageRef::Mem(store.get(vid)),
+            NodesStorageEntry::Mem(store) => NodeStorageRef::Mem(store.get_entry(vid)),
+            NodesStorageEntry::Unlocked(store) => NodeStorageRef::Mem(store.get_entry(vid)),
             #[cfg(feature = "storage")]
             NodesStorageEntry::Disk(store) => NodeStorageRef::Disk(store.node(vid)),
         }

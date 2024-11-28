@@ -1,6 +1,7 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, nodes::node_store::NodeStore, LayerIds, VID},
+        storage::{node_entry::NodeEntry, NodeSlot},
         Direction,
     },
     db::api::{
@@ -19,13 +20,13 @@ use crate::disk_graph::storage_interface::node::DiskNode;
 
 #[derive(Copy, Clone, Debug)]
 pub enum NodeStorageRef<'a> {
-    Mem(&'a NodeStore),
+    Mem(NodeEntry<'a>),
     #[cfg(feature = "storage")]
     Disk(DiskNode<'a>),
 }
 
-impl<'a> From<&'a NodeStore> for NodeStorageRef<'a> {
-    fn from(value: &'a NodeStore) -> Self {
+impl<'a> From<NodeEntry<'a>> for NodeStorageRef<'a> {
+    fn from(value: NodeEntry<'a>) -> Self {
         NodeStorageRef::Mem(value)
     }
 }

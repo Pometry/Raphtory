@@ -7,7 +7,7 @@ use crate::{
                 tgraph_storage::GraphStorage,
                 timer::{MaxCounter, MinCounter, TimeCounterTrait},
             },
-            nodes::{node_ref::NodeRef, node_store::NodeStore},
+            nodes::node_ref::NodeRef,
             properties::{graph_meta::GraphMeta, props::Meta},
             LayerIds, EID, VID,
         },
@@ -326,7 +326,7 @@ impl TemporalGraph {
 
     pub(crate) fn link_nodes_inner(
         &self,
-        node_pair: &mut PairEntryMut<NodeStore>,
+        node_pair: &mut PairEntryMut,
         edge_id: EID,
         t: TimeIndexEntry,
         layer: usize,

@@ -215,7 +215,7 @@ impl GraphStorage {
     #[inline(always)]
     pub fn node_entry(&self, vid: VID) -> NodeStorageEntry {
         match self {
-            GraphStorage::Mem(storage) => NodeStorageEntry::Mem(storage.nodes.get(vid)),
+            GraphStorage::Mem(storage) => NodeStorageEntry::Mem(storage.nodes.get_entry(vid)),
             GraphStorage::Unlocked(storage) => {
                 NodeStorageEntry::Unlocked(storage.storage.get_node(vid))
             }

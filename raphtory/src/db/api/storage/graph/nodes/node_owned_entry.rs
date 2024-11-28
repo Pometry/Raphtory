@@ -14,7 +14,7 @@ use crate::{
 };
 
 pub enum NodeOwnedEntry {
-    Mem(ArcEntry<NodeStore>),
+    Mem(ArcEntry),
     #[cfg(feature = "storage")]
     Disk(DiskOwnedNode),
 }

@@ -1,12 +1,10 @@
-use std::ops::DerefMut;
-
 use crate::core::{
     entities::{edges::edge_store::EdgeStore, nodes::node_store::NodeStore, EID, VID},
     storage::{
         self,
         raw_edges::{EdgeRGuard, EdgeWGuard, EdgesStorage, LockedEdges, UninitialisedEdge},
-        Entry, EntryMut, NodeStorage, PairEntryMut, UninitialisedEntry,
-    }, Prop,
+        Entry, EntryMut, NodeSlot, NodeStorage, PairEntryMut, UninitialisedEntry,
+    },
 };
 use serde::{Deserialize, Serialize};
 
@@ -27,7 +25,7 @@ impl GraphStorage {
     }
 
     #[inline]
-    pub fn nodes_read_lock(&self) -> storage::ReadLockedStorage<NodeStore, VID> {
+    pub fn nodes_read_lock(&self) -> storage::ReadLockedStorage<VID> {
         self.nodes.read_lock()
     }
 
@@ -47,7 +45,7 @@ impl GraphStorage {
     }
 
     #[inline]
-    pub(crate) fn push_node(&self, node: NodeStore) -> UninitialisedEntry<NodeStore> {
+    pub(crate) fn push_node(&self, node: NodeStore) -> UninitialisedEntry<NodeStore, NodeSlot> {
         self.nodes.push(node)
     }
     #[inline]
@@ -56,13 +54,8 @@ impl GraphStorage {
     }
 
     #[inline]
-    pub(crate) fn get_node_mut(&self, id: VID) -> EntryMut<'_, NodeStore> {
+    pub(crate) fn get_node_mut(&self, id: VID) -> EntryMut<'_> {
         self.nodes.entry_mut(id)
-    }
-
-    #[inline]
-    pub(crate) fn get_mut_node_props(&self, id: VID) -> impl DerefMut<Target = Vec<Prop>> + '_ {
-        self.nodes.prop_entry_mut(id)
     }
 
     #[inline]
@@ -71,7 +64,7 @@ impl GraphStorage {
     }
 
     #[inline]
-    pub(crate) fn get_node(&self, id: VID) -> Entry<'_, NodeStore> {
+    pub(crate) fn get_node(&self, id: VID) -> Entry<'_> {
         self.nodes.entry(id)
     }
 
@@ -81,7 +74,7 @@ impl GraphStorage {
     }
 
     #[inline]
-    pub(crate) fn pair_node_mut(&self, i: VID, j: VID) -> PairEntryMut<'_, NodeStore> {
+    pub(crate) fn pair_node_mut(&self, i: VID, j: VID) -> PairEntryMut<'_> {
         self.nodes.pair_entry_mut(i, j)
     }
 }

@@ -12,7 +12,7 @@ use std::sync::Arc;
 use crate::disk_graph::storage_interface::nodes::DiskNodesOwned;
 
 pub enum NodesStorage {
-    Mem(Arc<ReadLockedStorage<NodeStore, VID>>),
+    Mem(Arc<ReadLockedStorage<VID>>),
     #[cfg(feature = "storage")]
     Disk(DiskNodesOwned),
 }
@@ -28,7 +28,7 @@ impl NodesStorage {
 
     pub fn node_entry(&self, vid: VID) -> NodeStorageRef {
         match self {
-            NodesStorage::Mem(storage) => NodeStorageRef::Mem(storage.get(vid)),
+            NodesStorage::Mem(storage) => NodeStorageRef::Mem(storage.get_entry(vid)),
             #[cfg(feature = "storage")]
             NodesStorage::Disk(storage) => NodeStorageRef::Disk(storage.node(vid)),
         }

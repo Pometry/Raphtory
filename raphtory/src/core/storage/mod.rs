@@ -1,5 +1,7 @@
-use crate::{ core::entities::nodes::node_store::NodeStore, prelude::Prop };
+use crate::core::entities::nodes::node_store::NodeStore;
+use lazy_vec::LazyVec;
 use lock_api;
+use node_entry::NodeEntry;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use raphtory_api::core::entities::{GidRef, VID};
 use rayon::prelude::*;
@@ -7,27 +9,30 @@ use serde::{Deserialize, Serialize};
 use std::{
     fmt::Debug,
     marker::PhantomData,
-    ops::{Deref, DerefMut},
+    ops::{Deref, DerefMut, Index, IndexMut},
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc,
     },
 };
 
+use super::Prop;
+
 pub mod lazy_vec;
 pub mod locked_view;
+pub mod node_entry;
 pub mod raw_edges;
 pub mod timeindex;
 
 type ArcRwLockReadGuard<T> = lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, T>;
 #[must_use]
-pub struct UninitialisedEntry<'a, T> {
+pub struct UninitialisedEntry<'a, T, TS> {
     offset: usize,
-    guard: RwLockWriteGuard<'a, Vec<T>>,
+    guard: RwLockWriteGuard<'a, TS>,
     value: T,
 }
 
-impl<'a, T: Default> UninitialisedEntry<'a, T> {
+impl<'a, T: Default, TS: DerefMut<Target = Vec<T>>> UninitialisedEntry<'a, T, TS> {
     pub fn init(mut self) {
         if self.offset >= self.guard.len() {
             self.guard.resize_with(self.offset + 1, Default::default);
@@ -47,11 +52,86 @@ fn resolve(index: usize, num_buckets: usize) -> (usize, usize) {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct LockVec<T> {
-    data: Arc<RwLock<Vec<T>>>,
+pub struct NodeVec {
+    data: Arc<RwLock<NodeSlot>>,
 }
 
-impl<T: PartialEq> PartialEq for LockVec<T> {
+#[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
+pub struct NodeSlot {
+    nodes: Vec<NodeStore>,
+    t_props_log: TColumns, // not the same size as nodes
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
+pub struct TColumns {
+    t_props_log: LazyVec<TPropColumn>,
+}
+
+impl TColumns {
+    pub fn push(&mut self, prop_id: usize, prop: Prop) -> usize {
+        0
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
+enum TPropColumn {
+    #[default]
+    Empty,
+    U64(LazyVec<u64>),
+    F64(LazyVec<f64>),
+}
+
+impl NodeSlot {
+    pub fn t_props_log(&self) -> &TColumns {
+        &self.t_props_log
+    }
+
+    pub fn t_props_log_mut(&mut self) -> &mut TColumns {
+        &mut self.t_props_log
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = NodeEntry> {
+        self.nodes
+            .iter()
+            .map(|ns| NodeEntry::new(ns, &self.t_props_log))
+    }
+
+    pub fn par_iter(&self) -> impl ParallelIterator<Item = NodeEntry> {
+        self.nodes
+            .par_iter()
+            .map(|ns| NodeEntry::new(ns, &self.t_props_log))
+    }
+}
+
+impl Index<usize> for NodeSlot {
+    type Output = NodeStore;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.nodes[index]
+    }
+}
+
+impl IndexMut<usize> for NodeSlot {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.nodes[index]
+    }
+}
+
+impl Deref for NodeSlot {
+    type Target = Vec<NodeStore>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.nodes
+    }
+}
+
+impl DerefMut for NodeSlot {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.nodes
+    }
+}
+
+impl PartialEq for NodeVec {
     fn eq(&self, other: &Self) -> bool {
         let a = self.data.read();
         let b = other.data.read();
@@ -59,39 +139,38 @@ impl<T: PartialEq> PartialEq for LockVec<T> {
     }
 }
 
-impl<T: Default> Default for LockVec<T> {
+impl Default for NodeVec {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T> LockVec<T> {
+impl NodeVec {
     pub fn new() -> Self {
         Self {
-            data: Arc::new(RwLock::new(Vec::new())),
+            data: Arc::new(RwLock::new(Default::default())),
         }
     }
 
     #[inline]
-    pub fn read_arc_lock(&self) -> ArcRwLockReadGuard<Vec<T>> {
+    pub fn read_arc_lock(&self) -> ArcRwLockReadGuard<NodeSlot> {
         RwLock::read_arc(&self.data)
     }
 
     #[inline]
-    pub fn write(&self) -> impl DerefMut<Target = Vec<T>> + '_ {
+    pub fn write(&self) -> impl DerefMut<Target = NodeSlot> + '_ {
         self.data.write()
     }
 
     #[inline]
-    pub fn read(&self) -> impl Deref<Target = Vec<T>> + '_ {
+    pub fn read(&self) -> impl Deref<Target = NodeSlot> + '_ {
         self.data.read()
     }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct NodeStorage {
-    pub(crate) data: Box<[LockVec<NodeStore>]>,
-    pub(crate) props: Box<[LockVec<Prop>]>,
+    pub(crate) data: Box<[NodeVec]>,
     len: AtomicUsize,
 }
 
@@ -102,13 +181,13 @@ impl PartialEq for NodeStorage {
 }
 
 #[derive(Debug)]
-pub struct ReadLockedStorage<T, Index = usize> {
-    pub(crate) locks: Vec<Arc<ArcRwLockReadGuard<Vec<T>>>>,
+pub struct ReadLockedStorage<Index = usize> {
+    pub(crate) locks: Vec<Arc<ArcRwLockReadGuard<NodeSlot>>>,
     len: usize,
     _index: PhantomData<Index>,
 }
 
-impl<Index, T> ReadLockedStorage<T, Index>
+impl<Index> ReadLockedStorage<Index>
 where
     usize: From<Index>,
 {
@@ -124,13 +203,13 @@ where
         self.len
     }
 
-    pub(crate) fn get(&self, index: Index) -> &T {
+    pub(crate) fn get(&self, index: Index) -> &NodeStore {
         let (bucket, offset) = self.resolve(index);
         let bucket = &self.locks[bucket];
         &bucket[offset]
     }
 
-    pub(crate) fn arc_entry(&self, index: Index) -> ArcEntry<T> {
+    pub(crate) fn arc_entry(&self, index: Index) -> ArcEntry {
         let (bucket, offset) = self.resolve(index);
         ArcEntry {
             guard: self.locks[bucket].clone(),
@@ -138,47 +217,29 @@ where
         }
     }
 
-    pub(crate) fn iter(&self) -> impl Iterator<Item = &T> + '_ {
+    pub(crate) fn get_entry(&self, index: Index) -> NodeEntry {
+        let (bucket, offset) = self.resolve(index);
+        let bucket = &self.locks[bucket];
+        NodeEntry::new(&bucket[offset], &bucket.t_props_log)
+    }
+
+    pub(crate) fn t_props_log(&self, index: Index) -> &TColumns {
+        let (bucket, _) = self.resolve(index);
+        self.locks[bucket].t_props_log()
+    }
+
+    pub(crate) fn iter(&self) -> impl Iterator<Item = NodeEntry> + '_ {
         self.locks.iter().flat_map(|v| v.iter())
     }
 
-    pub(crate) fn par_iter(&self) -> impl ParallelIterator<Item = &T> + '_
-    where
-        T: Send + Sync,
-    {
+    pub(crate) fn par_iter(&self) -> impl ParallelIterator<Item = NodeEntry> + '_ {
         self.locks.par_iter().flat_map(|v| v.par_iter())
-    }
-
-    #[allow(unused)]
-    pub(crate) fn into_iter(self) -> impl Iterator<Item = ArcEntry<T>> + Send
-    where
-        T: Send + Sync + 'static,
-    {
-        self.locks.into_iter().flat_map(|data| {
-            (0..data.len()).map(move |offset| ArcEntry {
-                guard: data.clone(),
-                i: offset,
-            })
-        })
-    }
-
-    #[allow(unused)]
-    pub(crate) fn into_par_iter(self) -> impl ParallelIterator<Item = ArcEntry<T>>
-    where
-        T: Send + Sync + 'static,
-    {
-        self.locks.into_par_iter().flat_map(|data| {
-            (0..data.len()).into_par_iter().map(move |offset| ArcEntry {
-                guard: data.clone(),
-                i: offset,
-            })
-        })
     }
 }
 
 impl NodeStorage {
-    pub fn count_with_filter<F: Fn(&NodeStore) -> bool + Send + Sync>(&self, f: F) -> usize {
-        self.read_lock().par_iter().filter(|x| f(x)).count()
+    pub fn count_with_filter<F: Fn(NodeEntry<'_>) -> bool + Send + Sync>(&self, f: F) -> usize {
+        self.read_lock().par_iter().filter(|x| f(*x)).count()
     }
 }
 
@@ -189,7 +250,7 @@ impl NodeStorage {
     }
 
     #[inline]
-    pub fn read_lock(&self) -> ReadLockedStorage<NodeStore, VID> {
+    pub fn read_lock(&self) -> ReadLockedStorage<VID> {
         let guards = self
             .data
             .iter()
@@ -210,23 +271,18 @@ impl NodeStorage {
     }
 
     pub fn new(n_locks: usize) -> Self {
-        let data: Box<[LockVec<NodeStore>]> = (0..n_locks)
-            .map(|_| LockVec::new())
+        let data: Box<[NodeVec]> = (0..n_locks)
+            .map(|_| NodeVec::new())
             .collect::<Vec<_>>()
             .into();
 
-        let props: Box<[LockVec<Prop>]> = (0..n_locks)
-            .map(|_| LockVec::new())
-            .collect::<Vec<_>>()
-            .into();
         Self {
             data,
-            props,
             len: AtomicUsize::new(0),
         }
     }
 
-    pub fn push(&self, mut value: NodeStore) -> UninitialisedEntry<NodeStore> {
+    pub fn push(&self, mut value: NodeStore) -> UninitialisedEntry<NodeStore, NodeSlot> {
         let index = self.len.fetch_add(1, Ordering::Relaxed);
         value.vid = VID(index);
         let (bucket, offset) = self.resolve(index);
@@ -250,14 +306,14 @@ impl NodeStorage {
     }
 
     #[inline]
-    pub fn entry(&self, index: VID) -> Entry<'_, NodeStore> {
+    pub fn entry(&self, index: VID) -> Entry<'_> {
         let index = index.into();
         let (bucket, offset) = self.resolve(index);
         let guard = self.data[bucket].data.read_recursive();
         Entry { offset, guard }
     }
 
-    pub fn entry_arc(&self, index: VID) -> ArcEntry<NodeStore> {
+    pub fn entry_arc(&self, index: VID) -> ArcEntry {
         let index = index.into();
         let (bucket, offset) = self.resolve(index);
         let guard = &self.data[bucket].data;
@@ -268,21 +324,22 @@ impl NodeStorage {
         }
     }
 
-    pub fn entry_mut(&self, index: VID) -> EntryMut<'_, NodeStore> {
+    pub fn entry_mut(&self, index: VID) -> EntryMut {
         let index = index.into();
         let (bucket, offset) = self.resolve(index);
         let guard = self.data[bucket].data.write();
         EntryMut { i: offset, guard }
     }
 
-    pub fn prop_entry_mut(&self, index: VID) -> impl DerefMut<Target = Vec<Prop>> + '_ {
+    pub fn prop_entry_mut(&self, index: VID) -> impl DerefMut<Target = TColumns> + '_ {
         let index = index.into();
         let (bucket, _) = self.resolve(index);
-        self.props[bucket].data.write()
+        let lock = self.data[bucket].data.write();
+        RwLockWriteGuard::map(lock, |data| &mut data.t_props_log)
     }
 
     // This helps get the right locks when adding an edge
-    pub fn pair_entry_mut(&self, i: VID, j: VID) -> PairEntryMut<'_, NodeStore> {
+    pub fn pair_entry_mut(&self, i: VID, j: VID) -> PairEntryMut<'_> {
         let i = i.into();
         let j = j.into();
         let (bucket_i, offset_i) = self.resolve(i);
@@ -326,7 +383,7 @@ impl NodeStorage {
 }
 
 pub struct WriteLockedNodes<'a> {
-    guards: Vec<RwLockWriteGuard<'a, Vec<NodeStore>>>,
+    guards: Vec<RwLockWriteGuard<'a, NodeSlot>>,
     global_len: &'a AtomicUsize,
 }
 
@@ -339,7 +396,7 @@ pub struct NodeShardWriter<'a, S> {
 
 impl<'a, S> NodeShardWriter<'a, S>
 where
-    S: DerefMut<Target = Vec<NodeStore>>,
+    S: DerefMut<Target = NodeSlot>,
 {
     #[inline]
     fn resolve(&self, index: VID) -> Option<usize> {
@@ -388,10 +445,10 @@ where
 impl<'a> WriteLockedNodes<'a> {
     pub fn par_iter_mut(
         &mut self,
-    ) -> impl IndexedParallelIterator<Item = NodeShardWriter<&mut Vec<NodeStore>>> + '_ {
+    ) -> impl IndexedParallelIterator<Item = NodeShardWriter<&mut NodeSlot>> + '_ {
         let num_shards = self.guards.len();
         let global_len = self.global_len;
-        let shards: Vec<&mut Vec<NodeStore>> = self
+        let shards: Vec<&mut NodeSlot> = self
             .guards
             .iter_mut()
             .map(|guard| guard.deref_mut())
@@ -409,8 +466,8 @@ impl<'a> WriteLockedNodes<'a> {
 
     pub fn into_par_iter_mut(
         self,
-    ) -> impl IndexedParallelIterator<Item = NodeShardWriter<'a, RwLockWriteGuard<'a, Vec<NodeStore>>>>
-           + 'a {
+    ) -> impl IndexedParallelIterator<Item = NodeShardWriter<'a, RwLockWriteGuard<'a, NodeSlot>>> + 'a
+    {
         let num_shards = self.guards.len();
         let global_len = self.global_len;
         self.guards
@@ -435,18 +492,47 @@ impl<'a> WriteLockedNodes<'a> {
 }
 
 #[derive(Debug)]
-pub struct Entry<'a, T: 'static> {
+pub struct Entry<'a> {
     offset: usize,
-    guard: RwLockReadGuard<'a, Vec<T>>,
+    guard: RwLockReadGuard<'a, NodeSlot>,
+}
+
+impl Entry<'_> {
+    #[inline]
+    pub fn get(&self) -> &NodeStore {
+        &self.guard[self.offset]
+    }
+
+    #[inline]
+    pub fn get_entry(&self) -> NodeEntry<'_> {
+        NodeEntry::new(&self.guard[self.offset], &self.guard.t_props_log)
+    }
+
+    #[inline]
+    pub fn t_props_log(&self) -> &TColumns {
+        &self.guard.t_props_log
+    }
 }
 
 #[derive(Debug)]
-pub struct ArcEntry<T> {
-    guard: Arc<ArcRwLockReadGuard<Vec<T>>>,
+pub struct ArcEntry {
+    guard: Arc<ArcRwLockReadGuard<NodeSlot>>,
     i: usize,
 }
 
-impl<T> Clone for ArcEntry<T> {
+impl ArcEntry {
+    #[inline]
+    pub fn get(&self) -> &NodeStore {
+        &self.guard[self.i]
+    }
+
+    #[inline]
+    pub fn t_props_log(&self) -> &TColumns {
+        &self.guard.t_props_log
+    }
+}
+
+impl Clone for ArcEntry {
     fn clone(&self) -> Self {
         Self {
             guard: self.guard.clone(),
@@ -455,58 +541,42 @@ impl<T> Clone for ArcEntry<T> {
     }
 }
 
-impl<T> Deref for ArcEntry<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.guard[self.i]
-    }
-}
-
-impl<'a, T> Deref for Entry<'a, T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.guard[self.offset]
-    }
-}
-
-pub enum PairEntryMut<'a, T: 'static> {
+pub enum PairEntryMut<'a> {
     Same {
         i: usize,
         j: usize,
-        guard: parking_lot::RwLockWriteGuard<'a, Vec<T>>,
+        guard: parking_lot::RwLockWriteGuard<'a, NodeSlot>,
     },
     Different {
         i: usize,
         j: usize,
-        guard1: parking_lot::RwLockWriteGuard<'a, Vec<T>>,
-        guard2: parking_lot::RwLockWriteGuard<'a, Vec<T>>,
+        guard1: parking_lot::RwLockWriteGuard<'a, NodeSlot>,
+        guard2: parking_lot::RwLockWriteGuard<'a, NodeSlot>,
     },
 }
 
-impl<'a, T: 'static> PairEntryMut<'a, T> {
-    pub(crate) fn get_i(&self) -> &T {
+impl<'a> PairEntryMut<'a> {
+    pub(crate) fn get_i(&self) -> &NodeStore {
         match self {
             PairEntryMut::Same { i, guard, .. } => &guard[*i],
             PairEntryMut::Different { i, guard1, .. } => &guard1[*i],
         }
     }
-    pub(crate) fn get_mut_i(&mut self) -> &mut T {
+    pub(crate) fn get_mut_i(&mut self) -> &mut NodeStore {
         match self {
             PairEntryMut::Same { i, guard, .. } => &mut guard[*i],
             PairEntryMut::Different { i, guard1, .. } => &mut guard1[*i],
         }
     }
 
-    pub(crate) fn get_j(&self) -> &T {
+    pub(crate) fn get_j(&self) -> &NodeStore {
         match self {
             PairEntryMut::Same { j, guard, .. } => &guard[*j],
             PairEntryMut::Different { j, guard2, .. } => &guard2[*j],
         }
     }
 
-    pub(crate) fn get_mut_j(&mut self) -> &mut T {
+    pub(crate) fn get_mut_j(&mut self) -> &mut NodeStore {
         match self {
             PairEntryMut::Same { j, guard, .. } => &mut guard[*j],
             PairEntryMut::Different { j, guard2, .. } => &mut guard2[*j],
@@ -514,22 +584,26 @@ impl<'a, T: 'static> PairEntryMut<'a, T> {
     }
 }
 
-pub struct EntryMut<'a, T: 'static> {
+pub struct EntryMut<'a> {
     i: usize,
-    guard: parking_lot::RwLockWriteGuard<'a, Vec<T>>,
+    guard: parking_lot::RwLockWriteGuard<'a, NodeSlot>,
 }
 
-impl<'a, T> Deref for EntryMut<'a, T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
+impl<'a> EntryMut<'a> {
+    pub fn get(&self) -> &NodeStore {
         &self.guard[self.i]
     }
-}
 
-impl<'a, T> DerefMut for EntryMut<'a, T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
+    pub fn get_mut(&mut self) -> &mut NodeStore {
         &mut self.guard[self.i]
+    }
+
+    pub fn t_props_log(&self) -> &TColumns {
+        &self.guard.t_props_log
+    }
+
+    pub fn t_props_log_mut(&mut self) -> &mut TColumns {
+        &mut self.guard.t_props_log
     }
 }
 
@@ -540,7 +614,7 @@ mod test {
     use pretty_assertions::assert_eq;
     use quickcheck_macros::quickcheck;
     use raphtory_api::core::entities::{GID, VID};
-    use rayon::prelude::{IntoParallelIterator, ParallelIterator};
+    use rayon::prelude::*;
     use std::borrow::Cow;
 
     #[test]
