@@ -337,11 +337,6 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
     }
 
     fn subgraph<I: IntoIterator<Item = V>, V: AsNodeRef>(&self, nodes: I) -> NodeSubgraph<G> {
-        let _layer_ids = self.layer_ids();
-        let nodes: FxHashSet<VID> = nodes
-            .into_iter()
-            .flat_map(|v| (&self).node(v).map(|v| v.node))
-            .collect();
         NodeSubgraph::new(self.clone(), nodes)
     }
 
