@@ -39,3 +39,11 @@ pub fn global_debug_logger() {
 pub fn global_trace_logger() {
     init_global_logger("TRACE".to_string())
 }
+
+pub fn sysout_debug() {
+    tracing_subscriber::fmt::fmt()
+        .with_max_level(tracing::Level::DEBUG)
+        .with_target(false)
+        .with_span_events(FmtSpan::ENTER | FmtSpan::CLOSE)
+        .init();
+}

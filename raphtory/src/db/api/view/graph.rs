@@ -22,7 +22,8 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             views::{
-                node_subgraph::NodeSubgraph, node_type_filtered_subgraph::TypeFilteredSubgraph,
+                cached_view::CachedView, node_subgraph::NodeSubgraph,
+                node_type_filtered_subgraph::TypeFilteredSubgraph,
             },
         },
     },
@@ -65,6 +66,8 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     fn materialize(&self) -> Result<MaterializedGraph, GraphError>;
 
     fn subgraph<I: IntoIterator<Item = V>, V: AsNodeRef>(&self, nodes: I) -> NodeSubgraph<Self>;
+
+    fn cache_view(&self) -> CachedView<Self>;
 
     fn subgraph_node_types<I: IntoIterator<Item = V>, V: Borrow<str>>(
         &self,
@@ -338,6 +341,10 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 
     fn subgraph<I: IntoIterator<Item = V>, V: AsNodeRef>(&self, nodes: I) -> NodeSubgraph<G> {
         NodeSubgraph::new(self.clone(), nodes)
+    }
+
+    fn cache_view(&self) -> CachedView<G> {
+        CachedView::new(self.clone())
     }
 
     fn subgraph_node_types<I: IntoIterator<Item = V>, V: Borrow<str>>(

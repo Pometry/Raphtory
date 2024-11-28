@@ -9,6 +9,7 @@ use crate::{
         tprop_storage_ops::TPropOps,
     },
 };
+use raphtory_api::core::entities::EID;
 use rayon::prelude::*;
 use std::ops::Range;
 
@@ -72,6 +73,10 @@ impl<'a> EdgeStorageOps<'a> for EdgeStorageRef<'a> {
 
     fn dst(self) -> VID {
         for_all!(self, edge => edge.dst())
+    }
+
+    fn eid(self) -> EID {
+        for_all!(self, edge => edge.eid())
     }
 
     fn layer_ids_iter(self, layer_ids: &LayerIds) -> impl Iterator<Item = usize> + 'a {
