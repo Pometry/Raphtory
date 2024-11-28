@@ -8,7 +8,7 @@ use crate::{
         },
         storage::{
             locked_view::LockedView,
-            timeindex::{TimeIndex, TimeIndexOps, TimeIndexWindow},
+            timeindex::{TimeIndex, TimeIndexIntoOps, TimeIndexOps, TimeIndexWindow},
         },
         Prop,
     },
@@ -31,7 +31,7 @@ use raphtory_api::core::{
 use std::{iter, ops::Range};
 
 #[cfg(feature = "storage")]
-use pometry_storage::timestamps::TimeStamps;
+use pometry_storage::timestamps::LayerAdditions;
 #[cfg(feature = "storage")]
 use rayon::prelude::*;
 
@@ -330,7 +330,7 @@ pub enum NodeAdditions<'a> {
     Locked(LockedView<'a, TimeIndex<i64>>),
     Range(TimeIndexWindow<'a, i64>),
     #[cfg(feature = "storage")]
-    Col(Vec<TimeStamps<'a, i64>>),
+    Col(LayerAdditions<'a>),
 }
 
 impl<'b> TimeIndexOps for NodeAdditions<'b> {
@@ -356,14 +356,7 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
             NodeAdditions::Mem(index) => NodeAdditions::Range(index.range(w)),
             NodeAdditions::Locked(index) => NodeAdditions::Range(index.range(w)),
             #[cfg(feature = "storage")]
-            NodeAdditions::Col(index) => {
-                let mut ranges = Vec::with_capacity(index.len());
-                index
-                    .par_iter()
-                    .map(|index| index.range_t(w.clone()))
-                    .collect_into_vec(&mut ranges);
-                NodeAdditions::Col(ranges)
-            }
+            NodeAdditions::Col(index) => NodeAdditions::Col(index.with_range(w)),
             NodeAdditions::Range(index) => NodeAdditions::Range(index.range(w)),
         }
     }
@@ -393,7 +386,7 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
             NodeAdditions::Mem(index) => index.iter(),
             NodeAdditions::Locked(index) => Box::new(index.iter()),
             #[cfg(feature = "storage")]
-            NodeAdditions::Col(index) => Box::new(index.iter().flat_map(|index| index.iter())),
+            NodeAdditions::Col(index) => Box::new(index.iter().flat_map(|index| index.into_iter())),
             NodeAdditions::Range(index) => index.iter(),
         }
     }

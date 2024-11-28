@@ -77,6 +77,7 @@ pometry-storage = { workspace = true, optional = true }
 
 prost = { workspace = true, optional = true }
 prost-types = { workspace = true, optional = true }
+roaring ={ workspace = true }
 
 [dev-dependencies]
 csv = { workspace = true }
