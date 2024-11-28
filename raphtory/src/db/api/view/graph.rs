@@ -22,7 +22,7 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             views::{
-                masked_graph::CachedView, node_subgraph::NodeSubgraph,
+                cached_view::CachedView, node_subgraph::NodeSubgraph,
                 node_type_filtered_subgraph::TypeFilteredSubgraph,
             },
         },

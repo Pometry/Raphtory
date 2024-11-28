@@ -101,17 +101,17 @@ impl<'graph, G: GraphViewOps<'graph>> InheritListOps for CachedView<G> {}
 impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for CachedView<G> {
     #[inline]
     fn edges_filtered(&self) -> bool {
-        true
+        self.graph.edges_filtered()
     }
 
     #[inline]
     fn edge_list_trusted(&self) -> bool {
-        false
+        self.graph.edge_list_trusted()
     }
 
     #[inline]
     fn edge_filter_includes_node_filter(&self) -> bool {
-        self.graph.edge_filter_includes_node_filter()
+        true
     }
 
     #[inline]
@@ -131,10 +131,10 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for CachedView<G> {
 
 impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for CachedView<G> {
     fn nodes_filtered(&self) -> bool {
-        true
+        self.graph.nodes_filtered()
     }
     fn node_list_trusted(&self) -> bool {
-        false
+        self.graph.node_list_trusted()
     }
 
     #[inline]
@@ -168,6 +168,26 @@ mod test {
     };
     use itertools::Itertools;
     use proptest::prelude::*;
+
+    #[test]
+    fn empty_graph() {
+        let graph = Graph::new();
+        test_storage!(&graph, |graph| {
+            let sg = graph.cache_view();
+            assert_graph_equal(&sg, &graph);
+        });
+    }
+
+    #[test]
+    fn empty_window() {
+        let graph = Graph::new();
+        graph.add_edge(1, 1, 1, NO_PROPS, None).unwrap();
+        test_storage!(&graph, |graph| {
+            let window = graph.window(2, 3);
+            let sg = window.cache_view();
+            assert_graph_equal(&window, &sg);
+        });
+    }
 
     #[test]
     fn test_materialize_no_edges() {
@@ -258,7 +278,7 @@ mod test {
             });
         }
 
-        proptest!(|(edge_list in any::<Vec<(u8, u8, i16, u8)>>().prop_filter("greater than 3",|v| v.len() > 3 ))| {
+        proptest!(|(edge_list in any::<Vec<(u8, u8, i16, u8)>>().prop_filter("greater than 3",|v| v.len() > 0 ))| {
             check(&edge_list);
         })
     }

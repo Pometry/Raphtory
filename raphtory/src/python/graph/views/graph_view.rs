@@ -17,8 +17,8 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             views::{
+                cached_view::CachedView,
                 layer_graph::LayeredGraph,
-                masked_graph::CachedView,
                 node_subgraph::NodeSubgraph,
                 node_type_filtered_subgraph::TypeFilteredSubgraph,
                 property_filter::{
