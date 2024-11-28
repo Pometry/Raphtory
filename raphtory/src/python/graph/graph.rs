@@ -258,7 +258,7 @@ impl PyGraph {
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(signature = (timestamp, properties, secondary_index = None))]
-    pub fn add_property(
+    pub fn add_properties(
         &self,
         timestamp: PyTime,
         properties: HashMap<String, Prop>,

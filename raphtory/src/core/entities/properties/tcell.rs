@@ -185,7 +185,10 @@ mod tcell_tests {
         let mut tcell = TCell::new(TimeIndexEntry::start(1), "Pometry");
         tcell.set(TimeIndexEntry::start(1), "Pometry Inc.");
 
-        assert_eq!(tcell.iter_t().collect::<Vec<_>>(), vec![(1, &"Pometry")]);
+        assert_eq!(
+            tcell.iter_t().collect::<Vec<_>>(),
+            vec![(1, &"Pometry Inc.")]
+        );
     }
 
     #[test]

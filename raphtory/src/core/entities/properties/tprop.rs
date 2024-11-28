@@ -430,7 +430,7 @@ mod tprop_tests {
 
         assert_eq!(
             tprop.iter_t().collect::<Vec<_>>(),
-            vec![(1, "Pometry".into())]
+            vec![(1, "Pometry Inc.".into())]
         );
     }
 

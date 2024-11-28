@@ -817,10 +817,6 @@ mod test_exploded_edges {
     #[test]
     fn test_add_properties_properties_ordered_by_secondary_index() {
         let graph: Graph = Graph::new();
-        graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
-        graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
-        graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
-
         graph.add_properties((0, 3), [("prop", "1")]).unwrap();
         graph.add_properties((0, 2), [("prop", "2")]).unwrap();
         graph.add_properties((0, 1), [("prop", "3")]).unwrap();
@@ -843,10 +839,6 @@ mod test_exploded_edges {
     #[test]
     fn test_add_properties_properties_overwritten_for_same_secondary_index() {
         let graph: Graph = Graph::new();
-        graph.add_edge((0, 1), 0, 1, NO_PROPS, None).unwrap();
-        graph.add_edge((0, 1), 0, 1, NO_PROPS, None).unwrap();
-        graph.add_edge((0, 1), 0, 1, NO_PROPS, None).unwrap();
-
         graph.add_properties((0, 1), [("prop", "1")]).unwrap();
         graph.add_properties((0, 1), [("prop", "2")]).unwrap();
         graph.add_properties((0, 1), [("prop", "3")]).unwrap();
@@ -886,8 +878,6 @@ mod test_exploded_edges {
     #[test]
     fn test_node_add_updates_properties_ordered_by_secondary_index() {
         let graph: Graph = Graph::new();
-        graph.add_node(0, 0, NO_PROPS, None).unwrap();
-        graph.add_node(0, 0, NO_PROPS, None).unwrap();
         graph.add_node(0, 0, NO_PROPS, None).unwrap();
 
         graph
@@ -1008,8 +998,6 @@ mod test_exploded_edges {
     fn test_edge_add_updates_properties_ordered_by_secondary_index() {
         let graph: Graph = Graph::new();
         graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
-        graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
-        graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
 
         graph
             .edge(0, 1)
@@ -1049,8 +1037,6 @@ mod test_exploded_edges {
     #[test]
     fn test_edge_add_updates_properties_overwritten_for_same_secondary_index() {
         let graph: Graph = Graph::new();
-        graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
-        graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
         graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
 
         graph

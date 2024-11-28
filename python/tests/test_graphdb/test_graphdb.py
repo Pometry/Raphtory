@@ -457,10 +457,10 @@ def test_graph_properties():
     assert g.properties["prop 5"] == {"x": 1, "y": "ok"}
 
     props = {"prop 4": 11, "prop 5": "world", "prop 6": False}
-    g.add_property(1, props)
+    g.add_properties(1, props)
 
     props = {"prop 6": True}
-    g.add_property(2, props)
+    g.add_properties(2, props)
 
     def history_test(key, value):
         if value is None:
@@ -2054,7 +2054,7 @@ def test_subgraph():
         assert mg.nodes.collect()[0].name == "1"
 
         props = {"prop 4": 11, "prop 5": "world", "prop 6": False}
-        mg.add_property(1, props)
+        mg.add_properties(1, props)
 
         props = {"prop 1": 1, "prop 2": "hi", "prop 3": True}
         mg.add_constant_properties(props)
@@ -2755,10 +2755,10 @@ def test_NaN_NaT_as_properties():
 
 def test_unique_temporal_properties():
     g = Graph()
-    g.add_property(1, {"name": "tarzan"})
-    g.add_property(2, {"name": "tarzan2"})
-    g.add_property(3, {"name": "tarzan2"})
-    g.add_property(2, {"salary": "1000"})
+    g.add_properties(1, {"name": "tarzan"})
+    g.add_properties(2, {"name": "tarzan2"})
+    g.add_properties(3, {"name": "tarzan2"})
+    g.add_properties(2, {"salary": "1000"})
     g.add_constant_properties({"type": "character"})
     g.add_edge(1, 1, 2, properties={"status": "open"})
     g.add_edge(2, 1, 2, properties={"status": "open"})
@@ -3055,6 +3055,162 @@ def test_edge_layer_properties():
     g.add_edge(3, "A", "B", properties={"greeting": "namaste"}, layer="layer 3")
 
     assert g.edge("A", "B").properties == {"greeting": "namaste"}
+
+
+def test_add_node_properties_ordered_by_secondary_index():
+    g = Graph()
+    g.add_node(1, "A", properties={"prop": 1}, secondary_index=3)
+    g.add_node(1, "A", properties={"prop": 2}, secondary_index=2)
+    g.add_node(1, "A", properties={"prop": 3}, secondary_index=1)
+
+    assert g.node("A").properties.temporal.get("prop").items() == [(1, 3), (1, 2), (1, 1)]
+
+
+def test_add_node_properties_overwritten_for_same_secondary_index():
+    g = Graph()
+    g.add_node(1, "A", properties={"prop": 1}, secondary_index=1)
+    g.add_node(1, "A", properties={"prop": 2}, secondary_index=1)
+    g.add_node(1, "A", properties={"prop": 3}, secondary_index=1)
+
+    assert g.node("A").properties.temporal.get("prop").items() == [(1, 3)]
+
+    g = Graph()
+    g.add_node(1, "A", properties={"prop": 1}, secondary_index=1)
+    g.add_node(1, "A", properties={"prop": 2}, secondary_index=2)
+    g.add_node(1, "A", properties={"prop": 3}, secondary_index=2)
+
+    assert g.node("A").properties.temporal.get("prop").items() == [(1, 1), (1, 3)]
+
+
+def test_create_node_properties_ordered_by_secondary_index():
+    g = Graph()
+    g.create_node(1, "A", properties={"prop": 1}, secondary_index=3)
+    g.add_node(1, "A", properties={"prop": 2}, secondary_index=2)
+    g.add_node(1, "A", properties={"prop": 3}, secondary_index=1)
+
+    assert g.node("A").properties.temporal.get("prop").items() == [(1, 3), (1, 2), (1, 1)]
+
+
+def test_create_node_properties_overwritten_for_same_secondary_index():
+    g = Graph()
+    g.create_node(1, "A", properties={"prop": 1}, secondary_index=1)
+    g.add_node(1, "A", properties={"prop": 2}, secondary_index=1)
+    g.add_node(1, "A", properties={"prop": 3}, secondary_index=1)
+
+    assert g.node("A").properties.temporal.get("prop").items() == [(1, 3)]
+
+    g = Graph()
+    g.create_node(1, "A", properties={"prop": 1}, secondary_index=1)
+    g.add_node(1, "A", properties={"prop": 2}, secondary_index=2)
+    g.add_node(1, "A", properties={"prop": 3}, secondary_index=2)
+
+    assert g.node("A").properties.temporal.get("prop").items() == [(1, 1), (1, 3)]
+
+
+def test_add_edge_properties_ordered_by_secondary_index():
+    g = Graph()
+    g.add_edge(1, "A", "B", properties={"prop": 1}, secondary_index=3)
+    g.add_edge(1, "A", "B", properties={"prop": 2}, secondary_index=2)
+    g.add_edge(1, "A", "B", properties={"prop": 3}, secondary_index=1)
+
+    assert g.edge("A", "B").properties.temporal.get("prop").items() == [(1, 3), (1, 2), (1, 1)]
+
+
+def test_add_edge_properties_overwritten_for_same_secondary_index():
+    g = Graph()
+    g.add_edge(1, "A", "B", properties={"prop": 1}, secondary_index=1)
+    g.add_edge(1, "A", "B", properties={"prop": 2}, secondary_index=1)
+    g.add_edge(1, "A", "B", properties={"prop": 3}, secondary_index=1)
+
+    assert g.edge("A", "B").properties.temporal.get("prop").items() == [(1, 3)]
+
+    g = Graph()
+    g.add_edge(1, "A", "B", properties={"prop": 1}, secondary_index=1)
+    g.add_edge(1, "A", "B", properties={"prop": 2}, secondary_index=2)
+    g.add_edge(1, "A", "B", properties={"prop": 3}, secondary_index=2)
+
+    assert g.edge("A", "B").properties.temporal.get("prop").items() == [(1, 1), (1, 3)]
+
+
+def test_add_properties_properties_ordered_by_secondary_index():
+    g = Graph()
+    g.add_properties(1, properties={"prop": 1}, secondary_index=3)
+    g.add_properties(1, properties={"prop": 2}, secondary_index=2)
+    g.add_properties(1, properties={"prop": 3}, secondary_index=1)
+
+    assert g.properties.temporal.get("prop").items() == [(1, 3), (1, 2), (1, 1)]
+
+
+def test_add_properties_properties_overwritten_for_same_secondary_index():
+    g = Graph()
+    g.add_properties(1, properties={"prop": 1}, secondary_index=1)
+    g.add_properties(1, properties={"prop": 2}, secondary_index=1)
+    g.add_properties(1, properties={"prop": 3}, secondary_index=1)
+
+    assert g.properties.temporal.get("prop").items() == [(1, 3)]
+
+    g = Graph()
+    g.add_properties(1, properties={"prop": 1}, secondary_index=1)
+    g.add_properties(1, properties={"prop": 2}, secondary_index=2)
+    g.add_properties(1, properties={"prop": 3}, secondary_index=2)
+
+    assert g.properties.temporal.get("prop").items() == [(1, 1), (1, 3)]
+
+
+def test_node_add_updates_properties_ordered_by_secondary_index():
+    g = Graph()
+    g.add_node(1, "A")
+    g.node("A").add_updates(1, properties={"prop": 1}, secondary_index=3)
+    g.node("A").add_updates(1, properties={"prop": 2}, secondary_index=2)
+    g.node("A").add_updates(1, properties={"prop": 3}, secondary_index=1)
+
+    assert g.node("A").properties.temporal.get("prop").items() == [(1, 3), (1, 2), (1, 1)]
+
+
+def test_node_add_updates_properties_overwritten_for_same_secondary_index():
+    g = Graph()
+    g.add_node(1, "A")
+    g.node("A").add_updates(1, properties={"prop": 1}, secondary_index=1)
+    g.node("A").add_updates(1, properties={"prop": 2}, secondary_index=1)
+    g.node("A").add_updates(1, properties={"prop": 3}, secondary_index=1)
+
+    assert g.node("A").properties.temporal.get("prop").items() == [(1, 3)]
+
+    g = Graph()
+    g.add_node(1, "A")
+    g.node("A").add_updates(1, properties={"prop": 1}, secondary_index=1)
+    g.node("A").add_updates(1, properties={"prop": 2}, secondary_index=2)
+    g.node("A").add_updates(1, properties={"prop": 3}, secondary_index=2)
+
+    assert g.node("A").properties.temporal.get("prop").items() == [(1, 1), (1, 3)]
+
+
+def test_edge_add_updates_properties_ordered_by_secondary_index():
+    g = Graph()
+    g.add_edge(1, "A", "B")
+    g.edge("A", "B").add_updates(1, properties={"prop": 1}, secondary_index=3)
+    g.edge("A", "B").add_updates(1, properties={"prop": 2}, secondary_index=2)
+    g.edge("A", "B").add_updates(1, properties={"prop": 3}, secondary_index=1)
+
+    assert g.edge("A", "B").properties.temporal.get("prop").items() == [(1, 3), (1, 2), (1, 1)]
+
+
+def test_edge_add_updates_properties_overwritten_for_same_secondary_index():
+    g = Graph()
+    g.add_edge(1, "A", "B")
+    g.edge("A", "B").add_updates(1, properties={"prop": 1}, secondary_index=1)
+    g.edge("A", "B").add_updates(1, properties={"prop": 2}, secondary_index=1)
+    g.edge("A", "B").add_updates(1, properties={"prop": 3}, secondary_index=1)
+
+    assert g.edge("A", "B").properties.temporal.get("prop").items() == [(1, 3)]
+
+    g = Graph()
+    g.add_edge(1, "A", "B")
+    g.edge("A", "B").add_updates(1, properties={"prop": 1}, secondary_index=1)
+    g.edge("A", "B").add_updates(1, properties={"prop": 2}, secondary_index=2)
+    g.edge("A", "B").add_updates(1, properties={"prop": 3}, secondary_index=2)
+
+    assert g.edge("A", "B").properties.temporal.get("prop").items() == [(1, 1), (1, 3)]
 
 
 @fixture
