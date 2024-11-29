@@ -371,15 +371,28 @@ impl PyMutableNode {
     /// This function allows for the addition of property updates to a node within the graph. The updates are time-stamped, meaning they are applied at the specified time.
     ///
     /// Parameters:
-    ///     t (TimeInput): The timestamp at which the updates should be applied.
-    ///     properties (PropInput): A dictionary of properties to update. Each key is a string representing the property name, and each value is of type Prop representing the property value. If None, no properties are updated.
-    #[pyo3(signature = (t, properties=None))]
+    ///    t (TimeInput): The timestamp at which the updates should be applied.
+    ///    properties (PropInput): A dictionary of properties to update. Each key is a string representing the property name, and each value is of type Prop representing the property value. If None, no properties are updated.
+    ///    secondary_index (int, optional): The optional integer which will be used as a secondary index
+    ///
+    /// Returns:
+    ///     None: This function does not return a value, if the operation is successful.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
+    #[pyo3(signature = (t, properties=None, secondary_index=None))]
     pub fn add_updates(
         &self,
         t: PyTime,
         properties: Option<HashMap<String, Prop>>,
+        secondary_index: Option<usize>,
     ) -> Result<(), GraphError> {
-        self.node.add_updates(t, properties.unwrap_or_default())
+        match secondary_index {
+            None => self.node.add_updates(t, properties.unwrap_or_default()),
+            Some(secondary_index) => self
+                .node
+                .add_updates((t, secondary_index), properties.unwrap_or_default()),
+        }
     }
 
     /// Add constant properties to a node in the graph.

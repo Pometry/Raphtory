@@ -27,7 +27,7 @@ impl<A: Clone + Debug + PartialEq + Send + Sync> TCell<A> {
             TCell::Empty => {
                 *self = TCell::TCell1(t, value);
             }
-            TCell::TCell1(t0, _) => {
+            TCell::TCell1(t0, v) => {
                 if &t != t0 {
                     if let TCell::TCell1(t0, value0) = std::mem::take(self) {
                         let mut svm = SVM::new();
@@ -35,6 +35,8 @@ impl<A: Clone + Debug + PartialEq + Send + Sync> TCell<A> {
                         svm.insert(t0, value0);
                         *self = TCell::TCellCap(svm)
                     }
+                } else {
+                    *v = value
                 }
             }
             TCell::TCellCap(svm) => {
@@ -183,7 +185,10 @@ mod tcell_tests {
         let mut tcell = TCell::new(TimeIndexEntry::start(1), "Pometry");
         tcell.set(TimeIndexEntry::start(1), "Pometry Inc.");
 
-        assert_eq!(tcell.iter_t().collect::<Vec<_>>(), vec![(1, &"Pometry")]);
+        assert_eq!(
+            tcell.iter_t().collect::<Vec<_>>(),
+            vec![(1, &"Pometry Inc.")]
+        );
     }
 
     #[test]
