@@ -157,7 +157,7 @@ pub fn in_components(g: &PyGraphView) -> AlgorithmResult<DynamicGraph, Vec<GID>,
 ///    An array containing the Nodes within the given nodes in-component
 #[pyfunction]
 #[pyo3(signature = (node))]
-pub fn in_component(node: &PyNode) -> Vec<NodeView<DynamicGraph>> {
+pub fn in_component(node: &PyNode) -> NodeState<'static, usize, DynamicGraph> {
     components::in_component(node.node.clone())
 }
 

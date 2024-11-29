@@ -69,10 +69,10 @@ def test_in_component():
 
     actual = algorithms.in_component(g.node(3))
     correct = [g.node(7), g.node(1)]
-    assert set(actual) == set(correct)
+    assert set(actual.nodes()) == set(correct)
     actual = algorithms.in_component(g.node(3).window(1, 6))
     correct = [g.node(1)]
-    assert set(actual) == set(correct)
+    assert set(actual.nodes()) == set(correct)
 
 
 def test_out_components():

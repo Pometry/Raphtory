@@ -174,8 +174,8 @@ impl Node {
 
     async fn in_component(&self) -> Vec<Node> {
         in_component(self.vv.clone())
-            .iter()
-            .map(|n| n.clone().into())
+            .nodes()
+            .map(|n| n.cloned().into())
             .collect()
     }
 
