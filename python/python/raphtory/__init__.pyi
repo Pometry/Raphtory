@@ -432,9 +432,11 @@ class Edge(object):
         """
 
     def explode(self):
-        """Explodes an edge and returns all instances it had been updated as seperate edges"""
+        """Explodes returns an edge object for each update within the original edge."""
 
-    def explode_layers(self): ...
+    def explode_layers(self):
+        """Explode layers returns an edge object for each layer within the original edge. These new edge object contains only updates from respective layers."""
+
     def has_layer(self, name: str):
         """
          Check if Edge has the layer `"name"`
@@ -908,9 +910,11 @@ class Edges(object):
         """
 
     def explode(self):
-        """Explodes an edge and returns all instances it had been updated as seperate edges"""
+        """Explodes returns an edge object for each update within the original edge."""
 
-    def explode_layers(self): ...
+    def explode_layers(self):
+        """Explode layers returns an edge object for each layer within the original edge. These new edge object contains only updates from respective layers."""
+
     def has_layer(self, name: str):
         """
          Check if Edges has the layer `"name"`
@@ -1963,6 +1967,16 @@ class GraphView(object):
 
         Returns:
              GraphView
+        """
+
+    def cache_view(self):
+        """
+        Applies the filters to the graph and retains the node ids and the edge ids
+        in the graph that satisfy the filters
+        creates bitsets per layer for nodes and edges
+
+        Returns:
+          MaskedGraph: Returns the masked graph
         """
 
     def count_edges(self) -> int:

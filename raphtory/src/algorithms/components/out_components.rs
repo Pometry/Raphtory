@@ -2,7 +2,10 @@ use crate::{
     algorithms::algorithm_result::AlgorithmResult,
     core::{entities::VID, state::compute_state::ComputeStateVec},
     db::{
-        api::view::{NodeViewOps, StaticGraphViewOps},
+        api::{
+            state::{Index, NodeState},
+            view::{NodeViewOps, StaticGraphViewOps},
+        },
         graph::node::NodeView,
         task::{
             context::Context,
@@ -13,9 +16,10 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
+use itertools::Itertools;
 use raphtory_api::core::entities::GID;
 use rayon::prelude::*;
-use std::collections::HashSet;
+use std::collections::{hash_map::Entry, HashMap, HashSet};
 
 #[derive(Clone, Debug, Default)]
 struct OutState {
@@ -104,31 +108,38 @@ where
 ///
 /// Returns:
 ///
-/// A Vec containing the Nodes within the given nodes out-component
+/// Nodes in the out-component with their distances from the starting node.
 ///
-pub fn out_component<'graph, G: GraphViewOps<'graph>>(node: NodeView<G>) -> Vec<NodeView<G>> {
-    let mut out_components = HashSet::new();
+pub fn out_component<'graph, G: GraphViewOps<'graph>>(
+    node: NodeView<G>,
+) -> NodeState<'graph, usize, G> {
+    let mut out_components = HashMap::new();
     let mut to_check_stack = Vec::new();
     node.out_neighbours().iter().for_each(|node| {
         let id = node.node;
-        if out_components.insert(id) {
-            to_check_stack.push(id);
-        }
+        out_components.insert(id, 1usize);
+        to_check_stack.push((id, 1usize));
     });
-    while let Some(neighbour_id) = to_check_stack.pop() {
+    while let Some((neighbour_id, d)) = to_check_stack.pop() {
+        let d = d + 1;
         if let Some(neighbour) = &node.graph.node(neighbour_id) {
             neighbour.out_neighbours().iter().for_each(|node| {
                 let id = node.node;
-                if out_components.insert(id) {
-                    to_check_stack.push(id);
+                if let Entry::Vacant(entry) = out_components.entry(id) {
+                    entry.insert(d);
+                    to_check_stack.push((id, d));
                 }
             });
         }
     }
-    out_components
-        .iter()
-        .filter_map(|vid| node.graph.node(*vid))
-        .collect()
+
+    let (nodes, distances): (Vec<_>, Vec<_>) = out_components.into_iter().sorted().unzip();
+    NodeState::new(
+        node.graph.clone(),
+        node.graph.clone(),
+        distances,
+        Some(Index::new(nodes, node.graph.unfiltered_num_nodes())),
+    )
 }
 
 #[cfg(test)]
@@ -155,21 +166,25 @@ mod components_test {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
-        fn check_node(graph: &Graph, node_id: u64, mut correct: Vec<u64>) {
-            let mut results: Vec<u64> = out_component(graph.node(node_id).unwrap())
+        fn check_node(graph: &Graph, node_id: u64, mut correct: Vec<(u64, usize)>) {
+            let mut results: Vec<_> = out_component(graph.node(node_id).unwrap())
                 .iter()
-                .map(|n| n.id().as_u64().unwrap())
+                .map(|(n, d)| (n.id().as_u64().unwrap(), *d))
                 .collect();
             results.sort();
             correct.sort();
             assert_eq!(results, correct);
         }
 
-        check_node(&graph, 1, vec![2, 3, 4, 5, 6, 7, 8]);
-        check_node(&graph, 2, vec![4, 5, 6, 7, 8]);
+        check_node(
+            &graph,
+            1,
+            vec![(2, 1), (3, 1), (4, 2), (5, 2), (6, 3), (7, 3), (8, 3)],
+        );
+        check_node(&graph, 2, vec![(4, 1), (5, 1), (6, 2), (7, 2), (8, 2)]);
         check_node(&graph, 3, vec![]);
-        check_node(&graph, 4, vec![6, 7]);
-        check_node(&graph, 5, vec![4, 6, 7, 8]);
+        check_node(&graph, 4, vec![(6, 1), (7, 1)]);
+        check_node(&graph, 5, vec![(4, 1), (6, 2), (7, 2), (8, 1)]);
         check_node(&graph, 6, vec![]);
         check_node(&graph, 7, vec![]);
         check_node(&graph, 8, vec![]);

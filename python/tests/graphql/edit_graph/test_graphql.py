@@ -633,24 +633,9 @@ def test_edge_id():
             "graph": {
                 "edges": {
                     "list": [
-                        {
-                            "id": [
-                                "ben",
-                                "shivam"
-                            ]
-                        },
-                        {
-                            "id": [
-                                "oogway",
-                                "po"
-                            ]
-                        },
-                        {
-                            "id": [
-                                "po",
-                                "ben"
-                            ]
-                        }
+                        {"id": ["ben", "shivam"]},
+                        {"id": ["oogway", "po"]},
+                        {"id": ["po", "ben"]},
                     ]
                 }
             }
