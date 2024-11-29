@@ -3,7 +3,10 @@ use lazy_vec::LazyVec;
 use lock_api;
 use node_entry::NodeEntry;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use raphtory_api::core::entities::{GidRef, VID};
+use raphtory_api::core::{
+    entities::{GidRef, VID},
+    storage::arc_str::ArcStr,
+};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -71,16 +74,54 @@ pub struct TColumns {
 impl TColumns {
     pub fn push(&mut self, prop_id: usize, prop: Prop) -> usize {
         let id = self.num_rows;
+        self.t_props_log.upsert(prop_id, |col| col.push(Some(prop)));
+        for col in self.t_props_log.values_mut() {
+            if let Some((id, col)) = col {
+                if id != prop_id {
+                    col.push(None)
+                }
+            }
+        }
         id
+    }
+
+    pub fn get(&self, prop_id: usize) -> Option<&TPropColumn> {
+        self.t_props_log.get(prop_id).map(|col| col)
     }
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
-enum TPropColumn {
+pub(crate) enum TPropColumn {
     #[default]
     Empty,
     U64(LazyVec<u64>),
-    Str(LazyVec<String>),
+    Str(LazyVec<ArcStr>),
+}
+
+impl TPropColumn {
+    pub(crate) fn push(&mut self, prop: Option<Prop>) {
+        match (self, prop) {
+            (col @ TPropColumn::Empty, prop @ Some(Prop::U64(_))) => {
+                *col = TPropColumn::U64(Default::default());
+                col.push(prop);
+            }
+            (col @ TPropColumn::Empty, prop @ Some(Prop::Str(_))) => {
+                *col = TPropColumn::Str(Default::default());
+                col.push(prop)
+            }
+            (TPropColumn::U64(col), Some(Prop::U64(v))) => col.push(Some(v)),
+            (TPropColumn::Str(col), Some(Prop::Str(v))) => col.push(Some(v)),
+            _ => panic!("Invalid prop type"),
+        }
+    }
+
+    pub(crate) fn get(&self, index: usize) -> Option<Prop> {
+        match self {
+            TPropColumn::U64(col) => col.get(index).map(|prop| (*prop).into()),
+            TPropColumn::Str(col) => col.get(index).map(|prop| prop.into()),
+            _ => None,
+        }
+    }
 }
 
 impl NodeSlot {

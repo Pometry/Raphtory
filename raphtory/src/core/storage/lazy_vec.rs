@@ -339,6 +339,23 @@ where
         }
     }
 
+    pub(crate) fn push(&mut self, value: Option<A>) {
+        match self {
+            LazyVec::Empty => {
+                if let Some(value) = value {
+                    *self = LazyVec::from(0, value);
+                }
+            }
+            LazyVec::LazyVec1(_, tuples) => {
+                tuples.push(value);
+                self.swap_lazy_types();
+            }
+            LazyVec::LazyVecN(vector) => {
+                vector.push(value);
+            }
+        }
+    }
+
     pub(crate) fn upsert<F, B>(&mut self, id: usize, updater: F) -> B
     where
         F: FnOnce(&mut A) -> B,

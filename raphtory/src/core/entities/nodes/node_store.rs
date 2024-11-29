@@ -95,15 +95,15 @@ impl NodeStore {
         node_type
     }
 
-    pub fn add_prop(
-        &mut self,
-        t: TimeIndexEntry,
-        prop_id: usize,
-        prop: Prop,
-    ) -> Result<(), GraphError> {
-        let props = self.props.get_or_insert_with(Props::new);
-        props.add_prop(t, prop_id, prop)
-    }
+    // pub fn add_prop(
+    //     &mut self,
+    //     t: TimeIndexEntry,
+    //     prop_id: usize,
+    //     prop: Prop,
+    // ) -> Result<(), GraphError> {
+    //     let props = self.props.get_or_insert_with(Props::new);
+    //     props.add_prop(t, prop_id, prop)
+    // }
 
     pub fn add_constant_prop(
         &mut self,
@@ -328,19 +328,20 @@ impl NodeStore {
             .flat_map(|ps| ps.const_prop_ids())
     }
 
-    pub(crate) fn temporal_property(&self, prop_id: usize) -> Option<&TProp> {
-        self.props.as_ref().and_then(|ps| ps.temporal_prop(prop_id))
-    }
+    // pub(crate) fn temporal_property(&self, prop_id: usize) -> Option<&TProp> {
+    //     self.props.as_ref().and_then(|ps| ps.temporal_prop(prop_id))
+    // }
 
     pub(crate) fn constant_property(&self, prop_id: usize) -> Option<&Prop> {
         self.props.as_ref().and_then(|ps| ps.const_prop(prop_id))
     }
 
     pub(crate) fn temporal_prop_ids(&self) -> impl Iterator<Item = usize> + '_ {
-        self.props
-            .as_ref()
-            .into_iter()
-            .flat_map(|ps| ps.temporal_prop_ids())
+        self.t_props.filled_ids()
+    }
+
+    pub(crate) fn t_props(&self, prop_id: usize) -> Option<&TCell<usize>> {
+        self.t_props.get(prop_id)
     }
 }
 

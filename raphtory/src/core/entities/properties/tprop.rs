@@ -1,7 +1,9 @@
 use crate::{
     core::{
-        entities::properties::tcell::TCell, storage::timeindex::TimeIndexEntry,
-        utils::errors::GraphError, DocumentInput, Prop, PropType,
+        entities::properties::tcell::TCell,
+        storage::{timeindex::TimeIndexEntry, TPropColumn},
+        utils::errors::GraphError,
+        DocumentInput, Prop, PropType,
     },
     db::{
         api::storage::graph::tprop_storage_ops::TPropOps,
@@ -35,6 +37,63 @@ pub enum TProp {
     Document(TCell<DocumentInput>),
     List(TCell<Arc<Vec<Prop>>>),
     Map(TCell<Arc<HashMap<ArcStr, Prop>>>),
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct TPropCell<'a> {
+    t_cell: Option<&'a TCell<usize>>,
+    log: Option<&'a TPropColumn>,
+}
+
+impl<'a> TPropCell<'a> {
+    pub(crate) fn new(t_cell: &'a TCell<usize>, log: &'a TPropColumn) -> Self {
+        Self {
+            t_cell: Some(t_cell),
+            log: Some(log),
+        }
+    }
+
+    pub(crate) fn empty() -> Self {
+        Self {
+            t_cell: None,
+            log: None,
+        }
+    }
+}
+
+impl<'a> TPropOps<'a> for TPropCell<'a> {
+    fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, Prop)> {
+        self.t_cell?
+            .last_before(t)
+            .and_then(|(t, id)| self.log?.get(*id).map(|prop| (t, prop)))
+    }
+
+    fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+        self.t_cell.into_iter().flat_map(move |t_cell| {
+            t_cell
+                .iter()
+                .filter_map(move |(t, id)| self.log?.get(*id).map(|prop| (*t, prop)))
+        })
+    }
+
+    fn iter_window(
+        self,
+        r: Range<TimeIndexEntry>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+        self.t_cell.into_iter().flat_map(move |t_cell| {
+            t_cell
+                .iter_window(r.clone())
+                .filter_map(move |(t, id)| self.log?.get(*id).map(|prop| (*t, prop)))
+        })
+    }
+
+    fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
+        self.t_cell?.at(ti).and_then(|id| self.log?.get(*id))
+    }
+
+    fn len(self) -> usize {
+        self.t_cell.map(|t_cell| t_cell.len()).unwrap_or_default()
+    }
 }
 
 impl TProp {
