@@ -65,11 +65,13 @@ pub struct NodeSlot {
 #[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
 pub struct TColumns {
     t_props_log: LazyVec<TPropColumn>,
+    num_rows: usize,
 }
 
 impl TColumns {
     pub fn push(&mut self, prop_id: usize, prop: Prop) -> usize {
-        0
+        let id = self.num_rows;
+        id
     }
 }
 
@@ -78,7 +80,7 @@ enum TPropColumn {
     #[default]
     Empty,
     U64(LazyVec<u64>),
-    F64(LazyVec<f64>),
+    Str(LazyVec<String>),
 }
 
 impl NodeSlot {
@@ -234,6 +236,26 @@ where
 
     pub(crate) fn par_iter(&self) -> impl ParallelIterator<Item = NodeEntry> + '_ {
         self.locks.par_iter().flat_map(|v| v.par_iter())
+    }
+
+    #[allow(unused)]
+    pub(crate) fn into_iter(self) -> impl Iterator<Item = ArcEntry> {
+        self.locks.into_iter().flat_map(|data| {
+            (0..data.len()).map(move |offset| ArcEntry {
+                guard: data.clone(),
+                i: offset,
+            })
+        })
+    }
+
+    #[allow(unused)]
+    pub(crate) fn into_par_iter(self) -> impl ParallelIterator<Item = ArcEntry> {
+        self.locks.into_par_iter().flat_map(|data| {
+            (0..data.len()).into_par_iter().map(move |offset| ArcEntry {
+                guard: data.clone(),
+                i: offset,
+            })
+        })
     }
 }
 
@@ -629,12 +651,12 @@ mod test {
 
         for i in 0..5 {
             let entry = storage.entry(VID(i));
-            assert_eq!(entry.vid, VID(i));
+            assert_eq!(entry.get().vid, VID(i));
         }
 
         let items_iter = storage.read_lock().into_iter();
 
-        let actual = items_iter.map(|s| s.vid.index()).collect::<Vec<_>>();
+        let actual = items_iter.map(|s| s.get().vid.index()).collect::<Vec<_>>();
 
         assert_eq!(actual, vec![0, 2, 4, 1, 3]);
     }
@@ -673,7 +695,7 @@ mod test {
 
         for i in 0..5 {
             let entry = storage.entry(VID(i));
-            assert_eq!(*entry.global_id.to_str(), i.to_string());
+            assert_eq!(*entry.get().global_id.to_str(), i.to_string());
         }
     }
 
@@ -691,7 +713,7 @@ mod test {
         let locked = storage.read_lock();
         let mut actual: Vec<_> = locked
             .iter()
-            .map(|n| n.global_id.as_u64().unwrap())
+            .map(|n| n.node().global_id.as_u64().unwrap())
             .collect();
 
         actual.sort();

@@ -5,7 +5,11 @@ use crate::core::{
         properties::{props::Props, tcell::TCell, tprop::TProp},
         LayerIds, EID, GID, VID,
     },
-    storage::{lazy_vec::{IllegalSet, LazyVec}, timeindex::TimeIndexEntry, ArcEntry, Entry},
+    storage::{
+        lazy_vec::{IllegalSet, LazyVec},
+        timeindex::TimeIndexEntry,
+        ArcEntry, Entry,
+    },
     utils::{errors::GraphError, iter::GenLockedIter},
     Direction, Prop,
 };
@@ -27,7 +31,7 @@ pub struct NodeStore {
     pub(crate) node_type: usize,
 
     /// For every property id keep a hash map of timestamps to values pointing to the property entries in the props vector
-    t_props: LazyVec<TCell<usize>>
+    t_props: LazyVec<TCell<usize>>,
 }
 
 impl NodeStore {
@@ -54,7 +58,7 @@ impl NodeStore {
             layers,
             props: None,
             node_type: 0,
-            t_props: LazyVec::Empty,
+            t_props: Default::default(),
         }
     }
 
@@ -66,7 +70,7 @@ impl NodeStore {
             layers: vec![],
             props: None,
             node_type: 0,
-            t_props: LazyVec::Empty,
+            t_props: Default::default(),
         }
     }
 
@@ -117,7 +121,7 @@ impl NodeStore {
 
     pub fn update_t_prop_time(&mut self, t: &TimeIndexEntry, prop_id: usize, prop_i: usize) {
         // this can't fail
-        let _ = self.t_props.update(prop_id, |t_prop|{
+        let _ = self.t_props.update(prop_id, |t_prop| {
             t_prop.set(*t, prop_i);
             Ok(())
         });
@@ -340,8 +344,7 @@ impl NodeStore {
     }
 }
 
-impl ArcEntry{
-
+impl ArcEntry {
     pub fn into_edges(self, layers: &LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> {
         GenLockedIter::from(self, |node| node.get().edge_tuples(layers, dir))
     }

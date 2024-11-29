@@ -421,6 +421,7 @@ impl<'a> TimeIndexIntoOps for NodeAdditions<'a> {
         match self {
             NodeAdditions::Mem(index) => NodeAdditions::Range(index.range(w)),
             NodeAdditions::Range(index) => NodeAdditions::Range(index.into_range(w)),
+            #[cfg(feature = "storage")]
             _ => todo!(),
         }
     }
@@ -429,6 +430,7 @@ impl<'a> TimeIndexIntoOps for NodeAdditions<'a> {
         match self {
             NodeAdditions::Mem(index) => <TCell<EID> as TimeIndexOps>::iter(index),
             NodeAdditions::Range(index) => Box::new(index.into_iter()),
+            #[cfg(feature = "storage")]
             _ => todo!(),
         }
     }
