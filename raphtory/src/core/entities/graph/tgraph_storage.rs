@@ -6,6 +6,7 @@ use crate::core::{
         Entry, EntryMut, NodeSlot, NodeStorage, PairEntryMut, UninitialisedEntry,
     },
 };
+use parking_lot::RwLockWriteGuard;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
@@ -54,7 +55,7 @@ impl GraphStorage {
     }
 
     #[inline]
-    pub(crate) fn get_node_mut(&self, id: VID) -> EntryMut<'_> {
+    pub(crate) fn get_node_mut(&self, id: VID) -> EntryMut<'_, RwLockWriteGuard<'_, NodeSlot>> {
         self.nodes.entry_mut(id)
     }
 

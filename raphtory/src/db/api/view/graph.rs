@@ -224,7 +224,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                 for (index, node) in self.nodes().iter().enumerate() {
                     let new_id = VID(index);
                     let gid = node.id();
-                    if let Some(new_node) = shard.set(new_id, gid.as_ref()) {
+                    if let Some(mut new_node) = shard.set(new_id, gid.as_ref()) {
                         node_map_shared[node.node.index()].store(index, Ordering::Relaxed);
                         if let Some(node_type) = node.node_type() {
                             let new_type_id = g
@@ -232,28 +232,28 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                                 .node_type_meta()
                                 .get_or_create_id(&node_type)
                                 .inner();
-                            new_node.node_type = new_type_id;
+                            new_node.get_mut().node_type = new_type_id;
                         }
                         g.logical_to_physical.set(gid.as_ref(), new_id)?;
 
                         if let Some(earliest) = node.earliest_time() {
                             // explicitly add node earliest_time to handle PersistentGraph
-                            new_node.update_time(TimeIndexEntry::start(earliest), None)
+                            new_node.get_mut().update_time(TimeIndexEntry::start(earliest), None)
                         }
                         for t in self.node_history(node.node) {
-                            new_node.update_time(t, None);
+                            new_node.get_mut().update_time(t, None);
                         }
                         for t_prop_id in node.temporal_prop_ids() {
                             for (t, prop_value) in
                                 self.temporal_node_prop_hist(node.node, t_prop_id)
                             {
-                                let prop_offset = shard.t_prop_log_mut().push(t_prop_id, prop_value);
-                                new_node.update_t_prop_time(&t, t_prop_id, prop_offset);
+                                let prop_offset = new_node.t_props_log_mut().push(t_prop_id, prop_value);
+                                new_node.get_mut().update_t_prop_time(&t, t_prop_id, prop_offset);
                             }
                         }
                         for c_prop_id in node.const_prop_ids() {
                             if let Some(prop_value) = node.get_const_prop(c_prop_id) {
-                                new_node.add_constant_prop(c_prop_id, prop_value)?;
+                                new_node.get_mut().add_constant_prop(c_prop_id, prop_value)?;
                             }
                         }
                     }

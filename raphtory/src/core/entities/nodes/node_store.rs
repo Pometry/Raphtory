@@ -2,7 +2,7 @@ use crate::core::{
     entities::{
         edges::edge_ref::{Dir, EdgeRef},
         nodes::structure::adj::Adj,
-        properties::{props::Props, tcell::TCell, tprop::TProp},
+        properties::{props::Props, tcell::TCell},
         LayerIds, EID, GID, VID,
     },
     storage::{

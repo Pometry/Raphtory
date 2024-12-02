@@ -388,9 +388,9 @@ impl StableDecode for TemporalGraph {
                         Gid::GidStr(name) => GidRef::Str(name),
                         Gid::GidU64(gid) => GidRef::U64(*gid),
                     };
-                    if let Some(node_store) = shard.set(vid, gid) {
+                    if let Some(mut node_store) = shard.set(vid, gid) {
                         storage.logical_to_physical.set(gid, vid)?;
-                        node_store.node_type = node.type_id as usize;
+                        node_store.get_mut().node_type = node.type_id as usize;
                     }
                 }
                 let edges = storage.storage.edges.read_lock();
@@ -431,12 +431,13 @@ impl StableDecode for TemporalGraph {
                                 }
                             }
                             Update::UpdateNodeTprops(update) => {
-                                if let Some(node) = shard.get_mut(update.vid()) {
-                                    node.update_time(update.time(), None);
+                                if let Some(mut node) = shard.get_mut_entry(update.vid()) {
+                                    node.get_mut().update_time(update.time(), None);
                                     for prop_update in update.props() {
                                         let (id, prop) = prop_update?;
                                         let prop = storage.process_prop_value(&prop);
-                                        node.add_prop(update.time(), id, prop)?;
+                                        let prop_offset = node.t_props_log_mut().push(id, prop);
+                                        node.get_mut().update_t_prop_time(&update.time(), id, prop_offset);
                                     }
                                     storage.update_time(update.time())
                                 }

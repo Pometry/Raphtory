@@ -282,7 +282,7 @@ where
     #[allow(unused)]
     pub(crate) fn into_iter(self) -> impl Iterator<Item = ArcEntry> {
         self.locks.into_iter().flat_map(|data| {
-            (0..data.len()).map(move |offset| ArcEntry {
+            (0..data.as_ref().len()).map(move |offset| ArcEntry {
                 guard: data.clone(),
                 i: offset,
             })
@@ -292,10 +292,12 @@ where
     #[allow(unused)]
     pub(crate) fn into_par_iter(self) -> impl ParallelIterator<Item = ArcEntry> {
         self.locks.into_par_iter().flat_map(|data| {
-            (0..data.len()).into_par_iter().map(move |offset| ArcEntry {
-                guard: data.clone(),
-                i: offset,
-            })
+            (0..data.as_ref().len())
+                .into_par_iter()
+                .map(move |offset| ArcEntry {
+                    guard: data.clone(),
+                    i: offset,
+                })
         })
     }
 }
@@ -387,11 +389,15 @@ impl NodeStorage {
         }
     }
 
-    pub fn entry_mut(&self, index: VID) -> EntryMut {
+    pub fn entry_mut(&self, index: VID) -> EntryMut<'_, RwLockWriteGuard<'_, NodeSlot>> {
         let index = index.into();
         let (bucket, offset) = self.resolve(index);
         let guard = self.data[bucket].data.write();
-        EntryMut { i: offset, guard }
+        EntryMut {
+            i: offset,
+            guard,
+            _pd: PhantomData,
+        }
     }
 
     pub fn prop_entry_mut(&self, index: VID) -> impl DerefMut<Target = TColumns> + '_ {
@@ -473,6 +479,15 @@ where
     }
 
     #[inline]
+    pub fn get_mut_entry(&mut self, index: VID) -> Option<EntryMut<'_, &mut S>> {
+        self.resolve(index).map(|offset| EntryMut {
+            i: offset,
+            guard: &mut self.shard,
+            _pd: PhantomData,
+        })
+    }
+
+    #[inline]
     pub fn get(&self, index: VID) -> Option<&NodeStore> {
         self.resolve(index).map(|offset| &self.shard[offset])
     }
@@ -482,7 +497,7 @@ where
         &mut self.shard.t_props_log
     }
 
-    pub fn set(&mut self, vid: VID, gid: GidRef) -> Option<&mut NodeStore> {
+    pub fn set(&mut self, vid: VID, gid: GidRef) -> Option<EntryMut<'_, &mut S>> {
         self.resolve(vid).map(|offset| {
             if offset >= self.shard.len() {
                 self.shard.resize_with(offset + 1, NodeStore::default);
@@ -490,7 +505,12 @@ where
                     .fetch_max(vid.index() + 1, Ordering::Relaxed);
             }
             self.shard[offset] = NodeStore::resolved(gid.to_owned(), vid);
-            &mut self.shard[offset]
+
+            EntryMut {
+                i: offset,
+                guard: &mut self.shard,
+                _pd: PhantomData,
+            }
         })
     }
 
@@ -652,12 +672,30 @@ impl<'a> PairEntryMut<'a> {
     }
 }
 
-pub struct EntryMut<'a> {
+pub struct EntryMut<'a, NS: 'a> {
     i: usize,
-    guard: parking_lot::RwLockWriteGuard<'a, NodeSlot>,
+    guard: NS,
+    _pd: PhantomData<&'a ()>,
 }
 
-impl<'a> EntryMut<'a> {
+impl<'a, NS> EntryMut<'a, NS> {
+    pub(crate) fn to_mut(&mut self) -> EntryMut<'a, &mut NS> {
+        EntryMut {
+            i: self.i,
+            guard: &mut self.guard,
+            _pd: self._pd,
+        }
+    }
+}
+
+impl<'a, NS: DerefMut<Target = NodeSlot>> AsMut<NodeStore> for EntryMut<'a, NS> {
+    fn as_mut(&mut self) -> &mut NodeStore {
+        let slots = self.guard.deref_mut();
+        &mut slots[self.i]
+    }
+}
+
+impl<'a, NS: DerefMut<Target = NodeSlot> + 'a> EntryMut<'a, &'a mut NS> {
     pub fn get(&self) -> &NodeStore {
         &self.guard[self.i]
     }
