@@ -85,7 +85,7 @@ impl TColumns {
         id
     }
 
-    pub fn get(&self, prop_id: usize) -> Option<&TPropColumn> {
+    pub(crate) fn get(&self, prop_id: usize) -> Option<&TPropColumn> {
         self.t_props_log.get(prop_id).map(|col| col)
     }
 }
@@ -246,6 +246,7 @@ where
         self.len
     }
 
+    #[cfg(test)]
     pub(crate) fn get(&self, index: Index) -> &NodeStore {
         let (bucket, offset) = self.resolve(index);
         let bucket = &self.locks[bucket];
@@ -264,11 +265,6 @@ where
         let (bucket, offset) = self.resolve(index);
         let bucket = &self.locks[bucket];
         NodeEntry::new(&bucket[offset], &bucket.t_props_log)
-    }
-
-    pub(crate) fn t_props_log(&self, index: Index) -> &TColumns {
-        let (bucket, _) = self.resolve(index);
-        self.locks[bucket].t_props_log()
     }
 
     pub(crate) fn iter(&self) -> impl Iterator<Item = NodeEntry> + '_ {

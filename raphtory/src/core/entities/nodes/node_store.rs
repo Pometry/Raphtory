@@ -35,7 +35,7 @@ pub struct NodeStore {
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub struct NodeTimestamps {
     // all the timestamps that have been seen by this node
-    pub(crate) edge_ts: TCell<EID>,
+    pub(crate) edge_ts: TCell<Option<EID>>,
     pub(crate) props_ts: LazyVec<TCell<usize>>,
 }
 
@@ -86,11 +86,7 @@ impl NodeStore {
     }
 
     pub fn update_time(&mut self, t: TimeIndexEntry, eid: Option<EID>) {
-        if let Some(eid) = eid {
-            self.timestamps.edge_ts.set(t, eid);
-        } else {
-            todo!("update_time without eid, when properties live outside of NodeStore")
-        }
+        self.timestamps.edge_ts.set(t, eid);
     }
 
     pub fn update_node_type(&mut self, node_type: usize) -> usize {

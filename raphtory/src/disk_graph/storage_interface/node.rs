@@ -16,6 +16,7 @@ use crate::{
 use itertools::Itertools;
 use polars_arrow::datatypes::ArrowDataType;
 use pometry_storage::{graph::TemporalGraph, timestamps::TimeStamps, tprops::DiskTProp, GidRef};
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use std::{borrow::Cow, iter, sync::Arc};
 
@@ -180,7 +181,7 @@ impl<'a> DiskNode<'a> {
         };
 
         for props in self.graph.node_properties().temporal_props() {
-            let timestamps = props.timestamps::<i64>(self.vid);
+            let timestamps = props.timestamps::<TimeIndexEntry>(self.vid);
             if timestamps.len() > 0 {
                 let ts = timestamps.times();
                 additions.push(ts);

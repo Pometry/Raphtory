@@ -7,11 +7,7 @@ use raphtory_api::core::{
 
 use crate::{
     core::{
-        entities::{
-            nodes::node_store::NodeStore,
-            properties::tprop::{TProp, TPropCell},
-            LayerIds,
-        },
+        entities::{nodes::node_store::NodeStore, properties::tprop::TPropCell, LayerIds},
         Prop,
     },
     db::api::{

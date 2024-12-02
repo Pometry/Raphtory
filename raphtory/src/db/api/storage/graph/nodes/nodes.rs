@@ -1,9 +1,6 @@
 use super::node_ref::NodeStorageRef;
 use crate::{
-    core::{
-        entities::{nodes::node_store::NodeStore, VID},
-        storage::ReadLockedStorage,
-    },
+    core::{entities::VID, storage::ReadLockedStorage},
     db::api::storage::graph::nodes::nodes_ref::NodesStorageEntry,
 };
 use std::sync::Arc;

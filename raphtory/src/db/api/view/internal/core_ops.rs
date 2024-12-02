@@ -371,7 +371,7 @@ impl TimeIndexOps for NodeTimestamps {
     }
 
     fn len(&self) -> usize {
-        todo!()
+        self.edge_ts.len() + self.props_ts.iter().map(|cell| cell.len()).sum::<usize>()
     }
 }
 
@@ -388,16 +388,21 @@ impl TimeIndexLike for NodeTimestamps {
 
 // This assumes the number of temporary props does not exceed the stack
 fn chain_my_iters<'a, A: 'a, I: DoubleEndedIterator<Item = A> + Send + 'a>(
-    mut is: impl Iterator<Item = I>,
+    is: impl Iterator<Item = I>,
 ) -> Box<dyn DoubleEndedIterator<Item = A> + Send + 'a> {
-    Box::new(is.next().into_iter().flatten().chain(chain_my_iters(is)))
+    is.map(|i| {
+        let i: Box<dyn DoubleEndedIterator<Item = A> + Send + 'a> = Box::new(i);
+        i
+    })
+    .reduce(|a, b| Box::new(a.chain(b)) as Box<dyn DoubleEndedIterator<Item = A> + Send + 'a>)
+    .unwrap_or_else(|| Box::new(iter::empty()))
 }
 
 pub enum NodeAdditions<'a> {
     Mem(&'a NodeTimestamps),
     Range(TimeIndexWindow<'a, TimeIndexEntry, NodeTimestamps>),
     #[cfg(feature = "storage")]
-    Col(Vec<TimeStamps<'a, i64>>),
+    Col(Vec<TimeStamps<'a, TimeIndexEntry>>),
 }
 
 impl<'b> TimeIndexOps for NodeAdditions<'b> {
@@ -411,52 +416,52 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
     fn active(&self, w: Range<TimeIndexEntry>) -> bool {
         match self {
             NodeAdditions::Mem(index) => index.active(w),
-            #[cfg(feature = "storage")]
-            NodeAdditions::Col(index) => index.par_iter().any(|index| index.active_t(w.clone())),
             NodeAdditions::Range(index) => index.active(w),
+            #[cfg(feature = "storage")]
+            NodeAdditions::Col(index) => index.par_iter().any(|index| index.active(w.clone())),
         }
     }
 
     fn range(&self, w: Range<TimeIndexEntry>) -> Self::RangeType<'_> {
         match self {
             NodeAdditions::Mem(index) => NodeAdditions::Range(index.range(w)),
+            NodeAdditions::Range(index) => NodeAdditions::Range(index.range(w)),
             #[cfg(feature = "storage")]
             NodeAdditions::Col(index) => {
                 let mut ranges = Vec::with_capacity(index.len());
                 index
                     .par_iter()
-                    .map(|index| index.range_t(w.clone()))
+                    .map(|index| index.range(w.clone()))
                     .collect_into_vec(&mut ranges);
                 NodeAdditions::Col(ranges)
             }
-            NodeAdditions::Range(index) => NodeAdditions::Range(index.range(w)),
         }
     }
 
     fn first(&self) -> Option<Self::IndexType> {
         match self {
             NodeAdditions::Mem(index) => index.first(),
+            NodeAdditions::Range(index) => index.first(),
             #[cfg(feature = "storage")]
             NodeAdditions::Col(index) => index.par_iter().flat_map(|index| index.first()).min(),
-            NodeAdditions::Range(index) => index.first(),
         }
     }
 
     fn last(&self) -> Option<Self::IndexType> {
         match self {
             NodeAdditions::Mem(index) => index.last(),
+            NodeAdditions::Range(index) => index.last(),
             #[cfg(feature = "storage")]
             NodeAdditions::Col(index) => index.par_iter().flat_map(|index| index.last()).max(),
-            NodeAdditions::Range(index) => index.last(),
         }
     }
 
     fn iter(&self) -> Box<dyn Iterator<Item = TimeIndexEntry> + Send + '_> {
         match self {
             NodeAdditions::Mem(index) => <NodeTimestamps as TimeIndexOps>::iter(index),
+            NodeAdditions::Range(index) => index.iter(),
             #[cfg(feature = "storage")]
             NodeAdditions::Col(index) => Box::new(index.iter().flat_map(|index| index.iter())),
-            NodeAdditions::Range(index) => index.iter(),
         }
     }
 
@@ -480,7 +485,14 @@ impl<'a> TimeIndexIntoOps for NodeAdditions<'a> {
             NodeAdditions::Mem(index) => NodeAdditions::Range(index.range(w)),
             NodeAdditions::Range(index) => NodeAdditions::Range(index.into_range(w)),
             #[cfg(feature = "storage")]
-            _ => todo!(),
+            NodeAdditions::Col(index) => {
+                let mut ranges = Vec::with_capacity(index.len());
+                index
+                    .par_iter()
+                    .map(|index| index.into_range(w.clone()))
+                    .collect_into_vec(&mut ranges);
+                NodeAdditions::Col(ranges)
+            }
         }
     }
 
@@ -489,7 +501,9 @@ impl<'a> TimeIndexIntoOps for NodeAdditions<'a> {
             NodeAdditions::Mem(index) => <NodeTimestamps as TimeIndexOps>::iter(index),
             NodeAdditions::Range(index) => Box::new(index.into_iter()),
             #[cfg(feature = "storage")]
-            _ => todo!(),
+            NodeAdditions::Col(index) => {
+                Box::new(index.into_iter().flat_map(|index| index.into_iter()))
+            }
         }
     }
 }

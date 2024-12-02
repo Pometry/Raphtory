@@ -2,11 +2,8 @@ use std::borrow::Cow;
 
 use crate::{
     core::{
-        entities::{
-            edges::edge_ref::EdgeRef, nodes::node_store::NodeStore, properties::tprop::TProp,
-            GidRef, LayerIds, VID,
-        },
-        storage::{node_entry::NodeEntry, ArcEntry},
+        entities::{edges::edge_ref::EdgeRef, GidRef, LayerIds, VID},
+        storage::ArcEntry,
         Direction,
     },
     db::api::{storage::graph::tprop_storage_ops::TPropOps, view::internal::NodeAdditions},
