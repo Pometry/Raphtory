@@ -1,8 +1,5 @@
 use super::node_ref::NodeStorageRef;
-use crate::core::{
-    entities::{nodes::node_store::NodeStore, VID},
-    storage::ReadLockedStorage,
-};
+use crate::core::{entities::VID, storage::ReadLockedStorage};
 use rayon::iter::ParallelIterator;
 
 #[cfg(feature = "storage")]

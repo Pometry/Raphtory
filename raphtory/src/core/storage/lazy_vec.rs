@@ -195,7 +195,7 @@ pub(crate) enum LazyVec<A> {
 
 impl<A> LazyVec<A>
 where
-    A: PartialEq + Default + Debug + Sync + Clone,
+    A: PartialEq + Default + Debug + Sync + Send + Clone,
 {
     // fails if there is already a value set for the given id to a different value
     pub(crate) fn set(&mut self, id: usize, value: A) -> Result<(), IllegalSet<A>> {
@@ -238,7 +238,7 @@ where
             None => {
                 let mut value = A::default();
                 let b = updater(&mut value)?;
-                self.set(id, value);
+                self.set(id, value)?;
                 b
             }
         };
@@ -248,7 +248,7 @@ where
 
 impl<A> LazyVec<A>
 where
-    A: PartialEq + Default + Debug + Sync,
+    A: PartialEq + Default + Debug + Send + Sync,
 {
     fn swap_lazy_types(&mut self) {
         if let LazyVec::LazyVec1(_, tuples) = self {
@@ -301,6 +301,28 @@ where
                     .map(|(id, value)| value.map(|value| (id, value))),
             ),
         }
+    }
+
+    pub(crate) fn values(&self) -> Box<dyn Iterator<Item = Option<(usize, &A)>> + Send + '_> {
+        match self {
+            LazyVec::Empty => Box::new(iter::empty()),
+            LazyVec::LazyVec1(_, tuples) => Box::new(
+                tuples
+                    .iter()
+                    .enumerate()
+                    .map(|(id, value)| value.map(|value| (id, value))),
+            ),
+            LazyVec::LazyVecN(vector) => Box::new(
+                vector
+                    .iter()
+                    .enumerate()
+                    .map(|(id, value)| value.map(|value| (id, value))),
+            ),
+        }
+    }
+
+    pub(crate) fn iter(&self) -> impl Iterator<Item = &A> + Send + '_ {
+        self.values().filter_map(|cell| cell.map(|(_, a)| a))
     }
 
     pub(crate) fn get(&self, id: usize) -> Option<&A> {

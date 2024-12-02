@@ -7,6 +7,7 @@ use crate::{
             LayerIds, VID,
         },
         storage::{
+            lazy_vec::LazyVec,
             locked_view::LockedView,
             timeindex::{TimeIndex, TimeIndexOps, TimeIndexWindow},
         },
@@ -28,7 +29,7 @@ use raphtory_api::core::{
     entities::{EID, GID},
     storage::{
         arc_str::ArcStr,
-        timeindex::{TimeIndexEntry, TimeIndexIntoOps},
+        timeindex::{TimeIndexEntry, TimeIndexIntoOps, TimeIndexLike},
     },
 };
 use std::{iter, ops::Range};
@@ -328,9 +329,84 @@ impl<G: DelegateCoreOps + ?Sized + Send + Sync> CoreGraphOps for G {
     }
 }
 
+#[derive(Clone, Copy)]
+pub struct MemNodeAdditions<'a> {
+    edge_ts: &'a TCell<EID>,
+    props_ts: &'a LazyVec<TCell<usize>>,
+}
+
+impl<'a> TimeIndexOps for MemNodeAdditions<'a> {
+    type IndexType = TimeIndexEntry;
+
+    type RangeType<'b>
+        = TimeIndexWindow<'b, TimeIndexEntry, Self>
+    where
+        Self: 'b;
+
+    fn active(&self, w: Range<Self::IndexType>) -> bool {
+        self.edge_ts.active(w.clone())
+            || self.props_ts.iter().any(move |cell| cell.active(w.clone()))
+    }
+
+    fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType<'_> {
+        TimeIndexWindow::TimeIndexRange {
+            timeindex: self,
+            range: w,
+        }
+    }
+
+    fn first(&self) -> Option<Self::IndexType> {
+        self.edge_ts
+            .first()
+            .min(self.props_ts.iter().filter_map(|cell| cell.first()).min())
+    }
+
+    fn last(&self) -> Option<Self::IndexType> {
+        self.edge_ts
+            .last()
+            .max(self.props_ts.iter().filter_map(|cell| cell.last()).max())
+    }
+
+    fn iter(&self) -> Box<dyn Iterator<Item = Self::IndexType> + Send + '_> {
+        Box::new(
+            self.edge_ts.iter().map(|(t, _)| *t).chain(
+                self.props_ts
+                    .iter()
+                    .flat_map(|cell| cell.iter().map(|(t, _)| *t)),
+            ),
+        )
+    }
+
+    fn len(&self) -> usize {
+        todo!()
+    }
+}
+
+impl<'a> TimeIndexLike for MemNodeAdditions<'a> {
+    fn range_iter(
+        &self,
+        w: Range<Self::IndexType>,
+    ) -> Box<dyn DoubleEndedIterator<Item = Self::IndexType> + Send + '_> {
+        Box::new(
+            self.edge_ts.range_iter(w.clone()).chain(
+                chain_my_iters(self.props_ts
+                    .iter()
+                    .map(|cell| cell.range_iter(w.clone()))),
+            ),
+        )
+    }
+}
+
+// This assumes the number of temporary props does not exceed the stack
+fn chain_my_iters<'a, A: 'a, I: DoubleEndedIterator<Item = A> + Send + 'a>(
+    mut is: impl Iterator<Item = I>,
+) -> Box<dyn DoubleEndedIterator<Item = A> + Send + 'a> {
+    Box::new(is.next().into_iter().flatten().chain(chain_my_iters(is)))
+}
+
 pub enum NodeAdditions<'a> {
-    Mem(&'a TCell<EID>),
-    Range(TimeIndexWindow<'a, TimeIndexEntry, TCell<EID>>),
+    Mem(MemNodeAdditions<'a>),
+    Range(TimeIndexWindow<'a, TimeIndexEntry, MemNodeAdditions<'a>>),
     #[cfg(feature = "storage")]
     Col(Vec<TimeStamps<'a, i64>>),
 }
