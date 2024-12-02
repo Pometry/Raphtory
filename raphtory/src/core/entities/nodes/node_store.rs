@@ -22,8 +22,6 @@ use std::{iter, ops::Deref};
 pub struct NodeStore {
     pub(crate) global_id: GID,
     pub(crate) vid: VID,
-    // all the timestamps that have been seen by this node
-    timestamps: TCell<EID>,
     // each layer represents a separate view of the graph
     pub(crate) layers: Vec<Adj>,
     // props for node
@@ -31,7 +29,14 @@ pub struct NodeStore {
     pub(crate) node_type: usize,
 
     /// For every property id keep a hash map of timestamps to values pointing to the property entries in the props vector
-    t_props: LazyVec<TCell<usize>>,
+    timestamps: NodeTimestamps,
+}
+
+#[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
+pub struct NodeTimestamps {
+    // all the timestamps that have been seen by this node
+    pub(crate) edge_ts: TCell<EID>,
+    pub(crate) props_ts: LazyVec<TCell<usize>>,
 }
 
 impl NodeStore {
@@ -58,7 +63,6 @@ impl NodeStore {
             layers,
             props: None,
             node_type: 0,
-            t_props: Default::default(),
         }
     }
 
@@ -70,7 +74,6 @@ impl NodeStore {
             layers: vec![],
             props: None,
             node_type: 0,
-            t_props: Default::default(),
         }
     }
 
@@ -78,13 +81,13 @@ impl NodeStore {
         &self.global_id
     }
 
-    pub fn timestamps(&self) -> &TCell<EID> {
+    pub fn timestamps(&self) -> &NodeTimestamps {
         &self.timestamps
     }
 
     pub fn update_time(&mut self, t: TimeIndexEntry, eid: Option<EID>) {
         if let Some(eid) = eid {
-            self.timestamps.set(t, eid);
+            self.timestamps.edge_ts.set(t, eid);
         } else {
             todo!("update_time without eid, when properties live outside of NodeStore")
         }
@@ -94,16 +97,6 @@ impl NodeStore {
         self.node_type = node_type;
         node_type
     }
-
-    // pub fn add_prop(
-    //     &mut self,
-    //     t: TimeIndexEntry,
-    //     prop_id: usize,
-    //     prop: Prop,
-    // ) -> Result<(), GraphError> {
-    //     let props = self.props.get_or_insert_with(Props::new);
-    //     props.add_prop(t, prop_id, prop)
-    // }
 
     pub fn add_constant_prop(
         &mut self,
@@ -121,7 +114,7 @@ impl NodeStore {
 
     pub fn update_t_prop_time(&mut self, t: &TimeIndexEntry, prop_id: usize, prop_i: usize) {
         // this can't fail
-        let _ = self.t_props.update(prop_id, |t_prop| {
+        let _ = self.timestamps.props_ts.update(prop_id, |t_prop| {
             t_prop.set(*t, prop_i);
             Ok(())
         });
@@ -337,11 +330,11 @@ impl NodeStore {
     }
 
     pub(crate) fn temporal_prop_ids(&self) -> impl Iterator<Item = usize> + '_ {
-        self.t_props.filled_ids()
+        self.timestamps.props_ts.filled_ids()
     }
 
     pub(crate) fn t_props(&self, prop_id: usize) -> Option<&TCell<usize>> {
-        self.t_props.get(prop_id)
+        self.timestamps.props_ts.get(prop_id)
     }
 }
 

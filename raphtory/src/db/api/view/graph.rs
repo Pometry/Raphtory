@@ -238,7 +238,9 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 
                         if let Some(earliest) = node.earliest_time() {
                             // explicitly add node earliest_time to handle PersistentGraph
-                            new_node.get_mut().update_time(TimeIndexEntry::start(earliest), None)
+                            new_node
+                                .get_mut()
+                                .update_time(TimeIndexEntry::start(earliest), None)
                         }
                         for t in self.node_history(node.node) {
                             new_node.get_mut().update_time(t, None);
@@ -247,13 +249,18 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                             for (t, prop_value) in
                                 self.temporal_node_prop_hist(node.node, t_prop_id)
                             {
-                                let prop_offset = new_node.t_props_log_mut().push(t_prop_id, prop_value);
-                                new_node.get_mut().update_t_prop_time(&t, t_prop_id, prop_offset);
+                                let prop_offset =
+                                    new_node.t_props_log_mut().push(t_prop_id, prop_value);
+                                new_node
+                                    .get_mut()
+                                    .update_t_prop_time(&t, t_prop_id, prop_offset);
                             }
                         }
                         for c_prop_id in node.const_prop_ids() {
                             if let Some(prop_value) = node.get_const_prop(c_prop_id) {
-                                new_node.get_mut().add_constant_prop(c_prop_id, prop_value)?;
+                                new_node
+                                    .get_mut()
+                                    .add_constant_prop(c_prop_id, prop_value)?;
                             }
                         }
                     }

@@ -2,14 +2,13 @@ use crate::{
     core::{
         entities::{
             edges::edge_ref::EdgeRef,
-            nodes::node_ref::NodeRef,
-            properties::{graph_meta::GraphMeta, props::Meta, tcell::TCell, tprop::TProp},
+            nodes::{node_ref::NodeRef, node_store::NodeTimestamps},
+            properties::{graph_meta::GraphMeta, props::Meta, tprop::TProp},
             LayerIds, VID,
         },
         storage::{
-            lazy_vec::LazyVec,
             locked_view::LockedView,
-            timeindex::{TimeIndex, TimeIndexOps, TimeIndexWindow},
+            timeindex::{TimeIndexOps, TimeIndexWindow},
         },
         Prop,
     },
@@ -329,13 +328,7 @@ impl<G: DelegateCoreOps + ?Sized + Send + Sync> CoreGraphOps for G {
     }
 }
 
-#[derive(Clone, Copy)]
-pub struct MemNodeAdditions<'a> {
-    edge_ts: &'a TCell<EID>,
-    props_ts: &'a LazyVec<TCell<usize>>,
-}
-
-impl<'a> TimeIndexOps for MemNodeAdditions<'a> {
+impl TimeIndexOps for NodeTimestamps {
     type IndexType = TimeIndexEntry;
 
     type RangeType<'b>
@@ -382,18 +375,14 @@ impl<'a> TimeIndexOps for MemNodeAdditions<'a> {
     }
 }
 
-impl<'a> TimeIndexLike for MemNodeAdditions<'a> {
+impl TimeIndexLike for NodeTimestamps {
     fn range_iter(
         &self,
         w: Range<Self::IndexType>,
     ) -> Box<dyn DoubleEndedIterator<Item = Self::IndexType> + Send + '_> {
-        Box::new(
-            self.edge_ts.range_iter(w.clone()).chain(
-                chain_my_iters(self.props_ts
-                    .iter()
-                    .map(|cell| cell.range_iter(w.clone()))),
-            ),
-        )
+        Box::new(self.edge_ts.range_iter(w.clone()).chain(chain_my_iters(
+            self.props_ts.iter().map(|cell| cell.range_iter(w.clone())),
+        )))
     }
 }
 
@@ -405,8 +394,8 @@ fn chain_my_iters<'a, A: 'a, I: DoubleEndedIterator<Item = A> + Send + 'a>(
 }
 
 pub enum NodeAdditions<'a> {
-    Mem(MemNodeAdditions<'a>),
-    Range(TimeIndexWindow<'a, TimeIndexEntry, MemNodeAdditions<'a>>),
+    Mem(&'a NodeTimestamps),
+    Range(TimeIndexWindow<'a, TimeIndexEntry, NodeTimestamps>),
     #[cfg(feature = "storage")]
     Col(Vec<TimeStamps<'a, i64>>),
 }
@@ -464,7 +453,7 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
 
     fn iter(&self) -> Box<dyn Iterator<Item = TimeIndexEntry> + Send + '_> {
         match self {
-            NodeAdditions::Mem(index) => <TCell<EID> as TimeIndexOps>::iter(index),
+            NodeAdditions::Mem(index) => <NodeTimestamps as TimeIndexOps>::iter(index),
             #[cfg(feature = "storage")]
             NodeAdditions::Col(index) => Box::new(index.iter().flat_map(|index| index.iter())),
             NodeAdditions::Range(index) => index.iter(),
@@ -497,7 +486,7 @@ impl<'a> TimeIndexIntoOps for NodeAdditions<'a> {
 
     fn into_iter(self) -> impl Iterator<Item = Self::IndexType> + Send {
         match self {
-            NodeAdditions::Mem(index) => <TCell<EID> as TimeIndexOps>::iter(index),
+            NodeAdditions::Mem(index) => <NodeTimestamps as TimeIndexOps>::iter(index),
             NodeAdditions::Range(index) => Box::new(index.into_iter()),
             #[cfg(feature = "storage")]
             _ => todo!(),

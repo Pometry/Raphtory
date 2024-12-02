@@ -437,7 +437,11 @@ impl StableDecode for TemporalGraph {
                                         let (id, prop) = prop_update?;
                                         let prop = storage.process_prop_value(&prop);
                                         let prop_offset = node.t_props_log_mut().push(id, prop);
-                                        node.get_mut().update_t_prop_time(&update.time(), id, prop_offset);
+                                        node.get_mut().update_t_prop_time(
+                                            &update.time(),
+                                            id,
+                                            prop_offset,
+                                        );
                                     }
                                     storage.update_time(update.time())
                                 }
