@@ -136,7 +136,7 @@ class ConstProperties(object):
     """A view of constant properties of an entity"""
 
     def __contains__(self, key):
-        """Return bool(key in self)."""
+        """Return key in self."""
 
     def __eq__(self, value):
         """Return self==value."""
@@ -1226,6 +1226,7 @@ class Graph(GraphView):
         dst: str | int,
         properties: Optional[PropInput] = None,
         layer: Optional[str] = None,
+        secondary_index=None,
     ) -> MutableEdge:
         """
         Adds a new edge with the given source and destination nodes and properties to the graph.
@@ -1236,6 +1237,7 @@ class Graph(GraphView):
            dst (str|int): The id of the destination node.
            properties (PropInput, optional): The properties of the edge, as a dict of string and properties.
            layer (str, optional): The layer of the edge.
+            secondary_index (int, optional): The optional integer which will be used as a secondary index
 
         Returns:
             MutableEdge: The added edge.
@@ -1250,6 +1252,7 @@ class Graph(GraphView):
         id: str | int,
         properties: Optional[PropInput] = None,
         node_type: Optional[str] = None,
+        secondary_index: Optional[int] = None,
     ) -> MutableNode:
         """
         Adds a new node with the given id and properties to the graph.
@@ -1259,6 +1262,7 @@ class Graph(GraphView):
            id (str|int): The id of the node.
            properties (PropInput, optional): The properties of the node.
            node_type (str, optional): The optional string which will be used as a node type
+           secondary_index (int, optional): The optional integer which will be used as a secondary index
 
         Returns:
             MutableNode: The added node.
@@ -1267,13 +1271,19 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def add_property(self, timestamp: TimeInput, properties: PropInput) -> None:
+    def add_properties(
+        self,
+        timestamp: TimeInput,
+        properties: PropInput,
+        secondary_index: Optional[int] = None,
+    ) -> None:
         """
         Adds properties to the graph.
 
         Arguments:
            timestamp (TimeInput): The timestamp of the temporal property.
            properties (PropInput): The temporal properties of the graph.
+           secondary_index (int, optional): The optional integer which will be used as a secondary index
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -1299,6 +1309,7 @@ class Graph(GraphView):
         id: str | int,
         properties: Optional[PropInput] = None,
         node_type: Optional[str] = None,
+        secondary_index: Optional[int] = None,
     ) -> MutableNode:
         """
         Creates a new node with the given id and properties to the graph. It fails if the node already exists.
@@ -1308,6 +1319,7 @@ class Graph(GraphView):
            id (str|int): The id of the node.
            properties (PropInput, optional): The properties of the node.
            node_type (str, optional): The optional string which will be used as a node type
+           secondary_index (int, optional): The optional integer which will be used as a secondary index
 
         Returns:
             MutableNode: The created node.
@@ -2583,15 +2595,23 @@ class MutableEdge(Edge):
         t: TimeInput,
         properties: Optional[PropInput] = None,
         layer: Optional[str] = None,
-    ):
+        secondary_index: Optional[int] = None,
+    ) -> None:
         """
         Add updates to an edge in the graph at a specified time.
         This function allows for the addition of property updates to an edge within the graph. The updates are time-stamped, meaning they are applied at the specified time.
 
         Parameters:
-            t (TimeInput): The timestamp at which the updates should be applied.
-            properties (PropInput, optional): A dictionary of properties to update.
-            layer (str, optional): The layer you want these properties to be added on to.
+           t (TimeInput): The timestamp at which the updates should be applied.
+           properties (PropInput, optional): A dictionary of properties to update.
+           layer (str, optional): The layer you want these properties to be added on to.
+           secondary_index (int, optional): The optional integer which will be used as a secondary index
+
+        Returns:
+            None: This function does not return a value, if the operation is successful.
+
+        Raises:
+            GraphError: If the operation fails.
         """
 
     def delete(self, t: TimeInput, layer: Optional[str] = None):
@@ -2630,14 +2650,26 @@ class MutableNode(Node):
             properties (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
         """
 
-    def add_updates(self, t: TimeInput, properties: PropInput = None):
+    def add_updates(
+        self,
+        t: TimeInput,
+        properties: PropInput = None,
+        secondary_index: Optional[int] = None,
+    ) -> None:
         """
         Add updates to a node in the graph at a specified time.
         This function allows for the addition of property updates to a node within the graph. The updates are time-stamped, meaning they are applied at the specified time.
 
         Parameters:
-            t (TimeInput): The timestamp at which the updates should be applied.
-            properties (PropInput): A dictionary of properties to update. Each key is a string representing the property name, and each value is of type Prop representing the property value. If None, no properties are updated.
+           t (TimeInput): The timestamp at which the updates should be applied.
+           properties (PropInput): A dictionary of properties to update. Each key is a string representing the property name, and each value is of type Prop representing the property value. If None, no properties are updated.
+           secondary_index (int, optional): The optional integer which will be used as a secondary index
+
+        Returns:
+            None: This function does not return a value, if the operation is successful.
+
+        Raises:
+            GraphError: If the operation fails.
         """
 
     def set_node_type(self, new_type: str):
@@ -3731,6 +3763,7 @@ class PersistentGraph(GraphView):
         dst: str | int,
         properties: dict = None,
         layer: str = None,
+        secondary_index: Optional[int] = None,
     ) -> None:
         """
         Adds a new edge with the given source and destination nodes and properties to the graph.
@@ -3741,6 +3774,7 @@ class PersistentGraph(GraphView):
            dst (str | int): The id of the destination node.
            properties (dict): The properties of the edge, as a dict of string and properties
            layer (str): The layer of the edge.
+           secondary_index (int, optional): The optional integer which will be used as a secondary index
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -3755,6 +3789,7 @@ class PersistentGraph(GraphView):
         id: str | int,
         properties: dict = None,
         node_type: str = None,
+        secondary_index: Optional[int] = None,
     ) -> None:
         """
         Adds a new node with the given id and properties to the graph.
@@ -3764,6 +3799,7 @@ class PersistentGraph(GraphView):
            id (str | int): The id of the node.
            properties (dict): The properties of the node.
            node_type (str) : The optional string which will be used as a node type
+           secondary_index (int, optional): The optional integer which will be used as a secondary index
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -3772,13 +3808,19 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def add_property(self, timestamp: TimeInput, properties: dict) -> None:
+    def add_properties(
+        self,
+        timestamp: TimeInput,
+        properties: dict,
+        secondary_index: Optional[int] = None,
+    ) -> None:
         """
         Adds properties to the graph.
 
         Arguments:
            timestamp (TimeInput): The timestamp of the temporal property.
            properties (dict): The temporal properties of the graph.
+           secondary_index (int, optional): The optional integer which will be used as a secondary index
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -3804,6 +3846,7 @@ class PersistentGraph(GraphView):
         id: str | int,
         properties: dict = None,
         node_type: str = None,
+        secondary_index: Optional[int] = None,
     ):
         """
         Creates a new node with the given id and properties to the graph. It fails if the node already exists.
@@ -3813,6 +3856,7 @@ class PersistentGraph(GraphView):
            id (str | int): The id of the node.
            properties (dict): The properties of the node.
            node_type (str) : The optional string which will be used as a node type
+           secondary_index (int, optional): The optional integer which will be used as a secondary index
 
         Returns:
           MutableNode
@@ -3822,7 +3866,12 @@ class PersistentGraph(GraphView):
         """
 
     def delete_edge(
-        self, timestamp: int, src: str | int, dst: str | int, layer: str = None
+        self,
+        timestamp: int,
+        src: str | int,
+        dst: str | int,
+        layer: str = None,
+        secondary_index: Optional[int] = None,
     ):
         """
         Deletes an edge given the timestamp, src and dst nodes and layer (optional)
@@ -3832,6 +3881,7 @@ class PersistentGraph(GraphView):
           src (str | int): The id of the source node.
           dst (str | int): The id of the destination node.
           layer (str): The layer of the edge. (optional)
+          secondary_index (int, optional): The optional integer which will be used as a secondary index
 
         Returns:
          The deleted edge
@@ -4448,7 +4498,7 @@ class Properties(object):
     """A view of the properties of an entity"""
 
     def __contains__(self, key):
-        """Return bool(key in self)."""
+        """Return key in self."""
 
     def __eq__(self, value):
         """Return self==value."""
@@ -4635,7 +4685,7 @@ class TemporalProperties(object):
     """A view of the temporal properties of an entity"""
 
     def __contains__(self, key):
-        """Return bool(key in self)."""
+        """Return key in self."""
 
     def __eq__(self, value):
         """Return self==value."""

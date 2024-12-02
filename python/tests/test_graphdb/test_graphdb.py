@@ -3063,7 +3063,11 @@ def test_add_node_properties_ordered_by_secondary_index():
     g.add_node(1, "A", properties={"prop": 2}, secondary_index=2)
     g.add_node(1, "A", properties={"prop": 3}, secondary_index=1)
 
-    assert g.node("A").properties.temporal.get("prop").items() == [(1, 3), (1, 2), (1, 1)]
+    assert g.node("A").properties.temporal.get("prop").items() == [
+        (1, 3),
+        (1, 2),
+        (1, 1),
+    ]
 
 
 def test_add_node_properties_overwritten_for_same_secondary_index():
@@ -3088,7 +3092,11 @@ def test_create_node_properties_ordered_by_secondary_index():
     g.add_node(1, "A", properties={"prop": 2}, secondary_index=2)
     g.add_node(1, "A", properties={"prop": 3}, secondary_index=1)
 
-    assert g.node("A").properties.temporal.get("prop").items() == [(1, 3), (1, 2), (1, 1)]
+    assert g.node("A").properties.temporal.get("prop").items() == [
+        (1, 3),
+        (1, 2),
+        (1, 1),
+    ]
 
 
 def test_create_node_properties_overwritten_for_same_secondary_index():
@@ -3113,7 +3121,11 @@ def test_add_edge_properties_ordered_by_secondary_index():
     g.add_edge(1, "A", "B", properties={"prop": 2}, secondary_index=2)
     g.add_edge(1, "A", "B", properties={"prop": 3}, secondary_index=1)
 
-    assert g.edge("A", "B").properties.temporal.get("prop").items() == [(1, 3), (1, 2), (1, 1)]
+    assert g.edge("A", "B").properties.temporal.get("prop").items() == [
+        (1, 3),
+        (1, 2),
+        (1, 1),
+    ]
 
 
 def test_add_edge_properties_overwritten_for_same_secondary_index():
@@ -3164,7 +3176,11 @@ def test_node_add_updates_properties_ordered_by_secondary_index():
     g.node("A").add_updates(1, properties={"prop": 2}, secondary_index=2)
     g.node("A").add_updates(1, properties={"prop": 3}, secondary_index=1)
 
-    assert g.node("A").properties.temporal.get("prop").items() == [(1, 3), (1, 2), (1, 1)]
+    assert g.node("A").properties.temporal.get("prop").items() == [
+        (1, 3),
+        (1, 2),
+        (1, 1),
+    ]
 
 
 def test_node_add_updates_properties_overwritten_for_same_secondary_index():
@@ -3192,7 +3208,11 @@ def test_edge_add_updates_properties_ordered_by_secondary_index():
     g.edge("A", "B").add_updates(1, properties={"prop": 2}, secondary_index=2)
     g.edge("A", "B").add_updates(1, properties={"prop": 3}, secondary_index=1)
 
-    assert g.edge("A", "B").properties.temporal.get("prop").items() == [(1, 3), (1, 2), (1, 1)]
+    assert g.edge("A", "B").properties.temporal.get("prop").items() == [
+        (1, 3),
+        (1, 2),
+        (1, 1),
+    ]
 
 
 def test_edge_add_updates_properties_overwritten_for_same_secondary_index():
