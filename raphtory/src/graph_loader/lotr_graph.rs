@@ -23,7 +23,7 @@
 //! ```
 use crate::{graph_loader::fetch_file, io::csv_loader::CsvLoader, prelude::*};
 use serde::Deserialize;
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 use tracing::error;
 
 #[derive(Deserialize, std::fmt::Debug)]
@@ -47,6 +47,27 @@ pub fn lotr_file() -> Result<PathBuf, Box<dyn std::error::Error>> {
     )
 }
 
+#[derive(Deserialize, std::fmt::Debug)]
+struct Character {
+    pub name: String,
+    pub race: String,
+    pub gender: String,
+}
+
+/// Downloads the LOTR.csv file from Github
+/// and returns the path to the file
+///
+/// Returns:
+/// - A PathBuf to the LOTR.csv file
+fn lotr_properties_file() -> Result<PathBuf, Box<dyn std::error::Error>> {
+    fetch_file(
+        "lotr_properties.csv",
+        true,
+        "https://raw.githubusercontent.com/Raphtory/Data/main/lotr_properties.csv",
+        600,
+    )
+}
+
 /// Constructs a graph from the LOTR dataset
 /// Including all edges, nodes and timestamps
 ///
@@ -57,26 +78,46 @@ pub fn lotr_file() -> Result<PathBuf, Box<dyn std::error::Error>> {
 /// Returns:
 /// - A Graph containing the LOTR dataset
 pub fn lotr_graph() -> Graph {
-    let graph = {
-        let g = Graph::new();
+    let g = Graph::new();
+    CsvLoader::new(lotr_file().unwrap())
+        .load_into_graph(&g, |lotr: Lotr, g: &Graph| {
+            let src_id = lotr.src_id;
+            let dst_id = lotr.dst_id;
+            let time = lotr.time;
 
-        CsvLoader::new(lotr_file().unwrap())
-            .load_into_graph(&g, |lotr: Lotr, g: &Graph| {
-                let src_id = lotr.src_id;
-                let dst_id = lotr.dst_id;
-                let time = lotr.time;
+            g.add_node(time, src_id.clone(), NO_PROPS, None)
+                .map_err(|err| error!("{:?}", err))
+                .ok();
+            g.add_node(time, dst_id.clone(), NO_PROPS, None)
+                .map_err(|err| error!("{:?}", err))
+                .ok();
+            g.add_edge(time, src_id.clone(), dst_id.clone(), NO_PROPS, None)
+                .expect("Error: Unable to add edge");
+        })
+        .expect("Failed to load graph from CSV data files");
+    g
+}
 
-                g.add_node(time, src_id.clone(), NO_PROPS, None)
-                    .map_err(|err| error!("{:?}", err))
-                    .ok();
-                g.add_node(time, dst_id.clone(), NO_PROPS, None)
-                    .map_err(|err| error!("{:?}", err))
-                    .ok();
-                g.add_edge(time, src_id.clone(), dst_id.clone(), NO_PROPS, None)
-                    .expect("Error: Unable to add edge");
-            })
-            .expect("Failed to load graph from CSV data files");
-        g
-    };
-    graph
+/// Constructs a graph from the LOTR dataset
+/// Including all edges, nodes, and timestamps with some node types
+///
+/// # Arguments
+///
+/// - shards: The number of shards to use for the graph
+///
+/// Returns:
+/// - A Graph containing the LOTR dataset
+pub fn lotr_graph_with_props() -> Graph {
+    let g = lotr_graph();
+    CsvLoader::new(lotr_properties_file().unwrap())
+        .load_into_graph(&g, |char: Character, g: &Graph| {
+            if let Some(node) = g.node(char.name) {
+                let _ = node.add_constant_properties(HashMap::from([
+                    ("race", char.race),
+                    ("gender", char.gender),
+                ]));
+            }
+        })
+        .expect("Failed to load graph from CSV data files");
+    g
 }
