@@ -76,7 +76,7 @@ pub struct NodeState<'graph, V, G, GH = G> {
 }
 
 impl<'graph, V, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodeState<'graph, V, G, GH> {
-    pub(crate) fn new(base_graph: G, graph: GH, values: Vec<V>, keys: Option<Index<VID>>) -> Self {
+    pub fn new(base_graph: G, graph: GH, values: Vec<V>, keys: Option<Index<VID>>) -> Self {
         Self {
             base_graph,
             graph,
@@ -84,6 +84,10 @@ impl<'graph, V, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodeState<'gr
             keys,
             _marker: PhantomData,
         }
+    }
+
+    pub fn into_inner(self) -> (Vec<V>, Option<Index<VID>>) {
+        (self.values, self.keys)
     }
 }
 
