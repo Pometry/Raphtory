@@ -29,6 +29,12 @@ pub fn lotr_graph() -> PyResult<Py<PyGraph>> {
     PyGraph::py_from_db_graph(crate::graph_loader::lotr_graph::lotr_graph())
 }
 
+/// Same as `lotr_graph()` but with additional properties race and gender for some of the nodes
+#[pyfunction]
+pub fn lotr_graph_with_props() -> PyResult<Py<PyGraph>> {
+    PyGraph::py_from_db_graph(crate::graph_loader::lotr_graph::lotr_graph_with_props())
+}
+
 /// Load (a subset of) Reddit hyperlinks dataset into a graph.
 /// The dataset is available at http://snap.stanford.edu/data/soc-redditHyperlinks-title.tsv
 /// The hyperlink network represents the directed connections between two subreddits (a subreddit
