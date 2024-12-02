@@ -247,7 +247,8 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                             for (t, prop_value) in
                                 self.temporal_node_prop_hist(node.node, t_prop_id)
                             {
-                                new_node.add_prop(t, t_prop_id, prop_value)?;
+                                let prop_offset = shard.t_prop_log_mut().push(t_prop_id, prop_value);
+                                new_node.update_t_prop_time(&t, t_prop_id, prop_offset);
                             }
                         }
                         for c_prop_id in node.const_prop_ids() {

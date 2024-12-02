@@ -477,6 +477,11 @@ where
         self.resolve(index).map(|offset| &self.shard[offset])
     }
 
+    #[inline]
+    pub fn t_prop_log_mut(&mut self) -> &mut TColumns {
+        &mut self.shard.t_props_log
+    }
+
     pub fn set(&mut self, vid: VID, gid: GidRef) -> Option<&mut NodeStore> {
         self.resolve(vid).map(|offset| {
             if offset >= self.shard.len() {
