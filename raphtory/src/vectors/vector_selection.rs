@@ -466,7 +466,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         edge_documents: &'a HashMap<EntityId, Vec<DocumentRef>>,
         windowed_graph: &'a W,
         window: Option<(i64, i64)>,
-    ) -> Box<dyn Iterator<Item = &DocumentRef> + 'a> {
+    ) -> Box<dyn Iterator<Item = &'a DocumentRef> + 'a> {
         match &document.entity_id {
             EntityId::Graph { .. } => Box::new(std::iter::empty()),
             EntityId::Node { id } => {

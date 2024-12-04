@@ -128,10 +128,6 @@ mod vector_tests {
 
     const NO_PROPS: [(&str, Prop); 0] = [];
 
-    fn format_time(time: i64) -> String {
-        format!("line {time}")
-    }
-
     async fn fake_embedding(texts: Vec<String>) -> EmbeddingResult<Vec<Embedding>> {
         Ok(texts
             .into_iter()
