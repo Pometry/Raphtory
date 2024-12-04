@@ -739,6 +739,12 @@ mod tests {
                 Graph::from_internal_graph(GraphStorage::Disk(DiskGraphStorage::new(g).into()));
 
             assert_graph_equal(&expected, &actual);
+
+            let g = TemporalGraph::new(graph_dir.path()).unwrap();
+
+            let actual =
+                Graph::from_internal_graph(GraphStorage::Disk(DiskGraphStorage::new(g).into()));
+            assert_graph_equal(&expected, &actual);
         }
 
         #[test]
