@@ -250,13 +250,12 @@ impl PyDiskGraph {
     #[pyo3(signature = (location, col_names=None, chunk_size=None))]
     pub fn load_node_const_properties(
         &self,
-        location: &str,
+        location: PathBuf,
         col_names: Option<Vec<PyBackedStr>>,
         chunk_size: Option<usize>,
     ) -> Result<DiskGraphStorage, GraphError> {
         let col_names = convert_py_prop_args(col_names.as_deref());
-        let path = PathBuf::from_str(location).unwrap();
-        let chunks = read_struct_arrays(&path, col_names.as_deref())?;
+        let chunks = read_struct_arrays(&location, col_names.as_deref())?;
         let _ =
             load_node_const_properties(chunk_size.unwrap_or(200_000), self.graph_dir(), chunks)?;
         Self::load_from_dir(self.graph_dir().to_path_buf())
