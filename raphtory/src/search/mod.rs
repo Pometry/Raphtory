@@ -41,7 +41,7 @@ use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
 use std::{collections::HashSet, ops::Deref, sync::Arc};
 use tantivy::{
     collector::TopDocs,
-    schema::{Field, Schema, SchemaBuilder, Value, FAST, INDEXED, STORED, TEXT},
+    schema::{Field, Schema, SchemaBuilder, Value, FAST, INDEXED, STORED, STRING, TEXT},
     Index, IndexReader, IndexSettings, IndexWriter, TantivyDocument, TantivyError,
 };
 
@@ -117,9 +117,10 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         // reverse to sort by it
         schema.add_u64_field(fields::VERTEX_ID_REV, FAST | STORED);
         // add name
-        schema.add_text_field(fields::NAME, TEXT);
+        schema.add_text_field(fields::NAME, STRING | STORED);
         // add node_type
-        schema.add_text_field(fields::NODE_TYPE, TEXT);
+        schema.add_text_field(fields::NODE_TYPE, STRING | STORED);
+
         schema
     }
 
@@ -157,7 +158,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
     fn set_schema_field_from_prop(schema: &mut SchemaBuilder, prop: &str, prop_value: Prop) {
         match prop_value {
             Prop::Str(_) => {
-                schema.add_text_field(prop, TEXT);
+                schema.add_text_field(prop, STRING | STORED);
             }
             Prop::NDTime(_) => {
                 schema.add_date_field(prop, INDEXED);
@@ -943,12 +944,120 @@ impl<G: InternalDeletionOps> InternalDeletionOps for IndexedGraph<G> {
 impl<G: DeletionOps> DeletionOps for IndexedGraph<G> {}
 
 #[cfg(test)]
-mod test {
+mod search_tests {
     use super::*;
+    use itertools::Itertools;
     use raphtory_api::core::utils::logging::global_info_logger;
     use std::time::SystemTime;
-    use tantivy::{doc, DocAddress, Order};
+    use tantivy::{doc, schema::STRING, DocAddress, Order};
     use tracing::info;
+
+    #[test]
+    fn test_decode_sk() {
+        let graph = Graph::new();
+        graph
+            .add_node(
+                0,
+                "0x0a5e1db3671faccd146404925bda5c59929f66c3",
+                [
+                    ("balance", Prop::F32(0.0011540000414242968)),
+                    (
+                        "cluster_id",
+                        Prop::Str(ArcStr::from("0x0a5e1db3671faccd146404925bda5c59929f66c3")),
+                    ),
+                ],
+                Some("center"),
+            )
+            .unwrap();
+        graph
+            .add_node(
+                0,
+                "0x1c5e2c8e97f34a5ca18dc7370e2bfc0da3baed5c",
+                [
+                    ("balance", Prop::F32(0.0)),
+                    (
+                        "cluster_id",
+                        Prop::Str(ArcStr::from("0x1c5e2c8e97f34a5ca18dc7370e2bfc0da3baed5c")),
+                    ),
+                ],
+                Some("collapsed"),
+            )
+            .unwrap();
+        graph
+            .add_node(
+                0,
+                "0x941900204497226bede1324742eb83af6b0b5eec",
+                [
+                    ("balance", Prop::F32(0.0)),
+                    (
+                        "cluster_id",
+                        Prop::Str(ArcStr::from("0x941900204497226bede1324742eb83af6b0b5eec")),
+                    ),
+                ],
+                Some("collapsed"),
+            )
+            .unwrap();
+
+        let ig: IndexedGraph<Graph> = graph.into();
+
+        let mut results = ig
+            .search_nodes("node_type:collapsed", 5, 0)
+            .expect("failed to search for node")
+            .into_iter()
+            .map(|v| v.name())
+            .collect::<Vec<_>>();
+        results.sort();
+        assert_eq!(
+            results,
+            vec![
+                "0x1c5e2c8e97f34a5ca18dc7370e2bfc0da3baed5c",
+                "0x941900204497226bede1324742eb83af6b0b5eec"
+            ]
+        );
+
+        let results = ig
+            .search_nodes(
+                "cluster_id:\"0x941900204497226bede1324742eb83af6b0b5eec\"",
+                5,
+                0,
+            )
+            .expect("failed to search for node")
+            .into_iter()
+            .map(|v| v.name())
+            .collect::<Vec<_>>();
+        assert_eq!(results, vec!["0x941900204497226bede1324742eb83af6b0b5eec"]);
+
+        let results = ig
+            .search_nodes(
+                "node_type:collapsed AND cluster_id:\"0x941900204497226bede1324742eb83af6b0b5eec\"",
+                5,
+                0,
+            )
+            .expect("failed to search for node")
+            .into_iter()
+            .map(|v| v.name())
+            .collect::<Vec<_>>();
+        assert_eq!(results, vec!["0x941900204497226bede1324742eb83af6b0b5eec"]);
+
+        let mut results = ig
+            .search_nodes(
+                "node_type:collapsed OR cluster_id:\"0x941900204497226bede1324742eb83af6b0b5eec\"",
+                5,
+                0,
+            )
+            .expect("failed to search for node")
+            .into_iter()
+            .map(|v| v.name())
+            .collect::<Vec<_>>();
+        results.sort();
+        assert_eq!(
+            results,
+            vec![
+                "0x1c5e2c8e97f34a5ca18dc7370e2bfc0da3baed5c",
+                "0x941900204497226bede1324742eb83af6b0b5eec"
+            ]
+        );
+    }
 
     #[test]
     fn index_numeric_props() {
