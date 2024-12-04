@@ -11,7 +11,10 @@ use crate::{
         Prop,
     },
     db::api::{
-        storage::graph::{nodes::node_storage_ops::NodeStorageOps, tprop_storage_ops::TPropOps},
+        storage::graph::{
+            nodes::node_storage_ops::NodeStorageOps,
+            tprop_storage_ops::{SparseTPropOps, TPropOps},
+        },
         view::internal::NodeAdditions,
     },
 };
@@ -36,12 +39,16 @@ impl<'a> NodeEntry<'a> {
     pub fn t_prop(self, prop_id: usize) -> TPropCell<'a> {
         self.t_props_log
             .get(prop_id)
-            .and_then(|t_prop| {
-                self.node
-                    .t_props(prop_id)
-                    .map(|t_cell| TPropCell::new(t_cell, t_prop))
-            })
+            .map(|t_prop| TPropCell::new(&self.node.timestamps().props_ts, t_prop))
             .unwrap_or(TPropCell::empty())
+    }
+
+    pub fn temporal_prop_ids(self) -> impl Iterator<Item = usize> + 'a {
+        self.t_props_log
+            .t_props_log
+            .iter()
+            .enumerate()
+            .filter_map(|(id, col)| col.is_empty().then(|| id))
     }
 }
 
@@ -54,7 +61,7 @@ impl<'a> NodeStorageOps<'a> for NodeEntry<'a> {
         NodeAdditions::Mem(self.node.timestamps())
     }
 
-    fn tprop(self, prop_id: usize) -> impl TPropOps<'a> {
+    fn tprop(self, prop_id: usize) -> impl SparseTPropOps<'a> {
         self.t_prop(prop_id)
     }
 

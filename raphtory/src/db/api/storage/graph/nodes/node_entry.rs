@@ -12,7 +12,7 @@ use crate::{
     db::api::{
         storage::graph::{
             nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-            tprop_storage_ops::TPropOps,
+            tprop_storage_ops::{SparseTPropOps, TPropOps},
             variants::storage_variants3::StorageVariants,
         },
         view::{internal::NodeAdditions, BoxedLIter},
@@ -97,9 +97,9 @@ impl<'b> NodeStorageEntry<'b> {
 
     pub fn temporal_prop_ids(self) -> Box<dyn Iterator<Item = usize> + 'b> {
         match self {
-            NodeStorageEntry::Mem(entry) => Box::new(entry.node().temporal_prop_ids()),
+            NodeStorageEntry::Mem(entry) => Box::new(entry.temporal_prop_ids()),
             NodeStorageEntry::Unlocked(entry) => Box::new(GenLockedIter::from(entry, |e| {
-                Box::new(e.get().temporal_prop_ids())
+                Box::new(e.get_entry().temporal_prop_ids())
             })),
             #[cfg(feature = "storage")]
             NodeStorageEntry::Disk(node) => Box::new(node.temporal_node_prop_ids()),
@@ -116,7 +116,7 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
         self.as_ref().additions()
     }
 
-    fn tprop(self, prop_id: usize) -> impl TPropOps<'a> {
+    fn tprop(self, prop_id: usize) -> impl SparseTPropOps<'a> {
         self.as_ref().tprop(prop_id)
     }
 

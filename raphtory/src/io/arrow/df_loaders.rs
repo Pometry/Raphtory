@@ -301,7 +301,7 @@ pub(crate) fn load_edges_from_df<
                             }
                             Some(eid) => eid,
                         };
-                        src_node.update_time(TimeIndexEntry(time, start_idx + row), Some(EID(eid)));
+                        src_node.update_time(TimeIndexEntry(time, start_idx + row), EID(eid));
                         eid_col_shared[row].store(eid, Ordering::Relaxed);
                     }
                 }
@@ -322,7 +322,7 @@ pub(crate) fn load_edges_from_df<
                 {
                     if let Some(node) = shard.get_mut(*dst) {
                         node.init(*dst, dst_gid);
-                        node.update_time(TimeIndexEntry(time, row + start_idx), Some(*eid));
+                        node.update_time(TimeIndexEntry(time, row + start_idx), *eid);
                         node.add_edge(*src, Direction::IN, *layer, *eid)
                     }
                 }

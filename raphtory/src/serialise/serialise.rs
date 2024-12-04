@@ -399,10 +399,10 @@ impl StableDecode for TemporalGraph {
                         for layer in edge.layer_ids_iter(&LayerIds::All) {
                             src.add_edge(edge.dst(), Direction::OUT, layer, edge.eid());
                             for t in edge.additions(layer).iter() {
-                                src.update_time(t, Some(edge.eid()));
+                                src.update_time(t, edge.eid());
                             }
                             for t in edge.deletions(layer).iter() {
-                                src.update_time(t, Some(edge.eid()));
+                                src.update_time(t, edge.eid());
                             }
                         }
                     }
@@ -410,10 +410,10 @@ impl StableDecode for TemporalGraph {
                         for layer in edge.layer_ids_iter(&LayerIds::All) {
                             dst.add_edge(edge.src(), Direction::IN, layer, edge.eid());
                             for t in edge.additions(layer).iter() {
-                                dst.update_time(t, Some(edge.eid()));
+                                dst.update_time(t, edge.eid());
                             }
                             for t in edge.deletions(layer).iter() {
-                                dst.update_time(t, Some(edge.eid()));
+                                dst.update_time(t, edge.eid());
                             }
                         }
                     }
@@ -432,17 +432,21 @@ impl StableDecode for TemporalGraph {
                             }
                             Update::UpdateNodeTprops(update) => {
                                 if let Some(mut node) = shard.get_mut_entry(update.vid()) {
-                                    node.get_mut().update_time(update.time(), None);
+                                    let mut props = vec![];
                                     for prop_update in update.props() {
                                         let (id, prop) = prop_update?;
                                         let prop = storage.process_prop_value(&prop);
-                                        let prop_offset = node.t_props_log_mut().push(id, prop);
-                                        node.get_mut().update_t_prop_time(
-                                            &update.time(),
-                                            id,
-                                            prop_offset,
-                                        );
+                                        props.push((id, prop));
                                     }
+
+                                    if props.is_empty() {
+                                        node.get_mut().update_t_prop_time(update.time(), None);
+                                    } else {
+                                        let prop_offset = node.t_props_log_mut().push(props)?;
+                                        node.get_mut()
+                                            .update_t_prop_time(update.time(), Some(prop_offset));
+                                    }
+
                                     storage.update_time(update.time())
                                 }
                             }

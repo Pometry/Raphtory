@@ -97,6 +97,10 @@ impl<T: Default> MaskedCol<T> {
             .map(|(t, is_some)| is_some.then(|| t))
             .chain(std::iter::from_fn(|| None).take(empty_tail))
     }
+
+    pub fn filled_len(&self) -> usize {
+        self.mask.iter().filter(|v| **v).count()
+    }
 }
 
 #[derive(Default, Debug, PartialEq, Serialize, Deserialize)]
@@ -106,6 +110,13 @@ pub(crate) struct TupleCol<T> {
 }
 
 impl<T> TupleCol<T> {
+    pub fn with_len(len: usize) -> TupleCol<T> {
+        TupleCol {
+            size: len,
+            tuples: Vec::with_capacity(1),
+        }
+    }
+
     pub fn from(mut tuples: Vec<(usize, T)>) -> TupleCol<T> {
         tuples.sort_by_key(|(id, _)| *id);
         let size = tuples.iter().map(|(id, _)| id + 1).max().unwrap_or(0);
@@ -190,7 +201,7 @@ pub(crate) enum LazyVec<A> {
     Empty,
     // First value in "LazyVec1" and indices in "LazyVecN" vector denote the indices of this vec
     LazyVec1(A, TupleCol<A>),
-    LazyVecN(MaskedCol<A>),
+    LazyVecN(A, MaskedCol<A>),
 }
 
 impl<A> LazyVec<A>
@@ -216,7 +227,7 @@ where
                 }
                 Ok(())
             }
-            LazyVec::LazyVecN(vector) => {
+            LazyVec::LazyVecN(_, vector) => {
                 if let Some(only_value) = vector.get(id) {
                     if only_value != &value {
                         return Err(IllegalSet::new(id, only_value.clone(), value));
@@ -250,13 +261,17 @@ impl<A> LazyVec<A>
 where
     A: PartialEq + Default + Debug + Send + Sync,
 {
+    pub(crate) fn with_len(len: usize) -> Self {
+        LazyVec::LazyVec1(A::default(), TupleCol::with_len(len))
+    }
+
     fn swap_lazy_types(&mut self) {
         if let LazyVec::LazyVec1(_, tuples) = self {
-            if tuples.len() == LAZY_VEC_1_MAX_SIZE {
+            if tuples.len() >= LAZY_VEC_1_MAX_SIZE {
                 let mut take = TupleCol::default();
                 std::mem::swap(&mut take, tuples);
                 let masked_col: MaskedCol<A> = take.into();
-                *self = LazyVec::LazyVecN(masked_col);
+                *self = LazyVec::LazyVecN(A::default(), masked_col);
             }
         }
     }
@@ -276,7 +291,7 @@ where
                     .enumerate()
                     .filter_map(|(id, value)| value.map(|_| id)),
             ),
-            LazyVec::LazyVecN(vector) => Box::new(
+            LazyVec::LazyVecN(_, vector) => Box::new(
                 vector
                     .iter()
                     .enumerate()
@@ -294,7 +309,7 @@ where
                     .enumerate()
                     .map(|(id, value)| value.map(|value| (id, value))),
             ),
-            LazyVec::LazyVecN(vector) => Box::new(
+            LazyVec::LazyVecN(_, vector) => Box::new(
                 vector
                     .iter_mut()
                     .enumerate()
@@ -303,26 +318,24 @@ where
         }
     }
 
-    pub(crate) fn values(&self) -> Box<dyn Iterator<Item = Option<(usize, &A)>> + Send + '_> {
+    pub(crate) fn iter(&self) -> Box<dyn Iterator<Item = &A> + Send + '_> {
         match self {
             LazyVec::Empty => Box::new(iter::empty()),
-            LazyVec::LazyVec1(_, tuples) => Box::new(
-                tuples
-                    .iter()
-                    .enumerate()
-                    .map(|(id, value)| value.map(|value| (id, value))),
-            ),
-            LazyVec::LazyVecN(vector) => Box::new(
-                vector
-                    .iter()
-                    .enumerate()
-                    .map(|(id, value)| value.map(|value| (id, value))),
-            ),
+            LazyVec::LazyVec1(default, tuples) => {
+                Box::new(tuples.iter().map(|value| value.unwrap_or(default)))
+            }
+            LazyVec::LazyVecN(default, vector) => {
+                Box::new(vector.iter().map(|value| value.unwrap_or(default)))
+            }
         }
     }
 
-    pub(crate) fn iter(&self) -> impl Iterator<Item = &A> + Send + '_ {
-        self.values().filter_map(|cell| cell.map(|(_, a)| a))
+    pub(crate) fn iter_opt(&self) -> Box<dyn Iterator<Item = Option<&A>> + Send + '_> {
+        match self {
+            LazyVec::Empty => Box::new(iter::empty()),
+            LazyVec::LazyVec1(_, tuples) => Box::new(tuples.iter()),
+            LazyVec::LazyVecN(_, vector) => Box::new(vector.iter()),
+        }
     }
 
     pub(crate) fn get(&self, id: usize) -> Option<&A> {
@@ -330,7 +343,17 @@ where
             LazyVec::LazyVec1(default, tuples) => tuples
                 .get(id)
                 .or_else(|| (id < self.len()).then(|| default)),
-            LazyVec::LazyVecN(vec) => vec.get(id),
+            LazyVec::LazyVecN(default, vec) => {
+                vec.get(id).or_else(|| (id < self.len()).then(|| default))
+            }
+            _ => None,
+        }
+    }
+
+    pub(crate) fn get_opt(&self, id: usize) -> Option<&A> {
+        match self {
+            LazyVec::LazyVec1(_, tuples) => tuples.get(id),
+            LazyVec::LazyVecN(_, vec) => vec.get(id),
             _ => None,
         }
     }
@@ -338,7 +361,7 @@ where
     pub(crate) fn get_mut(&mut self, id: usize) -> Option<&mut A> {
         match self {
             LazyVec::LazyVec1(_, tuples) => tuples.get_mut(id),
-            LazyVec::LazyVecN(vec) => vec.get_mut(id).filter(|a| **a != A::default()),
+            LazyVec::LazyVecN(_, vec) => vec.get_mut(id).filter(|a| **a != A::default()),
             _ => None,
         }
     }
@@ -348,6 +371,9 @@ where
             LazyVec::Empty => {
                 if let Some(value) = value {
                     *self = LazyVec::from(id, value);
+                } else {
+                    *self = LazyVec::LazyVec1(A::default(), TupleCol::default());
+                    self.insert(id, value);
                 }
             }
             LazyVec::LazyVec1(_, tuples) => {
@@ -355,7 +381,7 @@ where
                 self.swap_lazy_types();
             }
 
-            LazyVec::LazyVecN(vector) => {
+            LazyVec::LazyVecN(_, vector) => {
                 vector.upsert(id, value);
             }
         }
@@ -366,13 +392,16 @@ where
             LazyVec::Empty => {
                 if let Some(value) = value {
                     *self = LazyVec::from(0, value);
+                } else {
+                    *self = LazyVec::LazyVec1(A::default(), TupleCol::default());
+                    self.push(value);
                 }
             }
             LazyVec::LazyVec1(_, tuples) => {
                 tuples.push(value);
                 self.swap_lazy_types();
             }
-            LazyVec::LazyVecN(vector) => {
+            LazyVec::LazyVecN(_, vector) => {
                 vector.push(value);
             }
         }
@@ -397,7 +426,15 @@ where
         match self {
             LazyVec::Empty => 0,
             LazyVec::LazyVec1(_, tuples) => tuples.len(),
-            LazyVec::LazyVecN(vector) => vector.len(),
+            LazyVec::LazyVecN(_, vector) => vector.len(),
+        }
+    }
+
+    pub(crate) fn filled_len(&self) -> usize {
+        match self {
+            LazyVec::Empty => 0,
+            LazyVec::LazyVec1(_, tuples) => tuples.tuples.len(),
+            LazyVec::LazyVecN(_, vector) => vector.filled_len(),
         }
     }
 }
@@ -406,6 +443,87 @@ where
 mod lazy_vec_tests {
     use super::*;
     use itertools::Itertools;
+    use proptest::{arbitrary::Arbitrary, proptest};
+
+    fn check_lazy_vec(lazy_vec: &LazyVec<u32>, v: Vec<Option<u32>>) {
+        assert_eq!(lazy_vec.len(), v.len());
+        for (i, value) in v.iter().enumerate() {
+            assert_eq!(
+                lazy_vec.get(i),
+                Some(value.clone().unwrap_or_default()).as_ref()
+            );
+        }
+
+        for (actual, expected) in lazy_vec.iter().zip(v.iter()) {
+            assert_eq!(*actual, expected.as_ref().copied().unwrap_or_default());
+        }
+
+        for (actual, expected) in lazy_vec.iter_opt().zip(v.iter()) {
+            assert_eq!(actual, expected.as_ref());
+        }
+    }
+
+    #[test]
+    fn push_null_changes_len() {
+        let mut vec = LazyVec::<u32>::Empty;
+        vec.push(None);
+        assert_eq!(vec.len(), 1);
+
+        let mut vec = LazyVec::<u32>::Empty;
+        vec.push(None);
+        vec.push(Some(1));
+        assert_eq!(vec.len(), 2);
+
+        let mut vec = LazyVec::<u32>::Empty;
+        vec.push(Some(1));
+        vec.push(None);
+        assert_eq!(vec.len(), 2);
+
+        let mut vec = LazyVec::<u32>::Empty;
+        vec.push(None);
+        vec.push(None);
+        assert_eq!(vec.len(), 2);
+
+        let mut vec = LazyVec::<u32>::Empty;
+        vec.push(None);
+        vec.push(Some(1));
+        vec.push(None);
+        assert_eq!(vec.len(), 3);
+    }
+
+    #[test]
+    fn lazy_vec_is_opt_vec_insert() {
+        proptest!(|(
+            v in Vec::<Option<u32>>::arbitrary(),
+        )| {
+            let mut lazy_vec = LazyVec::<u32>::Empty;
+            for (i, value) in v.iter().enumerate() {
+                lazy_vec.insert(i, *value);
+            }
+            check_lazy_vec(&lazy_vec, v);
+        });
+    }
+
+    #[test]
+    fn lazy_vec_is_opt_vec_push() {
+        proptest!(|(
+            v in Vec::<Option<u32>>::arbitrary(),
+        )| {
+            let mut lazy_vec = LazyVec::<u32>::Empty;
+            for value in &v {
+                lazy_vec.push(*value);
+            }
+            check_lazy_vec(&lazy_vec, v);
+        });
+    }
+
+    #[test]
+    fn none_1_lazy_vec() {
+        let mut vec = LazyVec::<u32>::Empty;
+        vec.insert(0, None);
+
+        assert_eq!(vec.len(), 1);
+    }
 
     #[test]
     fn normal_operation() {

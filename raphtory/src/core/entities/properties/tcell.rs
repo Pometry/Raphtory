@@ -101,7 +101,7 @@ impl<A: Sync + Send> TCell<A> {
     pub fn iter_window(
         &self,
         r: Range<TimeIndexEntry>,
-    ) -> Box<dyn Iterator<Item = (&TimeIndexEntry, &A)> + Send + '_> {
+    ) -> Box<dyn DoubleEndedIterator<Item = (&TimeIndexEntry, &A)> + Send + '_> {
         match self {
             TCell::Empty => Box::new(std::iter::empty()),
             TCell::TCell1(t, value) => {
@@ -170,19 +170,16 @@ impl<A: Send + Sync> TimeIndexLike for TCell<A> {
     fn range_iter(
         &self,
         w: Range<Self::IndexType>,
-    ) -> Box<dyn DoubleEndedIterator<Item = Self::IndexType> + Send + '_> {
-        match self {
-            TCell::Empty => Box::new(std::iter::empty()),
-            TCell::TCell1(t, _) => {
-                if w.contains(t) {
-                    Box::new(std::iter::once(*t))
-                } else {
-                    Box::new(std::iter::empty())
-                }
-            }
-            TCell::TCellCap(svm) => Box::new(svm.range(w).map(|(ti, _)| *ti)),
-            TCell::TCellN(btm) => Box::new(btm.range(w).map(|(ti, _)| *ti)),
-        }
+    ) -> Box<dyn Iterator<Item = Self::IndexType> + Send + '_> {
+        Box::new(self.iter_window(w).map(|(ti, _)| *ti))
+    }
+
+    fn first_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType> {
+        self.iter_window(w).next().map(|(ti, _)| *ti)
+    }
+
+    fn last_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType> {
+        self.iter_window(w).next_back().map(|(ti, _)| *ti)
     }
 }
 

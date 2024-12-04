@@ -27,14 +27,11 @@ pub trait TimeIndexLike: TimeIndexOps {
     fn range_iter(
         &self,
         w: Range<Self::IndexType>,
-    ) -> Box<dyn DoubleEndedIterator<Item = Self::IndexType> + Send + '_>;
+    ) -> Box<dyn Iterator<Item = Self::IndexType> + Send + '_>;
 
-    fn range_iter_forward(
-        &self,
-        w: Range<Self::IndexType>,
-    ) -> Box<dyn Iterator<Item = Self::IndexType> + Send + '_> {
-        Box::new(self.range_iter(w))
-    }
+    fn first_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType>;
+
+    fn last_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType>;
 }
 
 pub trait TimeIndexIntoOps: Sized {

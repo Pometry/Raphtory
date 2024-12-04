@@ -1,4 +1,7 @@
-use crate::core::entities::nodes::node_store::NodeStore;
+use crate::{
+    core::entities::nodes::node_store::NodeStore,
+    db::graph::views::deletion_graph::PersistentGraph, prelude::Graph,
+};
 use lazy_vec::LazyVec;
 use lock_api;
 use node_entry::NodeEntry;
@@ -19,7 +22,7 @@ use std::{
     },
 };
 
-use super::Prop;
+use super::{utils::errors::GraphError, Prop};
 
 pub mod lazy_vec;
 pub mod locked_view;
@@ -67,59 +70,149 @@ pub struct NodeSlot {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
 pub struct TColumns {
-    t_props_log: LazyVec<TPropColumn>,
+    t_props_log: Vec<TPropColumn>,
     num_rows: usize,
 }
 
 impl TColumns {
-    pub fn push(&mut self, prop_id: usize, prop: Prop) -> usize {
+    pub fn push(
+        &mut self,
+        row: impl IntoIterator<Item = (usize, Prop)>,
+    ) -> Result<usize, GraphError> {
         let id = self.num_rows;
-        self.t_props_log.upsert(prop_id, |col| col.push(Some(prop)));
-        for col in self.t_props_log.values_mut() {
-            if let Some((id, col)) = col {
-                if id != prop_id {
-                    col.push(None)
+
+        for (prop_id, prop) in row {
+            match self.t_props_log.get_mut(prop_id) {
+                Some(col) => col.push(prop)?,
+                None => {
+                    let mut col = TPropColumn::default();
+                    while col.len() < id {
+                        col.push_null()?;
+                    }
+                    col.push(prop)?;
+                    self.t_props_log
+                        .resize_with(prop_id + 1, || TPropColumn::Empty(id));
+                    self.t_props_log[prop_id] = col;
                 }
             }
         }
-        id
+
+        self.num_rows += 1;
+
+        for col in self.t_props_log.iter_mut() {
+            while col.len() < self.num_rows {
+                col.push_null()?;
+            }
+        }
+
+        Ok(id)
     }
 
     pub(crate) fn get(&self, prop_id: usize) -> Option<&TPropColumn> {
         self.t_props_log.get(prop_id).map(|col| col)
     }
+
+    pub fn len(&self) -> usize {
+        self.num_rows
+    }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub(crate) enum TPropColumn {
-    #[default]
-    Empty,
+    Empty(usize),
+    Bool(LazyVec<bool>),
+    U32(LazyVec<u32>),
     U64(LazyVec<u64>),
+    I64(LazyVec<i64>),
     Str(LazyVec<ArcStr>),
+    Graph(LazyVec<Graph>),
+    PGraph(LazyVec<PersistentGraph>),
+}
+
+impl Default for TPropColumn {
+    fn default() -> Self {
+        TPropColumn::Empty(0)
+    }
 }
 
 impl TPropColumn {
-    pub(crate) fn push(&mut self, prop: Option<Prop>) {
+    pub(crate) fn push(&mut self, prop: Prop) -> Result<(), GraphError> {
+        self.init_empty_col(&prop)?;
         match (self, prop) {
-            (col @ TPropColumn::Empty, prop @ Some(Prop::U64(_))) => {
-                *col = TPropColumn::U64(Default::default());
-                col.push(prop);
-            }
-            (col @ TPropColumn::Empty, prop @ Some(Prop::Str(_))) => {
-                *col = TPropColumn::Str(Default::default());
-                col.push(prop)
-            }
-            (TPropColumn::U64(col), Some(Prop::U64(v))) => col.push(Some(v)),
-            (TPropColumn::Str(col), Some(Prop::Str(v))) => col.push(Some(v)),
-            _ => panic!("Invalid prop type"),
+            (TPropColumn::Bool(col), Prop::Bool(v)) => col.push(Some(v)),
+            (TPropColumn::I64(col), Prop::I64(v)) => col.push(Some(v)),
+            (TPropColumn::U32(col), Prop::U32(v)) => col.push(Some(v)),
+            (TPropColumn::U64(col), Prop::U64(v)) => col.push(Some(v)),
+            (TPropColumn::Str(col), Prop::Str(v)) => col.push(Some(v)),
+            (TPropColumn::Graph(col), Prop::Graph(v)) => col.push(Some(v)),
+            (TPropColumn::PGraph(col), Prop::PersistentGraph(v)) => col.push(Some(v)),
+            _ => return Err(GraphError::IncorrectPropertyType),
         }
+        Ok(())
+    }
+
+    fn init_empty_col(&mut self, prop: &Prop) -> Result<(), GraphError> {
+        match self {
+            TPropColumn::Empty(len) => match prop {
+                Prop::Bool(_) => *self = TPropColumn::Bool(LazyVec::with_len(*len)),
+                Prop::I64(_) => *self = TPropColumn::I64(LazyVec::with_len(*len)),
+                Prop::U32(_) => *self = TPropColumn::U32(LazyVec::with_len(*len)),
+                Prop::U64(_) => *self = TPropColumn::U64(LazyVec::with_len(*len)),
+                Prop::Str(_) => *self = TPropColumn::Str(LazyVec::with_len(*len)),
+                Prop::Graph(_) => *self = TPropColumn::Graph(LazyVec::with_len(*len)),
+                Prop::PersistentGraph(_) => *self = TPropColumn::PGraph(LazyVec::with_len(*len)),
+                _ => return Err(GraphError::IncorrectPropertyType),
+            },
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn is_empty(&self) -> bool {
+        matches!(self, TPropColumn::Empty(_))
+    }
+
+    pub(crate) fn push_null(&mut self) -> Result<(), GraphError> {
+        match self {
+            TPropColumn::Bool(col) => col.push(None),
+            TPropColumn::I64(col) => col.push(None),
+            TPropColumn::U32(col) => col.push(None),
+            TPropColumn::U64(col) => col.push(None),
+            TPropColumn::Str(col) => col.push(None),
+            TPropColumn::Graph(col) => col.push(None),
+            TPropColumn::PGraph(col) => col.push(None),
+            TPropColumn::Empty(count) => {
+                *count += 1;
+            }
+        }
+        Ok(())
     }
 
     pub(crate) fn get(&self, index: usize) -> Option<Prop> {
         match self {
-            TPropColumn::U64(col) => col.get(index).map(|prop| (*prop).into()),
-            TPropColumn::Str(col) => col.get(index).map(|prop| prop.into()),
-            _ => None,
+            TPropColumn::Bool(col) => col.get_opt(index).map(|prop| (*prop).into()),
+            TPropColumn::I64(col) => col.get_opt(index).map(|prop| (*prop).into()),
+            TPropColumn::U32(col) => col.get_opt(index).map(|prop| (*prop).into()),
+            TPropColumn::U64(col) => col.get_opt(index).map(|prop| (*prop).into()),
+            TPropColumn::Str(col) => col.get_opt(index).map(|prop| prop.into()),
+            TPropColumn::Graph(col) => col.get_opt(index).map(|prop| Prop::Graph(prop.clone())),
+            TPropColumn::PGraph(col) => col
+                .get_opt(index)
+                .map(|prop| Prop::PersistentGraph(prop.clone())),
+            TPropColumn::Empty(_) => None,
+        }
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        match self {
+            TPropColumn::Bool(col) => col.len(),
+            TPropColumn::I64(col) => col.len(),
+            TPropColumn::U32(col) => col.len(),
+            TPropColumn::U64(col) => col.len(),
+            TPropColumn::Str(col) => col.len(),
+            TPropColumn::Graph(col) => col.len(),
+            TPropColumn::PGraph(col) => col.len(),
+            TPropColumn::Empty(count) => *count,
         }
     }
 }
@@ -711,13 +804,137 @@ impl<'a, NS: DerefMut<Target = NodeSlot> + 'a> EntryMut<'a, &'a mut NS> {
 
 #[cfg(test)]
 mod test {
-    use super::NodeStorage;
-    use crate::core::entities::nodes::node_store::NodeStore;
+    use super::{NodeStorage, TColumns};
+    use crate::core::{entities::nodes::node_store::NodeStore, Prop};
     use pretty_assertions::assert_eq;
     use quickcheck_macros::quickcheck;
     use raphtory_api::core::entities::{GID, VID};
     use rayon::prelude::*;
     use std::borrow::Cow;
+
+    #[test]
+    fn tcolumns_append_1() {
+        let mut t_cols = TColumns::default();
+
+        t_cols.push([(1, Prop::U64(1))]).unwrap();
+
+        let col0 = t_cols.get(0).unwrap();
+        let col1 = t_cols.get(1).unwrap();
+
+        assert_eq!(col0.len(), 1);
+        assert_eq!(col1.len(), 1);
+    }
+
+    #[test]
+    fn tcolumns_append_3_rows() {
+        let mut t_cols = TColumns::default();
+
+        t_cols
+            .push([(1, Prop::U64(1)), (0, Prop::Str("a".into()))])
+            .unwrap();
+        t_cols
+            .push([(0, Prop::Str("c".into())), (2, Prop::I64(9))])
+            .unwrap();
+        t_cols
+            .push([(1, Prop::U64(1)), (3, Prop::Str("c".into()))])
+            .unwrap();
+
+        assert_eq!(t_cols.len(), 3);
+
+        for col_id in 0..4 {
+            let col = t_cols.get(col_id).unwrap();
+            assert_eq!(col.len(), 3);
+        }
+
+        let col0 = (0..3)
+            .map(|row| t_cols.get(0).and_then(|col| col.get(row)))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            col0,
+            vec![
+                Some(Prop::Str("a".into())),
+                Some(Prop::Str("c".into())),
+                None
+            ]
+        );
+
+        let col1 = (0..3)
+            .map(|row| t_cols.get(1).and_then(|col| col.get(row)))
+            .collect::<Vec<_>>();
+        assert_eq!(col1, vec![Some(Prop::U64(1)), None, Some(Prop::U64(1))]);
+
+        let col2 = (0..3)
+            .map(|row| t_cols.get(2).and_then(|col| col.get(row)))
+            .collect::<Vec<_>>();
+        assert_eq!(col2, vec![None, Some(Prop::I64(9)), None]);
+
+        let col3 = (0..3)
+            .map(|row| t_cols.get(3).and_then(|col| col.get(row)))
+            .collect::<Vec<_>>();
+        assert_eq!(col3, vec![None, None, Some(Prop::Str("c".into()))]);
+    }
+
+    #[test]
+    fn tcolumns_append_2_columns_12_items() {
+        let mut t_cols = TColumns::default();
+
+        for value in 0..12 {
+            if value % 2 == 0 {
+                t_cols
+                    .push([
+                        (1, Prop::U64(value)),
+                        (0, Prop::Str(value.to_string().into())),
+                    ])
+                    .unwrap();
+            } else {
+                t_cols.push([(1, Prop::U64(value))]).unwrap();
+            }
+        }
+
+        assert_eq!(t_cols.len(), 12);
+
+        let col0 = (0..12)
+            .map(|row| t_cols.get(0).and_then(|col| col.get(row)))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            col0,
+            vec![
+                Some(Prop::Str("0".into())),
+                None,
+                Some(Prop::Str("2".into())),
+                None,
+                Some(Prop::Str("4".into())),
+                None,
+                Some(Prop::Str("6".into())),
+                None,
+                Some(Prop::Str("8".into())),
+                None,
+                Some(Prop::Str("10".into())),
+                None
+            ]
+        );
+
+        let col1 = (0..12)
+            .map(|row| t_cols.get(1).and_then(|col| col.get(row)))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            col1,
+            vec![
+                Some(Prop::U64(0)),
+                Some(Prop::U64(1)),
+                Some(Prop::U64(2)),
+                Some(Prop::U64(3)),
+                Some(Prop::U64(4)),
+                Some(Prop::U64(5)),
+                Some(Prop::U64(6)),
+                Some(Prop::U64(7)),
+                Some(Prop::U64(8)),
+                Some(Prop::U64(9)),
+                Some(Prop::U64(10)),
+                Some(Prop::U64(11))
+            ]
+        );
+    }
 
     #[test]
     fn add_5_values_to_storage() {

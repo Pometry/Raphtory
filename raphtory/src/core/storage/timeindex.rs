@@ -132,8 +132,16 @@ impl<T: AsTime> TimeIndexLike for TimeIndex<T> {
     fn range_iter(
         &self,
         w: Range<Self::IndexType>,
-    ) -> Box<dyn DoubleEndedIterator<Item = Self::IndexType> + Send + '_> {
-        self.range_iter(w)
+    ) -> Box<dyn Iterator<Item = Self::IndexType> + Send + '_> {
+        Box::new(self.range_iter(w))
+    }
+
+    fn first_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType> {
+        self.range_iter(w).next()
+    }
+
+    fn last_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType> {
+        self.range_iter(w).next_back()
     }
 }
 
@@ -205,9 +213,7 @@ impl<'a, T: AsTime, TI: TimeIndexLike<IndexType = T>> TimeIndexIntoOps
     fn into_iter(self) -> impl Iterator<Item = Self::IndexType> + Send {
         match self {
             TimeIndexWindow::Empty => Box::new(iter::empty()),
-            TimeIndexWindow::TimeIndexRange { timeindex, range } => {
-                timeindex.range_iter_forward(range)
-            }
+            TimeIndexWindow::TimeIndexRange { timeindex, range } => timeindex.range_iter(range),
             TimeIndexWindow::All(timeindex) => timeindex.iter(),
         }
     }
@@ -430,7 +436,7 @@ where
         match self {
             TimeIndexWindow::Empty => None,
             TimeIndexWindow::TimeIndexRange { timeindex, range } => {
-                timeindex.range_iter(range.clone()).next()
+                timeindex.first_range(range.clone())
             }
             TimeIndexWindow::All(timeindex) => timeindex.first(),
         }
@@ -440,7 +446,7 @@ where
         match self {
             TimeIndexWindow::Empty => None,
             TimeIndexWindow::TimeIndexRange { timeindex, range } => {
-                timeindex.range_iter(range.clone()).next_back()
+                timeindex.last_range(range.clone())
             }
             TimeIndexWindow::All(timeindex) => timeindex.last(),
         }
@@ -450,7 +456,7 @@ where
         match self {
             TimeIndexWindow::Empty => Box::new(iter::empty()),
             TimeIndexWindow::TimeIndexRange { timeindex, range } => {
-                Box::new(timeindex.range_iter_forward(range.clone()))
+                Box::new(timeindex.range_iter(range.clone()))
             }
             TimeIndexWindow::All(timeindex) => Box::new(timeindex.iter()),
         }

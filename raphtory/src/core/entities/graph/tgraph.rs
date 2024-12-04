@@ -336,10 +336,10 @@ impl TemporalGraph {
         let dst_id = node_pair.get_j().vid;
         let src = node_pair.get_mut_i();
         src.add_edge(dst_id, Direction::OUT, layer, edge_id);
-        src.update_time(t, Some(edge_id));
+        src.update_time(t, edge_id);
         let dst = node_pair.get_mut_j();
         dst.add_edge(src_id, Direction::IN, layer, edge_id);
-        dst.update_time(t, Some(edge_id));
+        dst.update_time(t, edge_id);
         Ok(())
     }
 

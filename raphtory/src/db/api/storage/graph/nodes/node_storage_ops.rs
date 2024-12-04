@@ -6,7 +6,10 @@ use crate::{
         storage::ArcEntry,
         Direction,
     },
-    db::api::{storage::graph::tprop_storage_ops::TPropOps, view::internal::NodeAdditions},
+    db::api::{
+        storage::graph::tprop_storage_ops::{SparseTPropOps, TPropOps},
+        view::internal::NodeAdditions,
+    },
     prelude::Prop,
 };
 use itertools::Itertools;
@@ -16,7 +19,7 @@ pub trait NodeStorageOps<'a>: Sized {
 
     fn additions(self) -> NodeAdditions<'a>;
 
-    fn tprop(self, prop_id: usize) -> impl TPropOps<'a>;
+    fn tprop(self, prop_id: usize) -> impl SparseTPropOps<'a>;
 
     fn prop(self, prop_id: usize) -> Option<Prop>;
 

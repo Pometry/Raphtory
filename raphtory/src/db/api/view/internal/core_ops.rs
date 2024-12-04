@@ -24,6 +24,7 @@ use crate::{
     },
 };
 use enum_dispatch::enum_dispatch;
+use itertools::Itertools;
 use raphtory_api::core::{
     entities::{EID, GID},
     storage::{
@@ -337,8 +338,7 @@ impl TimeIndexOps for NodeTimestamps {
         Self: 'b;
 
     fn active(&self, w: Range<Self::IndexType>) -> bool {
-        self.edge_ts.active(w.clone())
-            || self.props_ts.iter().any(move |cell| cell.active(w.clone()))
+        self.edge_ts.active(w.clone()) || self.props_ts.active(w)
     }
 
     fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType<'_> {
@@ -349,29 +349,35 @@ impl TimeIndexOps for NodeTimestamps {
     }
 
     fn first(&self) -> Option<Self::IndexType> {
-        self.edge_ts
-            .first()
-            .min(self.props_ts.iter().filter_map(|cell| cell.first()).min())
+        let first = self.edge_ts.first();
+        let other = self.props_ts.first();
+
+        first
+            .zip(other)
+            .map(|(a, b)| a.min(b))
+            .or_else(|| first.or(other))
     }
 
     fn last(&self) -> Option<Self::IndexType> {
-        self.edge_ts
-            .last()
-            .max(self.props_ts.iter().filter_map(|cell| cell.last()).max())
+        let last = self.edge_ts.last();
+        let other = self.props_ts.last();
+
+        last.zip(other)
+            .map(|(a, b)| a.max(b))
+            .or_else(|| last.or(other))
     }
 
     fn iter(&self) -> Box<dyn Iterator<Item = Self::IndexType> + Send + '_> {
         Box::new(
-            self.edge_ts.iter().map(|(t, _)| *t).chain(
-                self.props_ts
-                    .iter()
-                    .flat_map(|cell| cell.iter().map(|(t, _)| *t)),
-            ),
+            self.edge_ts
+                .iter()
+                .map(|(t, _)| *t)
+                .merge(self.props_ts.iter().map(|(t, _)| *t)),
         )
     }
 
     fn len(&self) -> usize {
-        self.edge_ts.len() + self.props_ts.iter().map(|cell| cell.len()).sum::<usize>()
+        self.edge_ts.len() + self.props_ts.len()
     }
 }
 
@@ -379,14 +385,38 @@ impl TimeIndexLike for NodeTimestamps {
     fn range_iter(
         &self,
         w: Range<Self::IndexType>,
-    ) -> Box<dyn DoubleEndedIterator<Item = Self::IndexType> + Send + '_> {
-        Box::new(self.edge_ts.range_iter(w.clone()).chain(chain_my_iters(
-            self.props_ts.iter().map(|cell| cell.range_iter(w.clone())),
-        )))
+    ) -> Box<dyn Iterator<Item = Self::IndexType> + Send + '_> {
+        Box::new(
+            self.edge_ts
+                .range_iter(w.clone())
+                .merge(self.props_ts.range_iter(w)),
+        )
+    }
+
+    fn first_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType> {
+        let first = self.edge_ts.iter_window(w.clone()).next().map(|(t, _)| *t);
+        let other = self.props_ts.iter_window(w).next().map(|(t, _)| *t);
+
+        first
+            .zip(other)
+            .map(|(a, b)| a.min(b))
+            .or_else(|| first.or(other))
+    }
+
+    fn last_range(&self, w: Range<Self::IndexType>) -> Option<Self::IndexType> {
+        let last = self
+            .edge_ts
+            .iter_window(w.clone())
+            .next_back()
+            .map(|(t, _)| *t);
+        let other = self.props_ts.iter_window(w).next_back().map(|(t, _)| *t);
+
+        last.zip(other)
+            .map(|(a, b)| a.max(b))
+            .or_else(|| last.or(other))
     }
 }
 
-// This assumes the number of temporary props does not exceed the stack
 fn chain_my_iters<'a, A: 'a, I: DoubleEndedIterator<Item = A> + Send + 'a>(
     is: impl Iterator<Item = I>,
 ) -> Box<dyn DoubleEndedIterator<Item = A> + Send + 'a> {

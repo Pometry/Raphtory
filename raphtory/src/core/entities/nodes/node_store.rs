@@ -5,11 +5,7 @@ use crate::core::{
         properties::{props::Props, tcell::TCell},
         LayerIds, EID, GID, VID,
     },
-    storage::{
-        lazy_vec::{IllegalSet, LazyVec},
-        timeindex::TimeIndexEntry,
-        ArcEntry, Entry,
-    },
+    storage::{lazy_vec::IllegalSet, timeindex::TimeIndexEntry, ArcEntry, Entry},
     utils::{errors::GraphError, iter::GenLockedIter},
     Direction, Prop,
 };
@@ -35,8 +31,8 @@ pub struct NodeStore {
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub struct NodeTimestamps {
     // all the timestamps that have been seen by this node
-    pub(crate) edge_ts: TCell<Option<EID>>,
-    pub(crate) props_ts: LazyVec<TCell<usize>>,
+    pub(crate) edge_ts: TCell<EID>,
+    pub(crate) props_ts: TCell<Option<usize>>,
 }
 
 impl NodeStore {
@@ -85,7 +81,7 @@ impl NodeStore {
         &self.timestamps
     }
 
-    pub fn update_time(&mut self, t: TimeIndexEntry, eid: Option<EID>) {
+    pub fn update_time(&mut self, t: TimeIndexEntry, eid: EID) {
         self.timestamps.edge_ts.set(t, eid);
     }
 
@@ -108,12 +104,8 @@ impl NodeStore {
         props.update_constant_prop(prop_id, prop)
     }
 
-    pub fn update_t_prop_time(&mut self, t: &TimeIndexEntry, prop_id: usize, prop_i: usize) {
-        // this can't fail
-        let _ = self.timestamps.props_ts.update(prop_id, |t_prop| {
-            t_prop.set(*t, prop_i);
-            Ok(())
-        });
+    pub fn update_t_prop_time(&mut self, t: TimeIndexEntry, prop_i: Option<usize>) {
+        self.timestamps.props_ts.set(t, prop_i);
     }
 
     #[inline(always)]
@@ -317,20 +309,8 @@ impl NodeStore {
             .flat_map(|ps| ps.const_prop_ids())
     }
 
-    // pub(crate) fn temporal_property(&self, prop_id: usize) -> Option<&TProp> {
-    //     self.props.as_ref().and_then(|ps| ps.temporal_prop(prop_id))
-    // }
-
     pub(crate) fn constant_property(&self, prop_id: usize) -> Option<&Prop> {
         self.props.as_ref().and_then(|ps| ps.const_prop(prop_id))
-    }
-
-    pub(crate) fn temporal_prop_ids(&self) -> impl Iterator<Item = usize> + '_ {
-        self.timestamps.props_ts.filled_ids()
-    }
-
-    pub(crate) fn t_props(&self, prop_id: usize) -> Option<&TCell<usize>> {
-        self.timestamps.props_ts.get(prop_id)
     }
 }
 

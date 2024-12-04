@@ -114,7 +114,13 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for NodePropertyFilteredGrap
                     self.c_prop_id
                         .and_then(|prop_id| props.constant().get_by_id(prop_id))
                 });
-            self.filter.filter(prop_value.as_ref())
+            let filter = self.filter.filter(prop_value.as_ref());
+            println!(
+                "node: {:?} prop_value: {:?} {filter}",
+                node.id(),
+                prop_value
+            );
+            filter
         } else {
             false
         }

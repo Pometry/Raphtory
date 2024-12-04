@@ -1,7 +1,7 @@
 use crate::{
     core::{
         entities::{graph::tgraph::TemporalGraph, nodes::node_ref::AsNodeRef, LayerIds, VID},
-        storage::timeindex::AsTime,
+        storage::{timeindex::AsTime, TPropColumn},
         utils::errors::GraphError,
     },
     db::{
@@ -240,22 +240,41 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                             // explicitly add node earliest_time to handle PersistentGraph
                             new_node
                                 .get_mut()
-                                .update_time(TimeIndexEntry::start(earliest), None)
+                                .update_t_prop_time(TimeIndexEntry::start(earliest), None)
                         }
                         for t in self.node_history(node.node) {
-                            new_node.get_mut().update_time(t, None);
+                            new_node.get_mut().update_t_prop_time(t, None);
                         }
-                        for t_prop_id in node.temporal_prop_ids() {
-                            for (t, prop_value) in
-                                self.temporal_node_prop_hist(node.node, t_prop_id)
-                            {
-                                let prop_offset =
-                                    new_node.t_props_log_mut().push(t_prop_id, prop_value);
-                                new_node
-                                    .get_mut()
-                                    .update_t_prop_time(&t, t_prop_id, prop_offset);
-                            }
-                        }
+
+                        let properties = node.properties().temporal();
+                        // TODO: load node temporal properties
+                        // let mut t_prop_cols = vec![];
+                        // for _ in 0..self.node_meta().temporal_prop_meta().len() {
+                        //     t_prop_cols.push(TPropColumn::default());
+                        // }
+
+                        // for t_prop_id in node.temporal_prop_ids() {
+                        //     for merge in
+                        //         self.temporal_node_prop_hist(node.node, t_prop_id).merge_join_by(self.node_history(node.node), |(t1,_), t2| t1.cmp(t2))
+                        //     {
+                        //         match merge {
+                        //             itertools::EitherOrBoth::Both((t, prop), _) => {
+                        //                 t_prop_cols[t_prop_id].push(prop)?;
+
+                        //             new_node
+                        //                 .get_mut()
+                        //                 .update_t_prop_time(t,  Some(t_prop_cols[t_prop_id].len() - 1));
+                        //             },
+                        //             itertools::EitherOrBoth::Right(t) => {
+                        //                 t_prop_cols[t_prop_id].push_null()?;
+                        //             },
+                        //             _ => unreachable!("there should not be a time in the props not reflected in history"),
+                        //         }
+                        //     }
+
+                        //     new_node.t_props_log_mut().push(t_prop_id, prop_value)?;
+                        // }
+
                         for c_prop_id in node.const_prop_ids() {
                             if let Some(prop_value) = node.get_const_prop(c_prop_id) {
                                 new_node

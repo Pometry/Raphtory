@@ -77,6 +77,21 @@ pub trait TPropOps<'a>: Sized + 'a + Send {
     }
 }
 
+pub trait SparseTPropOps<'a>: TPropOps<'a> + Sized + 'a + Send {
+    fn iter_all(self) -> impl Iterator<Item = Option<(TimeIndexEntry, Prop)>> + Send + 'a;
+
+    fn iter_window_all(
+        self,
+        r: Range<TimeIndexEntry>,
+    ) -> impl Iterator<Item = Option<(TimeIndexEntry, Prop)>> + Send + 'a;
+}
+
+pub trait IndexedTPropOps<'a>: Sized + 'a + Send {
+    type PropT: 'a;
+
+    fn prop_at(&self, idx: usize) -> Self::PropT;
+}
+
 impl<'a> TPropOps<'a> for TPropRef<'a> {
     fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, Prop)> {
         for_all!(self, tprop => tprop.last_before(t))
