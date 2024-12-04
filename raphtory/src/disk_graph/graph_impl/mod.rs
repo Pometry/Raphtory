@@ -489,6 +489,7 @@ mod test {
             t_props_chunk_size,
             num_threads,
             node_type_col,
+            None,
         )
         .unwrap()
         .into_graph();

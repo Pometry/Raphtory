@@ -733,6 +733,7 @@ mod tests {
                 &[],
                 None,
                 None,
+                None,
             )
             .unwrap();
             let actual =
