@@ -2096,18 +2096,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "examples"
-version = "0.14.0"
-dependencies = [
- "chrono",
- "itertools 0.13.0",
- "raphtory",
- "regex",
- "serde",
- "tracing",
-]
-
-[[package]]
 name = "fallible-streaming-iterator"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5280,6 +5268,18 @@ dependencies = [
  "bitflags 2.6.0",
  "serde",
  "serde_derive",
+]
+
+[[package]]
+name = "rust-examples"
+version = "0.14.0"
+dependencies = [
+ "chrono",
+ "itertools 0.13.0",
+ "raphtory",
+ "regex",
+ "serde",
+ "tracing",
 ]
 
 [[package]]
