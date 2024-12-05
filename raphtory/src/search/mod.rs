@@ -1195,7 +1195,7 @@ mod search_tests {
         indexed_graph.reload().expect("failed to reload index");
 
         let results = indexed_graph
-            .search_nodes("kind:hobbit", 10, 0)
+            .search_nodes("kind:Hobbit", 10, 0)
             .expect("search failed");
         let mut actual = results.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let mut expected = vec!["Frodo", "Merry"];
@@ -1206,14 +1206,14 @@ mod search_tests {
         assert_eq!(actual, expected);
 
         let results = indexed_graph
-            .search_nodes("kind:wizard", 10, 0)
+            .search_nodes("kind:Wizard", 10, 0)
             .expect("search failed");
         let actual = results.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Gandalf"];
         assert_eq!(actual, expected);
 
         let results = indexed_graph
-            .search_nodes("kind:creature", 10, 0)
+            .search_nodes("kind:Creature", 10, 0)
             .expect("search failed");
         let actual = results.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Gollum"];
@@ -1221,7 +1221,7 @@ mod search_tests {
 
         // search by name
         let results = indexed_graph
-            .search_nodes("name:gollum", 10, 0)
+            .search_nodes("name:Gollum", 10, 0)
             .expect("search failed");
         let actual = results.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Gollum"];
@@ -1239,7 +1239,7 @@ mod search_tests {
         graph.reload().expect("reload failed");
 
         let nodes = graph
-            .search_nodes(r#"name:gandalf"#, 10, 0)
+            .search_nodes(r#"name:Gandalf"#, 10, 0)
             .expect("search failed");
 
         let actual = nodes.into_iter().map(|v| v.name()).collect::<Vec<_>>();
@@ -1273,7 +1273,7 @@ mod search_tests {
         graph.reload().expect("reload failed");
         // Find the Wizard
         let nodes = graph
-            .search_nodes(r#"description:wizard"#, 10, 0)
+            .search_nodes(r#"description:"A wizard""#, 10, 0)
             .expect("search failed");
         let actual = nodes.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Gandalf"];
