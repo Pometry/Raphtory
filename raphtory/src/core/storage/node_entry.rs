@@ -48,7 +48,7 @@ impl<'a> NodeEntry<'a> {
             .t_props_log
             .iter()
             .enumerate()
-            .filter_map(|(id, col)| col.is_empty().then(|| id))
+            .filter_map(|(id, col)| (!col.is_empty()).then(|| id))
     }
 }
 

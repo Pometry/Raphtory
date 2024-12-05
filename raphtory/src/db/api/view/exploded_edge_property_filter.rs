@@ -95,7 +95,6 @@ mod test {
         gf.add_node(0, 1, NO_PROPS, None).unwrap();
         gf.add_node(0, 2, NO_PROPS, None).unwrap();
 
-        println!("{:?}", edges);
         assert_graph_equal(&filtered, &gf);
     }
 

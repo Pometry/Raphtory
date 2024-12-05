@@ -425,7 +425,6 @@ mod test {
 
         nodes.sort();
         expected_nodes.sort();
-        println!("{:?}\n{:?}", nodes, expected_nodes);
         assert_eq!(nodes, expected_nodes);
 
         let edges = filtered.edges();

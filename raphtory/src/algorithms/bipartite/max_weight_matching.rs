@@ -1558,7 +1558,6 @@ mod test {
         let maxc_res = max_weight_matching(&g, Some("weight"), true, true);
 
         let matching = res;
-        println!("{}", matching);
         let maxc_matching = maxc_res;
         // Check output
         assert_eq!(matching.len(), 1);
