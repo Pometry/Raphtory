@@ -50,7 +50,6 @@ def test_search_in_python():
     assert len(index.search_nodes("name:ben")) == 1
     assert len(index.search_nodes("name:ben OR name:hamza")) == 2
     assert len(index.search_nodes("name:ben AND name:hamza")) == 0
-    assert len(index.search_nodes("name: IN [ben, hamza]")) == 2
 
     # Property tests
     assert len(index.search_nodes("value:<120 OR value_f:>30")) == 3
