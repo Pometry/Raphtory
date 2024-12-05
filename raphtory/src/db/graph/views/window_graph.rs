@@ -63,7 +63,10 @@ use crate::{
     prelude::GraphViewOps,
 };
 use chrono::{DateTime, Utc};
-use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry};
+use raphtory_api::core::{
+    entities::EID,
+    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+};
 use std::{
     fmt::{Debug, Formatter},
     iter,
@@ -331,6 +334,35 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
 
     fn node_history_window(&self, v: VID, w: Range<i64>) -> BoxedLIter<'_, TimeIndexEntry> {
         self.graph.node_history_window(v, w.start..w.end)
+    }
+
+    fn node_edge_history<'a>(
+        &'a self,
+        v: VID,
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<'a, (TimeIndexEntry, EID)> {
+        if self.window_is_empty() {
+            return Box::new(std::iter::empty());
+        }
+        let range = w
+            .map(|r| r.start..r.end)
+            .unwrap_or_else(|| self.start_bound()..self.end_bound());
+        self.graph.node_edge_history(v, Some(range))
+    }
+
+    fn node_property_history<'a>(
+        &'a self,
+        v: VID,
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<'a, TimeIndexEntry> {
+        if self.window_is_empty() {
+            return Box::new(std::iter::empty());
+        }
+
+        let range = w
+            .map(|r| r.start..r.end)
+            .unwrap_or_else(|| self.start_bound()..self.end_bound());
+        self.graph.node_property_history(v, Some(range))
     }
 
     fn edge_history<'a>(

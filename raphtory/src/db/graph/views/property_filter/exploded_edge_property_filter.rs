@@ -27,7 +27,7 @@ use crate::{
     prelude::{GraphViewOps, PropertyFilter},
 };
 use raphtory_api::core::{
-    entities::{edges::edge_ref::EdgeRef, VID},
+    entities::{edges::edge_ref::EdgeRef, EID, VID},
     storage::timeindex::TimeIndexEntry,
 };
 use std::ops::Range;
@@ -220,6 +220,22 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
         // FIXME: this is potentially wrong but there is no way to fix this right now as nodes don't
         // separate timestamps from node property updates and edge additions currently
         self.graph.node_history_window(v, w)
+    }
+
+    fn node_edge_history<'a>(
+        &'a self,
+        v: VID,
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<'a, (TimeIndexEntry, EID)> {
+        self.graph.node_edge_history(v, w)
+    }
+
+    fn node_property_history<'a>(
+        &'a self,
+        v: VID,
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<'a, TimeIndexEntry> {
+        self.graph.node_property_history(v, w)
     }
 
     fn edge_history<'a>(

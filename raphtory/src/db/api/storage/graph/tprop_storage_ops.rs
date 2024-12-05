@@ -78,12 +78,12 @@ pub trait TPropOps<'a>: Sized + 'a + Send {
 }
 
 pub trait SparseTPropOps<'a>: TPropOps<'a> + Sized + 'a + Send {
-    fn iter_all(self) -> impl Iterator<Item = Option<(TimeIndexEntry, Prop)>> + Send + 'a;
+    fn iter_all(self) -> impl Iterator<Item = (TimeIndexEntry, Option<Prop>)> + Send + 'a;
 
     fn iter_window_all(
         self,
         r: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = Option<(TimeIndexEntry, Prop)>> + Send + 'a;
+    ) -> impl Iterator<Item = (TimeIndexEntry, Option<Prop>)> + Send + 'a;
 }
 
 pub trait IndexedTPropOps<'a>: Sized + 'a + Send {

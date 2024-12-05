@@ -165,7 +165,7 @@ impl InternalAdditionOps for TemporalGraph {
                 (*prop_id, prop)
             }))?;
 
-        a.get_mut().update_t_prop_time(t, Some(prop_i));
+        a.get_mut().update_t_prop_time(t, prop_i);
 
         if !props.is_empty() {
             println!(

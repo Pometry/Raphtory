@@ -1,5 +1,5 @@
 use super::locked_view::LockedView;
-use crate::core::entities::LayerIds;
+use crate::core::entities::{properties::tcell::TCell, LayerIds};
 use itertools::Itertools;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -150,6 +150,18 @@ pub enum TimeIndexWindow<'a, T: AsTime, TI> {
     Empty,
     TimeIndexRange { timeindex: &'a TI, range: Range<T> },
     All(&'a TI),
+}
+
+impl<'a, A: Copy + Send + Sync> TimeIndexWindow<'a, TimeIndexEntry, TCell<A>> {
+    pub fn iter_values(self) -> Box<dyn Iterator<Item = (TimeIndexEntry, A)> + Send + 'a> {
+        match self {
+            TimeIndexWindow::Empty => Box::new(iter::empty()),
+            TimeIndexWindow::TimeIndexRange { timeindex, range } => {
+                Box::new(timeindex.iter_window(range.clone()).map(|(t, v)| (*t, *v)))
+            }
+            TimeIndexWindow::All(timeindex) => Box::new(timeindex.iter().map(|(t, v)| (*t, *v))),
+        }
+    }
 }
 
 impl<'a, T: AsTime, TI: TimeIndexLike<IndexType = T>> TimeIndexWindow<'a, T, TI> {

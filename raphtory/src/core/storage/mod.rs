@@ -78,8 +78,9 @@ impl TColumns {
     pub fn push(
         &mut self,
         row: impl IntoIterator<Item = (usize, Prop)>,
-    ) -> Result<usize, GraphError> {
+    ) -> Result<Option<usize>, GraphError> {
         let id = self.num_rows;
+        let mut has_props = false;
 
         for (prop_id, prop) in row {
             match self.t_props_log.get_mut(prop_id) {
@@ -95,17 +96,20 @@ impl TColumns {
                     self.t_props_log[prop_id] = col;
                 }
             }
+            has_props = true;
         }
 
-        self.num_rows += 1;
-
-        for col in self.t_props_log.iter_mut() {
-            while col.len() < self.num_rows {
-                col.push_null()?;
+        if has_props {
+            self.num_rows += 1;
+            for col in self.t_props_log.iter_mut() {
+                while col.len() < self.num_rows {
+                    col.push_null()?;
+                }
             }
+            Ok(Some(id))
+        } else {
+            Ok(None)
         }
-
-        Ok(id)
     }
 
     pub(crate) fn get(&self, prop_id: usize) -> Option<&TPropColumn> {

@@ -1409,7 +1409,7 @@ mod db_tests {
             .temp_prop_rows(0..1)
             .collect::<Vec<_>>();
 
-        assert_eq!(actual, vec![vec![Some(Prop::Bool(true))]]);
+        assert_eq!(actual, vec![(0.into(), vec![Some(Prop::Bool(true))])]);
 
         graph
             .add_node(0, 1, [("coolio".to_string(), Prop::U64(9))], None)
@@ -1425,8 +1425,8 @@ mod db_tests {
         assert_eq!(
             actual,
             vec![
-                vec![Some(Prop::Bool(true)), None],
-                vec![None, Some(Prop::U64(9))]
+                (0.into(), vec![Some(Prop::Bool(true)), None]),
+                (0.into(), vec![None, Some(Prop::U64(9))])
             ]
         );
 
@@ -1450,9 +1450,9 @@ mod db_tests {
             .collect::<Vec<_>>();
 
         let expected = vec![
-            vec![Some(Prop::Bool(true)), None],
-            vec![None, Some(Prop::U64(9))],
-            vec![Some(Prop::Bool(false)), Some(Prop::U64(19))],
+            (0.into(), vec![Some(Prop::Bool(true)), None]),
+            (0.into(), vec![None, Some(Prop::U64(9))]),
+            (1.into(), vec![Some(Prop::Bool(false)), Some(Prop::U64(19))]),
         ];
         assert_eq!(actual, expected);
 
@@ -1490,7 +1490,7 @@ mod db_tests {
                 .temp_prop_rows(0..1)
                 .collect::<Vec<_>>();
 
-            let expected = vec![vec![Some(Prop::U64((id as u64) + 1))]];
+            let expected = vec![((id as i64).into(), vec![Some(Prop::U64((id as u64) + 1))])];
             assert_eq!(actual, expected);
         }
     }
@@ -1519,15 +1519,15 @@ mod db_tests {
         };
         let actual = get_rows(VID(0), TimeIndexEntry::new(2, 0)..TimeIndexEntry::new(3, 0));
 
-        let expected = vec![vec![Some(Prop::U64(3))]];
+        let expected = vec![(2.into(), vec![Some(Prop::U64(3))])];
 
         assert_eq!(actual, expected);
 
         let actual = get_rows(VID(0), TimeIndexEntry::new(0, 0)..TimeIndexEntry::new(3, 0));
         let expected = vec![
-            vec![Some(Prop::U64(1))],
-            vec![Some(Prop::U64(2))],
-            vec![Some(Prop::U64(3))],
+            (0.into(), vec![Some(Prop::U64(1))]),
+            (1.into(), vec![Some(Prop::U64(2))]),
+            (2.into(), vec![Some(Prop::U64(3))]),
         ];
 
         assert_eq!(actual, expected);

@@ -9,7 +9,7 @@ use crate::{
     },
 };
 use enum_dispatch::enum_dispatch;
-use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+use raphtory_api::core::{entities::EID, storage::timeindex::TimeIndexEntry};
 use std::ops::Range;
 
 /// Methods for defining time windowing semantics for a graph
@@ -53,11 +53,25 @@ pub trait TimeSemantics {
         layer_ids: &LayerIds,
     ) -> bool;
 
-    /// Get the timestamps at which a node `v` is active (i.e has an edge addition)
+    /// Get the timestamps at which a node `v` is active (i.e has an edge addition, or a property change)
     fn node_history<'a>(&'a self, v: VID) -> BoxedLIter<'a, TimeIndexEntry>;
 
     /// Get the timestamps at which a node `v` is active in window `w` (i.e has an edge addition)
     fn node_history_window<'a>(&'a self, v: VID, w: Range<i64>) -> BoxedLIter<'a, TimeIndexEntry>;
+
+    /// Get the timestamps associated with properties or node events only (Excluding edge events)
+    fn node_property_history<'a>(
+        &'a self,
+        v: VID,
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<'a, TimeIndexEntry>;
+
+    /// Get the timestamps associated with edge events only (Excluding node or property events)
+    fn node_edge_history<'a>(
+        &'a self,
+        v: VID,
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<'a, (TimeIndexEntry, EID)>;
 
     fn edge_history<'a>(
         &'a self,
@@ -652,5 +666,23 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         layer_ids: &LayerIds,
     ) -> BoxedLIter<'a, (TimeIndexEntry, Prop)> {
         self.graph().temporal_edge_prop_hist(e, prop_id, layer_ids)
+    }
+
+    #[doc = " Get the timestamps associated with properties or node events only (Excluding edge events)"]
+    fn node_property_history<'a>(
+        &'a self,
+        v: VID,
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<'a, TimeIndexEntry> {
+        self.graph().node_property_history(v, w)
+    }
+
+    #[doc = " Get the timestamps associated with edge events only (Excluding node or property events)"]
+    fn node_edge_history<'a>(
+        &'a self,
+        v: VID,
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<'a, (TimeIndexEntry, EID)> {
+        self.graph().node_edge_history(v, w)
     }
 }

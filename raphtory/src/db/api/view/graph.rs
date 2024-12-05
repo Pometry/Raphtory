@@ -242,38 +242,40 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                                 .get_mut()
                                 .update_t_prop_time(TimeIndexEntry::start(earliest), None)
                         }
-                        for t in self.node_history(node.node) {
-                            new_node.get_mut().update_t_prop_time(t, None);
+                        for (t, eid) in self.node_edge_history(node.node, None) {
+                            new_node.get_mut().update_time(t, eid);
                         }
 
-                        let properties = node.properties().temporal();
-                        // TODO: load node temporal properties
-                        // let mut t_prop_cols = vec![];
-                        // for _ in 0..self.node_meta().temporal_prop_meta().len() {
-                        //     t_prop_cols.push(TPropColumn::default());
-                        // }
+                        let node_entry = self.core_node_entry(node.node);
 
-                        // for t_prop_id in node.temporal_prop_ids() {
-                        //     for merge in
-                        //         self.temporal_node_prop_hist(node.node, t_prop_id).merge_join_by(self.node_history(node.node), |(t1,_), t2| t1.cmp(t2))
-                        //     {
-                        //         match merge {
-                        //             itertools::EitherOrBoth::Both((t, prop), _) => {
-                        //                 t_prop_cols[t_prop_id].push(prop)?;
+                        let props = 0..self.node_meta().temporal_prop_meta().len();
+                        let start = self.view_start();
+                        let end = self.view_end();
 
-                        //             new_node
-                        //                 .get_mut()
-                        //                 .update_t_prop_time(t,  Some(t_prop_cols[t_prop_id].len() - 1));
-                        //             },
-                        //             itertools::EitherOrBoth::Right(t) => {
-                        //                 t_prop_cols[t_prop_id].push_null()?;
-                        //             },
-                        //             _ => unreachable!("there should not be a time in the props not reflected in history"),
-                        //         }
-                        //     }
+                        let rows = if let Some(range) = start.zip(end).map(|(s, e)| s..e) {
+                            node_entry
+                                .as_ref()
+                                .temp_prop_rows_window(
+                                    props.clone(),
+                                    TimeIndexEntry::start(range.start)
+                                        ..TimeIndexEntry::start(range.end),
+                                )
+                                .into_dyn_boxed()
+                        } else {
+                            node_entry
+                                .as_ref()
+                                .temp_prop_rows(props.clone())
+                                .into_dyn_boxed()
+                        };
 
-                        //     new_node.t_props_log_mut().push(t_prop_id, prop_value)?;
-                        // }
+                        for (time, row) in rows {
+                            let prop_iter = row
+                                .into_iter()
+                                .zip(props.clone())
+                                .filter_map(|(prop, prop_id)| prop.map(|prop| (prop_id, prop)));
+                            let prop_offset = new_node.t_props_log_mut().push(prop_iter)?;
+                            new_node.get_mut().update_t_prop_time(time, prop_offset);
+                        }
 
                         for c_prop_id in node.const_prop_ids() {
                             if let Some(prop_value) = node.get_const_prop(c_prop_id) {

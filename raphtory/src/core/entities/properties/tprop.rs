@@ -97,23 +97,23 @@ impl<'a> TPropOps<'a> for TPropCell<'a> {
 }
 
 impl<'a> SparseTPropOps<'a> for TPropCell<'a> {
-    fn iter_all(self) -> impl Iterator<Item = Option<(TimeIndexEntry, Prop)>> + Send + 'a {
+    fn iter_all(self) -> impl Iterator<Item = (TimeIndexEntry, Option<Prop>)> + Send + 'a {
         self.t_cell.into_iter().flat_map(move |t_cell| {
             t_cell
                 .iter()
                 .filter_map(|(t, &id)| id.map(|id| (t, id)))
-                .map(move |(t, id)| self.log.and_then(|log| log.get(id)).map(|prop| (*t, prop)))
+                .map(move |(t, id)| (*t, self.log.and_then(|log| log.get(id))))
         })
     }
 
     fn iter_window_all(
         self,
         r: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = Option<(TimeIndexEntry, Prop)>> + Send + 'a {
+    ) -> impl Iterator<Item = (TimeIndexEntry, Option<Prop>)> + Send + 'a {
         self.t_cell.into_iter().flat_map(move |t_cell| {
             t_cell
                 .iter_window(r.clone())
-                .map(move |(t, &id)| self.log.and_then(|log| log.get(id?)).map(|prop| (*t, prop)))
+                .map(move |(t, &id)| (*t, self.log.and_then(|log| log.get(id?))))
         })
     }
 }
