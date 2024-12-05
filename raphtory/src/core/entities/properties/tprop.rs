@@ -101,8 +101,7 @@ impl<'a> SparseTPropOps<'a> for TPropCell<'a> {
         self.t_cell.into_iter().flat_map(move |t_cell| {
             t_cell
                 .iter()
-                .filter_map(|(t, &id)| id.map(|id| (t, id)))
-                .map(move |(t, id)| (*t, self.log.and_then(|log| log.get(id))))
+                .map(move |(t, &id)| (*t, self.log.and_then(|log| log.get(id?))))
         })
     }
 
