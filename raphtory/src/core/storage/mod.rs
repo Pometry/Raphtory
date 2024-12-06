@@ -13,6 +13,7 @@ use raphtory_api::core::{
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
+    collections::HashMap,
     fmt::Debug,
     marker::PhantomData,
     ops::{Deref, DerefMut, Index, IndexMut},
@@ -22,7 +23,7 @@ use std::{
     },
 };
 
-use super::{utils::errors::GraphError, Prop};
+use super::{utils::errors::GraphError, DocumentInput, Prop};
 
 pub mod lazy_vec;
 pub mod locked_view;
@@ -125,14 +126,23 @@ impl TColumns {
 pub(crate) enum TPropColumn {
     Empty(usize),
     Bool(LazyVec<bool>),
+    U8(LazyVec<u8>),
+    U16(LazyVec<u16>),
     U32(LazyVec<u32>),
     U64(LazyVec<u64>),
+    I32(LazyVec<i32>),
     I64(LazyVec<i64>),
     F32(LazyVec<f32>),
     F64(LazyVec<f64>),
     Str(LazyVec<ArcStr>),
     Graph(LazyVec<Graph>),
     PGraph(LazyVec<PersistentGraph>),
+
+    List(LazyVec<Arc<Vec<Prop>>>),
+    Map(LazyVec<Arc<HashMap<ArcStr, Prop>>>),
+    NDTime(LazyVec<chrono::NaiveDateTime>),
+    DTime(LazyVec<chrono::DateTime<chrono::Utc>>),
+    Document(LazyVec<DocumentInput>),
 }
 
 impl Default for TPropColumn {
@@ -154,6 +164,14 @@ impl TPropColumn {
             (TPropColumn::Str(col), Prop::Str(v)) => col.push(Some(v)),
             (TPropColumn::Graph(col), Prop::Graph(v)) => col.push(Some(v)),
             (TPropColumn::PGraph(col), Prop::PersistentGraph(v)) => col.push(Some(v)),
+            (TPropColumn::U8(col), Prop::U8(v)) => col.push(Some(v)),
+            (TPropColumn::U16(col), Prop::U16(v)) => col.push(Some(v)),
+            (TPropColumn::I32(col), Prop::I32(v)) => col.push(Some(v)),
+            (TPropColumn::List(col), Prop::List(v)) => col.push(Some(v)),
+            (TPropColumn::Map(col), Prop::Map(v)) => col.push(Some(v)),
+            (TPropColumn::NDTime(col), Prop::NDTime(v)) => col.push(Some(v)),
+            (TPropColumn::DTime(col), Prop::DTime(v)) => col.push(Some(v)),
+            (TPropColumn::Document(col), Prop::Document(v)) => col.push(Some(v)),
             _ => return Err(GraphError::IncorrectPropertyType),
         }
         Ok(())
@@ -171,16 +189,14 @@ impl TPropColumn {
                 Prop::Str(_) => *self = TPropColumn::Str(LazyVec::with_len(*len)),
                 Prop::Graph(_) => *self = TPropColumn::Graph(LazyVec::with_len(*len)),
                 Prop::PersistentGraph(_) => *self = TPropColumn::PGraph(LazyVec::with_len(*len)),
-                _ => todo!(), // Prop::U8(_) => todo!(),
-                              // Prop::U16(_) => todo!(),
-                              // Prop::I32(_) => todo!(),
-                              // Prop::F32(_) => todo!(),
-                              // Prop::F64(_) => todo!(),
-                              // Prop::List(arc) => todo!(),
-                              // Prop::Map(arc) => todo!(),
-                              // Prop::NDTime(naive_date_time) => todo!(),
-                              // Prop::DTime(date_time) => todo!(),
-                              // Prop::Document(document_input) => todo!(),
+                Prop::U8(_) => *self = TPropColumn::U8(LazyVec::with_len(*len)),
+                Prop::U16(_) => *self = TPropColumn::U16(LazyVec::with_len(*len)),
+                Prop::I32(_) => *self = TPropColumn::I32(LazyVec::with_len(*len)),
+                Prop::List(_) => *self = TPropColumn::List(LazyVec::with_len(*len)),
+                Prop::Map(_) => *self = TPropColumn::Map(LazyVec::with_len(*len)),
+                Prop::NDTime(_) => *self = TPropColumn::NDTime(LazyVec::with_len(*len)),
+                Prop::DTime(_) => *self = TPropColumn::DTime(LazyVec::with_len(*len)),
+                Prop::Document(_) => *self = TPropColumn::Document(LazyVec::with_len(*len)),
             },
             _ => {}
         }
@@ -202,6 +218,14 @@ impl TPropColumn {
             TPropColumn::Str(col) => col.push(None),
             TPropColumn::Graph(col) => col.push(None),
             TPropColumn::PGraph(col) => col.push(None),
+            TPropColumn::U8(col) => col.push(None),
+            TPropColumn::U16(col) => col.push(None),
+            TPropColumn::I32(col) => col.push(None),
+            TPropColumn::List(col) => col.push(None),
+            TPropColumn::Map(col) => col.push(None),
+            TPropColumn::NDTime(col) => col.push(None),
+            TPropColumn::DTime(col) => col.push(None),
+            TPropColumn::Document(col) => col.push(None),
             TPropColumn::Empty(count) => {
                 *count += 1;
             }
@@ -222,6 +246,14 @@ impl TPropColumn {
             TPropColumn::PGraph(col) => col
                 .get_opt(index)
                 .map(|prop| Prop::PersistentGraph(prop.clone())),
+            TPropColumn::U8(col) => col.get_opt(index).map(|prop| (*prop).into()),
+            TPropColumn::U16(col) => col.get_opt(index).map(|prop| (*prop).into()),
+            TPropColumn::I32(col) => col.get_opt(index).map(|prop| (*prop).into()),
+            TPropColumn::List(col) => col.get_opt(index).map(|prop| Prop::List(prop.clone())),
+            TPropColumn::Map(col) => col.get_opt(index).map(|prop| Prop::Map(prop.clone())),
+            TPropColumn::NDTime(col) => col.get_opt(index).map(|prop| Prop::NDTime(prop.clone())),
+            TPropColumn::DTime(col) => col.get_opt(index).map(|prop| Prop::DTime(prop.clone())),
+            TPropColumn::Document(col) => col.get_opt(index).map(|prop| Prop::Document(prop.clone())),
             TPropColumn::Empty(_) => None,
         }
     }
@@ -237,6 +269,14 @@ impl TPropColumn {
             TPropColumn::Str(col) => col.len(),
             TPropColumn::Graph(col) => col.len(),
             TPropColumn::PGraph(col) => col.len(),
+            TPropColumn::U8(col) => col.len(),
+            TPropColumn::U16(col) => col.len(),
+            TPropColumn::I32(col) => col.len(),
+            TPropColumn::List(col) => col.len(),
+            TPropColumn::Map(col) => col.len(),
+            TPropColumn::NDTime(col) => col.len(),
+            TPropColumn::DTime(col) => col.len(),
+            TPropColumn::Document(col) => col.len(),
             TPropColumn::Empty(count) => *count,
         }
     }

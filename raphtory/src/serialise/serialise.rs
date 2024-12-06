@@ -173,6 +173,15 @@ impl StableEncode for GraphStorage {
         for node_id in 0..nodes.len() {
             let node = nodes.node(VID(node_id));
             graph.new_node(node.id(), node.vid(), node.node_type_id());
+
+            for (time, row) in node.temp_prop_rows(0..self.node_meta().temporal_prop_meta().len()) {
+                let properties = row.into_iter().enumerate()
+                    .map(|(id, prop)| prop.map(|v| (id, v)))
+                    .flatten();
+                graph.update_node_tprops(node.vid(), time, properties);
+
+            }
+
             for (t, group) in
                 zip_tprop_updates!((0..n_temporal_meta.len()).map(|id| (id, node.tprop(id))))
             {
@@ -444,7 +453,7 @@ impl StableDecode for TemporalGraph {
                                     } else {
                                         let prop_offset = node.t_props_log_mut().push(props)?;
                                         node.get_mut()
-                                            .update_t_prop_time(update.time(), Some(prop_offset));
+                                            .update_t_prop_time(update.time(), prop_offset);
                                     }
 
                                     storage.update_time(update.time())
@@ -539,7 +548,7 @@ mod proto_test {
     use crate::{
         core::{DocumentInput, Lifespan},
         db::{
-            api::{mutation::DeletionOps, properties::internal::ConstPropertiesOps},
+            api::{mutation::DeletionOps, properties::internal::{ConstPropertiesOps, TemporalPropertiesRowView}},
             graph::graph::assert_graph_equal,
         },
         prelude::*,
@@ -900,6 +909,8 @@ mod proto_test {
         n.add_updates(1, [("test", "test")]).unwrap();
         n.add_updates(2, [("test", "test")]).unwrap();
 
+
+        println!("OK!");
         let values = n
             .properties()
             .temporal()
@@ -909,6 +920,7 @@ mod proto_test {
             .into_iter()
             .map(|v| v.unwrap_str())
             .collect_vec();
+        println!("{:?}", values);
         assert_eq!(values, ["test", "test", "test"]);
         for w in values.windows(2) {
             assert_eq!(w[0].as_ptr(), w[1].as_ptr());
@@ -916,9 +928,14 @@ mod proto_test {
 
         let proto = g.encode_to_proto();
         let g2 = Graph::decode_from_proto(&proto).unwrap();
-        let values = g2
+        let node_view = g2
             .node(1)
-            .unwrap()
+            .unwrap();
+
+        // let rows = node_view.rows().collect::<Vec<_>>();
+        // println!("{:?}", rows);
+        println!("WTF!");
+        let values = node_view
             .properties()
             .temporal()
             .get("test")
@@ -927,6 +944,7 @@ mod proto_test {
             .into_iter()
             .map(|v| v.unwrap_str())
             .collect_vec();
+        println!("{:?}", values);
         assert_eq!(values, ["test", "test", "test"]);
         for w in values.windows(2) {
             assert_eq!(w[0].as_ptr(), w[1].as_ptr());

@@ -33,12 +33,7 @@ use itertools::Itertools;
 use raphtory_api::core::storage::arc_str::ArcStr;
 use serde::{Deserialize, Serialize};
 use std::{
-    cmp::Ordering,
-    collections::HashMap,
-    fmt,
-    fmt::{Display, Formatter},
-    hash::{Hash, Hasher},
-    sync::Arc,
+    cmp::Ordering, collections::HashMap, default, fmt::{self, Display, Formatter}, hash::{Hash, Hasher}, sync::Arc
 };
 
 #[cfg(test)]
@@ -51,16 +46,17 @@ pub mod utils;
 
 pub use raphtory_api::core::*;
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Hash)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Hash, Default)]
 pub enum Lifespan {
     Interval { start: i64, end: i64 },
     Event { time: i64 },
+    #[default]
     Inherited,
 }
 
 /// struct containing all the necessary information to allow Raphtory creating a document and
 /// storing it
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Hash)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Hash, Default)]
 pub struct DocumentInput {
     pub content: String,
     pub life: Lifespan,
