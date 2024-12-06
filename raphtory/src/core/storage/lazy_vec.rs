@@ -52,19 +52,15 @@ impl<T: Default> MaskedCol<T> {
     }
 
     pub fn get(&self, index: usize) -> Option<&T> {
-        if self.mask[index] {
-            Some(&self.ts[index])
-        } else {
-            None
-        }
+        self.mask
+            .get(index)
+            .and_then(|&is_some| (is_some).then(|| &self.ts[index]))
     }
 
     pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
-        if self.mask[index] {
-            Some(&mut self.ts[index])
-        } else {
-            None
-        }
+        self.mask
+            .get(index)
+            .and_then(|&is_some| (is_some).then(|| &mut self.ts[index]))
     }
 
     pub fn len(&self) -> usize {
