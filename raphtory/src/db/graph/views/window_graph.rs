@@ -365,6 +365,20 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
         self.graph.node_property_history(v, Some(range))
     }
 
+    fn node_history_rows(
+        &self,
+        v: VID,
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<(TimeIndexEntry, Vec<Option<Prop>>)> {
+        if self.window_is_empty() {
+            return Box::new(std::iter::empty());
+        }
+        let range = w
+            .map(|r| r.start..r.end)
+            .unwrap_or_else(|| self.start_bound()..self.end_bound());
+        self.graph.node_history_rows(v, Some(range))
+    }
+
     fn edge_history<'a>(
         &'a self,
         e: EdgeRef,

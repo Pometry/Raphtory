@@ -153,6 +153,25 @@ impl TimeSemantics for GraphStorage {
         .into_dyn_boxed()
     }
 
+    fn node_history_rows<'a>(
+        &'a self,
+        v: VID,
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<'a, (TimeIndexEntry, Vec<Option<Prop>>)> {
+        let node = self.node_entry(v);
+        let prop_ids = 0..self.node_meta().temporal_prop_meta().len();
+        GenLockedIter::from(node, |node| match w {
+            Some(range) => {
+                let range = TimeIndexEntry::range(range);
+                node.as_ref()
+                    .temp_prop_rows_window(prop_ids, range)
+                    .into_dyn_boxed()
+            }
+            None => node.as_ref().temp_prop_rows(prop_ids).into_dyn_boxed(),
+        })
+        .into_dyn_boxed()
+    }
+
     fn edge_history<'a>(
         &'a self,
         e: EdgeRef,

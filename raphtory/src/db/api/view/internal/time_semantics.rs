@@ -54,24 +54,23 @@ pub trait TimeSemantics {
     ) -> bool;
 
     /// Get the timestamps at which a node `v` is active (i.e has an edge addition, or a property change)
-    fn node_history<'a>(&'a self, v: VID) -> BoxedLIter<'a, TimeIndexEntry>;
+    fn node_history(&self, v: VID) -> BoxedLIter<TimeIndexEntry>;
 
     /// Get the timestamps at which a node `v` is active in window `w` (i.e has an edge addition)
-    fn node_history_window<'a>(&'a self, v: VID, w: Range<i64>) -> BoxedLIter<'a, TimeIndexEntry>;
+    fn node_history_window(&self, v: VID, w: Range<i64>) -> BoxedLIter<TimeIndexEntry>;
 
     /// Get the timestamps associated with properties or node events only (Excluding edge events)
-    fn node_property_history<'a>(
-        &'a self,
-        v: VID,
-        w: Option<Range<i64>>,
-    ) -> BoxedLIter<'a, TimeIndexEntry>;
+    fn node_property_history(&self, v: VID, w: Option<Range<i64>>) -> BoxedLIter<TimeIndexEntry>;
 
     /// Get the timestamps associated with edge events only (Excluding node or property events)
-    fn node_edge_history<'a>(
-        &'a self,
+    fn node_edge_history(&self, v: VID, w: Option<Range<i64>>)
+        -> BoxedLIter<(TimeIndexEntry, EID)>;
+
+    fn node_history_rows(
+        &self,
         v: VID,
         w: Option<Range<i64>>,
-    ) -> BoxedLIter<'a, (TimeIndexEntry, EID)>;
+    ) -> BoxedLIter<(TimeIndexEntry, Vec<Option<Prop>>)>;
 
     fn edge_history<'a>(
         &'a self,
@@ -668,21 +667,23 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         self.graph().temporal_edge_prop_hist(e, prop_id, layer_ids)
     }
 
-    #[doc = " Get the timestamps associated with properties or node events only (Excluding edge events)"]
-    fn node_property_history<'a>(
-        &'a self,
-        v: VID,
-        w: Option<Range<i64>>,
-    ) -> BoxedLIter<'a, TimeIndexEntry> {
+    fn node_property_history(&self, v: VID, w: Option<Range<i64>>) -> BoxedLIter<TimeIndexEntry> {
         self.graph().node_property_history(v, w)
     }
 
-    #[doc = " Get the timestamps associated with edge events only (Excluding node or property events)"]
-    fn node_edge_history<'a>(
-        &'a self,
+    fn node_edge_history(
+        &self,
         v: VID,
         w: Option<Range<i64>>,
-    ) -> BoxedLIter<'a, (TimeIndexEntry, EID)> {
+    ) -> BoxedLIter<(TimeIndexEntry, EID)> {
         self.graph().node_edge_history(v, w)
+    }
+
+    fn node_history_rows(
+        &self,
+        v: VID,
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<(TimeIndexEntry, Vec<Option<Prop>>)> {
+        self.graph().node_history_rows(v, w)
     }
 }

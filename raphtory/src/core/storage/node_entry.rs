@@ -37,10 +37,10 @@ impl<'a> NodeEntry<'a> {
     }
 
     pub fn t_prop(self, prop_id: usize) -> TPropCell<'a> {
-        self.t_props_log
-            .get(prop_id)
-            .map(|t_prop| TPropCell::new(&self.node.timestamps().props_ts, t_prop))
-            .unwrap_or(TPropCell::empty())
+        TPropCell::new(
+            &self.node.timestamps().props_ts,
+            self.t_props_log.get(prop_id),
+        )
     }
 
     pub fn temporal_prop_ids(self) -> impl Iterator<Item = usize> + 'a {

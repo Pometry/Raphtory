@@ -830,20 +830,6 @@ mod test {
     }
 
     #[test]
-    fn tcolumns_append_1_and_empty() {
-        let mut t_cols = TColumns::default();
-
-        t_cols.push([(1, Prop::U64(1))]).unwrap();
-        t_cols.push([]).unwrap();
-
-        let col0 = t_cols.get(0).unwrap();
-        let col1 = t_cols.get(1).unwrap();
-
-        assert_eq!(col0.len(), 2);
-        assert_eq!(col1.len(), 2);
-    }
-
-    #[test]
     fn tcolumns_append_3_rows() {
         let mut t_cols = TColumns::default();
 

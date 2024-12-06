@@ -8,7 +8,7 @@ use crate::{
         api::{
             mutation::internal::InternalAdditionOps,
             properties::{
-                internal::{ConstPropertiesOps, TemporalPropertiesOps},
+                internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
                 Properties,
             },
             storage::graph::{
@@ -246,6 +246,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                             new_node.get_mut().update_time(t, eid);
                         }
 
+                        let a = node.history();
                         let node_entry = self.core_node_entry(node.node);
 
                         let props = 0..self.node_meta().temporal_prop_meta().len();

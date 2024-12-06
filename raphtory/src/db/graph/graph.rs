@@ -417,17 +417,17 @@ mod db_tests {
         algorithms::components::weakly_connected_components,
         core::{
             utils::{
-                errors::{
-                    GraphError,
-                    GraphError::{EdgeExistsError, NodeExistsError, NodesExistError},
-                },
+                errors::GraphError::{self, EdgeExistsError, NodeExistsError, NodesExistError},
                 time::{error::ParseTimeError, TryIntoTime},
             },
             Prop,
         },
         db::{
             api::{
-                properties::internal::ConstPropertiesOps,
+                properties::internal::{ConstPropertiesOps, TemporalPropertiesRowView},
+                storage::graph::{
+                    nodes::node_storage_ops::NodeStorageOps, tprop_storage_ops::SparseTPropOps,
+                },
                 view::{
                     internal::{CoreGraphOps, EdgeFilterOps, TimeSemantics},
                     time::internal::InternalTimeOps,
@@ -1452,7 +1452,7 @@ mod db_tests {
             .temp_prop_rows(0..2)
             .collect::<Vec<_>>();
 
-        let expected = vec![
+        let mut expected = vec![
             (
                 TimeIndexEntry::new(0, 0),
                 vec![Some(Prop::Bool(true)), None],
@@ -1466,6 +1466,8 @@ mod db_tests {
         assert_eq!(actual, expected);
 
         graph.add_node(2, 1, NO_PROPS, None).unwrap();
+        // edge additions should not show up in prop rows
+        graph.add_edge(2, 1, 1, NO_PROPS, None).unwrap();
 
         let actual = graph
             .core_graph()
@@ -1473,6 +1475,8 @@ mod db_tests {
             .node(VID(0))
             .temp_prop_rows(0..2)
             .collect::<Vec<_>>();
+
+        expected.push((TimeIndexEntry::new(2, 3), vec![None, None]));
 
         assert_eq!(actual, expected);
     }
@@ -1994,6 +1998,86 @@ mod db_tests {
                 .collect();
             assert_eq!(res_list, vec![2, 2]);
         });
+    }
+
+    #[test]
+    fn node_history_rows_no_props() {
+        let g = Graph::new();
+        let g_a = g.add_node(0, "A", NO_PROPS, None).unwrap();
+        let _ = g
+            .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
+            .unwrap();
+
+        let nodes = g.core_graph().nodes();
+        let node = nodes.node(VID(0));
+
+        let col_prop = node.tprop(0).iter_all().collect::<Vec<_>>();
+        assert_eq!(col_prop, vec![(TimeIndexEntry::new(0, 0), None)]);
+
+        let props = node.temp_prop_rows(0..1).collect::<Vec<_>>();
+        assert_eq!(props, vec![(TimeIndexEntry::new(0, 0), vec![None])]);
+
+        let actual = g_a.rows().collect::<Vec<_>>();
+        let expected = vec![(TimeIndexEntry::new(0, 0), vec![None])];
+        assert_eq!(actual, expected);
+    }
+    #[test]
+    fn node_history_rows() {
+        let graph = Graph::new();
+        graph
+            .add_node(1, 2, [("cool".to_string(), Prop::U64(1))], None)
+            .unwrap();
+        graph
+            .add_node(0, 1, [("cool".to_string(), 1u64)], None)
+            .unwrap();
+        graph
+            .add_node(
+                1,
+                1,
+                [
+                    ("coolio".to_string(), Prop::Bool(true)),
+                    ("bla".to_string(), Prop::I64(2)),
+                ],
+                None,
+            )
+            .unwrap();
+        graph.add_node(2, 1, NO_PROPS, None).unwrap();
+        graph
+            .add_node(1, 1, [("cool".to_string(), 3u64)], None)
+            .unwrap();
+
+        let node = graph.node(1).unwrap();
+
+        let actual = node.rows().collect::<Vec<_>>();
+
+        let expected = vec![
+            (
+                TimeIndexEntry::new(0, 1),
+                vec![Some(Prop::U64(1)), None, None],
+            ),
+            (
+                TimeIndexEntry::new(1, 2),
+                vec![None, Some(Prop::Bool(true)), Some(Prop::I64(2))],
+            ),
+            (
+                TimeIndexEntry::new(1, 4),
+                vec![Some(Prop::U64(3)), None, None],
+            ),
+            (TimeIndexEntry::new(2, 3), vec![None, None, None]),
+        ];
+
+        assert_eq!(actual, expected);
+
+        let node = graph.node(2).unwrap();
+
+        let actual = node.rows().collect::<Vec<_>>();
+
+        let expected = vec![(
+            TimeIndexEntry::new(1, 0),
+            vec![Some(Prop::U64(1)), None, None],
+        )];
+
+        assert_eq!(actual, expected);
     }
 
     #[test]

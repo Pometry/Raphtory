@@ -46,17 +46,10 @@ pub struct TPropCell<'a> {
 }
 
 impl<'a> TPropCell<'a> {
-    pub(crate) fn new(t_cell: &'a TCell<Option<usize>>, log: &'a TPropColumn) -> Self {
+    pub(crate) fn new(t_cell: &'a TCell<Option<usize>>, log: Option<&'a TPropColumn>) -> Self {
         Self {
             t_cell: Some(t_cell),
-            log: Some(log),
-        }
-    }
-
-    pub(crate) fn empty() -> Self {
-        Self {
-            t_cell: None,
-            log: None,
+            log,
         }
     }
 }
@@ -514,7 +507,7 @@ mod tprop_tests {
         let col = TPropColumn::Bool(LazyVec::from(0, true));
         assert_eq!(col.get(0), Some(Prop::Bool(true)));
 
-        let t_prop = TPropCell::new(&TCell::TCell1(TimeIndexEntry(0, 0), Some(0)), &col);
+        let t_prop = TPropCell::new(&TCell::TCell1(TimeIndexEntry(0, 0), Some(0)), Some(&col));
 
         let actual = t_prop.iter().collect::<Vec<_>>();
 

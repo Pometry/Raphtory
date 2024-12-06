@@ -230,6 +230,14 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for ExplodedEdgePropertyFilt
         self.graph.node_edge_history(v, w)
     }
 
+    fn node_history_rows(
+        &self,
+        v: VID,
+        w: Option<Range<i64>>,
+    ) -> BoxedLIter<(TimeIndexEntry, Vec<Option<Prop>>)> {
+        self.graph.node_history_rows(v, w)
+    }
+
     fn node_property_history<'a>(
         &'a self,
         v: VID,
