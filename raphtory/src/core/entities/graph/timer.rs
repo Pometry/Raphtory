@@ -44,6 +44,7 @@ impl TimeCounterTrait for MinCounter {
         &self.counter
     }
 
+    #[inline]
     fn get(&self) -> i64 {
         self.counter.load(Ordering::Relaxed)
     }
@@ -70,6 +71,7 @@ impl TimeCounterTrait for MaxCounter {
         &self.counter
     }
 
+    #[inline]
     fn get(&self) -> i64 {
         self.counter.load(Ordering::Relaxed)
     }

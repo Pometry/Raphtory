@@ -45,6 +45,7 @@ impl TimeSemantics for GraphStorage {
         None
     }
 
+    #[inline]
     fn earliest_time_global(&self) -> Option<i64> {
         match self {
             GraphStorage::Mem(storage) => storage.graph.graph_earliest_time(),
@@ -54,6 +55,7 @@ impl TimeSemantics for GraphStorage {
         }
     }
 
+    #[inline]
     fn latest_time_global(&self) -> Option<i64> {
         match self {
             GraphStorage::Mem(storage) => storage.graph.graph_latest_time(),

@@ -195,10 +195,12 @@ impl TemporalGraph {
         self.edge_meta.get_layer_name_by_id(layer)
     }
 
+    #[inline]
     pub(crate) fn graph_earliest_time(&self) -> Option<i64> {
         Some(self.earliest_time.get()).filter(|t| *t != i64::MAX)
     }
 
+    #[inline]
     pub(crate) fn graph_latest_time(&self) -> Option<i64> {
         Some(self.latest_time.get()).filter(|t| *t != i64::MIN)
     }

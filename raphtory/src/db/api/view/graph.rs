@@ -408,10 +408,12 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         self.get_layer_names_from_ids(self.layer_ids())
     }
 
+    #[inline]
     fn earliest_time(&self) -> Option<i64> {
         self.earliest_time_global()
     }
 
+    #[inline]
     fn latest_time(&self) -> Option<i64> {
         self.latest_time_global()
     }
