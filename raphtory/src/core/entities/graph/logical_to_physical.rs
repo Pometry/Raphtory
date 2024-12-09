@@ -130,11 +130,13 @@ impl Mapping {
         })
     }
 
+    #[inline]
     pub fn get_str(&self, gid: &str) -> Option<VID> {
         let map = self.map.get()?;
         map.as_str().and_then(|m| m.get(gid).map(|id| *id))
     }
 
+    #[inline]
     pub fn get_u64(&self, gid: u64) -> Option<VID> {
         let map = self.map.get()?;
         map.as_u64().and_then(|m| m.get(&gid).map(|id| *id))

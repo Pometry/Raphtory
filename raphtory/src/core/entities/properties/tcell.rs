@@ -20,6 +20,7 @@ impl<A: PartialEq> TCell<A> {
         TCell::TCell1(t, value)
     }
 
+    #[inline]
     pub fn set(&mut self, t: TimeIndexEntry, value: A) {
         match self {
             TCell::Empty => {

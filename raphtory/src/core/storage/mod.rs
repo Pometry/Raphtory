@@ -411,6 +411,7 @@ where
         &bucket[offset]
     }
 
+    #[inline]
     pub(crate) fn arc_entry(&self, index: Index) -> ArcEntry {
         let (bucket, offset) = self.resolve(index);
         ArcEntry {
@@ -419,6 +420,7 @@ where
         }
     }
 
+    #[inline]
     pub(crate) fn get_entry(&self, index: Index) -> NodeEntry {
         let (bucket, offset) = self.resolve(index);
         let bucket = &self.locks[bucket];

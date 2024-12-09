@@ -400,6 +400,7 @@ impl TemporalGraph {
         }
     }
 
+    #[inline]
     pub(crate) fn resolve_node_ref(&self, v: NodeRef) -> Option<VID> {
         match v {
             NodeRef::Internal(vid) => Some(vid),

@@ -15,6 +15,7 @@ pub enum NodesStorage {
 }
 
 impl NodesStorage {
+    #[inline]
     pub fn as_ref(&self) -> NodesStorageEntry {
         match self {
             NodesStorage::Mem(storage) => NodesStorageEntry::Mem(storage),
@@ -23,6 +24,7 @@ impl NodesStorage {
         }
     }
 
+    #[inline]
     pub fn node_entry(&self, vid: VID) -> NodeStorageRef {
         match self {
             NodesStorage::Mem(storage) => NodeStorageRef::Mem(storage.get_entry(vid)),

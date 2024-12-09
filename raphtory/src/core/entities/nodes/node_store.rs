@@ -81,6 +81,7 @@ impl NodeStore {
         &self.timestamps
     }
 
+    #[inline]
     pub fn update_time(&mut self, t: TimeIndexEntry, eid: EID) {
         self.timestamps.edge_ts.set(t, eid);
     }
