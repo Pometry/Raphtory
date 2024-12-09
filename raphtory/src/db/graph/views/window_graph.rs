@@ -114,14 +114,17 @@ impl<'graph, G: GraphViewOps<'graph>> Base for WindowedGraph<G> {
 }
 
 impl<G> WindowedGraph<G> {
+    #[inline(always)]
     fn start_bound(&self) -> i64 {
         self.start.unwrap_or(i64::MIN)
     }
 
+    #[inline(always)]
     fn end_bound(&self) -> i64 {
         self.end.unwrap_or(i64::MAX)
     }
 
+    #[inline(always)]
     fn window_is_empty(&self) -> bool {
         self.start_bound() >= self.end_bound()
     }
