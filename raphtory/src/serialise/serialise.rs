@@ -174,11 +174,9 @@ impl StableEncode for GraphStorage {
             let node = nodes.node(VID(node_id));
             graph.new_node(node.id(), node.vid(), node.node_type_id());
 
+
             for (time, row) in node.temp_prop_rows(0..self.node_meta().temporal_prop_meta().len()) {
-                let properties = row.into_iter().enumerate()
-                    .map(|(id, prop)| prop.map(|v| (id, v)))
-                    .flatten();
-                graph.update_node_tprops(node.vid(), time, properties);
+                graph.update_node_tprops(node.vid(), time, row.into_iter().filter_map(|(id, prop)| Some((id, prop?))));
 
             }
 

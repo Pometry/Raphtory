@@ -337,6 +337,7 @@ impl TimeIndexOps for NodeTimestamps {
     where
         Self: 'b;
 
+    #[inline]
     fn active(&self, w: Range<Self::IndexType>) -> bool {
         self.edge_ts.active(w.clone()) || self.props_ts.active(w)
     }

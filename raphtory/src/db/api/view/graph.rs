@@ -269,11 +269,9 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                         };
 
                         for (time, row) in rows {
-                            let prop_iter = row
-                                .into_iter()
-                                .zip(props.clone())
-                                .filter_map(|(prop, prop_id)| prop.map(|prop| (prop_id, prop)));
-                            let prop_offset = new_node.t_props_log_mut().push(prop_iter)?;
+                            let prop_offset = new_node
+                                .t_props_log_mut()
+                                .push(row.into_iter().filter_map(|(id, prop)| Some((id, prop?))))?;
                             new_node.get_mut().update_t_prop_time(time, prop_offset);
                         }
 

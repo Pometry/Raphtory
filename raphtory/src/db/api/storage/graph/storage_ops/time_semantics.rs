@@ -11,7 +11,10 @@ use super::GraphStorage;
 use crate::{
     core::{
         entities::LayerIds,
-        storage::timeindex::{TimeIndexIntoOps, TimeIndexOps},
+        storage::{
+            node_entry::Row,
+            timeindex::{TimeIndexIntoOps, TimeIndexOps},
+        },
         utils::iter::GenLockedIter,
     },
     db::api::{
@@ -87,6 +90,7 @@ impl TimeSemantics for GraphStorage {
         self.node_entry(v).additions().range_t(start..end).last_t()
     }
 
+    #[inline]
     fn include_node_window(&self, v: NodeStorageRef, w: Range<i64>, _layer_ids: &LayerIds) -> bool {
         v.additions().active_t(w)
     }
@@ -167,9 +171,14 @@ impl TimeSemantics for GraphStorage {
                 let range = TimeIndexEntry::range(range);
                 node.as_ref()
                     .temp_prop_rows_window(prop_ids, range)
+                    .map(|(t, row)| (t, row.into_iter().map(|(_, p)| p).collect()))
                     .into_dyn_boxed()
             }
-            None => node.as_ref().temp_prop_rows(prop_ids).into_dyn_boxed(),
+            None => node
+                .as_ref()
+                .temp_prop_rows(prop_ids)
+                .map(|(t, row)| (t, row.into_iter().map(|(_, p)| p).collect()))
+                .into_dyn_boxed(),
         })
         .into_dyn_boxed()
     }

@@ -13,6 +13,8 @@ pub enum TCell<A> {
     TCellN(BTreeMap<TimeIndexEntry, A>),
 }
 
+type TCell2<A> = BTreeMap<i64, Vec<(usize, A)>>;
+
 const BTREE_CUTOFF: usize = 128;
 
 impl<A: PartialEq> TCell<A> {
@@ -191,6 +193,7 @@ impl<A: Send + Sync> TimeIndexOps for TCell<A> {
     where
         Self: 'a;
 
+    #[inline]
     fn active(&self, w: Range<Self::IndexType>) -> bool {
         match self {
             TCell::Empty => false,

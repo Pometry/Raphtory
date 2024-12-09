@@ -1,8 +1,7 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, ops::Range};
 
 use raphtory_api::core::{
-    entities::{edges::edge_ref::EdgeRef, GidRef, VID},
-    Direction,
+    entities::{edges::edge_ref::EdgeRef, GidRef, VID}, storage::timeindex::{TimeIndexEntry, TimeIndexOps}, Direction
 };
 
 use crate::{
@@ -51,6 +50,49 @@ impl<'a> NodeEntry<'a> {
             .iter()
             .enumerate()
             .filter_map(|(id, col)| (!col.is_empty()).then(|| id))
+    }
+
+    pub fn into_rows(self) -> impl Iterator<Item = (TimeIndexEntry, Row<'a>)> {
+        self.node.timestamps().props_ts.iter().filter_map(move |(t, &row) | {
+            let row = Row {
+                cols: self.t_props_log,
+                row: row?,
+            };
+            Some((*t, row))
+        })
+    }
+
+    pub fn into_rows_window(self, w: Range<TimeIndexEntry>) -> impl Iterator<Item = (TimeIndexEntry, Row<'a>)> {
+        let tcell = &self.node.timestamps().props_ts;
+        tcell.range(w).iter_values().filter_map(move |(t, row)| {
+            let row = Row {
+                cols: self.t_props_log,
+                row: row?,
+            
+            };
+            Some((t, row))
+        })
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct Row<'a> {
+    cols: &'a TColumns,
+    row: usize,
+}
+
+impl<'a> IntoIterator for Row<'a> {
+    type Item = (usize, Option<Prop>);
+
+    type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Box::new(
+            self.cols
+                .iter()
+                .enumerate()
+                .map(move |(i, col)| (i, col.get(self.row))),
+        )
     }
 }
 

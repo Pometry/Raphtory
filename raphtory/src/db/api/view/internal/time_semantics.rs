@@ -1,7 +1,6 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
-        Prop,
+        entities::{edges::edge_ref::EdgeRef, LayerIds, VID}, storage::node_entry::Row, Prop
     },
     db::api::{
         storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},

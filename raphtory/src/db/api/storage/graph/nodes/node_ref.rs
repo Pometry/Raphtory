@@ -1,7 +1,7 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
-        storage::node_entry::NodeEntry,
+        storage::{node_entry::{NodeEntry, Row}, TColumns},
         Direction,
     },
     db::api::{
@@ -28,47 +28,46 @@ pub enum NodeStorageRef<'a> {
     Disk(DiskNode<'a>),
 }
 
-#[derive(Debug)]
-struct RowIter<T, A, I: Iterator<Item = (T, Option<A>)>> {
-    cols: Vec<I>,
-    done: bool,
-}
 
-impl<T, A, I: Iterator<Item = (T, Option<A>)>> Iterator for RowIter<T, A, I> {
-    type Item = (T, Vec<Option<A>>);
+// #[derive(Debug)]
+// struct RowIter<T, A, I: Iterator<Item = (T, Option<A>)>> {
+//     cols: Vec<I>,
+//     done: bool,
+// }
 
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.done {
-            return None;
-        }
-        let mut row = vec![];
-        let mut time: Option<T> = None;
-        self.done = true;
-        for iter in &mut self.cols {
-            let prop = iter.next();
-            if let Some((t, prop)) = prop {
-                self.done = false;
-                time = Some(t);
-                row.push(prop);
-            } else {
-                row.push(None);
-            }
-        }
-        time.map(|t| (t, row))
-    }
-}
+// impl<T, A, I: Iterator<Item = (T, Option<A>)>> Iterator for RowIter<T, A, I> {
+//     type Item = (T, Vec<Option<A>>);
+
+//     fn next(&mut self) -> Option<Self::Item> {
+//         if self.done {
+//             return None;
+//         }
+//         let mut row = vec![];
+//         let mut time: Option<T> = None;
+//         self.done = true;
+//         for iter in &mut self.cols {
+//             let prop = iter.next();
+//             if let Some((t, prop)) = prop {
+//                 self.done = false;
+//                 time = Some(t);
+//                 row.push(prop);
+//             } else {
+//                 row.push(None);
+//             }
+//         }
+//         time.map(|t| (t, row))
+//     }
+// }
 
 impl<'a> NodeStorageRef<'a> {
     pub fn temp_prop_rows(
         self,
         prop_ids: Range<usize>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, Vec<Option<Prop>>)> + 'a {
-        let prop_ids = (prop_ids.start, prop_ids.end);
-        RowIter {
-            cols: (prop_ids.0..prop_ids.1)
-                .map(move |id| self.tprop(id).iter_all())
-                .collect(),
-            done: false,
+    ) -> impl Iterator<Item = (TimeIndexEntry, Row<'a>)> + 'a {
+        match self {
+            NodeStorageRef::Mem(node_entry) => node_entry.into_rows(),
+            #[cfg(feature = "storage")]
+            NodeStorageRef::Disk(disk_node) => todo!(),
         }
     }
 
@@ -76,13 +75,11 @@ impl<'a> NodeStorageRef<'a> {
         self,
         prop_ids: Range<usize>,
         window: Range<TimeIndexEntry>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, Vec<Option<Prop>>)> + 'a {
-        let prop_ids = (prop_ids.start, prop_ids.end);
-        RowIter {
-            cols: (prop_ids.0..prop_ids.1)
-                .map(move |id| self.tprop(id).iter_window_all(window.clone()))
-                .collect(),
-            done: false,
+    ) -> impl Iterator<Item = (TimeIndexEntry, Row<'a>)> + 'a {
+        match self {
+            NodeStorageRef::Mem(node_entry) => node_entry.into_rows_window(window),
+            #[cfg(feature = "storage")]
+            NodeStorageRef::Disk(disk_node) => todo!(),
         }
     }
 }

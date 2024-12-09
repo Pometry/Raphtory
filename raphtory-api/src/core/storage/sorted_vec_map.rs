@@ -45,6 +45,7 @@ impl<K: Ord, V> SVM<K, V> {
         self.0.len()
     }
 
+    #[inline]
     pub fn range(&self, range: Range<K>) -> impl DoubleEndedIterator<Item = (&K, &V)> {
         self.0.range(range)
     }

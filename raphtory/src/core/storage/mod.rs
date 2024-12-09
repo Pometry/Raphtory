@@ -120,6 +120,10 @@ impl TColumns {
     pub fn len(&self) -> usize {
         self.num_rows
     }
+
+    pub(crate) fn iter(&self) -> impl Iterator<Item = &TPropColumn> {
+        self.t_props_log.iter()
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
