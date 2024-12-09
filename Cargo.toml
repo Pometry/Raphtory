@@ -2,7 +2,7 @@
 members = [
     "raphtory",
     # "raphtory-cypher",
-    # "raphtory-benchmark",
+    "raphtory-benchmark",
     # "pometry-storage",
     # "examples/rust",
     # "examples/netflow",
