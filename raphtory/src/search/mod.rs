@@ -44,8 +44,8 @@ use std::{collections::HashMap, iter, ops::Deref, sync::Arc};
 use tantivy::{
     collector::TopDocs,
     schema::{
-        Field, JsonObjectOptions, Schema, SchemaBuilder, TextFieldIndexing, Value, FAST, INDEXED,
-        STORED, TEXT,
+        Field, IndexRecordOption, JsonObjectOptions, Schema, SchemaBuilder, TextFieldIndexing,
+        TextOptions, Value, FAST, INDEXED, STORED, TEXT,
     },
     tokenizer::{LowerCaser, SimpleTokenizer, TextAnalyzer},
     Document, Index, IndexReader, IndexSettings, IndexWriter, TantivyDocument, TantivyError,
@@ -117,31 +117,41 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         schema.add_i64_field(fields::TIME, INDEXED | STORED);
         schema.add_u64_field(fields::VERTEX_ID, FAST | STORED);
         schema.add_u64_field(fields::VERTEX_ID_REV, FAST | STORED);
-        schema.add_text_field(fields::NAME, TEXT);
-        schema.add_text_field(fields::NODE_TYPE, TEXT);
-        schema.add_json_field(
-            fields::CONSTANT_PROPERTIES,
-            JsonObjectOptions::default()
-                .set_stored()
+        schema.add_text_field(
+            fields::NAME,
+            TextOptions::default()
                 .set_indexing_options(
                     TextFieldIndexing::default()
                         .set_tokenizer("custom_default")
-                        .set_index_option(
-                            tantivy::schema::IndexRecordOption::WithFreqsAndPositions,
-                        ),
-                ),
+                        .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+                )
+                .set_stored(),
+        );
+        schema.add_text_field(
+            fields::NODE_TYPE,
+            TextOptions::default()
+                .set_indexing_options(
+                    TextFieldIndexing::default()
+                        .set_tokenizer("custom_default")
+                        .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+                )
+                .set_stored(),
+        );
+        schema.add_json_field(
+            fields::CONSTANT_PROPERTIES,
+            JsonObjectOptions::default().set_indexing_options(
+                TextFieldIndexing::default()
+                    .set_tokenizer("custom_default")
+                    .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+            ),
         );
         schema.add_json_field(
             fields::TEMPORAL_PROPERTIES,
-            JsonObjectOptions::default()
-                .set_stored()
-                .set_indexing_options(
-                    TextFieldIndexing::default()
-                        .set_tokenizer("custom_default")
-                        .set_index_option(
-                            tantivy::schema::IndexRecordOption::WithFreqsAndPositions,
-                        ),
-                ),
+            JsonObjectOptions::default().set_indexing_options(
+                TextFieldIndexing::default()
+                    .set_tokenizer("custom_default")
+                    .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+            ),
         );
 
         schema
@@ -151,31 +161,41 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         let mut schema = Schema::builder();
         schema.add_i64_field(fields::TIME, INDEXED | STORED);
         schema.add_u64_field(fields::EDGE_ID, FAST | STORED);
-        schema.add_text_field(fields::SOURCE, TEXT);
-        schema.add_text_field(fields::DESTINATION, TEXT);
-        schema.add_json_field(
-            fields::CONSTANT_PROPERTIES,
-            JsonObjectOptions::default()
-                .set_stored()
+        schema.add_text_field(
+            fields::SOURCE,
+            TextOptions::default()
                 .set_indexing_options(
                     TextFieldIndexing::default()
                         .set_tokenizer("custom_default")
-                        .set_index_option(
-                            tantivy::schema::IndexRecordOption::WithFreqsAndPositions,
-                        ),
-                ),
+                        .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+                )
+                .set_stored(),
+        );
+        schema.add_text_field(
+            fields::DESTINATION,
+            TextOptions::default()
+                .set_indexing_options(
+                    TextFieldIndexing::default()
+                        .set_tokenizer("custom_default")
+                        .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+                )
+                .set_stored(),
+        );
+        schema.add_json_field(
+            fields::CONSTANT_PROPERTIES,
+            JsonObjectOptions::default().set_indexing_options(
+                TextFieldIndexing::default()
+                    .set_tokenizer("custom_default")
+                    .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+            ),
         );
         schema.add_json_field(
             fields::TEMPORAL_PROPERTIES,
-            JsonObjectOptions::default()
-                .set_stored()
-                .set_indexing_options(
-                    TextFieldIndexing::default()
-                        .set_tokenizer("custom_default")
-                        .set_index_option(
-                            tantivy::schema::IndexRecordOption::WithFreqsAndPositions,
-                        ),
-                ),
+            JsonObjectOptions::default().set_indexing_options(
+                TextFieldIndexing::default()
+                    .set_tokenizer("custom_default")
+                    .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+            ),
         );
 
         schema
@@ -195,10 +215,9 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         let constant_properties = binding.iter();
 
         let binding = node.properties().temporal();
-        let temporal_properties =
-            Box::new(binding.iter().flat_map(|(key, values)| {
-                values.into_iter().map(move |(t, v)| (t, key.clone(), v))
-            }));
+        let temporal_properties = binding
+            .iter()
+            .flat_map(|(key, values)| values.into_iter().map(move |(t, v)| (t, key.clone(), v)));
 
         let document = create_node_document(
             node_id,
@@ -256,10 +275,9 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         let constant_properties = binding.iter();
 
         let binding = e_ref.properties().temporal();
-        let temporal_properties =
-            Box::new(binding.iter().flat_map(|(key, values)| {
-                values.into_iter().map(move |(t, v)| (t, key.clone(), v))
-            }));
+        let temporal_properties = binding
+            .iter()
+            .flat_map(|(key, values)| values.into_iter().map(move |(t, v)| (t, key.clone(), v)));
 
         let document = create_edge_document(
             edge_id,
@@ -684,15 +702,10 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
     ) -> Result<MaybeNew<EID>, GraphError> {
         let res = self.graph.internal_add_edge(t, src, dst, props, layer)?;
 
-        let edge_id = self
-            .edge(src, dst)
-            .ok_or(GraphError::EdgeMissingError {
-                src: self.graph.node_id(src),
-                dst: self.graph.node_id(dst),
-            })?
-            .edge
-            .pid()
-            .as_u64();
+        let edge_id = match res {
+            MaybeNew::New(idx) | MaybeNew::Existing(idx) => idx,
+        }
+        .as_u64();
         let src_name = self.graph.node_name(src);
         let dst_name = self.graph.node_name(dst);
 
@@ -731,14 +744,14 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
     }
 }
 
-fn collect_constant_properties(
-    properties: Box<dyn Iterator<Item = (ArcStr, Prop)> + '_>,
+fn collect_constant_properties<'a>(
+    properties: impl Iterator<Item = (ArcStr, Prop)> + 'a,
 ) -> serde_json::Map<String, serde_json::Value> {
     properties.map(|(k, v)| (k.to_string(), v.into())).collect()
 }
 
-fn collect_temporal_properties(
-    properties: Box<dyn Iterator<Item = (i64, ArcStr, Prop)> + '_>,
+fn collect_temporal_properties<'a>(
+    properties: impl Iterator<Item = (i64, ArcStr, Prop)> + 'a,
 ) -> (Vec<i64>, serde_json::Value) {
     let mut temporal_properties_map: HashMap<i64, serde_json::Map<String, serde_json::Value>> =
         HashMap::new();
@@ -753,8 +766,7 @@ fn collect_temporal_properties(
 
     let temporal_properties = temporal_properties_map
         .into_iter()
-        .map(|(t, mut props)| {
-            props.insert("time".to_string(), json!(t));
+        .map(|(t, props)| {
             time.push(t);
             serde_json::Value::Object(props)
         })
@@ -763,13 +775,13 @@ fn collect_temporal_properties(
     (time, serde_json::Value::Array(temporal_properties))
 }
 
-fn create_node_document(
+fn create_node_document<'a>(
     node_id: u64,
     node_id_rev: u64,
     node_name: String,
     node_type: ArcStr,
-    constant_properties: Box<dyn Iterator<Item = (ArcStr, Prop)> + '_>,
-    temporal_properties: Box<dyn Iterator<Item = (i64, ArcStr, Prop)> + '_>,
+    constant_properties: impl Iterator<Item = (ArcStr, Prop)> + 'a,
+    temporal_properties: impl Iterator<Item = (i64, ArcStr, Prop)> + 'a,
     schema: &Schema,
 ) -> tantivy::Result<TantivyDocument> {
     let constant_properties = collect_constant_properties(constant_properties);
@@ -791,12 +803,12 @@ fn create_node_document(
     Ok(document)
 }
 
-fn create_edge_document(
+fn create_edge_document<'a>(
     edge_id: u64,
     src: String,
     dst: String,
-    constant_properties: Box<dyn Iterator<Item = (ArcStr, Prop)> + '_>,
-    temporal_properties: Box<dyn Iterator<Item = (i64, ArcStr, Prop)> + '_>,
+    constant_properties: impl Iterator<Item = (ArcStr, Prop)> + 'a,
+    temporal_properties: impl Iterator<Item = (i64, ArcStr, Prop)> + 'a,
     schema: &Schema,
 ) -> tantivy::Result<TantivyDocument> {
     let constant_properties = collect_constant_properties(constant_properties);
@@ -972,7 +984,7 @@ mod search_tests {
 
         let mut results = ig
             .search_nodes(
-                "temporal_properties.cluster_id:\"0x941900204497226bede1324742eb83af6b0b5eec\"",
+                "temporal_properties.cluster_id:0x941900204497226bede1324742eb83af6b0b5eec",
                 5,
                 0,
             )
@@ -983,9 +995,18 @@ mod search_tests {
         results.sort();
         assert_eq!(results, vec!["0x941900204497226bede1324742eb83af6b0b5eec"]);
 
+        let mut results = ig
+            .search_nodes("name:0x941900204497226bede1324742eb83af6b0b5eec", 5, 0)
+            .expect("failed to search for node")
+            .into_iter()
+            .map(|v| v.name())
+            .collect::<Vec<_>>();
+        results.sort();
+        assert_eq!(results, vec!["0x941900204497226bede1324742eb83af6b0b5eec"]);
+
         let results = ig
             .search_nodes(
-                "node_type:collapsed AND temporal_properties.cluster_id:\"0x941900204497226bede1324742eb83af6b0b5eec\"",
+                "node_type:collapsed AND temporal_properties.cluster_id:0x941900204497226bede1324742eb83af6b0b5eec",
                 5,
                 0,
             )
@@ -997,7 +1018,7 @@ mod search_tests {
 
         let mut results = ig
             .search_nodes(
-                "node_type:collapsed OR temporal_properties.cluster_id:\"0x941900204497226bede1324742eb83af6b0b5eec\"",
+                "node_type:collapsed OR temporal_properties.cluster_id:0x941900204497226bede1324742eb83af6b0b5eec",
                 5,
                 0,
             )
@@ -1022,10 +1043,7 @@ mod search_tests {
             .add_node(
                 1,
                 "Blerg",
-                [
-                    ("age".to_string(), Prop::U64(42)),
-                    ("balance".to_string(), Prop::I64(-1234)),
-                ],
+                [("age", Prop::U64(42)), ("balance", Prop::I64(-1234))],
                 None,
             )
             .expect("failed to add node");
@@ -1070,71 +1088,36 @@ mod search_tests {
     fn create_indexed_graph_from_existing_graph() {
         let graph = Graph::new();
         graph
-            .add_node(
-                1,
-                "Gandalf",
-                [("kind".to_string(), Prop::str("Wizard"))],
-                None,
-            )
+            .add_node(1, "Gandalf", [("kind", Prop::str("Wizard"))], None)
             .expect("add node failed");
         graph
             .add_node(
                 2,
                 "Frodo",
                 [
-                    ("kind".to_string(), Prop::str("Hobbit")),
-                    ("has_ring".to_string(), Prop::str("yes")),
+                    ("kind", Prop::str("Hobbit")),
+                    ("has_ring", Prop::str("yes")),
                 ],
                 None,
             )
             .expect("add node failed");
         graph
-            .add_node(
-                2,
-                "Merry",
-                [("kind".to_string(), Prop::str("Hobbit"))],
-                None,
-            )
+            .add_node(2, "Merry", [("kind", Prop::str("Hobbit"))], None)
             .expect("add node failed");
         graph
-            .add_node(
-                4,
-                "Gollum",
-                [("kind".to_string(), Prop::str("Creature"))],
-                None,
-            )
+            .add_node(4, "Gollum", [("kind", Prop::str("Creature"))], None)
             .expect("add node failed");
         graph
-            .add_node(
-                9,
-                "Gollum",
-                [("has_ring".to_string(), Prop::str("yes"))],
-                None,
-            )
+            .add_node(9, "Gollum", [("has_ring", Prop::str("yes"))], None)
             .expect("add node failed");
         graph
-            .add_node(
-                9,
-                "Frodo",
-                [("has_ring".to_string(), Prop::str("no"))],
-                None,
-            )
+            .add_node(9, "Frodo", [("has_ring", Prop::str("no"))], None)
             .expect("add node failed");
         graph
-            .add_node(
-                10,
-                "Frodo",
-                [("has_ring".to_string(), Prop::str("yes"))],
-                None,
-            )
+            .add_node(10, "Frodo", [("has_ring", Prop::str("yes"))], None)
             .expect("add node failed");
         graph
-            .add_node(
-                10,
-                "Gollum",
-                [("has_ring".to_string(), Prop::str("no"))],
-                None,
-            )
+            .add_node(10, "Gollum", [("has_ring", Prop::str("no"))], None)
             .expect("add node failed");
 
         let indexed_graph: IndexedGraph<Graph> =
@@ -1197,20 +1180,10 @@ mod search_tests {
     fn add_node_search_by_description() {
         let graph = IndexedGraph::new(Graph::new());
         graph
-            .add_node(
-                1,
-                "Bilbo",
-                [("description".to_string(), Prop::str("A hobbit"))],
-                None,
-            )
+            .add_node(1, "Bilbo", [("description", Prop::str("A hobbit"))], None)
             .expect("add node failed");
         graph
-            .add_node(
-                2,
-                "Gandalf",
-                [("description".to_string(), Prop::str("A wizard"))],
-                None,
-            )
+            .add_node(2, "Gandalf", [("description", Prop::str("A wizard"))], None)
             .expect("add node failed");
 
         graph.reload().expect("reload failed");
@@ -1278,7 +1251,7 @@ mod search_tests {
             .add_node(
                 1,
                 "Gandalf",
-                [("description".to_string(), Prop::str("The wizard"))],
+                [("description", Prop::str("The wizard"))],
                 None,
             )
             .expect("add node failed");
@@ -1286,7 +1259,7 @@ mod search_tests {
             .add_node(
                 2,
                 "Saruman",
-                [("description".to_string(), Prop::str("Another wizard"))],
+                [("description", Prop::str("Another wizard"))],
                 None,
             )
             .expect("add node failed");
@@ -1342,18 +1315,12 @@ mod search_tests {
             1,
             "Frodo",
             "Gandalf",
-            [("type".to_string(), Prop::str("friends"))],
+            [("type", Prop::str("friends"))],
             None,
         )
         .expect("add edge failed");
-        g.add_edge(
-            1,
-            "Frodo",
-            "Gollum",
-            [("type".to_string(), Prop::str("enemies"))],
-            None,
-        )
-        .expect("add edge failed");
+        g.add_edge(1, "Frodo", "Gollum", [("type", Prop::str("enemies"))], None)
+            .expect("add edge failed");
 
         g.reload().unwrap();
 
@@ -1393,18 +1360,12 @@ mod search_tests {
             1,
             "Frodo",
             "Gandalf",
-            [("type".to_string(), Prop::str("friends"))],
+            [("type", Prop::str("friends"))],
             None,
         )
         .expect("add edge failed");
-        g.add_edge(
-            1,
-            "Frodo",
-            "Gollum",
-            [("type".to_string(), Prop::str("enemies"))],
-            None,
-        )
-        .expect("add edge failed");
+        g.add_edge(1, "Frodo", "Gollum", [("type", Prop::str("enemies"))], None)
+            .expect("add edge failed");
 
         let g: IndexedGraph<Graph> = g.into();
 
