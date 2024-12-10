@@ -39,12 +39,6 @@ impl<T: FloatCore> AsOrd<(OrderedFloat<T>, Vec<String>)> for (T, Vec<String>) {
     }
 }
 
-impl<T: FloatCore + Display> Repr for [T; 2] {
-    fn repr(&self) -> String {
-        format!("[{}, {}]", self[0], self[1])
-    }
-}
-
 impl<T: FloatCore> AsOrd<(OrderedFloat<T>, OrderedFloat<T>)> for (T, T) {
     fn as_ord(&self) -> &(OrderedFloat<T>, OrderedFloat<T>) {
         // Safety: OrderedFloat is #[repr(transparent)] and has no invalid values, i.e. there is no physical difference between OrderedFloat and Float.
@@ -393,10 +387,10 @@ use crate::{
     core::entities::{nodes::node_ref::AsNodeRef, VID},
     db::graph::node::NodeView,
     prelude::GraphViewOps,
-    python::types::repr::Repr,
 };
 use num_traits::float::FloatCore;
 use std::{fmt, fmt::Display};
+// use crate::python::types::repr::Repr;
 
 impl<'graph, G: GraphViewOps<'graph>, V: fmt::Debug, O> fmt::Display for AlgorithmResult<G, V, O> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
