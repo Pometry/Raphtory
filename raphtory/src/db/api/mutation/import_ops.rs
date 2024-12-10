@@ -1,12 +1,9 @@
-use raphtory_api::core::entities::{GID, VID};
+use raphtory_api::core::entities::GID;
 use std::{borrow::Borrow, fmt::Debug};
 
 use crate::{
     core::{
-        entities::{
-            nodes::node_ref::{AsNodeRef, NodeRef},
-            LayerIds,
-        },
+        entities::{nodes::node_ref::AsNodeRef, LayerIds},
         utils::errors::{
             GraphError,
             GraphError::{EdgeExistsError, NodeExistsError},

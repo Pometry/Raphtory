@@ -28,20 +28,20 @@ impl Default for KCoreState {
 ///
 /// # Arguments
 ///
-/// * `g` - A reference to the graph
-/// * `k` - Value of k such that the returned nodes have degree > k (recursively)
-/// * `iter_count` - The number of iterations to run
-/// * `threads` - number of threads to run on
+/// - `g` - A reference to the graph
+/// - `k` - Value of k such that the returned nodes have degree > k (recursively)
+/// - `iter_count` - The number of iterations to run
+/// - `threads` - number of threads to run on
 ///
-/// Returns:
+/// # Returns
 ///
 /// A hash set of nodes in the k core
 ///
-pub fn k_core_set<G>(graph: &G, k: usize, iter_count: usize, threads: Option<usize>) -> HashSet<VID>
+pub fn k_core_set<G>(g: &G, k: usize, iter_count: usize, threads: Option<usize>) -> HashSet<VID>
 where
     G: StaticGraphViewOps,
 {
-    let ctx: Context<G, ComputeStateVec> = graph.into();
+    let ctx: Context<G, ComputeStateVec> = g.into();
 
     let step1 = ATask::new(move |vv| {
         let deg = vv.degree();
@@ -78,8 +78,7 @@ where
         vec![Job::read_only(step2)],
         None,
         |_, _, _, local| {
-            graph
-                .nodes()
+            g.nodes()
                 .iter()
                 .filter(|node| local[node.node.0].alive)
                 .map(|node| node.node)
@@ -92,12 +91,12 @@ where
     )
 }
 
-pub fn k_core<G>(graph: &G, k: usize, iter_count: usize, threads: Option<usize>) -> NodeSubgraph<G>
+pub fn k_core<G>(g: &G, k: usize, iter_count: usize, threads: Option<usize>) -> NodeSubgraph<G>
 where
     G: StaticGraphViewOps,
 {
-    let v_set = k_core_set(graph, k, iter_count, threads);
-    graph.subgraph(v_set)
+    let v_set = k_core_set(g, k, iter_count, threads);
+    g.subgraph(v_set)
 }
 
 #[cfg(test)]

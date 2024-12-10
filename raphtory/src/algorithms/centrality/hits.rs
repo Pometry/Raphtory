@@ -45,9 +45,15 @@ impl Default for Hits {
 /// HubScore of a node (A) = Sum of AuthScore of all nodes pointing away from node (A) from previous iteration /
 ///     Sum of AuthScore of all nodes in the current iteration
 ///
-/// Returns
+/// # Arguments
 ///
-/// * An AlgorithmResult object containing the mapping from node ID to the hub and authority score of the node
+/// - `g`: A reference to the graph.
+/// - `iter_count` - The number of iterations to run
+/// - `threads` - Number of threads to use
+///
+/// # Returns
+///
+/// An [AlgorithmResult] object containing the mapping from node ID to the hub and authority score of the node
 pub fn hits<G: StaticGraphViewOps>(
     g: &G,
     iter_count: usize,
