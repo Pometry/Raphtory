@@ -338,7 +338,6 @@ impl DiskGraphStorage {
             &[],
             node_properties.as_ref().map(|p| p.as_ref()),
             node_type_col,
-            node_id_col,
         )?;
         Ok(Self::new(t_graph))
     }

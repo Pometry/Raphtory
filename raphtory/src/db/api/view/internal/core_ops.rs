@@ -8,7 +8,7 @@ use crate::{
         },
         storage::{
             locked_view::LockedView,
-            timeindex::{TimeIndex, TimeIndexOps, TimeIndexWindow},
+            timeindex::{TimeIndex, TimeIndexIntoOps, TimeIndexOps, TimeIndexWindow},
         },
         Prop,
     },
