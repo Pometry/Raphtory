@@ -180,7 +180,10 @@ impl DocumentTemplate {
                 let mut env = Environment::new();
                 let template = build_template(&mut env, template);
                 match template.render(GraphTemplateContext::from(graph)) {
-                    Ok(document) => Box::new(std::iter::once(document.into())),
+                    Ok(mut document) => {
+                        truncate(&mut document);
+                        Box::new(std::iter::once(document.into()))
+                    }
                     Err(error) => {
                         error!("Template render failed for a node, skipping: {error}");
                         empty_iter()
@@ -201,7 +204,10 @@ impl DocumentTemplate {
                 let mut env = Environment::new();
                 let template = build_template(&mut env, template);
                 match template.render(NodeTemplateContext::from(node)) {
-                    Ok(document) => Box::new(std::iter::once(document.into())),
+                    Ok(mut document) => {
+                        truncate(&mut document);
+                        Box::new(std::iter::once(document.into()))
+                    }
                     Err(error) => {
                         error!("Template render failed for a node, skipping: {error}");
                         empty_iter()
@@ -222,7 +228,10 @@ impl DocumentTemplate {
                 let mut env = Environment::new();
                 let template = build_template(&mut env, template);
                 match template.render(EdgeTemplateContext::from(edge)) {
-                    Ok(document) => Box::new(std::iter::once(document.into())),
+                    Ok(mut document) => {
+                        truncate(&mut document);
+                        Box::new(std::iter::once(document.into()))
+                    }
                     Err(error) => {
                         error!("Template render failed for an edge, skipping: {error}");
                         empty_iter()
@@ -231,6 +240,13 @@ impl DocumentTemplate {
             }
             None => empty_iter(),
         }
+    }
+}
+
+fn truncate(text: &mut String) {
+    let limit = text.char_indices().nth(1000);
+    if let Some((index, _)) = limit {
+        text.truncate(index);
     }
 }
 
@@ -274,6 +290,35 @@ impl<'graph, G: GraphViewOps<'graph>> From<EdgeView<G>> for EdgeTemplateContext 
     }
 }
 
+pub(crate) const DEFAULT_NODE_TEMPLATE: &str = "Node {{ name }} {% if node_type is none %} has the following props:{% else %} is a {{ node_type }} with the following props:{% endif %}
+
+{% for (key, value) in constant_props|items %}
+{{ key }}: {{ value }}
+{% endfor %}
+{% for (key, values) in temporal_props|items %}
+{{ key }}:
+{% for (time, value) in values %}
+ - changed to {{ value }} at {{ time|datetimeformat }}
+{% endfor %}
+{% endfor %}";
+
+pub(crate) const DEFAULT_EDGE_TEMPLATE: &str =
+    "There is an edge from {{ src.name }} to {{ dst.name }} with events at:
+{% for time in history %}
+- {{ time|datetimeformat }}
+{% endfor %}";
+
+pub(crate) const DEFAULT_GRAPH_TEMPLATE: &str = "Graph {{ props.name }} has the following props:
+{% for (key, value) in constant_props|items %}
+{{ key }}: {{ value }}
+{% endfor %}
+{% for (key, values) in temporal_props|items %}
+{{ key }}:
+{% for (time, value) in values %}
+ - changed to {{ value }} at {{ time|datetimeformat }}
+{% endfor %}
+{% endfor %}";
+
 #[cfg(test)]
 mod template_tests {
     use indoc::indoc;
@@ -281,6 +326,54 @@ mod template_tests {
     use crate::prelude::{AdditionOps, Graph, GraphViewOps, NO_PROPS};
 
     use super::*;
+
+    #[test]
+    fn test_default_templates() {
+        let graph = Graph::new();
+
+        let node1 = graph
+            .add_node(0, "node1", [("temp_test", "value_at_0")], None)
+            .unwrap();
+        graph
+            .add_node(1, "node1", [("temp_test", "value_at_1")], None)
+            .unwrap();
+        node1
+            .add_constant_properties([("key1", "value1"), ("key2", "value2")])
+            .unwrap();
+
+        for time in [0, 60_000] {
+            graph
+                .add_edge(time, "node1", "node2", NO_PROPS, Some("fancy-layer"))
+                .unwrap();
+        }
+
+        let template = DocumentTemplate {
+            node_template: Some(DEFAULT_NODE_TEMPLATE.to_owned()),
+            graph_template: None,
+            edge_template: Some(DEFAULT_EDGE_TEMPLATE.to_owned()),
+        };
+
+        let mut docs = template.node(graph.node("node1").unwrap());
+        let rendered = docs.next().unwrap().content;
+        let expected = indoc! {"
+            Node node1 has the following props:
+            key1: value1
+            key2: value2
+            temp_test:
+             - changed to value_at_0 at Jan 1 1970 00:00
+             - changed to value_at_1 at Jan 1 1970 00:00
+        "};
+        assert_eq!(&rendered, expected);
+
+        let mut docs = template.edge(graph.edge("node1", "node2").unwrap());
+        let rendered = docs.next().unwrap().content;
+        let expected = indoc! {"
+            There is an edge from node1 to node2 with events at:
+            - Jan 1 1970 00:00
+            - Jan 1 1970 00:01
+        "};
+        assert_eq!(&rendered, expected);
+    }
 
     #[test]
     fn test_node_template() {

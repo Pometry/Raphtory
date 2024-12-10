@@ -943,7 +943,7 @@ impl<G: InternalDeletionOps> InternalDeletionOps for IndexedGraph<G> {
 impl<G: DeletionOps> DeletionOps for IndexedGraph<G> {}
 
 #[cfg(test)]
-mod test {
+mod search_tests {
     use super::*;
     use raphtory_api::core::utils::logging::global_info_logger;
     use std::time::SystemTime;
