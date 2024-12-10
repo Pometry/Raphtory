@@ -1,11 +1,9 @@
 #![allow(non_snake_case)]
 
-#[cfg(feature = "storage")]
-use crate::python::graph::disk_graph::PyDiskGraph;
 use crate::{
     algorithms::{
         algorithm_result::AlgorithmResult,
-        bipartite::max_weight_matching::{max_weight_matching as mwm, Matching},
+        bipartite::max_weight_matching::max_weight_matching as mwm,
         centrality::{
             betweenness::betweenness_centrality as betweenness_rs,
             degree_centrality::degree_centrality as degree_centrality_rs, hits::hits as hits_rs,
@@ -53,6 +51,7 @@ use crate::{
         },
         projections::temporal_bipartite_projection::temporal_bipartite_projection as temporal_bipartite_rs,
     },
+    core::Prop,
     db::{api::view::internal::DynamicGraph, graph::node::NodeView},
     python::{
         graph::{node::PyNode, views::graph_view::PyGraphView},
@@ -60,15 +59,19 @@ use crate::{
     },
 };
 use ordered_float::OrderedFloat;
-#[cfg(feature = "storage")]
-use pometry_storage::algorithms::connected_components::connected_components as connected_components_rs;
 use pyo3::prelude::*;
 use rand::{prelude::StdRng, SeedableRng};
 use raphtory_api::core::{entities::GID, Direction};
 use std::collections::{HashMap, HashSet};
-use crate::core::utils::errors::GraphError;
-use crate::db::api::state::NodeState;
-use crate::prelude::Graph;
+
+#[cfg(feature = "storage")]
+use crate::python::graph::disk_graph::PyDiskGraph;
+use crate::{
+    algorithms::bipartite::max_weight_matching::Matching, core::utils::errors::GraphError,
+    db::api::state::NodeState, prelude::Graph,
+};
+#[cfg(feature = "storage")]
+use pometry_storage::algorithms::connected_components::connected_components as connected_components_rs;
 
 /// Implementations of various graph algorithms that can be run on a graph.
 ///
@@ -649,7 +652,7 @@ pub fn single_source_shortest_path(
 ///     weight (str): The name of the weight property for the edges. Defaults to "weight".
 ///
 /// Returns:
-///     dict: Returns a `Dict` where the key is the target node and the value is a tuple containing the total cost and a vector of nodes representing the shortest path.
+///     AlgorithmResult: Returns an `AlgorithmResult` where the key is the target node and the value is a tuple containing the total cost and a vector of nodes representing the shortest path.
 ///
 #[pyfunction]
 #[pyo3[signature = (g, source, targets, direction=Direction::BOTH, weight="weight".to_string())]]
