@@ -29,6 +29,7 @@ use pometry_storage::prelude::*;
 use raphtory::disk_graph::DiskGraphStorage;
 use std::{any::Any, fmt::Formatter, sync::Arc};
 
+#[derive(Debug)]
 pub struct EdgeListTableProvider {
     layer_id: usize,
     layer_name: String,
