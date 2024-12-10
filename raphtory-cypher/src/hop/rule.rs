@@ -14,6 +14,7 @@ use datafusion::{
 };
 use raphtory::{core::Direction, disk_graph::DiskGraphStorage};
 
+#[derive(Debug)]
 pub struct HopRule {
     pub graph: DiskGraphStorage,
 }
@@ -94,6 +95,7 @@ impl OptimizerRule for HopRule {
     }
 }
 
+#[derive(Debug)]
 pub struct HopQueryPlanner;
 
 #[async_trait]
