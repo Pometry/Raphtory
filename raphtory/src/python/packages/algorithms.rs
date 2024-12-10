@@ -1,9 +1,11 @@
 #![allow(non_snake_case)]
 
+#[cfg(feature = "storage")]
+use crate::python::graph::disk_graph::PyDiskGraph;
 use crate::{
     algorithms::{
         algorithm_result::AlgorithmResult,
-        bipartite::max_weight_matching::max_weight_matching as mwm,
+        bipartite::max_weight_matching::{max_weight_matching as mwm, Matching},
         centrality::{
             betweenness::betweenness_centrality as betweenness_rs,
             degree_centrality::degree_centrality as degree_centrality_rs, hits::hits as hits_rs,
@@ -15,7 +17,7 @@ use crate::{
         },
         components,
         dynamics::temporal::epidemics::{temporal_SEIR as temporal_SEIR_rs, Infected, SeedError},
-        embeddings::fast_rp as fast_rp_rs,
+        embeddings::fast_rp::fast_rp as fast_rp_rs,
         layout::{
             cohesive_fruchterman_reingold::cohesive_fruchterman_reingold as cohesive_fruchterman_reingold_rs,
             fruchterman_reingold::fruchterman_reingold_unbounded as fruchterman_reingold_rs,
@@ -51,7 +53,6 @@ use crate::{
         },
         projections::temporal_bipartite_projection::temporal_bipartite_projection as temporal_bipartite_rs,
     },
-    core::Prop,
     db::{api::view::internal::DynamicGraph, graph::node::NodeView},
     python::{
         graph::{node::PyNode, views::graph_view::PyGraphView},
@@ -59,19 +60,15 @@ use crate::{
     },
 };
 use ordered_float::OrderedFloat;
+#[cfg(feature = "storage")]
+use pometry_storage::algorithms::connected_components::connected_components as connected_components_rs;
 use pyo3::prelude::*;
 use rand::{prelude::StdRng, SeedableRng};
 use raphtory_api::core::{entities::GID, Direction};
 use std::collections::{HashMap, HashSet};
-
-#[cfg(feature = "storage")]
-use crate::python::graph::disk_graph::PyDiskGraph;
-use crate::{
-    algorithms::bipartite::max_weight_matching::Matching, core::utils::errors::GraphError,
-    db::api::state::NodeState, prelude::Graph,
-};
-#[cfg(feature = "storage")]
-use pometry_storage::algorithms::connected_components::connected_components as connected_components_rs;
+use crate::core::utils::errors::GraphError;
+use crate::db::api::state::NodeState;
+use crate::prelude::Graph;
 
 /// Implementations of various graph algorithms that can be run on a graph.
 ///
@@ -90,6 +87,7 @@ use pometry_storage::algorithms::connected_components::connected_components as c
 ///     int : number of triangles associated with node v
 ///
 #[pyfunction]
+#[pyo3(signature = (g, v))]
 pub fn local_triangle_count(g: &PyGraphView, v: PyNodeRef) -> Option<usize> {
     local_triangle_count_rs(&g.graph, v)
 }
@@ -455,8 +453,13 @@ pub fn global_clustering_coefficient(g: &PyGraphView) -> f64 {
 ///     This is achieved by calling the local motif counting algorithm, summing the resulting arrays and dealing with overcounted motifs: the triangles (by dividing each motif count by three) and two-node motifs (dividing by two).
 ///
 #[pyfunction]
-pub fn global_temporal_three_node_motif(g: &PyGraphView, delta: i64) -> [usize; 40] {
-    global_temporal_three_node_motif_rs(&g.graph, delta, None)
+#[pyo3(signature = (g, delta, threads=None))]
+pub fn global_temporal_three_node_motif(
+    g: &PyGraphView,
+    delta: i64,
+    threads: Option<usize>,
+) -> [usize; 40] {
+    global_temporal_three_node_motif_rs(&g.graph, delta, threads)
 }
 
 /// Projects a temporal bipartite graph into an undirected temporal graph over the pivot node type. Let `G` be a bipartite graph with node types `A` and `B`. Given `delta > 0`, the projection graph `G'` pivoting over type `B` nodes,
@@ -465,7 +468,7 @@ pub fn global_temporal_three_node_motif(g: &PyGraphView, delta: i64) -> [usize; 
 /// Arguments:
 ///     g (GraphView) : A directed raphtory graph
 ///     delta (int): Time period
-///     pivot (str) : node type to pivot over. If a bipartite graph has types `A` and `B`, and `B` is the pivot type, the new graph will consist of type `A` nodes.
+///     pivot_type (str) : node type to pivot over. If a bipartite graph has types `A` and `B`, and `B` is the pivot type, the new graph will consist of type `A` nodes.
 ///
 /// Returns:
 ///     Graph: Projected (unipartite) temporal graph.
@@ -488,11 +491,13 @@ pub fn temporal_bipartite_graph_projection(
 /// Returns:
 ///     list[list[int]] : A list of 40d arrays, each array is the motif count for a particular value of delta, returned in the order that the deltas were given as input.
 #[pyfunction]
+#[pyo3(signature = (g, deltas, threads=None))]
 pub fn global_temporal_three_node_motif_multi(
     g: &PyGraphView,
     deltas: Vec<i64>,
+    threads: Option<usize>,
 ) -> Vec<[usize; 40]> {
-    global_temporal_three_node_motif_general_rs(&g.graph, deltas, None)
+    global_temporal_three_node_motif_general_rs(&g.graph, deltas, threads)
 }
 
 /// Computes the number of each type of motif that each node participates in. See global_temporal_three_node_motifs for a summary of the motifs involved.
@@ -508,14 +513,13 @@ pub fn global_temporal_three_node_motif_multi(
 ///     For this local count, a node is counted as participating in a motif in the following way. For star motifs, only the centre node counts
 ///    the motif. For two node motifs, both constituent nodes count the motif. For triangles, all three constituent nodes count the motif.
 #[pyfunction]
+#[pyo3(signature = (g, delta, threads=None))]
 pub fn local_temporal_three_node_motifs(
     g: &PyGraphView,
     delta: i64,
-) -> HashMap<String, Vec<usize>> {
-    local_three_node_rs(&g.graph, vec![delta], None)
-        .into_iter()
-        .map(|(k, v)| (String::from(k), v[0].clone()))
-        .collect::<HashMap<String, Vec<usize>>>()
+    threads: Option<usize>,
+) -> AlgorithmResult<DynamicGraph, Vec<usize>> {
+    local_three_node_rs(&g.graph, vec![delta], threads)
 }
 
 /// HITS (Hubs and Authority) Algorithm:
@@ -655,7 +659,7 @@ pub fn dijkstra_single_source_shortest_paths(
     targets: Vec<PyNodeRef>,
     direction: Direction,
     weight: Option<String>,
-) -> PyResult<HashMap<String, (Prop, Vec<String>)>> {
+) -> PyResult<AlgorithmResult<DynamicGraph, (f64, Vec<String>), (OrderedFloat<f64>, Vec<String>)>> {
     match dijkstra_single_source_shortest_paths_rs(&g.graph, source, targets, weight, direction) {
         Ok(result) => Ok(result),
         Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
@@ -762,7 +766,7 @@ pub fn temporal_SEIR(
 ///
 /// Arguments:
 ///     graph (GraphView): the graph view
-///     resolution (float): the resolution paramter for modularity
+///     resolution (float): the resolution parameter for modularity
 ///     weight_prop (str | None): the edge property to use for weights (has to be float)
 ///     tol (None | float): the floating point tolerance for deciding if improvements are significant (default: 1e-8)
 #[pyfunction]
@@ -797,7 +801,7 @@ pub fn fruchterman_reingold(
     node_start_size: f32,
     cooloff_factor: f32,
     dt: f32,
-) -> HashMap<GID, [f32; 2]> {
+) -> AlgorithmResult<DynamicGraph, [f32; 2], [OrderedFloat<f32>; 2]> {
     fruchterman_reingold_rs(
         &graph.graph,
         iterations,
@@ -806,33 +810,37 @@ pub fn fruchterman_reingold(
         cooloff_factor,
         dt,
     )
-    .into_iter()
-    .map(|(id, vector)| (id, [vector.x, vector.y]))
-    .collect()
 }
 
-/// Cohesive version of `fruchterman_reingold` that adds virtual edges between isolated nodes
+/// Arguments:
+///     g (GraphView): A reference to the graph
+///     iter_count (int): The number of iterations to run
+///     scale (float): Global scaling factor to control the overall spread of the graph
+///     node_start_size (float): Initial size or movement range for nodes
+///     cooloff_factor (float): Factor to reduce node movement in later iterations, helping stabilize the layout
+///     dt (float): Time step or movement factor in each iteration
+///
+/// Returns:
+///     An [AlgorithmResult] containing a mapping between vertices and a pair of coordinates.
+///
 #[pyfunction]
-#[pyo3[signature=(graph, iterations=100, scale=1.0, node_start_size=1.0, cooloff_factor=0.95, dt=0.1)]]
+#[pyo3[signature=(graph, iter_count=100, scale=1.0, node_start_size=1.0, cooloff_factor=0.95, dt=0.1)]]
 pub fn cohesive_fruchterman_reingold(
     graph: &PyGraphView,
-    iterations: u64,
+    iter_count: u64,
     scale: f32,
     node_start_size: f32,
     cooloff_factor: f32,
     dt: f32,
-) -> HashMap<GID, [f32; 2]> {
+) -> AlgorithmResult<DynamicGraph, [f32; 2], [OrderedFloat<f32>; 2]> {
     cohesive_fruchterman_reingold_rs(
         &graph.graph,
-        iterations,
+        iter_count,
         scale,
         node_start_size,
         cooloff_factor,
         dt,
     )
-    .into_iter()
-    .map(|(id, vector)| (id, [vector.x, vector.y]))
-    .collect()
 }
 
 /// Temporal rich club coefficient
@@ -858,7 +866,7 @@ pub fn cohesive_fruchterman_reingold(
 #[pyfunction]
 #[pyo3[signature = (graph, views, k, delta)]]
 pub fn temporal_rich_club_coefficient(
-    graph: PyGraphView,
+    graph: &PyGraphView,
     views: &Bound<PyAny>,
     k: usize,
     delta: usize,
@@ -867,7 +875,7 @@ pub fn temporal_rich_club_coefficient(
     let views = py_iterator
         .map(|view| view.and_then(|view| Ok(view.downcast::<PyGraphView>()?.get().graph.clone())))
         .collect::<PyResult<Vec<_>>>()?;
-    Ok(temporal_rich_club_rs(graph.graph, views, k, delta))
+    Ok(temporal_rich_club_rs(&graph.graph, views, k, delta))
 }
 
 /// Compute a maximum-weighted matching in the general undirected weighted
@@ -909,12 +917,7 @@ pub fn max_weight_matching(
     max_cardinality: bool,
     verify_optimum_flag: bool,
 ) -> Matching<DynamicGraph> {
-    mwm(
-        &graph.graph,
-        weight_prop,
-        max_cardinality,
-        verify_optimum_flag,
-    )
+    mwm(&graph.graph, weight_prop, max_cardinality, verify_optimum_flag)
 }
 
 /// Computes embedding vectors for each vertex of an undirected/bidirectional graph according to the Fast RP algorithm.

@@ -46,7 +46,7 @@
 use crate::{db::api::view::*, prelude::*};
 use rayon::prelude::*;
 
-/// The maximum degree of any node in the graph
+/// The largest degree
 pub fn max_degree<'graph, G: GraphViewOps<'graph>>(graph: &G) -> usize {
     graph.nodes().degree().max().unwrap_or(0)
 }

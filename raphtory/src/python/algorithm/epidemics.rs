@@ -97,7 +97,7 @@ impl IntoSeeds for PySeed {
 }
 
 py_algorithm_result!(AlgorithmResultSEIR, DynamicGraph, Infected, Infected);
-py_algorithm_result_new_ord_hash_eq!(AlgorithmResultSEIR, DynamicGraph, Infected, Infected);
+py_algorithm_result_new_ord_hash_eq!(AlgorithmResultSEIR, DynamicGraph, Infected);
 
 impl From<SeedError> for PyErr {
     fn from(value: SeedError) -> Self {

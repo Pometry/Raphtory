@@ -7,11 +7,15 @@ use dynamic_graphql::{internal::TypeName, SimpleObject};
 use futures_util::future::BoxFuture;
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
-use raphtory::algorithms::{
-    centrality::pagerank::unweighted_page_rank,
-    pathing::dijkstra::dijkstra_single_source_shortest_paths,
+use raphtory::{
+    algorithms::{
+        centrality::pagerank::unweighted_page_rank,
+        pathing::dijkstra::dijkstra_single_source_shortest_paths,
+    },
+    core::Prop,
 };
 use raphtory_api::core::Direction;
+use std::collections::HashMap;
 
 #[derive(SimpleObject)]
 pub(crate) struct PagerankOutput {
@@ -160,8 +164,15 @@ fn apply_shortest_path<'b>(
         .iter()
         .map(|v| v.string())
         .collect::<Result<Vec<&str>, _>>()?;
-    let binding =
-        dijkstra_single_source_shortest_paths(&entry_point.graph, source, targets, None, direction);
+    let binding: Result<HashMap<String, (f64, Vec<String>)>, &str> =
+        Ok(dijkstra_single_source_shortest_paths(
+            &entry_point.graph,
+            source,
+            targets,
+            None,
+            direction,
+        )?
+        .get_all_with_names());
     let result: Vec<FieldValue> = binding
         .into_iter()
         .flat_map(|pair| {

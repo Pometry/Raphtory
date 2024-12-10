@@ -8,9 +8,9 @@ use crate::{
 ///
 /// # Arguments
 ///
-/// * `g` - A reference to the graph
+/// - `g` - A reference to the graph
 ///
-/// Returns:
+/// # Returns
 ///
 /// The global clustering coefficient of the graph
 ///
