@@ -140,7 +140,7 @@ impl PyGraphEncoder {
 #[pymethods]
 impl PyGraph {
     #[new]
-    #[pyo3(signature=(num_shards=None))]
+    #[pyo3(signature = (num_shards = None))]
     pub fn py_new(num_shards: Option<usize>) -> (Self, PyGraphView) {
         let graph = match num_shards {
             None => Graph::new(),
@@ -177,22 +177,35 @@ impl PyGraph {
     ///    id (str|int): The id of the node.
     ///    properties (PropInput, optional): The properties of the node.
     ///    node_type (str, optional): The optional string which will be used as a node type
+    ///    secondary_index (int, optional): The optional integer which will be used as a secondary index
     ///
     /// Returns:
     ///     MutableNode: The added node.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (timestamp, id, properties = None, node_type = None))]
+    #[pyo3(
+        signature = (timestamp, id, properties = None, node_type = None, secondary_index = None)
+    )]
     pub fn add_node(
         &self,
         timestamp: PyTime,
         id: GID,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
+        secondary_index: Option<usize>,
     ) -> Result<NodeView<Graph, Graph>, GraphError> {
-        self.graph
-            .add_node(timestamp, id, properties.unwrap_or_default(), node_type)
+        match secondary_index {
+            None => self
+                .graph
+                .add_node(timestamp, id, properties.unwrap_or_default(), node_type),
+            Some(secondary_index) => self.graph.add_node(
+                (timestamp, secondary_index),
+                id,
+                properties.unwrap_or_default(),
+                node_type,
+            ),
+        }
     }
 
     /// Creates a new node with the given id and properties to the graph. It fails if the node already exists.
@@ -202,22 +215,34 @@ impl PyGraph {
     ///    id (str|int): The id of the node.
     ///    properties (PropInput, optional): The properties of the node.
     ///    node_type (str, optional): The optional string which will be used as a node type
+    ///    secondary_index (int, optional): The optional integer which will be used as a secondary index
     ///
     /// Returns:
     ///     MutableNode: The created node.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (timestamp, id, properties = None, node_type = None))]
+    #[pyo3(signature = (timestamp, id, properties = None, node_type = None, secondary_index = None))]
     pub fn create_node(
         &self,
         timestamp: PyTime,
         id: GID,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
+        secondary_index: Option<usize>,
     ) -> Result<NodeView<Graph, Graph>, GraphError> {
-        self.graph
-            .create_node(timestamp, id, properties.unwrap_or_default(), node_type)
+        match secondary_index {
+            None => {
+                self.graph
+                    .create_node(timestamp, id, properties.unwrap_or_default(), node_type)
+            }
+            Some(secondary_index) => self.graph.create_node(
+                (timestamp, secondary_index),
+                id,
+                properties.unwrap_or_default(),
+                node_type,
+            ),
+        }
     }
 
     /// Adds properties to the graph.
@@ -225,18 +250,26 @@ impl PyGraph {
     /// Arguments:
     ///    timestamp (TimeInput): The timestamp of the temporal property.
     ///    properties (PropInput): The temporal properties of the graph.
+    ///    secondary_index (int, optional): The optional integer which will be used as a secondary index
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    pub fn add_property(
+    #[pyo3(signature = (timestamp, properties, secondary_index = None))]
+    pub fn add_properties(
         &self,
         timestamp: PyTime,
         properties: HashMap<String, Prop>,
+        secondary_index: Option<usize>,
     ) -> Result<(), GraphError> {
-        self.graph.add_properties(timestamp, properties)
+        match secondary_index {
+            None => self.graph.add_properties(timestamp, properties),
+            Some(secondary_index) => self
+                .graph
+                .add_properties((timestamp, secondary_index), properties),
+        }
     }
 
     /// Adds static properties to the graph.
@@ -281,13 +314,14 @@ impl PyGraph {
     ///    dst (str|int): The id of the destination node.
     ///    properties (PropInput, optional): The properties of the edge, as a dict of string and properties.
     ///    layer (str, optional): The layer of the edge.
+    ///     secondary_index (int, optional): The optional integer which will be used as a secondary index
     ///
     /// Returns:
     ///     MutableEdge: The added edge.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (timestamp, src, dst, properties = None, layer = None))]
+    #[pyo3(signature = (timestamp, src, dst, properties = None, layer = None, secondary_index = None))]
     pub fn add_edge(
         &self,
         timestamp: PyTime,
@@ -295,9 +329,20 @@ impl PyGraph {
         dst: GID,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
+        secondary_index: Option<usize>,
     ) -> Result<EdgeView<Graph, Graph>, GraphError> {
-        self.graph
-            .add_edge(timestamp, src, dst, properties.unwrap_or_default(), layer)
+        match secondary_index {
+            None => self
+                .graph
+                .add_edge(timestamp, src, dst, properties.unwrap_or_default(), layer),
+            Some(secondary_index) => self.graph.add_edge(
+                (timestamp, secondary_index),
+                src,
+                dst,
+                properties.unwrap_or_default(),
+                layer,
+            ),
+        }
     }
 
     /// Import a single node into the graph.
@@ -557,7 +602,7 @@ impl PyGraph {
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(
-        signature = (df,time, id, node_type = None, node_type_col = None, properties = None, constant_properties = None, shared_constant_properties = None)
+        signature = (df, time, id, node_type = None, node_type_col = None, properties = None, constant_properties = None, shared_constant_properties = None)
     )]
     fn load_nodes_from_pandas<'py>(
         &self,
@@ -744,7 +789,9 @@ impl PyGraph {
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (df, id, node_type=None, node_type_col=None, constant_properties = None, shared_constant_properties = None))]
+    #[pyo3(
+        signature = (df, id, node_type = None, node_type_col = None, constant_properties = None, shared_constant_properties = None)
+    )]
     fn load_node_props_from_pandas(
         &self,
         df: &Bound<PyAny>,
@@ -781,7 +828,9 @@ impl PyGraph {
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (parquet_path, id, node_type=None,node_type_col=None, constant_properties = None, shared_constant_properties = None))]
+    #[pyo3(
+        signature = (parquet_path, id, node_type = None, node_type_col = None, constant_properties = None, shared_constant_properties = None)
+    )]
     fn load_node_props_from_parquet(
         &self,
         parquet_path: PathBuf,

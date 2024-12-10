@@ -246,6 +246,7 @@ impl GraphServer {
             .at("/", get(ui).post(GraphQL::new(schema)))
             .at("/graph", get(ui))
             .at("/search", get(ui))
+            .at("/saved-graphs", get(ui))
             .at("/playground", get(ui))
             .at("/health", get(health))
             .with(CookieJarManager::new())

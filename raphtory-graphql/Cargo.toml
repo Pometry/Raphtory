@@ -13,12 +13,12 @@ readme.workspace = true
 homepage.workspace = true
 
 [dependencies]
-raphtory = { path = "../raphtory", version = "0.13.1", features = [
+raphtory = { path = "../raphtory", version = "0.14.0", features = [
     'vectors',
     'search',
     "io",
 ] }
-raphtory-api = { path = "../raphtory-api", version = "0.13.1" }
+raphtory-api = { path = "../raphtory-api", version = "0.14.0" }
 base64 = { workspace = true }
 thiserror = { workspace = true }
 itertools = { workspace = true }
@@ -36,7 +36,7 @@ futures-util = { workspace = true }
 jsonwebtoken = { workspace = true }
 opentelemetry = { workspace = true }
 opentelemetry_sdk = { workspace = true }
-opentelemetry-otlp =  { workspace = true }
+opentelemetry-otlp = { workspace = true }
 tracing = { workspace = true }
 tracing-opentelemetry = { workspace = true }
 tracing-subscriber = { workspace = true }
@@ -54,7 +54,7 @@ pyo3 = { workspace = true, optional = true }
 crossbeam-channel = { workspace = true }
 minijinja = { workspace = true }
 zip = { workspace = true }
-clap = { version = "4.0", features = ["derive"] }
+clap = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

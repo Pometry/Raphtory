@@ -1,9 +1,9 @@
-use crate::model::graph::{node::Node, property::GqlPropValue, FilterCondition, Operator};
-use dynamic_graphql::{Enum, InputObject, ResolvedObject, ResolvedObjectFields};
+use crate::model::graph::{node::Node, FilterCondition, Operator};
+use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     core::utils::errors::GraphError,
     db::{api::view::DynamicGraph, graph::nodes::Nodes},
-    prelude::{GraphViewOps, *},
+    prelude::*,
 };
 
 #[derive(ResolvedObject)]

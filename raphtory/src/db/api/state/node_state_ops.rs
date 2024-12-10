@@ -1,7 +1,10 @@
 use crate::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
-        api::state::{node_state::NodeState, node_state_ord_ops, Index},
+        api::{
+            state::{node_state::NodeState, node_state_ord_ops, Index},
+            view::internal::CoreGraphOps,
+        },
         graph::node::NodeView,
     },
     prelude::{GraphViewOps, NodeViewOps},
@@ -110,7 +113,7 @@ pub trait NodeStateOps<'graph>: IntoIterator<Item = Self::OwnedValue> {
                 self.base_graph().clone(),
                 self.graph().clone(),
                 values,
-                Some(Index::from(keys)),
+                Some(Index::new(keys, self.base_graph().unfiltered_num_nodes())),
             )
         }
     }
@@ -134,7 +137,7 @@ pub trait NodeStateOps<'graph>: IntoIterator<Item = Self::OwnedValue> {
             self.base_graph().clone(),
             self.graph().clone(),
             values,
-            Some(Index::from(keys)),
+            Some(Index::new(keys, self.base_graph().unfiltered_num_nodes())),
         )
     }
 
@@ -171,7 +174,7 @@ pub trait NodeStateOps<'graph>: IntoIterator<Item = Self::OwnedValue> {
             self.base_graph().clone(),
             self.graph().clone(),
             values,
-            Some(Index::from(keys)),
+            Some(Index::new(keys, self.base_graph().unfiltered_num_nodes())),
         )
     }
 

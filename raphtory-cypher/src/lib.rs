@@ -356,6 +356,7 @@ mod cypher {
                     100,
                     1,
                     None,
+                    None,
                 )
                 .unwrap();
 

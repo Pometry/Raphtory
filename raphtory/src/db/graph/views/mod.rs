@@ -1,3 +1,4 @@
+pub mod cached_view;
 pub mod deletion_graph;
 pub mod layer_graph;
 pub mod node_subgraph;

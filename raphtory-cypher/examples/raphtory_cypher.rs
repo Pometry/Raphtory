@@ -14,7 +14,7 @@ mod cypher {
     use futures::{stream, StreamExt};
     use raphtory::{
         disk_graph::{graph_impl::ParquetLayerCols, DiskGraphStorage},
-        logging::global_info_logger,
+        logging::{global_info_logger, sysout_debug},
     };
     use raphtory_cypher::{run_cypher, run_cypher_to_streams, run_sql};
     use serde::{de::DeserializeOwned, Deserialize};
@@ -65,10 +65,13 @@ mod cypher {
         #[arg(short, long)]
         node_props: Option<String>,
 
-        /// Node properties to load
+        /// Node properties column to load as node type
         #[arg(short, long)]
         node_type_col: Option<String>,
 
+        /// Node properties column to load as node
+        #[arg(short, long)]
+        node_id_col: Option<String>,
         /// Edge list parquet files to load as layers
         #[arg(short='l', last = true, value_parser = parse_key_val::<String, ArgLayer>)]
         layers: Vec<(String, ArgLayer)>,
@@ -126,11 +129,11 @@ mod cypher {
 
     // #[tokio::main]
     pub async fn main() {
-        global_info_logger();
         let args = Args::parse();
 
         match args {
             Args::Query(args) => {
+                global_info_logger();
                 let graph =
                     DiskGraphStorage::load_from_dir(&args.graph_dir).expect("Failed to load graph");
 
@@ -145,7 +148,6 @@ mod cypher {
 
                     let now = std::time::Instant::now();
                     let batches = df.collect().await.unwrap();
-                    global_info_logger();
                     info!("Query execution time: {:?}", now.elapsed());
                     print_batches(&batches).expect("Failed to print batches");
                 } else {
@@ -161,6 +163,7 @@ mod cypher {
             }
 
             Args::Load(args) => {
+                sysout_debug();
                 let layers = args.layers;
                 let layer_parquet_cols = (0..layers.len())
                     .map(|layer_id| {
@@ -196,6 +199,7 @@ mod cypher {
                     args.t_prop_chunk_size,
                     args.num_threads,
                     args.node_type_col.as_deref(),
+                    args.node_id_col.as_deref(),
                 )
                 .expect("Failed to load graph");
             }

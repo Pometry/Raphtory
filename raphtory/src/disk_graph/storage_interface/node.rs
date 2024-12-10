@@ -15,8 +15,9 @@ use crate::{
 };
 use itertools::Itertools;
 use polars_arrow::datatypes::ArrowDataType;
-use pometry_storage::{graph::TemporalGraph, timestamps::TimeStamps, tprops::DiskTProp, GidRef};
-use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use pometry_storage::{
+    graph::TemporalGraph, timestamps::LayerAdditions, tprops::DiskTProp, GidRef,
+};
 use std::{borrow::Cow, iter, sync::Arc};
 
 #[derive(Copy, Clone, Debug)]
@@ -143,51 +144,7 @@ impl<'a> DiskNode<'a> {
     }
 
     pub fn additions_for_layers(&self, layer_ids: LayerIds) -> NodeAdditions<'a> {
-        let mut additions = match layer_ids {
-            LayerIds::None => Vec::with_capacity(1),
-            LayerIds::All => {
-                let mut additions = Vec::with_capacity(self.graph.layers().len() + 1);
-                self.graph
-                    .layers()
-                    .par_iter()
-                    .map(|l| {
-                        TimeStamps::new(l.nodes_storage().additions().value(self.vid.index()), None)
-                    })
-                    .collect_into_vec(&mut additions);
-                additions
-            }
-            LayerIds::One(id) => {
-                vec![TimeStamps::new(
-                    self.graph.layers()[id]
-                        .nodes_storage()
-                        .additions()
-                        .value(self.vid.index()),
-                    None,
-                )]
-            }
-            LayerIds::Multiple(ids) => ids
-                .par_iter()
-                .map(|l| {
-                    TimeStamps::new(
-                        self.graph.layers()[l]
-                            .nodes_storage()
-                            .additions()
-                            .value(self.vid.index()),
-                        None,
-                    )
-                })
-                .collect::<Vec<_>>(),
-        };
-
-        for props in self.graph.node_properties().temporal_props() {
-            let timestamps = props.timestamps::<i64>(self.vid);
-            if timestamps.len() > 0 {
-                let ts = timestamps.times();
-                additions.push(ts);
-            }
-        }
-
-        NodeAdditions::Col(additions)
+        NodeAdditions::Col(LayerAdditions::new(self.graph, self.vid, layer_ids, None))
     }
 }
 
@@ -311,7 +268,7 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
             LayerIds::All => self
                 .graph
                 .find_edge(self.vid, dst)
-                .map(|e| EdgeRef::new_outgoing(e.eid(), self.vid, dst)),
+                .map(|e| EdgeRef::new_outgoing(e.pid(), self.vid, dst)),
             LayerIds::One(id) => {
                 let eid = self.graph.layers()[*id]
                     .nodes_storage()

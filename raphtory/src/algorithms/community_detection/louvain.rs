@@ -82,6 +82,7 @@ mod test {
         test_storage,
     };
     use proptest::prelude::*;
+    #[cfg(feature = "io")]
     use tracing::info;
 
     #[cfg(feature = "io")]

@@ -1079,9 +1079,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.5.20"
+version = "4.5.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b97f376d85a664d5837dbae44bf546e6477a679ff6610010f17276f686d867e8"
+checksum = "fb3b4b9e5a7c7514dfa52869339ee98b3156b0bfb4e8a77c4ff4babb64b1604f"
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -1089,9 +1089,9 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.5.20"
+version = "4.5.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "19bc80abd44e4bed93ca373a0704ccbd1b710dc5749406201bb018272808dc54"
+checksum = "b17a95aa67cc7b5ebd32aa5370189aa0d79069ef1c64ce893bd30fb24bff20ec"
 dependencies = [
  "anstream",
  "anstyle",
@@ -2097,7 +2097,7 @@ dependencies = [
 
 [[package]]
 name = "examples"
-version = "0.13.1"
+version = "0.14.0"
 dependencies = [
  "chrono",
  "itertools 0.13.0",
@@ -3024,7 +3024,7 @@ dependencies = [
 
 [[package]]
 name = "js-raphtory"
-version = "0.13.1"
+version = "0.14.0"
 dependencies = [
  "chrono",
  "console_error_panic_hook",
@@ -4411,7 +4411,7 @@ dependencies = [
 
 [[package]]
 name = "pometry-storage"
-version = "0.13.1"
+version = "0.14.0"
 
 [[package]]
 name = "portable-atomic"
@@ -4809,7 +4809,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory"
-version = "0.13.1"
+version = "0.14.0"
 dependencies = [
  "async-openai",
  "async-trait",
@@ -4863,6 +4863,7 @@ dependencies = [
  "rayon",
  "regex",
  "reqwest 0.12.9",
+ "roaring",
  "rustc-hash 2.0.0",
  "serde",
  "serde_json",
@@ -4878,7 +4879,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-api"
-version = "0.13.1"
+version = "0.14.0"
 dependencies = [
  "bytemuck",
  "chrono",
@@ -4903,7 +4904,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-benchmark"
-version = "0.13.1"
+version = "0.14.0"
 dependencies = [
  "clap",
  "criterion",
@@ -4921,7 +4922,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-cypher"
-version = "0.13.1"
+version = "0.14.0"
 dependencies = [
  "arrow",
  "arrow-array",
@@ -4948,11 +4949,12 @@ dependencies = [
  "thiserror 2.0.0",
  "tokio",
  "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
 name = "raphtory-graphql"
-version = "0.13.1"
+version = "0.14.0"
 dependencies = [
  "async-graphql",
  "async-graphql-poem",
@@ -4996,7 +4998,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-pymodule"
-version = "0.13.1"
+version = "0.14.0"
 dependencies = [
  "numpy",
  "pyo3",
@@ -5028,7 +5030,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory_netflow"
-version = "0.13.1"
+version = "0.14.0"
 dependencies = [
  "pyo3",
  "pyo3-build-config",
@@ -5256,6 +5258,16 @@ dependencies = [
  "spin",
  "untrusted",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "roaring"
+version = "0.10.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f4b84ba6e838ceb47b41de5194a60244fac43d9fe03b71dbe8c5a201081d6d1"
+dependencies = [
+ "bytemuck",
+ "byteorder",
 ]
 
 [[package]]

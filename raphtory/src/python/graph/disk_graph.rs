@@ -218,7 +218,7 @@ impl PyDiskGraph {
 
     #[staticmethod]
     #[pyo3(
-        signature = (graph_dir, layer_parquet_cols, node_properties, chunk_size, t_props_chunk_size, num_threads, node_type_col)
+        signature = (graph_dir, layer_parquet_cols, node_properties=None, chunk_size=10_000_000, t_props_chunk_size=10_000_000, num_threads=4, node_type_col=None, node_id_col=None)
     )]
     fn load_from_parquets(
         graph_dir: PathBuf,
@@ -228,6 +228,7 @@ impl PyDiskGraph {
         t_props_chunk_size: usize,
         num_threads: usize,
         node_type_col: Option<&str>,
+        node_id_col: Option<&str>,
     ) -> Result<DiskGraphStorage, GraphError> {
         let layer_cols = layer_parquet_cols
             .iter()
@@ -241,6 +242,7 @@ impl PyDiskGraph {
             t_props_chunk_size,
             num_threads,
             node_type_col,
+            node_id_col,
         )
         .map_err(|err| {
             GraphError::LoadFailure(format!("Failed to load graph from parquet files: {err:?}"))
@@ -250,13 +252,12 @@ impl PyDiskGraph {
     #[pyo3(signature = (location, col_names=None, chunk_size=None))]
     pub fn load_node_const_properties(
         &self,
-        location: &str,
+        location: PathBuf,
         col_names: Option<Vec<PyBackedStr>>,
         chunk_size: Option<usize>,
     ) -> Result<DiskGraphStorage, GraphError> {
         let col_names = convert_py_prop_args(col_names.as_deref());
-        let path = PathBuf::from_str(location).unwrap();
-        let chunks = read_struct_arrays(&path, col_names.as_deref())?;
+        let chunks = read_struct_arrays(&location, col_names.as_deref())?;
         let _ =
             load_node_const_properties(chunk_size.unwrap_or(200_000), self.graph_dir(), chunks)?;
         Self::load_from_dir(self.graph_dir().to_path_buf())

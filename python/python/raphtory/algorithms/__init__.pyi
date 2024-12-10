@@ -24,7 +24,7 @@ class Matching(object):
         """True if self else False"""
 
     def __contains__(self, key):
-        """Return bool(key in self)."""
+        """Return key in self."""
 
     def __iter__(self):
         """Implement iter(self)."""
@@ -591,7 +591,7 @@ def min_out_degree(g: GraphView):
         int : value of the smallest outdegree
     """
 
-def out_component(node: Node):
+def out_component(node: Node) -> NodeStateUsize:
     """
     Out component -- Finding the "out-component" of a node in a directed graph involves identifying all nodes that can be reached following only outgoing edges.
 
@@ -599,7 +599,7 @@ def out_component(node: Node):
         node (Node) : The node whose out-component we wish to calculate
 
     Returns:
-       An array containing the Nodes within the given nodes out-component
+       NodeStateUsize: A NodeState mapping the nodes in the out-component to their distance from the starting node.
     """
 
 def out_components(g: GraphView):

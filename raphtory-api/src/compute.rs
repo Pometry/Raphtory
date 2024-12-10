@@ -25,3 +25,19 @@ pub fn par_cum_sum(values: &mut [usize]) {
         next_chunk.par_iter_mut().for_each(|v| *v += cum_sum);
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::par_cum_sum;
+
+    #[test]
+    fn test_cum_sum() {
+        let mut values: Vec<_> = (0..100).collect();
+        par_cum_sum(&mut values);
+        let mut cum_sum = 0;
+        for (index, v) in values.into_iter().enumerate() {
+            cum_sum += index;
+            assert_eq!(v, cum_sum)
+        }
+    }
+}

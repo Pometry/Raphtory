@@ -116,22 +116,33 @@ impl PyPersistentGraph {
     ///    id (str | int): The id of the node.
     ///    properties (dict): The properties of the node.
     ///    node_type (str) : The optional string which will be used as a node type
+    ///    secondary_index (int, optional): The optional integer which will be used as a secondary index
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (timestamp, id, properties = None, node_type = None))]
+    #[pyo3(signature = (timestamp, id, properties = None, node_type = None, secondary_index = None))]
     pub fn add_node(
         &self,
         timestamp: PyTime,
         id: GID,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
+        secondary_index: Option<usize>,
     ) -> Result<NodeView<PersistentGraph>, GraphError> {
-        self.graph
-            .add_node(timestamp, id, properties.unwrap_or_default(), node_type)
+        match secondary_index {
+            None => self
+                .graph
+                .add_node(timestamp, id, properties.unwrap_or_default(), node_type),
+            Some(secondary_index) => self.graph.add_node(
+                (timestamp, secondary_index),
+                id,
+                properties.unwrap_or_default(),
+                node_type,
+            ),
+        }
     }
 
     /// Creates a new node with the given id and properties to the graph. It fails if the node already exists.
@@ -141,22 +152,34 @@ impl PyPersistentGraph {
     ///    id (str | int): The id of the node.
     ///    properties (dict): The properties of the node.
     ///    node_type (str) : The optional string which will be used as a node type
+    ///    secondary_index (int, optional): The optional integer which will be used as a secondary index
     ///
     /// Returns:
     ///   MutableNode
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (timestamp, id, properties = None, node_type = None))]
+    #[pyo3(signature = (timestamp, id, properties = None, node_type = None, secondary_index = None))]
     pub fn create_node(
         &self,
         timestamp: PyTime,
         id: GID,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
+        secondary_index: Option<usize>,
     ) -> Result<NodeView<PersistentGraph>, GraphError> {
-        self.graph
-            .create_node(timestamp, id, properties.unwrap_or_default(), node_type)
+        match secondary_index {
+            None => {
+                self.graph
+                    .create_node(timestamp, id, properties.unwrap_or_default(), node_type)
+            }
+            Some(secondary_index) => self.graph.create_node(
+                (timestamp, secondary_index),
+                id,
+                properties.unwrap_or_default(),
+                node_type,
+            ),
+        }
     }
 
     /// Adds properties to the graph.
@@ -164,18 +187,26 @@ impl PyPersistentGraph {
     /// Arguments:
     ///    timestamp (TimeInput): The timestamp of the temporal property.
     ///    properties (dict): The temporal properties of the graph.
+    ///    secondary_index (int, optional): The optional integer which will be used as a secondary index
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    pub fn add_property(
+    #[pyo3(signature = (timestamp, properties, secondary_index = None))]
+    pub fn add_properties(
         &self,
         timestamp: PyTime,
         properties: HashMap<String, Prop>,
+        secondary_index: Option<usize>,
     ) -> Result<(), GraphError> {
-        self.graph.add_properties(timestamp, properties)
+        match secondary_index {
+            None => self.graph.add_properties(timestamp, properties),
+            Some(secondary_index) => self
+                .graph
+                .add_properties((timestamp, secondary_index), properties),
+        }
     }
 
     /// Adds static properties to the graph.
@@ -220,13 +251,14 @@ impl PyPersistentGraph {
     ///    dst (str | int): The id of the destination node.
     ///    properties (dict): The properties of the edge, as a dict of string and properties
     ///    layer (str): The layer of the edge.
+    ///    secondary_index (int, optional): The optional integer which will be used as a secondary index
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (timestamp, src, dst, properties = None, layer = None))]
+    #[pyo3(signature = (timestamp, src, dst, properties = None, layer = None, secondary_index = None))]
     pub fn add_edge(
         &self,
         timestamp: PyTime,
@@ -234,9 +266,20 @@ impl PyPersistentGraph {
         dst: GID,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
+        secondary_index: Option<usize>,
     ) -> Result<EdgeView<PersistentGraph, PersistentGraph>, GraphError> {
-        self.graph
-            .add_edge(timestamp, src, dst, properties.unwrap_or_default(), layer)
+        match secondary_index {
+            None => self
+                .graph
+                .add_edge(timestamp, src, dst, properties.unwrap_or_default(), layer),
+            Some(secondary_index) => self.graph.add_edge(
+                (timestamp, secondary_index),
+                src,
+                dst,
+                properties.unwrap_or_default(),
+                layer,
+            ),
+        }
     }
 
     /// Deletes an edge given the timestamp, src and dst nodes and layer (optional)
@@ -246,21 +289,29 @@ impl PyPersistentGraph {
     ///   src (str | int): The id of the source node.
     ///   dst (str | int): The id of the destination node.
     ///   layer (str): The layer of the edge. (optional)
+    ///   secondary_index (int, optional): The optional integer which will be used as a secondary index
     ///
     /// Returns:
     ///  The deleted edge
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (timestamp, src, dst, layer=None))]
+    #[pyo3(signature = (timestamp, src, dst, layer=None, secondary_index = None))]
     pub fn delete_edge(
         &self,
         timestamp: PyTime,
         src: GID,
         dst: GID,
         layer: Option<&str>,
+        secondary_index: Option<usize>,
     ) -> Result<EdgeView<PersistentGraph>, GraphError> {
-        self.graph.delete_edge(timestamp, src, dst, layer)
+        match secondary_index {
+            None => self.graph.delete_edge(timestamp, src, dst, layer),
+            Some(secondary_index) => {
+                self.graph
+                    .delete_edge((timestamp, secondary_index), src, dst, layer)
+            }
+        }
     }
 
     //FIXME: This is reimplemented here to get mutable views. If we switch the underlying graph to enum dispatch, this won't be necessary!

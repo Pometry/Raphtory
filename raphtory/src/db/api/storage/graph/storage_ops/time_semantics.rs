@@ -469,7 +469,7 @@ impl TimeSemantics for GraphStorage {
         e: EdgeRef,
         prop_id: usize,
         layer_ids: &LayerIds,
-    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+    ) -> BoxedLIter<'a, (TimeIndexEntry, Prop)> {
         let entry = self.core_edge(e.pid());
         let layer_ids = layer_ids.constrain_from_edge(e);
         match e.time() {

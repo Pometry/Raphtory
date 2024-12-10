@@ -8,7 +8,9 @@ use raphtory::{
         api::{properties::dyn_props::DynProperties, view::*},
         graph::node::NodeView,
     },
+    prelude::NodeStateOps,
 };
+
 #[derive(ResolvedObject)]
 pub(crate) struct Node {
     pub(crate) vv: NodeView<DynamicGraph>,
@@ -172,15 +174,15 @@ impl Node {
 
     async fn in_component(&self) -> Vec<Node> {
         in_component(self.vv.clone())
-            .iter()
-            .map(|n| n.clone().into())
+            .nodes()
+            .map(|n| n.cloned().into())
             .collect()
     }
 
     async fn out_component(&self) -> Vec<Node> {
         out_component(self.vv.clone())
-            .iter()
-            .map(|n| n.clone().into())
+            .nodes()
+            .map(|n| n.cloned().into())
             .collect()
     }
 

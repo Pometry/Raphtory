@@ -1458,7 +1458,7 @@ impl<'graph, G: GraphViewOps<'graph>> Matching<G> {
         self.forward_map.is_empty()
     }
 
-    pub fn edges_iter<'a>(&'a self) -> impl Iterator<Item = EdgeView<&G>>
+    pub fn edges_iter<'a>(&'a self) -> impl Iterator<Item = EdgeView<&'a G>>
     where
         'graph: 'a,
     {
@@ -1500,7 +1500,7 @@ impl<'graph, G: GraphViewOps<'graph>> Matching<G> {
         false
     }
 
-    pub fn src<'a>(&'a self, dst: impl AsNodeRef) -> Option<NodeView<&G>>
+    pub fn src<'a>(&'a self, dst: impl AsNodeRef) -> Option<NodeView<&'a G>>
     where
         'graph: 'a,
     {
@@ -1509,7 +1509,7 @@ impl<'graph, G: GraphViewOps<'graph>> Matching<G> {
         Some(NodeView::new_internal(&self.graph, *src))
     }
 
-    pub fn edge_for_src<'a>(&'a self, src: impl AsNodeRef) -> Option<EdgeView<&G>>
+    pub fn edge_for_src<'a>(&'a self, src: impl AsNodeRef) -> Option<EdgeView<&'a G>>
     where
         'graph: 'a,
     {
@@ -1520,7 +1520,7 @@ impl<'graph, G: GraphViewOps<'graph>> Matching<G> {
             self.graph.core_edge(*eid).out_ref(),
         ))
     }
-    pub fn dst<'a>(&'a self, src: impl AsNodeRef) -> Option<NodeView<&G>>
+    pub fn dst<'a>(&'a self, src: impl AsNodeRef) -> Option<NodeView<&'a G>>
     where
         'graph: 'a,
     {
@@ -1529,7 +1529,7 @@ impl<'graph, G: GraphViewOps<'graph>> Matching<G> {
         Some(NodeView::new_internal(&self.graph, *dst))
     }
 
-    pub fn edge_for_dst<'a>(&'a self, dst: impl AsNodeRef) -> Option<EdgeView<&G>>
+    pub fn edge_for_dst<'a>(&'a self, dst: impl AsNodeRef) -> Option<EdgeView<&'a G>>
     where
         'graph: 'a,
     {

@@ -230,7 +230,7 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
         &'a self,
         ss: usize,
         acc_id: AccId<A, IN, OUT, ACC>,
-    ) -> impl Iterator<Item = (usize, Option<&A>)> + 'a {
+    ) -> impl Iterator<Item = (usize, Option<&'a A>)> + 'a {
         self.parts
             .iter()
             .flat_map(move |part| part.iter(ss, &acc_id))

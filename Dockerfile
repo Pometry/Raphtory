@@ -17,8 +17,7 @@ COPY . .
 RUN cargo build --release -p raphtory-graphql
 
 FROM debian:bookworm-slim
-ENV PORT=1736
 COPY --from=builder /app/target/release/raphtory-graphql /raphtory-graphql
-WORKDIR /graphs
+WORKDIR /app
 
 ENTRYPOINT ["/raphtory-graphql"]

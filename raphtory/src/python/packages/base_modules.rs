@@ -118,6 +118,7 @@ pub fn base_graph_loader_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr
     add_functions!(
         &graph_loader_module,
         lotr_graph,
+        lotr_graph_with_props,
         neo4j_movie_graph,
         stable_coin_graph,
         reddit_hyperlink_graph,

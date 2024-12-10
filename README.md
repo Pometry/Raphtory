@@ -147,7 +147,7 @@ The top node in the graph is Charlie with a score of 0.4744116163405977
 
 As part of the python APIs you can host your data within Raphtory's GraphQL server. This makes it super easy to integrate your graphy analytics with web applications.
 
-Below is a small example creating a graph, running a server hosting this data, and directly querying it with our GraphQL client.
+Below is a small example creating a graph, running a server hosting this data, querying it with our GraphQL client, or visualising your data in the UI.
 
 ```python
 from raphtory import Graph
@@ -206,6 +206,12 @@ Playground: http://localhost:1736
 When you host a Raphtory GraphQL server you get a web playground bundled in, accessible on the same port within your browser (defaulting to 1736). Here you can experiment with queries on your graphs and explore the schema. An example of the playground can be seen below, running the same query as in the python example above.
 
 ![GraphQL Playground](https://i.imgur.com/p0HH6v3.png)
+
+### Graph Visualisation and Explorations
+Once the GraphQL server is running, you can access the UI directly. If the server is hosted on port 1736, the UI will be available at http://localhost:1736. The UI allows you to search for data in Raphtory, explore connections, and visualise the graph effortlessly.
+
+![Graph User Interface](https://github.com/user-attachments/assets/65aec644-edf8-4db6-a932-5b63228e9e0d)
+
 
 ## Getting started
 To get you up and running with Raphtory we provide a full set of tutorials on the [Raphtory website](https://raphtory.com):

@@ -255,6 +255,12 @@ macro_rules! impl_lazy_node_state {
             inner: LazyNodeState<'static, $op, DynamicGraph, DynamicGraph>,
         }
 
+        impl $name {
+            pub fn inner(&self) -> &LazyNodeState<'static, $op, DynamicGraph, DynamicGraph> {
+                &self.inner
+            }
+        }
+
         #[pymethods]
         impl $name {
             /// Compute all values and return the result as a node view
@@ -304,6 +310,12 @@ macro_rules! impl_node_state {
         #[pyclass(module = "raphtory.node_state", frozen)]
         pub struct $name {
             inner: Arc<NodeState<'static, $value, DynamicGraph, DynamicGraph>>,
+        }
+
+        impl $name {
+            pub fn inner(&self) -> &NodeState<'static, $value, DynamicGraph, DynamicGraph> {
+                self.inner.as_ref()
+            }
         }
 
         impl_node_state_ops!(

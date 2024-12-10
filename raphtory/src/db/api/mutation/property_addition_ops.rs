@@ -1,5 +1,5 @@
 use crate::{
-    core::utils::{errors::GraphError, time::TryIntoTime},
+    core::utils::errors::GraphError,
     db::api::mutation::{
         internal::{InternalAdditionOps, InternalPropertyAdditionOps},
         TryIntoInputTime,
@@ -9,7 +9,7 @@ use crate::{
 use super::{time_from_input, CollectProperties};
 
 pub trait PropertyAdditionOps {
-    fn add_properties<T: TryIntoTime, PI: CollectProperties>(
+    fn add_properties<T: TryIntoInputTime, PI: CollectProperties>(
         &self,
         t: T,
         props: PI,

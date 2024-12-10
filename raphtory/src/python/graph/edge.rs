@@ -385,18 +385,33 @@ impl PyMutableEdge {
     /// This function allows for the addition of property updates to an edge within the graph. The updates are time-stamped, meaning they are applied at the specified time.
     ///
     /// Parameters:
-    ///     t (TimeInput): The timestamp at which the updates should be applied.
-    ///     properties (PropInput, optional): A dictionary of properties to update.
-    ///     layer (str, optional): The layer you want these properties to be added on to.
-    #[pyo3(signature = (t, properties=None, layer=None))]
+    ///    t (TimeInput): The timestamp at which the updates should be applied.
+    ///    properties (PropInput, optional): A dictionary of properties to update.
+    ///    layer (str, optional): The layer you want these properties to be added on to.
+    ///    secondary_index (int, optional): The optional integer which will be used as a secondary index
+    ///
+    /// Returns:
+    ///     None: This function does not return a value, if the operation is successful.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
+    #[pyo3(signature = (t, properties=None, layer=None, secondary_index=None))]
     fn add_updates(
         &self,
         t: PyTime,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
+        secondary_index: Option<usize>,
     ) -> Result<(), GraphError> {
-        self.edge
-            .add_updates(t, properties.unwrap_or_default(), layer)
+        match secondary_index {
+            None => self
+                .edge
+                .add_updates(t, properties.unwrap_or_default(), layer),
+            Some(secondary_index) => {
+                self.edge
+                    .add_updates((t, secondary_index), properties.unwrap_or_default(), layer)
+            }
+        }
     }
 
     /// Mark the edge as deleted at the specified time.

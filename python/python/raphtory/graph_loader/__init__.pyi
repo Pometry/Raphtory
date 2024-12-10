@@ -64,6 +64,9 @@ def lotr_graph():
       A Graph containing the LOTR dataset
     """
 
+def lotr_graph_with_props():
+    """Same as `lotr_graph()` but with additional properties race and gender for some of the nodes"""
+
 def neo4j_movie_graph(uri, username, password, database=...): ...
 def reddit_hyperlink_graph(timeout_seconds: Any = 600):
     """

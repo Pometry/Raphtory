@@ -150,6 +150,7 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn has_layer(self, layer_ids: &LayerIds) -> bool;
     fn src(self) -> VID;
     fn dst(self) -> VID;
+    fn eid(self) -> EID;
 
     fn layer_ids_iter(self, layer_ids: &LayerIds) -> impl Iterator<Item = usize> + 'a;
 
@@ -323,6 +324,10 @@ impl<'a> EdgeStorageOps<'a> for MemEdge<'a> {
 
     fn dst(self) -> VID {
         self.edge_store().dst
+    }
+
+    fn eid(self) -> EID {
+        self.eid()
     }
 
     fn out_ref(self) -> EdgeRef {

@@ -67,6 +67,12 @@ use rand::{prelude::StdRng, SeedableRng};
 use raphtory_api::core::{entities::GID, Direction};
 use std::collections::{HashMap, HashSet};
 
+#[cfg(feature = "storage")]
+use crate::python::graph::disk_graph::PyDiskGraph;
+use crate::{algorithms::bipartite::max_weight_matching::Matching, db::api::state::NodeState};
+#[cfg(feature = "storage")]
+use pometry_storage::algorithms::connected_components::connected_components as connected_components_rs;
+
 /// Implementations of various graph algorithms that can be run on a graph.
 ///
 /// To run an algorithm simply import the module and call the function with the graph as the argument
@@ -155,7 +161,7 @@ pub fn in_components(g: &PyGraphView) -> AlgorithmResult<DynamicGraph, Vec<GID>,
 ///    An array containing the Nodes within the given nodes in-component
 #[pyfunction]
 #[pyo3(signature = (node))]
-pub fn in_component(node: &PyNode) -> Vec<NodeView<DynamicGraph>> {
+pub fn in_component(node: &PyNode) -> NodeState<'static, usize, DynamicGraph> {
     components::in_component(node.node.clone())
 }
 
@@ -178,10 +184,10 @@ pub fn out_components(g: &PyGraphView) -> AlgorithmResult<DynamicGraph, Vec<GID>
 ///     node (Node) : The node whose out-component we wish to calculate
 ///
 /// Returns:
-///    An array containing the Nodes within the given nodes out-component
+///    NodeStateUsize: A NodeState mapping the nodes in the out-component to their distance from the starting node.
 #[pyfunction]
 #[pyo3(signature = (node))]
-pub fn out_component(node: &PyNode) -> Vec<NodeView<DynamicGraph>> {
+pub fn out_component(node: &PyNode) -> NodeState<'static, usize, DynamicGraph> {
     components::out_component(node.node.clone())
 }
 
