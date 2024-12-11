@@ -997,7 +997,7 @@ mod search_tests {
         );
 
         let mut results = ig
-            .search_nodes("temporal_properties.balance:0.0", 5, 0)
+            .search_nodes("balance:0.0", 5, 0)
             .expect("failed to search for node")
             .into_iter()
             .map(|v| v.name())
@@ -1013,7 +1013,7 @@ mod search_tests {
 
         let mut results = ig
             .search_nodes(
-                "temporal_properties.cluster_id:0x941900204497226bede1324742eb83af6b0b5eec",
+                "cluster_id:0x941900204497226bede1324742eb83af6b0b5eec",
                 5,
                 0,
             )
@@ -1035,7 +1035,7 @@ mod search_tests {
 
         let results = ig
             .search_nodes(
-                "node_type:collapsed AND temporal_properties.cluster_id:0x941900204497226bede1324742eb83af6b0b5eec",
+                "node_type:collapsed AND cluster_id:0x941900204497226bede1324742eb83af6b0b5eec",
                 5,
                 0,
             )
@@ -1047,7 +1047,7 @@ mod search_tests {
 
         let mut results = ig
             .search_nodes(
-                "node_type:collapsed OR temporal_properties.cluster_id:0x941900204497226bede1324742eb83af6b0b5eec",
+                "node_type:collapsed OR cluster_id:0x941900204497226bede1324742eb83af6b0b5eec",
                 5,
                 0,
             )
@@ -1080,7 +1080,7 @@ mod search_tests {
         let ig: IndexedGraph<Graph> = graph.into();
 
         let results = ig
-            .search_nodes("temporal_properties.age:42", 5, 0)
+            .search_nodes("age:42", 5, 0)
             .expect("failed to search for node")
             .into_iter()
             .map(|v| v.name())
@@ -1154,7 +1154,7 @@ mod search_tests {
         indexed_graph.reload().expect("failed to reload index");
 
         let results = indexed_graph
-            .search_nodes("temporal_properties.kind:Hobbit", 10, 0)
+            .search_nodes("kind:Hobbit", 10, 0)
             .expect("search failed");
         let mut actual = results.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let mut expected = vec!["Frodo", "Merry"];
@@ -1164,14 +1164,14 @@ mod search_tests {
         assert_eq!(actual, expected);
 
         let results = indexed_graph
-            .search_nodes("temporal_properties.kind:Wizard", 10, 0)
+            .search_nodes("kind:Wizard", 10, 0)
             .expect("search failed");
         let actual = results.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Gandalf"];
         assert_eq!(actual, expected);
 
         let results = indexed_graph
-            .search_nodes("temporal_properties.kind:Creature", 10, 0)
+            .search_nodes("kind:Creature", 10, 0)
             .expect("search failed");
         let actual = results.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Gollum"];
@@ -1219,7 +1219,7 @@ mod search_tests {
 
         // Find the Wizard
         let nodes = graph
-            .search_nodes(r#"temporal_properties.description:"A wizard""#, 10, 0)
+            .search_nodes(r#"description:"A wizard""#, 10, 0)
             .expect("search failed");
         let actual = nodes.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Gandalf"];
@@ -1227,7 +1227,7 @@ mod search_tests {
 
         // Find the Hobbit
         let nodes = graph
-            .search_nodes(r#"temporal_properties.description:'hobbit'"#, 10, 0)
+            .search_nodes(r#"description:'hobbit'"#, 10, 0)
             .expect("search failed");
         let actual = nodes.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Bilbo"];
@@ -1297,11 +1297,7 @@ mod search_tests {
 
         // Find Saruman
         let nodes = graph
-            .search_nodes(
-                r#"temporal_properties.description:wizard AND time:[2 TO 5]"#,
-                10,
-                0,
-            )
+            .search_nodes(r#"description:wizard AND time:[2 TO 5]"#, 10, 0)
             .expect("search failed");
         let actual = nodes.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Saruman"];
@@ -1309,11 +1305,7 @@ mod search_tests {
 
         // Find Gandalf
         let nodes = graph
-            .search_nodes(
-                r#"temporal_properties.description:'wizard' AND time:[1 TO 2}"#,
-                10,
-                0,
-            )
+            .search_nodes(r#"description:'wizard' AND time:[1 TO 2}"#, 10, 0)
             .expect("search failed");
         let actual = nodes.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Gandalf"];
@@ -1321,11 +1313,7 @@ mod search_tests {
 
         // Find both wizards
         let nodes = graph
-            .search_nodes(
-                r#"temporal_properties.description:'wizard' AND time:[1 TO 100]"#,
-                10,
-                0,
-            )
+            .search_nodes(r#"description:'wizard' AND time:[1 TO 100]"#, 10, 0)
             .expect("search failed");
         let mut actual = nodes.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let mut expected = vec!["Gandalf", "Saruman"];
@@ -1360,7 +1348,7 @@ mod search_tests {
             .collect::<Vec<_>>();
 
         let results = g
-            .search_edges(r#"temporal_properties.type:'friends'"#, 10, 0)
+            .search_edges(r#"type:'friends'"#, 10, 0)
             .expect("search failed");
         let actual = results
             .into_iter()
@@ -1371,7 +1359,7 @@ mod search_tests {
         assert_eq!(actual, expected);
 
         let results = g
-            .search_edges(r#"temporal_properties.type:'enemies'"#, 10, 0)
+            .search_edges(r#"type:'enemies'"#, 10, 0)
             .expect("search failed");
         let actual = results
             .into_iter()
@@ -1405,7 +1393,7 @@ mod search_tests {
             .collect::<Vec<_>>();
 
         let results = g
-            .search_edges(r#"temporal_properties.type:'friends'"#, 10, 0)
+            .search_edges(r#"type:'friends'"#, 10, 0)
             .expect("search failed");
         let actual = results
             .into_iter()
@@ -1416,7 +1404,7 @@ mod search_tests {
         assert_eq!(actual, expected);
 
         let results = g
-            .search_edges(r#"temporal_properties.type:'enemies'"#, 10, 0)
+            .search_edges(r#"type:'enemies'"#, 10, 0)
             .expect("search failed");
         let actual = results
             .into_iter()
