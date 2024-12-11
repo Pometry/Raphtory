@@ -76,7 +76,7 @@ mod graphql_test {
         let query = r#"
         {
           graph(path: "lotr") {
-            searchNodes(query: "temporal_properties.kind:wizard", limit: 10, offset: 0) {
+            searchNodes(query: "kind:wizard", limit: 10, offset: 0) {
               name
             }
           }
