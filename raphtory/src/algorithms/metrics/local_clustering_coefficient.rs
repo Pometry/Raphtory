@@ -53,7 +53,16 @@ use crate::{
     core::entities::nodes::node_ref::AsNodeRef, db::api::view::*,
 };
 
-/// measures the degree to which nodes in a graph tend to cluster together
+/// Local clustering coefficient - measures the degree to which nodes in a graph tend to cluster together.
+///
+/// The proportion of pairs of neighbours of a node who are themselves connected.
+///
+/// # Arguments
+/// - `g`: Raphtory graph, can be directed or undirected but will be treated as undirected.
+/// - `v`: node id or name
+///
+/// # Returns
+/// the local clustering coefficient of node v in g.
 pub fn local_clustering_coefficient<G: StaticGraphViewOps, V: AsNodeRef>(
     graph: &G,
     v: V,

@@ -16,6 +16,16 @@ struct Visitor {
     time: i64,
 }
 
+/// Projects a temporal bipartite graph into an undirected temporal graph over the pivot node type. Let G be a bipartite graph with node types A and B. Given delta > 0, the projection graph G' pivoting over type B nodes,
+/// will make a connection between nodes n1 and n2 (of type A) at time (t1 + t2)/2 if they respectively have an edge at time t1, t2 with the same node of type B in G, and |t2-t1| < delta.
+///
+/// # Arguments
+/// - `g`: A directed raphtory graph
+/// - `delta`: Time period
+/// - `pivot_type`: node type to pivot over. If a bipartite graph has types A and B, and B is the pivot type, the new graph will consist of type A nodes.
+///
+/// # Returns
+/// Projected (unipartite) temporal graph.
 pub fn temporal_bipartite_projection<G: StaticGraphViewOps>(
     graph: &G,
     delta: i64,

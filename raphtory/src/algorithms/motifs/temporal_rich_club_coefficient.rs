@@ -36,8 +36,28 @@ where
     }
 }
 
+/// Temporal rich club coefficient
+///
+/// The traditional rich-club coefficient in a static undirected graph measures the density of connections between the highest
+/// degree nodes. It takes a single parameter k, creates a subgraph of the nodes of degree greater than or equal to k, and
+/// returns the density of this subgraph.
+///
+/// In a temporal graph taking the form of a sequence of static snapshots, the temporal rich club coefficient takes a parameter k
+/// and a window size delta (both positive integers). It measures the maximal density of the highest connected nodes (of degree
+/// greater than or equal to k in the aggregate graph) that persists at least a delta number of consecutive snapshots. For an in-depth
+/// definition and usage example, please read to the following paper: Pedreschi, N., Battaglia, D., & Barrat, A. (2022). The temporal
+/// rich club phenomenon. Nature Physics, 18(8), 931-938.
+///
+/// # Arguments
+/// - `graph`: the aggregate graph
+/// - `views`: sequence of graphs (can be obtained by calling g.rolling(..) on an aggregate graph g)
+/// - `k`: min degree of nodes to include in rich-club
+/// - `delta`: the number of consecutive snapshots over which the edges should persist
+///
+/// # Returns
+/// the rich-club coefficient as a float.
 pub fn temporal_rich_club_coefficient<'a, I, G1, G2>(
-    agg_graph: G2,
+    agg_graph: &G2,
     views: I,
     k: usize,
     window_size: usize,
@@ -170,9 +190,9 @@ mod rich_club_test {
         let g = load_sample_graph();
         let g_rolling = g.rolling(1, Some(1)).unwrap();
 
-        let rc_coef_1 = temporal_rich_club_coefficient(g.clone(), g_rolling.clone(), 3, 1);
-        let rc_coef_3 = temporal_rich_club_coefficient(g.clone(), g_rolling.clone(), 3, 3);
-        let rc_coef_5 = temporal_rich_club_coefficient(g.clone(), g_rolling.clone(), 3, 5);
+        let rc_coef_1 = temporal_rich_club_coefficient(&g, g_rolling.clone(), 3, 1);
+        let rc_coef_3 = temporal_rich_club_coefficient(&g, g_rolling.clone(), 3, 3);
+        let rc_coef_5 = temporal_rich_club_coefficient(&g, g_rolling.clone(), 3, 5);
         assert_eq_f64(Some(rc_coef_1), Some(1.0), 3);
         assert_eq_f64(Some(rc_coef_3), Some(0.66666), 3);
         assert_eq_f64(Some(rc_coef_5), Some(0.5), 3);

@@ -90,7 +90,16 @@ fn get_reciprocal_edge_count<
     (out_neighbours.len(), in_neighbours.len(), out_inter_in)
 }
 
-/// returns the global reciprocity of the entire graph
+/// Reciprocity - measure of the symmetry of relationships in a graph, the global reciprocity of
+/// the entire graph.
+/// This calculates the number of reciprocal connections (edges that go in both directions) in a
+/// graph and normalizes it by the total number of directed edges.
+///
+/// # Arguments
+/// - `g`: a directed Raphtory graph
+///
+/// # Returns
+/// reciprocity of the graph between 0 and 1.
 pub fn global_reciprocity<G: StaticGraphViewOps>(g: &G, threads: Option<usize>) -> f64 {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
@@ -123,8 +132,16 @@ pub fn global_reciprocity<G: StaticGraphViewOps>(g: &G, threads: Option<usize>) 
     )
 }
 
-/// returns the reciprocity of every node in the graph as a tuple of
-/// vector id and the reciprocity
+/// Local reciprocity - measure of the symmetry of relationships associated with a node
+///
+/// This measures the proportion of a node's outgoing edges which are reciprocated with an incoming edge.
+///
+/// # Arguments
+/// - `g` : a directed Raphtory graph
+///
+/// # Returns
+/// [AlgorithmResult] with string keys and float values mapping each node name to its reciprocity value.
+///
 pub fn all_local_reciprocity<G: StaticGraphViewOps>(
     g: &G,
     threads: Option<usize>,

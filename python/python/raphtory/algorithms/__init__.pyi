@@ -24,7 +24,7 @@ class Matching(object):
         """True if self else False"""
 
     def __contains__(self, key):
-        """Return key in self."""
+        """Return bool(key in self)."""
 
     def __iter__(self):
         """Implement iter(self)."""
@@ -159,9 +159,26 @@ def betweenness_centrality(
     """
 
 def cohesive_fruchterman_reingold(
-    graph, iterations=100, scale=1.0, node_start_size=1.0, cooloff_factor=0.95, dt=0.1
+    g: GraphView,
+    iter_count: int = 100,
+    scale: float = 1.0,
+    node_start_size: float = 1.0,
+    cooloff_factor: float = 0.95,
+    dt: float = 0.1,
 ):
-    """Cohesive version of `fruchterman_reingold` that adds virtual edges between isolated nodes"""
+    """
+    Arguments:
+        g (GraphView): A reference to the graph
+        iter_count (int): The number of iterations to run
+        scale (float): Global scaling factor to control the overall spread of the graph
+        node_start_size (float): Initial size or movement range for nodes
+        cooloff_factor (float): Factor to reduce node movement in later iterations, helping stabilize the layout
+        dt (float): Time step or movement factor in each iteration
+
+    Returns:
+        An [AlgorithmResult] containing a mapping between vertices and a pair of coordinates.
+
+    """
 
 def connected_components(g): ...
 def degree_centrality(g: GraphView, threads: Optional[int] = None) -> AlgorithmResult:
@@ -291,7 +308,7 @@ def global_reciprocity(g: GraphView):
         float : reciprocity of the graph between 0 and 1.
     """
 
-def global_temporal_three_node_motif(g: GraphView, delta: int):
+def global_temporal_three_node_motif(g: GraphView, delta: int, threads=None):
     """
     Computes the number of three edge, up-to-three node delta-temporal motifs in the graph, using the algorithm of Paranjape et al, Motifs in Temporal Networks (2017).
     We point the reader to this reference for more information on the algorithm and background, but provide a short summary below.
@@ -339,7 +356,9 @@ def global_temporal_three_node_motif(g: GraphView, delta: int):
 
     """
 
-def global_temporal_three_node_motif_multi(g: GraphView, deltas: list[int]):
+def global_temporal_three_node_motif_multi(
+    g: GraphView, deltas: list[int], threads=None
+):
     """
     Computes the global counts of three-edge up-to-three node temporal motifs for a range of timescales. See `global_temporal_three_node_motif` for an interpretation of each row returned.
 
@@ -418,7 +437,7 @@ def local_clustering_coefficient(g: GraphView, v: InputNode):
         float : the local clustering coefficient of node v in g.
     """
 
-def local_temporal_three_node_motifs(g: GraphView, delta: int):
+def local_temporal_three_node_motifs(g: GraphView, delta: int, threads=None):
     """
     Computes the number of each type of motif that each node participates in. See global_temporal_three_node_motifs for a summary of the motifs involved.
 
@@ -454,17 +473,14 @@ def local_triangle_count(g: GraphView, v: InputNode):
     """
 
 def louvain(
-    graph: GraphView,
-    resolution: float = 1.0,
-    weight_prop: str | None = None,
-    tol: None | float = None,
+    g, resolution: float = 1.0, weight_prop: str | None = None, tol: None | float = None
 ):
     """
     Louvain algorithm for community detection
 
     Arguments:
         graph (GraphView): the graph view
-        resolution (float): the resolution paramter for modularity
+        resolution (float): the resolution parameter for modularity
         weight_prop (str | None): the edge property to use for weights (has to be float)
         tol (None | float): the floating point tolerance for deciding if improvements are significant (default: 1e-8)
     """
@@ -503,7 +519,7 @@ def max_out_degree(g: GraphView):
     """
 
 def max_weight_matching(
-    graph: GraphView,
+    g,
     weight_prop: Optional[str] = None,
     max_cardinality: bool = True,
     verify_optimum_flag: bool = False,
@@ -652,7 +668,7 @@ def strongly_connected_components(g: GraphView):
     """
 
 def temporal_SEIR(
-    graph: GraphView,
+    g,
     seeds: int | float | list[InputNode],
     infection_prob: float,
     initial_infection: int | str | datetime,
@@ -693,7 +709,7 @@ def temporal_SEIR(
     """
 
 def temporal_bipartite_graph_projection(
-    g: GraphView, delta: int, pivot_type
+    g: GraphView, delta: int, pivot_type: str
 ) -> GraphView:
     """
     Projects a temporal bipartite graph into an undirected temporal graph over the pivot node type. Let G be a bipartite graph with node types A and B. Given delta > 0, the projection graph G' pivoting over type B nodes,
@@ -702,7 +718,7 @@ def temporal_bipartite_graph_projection(
     Arguments:
         g (GraphView) : A directed raphtory graph
         delta (int): Time period
-        pivot (str) : node type to pivot over. If a bipartite graph has types A and B, and B is the pivot type, the new graph will consist of type A nodes.
+        pivot_type (str) : node type to pivot over. If a bipartite graph has types A and B, and B is the pivot type, the new graph will consist of type A nodes.
 
     Returns:
         GraphView: Projected (unipartite) temporal graph.

@@ -9,7 +9,7 @@ use std::collections::{HashMap, VecDeque};
 
 /// Computes the betweenness centrality for nodes in a given graph.
 ///
-/// # Parameters
+/// # Arguments
 ///
 /// - `g`: A reference to the graph.
 /// - `k`: An `Option<usize>` specifying the number of nodes to consider for the centrality computation. Defaults to all nodes if `None`.
@@ -17,7 +17,7 @@ use std::collections::{HashMap, VecDeque};
 ///
 /// # Returns
 ///
-/// Returns an `AlgorithmResult` containing the betweenness centrality of each node.
+/// An [AlgorithmResult] containing the betweenness centrality of each node.
 pub fn betweenness_centrality<'graph, G: GraphViewOps<'graph>>(
     g: &'graph G,
     k: Option<usize>,
