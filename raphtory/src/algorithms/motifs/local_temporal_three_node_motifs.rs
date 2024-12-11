@@ -519,7 +519,8 @@ mod motifs_test {
         let graph = load_sample_graph();
 
         test_storage!(&graph, |graph| {
-            let actual = temporal_three_node_motif(graph, Vec::from([10]), None).get_all_with_names();
+            let actual =
+                temporal_three_node_motif(graph, Vec::from([10]), None).get_all_with_names();
 
             let expected: HashMap<String, Vec<usize>> = HashMap::from([
                 (
@@ -617,7 +618,8 @@ mod motifs_test {
         let g_windowed = g.before(11).after(0);
         info! {"windowed graph has {:?} vertices",g_windowed.count_nodes()}
 
-        let actual = temporal_three_node_motif(&g_windowed, Vec::from([10]), None).get_all_with_names();
+        let actual =
+            temporal_three_node_motif(&g_windowed, Vec::from([10]), None).get_all_with_names();
 
         let expected: HashMap<String, Vec<usize>> = HashMap::from([
             (
