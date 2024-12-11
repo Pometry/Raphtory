@@ -136,7 +136,7 @@ class ConstProperties(object):
     """A view of constant properties of an entity"""
 
     def __contains__(self, key):
-        """Return key in self."""
+        """Return bool(key in self)."""
 
     def __eq__(self, value):
         """Return self==value."""
@@ -220,11 +220,12 @@ class DiskGraphStorage(object):
     def load_from_parquets(
         graph_dir,
         layer_parquet_cols,
-        node_properties,
-        chunk_size,
-        t_props_chunk_size,
-        num_threads,
-        node_type_col,
+        node_properties=None,
+        chunk_size=10000000,
+        t_props_chunk_size=10000000,
+        num_threads=4,
+        node_type_col=None,
+        node_id_col=None,
     ): ...
     def load_node_const_properties(self, location, col_names=None, chunk_size=None): ...
     def merge_by_sorted_gids(self, other, graph_dir):
@@ -4498,7 +4499,7 @@ class Properties(object):
     """A view of the properties of an entity"""
 
     def __contains__(self, key):
-        """Return key in self."""
+        """Return bool(key in self)."""
 
     def __eq__(self, value):
         """Return self==value."""
@@ -4685,7 +4686,7 @@ class TemporalProperties(object):
     """A view of the temporal properties of an entity"""
 
     def __contains__(self, key):
-        """Return key in self."""
+        """Return bool(key in self)."""
 
     def __eq__(self, value):
         """Return self==value."""
